@@ -1,0 +1,9 @@
+version: 0.1.0
+description: This package offers a phone app template with simple configuration.
+dependencies:
+  lvgl/lvgl:
+    version: ">=8.3,<9"
+    public: true
+  esp-ui:
+    version: "0.1.*"
+    public: true

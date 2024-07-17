@@ -1,0 +1,98 @@
+############
+# Patterns #
+############
+
+# build system, if changed, build all apps
+.patterns-build_system: &patterns-build_system
+  # For test
+  # - ".gitlab/tools/build_apps.py"
+  - "conftest.py"
+  - "pytest.ini"
+
+# component folder
+.patterns-component: &patterns-component
+  - "**/*"
+
+# docs folder
+.patterns-docs_md: &patterns-docs_md
+  - "**/*.md"
+
+# examples folder
+.patterns-example_esp_ui_phone_p4_function_ev_board: &patterns-example_esp_ui_phone_p4_function_ev_board
+  - "examples/esp_idf/esp_ui_phone_p4_function_ev_board/**/*"
+
+.patterns-example_esp_ui_phone_s3_lcd_ev_board: &patterns-example_esp_ui_phone_s3_lcd_ev_board
+  - "examples/esp_idf/esp_ui_phone_s3_lcd_ev_board/**/*"
+
+##############
+# if anchors #
+##############
+.if-protected: &if-protected
+  if: '($CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_BRANCH =~ /^release\/v/ || $CI_COMMIT_TAG =~ /^v\d+\.\d+(\.\d+)?($|-)/)'
+
+.if-dev-push: &if-dev-push
+  if: '$CI_COMMIT_REF_NAME != "master" && $CI_COMMIT_BRANCH !~ /^release\/v/ && $CI_COMMIT_TAG !~ /^v\d+\.\d+(\.\d+)?($|-)/ && ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event")'
+
+##################
+# Auto Generated #
+##################
+.if-trigger-job: &if-trigger-job
+  if: '$BOT_DYNAMIC_TEST_JOBS && $BOT_DYNAMIC_TEST_JOBS =~ $CI_JOB_NAME'
+
+.if-label-build: &if-label-build
+  if: '$BOT_LABEL_BUILD || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*build(?:,[^,\n\r]+)*$/i'
+
+.if-label-target_test: &if-label-target_test
+  if: '$BOT_LABEL_TARGET_TEST || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*target_test(?:,[^,\n\r]+)*$/i'
+
+.if-label-pre_check: &if-label-pre_check
+  if: '$BOT_LABEL_PRE_CHECK || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*pre_check(?:,[^,\n\r]+)*$/i'
+
+.if_label-deploy: &if-label-deploy
+  if: '$BOT_LABEL_DEPLOY || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*deploy(?:,[^,\n\r]+)*$/i'
+
+# rules for component test_apps
+.rules:build:component_test_apps:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-component
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+
+# rules for examples
+.rules:build:example_esp_ui_phone_p4_function_ev_board:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-example_esp_ui_phone_p4_function_ev_board
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+
+.rules:build:example_esp_ui_phone_s3_lcd_ev_board:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-example_esp_ui_phone_s3_lcd_ev_board
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+
+# rules for readme
+.rules:pre_check:readme:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-pre_check
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-docs_md
+    - <<: *if-dev-push
+      changes: *patterns-build_system

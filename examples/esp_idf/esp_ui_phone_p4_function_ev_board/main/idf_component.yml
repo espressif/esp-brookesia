@@ -1,0 +1,10 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  idf: ">=5.3"
+  esp32_p4_function_ev_board: "^3"
+  esp-ui:
+    version: "*"
+    override_path: "../../../../../esp-ui"
+  esp-ui-phone_1024_600_stylesheet:
+    git: https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet.git

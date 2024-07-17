@@ -1,0 +1,11 @@
+menu "Test Configuration"
+    config TEST_LVGL_RESOLUTION_WIDTH
+        int "Width"
+        default 1024
+        range 240 1920
+
+    config TEST_LVGL_RESOLUTION_HEIGHT
+        int "Height"
+        default 600
+        range 240 1920
+endmenu
