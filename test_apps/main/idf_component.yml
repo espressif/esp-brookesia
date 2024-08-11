@@ -1,0 +1,11 @@
+## IDF Component Manager Manifest File
+dependencies:
+  esp-ui:
+    version: "*"
+    override_path: "../../../esp-ui"
+  esp-ui-phone_480_480_stylesheet:
+    git: https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet.git
+  esp-ui-phone_800_480_stylesheet:
+    git: https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet.git
+  esp-ui-phone_1024_600_stylesheet:
+    git: https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet.git

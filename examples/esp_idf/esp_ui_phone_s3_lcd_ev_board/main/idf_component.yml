@@ -1,0 +1,12 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  idf: ">=5.1.0"
+  espressif/esp32_s3_lcd_ev_board: "2.1.*"
+  esp-ui:
+    version: "*"
+    override_path: "../../../../../esp-ui"
+  esp-ui-phone_800_480_data:
+    git: https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet.git
+  esp-ui-phone_480_480_data:
+    git: https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet.git

@@ -1,0 +1,185 @@
+menu "ESP UI Configuration"
+    config ESP_UI_CONF_SKIP
+        bool "Uncheck this to use custom `esp_ui_conf.h`"
+        default y
+
+    config ESP_UI_CHECK_RESULT_ASSERT
+        bool "Assert when check result failed, otherwise just print error message"
+        default n
+
+    menu "Log output"
+        choice
+            bool "Select the style of log output"
+            default ESP_UI_LOG_STYLE_ESP
+
+            config ESP_UI_LOG_STYLE_ESP
+                bool "ESP"
+            config ESP_UI_LOG_STYLE_STD
+                bool "Standard"
+            config ESP_UI_LOG_STYLE_LVGL
+                bool "LVGL"
+        endchoice
+
+        config ESP_UI_LOG_STYLE
+            int
+            default 0 if ESP_UI_LOG_STYLE_STD
+            default 1 if ESP_UI_LOG_STYLE_ESP
+            default 2 if ESP_UI_LOG_STYLE_LVGL
+
+        choice
+            bool "Select the verbosity level of log output"
+            default ESP_UI_LOG_LEVEL_INFO
+
+            config ESP_UI_LOG_LEVEL_DEBUG
+                bool "Debug"
+            config ESP_UI_LOG_LEVEL_INFO
+                bool "Info"
+            config ESP_UI_LOG_LEVEL_WARN
+                bool "Warning"
+            config ESP_UI_LOG_LEVEL_ERROR
+                bool "Error"
+            config ESP_UI_LOG_LEVEL_NONE
+                bool "None"
+        endchoice
+
+        config ESP_UI_LOG_LEVEL
+            int
+            default 0 if ESP_UI_LOG_LEVEL_DEBUG
+            default 1 if ESP_UI_LOG_LEVEL_INFO
+            default 2 if ESP_UI_LOG_LEVEL_WARN
+            default 3 if ESP_UI_LOG_LEVEL_ERROR
+            default 4 if ESP_UI_LOG_LEVEL_NONE
+
+        menu "Core"
+            depends on ESP_UI_LOG_LEVEL_DEBUG
+
+            config ESP_UI_LOG_ENABLE_DEBUG_CORE
+                bool "Enable/Disable debug core module"
+                default y
+
+            config ESP_UI_LOG_ENABLE_DEBUG_CORE_APP
+                bool "Enable/Disable debug app"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_CORE
+
+            config ESP_UI_LOG_ENABLE_DEBUG_CORE_HOME
+                bool "Enable/Disable debug home"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_CORE
+
+            config ESP_UI_LOG_ENABLE_DEBUG_CORE_MANAGER
+                bool "Enable/Disable debug manager"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_CORE
+
+            config ESP_UI_LOG_ENABLE_DEBUG_CORE_CORE
+                bool "Enable/Disable debug core"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_CORE
+        endmenu
+
+        menu "Widgets"
+            depends on ESP_UI_LOG_LEVEL_DEBUG
+
+            config ESP_UI_LOG_ENABLE_DEBUG_WIDGETS
+                bool "Enable/Disable debug widgets module"
+                default y
+
+            config ESP_UI_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER
+                bool "Enable/Disable debug app launcher"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_WIDGETS
+
+            config ESP_UI_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN
+                bool "Enable/Disable debug recents_screen"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_WIDGETS
+
+            config ESP_UI_LOG_ENABLE_DEBUG_WIDGETS_GESTURE
+                bool "Enable/Disable debug gesture"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_WIDGETS
+
+            config ESP_UI_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION
+                bool "Enable/Disable debug navigation bar"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_WIDGETS
+
+            config ESP_UI_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR
+                bool "Enable/Disable debug status bar"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_WIDGETS
+        endmenu
+
+        menu "Phone"
+            depends on ESP_UI_LOG_LEVEL_DEBUG
+
+            config ESP_UI_LOG_ENABLE_DEBUG_PHONE
+                bool "Enable/Disable debug phone module"
+                default y
+
+            config ESP_UI_LOG_ENABLE_DEBUG_PHONE_APP
+                bool "Enable/Disable debug app"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_PHONE
+
+            config ESP_UI_LOG_ENABLE_DEBUG_PHONE_HOME
+                bool "Enable/Disable debug home"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_PHONE
+
+            config ESP_UI_LOG_ENABLE_DEBUG_PHONE_MANAGER
+                bool "Enable/Disable debug manager"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_PHONE
+
+            config ESP_UI_LOG_ENABLE_DEBUG_PHONE_PHONE
+                bool "Enable/Disable debug phone"
+                default y
+                depends on ESP_UI_LOG_ENABLE_DEBUG_PHONE
+        endmenu
+    endmenu
+
+    menu "Memory"
+        config ESP_UI_MEMORY_USE_CUSTOM
+            bool "If true use custom malloc/free, otherwise use the custom APIs"
+            default n
+
+        config ESP_UI_MEMORY_INCLUDE
+            string "Header to include for the custom memory function"
+            default "esp_heap_caps.h"
+            depends on ESP_UI_MEMORY_USE_CUSTOM
+    endmenu
+
+    menu "Squareline"
+        config ESP_UI_SQUARELINE_USE_INTERNAL_UI_HELPERS
+            bool "Use UI helpers from inside"
+            default y
+
+        choice
+            bool "The combinations of Squareline Studio and LVGL versions"
+            depends on ESP_UI_SQUARELINE_USE_INTERNAL_UI_HELPERS
+            default ESP_UI_SQ1_4_1_LV8_3_11
+            config ESP_UI_SQ1_3_4_LV8_3_3
+                bool "Squareline 1.3.4 + LVGL 8.3.3"
+
+            config ESP_UI_SQ1_3_4_LV8_3_4
+                bool "Squareline 1.3.4 + LVGL 8.3.4"
+
+            config ESP_UI_SQ1_3_4_LV8_3_6
+                bool "Squareline 1.3.4 + LVGL 8.3.6"
+
+            config ESP_UI_SQ1_4_0_LV8_3_6
+                bool "Squareline 1.4.0 + LVGL 8.3.6"
+
+            config ESP_UI_SQ1_4_0_LV8_3_11
+                bool "Squareline 1.4.0 + LVGL 8.3.11"
+
+            config ESP_UI_SQ1_4_1_LV8_3_6
+                bool "Squareline 1.4.1 + LVGL 8.3.6"
+
+            config ESP_UI_SQ1_4_1_LV8_3_11
+                bool "Squareline 1.4.1 + LVGL 8.3.11"
+        endchoice
+    endmenu
+endmenu
