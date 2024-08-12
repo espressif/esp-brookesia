@@ -8,7 +8,7 @@ The example is suitable for touchscreens with a resolution of `240 x 240` or hig
 
 To use this example, please firstly install the following dependent libraries:
 
-- ESP32_Display_Panel  (0.1.*)
+- ESP32_Display_Panel  (0.1.5)
 - lvgl (>= v8.3.9, < v9)
 
 To use the external stylesheets, please also install the following dependent libraries and set the `EXAMPLE_USE_EXTERNAL_STYLESHEET` macro to `1`:
@@ -32,6 +32,7 @@ Then, follow the steps below to configure the libraries and upload the example:
 3. For **lvgl**:
 
     - [optional] Follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-lvgl) to add *lv_conf.h* file and change the configurations.
+    - [mandatory] Enable the `LV_USE_SNAPSHOT` macro in the *lv_conf.h* file.
     - [optional] Modify the macros in the [lvgl_port_v8.h](./lvgl_port_v8.h) file to configure the lvgl porting parameters.
 
 4. Navigate to the `Tools` menu in the Arduino IDE to choose a ESP board and configure its parameters. For supported boards, please refter to [Configuring Supported Development Boards](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-supported-development-boards)

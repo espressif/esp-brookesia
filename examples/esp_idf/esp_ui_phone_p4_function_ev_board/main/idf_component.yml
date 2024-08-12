@@ -2,9 +2,8 @@
 dependencies:
   ## Required IDF version
   idf: ">=5.3"
-  esp32_p4_function_ev_board: "^3"
-  esp-ui:
+  espressif/esp32_p4_function_ev_board: "^3"
+  espressif/esp-ui:
     version: "*"
     override_path: "../../../../../esp-ui"
-  esp-ui-phone_1024_600_stylesheet:
-    git: https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet.git
+  espressif/esp-ui-phone_1024_600_stylesheet: "0.1.*"

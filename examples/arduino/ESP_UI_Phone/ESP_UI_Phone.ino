@@ -34,6 +34,7 @@
  * 3. For **lvgl**:
  *
  *     - [optional] Follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-lvgl) to add *lv_conf.h* file and change the configurations.
+ *     - [mandatory] Enable the `LV_USE_SNAPSHOT` macro in the *lv_conf.h* file.
  *     - [optional] Modify the macros in the [lvgl_port_v8.h](./lvgl_port_v8.h) file to configure the lvgl porting parameters.
  *
  * 4. Navigate to the `Tools` menu in the Arduino IDE to choose a ESP board and configure its parameters. For supported boards, please refter to [Configuring Supported Development Boards](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-supported-development-boards)
@@ -83,7 +84,7 @@
 #define EXAMPLE_SHOW_MEM_INFO             (1)
 
 /* To use the external stylesheets, please install the dependent libraries and enable the macro */
-#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (1)
+#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (0)
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
     #if (ESP_PANEL_LCD_WIDTH == 1024) && (ESP_PANEL_LCD_HEIGHT == 600)
         #include "esp_ui_phone_1024_600_stylesheet.h"

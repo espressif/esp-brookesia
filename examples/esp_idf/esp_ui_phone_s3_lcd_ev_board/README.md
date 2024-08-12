@@ -2,7 +2,7 @@
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to run the ESP-UI Phone on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) with a `1024 x 600` resolution UI stylesheet.
+This example demonstrates how to run the ESP-UI Phone on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) with `480 x 480` and `800 x 480` resolution UI stylesheets.
 
 ## Getting Started
 

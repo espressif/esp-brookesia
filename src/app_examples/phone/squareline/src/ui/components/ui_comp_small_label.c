@@ -21,7 +21,7 @@ lv_obj_t * ui_Label_Small_Label_create(lv_obj_t * comp_parent)
     lv_label_set_text(cui_Label_Small_Label, "12");
     lv_obj_set_style_text_color(cui_Label_Small_Label, lv_color_hex(0x000746), LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_opa(cui_Label_Small_Label, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
-    lv_obj_set_style_text_font(cui_Label_Small_Label, &lv_font_montserrat_18, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(cui_Label_Small_Label, LV_FONT_DEFAULT, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_t ** children = lv_mem_alloc(sizeof(lv_obj_t *) * _UI_COMP_LABEL_SMALL_LABEL_NUM);
     children[UI_COMP_LABEL_SMALL_LABEL_LABEL_SMALL_LABEL] = cui_Label_Small_Label;
@@ -30,4 +30,3 @@ lv_obj_t * ui_Label_Small_Label_create(lv_obj_t * comp_parent)
     ui_comp_Label_Small_Label_create_hook(cui_Label_Small_Label);
     return cui_Label_Small_Label;
 }
-

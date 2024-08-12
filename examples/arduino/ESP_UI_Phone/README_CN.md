@@ -8,7 +8,7 @@
 
 要使用此示例，请首先安装以下依赖库：
 
-- ESP32_Display_Panel (0.1.*)
+- ESP32_Display_Panel (0.1.5)
 - lvgl (>= v8.3.9, < v9)
 
 要使用外部样式表，还需安装以下依赖库，并将 `EXAMPLE_USE_EXTERNAL_STYLESHEET` 宏设置为 `1`：
@@ -32,6 +32,7 @@
 3. 对于 **lvgl**：
 
     - [可选] 按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-lvgl)添加 *lv_conf.h* 文件并更改配置。
+    - [必需] 在 *lv_conf.h* 文件中使能 `LV_USE_SNAPSHOT` 宏。
     - [可选] 修改 [lvgl_port_v8.h](./lvgl_port_v8.h) 文件中的宏，以配置 lvgl 端口参数。
 
 4. 在 Arduino IDE 中导航到 `工具` 菜单，选择 ESP 板并配置其参数。对于受支持的板，请参阅[配置受支持的开发板](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-supported-development-boards)。
