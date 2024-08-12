@@ -12,9 +12,6 @@
 #define ESP_UI_LOGD(...)
 #endif
 
-#if !defined(LV_USE_SNAPSHOT) || !LV_USE_SNAPSHOT
-#error "LVGL snapshot is not enabled, please enable `LV_USE_SNAPSHOT` first"
-#endif
 #define MEMORY_LABEL_TEXT_FORMAT        "%d + %d %s of %d + %d %s available"
 #define MEMORY_LABEL_TEXT_UNIT          "KB"
 

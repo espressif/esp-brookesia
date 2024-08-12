@@ -297,6 +297,9 @@ bool ESP_UI_CoreManager::processAppClose(ESP_UI_CoreApp *app)
 
 bool ESP_UI_CoreManager::saveAppSnapshot(ESP_UI_CoreApp *app)
 {
+#if !LV_USE_SNAPSHOT
+    ESP_UI_CHECK_FALSE_RETURN(false, false, "`LV_USE_SNAPSHOT` is not enabled");
+#else
     bool resize_app_screen = false;
     uint8_t *snapshot_buffer = nullptr;
     uint32_t snapshot_buffer_size = 0;
@@ -304,7 +307,7 @@ bool ESP_UI_CoreManager::saveAppSnapshot(ESP_UI_CoreApp *app)
     lv_area_t app_screen_area = {};
     shared_ptr<ESP_UI_AppSnapshot_t> snapshot = nullptr;
 
-    ESP_UI_CHECK_NULL_RETURN(app, false, "Invalid active screen");
+    ESP_UI_CHECK_NULL_RETURN(app, false, "Invalid app");
     ESP_UI_LOGD("Save app(%d) snapshot", app->_id);
 
     ESP_UI_CHECK_FALSE_RETURN(lv_obj_is_valid(app->_active_screen), false, "Invalid active screen");
@@ -331,7 +334,7 @@ bool ESP_UI_CoreManager::saveAppSnapshot(ESP_UI_CoreApp *app)
         ESP_UI_CHECK_NULL_GOTO(snapshot, err, "Make snapshot object failed");
 
         snapshot_buffer = (uint8_t *)ESP_UI_MEMORY_MALLOC(snapshot_buffer_size);
-        ESP_UI_CHECK_NULL_GOTO(snapshot_buffer, err, "Alloc napshot buffer(%d) fail", (int)snapshot_buffer_size);
+        ESP_UI_CHECK_NULL_GOTO(snapshot_buffer, err, "Alloc snapshot buffer(%d) fail", (int)snapshot_buffer_size);
 
         snapshot->image_buffer = snapshot_buffer;
     } else if (snapshot_buffer_size != snapshot->image_resource.data_size) {
@@ -363,11 +366,12 @@ err:
     }
 
     return false;
+#endif
 }
 
 bool ESP_UI_CoreManager::releaseAppSnapshot(ESP_UI_CoreApp *app)
 {
-    ESP_UI_CHECK_NULL_RETURN(app, false, "Invalid active screen");
+    ESP_UI_CHECK_NULL_RETURN(app, false, "Invalid app");
     ESP_UI_LOGD("Release app(%d) snapshot", app->_id);
 
     auto it = _id_app_snapshot_map.find(app->_id);
