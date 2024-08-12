@@ -71,6 +71,8 @@
     - <<: *if-label-target_test
     - <<: *if-trigger-job
     - <<: *if-dev-push
+      changes: *patterns-component
+    - <<: *if-dev-push
       changes: *patterns-example_esp_ui_phone_p4_function_ev_board
     - <<: *if-dev-push
       changes: *patterns-build_system
@@ -81,6 +83,8 @@
     - <<: *if-label-build
     - <<: *if-label-target_test
     - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-component
     - <<: *if-dev-push
       changes: *patterns-example_esp_ui_phone_s3_lcd_ev_board
     - <<: *if-dev-push

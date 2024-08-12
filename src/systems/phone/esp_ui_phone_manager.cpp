@@ -494,25 +494,18 @@ bool ESP_UI_PhoneManager::processRecentsScreenHide(void)
                                       "Gesture enable mask object failed");
         }
     } else {
+        const ESP_UI_PhoneAppData_t &app_data = active_app->getActiveData();
         // Process status bar and navigation bar
         if (status_bar != nullptr) {
-            const ESP_UI_PhoneAppVisualMode_t &status_bar_visual_mode =
-                active_app->getActiveData().status_bar_visual_mode;
-            ESP_UI_CHECK_FALSE_RETURN(
-                status_bar->setVisible(status_bar_visual_mode == ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED), false,
-                "Status bar set visible failed"
-            );
+            ESP_UI_CHECK_FALSE_RETURN(status_bar->setVisualMode(app_data.status_bar_visual_mode), false,
+                                      "Status bar set visible failed");
         }
         if (navigation_bar != nullptr) {
-            const ESP_UI_PhoneAppVisualMode_t &navigation_bar_visual_mode =
-                active_app->getActiveData().navigation_bar_visual_mode;
-            ESP_UI_CHECK_FALSE_RETURN(
-                navigation_bar->setVisible(navigation_bar_visual_mode == ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED),
-                false, "Navigation bar set visible failed"
-            );
+            ESP_UI_CHECK_FALSE_RETURN(navigation_bar->setVisualMode(app_data.navigation_bar_visual_mode), false,
+                                      "Navigation bar set visible failed");
         }
         if (_gesture != nullptr) {
-            _enable_navigation_gesture = active_app->getActiveData().flags.enable_navigation_gesture;
+            _enable_navigation_gesture = app_data.flags.enable_navigation_gesture;
             ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(_enable_navigation_gesture), false,
                                       "Gesture enable mask object failed");
         }

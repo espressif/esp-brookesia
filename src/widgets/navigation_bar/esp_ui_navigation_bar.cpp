@@ -133,15 +133,20 @@ bool ESP_UI_NavigationBar::del(void)
     return ret;
 }
 
-bool ESP_UI_NavigationBar::setVisible(bool visible) const
+bool ESP_UI_NavigationBar::setVisualMode(ESP_UI_NavigationBarVisualMode_t mode) const
 {
-    ESP_UI_LOGD("Set visible(%d)", visible);
+    ESP_UI_LOGD("Set Visual Mode(%d)", mode);
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    if (visible) {
-        lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
-    } else {
+    switch (mode) {
+    case ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE:
         lv_obj_add_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+        break;
+    case ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED:
+        lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+        break;
+    default:
+        break;
     }
 
     return true;

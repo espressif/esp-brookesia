@@ -22,8 +22,7 @@ public:
 
     bool begin(lv_obj_t *parent);
     bool del(void);
-    bool setVisible(bool visible) const;
-
+    bool setVisualMode(ESP_UI_StatusBarVisualMode_t mode) const;
     bool addIcon(const ESP_UI_StatusBarIconData_t &data, uint8_t area_index, int id);
     bool removeIcon(int id);
     bool setIconState(int id, int state) const;

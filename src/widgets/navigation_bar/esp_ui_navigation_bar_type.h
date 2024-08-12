@@ -33,6 +33,12 @@ typedef struct {
     } flags;
 } ESP_UI_NavigationBarData_t;
 
+typedef enum {
+    ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE = 0,
+    ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED,
+    // ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,  // TODO
+} ESP_UI_NavigationBarVisualMode_t;
+
 #ifdef __cplusplus
 }
 #endif

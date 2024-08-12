@@ -19,7 +19,7 @@ public:
 
     bool begin(lv_obj_t *parent);
     bool del(void);
-    bool setVisible(bool visible) const;
+    bool setVisualMode(ESP_UI_NavigationBarVisualMode_t mode) const;
 
     bool checkInitialized(void) const { return (_main_obj != nullptr); }
     bool checkVisible(void) const;
