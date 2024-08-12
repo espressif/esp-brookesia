@@ -20,18 +20,28 @@ extern "C" {
 /////////////////////////////////////////////////////////// Home ///////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct {
-    ESP_UI_StatusBarData_t status_bar;
-    ESP_UI_NavigationBarData_t navigation_bar;
-    ESP_UI_AppLauncherData_t app_launcher;
-    ESP_UI_RecentsScreenData_t recents_screen;
+    struct {
+        ESP_UI_StatusBarData_t data;
+        ESP_UI_StatusBarVisualMode_t visual_mode;
+    } status_bar;
+    struct {
+        ESP_UI_NavigationBarData_t data;
+        ESP_UI_NavigationBarVisualMode_t visual_mode;
+    } navigation_bar;
+    struct {
+        ESP_UI_AppLauncherData_t data;
+    } app_launcher;
+    struct {
+        ESP_UI_RecentsScreenData_t data;
+        ESP_UI_StatusBarVisualMode_t status_bar_visual_mode;
+        ESP_UI_NavigationBarVisualMode_t navigation_bar_visual_mode;
+    } recents_screen;
     struct {
         uint8_t enable_status_bar: 1;
         uint8_t enable_navigation_bar: 1;
-        uint8_t enable_app_launcher_flex: 1;
+        uint8_t enable_app_launcher_flex_size: 1;
         uint8_t enable_recents_screen: 1;
-        uint8_t enable_recents_screen_flex: 1;
-        uint8_t enable_recents_screen_show_status_bar: 1;
-        uint8_t enable_recents_screen_show_navigation_bar: 1;
+        uint8_t enable_recents_screen_flex_size: 1;
         uint8_t enable_recents_screen_hide_when_no_snapshot: 1;
     } flags;
 } ESP_UI_PhoneHomeData_t;
@@ -56,23 +66,16 @@ typedef struct {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////// App //////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-typedef enum {
-    ESP_UI_PHONE_APP_VISUAL_MODE_HIDE = 0,
-    ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED,
-    // ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FLEX,  // TODO: Implement this mode
-} ESP_UI_PhoneAppVisualMode_t;
-
 /**
  * @brief Phone app data structure
  */
 typedef struct {
     uint8_t app_launcher_page_index;                    /*!< The index of the app launcher page where the icon is shown */
-    uint8_t status_bar_area_index;                      /*!< The index of the status area where the icon is shown */
+    uint8_t status_icon_area_index;                     /*!< The index of the status area where the icon is shown */
     ESP_UI_StatusBarIconData_t status_icon_data;        /*!< The status icon data. If the `enable_status_icon_common_size`
                                                              flag is set, the `size` in this value will be ignored */
-    ESP_UI_PhoneAppVisualMode_t status_bar_visual_mode; /*!< The visual mode of the status bar */
-    ESP_UI_PhoneAppVisualMode_t navigation_bar_visual_mode;
-    /*!< The visual mode of the navigation bar */
+    ESP_UI_StatusBarVisualMode_t status_bar_visual_mode;            /*!< The visual mode of the status bar */
+    ESP_UI_NavigationBarVisualMode_t navigation_bar_visual_mode;    /*!< The visual mode of the navigation bar */
     struct {
         uint8_t enable_status_icon_common_size: 1;      /*!< If set, the size of the status icon will be set to the
                                                              common size in the status bar data */
@@ -84,7 +87,7 @@ typedef struct {
 /**
  * @brief The default initializer for phone app data structure
  *
- * @note  The `app_launcher_page_index` and `status_bar_area_index` is set to 0
+ * @note  The `app_launcher_page_index` and `status_icon_area_index` is set to 0
  * @note  The `enable_status_icon_common_size` flag is set by default
  *
  * @param status_icon The status icon image. Set to `NULL` if no icon is needed
@@ -95,7 +98,7 @@ typedef struct {
 #define ESP_UI_PHONE_APP_DATA_DEFAULT(status_icon, use_status_bar, use_navigation_bar)                 \
     {                                                                                                  \
         .app_launcher_page_index = 0,                                                                  \
-        .status_bar_area_index = 0,                                                                    \
+        .status_icon_area_index = 0,                                                                   \
         .status_icon_data = {                                                                          \
             .size = {},                                                                                \
             .icon = {                                                                                  \
@@ -105,10 +108,10 @@ typedef struct {
                 },                                                                                     \
             },                                                                                         \
         },                                                                                             \
-        .status_bar_visual_mode = (use_status_bar) ? ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED :         \
-                                                     ESP_UI_PHONE_APP_VISUAL_MODE_HIDE,                \
-        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED : \
-                                                             ESP_UI_PHONE_APP_VISUAL_MODE_HIDE,        \
+        .status_bar_visual_mode = (use_status_bar) ? ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED :        \
+                                                     ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE,               \
+        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED : \
+                                                             ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,        \
         .flags = {                                                                                     \
             .enable_status_icon_common_size = 1,                                                       \
             .enable_navigation_gesture = !use_navigation_bar,                                          \

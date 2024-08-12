@@ -25,7 +25,7 @@ PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigatio
         },
         {
             .app_launcher_page_index = 0,
-            .status_bar_area_index = 0,
+            .status_icon_area_index = 0,
             .status_icon_data = {
                 .size = {},
                 .icon = {
@@ -35,10 +35,10 @@ PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigatio
                     },
                 },
             },
-            .status_bar_visual_mode = (use_status_bar) ? ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED :
-                                                         ESP_UI_PHONE_APP_VISUAL_MODE_HIDE,
-            .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_PHONE_APP_VISUAL_MODE_SHOW_FIXED :
-                                                                 ESP_UI_PHONE_APP_VISUAL_MODE_HIDE,
+            .status_bar_visual_mode = (use_status_bar) ? ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED :
+                                                         ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE,
+            .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED :
+                                                                 ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,
             .flags = {
                 .enable_status_icon_common_size = 1,
                 .enable_navigation_gesture = !use_navigation_bar,

@@ -100,15 +100,20 @@ bool ESP_UI_StatusBar::del(void)
     return ret;
 }
 
-bool ESP_UI_StatusBar::setVisible(bool visible) const
+bool ESP_UI_StatusBar::setVisualMode(ESP_UI_StatusBarVisualMode_t mode) const
 {
-    ESP_UI_LOGD("Set visible(%d)", visible);
+    ESP_UI_LOGD("Set Visual Mode(%d)", mode);
     ESP_UI_CHECK_FALSE_RETURN(checkMainInitialized(), false, "Not initialized");
 
-    if (visible) {
-        lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
-    } else {
+    switch (mode) {
+    case ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE:
         lv_obj_add_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+        break;
+    case ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED:
+        lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+        break;
+    default:
+        break;
     }
 
     return true;

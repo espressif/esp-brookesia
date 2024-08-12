@@ -76,6 +76,12 @@ typedef struct {
     } flags;
 } ESP_UI_StatusBarData_t;
 
+typedef enum {
+    ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE = 0,
+    ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED,
+    // ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FLEX,  // TODO
+} ESP_UI_StatusBarVisualMode_t;
+
 #ifdef __cplusplus
 }
 #endif

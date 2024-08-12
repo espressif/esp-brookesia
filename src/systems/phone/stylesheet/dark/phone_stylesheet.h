@@ -17,21 +17,31 @@ extern "C" {
 #endif
 
 /* Home */
-#define ESP_UI_PHONE_DEFAULT_DARK_HOME_DATA()                              \
-    {                                                                      \
-        .status_bar = ESP_UI_PHONE_DEFAULT_DARK_STATUS_BAR_DATA(),         \
-        .navigation_bar = ESP_UI_PHONE_DEFAULT_DARK_NAVIGATION_BAR_DATA(), \
-        .app_launcher = ESP_UI_PHONE_DEFAULT_DARK_APP_LAUNCHER_DATA(),     \
-        .recents_screen = ESP_UI_PHONE_DEFAULT_DARK_RECENTS_SCREEN_DATA(), \
-        .flags = {                                                         \
-            .enable_status_bar = 1,                                        \
-            .enable_navigation_bar = 1,                                    \
-            .enable_app_launcher_flex = 1,                                 \
-            .enable_recents_screen = 1,                                    \
-            .enable_recents_screen_flex = 1,                               \
-            .enable_recents_screen_show_status_bar = 0,                    \
-            .enable_recents_screen_show_navigation_bar = 0,                \
-        },                                                                 \
+#define ESP_UI_PHONE_DEFAULT_DARK_HOME_DATA()                                     \
+    {                                                                             \
+        .status_bar = {                                                           \
+            .data = ESP_UI_PHONE_DEFAULT_DARK_STATUS_BAR_DATA(),                  \
+            .visual_mode = ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED,              \
+        },                                                                        \
+        .navigation_bar = {                                                       \
+            .data = ESP_UI_PHONE_DEFAULT_DARK_NAVIGATION_BAR_DATA(),              \
+            .visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED,          \
+        },                                                                        \
+        .app_launcher = {                                                         \
+            .data = ESP_UI_PHONE_DEFAULT_DARK_APP_LAUNCHER_DATA(),                \
+        },                                                                        \
+        .recents_screen = {                                                       \
+            .data = ESP_UI_PHONE_DEFAULT_DARK_RECENTS_SCREEN_DATA(),              \
+            .status_bar_visual_mode = ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE,         \
+            .navigation_bar_visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE, \
+        },                                                                        \
+        .flags = {                                                                \
+            .enable_status_bar = 1,                                               \
+            .enable_navigation_bar = 1,                                           \
+            .enable_app_launcher_flex_size = 1,                                   \
+            .enable_recents_screen = 1,                                           \
+            .enable_recents_screen_flex_size = 1,                                 \
+        },                                                                        \
     }
 
 /* Manager */
