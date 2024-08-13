@@ -8,8 +8,6 @@
 #include <string>
 #include "core/esp_ui_core_app.hpp"
 #include "widgets/gesture/esp_ui_gesture.hpp"
-#include "esp_ui_phone_home.hpp"
-#include "esp_ui_phone_manager.hpp"
 #include "esp_ui_phone_type.h"
 
 class ESP_UI_Phone;

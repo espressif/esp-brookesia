@@ -232,11 +232,11 @@ bool ESP_UI_CoreHome::beginCore(void)
     }
     // Main screen
     lv_obj_align(main_screen_obj.get(), LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_clear_flag(main_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(main_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_style(main_screen_obj.get(), getCoreContainerStyle(), 0);
     // System screen
     lv_obj_align(system_screen_obj.get(), LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_clear_flag(system_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(system_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_style(system_screen_obj.get(), getCoreContainerStyle(), 0);
 
     /* Save objects */

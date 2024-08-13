@@ -15,7 +15,7 @@
 
 /* Core */
 #include "core/esp_ui_core_utils.h"
-#include "core/esp_ui_style.h"
+#include "core/esp_ui_style_type.h"
 #include "core/esp_ui_core_type.h"
 
 /* fonts */

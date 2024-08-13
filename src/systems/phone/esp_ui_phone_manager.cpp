@@ -20,18 +20,24 @@ ESP_UI_PhoneManager::ESP_UI_PhoneManager(ESP_UI_Core &core, ESP_UI_PhoneHome &ho
     _home(home),
     _data(data),
     _is_initialized(false),
-    _is_app_closed(false),
+    _home_active_screen(ESP_UI_PHONE_MANAGER_SCREEN_MAX),
     _is_app_launcher_gesture_disabled(false),
     _app_launcher_gesture_dir(ESP_UI_GESTURE_DIR_NONE),
-    _enable_navigation_gesture(false),
-    _is_navigation_gesture_released(true),
+    _enable_navigation_bar_gesture(false),
+    _is_navigation_bar_gesture_disabled(false),
+    _navigation_bar_gesture_dir(ESP_UI_GESTURE_DIR_NONE),
+    _enable_gesture_navigation(false),
+    _enable_gesture_navigation_back(false),
+    _enable_gesture_navigation_home(false),
+    _enable_gesture_navigation_recents_app(false),
+    _is_gesture_navigation_disabled(false),
     _gesture(nullptr),
     _recents_screen_pressed(0),
     _recents_screen_snapshot_move_hor(0),
     _recents_screen_snapshot_move_ver(0),
     _recents_screen_drag_tan_threshold(0),
-    _recents_screen_start_point{ 0 },
-    _recents_screen_last_point{ 0 },
+    _recents_screen_start_point{},
+    _recents_screen_last_point{},
     _recents_screen_active_app(nullptr)
 {
 }
@@ -84,30 +90,31 @@ bool ESP_UI_PhoneManager::begin(void)
         ESP_UI_CHECK_NULL_RETURN(gesture, false, "Create gesture failed");
         ESP_UI_CHECK_FALSE_RETURN(gesture->begin(_home.getSystemScreenObject()), false, "Gesture begin failed");
 
-        lv_obj_add_event_cb(gesture->getEventObj(), onNavigationGesturePressingEventCallback,
+        _enable_gesture_navigation = true;
+        lv_obj_add_event_cb(gesture->getEventObj(), onGestureNavigationPressingEventCallback,
                             gesture->getPressingEventCode(), this);
-        lv_obj_add_event_cb(gesture->getEventObj(), onNavigationGestureReleaseEventCallback,
+        lv_obj_add_event_cb(gesture->getEventObj(), onGestureNavigationReleaseEventCallback,
                             gesture->getReleaseEventCode(), this);
         lv_obj_add_event_cb(_home.getMainScreen(), onHomeMainScreenLoadEventCallback, LV_EVENT_SCREEN_LOADED, this);
     }
 
-    // App Launcher
     if (gesture != nullptr) {
+        // App Launcher
         lv_obj_add_event_cb(gesture->getEventObj(), onAppLauncherGestureEventCallback,
                             gesture->getPressingEventCode(), this);
         lv_obj_add_event_cb(gesture->getEventObj(), onAppLauncherGestureEventCallback,
                             gesture->getReleaseEventCode(), this);
+
+        // Navigation Bar
+        if (_home.getNavigationBar() != nullptr) {
+            lv_obj_add_event_cb(gesture->getEventObj(), onNavigationBarGestureEventCallback,
+                                gesture->getPressingEventCode(), this);
+            lv_obj_add_event_cb(gesture->getEventObj(), onNavigationBarGestureEventCallback,
+                                gesture->getReleaseEventCode(), this);
+        }
     }
 
-    // Navitagion
-    // Disable gesture navigation if the navigation bar is enabled
-    if (gesture != nullptr) {
-        _enable_navigation_gesture = (_home.getNavigationBar() == nullptr);
-        ESP_UI_CHECK_FALSE_RETURN(gesture->enableMaskObject(_enable_navigation_gesture), false,
-                                  "Gesture enable mask object failed");
-    }
-
-    // RecentsScreen
+    // Recents Screen
     if (recents_screen != nullptr) {
         // Hide recents_screen by default
         ESP_UI_CHECK_FALSE_RETURN(processRecentsScreenHide(), false, "Hide recents_screen failed");
@@ -125,6 +132,9 @@ bool ESP_UI_PhoneManager::begin(void)
                                 gesture->getReleaseEventCode(), this);
         }
     }
+
+    ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+                              "Process screen change failed");
 
     if (gesture != nullptr) {
         _gesture = std::move(gesture);
@@ -166,11 +176,8 @@ bool ESP_UI_PhoneManager::processAppRunExtra(ESP_UI_CoreApp *app)
     ESP_UI_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UI_LOGD("Process app(%p) run extra", phone_app);
 
-    if (_gesture != nullptr) {
-        _enable_navigation_gesture = phone_app->getActiveData().flags.enable_navigation_gesture;
-        ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(_enable_navigation_gesture), false,
-                                  "Gesture enable mask object failed");
-    }
+    ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_APP, phone_app), false,
+                              "Process screen change failed");
 
     return true;
 }
@@ -182,11 +189,8 @@ bool ESP_UI_PhoneManager::processAppResumeExtra(ESP_UI_CoreApp *app)
     ESP_UI_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UI_LOGD("Process app(%p) resume extra", phone_app);
 
-    if (_gesture != nullptr) {
-        _enable_navigation_gesture = phone_app->getActiveData().flags.enable_navigation_gesture;
-        ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(_enable_navigation_gesture), false,
-                                  "Gesture enable mask object failed");
-    }
+    ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_APP, phone_app), false,
+                              "Process screen change failed");
 
     return true;
 }
@@ -199,10 +203,81 @@ bool ESP_UI_PhoneManager::processAppCloseExtra(ESP_UI_CoreApp *app)
     ESP_UI_LOGD("Process app(%p) close extra", phone_app);
 
     if (getActiveApp() == app) {
+        ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+                                  "Process screen change failed");
+    }
+
+    return true;
+}
+
+bool ESP_UI_PhoneManager::processHomeScreenChange(ESP_UI_PhoneManagerScreen_t screen, void *data)
+{
+    ESP_UI_StatusBar *status_bar = _home._status_bar.get();
+    ESP_UI_NavigationBar *navigation_bar = _home._navigation_bar.get();
+    ESP_UI_StatusBarVisualMode_t status_bar_visual_mode = ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE;
+    ESP_UI_NavigationBarVisualMode_t navigation_bar_visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE;
+    const ESP_UI_PhoneAppData_t *app_data = nullptr;
+
+    ESP_UI_LOGD("Process Screen Change(%d)", screen);
+    ESP_UI_CHECK_FALSE_RETURN(screen < ESP_UI_PHONE_MANAGER_SCREEN_MAX, false, "Invalid screen");
+
+    switch (screen) {
+    case ESP_UI_PHONE_MANAGER_SCREEN_MAIN:
+        navigation_bar_visual_mode = _home.getData().navigation_bar.visual_mode;
+        status_bar_visual_mode = _home.getData().status_bar.visual_mode;
+        _enable_gesture_navigation = ((navigation_bar == nullptr) ||
+                                      (navigation_bar_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE));
+        _enable_gesture_navigation_back = false;
+        _enable_gesture_navigation_home = false;
+        _enable_gesture_navigation_recents_app = _enable_gesture_navigation;
+        break;
+    case ESP_UI_PHONE_MANAGER_SCREEN_APP:
+        ESP_UI_CHECK_NULL_RETURN(data, false, "Invalid data");
+        app_data = &((ESP_UI_PhoneApp *)data)->getActiveData();
+        navigation_bar_visual_mode = app_data->navigation_bar_visual_mode;
+        status_bar_visual_mode = app_data->status_bar_visual_mode;
+        _enable_gesture_navigation = (app_data->flags.enable_navigation_gesture &&
+                                      (navigation_bar_visual_mode != ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED));
+        _enable_gesture_navigation_back = _enable_gesture_navigation;
+        _enable_gesture_navigation_home = (_enable_gesture_navigation &&
+                                           (navigation_bar_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE));
+        _enable_gesture_navigation_recents_app = _enable_gesture_navigation_home;
+        break;
+    case ESP_UI_PHONE_MANAGER_SCREEN_RECENTS_SCREEN:
+        navigation_bar_visual_mode = _home.getData().recents_screen.navigation_bar_visual_mode;
+        status_bar_visual_mode = _home.getData().recents_screen.status_bar_visual_mode;
+        _enable_gesture_navigation = false;
+        break;
+    default:
+        ESP_UI_CHECK_FALSE_RETURN(false, false, "Invalid screen");
+        break;
+    }
+    ESP_UI_LOGD("Visual Mode: status bar(%d), navigation bar(%d)", status_bar_visual_mode, navigation_bar_visual_mode);
+    ESP_UI_LOGD("Gesture: all(%d), back(%d), home(%d), recents(%d)", _enable_gesture_navigation,
+                _enable_gesture_navigation_back, _enable_gesture_navigation_home, _enable_gesture_navigation_recents_app);
+
+    // Process gesture
+    // if (_gesture != nullptr) {
+    // ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(_enable_gesture_navigation), false,
+    //   "Gesture enable mask object failed");
+    // }
+    // Process status bar
+    if (status_bar != nullptr) {
+        ESP_UI_CHECK_FALSE_RETURN(status_bar->setVisualMode(status_bar_visual_mode), false,
+                                  "Status bar set visual mode failed");
+    }
+    // Process navigation bar
+    if (navigation_bar != nullptr) {
+        _enable_navigation_bar_gesture = (navigation_bar_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX);
+        ESP_UI_CHECK_FALSE_RETURN(navigation_bar->setVisualMode(navigation_bar_visual_mode), false,
+                                  "Navigation bar set visual mode failed");
+    }
+
+    if (screen == ESP_UI_PHONE_MANAGER_SCREEN_MAIN) {
         ESP_UI_CHECK_FALSE_RETURN(_home.processMainScreenLoad(), false, "Home load main screen failed");
     }
 
-    _is_app_closed = true;
+    _home_active_screen = screen;
 
     return true;
 }
@@ -210,20 +285,18 @@ bool ESP_UI_PhoneManager::processAppCloseExtra(ESP_UI_CoreApp *app)
 void ESP_UI_PhoneManager::onHomeMainScreenLoadEventCallback(lv_event_t *event)
 {
     ESP_UI_PhoneManager *manager = nullptr;
-    ESP_UI_PhoneHome *home = nullptr;
+    ESP_UI_RecentsScreen *recents_screen = nullptr;
 
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
+    recents_screen = manager->_home.getRecentsScreen();
 
-    home = &manager->_home;
-    ESP_UI_CHECK_NULL_EXIT(home, "Invalid home");
-
-    if (manager->_gesture != nullptr) {
-        manager->_enable_navigation_gesture = (home->getNavigationBar() == nullptr);
-        ESP_UI_CHECK_FALSE_EXIT(manager->_gesture->enableMaskObject(manager->_enable_navigation_gesture),
-                                "Gesture enable mask object failed");
+    // Only process the screen change if the recents_screen is not visible
+    if ((recents_screen == nullptr) || !recents_screen->checkVisible()) {
+        ESP_UI_CHECK_FALSE_EXIT(manager->processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+                                "Process screen change failed");
     }
 }
 
@@ -238,7 +311,7 @@ void ESP_UI_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *event)
 
     ESP_UI_CHECK_NULL_GOTO(event, end, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_GOTO(manager, end, "Invalid manager");
     recents_screen = manager->_home._recents_screen.get();
     app_launcher = &manager->_home._app_launcher;
@@ -247,11 +320,7 @@ void ESP_UI_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *event)
     ESP_UI_CHECK_FALSE_GOTO((event_code == manager->_gesture->getPressingEventCode()) ||
                             (event_code == manager->_gesture->getReleaseEventCode()), end, "Invalid event code");
 
-    // Here is to prevent detecting horizontal gestures when the app exits, which could trigger the app_launcher to slide
-    if (manager->_is_app_closed) {
-        manager->_is_app_closed = false;
-        manager->_is_app_launcher_gesture_disabled = true;
-    }
+    // Here is to prevent detecting gestures when the app exits, which could trigger unexpected behaviors
     if (event_code == manager->_gesture->getReleaseEventCode()) {
         if (manager->_is_app_launcher_gesture_disabled) {
             manager->_is_app_launcher_gesture_disabled = false;
@@ -259,8 +328,8 @@ void ESP_UI_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *event)
         }
     }
 
-    // Check if the gesture is enabled
-    if ((manager->_gesture == nullptr) || !app_launcher->checkVisible() || manager->_is_app_launcher_gesture_disabled ||
+    // Check if the app launcher and recents_screen are visible
+    if (!app_launcher->checkVisible() || manager->_is_app_launcher_gesture_disabled ||
             ((recents_screen != nullptr) && recents_screen->checkVisible())) {
         return;
     }
@@ -301,6 +370,61 @@ end:
     manager->_app_launcher_gesture_dir = dir_type;
 }
 
+void ESP_UI_PhoneManager::onNavigationBarGestureEventCallback(lv_event_t *event)
+{
+    lv_event_code_t event_code = _LV_EVENT_LAST;
+    ESP_UI_PhoneManager *manager = nullptr;
+    ESP_UI_NavigationBar *navigation_bar = nullptr;
+    ESP_UI_GestureInfo_t *gesture_info = nullptr;
+    ESP_UI_GestureDirection_t dir_type = ESP_UI_GESTURE_DIR_NONE;
+
+    ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
+
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
+    ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
+    navigation_bar = manager->_home.getNavigationBar();
+    ESP_UI_CHECK_NULL_EXIT(navigation_bar, "Invalid navigation bar");
+    event_code = lv_event_get_code(event);
+    ESP_UI_CHECK_FALSE_EXIT((event_code == manager->_gesture->getPressingEventCode()) ||
+                            (event_code == manager->_gesture->getReleaseEventCode()), "Invalid event code");
+
+    // Here is to prevent detecting gestures when the app exits, which could trigger unexpected behaviors
+    if (manager->_is_navigation_bar_gesture_disabled && (event_code == manager->_gesture->getReleaseEventCode())) {
+        manager->_is_navigation_bar_gesture_disabled = false;
+        return;
+    }
+
+    // Check if the gesture is enabled or the app is running
+    if (manager->_is_navigation_bar_gesture_disabled || (!manager->_enable_navigation_bar_gesture)) {
+        return;
+    }
+
+    dir_type = manager->_navigation_bar_gesture_dir;
+    // Check if the dir type is already set. If so, just ignore and return
+    if (dir_type != ESP_UI_GESTURE_DIR_NONE) {
+        // Check if the gesture is released
+        if (event_code == manager->_gesture->getReleaseEventCode()) {   // If so, reset the navigation type
+            dir_type = ESP_UI_GESTURE_DIR_NONE;
+            goto end;
+        }
+        return;
+    }
+
+    gesture_info = (ESP_UI_GestureInfo_t *)lv_event_get_param(event);
+    ESP_UI_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
+
+    // Check if there is a valid gesture
+    dir_type = gesture_info->direction;
+    if ((dir_type == ESP_UI_GESTURE_DIR_UP) &&
+            (gesture_info->start_area & ESP_UI_GESTURE_AREA_BOTTOM_EDGE)) {
+        ESP_UI_LOGD("Navigation bar gesture up");
+        ESP_UI_CHECK_FALSE_EXIT(navigation_bar->triggerVisualFlexShow(), "Navigation bar trigger visual flex show failed");
+    }
+
+end:
+    manager->_navigation_bar_gesture_dir = dir_type;
+}
+
 bool ESP_UI_PhoneManager::processNavigationEvent(ESP_UI_CoreNavigateType_t type)
 {
     bool ret = true;
@@ -309,6 +433,10 @@ bool ESP_UI_PhoneManager::processNavigationEvent(ESP_UI_CoreNavigateType_t type)
     ESP_UI_PhoneApp *phone_app = nullptr;
 
     ESP_UI_LOGD("Process navigation event type(%d)", type);
+
+    // Disable the gesture function of widgets
+    _is_app_launcher_gesture_disabled = true;
+    _is_navigation_bar_gesture_disabled = true;
 
     // Check if the recents_screen is visible
     if ((recents_screen != nullptr) && recents_screen->checkVisible()) {
@@ -324,25 +452,24 @@ bool ESP_UI_PhoneManager::processNavigationEvent(ESP_UI_CoreNavigateType_t type)
     }
 
     switch (type) {
-    case ESP_UI_CORE_NAVIGATE_TYPE_BACK: {
+    case ESP_UI_CORE_NAVIGATE_TYPE_BACK:
         if (active_app == nullptr) {
             goto end;
         }
         // Call app back function
         ESP_UI_CHECK_FALSE_GOTO(ret = (active_app->back()), end, "App(%d) back failed", active_app->getId());
         break;
-    }
-    case ESP_UI_CORE_NAVIGATE_TYPE_HOME: {
+    case ESP_UI_CORE_NAVIGATE_TYPE_HOME:
         if (active_app == nullptr) {
             goto end;
         }
         // Process app pause
         ESP_UI_CHECK_FALSE_GOTO(ret = processAppPause(active_app), end, "App(%d) pause failed", active_app->getId());
-        ESP_UI_CHECK_FALSE_GOTO(_home.processMainScreenLoad(), end, "Home load main screen failed");
+        ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+                                  "Process screen change failed");
         resetActiveApp();
         break;
-    }
-    case ESP_UI_CORE_NAVIGATE_TYPE_RECENTS_SCREEN: {
+    case ESP_UI_CORE_NAVIGATE_TYPE_RECENTS_SCREEN:
         if (recents_screen == nullptr) {
             ESP_UI_LOGW("Recents screen is disabled");
             goto end;
@@ -378,7 +505,6 @@ bool ESP_UI_PhoneManager::processNavigationEvent(ESP_UI_CoreNavigateType_t type)
                                     "Recents screen update snapshot(%d) image failed", phone_app->getId());
         }
         break;
-    }
     default:
         break;
     }
@@ -387,7 +513,7 @@ end:
     return ret;
 }
 
-void ESP_UI_PhoneManager::onNavigationGesturePressingEventCallback(lv_event_t *event)
+void ESP_UI_PhoneManager::onGestureNavigationPressingEventCallback(lv_event_t *event)
 {
     ESP_UI_PhoneManager *manager = nullptr;
     ESP_UI_GestureInfo_t *gesture_info = nullptr;
@@ -395,10 +521,10 @@ void ESP_UI_PhoneManager::onNavigationGesturePressingEventCallback(lv_event_t *e
 
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
     // Check if the gesture is released and enabled
-    if (!manager->_enable_navigation_gesture || !manager->_is_navigation_gesture_released) {
+    if (!manager->_enable_gesture_navigation || manager->_is_gesture_navigation_disabled) {
         return;
     }
 
@@ -411,22 +537,22 @@ void ESP_UI_PhoneManager::onNavigationGesturePressingEventCallback(lv_event_t *e
 
     // Check if there is a "back" gesture
     if ((gesture_info->start_area & (ESP_UI_GESTURE_AREA_LEFT_EDGE | ESP_UI_GESTURE_AREA_RIGHT_EDGE)) &&
-            (gesture_info->direction & ESP_UI_GESTURE_DIR_HOR)) {
+            (gesture_info->direction & ESP_UI_GESTURE_DIR_HOR) && manager->_enable_gesture_navigation_back) {
         navigation_type = ESP_UI_CORE_NAVIGATE_TYPE_BACK;
     } else if ((gesture_info->start_area & ESP_UI_GESTURE_AREA_BOTTOM_EDGE) && (!gesture_info->flags.short_duration) &&
-               (gesture_info->direction & ESP_UI_GESTURE_DIR_UP)) {
+               (gesture_info->direction & ESP_UI_GESTURE_DIR_UP) && manager->_enable_gesture_navigation_recents_app) {
         // Check if there is a "recents_screen" gesture
         navigation_type = ESP_UI_CORE_NAVIGATE_TYPE_RECENTS_SCREEN;
     }
 
     // Only process the navigation event if the navigation type is valid
     if (navigation_type != ESP_UI_CORE_NAVIGATE_TYPE_MAX) {
-        manager->_is_navigation_gesture_released = false;
+        manager->_is_gesture_navigation_disabled = true;
         ESP_UI_CHECK_FALSE_EXIT(manager->processNavigationEvent(navigation_type), "Process navigation event failed");
     }
 }
 
-void ESP_UI_PhoneManager::onNavigationGestureReleaseEventCallback(lv_event_t *event)
+void ESP_UI_PhoneManager::onGestureNavigationReleaseEventCallback(lv_event_t *event)
 {
     ESP_UI_PhoneManager *manager = nullptr;
     ESP_UI_GestureInfo_t *gesture_info = nullptr;
@@ -434,11 +560,11 @@ void ESP_UI_PhoneManager::onNavigationGestureReleaseEventCallback(lv_event_t *ev
 
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
-    manager->_is_navigation_gesture_released = true;
+    manager->_is_gesture_navigation_disabled = false;
     // Check if the gesture is released and enabled
-    if (!manager->_enable_navigation_gesture) {
+    if (!manager->_enable_gesture_navigation) {
         return;
     }
 
@@ -451,7 +577,7 @@ void ESP_UI_PhoneManager::onNavigationGestureReleaseEventCallback(lv_event_t *ev
 
     // Check if there is a "home" gesture
     if ((gesture_info->start_area & ESP_UI_GESTURE_AREA_BOTTOM_EDGE) && (gesture_info->flags.short_duration) &&
-            (gesture_info->direction & ESP_UI_GESTURE_DIR_UP)) {
+            (gesture_info->direction & ESP_UI_GESTURE_DIR_UP) && manager->_enable_gesture_navigation_home) {
         navigation_type = ESP_UI_CORE_NAVIGATE_TYPE_HOME;
     }
 
@@ -471,44 +597,25 @@ bool ESP_UI_PhoneManager::processRecentsScreenShow(void)
         ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(false), false, "Gesture enable mask object failed");
     }
 
+    ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_RECENTS_SCREEN, nullptr), false,
+                              "Process screen change failed");
+
     return true;
 }
 
 bool ESP_UI_PhoneManager::processRecentsScreenHide(void)
 {
-    const ESP_UI_RecentsScreen *recents_screen = _home.getRecentsScreen();
-    const ESP_UI_NavigationBar *navigation_bar = _home.getNavigationBar();
-    const ESP_UI_StatusBar *status_bar = _home.getStatusBar();
-    const ESP_UI_PhoneApp *active_app = static_cast<ESP_UI_PhoneApp *>(getActiveApp());
+    ESP_UI_RecentsScreen *recents_screen = _home.getRecentsScreen();
+    ESP_UI_PhoneApp *active_app = static_cast<ESP_UI_PhoneApp *>(getActiveApp());
 
     ESP_UI_LOGD("Process recents_screen hide");
     ESP_UI_CHECK_NULL_RETURN(recents_screen, false, "Invalid recents_screen");
     ESP_UI_CHECK_FALSE_RETURN(recents_screen->setVisible(false), false, "Hide recents_screen failed");
 
+    // Load the main screen if there is no active app
     if (active_app == nullptr) {
-        // Load the main screen if there is no active app
-        ESP_UI_CHECK_FALSE_RETURN(_home.processMainScreenLoad(), false, "Home load main screen failed");
-        if (_gesture != nullptr) {
-            _enable_navigation_gesture = (_home.getNavigationBar() == nullptr);
-            ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(_enable_navigation_gesture), false,
-                                      "Gesture enable mask object failed");
-        }
-    } else {
-        const ESP_UI_PhoneAppData_t &app_data = active_app->getActiveData();
-        // Process status bar and navigation bar
-        if (status_bar != nullptr) {
-            ESP_UI_CHECK_FALSE_RETURN(status_bar->setVisualMode(app_data.status_bar_visual_mode), false,
-                                      "Status bar set visible failed");
-        }
-        if (navigation_bar != nullptr) {
-            ESP_UI_CHECK_FALSE_RETURN(navigation_bar->setVisualMode(app_data.navigation_bar_visual_mode), false,
-                                      "Navigation bar set visible failed");
-        }
-        if (_gesture != nullptr) {
-            _enable_navigation_gesture = app_data.flags.enable_navigation_gesture;
-            ESP_UI_CHECK_FALSE_RETURN(_gesture->enableMaskObject(_enable_navigation_gesture), false,
-                                      "Gesture enable mask object failed");
-        }
+        ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+                                  "Process screen change failed");
     }
 
     return true;
@@ -575,7 +682,7 @@ void ESP_UI_PhoneManager::onRecentsScreenGesturePressEventCallback(lv_event_t *e
 
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
 
     recents_screen = manager->_home.getRecentsScreen();
@@ -625,7 +732,7 @@ void ESP_UI_PhoneManager::onRecentsScreenGesturePressingEventCallback(lv_event_t
 
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
 
     // Check if there is an active app and the recents_screen is pressed
@@ -726,7 +833,7 @@ void ESP_UI_PhoneManager::onRecentsScreenGestureReleaseEventCallback(lv_event_t 
 
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
     recents_screen = manager->_home._recents_screen.get();
     ESP_UI_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
@@ -829,7 +936,7 @@ void ESP_UI_PhoneManager::onRecentsScreenSnapshotDeletedEventCallback(lv_event_t
     ESP_UI_LOGD("Recents screen snapshot deleted event callback");
     ESP_UI_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    manager = (ESP_UI_PhoneManager *)lv_event_get_user_data(event);
+    manager = static_cast<ESP_UI_PhoneManager *>(lv_event_get_user_data(event));
     ESP_UI_CHECK_NULL_EXIT(manager, "Invalid manager");
     recents_screen = manager->_home._recents_screen.get();
     ESP_UI_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
@@ -841,7 +948,7 @@ void ESP_UI_PhoneManager::onRecentsScreenSnapshotDeletedEventCallback(lv_event_t
     if (recents_screen->getSnapshotCount() == 0) {
         ESP_UI_LOGD("No snapshot in the recents_screen");
         manager->_recents_screen_active_app = nullptr;
-        if (manager->_home._data.flags.enable_recents_screen_hide_when_no_snapshot) {
+        if (manager->_home.getData().flags.enable_recents_screen_hide_when_no_snapshot) {
             ESP_UI_CHECK_FALSE_EXIT(manager->processRecentsScreenHide(), "Manager hide recents_screen failed");
         }
     }

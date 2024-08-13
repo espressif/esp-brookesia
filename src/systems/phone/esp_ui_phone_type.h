@@ -63,6 +63,13 @@ typedef struct {
     } flags;
 } ESP_UI_PhoneManagerData_t;
 
+typedef enum {
+    ESP_UI_PHONE_MANAGER_SCREEN_MAIN = 0,
+    ESP_UI_PHONE_MANAGER_SCREEN_APP,
+    ESP_UI_PHONE_MANAGER_SCREEN_RECENTS_SCREEN,
+    ESP_UI_PHONE_MANAGER_SCREEN_MAX,
+} ESP_UI_PhoneManagerScreen_t;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////// App //////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -110,11 +117,11 @@ typedef struct {
         },                                                                                             \
         .status_bar_visual_mode = (use_status_bar) ? ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED :        \
                                                      ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE,               \
-        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED : \
-                                                             ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,        \
+        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX : \
+                                                             ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,       \
         .flags = {                                                                                     \
             .enable_status_icon_common_size = 1,                                                       \
-            .enable_navigation_gesture = !use_navigation_bar,                                          \
+            .enable_navigation_gesture = 1,                                                            \
         },                                                                                             \
     }
 

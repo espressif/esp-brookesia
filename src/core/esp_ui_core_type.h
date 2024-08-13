@@ -6,7 +6,8 @@
 #pragma once
 
 #include <stdint.h>
-#include "esp_ui_style.h"
+#include "esp_ui_style_type.h"
+#include "esp_ui_lv_type.h"
 
 #ifdef __cplusplus
 extern "C" {

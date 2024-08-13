@@ -68,16 +68,17 @@ bool ESP_UI_PhoneApp::beginExtra(void)
 
     // Check navigation bar and gesture
     if ((_active_data.navigation_bar_visual_mode != ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE) &&
-            _active_data.flags.enable_navigation_gesture) {
-        ESP_UI_LOGW("Both navigation bar and gesture are enabled, only bar will be used");
+            (navigation_bar == nullptr)) {
+        ESP_UI_LOGE("Navigation bar is enabled but not provided, disable it");
+        _active_data.navigation_bar_visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE;
+    }
+    if (_active_data.flags.enable_navigation_gesture && (gesture == nullptr)) {
+        ESP_UI_LOGE("Navigation gesture is enabled but not provided, disable it");
         _active_data.flags.enable_navigation_gesture = false;
     }
-    if ((_active_data.navigation_bar_visual_mode != ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE) &&
-            (navigation_bar == nullptr)) {
-        ESP_UI_LOGE("Navigation bar is enabled but not provided");
-        _active_data.navigation_bar_visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE;
-    } else if (_active_data.flags.enable_navigation_gesture && (gesture == nullptr)) {
-        ESP_UI_LOGE("Navigation gesture is enabled but not provided");
+    if ((_active_data.navigation_bar_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED) &&
+            _active_data.flags.enable_navigation_gesture) {
+        ESP_UI_LOGW("Both navigation bar(fixed) and gesture are enabled, only bar will be used");
         _active_data.flags.enable_navigation_gesture = false;
     }
 

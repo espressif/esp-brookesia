@@ -243,6 +243,8 @@ bool esp_ui_core_utils_check_event_code_valid(lv_event_code_t code);
 
 lv_indev_t *esp_ui_core_utils_get_input_dev(const lv_disp_t *display, lv_indev_type_t type);
 
+lv_anim_path_cb_t esp_ui_core_utils_get_anim_path_cb(ESP_UI_LvAnimationPathType_t type);
+
 #ifdef __cplusplus
 }
 #endif

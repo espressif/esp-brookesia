@@ -25,7 +25,7 @@ extern "C" {
         },                                                                        \
         .navigation_bar = {                                                       \
             .data = ESP_UI_PHONE_DEFAULT_DARK_NAVIGATION_BAR_DATA(),              \
-            .visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED,          \
+            .visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,           \
         },                                                                        \
         .app_launcher = {                                                         \
             .data = ESP_UI_PHONE_DEFAULT_DARK_APP_LAUNCHER_DATA(),                \

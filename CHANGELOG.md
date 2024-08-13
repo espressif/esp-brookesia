@@ -5,6 +5,7 @@
 ### Enhancements:
 
 * feat(examples): 'ESP_UI_Phone' add partition requirement
+* feat(widgets): 'Navigation Bar' support flex visual mode
 
 ## v0.1.1~1 - 2024-08-16
 
