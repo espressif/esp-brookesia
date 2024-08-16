@@ -81,7 +81,6 @@ bool ESP_UI_AppLauncher::begin(lv_obj_t *parent)
     lv_obj_clear_flag(table_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Indicator
     lv_obj_add_style(indicator_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
-    lv_obj_align(indicator_obj.get(), LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_flex_flow(indicator_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(indicator_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     // Event
@@ -335,6 +334,8 @@ bool ESP_UI_AppLauncher::calibrateData(const ESP_UI_StyleSize_t &screen_size, co
                               "Invalid spot main size");
     ESP_UI_CHECK_VALUE_RETURN(data.indicator.main_layout_column_pad, 1, parent_w, false,
                               "Invalid spot main layout column pad");
+    ESP_UI_CHECK_VALUE_RETURN(data.indicator.main_layout_bottom_offset, 0, parent_h, false,
+                              "Invalid spot main layout bottom offset");
     // Icon
     parent_size = &data.indicator.main_size;
     parent_w = parent_size->width;
@@ -554,6 +555,7 @@ bool ESP_UI_AppLauncher::updateByNewData(void)
     // Indicator
     lv_obj_set_size(_indicator_obj.get(), _data.indicator.main_size.width, _data.indicator.main_size.height);
     lv_obj_set_style_pad_column(_indicator_obj.get(), _data.indicator.main_layout_column_pad, 0);
+    lv_obj_align(_indicator_obj.get(), LV_ALIGN_BOTTOM_MID, 0, -_data.indicator.main_layout_bottom_offset);
     // Mix
     for (size_t i = 0; i < _mix_objs.size(); i++) {
         ESP_UI_CHECK_FALSE_RETURN(updateMixByNewData(i, _mix_objs), false, "Update mix object(%d) style failed",

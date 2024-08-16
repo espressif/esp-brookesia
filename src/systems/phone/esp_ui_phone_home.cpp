@@ -376,7 +376,7 @@ bool ESP_UI_PhoneHome::calibrateData(const ESP_UI_StyleSize_t &screen_size, ESP_
             data.recents_screen.data.main.size.height -= data.navigation_bar.data.main.size.height;
         }
     }
-    // RecentsScreen
+    // Recents Screen
     if (data.flags.enable_recents_screen) {
         ESP_UI_CHECK_FALSE_RETURN(ESP_UI_RecentsScreen::calibrateData(screen_size, *this, data.recents_screen.data),
                                   false, "Calibrate recents_screen data failed");
