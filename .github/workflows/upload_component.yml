@@ -1,6 +1,7 @@
 name: Push components to Espressif Component Service
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.1.1~1 - 2024-08-16
+
+### Bugfixes:
+
+* fix(idf): bump version to fix idf component build issue
+
 ## v0.1.1 - 2024-08-12
 
 ### Enhancements:

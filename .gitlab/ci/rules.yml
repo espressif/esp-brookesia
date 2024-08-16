@@ -5,13 +5,17 @@
 # build system, if changed, build all apps
 .patterns-build_system: &patterns-build_system
   # For test
-  # - ".gitlab/tools/build_apps.py"
+  - ".gitlab/**/*"
   - "conftest.py"
   - "pytest.ini"
 
 # component folder
 .patterns-component: &patterns-component
-  - "**/*"
+  - "src/**/*"
+  - "CMakeLists.txt"
+  - "esp_ui_conf.h"
+  - "idf_component.yml"
+  - "Kconfig"
 
 # docs folder
 .patterns-docs_md: &patterns-docs_md
