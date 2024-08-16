@@ -230,10 +230,8 @@ bool ESP_UI_NavigationBar::triggerVisualFlexShow(void)
                               "Invalid visual mode");
 
     if (checkVisualFlexHideTimerRunning()) {
-        ESP_UI_LOGD("Reset flex hide timer");
         ESP_UI_CHECK_FALSE_RETURN(resetFlexHideTimer(), false, "Reset flex hide timer failed");
     } else {
-        ESP_UI_LOGD("Start flex show animation");
         ESP_UI_CHECK_FALSE_RETURN(stopFlexHideAnimation(), false, "Stop flex hide animation failed");
         ESP_UI_CHECK_FALSE_RETURN(startFlexShowAnimation(true), false, "Start flex show animation failed");
     }

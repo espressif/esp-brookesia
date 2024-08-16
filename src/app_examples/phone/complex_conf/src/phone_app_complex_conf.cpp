@@ -37,7 +37,7 @@ PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigatio
             },
             .status_bar_visual_mode = (use_status_bar) ? ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED :
                                                          ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE,
-            .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED :
+            .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX :
                                                                  ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,
             .flags = {
                 .enable_status_icon_common_size = 1,

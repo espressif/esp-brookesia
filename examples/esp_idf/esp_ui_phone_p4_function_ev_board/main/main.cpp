@@ -16,7 +16,7 @@
 #include "app_examples/phone/squareline/src/phone_app_squareline.hpp"
 
 #define EXAMPLE_SHOW_MEM_INFO             (1)
-#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (1)
+#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (0)
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
 #include "esp_ui_phone_1024_600_stylesheet.h"
 #endif

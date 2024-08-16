@@ -1,11 +1,12 @@
 # ChangeLog
 
-## v0.1.2 - 2024-08-13
+## v0.2.0 - 2024-08-20
 
 ### Enhancements:
 
 * feat(examples): 'ESP_UI_Phone' add partition requirement
 * feat(widgets): 'Navigation Bar' support flex visual mode
+* feat(widgets): 'Gesture' support indicator bar
 
 ## v0.1.1~1 - 2024-08-16
 

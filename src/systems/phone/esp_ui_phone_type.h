@@ -51,6 +51,7 @@ typedef struct {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct {
     ESP_UI_GestureData_t gesture;
+    uint32_t gesture_mask_indicator_trigger_time_ms;
     struct {
         uint16_t drag_snapshot_y_step;
         uint16_t drag_snapshot_y_threshold;

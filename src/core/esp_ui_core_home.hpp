@@ -27,6 +27,7 @@ public:
     bool showContainerBorder(void);
     bool hideContainerBorder(void);
     bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target) const;
+    bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target, bool allow_zero) const;
     bool calibrateCoreFont(const ESP_UI_StyleSize_t *parent, ESP_UI_StyleFont_t &target) const;
     bool calibrateCoreIconImage(const ESP_UI_StyleImage_t &target) const;
 

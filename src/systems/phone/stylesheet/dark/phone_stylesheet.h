@@ -48,6 +48,7 @@ extern "C" {
 #define ESP_UI_PHONE_DEFAULT_DARK_MANAGER_DATA()             \
     {                                                        \
         .gesture = ESP_UI_PHONE_DEFAULT_DARK_GESTURE_DATA(), \
+        .gesture_mask_indicator_trigger_time_ms = 150,       \
         .recents_screen = {                                  \
             .drag_snapshot_y_step = 10,                      \
             .drag_snapshot_y_threshold = 50,                 \

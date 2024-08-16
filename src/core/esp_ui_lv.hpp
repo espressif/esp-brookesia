@@ -32,7 +32,7 @@ using ESP_UI_LvAnim_t = std::shared_ptr<lv_anim_t>;
 #define LvAnimConstructor()              \
     ({                                   \
         lv_anim_t *anim = new lv_anim_t; \
-        if (anim == nullptr) {           \
+        if (anim != nullptr) {           \
             lv_anim_init(anim);          \
         };                               \
         anim;                            \
