@@ -75,22 +75,23 @@ typedef struct {
     ESP_UI_StyleImage_t launcher_icon;          /*!< Launcher icon image, use `ESP_UI_STYLE_IMAGE*` macros to set */
     ESP_UI_StyleSize_t screen_size;             /*!< App screen size, use `ESP_UI_STYLE_SIZE_*` macros to set */
     struct {
-        uint8_t enable_default_screen: 1;       /*!< If this flag is enabled, the core will create a default screen and
-                                                     it will be automatically loaded and cleaned up. Otherwise, the app
-                                                     needs to create a new screen and load it manually in app's `run()`
-                                                     function */
-        uint8_t enable_recycle_resource: 1;     /*!< If this flag is enabled, the core will record all resources
-                                                    (screens, timers, and animations) created in app's `run()` function.
-                                                    These resources will be cleaned up automatically. Otherwise, the app
-                                                    needs to manage all resources manually */
+        uint8_t enable_default_screen: 1;       /*!< If this flag is enabled, when app starts, the core will create a
+                                                     default screen which will be automatically loaded and cleaned up.
+                                                     Otherwise, the app needs to create a new screen and load it
+                                                     manually in app's `run()` function */
+        uint8_t enable_recycle_resource: 1;     /*!< If this flag is enabled, when app closes, the core will cleaned up
+                                                     all recorded resources(screens, timers, and animations) automatically.
+                                                     These resources are recorded in app's `run()` and `pause()` functions,
+                                                     or between the `startRecordResource()` and `stopRecordResource()`
+                                                     functions.  Otherwise, the app needs to call `cleanRecordResource()`
+                                                     function to clean manually */
         uint8_t enable_resize_visual_area: 1;   /*!< If this flag is enabled, the core will resize the visual area of
-                                                     the screens created in the app's `run()` function. This is useful
-                                                     when the screen displays floating UIs, such as a status bar.
-                                                     Otherwise, the app's screens will be displayed in full screen, but
-                                                     some areas might be not visible. The final visual area of the app
-                                                     is the intersection of the app's visual area and the `screen_size`.
-                                                     The app can call the `getVisualArea()` function to retrieve the
-                                                     final visual area */
+                                                     all recorded screens which are recorded in app's `run()` and `pause()`
+                                                     functions, or between the `startRecordResource()` and `stopRecordResource()`
+                                                     functions. This is useful when the screen displays floating UIs, such as a
+                                                     status bar. Otherwise, the app's screens will be displayed in full screen,
+                                                     but some areas might be not visible. The app can call the `getVisualArea()`
+                                                     function to retrieve the final visual area */
     } flags;                                    /*!< Core app data flags */
 } ESP_UI_CoreAppData_t;
 

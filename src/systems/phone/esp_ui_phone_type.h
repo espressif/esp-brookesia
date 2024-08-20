@@ -95,12 +95,14 @@ typedef struct {
 /**
  * @brief The default initializer for phone app data structure
  *
- * @note  The `app_launcher_page_index` and `status_icon_area_index` is set to 0
- * @note  The `enable_status_icon_common_size` flag is set by default
+ * @note  The `app_launcher_page_index` and `status_icon_area_index` are set to 0
+ * @note  The `enable_status_icon_common_size` and `enable_navigation_gesture` flags are set by default
+ * @note  If the `use_navigation_bar` flag is set, the visual mode of the navigation bar will be set to
+ *        `ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX`
  *
  * @param status_icon The status icon image. Set to `NULL` if no icon is needed
  * @param use_status_bar Flag to show the status bar
- * @param use_navigation_bar Flag to show the navigation bar. If not set, the `enable_navigation_gesture` flag will be set
+ * @param use_navigation_bar Flag to show the navigation bar
  *
  */
 #define ESP_UI_PHONE_APP_DATA_DEFAULT(status_icon, use_status_bar, use_navigation_bar)                 \

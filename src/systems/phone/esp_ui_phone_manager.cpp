@@ -205,9 +205,15 @@ bool ESP_UI_PhoneManager::processAppCloseExtra(ESP_UI_CoreApp *app)
     ESP_UI_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UI_LOGD("Process app(%p) close extra", phone_app);
 
-    if ((getActiveApp() == app) & (!home.getRecentsScreen()->checkVisible())) {
+    if (getActiveApp() == app) {
+        // Switch to the main screen to release the app resources
         ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
                                   "Process screen change failed");
+        // If the recents_screen is visible, change back to the recents_screen
+        if (home.getRecentsScreen()->checkVisible()) {
+            ESP_UI_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_UI_PHONE_MANAGER_SCREEN_RECENTS_SCREEN, nullptr), false,
+                                      "Process screen change failed");
+        }
     }
 
     return true;
@@ -575,14 +581,14 @@ bool ESP_UI_PhoneManager::processNavigationEvent(ESP_UI_CoreNavigateType_t type)
             ESP_UI_LOGW("Recents screen is disabled");
             goto end;
         }
+        // Save the active app and pause it
+        if (active_app != nullptr) {
+            ret = processAppPause(active_app);
+            ESP_UI_CHECK_FALSE_GOTO(ret, end, "Process app pause failed");
+        }
+        _recents_screen_pause_app = active_app;
         // Show recents_screen
         ESP_UI_CHECK_FALSE_GOTO(ret = processRecentsScreenShow(), end, "Process recents_screen show failed");
-        // Save the active app and pause it
-        _recents_screen_pause_app = active_app;
-        if ((active_app != nullptr) && !processAppPause(active_app)) {
-            ESP_UI_LOGE("App(%d) pause failed", active_app->getId());
-            ret = false;
-        }
         // Get the active app for recents screen, if the active app is not set, set the last app as the active app
         _recents_screen_active_app = active_app != nullptr ? active_app : getRunningAppByIdenx(getRunningAppCount() - 1);
         // Scroll to the active app

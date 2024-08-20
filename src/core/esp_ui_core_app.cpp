@@ -58,62 +58,6 @@ ESP_UI_CoreApp::ESP_UI_CoreApp(const char *name, const void *launcher_icon, bool
 {
 }
 
-bool ESP_UI_CoreApp::cleanResource(void)
-{
-    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-
-    if (!_core_active_data.flags.enable_recycle_resource) {
-        ESP_UI_LOGD("App(%s: %d) clean resource is disabled", getName(), _id);
-        return true;
-    }
-    ESP_UI_LOGD("App(%s: %d) clean resource", getName(), _id);
-
-    std::list <lv_obj_t *> resource_screens = _resource_screens;
-    lv_timer_t *timer_node = lv_timer_get_next(NULL);
-    lv_anim_t *anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
-
-
-    // Screen
-    for (auto screen : resource_screens) {
-        if (lv_obj_is_valid(screen)) {
-            lv_obj_del(screen);
-            _resource_screens.erase(find(_resource_screens.begin(), _resource_screens.end(), screen));
-        }
-    }
-    ESP_UI_LOGD("Clean screen(%d), miss(%d): ", _resource_screen_count - (int)_resource_screens.size(),
-                (int)_resource_screens.size());
-
-    // Timer
-    while ((timer_node != NULL) && (_resource_timers.size() > 0)) {
-        auto timer_it = find(_resource_timers.begin(), _resource_timers.end(), timer_node);
-        if (timer_it != _resource_timers.end()) {
-            lv_timer_del(timer_node);
-            _resource_timers.erase(timer_it);
-            timer_node = lv_timer_get_next(NULL);
-        } else {
-            timer_node = lv_timer_get_next(timer_node);
-        }
-    }
-    ESP_UI_LOGD("Clean timer(%d), miss(%d): ", _resource_timer_count - (int)_resource_timers.size(),
-                (int)_resource_timers.size());
-
-    // Animation
-    while ((anim_node != NULL) && (_resource_anims.size() > 0)) {
-        auto anim_it = find(_resource_anims.begin(), _resource_anims.end(), anim_node);
-        if (anim_it != _resource_anims.end()) {
-            lv_anim_del(anim_node->var, anim_node->exec_cb);
-            _resource_anims.erase(anim_it);
-            anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
-        } else {
-            anim_node = (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
-        }
-    }
-    ESP_UI_LOGD("Clean anim(%d), miss(%d): ", _resource_anim_count - (int)_resource_anims.size(),
-                (int)_resource_anims.size());
-
-    return true;
-}
-
 bool ESP_UI_CoreApp::notifyCoreClosed(void) const
 {
     lv_obj_t *event_obj = nullptr;
@@ -143,6 +87,227 @@ bool ESP_UI_CoreApp::notifyCoreClosed(void) const
     return true;
 }
 
+void ESP_UI_CoreApp::setLauncherIconImage(const ESP_UI_StyleImage_t &icon_image)
+{
+    _core_active_data.launcher_icon = icon_image;
+}
+
+bool ESP_UI_CoreApp::startRecordResource(void)
+{
+    lv_disp_t *disp = nullptr;
+    lv_area_t &visual_area = _app_style.visual_area;
+
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_UI_LOGD("App(%s: %d) start record resource", getName(), _id);
+
+    disp = _core->getDisplayDevice();
+    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
+
+    if (_flags.is_resource_recording) {
+        ESP_UI_LOGD("Recording resource is already started, don't start again");
+        return true;
+    }
+
+    if (_core_active_data.flags.enable_resize_visual_area) {
+        ESP_UI_LOGD("Resieze screen to visual area[(%d,%d)-(%d,%d)]", visual_area.x1, visual_area.y1, visual_area.x2,
+                    visual_area.y2);
+        _display_style.w = disp->driver->hor_res;
+        _display_style.h = disp->driver->ver_res;
+        disp->driver->hor_res = visual_area.x2 - visual_area.x1 + 1;
+        disp->driver->ver_res = visual_area.y2 - visual_area.y1 + 1;
+    }
+    _resource_head_screen_index = disp->screen_cnt - 1;
+    _resource_head_timer = lv_timer_get_next(nullptr);
+    _resource_head_anim = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
+    _flags.is_resource_recording = true;
+
+    return true;
+}
+
+bool ESP_UI_CoreApp::endRecordResource(void)
+{
+    lv_disp_t *disp = nullptr;
+    lv_obj_t *screen = nullptr;
+    lv_timer_t *timer_node = nullptr;
+    lv_anim_t *anim_node = nullptr;
+    const lv_area_t &visual_area = _app_style.visual_area;
+
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_UI_LOGD("App(%s: %d) end record resource", getName(), _id);
+
+    if (!_flags.is_resource_recording) {
+        ESP_UI_LOGD("Recording resource is not started, please start first");
+        return true;
+    }
+
+    disp = _core->getDisplayDevice();
+    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
+
+    // Screen
+    for (int i = _resource_head_screen_index + 1; i < (int)disp->screen_cnt; i++) {
+        screen = (lv_obj_t *)disp->screens[i];
+        // Record or update the record information of the screen
+        _resource_screens_class_parent_map[screen] = {screen->class_p, (lv_obj_t *)screen->parent};
+        if (find(_resource_screens.begin(), _resource_screens.end(), screen) == _resource_screens.end()) {
+            // Only record the newest timer
+            _resource_screens.push_back(screen);
+            _resource_screen_count++;
+            // Move screens to visual area when loaded only if needed
+            if (_core_active_data.flags.enable_resize_visual_area) {
+                lv_obj_set_pos(screen, visual_area.x1, visual_area.y1);
+                lv_obj_add_event_cb(screen, onResizeScreenLoadedEventCallback, LV_EVENT_SCREEN_LOAD_START, this);
+                // Avoid resetting the position of the previous screen when using animations with `lv_scr_load_anim()`
+                lv_obj_add_event_cb(screen, onResizeScreenLoadedEventCallback, LV_EVENT_SCREEN_UNLOAD_START, this);
+            }
+        } else {
+            ESP_UI_LOGD("Screen(@0x%p) is already recorded", screen);
+        }
+    }
+    if (_resource_head_screen_index >= (int)disp->screen_cnt) {
+        ESP_UI_LOGE("record screen fail");
+    } else {
+        ESP_UI_LOGD("record screen(%d): ", _resource_screen_count);
+    }
+
+    // Timer
+    timer_node = lv_timer_get_next(nullptr);
+    while ((timer_node != nullptr) && (timer_node != _resource_head_timer)) {
+        // Record or update the record information of the timer
+        _resource_timers_cb_usr_map[timer_node] = {(lv_timer_cb_t)timer_node->timer_cb, timer_node->user_data};
+        if (find(_resource_timers.begin(), _resource_timers.end(), timer_node) == _resource_timers.end()) {
+            // Only record the newest timer
+            _resource_timers.push_back(timer_node);
+            _resource_timer_count++;
+        } else {
+            ESP_UI_LOGD("Timer(@0x%p) is already recorded", timer_node);
+        }
+        timer_node = lv_timer_get_next(timer_node);
+    }
+    if ((timer_node == nullptr) && (_resource_head_timer != nullptr)) {
+        _resource_timers.clear();
+        _resource_timer_count = 0;
+        ESP_UI_LOGE("record timer fail");
+    } else {
+        ESP_UI_LOGD("record timer(%d): ", _resource_timer_count);
+    }
+
+    // Animation
+    anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
+    while ((anim_node != nullptr) && (anim_node != _resource_head_anim)) {
+        // Record or update the record information of the animation
+        _resource_anims_var_exec_map[anim_node] = {anim_node->var, anim_node->exec_cb};
+        if (find(_resource_anims.begin(), _resource_anims.end(), anim_node) == _resource_anims.end()) {
+            // Only record the newest timer
+            _resource_anims.push_back(anim_node);
+            _resource_anim_count++;
+        } else {
+            ESP_UI_LOGD("Animation(@0x%p) is already recorded", anim_node);
+        }
+        anim_node = (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
+    }
+    if ((anim_node == nullptr) && (_resource_head_anim != nullptr)) {
+        _resource_anims.clear();
+        _resource_anim_count = 0;
+        ESP_UI_LOGE("record animation fail");
+    } else {
+        ESP_UI_LOGD("record animation(%d): ", _resource_anim_count);
+    }
+
+    if (_core_active_data.flags.enable_resize_visual_area) {
+        ESP_UI_LOGD("Resize screen back to display size(%d x %d)", _display_style.w, _display_style.h);
+        disp->driver->hor_res = _display_style.w;
+        disp->driver->ver_res = _display_style.h;
+    }
+    _flags.is_resource_recording = false;
+
+    return true;
+}
+
+bool ESP_UI_CoreApp::cleanRecordResource(void)
+{
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_UI_LOGD("App(%s: %d) clean resource", getName(), _id);
+
+    std::list <lv_obj_t *> resource_screens = _resource_screens;
+    lv_timer_t *timer_node = lv_timer_get_next(NULL);
+    lv_anim_t *anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
+
+    // Screen
+    for (auto screen : resource_screens) {
+        auto screen_map_it = _resource_screens_class_parent_map.find(screen);
+        if (screen_map_it == _resource_screens_class_parent_map.end()) {
+            ESP_UI_LOGE("Screen class parent map not found");
+        } else {
+            if ((screen->class_p == screen_map_it->second.first) &&
+                    (screen->parent == screen_map_it->second.second)) {
+                if (lv_obj_is_valid(screen)) {
+                    lv_obj_del(screen);
+                    _resource_screens.erase(find(_resource_screens.begin(), _resource_screens.end(), screen));
+                }
+            } else {
+                ESP_UI_LOGD("Screen(@0x%p) information is not matched, skip", screen);
+            }
+        }
+    }
+    ESP_UI_LOGD("Clean screen(%d), miss(%d): ", _resource_screen_count - (int)_resource_screens.size(),
+                (int)_resource_screens.size());
+
+    // Timer
+    while ((timer_node != NULL) && (_resource_timers.size() > 0)) {
+        auto timer_it = find(_resource_timers.begin(), _resource_timers.end(), timer_node);
+        if (timer_it != _resource_timers.end()) {
+            auto timer_map_it = _resource_timers_cb_usr_map.find(timer_node);
+            if (timer_map_it == _resource_timers_cb_usr_map.end()) {
+                ESP_UI_LOGE("Timer cb usr map not found");
+            } else  {
+                if ((timer_map_it->second.first == timer_node->timer_cb) &&
+                        (timer_map_it->second.second == timer_node->user_data)) {
+                    lv_timer_del(timer_node);
+                    _resource_timers.erase(timer_it);
+                    timer_node = lv_timer_get_next(NULL);
+                    break;
+                } else {
+                    ESP_UI_LOGD("Timer(@0x%p) information is not matched, skip", timer_node);
+                }
+            }
+        }
+        timer_node = lv_timer_get_next(timer_node);
+    }
+    ESP_UI_LOGD("Clean timer(%d), miss(%d): ", _resource_timer_count - (int)_resource_timers.size(),
+                (int)_resource_timers.size());
+
+    // Animation
+    while ((anim_node != NULL) && (_resource_anims.size() > 0)) {
+        auto anim_it = find(_resource_anims.begin(), _resource_anims.end(), anim_node);
+        if (anim_it != _resource_anims.end()) {
+            auto anim_map_it = _resource_anims_var_exec_map.find(anim_node);
+            if (anim_map_it == _resource_anims_var_exec_map.end()) {
+                ESP_UI_LOGE("Animation var exec map not found");
+            } else  {
+                if ((anim_map_it->second.first == anim_node->var) &&
+                        (anim_map_it->second.second == anim_node->exec_cb)) {
+                    if (lv_anim_del(anim_node->var, anim_node->exec_cb)) {
+                        _resource_anims.erase(anim_it);
+                        anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
+                        continue;
+                    } else {
+                        ESP_UI_LOGE("Delete animation failed");
+                    }
+                } else {
+                    ESP_UI_LOGD("Anim(@0x%p) information is not matched, skip", anim_node);
+                }
+            }
+        }
+        anim_node = (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
+    }
+    ESP_UI_LOGD("Clean anim(%d), miss(%d): ", _resource_anim_count - (int)_resource_anims.size(),
+                (int)_resource_anims.size());
+
+    ESP_UI_CHECK_FALSE_RETURN(resetRecordResource(), false, "Reset record resource failed");
+
+    return true;
+}
+
 bool ESP_UI_CoreApp::processInstall(ESP_UI_Core *core, int id)
 {
     ESP_UI_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
@@ -159,17 +324,17 @@ bool ESP_UI_CoreApp::processInstall(ESP_UI_Core *core, int id)
     _core = core;
     _id = id;
 
-    ESP_UI_CHECK_FALSE_RETURN(beginExtra(), false, "Begin extra failed");
-    ESP_UI_CHECK_FALSE_RETURN(init(), false, "Init failed");
+    ESP_UI_CHECK_FALSE_GOTO(beginExtra(), err, "Begin extra failed");
+    ESP_UI_CHECK_FALSE_GOTO(init(), err, "Init failed");
 
     _status = ESP_UI_CORE_APP_STATUS_CLOSED;
 
     return true;
-}
 
-void ESP_UI_CoreApp::setLauncherIconImage(const ESP_UI_StyleImage_t &icon_image)
-{
-    _core_active_data.launcher_icon = icon_image;
+err:
+    ESP_UI_CHECK_FALSE_RETURN(processUninstall(), false, "Uninstall failed");
+
+    return false;
 }
 
 bool ESP_UI_CoreApp::processUninstall(void)
@@ -192,7 +357,8 @@ bool ESP_UI_CoreApp::processUninstall(void)
         lv_obj_del(_active_screen);
     }
     _active_screen = nullptr;
-    _temp_screen = nullptr;
+    // TODO
+    // _temp_screen = nullptr;
     _resource_head_timer = nullptr;
     _resource_head_anim = nullptr;
     _resource_screens.clear();
@@ -207,59 +373,87 @@ bool ESP_UI_CoreApp::processUninstall(void)
 
 bool ESP_UI_CoreApp::processRun(lv_area_t area)
 {
+    bool ret = true;
+
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) run", getName(), _id);
 
     ESP_UI_CHECK_FALSE_RETURN(setVisualArea(area), false, "Set app visual area failed");
-    ESP_UI_CHECK_FALSE_RETURN(startResizeVisualArea(), false, "Start resize visual area failed");
-    ESP_UI_CHECK_FALSE_RETURN(initActiveScreen(), false, "Init active screen failed");
-    ESP_UI_CHECK_FALSE_GOTO(startRecordResource(), err, "Start record resource failed");
-    ESP_UI_CHECK_FALSE_GOTO(saveDisplayTheme(), err, "Save display theme failed");
-    ESP_UI_CHECK_FALSE_GOTO(run(), err, "Run app failed");
-    ESP_UI_CHECK_FALSE_GOTO(endRecordResource(), err, "End record resource failed");
-    ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(), err, "Save recent screen failed");
-    ESP_UI_CHECK_FALSE_GOTO(endResizeVisualArea(), err, "End resize visual area failed");
+    // TODO
+    // if (_flags.is_screen_small) {
+    //     // Create a temp screen to recolor the background
+    //     ESP_UI_CHECK_FALSE_RETURN(createAndloadTempScreen(), false, "Create temp screen failed");
+    // }
+    ESP_UI_CHECK_FALSE_RETURN(resetRecordResource(), false, "Reset record resource failed");
+    ESP_UI_CHECK_FALSE_RETURN(startRecordResource(), false, "Start record resource failed");
+    if (_core_active_data.flags.enable_default_screen) {
+        ESP_UI_CHECK_FALSE_RETURN(initDefaultScreen(), false, "Create active screen failed");
+    }
+    ESP_UI_CHECK_FALSE_RETURN(saveDisplayTheme(), false, "Save display theme failed");
+    ret = run();
+    ESP_UI_CHECK_FALSE_RETURN(saveRecentScreen(), false, "Save recent screen failed");
+    ESP_UI_CHECK_FALSE_RETURN(endRecordResource(), false, "Start record resource failed");
+    ESP_UI_CHECK_FALSE_GOTO(ret, err, "App run failed");
 
     _status = ESP_UI_CORE_APP_STATUS_RUNNING;
 
     return true;
 
 err:
-    if (_core_active_data.flags.enable_default_screen && lv_obj_is_valid(_active_screen)) {
-        lv_obj_del(_active_screen);
-        _active_screen = nullptr;
-    }
+    ESP_UI_CHECK_FALSE_RETURN(processClose(true), false, "Close app failed");
 
     return false;
 }
 
 bool ESP_UI_CoreApp::processResume(void)
 {
+    bool ret = true;
+
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) resume", getName(), _id);
 
     ESP_UI_CHECK_FALSE_RETURN(loadRecentScreen(), false, "Load recent screen failed");
-    ESP_UI_CHECK_FALSE_RETURN(loadAppTheme(), false, "Load app theme failed");
-    ESP_UI_CHECK_FALSE_RETURN(resume(), false, "Resume app failed");
+    ESP_UI_CHECK_FALSE_GOTO(loadAppTheme(), err, "Load app theme failed");
+    ESP_UI_CHECK_FALSE_GOTO(startRecordResource(), err, "Start record resource failed");
+    ESP_UI_LOGD("Do resume");
+    if (!(ret = resume())) {
+        ESP_UI_LOGE("Resume app failed");
+    }
+    ESP_UI_CHECK_FALSE_GOTO(endRecordResource(), err, "End record resource failed");
 
     _status = ESP_UI_CORE_APP_STATUS_RUNNING;
 
-    return true;
+    return ret;
+
+err:
+    ESP_UI_CHECK_FALSE_RETURN(processClose(true), false, "Close app failed");
+
+    return false;
 }
 
 bool ESP_UI_CoreApp::processPause(void)
 {
+    bool ret = true;
+
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) pause", getName(), _id);
 
-    ESP_UI_CHECK_FALSE_RETURN(pause(), false, "Pause app failed");
-    ESP_UI_CHECK_FALSE_RETURN(saveAppTheme(), false, "Save app theme failed");
-    ESP_UI_CHECK_FALSE_RETURN(saveRecentScreen(), false, "Save app recent screen failed");
-    ESP_UI_CHECK_FALSE_RETURN(loadDisplayTheme(), false, "Load display theme failed");
+    ESP_UI_LOGD("Do pause");
+    if (!(ret = pause())) {
+        ESP_UI_LOGE("Pause failed");
+    }
+    ESP_UI_CHECK_FALSE_GOTO(saveAppTheme(), err, "Save app theme failed");
+    ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(), err, "Save recent screen failed");
+    ESP_UI_CHECK_FALSE_GOTO(loadDisplayTheme(), err, "Load display theme failed");
 
     _status = ESP_UI_CORE_APP_STATUS_PAUSED;
 
-    return true;
+    return ret;
+
+err:
+    ESP_UI_CHECK_FALSE_RETURN(processClose(true), false, "Close app failed");
+
+    return false;
 }
 
 bool ESP_UI_CoreApp::processClose(bool is_app_active)
@@ -270,209 +464,105 @@ bool ESP_UI_CoreApp::processClose(bool is_app_active)
     // Prevent recursive close
     _flags.is_closing = true;
 
-    if (!close()) {
-        ESP_UI_LOGE("Close app failed");
-    }
+    ESP_UI_LOGD("Do close");
+    ESP_UI_CHECK_FALSE_GOTO(close(), err, "Close failed");
     // Check if the app is active, if not, clean the resource immediately.
     // Otherwise, clean the resource when the screen is unloaded
     if (is_app_active) {
         // Save the last screen
-        ESP_UI_CHECK_FALSE_RETURN(saveRecentScreen(), false, "Save app recent screen failed");
+        ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(), err, "Save recent screen failed");
         // This is to prevent the screen from being cleaned before the screen is unloaded
-        ESP_UI_CHECK_FALSE_RETURN(enableAutoClean(), false, "Enable auto clean failed");
+        ESP_UI_CHECK_FALSE_GOTO(enableAutoClean(), err, "Enable auto clean failed");
     } else {
-        ESP_UI_CHECK_FALSE_RETURN(cleanResource(), false, "Clean resource failed");
-        ESP_UI_CHECK_FALSE_RETURN(cleanActiveScreen(), false, "Clean active screen failed");
+        ESP_UI_LOGD("Do clean resource");
+        if (!cleanResource()) {
+            ESP_UI_LOGE("Clean resource failed");
+        }
+        if (_core_active_data.flags.enable_recycle_resource) {
+            ESP_UI_CHECK_FALSE_GOTO(cleanRecordResource(), err, "Clean record resource failed");
+        } else if (_core_active_data.flags.enable_default_screen) {
+            ESP_UI_CHECK_FALSE_GOTO(cleanDefaultScreen(), err, "Clean active screen failed");
+        }
     }
-    ESP_UI_CHECK_FALSE_RETURN(loadDisplayTheme(), false, "Load display theme failed");
+    ESP_UI_CHECK_FALSE_GOTO(loadDisplayTheme(), err, "Load display theme failed");
 
     _flags.is_closing = false;
     _status = ESP_UI_CORE_APP_STATUS_CLOSED;
 
     return true;
+
+err:
+    _flags.is_closing = false;
+
+    return false;
 }
 
-bool ESP_UI_CoreApp::initActiveScreen(void)
+bool ESP_UI_CoreApp::setVisualArea(const lv_area_t &area)
+{
+    uint16_t visual_area_x = 0;
+    uint16_t visual_area_y = 0;
+    uint16_t visual_area_w = 0;
+    uint16_t visual_area_h = 0;
+    lv_area_t visual_area = area;
+    const ESP_UI_StyleSize_t &screen_size = _core->getCoreData().screen_size;
+    const ESP_UI_StyleSize_t &app_size = getCoreActiveData().screen_size;
+
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_UI_LOGD("App(%s: %d) set visual area(%d,%d-%d,%d)", getName(), _id, area.x1, area.y1, area.x2, area.y2);
+
+    visual_area_w = visual_area.x2 - visual_area.x1 + 1;
+    visual_area_h = visual_area.y2 - visual_area.y1 + 1;
+    visual_area_x = visual_area.x1;
+    visual_area_y = visual_area.y1;
+    if (visual_area_w > app_size.width) {
+        visual_area_x = visual_area.x1 + (visual_area_w - app_size.width) / 2;
+    }
+    if (visual_area_h > app_size.height) {
+        visual_area_y = visual_area.y1 + (visual_area_h - app_size.height) / 2;
+    }
+    visual_area_w = min(visual_area_w, app_size.width);
+    visual_area_h = min(visual_area_h, app_size.height);
+    visual_area.x1 = visual_area_x;
+    visual_area.y1 = visual_area_y;
+    visual_area.x2 = visual_area_x + visual_area_w - 1;
+    visual_area.y2 = visual_area_y + visual_area_h - 1;
+    _app_style.visual_area = visual_area;
+
+    _flags.is_screen_small = ((lv_area_get_height(&visual_area) < screen_size.height) ||
+                              (lv_area_get_width(&visual_area) < screen_size.width));
+
+    return true;
+}
+
+bool ESP_UI_CoreApp::initDefaultScreen(void)
 {
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) init active screen", getName(), _id);
 
-    // Create active screen if needed
-    if (_core_active_data.flags.enable_default_screen) {
-        ESP_UI_LOGD("Init and load default active screen");
+    _active_screen = lv_obj_create(nullptr);
+    ESP_UI_CHECK_NULL_RETURN(_active_screen, false, "Create default screen failed");
 
-        _active_screen = lv_obj_create(nullptr);
-        ESP_UI_CHECK_NULL_RETURN(_active_screen, false, "Create default screen failed");
+    lv_scr_load(_active_screen);
 
-        // Move screens to visual area when loaded only if needed
-        if (_core_active_data.flags.enable_resize_visual_area) {
-            lv_obj_add_event_cb(_active_screen, onResizeScreenLoadedEventCallback, LV_EVENT_SCREEN_LOADED, this);
-        }
-
-        lv_scr_load(_active_screen);
-
-        if (_flags.is_screen_small) {
-            ESP_UI_CHECK_FALSE_RETURN(delTempScreen(), false, "Delete temp screen failed");
-        }
-    } else {
-        ESP_UI_LOGD("Use custom screens");
-    }
+    // TODO
+    // if (_flags.is_screen_small) {
+    //     ESP_UI_CHECK_FALSE_RETURN(delTempScreen(), false, "Delete temp screen failed");
+    // }
 
     return true;
 }
 
-bool ESP_UI_CoreApp::startResizeVisualArea(void)
+bool ESP_UI_CoreApp::cleanDefaultScreen(void)
 {
-    lv_disp_t *disp = nullptr;
-    lv_area_t &visual_area = _app_style.visual_area;
-
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) start resize visual area", getName(), _id);
+    ESP_UI_LOGD("App(%s: %d) clean default active screen", getName(), _id);
 
-    disp = _core->getDisplayDevice();
-    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
-
-    if (_flags.is_screen_small) {
-        // Create a temp screen to recolor the background
-        ESP_UI_CHECK_FALSE_RETURN(createAndloadTempScreen(), false, "Create temp screen failed");
-    }
-
-    _display_style.w = disp->driver->hor_res;
-    _display_style.h = disp->driver->ver_res;
-    disp->driver->hor_res = visual_area.x2 - visual_area.x1 + 1;
-    disp->driver->ver_res = visual_area.y2 - visual_area.y1 + 1;
-
-    return true;
-}
-
-bool ESP_UI_CoreApp::endResizeVisualArea(void)
-{
-    lv_disp_t *disp = nullptr;
-    lv_area_t &visual_area = _app_style.visual_area;
-
-    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) end resize visual area", getName(), _id);
-
-    disp = _core->getDisplayDevice();
-    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
-
-    disp->driver->hor_res = _display_style.w;
-    disp->driver->ver_res = _display_style.h;
-
-    // Move the active screen to visual area again to make sure it's in the right position
-    ESP_UI_CHECK_FALSE_RETURN(lv_obj_is_valid(_active_screen), false, "Invalid active screen");
-    lv_obj_set_pos(_active_screen, visual_area.x1, visual_area.y1);
-    lv_obj_invalidate(_active_screen);
-
-    // Move screens to visual area when loaded only if needed
-    if (!_core_active_data.flags.enable_default_screen) {
-        ESP_UI_LOGD("Resize all custom screens");
-        for (auto screen : _resource_screens) {
-            if (!lv_obj_is_valid(screen)) {
-                continue;
-            }
-            lv_obj_set_pos(screen, visual_area.x1, visual_area.y1);
-            lv_obj_invalidate(_active_screen);
-            lv_obj_add_event_cb(screen, onResizeScreenLoadedEventCallback, LV_EVENT_SCREEN_LOAD_START, this);
-        }
-    }
-
-    return true;
-}
-
-bool ESP_UI_CoreApp::startRecordResource(void)
-{
-    lv_disp_t *disp = nullptr;
-
-    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-
-    if (!_core_active_data.flags.enable_recycle_resource && !_core_active_data.flags.enable_resize_visual_area) {
-        ESP_UI_LOGD("App(%s: %d) start record resource is disabled", getName(), _id);
-        return true;
-    }
-    ESP_UI_LOGD("App(%s: %d) start record resource", getName(), _id);
-
-    disp = _core->getDisplayDevice();
-    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
-
-    // Screen
-    _resource_head_screen_index = disp->screen_cnt - 1;
-    _resource_screen_count = 0;
-    _resource_screens.clear();
-
-    // Timer
-    _resource_head_timer = lv_timer_get_next(nullptr);
-    _resource_timer_count = 0;
-    _resource_timers.clear();
-
-    // Animation
-    _resource_head_anim = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
-    _resource_anim_count = 0;
-    _resource_anims.clear();
-
-    return true;
-}
-
-bool ESP_UI_CoreApp::endRecordResource(void)
-{
-    lv_disp_t *disp = nullptr;
-    lv_timer_t *timer_node = nullptr;
-    lv_anim_t *anim_node = nullptr;
-
-    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-
-    if (!_core_active_data.flags.enable_recycle_resource && !_core_active_data.flags.enable_resize_visual_area) {
-        ESP_UI_LOGD("App(%s: %d) end record resource is disabled", getName(), _id);
-        return true;
-    }
-    ESP_UI_LOGD("App(%s: %d) end record resource", getName(), _id);
-
-    disp = _core->getDisplayDevice();
-    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
-
-    // Screen
-    for (int i = _resource_head_screen_index + 1; i < (int)disp->screen_cnt; i++) {
-        _resource_screens.push_back(disp->screens[i]);
-        _resource_screen_count++;
-    }
-    if (_resource_head_screen_index >= (int)disp->screen_cnt) {
-        ESP_UI_LOGE("record screen fail");
+    if (lv_obj_is_valid(_active_screen)) {
+        lv_obj_del(_active_screen);
     } else {
-        ESP_UI_LOGD("record screen(%d): ", _resource_screen_count);
+        ESP_UI_LOGW("Active screen is already cleaned");
     }
-
-    // Timer
-    timer_node = lv_timer_get_next(nullptr);
-    while ((timer_node != nullptr) && (timer_node != _resource_head_timer)) {
-        _resource_timers.push_back(timer_node);
-        _resource_timer_count++;
-        timer_node = lv_timer_get_next(timer_node);
-        if ((timer_node == nullptr) && (_resource_head_timer != nullptr)) {
-            break;
-        }
-    }
-    if ((timer_node == nullptr) && (_resource_head_timer != nullptr)) {
-        _resource_timers.clear();
-        _resource_timer_count = 0;
-        ESP_UI_LOGE("record timer fail");
-    } else {
-        ESP_UI_LOGD("record timer(%d): ", _resource_timer_count);
-    }
-
-    // Animation
-    anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
-    while ((anim_node != nullptr) && (anim_node != _resource_head_anim)) {
-        _resource_anims.push_back(anim_node);
-        _resource_anim_count++;
-        anim_node = (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
-    }
-    if ((anim_node == nullptr) && (_resource_head_anim != nullptr)) {
-        _resource_anims.clear();
-        _resource_anim_count = 0;
-        ESP_UI_LOGE("record animation fail");
-    } else {
-        ESP_UI_LOGD("record animation(%d): ", _resource_anim_count);
-    }
+    _active_screen = nullptr;
 
     return true;
 }
@@ -493,74 +583,43 @@ bool ESP_UI_CoreApp::loadRecentScreen(void)
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) load recent screen", getName(), _id);
 
-    if (_flags.is_screen_small) {
-        // Create a temp screen to recolor the background
-        ESP_UI_CHECK_FALSE_RETURN(createAndloadTempScreen(), false, "Create temp screen failed");
-    }
+    // TODO
+    // if (_flags.is_screen_small) {
+    //     // Create a temp screen to recolor the background
+    //     ESP_UI_CHECK_FALSE_RETURN(createAndloadTempScreen(), false, "Create temp screen failed");
+    // }
 
     ESP_UI_CHECK_FALSE_RETURN(lv_obj_is_valid(_active_screen), false, "Invalid active screen");
     lv_scr_load(_active_screen);
 
-    if (_flags.is_screen_small) {
-        ESP_UI_CHECK_FALSE_RETURN(delTempScreen(), false, "Delete temp screen failed");
-    }
+    // if (_flags.is_screen_small) {
+    //     ESP_UI_CHECK_FALSE_RETURN(delTempScreen(), false, "Delete temp screen failed");
+    // }
 
     return true;
 }
 
-bool ESP_UI_CoreApp::setVisualArea(const lv_area_t &area)
+bool ESP_UI_CoreApp::resetRecordResource(void)
 {
-    uint16_t visual_area_x = 0;
-    uint16_t visual_area_y = 0;
-    uint16_t visual_area_w = 0;
-    uint16_t visual_area_h = 0;
-    lv_area_t visual_area = area;
-    const ESP_UI_StyleSize_t &screen_size = getCoreActiveData().screen_size;
-
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) set visual area(%d,%d-%d,%d)", getName(), _id, area.x1, area.y1, area.x2, area.y2);
+    ESP_UI_LOGD("App(%s: %d) reset record resource", getName(), _id);
 
-    visual_area_w = visual_area.x2 - visual_area.x1 + 1;
-    visual_area_h = visual_area.y2 - visual_area.y1 + 1;
-    visual_area_x = visual_area.x1;
-    visual_area_y = visual_area.y1;
-    if (visual_area_w > screen_size.width) {
-        visual_area_x = visual_area.x1 + (visual_area_w - screen_size.width) / 2;
-    }
-    if (visual_area_h > screen_size.height) {
-        visual_area_y = visual_area.y1 + (visual_area_h - screen_size.height) / 2;
-    }
-    visual_area_w = min(visual_area_w, screen_size.width);
-    visual_area_h = min(visual_area_h, screen_size.height);
-    visual_area.x1 = visual_area_x;
-    visual_area.y1 = visual_area_y;
-    visual_area.x2 = visual_area_x + visual_area_w - 1;
-    visual_area.y2 = visual_area_y + visual_area_h - 1;
-    _app_style.visual_area = visual_area;
+    // Screen
+    _resource_screen_count = 0;
+    _resource_screens.clear();
+    _resource_screens_class_parent_map.clear();
 
-    _flags.is_screen_small = ((lv_area_get_height(&visual_area) < screen_size.height) ||
-                              (lv_area_get_width(&visual_area) < screen_size.width));
+    // Timer
+    _resource_timer_count = 0;
+    _resource_timers.clear();
+    _resource_timers_cb_usr_map.clear();
 
-    return true;
-}
+    // Animation
+    _resource_anim_count = 0;
+    _resource_anims.clear();
+    _resource_anims_var_exec_map.clear();
 
-bool ESP_UI_CoreApp::cleanActiveScreen(void)
-{
-    // Clean active screen if used
-    if (!_core_active_data.flags.enable_default_screen) {
-        ESP_UI_LOGD("App(%s: %d) use custom screen and don't need to clean", getName(), _id);
-        return true;
-    }
-
-    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) clean default active screen", getName(), _id);
-
-    if (lv_obj_is_valid(_active_screen)) {
-        lv_obj_del(_active_screen);
-    } else {
-        ESP_UI_LOGW("Active screen is already cleaned");
-    }
-    _active_screen = nullptr;
+    _flags.is_resource_recording = false;
 
     return true;
 }
@@ -656,32 +715,6 @@ bool ESP_UI_CoreApp::loadAppTheme(void)
     return true;
 }
 
-bool ESP_UI_CoreApp::createAndloadTempScreen(void)
-{
-    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) create temp screen", getName(), _id);
-
-    _temp_screen = lv_obj_create(nullptr);
-    ESP_UI_CHECK_NULL_RETURN(_temp_screen, false, "Create temp screen failed");
-
-    lv_obj_set_style_bg_color(_temp_screen, lv_color_hex(_core->getCoreData().home.background.color.color), 0);
-    lv_obj_set_style_bg_opa(_temp_screen, _core->getCoreData().home.background.color.opacity, 0);
-    lv_scr_load(_temp_screen);
-
-    return true;
-}
-
-bool ESP_UI_CoreApp::delTempScreen(void)
-{
-    ESP_UI_CHECK_FALSE_RETURN((_temp_screen != nullptr) && lv_obj_is_valid(_temp_screen), false, "Invalid temp screen");
-    ESP_UI_LOGD("App(%s: %d) delete temp screen", getName(), _id);
-
-    lv_obj_del(_temp_screen);
-    _temp_screen = nullptr;
-
-    return true;
-}
-
 void ESP_UI_CoreApp::onCleanResourceEventCallback(lv_event_t *event)
 {
     ESP_UI_CoreApp *app = nullptr;
@@ -698,8 +731,12 @@ void ESP_UI_CoreApp::onCleanResourceEventCallback(lv_event_t *event)
     if (!app->cleanResource()) {
         ESP_UI_LOGE("Clean resource failed");
     }
-    if (!app->cleanActiveScreen()) {
-        ESP_UI_LOGE("Clean active screen failed");
+    if (app->_core_active_data.flags.enable_recycle_resource) {
+        if (!app->cleanRecordResource()) {
+            ESP_UI_LOGE("Clean record resource failed");
+        }
+    } else if (app->_core_active_data.flags.enable_default_screen && !app->cleanDefaultScreen()) {
+        ESP_UI_LOGE("Clean default screen failed");
     }
 }
 
@@ -722,5 +759,32 @@ void ESP_UI_CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 
     area = app->getVisualArea();
     lv_obj_set_pos(screen, area.x1, area.y1);
-    lv_obj_invalidate(screen);
 }
+
+// TODO
+// bool ESP_UI_CoreApp::createAndloadTempScreen(void)
+// {
+//     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+//     ESP_UI_LOGD("App(%s: %d) create temp screen", getName(), _id);
+
+//     _temp_screen = lv_obj_create(nullptr);
+//     ESP_UI_CHECK_NULL_RETURN(_temp_screen, false, "Create temp screen failed");
+
+//     lv_obj_set_style_bg_color(_temp_screen, lv_color_hex(_core->getCoreData().home.background.color.color), 0);
+//     lv_obj_set_style_bg_opa(_temp_screen, _core->getCoreData().home.background.color.opacity, 0);
+//     lv_scr_load(_temp_screen);
+//     lv_obj_invalidate(_temp_screen);
+
+//     return true;
+// }
+
+// bool ESP_UI_CoreApp::delTempScreen(void)
+// {
+//     ESP_UI_CHECK_FALSE_RETURN((_temp_screen != nullptr) && lv_obj_is_valid(_temp_screen), false, "Invalid temp screen");
+//     ESP_UI_LOGD("App(%s: %d) delete temp screen", getName(), _id);
+
+//     lv_obj_del(_temp_screen);
+//     _temp_screen = nullptr;
+
+//     return true;
+// }

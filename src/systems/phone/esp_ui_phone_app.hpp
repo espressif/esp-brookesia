@@ -41,8 +41,7 @@ public:
      *                           the app should create all UI resources on it using `lv_scr_act()`. The screen will be
      *                           automatically cleaned up
      * @param use_status_bar Flag to show the status bar
-     * @param use_navigation_bar Flag to show the navigation bar. If not set, the `enable_navigation_gesture` flag will
-     *                           be set
+     * @param use_navigation_bar Flag to show the navigation bar
      *
      */
     ESP_UI_PhoneApp(const char *name, const void *launcher_icon, bool use_default_screen, bool use_status_bar,

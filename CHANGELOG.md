@@ -7,6 +7,7 @@
 * feat(examples): 'ESP_UI_Phone' add partition requirement
 * feat(widgets): 'Navigation Bar' support flex visual mode
 * feat(widgets): 'Gesture' support indicator bar
+* feat(core_app): improve resource clean and screen resize operations
 
 ## v0.1.1~1 - 2024-08-16
 

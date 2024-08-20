@@ -592,7 +592,7 @@ void ESP_UI_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
 event_process:
     if (gesture->checkGestureStart()) {
         ESP_UI_LOGD(
-            "\npoint(%d,%d->%d,%d), area(%d->%d), dir(%d), distance(%.2f), angle(%d), duration(%dms), speed(%.2f),"
+            "\n\tpoint(%d,%d->%d,%d), area(%d->%d), dir(%d), distance(%.2f), angle(%d), duration(%dms), speed(%.2f),"
             "event(%d)", info.start_x, info.start_y, info.stop_x, info.stop_y, info.start_area, info.stop_area,
             (int)info.direction, info.distance_px, (int)(atan(distance_tan) * -180 / M_PI), (int)info.duration_ms,
             info.speed_px_per_ms, (int)event_code

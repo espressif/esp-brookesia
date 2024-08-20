@@ -7,12 +7,6 @@
 
 #include <stdbool.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class PhoneAppSquareline;
 
-bool phone_app_squareline_main_init(void);
-
-#ifdef __cplusplus
-}
-#endif
+bool phone_app_squareline_main_init(PhoneAppSquareline *app);

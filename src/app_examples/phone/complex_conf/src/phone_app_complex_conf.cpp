@@ -41,7 +41,7 @@ PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigatio
                                                                  ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,
             .flags = {
                 .enable_status_icon_common_size = 1,
-                .enable_navigation_gesture = !use_navigation_bar,
+                .enable_navigation_gesture = 1,
             },
         }
     )
@@ -76,6 +76,8 @@ bool PhoneAppComplexConf::back(void)
 
 // bool PhoneAppComplexConf::close(void)
 // {
+//     ESP_UI_LOGD("Close");
+
 //     /* Do some operations here if needed */
 
 //     return true;
@@ -83,13 +85,26 @@ bool PhoneAppComplexConf::back(void)
 
 // bool PhoneAppComplexConf::init()
 // {
+//     ESP_UI_LOGD("Init");
+
 //     /* Do some initialization here if needed */
+
+//     return true;
+// }
+
+// bool PhoneAppComplexConf::deinit()
+// {
+//     ESP_UI_LOGD("Deinit");
+
+//     /* Do some deinitialization here if needed */
 
 //     return true;
 // }
 
 // bool PhoneAppComplexConf::pause()
 // {
+//     ESP_UI_LOGD("Pause");
+
 //     /* Do some operations here if needed */
 
 //     return true;
@@ -97,6 +112,8 @@ bool PhoneAppComplexConf::back(void)
 
 // bool PhoneAppComplexConf::resume()
 // {
+//     ESP_UI_LOGD("Resume");
+
 //     /* Do some operations here if needed */
 
 //     return true;
@@ -104,6 +121,8 @@ bool PhoneAppComplexConf::back(void)
 
 // bool PhoneAppComplexConf::cleanResource()
 // {
+//     ESP_UI_LOGD("Clean resource");
+
 //     /* Do some cleanup here if needed */
 
 //     return true;
