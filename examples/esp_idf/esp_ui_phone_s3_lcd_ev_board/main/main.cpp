@@ -47,15 +47,17 @@ extern "C" void app_main(void)
     ESP_UI_PhoneStylesheet_t *phone_stylesheet = nullptr;
     if ((BSP_LCD_H_RES == 480) && (BSP_LCD_V_RES == 480)) {
         phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_480_480_DARK_STYLESHEET();
+        ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
     } else if ((BSP_LCD_H_RES == 800) && (BSP_LCD_V_RES == 480)) {
         phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_800_480_DARK_STYLESHEET();
+        ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
     }
-    ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
     if (phone_stylesheet != nullptr) {
+        ESP_LOGI(TAG, "Using external stylesheet");
         ESP_UI_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
         ESP_UI_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
+        delete phone_stylesheet;
     }
-    delete phone_stylesheet;
 #endif
 
     /* Configure and begin the phone */
@@ -64,14 +66,13 @@ extern "C" void app_main(void)
     // ESP_UI_CHECK_FALSE_EXIT(phone->getCoreHome().showContainerBorder(), "Show container border failed");
 
     /* Install apps */
-    bool enable_navigation_bar = phone->getStylesheet()->home.flags.enable_navigation_bar;
-    PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf(true, enable_navigation_bar);
+    PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf(true, true);
     ESP_UI_CHECK_NULL_EXIT(phone_app_simple_conf, "Create phone app simple conf failed");
     ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_simple_conf) >= 0), "Install phone app simple conf failed");
-    PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf(true, enable_navigation_bar);
+    PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf(true, true);
     ESP_UI_CHECK_NULL_EXIT(phone_app_complex_conf, "Create phone app complex conf failed");
     ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_complex_conf) >= 0), "Install phone app complex conf failed");
-    PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline(true, enable_navigation_bar);
+    PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline(true, true);
     ESP_UI_CHECK_NULL_EXIT(phone_app_squareline, "Create phone app squareline failed");
     ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_squareline) >= 0), "Install phone app squareline failed");
 

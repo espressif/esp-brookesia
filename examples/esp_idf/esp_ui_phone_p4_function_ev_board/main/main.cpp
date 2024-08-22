@@ -16,7 +16,7 @@
 #include "app_examples/phone/squareline/src/phone_app_squareline.hpp"
 
 #define EXAMPLE_SHOW_MEM_INFO             (1)
-#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (0)
+#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (1)
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
 #include "esp_ui_phone_1024_600_stylesheet.h"
 #endif
@@ -47,14 +47,20 @@ extern "C" void app_main(void)
 
     /* Create a phone object */
     ESP_UI_Phone *phone = new ESP_UI_Phone(disp);
-    assert(phone != nullptr && "Failed to create phone");
+    ESP_UI_CHECK_NULL_EXIT(phone, "Create phone failed");
 
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
     /* Add external stylesheet and activate it */
-    ESP_UI_PhoneStylesheet_t *phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_1024_600_DARK_STYLESHEET();
-    assert(phone->addStylesheet(phone_stylesheet) && "Failed to add phone stylesheet");
-    assert(phone->activateStylesheet(phone_stylesheet) && "Failed to active phone stylesheet");
-    delete phone_stylesheet;
+    ESP_UI_PhoneStylesheet_t *phone_stylesheet = nullptr;
+    if ((BSP_LCD_H_RES == 1024) && (BSP_LCD_V_RES == 600)) {
+        phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_1024_600_DARK_STYLESHEET();
+    }
+    if (phone_stylesheet != nullptr) {
+        ESP_LOGI(TAG, "Using external stylesheet");
+        ESP_UI_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
+        ESP_UI_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
+        delete phone_stylesheet;
+    }
 #endif
 
     /* Configure and begin the phone */
@@ -64,14 +70,14 @@ extern "C" void app_main(void)
 
     /* Install apps */
     PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf(true, true);
-    assert(phone_app_simple_conf != nullptr && "Failed to create phone app simple code");
-    assert((phone->installApp(phone_app_simple_conf) >= 0) && "Failed to install phone app simple conf");
+    ESP_UI_CHECK_NULL_EXIT(phone_app_simple_conf, "Create phone app simple conf failed");
+    ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_simple_conf) >= 0), "Install phone app simple conf failed");
     PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf(true, true);
-    assert(phone_app_complex_conf != nullptr && "Failed to create phone app complex code");
-    assert((phone->installApp(phone_app_complex_conf) >= 0) && "Failed to install phone app complex conf");
-    PhoneAppSquareline *smart_gadget = new PhoneAppSquareline(true, true);
-    assert(smart_gadget != nullptr && "Failed to create phone app squareline");
-    assert((phone->installApp(smart_gadget) >= 0) && "Failed to install phone app squareline");
+    ESP_UI_CHECK_NULL_EXIT(phone_app_complex_conf, "Create phone app complex conf failed");
+    ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_complex_conf) >= 0), "Install phone app complex conf failed");
+    PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline(true, true);
+    ESP_UI_CHECK_NULL_EXIT(phone_app_squareline, "Create phone app squareline failed");
+    ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_squareline) >= 0), "Install phone app squareline failed");
 
     /* Create a timer to update the clock */
     lv_timer_create(on_clock_update_timer_cb, 1000, phone);
