@@ -18,6 +18,7 @@
 #define EXAMPLE_SHOW_MEM_INFO             (1)
 #define EXAMPLE_USE_EXTERNAL_STYLESHEET   (1)
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
+// #include "esp_ui_phone_800_480_stylesheet.h"
 #include "esp_ui_phone_320_240_stylesheet.h"
 #endif
 
@@ -44,13 +45,10 @@ extern "C" void app_main(void)
 
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
     /* Add external stylesheet and activate it */
-    ESP_UI_PhoneStylesheet_t *phone_stylesheet = nullptr;
     if ((BSP_LCD_H_RES == 320) && (BSP_LCD_V_RES == 240)) {
-        phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_320_240_DARK_STYLESHEET();
-        ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
-    }
-    if (phone_stylesheet != nullptr) {
         ESP_LOGI(TAG, "Using external stylesheet");
+        ESP_UI_PhoneStylesheet_t *phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_320_240_DARK_STYLESHEET();
+        ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
         ESP_UI_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
         ESP_UI_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
         delete phone_stylesheet;
