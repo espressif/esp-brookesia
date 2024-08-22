@@ -20,6 +20,8 @@
 #define ESP_UI_LOGD(...)
 #endif
 
+#define RESOURCE_LOOP_COUNT_MAX     (1000)
+
 using namespace std;
 
 ESP_UI_CoreApp::ESP_UI_CoreApp(const ESP_UI_CoreAppData_t &data):
@@ -126,6 +128,8 @@ bool ESP_UI_CoreApp::startRecordResource(void)
 
 bool ESP_UI_CoreApp::endRecordResource(void)
 {
+    bool ret = true;
+    uint32_t resource_loop_count = 0;
     lv_disp_t *disp = nullptr;
     lv_obj_t *screen = nullptr;
     lv_timer_t *timer_node = nullptr;
@@ -144,7 +148,9 @@ bool ESP_UI_CoreApp::endRecordResource(void)
     ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
 
     // Screen
-    for (int i = _resource_head_screen_index + 1; i < (int)disp->screen_cnt; i++) {
+    resource_loop_count = 0;
+    for (int i = _resource_head_screen_index + 1; (i < (int)disp->screen_cnt) &&
+            (resource_loop_count++ <  RESOURCE_LOOP_COUNT_MAX); i++) {
         screen = (lv_obj_t *)disp->screens[i];
         // Record or update the record information of the screen
         _resource_screens_class_parent_map[screen] = {screen->class_p, (lv_obj_t *)screen->parent};
@@ -163,15 +169,21 @@ bool ESP_UI_CoreApp::endRecordResource(void)
             ESP_UI_LOGD("Screen(@0x%p) is already recorded", screen);
         }
     }
-    if (_resource_head_screen_index >= (int)disp->screen_cnt) {
+    if ((_resource_head_screen_index >= (int)disp->screen_cnt) || (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX)) {
+        _resource_screens.clear();
+        _resource_screens_class_parent_map.clear();
+        _resource_screen_count = 0;
+        ret = false;
         ESP_UI_LOGE("record screen fail");
     } else {
         ESP_UI_LOGD("record screen(%d): ", _resource_screen_count);
     }
 
     // Timer
+    resource_loop_count = 0;
     timer_node = lv_timer_get_next(nullptr);
-    while ((timer_node != nullptr) && (timer_node != _resource_head_timer)) {
+    while ((timer_node != nullptr) && (timer_node != _resource_head_timer) &&
+            (resource_loop_count++ < RESOURCE_LOOP_COUNT_MAX)) {
         // Record or update the record information of the timer
         _resource_timers_cb_usr_map[timer_node] = {(lv_timer_cb_t)timer_node->timer_cb, timer_node->user_data};
         if (find(_resource_timers.begin(), _resource_timers.end(), timer_node) == _resource_timers.end()) {
@@ -183,9 +195,12 @@ bool ESP_UI_CoreApp::endRecordResource(void)
         }
         timer_node = lv_timer_get_next(timer_node);
     }
-    if ((timer_node == nullptr) && (_resource_head_timer != nullptr)) {
+    if (((timer_node == nullptr) && (_resource_head_timer != nullptr)) ||
+            (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX)) {
         _resource_timers.clear();
+        _resource_timers_cb_usr_map.clear();
         _resource_timer_count = 0;
+        ret = false;
         ESP_UI_LOGE("record timer fail");
     } else {
         ESP_UI_LOGD("record timer(%d): ", _resource_timer_count);
@@ -207,6 +222,7 @@ bool ESP_UI_CoreApp::endRecordResource(void)
     }
     if ((anim_node == nullptr) && (_resource_head_anim != nullptr)) {
         _resource_anims.clear();
+        _resource_anims_var_exec_map.clear();
         _resource_anim_count = 0;
         ESP_UI_LOGE("record animation fail");
     } else {
@@ -220,7 +236,7 @@ bool ESP_UI_CoreApp::endRecordResource(void)
     }
     _flags.is_resource_recording = false;
 
-    return true;
+    return ret;
 }
 
 bool ESP_UI_CoreApp::cleanRecordResource(void)
@@ -228,9 +244,11 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) clean resource", getName(), _id);
 
+    bool ret = true;
+    uint32_t resource_loop_count = 0;
     std::list <lv_obj_t *> resource_screens = _resource_screens;
-    lv_timer_t *timer_node = lv_timer_get_next(NULL);
-    lv_anim_t *anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
+    lv_timer_t *timer_node = nullptr;
+    lv_anim_t *anim_node = nullptr;
 
     // Screen
     for (auto screen : resource_screens) {
@@ -253,7 +271,10 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
                 (int)_resource_screens.size());
 
     // Timer
-    while ((timer_node != NULL) && (_resource_timers.size() > 0)) {
+    resource_loop_count = 0;
+    timer_node = lv_timer_get_next(nullptr);
+    while ((timer_node != nullptr) && (_resource_timers.size() > 0) &&
+            (resource_loop_count++ < RESOURCE_LOOP_COUNT_MAX)) {
         auto timer_it = find(_resource_timers.begin(), _resource_timers.end(), timer_node);
         if (timer_it != _resource_timers.end()) {
             auto timer_map_it = _resource_timers_cb_usr_map.find(timer_node);
@@ -264,20 +285,29 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
                         (timer_map_it->second.second == timer_node->user_data)) {
                     lv_timer_del(timer_node);
                     _resource_timers.erase(timer_it);
-                    timer_node = lv_timer_get_next(NULL);
+                    timer_node = lv_timer_get_next(nullptr);
                     break;
                 } else {
                     ESP_UI_LOGD("Timer(@0x%p) information is not matched, skip", timer_node);
                 }
+                _resource_timers.erase(timer_it);
             }
         }
         timer_node = lv_timer_get_next(timer_node);
     }
-    ESP_UI_LOGD("Clean timer(%d), miss(%d): ", _resource_timer_count - (int)_resource_timers.size(),
-                (int)_resource_timers.size());
+    if (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX) {
+        ret = false;
+        ESP_UI_LOGE("Clean timer loop count exceed max");
+    } else {
+        ESP_UI_LOGD("Clean timer(%d), miss(%d): ", _resource_timer_count - (int)_resource_timers.size(),
+                    (int)_resource_timers.size());
+    }
 
     // Animation
-    while ((anim_node != NULL) && (_resource_anims.size() > 0)) {
+    resource_loop_count = 0;
+    anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
+    while ((anim_node != nullptr) && (_resource_anims.size() > 0) &&
+            (resource_loop_count++ < RESOURCE_LOOP_COUNT_MAX)) {
         auto anim_it = find(_resource_anims.begin(), _resource_anims.end(), anim_node);
         if (anim_it != _resource_anims.end()) {
             auto anim_map_it = _resource_anims_var_exec_map.find(anim_node);
@@ -293,6 +323,7 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
                     } else {
                         ESP_UI_LOGE("Delete animation failed");
                     }
+                    _resource_anims.erase(anim_it);
                 } else {
                     ESP_UI_LOGD("Anim(@0x%p) information is not matched, skip", anim_node);
                 }
@@ -300,12 +331,17 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
         }
         anim_node = (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
     }
-    ESP_UI_LOGD("Clean anim(%d), miss(%d): ", _resource_anim_count - (int)_resource_anims.size(),
-                (int)_resource_anims.size());
+    if (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX) {
+        ret = false;
+        ESP_UI_LOGE("Clean timer loop count exceed max");
+    } else {
+        ESP_UI_LOGD("Clean anim(%d), miss(%d): ", _resource_anim_count - (int)_resource_anims.size(),
+                    (int)_resource_anims.size());
+    }
 
     ESP_UI_CHECK_FALSE_RETURN(resetRecordResource(), false, "Reset record resource failed");
 
-    return true;
+    return ret;
 }
 
 bool ESP_UI_CoreApp::processInstall(ESP_UI_Core *core, int id)

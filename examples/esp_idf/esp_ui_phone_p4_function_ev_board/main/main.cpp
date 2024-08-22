@@ -51,12 +51,10 @@ extern "C" void app_main(void)
 
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
     /* Add external stylesheet and activate it */
-    ESP_UI_PhoneStylesheet_t *phone_stylesheet = nullptr;
     if ((BSP_LCD_H_RES == 1024) && (BSP_LCD_V_RES == 600)) {
-        phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_1024_600_DARK_STYLESHEET();
-    }
-    if (phone_stylesheet != nullptr) {
         ESP_LOGI(TAG, "Using external stylesheet");
+        ESP_UI_PhoneStylesheet_t *phone_stylesheet = new ESP_UI_PhoneStylesheet_t ESP_UI_PHONE_1024_600_DARK_STYLESHEET();
+        ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
         ESP_UI_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
         ESP_UI_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
         delete phone_stylesheet;
