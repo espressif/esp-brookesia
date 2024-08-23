@@ -1,6 +1,7 @@
-[![GitHub Release](https://img.shields.io/github/v/release/espressif/esp-ui)](https://github.com/espressif/esp-ui/releases) [![Espressif Release](https://components.espressif.com/components/espressif/esp-ui/badge.svg)](https://components.espressif.com/components/espressif/esp-ui)
-
 [![Arduino Lint](https://github.com/espressif/esp-ui/actions/workflows/arduino_lint.yml/badge.svg)](https://github.com/espressif/esp-ui/actions/workflows/arduino_lint.yml) [![Version Consistency](https://github.com/espressif/esp-ui/actions/workflows/check_lib_versions.yml/badge.svg)](https://github.com/espressif/esp-ui/actions/workflows/check_lib_versions.yml)
+
+**Latest Arduino Library Version**: [![GitHub Release](https://img.shields.io/github/v/release/espressif/esp-ui)](https://github.com/espressif/esp-ui/releases)
+**Latest Espressif Component Version**: [![Espressif Release](https://components.espressif.com/components/espressif/esp-ui/badge.svg)](https://components.espressif.com/components/espressif/esp-ui)
 
 # ESP-UI
 
@@ -19,9 +20,12 @@ Key features include:
 
 The system UI functionality demonstration is as follows:
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_2.gif" alt="phone_demo" width="600"></div>
-<p align="center">
-<a href="./docs/system_ui_phone.md"> System UI - Phone </a>
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4" muted="true"></video>
+</p>
+
+<p align="middle">
+<a href="./docs/system_ui_phone_CN.md">ESP32-P4-Function-EV-Board</a> running system UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
 </p>
 <br>
 

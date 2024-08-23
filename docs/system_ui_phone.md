@@ -2,9 +2,20 @@
 
 * [中文版本](./system_ui_phone_CN.md)
 
-[Phone](../src/systems/phone/) is a smartphone-like system UI, with its appearance shown in the image below:
+[Phone](../src/systems/phone/) is a smartphone-like system UI, with its appearance shown as below:
+
+<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="phone_demo" width="600"></div>
+
+<p align="middle">
+<a href="./docs/system_ui_phone_CN.md"> ESP SoCs </a>
+</p>
+<br>
 
 <div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_2.gif" alt ="phone_demo" width="600"></div>
+
+<p align="middle">
+<a href="./docs/system_ui_phone_CN.md"> PC Simulator </a>
+</p>
 <br>
 
 It has the following features:
@@ -20,9 +31,12 @@ It has the following features:
 
 To achieve the best display performance at fixed resolutions, Espressif also provides UI stylesheets for the following resolutions:
 
-- [480 x 480](https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet)
-- [800 x 480](https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet)
-- [1024 x 600](https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet)
+|  Resolution  | link |
+| ------------ | ---- |
+|  320 x 240   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_320_240_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_320_240_stylesheet)  |
+|  480 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_480_480_stylesheet) |
+|  800 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_800_480_stylesheet) |
+| 1024 x 600   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_1024_600_stylesheet) |
 
 > [!NOTE]
-> * If your screen resolution is not included in the above UI stylesheets, please create a [Github issue](https://github.com/espressif/esp-ui/issues) to request it, or design your own UI stylesheet.
+> * If your screen resolution is not listed in the above UI stylesheets, please refer to the GitHub issue - [Phone Resolution Support](https://github.com/espressif/esp-ui/issues/5).

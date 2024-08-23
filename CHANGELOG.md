@@ -5,6 +5,10 @@
 ### Enhancements:
 
 * feat(examples): 'ESP_UI_Phone' add partition requirement
+* feat(examples): 'esp-idf' update stylesheet
+* feat(examples): 'esp-idf' add esp_ui_phone_s3_box
+* feat(examples): 'esp-idf' add esp_ui_phone_s3_box_3
+* feat(examples): 'esp-idf' add esp_ui_phone_m5stace_core_s3
 * feat(widgets): 'Navigation Bar' support flex visual mode
 * feat(widgets): 'Gesture' support indicator bar
 * feat(core_app): improve resource clean and screen resize operations
