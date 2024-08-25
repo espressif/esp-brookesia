@@ -270,6 +270,7 @@ bool ESP_UI_Gesture::setMaskObjectVisible(bool visible) const
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     if (visible) {
+        lv_indev_reset(_touch_device, NULL);
         lv_obj_move_foreground(_event_mask_obj.get());
         lv_obj_clear_flag(_event_mask_obj.get(), LV_OBJ_FLAG_HIDDEN);
     } else {
@@ -329,7 +330,7 @@ bool ESP_UI_Gesture::setIndicatorBarLengthByOffset(ESP_UI_GestureIndicatorBarTyp
         ESP_UI_CHECK_FALSE_RETURN(false, -1, "Invalid type");
     }
     erase_len_ratio = (offset * _indicator_bar_scale_factors[type]) / (float)max_len;
-    target_len =  max_len * sqrt(pow(1 - erase_len_ratio, 2));
+    target_len =  max_len * (1 - erase_len_ratio);
 
     const ESP_UI_GestureIndicatorBarData_t &bar_data = data.indicator_bars[type];
     if (type == ESP_UI_GESTURE_INDICATOR_BAR_TYPE_LEFT || type == ESP_UI_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {

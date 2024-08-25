@@ -134,6 +134,26 @@ idf.py -p PORT flash monitor
           PSRAM : [12320768 / 12509956 / 13434880]
     ```
 
+- 以下动画展示了示例在不同开发板上运行的效果。
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4" muted="true"></video>
+</p>
+
+<p align="middle">
+ESP32-S3-LCD-EV-Board（带有 480 x 480 分辨率的 LCD 屏幕）
+</p>
+<br>
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4" muted="true"></video>
+</p>
+
+<p align="middle">
+ESP32-S3-LCD-EV-Board-2（带有 800 x 480 分辨率的 LCD 屏幕）
+</p>
+<br>
+
 ## 技术支持和反馈
 
 请使用以下反馈渠道：

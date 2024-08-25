@@ -25,7 +25,7 @@ esp-ui 是一个基于 [LVGL](https://github.com/lvgl/lvgl) 的 UI 运行框架�
 </p>
 
 <p align="middle">
-<a href="./docs/system_ui_phone_CN.md">ESP32-P4-Function-EV-Board</a> 运行系统 UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
+<a href="https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html">ESP32-P4-Function-EV-Board</a> 运行系统 UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
 </p>
 <br>
 

@@ -22,8 +22,17 @@
   - "**/*.md"
 
 # examples folder
+.patterns-example_esp_ui_phone_m5stace_core_s3: &patterns-example_esp_ui_phone_m5stace_core_s3
+  - "examples/esp_idf/esp_ui_phone_m5stace_core_s3/**/*"
+
 .patterns-example_esp_ui_phone_p4_function_ev_board: &patterns-example_esp_ui_phone_p4_function_ev_board
   - "examples/esp_idf/esp_ui_phone_p4_function_ev_board/**/*"
+
+.patterns-example_esp_ui_phone_s3_box: &patterns-example_esp_ui_phone_s3_box
+  - "examples/esp_idf/esp_ui_phone_s3_box/**/*"
+
+.patterns-example_esp_ui_phone_s3_box_3: &patterns-example_esp_ui_phone_s3_box_3
+  - "examples/esp_idf/esp_ui_phone_s3_box_3/**/*"
 
 .patterns-example_esp_ui_phone_s3_lcd_ev_board: &patterns-example_esp_ui_phone_s3_lcd_ev_board
   - "examples/esp_idf/esp_ui_phone_s3_lcd_ev_board/**/*"
@@ -68,6 +77,19 @@
       changes: *patterns-build_system
 
 # rules for examples
+.rules:build:example_esp_ui_phone_m5stace_core_s3:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-component
+    - <<: *if-dev-push
+      changes: *patterns-example_esp_ui_phone_m5stace_core_s3
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+
 .rules:build:example_esp_ui_phone_p4_function_ev_board:
   rules:
     - <<: *if-protected
@@ -78,6 +100,32 @@
       changes: *patterns-component
     - <<: *if-dev-push
       changes: *patterns-example_esp_ui_phone_p4_function_ev_board
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+
+.rules:build:example_esp_ui_phone_s3_box:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-component
+    - <<: *if-dev-push
+      changes: *patterns-example_esp_ui_phone_s3_box
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+
+.rules:build:example_esp_ui_phone_s3_box_3:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-component
+    - <<: *if-dev-push
+      changes: *patterns-example_esp_ui_phone_s3_box_3
     - <<: *if-dev-push
       changes: *patterns-build_system
 

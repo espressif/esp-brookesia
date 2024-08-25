@@ -10,7 +10,7 @@
 * feat(examples): 'esp-idf' add esp_ui_phone_s3_box_3
 * feat(examples): 'esp-idf' add esp_ui_phone_m5stace_core_s3
 * feat(widgets): 'Navigation Bar' support flex visual mode
-* feat(widgets): 'Gesture' support indicator bar
+* feat(widgets): 'Gesture' support indicator bar and avoid accidental touch
 * feat(core_app): improve resource clean and screen resize operations
 
 ## v0.1.1~1 - 2024-08-16

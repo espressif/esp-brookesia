@@ -117,6 +117,12 @@ idf.py -p PORT flash monitor
             PSRAM : [ 1933312 /  1963116 /  1966080]
     ```
 
+- 以下动画展示了示例在开发板上运行的效果。
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_m5stace_core_s3.mp4" muted="true"></video>
+</p>
+
 ## 技术支持和反馈
 
 请使用以下反馈渠道：

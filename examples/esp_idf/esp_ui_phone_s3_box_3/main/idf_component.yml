@@ -6,6 +6,4 @@ dependencies:
   espressif/esp-ui:
     version: "*"
     override_path: "../../../../../esp-ui"
-  esp-ui-phone_320_240_stylesheet:
-    version: "0.2.*"
-    override_path: "../../../../../esp-ui-stylesheet/esp-ui-phone_320_240_stylesheet"
+  espressif/esp-ui-phone_320_240_stylesheet: "0.2.*"

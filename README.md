@@ -25,7 +25,7 @@ The system UI functionality demonstration is as follows:
 </p>
 
 <p align="middle">
-<a href="./docs/system_ui_phone_CN.md">ESP32-P4-Function-EV-Board</a> running system UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
+<a href="https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html">ESP32-P4-Function-EV-Board</a> running system UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
 </p>
 <br>
 

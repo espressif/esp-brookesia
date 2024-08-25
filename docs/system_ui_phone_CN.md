@@ -2,19 +2,21 @@
 
 * [English Version](./system_ui_phone.md)
 
-[Phone](../src/systems/phone/) 是一个类似于智能手机的系统 UI，运行效果如下所示：
+[Phone](../src/systems/phone/) 是一个类似于智能手机的系统 UI，在 `ESP 开发板` 和 `PC` 上的运行效果如下所示：
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="phone_demo" width="600"></div>
+<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="phone_demo" width="750"></div>
 
 <p align="middle">
-<a href="./docs/system_ui_phone_CN.md"> ESP SoCs </a>
+运行在 ESP 开发板
 </p>
 <br>
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_2.gif" alt ="phone_demo" width="600"></div>
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_1.mp4" muted="true"></video>
+</p>
 
 <p align="middle">
-<a href="./docs/system_ui_phone_CN.md"> PC Simulator </a>
+运行在 <a href="https://github.com/esp-arduino-libs/esp-ui-simulator_vscode">PC 模拟器</a>
 </p>
 <br>
 
