@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.1.2 - 2024-08-13
+
+### Enhancements:
+
+* feat(examples): 'ESP_UI_Phone' add partition requirement
+
 ## v0.1.1~1 - 2024-08-16
 
 ### Bugfixes:
