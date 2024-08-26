@@ -1,4 +1,4 @@
-version: 0.2.0
+version: 0.2.1
 description: This package is a UI runtime framework based on LVGL, designed to provide a consistent UI development experience for screens of various sizes and shapes.
 url: https://github.com/espressif/esp-ui
 issues: https://github.com/espressif/esp-ui/issues
