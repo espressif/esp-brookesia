@@ -2,9 +2,22 @@
 
 * [English Version](./system_ui_phone.md)
 
-[Phone](../src/systems/phone/) 是一个类似于智能手机的系统 UI，运行效果如下图所示：
+[Phone](../src/systems/phone/) 是一个类似于智能手机的系统 UI，在 `ESP 开发板` 和 `PC` 上的运行效果如下所示：
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_2.gif" alt ="phone_demo" width="600"></div>
+<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="phone_demo" width="750"></div>
+
+<p align="middle">
+运行在 ESP 开发板
+</p>
+<br>
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_1.mp4" muted="true"></video>
+</p>
+
+<p align="middle">
+运行在 <a href="https://github.com/esp-arduino-libs/esp-ui-simulator_vscode">PC 模拟器</a>
+</p>
 <br>
 
 具有以下特性：
@@ -20,9 +33,12 @@
 
 为了使 Phone 在固定分辨率下达到最佳显示效果，Espressif 还提供了以下分辨率的 UI 样式表：
 
-- [480 x 480](https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet)
-- [800 x 480](https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet)
-- [1024 x 600](https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet)
+|  Resolution  | link |
+| ------------ | ---- |
+|  320 x 240   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_320_240_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_320_240_stylesheet)  |
+|  480 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_480_480_stylesheet) |
+|  800 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_800_480_stylesheet) |
+| 1024 x 600   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_1024_600_stylesheet) |
 
 > [!NOTE]
-> * 如果上述 UI 样式表中没有您的屏幕分辨率，请新建一个 [Github issue](https://github.com/espressif/esp-ui/issues) 提出需求，或者自行设计 UI 样式表。
+> * 如果上述 UI 样式表中没有您的屏幕分辨率，请参阅 Github issue - [Phone Resolution Support](https://github.com/espressif/esp-ui/issues/5)。

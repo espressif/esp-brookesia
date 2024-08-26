@@ -8,6 +8,10 @@
 
 using namespace std;
 
+#define VISUAL_FLEX_SHOW_ANIM_PERIOD_MS     100
+#define VISUAL_FLEX_SHOW_DURATION_MS        1000
+#define VISUAL_FLEX_HIDE_ANIM_PERIOD_MS     100
+
 #if !ESP_UI_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION
 #undef ESP_UI_LOGD
 #define ESP_UI_LOGD(...)
@@ -16,7 +20,11 @@ using namespace std;
 ESP_UI_NavigationBar::ESP_UI_NavigationBar(const ESP_UI_Core &core, const ESP_UI_NavigationBarData_t &data):
     _core(core),
     _data(data),
-    _is_icon_pressed_losted(true),
+    _flags{},
+    _visual_flex_show_anim(nullptr),
+    _visual_flex_hide_anim(nullptr),
+    _visual_flex_hide_timer(nullptr),
+    _visual_mode(ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED),
     _main_obj(nullptr)
 {
 }
@@ -35,6 +43,9 @@ bool ESP_UI_NavigationBar::begin(lv_obj_t *parent)
     ESP_UI_LvObj_t button_obj = nullptr;
     ESP_UI_LvObj_t icon_main_obj = nullptr;
     ESP_UI_LvObj_t icon_image_obj = nullptr;
+    ESP_UI_LvAnim_t visual_flex_show_anim = nullptr;
+    ESP_UI_LvAnim_t visual_flex_hide_anim = nullptr;
+    ESP_UI_LvTimer_t visual_flex_hide_timer = nullptr;
     vector<ESP_UI_LvObj_t> button_objs;
     vector<ESP_UI_LvObj_t> icon_main_objs;
     vector<ESP_UI_LvObj_t> icon_image_objs;
@@ -63,11 +74,18 @@ bool ESP_UI_NavigationBar::begin(lv_obj_t *parent)
     }
     ESP_UI_CHECK_FALSE_RETURN(_core.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
                               "Register data update event callback failed");
+    // Flex hide Timer
+    visual_flex_show_anim = ESP_UI_LV_ANIM();
+    ESP_UI_CHECK_NULL_RETURN(visual_flex_show_anim, false, "Create flex show anim failed");
+    visual_flex_hide_anim = ESP_UI_LV_ANIM();
+    ESP_UI_CHECK_NULL_RETURN(visual_flex_hide_anim, false, "Create flex hide anim failed");
+    visual_flex_hide_timer = ESP_UI_LV_TIMER(onVisualFlexHideTimerCallback, 3000, this);
+    ESP_UI_CHECK_NULL_RETURN(visual_flex_hide_timer, false, "Create flex hide timer failed");
 
     /* Setup objects style */
     // Main
     lv_obj_add_style(main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
-    lv_obj_set_align(main_obj.get(), LV_ALIGN_BOTTOM_MID);
+    lv_obj_align(main_obj.get(), LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_set_flex_flow(main_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(main_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
@@ -78,6 +96,7 @@ bool ESP_UI_NavigationBar::begin(lv_obj_t *parent)
         lv_obj_add_flag(button_objs[i].get(), LV_OBJ_FLAG_CLICKABLE);
         lv_obj_clear_flag(button_objs[i].get(), LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_PRESS_LOCK);
         lv_obj_add_event_cb(button_objs[i].get(), onIconTouchEventCallback, LV_EVENT_PRESSED, this);
+        lv_obj_add_event_cb(button_objs[i].get(), onIconTouchEventCallback, LV_EVENT_PRESSING, this);
         lv_obj_add_event_cb(button_objs[i].get(), onIconTouchEventCallback, LV_EVENT_PRESS_LOST, this);
         lv_obj_add_event_cb(button_objs[i].get(), onIconTouchEventCallback, LV_EVENT_RELEASED, this);
         lv_obj_add_event_cb(button_objs[i].get(), onIconTouchEventCallback, LV_EVENT_CLICKED, this);
@@ -92,12 +111,30 @@ bool ESP_UI_NavigationBar::begin(lv_obj_t *parent)
         lv_img_set_size_mode(icon_image_objs[i].get(), LV_IMG_SIZE_MODE_REAL);
         lv_obj_clear_flag(icon_image_objs[i].get(), LV_OBJ_FLAG_CLICKABLE);
     }
+    /* Visual flex */
+    // Show animation
+    lv_anim_init(visual_flex_show_anim.get());
+    lv_anim_set_var(visual_flex_show_anim.get(), this);
+    lv_anim_set_early_apply(visual_flex_show_anim.get(), false);
+    lv_anim_set_exec_cb(visual_flex_show_anim.get(), onVisualFlexAnimationExecuteCallback);
+    lv_anim_set_ready_cb(visual_flex_show_anim.get(), onVisualFlexShowAnimationReadyCallback);
+    // Hide animation
+    lv_anim_init(visual_flex_hide_anim.get());
+    lv_anim_set_var(visual_flex_hide_anim.get(), this);
+    lv_anim_set_early_apply(visual_flex_hide_anim.get(), false);
+    lv_anim_set_exec_cb(visual_flex_hide_anim.get(), onVisualFlexAnimationExecuteCallback);
+    lv_anim_set_ready_cb(visual_flex_hide_anim.get(), onVisualFlexHideAnimationReadyCallback);
+    // Hide timer
+    lv_timer_pause(visual_flex_hide_timer.get());
 
     /* Save objects */
     _main_obj = main_obj;
     _button_objs = button_objs;
     _icon_main_objs = icon_main_objs;
     _icon_image_objs = icon_image_objs;
+    _visual_flex_hide_timer = visual_flex_hide_timer;
+    _visual_flex_show_anim = visual_flex_show_anim;
+    _visual_flex_hide_anim = visual_flex_hide_anim;
 
     /* Update */
     ESP_UI_CHECK_FALSE_GOTO(updateByNewData(), err, "Update by new data failed");
@@ -129,25 +166,97 @@ bool ESP_UI_NavigationBar::del(void)
     _button_objs.clear();
     _icon_main_objs.clear();
     _icon_image_objs.clear();
+    _visual_flex_show_anim.reset();
+    _visual_flex_hide_anim.reset();
+    _visual_flex_hide_timer.reset();
 
     return ret;
 }
 
-bool ESP_UI_NavigationBar::setVisualMode(ESP_UI_NavigationBarVisualMode_t mode) const
+bool ESP_UI_NavigationBar::setVisualMode(ESP_UI_NavigationBarVisualMode_t mode)
 {
+    /* Used for test */
+    // bool is_cur_hide = false;
+    // bool is_cur_show_fixed = false;
+    // bool is_cur_show_flex = false;
+    // bool is_target_hide = false;
+    // bool is_target_show_fixed = false;
+    // bool is_target_show_flex = false;
+
     ESP_UI_LOGD("Set Visual Mode(%d)", mode);
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    switch (mode) {
-    case ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE:
-        lv_obj_add_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
-        break;
-    case ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED:
-        lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
-        break;
-    default:
-        break;
+    /* Used for test */
+    // is_cur_hide = (_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE);
+    // is_cur_show_fixed = (_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED);
+    // is_cur_show_flex = (_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX);
+    // is_target_hide = (mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE);
+    // is_target_show_fixed = (mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED);
+    // is_target_show_flex = (mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX);
+    // ESP_UI_LOGD("Current: Hide(%d) Show Fixed(%d) Show Flex(%d)", is_cur_hide, is_cur_show_fixed, is_cur_show_flex);
+    // ESP_UI_LOGD("Target: Hide(%d) Show Fixed(%d) Show Flex(%d)", is_target_hide, is_target_show_fixed,
+    // is_target_show_flex);
+
+    if (mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED) {
+        ESP_UI_LOGD("Force to show");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexHideTimer(), false, "Stop flex hide timer failed");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexHideAnimation(), false, "Stop flex hide animation failed");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexShowAnimation(), false, "Stop flex show animation failed");
+        ESP_UI_CHECK_FALSE_RETURN(show(), false, "Show failed");
+    } else if (mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE) {
+        ESP_UI_LOGD("Force to hide");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexHideTimer(), false, "Stop flex hide timer failed");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexHideAnimation(), false, "Stop flex hide animation failed");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexShowAnimation(), false, "Stop flex show animation failed");
+        ESP_UI_CHECK_FALSE_RETURN(hide(), false, "Hide failed");
+    } else if (!_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE) {
+        ESP_UI_LOGD("Force to start hide animation");
+        // In this case, we should force to end the show animation
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexHideTimer(), false, "Stop flex hide timer failed");
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexShowAnimation(), false, "Stop flex show animation failed");
+        ESP_UI_CHECK_FALSE_RETURN(startFlexHideAnimation(), false, "Start flex hide animation failed");
     }
+
+    _visual_mode = mode;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::triggerVisualFlexShow(void)
+{
+    ESP_UI_LOGD("Trigger visual flex show animation");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_UI_CHECK_FALSE_RETURN(_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX, false,
+                              "Invalid visual mode");
+
+    if (checkVisualFlexHideTimerRunning()) {
+        ESP_UI_CHECK_FALSE_RETURN(resetFlexHideTimer(), false, "Reset flex hide timer failed");
+    } else {
+        ESP_UI_CHECK_FALSE_RETURN(stopFlexHideAnimation(), false, "Stop flex hide animation failed");
+        ESP_UI_CHECK_FALSE_RETURN(startFlexShowAnimation(true), false, "Start flex show animation failed");
+    }
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::show(void)
+{
+    ESP_UI_LOGD("Show");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(_main_obj.get(), LV_ALIGN_BOTTOM_MID, 0, 0);
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::hide(void)
+{
+    ESP_UI_LOGD("Hide");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    lv_obj_add_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_align(_main_obj.get(), LV_ALIGN_BOTTOM_MID, 0, _data.main.size.height);
 
     return true;
 }
@@ -157,6 +266,16 @@ bool ESP_UI_NavigationBar::checkVisible(void) const
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     return !lv_obj_has_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+}
+
+int ESP_UI_NavigationBar::getCurrentOffset(void) const
+{
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), 0, "Not initialized");
+
+    lv_obj_update_layout(_main_obj.get());
+    lv_obj_refr_pos(_main_obj.get());
+
+    return lv_obj_get_y_aligned(_main_obj.get());
 }
 
 bool ESP_UI_NavigationBar::calibrateData(const ESP_UI_StyleSize_t &screen_size, const ESP_UI_CoreHome &home,
@@ -200,6 +319,20 @@ bool ESP_UI_NavigationBar::calibrateData(const ESP_UI_StyleSize_t &screen_size, 
                                   "Invalid button navigate type");
         ESP_UI_CHECK_NULL_RETURN(data.button.icon_images[i].resource, false, "Invalid button icon image resources");
     }
+    // Visual flex
+    if (data.visual_flex.show_animation_time_ms == 0) {
+        data.visual_flex.show_animation_time_ms = VISUAL_FLEX_SHOW_ANIM_PERIOD_MS;
+    }
+    if (data.visual_flex.hide_animation_time_ms == 0) {
+        data.visual_flex.hide_animation_time_ms = VISUAL_FLEX_HIDE_ANIM_PERIOD_MS;
+    }
+    if (data.visual_flex.show_duration_ms == 0) {
+        data.visual_flex.show_duration_ms = VISUAL_FLEX_SHOW_DURATION_MS;
+    }
+    ESP_UI_CHECK_FALSE_RETURN(data.visual_flex.show_animation_path_type < ESP_UI_LV_ANIM_PATH_TYPE_MAX, false,
+                              "Invalid visual flex show animation path");
+    ESP_UI_CHECK_FALSE_RETURN(data.visual_flex.hide_animation_path_type < ESP_UI_LV_ANIM_PATH_TYPE_MAX, false,
+                              "Invalid visual flex hide animation path");
 
     return true;
 }
@@ -247,6 +380,139 @@ bool ESP_UI_NavigationBar::updateByNewData(void)
         lv_obj_refr_size(_icon_image_objs[i].get());
     }
 
+    /* Visual flex */
+    // Show animation
+    lv_anim_set_values(_visual_flex_show_anim.get(), _data.main.size.height, 0);
+    lv_anim_set_time(_visual_flex_show_anim.get(), _data.visual_flex.show_animation_time_ms);
+    lv_anim_set_delay(_visual_flex_show_anim.get(), _data.visual_flex.show_animation_delay_ms);
+    lv_anim_set_path_cb(_visual_flex_show_anim.get(),
+                        esp_ui_core_utils_get_anim_path_cb(_data.visual_flex.show_animation_path_type));
+    // Hide animation
+    lv_anim_set_values(_visual_flex_hide_anim.get(), 0, _data.main.size.height);
+    lv_anim_set_time(_visual_flex_hide_anim.get(), _data.visual_flex.hide_animation_time_ms);
+    lv_anim_set_delay(_visual_flex_show_anim.get(), _data.visual_flex.hide_animation_delay_ms);
+    lv_anim_set_path_cb(_visual_flex_hide_anim.get(),
+                        esp_ui_core_utils_get_anim_path_cb(_data.visual_flex.hide_animation_path_type));
+    // Hide timer
+    lv_timer_set_period(_visual_flex_hide_timer.get(), _data.visual_flex.show_duration_ms);
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::startFlexShowAnimation(bool enable_auto_hide)
+{
+    ESP_UI_LOGD("Start flex show animation");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (_flags.is_visual_flex_show_anim_running || (getCurrentOffset() == 0)) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    _flags.enable_visual_flex_auto_hide = enable_auto_hide;
+    lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+    lv_anim_set_values(_visual_flex_show_anim.get(), getCurrentOffset(), 0);
+    ESP_UI_CHECK_NULL_RETURN(lv_anim_start(_visual_flex_show_anim.get()), false, "Start animation failed");
+    _flags.is_visual_flex_show_anim_running = true;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::stopFlexShowAnimation(void)
+{
+    ESP_UI_LOGD("Stop flex show animation");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (!_flags.is_visual_flex_show_anim_running) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    ESP_UI_CHECK_FALSE_RETURN(lv_anim_del(_visual_flex_show_anim->var, nullptr), false, "Delete animation failed");
+    _flags.is_visual_flex_show_anim_running = false;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::startFlexHideAnimation(void)
+{
+    ESP_UI_LOGD("Start flex hide animation");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (_flags.is_visual_flex_hide_anim_running || (getCurrentOffset() == _data.main.size.height)) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    lv_anim_set_values(_visual_flex_hide_anim.get(), getCurrentOffset(), _data.main.size.height);
+    ESP_UI_CHECK_NULL_RETURN(lv_anim_start(_visual_flex_hide_anim.get()), false, "Start animation failed");
+    _flags.is_visual_flex_hide_anim_running = true;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::stopFlexHideAnimation(void)
+{
+    ESP_UI_LOGD("Stop flex hide animation");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (!_flags.is_visual_flex_hide_anim_running) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    ESP_UI_CHECK_FALSE_RETURN(lv_anim_del(_visual_flex_hide_anim->var, nullptr), false, "Delete animation failed");
+    _flags.is_visual_flex_hide_anim_running = false;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::startFlexHideTimer(void)
+{
+    ESP_UI_LOGD("Start flex hide timer");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (_flags.is_visual_flex_hide_timer_running || (getCurrentOffset() == _data.main.size.height)) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    lv_timer_reset(_visual_flex_hide_timer.get());
+    lv_timer_resume(_visual_flex_hide_timer.get());
+    _flags.is_visual_flex_hide_timer_running = true;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::stopFlexHideTimer(void)
+{
+    ESP_UI_LOGD("Stop flex hide timer");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (!_flags.is_visual_flex_hide_timer_running) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    lv_timer_pause(_visual_flex_hide_timer.get());
+    lv_timer_reset(_visual_flex_hide_timer.get());
+    _flags.is_visual_flex_hide_timer_running = false;
+
+    return true;
+}
+
+bool ESP_UI_NavigationBar::resetFlexHideTimer(void)
+{
+    ESP_UI_LOGD("Reset flex hide timer");
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    if (!_flags.is_visual_flex_hide_timer_running) {
+        ESP_UI_LOGD("Skip");
+        return true;
+    }
+
+    lv_timer_reset(_visual_flex_hide_timer.get());
+
     return true;
 }
 
@@ -283,7 +549,7 @@ void ESP_UI_NavigationBar::onIconTouchEventCallback(lv_event_t *event)
     switch (event_code) {
     case LV_EVENT_CLICKED:
         ESP_UI_LOGD("Clicked");
-        if (navigation_bar->_is_icon_pressed_losted) {
+        if (navigation_bar->_flags.is_icon_pressed_losted) {
             break;
         }
         for (size_t i = 0; i < navigation_bar->_button_objs.size(); i++) {
@@ -297,19 +563,67 @@ void ESP_UI_NavigationBar::onIconTouchEventCallback(lv_event_t *event)
         break;
     case LV_EVENT_PRESSED:
         ESP_UI_LOGD("Pressed");
-        navigation_bar->_is_icon_pressed_losted = false;
+        navigation_bar->_flags.is_icon_pressed_losted = false;
         lv_obj_set_style_bg_opa(button_obj, navigation_bar->_data.button.active_background_color.opacity, 0);
         break;
     case LV_EVENT_PRESS_LOST:
         ESP_UI_LOGD("Press lost");
-        navigation_bar->_is_icon_pressed_losted = true;
+        navigation_bar->_flags.is_icon_pressed_losted = true;
         [[fallthrough]];
     case LV_EVENT_RELEASED:
         ESP_UI_LOGD("Release");
         lv_obj_set_style_bg_opa(button_obj, LV_OPA_TRANSP, 0);
         break;
+    case LV_EVENT_PRESSING:
+        if (navigation_bar->_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX) {
+            ESP_UI_CHECK_FALSE_EXIT(navigation_bar->resetFlexHideTimer(), "Reset flex hide timer failed");
+        }
+        break;
     default:
         ESP_UI_CHECK_FALSE_EXIT(false, "Invalid event code(%d)", event_code);
         break;
     }
+}
+
+void ESP_UI_NavigationBar::onVisualFlexAnimationExecuteCallback(void *var, int32_t value)
+{
+    ESP_UI_NavigationBar *navigation_bar = static_cast<ESP_UI_NavigationBar *>(var);
+    ESP_UI_CHECK_NULL_EXIT(navigation_bar, "Invalid var");
+
+    lv_obj_align(navigation_bar->_main_obj.get(), LV_ALIGN_BOTTOM_MID, 0, value);
+}
+
+void ESP_UI_NavigationBar::onVisualFlexShowAnimationReadyCallback(lv_anim_t *anim)
+{
+    ESP_UI_NavigationBar *navigation_bar = static_cast<ESP_UI_NavigationBar *>(anim->var);
+    ESP_UI_CHECK_NULL_EXIT(navigation_bar, "Invalid var");
+
+    ESP_UI_LOGD("Flex show animation ready");
+    if (navigation_bar->_flags.enable_visual_flex_auto_hide) {
+        ESP_UI_CHECK_FALSE_EXIT(navigation_bar->startFlexHideTimer(), "Navigation bar start flex hide timer failed");
+    }
+    navigation_bar->_flags.is_visual_flex_show_anim_running = false;
+}
+
+void ESP_UI_NavigationBar::onVisualFlexHideAnimationReadyCallback(lv_anim_t *anim)
+{
+    ESP_UI_NavigationBar *navigation_bar = static_cast<ESP_UI_NavigationBar *>(anim->var);
+    ESP_UI_CHECK_NULL_EXIT(navigation_bar, "Invalid var");
+
+    ESP_UI_LOGD("Flex hide animation ready");
+    navigation_bar->_flags.is_visual_flex_hide_anim_running = false;
+    lv_obj_add_flag(navigation_bar->_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+}
+
+void ESP_UI_NavigationBar::onVisualFlexHideTimerCallback(lv_timer_t *timer)
+{
+    ESP_UI_NavigationBar *navigation_bar = static_cast<ESP_UI_NavigationBar *>(timer->user_data);
+
+    ESP_UI_LOGD("Flex hide timer callback");
+    ESP_UI_CHECK_NULL_EXIT(navigation_bar, "Invalid var");
+
+    ESP_UI_CHECK_FALSE_EXIT(navigation_bar->startFlexHideAnimation(), "Navigation bar start flex hide animation failed");
+
+    lv_timer_pause(timer);
+    navigation_bar->_flags.is_visual_flex_hide_timer_running = false;
 }

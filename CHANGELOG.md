@@ -1,5 +1,18 @@
 # ChangeLog
 
+## v0.2.0 - 2024-08-20
+
+### Enhancements:
+
+* feat(examples): 'ESP_UI_Phone' add partition requirement
+* feat(examples): 'esp-idf' update stylesheet
+* feat(examples): 'esp-idf' add esp_ui_phone_s3_box
+* feat(examples): 'esp-idf' add esp_ui_phone_s3_box_3
+* feat(examples): 'esp-idf' add esp_ui_phone_m5stace_core_s3
+* feat(widgets): 'Navigation Bar' support flex visual mode
+* feat(widgets): 'Gesture' support indicator bar and avoid accidental touch
+* feat(core_app): improve resource clean and screen resize operations
+
 ## v0.1.1~1 - 2024-08-16
 
 ### Bugfixes:

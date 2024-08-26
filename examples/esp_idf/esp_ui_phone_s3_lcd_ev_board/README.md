@@ -134,6 +134,26 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
           PSRAM : [12320768 / 12509956 / 13434880]
     ```
 
+- The following animations show the example running on different development boards.
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4" muted="true"></video>
+</p>
+
+<p align="middle">
+ESP32-S3-LCD-EV-Board (with a 480 x 480 resolution LCD screen)
+</p>
+<br>
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4" muted="true"></video>
+</p>
+
+<p align="middle">
+ESP32-S3-LCD-EV-Board-2 (with a 800 x 480 resolution LCD screen)
+</p>
+<br>
+
 ## Technical Support and Feedback
 
 Please use the following feedback channels:

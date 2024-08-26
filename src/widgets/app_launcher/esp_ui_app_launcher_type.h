@@ -44,6 +44,7 @@ typedef struct {
     struct {
         ESP_UI_StyleSize_t main_size;
         uint8_t main_layout_column_pad;
+        uint16_t main_layout_bottom_offset;
         ESP_UI_StyleSize_t spot_inactive_size;
         ESP_UI_StyleSize_t spot_active_size;
         ESP_UI_StyleColor_t spot_inactive_background_color;

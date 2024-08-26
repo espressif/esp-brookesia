@@ -135,6 +135,12 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
             PSRAM : [24641536 / 24997772 / 27459584]
     ```
 
+- The following animations show the example running on the development board.
+
+<p align="middle">
+<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4" muted="true"></video>
+</p>
+
 ## Technical Support and Feedback
 
 Please use the following feedback channels:

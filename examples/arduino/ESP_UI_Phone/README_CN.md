@@ -35,7 +35,7 @@
     - [必需] 在 *lv_conf.h* 文件中使能 `LV_USE_SNAPSHOT` 宏。
     - [可选] 修改 [lvgl_port_v8.h](./lvgl_port_v8.h) 文件中的宏，以配置 lvgl 端口参数。
 
-4. 在 Arduino IDE 中导航到 `工具` 菜单，选择 ESP 板并配置其参数。对于受支持的板，请参阅[配置受支持的开发板](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-supported-development-boards)。
+4. 在 Arduino IDE 中导航到 `工具` 菜单，选择 ESP 板并配置其参数。**请确保分区表中 APP 分区至少有 2 MB 大小**。对于受支持的板，请参阅[配置受支持的开发板](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/Board_Instructions.md#recommended-configurations-in-the-arduino-ide)。
 5. 验证并将示例上传到 ESP 板。
 
 ## 串口输出

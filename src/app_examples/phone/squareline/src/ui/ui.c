@@ -3,13 +3,20 @@
 // LVGL version: 8.3.11
 // Project name: Smart_Gadget
 
+// esp-ui: changed
 #include "ui.h"
 
+// esp-ui: changed
 #if !defined(ESP_UI_SQ1_4_1_LV8_3_11)
     #define _ui_screen_change(target, fademode, spd, delay, target_init) lv_scr_load_anim(*target, fademode, spd, delay, false)
 #endif
 
 ///////////////////// VARIABLES ////////////////////
+void upanim_Animation(lv_obj_t * TargetObject, int delay);
+void hour_Animation(lv_obj_t * TargetObject, int delay);
+void min_Animation(lv_obj_t * TargetObject, int delay);
+void sec_Animation(lv_obj_t * TargetObject, int delay);
+void scrolldot_Animation(lv_obj_t * TargetObject, int delay);
 
 
 // SCREEN: ui_SmartGadgetSplash
@@ -126,16 +133,13 @@ lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp1;
 lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp2;
 lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp3;
 lv_obj_t * ui_SmartGadgetAlarm_Scrolldots_Scrolldots5;
+void ui_event_Startevents____initial_actions0(lv_event_t * e);
 lv_obj_t * ui_Startevents____initial_actions0;
 const lv_img_dsc_t * ui_imgset_chatbox[1] = {&ui_img_chatbox2_png};
 const lv_img_dsc_t * ui_imgset_weather_[3] = {&ui_img_weather_1_png, &ui_img_weather_2_png, &ui_img_weather_3_png};
 
-///////////////////// TEST LVGL SETTINGS ////////////////////
-#if LV_COLOR_DEPTH != 16
-    #error "LV_COLOR_DEPTH should be 16bit to match SquareLine Studio's settings"
-#endif
-
 ///////////////////// ANIMATIONS ////////////////////
+// esp-ui: changed
 
 ///////////////////// FUNCTIONS ////////////////////
 void ui_event_SmartGadgetSplash(lv_event_t * e)
@@ -143,6 +147,9 @@ void ui_event_SmartGadgetSplash(lv_event_t * e)
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
     if(event_code == LV_EVENT_SCREEN_LOADED) {
+        upanim_Animation(ui_SmartGadgetSplash_Image_SLS_Logo, 100);
+        upanim_Animation(ui_SmartGadgetSplash_Small_label_Smart_Gadget, 200);
+        upanim_Animation(ui_SmartGadgetSplash_Small_label_Demo, 300);
         _ui_screen_change(&ui_SmartGadgetClock, LV_SCR_LOAD_ANIM_FADE_ON, 200, 1400, &ui_SmartGadgetClock_screen_init);
     }
 }
@@ -150,19 +157,37 @@ void ui_event_SmartGadgetClock(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOAD_START) {
+        upanim_Animation(ui_SmartGadgetClock_Panel_Clock_Panel, 100);
+        upanim_Animation(ui_SmartGadgetClock_Label_Clock_Number, 300);
+        upanim_Animation(ui_SmartGadgetClock_Small_label_Date, 200);
+        scrolldot_Animation(ui_SmartGadgetClock_Scrolldots_Scrolldots, 0);
+    }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_LEFT) {
         lv_indev_wait_release(lv_indev_get_act());
-        _ui_screen_change(&ui_SmartGadgetCall, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetCall_screen_init);
+        _ui_screen_change(&ui_SmartGadgetCall, LV_SCR_LOAD_ANIM_FADE_ON, 10, 0, &ui_SmartGadgetCall_screen_init);
     }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_RIGHT) {
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_SmartGadgetAlarm, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetAlarm_screen_init);
+    }
+    if(event_code == LV_EVENT_SCREEN_LOAD_START) {
+        hour_Animation(ui_SmartGadgetClock_Image_Hour, 200);
+        min_Animation(ui_SmartGadgetClock_Image_Min, 400);
     }
 }
 void ui_event_SmartGadgetCall(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        upanim_Animation(ui_SmartGadgetCall_Image_Avatar, 100);
+        upanim_Animation(ui_SmartGadgetCall_Small_label_Elena, 200);
+        upanim_Animation(ui_SmartGadgetCall_Small_label_Incoming, 300);
+        upanim_Animation(ui_SmartGadgetCall_Panel_Call_Incon1, 200);
+        upanim_Animation(ui_SmartGadgetCall_Panel_Call_Incon2, 300);
+        scrolldot_Animation(ui_SmartGadgetCall_Scrolldots_Scrolldots1, 0);
+    }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_LEFT) {
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_SmartGadgetChat, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetChat_screen_init);
@@ -176,6 +201,13 @@ void ui_event_SmartGadgetChat(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        upanim_Animation(ui_SmartGadgetChat_Small_label_Chat_date, 100);
+        upanim_Animation(ui_SmartGadgetChat_Panel_C1, 200);
+        upanim_Animation(ui_SmartGadgetChat_Panel_C2, 300);
+        upanim_Animation(ui_SmartGadgetChat_Panel_C3, 400);
+        scrolldot_Animation(ui_SmartGadgetChat_Scrolldots_Scrolldots2, 0);
+    }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_RIGHT) {
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_SmartGadgetCall, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetCall_screen_init);
@@ -189,6 +221,15 @@ void ui_event_SmartGadgetMusicPlayer(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        upanim_Animation(ui_SmartGadgetMusicPlayer_Image_Album, 100);
+        upanim_Animation(ui_SmartGadgetMusicPlayer_Small_label_Music_Title, 200);
+        upanim_Animation(ui_SmartGadgetMusicPlayer_Small_label_Author, 300);
+        upanim_Animation(ui_SmartGadgetMusicPlayer_Panel_Play_btn, 200);
+        upanim_Animation(ui_SmartGadgetMusicPlayer_Image_Forward, 300);
+        upanim_Animation(ui_SmartGadgetMusicPlayer_Image_Backward, 400);
+        scrolldot_Animation(ui_SmartGadgetMusicPlayer_Scrolldots_Scrolldots3, 0);
+    }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_RIGHT) {
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_SmartGadgetChat, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetChat_screen_init);
@@ -202,6 +243,14 @@ void ui_event_SmartGadgetWeather(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        upanim_Animation(ui_SmartGadgetWeather_Image_Cloud, 100);
+        upanim_Animation(ui_SmartGadgetWeather_Small_label_Pary_Cloud, 200);
+        upanim_Animation(ui_SmartGadgetWeather_Label_Celsius, 300);
+        upanim_Animation(ui_SmartGadgetWeather_Small_label_New_York, 400);
+        upanim_Animation(ui_SmartGadgetWeather_Panel_Weather_Icons, 300);
+        scrolldot_Animation(ui_SmartGadgetWeather_Scrolldots_Scrolldots4, 0);
+    }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_RIGHT) {
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_SmartGadgetMusicPlayer, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetMusicPlayer_screen_init);
@@ -215,6 +264,14 @@ void ui_event_SmartGadgetAlarm(lv_event_t * e)
 {
     lv_event_code_t event_code = lv_event_get_code(e);
     lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOADED) {
+        upanim_Animation(ui_SmartGadgetAlarm_Small_label_Set_alarm, 100);
+        upanim_Animation(ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp, 200);
+        upanim_Animation(ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp1, 300);
+        upanim_Animation(ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp2, 400);
+        upanim_Animation(ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp3, 500);
+        scrolldot_Animation(ui_SmartGadgetAlarm_Scrolldots_Scrolldots5, 0);
+    }
     if(event_code == LV_EVENT_GESTURE &&  lv_indev_get_gesture_dir(lv_indev_get_act()) == LV_DIR_RIGHT) {
         lv_indev_wait_release(lv_indev_get_act());
         _ui_screen_change(&ui_SmartGadgetWeather, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetWeather_screen_init);
@@ -224,9 +281,18 @@ void ui_event_SmartGadgetAlarm(lv_event_t * e)
         _ui_screen_change(&ui_SmartGadgetClock, LV_SCR_LOAD_ANIM_FADE_ON, 0, 0, &ui_SmartGadgetClock_screen_init);
     }
 }
+void ui_event_Startevents____initial_actions0(lv_event_t * e)
+{
+    lv_event_code_t event_code = lv_event_get_code(e);
+    lv_obj_t * target = lv_event_get_target(e);
+    if(event_code == LV_EVENT_SCREEN_LOAD_START) {
+        sec_Animation(ui_SmartGadgetClock_Image_Sec, 0);
+    }
+}
 
 ///////////////////// SCREENS ////////////////////
 
+// esp-ui: changed
 void phone_app_squareline_ui_init(void)
 {
     LV_EVENT_GET_COMP_CHILD = lv_event_register_id();
@@ -242,5 +308,6 @@ void phone_app_squareline_ui_init(void)
     ui_SmartGadgetWeather_screen_init();
     ui_SmartGadgetAlarm_screen_init();
     ui_Startevents____initial_actions0 = lv_obj_create(NULL);
+    lv_obj_add_event_cb(ui_Startevents____initial_actions0, ui_event_Startevents____initial_actions0, LV_EVENT_ALL, NULL);
     lv_disp_load_scr(ui_SmartGadgetSplash);
 }

@@ -44,12 +44,21 @@ bool ESP_UI_PhoneHome::begin(void)
     ESP_UI_LOGD("Begin(@0x%p)", this);
     ESP_UI_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
 
+    // Recents Screen
+    if (_data.flags.enable_recents_screen) {
+        recents_screen = std::make_shared<ESP_UI_RecentsScreen>(_core, _data.recents_screen.data);
+        ESP_UI_CHECK_NULL_RETURN(recents_screen, false, "Create recents_screen failed");
+        ESP_UI_CHECK_FALSE_RETURN(recents_screen->begin(system_screen_obj), false, "Begin recents_screen failed");
+    }
+
     // Status bar
     if (_data.flags.enable_status_bar) {
         status_bar = std::make_shared<ESP_UI_StatusBar>(_core, _data.status_bar.data,
                      _core.getCoreManager().getAppFreeId(), _core.getCoreManager().getAppFreeId());
         ESP_UI_CHECK_NULL_RETURN(status_bar, false, "Create status bar failed");
         ESP_UI_CHECK_FALSE_RETURN(status_bar->begin(system_screen_obj), false, "Begin status bar failed");
+        ESP_UI_CHECK_FALSE_RETURN(status_bar->setVisualMode(_data.status_bar.visual_mode), false,
+                                  "Status bar set visual mode failed");
     }
 
     // Navigation bar
@@ -57,13 +66,8 @@ bool ESP_UI_PhoneHome::begin(void)
         navigation_bar = std::make_shared<ESP_UI_NavigationBar>(_core, _data.navigation_bar.data);
         ESP_UI_CHECK_NULL_RETURN(navigation_bar, false, "Create navigation bar failed");
         ESP_UI_CHECK_FALSE_RETURN(navigation_bar->begin(system_screen_obj), false, "Begin navigation bar failed");
-    }
-
-    // RecentsScreen
-    if (_data.flags.enable_recents_screen) {
-        recents_screen = std::make_shared<ESP_UI_RecentsScreen>(_core, _data.recents_screen.data);
-        ESP_UI_CHECK_NULL_RETURN(recents_screen, false, "Create recents_screen failed");
-        ESP_UI_CHECK_FALSE_RETURN(recents_screen->begin(system_screen_obj), false, "Begin recents_screen failed");
+        ESP_UI_CHECK_FALSE_RETURN(navigation_bar->setVisualMode(_data.navigation_bar.visual_mode), false,
+                                  "Navigation bar set visual mode failed");
     }
 
     // App table
@@ -279,7 +283,7 @@ bool ESP_UI_PhoneHome::processMainScreenLoad(void)
     if (_status_bar == nullptr) {
         ESP_UI_LOGD("No status_bar");
     } else {
-        ESP_UI_CHECK_FALSE_RETURN(_status_bar->setVisualMode(ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED), false,
+        ESP_UI_CHECK_FALSE_RETURN(_status_bar->setVisualMode(_data.status_bar.visual_mode), false,
                                   "Status bar set visual mode failed");
     }
 
@@ -287,7 +291,7 @@ bool ESP_UI_PhoneHome::processMainScreenLoad(void)
     if (_navigation_bar == nullptr) {
         ESP_UI_LOGD("No navigation_bar");
     } else {
-        ESP_UI_CHECK_FALSE_RETURN(_navigation_bar->setVisualMode(ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED), false,
+        ESP_UI_CHECK_FALSE_RETURN(_navigation_bar->setVisualMode(_data.navigation_bar.visual_mode), false,
                                   "Navigation bar set visual mode failed");
     }
 
@@ -344,7 +348,8 @@ bool ESP_UI_PhoneHome::calibrateData(const ESP_UI_StyleSize_t &screen_size, ESP_
     if (data.flags.enable_status_bar) {
         ESP_UI_CHECK_FALSE_RETURN(ESP_UI_StatusBar::calibrateData(screen_size, *this, data.status_bar.data),
                                   false, "Calibrate status bar data failed");
-        if (data.flags.enable_app_launcher_flex_size) {
+        if (data.flags.enable_app_launcher_flex_size &&
+                (data.status_bar.visual_mode == ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED)) {
             data.app_launcher.data.main.y_start += data.status_bar.data.main.size.height;
             data.app_launcher.data.main.size.height -= data.status_bar.data.main.size.height;
         }
@@ -358,7 +363,8 @@ bool ESP_UI_PhoneHome::calibrateData(const ESP_UI_StyleSize_t &screen_size, ESP_
     if (data.flags.enable_navigation_bar) {
         ESP_UI_CHECK_FALSE_RETURN(ESP_UI_NavigationBar::calibrateData(screen_size, *this, data.navigation_bar.data),
                                   false, "Calibrate navigation bar data failed");
-        if (data.flags.enable_app_launcher_flex_size) {
+        if (data.flags.enable_app_launcher_flex_size &&
+                (data.navigation_bar.visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED)) {
             ESP_UI_CHECK_VALUE_RETURN(data.app_launcher.data.main.y_start + data.navigation_bar.data.main.size.height,
                                       1, screen_size.height, false, "Invalid app launcher height flex");
             data.app_launcher.data.main.size.height -= data.navigation_bar.data.main.size.height;
@@ -370,7 +376,7 @@ bool ESP_UI_PhoneHome::calibrateData(const ESP_UI_StyleSize_t &screen_size, ESP_
             data.recents_screen.data.main.size.height -= data.navigation_bar.data.main.size.height;
         }
     }
-    // RecentsScreen
+    // Recents Screen
     if (data.flags.enable_recents_screen) {
         ESP_UI_CHECK_FALSE_RETURN(ESP_UI_RecentsScreen::calibrateData(screen_size, *this, data.recents_screen.data),
                                   false, "Calibrate recents_screen data failed");

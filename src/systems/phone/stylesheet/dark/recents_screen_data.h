@@ -26,6 +26,7 @@ LV_IMG_DECLARE(esp_ui_phone_recents_screen_image_trash);
         },                                                         \
         .image = {                                                 \
             .main_size = ESP_UI_STYLE_SIZE_RECT_PERCENT(40, 40),   \
+            .radius = 0,                                           \
         },                                                         \
         .flags = {                                                 \
             .enable_all_main_size_refer_screen = 1,                \
@@ -35,6 +36,7 @@ LV_IMG_DECLARE(esp_ui_phone_recents_screen_image_trash);
 #define ESP_UI_PHONE_DEFAULT_DARK_RECENTS_SCREEN_DATA()                           \
     {                                                                             \
         .main = {                                                                 \
+            .y_start = 0,                                                         \
             .size = ESP_UI_STYLE_SIZE_RECT_PERCENT(100, 100),                     \
             .layout_row_pad = 10,                                                 \
             .layout_top_pad = 10,                                                 \
@@ -62,6 +64,7 @@ LV_IMG_DECLARE(esp_ui_phone_recents_screen_image_trash);
             .enable_memory = 1,                                                   \
             .enable_table_height_flex = 1,                                        \
             .enable_table_snapshot_use_icon_image = 0,                            \
+            .enable_table_scroll_anim = 0,                                        \
         },                                                                        \
     }
 

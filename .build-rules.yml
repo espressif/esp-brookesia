@@ -9,9 +9,21 @@ test_apps:
     - if: IDF_TARGET in ["esp32s2", "esp32s3", "esp32p4", "esp32c3", "esp32c6"]
 
 # Examples
+examples/esp_ui_phone_m5stace_core_s3:
+  enable:
+    - if: IDF_TARGET in ["esp32s3"]
+
 examples/esp_ui_phone_p4_function_ev_board:
   enable:
     - if: IDF_TARGET in ["esp32p4"]
+
+examples/esp_ui_phone_s3_box:
+  enable:
+    - if: IDF_TARGET in ["esp32s3"]
+
+examples/esp_ui_phone_s3_box_3:
+  enable:
+    - if: IDF_TARGET in ["esp32s3"]
 
 examples/esp_ui_phone_s3_lcd_ev_board:
   enable:

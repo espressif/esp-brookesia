@@ -174,3 +174,37 @@ lv_indev_t *esp_ui_core_utils_get_input_dev(const lv_disp_t *display, lv_indev_t
 
     return indev;
 }
+
+lv_anim_path_cb_t esp_ui_core_utils_get_anim_path_cb(ESP_UI_LvAnimationPathType_t type)
+{
+    ESP_UI_CHECK_FALSE_RETURN(type < ESP_UI_LV_ANIM_PATH_TYPE_MAX, NULL, "Invalid animation path type(%d)", type);
+
+    switch (type) {
+    case ESP_UI_LV_ANIM_PATH_TYPE_LINEAR:
+        return lv_anim_path_linear;
+        break;
+    case ESP_UI_LV_ANIM_PATH_TYPE_EASE_IN:
+        return lv_anim_path_ease_in;
+        break;
+    case ESP_UI_LV_ANIM_PATH_TYPE_EASE_OUT:
+        return lv_anim_path_ease_out;
+        break;
+    case ESP_UI_LV_ANIM_PATH_TYPE_EASE_IN_OUT:
+        return lv_anim_path_ease_in_out;
+        break;
+    case ESP_UI_LV_ANIM_PATH_TYPE_OVERSHOOT:
+        return lv_anim_path_overshoot;
+        break;
+    case ESP_UI_LV_ANIM_PATH_TYPE_BOUNCE:
+        return lv_anim_path_bounce;
+        break;
+    case ESP_UI_LV_ANIM_PATH_TYPE_STEP:
+        return lv_anim_path_step;
+        break;
+    default:
+        break;
+    }
+    ESP_UI_LOGE("Invalid animation path type(%d)", type);
+
+    return NULL;
+}
