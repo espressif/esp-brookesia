@@ -136,23 +136,22 @@ idf.py -p PORT flash monitor
 
 - 以下动画展示了示例在不同开发板上运行的效果。
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.gif" alt ="esp_ui_phone_s3_lcd_ev_board_480_480" width="400">
 </p>
 
-<p align="middle">
-ESP32-S3-LCD-EV-Board（带有 480 x 480 分辨率的 LCD 屏幕）
+<p align="center">
+ESP32-S3-LCD-EV-Board（带有 480 x 480 分辨率的 LCD 屏幕）（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4">Click to view the video</a>）
 </p>
 <br>
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.gif" alt ="esp_ui_phone_s3_lcd_ev_board_800_480" width="400">
 </p>
 
-<p align="middle">
-ESP32-S3-LCD-EV-Board-2（带有 800 x 480 分辨率的 LCD 屏幕）
+<p align="center">
+ESP32-S3-LCD-EV-Board-2（带有 800 x 480 分辨率的 LCD 屏幕）（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4">Click to view the video</a>）
 </p>
-<br>
 
 ## 技术支持和反馈
 

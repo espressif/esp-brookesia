@@ -138,8 +138,12 @@ idf.py -p PORT flash monitor
 
 - 以下动画展示了示例在开发板上运行的效果。
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_box_3.gif" alt ="esp_ui_phone_s3_box_3" width="500">
+</p>
+
+<p align="center">
+（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_box_3.mp4">点击查看视频</a>）
 </p>
 
 ## 技术支持和反馈
