@@ -147,7 +147,7 @@ bool ESP_UI_CoreManager::startApp(int id)
         app = find_ret->second;
         ESP_UI_LOGD("App(%d) is already running, just resume it", app->_id);
         // If so, resume app
-        ESP_UI_CHECK_FALSE_GOTO(processAppResume(app), err, "Resume app failed");
+        ESP_UI_CHECK_FALSE_RETURN(processAppResume(app), false, "Resume app failed");
 
         return true;
     }
@@ -187,6 +187,8 @@ err:
 
 bool ESP_UI_CoreManager::processAppRun(ESP_UI_CoreApp *app)
 {
+    bool is_home_run = false;
+    bool is_app_run = false;
     lv_area_t app_visual_area = {};
     ESP_UI_CoreHome &home = _core._core_home;
 
@@ -194,18 +196,29 @@ bool ESP_UI_CoreManager::processAppRun(ESP_UI_CoreApp *app)
     ESP_UI_LOGD("Process app(%d) run", app->_id);
 
     // Process home, and get the visual area of the app
-    ESP_UI_CHECK_FALSE_RETURN(home.processAppRun(app, app_visual_area), false, "Process home before app run failed");
+    ESP_UI_CHECK_FALSE_RETURN(is_home_run = home.processAppRun(app, app_visual_area), false,
+                              "Process home before app run failed");
 
     // Process app
-    ESP_UI_CHECK_FALSE_RETURN(app->processRun(app_visual_area), false, "Process app run failed");
+    ESP_UI_CHECK_FALSE_GOTO(is_app_run = app->processRun(app_visual_area), err, "Process app run failed");
 
     // Process extra
-    ESP_UI_CHECK_FALSE_RETURN(processAppRunExtra(app), false, "Process app run extra failed");
+    ESP_UI_CHECK_FALSE_GOTO(processAppRunExtra(app), err, "Process app run extra failed");
 
     // Update active app
     _active_app = app;
 
     return true;
+
+err:
+    if (is_home_run && !home.processAppClose(app)) {
+        ESP_UI_LOGE("Home process close failed");
+    }
+    if (is_app_run && !app->processClose(true)) {
+        ESP_UI_LOGE("App process close failed");
+    }
+
+    return false;
 }
 
 bool ESP_UI_CoreManager::processAppResume(ESP_UI_CoreApp *app)
@@ -244,7 +257,7 @@ bool ESP_UI_CoreManager::processAppPause(ESP_UI_CoreApp *app)
     ESP_UI_LOGD("Process app(%d) pause", app->_id);
 
     // Process app
-    ESP_UI_CHECK_FALSE_GOTO(app->processPause(), err, "App process pause failed");
+    ESP_UI_CHECK_FALSE_RETURN(app->processPause(), false, "App process pause failed");
     if (_core_data.flags.enable_app_save_snapshot) {
         if (!saveAppSnapshot(app)) {
             ESP_UI_LOGE("Save app snapshot failed");

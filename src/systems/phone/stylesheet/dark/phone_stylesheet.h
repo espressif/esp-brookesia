@@ -25,7 +25,7 @@ extern "C" {
         },                                                                        \
         .navigation_bar = {                                                       \
             .data = ESP_UI_PHONE_DEFAULT_DARK_NAVIGATION_BAR_DATA(),              \
-            .visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED,          \
+            .visual_mode = ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,           \
         },                                                                        \
         .app_launcher = {                                                         \
             .data = ESP_UI_PHONE_DEFAULT_DARK_APP_LAUNCHER_DATA(),                \
@@ -41,6 +41,7 @@ extern "C" {
             .enable_app_launcher_flex_size = 1,                                   \
             .enable_recents_screen = 1,                                           \
             .enable_recents_screen_flex_size = 1,                                 \
+            .enable_recents_screen_hide_when_no_snapshot = 0,                     \
         },                                                                        \
     }
 
@@ -48,6 +49,7 @@ extern "C" {
 #define ESP_UI_PHONE_DEFAULT_DARK_MANAGER_DATA()             \
     {                                                        \
         .gesture = ESP_UI_PHONE_DEFAULT_DARK_GESTURE_DATA(), \
+        .gesture_mask_indicator_trigger_time_ms = 150,       \
         .recents_screen = {                                  \
             .drag_snapshot_y_step = 10,                      \
             .drag_snapshot_y_threshold = 50,                 \

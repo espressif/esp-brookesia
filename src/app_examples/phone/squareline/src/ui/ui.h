@@ -10,12 +10,19 @@
 extern "C" {
 #endif
 
+// esp-ui: changed
 #include "lvgl.h"
 #include "esp_ui.h"
 
+// esp-ui: changed
 #include "components/ui_comp.h"
 #include "components/ui_comp_hook.h"
 
+void upanim_Animation(lv_obj_t * TargetObject, int delay);
+void hour_Animation(lv_obj_t * TargetObject, int delay);
+void min_Animation(lv_obj_t * TargetObject, int delay);
+void sec_Animation(lv_obj_t * TargetObject, int delay);
+void scrolldot_Animation(lv_obj_t * TargetObject, int delay);
 // SCREEN: ui_SmartGadgetSplash
 void ui_SmartGadgetSplash_screen_init(void);
 void ui_event_SmartGadgetSplash(lv_event_t * e);
@@ -118,6 +125,7 @@ extern lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp1;
 extern lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp2;
 extern lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp3;
 extern lv_obj_t * ui_SmartGadgetAlarm_Scrolldots_Scrolldots5;
+void ui_event_Startevents____initial_actions0(lv_event_t * e);
 extern lv_obj_t * ui_Startevents____initial_actions0;
 
 LV_IMG_DECLARE(ui_img_sls_logo_png);    // assets/sls_logo.png
@@ -142,6 +150,7 @@ LV_IMG_DECLARE(ui_img_weather_3_png);    // assets/weather_3.png
 LV_FONT_DECLARE(ui_font_Number);
 
 
+// esp-ui: changed
 void phone_app_squareline_ui_init(void);
 
 #ifdef __cplusplus

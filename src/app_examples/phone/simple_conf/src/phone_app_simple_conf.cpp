@@ -42,6 +42,8 @@ bool PhoneAppSimpleConf::back(void)
 
 // bool PhoneAppSimpleConf::close(void)
 // {
+//     ESP_UI_LOGD("Close");
+
 //     /* Do some operations here if needed */
 
 //     return true;
@@ -49,13 +51,26 @@ bool PhoneAppSimpleConf::back(void)
 
 // bool PhoneAppSimpleConf::init()
 // {
+//     ESP_UI_LOGD("Init");
+
 //     /* Do some initialization here if needed */
+
+//     return true;
+// }
+
+// bool PhoneAppSimpleConf::deinit()
+// {
+//     ESP_UI_LOGD("Deinit");
+
+//     /* Do some deinitialization here if needed */
 
 //     return true;
 // }
 
 // bool PhoneAppSimpleConf::pause()
 // {
+//     ESP_UI_LOGD("Pause");
+
 //     /* Do some operations here if needed */
 
 //     return true;
@@ -63,6 +78,8 @@ bool PhoneAppSimpleConf::back(void)
 
 // bool PhoneAppSimpleConf::resume()
 // {
+//     ESP_UI_LOGD("Resume");
+
 //     /* Do some operations here if needed */
 
 //     return true;
@@ -70,6 +87,8 @@ bool PhoneAppSimpleConf::back(void)
 
 // bool PhoneAppSimpleConf::cleanResource()
 // {
+//     ESP_UI_LOGD("Clean resource");
+
 //     /* Do some cleanup here if needed */
 
 //     return true;

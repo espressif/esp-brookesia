@@ -6,6 +6,7 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <string>
 #include "lvgl.h"
 #include "esp_ui_core_type.h"
@@ -129,19 +130,19 @@ protected:
      * @brief Called when the app starts running. This is the entry point for the app, where all UI resources should be
      *        created.
      *
-     * @note If the `enable_default_screen` flag in `ESP_UI_CoreAppData_t` is set, the core will create a default
-     *       screen, and the app should create all UI resources on it using `lv_scr_act()` in this function. Otherwise,
-     *       the app needs to create a new screen and load it manually.
-     * @note If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is set, the core will record all resources
-     *       (screens, timers, and animations) created in this function. These resources will be cleaned up
-     *       automatically when the app is closed by calling the `cleanResource()` function. Otherwise, the app should
-     *       clean up all resources manually.
+     * @note If the `enable_default_screen` flag in `ESP_UI_CoreAppData_t` is set, when app starts, the core will create
+     *       a default screen which will be automatically loaded and cleaned up. Then the app should create all UI
+     *       resources on it using `lv_scr_act()` in this function. Otherwise, the app needs to create a new screen and
+     *       load it manually in this function
+     * @note If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is set, when app closes, the core will
+     *       automatically cleanup all recorded resources, including screens (`lv_obj_create(NULL)`),
+     *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`). The resources created in this function
+     *       will be recorded. Otherwise, the app needs to call `cleanRecordResource()` function to clean manually
      * @note If the `enable_resize_visual_area` flag in `ESP_UI_CoreAppData_t` is set, the core will resize the visual
-     *       area of the screens created in this function. This is useful when the screen displays floating UIs, such
-     *       as a status bar. Otherwise, the app's screens will be displayed in full screen, but some areas might be
-     *       not visible. The final visual area of the app is the intersection of the app's visual area and the
-     *       `screen_size` in `ESP_UI_CoreAppData_t`. The app can call the `getVisualArea()` function to retrieve the
-     *       final visual area.
+     *       area of all recorded screens. The screens created in this function will be recorded. This is useful when
+     *       the screen displays floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in
+     *       full screen, but some areas might be not visible. The app can call the `getVisualArea()` function to
+     *       retrieve the final visual area
      *
      * @return true if successful, otherwise false
      *
@@ -160,7 +161,7 @@ protected:
     /**
      * @brief Called when the app starts to close. The app can perform necessary operations here.
      *
-     * @note  The app shouldn't call the `notifyCoreClosed()` function in this function.
+     * @note  The app should avoid calling the `notifyCoreClosed()` function in this function.
      *
      * @return true if successful, otherwise false
      *
@@ -206,6 +207,16 @@ protected:
     /**
      * @brief Called when the app resumes. The app can perform necessary operations here.
      *
+     * @note If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is set, when app closes, the core will
+     *       automatically cleanup all recorded resources, including screens (`lv_obj_create(NULL)`),
+     *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`). The resources created in this function
+     *       will be recorded. Otherwise, the app needs to call `cleanRecordResource()` function to clean manually
+     * @note If the `enable_resize_visual_area` flag in `ESP_UI_CoreAppData_t` is set, the core will resize the visual
+     *       area of all recorded screens. The screens created in this function will be recorded. This is useful when
+     *       the screen displays floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in
+     *       full screen, but some areas might be not visible. The app can call the `getVisualArea()` function to
+     *       retrieve the final visual area
+     *
      * @return true if successful, otherwise false
      *
      */
@@ -215,14 +226,20 @@ protected:
     }
 
     /**
-     * @brief Called when the app starts to close. If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is
-     *        not set, the app should redefine this function to clean up all resources manually. Otherwise, the core
-     *        will clean up the resources (screens, timers, and animations) automatically.
+     * @brief Called when the app starts to close. The app can perform extra resource cleanup here.
+     *
+     * @note If there are resources that not recorded by the core (not created in the `run()` and `pause()` functions,
+     *       or between the `startRecordResource()` and `stopRecordResource()` functions), the app should call this
+     *       function to cleanup these resources manually. This function is not conflicted with the
+     *       `cleanRecordResource()` function.
      *
      * @return true if successful, otherwise false
      *
      */
-    virtual bool cleanResource(void);
+    virtual bool cleanResource(void)
+    {
+        return true;
+    }
 
     /**
      * @brief Notify the core to close the app, and the core will eventually call the `close()` function.
@@ -241,6 +258,50 @@ protected:
      *
      */
     void setLauncherIconImage(const ESP_UI_StyleImage_t &icon_image);
+
+    /**
+     * @brief Start recording resources(screens, timers, and animations) manually.
+     *
+     * @note If the `enable_resize_visual_area` flag in `ESP_UI_CoreAppData_t` is set, the core will resize the visual
+     *       area of all recorded screens which are recorded in this function. This is useful when the screen displays
+     *       floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in full screen, but
+     *       some areas might be not visible. The final visual area of the app is the intersection of the app's visual
+     *       area and the `screen_size`. The app can call the `getVisualArea()` function to retrieve the final visual
+     *       area
+     * @note This function should be called before creating any resources, including screens (`lv_obj_create(NULL)`),
+     *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`)
+     * @note This function should not be called in the `run()` and `pause()` functions.
+     *
+     * @return true if successful, otherwise false
+     *
+     */
+    bool startRecordResource(void);
+
+    /**
+     * @brief Stop recording resources(screens, timers, and animations) manually.
+     *
+     * @note This function should be called after creating any resources, including screens (`lv_obj_create(NULL)`),
+     *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`)
+     * @note This function should not be called in the `run()` and `pause()` functions.
+     *
+     * @return true if successful, otherwise false
+     *
+     */
+    bool endRecordResource(void);
+
+    /**
+     * @brief Cleanup all recorded resources(screens, timers, and animations) manually. These resources are recorded in
+     *        app's `run()` and `pause()` functions, or between the `startRecordResource()` and `stopRecordResource()`
+     *        functions.
+     *
+     * @note If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is set, when app closes, the core will
+     *       call this function automatically. So the app doesn't need to call this function manually.
+     * @note This function will clear all resources records after finishing the cleanup.
+     *
+     * @return true if successful, otherwise false
+     *
+     */
+    bool cleanRecordResource(void);
 
     /**
      * @brief Get the core object.
@@ -263,22 +324,20 @@ private:
     virtual bool processPause(void);
     virtual bool processClose(bool is_app_active);
 
-    bool initActiveScreen(void);
-    bool startResizeVisualArea(void);
-    bool endResizeVisualArea(void);
-    bool startRecordResource(void);
-    bool endRecordResource(void);
+    bool setVisualArea(const lv_area_t &area);
+    bool initDefaultScreen(void);
+    bool cleanDefaultScreen(void);
     bool saveRecentScreen(void);
     bool loadRecentScreen(void);
-    bool setVisualArea(const lv_area_t &area);
-    bool cleanActiveScreen(void);
+    bool resetRecordResource(void);
     bool enableAutoClean(void);
     bool saveDisplayTheme(void);
     bool loadDisplayTheme(void);
     bool saveAppTheme(void);
     bool loadAppTheme(void);
-    bool createAndloadTempScreen(void);
-    bool delTempScreen(void);
+    // TODO
+    // bool createAndloadTempScreen(void);
+    // bool delTempScreen(void);
 
     static void onCleanResourceEventCallback(lv_event_t *e);
     static void onResizeScreenLoadedEventCallback(lv_event_t *e);
@@ -293,6 +352,7 @@ private:
     struct {
         uint8_t is_closing: 1;
         uint8_t is_screen_small: 1;
+        uint8_t is_resource_recording: 1;
     } _flags;
     struct {
         uint16_t w;
@@ -309,11 +369,15 @@ private:
     int _resource_head_screen_index;
     int _resource_screen_count;
     lv_obj_t *_active_screen;
-    lv_obj_t *_temp_screen;
+    // lv_obj_t *_temp_screen;
     lv_timer_t *_resource_head_timer;
     lv_anim_t *_resource_head_anim;
     std::list <lv_obj_t *> _resource_screens;
     std::list <lv_timer_t *> _resource_timers;
     std::list <lv_anim_t *> _resource_anims;
+    // These maps are meant to store additional information about the recorded resources to prevent accidental cleanup
+    std::map<lv_obj_t *, std::pair<const lv_obj_class_t *, lv_obj_t *>> _resource_screens_class_parent_map;
+    std::map<lv_timer_t *, std::pair<lv_timer_cb_t, void *>> _resource_timers_cb_usr_map;
+    std::map<lv_anim_t *, std::pair<void *, lv_anim_exec_xcb_t>> _resource_anims_var_exec_map;
 };
 // *INDENT-OFF*

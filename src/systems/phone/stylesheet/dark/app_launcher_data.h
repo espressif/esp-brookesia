@@ -40,6 +40,7 @@ extern "C" {
         .indicator = {                                                      \
             .main_size = ESP_UI_STYLE_SIZE_RECT_W_PERCENT(100, 50),         \
             .main_layout_column_pad = 10,                                   \
+            .main_layout_bottom_offset = 0,                                 \
             .spot_inactive_size = ESP_UI_STYLE_SIZE_SQUARE_PERCENT(30),     \
             .spot_active_size = ESP_UI_STYLE_SIZE_RECT_H_PERCENT(40, 30),   \
             .spot_inactive_background_color = ESP_UI_STYLE_COLOR(0xC6C6C6), \

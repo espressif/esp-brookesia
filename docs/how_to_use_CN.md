@@ -101,24 +101,27 @@ idf.py add-dependency "espressif/esp-ui"
 
 ## App 示例
 
-esp-ui 针对以下系统 UI 提供了通用的 App 示例，用户可以根据实际需求基于适合的示例进行修改，快速实现自定义 App 的开发。
+esp-ui 针对以下系统 UI 提供了通用的 app 示例，用户可以根据实际需求基于适合的示例进行修改，快速实现自定义 app 的开发。
 
 - [Phone](../src/app_examples/phone/)
-  - [Simple Conf](../src/app_examples/phone/simple_conf/): 此示例采用简单的 App 配置方式，大部分参数为默认值，仅有少部分必要参数需要用户配置，并适用于 "手写代码"<sup>[Note 1]</sup> 的 GUI 开发方式。
-  - [Complex Conf](../src/app_examples/phone/complex_conf/): 此示例采用复杂的 App 配置方式，所有参数都需要用户自行配置，并适用于 "手写代码"<sup>[Note 1]</sup> 的 GUI 开发方式。
-  - [Squareline](../src/app_examples/phone/squareline/): 此示例采用简单的 App 配置方式，大部分参数为默认值，仅有少部分必要参数需要用户配置，并适用于 "Squareline 导出代码"<sup>[Note 2]</sup> 的 GUI 开发方式。
+  - [Simple Conf](../src/app_examples/phone/simple_conf/): 此示例采用简单的 app 配置方式，大部分参数为默认值，仅有少部分必要参数需要用户配置，并适用于 "手写代码"<sup>[Note 1]</sup> 的 GUI 开发方式。
+  - [Complex Conf](../src/app_examples/phone/complex_conf/): 此示例采用复杂的 app 配置方式，所有参数都需要用户自行配置，并适用于 "手写代码"<sup>[Note 1]</sup> 的 GUI 开发方式。
+  - [Squareline](../src/app_examples/phone/squareline/): 此示例采用简单的 app 配置方式，大部分参数为默认值，仅有少部分必要参数需要用户配置，并适用于 "Squareline 导出代码"<sup>[Note 2]</sup> 的 GUI 开发方式。该示例还展示了如何修改 Squareline 导出的代码，以实现在 app 退出时自动清理动画资源。
 
 > [!NOTE]
 > 1. "手写代码" 是指用户需要手动编写代码来实现 GUI 的开发，通常使用 `lv_scr_act()` 获取当前屏幕对象，并将所有的 GUI 元素添加到该屏幕对象上。
-> 2. "Squareline 导出代码" 是指用户使用 [Squareline Studio](https://squareline.io/) 设计 GUI，并导出代码，然后将导出的代码添加到 App 中，即可实现 GUI 的开发。
-> 3. App 提供了自动清理资源的功能（`enable_recycle_resource`），开启后系统会在 App 退出时会自动清理包括**屏幕**、**动画**和**定时器**在内的资源，此功能要求用户在 `run()` 函数中完成所有资源的创建，否则可能会出现内存泄漏问题。如果用户需要在除 `run()` 以外的函数里创建资源 ，请关闭此功能，并重定义 `cleanResource()` 函数实现手动清理。
-> 4. App 提供了自动创建默认屏幕的功能（`enable_default_screen`），开启后系统会在 App 运行时自动创建并加载一个默认屏幕，用户可以通过 `lv_scr_act()` 获取当前屏幕对象。如果用户需要自行创建和加载屏幕对象，请关闭此功能。
+> 2. "Squareline 导出代码" 是指用户使用 [Squareline Studio](https://squareline.io/) 设计 GUI，并导出代码，然后将导出的代码添加到 app 中，即可实现 GUI 的开发。
+> 3. app 提供了自动创建默认屏幕的功能（`enable_default_screen`），开启后系统会在 app 执行 `run()` 时自动创建并加载一个默认屏幕，用户可以通过 `lv_scr_act()` 获取当前屏幕对象。如果用户需要自行创建和加载屏幕对象，请关闭此功能。
+> 4. app 提供了自动清理资源的功能（`enable_recycle_resource`），开启后系统会在 app 退出时会自动清理包括 **屏幕**（`lv_obj_create(NULL)`）、 **动画**（`lv_anim_start()`） 和 **定时器**（`lv_timer_create()`）在内的资源，此功能要求用户在 `run()/resume()` 函数内或者 `startRecordResource()` 与 `stopRecordResource()` 之间完成所有资源的创建。
+> 5. app 提供了自动调整屏幕大小的功能（`enable_resize_visual_area`），开启后系统会在 app 创建屏幕时自动调整屏幕的大小为可视区域的大小，此功能要求用户在 `run()/resume()` 函数内或者 `startRecordResource()` 与 `stopRecordResource()` 函数之间完成所有屏幕的创建（`lv_obj_create(NULL)`, `lv_timer_create()`, `lv_anim_start()`）。当屏幕显示悬浮 UI（如状态栏）时，如果未开启此功能，app 的屏幕将默认以全屏显示，但某些区域可能被遮挡。app 可以调用 `getVisualArea()` 函数来获取最终的可视区域。
 
 > [!WARNING]
-> * 如果用户在 App 中采用 "手写代码" 的方式，为了避免多个 App 之间出现变量和函数重名的问题，推荐 App 内的全局变量和函数采用 "<app_name>_" 前缀的命名方式。
+> * 如果用户在 app 中采用 "手写代码" 的方式，请开启 `enable_default_screen` 功能。
+> * 为了避免多个 app 之间出现变量和函数重名的问题，推荐 app 内的全局变量和函数采用 "<app_name>_" 前缀的命名方式。
 
 > [!WARNING]
-> * 如果用户在 App 中采用 "Squareline 导出代码" 的方式，推荐 Squareline Stduio 的版本为 `v1.4.0` 及以上。
-> * 强烈建议用户不要在 Squareline 中使用动画，因为这些动画对象无法被用户或者 esp-ui 获取，从而无法被自动或者手动清理，可能会在 App 退出时导致程序崩溃或内存泄漏问题。
-> * 为了避免多个 App 之间出现变量和函数重名的问题，推荐所有屏幕的名称采用 "<app_name>_" 前缀的命名方式，并设置 Squareline Studio 中的 "Project Settings" > "Properties" > "Object Naming" 为 "[Screen_Widget]_Name"（此功能要求版本 >= `v1.4.0`）。
-> * 由于每个 Squareline 导出的代码中都会有 *ui_helpers.c* 和 *ui_helpers.h* 文件，为了避免多个 App 之间出现函数重名的问题，请删除这两个文件，并统一使用 esp-ui 内部提供的 *ui_helpers* 文件，删除后需要修改 *ui.h* 文件中的 `#include "ui_helpers.h"` 为 `#include "esp_ui.h"`。
+> * 如果用户在 app 中采用 "Squareline 导出代码" 的方式，推荐 Squareline Stduio 的版本为 `v1.4.0` 及以上，并关闭 `enable_default_screen` 功能。
+> * 为了避免多个 app 之间出现变量和函数重名的问题，推荐所有屏幕的名称采用 "<app_name>_" 前缀的命名方式，并设置 Squareline Studio 中的 "Project Settings" > "Properties" > "Object Naming" 为 "[Screen_Widget]_Name"（此功能要求版本 >= `v1.4.0`）。
+> * 由于每个 Squareline 导出的代码中都会有 *ui_helpers.c* 和 *ui_helpers.h* 文件，为了避免多个 app 之间出现函数重名的问题，请删除这两个文件，并统一使用 esp-ui 内部提供的 *ui_helpers* 文件，删除后需要修改 *ui.h* 文件中的 `#include "ui_helpers.h"` 为 `#include "esp_ui.h"`。
+> * 建议用户不要在 Squareline 创建和使用动画，因为这些动画资源无法被用户或者 esp-ui 直接获取，从而无法被自动或者手动清理，可能会在 app 退出时导致程序崩溃或内存泄漏问题。如果一定要使用，需要对导出代码中动画资源的创建部分进行修改，具体请参考 [Squareline 示例](../src/app_examples/phone/squareline/) 中的实现，该示例通过在 `lv_anim_start()` 前后添加 `startRecordResource()` 和 `stopRecordResource()` 函数来手动记录动画资源，使其能够在 app 关闭时被自动清理。
+> * 除此之外，使用 Squareline 导出的代码时，用户仍需根据实际情况进行一些额外的修改,如修改 `ui_init()` 函数名为 `<app_name>_ui_init()`，以确保代码能够被正常编译与运行。

@@ -116,8 +116,7 @@ bool ESP_UI_RecentsScreenSnapshot::begin(lv_obj_t *parent)
     ESP_UI_CHECK_FALSE_GOTO(updateByNewData(), err, "Update failed");
 
     // Other operations
-    lv_obj_refr_pos(drag_obj.get());
-    _origin_y = lv_obj_get_y(drag_obj.get());
+    _origin_y = getCurrentY();
 
     return true;
 
@@ -150,6 +149,7 @@ int ESP_UI_RecentsScreenSnapshot::getCurrentY(void) const
 {
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), 0, "Not initialized");
 
+    lv_obj_update_layout(_drag_obj.get());
     lv_obj_refr_pos(_drag_obj.get());
 
     return lv_obj_get_y(_drag_obj.get());

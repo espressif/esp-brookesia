@@ -51,6 +51,7 @@ typedef struct {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef struct {
     ESP_UI_GestureData_t gesture;
+    uint32_t gesture_mask_indicator_trigger_time_ms;
     struct {
         uint16_t drag_snapshot_y_step;
         uint16_t drag_snapshot_y_threshold;
@@ -62,6 +63,13 @@ typedef struct {
         uint8_t enable_recents_screen_snapshot_drag: 1;
     } flags;
 } ESP_UI_PhoneManagerData_t;
+
+typedef enum {
+    ESP_UI_PHONE_MANAGER_SCREEN_MAIN = 0,
+    ESP_UI_PHONE_MANAGER_SCREEN_APP,
+    ESP_UI_PHONE_MANAGER_SCREEN_RECENTS_SCREEN,
+    ESP_UI_PHONE_MANAGER_SCREEN_MAX,
+} ESP_UI_PhoneManagerScreen_t;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////// App //////////////////////////////////////////////////////////
@@ -87,12 +95,14 @@ typedef struct {
 /**
  * @brief The default initializer for phone app data structure
  *
- * @note  The `app_launcher_page_index` and `status_icon_area_index` is set to 0
- * @note  The `enable_status_icon_common_size` flag is set by default
+ * @note  The `app_launcher_page_index` and `status_icon_area_index` are set to 0
+ * @note  The `enable_status_icon_common_size` and `enable_navigation_gesture` flags are set by default
+ * @note  If the `use_navigation_bar` flag is set, the visual mode of the navigation bar will be set to
+ *        `ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX`
  *
  * @param status_icon The status icon image. Set to `NULL` if no icon is needed
  * @param use_status_bar Flag to show the status bar
- * @param use_navigation_bar Flag to show the navigation bar. If not set, the `enable_navigation_gesture` flag will be set
+ * @param use_navigation_bar Flag to show the navigation bar
  *
  */
 #define ESP_UI_PHONE_APP_DATA_DEFAULT(status_icon, use_status_bar, use_navigation_bar)                 \
@@ -110,11 +120,11 @@ typedef struct {
         },                                                                                             \
         .status_bar_visual_mode = (use_status_bar) ? ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED :        \
                                                      ESP_UI_STATUS_BAR_VISUAL_MODE_HIDE,               \
-        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED : \
-                                                             ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,        \
+        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX : \
+                                                             ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE,       \
         .flags = {                                                                                     \
             .enable_status_icon_common_size = 1,                                                       \
-            .enable_navigation_gesture = !use_navigation_bar,                                          \
+            .enable_navigation_gesture = 1,                                                            \
         },                                                                                             \
     }
 

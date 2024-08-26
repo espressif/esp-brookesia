@@ -28,6 +28,15 @@ typedef struct {
         ESP_UI_StyleColor_t active_background_color;
     } button;
     struct {
+        uint32_t show_animation_time_ms;
+        uint32_t show_animation_delay_ms;
+        ESP_UI_LvAnimationPathType_t show_animation_path_type;
+        uint32_t show_duration_ms;
+        uint32_t hide_animation_time_ms;
+        uint32_t hide_animation_delay_ms;
+        ESP_UI_LvAnimationPathType_t hide_animation_path_type;
+    } visual_flex;
+    struct {
         uint8_t enable_main_size_min: 1;
         uint8_t enable_main_size_max: 1;
     } flags;
@@ -36,7 +45,8 @@ typedef struct {
 typedef enum {
     ESP_UI_NAVIGATION_BAR_VISUAL_MODE_HIDE = 0,
     ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED,
-    // ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,  // TODO
+    ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,
+    ESP_UI_NAVIGATION_BAR_VISUAL_MODE_MAX,
 } ESP_UI_NavigationBarVisualMode_t;
 
 #ifdef __cplusplus

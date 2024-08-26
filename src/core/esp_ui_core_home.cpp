@@ -137,6 +137,41 @@ bool ESP_UI_CoreHome::calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, 
     return true;
 }
 
+bool ESP_UI_CoreHome::calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target,
+        bool allow_zero) const
+{
+    uint16_t parent_w = 0;
+    uint16_t parent_h = 0;
+    uint16_t min_size = allow_zero ? 0 : 1;
+
+    parent_w = parent.width;
+    parent_h = parent.height;
+
+    // Check width
+    if (target.flags.enable_width_percent) {
+        ESP_UI_CHECK_VALUE_RETURN(target.width_percent, min_size, 100, false, "Invalid width percent");
+        target.width = (parent_w * target.width_percent) / 100;
+    } else {
+        ESP_UI_CHECK_VALUE_RETURN(target.width, min_size, parent_w, false, "Invalid width");
+    }
+
+    // Check height
+    if (target.flags.enable_height_percent) {
+        ESP_UI_CHECK_VALUE_RETURN(target.height_percent, min_size, 100, false, "Invalid Height percent");
+        target.height = (parent_h * target.height_percent) / 100;
+    } else {
+        ESP_UI_CHECK_VALUE_RETURN(target.height, min_size, parent_h, false, "Invalid Height");
+    }
+
+    // Process square
+    if (target.flags.enable_square) {
+        target.width = min(target.width, target.height);
+        target.height = target.width;
+    }
+
+    return true;
+}
+
 bool ESP_UI_CoreHome::calibrateCoreFont(const ESP_UI_StyleSize_t *parent, ESP_UI_StyleFont_t &target) const
 {
     uint8_t size_px = 0;
@@ -232,11 +267,11 @@ bool ESP_UI_CoreHome::beginCore(void)
     }
     // Main screen
     lv_obj_align(main_screen_obj.get(), LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_clear_flag(main_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(main_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_style(main_screen_obj.get(), getCoreContainerStyle(), 0);
     // System screen
     lv_obj_align(system_screen_obj.get(), LV_ALIGN_TOP_LEFT, 0, 0);
-    lv_obj_clear_flag(system_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(system_screen_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_style(system_screen_obj.get(), getCoreContainerStyle(), 0);
 
     /* Save objects */

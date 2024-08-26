@@ -51,10 +51,17 @@ The [Recents Screen](../src/widgets/recents_screen/) displays the currently runn
 
 [Gesture](../src/widgets/gesture/) is used to capture gesture information from input devices, with the following features:
 
-- **Type**: Only supports linear gestures between the start and end points.
-- **Direction**: Includes four directions: Up, Down, Left, and Right.
-- **Position**: Includes five positions: Center, Top Edge, Bottom Edge, Left Edge, and Right Edge.
-- **Coordinates**: Includes the coordinates of the start and end points.
-- **Time**: Includes the time interval between the start and end.
-- **Speed**: Includes the speed of the gesture.
-- **Angle**: Includes the angle of the gesture.
+- **Indicator Bar**:
+
+    - **Position**: Located at the `left edge`, `right edge`, and `top edge` of the screen.
+    - **Display**: Hidden by default, it appears when an edge gesture is detected and changes as the gesture moves in a specific direction.
+
+- **Gesture Information**
+
+    - **Type**: Only supports linear gestures between the start and end points.
+    - **Direction**: Includes four directions: Up, Down, Left, and Right.
+    - **Position**: Includes five positions: Center, Top Edge, Bottom Edge, Left Edge, and Right Edge.
+    - **Coordinates**: Includes the coordinates of the start and end points.
+    - **Time**: Includes the time interval between the start and end.
+    - **Speed**: Includes the speed of the gesture.
+    - **Angle**: Includes the angle of the gesture.

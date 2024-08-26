@@ -11,26 +11,7 @@
 #include "lvgl.h"
 #include "esp_ui_core_utils.h"
 #include "esp_ui_core_app.hpp"
-
-using ESP_UI_LvObj_t = std::shared_ptr<lv_obj_t>;
-struct LvObjDeleter {
-    void operator()(lv_obj_t *obj)
-    {
-        if (lv_obj_is_valid(obj)) {
-            lv_obj_del(obj);
-        }
-    }
-};
-#define ESP_UI_LV_OBJ(type, parent) ESP_UI_LvObj_t(lv_##type##_create(parent), LvObjDeleter());
-
-using ESP_UI_LvTimer_t = std::shared_ptr<lv_timer_t>;
-struct LvTimerDeleter {
-    void operator()(lv_timer_t *t)
-    {
-        lv_timer_del(t);
-    }
-};
-#define ESP_UI_LV_TIMER(func, t, data) ESP_UI_LvTimer_t(lv_timer_create(func, t, data), LvTimerDeleter());
+#include "esp_ui_lv.hpp"
 
 class ESP_UI_Core;
 
@@ -46,6 +27,7 @@ public:
     bool showContainerBorder(void);
     bool hideContainerBorder(void);
     bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target) const;
+    bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target, bool allow_zero) const;
     bool calibrateCoreFont(const ESP_UI_StyleSize_t *parent, ESP_UI_StyleFont_t &target) const;
     bool calibrateCoreIconImage(const ESP_UI_StyleImage_t &target) const;
 

@@ -43,6 +43,8 @@ bool ESP_UI_Phone::calibrateStylesheet(const ESP_UI_StyleSize_t &screen_size, ES
         _stylesheet.home.flags.enable_recents_screen = 0;
     }
     ESP_UI_CHECK_FALSE_RETURN(_home.calibrateData(screen_size, stylesheet.home), false, "Invalid home data");
+    ESP_UI_CHECK_FALSE_RETURN(_manager.calibrateData(screen_size, _home, stylesheet.manager), false,
+                              "Invalid manager data");
 
     return true;
 }
