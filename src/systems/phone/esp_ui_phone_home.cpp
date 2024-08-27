@@ -120,6 +120,7 @@ bool ESP_UI_PhoneHome::processAppInstall(ESP_UI_CoreApp *app)
     if (phone_app->getLauncherIcon().resource == nullptr) {
         ESP_UI_LOGW("No launcher icon provided, use default icon");
         icon_info.image.resource = &esp_ui_phone_app_launcher_image_default;
+        phone_app->setLauncherIconImage(ESP_UI_STYLE_IMAGE(&esp_ui_phone_app_launcher_image_default));
     }
     ESP_UI_CHECK_FALSE_RETURN(_app_launcher.addIcon(phone_app->getActiveData().app_launcher_page_index, icon_info),
                               false, "Add launcher icon failed");
