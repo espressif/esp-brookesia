@@ -5,6 +5,7 @@
 ### Enhancements:
 
 * feat(core): add support for getting app visual area post-installation
+* feat(core): improve app resource clean operations
 
 ### Bugfixes:
 

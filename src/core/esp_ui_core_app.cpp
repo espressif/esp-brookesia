@@ -36,6 +36,7 @@ ESP_UI_CoreApp::ESP_UI_CoreApp(const ESP_UI_CoreAppData_t &data):
     _resource_anim_count(0),
     _resource_head_screen_index(0),
     _resource_screen_count(0),
+    _last_screen(nullptr),
     _active_screen(nullptr),
     _resource_head_timer(nullptr),
     _resource_head_anim(nullptr)
@@ -54,6 +55,7 @@ ESP_UI_CoreApp::ESP_UI_CoreApp(const char *name, const void *launcher_icon, bool
     _resource_anim_count(0),
     _resource_head_screen_index(0),
     _resource_screen_count(0),
+    _last_screen(nullptr),
     _active_screen(nullptr),
     _resource_head_timer(nullptr),
     _resource_head_anim(nullptr)
@@ -245,36 +247,57 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
     ESP_UI_LOGD("App(%s: %d) clean resource", getName(), _id);
 
     bool ret = true;
-    uint32_t resource_loop_count = 0;
-    std::list <lv_obj_t *> resource_screens = _resource_screens;
+    bool do_clean = false;
+    int resource_loop_count = 0;
+    int resource_clean_count = 0;
+    lv_disp_t *disp = nullptr;
+    lv_obj_t *screen_node = nullptr;
     lv_timer_t *timer_node = nullptr;
     lv_anim_t *anim_node = nullptr;
 
+    disp = _core->getDisplayDevice();
+    ESP_UI_CHECK_NULL_RETURN(disp, false, "Invalid display");
+
     // Screen
-    for (auto screen : resource_screens) {
-        auto screen_map_it = _resource_screens_class_parent_map.find(screen);
-        if (screen_map_it == _resource_screens_class_parent_map.end()) {
-            ESP_UI_LOGE("Screen class parent map not found");
-        } else {
-            if ((screen->class_p == screen_map_it->second.first) &&
-                    (screen->parent == screen_map_it->second.second)) {
-                if (lv_obj_is_valid(screen)) {
-                    lv_obj_del(screen);
-                    _resource_screens.erase(find(_resource_screens.begin(), _resource_screens.end(), screen));
-                }
+    resource_loop_count = 0;
+    resource_clean_count = 0;
+    for (int i = 0; (i < (int)disp->screen_cnt) && (resource_loop_count++ <  RESOURCE_LOOP_COUNT_MAX);) {
+        do_clean = false;
+        screen_node = (lv_obj_t *)disp->screens[i];
+        auto screen_it = find(_resource_screens.begin(), _resource_screens.end(), screen_node);
+        if (screen_it != _resource_screens.end()) {
+            auto screen_map_it = _resource_screens_class_parent_map.find(screen_node);
+            if (screen_map_it == _resource_screens_class_parent_map.end()) {
+                ESP_UI_LOGE("Screen class parent map not found");
             } else {
-                ESP_UI_LOGD("Screen(@0x%p) information is not matched, skip", screen);
+                if ((screen_node->class_p == screen_map_it->second.first) &&
+                        (screen_node->parent == screen_map_it->second.second)) {
+                    lv_obj_del(screen_node);
+                    do_clean = true;
+                    resource_clean_count++;
+                } else {
+                    ESP_UI_LOGD("Screen(@0x%p) information is not matched, skip", screen_node);
+                }
+                _resource_screens.erase(screen_it);
+                _resource_screens_class_parent_map.erase(screen_map_it);
             }
         }
+        i = do_clean ? 0 : i + 1;
     }
-    ESP_UI_LOGD("Clean screen(%d), miss(%d): ", _resource_screen_count - (int)_resource_screens.size(),
-                (int)_resource_screens.size());
+    if (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX) {
+        ret = false;
+        ESP_UI_LOGE("Clean screen loop count exceed max");
+    } else {
+        ESP_UI_LOGD("Clean screen(%d), miss(%d): ", resource_clean_count, (int)(_resource_screen_count - resource_clean_count));
+    }
 
     // Timer
     resource_loop_count = 0;
+    resource_clean_count = 0;
     timer_node = lv_timer_get_next(nullptr);
     while ((timer_node != nullptr) && (_resource_timers.size() > 0) &&
             (resource_loop_count++ < RESOURCE_LOOP_COUNT_MAX)) {
+        do_clean = false;
         auto timer_it = find(_resource_timers.begin(), _resource_timers.end(), timer_node);
         if (timer_it != _resource_timers.end()) {
             auto timer_map_it = _resource_timers_cb_usr_map.find(timer_node);
@@ -284,30 +307,31 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
                 if ((timer_map_it->second.first == timer_node->timer_cb) &&
                         (timer_map_it->second.second == timer_node->user_data)) {
                     lv_timer_del(timer_node);
-                    _resource_timers.erase(timer_it);
-                    timer_node = lv_timer_get_next(nullptr);
-                    break;
+                    do_clean = true;
+                    resource_clean_count++;
                 } else {
                     ESP_UI_LOGD("Timer(@0x%p) information is not matched, skip", timer_node);
                 }
                 _resource_timers.erase(timer_it);
+                _resource_timers_cb_usr_map.erase(timer_map_it);
             }
         }
-        timer_node = lv_timer_get_next(timer_node);
+        timer_node = do_clean ? lv_timer_get_next(nullptr) : lv_timer_get_next(timer_node);
     }
     if (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX) {
         ret = false;
         ESP_UI_LOGE("Clean timer loop count exceed max");
     } else {
-        ESP_UI_LOGD("Clean timer(%d), miss(%d): ", _resource_timer_count - (int)_resource_timers.size(),
-                    (int)_resource_timers.size());
+        ESP_UI_LOGD("Clean timer(%d), miss(%d): ", resource_clean_count, _resource_timer_count - resource_clean_count);
     }
 
     // Animation
     resource_loop_count = 0;
+    resource_clean_count = 0;
     anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
     while ((anim_node != nullptr) && (_resource_anims.size() > 0) &&
             (resource_loop_count++ < RESOURCE_LOOP_COUNT_MAX)) {
+        do_clean = false;
         auto anim_it = find(_resource_anims.begin(), _resource_anims.end(), anim_node);
         if (anim_it != _resource_anims.end()) {
             auto anim_map_it = _resource_anims_var_exec_map.find(anim_node);
@@ -317,26 +341,26 @@ bool ESP_UI_CoreApp::cleanRecordResource(void)
                 if ((anim_map_it->second.first == anim_node->var) &&
                         (anim_map_it->second.second == anim_node->exec_cb)) {
                     if (lv_anim_del(anim_node->var, anim_node->exec_cb)) {
-                        _resource_anims.erase(anim_it);
-                        anim_node = (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll));
-                        continue;
+                        do_clean = true;
+                        resource_clean_count++;
                     } else {
                         ESP_UI_LOGE("Delete animation failed");
                     }
-                    _resource_anims.erase(anim_it);
                 } else {
                     ESP_UI_LOGD("Anim(@0x%p) information is not matched, skip", anim_node);
                 }
+                _resource_anims.erase(anim_it);
+                _resource_anims_var_exec_map.erase(anim_map_it);
             }
         }
-        anim_node = (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
+        anim_node = do_clean ? (lv_anim_t *)_lv_ll_get_head(&LV_GC_ROOT(_lv_anim_ll)) :
+                    (lv_anim_t *)_lv_ll_get_next(&LV_GC_ROOT(_lv_anim_ll), anim_node);
     }
     if (resource_loop_count >= RESOURCE_LOOP_COUNT_MAX) {
         ret = false;
         ESP_UI_LOGE("Clean timer loop count exceed max");
     } else {
-        ESP_UI_LOGD("Clean anim(%d), miss(%d): ", _resource_anim_count - (int)_resource_anims.size(),
-                    (int)_resource_anims.size());
+        ESP_UI_LOGD("Clean anim(%d), miss(%d): ", resource_clean_count, _resource_anim_count - resource_clean_count);
     }
 
     ESP_UI_CHECK_FALSE_RETURN(resetRecordResource(), false, "Reset record resource failed");
@@ -419,15 +443,23 @@ bool ESP_UI_CoreApp::processRun()
     //     // Create a temp screen to recolor the background
     //     ESP_UI_CHECK_FALSE_RETURN(createAndloadTempScreen(), false, "Create temp screen failed");
     // }
+    ESP_UI_CHECK_FALSE_RETURN(saveRecentScreen(false), false, "Save recent screen before run failed");
     ESP_UI_CHECK_FALSE_RETURN(resetRecordResource(), false, "Reset record resource failed");
     ESP_UI_CHECK_FALSE_RETURN(startRecordResource(), false, "Start record resource failed");
     if (_core_active_data.flags.enable_default_screen) {
         ESP_UI_CHECK_FALSE_RETURN(initDefaultScreen(), false, "Create active screen failed");
     }
     ESP_UI_CHECK_FALSE_RETURN(saveDisplayTheme(), false, "Save display theme failed");
-    ret = run();
-    ESP_UI_CHECK_FALSE_RETURN(saveRecentScreen(), false, "Save recent screen failed");
+    ESP_UI_LOGD("Do run");
+    if (!run()) {
+        ESP_UI_LOGE("Run app failed");
+        ret = false;
+    }
     ESP_UI_CHECK_FALSE_RETURN(endRecordResource(), false, "Start record resource failed");
+    if (!saveRecentScreen(true)) {
+        ESP_UI_LOGE("Save recent screen after run failed");
+        ret = false;
+    }
     ESP_UI_CHECK_FALSE_GOTO(ret, err, "App run failed");
 
     _status = ESP_UI_CORE_APP_STATUS_RUNNING;
@@ -478,7 +510,7 @@ bool ESP_UI_CoreApp::processPause(void)
         ESP_UI_LOGE("Pause failed");
     }
     ESP_UI_CHECK_FALSE_GOTO(saveAppTheme(), err, "Save app theme failed");
-    ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(), err, "Save recent screen failed");
+    ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(false), err, "Save recent screen failed");
     ESP_UI_CHECK_FALSE_GOTO(loadDisplayTheme(), err, "Load display theme failed");
 
     _status = ESP_UI_CORE_APP_STATUS_PAUSED;
@@ -505,7 +537,7 @@ bool ESP_UI_CoreApp::processClose(bool is_app_active)
     // Otherwise, clean the resource when the screen is unloaded
     if (is_app_active) {
         // Save the last screen
-        ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(), err, "Save recent screen failed");
+        ESP_UI_CHECK_FALSE_GOTO(saveRecentScreen(false), err, "Save recent screen failed");
         // This is to prevent the screen from being cleaned before the screen is unloaded
         ESP_UI_CHECK_FALSE_GOTO(enableAutoClean(), err, "Enable auto clean failed");
     } else {
@@ -586,7 +618,7 @@ bool ESP_UI_CoreApp::calibrateVisualArea(void)
 bool ESP_UI_CoreApp::initDefaultScreen(void)
 {
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) init active screen", getName(), _id);
+    ESP_UI_LOGD("App(%s: %d) init default screen", getName(), _id);
 
     _active_screen = lv_obj_create(nullptr);
     ESP_UI_CHECK_NULL_RETURN(_active_screen, false, "Create default screen failed");
@@ -616,13 +648,19 @@ bool ESP_UI_CoreApp::cleanDefaultScreen(void)
     return true;
 }
 
-bool ESP_UI_CoreApp::saveRecentScreen(void)
+bool ESP_UI_CoreApp::saveRecentScreen(bool check_valid)
 {
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) save recent screen", getName(), _id);
 
-    _active_screen = lv_disp_get_scr_act(_core->getDisplayDevice());
-    ESP_UI_CHECK_NULL_RETURN(_active_screen, false, "Invalid active screen");
+    lv_obj_t *active_screen = lv_disp_get_scr_act(_core->getDisplayDevice());
+    ESP_UI_CHECK_FALSE_RETURN(active_screen != nullptr, false, "Invalid active screen");
+
+    if (check_valid) {
+        ESP_UI_CHECK_FALSE_RETURN(active_screen != _last_screen, false, "No app screen");
+    }
+    _active_screen = active_screen;
+    _last_screen = active_screen;
 
     return true;
 }

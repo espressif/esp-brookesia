@@ -25,11 +25,10 @@ class ESP_UI_Template: public ESP_UI_Core {
 public:
     ESP_UI_Template(const ESP_UI_CoreData_t &core_data, ESP_UI_CoreHome &home, ESP_UI_CoreManager &manager,
                     lv_disp_t *display);
-    ~ESP_UI_Template();
+    virtual ~ESP_UI_Template();
 
     virtual bool calibrateStylesheet(const ESP_UI_StyleSize_t &screen_size, T &stylesheet) = 0;
 
-    bool calibrateResolutionSize(uint32_t &resolution, ESP_UI_StyleSize_t size) const;
     bool addStylesheet(const char *name, const ESP_UI_StyleSize_t &screen_size, const T &stylesheet);
     bool activateStylesheet(const char *name, const ESP_UI_StyleSize_t &screen_size);
 
@@ -69,6 +68,7 @@ public:
 protected:
     T _stylesheet;
 
+    bool calibrateResolutionSize(uint32_t &resolution, ESP_UI_StyleSize_t size) const;
     bool delTemplate(void);
 
 private:
@@ -91,22 +91,6 @@ ESP_UI_Template<T>::~ESP_UI_Template()
     if (!delTemplate()) {
         ESP_UI_LOGE("Failed to delete");
     }
-}
-
-template <typename T>
-bool ESP_UI_Template<T>::calibrateResolutionSize(uint32_t &resolution, ESP_UI_StyleSize_t size) const
-{
-    ESP_UI_StyleSize_t display_size = {};
-
-    ESP_UI_CHECK_NULL_RETURN(_display, false, "Display device is not initialized");
-
-    display_size.width = lv_disp_get_hor_res(_display);
-    display_size.height = lv_disp_get_ver_res(_display);
-    ESP_UI_CHECK_FALSE_RETURN(_core_home.calibrateCoreObjectSize(display_size, size), false, "Invalid screen size");
-
-    resolution = (((uint32_t)size.width) << 16) | size.height;
-
-    return true;
 }
 
 template <typename T>
@@ -194,7 +178,6 @@ typename ESP_UI_NameStylesheetMap_t<T>::iterator ESP_UI_Template<T>::findNameSty
     ESP_UI_StyleSize_t calibrate_size = screen_size;
 
     ESP_UI_CHECK_FALSE_RETURN(calibrateResolutionSize(resolution, calibrate_size), false, "Invalid screen size");
-    ESP_UI_LOGD("Get resolution(%dx%d) name map", calibrate_size.width, calibrate_size.height);
 
     return _resolution_name_stylesheet_map.find(resolution);
 }
@@ -206,7 +189,6 @@ typename ESP_UI_NameStylesheetMap_t<T>::iterator ESP_UI_Template<T>::getNameStyl
     ESP_UI_StyleSize_t calibrate_size = screen_size;
 
     ESP_UI_CHECK_FALSE_RETURN(calibrateResolutionSize(resolution, calibrate_size), false, "Invalid screen size");
-    ESP_UI_LOGD("Get name data map end with resolution(%dx%d)", calibrate_size.width, calibrate_size.height);
 
     return _resolution_name_stylesheet_map[resolution].end();
 }
@@ -220,16 +202,18 @@ const T *ESP_UI_Template<T>::getStylesheet(const char *name, const ESP_UI_StyleS
     ESP_UI_CHECK_NULL_RETURN(name, nullptr, "Invalid name");
 
     ESP_UI_CHECK_FALSE_RETURN(calibrateResolutionSize(resolution, calibrate_size), nullptr, "Invalid screen size");
-    ESP_UI_LOGD("Get stylesheet(%s - %dx%d)", name, calibrate_size.width, calibrate_size.height);
 
     // Check if the resolution is already exist
     auto it_resolution_map = _resolution_name_stylesheet_map.find(resolution);
-    ESP_UI_CHECK_FALSE_RETURN(it_resolution_map != _resolution_name_stylesheet_map.end(), nullptr,
-                              "Resolution is not exist");
+    if (it_resolution_map == _resolution_name_stylesheet_map.end()) {
+        return nullptr;
+    }
 
     // If exist, check if the name is already exist
     auto it_name_map = it_resolution_map->second.find(name);
-    ESP_UI_CHECK_FALSE_RETURN(it_name_map != it_resolution_map->second.end(), nullptr, "Name is not exist");
+    if (it_name_map == it_resolution_map->second.end()) {
+        return nullptr;
+    }
 
     return it_name_map->second.get();
 }
@@ -245,15 +229,28 @@ const T *ESP_UI_Template<T>::getStylesheet(const ESP_UI_StyleSize_t &screen_size
 
     // Check if the resolution is already exist
     auto it_resolution_map = _resolution_name_stylesheet_map.find(resolution);
-    ESP_UI_CHECK_FALSE_RETURN(it_resolution_map != _resolution_name_stylesheet_map.end(), nullptr,
-                              "Resolution is not exist");
-
     auto name_map = it_resolution_map->second;
-    ESP_UI_CHECK_FALSE_RETURN(!name_map.empty(), nullptr, "No data is found");
-
-    ESP_UI_LOGD("Get stylesheet(%s)", name_map.begin()->first.c_str());
+    if ((it_resolution_map == _resolution_name_stylesheet_map.end()) || name_map.empty()) {
+        return nullptr;
+    }
 
     return name_map.begin()->second.get();
+}
+
+template <typename T>
+bool ESP_UI_Template<T>::calibrateResolutionSize(uint32_t &resolution, ESP_UI_StyleSize_t size) const
+{
+    ESP_UI_StyleSize_t display_size = {};
+
+    ESP_UI_CHECK_NULL_RETURN(_display, false, "Display device is not initialized");
+
+    display_size.width = lv_disp_get_hor_res(_display);
+    display_size.height = lv_disp_get_ver_res(_display);
+    ESP_UI_CHECK_FALSE_RETURN(_core_home.calibrateCoreObjectSize(display_size, size), false, "Invalid screen size");
+
+    resolution = (((uint32_t)size.width) << 16) | size.height;
+
+    return true;
 }
 
 template <typename T>

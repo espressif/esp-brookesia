@@ -98,7 +98,7 @@ public:
      * @return area: the visual area of the app
      *
      */
-    const lv_area_t & getVisualArea(void) const
+    const lv_area_t &getVisualArea(void) const
     {
         return _app_style.calibrate_visual_area;
     }
@@ -123,6 +123,17 @@ public:
     const ESP_UI_CoreAppData_t &getCoreActiveData(void) const
     {
         return _core_active_data;
+    }
+
+    /**
+     * @brief Get the core object.
+     *
+     * @return core: used to access the core functions
+     *
+     */
+    ESP_UI_Core *getCore(void) const
+    {
+        return _core;
     }
 
 protected:
@@ -303,17 +314,6 @@ protected:
      */
     bool cleanRecordResource(void);
 
-    /**
-     * @brief Get the core object.
-     *
-     * @return core: used to access the core functions
-     *
-     */
-    ESP_UI_Core *getCore(void) const
-    {
-        return _core;
-    }
-
 private:
     virtual bool beginExtra(void) { return true; }
     virtual bool delExtra(void)   { return true; }
@@ -328,7 +328,7 @@ private:
     bool calibrateVisualArea(void);
     bool initDefaultScreen(void);
     bool cleanDefaultScreen(void);
-    bool saveRecentScreen(void);
+    bool saveRecentScreen(bool check_valid);
     bool loadRecentScreen(void);
     bool resetRecordResource(void);
     bool enableAutoClean(void);
@@ -370,6 +370,7 @@ private:
     int _resource_anim_count;
     int _resource_head_screen_index;
     int _resource_screen_count;
+    lv_obj_t *_last_screen;
     lv_obj_t *_active_screen;
     // lv_obj_t *_temp_screen;
     lv_timer_t *_resource_head_timer;

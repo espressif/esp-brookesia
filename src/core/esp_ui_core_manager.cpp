@@ -219,6 +219,7 @@ err:
     if (is_app_run && !app->processClose(true)) {
         ESP_UI_LOGE("App process close failed");
     }
+    ESP_UI_CHECK_FALSE_RETURN(home.processMainScreenLoad(), false, "Home load main screen failed");
 
     return false;
 }
