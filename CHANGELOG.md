@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.2.1 - 2024-08-26
+
+### Bugfixes:
+
+* fix(docs): fix the video that cannot be previewed
+* fix(version): fix the macro definitions that are out of sync with the version
+
 ## v0.2.0 - 2024-08-20
 
 ### Enhancements:

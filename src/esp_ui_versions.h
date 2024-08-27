@@ -10,8 +10,8 @@
 /* Library Version */
 #if !defined(ESP_UI_VER_MAJOR) && !defined(ESP_UI_VER_MINOR) && !defined(ESP_UI_VER_PATCH)
 #define ESP_UI_VER_MAJOR 0
-#define ESP_UI_VER_MINOR 1
-#define ESP_UI_VER_PATCH 0
+#define ESP_UI_VER_MINOR 2
+#define ESP_UI_VER_PATCH 1
 #endif
 
 /* File `esp_ui_conf.h` */

@@ -1,6 +1,7 @@
 [![Arduino Lint](https://github.com/espressif/esp-ui/actions/workflows/arduino_lint.yml/badge.svg)](https://github.com/espressif/esp-ui/actions/workflows/arduino_lint.yml) [![Version Consistency](https://github.com/espressif/esp-ui/actions/workflows/check_lib_versions.yml/badge.svg)](https://github.com/espressif/esp-ui/actions/workflows/check_lib_versions.yml)
 
 **最新 Arduino 库版本**: [![GitHub Release](https://img.shields.io/github/v/release/espressif/esp-ui)](https://github.com/espressif/esp-ui/releases)
+
 **最新 Espressif 组件版本**: [![Espressif Release](https://components.espressif.com/components/espressif/esp-ui/badge.svg)](https://components.espressif.com/components/espressif/esp-ui)
 
 # ESP-UI
@@ -20,12 +21,13 @@ esp-ui 是一个基于 [LVGL](https://github.com/lvgl/lvgl) 的 UI 运行框架�
 
 各系统 UI 的功能演示如下：
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_ui_phone_p4_function_ev_board">
 </p>
 
-<p align="middle">
+<p align="center">
 <a href="https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html">ESP32-P4-Function-EV-Board</a> 运行系统 UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
+（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4">点击查看视频</a>）
 </p>
 <br>
 

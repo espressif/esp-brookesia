@@ -136,23 +136,22 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 
 - The following animations show the example running on different development boards.
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.gif" alt ="esp_ui_phone_s3_lcd_ev_board_480_480">
 </p>
 
-<p align="middle">
-ESP32-S3-LCD-EV-Board (with a 480 x 480 resolution LCD screen)
+<p align="center">
+ESP32-S3-LCD-EV-Board (with a 480 x 480 resolution LCD screen) (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4">Click to view the video</a>)
 </p>
 <br>
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.gif" alt ="esp_ui_phone_s3_lcd_ev_board_800_480">
 </p>
 
-<p align="middle">
-ESP32-S3-LCD-EV-Board-2 (with a 800 x 480 resolution LCD screen)
+<p align="center">
+ESP32-S3-LCD-EV-Board-2 (with a 800 x 480 resolution LCD screen) (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4">Click to view the video</a>)
 </p>
-<br>
 
 ## Technical Support and Feedback
 

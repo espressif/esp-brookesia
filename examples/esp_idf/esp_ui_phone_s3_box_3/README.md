@@ -138,8 +138,12 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 
 - The following animations show the example running on the development board.
 
-<p align="middle">
-<video controls src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_box_3.mp4" muted="true"></video>
+<p align="center">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_box_3.gif" alt ="esp_ui_phone_s3_box_3" width="500">
+</p>
+
+<p align="center">
+(<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_box_3.mp4">Click to view the video</a>)
 </p>
 
 ## Technical Support and Feedback
