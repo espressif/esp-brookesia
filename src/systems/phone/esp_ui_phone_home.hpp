@@ -36,10 +36,11 @@ private:
     bool del(void);
     bool processAppInstall(ESP_UI_CoreApp *app) override;
     bool processAppUninstall(ESP_UI_CoreApp *app) override;
-    bool processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) override;
+    bool processAppRun(ESP_UI_CoreApp *app) override;
     bool processAppResume(ESP_UI_CoreApp *app) override;
     bool processAppClose(ESP_UI_CoreApp *app) override;
     bool processMainScreenLoad(void) override;
+    bool getAppVisualArea(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) const override;
 
     bool processRecentsScreenShow(void);
 

@@ -97,7 +97,7 @@ void ESP_UI_CoreApp::setLauncherIconImage(const ESP_UI_StyleImage_t &icon_image)
 bool ESP_UI_CoreApp::startRecordResource(void)
 {
     lv_disp_t *disp = nullptr;
-    lv_area_t &visual_area = _app_style.visual_area;
+    lv_area_t &visual_area = _app_style.calibrate_visual_area;
 
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) start record resource", getName(), _id);
@@ -134,7 +134,7 @@ bool ESP_UI_CoreApp::endRecordResource(void)
     lv_obj_t *screen = nullptr;
     lv_timer_t *timer_node = nullptr;
     lv_anim_t *anim_node = nullptr;
-    const lv_area_t &visual_area = _app_style.visual_area;
+    const lv_area_t &visual_area = _app_style.calibrate_visual_area;
 
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) end record resource", getName(), _id);
@@ -407,14 +407,13 @@ bool ESP_UI_CoreApp::processUninstall(void)
     return true;
 }
 
-bool ESP_UI_CoreApp::processRun(lv_area_t area)
+bool ESP_UI_CoreApp::processRun()
 {
     bool ret = true;
 
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UI_LOGD("App(%s: %d) run", getName(), _id);
 
-    ESP_UI_CHECK_FALSE_RETURN(setVisualArea(area), false, "Set app visual area failed");
     // TODO
     // if (_flags.is_screen_small) {
     //     // Create a temp screen to recolor the background
@@ -535,16 +534,28 @@ err:
 
 bool ESP_UI_CoreApp::setVisualArea(const lv_area_t &area)
 {
+    ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_UI_LOGD("App(%s: %d) set origin visual area[(%d,%d)-(%d,%d)]", getName(),
+                _id, area.x1, area.y1, area.x2, area.y2);
+
+    _app_style.origin_visual_area = area;
+
+    return true;
+}
+
+bool ESP_UI_CoreApp::calibrateVisualArea(void)
+{
     uint16_t visual_area_x = 0;
     uint16_t visual_area_y = 0;
     uint16_t visual_area_w = 0;
     uint16_t visual_area_h = 0;
-    lv_area_t visual_area = area;
+    lv_area_t visual_area = _app_style.origin_visual_area;
     const ESP_UI_StyleSize_t &screen_size = _core->getCoreData().screen_size;
     const ESP_UI_StyleSize_t &app_size = getCoreActiveData().screen_size;
 
     ESP_UI_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UI_LOGD("App(%s: %d) set visual area(%d,%d-%d,%d)", getName(), _id, area.x1, area.y1, area.x2, area.y2);
+    ESP_UI_LOGD("App(%s: %d) calibrate visual area[origin: (%d,%d)-(%d,%d)]", getName(),
+                _id, visual_area.x1, visual_area.y1, visual_area.x2, visual_area.y2);
 
     visual_area_w = visual_area.x2 - visual_area.x1 + 1;
     visual_area_h = visual_area.y2 - visual_area.y1 + 1;
@@ -562,10 +573,12 @@ bool ESP_UI_CoreApp::setVisualArea(const lv_area_t &area)
     visual_area.y1 = visual_area_y;
     visual_area.x2 = visual_area_x + visual_area_w - 1;
     visual_area.y2 = visual_area_y + visual_area_h - 1;
-    _app_style.visual_area = visual_area;
 
+    _app_style.calibrate_visual_area = visual_area;
     _flags.is_screen_small = ((lv_area_get_height(&visual_area) < screen_size.height) ||
                               (lv_area_get_width(&visual_area) < screen_size.width));
+
+    ESP_UI_LOGD("Calibrate visual area(%d,%d-%d,%d)", visual_area.x1, visual_area.y1, visual_area.x2, visual_area.y2);
 
     return true;
 }

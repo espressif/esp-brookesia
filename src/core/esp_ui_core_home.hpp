@@ -47,11 +47,12 @@ protected:
 private:
     virtual bool processAppInstall(ESP_UI_CoreApp *app) = 0;
     virtual bool processAppUninstall(ESP_UI_CoreApp *app) = 0;
-    virtual bool processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) = 0;
+    virtual bool processAppRun(ESP_UI_CoreApp *app) = 0;
     virtual bool processAppResume(ESP_UI_CoreApp *app) { return true; }
     virtual bool processAppPause(ESP_UI_CoreApp *app)  { return true; }
     virtual bool processAppClose(ESP_UI_CoreApp *app)  { return true; }
     virtual bool processMainScreenLoad(void);
+    virtual bool getAppVisualArea(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) const { return true; }
 
     bool beginCore(void);
     bool delCore(void);

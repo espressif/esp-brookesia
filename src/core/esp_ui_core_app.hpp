@@ -100,7 +100,7 @@ public:
      */
     const lv_area_t & getVisualArea(void) const
     {
-        return _app_style.visual_area;
+        return _app_style.calibrate_visual_area;
     }
 
     /**
@@ -319,12 +319,13 @@ private:
     virtual bool delExtra(void)   { return true; }
     virtual bool processInstall(ESP_UI_Core *core, int id);
     virtual bool processUninstall(void);
-    virtual bool processRun(lv_area_t area);
+    virtual bool processRun(void);
     virtual bool processResume(void);
     virtual bool processPause(void);
     virtual bool processClose(bool is_app_active);
 
     bool setVisualArea(const lv_area_t &area);
+    bool calibrateVisualArea(void);
     bool initDefaultScreen(void);
     bool cleanDefaultScreen(void);
     bool saveRecentScreen(void);
@@ -360,7 +361,8 @@ private:
         lv_theme_t *theme;
     } _display_style;
     struct {
-        lv_area_t visual_area;
+        lv_area_t origin_visual_area;
+        lv_area_t calibrate_visual_area;
         lv_theme_t *theme;
     } _app_style;
     // Resources
