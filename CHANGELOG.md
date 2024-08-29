@@ -2,11 +2,18 @@
 
 ## v0.2.1 - 2024-09-02
 
+### Enhancements:
+
+* feat(core): add support for getting app visual area post-installation
+
 ### Bugfixes:
 
 * fix(docs): fix the video that cannot be previewed
 * fix(version): fix the macro definitions that are out of sync with the version
 * fix(app_examples): fix the incorrect version in the 'complex_conf' yml file by @isthaison (#8)
+* fix(phone): set default app launcher icon when no custom icon is provided
+* fix(status_bar): use correct state when set battery charging flag
+* fix(phone): correct the typo from 'drak' to 'dark'
 
 ## v0.2.0 - 2024-08-20
 
