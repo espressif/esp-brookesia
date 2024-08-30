@@ -1,11 +1,12 @@
 # ChangeLog
 
-## v0.2.1 - 2024-08-26
+## v0.2.1 - 2024-09-02
 
 ### Bugfixes:
 
 * fix(docs): fix the video that cannot be previewed
 * fix(version): fix the macro definitions that are out of sync with the version
+* fix(app_examples): fix the incorrect version in the 'complex_conf' yml file by @isthaison (#8)
 
 ## v0.2.0 - 2024-08-20
 
