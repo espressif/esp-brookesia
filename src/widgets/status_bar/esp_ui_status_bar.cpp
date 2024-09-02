@@ -468,7 +468,7 @@ bool ESP_UI_StatusBar::setBatteryPercent(bool charge_flag, int percent) const
 
     if (_data.flags.enable_battery_icon) {
         if (charge_flag) {
-            _battery_state = 5;
+            _battery_state = 4;
         } else {
             _battery_state = (int)((percent - 1) / 25);
         }

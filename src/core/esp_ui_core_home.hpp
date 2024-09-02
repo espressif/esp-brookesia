@@ -27,6 +27,8 @@ public:
     bool showContainerBorder(void);
     bool hideContainerBorder(void);
     bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target) const;
+    bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target,
+                                 bool check_width, bool check_height) const;
     bool calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target, bool allow_zero) const;
     bool calibrateCoreFont(const ESP_UI_StyleSize_t *parent, ESP_UI_StyleFont_t &target) const;
     bool calibrateCoreIconImage(const ESP_UI_StyleImage_t &target) const;
@@ -47,11 +49,12 @@ protected:
 private:
     virtual bool processAppInstall(ESP_UI_CoreApp *app) = 0;
     virtual bool processAppUninstall(ESP_UI_CoreApp *app) = 0;
-    virtual bool processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) = 0;
+    virtual bool processAppRun(ESP_UI_CoreApp *app) = 0;
     virtual bool processAppResume(ESP_UI_CoreApp *app) { return true; }
     virtual bool processAppPause(ESP_UI_CoreApp *app)  { return true; }
     virtual bool processAppClose(ESP_UI_CoreApp *app)  { return true; }
     virtual bool processMainScreenLoad(void);
+    virtual bool getAppVisualArea(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) const { return true; }
 
     bool beginCore(void);
     bool delCore(void);

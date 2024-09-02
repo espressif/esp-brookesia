@@ -138,6 +138,40 @@ bool ESP_UI_CoreHome::calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, 
 }
 
 bool ESP_UI_CoreHome::calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target,
+        bool check_width, bool check_height) const
+{
+    uint16_t parent_w = 0;
+    uint16_t parent_h = 0;
+
+    parent_w = parent.width;
+    parent_h = parent.height;
+
+    // Check width
+    if (target.flags.enable_width_percent) {
+        ESP_UI_CHECK_VALUE_RETURN(target.width_percent, 1, 100, false, "Invalid width percent");
+        target.width = (parent_w * target.width_percent) / 100;
+    } else if (check_width) {
+        ESP_UI_CHECK_VALUE_RETURN(target.width, 1, parent_w, false, "Invalid width");
+    }
+
+    // Check height
+    if (target.flags.enable_height_percent) {
+        ESP_UI_CHECK_VALUE_RETURN(target.height_percent, 1, 100, false, "Invalid Height percent");
+        target.height = (parent_h * target.height_percent) / 100;
+    } else if (check_height) {
+        ESP_UI_CHECK_VALUE_RETURN(target.height, 1, parent_h, false, "Invalid Height");
+    }
+
+    // Process square
+    if (target.flags.enable_square) {
+        target.width = min(target.width, target.height);
+        target.height = target.width;
+    }
+
+    return true;
+}
+
+bool ESP_UI_CoreHome::calibrateCoreObjectSize(const ESP_UI_StyleSize_t &parent, ESP_UI_StyleSize_t &target,
         bool allow_zero) const
 {
     uint16_t parent_w = 0;
@@ -258,6 +292,7 @@ bool ESP_UI_CoreHome::beginCore(void)
     // Container styles
     for (auto &style : _container_styles) {
         lv_style_init(&style);
+        lv_style_set_size(&style, LV_SIZE_CONTENT);
         lv_style_set_radius(&style, 0);
         lv_style_set_border_width(&style, 0);
         lv_style_set_pad_all(&style, 0);
