@@ -13,10 +13,11 @@ extern "C" {
 #endif
 
 /* Home */
+#define ESP_UI_PHONE_DEFAULT_DARK_CORE_HOME_BG_COLOR    (0x1A1A1A)
 #define ESP_UI_PHONE_DEFAULT_DARK_CORE_HOME_DATA()                                      \
     {                                                                                   \
         .background = {                                                                 \
-            .color = ESP_UI_STYLE_COLOR(0x1A1A1A),                                      \
+            .color = ESP_UI_STYLE_COLOR(ESP_UI_PHONE_DEFAULT_DARK_CORE_HOME_BG_COLOR),  \
             .wallpaper_image_resource = NULL,                                           \
         },                                                                              \
         .text = {                                                                       \
@@ -69,7 +70,7 @@ extern "C" {
     }
 
 /* Core */
-#define ESP_UI_PHONE_DEFAULT_DARK_CORE_INFO_DATA_NAME    "EUI-Phone Default Drak"
+#define ESP_UI_PHONE_DEFAULT_DARK_CORE_INFO_DATA_NAME    "EUI-Phone Default Dark"
 #define ESP_UI_PHONE_DEFAULT_DARK_CORE_DATA()                     \
     {                                                             \
         .name = ESP_UI_PHONE_DEFAULT_DARK_CORE_INFO_DATA_NAME,    \

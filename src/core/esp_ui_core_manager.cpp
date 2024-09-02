@@ -39,6 +39,7 @@ int ESP_UI_CoreManager::installApp(ESP_UI_CoreApp *app)
 {
     bool app_installed = false;
     bool home_process_app_installed = false;
+    lv_area_t app_visual_area = {};
     ESP_UI_CoreHome &home = _core._core_home;
 
     ESP_UI_CHECK_NULL_RETURN(app, -1, "Invalid app");
@@ -51,7 +52,10 @@ int ESP_UI_CoreManager::installApp(ESP_UI_CoreApp *app)
     }
 
     // Initialize app
-    ESP_UI_CHECK_FALSE_GOTO(app_installed = app->processInstall(&_core, _app_free_id), err, "app install failed");
+    ESP_UI_CHECK_FALSE_GOTO(app_installed = app->processInstall(&_core, _app_free_id), err, "App install failed");
+    ESP_UI_CHECK_FALSE_GOTO(home.getAppVisualArea(app, app_visual_area), err, "Home get app visual area failed");
+    ESP_UI_CHECK_FALSE_GOTO(app->setVisualArea(app_visual_area), err, "App set visual area failed");
+    ESP_UI_CHECK_FALSE_GOTO(app->calibrateVisualArea(), err, "App calibrate visual area failed");
 
     // Process home
     ESP_UI_CHECK_FALSE_GOTO(home_process_app_installed = home.processAppInstall(app), err,
@@ -189,18 +193,16 @@ bool ESP_UI_CoreManager::processAppRun(ESP_UI_CoreApp *app)
 {
     bool is_home_run = false;
     bool is_app_run = false;
-    lv_area_t app_visual_area = {};
     ESP_UI_CoreHome &home = _core._core_home;
 
     ESP_UI_CHECK_NULL_RETURN(app, false, "Invalid app");
     ESP_UI_LOGD("Process app(%d) run", app->_id);
 
     // Process home, and get the visual area of the app
-    ESP_UI_CHECK_FALSE_RETURN(is_home_run = home.processAppRun(app, app_visual_area), false,
-                              "Process home before app run failed");
+    ESP_UI_CHECK_FALSE_RETURN(is_home_run = home.processAppRun(app), false, "Process home before app run failed");
 
     // Process app
-    ESP_UI_CHECK_FALSE_GOTO(is_app_run = app->processRun(app_visual_area), err, "Process app run failed");
+    ESP_UI_CHECK_FALSE_GOTO(is_app_run = app->processRun(), err, "Process app run failed");
 
     // Process extra
     ESP_UI_CHECK_FALSE_GOTO(processAppRunExtra(app), err, "Process app run extra failed");
@@ -217,6 +219,7 @@ err:
     if (is_app_run && !app->processClose(true)) {
         ESP_UI_LOGE("App process close failed");
     }
+    ESP_UI_CHECK_FALSE_RETURN(home.processMainScreenLoad(), false, "Home load main screen failed");
 
     return false;
 }

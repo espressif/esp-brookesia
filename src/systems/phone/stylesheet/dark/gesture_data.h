@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-#define ESP_UI_PHONE_DEFAULT_DRAK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA() \
+#define ESP_UI_PHONE_DEFAULT_DARK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA() \
     {                                                                     \
         .main = {                                                         \
             .size_min = ESP_UI_STYLE_SIZE_RECT(10, 4),                    \
@@ -31,7 +31,7 @@ extern "C" {
         },                                                                \
     }
 
-#define ESP_UI_PHONE_DEFAULT_DRAK_GESTURE_BOTTOM_INDICATOR_BAR_DATA() \
+#define ESP_UI_PHONE_DEFAULT_DARK_GESTURE_BOTTOM_INDICATOR_BAR_DATA() \
     {                                                                 \
         .main = {                                                     \
             .size_min = ESP_UI_STYLE_SIZE_RECT(4, 10),                \
@@ -67,11 +67,11 @@ extern "C" {
         },                                                                         \
         .indicator_bars = {                                                        \
             [ESP_UI_GESTURE_INDICATOR_BAR_TYPE_LEFT] =                             \
-                ESP_UI_PHONE_DEFAULT_DRAK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA(), \
+                ESP_UI_PHONE_DEFAULT_DARK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA(), \
             [ESP_UI_GESTURE_INDICATOR_BAR_TYPE_RIGHT] =                            \
-                ESP_UI_PHONE_DEFAULT_DRAK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA(), \
+                ESP_UI_PHONE_DEFAULT_DARK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA(), \
             [ESP_UI_GESTURE_INDICATOR_BAR_TYPE_BOTTOM] =                           \
-                ESP_UI_PHONE_DEFAULT_DRAK_GESTURE_BOTTOM_INDICATOR_BAR_DATA(),     \
+                ESP_UI_PHONE_DEFAULT_DARK_GESTURE_BOTTOM_INDICATOR_BAR_DATA(),     \
         },                                                                         \
         .flags = {                                                                 \
             .enable_indicator_bars = {                                             \

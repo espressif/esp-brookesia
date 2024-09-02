@@ -120,6 +120,7 @@ bool ESP_UI_PhoneHome::processAppInstall(ESP_UI_CoreApp *app)
     if (phone_app->getLauncherIcon().resource == nullptr) {
         ESP_UI_LOGW("No launcher icon provided, use default icon");
         icon_info.image.resource = &esp_ui_phone_app_launcher_image_default;
+        phone_app->setLauncherIconImage(ESP_UI_STYLE_IMAGE(&esp_ui_phone_app_launcher_image_default));
     }
     ESP_UI_CHECK_FALSE_RETURN(_app_launcher.addIcon(phone_app->getActiveData().app_launcher_page_index, icon_info),
                               false, "Add launcher icon failed");
@@ -141,14 +142,8 @@ bool ESP_UI_PhoneHome::processAppUninstall(ESP_UI_CoreApp *app)
     return true;
 }
 
-bool ESP_UI_PhoneHome::processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_area)
+bool ESP_UI_PhoneHome::processAppRun(ESP_UI_CoreApp *app)
 {
-    lv_area_t visual_area = {
-        .x1 = 0,
-        .y1 = 0,
-        .x2 = (lv_coord_t)(_core.getCoreData().screen_size.width - 1),
-        .y2 = (lv_coord_t)(_core.getCoreData().screen_size.height - 1),
-    };
     ESP_UI_PhoneApp *phone_app = static_cast<ESP_UI_PhoneApp *>(app);
 
     ESP_UI_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
@@ -176,12 +171,8 @@ bool ESP_UI_PhoneHome::processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_
             );
         }
         // Change visibility
-        const ESP_UI_StatusBarVisualMode_t &status_bar_visual_mode = app_data.status_bar_visual_mode;
-        ESP_UI_CHECK_FALSE_RETURN(_status_bar->setVisualMode(status_bar_visual_mode), false,
+        ESP_UI_CHECK_FALSE_RETURN(_status_bar->setVisualMode(app_data.status_bar_visual_mode), false,
                                   "Status bar set visual mode failed");
-        if (status_bar_visual_mode == ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED) {
-            visual_area.y1 = _data.status_bar.data.main.size.height;
-        }
     }
 
     // Process navigation bar
@@ -189,12 +180,8 @@ bool ESP_UI_PhoneHome::processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_
         ESP_UI_LOGD("No navigation_bar");
     } else {
         // Change visibility
-        const ESP_UI_NavigationBarVisualMode_t &navigation_bar_visual_mode = app_data.navigation_bar_visual_mode;
-        ESP_UI_CHECK_FALSE_RETURN(_navigation_bar->setVisualMode(navigation_bar_visual_mode), false,
+        ESP_UI_CHECK_FALSE_RETURN(_navigation_bar->setVisualMode(app_data.navigation_bar_visual_mode), false,
                                   "Navigation bar set visual mode failed");
-        if (navigation_bar_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED) {
-            visual_area.y2 -= _data.navigation_bar.data.main.size.height;
-        }
     }
 
     // Process recents_screen
@@ -207,8 +194,6 @@ bool ESP_UI_PhoneHome::processAppRun(ESP_UI_CoreApp *app, lv_area_t &app_visual_
         ESP_UI_CHECK_FALSE_RETURN(_recents_screen->addSnapshot(phone_app->_recents_screen_snapshot_conf), false,
                                   "RecentsScreen add snapshot failed");
     }
-
-    app_visual_area = visual_area;
 
     return true;
 }
@@ -297,6 +282,36 @@ bool ESP_UI_PhoneHome::processMainScreenLoad(void)
 
     ESP_UI_CHECK_FALSE_RETURN(lv_obj_is_valid(main_screen), false, "Invalid main screen");
     lv_scr_load(main_screen);
+
+    return true;
+}
+
+bool ESP_UI_PhoneHome::getAppVisualArea(ESP_UI_CoreApp *app, lv_area_t &app_visual_area) const
+{
+    ESP_UI_PhoneApp *phone_app = static_cast<ESP_UI_PhoneApp *>(app);
+
+    ESP_UI_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
+
+    lv_area_t visual_area = {
+        .x1 = 0,
+        .y1 = 0,
+        .x2 = (lv_coord_t)(_core.getCoreData().screen_size.width - 1),
+        .y2 = (lv_coord_t)(_core.getCoreData().screen_size.height - 1),
+    };
+    const ESP_UI_PhoneAppData_t &app_data = phone_app->getActiveData();
+
+    // Process status bar
+    if ((_status_bar != nullptr) && (app_data.status_bar_visual_mode == ESP_UI_STATUS_BAR_VISUAL_MODE_SHOW_FIXED)) {
+        visual_area.y1 = _data.status_bar.data.main.size.height;
+    }
+
+    // Process navigation bar
+    if ((_navigation_bar != nullptr) &&
+            (app_data.navigation_bar_visual_mode == ESP_UI_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED)) {
+        visual_area.y2 -= _data.navigation_bar.data.main.size.height;
+    }
+
+    app_visual_area = visual_area;
 
     return true;
 }

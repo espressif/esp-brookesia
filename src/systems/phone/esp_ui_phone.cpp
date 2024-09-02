@@ -16,7 +16,7 @@
 using namespace std;
 
 ESP_UI_Phone::ESP_UI_Phone(lv_disp_t *display):
-    ESP_UI_Template<ESP_UI_PhoneStylesheet_t>(_stylesheet.core, _home, _manager, display),
+    ESP_UI_TemplatePhone(_stylesheet.core, _home, _manager, display),
     _home(*this, _stylesheet.home),
     _manager(*this, _home, _stylesheet.manager)
 {
@@ -28,6 +28,7 @@ ESP_UI_Phone::~ESP_UI_Phone()
     if (!del()) {
         ESP_UI_LOGE("Delete failed");
     }
+    ESP_UI_TemplatePhone::~ESP_UI_TemplatePhone();
 }
 
 bool ESP_UI_Phone::calibrateStylesheet(const ESP_UI_StyleSize_t &screen_size, ESP_UI_PhoneStylesheet_t &stylesheet)
