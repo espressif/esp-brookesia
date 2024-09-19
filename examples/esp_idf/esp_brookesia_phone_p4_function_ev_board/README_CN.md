@@ -1,8 +1,8 @@
-# ESP32-P4-Function-EV-Board 运行 ESP-BROOKESIA Phone 示例
+# ESP32-P4-Function-EV-Board 运行 ESP-Brookesia Phone 示例
 
 [English Version](./README.md)
 
-这个示例演示了如何在 [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html) 开发板上运行 ESP-BROOKESIA Phone，并使用 `1024 x 600` 分辨率的 UI 样式表。
+这个示例演示了如何在 [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html) 开发板上运行 ESP-Brookesia Phone，并使用 `1024 x 600` 分辨率的 UI 样式表。
 
 ## 入门指南
 
@@ -138,11 +138,11 @@ idf.py -p PORT flash monitor
 - 以下动画展示了示例在开发板上运行的效果。
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_brookesia_phone_p4_function_ev_board">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_brookesia_phone_p4_function_ev_board">
 </p>
 
 <p align="center">
-（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_demo_1024_600_compress.mp4">点击查看视频</a>）
+（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4">点击查看视频</a>）
 </p>
 
 ## 技术支持和反馈

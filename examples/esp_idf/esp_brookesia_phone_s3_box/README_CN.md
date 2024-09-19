@@ -1,8 +1,8 @@
-# ESP32-S3-BOX 运行 ESP-BROOKESIA Phone 示例
+# ESP32-S3-BOX 运行 ESP-Brookesia Phone 示例
 
 [English Version](./README.md)
 
-这个示例演示了如何在 [ESP32-S3-BOX](https://github.com/espressif/esp-box/tree/master) 开发板上运行 ESP-BROOKESIA Phone，并使用 `320 x 240` 分辨率的 UI 样式表。
+这个示例演示了如何在 [ESP32-S3-BOX](https://github.com/espressif/esp-box/tree/master) 开发板上运行 ESP-Brookesia Phone，并使用 `320 x 240` 分辨率的 UI 样式表。
 
 ## 入门指南
 

@@ -6,4 +6,3 @@ dependencies:
   espressif/esp-brookesia:
     version: "*"
     override_path: "../../../../../esp-brookesia"
-  espressif/esp-brookesia-phone_320_240_stylesheet: "0.2.*"

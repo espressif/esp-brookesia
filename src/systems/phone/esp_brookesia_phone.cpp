@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <algorithm>
-#include "stylesheet/dark/phone_stylesheet.h"
 #include "esp_brookesia_phone_type.h"
 #include "esp_brookesia_phone.hpp"
 

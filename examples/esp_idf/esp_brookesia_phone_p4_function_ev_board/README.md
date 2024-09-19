@@ -1,8 +1,8 @@
-# ESP32-P4-Function-EV-Board Running ESP-BROOKESIA Phone Example
+# ESP32-P4-Function-EV-Board Running ESP-Brookesia Phone Example
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to run the ESP-BROOKESIA Phone on the [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html) with a `1024 x 600` resolution UI stylesheet.
+This example demonstrates how to run the ESP-Brookesia Phone on the [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html) with a `1024 x 600` resolution UI stylesheet.
 
 ## Getting Started
 
@@ -138,11 +138,11 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 - The following animations show the example running on the development board.
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_brookesia_phone_p4_function_ev_board">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_brookesia_phone_p4_function_ev_board">
 </p>
 
 <p align="center">
-(<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_demo_1024_600_compress.mp4">Click to view the video</a>)
+(<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4">Click to view the video</a>)
 </p>
 
 ## Technical Support and Feedback

@@ -1,8 +1,8 @@
-# M5Stack CoreS3 Running ESP-BROOKESIA Phone Example
+# M5Stack CoreS3 Running ESP-Brookesia Phone Example
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to run the ESP-BROOKESIA Phone on the [M5Stack CoreS3](https://docs.m5stack.com/en/core/CoreS3) with `320 x 240` resolution UI stylesheet.
+This example demonstrates how to run the ESP-Brookesia Phone on the [M5Stack CoreS3](https://docs.m5stack.com/en/core/CoreS3) with `320 x 240` resolution UI stylesheet.
 
 ## Getting Started
 
@@ -120,11 +120,11 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 - The following animations show the example running on the development board.
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_m5stace_core_s3.gif" alt ="esp_brookesia_phone_m5stace_core_s3" width="400">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_m5stace_core_s3.gif" alt ="esp_brookesia_phone_m5stace_core_s3" width="400">
 </p>
 
 <p align="center">
-(<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_m5stace_core_s3.mp4">Click to view the video</a>)
+(<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_m5stace_core_s3.mp4">Click to view the video</a>)
 </p>
 
 ## Technical Support and Feedback

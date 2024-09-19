@@ -40,7 +40,7 @@ idf.py add-dependency "espressif/esp-brookesia"
 在使用 esp-idf 开发时，用户可以通过修改 menuconfig 来配置 esp-brookesia：
 
 1. 运行命令 `idf.py menuconfig`。
-2. 导航到 `Component config` > `ESP-BROOKESIA Configurations`。
+2. 导航到 `Component config` > `ESP-Brookesia Configurations`。
 
 ### 工程示例
 

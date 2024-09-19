@@ -12,6 +12,12 @@
 #include "widgets/recents_screen/esp_brookesia_recents_screen_type.h"
 #include "widgets/gesture/esp_brookesia_gesture_type.h"
 
+#include "stylesheets/default/dark/stylesheet.h"
+#include "stylesheets/320_240/dark/stylesheet.h"
+#include "stylesheets/480_480/dark/stylesheet.h"
+#include "stylesheets/800_480/dark/stylesheet.h"
+#include "stylesheets/1024_600/dark/stylesheet.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

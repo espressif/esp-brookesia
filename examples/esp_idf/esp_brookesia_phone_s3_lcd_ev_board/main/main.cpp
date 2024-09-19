@@ -16,11 +16,6 @@
 #include "app_examples/phone/squareline/src/phone_app_squareline.hpp"
 
 #define EXAMPLE_SHOW_MEM_INFO             (1)
-#define EXAMPLE_USE_EXTERNAL_STYLESHEET   (1)
-#if EXAMPLE_USE_EXTERNAL_STYLESHEET
-#include "esp_brookesia_phone_800_480_stylesheet.h"
-#include "esp_brookesia_phone_480_480_stylesheet.h"
-#endif
 
 static const char *TAG = "app_main";
 
@@ -31,7 +26,7 @@ extern "C" void app_main(void)
     bsp_i2c_init();
     lv_disp_t *disp = bsp_display_start();
 
-    ESP_LOGI(TAG, "Display ESP BROOKESIA phone demo");
+    ESP_LOGI(TAG, "Display ESP-Brookesia phone demo");
     /**
      * To avoid errors caused by multiple tasks simultaneously accessing LVGL,
      * should acquire a lock before operating on LVGL.
@@ -42,8 +37,7 @@ extern "C" void app_main(void)
     ESP_Brookesia_Phone *phone = new ESP_Brookesia_Phone(disp);
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone, "Create phone failed");
 
-#if EXAMPLE_USE_EXTERNAL_STYLESHEET
-    /* Add external stylesheet and activate it */
+    /* Try using a stylesheet that corresponds to the resolution */
     ESP_Brookesia_PhoneStylesheet_t *phone_stylesheet = nullptr;
     if ((BSP_LCD_H_RES == 480) && (BSP_LCD_V_RES == 480)) {
         phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET();
@@ -53,12 +47,11 @@ extern "C" void app_main(void)
         ESP_BROOKESIA_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
     }
     if (phone_stylesheet != nullptr) {
-        ESP_LOGI(TAG, "Using external stylesheet");
+        ESP_LOGI(TAG, "Using stylesheet (%s)", phone_stylesheet->core.name);
         ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
         ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
         delete phone_stylesheet;
     }
-#endif
 
     /* Configure and begin the phone */
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->setTouchDevice(bsp_display_get_input_dev()), "Set touch device failed");

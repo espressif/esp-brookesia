@@ -40,7 +40,7 @@ Alternatively, users can create or modify the `idf_component.yml` file in the pr
 When developing with esp-idf, users can configure esp-brookesia through the menuconfig:
 
 1. Run the command `idf.py menuconfig`.
-2. Navigate to `Component config` > `ESP-BROOKESIA Configurations`.
+2. Navigate to `Component config` > `ESP-Brookesia Configurations`.
 
 ### Project Examples
 

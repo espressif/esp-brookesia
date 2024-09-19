@@ -2,6 +2,8 @@ idf_component_register(
     SRCS "main.cpp"
     INCLUDE_DIRS ".")
 
+target_compile_options(${COMPONENT_LIB} PUBLIC -Wno-missing-field-initializers)
+
 # If want to use custom memory allocation functions, refer to the following macros:
 if(CONFIG_ESP_BROOKESIA_MEMORY_USE_CUSTOM)
     # Get the exact component name

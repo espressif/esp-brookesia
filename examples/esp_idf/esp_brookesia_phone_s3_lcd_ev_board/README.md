@@ -1,8 +1,8 @@
-# ESP32-S3-LCD-EV-Board Running ESP-BROOKESIA Phone Example
+# ESP32-S3-LCD-EV-Board Running ESP-Brookesia Phone Example
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to run the ESP-BROOKESIA Phone on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) with `480 x 480` and `800 x 480` resolution UI stylesheets.
+This example demonstrates how to run the ESP-Brookesia Phone on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) with `480 x 480` and `800 x 480` resolution UI stylesheets.
 
 ## Getting Started
 
@@ -137,20 +137,20 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 - The following animations show the example running on different development boards.
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_s3_lcd_ev_board_480_480.gif" alt ="esp_brookesia_phone_s3_lcd_ev_board_480_480">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.gif" alt ="esp_brookesia_phone_s3_lcd_ev_board_480_480">
 </p>
 
 <p align="center">
-ESP32-S3-LCD-EV-Board (with a 480 x 480 resolution LCD screen) (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_s3_lcd_ev_board_480_480.mp4">Click to view the video</a>)
+ESP32-S3-LCD-EV-Board (with a 480 x 480 resolution LCD screen) (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_480_480.mp4">Click to view the video</a>)
 </p>
 <br>
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_s3_lcd_ev_board_800_480.gif" alt ="esp_brookesia_phone_s3_lcd_ev_board_800_480">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.gif" alt ="esp_brookesia_phone_s3_lcd_ev_board_800_480">
 </p>
 
 <p align="center">
-ESP32-S3-LCD-EV-Board-2 (with a 800 x 480 resolution LCD screen) (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_s3_lcd_ev_board_800_480.mp4">Click to view the video</a>)
+ESP32-S3-LCD-EV-Board-2 (with a 800 x 480 resolution LCD screen) (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_s3_lcd_ev_board_800_480.mp4">Click to view the video</a>)
 </p>
 
 ## Technical Support and Feedback
