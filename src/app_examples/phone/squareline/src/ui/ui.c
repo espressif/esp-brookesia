@@ -3,11 +3,11 @@
 // LVGL version: 8.3.11
 // Project name: Smart_Gadget
 
-// esp-ui: changed
+// esp-brookesia: changed
 #include "ui.h"
 
-// esp-ui: changed
-#if !defined(ESP_UI_SQ1_4_1_LV8_3_11)
+// esp-brookesia: changed
+#if !defined(ESP_BROOKESIA_SQ1_4_1_LV8_3_11)
     #define _ui_screen_change(target, fademode, spd, delay, target_init) lv_scr_load_anim(*target, fademode, spd, delay, false)
 #endif
 
@@ -139,7 +139,7 @@ const lv_img_dsc_t * ui_imgset_chatbox[1] = {&ui_img_chatbox2_png};
 const lv_img_dsc_t * ui_imgset_weather_[3] = {&ui_img_weather_1_png, &ui_img_weather_2_png, &ui_img_weather_3_png};
 
 ///////////////////// ANIMATIONS ////////////////////
-// esp-ui: changed
+// esp-brookesia: changed
 
 ///////////////////// FUNCTIONS ////////////////////
 void ui_event_SmartGadgetSplash(lv_event_t * e)
@@ -292,7 +292,7 @@ void ui_event_Startevents____initial_actions0(lv_event_t * e)
 
 ///////////////////// SCREENS ////////////////////
 
-// esp-ui: changed
+// esp-brookesia: changed
 void phone_app_squareline_ui_init(void)
 {
     LV_EVENT_GET_COMP_CHILD = lv_event_register_id();

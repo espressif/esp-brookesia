@@ -1,8 +1,8 @@
-version: 0.2.1
-description: This package is a UI runtime framework based on LVGL, designed to provide a consistent UI development experience for screens of various sizes and shapes.
-url: https://github.com/espressif/esp-ui
-issues: https://github.com/espressif/esp-ui/issues
-repository: https://github.com/espressif/esp-ui.git
+version: 0.3.0
+description: ESP-Brookesia is a human-machine interaction development framework designed for AIoT devices.
+url: https://github.com/espressif/esp-brookesia
+issues: https://github.com/espressif/esp-brookesia/issues
+repository: https://github.com/espressif/esp-brookesia.git
 dependencies:
   idf: ">=5.0"
   cmake_utilities: "0.*"

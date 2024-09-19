@@ -4,7 +4,7 @@
 
 [Phone](../src/systems/phone/) is a smartphone-like system UI. The running effects on `ESP Development Boards` and `PC` are shown below:
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="Running on ESP Development Boards" width="750"></div>
+<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_demo_esp.jpg" alt ="Running on ESP Development Boards" width="750"></div>
 
 <p align="center">
 Running on ESP Development Boards
@@ -12,11 +12,11 @@ Running on ESP Development Boards
 <br>
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_3.gif" alt ="Running on PC Simulator" width="750">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_pc_1024_600_3.gif" alt ="Running on PC Simulator" width="750">
 </p>
 
 <p align="center">
-Running on <a href="https://github.com/esp-arduino-libs/esp-ui-simulator_vscode">PC Simulator</a> (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_1.mp4">Click to view the video</a>)
+Running on <a href="https://github.com/esp-arduino-libs/esp-brookesia-simulator_vscode">PC Simulator</a> (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_pc_1024_600_1.mp4">Click to view the video</a>)
 </p>
 <br>
 
@@ -35,10 +35,10 @@ To achieve the best display performance at fixed resolutions, Espressif also pro
 
 |  Resolution  | link |
 | ------------ | ---- |
-|  320 x 240   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_320_240_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_320_240_stylesheet)  |
-|  480 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_480_480_stylesheet) |
-|  800 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_800_480_stylesheet) |
-| 1024 x 600   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_1024_600_stylesheet) |
+|  320 x 240   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_320_240_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_320_240_stylesheet)  |
+|  480 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_480_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_480_480_stylesheet) |
+|  800 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_800_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_800_480_stylesheet) |
+| 1024 x 600   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_1024_600_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_1024_600_stylesheet) |
 
 > [!NOTE]
-> * If your screen resolution is not listed in the above UI stylesheets, please refer to the GitHub issue - [Phone Resolution Support](https://github.com/espressif/esp-ui/issues/5).
+> * If your screen resolution is not listed in the above UI stylesheets, please refer to the GitHub issue - [Phone Resolution Support](https://github.com/espressif/esp-brookesia/issues/5).

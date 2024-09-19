@@ -1,18 +1,21 @@
-[![Arduino Lint](https://github.com/espressif/esp-ui/actions/workflows/arduino_lint.yml/badge.svg)](https://github.com/espressif/esp-ui/actions/workflows/arduino_lint.yml) [![Version Consistency](https://github.com/espressif/esp-ui/actions/workflows/check_lib_versions.yml/badge.svg)](https://github.com/espressif/esp-ui/actions/workflows/check_lib_versions.yml)
+[![Arduino Lint](https://github.com/espressif/esp-brookesia/actions/workflows/arduino_lint.yml/badge.svg)](https://github.com/espressif/esp-brookesia/actions/workflows/arduino_lint.yml) [![Version Consistency](https://github.com/espressif/esp-brookesia/actions/workflows/check_lib_versions.yml/badge.svg)](https://github.com/espressif/esp-brookesia/actions/workflows/check_lib_versions.yml)
 
-**最新 Arduino 库版本**: [![GitHub Release](https://img.shields.io/github/v/release/espressif/esp-ui)](https://github.com/espressif/esp-ui/releases)
+**最新 Arduino 库版本**: [![GitHub Release](https://img.shields.io/github/v/release/espressif/esp-brookesia)](https://github.com/espressif/esp-brookesia/releases)
 
-**最新 Espressif 组件版本**: [![Espressif Release](https://components.espressif.com/components/espressif/esp-ui/badge.svg)](https://components.espressif.com/components/espressif/esp-ui)
+**最新 Espressif 组件版本**: [![Espressif Release](https://components.espressif.com/components/espressif/esp-brookesia/badge.svg)](https://components.espressif.com/components/espressif/esp-brookesia)
 
-# ESP-UI
+# ESP-Brookesia
 
 * [English Version](./README.md)
 
 ## 概述
 
-esp-ui 是一个基于 [LVGL](https://github.com/lvgl/lvgl) 的 UI 运行框架，旨在为不同尺寸和形状的屏幕提供一致的 UI 开发体验。该框架内置多种标准化系统 UI 和应用管理机制，允许用户灵活地修改样式、添加或删除应用 UI，从而显著提高 HMI 产品的开发效率，加快产品开发和上市进程。
+ESP-Brookesia 是一个面向物联网设备的人机交互开发框架，旨在简化用户 UI 设计和应用程序开发的流程，它支持高效的开发工具与平台，加速客户 HMI 应用产品的开发与上市。
 
-主要特性包括：
+> [!NOTE]
+> "[Brookesia](https://en.wikipedia.org/wiki/Brookesia)" 是一种变色龙属的动物，擅长于伪装和适应环境，这与 ESP-Brookesia 的目标紧密相关。该框架旨在提供一种灵活、可扩展的 UI 解决方案，能够适应各种不同的设备、屏幕大小和应用需求，就像 Brookesia 变色龙那样，具有高度的适应性和灵活性。
+
+ESP-Brookesia 的主要特性包括：
 
 - 采用 C++ 开发，可在 `PC` 或 `ESP SoCs` 平台上编译，并支持 `VSCode`、`ESP-IDF`、`Arduino` 开发环境。
 - 提供丰富的标准化系统 UI，支持动态调整 UI 样式。
@@ -31,7 +34,7 @@ esp-ui 是一个基于 [LVGL](https://github.com/lvgl/lvgl) 的 UI 运行框架�
 </p>
 <br>
 
-esp-ui 的功能框图如下，主要由以下几个部分组成：
+ESP-Brookesia 的功能框图如下，主要由以下几个部分组成：
 
 <div align="center"><img src="docs/_static/readme/block_diagram.png" alt ="block_diagram" width="600"></div>
 <br>
@@ -48,7 +51,7 @@ esp-ui 的功能框图如下，主要由以下几个部分组成：
 
 ## 系统 UIs
 
-当前，esp-ui 提供了以下系统 UI：
+当前，ESP-Brookesia 提供了以下系统 UI：
 
 - [Phone](./docs/system_ui_phone_CN.md)
 

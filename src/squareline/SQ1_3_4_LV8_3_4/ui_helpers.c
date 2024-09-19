@@ -5,7 +5,7 @@
 
 #include "ui_helpers.h"
 
-#if defined(ESP_UI_SQ1_3_4_LV8_3_4)
+#if defined(ESP_BROOKESIA_SQ1_3_4_LV8_3_4)
 
 void _ui_bar_set_property(lv_obj_t * target, int id, int val)
 {

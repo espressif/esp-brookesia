@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <assert.h>
-#include "esp_ui.h"
+#include "esp_brookesia.h"
 #include "ui/ui.h"
 #include "phone_app_squareline_main.h"
 #include "phone_app_squareline.hpp"
@@ -13,7 +13,7 @@ static PhoneAppSquareline *phone_app_squareline = nullptr;
 
 bool phone_app_squareline_main_init(PhoneAppSquareline *app)
 {
-    ESP_UI_CHECK_NULL_RETURN(app, false, "App is null");
+    ESP_BROOKESIA_CHECK_NULL_RETURN(app, false, "App is null");
     phone_app_squareline = app;
 
     phone_app_squareline_ui_init();

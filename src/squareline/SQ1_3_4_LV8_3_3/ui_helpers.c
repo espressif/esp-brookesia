@@ -4,9 +4,9 @@
 // Project name: SquareLine_Project
 
 #include "ui_helpers.h"
-#include "esp_ui_conf_internal.h"
+#include "esp_brookesia_conf_internal.h"
 
-#if defined(ESP_UI_SQ1_3_4_LV8_3_3)
+#if defined(ESP_BROOKESIA_SQ1_3_4_LV8_3_3)
 
 void _ui_bar_set_property(lv_obj_t * target, int id, int val)
 {

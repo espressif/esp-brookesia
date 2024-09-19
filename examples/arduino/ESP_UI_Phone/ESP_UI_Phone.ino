@@ -1,8 +1,8 @@
 /**
  *
- * # ESP-UI Phone Example
+ * # ESP-BROOKESIA Phone Example
  *
- * The example demonstrates how to use the `esp-ui` and `ESP32_Display_Panel` libraries to display phone UI on the screen.
+ * The example demonstrates how to use the `esp-brookesia` and `ESP32_Display_Panel` libraries to display phone UI on the screen.
  *
  * The example is suitable for touchscreens with a resolution of `240 x 240` or higher. Otherwise, the functionality may not work properly. The default style ensures compatibility across resolutions, but the display effect may not be optimal on many resolutions. It is recommended to use a UI stylesheet with the same resolution as the screen. If no suitable stylesheet is available, it needs to be adjusted manually.
  *
@@ -15,13 +15,13 @@
  *
  * To use the external stylesheets, please also install the following dependent libraries and set the `EXAMPLE_USE_EXTERNAL_STYLESHEET` macro to `1`:
  *
- * - esp-ui-phone_480_480_stylesheet
- * - esp-ui-phone_800_480_stylesheet
- * - esp-ui-phone_1024_600_stylesheet
+ * - esp-brookesia-phone_480_480_stylesheet
+ * - esp-brookesia-phone_800_480_stylesheet
+ * - esp-brookesia-phone_1024_600_stylesheet
  *
  * Then, follow the steps below to configure the libraries and upload the example:
  *
- * 1. For **esp-ui**:
+ * 1. For **esp-brookesia**:
  *
  *     - [optional] Follow the [steps](../../../README.md#configuration-instructions-1) to configure the library.
  *
@@ -44,15 +44,15 @@
  *
  * ```bash
  * ...
- * ESP-UI Phone example start
+ * ESP-BROOKESIA Phone example start
  * Initialize panel device
  * Initialize lvgl
- * Create ESP-UI Phone
- * [WARN] [esp_ui_template.hpp:107](addStylesheet): Display is not set, use default display
- * [INFO] [esp_ui_core.cpp:150](beginCore): Library version: 0.1.0
- * [WARN] [esp_ui_phone_manager.cpp:73](begin): No touch device is set, try to use default touch device
- * [WARN] [esp_ui_phone_manager.cpp:77](begin): Using default touch device(@0x0x3fcede40)
- * ESP-UI Phone example end
+ * Create ESP-BROOKESIA Phone
+ * [WARN] [esp_brookesia_template.hpp:107](addStylesheet): Display is not set, use default display
+ * [INFO] [esp_brookesia_core.cpp:150](beginCore): Library version: 0.1.0
+ * [WARN] [esp_brookesia_phone_manager.cpp:73](begin): No touch device is set, try to use default touch device
+ * [WARN] [esp_brookesia_phone_manager.cpp:77](begin): Using default touch device(@0x0x3fcede40)
+ * ESP-BROOKESIA Phone example end
  *   Biggest /     Free /    Total
  * SRAM : [  253940 /   263908 /   387916]
  * PSRAM : [ 7864308 /  7924256 /  8388608]
@@ -64,7 +64,7 @@
  * Please use the following feedback channels:
  *
  * - For technical queries, go to the [esp32.com](https://esp32.com/viewforum.php?f=22) forum.
- * - For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-ui/issues).
+ * - For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-brookesia/issues).
  *
  * We will get back to you as soon as possible.
  *
@@ -72,10 +72,10 @@
 
 #include <Arduino.h>
 #include <ESP_Panel_Library.h>
-#include <esp_ui.hpp>
+#include <esp_brookesia.hpp>
 #include <lvgl.h>
 #include "lvgl_port_v8.h"
-/* These are built-in app examples in `esp-ui` library */
+/* These are built-in app examples in `esp-brookesia` library */
 #include <app_examples/phone/simple_conf/src/phone_app_simple_conf.hpp>
 #include <app_examples/phone/complex_conf/src/phone_app_complex_conf.hpp>
 #include <app_examples/phone/squareline/src/phone_app_squareline.hpp>
@@ -87,14 +87,14 @@
 #define EXAMPLE_USE_EXTERNAL_STYLESHEET   (0)
 #if EXAMPLE_USE_EXTERNAL_STYLESHEET
     #if (ESP_PANEL_LCD_WIDTH == 1024) && (ESP_PANEL_LCD_HEIGHT == 600)
-        #include "esp_ui_phone_1024_600_stylesheet.h"
-        #define EXAMPLE_ESP_UI_PHONE_DARK_STYLESHEET()   ESP_UI_PHONE_1024_600_DARK_STYLESHEET()
+        #include "esp_brookesia_phone_1024_600_stylesheet.h"
+        #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET()
     #elif (ESP_PANEL_LCD_WIDTH == 800) && (ESP_PANEL_LCD_HEIGHT == 480)
-        #include "esp_ui_phone_800_480_stylesheet.h"
-        #define EXAMPLE_ESP_UI_PHONE_DARK_STYLESHEET()   ESP_UI_PHONE_800_480_DARK_STYLESHEET()
+        #include "esp_brookesia_phone_800_480_stylesheet.h"
+        #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET()
     #elif (ESP_PANEL_LCD_WIDTH == 480) && (ESP_PANEL_LCD_HEIGHT == 480)
-        #include "esp_ui_phone_480_480_stylesheet.h"
-        #define EXAMPLE_ESP_UI_PHONE_DARK_STYLESHEET()   ESP_UI_PHONE_480_480_DARK_STYLESHEET()
+        #include "esp_brookesia_phone_480_480_stylesheet.h"
+        #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET()
     #endif
 #endif
 
@@ -103,13 +103,13 @@ static size_t internal_free = 0;
 static size_t internal_total = 0;
 static size_t external_free = 0;
 static size_t external_total = 0;
-ESP_UI_Phone *phone = nullptr;
+ESP_Brookesia_Phone *phone = nullptr;
 
 static void on_clock_update_timer_cb(struct _lv_timer_t *t);
 
 void setup()
 {
-    String title = "ESP-UI Phone example";
+    String title = "ESP-BROOKESIA Phone example";
 
     Serial.begin(115200);
     Serial.println(title + " start");
@@ -136,33 +136,33 @@ void setup()
     lvgl_port_lock(-1);
 
     /* Create a phone object */
-    phone = new ESP_UI_Phone();
-    ESP_UI_CHECK_NULL_EXIT(phone, "Create phone failed");
+    phone = new ESP_Brookesia_Phone();
+    ESP_BROOKESIA_CHECK_NULL_EXIT(phone, "Create phone failed");
 
-#ifdef EXAMPLE_ESP_UI_PHONE_DARK_STYLESHEET
+#ifdef EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET
     /* Add external stylesheet and activate it */
-    ESP_UI_PhoneStylesheet_t *phone_stylesheet = new ESP_UI_PhoneStylesheet_t EXAMPLE_ESP_UI_PHONE_DARK_STYLESHEET();
-    ESP_UI_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
-    ESP_UI_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
-    ESP_UI_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
+    ESP_Brookesia_PhoneStylesheet_t *phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET();
+    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
     delete phone_stylesheet;
 #endif
 
     /* Configure and begin the phone */
-    ESP_UI_CHECK_FALSE_EXIT(phone->begin(), "Begin phone failed");
-    // ESP_UI_CHECK_FALSE_EXIT(phone->getCoreHome().showContainerBorder(), "Show container border failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->begin(), "Begin phone failed");
+    // ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getCoreHome().showContainerBorder(), "Show container border failed");
 
     /* Install apps */
     bool enable_navigation_bar = phone->getStylesheet()->home.flags.enable_navigation_bar;
     PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf(true, enable_navigation_bar);
-    ESP_UI_CHECK_NULL_EXIT(phone_app_simple_conf, "Create phone app simple conf failed");
-    ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_simple_conf) >= 0), "Install phone app simple conf failed");
+    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_simple_conf, "Create phone app simple conf failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_simple_conf) >= 0), "Install phone app simple conf failed");
     PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf(true, enable_navigation_bar);
-    ESP_UI_CHECK_NULL_EXIT(phone_app_complex_conf, "Create phone app complex conf failed");
-    ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_complex_conf) >= 0), "Install phone app complex conf failed");
+    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_complex_conf, "Create phone app complex conf failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_complex_conf) >= 0), "Install phone app complex conf failed");
     PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline(true, enable_navigation_bar);
-    ESP_UI_CHECK_NULL_EXIT(phone_app_squareline, "Create phone app squareline failed");
-    ESP_UI_CHECK_FALSE_EXIT((phone->installApp(phone_app_squareline) >= 0), "Install phone app squareline failed");
+    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_squareline, "Create phone app squareline failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_squareline) >= 0), "Install phone app squareline failed");
 
     /* Create a timer to update the clock */
     lv_timer_create(on_clock_update_timer_cb, 1000, phone);
@@ -191,7 +191,7 @@ void loop()
     // Update memory label on "Recents Screen"
     if (!phone->getHome().getRecentsScreen()->setMemoryLabel(internal_free / 1024, internal_total / 1024,
         external_free / 1024, external_total / 1024)) {
-        ESP_UI_LOGE("Set memory label failed");
+        ESP_BROOKESIA_LOGE("Set memory label failed");
     }
     lvgl_port_unlock();
 
@@ -204,13 +204,13 @@ static void on_clock_update_timer_cb(struct _lv_timer_t *t)
     time_t now;
     struct tm timeinfo;
     bool is_time_pm = false;
-    ESP_UI_Phone *phone = (ESP_UI_Phone *)t->user_data;
+    ESP_Brookesia_Phone *phone = (ESP_Brookesia_Phone *)t->user_data;
 
     time(&now);
     localtime_r(&now, &timeinfo);
     is_time_pm = (timeinfo.tm_hour >= 12);
 
     // Update clock on "Status Bar"
-    ESP_UI_CHECK_FALSE_EXIT(phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
                             "Refresh status bar failed");
 }

@@ -6,14 +6,14 @@
 #pragma once
 
 #include "lvgl.h"
-#include "esp_ui.hpp"
+#include "esp_brookesia.hpp"
 
 /**
  * @brief A template for a phone app with UIs exported from Squareline Studio. Users can modify this template
  *        to design their own app.
  *
  */
-class PhoneAppSquareline: public ESP_UI_PhoneApp {
+class PhoneAppSquareline: public ESP_Brookesia_PhoneApp {
 public:
     /**
      * @brief Construct a app with basic configuration
@@ -30,8 +30,8 @@ public:
      */
     ~PhoneAppSquareline();
 
-    using ESP_UI_PhoneApp::startRecordResource;
-    using ESP_UI_PhoneApp::endRecordResource;
+    using ESP_Brookesia_PhoneApp::startRecordResource;
+    using ESP_Brookesia_PhoneApp::endRecordResource;
 
 protected:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -41,15 +41,15 @@ protected:
      * @brief Called when the app starts running. This is the entry point for the app, where all UI resources should be
      *        created.
      *
-     * @note If the `enable_default_screen` flag in `ESP_UI_CoreAppData_t` is set, when app starts, the core will create
+     * @note If the `enable_default_screen` flag in `ESP_Brookesia_CoreAppData_t` is set, when app starts, the core will create
      *       a default screen which will be automatically loaded and cleaned up. Then the app should create all UI
      *       resources on it using `lv_scr_act()` in this function. Otherwise, the app needs to create a new screen and
      *       load it manually in this function
-     * @note If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is set, when app closes, the core will
+     * @note If the `enable_recycle_resource` flag in `ESP_Brookesia_CoreAppData_t` is set, when app closes, the core will
      *       automatically cleanup all recorded resources, including screens (`lv_obj_create(NULL)`),
      *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`). The resources created in this function
      *       will be recorded. Otherwise, the app needs to call `cleanRecordResource()` function to clean manually
-     * @note If the `enable_resize_visual_area` flag in `ESP_UI_CoreAppData_t` is set, the core will resize the visual
+     * @note If the `enable_resize_visual_area` flag in `ESP_Brookesia_CoreAppData_t` is set, the core will resize the visual
      *       area of all recorded screens. The screens created in this function will be recorded. This is useful when
      *       the screen displays floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in
      *       full screen, but some areas might be not visible. The app can call the `getVisualArea()` function to
@@ -109,11 +109,11 @@ protected:
     /**
      * @brief Called when the app resumes. The app can perform necessary operations here.
      *
-     * @note If the `enable_recycle_resource` flag in `ESP_UI_CoreAppData_t` is set, when app closes, the core will
+     * @note If the `enable_recycle_resource` flag in `ESP_Brookesia_CoreAppData_t` is set, when app closes, the core will
      *       automatically cleanup all recorded resources, including screens (`lv_obj_create(NULL)`),
      *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`). The resources created in this function
      *       will be recorded. Otherwise, the app needs to call `cleanRecordResource()` function to clean manually
-     * @note If the `enable_resize_visual_area` flag in `ESP_UI_CoreAppData_t` is set, the core will resize the visual
+     * @note If the `enable_resize_visual_area` flag in `ESP_Brookesia_CoreAppData_t` is set, the core will resize the visual
      *       area of all recorded screens. The screens created in this function will be recorded. This is useful when
      *       the screen displays floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in
      *       full screen, but some areas might be not visible. The app can call the `getVisualArea()` function to

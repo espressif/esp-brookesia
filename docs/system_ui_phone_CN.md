@@ -4,7 +4,7 @@
 
 [Phone](../src/systems/phone/) 是一个类似于智能手机的系统 UI，在 `ESP 开发板` 和 `PC` 上的运行效果如下所示：
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="运行在 ESP 开发板" width="750"></div>
+<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_demo_esp.jpg" alt ="运行在 ESP 开发板" width="750"></div>
 
 <p align="center">
 运行在 ESP 开发板
@@ -12,11 +12,11 @@
 <br>
 
 <p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_3.gif" alt ="运行在 PC 模拟器" width="800">
+<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_pc_1024_600_3.gif" alt ="运行在 PC 模拟器" width="800">
 </p>
 
 <p align="center">
-运行在 <a href="https://github.com/esp-arduino-libs/esp-ui-simulator_vscode">PC 模拟器</a>（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_1.mp4">点击查看视频</a>）
+运行在 <a href="https://github.com/esp-arduino-libs/esp-brookesia-simulator_vscode">PC 模拟器</a>（<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_brookesia_phone_pc_1024_600_1.mp4">点击查看视频</a>）
 </p>
 <br>
 
@@ -35,10 +35,10 @@
 
 |  Resolution  | link |
 | ------------ | ---- |
-|  320 x 240   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_320_240_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_320_240_stylesheet)  |
-|  480 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_480_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_480_480_stylesheet) |
-|  800 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_800_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_800_480_stylesheet) |
-| 1024 x 600   |  [Github](https://github.com/esp-arduino-libs/esp-ui-phone_1024_600_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-ui-phone_1024_600_stylesheet) |
+|  320 x 240   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_320_240_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_320_240_stylesheet)  |
+|  480 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_480_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_480_480_stylesheet) |
+|  800 x 480   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_800_480_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_800_480_stylesheet) |
+| 1024 x 600   |  [Github](https://github.com/esp-arduino-libs/esp-brookesia-phone_1024_600_stylesheet) / [Espressif](https://components.espressif.com/components/espressif/esp-brookesia-phone_1024_600_stylesheet) |
 
 > [!NOTE]
-> * 如果上述 UI 样式表中没有您的屏幕分辨率，请参阅 Github issue - [Phone Resolution Support](https://github.com/espressif/esp-ui/issues/5)。
+> * 如果上述 UI 样式表中没有您的屏幕分辨率，请参阅 Github issue - [Phone Resolution Support](https://github.com/espressif/esp-brookesia/issues/5)。

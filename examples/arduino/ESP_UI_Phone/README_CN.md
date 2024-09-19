@@ -1,6 +1,6 @@
-# ESP-UI 手机示例
+# ESP-BROOKESIA 手机示例
 
-该示例演示了如何使用 `esp-ui` 和 `ESP32_Display_Panel` 库在屏幕上显示 Phone UI。
+该示例演示了如何使用 `esp-brookesia` 和 `ESP32_Display_Panel` 库在屏幕上显示 Phone UI。
 
 该示例适用于分辨率为 `240 x 240` 或更高的触摸屏。如果分辨率较低，功能可能无法正常工作。默认样式确保了跨分辨率的兼容性，但在多种分辨率下显示效果可能不佳。建议使用与屏幕分辨率相同的用户界面样式表。如果没有合适的样式表，则需要手动调整。
 
@@ -13,13 +13,13 @@
 
 要使用外部样式表，还需安装以下依赖库，并将 `EXAMPLE_USE_EXTERNAL_STYLESHEET` 宏设置为 `1`：
 
-- esp-ui-phone_480_480_stylesheet
-- esp-ui-phone_800_480_stylesheet
-- esp-ui-phone_1024_600_stylesheet
+- esp-brookesia-phone_480_480_stylesheet
+- esp-brookesia-phone_800_480_stylesheet
+- esp-brookesia-phone_1024_600_stylesheet
 
 然后，按照以下步骤配置库并上传示例：
 
-1. 对于 **esp-ui**：
+1. 对于 **esp-brookesia**：
 
     - [可选] 按照[步骤](../../../docs/how_to_use.md#configuration-instructions-1)配置库。
 
@@ -42,15 +42,15 @@
 
 ```bash
 ...
-ESP-UI Phone example start
+ESP-BROOKESIA Phone example start
 Initialize panel device
 Initialize lvgl
-Create ESP-UI Phone
-[WARN] [esp_ui_template.hpp:107](addStylesheet): Display is not set, use default display
-[INFO] [esp_ui_core.cpp:150](beginCore): Library version: 0.1.0
-[WARN] [esp_ui_phone_manager.cpp:73](begin): No touch device is set, try to use default touch device
-[WARN] [esp_ui_phone_manager.cpp:77](begin): Using default touch device(@0x0x3fcede40)
-ESP-UI Phone example end
+Create ESP-BROOKESIA Phone
+[WARN] [esp_brookesia_template.hpp:107](addStylesheet): Display is not set, use default display
+[INFO] [esp_brookesia_core.cpp:150](beginCore): Library version: 0.1.0
+[WARN] [esp_brookesia_phone_manager.cpp:73](begin): No touch device is set, try to use default touch device
+[WARN] [esp_brookesia_phone_manager.cpp:77](begin): Using default touch device(@0x0x3fcede40)
+ESP-BROOKESIA Phone example end
   Biggest /     Free /    Total
 SRAM : [  253940 /   263908 /   387916]
 PSRAM : [ 7864308 /  7924256 /  8388608]
@@ -62,6 +62,6 @@ PSRAM : [ 7864308 /  7924256 /  8388608]
 请使用以下反馈渠道：
 
 - 有技术问题，请访问 [esp32.com](https://esp32.com/viewforum.php?f=35) 论坛。
-- 如需提交功能请求或错误报告，请创建 [GitHub issue](https://github.com/espressif/esp-ui/issues)。
+- 如需提交功能请求或错误报告，请创建 [GitHub issue](https://github.com/espressif/esp-brookesia/issues)。
 
 我们会尽快回复您。

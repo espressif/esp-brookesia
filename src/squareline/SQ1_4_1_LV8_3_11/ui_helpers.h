@@ -6,13 +6,13 @@
 #pragma once
 
 #include "lvgl.h"
-#include "esp_ui_conf_internal.h"
+#include "esp_brookesia_conf_internal.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#if defined(ESP_UI_SQ1_4_1_LV8_3_11)
+#if defined(ESP_BROOKESIA_SQ1_4_1_LV8_3_11)
 
 #define _UI_TEMPORARY_STRING_BUFFER_SIZE 32
 #define _UI_BAR_PROPERTY_VALUE 0
