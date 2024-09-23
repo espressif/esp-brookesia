@@ -55,13 +55,13 @@ extern "C" {
     {                                                                              \
         .detect_period_ms = 20,                                                    \
         .threshold = {                                                             \
-            .direction_vertical = 30,                                              \
+            .direction_vertical = 50,                                              \
             .direction_horizon = 50,                                               \
             .direction_angle = 60,                                                 \
-            .top_edge = 50,                                                        \
-            .bottom_edge = 50,                                                     \
-            .left_edge = 50,                                                       \
-            .right_edge = 50,                                                      \
+            .top_edge = 10,                                                        \
+            .bottom_edge = 10,                                                     \
+            .left_edge = 10,                                                       \
+            .right_edge = 10,                                                      \
             .duration_short_ms = 500,                                              \
             .speed_slow_px_per_ms = 0.1,                                           \
         },                                                                         \

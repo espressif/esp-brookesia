@@ -41,6 +41,7 @@ struct LvAnimDeleter {
     void operator()(lv_anim_t *anim)
     {
         lv_anim_del(anim->var, anim->exec_cb);
+        free(anim);
     }
 };
 #define ESP_BROOKESIA_LV_ANIM() ESP_Brookesia_LvAnim_t(LvAnimConstructor(), LvAnimDeleter());

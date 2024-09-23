@@ -64,7 +64,7 @@ extern "C" {
 
 /* Phone */
 #define ESP_BROOKESIA_PHONE_DEFAULT_DARK_STYLESHEET()               \
-    {                                                        \
+    {                                                               \
         .core = ESP_BROOKESIA_PHONE_DEFAULT_DARK_CORE_DATA(),       \
         .home = ESP_BROOKESIA_PHONE_DEFAULT_DARK_HOME_DATA(),       \
         .manager = ESP_BROOKESIA_PHONE_DEFAULT_DARK_MANAGER_DATA(), \

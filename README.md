@@ -24,19 +24,22 @@ The key features of ESP-Brookesia include:
 
 The system UI functionality demonstration is as follows:
 
-<p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_ui_phone_p4_function_ev_board">
-</p>
+<div align="center">
+    <img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_p4_function_ev_board_1024_600_2.gif" alt ="esp_ui_phone_p4_function_ev_board">
+</div>
 
-<p align="center">
-<a href="https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html">ESP32-P4-Function-EV-Board</a> running system UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
-(<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4">Click to view the video</a>)
-</p>
+<div align="center">
+    <a href="https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html">ESP32-P4-Function-EV-Board</a> running system UI - <a href="./docs/system_ui_phone_CN.md">Phone</a>
+    <br>
+    (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_1024_600_compress.mp4">Click to view the video</a>)
+</div>
 <br>
 
 The functional block diagram of ESP-Brookesia is as follows, mainly consisting of the following components:
 
-<div align="center"><img src="docs/_static/readme/block_diagram.png" alt="block_diagram" width="600"></div>
+<div align="center">
+    <img src="docs/_static/readme/block_diagram.png" alt="block_diagram" width="600">
+</div>
 <br>
 
 - **System UI Core**: Implements the unified core logic of all system UIs, including app management, stylesheet management, event management, etc.

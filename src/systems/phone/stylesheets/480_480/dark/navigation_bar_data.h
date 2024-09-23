@@ -36,6 +36,19 @@ LV_IMG_DECLARE(esp_brookesia_phone_480_480_navigation_bar_image_recents_screen);
             },                                                                                               \
             .active_background_color = ESP_BROOKESIA_STYLE_COLOR_WITH_OPACIRY(0xFFFFFF, LV_OPA_50),                 \
         },                                                                                                   \
+        .visual_flex = {                                                                             \
+            .show_animation_time_ms = 200,                                                           \
+            .show_animation_delay_ms = 0,                                                            \
+            .show_animation_path_type = ESP_BROOKESIA_LV_ANIM_PATH_TYPE_EASE_OUT,                           \
+            .show_duration_ms = 2000,                                                                \
+            .hide_animation_time_ms = 200,                                                           \
+            .hide_animation_delay_ms = 0,                                                            \
+            .hide_animation_path_type = ESP_BROOKESIA_LV_ANIM_PATH_TYPE_EASE_IN,                            \
+        },                                                                                           \
+        .flags = {                                                                                   \
+            .enable_main_size_min = 0,                                                               \
+            .enable_main_size_max = 0,                                                               \
+        },                                                                                           \
     }
 
 #ifdef __cplusplus

@@ -14,6 +14,8 @@
 
 using namespace std;
 
+const ESP_Brookesia_PhoneStylesheet_t ESP_Brookesia_Phone::_default_stylesheet_dark = ESP_BROOKESIA_PHONE_DEFAULT_DARK_STYLESHEET();
+
 ESP_Brookesia_Phone::ESP_Brookesia_Phone(lv_disp_t *display):
     ESP_Brookesia_TemplatePhone(_stylesheet.core, _home, _manager, display),
     _home(*this, _stylesheet.home),
@@ -52,7 +54,6 @@ bool ESP_Brookesia_Phone::calibrateStylesheet(const ESP_Brookesia_StyleSize_t &s
 bool ESP_Brookesia_Phone::begin(void)
 {
     bool ret = true;
-    ESP_Brookesia_PhoneStylesheet_t *default_dark_data = nullptr;
     const ESP_Brookesia_PhoneStylesheet_t *default_find_data = nullptr;
     ESP_Brookesia_StyleSize_t display_size = {};
 
@@ -61,10 +62,10 @@ bool ESP_Brookesia_Phone::begin(void)
 
     // Check if any phone stylesheet is added, if not, add default stylesheet
     if (getStylesheetCount() == 0) {
-        default_dark_data = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_DEFAULT_DARK_STYLESHEET();
-        ESP_BROOKESIA_LOGW("No phone stylesheet is added, adding default dark stylesheet(%s)", default_dark_data->core.name);
-        ESP_BROOKESIA_CHECK_NULL_RETURN(default_dark_data, false, "Failed to create default stylesheet");
-        ESP_BROOKESIA_CHECK_FALSE_GOTO(ret = addStylesheet(*default_dark_data), end, "Failed to add default stylesheet");
+        ESP_BROOKESIA_LOGW("No phone stylesheet is added, adding default dark stylesheet(%s)",
+                           _default_stylesheet_dark.core.name);
+        ESP_BROOKESIA_CHECK_FALSE_GOTO(ret = addStylesheet(_default_stylesheet_dark), end,
+                                       "Failed to add default stylesheet");
     }
     // Check if any phone stylesheet is activated, if not, activate default stylesheet
     if (_stylesheet.core.name == nullptr) {
@@ -86,10 +87,6 @@ bool ESP_Brookesia_Phone::begin(void)
     ESP_BROOKESIA_CHECK_FALSE_GOTO(ret = _manager.begin(), end, "Failed to begin manager");
 
 end:
-    if (default_dark_data != nullptr) {
-        delete default_dark_data;
-    }
-
     return ret;
 }
 
@@ -101,17 +98,17 @@ bool ESP_Brookesia_Phone::del(void)
         return true;
     }
 
-    if (!delCore()) {
-        ESP_BROOKESIA_LOGE("Delete core failed");
-    }
-    if (!delTemplate()) {
-        ESP_BROOKESIA_LOGE("Delete core template failed");
+    if (!_manager.del()) {
+        ESP_BROOKESIA_LOGE("Delete manager failed");
     }
     if (!_home.del()) {
         ESP_BROOKESIA_LOGE("Delete home failed");
     }
-    if (!_manager.del()) {
-        ESP_BROOKESIA_LOGE("Delete manager failed");
+    if (!delTemplate()) {
+        ESP_BROOKESIA_LOGE("Delete core template failed");
+    }
+    if (!delCore()) {
+        ESP_BROOKESIA_LOGE("Delete core failed");
     }
 
     return true;

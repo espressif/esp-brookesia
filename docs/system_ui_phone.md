@@ -4,20 +4,22 @@
 
 [Phone](../src/systems/phone/) is a smartphone-like system UI. The running effects on `ESP Development Boards` and `PC` are shown below:
 
-<div align="center"><img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="Running on ESP Development Boards" width="750"></div>
+<div align="center">
+    <img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_demo_esp.jpg" alt ="Running on ESP Development Boards" width="750">
+</div>
 
-<p align="center">
-Running on ESP Development Boards
-</p>
+<div align="center">
+    Running on ESP Development Boards
+</div>
 <br>
 
-<p align="center">
-<img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_3.gif" alt ="Running on PC Simulator" width="750">
-</p>
+<div align="center">
+    <img src="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_3.gif" alt ="Running on PC Simulator" width="750">
+</div>
 
-<p align="center">
-Running on <a href="https://github.com/esp-arduino-libs/esp-brookesia-simulator_vscode">PC Simulator</a> (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_1.mp4">Click to view the video</a>)
-</p>
+<div align="center">
+    Running on PC Simulator</a> (<a href="https://dl.espressif.com/AE/esp-dev-kits/esp_ui_phone_pc_1024_600_1.mp4">Click to view the video</a>)
+</div>
 <br>
 
 It has the following features:

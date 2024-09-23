@@ -68,7 +68,7 @@ public:
 protected:
     T _stylesheet;
 
-    bool calibrateResolutionSize(uint32_t &resolution, ESP_Brookesia_StyleSize_t size) const;
+    bool calibrateResolutionSize(uint32_t &resolution, ESP_Brookesia_StyleSize_t &size) const;
     bool delTemplate(void);
 
 private:
@@ -238,7 +238,7 @@ const T *ESP_Brookesia_Template<T>::getStylesheet(const ESP_Brookesia_StyleSize_
 }
 
 template <typename T>
-bool ESP_Brookesia_Template<T>::calibrateResolutionSize(uint32_t &resolution, ESP_Brookesia_StyleSize_t size) const
+bool ESP_Brookesia_Template<T>::calibrateResolutionSize(uint32_t &resolution, ESP_Brookesia_StyleSize_t &size) const
 {
     ESP_Brookesia_StyleSize_t display_size = {};
 

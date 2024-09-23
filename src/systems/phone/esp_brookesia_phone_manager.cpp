@@ -390,6 +390,7 @@ void ESP_Brookesia_PhoneManager::onHomeMainScreenLoadEventCallback(lv_event_t *e
     ESP_Brookesia_PhoneManager *manager = nullptr;
     ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
 
+    ESP_BROOKESIA_LOGD("Home main screen load event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
@@ -398,8 +399,15 @@ void ESP_Brookesia_PhoneManager::onHomeMainScreenLoadEventCallback(lv_event_t *e
 
     // Only process the screen change if the recents_screen is not visible
     if ((recents_screen == nullptr) || !recents_screen->checkVisible()) {
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
-                                       "Process screen change failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(
+            manager->processStatusBarScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+            "Process status bar failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(
+            manager->processNavigationBarScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+            "Process navigation bar failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(
+            manager->processGestureScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+            "Process gesture failed");
     }
 }
 
@@ -412,6 +420,7 @@ void ESP_Brookesia_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *e
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_GestureDirection_t dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
 
+    ESP_BROOKESIA_LOGD("App launcher gesture event callback");
     ESP_BROOKESIA_CHECK_NULL_GOTO(event, end, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
@@ -481,6 +490,7 @@ void ESP_Brookesia_PhoneManager::onNavigationBarGestureEventCallback(lv_event_t 
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_GestureDirection_t dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
 
+    ESP_BROOKESIA_LOGD("Navigation bar gesture event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
@@ -623,6 +633,7 @@ void ESP_Brookesia_PhoneManager::onGestureNavigationPressingEventCallback(lv_eve
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
 
+    ESP_BROOKESIA_LOGD("Gesture navigation pressing event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
@@ -662,6 +673,7 @@ void ESP_Brookesia_PhoneManager::onGestureNavigationReleaseEventCallback(lv_even
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
 
+    ESP_BROOKESIA_LOGD("Gesture navigation release event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));

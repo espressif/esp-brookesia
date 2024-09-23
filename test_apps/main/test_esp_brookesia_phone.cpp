@@ -21,14 +21,13 @@
 #define TEST_INSTALL_UNINSTALL_APP_TIMES    (10)
 
 #if (TEST_LVGL_RESOLUTION_WIDTH == 1024) && (TEST_LVGL_RESOLUTION_HEIGHT == 600)
-#include "esp-brookesia-phone_1024_600_stylesheet/src/esp_brookesia_phone_1024_600_stylesheet.h"
 #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET()
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 800) && (TEST_LVGL_RESOLUTION_HEIGHT == 480)
-#include "esp-brookesia-phone_800_480_stylesheet/src/esp_brookesia_phone_800_480_stylesheet.h"
 #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET()
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 480) && (TEST_LVGL_RESOLUTION_HEIGHT == 480)
-#include "esp-brookesia-phone_480_480_stylesheet/src/esp_brookesia_phone_480_480_stylesheet.h"
 #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET()
+#elif (TEST_LVGL_RESOLUTION_WIDTH == 320) && (TEST_LVGL_RESOLUTION_HEIGHT == 240)
+#define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET()
 #endif
 
 static const char *TAG = "test_esp_brookesia_phone";
@@ -96,14 +95,10 @@ TEST_CASE("test esp-brookesia to install and uninstall APPs", "[esp-brookesia][p
     int phone_app_simple_conf_1_id = -1;
     int phone_app_complex_conf_0_id = -1;
     int phone_app_complex_conf_1_id = -1;
-    int phone_app_squareline_0_id = -1;
-    int phone_app_squareline_1_id = -1;
     PhoneAppSimpleConf *phone_app_simple_conf_0 = nullptr;
     PhoneAppSimpleConf *phone_app_simple_conf_1 = nullptr;
     PhoneAppComplexConf *phone_app_complex_conf_0 = nullptr;
     PhoneAppComplexConf *phone_app_complex_conf_1 = nullptr;
-    PhoneAppSquareline *phone_app_squareline_0 = nullptr;
-    PhoneAppSquareline *phone_app_squareline_1 = nullptr;
 
     test_lvgl_init(&disp, &tp);
     phone = test_esp_brookesia_phone_init(disp, tp, true);
@@ -117,10 +112,6 @@ TEST_CASE("test esp-brookesia to install and uninstall APPs", "[esp-brookesia][p
     TEST_ASSERT_NOT_NULL_MESSAGE(phone_app_complex_conf_0, "Failed to create phone app complex conf 0");
     phone_app_complex_conf_1 = new PhoneAppComplexConf(false, false);
     TEST_ASSERT_NOT_NULL_MESSAGE(phone_app_complex_conf_1, "Failed to create phone app complex conf 1");
-    phone_app_squareline_0 = new PhoneAppSquareline(true, true);
-    TEST_ASSERT_NOT_NULL_MESSAGE(phone_app_squareline_0, "Failed to create phone app squareline 0");
-    phone_app_squareline_1 = new PhoneAppSquareline(false, false);
-    TEST_ASSERT_NOT_NULL_MESSAGE(phone_app_squareline_1, "Failed to create phone app squareline 1");
 
     ESP_LOGI(TAG, "Install and uninstall APPs");
     for (int i = 0; i < TEST_INSTALL_UNINSTALL_APP_TIMES; i++) {
@@ -132,10 +123,6 @@ TEST_CASE("test esp-brookesia to install and uninstall APPs", "[esp-brookesia][p
         TEST_ASSERT_TRUE_MESSAGE(phone_app_complex_conf_0_id >= 0, "Failed to install phone app complex conf 0");
         phone_app_complex_conf_1_id = phone->installApp(phone_app_complex_conf_1);
         TEST_ASSERT_TRUE_MESSAGE(phone_app_complex_conf_1_id >= 0, "Failed to install phone app complex conf 1");
-        phone_app_squareline_0_id = phone->installApp(phone_app_squareline_0);
-        TEST_ASSERT_TRUE_MESSAGE(phone_app_squareline_0_id >= 0, "Failed to install phone app squareline 0");
-        phone_app_squareline_1_id = phone->installApp(phone_app_squareline_1);
-        TEST_ASSERT_TRUE_MESSAGE(phone_app_squareline_1_id >= 0, "Failed to install phone app squareline 1");
 
         TEST_ASSERT_TRUE_MESSAGE(phone->uninstallApp(phone_app_simple_conf_0_id),
                                  "Failed to uninstall phone app simple conf 0");
@@ -145,10 +132,6 @@ TEST_CASE("test esp-brookesia to install and uninstall APPs", "[esp-brookesia][p
                                  "Failed to uninstall phone app complex conf 0");
         TEST_ASSERT_TRUE_MESSAGE(phone->uninstallApp(phone_app_complex_conf_1_id),
                                  "Failed to uninstall phone app complex conf 1");
-        TEST_ASSERT_TRUE_MESSAGE(phone->uninstallApp(phone_app_squareline_0_id),
-                                 "Failed to uninstall phone app squareline 0");
-        TEST_ASSERT_TRUE_MESSAGE(phone->uninstallApp(phone_app_squareline_1_id),
-                                 "Failed to uninstall phone app squareline 1");
     }
 
     ESP_LOGI(TAG, "Delete APP objects");
@@ -156,8 +139,6 @@ TEST_CASE("test esp-brookesia to install and uninstall APPs", "[esp-brookesia][p
     delete phone_app_simple_conf_1;
     delete phone_app_complex_conf_0;
     delete phone_app_complex_conf_1;
-    delete phone_app_squareline_0;
-    delete phone_app_squareline_1;
 
     test_esp_brookesia_phone_deinit(phone);
     test_lvgl_deinit();

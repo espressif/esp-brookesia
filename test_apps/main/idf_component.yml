@@ -3,9 +3,3 @@ dependencies:
   esp-brookesia:
     version: "*"
     override_path: "../../../esp-brookesia"
-  esp-brookesia-phone_480_480_stylesheet:
-    git: https://github.com/esp-arduino-libs/esp-brookesia-phone_480_480_stylesheet.git
-  esp-brookesia-phone_800_480_stylesheet:
-    git: https://github.com/esp-arduino-libs/esp-brookesia-phone_800_480_stylesheet.git
-  esp-brookesia-phone_1024_600_stylesheet:
-    git: https://github.com/esp-arduino-libs/esp-brookesia-phone_1024_600_stylesheet.git

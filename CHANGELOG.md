@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.3.0 - 2024-09-23
+
+### Enhancements:
+
+* feat(repo): rename repository from 'esp-ui' to 'esp-brookesia'
+* feat(systems): add existing stylesheets for 'Phone'
+
+### Bugfixes:
+
+* fix(phone): resolve begin failure when no stylesheet is applied
+
 ## v0.2.1 - 2024-09-02
 
 ### Enhancements:

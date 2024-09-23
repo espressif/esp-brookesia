@@ -12,6 +12,12 @@
 #include "esp_brookesia_phone_app.hpp"
 #include "esp_brookesia_phone_type.h"
 
+#include "stylesheets/default/dark/stylesheet.h"
+#include "stylesheets/320_240/dark/stylesheet.h"
+#include "stylesheets/480_480/dark/stylesheet.h"
+#include "stylesheets/800_480/dark/stylesheet.h"
+#include "stylesheets/1024_600/dark/stylesheet.h"
+
 using ESP_Brookesia_TemplatePhone = ESP_Brookesia_Template<ESP_Brookesia_PhoneStylesheet_t>;
 
 // *INDENT-OFF*
@@ -41,5 +47,7 @@ public:
 private:
     ESP_Brookesia_PhoneHome _home;
     ESP_Brookesia_PhoneManager _manager;
+
+    static const ESP_Brookesia_PhoneStylesheet_t _default_stylesheet_dark;
 };
 // *INDENT-OFF*
