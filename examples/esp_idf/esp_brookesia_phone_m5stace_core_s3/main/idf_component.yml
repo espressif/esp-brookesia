@@ -1,0 +1,8 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  idf: ">=5.1.0"
+  espressif/m5stack_core_s3: "1.0.1"
+  espressif/esp-brookesia:
+    version: "*"
+    override_path: "../../../../../esp-brookesia"

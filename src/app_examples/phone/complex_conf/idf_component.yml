@@ -4,6 +4,6 @@ dependencies:
   lvgl/lvgl:
     version: ">=8.3,<9"
     public: true
-  esp-ui:
+  esp-brookesia:
     version: "0.2.*"
     public: true

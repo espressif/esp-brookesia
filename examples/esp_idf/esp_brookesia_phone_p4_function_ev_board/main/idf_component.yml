@@ -1,0 +1,8 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  idf: ">=5.3"
+  espressif/esp32_p4_function_ev_board: "^3"
+  espressif/esp-brookesia:
+    version: "*"
+    override_path: "../../../../../esp-brookesia"

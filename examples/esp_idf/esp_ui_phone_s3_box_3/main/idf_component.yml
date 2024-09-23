@@ -1,9 +1,0 @@
-## IDF Component Manager Manifest File
-dependencies:
-  ## Required IDF version
-  idf: ">=5.1.0"
-  espressif/esp-box-3: "^1"
-  espressif/esp-ui:
-    version: "*"
-    override_path: "../../../../../esp-ui"
-  espressif/esp-ui-phone_320_240_stylesheet: "0.2.*"

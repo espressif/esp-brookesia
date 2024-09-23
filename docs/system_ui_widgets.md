@@ -6,7 +6,9 @@
 
 The [Status Bar](../src/widgets/status_bar/) displays time, battery level, WiFi status, and app-specific icons. The appearance is shown in the image below and it has the following features:
 
-<div align="center"><img src="_static/readme/status_bar_demo.png" alt="status_bar_demo" width="600"></div>
+<div align="center">
+    <img src="_static/readme/status_bar_demo.png" alt="status_bar_demo" width="600">
+</div>
 
 - **Position**: Located at the top of the screen.
 - **Status Icons**: Each icon supports up to 6 images with adaptive scaling, allowing the use of images different from the stylesheet size.
@@ -18,7 +20,9 @@ The [Status Bar](../src/widgets/status_bar/) displays time, battery level, WiFi 
 
 The [App Launcher](../src/widgets/app_launcher/) displays all installed app icons. The appearance is shown in the image below and it has the following features:
 
-<div align="center"><img src="_static/readme/app_launcher_demo.png" alt="app_launcher_demo" width="600"></div>
+<div align="center">
+    <img src="_static/readme/app_launcher_demo.png" alt="app_launcher_demo" width="600">
+</div>
 
 - **Position**: Located in the center of the screen.
 - **App Icons**: Each app icon supports up to one image with adaptive scaling, allowing the use of images different from the stylesheet size.
@@ -29,7 +33,9 @@ The [App Launcher](../src/widgets/app_launcher/) displays all installed app icon
 
 The [Navigation Bar](../src/widgets/navigation_bar/) provides navigation buttons. The appearance is shown in the image below and it has the following features:
 
-<div align="center"><img src="_static/readme/navigation_bar_demo.png" alt="navigation_bar_demo" width="600"></div>
+<div align="center">
+    <img src="_static/readme/navigation_bar_demo.png" alt="navigation_bar_demo" width="600">
+</div>
 
 - **Position**: Located at the bottom of the screen.
 - **Navigation Buttons**: Provides three buttons: "Back," "Home," and "Recents Screen," which control interface switching by clicking.
@@ -39,7 +45,9 @@ The [Navigation Bar](../src/widgets/navigation_bar/) provides navigation buttons
 
 The [Recents Screen](../src/widgets/recents_screen/) displays the currently running apps. The appearance is shown in the image below and it has the following features:
 
-<div align="center"><img src="_static/readme/recents_screen_demo.png" alt="recents_screen_demo" width="600"></div>
+<div align="center">
+    <img src="_static/readme/recents_screen_demo.png" alt="recents_screen_demo" width="600">
+</div>
 
 - **Position**: Located in the center of the screen.
 - **System Storage Information**: Displays the remaining and total storage space.

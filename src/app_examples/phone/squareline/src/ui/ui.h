@@ -10,11 +10,11 @@
 extern "C" {
 #endif
 
-// esp-ui: changed
+// esp-brookesia: changed
 #include "lvgl.h"
-#include "esp_ui.h"
+#include "esp_brookesia.h"
 
-// esp-ui: changed
+// esp-brookesia: changed
 #include "components/ui_comp.h"
 #include "components/ui_comp_hook.h"
 
@@ -150,7 +150,7 @@ LV_IMG_DECLARE(ui_img_weather_3_png);    // assets/weather_3.png
 LV_FONT_DECLARE(ui_font_Number);
 
 
-// esp-ui: changed
+// esp-brookesia: changed
 void phone_app_squareline_ui_init(void);
 
 #ifdef __cplusplus

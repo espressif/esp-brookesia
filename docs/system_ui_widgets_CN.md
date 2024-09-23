@@ -6,7 +6,9 @@
 
 [Status Bar](../src/widgets/status_bar/) 用于显示时间、电量、WiFi 状态以及 app 指定图标，运行效果如下图所示，具有以下特点：
 
-<div align="center"><img src="./_static/readme/status_bar_demo.png" alt="status_bar_demo" width="600"></div>
+<div align="center">
+    <img src="./_static/readme/status_bar_demo.png" alt="status_bar_demo" width="600">
+</div>
 
 - **位置**：屏幕顶部。
 - **状态图标**：每个图标支持最多 6 张图片，并且支持自适应缩放，允许使用不同于样式表大小的图片。
@@ -18,7 +20,9 @@
 
 [App Launcher](../src/widgets/app_launcher/) 用于显示所有已安装 app 的图标，运行效果如下图所示，具有以下特点：
 
-<div align="center"><img src="./_static/readme/app_launcher_demo.png" alt="app_launcher_demo" width="600"></div>
+<div align="center">
+    <img src="./_static/readme/app_launcher_demo.png" alt="app_launcher_demo" width="600">
+</div>
 
 - **位置**：屏幕中间。
 - **App 图标**：每个 app 图标支持最多一张图片，并且支持自适应缩放，允许使用不同于样式表大小的图片。
@@ -29,7 +33,9 @@
 
 [Navigation Bar](../src/widgets/navigation_bar/) 提供导航按键，运行效果如下图所示，具有以下特点：
 
-<div align="center"><img src="./_static/readme/navigation_bar_demo.png" alt="navigation_bar_demo" width="600"></div>
+<div align="center">
+    <img src="./_static/readme/navigation_bar_demo.png" alt="navigation_bar_demo" width="600">
+</div>
 
 - **位置**：屏幕底部。
 - **导航按键**：提供 "后退"、"主页"、"概览屏幕" 三种按键，通过点击控制界面切换。
@@ -39,7 +45,9 @@
 
 [Recents Screen](../src/widgets/recents_screen/) 用于显示正在运行中的 App，运行效果如下图所示，具有以下特点：
 
-<div align="center"><img src="./_static/readme/recents_screen_demo.png" alt="recents_screen_demo" width="600"></div>
+<div align="center">
+    <img src="./_static/readme/recents_screen_demo.png" alt="recents_screen_demo" width="600">
+</div>
 
 - **位置**：屏幕中间。
 - **系统存储信息**：显示剩余和总存储空间大小。
