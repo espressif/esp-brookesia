@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.3.1 - 2024-09-25
+
+### Enhancements:
+
+* feat(core): support compilation on non-Unix/Linux systems
+
 ## v0.3.0 - 2024-09-23
 
 ### Enhancements:
