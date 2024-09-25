@@ -5,7 +5,6 @@
  */
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/param.h>
 #include <time.h>
 #include "esp_brookesia_conf_internal.h"
 #include "esp_brookesia_core_utils.h"
@@ -39,7 +38,11 @@ bool esp_brookesia_core_utils_get_internal_font_by_size(uint8_t size_px, const l
 
     uint8_t temp_size = size_px;
     size_px = (size_px << 2) >> 2;
-    size_px = MIN(MAX(size_px, ESP_BROOKESIA_STYLE_FONT_SIZE_MIN), ESP_BROOKESIA_STYLE_FONT_SIZE_MAX);
+    if (size_px < ESP_BROOKESIA_STYLE_FONT_SIZE_MIN) {
+        size_px = ESP_BROOKESIA_STYLE_FONT_SIZE_MIN;
+    } else if (size_px > ESP_BROOKESIA_STYLE_FONT_SIZE_MAX) {
+        size_px = ESP_BROOKESIA_STYLE_FONT_SIZE_MAX;
+    }
     if (temp_size != size_px) {
         ESP_BROOKESIA_LOGW("Font size(%d) not support, use the nearest size(%d)", temp_size, size_px);
     }
