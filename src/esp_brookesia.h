@@ -17,6 +17,7 @@
 #include "core/esp_brookesia_core_utils.h"
 #include "core/esp_brookesia_style_type.h"
 #include "core/esp_brookesia_core_type.h"
+#include "core/esp_brookesia_lv_type.h"
 
 /* fonts */
 #include "fonts/esp_brookesia_fonts.h"

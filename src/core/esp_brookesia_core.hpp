@@ -50,6 +50,13 @@ public:
     bool sendAppEvent(const ESP_Brookesia_CoreAppEventData_t *data) const;
     lv_event_code_t getAppEventCode(void) const         { return _app_event_code; }
 
+    /* LVGL */
+    void registerLvLockCallback(ESP_Brookesia_LvLockCallback_t callback, int timeout);
+    void registerLvUnlockCallback(ESP_Brookesia_LvUnlockCallback_t callback);
+    bool lockLv(int timeout) const;
+    bool lockLv(void) const;
+    void unlockLv(void) const;
+
 protected:
     bool beginCore(void);
     bool delCore(void);
@@ -74,5 +81,10 @@ private:
     lv_event_code_t _data_update_event_code;
     lv_event_code_t _navigate_event_code;
     lv_event_code_t _app_event_code;
+
+    // LVGL
+    int _lv_lock_timeout;
+    ESP_Brookesia_LvLockCallback_t _lv_lock_callback;
+    ESP_Brookesia_LvUnlockCallback_t _lv_unlock_callback;
 };
 // *INDENT-OFF*

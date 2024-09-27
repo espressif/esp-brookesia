@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +21,10 @@ typedef enum {
     ESP_BROOKESIA_LV_ANIM_PATH_TYPE_STEP,
     ESP_BROOKESIA_LV_ANIM_PATH_TYPE_MAX,
 } ESP_Brookesia_LvAnimationPathType_t;
+
+typedef bool (*ESP_Brookesia_LvLockCallback_t)(int timeout_ms);
+
+typedef void (*ESP_Brookesia_LvUnlockCallback_t)(void);
 
 #ifdef __cplusplus
 }

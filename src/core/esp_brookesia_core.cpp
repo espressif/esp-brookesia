@@ -25,7 +25,9 @@ ESP_Brookesia_Core::ESP_Brookesia_Core(const ESP_Brookesia_CoreData_t &data, ESP
     _event_obj(nullptr),
     _data_update_event_code(_LV_EVENT_LAST),
     _navigate_event_code(_LV_EVENT_LAST),
-    _app_event_code(_LV_EVENT_LAST)
+    _app_event_code(_LV_EVENT_LAST),
+    _lv_lock_callback(nullptr),
+    _lv_unlock_callback(nullptr)
 {
 }
 
@@ -139,6 +141,40 @@ bool ESP_Brookesia_Core::sendAppEvent(const ESP_Brookesia_CoreAppEventData_t *da
                                      "Send app start event failed");
 
     return true;
+}
+
+void ESP_Brookesia_Core::registerLvLockCallback(ESP_Brookesia_LvLockCallback_t callback, int timeout)
+{
+    _lv_lock_callback = callback;
+    _lv_lock_timeout = timeout;
+}
+
+void ESP_Brookesia_Core::registerLvUnlockCallback(ESP_Brookesia_LvUnlockCallback_t callback)
+{
+    _lv_unlock_callback = callback;
+}
+
+bool ESP_Brookesia_Core::lockLv(void) const
+{
+    if (_lv_lock_callback) {
+        return _lv_lock_callback(_lv_lock_timeout);
+    }
+    return false;
+}
+
+bool ESP_Brookesia_Core::lockLv(int timeout) const
+{
+    if (_lv_lock_callback) {
+        return _lv_lock_callback(timeout);
+    }
+    return false;
+}
+
+void ESP_Brookesia_Core::unlockLv(void) const
+{
+    if (_lv_unlock_callback) {
+        _lv_unlock_callback();
+    }
 }
 
 bool ESP_Brookesia_Core::beginCore(void)
