@@ -54,7 +54,7 @@ bool ESP_Brookesia_PhoneApp::setStatusIconState(uint8_t state)
 
 ESP_Brookesia_Phone *ESP_Brookesia_PhoneApp::getPhone(void)
 {
-    return static_cast<ESP_Brookesia_Phone *>(static_cast<ESP_Brookesia_TemplatePhone *>(getCore()));
+    return static_cast<ESP_Brookesia_Phone *>(getCore());
 }
 
 bool ESP_Brookesia_PhoneApp::beginExtra(void)

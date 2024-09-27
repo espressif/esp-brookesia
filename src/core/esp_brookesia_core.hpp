@@ -28,6 +28,7 @@ public:
     ESP_Brookesia_CoreHome &getCoreHome(void) const            { return _core_home; }
     ESP_Brookesia_CoreManager &getCoreManager(void) const      { return _core_manager; }
     ESP_Brookesia_CoreEvent *getCoreEvent(void)                { return &_core_event; }
+    bool getDisplaySize(ESP_Brookesia_StyleSize_t &size);
 
     /* Device */
     bool setTouchDevice(lv_indev_t *touch) const;

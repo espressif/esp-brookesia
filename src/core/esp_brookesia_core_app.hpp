@@ -56,7 +56,7 @@ public:
      */
     bool checkInitialized(void) const
     {
-        return (_core != nullptr);
+        return (_id > 0);
     }
 
     /**
@@ -314,6 +314,8 @@ protected:
      */
     bool cleanRecordResource(void);
 
+    ESP_Brookesia_Core *_core;
+
 private:
     virtual bool beginExtra(void) { return true; }
     virtual bool delExtra(void)   { return true; }
@@ -344,7 +346,6 @@ private:
     static void onResizeScreenLoadedEventCallback(lv_event_t *e);
 
     // Core
-    ESP_Brookesia_Core *_core;
     ESP_Brookesia_CoreAppData_t _core_init_data;
     ESP_Brookesia_CoreAppData_t _core_active_data;
     ESP_Brookesia_CoreAppStatus_t _status;

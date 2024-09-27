@@ -39,6 +39,23 @@ ESP_Brookesia_Core::~ESP_Brookesia_Core()
     }
 }
 
+bool ESP_Brookesia_Core::getDisplaySize(ESP_Brookesia_StyleSize_t &size)
+{
+    // Check if the display is set. If not, use the default display
+    if (_display == nullptr) {
+        ESP_BROOKESIA_LOGW("Display is not set, use default display");
+        _display = lv_disp_get_default();
+        ESP_BROOKESIA_CHECK_NULL_RETURN(_display, false, "Display device is not initialized");
+    }
+
+    size = {
+        .width = (uint16_t)lv_disp_get_hor_res(_display),
+        .height = (uint16_t)lv_disp_get_ver_res(_display),
+    };
+
+    return true;
+}
+
 bool ESP_Brookesia_Core::setTouchDevice(lv_indev_t *touch) const
 {
     ESP_BROOKESIA_CHECK_FALSE_RETURN((touch != nullptr) && (lv_indev_get_type(touch) == LV_INDEV_TYPE_POINTER), false,
@@ -156,25 +173,25 @@ void ESP_Brookesia_Core::registerLvUnlockCallback(ESP_Brookesia_LvUnlockCallback
 
 bool ESP_Brookesia_Core::lockLv(void) const
 {
-    if (_lv_lock_callback) {
-        return _lv_lock_callback(_lv_lock_timeout);
-    }
+    ESP_BROOKESIA_CHECK_NULL_RETURN(_lv_lock_callback, false, "Lock callback is not set");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(_lv_lock_callback(_lv_lock_timeout), false, "Lock failed");
+
     return false;
 }
 
 bool ESP_Brookesia_Core::lockLv(int timeout) const
 {
-    if (_lv_lock_callback) {
-        return _lv_lock_callback(timeout);
-    }
+    ESP_BROOKESIA_CHECK_NULL_RETURN(_lv_lock_callback, false, "Lock callback is not set");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(_lv_lock_callback(timeout), false, "Lock failed");
+
     return false;
 }
 
 void ESP_Brookesia_Core::unlockLv(void) const
 {
-    if (_lv_unlock_callback) {
-        _lv_unlock_callback();
-    }
+    ESP_BROOKESIA_CHECK_NULL_EXIT(_lv_unlock_callback, "Unlock callback is not set");
+
+    _lv_unlock_callback();
 }
 
 bool ESP_Brookesia_Core::beginCore(void)

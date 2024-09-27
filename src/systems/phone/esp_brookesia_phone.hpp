@@ -6,7 +6,7 @@
 #pragma once
 
 #include <list>
-#include "core/esp_brookesia_template.hpp"
+#include "core/esp_brookesia_stylesheet_template.hpp"
 #include "esp_brookesia_phone_home.hpp"
 #include "esp_brookesia_phone_manager.hpp"
 #include "esp_brookesia_phone_app.hpp"
@@ -18,10 +18,10 @@
 #include "stylesheets/800_480/dark/stylesheet.h"
 #include "stylesheets/1024_600/dark/stylesheet.h"
 
-using ESP_Brookesia_TemplatePhone = ESP_Brookesia_Template<ESP_Brookesia_PhoneStylesheet_t>;
+using ESP_Brookesia_PhoneStylesheet = ESP_Brookesia_StyleSheetTemplate<ESP_Brookesia_PhoneStylesheet_t>;
 
 // *INDENT-OFF*
-class ESP_Brookesia_Phone: public ESP_Brookesia_TemplatePhone {
+class ESP_Brookesia_Phone: public ESP_Brookesia_Core, public ESP_Brookesia_PhoneStylesheet {
 public:
     ESP_Brookesia_Phone(lv_disp_t *display = nullptr);
     ~ESP_Brookesia_Phone();
@@ -39,12 +39,14 @@ public:
     bool activateStylesheet(const ESP_Brookesia_PhoneStylesheet_t &stylesheet);
     bool activateStylesheet(const ESP_Brookesia_PhoneStylesheet_t *stylesheet);
 
-    bool calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, ESP_Brookesia_PhoneStylesheet_t &sheetstyle) override;
+    bool calibrateScreenSize(ESP_Brookesia_StyleSize_t &size) override;
 
     ESP_Brookesia_PhoneHome &getHome(void)         { return _home; }
     ESP_Brookesia_PhoneManager &getManager(void)   { return _manager; }
 
 private:
+    bool calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, ESP_Brookesia_PhoneStylesheet_t &sheetstyle) override;
+
     ESP_Brookesia_PhoneHome _home;
     ESP_Brookesia_PhoneManager _manager;
 
