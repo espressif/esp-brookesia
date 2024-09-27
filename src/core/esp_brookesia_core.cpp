@@ -18,6 +18,7 @@ ESP_Brookesia_Core::ESP_Brookesia_Core(const ESP_Brookesia_CoreData_t &data, ESP
     _core_data(data),
     _core_home(home),
     _core_manager(manager),
+    _core_event(),
     _display(display),
     _touch(nullptr),
     _free_event_code(_LV_EVENT_LAST),

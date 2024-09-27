@@ -18,6 +18,7 @@
 #include "core/esp_brookesia_core_manager.hpp"
 #include "core/esp_brookesia_template.hpp"
 #include "core/esp_brookesia_core.hpp"
+#include "core/esp_brookesia_core_event.hpp"
 
 /* Widgets */
 // App Launcher

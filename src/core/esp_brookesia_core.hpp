@@ -9,6 +9,7 @@
 #include "esp_brookesia_core_utils.h"
 #include "esp_brookesia_core_home.hpp"
 #include "esp_brookesia_core_manager.hpp"
+#include "esp_brookesia_core_event.hpp"
 
 // *INDENT-OFF*
 class ESP_Brookesia_Core {
@@ -23,6 +24,7 @@ public:
     const ESP_Brookesia_CoreData_t &getCoreData(void) const    { return _core_data; }
     ESP_Brookesia_CoreHome &getCoreHome(void) const            { return _core_home; }
     ESP_Brookesia_CoreManager &getCoreManager(void) const      { return _core_manager; }
+    ESP_Brookesia_CoreEvent *getCoreEvent(void)                { return &_core_event; }
 
     /* Device */
     bool setTouchDevice(lv_indev_t *touch) const;
@@ -57,6 +59,7 @@ protected:
     const ESP_Brookesia_CoreData_t &_core_data;
     ESP_Brookesia_CoreHome         &_core_home;
     ESP_Brookesia_CoreManager      &_core_manager;
+    ESP_Brookesia_CoreEvent        _core_event;
     // Device
     lv_disp_t          *_display;
     mutable lv_indev_t *_touch;
