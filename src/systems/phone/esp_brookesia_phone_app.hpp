@@ -85,7 +85,6 @@ public:
         return _active_data;
     }
 
-protected:
     /**
      * @brief Get the pointer of phone object. Users can use this pointer to access other phone widgets like home, manager
      *
