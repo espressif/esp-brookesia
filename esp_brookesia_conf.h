@@ -101,6 +101,16 @@
 #define ESP_BROOKESIA_SQ1_4_1_LV8_3_11      // |   1.4.1    | 8.3.11 |
 #endif /* ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS */
 
+/**
+ * Use the internal general APIs of "ui_comp.c" and "ui_comp.h" instead of the ones exported from Squareline Studio.
+ * 1: enable, 0: disable
+ *
+ * This configuration is to avoid function redefinition errors caused by multiple UIs exported from Squareline Studio
+ * that include duplicate APIs of "ui_comp.c" and "ui_comp.h".
+ *
+ */
+#define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP   (1)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////// File Version ///////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

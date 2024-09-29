@@ -10,6 +10,9 @@
 #include "esp_brookesia_core_home.hpp"
 #include "esp_brookesia_core_manager.hpp"
 #include "esp_brookesia_core_event.hpp"
+#if ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+#include "../squareline/ui_comp/ui_comp.h"
+#endif /* ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP */
 
 // *INDENT-OFF*
 class ESP_Brookesia_Core {

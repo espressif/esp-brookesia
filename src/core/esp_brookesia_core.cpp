@@ -222,6 +222,11 @@ bool ESP_Brookesia_Core::beginCore(void)
     ESP_BROOKESIA_CHECK_FALSE_GOTO(_core_home.beginCore(), err, "Begin core home failed");
     ESP_BROOKESIA_CHECK_FALSE_GOTO(_core_manager.beginCore(), err, "Begin core manager failed");
 
+    // Initialize others
+#if ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+    esp_brookesia_squareline_ui_comp_init();
+#endif /* ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP */
+
     return true;
 
 err:

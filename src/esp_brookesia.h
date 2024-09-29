@@ -28,7 +28,10 @@
 
 /* Squareline */
 #ifdef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
-#include "squareline/esp_brookesia_squareline_ui_helpers.h"
+#include "squareline/ui_helpers/ui_helpers.h"
+#endif
+#ifdef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+#include "squareline/ui_comp/ui_comp.h"
 #endif
 
 /* Widgets */

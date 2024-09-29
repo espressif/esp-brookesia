@@ -133,8 +133,6 @@ lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp1;
 lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp2;
 lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp3;
 lv_obj_t * ui_SmartGadgetAlarm_Scrolldots_Scrolldots5;
-void ui_event_Startevents____initial_actions0(lv_event_t * e);
-lv_obj_t * ui_Startevents____initial_actions0;
 const lv_img_dsc_t * ui_imgset_chatbox[1] = {&ui_img_chatbox2_png};
 const lv_img_dsc_t * ui_imgset_weather_[3] = {&ui_img_weather_1_png, &ui_img_weather_2_png, &ui_img_weather_3_png};
 
@@ -295,8 +293,6 @@ void ui_event_Startevents____initial_actions0(lv_event_t * e)
 // esp-brookesia: changed
 void phone_app_squareline_ui_init(void)
 {
-    LV_EVENT_GET_COMP_CHILD = lv_event_register_id();
-
     lv_disp_t * dispp = lv_disp_get_default();
     lv_theme_t * theme = lv_theme_basic_init(dispp);
     lv_disp_set_theme(dispp, theme);
@@ -307,7 +303,5 @@ void phone_app_squareline_ui_init(void)
     ui_SmartGadgetMusicPlayer_screen_init();
     ui_SmartGadgetWeather_screen_init();
     ui_SmartGadgetAlarm_screen_init();
-    ui_Startevents____initial_actions0 = lv_obj_create(NULL);
-    lv_obj_add_event_cb(ui_Startevents____initial_actions0, ui_event_Startevents____initial_actions0, LV_EVENT_ALL, NULL);
     lv_disp_load_scr(ui_SmartGadgetSplash);
 }

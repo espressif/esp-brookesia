@@ -152,6 +152,10 @@ menu "ESP BROOKESIA Configuration"
     endmenu
 
     menu "Squareline"
+        config ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+            bool "Use general APIs of UI component from inside"
+            default y
+
         config ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
             bool "Use UI helpers from inside"
             default y

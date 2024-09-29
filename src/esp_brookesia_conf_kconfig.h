@@ -212,6 +212,14 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////// Squareline ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifndef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+    #ifdef CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+        #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP   (CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP)
+    #else
+        #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP   (1)
+    #endif
+#endif
+
 #ifndef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
     #ifdef CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
         #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS   (CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS)

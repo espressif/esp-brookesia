@@ -12,11 +12,6 @@
 extern "C" {
 #endif
 
-void get_component_child_event_cb(lv_event_t * e);
-void del_component_child_event_cb(lv_event_t * e);
-
-lv_obj_t * ui_comp_get_child(lv_obj_t * comp, uint32_t child_idx);
-extern uint32_t LV_EVENT_GET_COMP_CHILD;
 #include "ui_comp_alarm_comp.h"
 #include "ui_comp_clock_dot.h"
 #include "ui_comp_scrolldots.h"
