@@ -43,7 +43,7 @@ void ESP_Brookesia_CoreEvent::reset(void)
 bool ESP_Brookesia_CoreEvent::registerEvent(void *object, Handler handler, ID id, void *user_data)
 {
     ESP_BROOKESIA_LOGD("Register event for object(0x%p) ID(%d) handler(0x%p), user_data(0x%p)", object, static_cast<int>(id),
-                handler, user_data);
+                       handler, user_data);
     ESP_BROOKESIA_CHECK_NULL_RETURN(handler, false, "Invalid handler");
 
     auto &handlers_for_object = _event_handlers[object];

@@ -36,9 +36,12 @@
 为了使 Phone 在固定分辨率下达到最佳显示效果，esp-brookesia 目前提供了以下分辨率的 UI 样式表：
 
 - [320 x 240](../src/systems/phone/stylesheets/320_240/)
+- [320 x 480](../src/systems/phone/stylesheets/320_480/)
 - [480 x 480](../src/systems/phone/stylesheets/480_480/)
 - [800 x 480](../src/systems/phone/stylesheets/800_480/)
+- [800 x 1280](../src/systems/phone/stylesheets/800_1280/)
 - [1024 x 600](../src/systems/phone/stylesheets/1024_600/)
+- [1280 x 800](../src/systems/phone/stylesheets/1280_800/)
 
 > [!NOTE]
 > 如果上述 UI 样式表中没有您的屏幕分辨率，请参阅 Github issue - [Phone Resolution Support](https://github.com/espressif/esp-brookesia/issues/5)。

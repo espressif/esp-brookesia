@@ -250,13 +250,13 @@ bool ESP_Brookesia_Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &scree
             parent_size = &data.indicator_bars[i].main.size_min;
             parent_w = parent_size->width;
             ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_w / 2, false,
-                                            "Invalid indicator bar main layout pad all");
+                                             "Invalid indicator bar main layout pad all");
             break;
         case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM:
             parent_size = &data.indicator_bars[i].main.size_min;
             parent_h = parent_size->height;
             ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_h / 2, false,
-                                            "Invalid indicator bar main layout pad all");
+                                             "Invalid indicator bar main layout pad all");
             break;
         default:
             break;
