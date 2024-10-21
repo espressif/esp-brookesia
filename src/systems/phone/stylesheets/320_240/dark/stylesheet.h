@@ -26,7 +26,7 @@ extern "C" {
         },                                                                        \
         .navigation_bar = {                                                       \
             .data = ESP_BROOKESIA_PHONE_320_240_DARK_NAVIGATION_BAR_DATA(),              \
-            .visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,           \
+            .visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE,           \
         },                                                                        \
         .app_launcher = {                                                         \
             .data = ESP_BROOKESIA_PHONE_320_240_DARK_APP_LAUNCHER_DATA(),                \
@@ -50,7 +50,7 @@ extern "C" {
 #define ESP_BROOKESIA_PHONE_320_240_DARK_MANAGER_DATA()             \
     {                                                        \
         .gesture = ESP_BROOKESIA_PHONE_320_240_DARK_GESTURE_DATA(), \
-        .gesture_mask_indicator_trigger_time_ms = 150,       \
+        .gesture_mask_indicator_trigger_time_ms = 0,       \
         .recents_screen = {                                  \
             .drag_snapshot_y_step = 5,                       \
             .drag_snapshot_y_threshold = 30,                 \

@@ -411,6 +411,7 @@ bool ESP_Brookesia_NavigationBar::startFlexShowAnimation(bool enable_auto_hide)
 
     _flags.enable_visual_flex_auto_hide = enable_auto_hide;
     lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_foreground(_main_obj.get());
     lv_anim_set_values(_visual_flex_show_anim.get(), getCurrentOffset(), 0);
     ESP_BROOKESIA_CHECK_NULL_RETURN(lv_anim_start(_visual_flex_show_anim.get()), false, "Start animation failed");
     _flags.is_visual_flex_show_anim_running = true;

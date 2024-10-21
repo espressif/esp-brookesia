@@ -17,7 +17,6 @@ extern "C" {
             .size_min = ESP_BROOKESIA_STYLE_SIZE_RECT(10, 4),                    \
             .size_max = ESP_BROOKESIA_STYLE_SIZE_RECT_H_PERCENT(10, 50),         \
             .radius = 5,                                                  \
-            .align_offset = 0,                                            \
             .layout_pad_all = 2,                                          \
             .color = ESP_BROOKESIA_STYLE_COLOR(0x000000),                        \
         },                                                                \
@@ -37,7 +36,6 @@ extern "C" {
             .size_min = ESP_BROOKESIA_STYLE_SIZE_RECT(4, 10),                \
             .size_max = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(50, 10),     \
             .radius = 5,                                              \
-            .align_offset = 0,                                        \
             .layout_pad_all = 2,                                      \
             .color = ESP_BROOKESIA_STYLE_COLOR(0x1A1A1A),                    \
         },                                                            \
@@ -58,10 +56,8 @@ extern "C" {
             .direction_vertical = 50,                                              \
             .direction_horizon = 50,                                               \
             .direction_angle = 60,                                                 \
-            .top_edge = 10,                                                        \
-            .bottom_edge = 10,                                                     \
-            .left_edge = 10,                                                       \
-            .right_edge = 10,                                                      \
+            .horizontal_edge = 10,                                                        \
+            .vertical_edge = 10,                                                     \
             .duration_short_ms = 500,                                              \
             .speed_slow_px_per_ms = 0.1,                                           \
         },                                                                         \

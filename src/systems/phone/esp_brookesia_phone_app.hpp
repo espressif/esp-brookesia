@@ -40,12 +40,26 @@ public:
      * @param use_default_screen Flag to enable the default screen. If true, the core will create a default screen, and
      *                           the app should create all UI resources on it using `lv_scr_act()`. The screen will be
      *                           automatically cleaned up
+     *
+     */
+    ESP_Brookesia_PhoneApp(const char *name, const void *launcher_icon, bool use_default_screen);
+
+    /**
+     * @brief Construct a phone app with basic configuration
+     *
+     * @param name The name of the app
+     * @param launcher_icon The image of the launcher icon. If set to `nullptr`, it will use the default image
+     * @param use_default_screen Flag to enable the default screen. If true, the core will create a default screen, and
+     *                           the app should create all UI resources on it using `lv_scr_act()`. The screen will be
+     *                           automatically cleaned up
      * @param use_status_bar Flag to show the status bar
      * @param use_navigation_bar Flag to show the navigation bar
      *
      */
-    ESP_Brookesia_PhoneApp(const char *name, const void *launcher_icon, bool use_default_screen, bool use_status_bar,
-                    bool use_navigation_bar);
+    ESP_Brookesia_PhoneApp(
+        const char *name, const void *launcher_icon, bool use_default_screen, bool use_status_bar,
+        bool use_navigation_bar
+    );
 
     /**
      * @brief Destructor for the phone app

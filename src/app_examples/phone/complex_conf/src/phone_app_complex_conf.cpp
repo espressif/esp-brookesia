@@ -47,6 +47,41 @@ PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigatio
     )
 {
 }
+
+PhoneAppComplexConf::PhoneAppComplexConf():
+    ESP_Brookesia_PhoneApp(
+        {
+            .name = "Complex Conf",
+            .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default),
+            .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
+            .flags = {
+                .enable_default_screen = 1,
+                .enable_recycle_resource = 1,
+                .enable_resize_visual_area = 1,
+            },
+        },
+        {
+            .app_launcher_page_index = 0,
+            .status_icon_area_index = 0,
+            .status_icon_data = {
+                .size = {},
+                .icon = {
+                    .image_num = 1,
+                    .images = {
+                        ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default),
+                    },
+                },
+            },
+            .status_bar_visual_mode = ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_HIDE,
+            .navigation_bar_visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE,
+            .flags = {
+                .enable_status_icon_common_size = 1,
+                .enable_navigation_gesture = 1,
+            },
+        }
+    )
+{
+}
 // *INDENT-OFF*
 
 PhoneAppComplexConf::~PhoneAppComplexConf()

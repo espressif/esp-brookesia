@@ -22,7 +22,14 @@ public:
      * @param use_navigation_bar Flag to show the navigation bar
      *
      */
-    PhoneAppSquareline(bool use_status_bar = true, bool use_navigation_bar = true);
+    PhoneAppSquareline(bool use_status_bar, bool use_navigation_bar);
+
+    /**
+     * @brief Construct a app with basic configuration
+     *
+     *
+     */
+    PhoneAppSquareline();
 
     /**
      * @brief Destructor for the phone app

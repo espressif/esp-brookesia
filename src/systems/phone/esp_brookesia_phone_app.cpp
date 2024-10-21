@@ -28,6 +28,13 @@ ESP_Brookesia_PhoneApp::ESP_Brookesia_PhoneApp(const char *name, const void *lau
 {
 }
 
+ESP_Brookesia_PhoneApp::ESP_Brookesia_PhoneApp(const char *name, const void *launcher_icon, bool use_default_screen):
+    ESP_Brookesia_CoreApp(name, launcher_icon, use_default_screen),
+    _init_data(ESP_BROOKESIA_PHONE_APP_DATA_DEFAULT(launcher_icon, true, false)),
+    _recents_screen_snapshot_conf{}
+{
+}
+
 ESP_Brookesia_PhoneApp::~ESP_Brookesia_PhoneApp()
 {
     ESP_BROOKESIA_LOGD("Destroy(@0x%p)", this);

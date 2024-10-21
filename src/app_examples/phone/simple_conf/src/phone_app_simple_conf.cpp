@@ -15,6 +15,11 @@ PhoneAppSimpleConf::PhoneAppSimpleConf(bool use_status_bar, bool use_navigation_
 {
 }
 
+PhoneAppSimpleConf::PhoneAppSimpleConf():
+    ESP_Brookesia_PhoneApp("Simple Conf", &esp_brookesia_phone_app_launcher_image_default, true)
+{
+}
+
 PhoneAppSimpleConf::~PhoneAppSimpleConf()
 {
     ESP_BROOKESIA_LOGD("Destroy(@0x%p)", this);

@@ -35,14 +35,14 @@ extern "C" {
         },                                                                  \
         .table = {                                                          \
             .default_num = 3,                                               \
-            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 80),                \
+            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 160),      \
         },                                                                  \
         .indicator = {                                                      \
-            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 20),           \
+            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 20),  \
             .main_layout_column_pad = 10,                                   \
-            .main_layout_bottom_offset = 0,                                 \
-            .spot_inactive_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(30),     \
-            .spot_active_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(10, 30),     \
+            .main_layout_bottom_offset = 24,                                 \
+            .spot_inactive_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(12),     \
+            .spot_active_size = ESP_BROOKESIA_STYLE_SIZE_RECT(32, 12),     \
             .spot_inactive_background_color = ESP_BROOKESIA_STYLE_COLOR(0xC6C6C6), \
             .spot_active_background_color = ESP_BROOKESIA_STYLE_COLOR(0xFFFFFF),   \
         },                                                                  \

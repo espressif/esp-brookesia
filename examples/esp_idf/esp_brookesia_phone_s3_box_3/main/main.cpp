@@ -55,14 +55,13 @@ extern "C" void app_main(void)
     // ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getCoreHome().showContainerBorder(), "Show container border failed");
 
     /* Install apps */
-    bool enable_navigation_bar = phone->getStylesheet()->home.flags.enable_navigation_bar;
-    PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf(true, enable_navigation_bar);
+    PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf();
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_simple_conf, "Create phone app simple conf failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_simple_conf) >= 0), "Install phone app simple conf failed");
-    PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf(true, enable_navigation_bar);
+    PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf();
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_complex_conf, "Create phone app complex conf failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_complex_conf) >= 0), "Install phone app complex conf failed");
-    PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline(true, enable_navigation_bar);
+    PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline();
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_squareline, "Create phone app squareline failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_squareline) >= 0), "Install phone app squareline failed");
 

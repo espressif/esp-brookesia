@@ -41,7 +41,6 @@ typedef struct {
         ESP_Brookesia_StyleSize_t size_min;
         ESP_Brookesia_StyleSize_t size_max;
         uint8_t radius;
-        uint8_t align_offset;
         uint8_t layout_pad_all;
         ESP_Brookesia_StyleColor_t color;
     } main;
@@ -61,10 +60,8 @@ typedef struct {
         uint16_t direction_vertical;
         uint16_t direction_horizon;
         uint8_t direction_angle;
-        uint16_t top_edge;
-        uint16_t bottom_edge;
-        uint16_t left_edge;
-        uint16_t right_edge;
+        uint16_t horizontal_edge;
+        uint16_t vertical_edge;
         uint16_t duration_short_ms;
         float speed_slow_px_per_ms;
     } threshold;

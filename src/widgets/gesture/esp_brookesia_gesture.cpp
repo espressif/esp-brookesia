@@ -115,6 +115,7 @@ bool ESP_Brookesia_Gesture::begin(lv_obj_t *parent)
         lv_bar_set_start_value(indicator_bars[i].get(), 0, LV_ANIM_OFF);
         lv_bar_set_value(indicator_bars[i].get(), 100, LV_ANIM_OFF);
         // Animation
+        lv_anim_set_user_data(indicator_bar_scale_back_anims[i].get(), (void *)i);
         lv_anim_set_var(indicator_bar_scale_back_anims[i].get(), &_indicator_bar_anim_var[i]);
         lv_anim_set_early_apply(indicator_bar_scale_back_anims[i].get(), false);
         lv_anim_set_exec_cb(indicator_bar_scale_back_anims[i].get(), onIndicatorBarScaleBackAnimationExecuteCallback);
@@ -230,10 +231,8 @@ bool ESP_Brookesia_Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &scree
     ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.direction_horizon, 1, parent_w, false,
                                      "Invalid horizon direction threshold");
     ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.direction_angle, 1, 89, false, "Invalid direction angle threshold");
-    ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.top_edge, 1, parent_h, false, "Invalid top edge threshold");
-    ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.bottom_edge, 1, parent_h, false, "Invalid bottom edge threshold");
-    ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.left_edge, 1, parent_w, false, "Invalid left edge threshold");
-    ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.right_edge, 1, parent_w, false, "Invalid right edge threshold");
+    ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.horizontal_edge, 1, parent_w, false, "Invalid left edge threshold");
+    ESP_BROOKESIA_CHECK_VALUE_RETURN(data.threshold.vertical_edge, 1, parent_h, false, "Invalid top edge threshold");
     ESP_BROOKESIA_CHECK_FALSE_RETURN(data.threshold.speed_slow_px_per_ms > 0, false, "Invalid speed slow threshold");
     ESP_BROOKESIA_CHECK_FALSE_RETURN(data.threshold.duration_short_ms > 0, false, "Invalid duration short threshold");
     // Left/Right indicator bar
@@ -245,20 +244,23 @@ bool ESP_Brookesia_Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &scree
                                          "Calibrate indicator bar main size max failed");
         ESP_BROOKESIA_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(screen_size, data.indicator_bars[i].main.size_min, true),
                                          false, "Calibrate indicator bar main size min failed");
-        parent_size = &data.indicator_bars[i].main.size_min;
-        parent_w = parent_size->width;
-        parent_h = parent_size->height;
-        if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT || i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
-            ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.align_offset, 0, parent_h / 2, false,
-                                             "Invalid indicator bar main align offset");
-        } else if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
-            ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.align_offset, 0, parent_w / 2, false,
-                                             "Invalid indicator bar main align offset");
+        switch (i) {
+        case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT:
+        case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT:
+            parent_size = &data.indicator_bars[i].main.size_min;
+            parent_w = parent_size->width;
+            ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_w / 2, false,
+                                            "Invalid indicator bar main layout pad all");
+            break;
+        case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM:
+            parent_size = &data.indicator_bars[i].main.size_min;
+            parent_h = parent_size->height;
+            ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_h / 2, false,
+                                            "Invalid indicator bar main layout pad all");
+            break;
+        default:
+            break;
         }
-        ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_h / 2, false,
-                                         "Invalid indicator bar main layout pad all");
-        ESP_BROOKESIA_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_w / 2, false,
-                                         "Invalid indicator bar main layout pad all");
     }
 
     return true;
@@ -384,8 +386,11 @@ bool ESP_Brookesia_Gesture::controlIndicatorBarScaleBackAnim(ESP_Brookesia_Gestu
             return true;
         }
         if (length == _indicator_bar_max_lengths[type]) {
-            ESP_BROOKESIA_CHECK_FALSE_RETURN(setIndicatorBarVisible(type, false), false, "Set indicator bar visible failed");
-
+            if (type != ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+                ESP_BROOKESIA_CHECK_FALSE_RETURN(
+                    setIndicatorBarVisible(type, false), false, "Set indicator bar visible failed"
+                );
+            }
             return true;
         }
         lv_anim_set_values(_indicator_bar_scale_back_anims[type].get(), length, _indicator_bar_max_lengths[type]);
@@ -444,14 +449,14 @@ bool ESP_Brookesia_Gesture::updateByNewData(void)
         // Others
         if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT) {
             align = LV_ALIGN_LEFT_MID;
-            align_x_offset = bar_data.main.align_offset;
+            align_x_offset = max(data.threshold.horizontal_edge - bar_data.main.size_max.width, 0);
             align_y_offset = 0;
             _indicator_bar_min_lengths[i] = bar_data.main.size_min.height;
             _indicator_bar_max_lengths[i] = bar_data.main.size_max.height;
             bar_range = data.threshold.direction_horizon;
         } else if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
             align = LV_ALIGN_RIGHT_MID;
-            align_x_offset = -bar_data.main.align_offset;
+            align_x_offset = min(-data.threshold.horizontal_edge + bar_data.main.size_max.width, 0);
             align_y_offset = 0;
             _indicator_bar_min_lengths[i] = bar_data.main.size_min.height;
             _indicator_bar_max_lengths[i] = bar_data.main.size_max.height;
@@ -459,7 +464,7 @@ bool ESP_Brookesia_Gesture::updateByNewData(void)
         } else if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
             align = LV_ALIGN_BOTTOM_MID;
             align_x_offset = 0;
-            align_y_offset = -bar_data.main.align_offset;
+            align_y_offset = min(-data.threshold.vertical_edge + bar_data.main.size_max.height, 0);
             _indicator_bar_min_lengths[i] = bar_data.main.size_min.width;
             _indicator_bar_max_lengths[i] = bar_data.main.size_max.width;
             bar_range = data.threshold.direction_vertical;
@@ -510,10 +515,10 @@ void ESP_Brookesia_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
 
     // Process the stop area
     info.stop_area = ESP_BROOKESIA_GESTURE_AREA_CENTER;
-    info.stop_area |= (info.stop_y < data.threshold.top_edge) ? ESP_BROOKESIA_GESTURE_AREA_TOP_EDGE : 0;
-    info.stop_area |= ((display_h - info.stop_y) < data.threshold.bottom_edge) ? ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE : 0;
-    info.stop_area |= (info.stop_x < data.threshold.left_edge) ? ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE : 0;
-    info.stop_area |= ((display_w - info.stop_x) < data.threshold.right_edge) ? ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE : 0;
+    info.stop_area |= (info.stop_y < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_TOP_EDGE : 0;
+    info.stop_area |= ((display_h - info.stop_y) < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE : 0;
+    info.stop_area |= (info.stop_x < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE : 0;
+    info.stop_area |= ((display_w - info.stop_x) < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE : 0;
 
     // If not touched before and now, just ignore and return
     if (!gesture->checkGestureStart() && !touched) {
@@ -529,10 +534,10 @@ void ESP_Brookesia_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
 
         // Process the start area
         info.start_area = ESP_BROOKESIA_GESTURE_AREA_CENTER;
-        info.start_area |= (info.start_y < data.threshold.top_edge) ? ESP_BROOKESIA_GESTURE_AREA_TOP_EDGE : 0;
-        info.start_area |= ((display_h - info.start_y) < data.threshold.bottom_edge) ? ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE : 0;
-        info.start_area |= (info.start_x < data.threshold.left_edge) ? ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE : 0;
-        info.start_area |= ((display_w - info.start_x) < data.threshold.right_edge) ? ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE : 0;
+        info.start_area |= (info.start_y < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_TOP_EDGE : 0;
+        info.start_area |= ((display_h - info.start_y) < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE : 0;
+        info.start_area |= (info.start_x < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE : 0;
+        info.start_area |= ((display_w - info.start_x) < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE : 0;
 
         // Set the press event code
         event_code = gesture->_press_event_code;
@@ -643,5 +648,8 @@ void ESP_Brookesia_Gesture::onIndicatorBarScaleBackAnimationReadyCallback(lv_ani
     ESP_BROOKESIA_CHECK_FALSE_EXIT(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, "Invalid indicator bar type");
 
     gesture->_flags.is_indicator_bar_scale_back_anim_running[type] = false;
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(gesture->setIndicatorBarVisible(type, false), "Hide indicator bar failed");
+    // If the animation is finished, hide the indicator bar (except the bottom one)
+    if (type != ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(gesture->setIndicatorBarVisible(type, false), "Hide indicator bar failed");
+    }
 }
