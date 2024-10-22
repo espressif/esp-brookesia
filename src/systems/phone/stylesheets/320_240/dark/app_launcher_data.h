@@ -18,8 +18,8 @@ extern "C" {
             .layout_row_pad = 10,                                 \
         },                                                        \
         .image = {                                                \
-            .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(70), \
-            .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(63),   \
+            .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(98), \
+            .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(88),   \
         },                                                        \
         .label = {                                                \
             .text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(16),              \

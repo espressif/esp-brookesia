@@ -57,7 +57,7 @@ extern "C" {
             .direction_horizon = 50,                                               \
             .direction_angle = 60,                                                 \
             .horizontal_edge = 10,                                                        \
-            .vertical_edge = 10,                                                     \
+            .vertical_edge = 20,                                                     \
             .duration_short_ms = 800,                                              \
             .speed_slow_px_per_ms = 0.1,                                           \
         },                                                                         \
