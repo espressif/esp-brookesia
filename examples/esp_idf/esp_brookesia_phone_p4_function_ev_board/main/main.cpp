@@ -27,8 +27,11 @@ extern "C" void app_main(void)
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
         .buffer_size = BSP_LCD_H_RES * BSP_LCD_V_RES,
+        .double_buffer = BSP_LCD_DRAW_BUFF_DOUBLE,
         .flags = {
+            .buff_dma = false,
             .buff_spiram = true,
+            .sw_rotate = false,
         }
     };
     lv_disp_t *disp = bsp_display_start_with_config(&cfg);
@@ -46,11 +49,15 @@ extern "C" void app_main(void)
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone, "Create phone failed");
 
     /* Try using a stylesheet that corresponds to the resolution */
+    ESP_Brookesia_PhoneStylesheet_t *phone_stylesheet = nullptr;
     if ((BSP_LCD_H_RES == 1024) && (BSP_LCD_V_RES == 600)) {
-        ESP_LOGI(TAG, "Using external stylesheet");
-        ESP_Brookesia_PhoneStylesheet_t *phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET();
+        phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET();
         ESP_BROOKESIA_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
-
+    } else if ((BSP_LCD_H_RES == 800) && (BSP_LCD_V_RES == 1280)) {
+        phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_800_1280_DARK_STYLESHEET();
+        ESP_BROOKESIA_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
+    }
+    if (phone_stylesheet != nullptr) {
         ESP_LOGI(TAG, "Using stylesheet (%s)", phone_stylesheet->core.name);
         ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
         ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");

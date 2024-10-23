@@ -13,6 +13,7 @@
 * feat(phone): cancel navigation bar and enable gesture-based navigation by default
 * feat(phone): add stylesheet 320x480, 800x1280, 1280x800
 * feat(squareline): add ui_comp
+* feat(examples): update bsp of esp_brookesia_phone_p4_function_ev_board
 
 ### Bugfixes:
 
