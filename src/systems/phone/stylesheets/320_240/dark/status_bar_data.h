@@ -5,25 +5,12 @@
  */
 #pragma once
 
-#include "lvgl.h"
 #include "widgets/status_bar/esp_brookesia_status_bar_type.h"
+#include "assets/esp_brookesia_assets.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* Icon Images */
-// Battery
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_battery_image_charge);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_battery_image_level_1);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_battery_image_level_2);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_battery_image_level_3);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_battery_image_level_4);
-// WiFi
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_wifi_image_close);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_wifi_image_level_1);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_wifi_image_level_2);
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_wifi_image_level_3);
 
 /* Area */
 #define ESP_BROOKESIA_PHONE_320_240_DARK_STATUS_BAR_AREA_DATA(w_percent, align) \
@@ -59,11 +46,11 @@ LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_wifi_image_level_3);
                 .icon = {                                                                                 \
                     .image_num = 5,                                                                       \
                     .images = {                                                                           \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_battery_image_level_1), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_battery_image_level_2), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_battery_image_level_3), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_battery_image_level_4), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_battery_image_charge),  \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_battery_level1_20_20), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_battery_level2_20_20), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_battery_level3_20_20), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_battery_level4_20_20), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_battery_charge_20_20),  \
                     },                                                                                    \
                 },                                                                                        \
             },                                                                                            \
@@ -74,10 +61,10 @@ LV_IMG_DECLARE(esp_brookesia_phone_320_240_status_bar_wifi_image_level_3);
                 .icon = {                                                                                 \
                     .image_num = 4,                                                                       \
                     .images = {                                                                           \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_wifi_image_close),      \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_wifi_image_level_1),    \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_wifi_image_level_2),    \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_240_status_bar_wifi_image_level_3),    \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_wifi_close_20_20),      \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_wifi_level1_20_20),    \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_wifi_level2_20_20),    \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_status_bar_wifi_level3_20_20),    \
                     },                                                                                    \
                 },                                                                                        \
             },                                                                                            \

@@ -7,16 +7,11 @@
 
 #include <list>
 #include "core/esp_brookesia_stylesheet_template.hpp"
+#include "stylesheets/stylesheets.h"
 #include "esp_brookesia_phone_home.hpp"
 #include "esp_brookesia_phone_manager.hpp"
 #include "esp_brookesia_phone_app.hpp"
 #include "esp_brookesia_phone_type.h"
-
-#include "stylesheets/default/dark/stylesheet.h"
-#include "stylesheets/320_240/dark/stylesheet.h"
-#include "stylesheets/480_480/dark/stylesheet.h"
-#include "stylesheets/800_480/dark/stylesheet.h"
-#include "stylesheets/1024_600/dark/stylesheet.h"
 
 using ESP_Brookesia_PhoneStylesheet = ESP_Brookesia_StyleSheetTemplate<ESP_Brookesia_PhoneStylesheet_t>;
 

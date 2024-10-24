@@ -13,8 +13,6 @@
 
 using namespace std;
 
-LV_IMG_DECLARE(esp_brookesia_phone_app_launcher_image_default);
-
 ESP_Brookesia_PhoneHome::ESP_Brookesia_PhoneHome(ESP_Brookesia_Core &core, const ESP_Brookesia_PhoneHomeData_t &data):
     ESP_Brookesia_CoreHome(core, core.getCoreData().home),
     _data(data),
@@ -119,8 +117,8 @@ bool ESP_Brookesia_PhoneHome::processAppInstall(ESP_Brookesia_CoreApp *app)
     };
     if (phone_app->getLauncherIcon().resource == nullptr) {
         ESP_BROOKESIA_LOGW("No launcher icon provided, use default icon");
-        icon_info.image.resource = &esp_brookesia_phone_app_launcher_image_default;
-        phone_app->setLauncherIconImage(ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default));
+        icon_info.image = _data.app_launcher.default_image;
+        phone_app->setLauncherIconImage(icon_info.image);
     }
     ESP_BROOKESIA_CHECK_FALSE_RETURN(_app_launcher.addIcon(phone_app->getActiveData().app_launcher_page_index, icon_info),
                                      false, "Add launcher icon failed");

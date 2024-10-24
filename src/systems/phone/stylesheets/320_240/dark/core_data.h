@@ -6,20 +6,18 @@
 #pragma once
 
 #include "core/esp_brookesia_core_type.h"
-#include "fonts/esp_brookesia_fonts.h"
+#include "assets/esp_brookesia_assets.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-LV_IMG_DECLARE(esp_brookesia_phone_320_240_wallpaper_image_dark);
 
 /* Home */
 #define ESP_BROOKESIA_PHONE_320_240_DARK_CORE_HOME_DATA()                                      \
     {                                                                                   \
         .background = {                                                                 \
             .color = ESP_BROOKESIA_STYLE_COLOR(0x1A1A1A),                                      \
-            .wallpaper_image_resource = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_320_240_wallpaper_image_dark), \
+            .wallpaper_image_resource = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_small_wallpaper_dark_240_240), \
         },                                                                              \
         .text = {                                                                       \
             .default_fonts_num = 21,                                                    \

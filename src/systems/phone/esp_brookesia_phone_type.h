@@ -11,7 +11,6 @@
 #include "widgets/app_launcher/esp_brookesia_app_launcher_type.h"
 #include "widgets/recents_screen/esp_brookesia_recents_screen_type.h"
 #include "widgets/gesture/esp_brookesia_gesture_type.h"
-#include "stylesheets/stylesheets.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -31,6 +30,7 @@ typedef struct {
     } navigation_bar;
     struct {
         ESP_Brookesia_AppLauncherData_t data;
+        ESP_Brookesia_StyleImage_t default_image;
     } app_launcher;
     struct {
         ESP_Brookesia_RecentsScreenData_t data;

@@ -14,12 +14,12 @@ extern "C" {
 #define ESP_BROOKESIA_PHONE_DEFAULT_DARK_APP_LAUNCHER_ICON_DATA()        \
     {                                                             \
         .main = {                                                 \
-            .size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(128),                \
+            .size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(140),                \
             .layout_row_pad = 10,                                 \
         },                                                        \
         .image = {                                                \
-            .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(70), \
-            .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(63),   \
+            .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(98), \
+            .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(88),   \
         },                                                        \
         .label = {                                                \
             .text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(16),              \
@@ -35,14 +35,14 @@ extern "C" {
         },                                                                  \
         .table = {                                                          \
             .default_num = 3,                                               \
-            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 72),                \
+            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 70),         \
         },                                                                  \
         .indicator = {                                                      \
-            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 50),         \
+            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 20),  \
             .main_layout_column_pad = 10,                                   \
-            .main_layout_bottom_offset = 0,                                 \
-            .spot_inactive_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(30),     \
-            .spot_active_size = ESP_BROOKESIA_STYLE_SIZE_RECT_H_PERCENT(40, 30),   \
+            .main_layout_bottom_offset = 30,                                 \
+            .spot_inactive_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(12),     \
+            .spot_active_size = ESP_BROOKESIA_STYLE_SIZE_RECT(40, 12),   \
             .spot_inactive_background_color = ESP_BROOKESIA_STYLE_COLOR(0xC6C6C6), \
             .spot_active_background_color = ESP_BROOKESIA_STYLE_COLOR(0xFFFFFF),   \
         },                                                                  \

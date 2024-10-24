@@ -5,16 +5,12 @@
  */
 #pragma once
 
-#include "lvgl.h"
 #include "widgets/navigation_bar/esp_brookesia_navigation_bar_type.h"
+#include "assets/esp_brookesia_assets.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-LV_IMG_DECLARE(esp_brookesia_phone_320_480_navigation_bar_image_back);
-LV_IMG_DECLARE(esp_brookesia_phone_320_480_navigation_bar_image_home);
-LV_IMG_DECLARE(esp_brookesia_phone_320_480_navigation_bar_image_recents_screen);
 
 #define ESP_BROOKESIA_PHONE_320_480_DARK_NAVIGATION_BAR_DATA()                                              \
     {                                                                                                \
@@ -27,9 +23,9 @@ LV_IMG_DECLARE(esp_brookesia_phone_320_480_navigation_bar_image_recents_screen);
         .button = {                                                                                  \
             .icon_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(60),                                       \
             .icon_images = {                                                                         \
-                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_480_navigation_bar_image_back),           \
-                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_480_navigation_bar_image_home),           \
-                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_320_480_navigation_bar_image_recents_screen), \
+                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_back_24_24),           \
+                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_home_24_24),           \
+                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_recents_screen_24_24), \
             },                                                                                       \
             .navigate_types = {                                                                      \
                 ESP_BROOKESIA_CORE_NAVIGATE_TYPE_BACK,                                                      \

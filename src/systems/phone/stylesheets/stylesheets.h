@@ -5,6 +5,7 @@
  */
 #pragma once
 
+/* Phone */
 #include "default/dark/stylesheet.h"
 #include "320_240/dark/stylesheet.h"
 #include "320_480/dark/stylesheet.h"
