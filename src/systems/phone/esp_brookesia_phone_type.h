@@ -11,7 +11,6 @@
 #include "widgets/app_launcher/esp_brookesia_app_launcher_type.h"
 #include "widgets/recents_screen/esp_brookesia_recents_screen_type.h"
 #include "widgets/gesture/esp_brookesia_gesture_type.h"
-#include "stylesheets/stylesheets.h"
 
 #ifdef __cplusplus
 extern "C" {

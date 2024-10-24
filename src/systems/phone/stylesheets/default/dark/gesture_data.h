@@ -14,7 +14,7 @@ extern "C" {
 #define ESP_BROOKESIA_PHONE_DEFAULT_DARK_GESTURE_LEFT_RIGHT_INDICATOR_BAR_DATA() \
     {                                                                     \
         .main = {                                                         \
-            .size_min = ESP_BROOKESIA_STYLE_SIZE_RECT(10, 4),                    \
+            .size_min = ESP_BROOKESIA_STYLE_SIZE_RECT(10, 0),                    \
             .size_max = ESP_BROOKESIA_STYLE_SIZE_RECT_H_PERCENT(10, 50),         \
             .radius = 5,                                                  \
             .layout_pad_all = 2,                                          \
@@ -33,7 +33,7 @@ extern "C" {
 #define ESP_BROOKESIA_PHONE_DEFAULT_DARK_GESTURE_BOTTOM_INDICATOR_BAR_DATA() \
     {                                                                 \
         .main = {                                                     \
-            .size_min = ESP_BROOKESIA_STYLE_SIZE_RECT(4, 10),                \
+            .size_min = ESP_BROOKESIA_STYLE_SIZE_RECT(0, 10),                \
             .size_max = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(50, 10),     \
             .radius = 5,                                              \
             .layout_pad_all = 2,                                      \
@@ -57,8 +57,8 @@ extern "C" {
             .direction_horizon = 50,                                               \
             .direction_angle = 60,                                                 \
             .horizontal_edge = 10,                                                        \
-            .vertical_edge = 10,                                                     \
-            .duration_short_ms = 500,                                              \
+            .vertical_edge = 20,                                                     \
+            .duration_short_ms = 800,                                              \
             .speed_slow_px_per_ms = 0.1,                                           \
         },                                                                         \
         .indicator_bars = {                                                        \

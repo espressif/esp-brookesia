@@ -6,7 +6,7 @@
 #pragma once
 
 #include "core/esp_brookesia_core_type.h"
-#include "fonts/esp_brookesia_fonts.h"
+#include "assets/esp_brookesia_assets.h"
 
 #ifdef __cplusplus
 extern "C" {

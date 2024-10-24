@@ -115,7 +115,7 @@ bool ESP_Brookesia_Gesture::begin(lv_obj_t *parent)
         lv_bar_set_start_value(indicator_bars[i].get(), 0, LV_ANIM_OFF);
         lv_bar_set_value(indicator_bars[i].get(), 100, LV_ANIM_OFF);
         // Animation
-        lv_anim_set_user_data(indicator_bar_scale_back_anims[i].get(), (void *)i);
+        lv_anim_set_user_data(indicator_bar_scale_back_anims[i].get(), reinterpret_cast<void *>(static_cast<uintptr_t>(i)));
         lv_anim_set_var(indicator_bar_scale_back_anims[i].get(), &_indicator_bar_anim_var[i]);
         lv_anim_set_early_apply(indicator_bar_scale_back_anims[i].get(), false);
         lv_anim_set_exec_cb(indicator_bar_scale_back_anims[i].get(), onIndicatorBarScaleBackAnimationExecuteCallback);
