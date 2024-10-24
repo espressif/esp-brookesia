@@ -17,7 +17,7 @@ ESP_Brookesia_AppLauncherIcon::ESP_Brookesia_AppLauncherIcon(ESP_Brookesia_Core 
     _core(core),
     _info(info),
     _data(data),
-    _is_pressed_losted(false),
+    _flags{},
     _image_default_zoom(LV_IMG_ZOOM_NONE),
     _image_press_zoom(LV_IMG_ZOOM_NONE),
     _main_obj(nullptr),
@@ -68,9 +68,11 @@ bool ESP_Brookesia_AppLauncherIcon::begin(lv_obj_t *parent)
     lv_obj_set_flex_flow(main_obj.get(), LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(main_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
     // Icon
     lv_obj_add_style(icon_main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
     lv_obj_clear_flag(icon_main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(icon_main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
     // Image
     lv_obj_add_style(icon_image_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
     lv_obj_center(icon_image_obj.get());
@@ -79,7 +81,7 @@ bool ESP_Brookesia_AppLauncherIcon::begin(lv_obj_t *parent)
     lv_obj_set_style_img_recolor_opa(icon_image_obj.get(), _info.image.recolor.opacity, 0);
     lv_obj_set_size(icon_image_obj.get(), LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_img_set_size_mode(icon_image_obj.get(), LV_IMG_SIZE_MODE_REAL);
-    lv_obj_add_flag(icon_image_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(icon_image_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_EVENT_BUBBLE);
     lv_obj_clear_flag(icon_image_obj.get(), LV_OBJ_FLAG_PRESS_LOCK);
     lv_obj_add_event_cb(icon_image_obj.get(), onIconTouchEventCallback, LV_EVENT_PRESSED, this);
     lv_obj_add_event_cb(icon_image_obj.get(), onIconTouchEventCallback, LV_EVENT_PRESS_LOST, this);
@@ -118,6 +120,21 @@ bool ESP_Brookesia_AppLauncherIcon::del(void)
     _icon_main_obj.reset();
     _icon_image_obj.reset();
     _name_label.reset();
+
+    return true;
+}
+
+bool ESP_Brookesia_AppLauncherIcon::toggleClickable(bool clickable)
+{
+    ESP_BROOKESIA_LOGD("Toggle clickable(%d: @0x%p)", _info.id, this);
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Icon is not initialized");
+
+    if (clickable) {
+        lv_obj_add_flag(_icon_image_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    } else {
+        lv_obj_clear_flag(_icon_image_obj.get(), LV_OBJ_FLAG_CLICKABLE);
+    }
+    _flags.is_click_disable = !clickable;
 
     return true;
 }
@@ -188,21 +205,25 @@ void ESP_Brookesia_AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
     switch (event_code) {
     case LV_EVENT_CLICKED:
         ESP_BROOKESIA_LOGD("Clicked");
-        if (!icon->_is_pressed_losted) {
-            app_event_data.id = icon->_info.id;
-            ESP_BROOKESIA_CHECK_FALSE_EXIT(icon->_core.sendAppEvent(&app_event_data), "Send app event failed");
+        if (icon->_flags.is_pressed_losted || icon->_flags.is_click_disable) {
+            break;
         }
+        app_event_data.id = icon->_info.id;
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(icon->_core.sendAppEvent(&app_event_data), "Send app event failed");
         break;
     case LV_EVENT_PRESSED:
         ESP_BROOKESIA_LOGD("Pressed");
+        if (icon->_flags.is_click_disable) {
+            break;
+        }
         // Zoom out icon
         lv_img_set_zoom(icon_image_obj, icon->_image_press_zoom);
         lv_obj_refr_size(icon_image_obj);
-        icon->_is_pressed_losted = false;
+        icon->_flags.is_pressed_losted = false;
         break;
     case LV_EVENT_PRESS_LOST:
         ESP_BROOKESIA_LOGD("Press lost");
-        icon->_is_pressed_losted = true;
+        icon->_flags.is_pressed_losted = true;
         [[fallthrough]];
     case LV_EVENT_RELEASED:
         ESP_BROOKESIA_LOGD("Released");
