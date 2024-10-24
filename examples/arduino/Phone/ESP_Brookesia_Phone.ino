@@ -51,9 +51,9 @@
 #include <lvgl.h>
 #include "lvgl_port_v8.h"
 /* These are built-in app examples in `esp-brookesia` library */
-#include <app_examples/phone/simple_conf/src/app_simple_conf.hpp>
-#include <app_examples/phone/complex_conf/src/app_complex_conf.hpp>
-#include <app_examples/phone/squareline/src/app_squareline.hpp>
+#include <app_examples/phone/simple_conf/src/phone_app_simple_conf.hpp>
+#include <app_examples/phone/complex_conf/src/phone_app_complex_conf.hpp>
+#include <app_examples/phone/squareline/src/phone_app_squareline.hpp>
 
 /* Enable to show memory information */
 #define EXAMPLE_SHOW_MEM_INFO           (1)
@@ -119,7 +119,7 @@ void setup()
 #ifdef EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET
     /* Add external stylesheet and activate it */
     ESP_Brookesia_PhoneStylesheet_t *stylesheet = new ESP_Brookesia_PhoneStylesheet_t EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET();
-    ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create phone stylesheet failed");
+    ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
 
     Serial.printf("Using stylesheet (%s)\n", stylesheet->core.name);
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");

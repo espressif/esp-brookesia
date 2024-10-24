@@ -14,9 +14,9 @@
 #include "bsp/touch.h"
 #include "esp_brookesia.hpp"
 /* These are built-in app examples in `esp-brookesia` library */
-#include "app_examples/phone/simple_conf/src/app_simple_conf.hpp"
-#include "app_examples/phone/complex_conf/src/app_complex_conf.hpp"
-#include "app_examples/phone/squareline/src/app_squareline.hpp"
+#include "app_examples/phone/simple_conf/src/phone_app_simple_conf.hpp"
+#include "app_examples/phone/complex_conf/src/phone_app_complex_conf.hpp"
+#include "app_examples/phone/squareline/src/phone_app_squareline.hpp"
 
 #define EXAMPLE_SHOW_MEM_INFO             (1)
 
@@ -62,15 +62,15 @@ extern "C" void app_main(void)
     ESP_Brookesia_PhoneStylesheet_t *stylesheet = nullptr;
     if ((BSP_LCD_H_RES == 480) && (BSP_LCD_V_RES == 480)) {
         stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create phone stylesheet failed");
+        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
     } else if ((BSP_LCD_H_RES == 800) && (BSP_LCD_V_RES == 480)) {
         stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create phone stylesheet failed");
+        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
     }
     if (stylesheet != nullptr) {
         ESP_LOGI(TAG, "Using stylesheet (%s)", stylesheet->core.name);
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add phone stylesheet failed");
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate phone stylesheet failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
         delete stylesheet;
     }
 
