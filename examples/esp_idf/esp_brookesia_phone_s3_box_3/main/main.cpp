@@ -40,30 +40,32 @@ extern "C" void app_main(void)
 
     /* Try using a stylesheet that corresponds to the resolution */
     if ((BSP_LCD_H_RES == 320) && (BSP_LCD_V_RES == 240)) {
-        ESP_Brookesia_PhoneStylesheet_t *phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET();
-        ESP_BROOKESIA_CHECK_NULL_EXIT(phone_stylesheet, "Create phone stylesheet failed");
+        ESP_Brookesia_PhoneStylesheet_t *stylesheet = new ESP_Brookesia_PhoneStylesheet_t ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET();
+        ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
 
-        ESP_LOGI(TAG, "Using stylesheet (%s)", phone_stylesheet->core.name);
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(phone_stylesheet), "Add phone stylesheet failed");
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(phone_stylesheet), "Activate phone stylesheet failed");
-        delete phone_stylesheet;
+        ESP_LOGI(TAG, "Using stylesheet (%s)", stylesheet->core.name);
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
+        delete stylesheet;
     }
 
     /* Configure and begin the phone */
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->setTouchDevice(bsp_display_get_input_dev()), "Set touch device failed");
+    phone->registerLvLockCallback((ESP_Brookesia_LvLockCallback_t)(bsp_display_lock), 0);
+    phone->registerLvUnlockCallback((ESP_Brookesia_LvUnlockCallback_t)(bsp_display_unlock));
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->begin(), "Begin failed");
     // ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getCoreHome().showContainerBorder(), "Show container border failed");
 
     /* Install apps */
-    PhoneAppSimpleConf *phone_app_simple_conf = new PhoneAppSimpleConf();
-    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_simple_conf, "Create phone app simple conf failed");
-    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_simple_conf) >= 0), "Install phone app simple conf failed");
-    PhoneAppComplexConf *phone_app_complex_conf = new PhoneAppComplexConf();
-    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_complex_conf, "Create phone app complex conf failed");
-    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_complex_conf) >= 0), "Install phone app complex conf failed");
-    PhoneAppSquareline *phone_app_squareline = new PhoneAppSquareline();
-    ESP_BROOKESIA_CHECK_NULL_EXIT(phone_app_squareline, "Create phone app squareline failed");
-    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(phone_app_squareline) >= 0), "Install phone app squareline failed");
+    PhoneAppSimpleConf *app_simple_conf = new PhoneAppSimpleConf();
+    ESP_BROOKESIA_CHECK_NULL_EXIT(app_simple_conf, "Create app simple conf failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_simple_conf) >= 0), "Install app simple conf failed");
+    PhoneAppComplexConf *app_complex_conf = new PhoneAppComplexConf();
+    ESP_BROOKESIA_CHECK_NULL_EXIT(app_complex_conf, "Create app complex conf failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_complex_conf) >= 0), "Install app complex conf failed");
+    PhoneAppSquareline *app_squareline = new PhoneAppSquareline();
+    ESP_BROOKESIA_CHECK_NULL_EXIT(app_squareline, "Create app squareline failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_squareline) >= 0), "Install app squareline failed");
 
     /* Create a timer to update the clock */
     ESP_BROOKESIA_CHECK_NULL_EXIT(lv_timer_create(on_clock_update_timer_cb, 1000, phone), "Create clock update timer failed");
@@ -89,13 +91,17 @@ extern "C" void app_main(void)
                 heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM), external_free, external_total);
         ESP_LOGI(TAG, "%s", buffer);
 
-        bsp_display_lock(0);
+        /**
+         * The `lockLv()` and `unlockLv()` functions are used to lock and unlock the LVGL task.
+         * They are registered by the `registerLvLockCallback()` and `registerLvUnlockCallback()` functions.
+         */
+        phone->lockLv();
         // Update memory label on "Recents Screen"
         if (!phone->getHome().getRecentsScreen()->setMemoryLabel(internal_free / 1024, internal_total / 1024,
                 external_free / 1024, external_total / 1024)) {
             ESP_LOGE(TAG, "Set memory label failed");
         }
-        bsp_display_unlock();
+        phone->unlockLv();
 
         vTaskDelay(pdMS_TO_TICKS(2000));
     }
@@ -113,7 +119,10 @@ static void on_clock_update_timer_cb(struct _lv_timer_t *t)
     localtime_r(&now, &timeinfo);
     is_time_pm = (timeinfo.tm_hour >= 12);
 
+    /* Since this callback is called from LVGL task, it is safe to operate LVGL */
     // Update clock on "Status Bar"
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
-                                   "Refresh status bar failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(
+        phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
+        "Refresh status bar failed"
+    );
 }

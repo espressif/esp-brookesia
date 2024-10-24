@@ -59,18 +59,20 @@
 #define EXAMPLE_SHOW_MEM_INFO           (1)
 
 /* Try using a stylesheet that corresponds to the resolution */
-#if (ESP_PANEL_LCD_WIDTH == 1024) && (ESP_PANEL_LCD_HEIGHT == 600)
-    #define EXAMPLE_USE_STYLESHEET      (1)
-    static const ESP_Brookesia_PhoneStylesheet_t stylesheet = ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET();
-#elif (ESP_PANEL_LCD_WIDTH == 800) && (ESP_PANEL_LCD_HEIGHT == 480)
-    #define EXAMPLE_USE_STYLESHEET      (1)
-    static const ESP_Brookesia_PhoneStylesheet_t stylesheet = ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET();
+#if (ESP_PANEL_LCD_WIDTH == 320) && (ESP_PANEL_LCD_HEIGHT == 240)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET()
+#elif (ESP_PANEL_LCD_WIDTH == 320) && (ESP_PANEL_LCD_HEIGHT == 480)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_320_480_DARK_STYLESHEET()
 #elif (ESP_PANEL_LCD_WIDTH == 480) && (ESP_PANEL_LCD_HEIGHT == 480)
-    #define EXAMPLE_USE_STYLESHEET      (1)
-    static const ESP_Brookesia_PhoneStylesheet_t stylesheet = ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET();
-#elif (ESP_PANEL_LCD_WIDTH == 320) && (ESP_PANEL_LCD_HEIGHT == 240)
-    #define EXAMPLE_USE_STYLESHEET      (1)
-    static const ESP_Brookesia_PhoneStylesheet_t stylesheet = ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET();
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET()
+#elif (ESP_PANEL_LCD_WIDTH == 800) && (ESP_PANEL_LCD_HEIGHT == 480)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET()
+#elif (ESP_PANEL_LCD_WIDTH == 800) && (ESP_PANEL_LCD_HEIGHT == 1280)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_1280_DARK_STYLESHEET()
+#elif (ESP_PANEL_LCD_WIDTH == 1024) && (ESP_PANEL_LCD_HEIGHT == 600)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET()
+#elif (ESP_PANEL_LCD_WIDTH == 1280) && (ESP_PANEL_LCD_HEIGHT == 800)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_1280_800_DARK_STYLESHEET()
 #endif
 
 static char buffer[128];    /* Make sure buffer is enough for `sprintf` */
@@ -114,26 +116,31 @@ void setup()
     phone = new ESP_Brookesia_Phone();
     ESP_BROOKESIA_CHECK_NULL_EXIT(phone, "Create phone failed");
 
-#ifdef EXAMPLE_USE_STYLESHEET
+#ifdef EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET
     /* Add external stylesheet and activate it */
-    Serial.printf("Using stylesheet (%s)\n", stylesheet.core.name);
+    ESP_Brookesia_PhoneStylesheet_t *stylesheet = new ESP_Brookesia_PhoneStylesheet_t EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET();
+    ESP_BROOKESIA_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
+
+    Serial.printf("Using stylesheet (%s)\n", stylesheet->core.name);
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->addStylesheet(stylesheet), "Add stylesheet failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->activateStylesheet(stylesheet), "Activate stylesheet failed");
+    delete stylesheet;
 #endif
 
     /* Configure and begin the phone */
+    phone->registerLvLockCallback((ESP_Brookesia_LvLockCallback_t)(lvgl_port_lock), -1);
+    phone->registerLvUnlockCallback((ESP_Brookesia_LvUnlockCallback_t)(lvgl_port_unlock));
     ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->begin(), "Begin phone failed");
     // ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getCoreHome().showContainerBorder(), "Show container border failed");
 
     /* Install apps */
-    bool enable_navigation_bar = phone->getStylesheet()->home.flags.enable_navigation_bar;
-    PhoneAppSimpleConf *app_simple_conf = new PhoneAppSimpleConf(true, enable_navigation_bar);
+    PhoneAppSimpleConf *app_simple_conf = new PhoneAppSimpleConf();
     ESP_BROOKESIA_CHECK_NULL_EXIT(app_simple_conf, "Create app simple conf failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_simple_conf) >= 0), "Install app simple conf failed");
-    PhoneAppComplexConf *app_complex_conf = new PhoneAppComplexConf(true, enable_navigation_bar);
+    PhoneAppComplexConf *app_complex_conf = new PhoneAppComplexConf();
     ESP_BROOKESIA_CHECK_NULL_EXIT(app_complex_conf, "Create app complex conf failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_complex_conf) >= 0), "Install app complex conf failed");
-    PhoneAppSquareline *app_squareline = new PhoneAppSquareline(true, enable_navigation_bar);
+    PhoneAppSquareline *app_squareline = new PhoneAppSquareline();
     ESP_BROOKESIA_CHECK_NULL_EXIT(app_squareline, "Create app squareline failed");
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_squareline) >= 0), "Install app squareline failed");
 
@@ -160,13 +167,18 @@ void loop()
             heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM), external_free, external_total);
     Serial.printf("%s", buffer);
 
-    lvgl_port_lock(-1);
+    /**
+     * The `lockLv()` and `unlockLv()` functions are used to lock and unlock the LVGL task.
+     * They are registered by the `registerLvLockCallback()` and `registerLvUnlockCallback()` functions.
+     */
+    phone->lockLv();
     // Update memory label on "Recents Screen"
-    if (!phone->getHome().getRecentsScreen()->setMemoryLabel(internal_free / 1024, internal_total / 1024,
-        external_free / 1024, external_total / 1024)) {
+    if (!phone->getHome().getRecentsScreen()->setMemoryLabel(
+            internal_free / 1024, internal_total / 1024, external_free / 1024, external_total / 1024
+        )) {
         ESP_BROOKESIA_LOGE("Set memory label failed");
     }
-    lvgl_port_unlock();
+    phone->unlockLv();
 #endif
 
     vTaskDelay(pdMS_TO_TICKS(2000));
@@ -183,7 +195,10 @@ static void onClockUpdateTimerCallback(struct _lv_timer_t *t)
     localtime_r(&now, &timeinfo);
     is_time_pm = (timeinfo.tm_hour >= 12);
 
+    /* Since this callback is called from LVGL task, it is safe to operate LVGL */
     // Update clock on "Status Bar"
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
-                                   "Refresh status bar failed");
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(
+        phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
+        "Refresh status bar failed"
+    );
 }

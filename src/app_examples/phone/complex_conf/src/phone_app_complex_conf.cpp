@@ -71,7 +71,7 @@ PhoneAppComplexConf::PhoneAppComplexConf():
                     },
                 },
             },
-            .status_bar_visual_mode = ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_HIDE,
+            .status_bar_visual_mode = ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED,
             .navigation_bar_visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE,
             .flags = {
                 .enable_status_icon_common_size = 1,
