@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.4.1 - 2024-10-25
+
+### Enhancements:
+
+* feat(assets): refactor assets and update stylesheet
+* feat(phone): add default image for app launcher in stylesheet
+* feat(widgets): avoid click the next page icon when the app launcher scroll is not finished
+
+### Bugfixes:
+
+* fix(examples): fix arduino build error
+
 ## v0.4.0 - 2024-10-23
 
 ### Enhancements:
