@@ -79,6 +79,7 @@ bool ESP_Brookesia_AppLauncher::begin(lv_obj_t *parent)
     lv_obj_set_scrollbar_mode(table_obj.get(), LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_snap_x(table_obj.get(), LV_SCROLL_SNAP_CENTER);
     lv_obj_clear_flag(table_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(table_obj.get(), onPageTouchEventCallback, LV_EVENT_RELEASED, this);
     // Indicator
     lv_obj_add_style(indicator_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(indicator_obj.get(), LV_FLEX_FLOW_ROW);
@@ -250,12 +251,18 @@ bool ESP_Brookesia_AppLauncher::scrollToRightPage(void)
     ESP_BROOKESIA_LOGD("Current page is %d, scroll to right page", _table_current_page_index);
     ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    if (_table_current_page_index >= (int)_mix_objs.size() - 1) {
+    int next_page_index = _table_current_page_index + 1;
+    if (next_page_index >= (int)_mix_objs.size()) {
         ESP_BROOKESIA_LOGD("The current page is the last page");
         return true;
     }
 
-    return scrollToPage(_table_current_page_index + 1);
+    // Avoid click the next page icon when the scroll is not finished
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(
+        togglePageIconClickable(next_page_index, false), false, "Toggle next page icon clickable failed"
+    );
+
+    return scrollToPage(next_page_index);
 }
 
 bool ESP_Brookesia_AppLauncher::scrollToLeftPage(void)
@@ -263,20 +270,18 @@ bool ESP_Brookesia_AppLauncher::scrollToLeftPage(void)
     ESP_BROOKESIA_LOGD("Current page is %d, scroll to left page", _table_current_page_index);
     ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    if (_table_current_page_index <= 0) {
-        ESP_BROOKESIA_LOGD("The current page is the first page");
+    int next_page_index = _table_current_page_index - 1;
+    if (next_page_index < 0) {
+        ESP_BROOKESIA_LOGD("The current page is the last page");
         return true;
     }
 
-    return scrollToPage(_table_current_page_index - 1);
-}
+    // Avoid click the next page icon when the scroll is not finished
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(
+        togglePageIconClickable(next_page_index, false), false, "Toggle next page icon clickable failed"
+    );
 
-bool ESP_Brookesia_AppLauncher::checkTableFull(uint8_t page_index) const
-{
-    ESP_BROOKESIA_CHECK_VALUE_RETURN(page_index, 0, (int)_mix_objs.size() - 1, false, "Table index out of range");
-    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-
-    return (_mix_objs[page_index].page_icon_count >= _table_page_icon_count_max);
+    return scrollToPage(next_page_index);
 }
 
 bool ESP_Brookesia_AppLauncher::checkVisible(void) const
@@ -388,17 +393,30 @@ bool ESP_Brookesia_AppLauncher::createMixObject(ESP_Brookesia_LvObj_t &table_obj
     ESP_BROOKESIA_CHECK_NULL_RETURN(spot_obj, false, "Create spot_obj failed");
 
     lv_obj_add_style(page_main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_flag(page_main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
 
     lv_obj_center(page_obj.get());
     lv_obj_add_style(page_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(page_obj.get(), LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(page_obj.get(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(page_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(page_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
 
     lv_obj_add_style(spot_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
     lv_obj_set_style_radius(spot_obj.get(), LV_RADIUS_CIRCLE, 0);
 
     mix_objs.push_back({0, page_main_obj, page_obj, spot_obj});
+
+    return true;
+}
+
+bool ESP_Brookesia_AppLauncher::destoryMixObject(uint8_t index, vector <ESP_Brookesia_AppLauncherMixObject_t> &mix_objs)
+{
+    ESP_BROOKESIA_LOGD("Destroy mix object(%d)", index);
+    ESP_BROOKESIA_CHECK_VALUE_RETURN(index, 0, (int)mix_objs.size() - 1, false, "Table page index out of range");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+
+    mix_objs.erase(mix_objs.begin() + index);
 
     return true;
 }
@@ -434,15 +452,36 @@ bool ESP_Brookesia_AppLauncher::updateMixByNewData(uint8_t index, vector<ESP_Bro
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::destoryMixObject(uint8_t index, vector <ESP_Brookesia_AppLauncherMixObject_t> &mix_objs)
+bool ESP_Brookesia_AppLauncher::togglePageIconClickable(uint8_t page_index, bool clickable)
 {
-    ESP_BROOKESIA_LOGD("Destroy mix object(%d)", index);
-    ESP_BROOKESIA_CHECK_VALUE_RETURN(index, 0, (int)mix_objs.size() - 1, false, "Table page index out of range");
-    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_BROOKESIA_LOGD("Toggle page(%d) icon %s", page_index, clickable ? "clickable" : "unclickable");
+    ESP_BROOKESIA_CHECK_VALUE_RETURN(page_index, 0, (int)_mix_objs.size() - 1, false, "Table page index out of range");
 
-    mix_objs.erase(mix_objs.begin() + index);
+    for (auto &icon : _id_mix_icon_map) {
+        if (icon.second.current_page_index == page_index) {
+            ESP_BROOKESIA_CHECK_FALSE_RETURN(
+                icon.second.icon->toggleClickable(clickable), false, "Toggle icon clickable failed"
+            );
+        }
+    }
 
     return true;
+}
+
+bool ESP_Brookesia_AppLauncher::toggleCurrentPageIconClickable(bool clickable)
+{
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_BROOKESIA_LOGD("Toggle current page icon %s", clickable ? "clickable" : "unclickable");
+
+    return togglePageIconClickable(_table_current_page_index, clickable);
+}
+
+bool ESP_Brookesia_AppLauncher::checkTableFull(uint8_t page_index) const
+{
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    ESP_BROOKESIA_CHECK_VALUE_RETURN(page_index, 0, (int)_mix_objs.size() - 1, false, "Table index out of range");
+
+    return (_mix_objs[page_index].page_icon_count >= _table_page_icon_count_max);
 }
 
 bool ESP_Brookesia_AppLauncher::updateActiveSpot(void)
@@ -598,16 +637,19 @@ void ESP_Brookesia_AppLauncher::onDataUpdateEventCallback(lv_event_t *event)
     ESP_BROOKESIA_CHECK_FALSE_EXIT(app_launcher->updateByNewData(), "Update object style failed");
 }
 
-void ESP_Brookesia_AppLauncher::onScreenChangeEventCallback(lv_event_t *event)
+void ESP_Brookesia_AppLauncher::onPageTouchEventCallback(lv_event_t *event)
 {
     ESP_Brookesia_AppLauncher *app_launcher = nullptr;
 
-    ESP_BROOKESIA_LOGD("Screen change event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event object");
 
     app_launcher = (ESP_Brookesia_AppLauncher *)lv_event_get_user_data(event);
     ESP_BROOKESIA_CHECK_NULL_EXIT(app_launcher, "Invalid app launcher object");
 
-    app_launcher->_table_current_page_index = lv_tabview_get_tab_act(app_launcher->_table_obj.get());
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(app_launcher->updateActiveSpot(), "Update active spot failed");
+    ESP_BROOKESIA_LOGD("On page touch event callback");
+
+    // Reset the clickable of the current page icon
+    ESP_BROOKESIA_CHECK_FALSE_EXIT(
+        app_launcher->toggleCurrentPageIconClickable(true), "Toggle current page icon clickable failed"
+    );
 }
