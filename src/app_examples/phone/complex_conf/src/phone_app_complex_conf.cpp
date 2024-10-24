@@ -8,7 +8,6 @@
 
 using namespace std;
 
-LV_IMG_DECLARE(esp_brookesia_image_large_app_launcher_default_112_112);
 
 // *INDENT-OFF*
 PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigation_bar):

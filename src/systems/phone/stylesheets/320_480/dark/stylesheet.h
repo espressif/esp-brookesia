@@ -30,6 +30,7 @@ extern "C" {
         },                                                                        \
         .app_launcher = {                                                         \
             .data = ESP_BROOKESIA_PHONE_320_480_DARK_APP_LAUNCHER_DATA(),                \
+            .default_image = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_small_app_launcher_default_98_98), \
         },                                                                        \
         .recents_screen = {                                                       \
             .data = ESP_BROOKESIA_PHONE_320_480_DARK_RECENTS_SCREEN_DATA(),              \

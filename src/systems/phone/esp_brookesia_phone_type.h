@@ -30,6 +30,7 @@ typedef struct {
     } navigation_bar;
     struct {
         ESP_Brookesia_AppLauncherData_t data;
+        ESP_Brookesia_StyleImage_t default_image;
     } app_launcher;
     struct {
         ESP_Brookesia_RecentsScreenData_t data;
