@@ -301,7 +301,8 @@ bool ESP_Brookesia_PhoneHome::getAppVisualArea(ESP_Brookesia_CoreApp *app, lv_ar
     const ESP_Brookesia_PhoneAppData_t &app_data = phone_app->getActiveData();
 
     // Process status bar
-    if ((_status_bar != nullptr) && (app_data.status_bar_visual_mode == ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED)) {
+    if ((_status_bar != nullptr) && (app_data.status_bar_visual_mode == ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED) &&
+            (_data.status_bar.data.main.background_color.opacity == LV_OPA_COVER)) {
         visual_area.y1 = _data.status_bar.data.main.size.height;
     }
 

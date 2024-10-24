@@ -21,7 +21,7 @@
 #define LV_ATTRIBUTE_IMG_ESP_BROOKESIA_PHONE_800_480_STATUS_BAR_BATTERY_IMAGE_LEVEL_3
 #endif
 
-const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_ESP_BROOKESIA_PHONE_800_480_STATUS_BAR_BATTERY_IMAGE_LEVEL_3 uint8_t esp_brookesia_phone_800_480_status_bar_image_battery_level_3_map[] = {
+const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_ESP_BROOKESIA_PHONE_800_480_STATUS_BAR_BATTERY_IMAGE_LEVEL_3 uint8_t esp_brookesia_phone_800_480_status_bar_battery_image_level_3_map[] = {
 #if LV_COLOR_DEPTH == 1 || LV_COLOR_DEPTH == 8
   /*Pixel format: Alpha 8 bit, Red: 3 bit, Green: 3 bit, Blue: 2 bit*/
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -131,12 +131,12 @@ const LV_ATTRIBUTE_MEM_ALIGN LV_ATTRIBUTE_LARGE_CONST LV_ATTRIBUTE_IMG_ESP_BROOK
 #endif
 };
 
-const lv_img_dsc_t esp_brookesia_phone_800_480_status_bar_image_battery_level_3 = {
+const lv_img_dsc_t esp_brookesia_phone_800_480_status_bar_battery_image_level_3 = {
   .header.cf = LV_IMG_CF_TRUE_COLOR_ALPHA,
   .header.always_zero = 0,
   .header.reserved = 0,
   .header.w = 24,
   .header.h = 24,
   .data_size = 576 * LV_IMG_PX_SIZE_ALPHA_BYTE,
-  .data = esp_brookesia_phone_800_480_status_bar_image_battery_level_3_map,
+  .data = esp_brookesia_phone_800_480_status_bar_battery_image_level_3_map,
 };

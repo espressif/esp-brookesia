@@ -66,76 +66,74 @@
     #define ESP_BROOKESIA_LOG_LEVEL            (ESP_BROOKESIA_LOG_LEVEL_INFO)
 #endif
 
+/* Enable debug logs for modules */
 #if ESP_BROOKESIA_LOG_LEVEL == ESP_BROOKESIA_LOG_LEVEL_DEBUG
+    /* Core module */
     #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE                    (1)
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE                     (0)
     #endif
 
-    #if ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP            (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP                 (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_HOME
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_HOME           (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_HOME
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_HOME                (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_MANAGER
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_MANAGER        (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_MANAGER
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_MANAGER             (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_CORE
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_CORE           (1)
-        #endif
-    #endif /* ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE */
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_CORE
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_CORE                (0)
+    #endif
 
+    /* Widgets module */
     #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS                 (1)
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS                  (0)
     #endif
 
-    #if ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER   (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER     (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN   (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_GESTURE
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_GESTURE     (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_GESTURE
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_GESTURE          (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION  (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION       (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR  (0)
-        #endif
-    #endif /* ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS */
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR       (0)
+    #endif
 
+    /* Phone module */
     #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE                   (1)
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE                    (0)
     #endif
 
-    #if ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP           (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP                (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME          (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME               (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER       (1)
-        #endif
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER            (0)
+    #endif
 
-        #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE         (1)
-        #endif
-    #endif /* ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE */
+    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE              (0)
+    #endif
 #endif /* ESP_BROOKESIA_LOG_LEVEL == ESP_BROOKESIA_LOG_LEVEL_DEBUG */
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////// Memory /////////////////////////////////////////////////////////

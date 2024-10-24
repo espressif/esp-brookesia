@@ -14,11 +14,11 @@ extern "C" {
 
 /* Icon Images */
 // Battery
-LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_battery_level_1);
-LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_battery_level_2);
-LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_battery_level_3);
-LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_battery_level_4);
-LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_battery_charge);
+LV_IMG_DECLARE(esp_brookesia_phone_status_bar_battery_image_level_1);
+LV_IMG_DECLARE(esp_brookesia_phone_status_bar_battery_image_level_2);
+LV_IMG_DECLARE(esp_brookesia_phone_status_bar_battery_image_level_3);
+LV_IMG_DECLARE(esp_brookesia_phone_status_bar_battery_image_level_4);
+LV_IMG_DECLARE(esp_brookesia_phone_status_bar_battery_image_charge);
 // WiFi
 LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_wifi_close);
 LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_wifi_level_1);
@@ -58,11 +58,11 @@ LV_IMG_DECLARE(esp_brookesia_phone_status_bar_image_wifi_level_3);
                 .icon = {                                                                                 \
                     .image_num = 5,                                                                       \
                     .images = {                                                                           \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_image_battery_level_1), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_image_battery_level_2), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_image_battery_level_3), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_image_battery_level_4), \
-                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_image_battery_charge),  \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_battery_image_level_1), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_battery_image_level_2), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_battery_image_level_3), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_battery_image_level_4), \
+                        ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_phone_status_bar_battery_image_charge),  \
                     },                                                                                    \
                 },                                                                                        \
             },                                                                                            \

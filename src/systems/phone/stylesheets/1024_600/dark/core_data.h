@@ -12,14 +12,14 @@
 extern "C" {
 #endif
 
-LV_IMG_DECLARE(esp_brookesia_phone_1024_600_wallpaper_image_drak);
+LV_IMG_DECLARE(esp_brookesia_phone_1024_600_wallpaper_image_dark);
 
 /* Home */
 #define ESP_BROOKESIA_PHONE_1024_600_DARK_CORE_HOME_DATA()                                                      \
     {                                                                                                    \
         .background = {                                                                                  \
             .color = ESP_BROOKESIA_STYLE_COLOR(0x1A1A1A),                                                       \
-            .wallpaper_image_resource = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_1024_600_wallpaper_image_drak), \
+            .wallpaper_image_resource = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_1024_600_wallpaper_image_dark), \
         },                                                                                               \
         .text = {                                                                                        \
             .default_fonts_num = 21,                                                                     \

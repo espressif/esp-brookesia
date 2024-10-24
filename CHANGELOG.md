@@ -1,5 +1,25 @@
 # ChangeLog
 
+## v0.4.0 - 2024-10-23
+
+### Enhancements:
+
+* feat(core): support compilation on non-Unix/Linux systems
+* feat(core): add event module
+* feat(core): add lvgl lock & unlock
+* feat(core): add stylesheet template
+* feat(phone): public app function 'getPhone()'
+* feat(phone): only change the app's visible area size when the status bar is completely opaque
+* feat(phone): cancel navigation bar and enable gesture-based navigation by default
+* feat(phone): add stylesheet 320x480, 800x1280, 1280x800
+* feat(squareline): add ui_comp
+* feat(examples): update bsp of esp_brookesia_phone_p4_function_ev_board
+
+### Bugfixes:
+
+* fix(cmake): remove unused code
+* fix(conf): fix missing macros definition
+
 ## v0.3.1 - 2024-09-25
 
 ### Enhancements:

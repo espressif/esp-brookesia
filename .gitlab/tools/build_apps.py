@@ -21,17 +21,14 @@ logger = logging.getLogger('idf_build_apps')
 PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
 APPS_BUILD_PER_JOB = 30
 IGNORE_WARNINGS = [
-    r'memory region \`iram_loader_seg\' not declared',
-    r'redeclaration of memory region \`iram_loader_seg\'',
     r'1/2 app partitions are too small',
-    r'The current IDF version does not support using the gptimer API',
-    r'DeprecationWarning: pkg_resources is deprecated as an API',
-    r'\'ADC_ATTEN_DB_11\' is deprecated',
-    r'warning: unknown kconfig symbol*',
-    r'warning High Performance Mode \(QSPI Flash > 80MHz\) is optional feature that depends on flash model. Read Docs First!',
-    r'warning HPM-DC, which helps to run some flash > 80MHz by adjusting dummy cycles, is no longer enabled by default.',
-    r'warning To enable this feature, your bootloader needs to have the support for it \(by explicitly selecting BOOTLOADER_FLASH_DC_AWARE\)',
-    r'warning If your bootloader does not support it, select SPI_FLASH_HPM_DC_DISABLE to suppress the warning. READ DOCS FIRST!',
+    r'cc1plus: warning: command-line option \'-Wno-incompatible-pointer-types\' is valid for C/ObjC but not for C\+\+',
+    r'DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html',
+    r'The smallest app partition is nearly full',
+    r'managed_components/lvgl__lvgl/src/extra/libs/png/lv_png.c',
+    r'managed_components/lvgl__lvgl/src/extra/libs/png/lv_png.c',
+    r'warning: \'ADC_ATTEN_DB_11\' is deprecated',
+    r'warning: unused variable \'ret\'',
 ]
 
 def _get_idf_version():
@@ -63,10 +60,9 @@ def get_cmake_apps(
         build_log_filename='build_log.txt',
         size_json_filename='size.json',
         check_warnings=True,
-        preserve=True,
         default_build_targets=default_build_targets,
         manifest_files=[
-            str(Path(PROJECT_ROOT) /'.build-rules.yml'),
+            str(Path(PROJECT_ROOT)/'.build-rules.yml'),
         ],
     )
     return apps
@@ -75,7 +71,6 @@ def get_cmake_apps(
 def main(args):  # type: (argparse.Namespace) -> None
     default_build_targets = args.default_build_targets.split(',') if args.default_build_targets else None
     apps = get_cmake_apps(args.paths, args.target, args.config, default_build_targets)
-
     if args.find:
         if args.output:
             os.makedirs(os.path.dirname(os.path.realpath(args.output)), exist_ok=True)
@@ -108,6 +103,7 @@ def main(args):  # type: (argparse.Namespace) -> None
         keep_going=True,
         ignore_warning_strs=IGNORE_WARNINGS,
         copy_sdkconfig=True,
+        no_preserve=False,
     )
 
     sys.exit(ret_code)
@@ -126,7 +122,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--config',
-        default=['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults'],
+        default=['sdkconfig.ci=default', 'sdkconfig.ci.*=', '=default'],
         action='append',
         help='Adds configurations (sdkconfig file names) to build. This can either be '
         'FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '

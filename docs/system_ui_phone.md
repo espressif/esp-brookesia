@@ -36,9 +36,12 @@ It has the following features:
 To achieve the best display performance at fixed resolutions, esp-brookesia also provides UI stylesheets for the following resolutions:
 
 - [320 x 240](../src/systems/phone/stylesheets/320_240/)
+- [320 x 480](../src/systems/phone/stylesheets/320_480/)
 - [480 x 480](../src/systems/phone/stylesheets/480_480/)
 - [800 x 480](../src/systems/phone/stylesheets/800_480/)
+- [800 x 1280](../src/systems/phone/stylesheets/800_1280/)
 - [1024 x 600](../src/systems/phone/stylesheets/1024_600/)
+- [1280 x 800](../src/systems/phone/stylesheets/1280_800/)
 
 > [!NOTE]
 > If your screen resolution is not listed in the above UI stylesheets, please refer to the GitHub issue - [Phone Resolution Support](https://github.com/espressif/esp-brookesia/issues/5).

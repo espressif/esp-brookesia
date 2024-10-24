@@ -37,7 +37,7 @@
     #ifdef CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE
         #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE        (CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE)
     #else
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE        (1)
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE        (0)
     #endif
 #endif
 
@@ -46,7 +46,7 @@
         #ifdef CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP
             #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP            (CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP)
         #else
-            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP            (1)
+            #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP            (0)
         #endif
     #endif
 
@@ -79,7 +79,7 @@
     #ifdef CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS
         #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS     (CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS)
     #else
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS     (1)
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS     (0)
     #endif
 #endif
 
@@ -129,7 +129,7 @@
     #ifdef CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE
         #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE       (CONFIG_ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE)
     #else
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE       (1)
+        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE       (0)
     #endif
 #endif
 
@@ -212,11 +212,19 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////// Squareline ////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#ifndef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+    #ifdef CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+        #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP   (CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP)
+    #else
+        #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP   (0)
+    #endif
+#endif
+
 #ifndef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
     #ifdef CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
         #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS   (CONFIG_ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS)
     #else
-        #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS   (1)
+        #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS   (0)
     #endif
 #endif
 

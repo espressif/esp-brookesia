@@ -14,7 +14,7 @@ extern "C" {
 #define ESP_BROOKESIA_PHONE_480_480_DARK_APP_LAUNCHER_ICON_DATA() \
     {                                                      \
         .main = {                                          \
-            .size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(200),         \
+            .size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(180),         \
             .layout_row_pad = 10,                          \
         },                                                 \
         .image = {                                         \
@@ -35,11 +35,12 @@ extern "C" {
         },                                                                  \
         .table = {                                                          \
             .default_num = 3,                                               \
-            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 400),             \
+            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 360),             \
         },                                                                  \
         .indicator = {                                                      \
-            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 40),         \
+            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 80),         \
             .main_layout_column_pad = 10,                                   \
+            .main_layout_bottom_offset = 0, \
             .spot_inactive_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(12),             \
             .spot_active_size = ESP_BROOKESIA_STYLE_SIZE_RECT(30, 12),             \
             .spot_inactive_background_color = ESP_BROOKESIA_STYLE_COLOR(0xC6C6C6), \

@@ -17,6 +17,7 @@
 #include "core/esp_brookesia_core_utils.h"
 #include "core/esp_brookesia_style_type.h"
 #include "core/esp_brookesia_core_type.h"
+#include "core/esp_brookesia_lv_type.h"
 
 /* fonts */
 #include "fonts/esp_brookesia_fonts.h"
@@ -27,7 +28,10 @@
 
 /* Squareline */
 #ifdef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
-#include "squareline/esp_brookesia_squareline_ui_helpers.h"
+#include "squareline/ui_helpers/ui_helpers.h"
+#endif
+#ifdef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+#include "squareline/ui_comp/ui_comp.h"
 #endif
 
 /* Widgets */

@@ -83,10 +83,18 @@ bool ESP_Brookesia_PhoneManager::begin(void)
         ESP_BROOKESIA_CHECK_NULL_RETURN(gesture, false, "Create gesture failed");
         ESP_BROOKESIA_CHECK_FALSE_RETURN(gesture->begin(home.getSystemScreenObject()), false, "Gesture begin failed");
         ESP_BROOKESIA_CHECK_FALSE_RETURN(gesture->setMaskObjectVisible(false), false, "Hide mask object failed");
-        for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
-            ESP_BROOKESIA_CHECK_FALSE_RETURN(gesture->setIndicatorBarVisible((ESP_Brookesia_GestureIndicatorBarType_t)i, false),
-                                             false, "Hide indicator bar failed");
-        }
+        ESP_BROOKESIA_CHECK_FALSE_RETURN(
+            gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT, false),
+            false, "Set left indicator bar visible failed"
+        );
+        ESP_BROOKESIA_CHECK_FALSE_RETURN(
+            gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT, false),
+            false, "Set right indicator bar visible failed"
+        );
+        ESP_BROOKESIA_CHECK_FALSE_RETURN(
+            gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM, true),
+            false, "Set bottom indicator bar visible failed"
+        );
 
         _flags.enable_gesture_navigation = true;
         // Navigation events
@@ -349,10 +357,11 @@ bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneM
         _flags.enable_gesture_navigation_home = (_flags.enable_gesture_navigation &&
                                                 (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE));
         _flags.enable_gesture_navigation_recents_app = _flags.enable_gesture_navigation_home;
-        _flags.enable_gesture_show_mask_left_right_edge = _flags.enable_gesture_navigation;
+        _flags.enable_gesture_show_mask_left_right_edge = (_flags.enable_gesture_navigation ||
+                (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX));
         _flags.enable_gesture_show_mask_bottom_edge = (_flags.enable_gesture_navigation ||
                 (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX));
-        _flags.enable_gesture_show_left_right_indicator_bar = _flags.enable_gesture_show_mask_bottom_edge;
+        _flags.enable_gesture_show_left_right_indicator_bar = _flags.enable_gesture_show_mask_left_right_edge;
         _flags.enable_gesture_show_bottom_indicator_bar = _flags.enable_gesture_show_mask_bottom_edge;
         break;
     case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN:
@@ -377,10 +386,21 @@ bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneM
                        _flags.enable_gesture_show_mask_bottom_edge, _flags.enable_gesture_show_left_right_indicator_bar,
                        _flags.enable_gesture_show_bottom_indicator_bar);
 
-    for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
-        ESP_BROOKESIA_CHECK_FALSE_RETURN(_gesture->setIndicatorBarVisible((ESP_Brookesia_GestureIndicatorBarType_t)i, false), false,
-                                         "Hide indicator bar failed");
+    if (!_flags.enable_gesture_show_left_right_indicator_bar) {
+        ESP_BROOKESIA_CHECK_FALSE_RETURN(
+            _gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT, false), false,
+            "Gesture set left indicator bar visible failed"
+        );
+        ESP_BROOKESIA_CHECK_FALSE_RETURN(
+            _gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT, false), false,
+            "Gesture set right indicator bar visible failed"
+        );
     }
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(
+        _gesture->setIndicatorBarVisible(
+            ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM, _flags.enable_gesture_show_bottom_indicator_bar
+        ), false, "Gesture set bottom indicator bar visible failed"
+    );
 
     return true;
 }
@@ -531,10 +551,6 @@ void ESP_Brookesia_PhoneManager::onNavigationBarGestureEventCallback(lv_event_t 
     if ((dir_type == ESP_BROOKESIA_GESTURE_DIR_UP) &&
             (gesture_info->start_area & ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE)) {
         ESP_BROOKESIA_LOGD("Navigation bar gesture up");
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(
-            manager->_gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM, false),
-            "Hide bottom indicator bar failed"
-        );
         ESP_BROOKESIA_CHECK_FALSE_EXIT(navigation_bar->triggerVisualFlexShow(), "Navigation bar trigger visual flex show failed");
     }
 
@@ -765,11 +781,15 @@ void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorPressingEventCallback(lv_
             );
         } else {
             if (gesture->checkIndicatorBarScaleBackAnimRunning(gesture_indicator_bar_type)) {
-                ESP_BROOKESIA_CHECK_FALSE_EXIT(gesture->controlIndicatorBarScaleBackAnim(gesture_indicator_bar_type, false),
-                                               "Gesture control indicator bar scale back anim failed");
+                ESP_BROOKESIA_CHECK_FALSE_EXIT(
+                    gesture->controlIndicatorBarScaleBackAnim(gesture_indicator_bar_type, false),
+                    "Gesture control indicator bar scale back anim failed"
+                );
             }
-            ESP_BROOKESIA_CHECK_FALSE_EXIT(gesture->setIndicatorBarVisible(gesture_indicator_bar_type, true),
-                                           "Gesture set indicator bar visible failed");
+            ESP_BROOKESIA_CHECK_FALSE_EXIT(
+                gesture->setIndicatorBarVisible(gesture_indicator_bar_type, true),
+                "Gesture set indicator bar visible failed"
+            );
         }
     }
 
@@ -812,8 +832,10 @@ void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorReleaseEventCallback(lv_e
     }
     if (gesture_indicator_bar_type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX &&
             (gesture->checkIndicatorBarVisible(gesture_indicator_bar_type))) {
-        ESP_BROOKESIA_CHECK_FALSE_EXIT(gesture->controlIndicatorBarScaleBackAnim(gesture_indicator_bar_type, true),
-                                       "Gesture control indicator bar scale back anim failed");
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(
+            gesture->controlIndicatorBarScaleBackAnim(gesture_indicator_bar_type, true),
+            "Gesture control indicator bar scale back anim failed"
+        );
     }
 }
 

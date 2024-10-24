@@ -19,6 +19,11 @@ PhoneAppSquareline::PhoneAppSquareline(bool use_status_bar, bool use_navigation_
 {
 }
 
+PhoneAppSquareline::PhoneAppSquareline():
+    ESP_Brookesia_PhoneApp("Squareline", &ui_img_sls_logo_png, false)
+{
+}
+
 PhoneAppSquareline::~PhoneAppSquareline()
 {
 }

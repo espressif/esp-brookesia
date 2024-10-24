@@ -125,8 +125,6 @@ extern lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp1;
 extern lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp2;
 extern lv_obj_t * ui_SmartGadgetAlarm_Alarm_comp_Alarm_Comp3;
 extern lv_obj_t * ui_SmartGadgetAlarm_Scrolldots_Scrolldots5;
-void ui_event_Startevents____initial_actions0(lv_event_t * e);
-extern lv_obj_t * ui_Startevents____initial_actions0;
 
 LV_IMG_DECLARE(ui_img_sls_logo_png);    // assets/sls_logo.png
 LV_IMG_DECLARE(ui_img_pattern_png);    // assets/pattern.png

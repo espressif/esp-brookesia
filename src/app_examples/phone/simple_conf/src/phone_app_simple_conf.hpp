@@ -21,7 +21,13 @@ public:
      * @param use_navigation_bar Flag to show the navigation bar
      *
      */
-    PhoneAppSimpleConf(bool use_status_bar = true, bool use_navigation_bar = true);
+    PhoneAppSimpleConf(bool use_status_bar, bool use_navigation_bar);
+
+    /**
+     * @brief Construct a app with basic configuration
+     *
+     */
+    PhoneAppSimpleConf();
 
     /**
      * @brief Destructor for the phone app

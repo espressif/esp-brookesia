@@ -18,13 +18,16 @@ ESP_Brookesia_Core::ESP_Brookesia_Core(const ESP_Brookesia_CoreData_t &data, ESP
     _core_data(data),
     _core_home(home),
     _core_manager(manager),
+    _core_event(),
     _display(display),
     _touch(nullptr),
     _free_event_code(_LV_EVENT_LAST),
     _event_obj(nullptr),
     _data_update_event_code(_LV_EVENT_LAST),
     _navigate_event_code(_LV_EVENT_LAST),
-    _app_event_code(_LV_EVENT_LAST)
+    _app_event_code(_LV_EVENT_LAST),
+    _lv_lock_callback(nullptr),
+    _lv_unlock_callback(nullptr)
 {
 }
 
@@ -34,6 +37,23 @@ ESP_Brookesia_Core::~ESP_Brookesia_Core()
     if (!delCore()) {
         ESP_BROOKESIA_LOGE("Delete failed");
     }
+}
+
+bool ESP_Brookesia_Core::getDisplaySize(ESP_Brookesia_StyleSize_t &size)
+{
+    // Check if the display is set. If not, use the default display
+    if (_display == nullptr) {
+        ESP_BROOKESIA_LOGW("Display is not set, use default display");
+        _display = lv_disp_get_default();
+        ESP_BROOKESIA_CHECK_NULL_RETURN(_display, false, "Display device is not initialized");
+    }
+
+    size = {
+        .width = (uint16_t)lv_disp_get_hor_res(_display),
+        .height = (uint16_t)lv_disp_get_ver_res(_display),
+    };
+
+    return true;
 }
 
 bool ESP_Brookesia_Core::setTouchDevice(lv_indev_t *touch) const
@@ -140,6 +160,40 @@ bool ESP_Brookesia_Core::sendAppEvent(const ESP_Brookesia_CoreAppEventData_t *da
     return true;
 }
 
+void ESP_Brookesia_Core::registerLvLockCallback(ESP_Brookesia_LvLockCallback_t callback, int timeout)
+{
+    _lv_lock_callback = callback;
+    _lv_lock_timeout = timeout;
+}
+
+void ESP_Brookesia_Core::registerLvUnlockCallback(ESP_Brookesia_LvUnlockCallback_t callback)
+{
+    _lv_unlock_callback = callback;
+}
+
+bool ESP_Brookesia_Core::lockLv(void) const
+{
+    ESP_BROOKESIA_CHECK_NULL_RETURN(_lv_lock_callback, false, "Lock callback is not set");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(_lv_lock_callback(_lv_lock_timeout), false, "Lock failed");
+
+    return false;
+}
+
+bool ESP_Brookesia_Core::lockLv(int timeout) const
+{
+    ESP_BROOKESIA_CHECK_NULL_RETURN(_lv_lock_callback, false, "Lock callback is not set");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(_lv_lock_callback(timeout), false, "Lock failed");
+
+    return false;
+}
+
+void ESP_Brookesia_Core::unlockLv(void) const
+{
+    ESP_BROOKESIA_CHECK_NULL_EXIT(_lv_unlock_callback, "Unlock callback is not set");
+
+    _lv_unlock_callback();
+}
+
 bool ESP_Brookesia_Core::beginCore(void)
 {
     ESP_Brookesia_LvObj_t event_obj = nullptr;
@@ -184,6 +238,11 @@ bool ESP_Brookesia_Core::beginCore(void)
     // Initialize cores
     ESP_BROOKESIA_CHECK_FALSE_GOTO(_core_home.beginCore(), err, "Begin core home failed");
     ESP_BROOKESIA_CHECK_FALSE_GOTO(_core_manager.beginCore(), err, "Begin core manager failed");
+
+    // Initialize others
+#if ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP
+    esp_brookesia_squareline_ui_comp_init();
+#endif /* ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_COMP */
 
     return true;
 
