@@ -43,7 +43,7 @@ typedef struct {
         uint8_t enable_app_launcher_flex_size: 1;
         uint8_t enable_recents_screen: 1;
         uint8_t enable_recents_screen_flex_size: 1;
-        uint8_t enable_recents_screen_hide_when_no_snapshot: 1;
+        uint8_t enable_recents_screen_hide_when_no_snapshot: 1; /* Deprecated, use flag in manager instead */
     } flags;
 } ESP_Brookesia_PhoneHomeData_t;
 
@@ -62,6 +62,7 @@ typedef struct {
     struct {
         uint8_t enable_gesture: 1;
         uint8_t enable_recents_screen_snapshot_drag: 1;
+        uint8_t enable_recents_screen_hide_when_no_snapshot: 1;
     } flags;
 } ESP_Brookesia_PhoneManagerData_t;
 

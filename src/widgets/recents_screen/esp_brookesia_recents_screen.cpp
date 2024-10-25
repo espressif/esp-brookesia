@@ -613,6 +613,9 @@ void ESP_Brookesia_RecentsScreen::onTrashTouchEventCallback(lv_event_t *event)
             lv_event_send(recents_screen->getEventObject(), recents_screen->getSnapshotDeletedEventCode(),
                           reinterpret_cast<void *>(it.first));
         }
+        // Send this event to notify that trash icon is clicked
+        lv_event_send(recents_screen->getEventObject(), recents_screen->getSnapshotDeletedEventCode(),
+                      reinterpret_cast<void *>(0));
         break;
     case LV_EVENT_PRESSED:
         ESP_BROOKESIA_LOGD("Pressed");

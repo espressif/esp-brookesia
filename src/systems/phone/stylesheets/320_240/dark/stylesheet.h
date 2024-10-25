@@ -43,7 +43,6 @@ extern "C" {
             .enable_app_launcher_flex_size = 1,                                   \
             .enable_recents_screen = 1,                                           \
             .enable_recents_screen_flex_size = 1,                                 \
-            .enable_recents_screen_hide_when_no_snapshot = 0,                     \
         },                                                                        \
     }
 
@@ -61,6 +60,7 @@ extern "C" {
         .flags = {                                           \
             .enable_gesture = 1,                             \
             .enable_recents_screen_snapshot_drag = 1,        \
+            .enable_recents_screen_hide_when_no_snapshot = 1,                     \
         },                                                   \
     }
 

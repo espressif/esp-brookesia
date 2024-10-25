@@ -6,6 +6,7 @@
 
 * feat(assets): refactor assets and update stylesheet
 * feat(phone): add default image for app launcher in stylesheet
+* feat(phone): enable recents screen hide when no snapshot by default
 * feat(widgets): avoid click the next page icon when the app launcher scroll is not finished
 
 ### Bugfixes:

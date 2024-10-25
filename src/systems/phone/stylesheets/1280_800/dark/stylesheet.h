@@ -60,6 +60,7 @@ extern "C" {
         .flags = {                                            \
             .enable_gesture = 1,                              \
             .enable_recents_screen_snapshot_drag = 1,         \
+            .enable_recents_screen_hide_when_no_snapshot = 1,                     \
         },                                                    \
     }
 

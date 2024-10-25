@@ -1176,6 +1176,10 @@ process:
                                        manager->_recents_screen_active_app->getId(),
                                        recents_screen_active_snapshot_index);
                 }
+            } else if (manager->data.flags.enable_recents_screen_hide_when_no_snapshot) {
+                // If there are no active apps, hide the recents_screen
+                ESP_BROOKESIA_LOGD("No active app, hide recents_screen");
+                ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->processRecentsScreenHide(), "Hide recents_screen failed");
             }
         }
     }
@@ -1198,14 +1202,16 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenSnapshotDeletedEventCallback(lv_
     recents_screen = manager->home._recents_screen.get();
     ESP_BROOKESIA_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
     app_id = (intptr_t)lv_event_get_param(event);
-    app_event_data.id = app_id;
 
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->_core.sendAppEvent(&app_event_data), "Core send app event failed");
+    if (app_id > 0) {
+        app_event_data.id = app_id;
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->_core.sendAppEvent(&app_event_data), "Core send app event failed");
+    }
 
     if (recents_screen->getSnapshotCount() == 0) {
         ESP_BROOKESIA_LOGD("No snapshot in the recents_screen");
         manager->_recents_screen_active_app = nullptr;
-        if (manager->home.getData().flags.enable_recents_screen_hide_when_no_snapshot) {
+        if (manager->data.flags.enable_recents_screen_hide_when_no_snapshot) {
             ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->processRecentsScreenHide(), "Manager hide recents_screen failed");
         }
     }
