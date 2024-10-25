@@ -19,8 +19,8 @@
 #include "core/esp_brookesia_core_type.h"
 #include "core/esp_brookesia_lv_type.h"
 
-/* fonts */
-#include "fonts/esp_brookesia_fonts.h"
+/* assets */
+#include "assets/esp_brookesia_assets.h"
 
 /* Systems */
 // Phone

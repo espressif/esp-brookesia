@@ -437,23 +437,28 @@ void ESP_Brookesia_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *e
     ESP_Brookesia_PhoneManager *manager = nullptr;
     ESP_Brookesia_AppLauncher *app_launcher = nullptr;
     ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
+    ESP_Brookesia_Gesture *gesture = nullptr;
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_GestureDirection_t dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
 
-    ESP_BROOKESIA_LOGD("App launcher gesture event callback");
+    // ESP_BROOKESIA_LOGD("App launcher gesture event callback");
     ESP_BROOKESIA_CHECK_NULL_GOTO(event, end, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
     ESP_BROOKESIA_CHECK_NULL_GOTO(manager, end, "Invalid manager");
+    gesture = manager->_gesture.get();
+    ESP_BROOKESIA_CHECK_NULL_GOTO(gesture, end, "Invalid gesture");
     recents_screen = manager->home._recents_screen.get();
     app_launcher = &manager->home._app_launcher;
     ESP_BROOKESIA_CHECK_NULL_GOTO(app_launcher, end, "Invalid app launcher");
     event_code = lv_event_get_code(event);
-    ESP_BROOKESIA_CHECK_FALSE_GOTO((event_code == manager->_gesture->getPressingEventCode()) ||
-                                   (event_code == manager->_gesture->getReleaseEventCode()), end, "Invalid event code");
+    ESP_BROOKESIA_CHECK_FALSE_GOTO(
+        (event_code == gesture->getPressingEventCode()) || (event_code == gesture->getReleaseEventCode()), end,
+        "Invalid event code"
+    );
 
     // Here is to prevent detecting gestures when the app exits, which could trigger unexpected behaviors
-    if (event_code == manager->_gesture->getReleaseEventCode()) {
+    if (event_code == gesture->getReleaseEventCode()) {
         if (manager->_flags.is_app_launcher_gesture_disabled) {
             manager->_flags.is_app_launcher_gesture_disabled = false;
             return;
@@ -470,7 +475,7 @@ void ESP_Brookesia_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *e
     // Check if the dir type is already set. If so, just ignore and return
     if (dir_type != ESP_BROOKESIA_GESTURE_DIR_NONE) {
         // Check if the gesture is released
-        if (event_code == manager->_gesture->getReleaseEventCode()) {   // If so, reset the navigation type
+        if (event_code == gesture->getReleaseEventCode()) {   // If so, reset the navigation type
             dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
             goto end;
         }
@@ -510,7 +515,7 @@ void ESP_Brookesia_PhoneManager::onNavigationBarGestureEventCallback(lv_event_t 
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_GestureDirection_t dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
 
-    ESP_BROOKESIA_LOGD("Navigation bar gesture event callback");
+    // ESP_BROOKESIA_LOGD("Navigation bar gesture event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
@@ -649,7 +654,7 @@ void ESP_Brookesia_PhoneManager::onGestureNavigationPressingEventCallback(lv_eve
     ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
     ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
 
-    ESP_BROOKESIA_LOGD("Gesture navigation pressing event callback");
+    // ESP_BROOKESIA_LOGD("Gesture navigation pressing event callback");
     ESP_BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
 
     manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
@@ -1171,6 +1176,10 @@ process:
                                        manager->_recents_screen_active_app->getId(),
                                        recents_screen_active_snapshot_index);
                 }
+            } else if (manager->data.flags.enable_recents_screen_hide_when_no_snapshot) {
+                // If there are no active apps, hide the recents_screen
+                ESP_BROOKESIA_LOGD("No active app, hide recents_screen");
+                ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->processRecentsScreenHide(), "Hide recents_screen failed");
             }
         }
     }
@@ -1193,14 +1202,16 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenSnapshotDeletedEventCallback(lv_
     recents_screen = manager->home._recents_screen.get();
     ESP_BROOKESIA_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
     app_id = (intptr_t)lv_event_get_param(event);
-    app_event_data.id = app_id;
 
-    ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->_core.sendAppEvent(&app_event_data), "Core send app event failed");
+    if (app_id > 0) {
+        app_event_data.id = app_id;
+        ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->_core.sendAppEvent(&app_event_data), "Core send app event failed");
+    }
 
     if (recents_screen->getSnapshotCount() == 0) {
         ESP_BROOKESIA_LOGD("No snapshot in the recents_screen");
         manager->_recents_screen_active_app = nullptr;
-        if (manager->home.getData().flags.enable_recents_screen_hide_when_no_snapshot) {
+        if (manager->data.flags.enable_recents_screen_hide_when_no_snapshot) {
             ESP_BROOKESIA_CHECK_FALSE_EXIT(manager->processRecentsScreenHide(), "Manager hide recents_screen failed");
         }
     }

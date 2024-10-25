@@ -8,15 +8,14 @@
 
 using namespace std;
 
-LV_IMG_DECLARE(esp_brookesia_phone_app_launcher_image_default);
 
 PhoneAppSimpleConf::PhoneAppSimpleConf(bool use_status_bar, bool use_navigation_bar):
-    ESP_Brookesia_PhoneApp("Simple Conf", &esp_brookesia_phone_app_launcher_image_default, true, use_status_bar, use_navigation_bar)
+    ESP_Brookesia_PhoneApp("Simple Conf", &esp_brookesia_image_large_app_launcher_default_112_112, true, use_status_bar, use_navigation_bar)
 {
 }
 
 PhoneAppSimpleConf::PhoneAppSimpleConf():
-    ESP_Brookesia_PhoneApp("Simple Conf", &esp_brookesia_phone_app_launcher_image_default, true)
+    ESP_Brookesia_PhoneApp("Simple Conf", &esp_brookesia_image_large_app_launcher_default_112_112, true)
 {
 }
 

@@ -5,14 +5,12 @@
  */
 #pragma once
 
-#include "lvgl.h"
 #include "widgets/recents_screen/esp_brookesia_recents_screen_type.h"
+#include "assets/esp_brookesia_assets.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-LV_IMG_DECLARE(esp_brookesia_phone_320_480_recents_screen_trash_image);
 
 #define ESP_BROOKESIA_PHONE_320_480_DARK_RECENTS_SCREEN_SNAPSHOT_DATA() \
     {                                                            \
@@ -54,7 +52,7 @@ LV_IMG_DECLARE(esp_brookesia_phone_320_480_recents_screen_trash_image);
         .trash_icon = {                                                                    \
             .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(38),                                  \
             .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(34),                                    \
-            .image = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_320_480_recents_screen_trash_image), \
+            .image = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_small_recents_screen_trash_38_38), \
         },                                                                                 \
         .flags = {                                                                         \
             .enable_memory = 1,                                                            \

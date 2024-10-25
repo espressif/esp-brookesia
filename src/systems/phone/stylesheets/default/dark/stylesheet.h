@@ -25,10 +25,11 @@ extern "C" {
         },                                                                        \
         .navigation_bar = {                                                       \
             .data = ESP_BROOKESIA_PHONE_DEFAULT_DARK_NAVIGATION_BAR_DATA(),              \
-            .visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX,           \
+            .visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE,           \
         },                                                                        \
         .app_launcher = {                                                         \
             .data = ESP_BROOKESIA_PHONE_DEFAULT_DARK_APP_LAUNCHER_DATA(),                \
+            .default_image = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_small_app_launcher_default_98_98), \
         },                                                                        \
         .recents_screen = {                                                       \
             .data = ESP_BROOKESIA_PHONE_DEFAULT_DARK_RECENTS_SCREEN_DATA(),              \
@@ -41,7 +42,6 @@ extern "C" {
             .enable_app_launcher_flex_size = 1,                                   \
             .enable_recents_screen = 1,                                           \
             .enable_recents_screen_flex_size = 1,                                 \
-            .enable_recents_screen_hide_when_no_snapshot = 0,                     \
         },                                                                        \
     }
 
@@ -49,7 +49,7 @@ extern "C" {
 #define ESP_BROOKESIA_PHONE_DEFAULT_DARK_MANAGER_DATA()             \
     {                                                        \
         .gesture = ESP_BROOKESIA_PHONE_DEFAULT_DARK_GESTURE_DATA(), \
-        .gesture_mask_indicator_trigger_time_ms = 150,       \
+        .gesture_mask_indicator_trigger_time_ms = 0,       \
         .recents_screen = {                                  \
             .drag_snapshot_y_step = 10,                      \
             .drag_snapshot_y_threshold = 50,                 \
@@ -59,6 +59,7 @@ extern "C" {
         .flags = {                                           \
             .enable_gesture = 1,                             \
             .enable_recents_screen_snapshot_drag = 1,        \
+            .enable_recents_screen_hide_when_no_snapshot = 1,                     \
         },                                                   \
     }
 

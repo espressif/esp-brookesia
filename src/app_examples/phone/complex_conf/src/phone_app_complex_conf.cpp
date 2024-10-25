@@ -8,14 +8,13 @@
 
 using namespace std;
 
-LV_IMG_DECLARE(esp_brookesia_phone_app_launcher_image_default);
 
 // *INDENT-OFF*
 PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigation_bar):
     ESP_Brookesia_PhoneApp(
         {
             .name = "Complex Conf",
-            .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default),
+            .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_large_app_launcher_default_112_112),
             .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
             .flags = {
                 .enable_default_screen = 1,
@@ -31,7 +30,7 @@ PhoneAppComplexConf::PhoneAppComplexConf(bool use_status_bar, bool use_navigatio
                 .icon = {
                     .image_num = 1,
                     .images = {
-                        ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default),
+                        ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_large_app_launcher_default_112_112),
                     },
                 },
             },
@@ -52,7 +51,7 @@ PhoneAppComplexConf::PhoneAppComplexConf():
     ESP_Brookesia_PhoneApp(
         {
             .name = "Complex Conf",
-            .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default),
+            .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_large_app_launcher_default_112_112),
             .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
             .flags = {
                 .enable_default_screen = 1,
@@ -68,11 +67,11 @@ PhoneAppComplexConf::PhoneAppComplexConf():
                 .icon = {
                     .image_num = 1,
                     .images = {
-                        ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_phone_app_launcher_image_default),
+                        ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_large_app_launcher_default_112_112),
                     },
                 },
             },
-            .status_bar_visual_mode = ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_HIDE,
+            .status_bar_visual_mode = ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED,
             .navigation_bar_visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE,
             .flags = {
                 .enable_status_icon_common_size = 1,
