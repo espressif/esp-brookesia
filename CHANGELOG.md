@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.4.2 - 2024-12-11
+
+### Bugfixes:
+
+* fix(examples): PSRAM use QUAD mode for M5Stack CoreS3
+
 ## v0.4.1 - 2024-10-25
 
 ### Enhancements:
