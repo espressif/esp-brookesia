@@ -13,7 +13,7 @@ extern "C" {
 #endif
 
 /* Area */
-#define ESP_BROOKESIA_PHONE_1024_600_DARK_STATUS_BAR_AREA_DATA(w_percent, align) \
+#define ESP_BROOKESIA_PHONE_720_1280_DARK_STATUS_BAR_AREA_DATA(w_percent, align) \
     {                                                                     \
         .size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(w_percent, 100),           \
         .layout_column_align = align,                                     \
@@ -22,23 +22,23 @@ extern "C" {
     }
 
 /* Status Bar */
-#define ESP_BROOKESIA_PHONE_1024_600_DARK_STATUS_BAR_DATA()                                                      \
+#define ESP_BROOKESIA_PHONE_720_1280_DARK_STATUS_BAR_DATA()                                                      \
     {                                                                                                     \
         .main = {                                                                                         \
-            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 50),                                            \
+            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 60),                                            \
             .background_color = ESP_BROOKESIA_STYLE_COLOR(0x38393A),                                             \
-            .text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(22),                                                      \
+            .text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(28),                                                      \
             .text_color = ESP_BROOKESIA_STYLE_COLOR(0xFFFFFF),                                                   \
         },                                                                                                \
         .area = {                                                                                         \
             .num = ESP_BROOKESIA_STATUS_BAR_DATA_AREA_NUM_MAX,                                                   \
             .data = {                                                                                     \
-                ESP_BROOKESIA_PHONE_1024_600_DARK_STATUS_BAR_AREA_DATA(33, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_START),  \
-                ESP_BROOKESIA_PHONE_1024_600_DARK_STATUS_BAR_AREA_DATA(34, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_CENTER), \
-                ESP_BROOKESIA_PHONE_1024_600_DARK_STATUS_BAR_AREA_DATA(33, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_END),    \
+                ESP_BROOKESIA_PHONE_720_1280_DARK_STATUS_BAR_AREA_DATA(33, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_START),  \
+                ESP_BROOKESIA_PHONE_720_1280_DARK_STATUS_BAR_AREA_DATA(34, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_CENTER), \
+                ESP_BROOKESIA_PHONE_720_1280_DARK_STATUS_BAR_AREA_DATA(33, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_END),    \
             },                                                                                            \
         },                                                                                                \
-        .icon_common_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(28),                                                 \
+        .icon_common_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(36),                                                 \
         .battery = {                                                                                      \
             .area_index = ESP_BROOKESIA_STATUS_BAR_DATA_AREA_NUM_MAX - 1,                                        \
             .icon_data = {                                                                                \

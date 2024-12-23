@@ -4,8 +4,10 @@
 
 ### Enhancements:
 
+* feat(assets): update large images
 * feat(phone): support 24h format for clock of status bar
 * feat(phone): disable manager gesture navigation back by default
+* feat(phone): add stylesheet 720x1280
 
 ### Bugfixes:
 

@@ -12,46 +12,46 @@
 extern "C" {
 #endif
 
-#define ESP_BROOKESIA_PHONE_1024_600_DARK_RECENTS_SCREEN_SNAPSHOT_DATA() \
+#define ESP_BROOKESIA_PHONE_720_1280_DARK_RECENTS_SCREEN_SNAPSHOT_DATA() \
     {                                                             \
-        .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT(614, 420),            \
+        .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT(450, 880),            \
         .title = {                                                \
-            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT(614, 60),         \
+            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT(450, 80),         \
             .main_layout_column_pad = 10,                         \
-            .icon_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(36),            \
-            .text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(22),              \
+            .icon_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(48),            \
+            .text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(28),              \
             .text_color = ESP_BROOKESIA_STYLE_COLOR(0xFFFFFF),           \
         },                                                        \
         .image = {                                                \
-            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT(614, 360),        \
+            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT(450, 800),        \
             .radius = 22,                                         \
         },                                                        \
     }
 
-#define ESP_BROOKESIA_PHONE_1024_600_DARK_RECENTS_SCREEN_DATA()                                    \
+#define ESP_BROOKESIA_PHONE_720_1280_DARK_RECENTS_SCREEN_DATA()                                    \
     {                                                                                       \
         .main = {                                                                           \
             .size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),                               \
             .layout_row_pad = 20,                                                           \
             .layout_top_pad = 0,                                                            \
-            .layout_bottom_pad = 20,                                                        \
+            .layout_bottom_pad = 40,                                                        \
             .background_color = ESP_BROOKESIA_STYLE_COLOR(0x1A1A1A),                               \
         },                                                                                  \
         .memory = {                                                                         \
-            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 22),                         \
+            .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 28),                         \
             .main_layout_x_right_offset = 10,                                               \
-            .label_text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(20),                                  \
+            .label_text_font = ESP_BROOKESIA_STYLE_FONT_HEIGHT_PERCENT(100),                                  \
             .label_text_color = ESP_BROOKESIA_STYLE_COLOR(0xFFFFFF),                               \
             .label_unit_text = "KB",                                                        \
         },                                                                                  \
         .snapshot_table = {                                                                 \
             .main_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),                          \
             .main_layout_column_pad = 40,                                                   \
-            .snapshot = ESP_BROOKESIA_PHONE_1024_600_DARK_RECENTS_SCREEN_SNAPSHOT_DATA(),          \
+            .snapshot = ESP_BROOKESIA_PHONE_720_1280_DARK_RECENTS_SCREEN_SNAPSHOT_DATA(),          \
         },                                                                                  \
         .trash_icon = {                                                                     \
-            .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(48),                                   \
-            .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(43),                                     \
+            .default_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(64),                                   \
+            .press_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(58),                                     \
             .image = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_large_recents_screen_trash_64_64), \
         },                                                                                  \
         .flags = {                                                                          \
