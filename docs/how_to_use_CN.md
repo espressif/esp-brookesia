@@ -124,7 +124,7 @@ esp-brookesia 的系统 app 基类是继承自内核 app 基类 `ESP_Brookesia_C
 - **状态图标**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `status_icon` 字段来设置 app 的状态图标。
 - **状态栏显示模式**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `status_bar_visual_mode` 字段来设置 app 的状态栏显示模式，支持 `固定` 和 `隐藏` 两种模式。
 - **导航栏显示模式**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `navigation_bar_visual_mode` 字段来设置 app 的导航栏显示模式，支持 `固定`、`隐藏` 和 `动态` 三种模式。
-- **手势导航**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 enable_navigation_gesture` 字段来设置 app 是否支持通过手势进行导航。
+- **手势导航**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `enable_navigation_gesture` 字段来设置 app 是否支持通过手势进行导航，该功能默认仅支持从底部向上滑动打开概览屏幕，可以通过设置样式表 `ESP_Brookesia_PhoneManagerData_t` 中 `enable_gesture_navigation_back` 字段来支持侧边滑动返回上一级页面。
 
 ### 通用示例
 

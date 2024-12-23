@@ -61,7 +61,7 @@ The [Recents Screen](../src/widgets/recents_screen/) displays the currently runn
 
 - **Indicator Bar**:
 
-    - **Position**: Located at the `left edge`, `right edge`, and `top edge` of the screen.
+    - **Position**: Located at the `left edge`, `right edge`, and `bottom edge` of the screen.
     - **Display**: Hidden by default, it appears when an edge gesture is detected and changes as the gesture moves in a specific direction.
 
 - **Gesture Information**

@@ -71,8 +71,8 @@ extern "C" {
         },                                                                         \
         .flags = {                                                                 \
             .enable_indicator_bars = {                                             \
-                [ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT] = 1,                      \
-                [ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT] = 1,                     \
+                [ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT] = 0,                      \
+                [ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT] = 0,                     \
                 [ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM] = 1,                    \
             },                                                                     \
         },                                                                         \

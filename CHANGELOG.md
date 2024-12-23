@@ -5,6 +5,7 @@
 ### Enhancements:
 
 * feat(phone): support 24h format for clock of status bar
+* feat(phone): disable manager gesture navigation back by default
 
 ### Bugfixes:
 

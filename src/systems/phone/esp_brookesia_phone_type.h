@@ -61,6 +61,7 @@ typedef struct {
     } recents_screen;
     struct {
         uint8_t enable_gesture: 1;
+        uint8_t enable_gesture_navigation_back: 1;
         uint8_t enable_recents_screen_snapshot_drag: 1;
         uint8_t enable_recents_screen_hide_when_no_snapshot: 1;
     } flags;
