@@ -100,7 +100,7 @@ Users can access them by navigating to `File` > `Examples` > `esp-brookesia` in 
 
 Here are examples of using esp-brookesia on the Arduino development platform:
 
-- [ESP_Brookesia_Phone](../examples/arduino/ESP_Brookesia_Phone): This example demonstrates how to run the Phone UI using the [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) library.
+- [Phone](../examples/arduino/Phone): This example demonstrates how to run the Phone UI using the [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) library.
 
 ## App Development
 
@@ -124,7 +124,7 @@ Additionally, the system app base class in esp-brookesia provides extra user-con
 - **Status Icon**: Set the app's status icon by configuring the `status_icon` field in `ESP_Brookesia_PhoneAppData_t`.
 - **Status Bar Visual Mode**: Set the app's status bar visual mode by configuring the `status_bar_visual_mode` field in `ESP_Brookesia_PhoneAppData_t`, supporting `fixed` and `hidden` modes.
 - **Navigation Bar Visual Mode**: Set the app's navigation bar visual mode by configuring the `navigation_bar_visual_mode` field in `ESP_Brookesia_PhoneAppData_t`, supporting `fixed`, `hidden`, and `flexible` modes.
-- **Gesture Navigation**: Enable or disable gesture navigation for the app by configuring the `enable_navigation_gesture` field in `ESP_Brookesia_PhoneAppData_t`.
+- **Gesture Navigation**: Enable or disable gesture navigation for the app by configuring the `enable_navigation_gesture` field in `ESP_Brookesia_PhoneAppData_t`, default only supporting opening the recents screen by swiping up from the bottom. You can enable side-swipe gestures for navigating back to the previous page by configuring the `enable_gesture_navigation_back` field in the `ESP_Brookesia_PhoneManagerData_t` of stylesheet.
 
 ### General Examples
 

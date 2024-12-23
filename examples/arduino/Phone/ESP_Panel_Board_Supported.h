@@ -26,11 +26,12 @@
  *  - BOARD_ESP32_S3_BOX_LITE (ESP32-S3-Box-Lite): https://github.com/espressif/esp-box/tree/master
  *  - BOARD_ESP32_S3_EYE (ESP32-S3-EYE): https://github.com/espressif/esp-who/blob/master/docs/en/get-started/ESP32-S3-EYE_Getting_Started_Guide.md
  *  - BOARD_ESP32_S3_KORVO_2 (ESP32-S3-Korvo-2): https://docs.espressif.com/projects/esp-adf/en/latest/design-guide/dev-boards/user-guide-esp32-s3-korvo-2.html
- *  - BOARD_ESP32_S3_LCD_EV_BOARD (ESP32-S3-LCD-EV-Board): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide_v1.4.html
+ *  - BOARD_ESP32_S3_LCD_EV_BOARD (ESP32-S3-LCD-EV-Board(v1.1-v1.4)): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide_v1.4.html
  *  - BOARD_ESP32_S3_LCD_EV_BOARD_V1_5 (ESP32-S3-LCD-EV-Board(v1.5)): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide.html
- *  - BOARD_ESP32_S3_LCD_EV_BOARD_2 (ESP32-S3-LCD-EV-Board-2)): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide_v1.4.html
+ *  - BOARD_ESP32_S3_LCD_EV_BOARD_2 (ESP32-S3-LCD-EV-Board-2(v1.1-v1.4))): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide_v1.4.html
  *  - BOARD_ESP32_S3_LCD_EV_BOARD_2_V1_5 (ESP32-S3-LCD-EV-Board-2(v1.5)): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/user_guide.html
  *  - BOARD_ESP32_S3_USB_OTG (ESP32-S3-USB-OTG): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-usb-otg/index.html
+ *  - BOARD_ESP32_P4_FUNCTION_EV_BOARD (ESP32-P4-Function-EV-Board): https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html
  *
  */
 // #define BOARD_ESP32_C3_LCDKIT
@@ -45,6 +46,7 @@
 // #define BOARD_ESP32_S3_LCD_EV_BOARD_2
 // #define BOARD_ESP32_S3_LCD_EV_BOARD_2_V1_5
 // #define BOARD_ESP32_S3_USB_OTG
+// #define BOARD_ESP32_P4_FUNCTION_EV_BOARD
 
 /*
  * Elecrow (https://www.elecrow.com):
@@ -56,9 +58,9 @@
 /*
  * M5Stack (https://m5stack.com/):
  *
- *  - BOARD_M5STACK_M5CORE2 (M5STACK_M5CORE2): https://docs.m5stack.com/zh_CN/core/core2
- *  - BOARD_M5STACK_M5DIAL (M5STACK_M5DIAL): https://docs.m5stack.com/zh_CN/core/M5Dial
- *  - BOARD_M5STACK_M5CORES3 (M5STACK_M5CORES3): https://docs.m5stack.com/zh_CN/core/CoreS3
+ *  - BOARD_M5STACK_M5CORE2 (M5STACK_M5CORE2): https://docs.m5stack.com/en/core/core2
+ *  - BOARD_M5STACK_M5DIAL (M5STACK_M5DIAL): https://docs.m5stack.com/en/core/M5Dial
+ *  - BOARD_M5STACK_M5CORES3 (M5STACK_M5CORES3): https://docs.m5stack.com/en/core/CoreS3
  */
 // #define BOARD_M5STACK_M5CORE2
 // #define BOARD_M5STACK_M5DIAL
@@ -77,11 +79,23 @@
 /*
  * Waveshare Supported Boards (https://www.waveshare.com/):
  *
- *  - ESP32_S3_Touch_LCD_4_3:
- *      - https://www.waveshare.com/esp32-s3-touch-lcd-4.3.htm
- *
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_1_85 (ESP32_S3_Touch_LCD_1_85): https://www.waveshare.com/esp32-s3-touch-lcd-1.85.htm
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_2_1 (ESP32_S3_Touch_LCD_2_1): https://www.waveshare.com/esp32-s3-touch-lcd-2.1.htm
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_4_3 (ESP32_S3_Touch_LCD_4_3): https://www.waveshare.com/esp32-s3-touch-lcd-4.3.htm
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_4_3_B (ESP32_S3_Touch_LCD_4_3_B): https://www.waveshare.com/esp32-s3-touch-lcd-4.3B.htm
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_5 (ESP32_S3_Touch_LCD_5): https://www.waveshare.com/esp32-s3-touch-lcd-5.htm?sku=28117
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_5_B (ESP32_S3_Touch_LCD_5_B): https://www.waveshare.com/esp32-s3-touch-lcd-5.htm?sku=28151
+ *  - BOARD_WAVESHARE_ESP32_S3_Touch_LCD_7 (ESP32_S3_Touch_LCD_7): https://www.waveshare.com/esp32-s3-touch-lcd-7.htm
+ *  - BOARD_WAVESHARE_ESP32_P4_NANO (ESP32_P4_NANO): https://www.waveshare.com/esp32-p4-nano.htm
  */
+// #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_1_85
+// #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_2_1
 // #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_4_3
+// #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_4_3_B
+// #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_5
+// #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_5_B
+// #define BOARD_WAVESHARE_ESP32_S3_Touch_LCD_7
+// #define BOARD_WAVESHARE_ESP32_P4_NANO
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////// File Version ///////////////////////////////////////////////////////////
@@ -98,7 +112,7 @@
  *
  */
 #define ESP_PANEL_BOARD_SUPPORTED_FILE_VERSION_MAJOR 0
-#define ESP_PANEL_BOARD_SUPPORTED_FILE_VERSION_MINOR 3
+#define ESP_PANEL_BOARD_SUPPORTED_FILE_VERSION_MINOR 7
 #define ESP_PANEL_BOARD_SUPPORTED_FILE_VERSION_PATCH 0
 
 #endif

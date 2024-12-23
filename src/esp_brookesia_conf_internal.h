@@ -45,115 +45,16 @@
     #elif defined(ESP_BROOKESIA_CONF_INCLUDE_INSIDE)           /* Or include the default configuration */
         #include "../esp_brookesia_conf.h"
     #endif
-#else
+#endif
+
+#ifndef ESP_BROOKESIA_CONF_INCLUDE_INSIDE
+    /**
+     * There are two purposes to include the this file:
+     *  1. Convert configuration items starting with `CONFIG_` to the required configuration items.
+     *  2. Define default values for configuration items that are not defined to keep compatibility.
+     *
+     */
     #include "esp_brookesia_conf_kconfig.h"
-#endif
-
-// Set default values if not defined, only if the file is not skipped or included from the library
-#if !defined(ESP_BROOKESIA_CONF_SKIP) && !defined(ESP_BROOKESIA_CONF_INCLUDE_INSIDE)
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////////// Debug /////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef ESP_BROOKESIA_CHECK_RESULT_ASSERT
-    #define ESP_BROOKESIA_CHECK_RESULT_ASSERT  (0)
-#endif
-
-#ifndef ESP_BROOKESIA_LOG_STYLE
-    #define ESP_BROOKESIA_LOG_STYLE            (ESP_BROOKESIA_LOG_STYLE_STD)
-#endif
-
-#ifndef ESP_BROOKESIA_LOG_LEVEL
-    #define ESP_BROOKESIA_LOG_LEVEL            (ESP_BROOKESIA_LOG_LEVEL_INFO)
-#endif
-
-/* Enable debug logs for modules */
-#if ESP_BROOKESIA_LOG_LEVEL == ESP_BROOKESIA_LOG_LEVEL_DEBUG
-    /* Core module */
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE                     (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_APP                 (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_HOME
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_HOME                (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_MANAGER
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_MANAGER             (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_CORE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_CORE_CORE                (0)
-    #endif
-
-    /* Widgets module */
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS                  (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_APP_LAUNCHER     (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_RECENTS_SCREEN   (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_GESTURE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_GESTURE          (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_NAVIGATION       (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_WIDGETS_STATUS_BAR       (0)
-    #endif
-
-    /* Phone module */
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE                    (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP                (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME               (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER            (0)
-    #endif
-
-    #ifndef ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE
-        #define ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE              (0)
-    #endif
-#endif /* ESP_BROOKESIA_LOG_LEVEL == ESP_BROOKESIA_LOG_LEVEL_DEBUG */
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////// Memory /////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef ESP_BROOKESIA_MEMORY_INCLUDE
-    #define ESP_BROOKESIA_MEMORY_INCLUDE   <stdlib.h>
-#endif
-
-#ifndef ESP_BROOKESIA_MEMORY_MALLOC
-    #define ESP_BROOKESIA_MEMORY_MALLOC    malloc
-#endif
-
-#ifndef ESP_BROOKESIA_MEMORY_FREE
-    #define ESP_BROOKESIA_MEMORY_FREE      free
-#endif
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-//////////////////////////////////////////////////// Squareline ////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-#ifndef ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
-    #define ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS   (0)
 #endif
 
 #if ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
@@ -164,5 +65,3 @@
     #error "Multiple Squareline and LVGL versions are defined"
 #endif
 #endif
-
-#endif /* !defined(ESP_BROOKESIA_CONF_SKIP) && !defined(ESP_BROOKESIA_CONF_INCLUDE_INSIDE) */

@@ -10,28 +10,29 @@
  *
  * To use this example, please firstly install the following dependent libraries:
  *
- * - ESP32_Display_Panel  (0.1.*)
+ * - ESP32_Display_Panel (0.2.*)
+ * - ESP32_IO_Expander (0.1.*)
  * - lvgl (>= v8.3.9, < v9)
  *
  * Then, follow the steps below to configure the libraries and upload the example:
  *
  * 1. For **esp-brookesia**:
  *
- *     - [optional] Follow the [steps](../../../README.md#configuration-instructions-1) to configure the library.
+ *     - [optional] Follow the [steps](https://github.com/espressif/esp-brookesia/blob/master/docs/how_to_use.md#configuration-instructions-1) to configure the library.
  *
  * 2. For **ESP32_Display_Panel**:
  *
- *     - [optional] Follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-drivers) to configure drivers.
- *     - [mandatory] If using a supported development board, follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#using-supported-development-boards) to configure it.
- *     - [mandatory] If using a custom board, follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#using-custom-development-boards) to configure it.
+ *     - [optional] Follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#configuring-drivers) to configure drivers if needed.
+ *     - [mandatory] If using a supported development board, follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#using-supported-development-boards) to configure it.
+ *     - [mandatory] If using a custom board, follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#using-custom-development-boards) to configure it.
  *
  * 3. For **lvgl**:
  *
- *     - [optional] Follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-lvgl) to add *lv_conf.h* file and change the configurations.
+ *     - [mandatory] Follow the [steps](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#configuring-lvgl) to add *lv_conf.h* file and change the configurations.
  *     - [mandatory] Enable the `LV_USE_SNAPSHOT` macro in the *lv_conf.h* file.
  *     - [optional] Modify the macros in the [lvgl_port_v8.h](./lvgl_port_v8.h) file to configure the lvgl porting parameters.
  *
- * 4. Navigate to the `Tools` menu in the Arduino IDE to choose a ESP board and configure its parameters. **Please ensure that the size of APP partition in the partition table is enough (e.g. 2 MB)**. For supported boards, please refter to [Configuring Supported Development Boards](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/Board_Instructions.md#recommended-configurations-in-the-arduino-ide)
+ * 4. Navigate to the `Tools` menu in the Arduino IDE to choose a ESP board and configure its parameters. **Please ensure that the size of APP partition in the partition table is enough (e.g. 4 MB)**. For supported boards, please refter to [Configuring Supported Development Boards](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#configuring-supported-development-boards)
  * 5. Verify and upload the example to the ESP board.
  *
  * ## Technical Support and Feedback
@@ -65,6 +66,8 @@
   #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_320_480_DARK_STYLESHEET()
 #elif (ESP_PANEL_LCD_WIDTH == 480) && (ESP_PANEL_LCD_HEIGHT == 480)
   #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET()
+#elif (ESP_PANEL_LCD_WIDTH == 720) && (ESP_PANEL_LCD_HEIGHT == 1280)
+  #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_720_1280_DARK_STYLESHEET()
 #elif (ESP_PANEL_LCD_WIDTH == 800) && (ESP_PANEL_LCD_HEIGHT == 480)
   #define EXAMPLE_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET()
 #elif (ESP_PANEL_LCD_WIDTH == 800) && (ESP_PANEL_LCD_HEIGHT == 1280)

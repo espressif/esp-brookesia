@@ -17,6 +17,17 @@
 // *INDENT-OFF*
 class ESP_Brookesia_StatusBar {
 public:
+    enum class ClockFormat {
+        FORMAT_12H,
+        FORMAT_24H,
+    };
+    enum class WifiState {
+        DISCONNECTED,
+        SIGNAL_1,
+        SIGNAL_2,
+        SIGNAL_3,
+    };
+
     ESP_Brookesia_StatusBar(const ESP_Brookesia_Core &core, const ESP_Brookesia_StatusBarData_t &data, int battery_id, int wifi_id);
     ~ESP_Brookesia_StatusBar();
 
@@ -35,7 +46,9 @@ public:
     bool hideBatteryIcon(void) const;
     // Wifi
     bool setWifiIconState(int state) const;
+    bool setWifiIconState(WifiState state) const;
     // Clock
+    bool setClockFormat(ClockFormat format) const;
     bool setClock(int hour, int min, bool is_pm) const;
 
     bool checkVisible(void) const;

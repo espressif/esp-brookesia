@@ -353,7 +353,8 @@ bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneM
         navigation_bar_visual_mode = app_data->navigation_bar_visual_mode;
         _flags.enable_gesture_navigation = (app_data->flags.enable_navigation_gesture &&
                                             (navigation_bar_visual_mode != ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED));
-        _flags.enable_gesture_navigation_back = _flags.enable_gesture_navigation;
+        _flags.enable_gesture_navigation_back = (_flags.enable_gesture_navigation &&
+                                                data.flags.enable_gesture_navigation_back);
         _flags.enable_gesture_navigation_home = (_flags.enable_gesture_navigation &&
                                                 (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE));
         _flags.enable_gesture_navigation_recents_app = _flags.enable_gesture_navigation_home;

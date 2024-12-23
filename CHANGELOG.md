@@ -2,9 +2,17 @@
 
 ## v0.4.2 - 2024-12-11
 
+### Enhancements:
+
+* feat(assets): update large images
+* feat(phone): support 24h format for clock of status bar
+* feat(phone): disable manager gesture navigation back by default
+* feat(phone): add stylesheet 720x1280
+* feat(examples): update arduino Phone
+
 ### Bugfixes:
 
-* fix(examples): PSRAM use QUAD mode for M5Stack CoreS3
+* fix(examples): PSRAM use QUAD mode for M5Stack CoreS3 @georgik (#16)
 
 ## v0.4.1 - 2024-10-25
 

@@ -38,6 +38,7 @@ To achieve the best display performance at fixed resolutions, esp-brookesia also
 - [320 x 240](../src/systems/phone/stylesheets/320_240/)
 - [320 x 480](../src/systems/phone/stylesheets/320_480/)
 - [480 x 480](../src/systems/phone/stylesheets/480_480/)
+- [720 x 1280](../src/systems/phone/stylesheets/720_1280/)
 - [800 x 480](../src/systems/phone/stylesheets/800_480/)
 - [800 x 1280](../src/systems/phone/stylesheets/800_1280/)
 - [1024 x 600](../src/systems/phone/stylesheets/1024_600/)

@@ -538,6 +538,16 @@ bool ESP_Brookesia_StatusBar::setWifiIconState(int state) const
     return true;
 }
 
+bool ESP_Brookesia_StatusBar::setWifiIconState(WifiState state) const
+{
+    ESP_BROOKESIA_LOGD("Set wifi icon state(0x%p: %d)", this, static_cast<int>(state));
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(
+        setIconState(_wifi_id, static_cast<int>(state)), false, "Set wifi icon state failed"
+    );
+
+    return true;
+}
+
 bool ESP_Brookesia_StatusBar::beginClock(void)
 {
     ESP_Brookesia_LvObj_t clock_obj = nullptr;
@@ -635,6 +645,26 @@ bool ESP_Brookesia_StatusBar::delClock(void)
     _clock_dot_label.reset();
     _clock_min_label.reset();
     _clock_period_label.reset();
+
+    return true;
+}
+
+bool ESP_Brookesia_StatusBar::setClockFormat(ClockFormat format) const
+{
+    ESP_BROOKESIA_LOGD("Set clock format(%d)", static_cast<int>(format));
+    ESP_BROOKESIA_CHECK_NULL_RETURN(_clock_period_label, false, "Invalid clock period label");
+
+    switch (format) {
+    case ClockFormat::FORMAT_12H:
+        lv_obj_clear_flag(_clock_period_label.get(), LV_OBJ_FLAG_HIDDEN);
+        break;
+    case ClockFormat::FORMAT_24H:
+        lv_obj_add_flag(_clock_period_label.get(), LV_OBJ_FLAG_HIDDEN);
+        break;
+    default:
+        ESP_BROOKESIA_CHECK_FALSE_RETURN(false, false, "Invalid clock format");
+        break;
+    }
 
     return true;
 }
