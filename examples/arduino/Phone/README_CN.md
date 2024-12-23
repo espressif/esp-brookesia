@@ -8,7 +8,8 @@
 
 要使用此示例，请首先安装以下依赖库：
 
-- ESP32_Display_Panel (0.1.5)
+- ESP32_Display_Panel (0.2.1)
+- ESP32_IO_Expander (0.1.0)
 - lvgl (>= v8.3.9, < v9)
 
 然后，按照以下步骤配置库并上传示例：
@@ -19,17 +20,17 @@
 
 2. 对于 **ESP32_Display_Panel**：
 
-    - [可选] 按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-drivers)配置驱动程序。
-    - [必需] 如果使用受支持的开发板，请按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#using-supported-development-boards)配置它。
-    - [必需] 如果使用自定义开发板，请按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#using-custom-development-boards)配置它。
+    - [可选] 按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#configuring-drivers)配置驱动程序。
+    - [必需] 如果使用受支持的开发板，请按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#using-supported-development-boards)配置它。
+    - [必需] 如果使用自定义开发板，请按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#using-custom-development-boards)配置它。
 
 3. 对于 **lvgl**：
 
-    - [可选] 按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel?tab=readme-ov-file#configuring-lvgl)添加 *lv_conf.h* 文件并更改配置。
+    - [必需] 按照[步骤](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#configuring-lvgl)添加 *lv_conf.h* 文件并更改配置。
     - [必需] 在 *lv_conf.h* 文件中使能 `LV_USE_SNAPSHOT` 宏。
     - [可选] 修改 [lvgl_port_v8.h](./lvgl_port_v8.h) 文件中的宏，以配置 lvgl 端口参数。
 
-4. 在 Arduino IDE 中导航到 `工具` 菜单，选择 ESP 板并配置其参数。**请确保分区表中 APP 分区足够大（如 2 MB）**。对于受支持的板，请参阅[配置受支持的开发板](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/Board_Instructions.md#recommended-configurations-in-the-arduino-ide)。
+4. 在 Arduino IDE 中导航到 `工具` 菜单，选择 ESP 板并配置其参数。**请确保分区表中 APP 分区足够大（如 4 MB）**。对于受支持的板，请参阅[配置受支持的开发板](https://github.com/esp-arduino-libs/ESP32_Display_Panel/blob/master/docs/How_To_Use.md#configuring-supported-development-boards)。
 5. 验证并将示例上传到 ESP 板。
 
 ## 技术支持与反馈

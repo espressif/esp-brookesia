@@ -100,7 +100,7 @@ idf.py add-dependency "espressif/esp-brookesia"
 
 以下是在 Arduino 开发平台下使用 esp-brookesia 的示例：
 
-- [ESP_Brookesia_Phone](../examples/arduino/ESP_Brookesia_Phone): 此示例演示了如何使用 [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) 库运行 Phone UI。
+- [Phone](../examples/arduino/Phone): 此示例演示了如何使用 [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) 库运行 Phone UI。
 
 ## App 开发
 

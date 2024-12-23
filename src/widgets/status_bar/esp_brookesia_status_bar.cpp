@@ -651,7 +651,7 @@ bool ESP_Brookesia_StatusBar::delClock(void)
 
 bool ESP_Brookesia_StatusBar::setClockFormat(ClockFormat format) const
 {
-    ESP_BROOKESIA_LOGD("Set clock format(%d)", format);
+    ESP_BROOKESIA_LOGD("Set clock format(%d)", static_cast<int>(format));
     ESP_BROOKESIA_CHECK_NULL_RETURN(_clock_period_label, false, "Invalid clock period label");
 
     switch (format) {

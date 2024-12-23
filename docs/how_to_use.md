@@ -100,7 +100,7 @@ Users can access them by navigating to `File` > `Examples` > `esp-brookesia` in 
 
 Here are examples of using esp-brookesia on the Arduino development platform:
 
-- [ESP_Brookesia_Phone](../examples/arduino/ESP_Brookesia_Phone): This example demonstrates how to run the Phone UI using the [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) library.
+- [Phone](../examples/arduino/Phone): This example demonstrates how to run the Phone UI using the [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) library.
 
 ## App Development
 
