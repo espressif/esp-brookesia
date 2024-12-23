@@ -2,9 +2,13 @@
 
 ## v0.4.2 - 2024-12-11
 
+### Enhancements:
+
+* feat(phone): support 24h format for clock of status bar
+
 ### Bugfixes:
 
-* fix(examples): PSRAM use QUAD mode for M5Stack CoreS3
+* fix(examples): PSRAM use QUAD mode for M5Stack CoreS3 @georgik (#16)
 
 ## v0.4.1 - 2024-10-25
 

@@ -12,7 +12,7 @@ The [Status Bar](../src/widgets/status_bar/) displays time, battery level, WiFi 
 
 - **Position**: Located at the top of the screen.
 - **Status Icons**: Each icon supports up to 6 images with adaptive scaling, allowing the use of images different from the stylesheet size.
-- **Time Information**: Allows setting the system time, formatted as `HH:MM AM/PM`.
+- **Time Information**: Allows setting the system time, 12h formatted as `HH:MM AM/PM` and 24h formatted as `HH:MM`.
 - **Battery Information**: Allows setting the battery status, including both percentage and status icon.
 - **WiFi Status**: Allows setting the WiFi connection status, including a status icon.
 
