@@ -1,0 +1,12 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  espressif/esp32_p4_function_ev_board: "^4"
+  espressif/esp_wifi_remote: "0.*"
+  espressif/esp_hosted: "0.*"
+  espressif/esp-brookesia:
+    version: "*"
+    override_path: "../../../../../esp-brookesia"
+  espressif/settings:
+    version: "*"
+    override_path: "../../../../../esp-brookesia-apps/src/phone/settings"
