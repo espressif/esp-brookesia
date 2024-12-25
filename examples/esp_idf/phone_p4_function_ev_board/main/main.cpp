@@ -11,6 +11,7 @@
 #include "esp_check.h"
 #include "esp_log.h"
 #include "bsp/esp-bsp.h"
+#include "bsp/display.h"
 #include "esp_brookesia.hpp"
 /* These are built-in app examples in `esp-brookesia` library */
 #include "app_examples/phone/simple_conf/src/phone_app_simple_conf.hpp"
@@ -21,10 +22,16 @@
 using namespace esp_brookesia::phone::app;
 
 #define EXAMPLE_SHOW_MEM_INFO            (1)
+#define SETTINGS_DISPLAY_BRIGHTNESS_MIN  (10)
+#define SETTINGS_DISPLAY_BRIGHTNESS_MAX  (100)
 
 static const char *TAG = "app_main";
 
 static void on_clock_update_timer_cb(struct _lv_timer_t *t);
+static bool settings_port_set_media_sound_volume(int volume);
+static int settings_port_get_media_sound_volume(void);
+static bool settings_port_set_media_display_brightness(int brightness);
+static int settings_port_get_media_display_brightness(void);
 
 extern "C" void app_main(void)
 {
@@ -94,6 +101,10 @@ extern "C" void app_main(void)
     ESP_BROOKESIA_CHECK_FALSE_EXIT(
         app_settings->activateStylesheet(app_settings_stylesheet), "Activate app settings stylesheet failed"
     );
+    app_settings->getPort().registerSetMediaDisplayBrightnessCallback(settings_port_set_media_display_brightness);
+    app_settings->getPort().registerGetMediaDisplayBrightnessCallback(settings_port_get_media_display_brightness);
+    app_settings->getPort().registerSetMediaSoundVolumeCallback(settings_port_set_media_sound_volume);
+    app_settings->getPort().registerGetMediaSoundVolumeCallback(settings_port_get_media_sound_volume);
     ESP_BROOKESIA_CHECK_FALSE_EXIT((phone->installApp(app_settings) >= 0), "Install app settings failed");
 
     /* Create a timer to update the clock */
@@ -155,4 +166,43 @@ static void on_clock_update_timer_cb(struct _lv_timer_t *t)
         phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min, is_time_pm),
         "Refresh status bar failed"
     );
+}
+
+static int sound_volume = 100;
+static int display_brightness = 100;
+static bool settings_port_set_media_sound_volume(int volume)
+{
+    // printf("Set media sound volume: %d\n", volume);
+
+    sound_volume = volume;
+
+    return true;
+}
+
+static int settings_port_get_media_sound_volume(void)
+{
+    // printf("Get media sound volume: %d\n", sound_volume);
+
+    return sound_volume;
+}
+
+static bool settings_port_set_media_display_brightness(int brightness)
+{
+    // printf("Set media display brightness: %d\n", brightness);
+
+    brightness = std::min(std::max(brightness, SETTINGS_DISPLAY_BRIGHTNESS_MIN), SETTINGS_DISPLAY_BRIGHTNESS_MAX);
+
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(
+        bsp_display_brightness_set(brightness) == ESP_OK, false, "Set display brightness failed"
+    );
+    display_brightness = brightness;
+
+    return true;
+}
+
+static int settings_port_get_media_display_brightness(void)
+{
+    // printf("Set media display brightness: %d\n", display_brightness);
+
+    return display_brightness;
 }
