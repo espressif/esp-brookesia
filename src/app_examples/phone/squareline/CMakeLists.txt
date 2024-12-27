@@ -1,7 +1,7 @@
 set(PROJ_SRC ${CMAKE_CURRENT_LIST_DIR}/src)
 
 set(UI_DIR ${PROJ_SRC}/ui)
-file(GLOB_RECURSE UI_SRCS_C ${UI_DIR}/*.c)
+file(GLOB_RECURSE UI_SRCS_C ${UI_DIR}/*.c ${PROJ_SRC}/assets/*.c)
 
 file(GLOB PROJ_SRCS_C ${PROJ_SRC}/*.c)
 file(GLOB PROJ_SRCS_CPP ${PROJ_SRC}/*.cpp)

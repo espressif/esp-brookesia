@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,18 +9,27 @@
 
 using namespace std;
 
-LV_IMG_DECLARE(ui_img_sls_logo_png);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_squareline_112_112);
 
 // This is a static variable to check if the app is already inited
 static bool is_inited = false;
 
 PhoneAppSquareline::PhoneAppSquareline(bool use_status_bar, bool use_navigation_bar):
-    ESP_Brookesia_PhoneApp("Squareline", &ui_img_sls_logo_png, false, use_status_bar, use_navigation_bar)
+    ESP_Brookesia_PhoneApp(
+        "Squareline", &esp_brookesia_app_icon_launcher_squareline_112_112, false, use_status_bar, use_navigation_bar
+    )
 {
 }
 
 PhoneAppSquareline::PhoneAppSquareline():
-    ESP_Brookesia_PhoneApp("Squareline", &ui_img_sls_logo_png, false)
+    ESP_Brookesia_PhoneApp("Squareline", &esp_brookesia_app_icon_launcher_squareline_112_112, false)
+{
+}
+
+PhoneAppSquareline::PhoneAppSquareline(
+    const ESP_Brookesia_CoreAppData_t &core_data, const ESP_Brookesia_PhoneAppData_t &phone_data
+):
+    ESP_Brookesia_PhoneApp(core_data, phone_data)
 {
 }
 

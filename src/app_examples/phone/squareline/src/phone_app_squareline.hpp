@@ -25,8 +25,16 @@ public:
     PhoneAppSquareline(bool use_status_bar, bool use_navigation_bar);
 
     /**
-     * @brief Construct a app with basic configuration
+     * @brief Construct a app with complete configuration
      *
+     * @param core_data  The core data
+     * @param phone_data The phone data
+     *
+     */
+    PhoneAppSquareline(const ESP_Brookesia_CoreAppData_t &core_data, const ESP_Brookesia_PhoneAppData_t &phone_data);
+
+    /**
+     * @brief Construct a app with basic configuration
      *
      */
     PhoneAppSquareline();
