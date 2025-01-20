@@ -13,26 +13,6 @@ check_version_format() {
     return 0
 }
 
-if [ $# -lt 1 ]; then
-    latest_version="0.0.0"
-    echo "Don't get the latest version, use \"0.0.0\" as default"
-else
-    # Get the first input parameter as the version to be compared
-    latest_version="$1"
-    # Check the version format
-    check_version_format "${latest_version}"
-    result=$?
-    if [ ${result} -ne 0 ]; then
-        echo "The latest release version (${latest_version}) format is incorrect."
-        exit 1
-    fi
-fi
-
-# Specify the directory path
-target_directory="./"
-
-echo "Checking directory: ${target_directory}"
-
 # Function: Check if a file exists
 # Input parameters: $1 The file to check
 # Return value: 0 if the file exists, 1 if the file does not exist
@@ -68,6 +48,32 @@ compare_versions() {
     return 0
 }
 
+# Get the latest release version
+latest_version="v0.0.0"
+for i in "$@"; do
+    case $i in
+        --latest_version=*)
+            latest_version="${i#*=}"
+            shift
+            ;;
+        *)
+            ;;
+    esac
+done
+# Check the version format
+check_version_format "${latest_version}"
+result=$?
+if [ ${result} -ne 0 ]; then
+    echo "The latest release version (${latest_version}) format is incorrect."
+    exit 1
+fi
+echo "Get the latest release version: ${latest_version}"
+
+# Specify the directory path
+target_directory="./"
+
+echo "Checking directory: ${target_directory}"
+
 echo "Checking file: library.properties"
 # Check if "library.properties" file exists
 check_file_exists "${target_directory}/library.properties"
@@ -102,7 +108,7 @@ echo "Checking file: idf_component.yml"
 check_file_exists "${target_directory}/idf_component.yml"
 if [ $? -eq 0 ]; then
     # Read the version information from the file
-    idf_version=v$(grep -m 1 -oP '(?<=version:\s)v?\S+' "${target_directory}/idf_component.yml")
+    idf_version=v$(grep -E '^version:' "${target_directory}/idf_component.yml" | awk -F'"' '{print $2}')
     echo "Get IDF component version: ${idf_version}"
     # Check the version format
     check_version_format "${idf_version}"

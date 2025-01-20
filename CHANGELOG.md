@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.4.3 - 2025-01-20
+
+### Enhancements:
+
+* feat(pre-commit): check lib versions
+
+### Bugfixes:
+
+* fix(status_bar): display 1-12 with AM/PM indicator @rysmith0315 (#19)
+
 ## v0.4.2 - 2024-12-11
 
 ### Enhancements:
