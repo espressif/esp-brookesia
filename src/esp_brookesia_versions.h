@@ -11,7 +11,7 @@
 #if !defined(ESP_BROOKESIA_VER_MAJOR) && !defined(ESP_BROOKESIA_VER_MINOR) && !defined(ESP_BROOKESIA_VER_PATCH)
 #define ESP_BROOKESIA_VER_MAJOR 0
 #define ESP_BROOKESIA_VER_MINOR 4
-#define ESP_BROOKESIA_VER_PATCH 1
+#define ESP_BROOKESIA_VER_PATCH 3
 #endif
 
 /* File `esp_brookesia_conf.h` */

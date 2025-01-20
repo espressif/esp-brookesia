@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -595,7 +595,8 @@ bool ESP_Brookesia_StatusBar::beginClock(void)
     _clock_period_label = clock_period_label;
 
     ESP_BROOKESIA_CHECK_FALSE_GOTO(updateClockByNewData(), err, "Update clock style failed");
-    ESP_BROOKESIA_CHECK_FALSE_GOTO(setClock(0, 0, false), err, "Set clock failed");
+    ESP_BROOKESIA_CHECK_FALSE_GOTO(setClockFormat(_clock_format), err, "Set clock format failed");
+    ESP_BROOKESIA_CHECK_FALSE_GOTO(setClock(_clock_hour, _clock_min, false), err, "Set clock failed");
 
     return true;
 
@@ -666,6 +667,8 @@ bool ESP_Brookesia_StatusBar::setClockFormat(ClockFormat format) const
         break;
     }
 
+    _clock_format = format;
+
     return true;
 }
 
@@ -679,13 +682,34 @@ bool ESP_Brookesia_StatusBar::setClock(int hour, int minute, bool is_pm) const
 
     if (_clock_hour != hour) {
         _clock_hour = hour;
+        if (_clock_format == ClockFormat::FORMAT_12H) {
+            hour = hour % 12;
+            if (hour == 0) {
+                hour = 12;
+            }
+        }
         lv_label_set_text_fmt(_clock_hour_label.get(), "%02d", hour);
     }
     if (_clock_min != minute) {
         _clock_min = minute;
         lv_label_set_text_fmt(_clock_min_label.get(), "%02d", minute);
     }
-    lv_label_set_text(_clock_period_label.get(), is_pm ? " PM " : " AM ");
+    if (_clock_format == ClockFormat::FORMAT_12H) {
+        lv_label_set_text(_clock_period_label.get(), is_pm ? " PM " : " AM ");
+    }
+
+    return true;
+}
+
+bool ESP_Brookesia_StatusBar::setClock(int hour, int minute) const
+{
+    ESP_BROOKESIA_LOGD("Set clock(%02d:%02d)", hour, minute);
+
+    hour = max(min(hour, 23), 0);
+    minute = max(min(minute, 59), 0);
+    bool is_pm = hour >= 12;
+
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(setClock(hour, minute, is_pm), false, "Set clock failed");
 
     return true;
 }

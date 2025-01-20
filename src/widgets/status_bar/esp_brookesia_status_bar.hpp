@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -50,6 +50,7 @@ public:
     // Clock
     bool setClockFormat(ClockFormat format) const;
     bool setClock(int hour, int min, bool is_pm) const;
+    bool setClock(int hour, int min) const;
 
     bool checkVisible(void) const;
 
@@ -95,8 +96,9 @@ private:
     // Wifi
     int _wifi_id;
     // Clock
-    mutable int _clock_hour;
-    mutable int _clock_min;
+    mutable int _clock_hour = 12;
+    mutable int _clock_min = 0;
+    mutable ClockFormat _clock_format = ClockFormat::FORMAT_24H;
     bool _is_clock_out_of_area;
     ESP_Brookesia_LvObj_t _clock_obj;
     ESP_Brookesia_LvObj_t _clock_hour_label;

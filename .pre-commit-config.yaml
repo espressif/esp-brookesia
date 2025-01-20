@@ -84,3 +84,19 @@ repos:
     hooks:
     - id: codespell
       args: [-w]
+
+  - repo: local
+    hooks:
+      - id: check-file-versions
+        name: Update when versions change
+        entry: python3 tools/check_file_version.py ./
+        language: system
+        files: '(.*esp_brookesia_conf.h|library.properties|.*esp_brookesia_versions.h)'
+
+  - repo: local
+    hooks:
+      - id: check-library-versions
+        name: Check library versions
+        entry: ./.github/scripts/check_lib_versions.sh
+        language: system
+        files: '(idf_component.yml|library.properties)'
