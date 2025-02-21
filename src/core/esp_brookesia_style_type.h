@@ -281,6 +281,75 @@ typedef struct {
         },                                      \
     }
 
+typedef enum {
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_TOP_LEFT = 0,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_TOP_MID,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_TOP_RIGHT,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_BOTTOM_LEFT,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_BOTTOM_MID,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_BOTTOM_RIGHT,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_LEFT_MID,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_RIGHT_MID,
+    ESP_BROOKESIA_STYLE_ALIGN_TYPE_CENTER,
+} ESP_Brookesia_StyleAlignType_t;
+
+typedef struct {
+    ESP_Brookesia_StyleAlignType_t type;
+    int offset_x;
+    int offset_y;
+} ESP_Brookesia_StyleAlign_t;
+
+#define ESP_BROOKESIA_STYLE_ALIGN(type, offset_x, offset_y) \
+    {                                                  \
+        .type = type,                                  \
+        .offset_x = offset_x,                          \
+        .offset_y = offset_y,                          \
+    }
+
+typedef struct {
+    int top;
+    int bottom;
+    int left;
+    int right;
+    int row;
+    int column;
+} ESP_Brookesia_StyleGap_t;
+
+typedef enum {
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_ROW = 0,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_COLUMN,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_ROW_WRAP,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_ROW_REVERSE,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_ROW_WRAP_REVERSE,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_COLUMN_WRAP,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_COLUMN_REVERSE,
+    ESP_BROOKESIA_STYLE_FLEX_FLOW_COLUMN_WRAP_REVERSE,
+} ESP_Brookesia_StyleFlexFlow_t;
+
+typedef enum {
+    ESP_BROOKESIA_STYLE_FLEX_ALIGN_START,
+    ESP_BROOKESIA_STYLE_FLEX_ALIGN_END,
+    ESP_BROOKESIA_STYLE_FLEX_ALIGN_CENTER,
+    ESP_BROOKESIA_STYLE_FLEX_ALIGN_SPACE_EVENLY,
+    ESP_BROOKESIA_STYLE_FLEX_ALIGN_SPACE_AROUND,
+    ESP_BROOKESIA_STYLE_FLEX_ALIGN_SPACE_BETWEEN,
+} ESP_Brookesia_StyleFlexAlign_t;
+
+typedef struct {
+    ESP_Brookesia_StyleFlexFlow_t flow;
+    ESP_Brookesia_StyleFlexAlign_t main_place;
+    ESP_Brookesia_StyleFlexAlign_t cross_place;
+    ESP_Brookesia_StyleFlexAlign_t track_place;
+} ESP_Brookesia_StyleLayoutFlex_t;
+
+#define ESP_BROOKESIA_STYLE_LAYOUT_FLEX(flow, main_place, cross_place, track_place) \
+    {                                                                             \
+        .flow = flow,                                                             \
+        .main_place = main_place,                                                 \
+        .cross_place = cross_place,                                               \
+        .track_place = track_place,                                               \
+    }
+
 #ifdef __cplusplus
 }
 #endif
