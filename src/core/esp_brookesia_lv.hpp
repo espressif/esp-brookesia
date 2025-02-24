@@ -6,18 +6,62 @@
 #pragma once
 
 #include <memory>
+#include <cstdlib>
 #include "lvgl.h"
+#include "esp_brookesia_style_type.h"
 
-using ESP_Brookesia_LvObj_t = std::shared_ptr<lv_obj_t>;
-struct LvObjDeleter {
-    void operator()(lv_obj_t *obj)
-    {
-        if (lv_obj_is_valid(obj)) {
-            lv_obj_del(obj);
+class ESP_Brookesia_LvObj {
+public:
+    ESP_Brookesia_LvObj() = default;
+
+    ESP_Brookesia_LvObj(lv_obj_t* p) {
+        if ((p == nullptr) || !lv_obj_is_valid(p)) {
+            return;
         }
+        _obj = std::shared_ptr<lv_obj_t>(p, [](lv_obj_t* obj) {
+            if (lv_obj_is_valid(obj)) {
+                lv_obj_del(obj);
+            }
+        });
     }
+
+    operator lv_obj_t*() const {
+        return get();
+    }
+    lv_obj_t* operator->() const {
+        return get();
+    }
+
+    bool applyStyleAttribute(ESP_Brookesia_StyleSize_t size, lv_style_selector_t selector = LV_PART_MAIN);
+    bool applyStyleAttribute(ESP_Brookesia_StyleFont_t font, lv_style_selector_t selector = LV_PART_MAIN);
+    bool applyStyleAttribute(ESP_Brookesia_StyleAlign_t align, lv_style_selector_t selector = LV_PART_MAIN);
+    bool applyStyleAttribute(ESP_Brookesia_StyleLayoutFlex_t layout, lv_style_selector_t selector = LV_PART_MAIN);
+    bool applyStyleAttribute(ESP_Brookesia_StyleGap_t gap, lv_style_selector_t selector = LV_PART_MAIN);
+    // bool applyStyleAttribute(ESP_Brookesia_StyleColor_t color, lv_style_selector_t selector = LV_PART_MAIN);
+    // bool applyStyleAttribute(ESP_Brookesia_StyleImage_t image, lv_style_selector_t selector = LV_PART_MAIN);
+
+    void reset()
+    {
+        _obj.reset();
+    }
+    lv_obj_t* get() const
+    {
+        return _obj.get();
+    }
+
+    bool isValid() const {
+        return (_obj != nullptr) && lv_obj_is_valid(_obj.get());
+    }
+
+private:
+    std::shared_ptr<lv_obj_t> _obj = nullptr;
 };
-#define ESP_BROOKESIA_LV_OBJ(type, parent) ESP_Brookesia_LvObj_t(lv_##type##_create(parent), LvObjDeleter());
+
+using ESP_Brookesia_LvObj_t = ESP_Brookesia_LvObj;
+#define ESP_BROOKESIA_LV_OBJ(type, parent) \
+    ESP_Brookesia_LvObj([&]() { \
+        return lv_##type##_create(parent); \
+    }())
 
 using ESP_Brookesia_LvTimer_t = std::shared_ptr<lv_timer_t>;
 struct LvTimerDeleter {
