@@ -19,11 +19,7 @@ ESP_Brookesia_AppLauncherIcon::ESP_Brookesia_AppLauncherIcon(ESP_Brookesia_Core 
     _data(data),
     _flags{},
     _image_default_zoom(LV_IMG_ZOOM_NONE),
-    _image_press_zoom(LV_IMG_ZOOM_NONE),
-    _main_obj(nullptr),
-    _icon_main_obj(nullptr),
-    _icon_image_obj(nullptr),
-    _name_label(nullptr)
+    _image_press_zoom(LV_IMG_ZOOM_NONE)
 {
 }
 

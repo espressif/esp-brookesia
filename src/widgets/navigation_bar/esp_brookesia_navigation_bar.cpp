@@ -24,8 +24,7 @@ ESP_Brookesia_NavigationBar::ESP_Brookesia_NavigationBar(const ESP_Brookesia_Cor
     _visual_flex_show_anim(nullptr),
     _visual_flex_hide_anim(nullptr),
     _visual_flex_hide_timer(nullptr),
-    _visual_mode(ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED),
-    _main_obj(nullptr)
+    _visual_mode(ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED)
 {
 }
 

@@ -24,10 +24,12 @@ typedef struct {
     uint16_t height;                        /*!< Height in pixels */
     uint8_t width_percent;                  /*!< Percentage of the parent width */
     uint8_t height_percent;                 /*!< Percentage of the parent height */
+    int radius;                             /*!< Radius in pixels */
     struct {
         uint8_t enable_width_percent: 1;    /*!< If set, the `width` will be calculated based on `width_percent` */
         uint8_t enable_height_percent: 1;   /*!< If set, the `height` will be calculated based on `height_percent` */
         uint8_t enable_square: 1;           /*!< If set, `width` and `height` will be equal, taking the smaller value */
+        uint8_t enable_circle: 1;           /*!< If set, `width` and `height` will be equal, taking the smaller value, and `radius` will be set to `LV_RADIUS_CIRCLE` */
     } flags;                                /*!< Style size flags */
 } ESP_Brookesia_StyleSize_t;
 
@@ -117,6 +119,26 @@ typedef struct {
         },                                        \
     }
 
+#define ESP_BROOKESIA_STYLE_SIZE_CIRCLE(size) \
+    {                                  \
+        .width = size,                 \
+        .height = size,                \
+        .flags = {                    \
+            .enable_circle = 1,       \
+        },                           \
+    }
+
+#define ESP_BROOKESIA_STYLE_SIZE_CIRCLE_PERCENT(percent) \
+    {                                             \
+        .width_percent = percent,                 \
+        .height_percent = percent,                \
+        .flags = {                                \
+            .enable_width_percent = 1,            \
+            .enable_height_percent = 1,           \
+            .enable_circle = 1,                   \
+        },                                        \
+    }
+
 /**
  * @brief Style font structure, used to define the UI fonts. Users can set these dimensions using the
  *        `ESP_BROOKESIA_STYLE_FONT_*` macros.
@@ -183,6 +205,11 @@ typedef struct {
         .font_resource = font,                    \
     }
 
+typedef enum {
+    ESP_BROOKESIA_STYLE_COLOR_ITEM_BACKGROUND = 0,
+    ESP_BROOKESIA_STYLE_COLOR_ITEM_TEXT,
+} ESP_Brookesia_StyleColorItem_t;
+
 /**
  * @brief Style color structure, used to define the color of UI elements. Users can set these colors using the
  *       `ESP_BROOKESIA_STYLE_COLOR*` macros.
@@ -222,9 +249,11 @@ typedef struct {
  */
 typedef struct {
     const void *resource;           /*!< Pointer to the image resource */
-    ESP_Brookesia_StyleColor_t recolor;    /*!< Color to recolor the image */
+    ESP_Brookesia_StyleColor_t recolor;         /*!< Color to recolor the image */
+    ESP_Brookesia_StyleColor_t container_color; /*!< Color of the container */
     struct {
         uint8_t enable_recolor: 1;  /*!< Flag to enable image recoloring */
+        uint8_t enable_container_color: 1;  /*!< Flag to enable container color */
     } flags;                        /*!< Style image flags */
 } ESP_Brookesia_StyleImage_t;
 
@@ -299,11 +328,11 @@ typedef struct {
     int offset_y;
 } ESP_Brookesia_StyleAlign_t;
 
-#define ESP_BROOKESIA_STYLE_ALIGN(type, offset_x, offset_y) \
-    {                                                  \
-        .type = type,                                  \
-        .offset_x = offset_x,                          \
-        .offset_y = offset_y,                          \
+#define ESP_BROOKESIA_STYLE_ALIGN(t, x, y) \
+    {                                      \
+        .type = t,                                  \
+        .offset_x = x,                          \
+        .offset_y = y,                          \
     }
 
 typedef struct {

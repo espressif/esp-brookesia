@@ -20,8 +20,6 @@ ESP_Brookesia_CoreHome::ESP_Brookesia_CoreHome(ESP_Brookesia_Core &core, const E
     _core_data(data),
     _main_screen(nullptr),
     _system_screen(nullptr),
-    _main_screen_obj(nullptr),
-    _system_screen_obj(nullptr),
     _container_style_index(0)
 {
 }
@@ -128,10 +126,15 @@ bool ESP_Brookesia_CoreHome::calibrateCoreObjectSize(const ESP_Brookesia_StyleSi
         ESP_BROOKESIA_CHECK_VALUE_RETURN(target.height, 1, parent_h, false, "Invalid Height");
     }
 
-    // Process square
-    if (target.flags.enable_square) {
+    // Process special size
+    if (target.flags.enable_square || target.flags.enable_circle) {
         target.width = min(target.width, target.height);
         target.height = target.width;
+    }
+
+    // Process circle
+    if (target.flags.enable_circle) {
+        target.radius = LV_RADIUS_CIRCLE;
     }
 
     return true;
@@ -162,10 +165,15 @@ bool ESP_Brookesia_CoreHome::calibrateCoreObjectSize(const ESP_Brookesia_StyleSi
         ESP_BROOKESIA_CHECK_VALUE_RETURN(target.height, 1, parent_h, false, "Invalid Height");
     }
 
-    // Process square
-    if (target.flags.enable_square) {
+    // Process special size
+    if (target.flags.enable_square || target.flags.enable_circle) {
         target.width = min(target.width, target.height);
         target.height = target.width;
+    }
+
+    // Process circle
+    if (target.flags.enable_circle) {
+        target.radius = LV_RADIUS_CIRCLE;
     }
 
     return true;
@@ -197,10 +205,15 @@ bool ESP_Brookesia_CoreHome::calibrateCoreObjectSize(const ESP_Brookesia_StyleSi
         ESP_BROOKESIA_CHECK_VALUE_RETURN(target.height, min_size, parent_h, false, "Invalid Height");
     }
 
-    // Process square
-    if (target.flags.enable_square) {
+    // Process special size
+    if (target.flags.enable_square || target.flags.enable_circle) {
         target.width = min(target.width, target.height);
         target.height = target.width;
+    }
+
+    // Process circle
+    if (target.flags.enable_circle) {
+        target.radius = LV_RADIUS_CIRCLE;
     }
 
     return true;

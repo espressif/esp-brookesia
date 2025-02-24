@@ -19,21 +19,14 @@ ESP_Brookesia_StatusBar::ESP_Brookesia_StatusBar(const ESP_Brookesia_Core &core,
         int wifi_id):
     _core(core),
     _data(data),
-    _main_obj(nullptr),
     _battery_id(battery_id),
     _is_battery_initialed(false),
     _battery_state(-1),
     _is_battery_lable_out_of_area(false),
-    _battery_label(nullptr),
     _wifi_id(wifi_id),
     _clock_hour(-1),
     _clock_min(-1),
-    _is_clock_out_of_area(false),
-    _clock_obj(nullptr),
-    _clock_hour_label(nullptr),
-    _clock_dot_label(nullptr),
-    _clock_min_label(nullptr),
-    _clock_period_label(nullptr)
+    _is_clock_out_of_area(false)
 {
 }
 

@@ -18,14 +18,7 @@ ESP_Brookesia_RecentsScreenSnapshot::ESP_Brookesia_RecentsScreenSnapshot(const E
     _core(core),
     _conf(conf),
     _data(data),
-    _origin_y(0),
-    _main_obj(nullptr),
-    _drag_obj(nullptr),
-    _title_obj(nullptr),
-    _title_icon(nullptr),
-    _title_label(nullptr),
-    _snapshot_obj(nullptr),
-    _snapshot_image(nullptr)
+    _origin_y(0)
 {
 }
 
@@ -39,13 +32,13 @@ ESP_Brookesia_RecentsScreenSnapshot::~ESP_Brookesia_RecentsScreenSnapshot()
 
 bool ESP_Brookesia_RecentsScreenSnapshot::begin(lv_obj_t *parent)
 {
-    ESP_Brookesia_LvObj_t main_obj = NULL;
-    ESP_Brookesia_LvObj_t drag_obj = NULL;
-    ESP_Brookesia_LvObj_t title_obj = NULL;
-    ESP_Brookesia_LvObj_t title_icon = NULL;
-    ESP_Brookesia_LvObj_t title_label = NULL;
-    ESP_Brookesia_LvObj_t snapshot_obj = NULL;
-    ESP_Brookesia_LvObj_t snapshot_image = NULL;
+    ESP_Brookesia_LvObj_t main_obj = nullptr;
+    ESP_Brookesia_LvObj_t drag_obj = nullptr;
+    ESP_Brookesia_LvObj_t title_obj = nullptr;
+    ESP_Brookesia_LvObj_t title_icon = nullptr;
+    ESP_Brookesia_LvObj_t title_label = nullptr;
+    ESP_Brookesia_LvObj_t snapshot_obj = nullptr;
+    ESP_Brookesia_LvObj_t snapshot_image = nullptr;
 
     ESP_BROOKESIA_LOGD("Begin@0x%p)", this);
     ESP_BROOKESIA_CHECK_NULL_RETURN(parent, false, "Invalid parent object");

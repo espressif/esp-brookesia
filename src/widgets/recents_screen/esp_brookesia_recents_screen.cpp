@@ -22,13 +22,7 @@ ESP_Brookesia_RecentsScreen::ESP_Brookesia_RecentsScreen(ESP_Brookesia_Core &cor
     _data(data),
     _is_trash_pressed_losted(false),
     _trash_icon_default_zoom(LV_IMG_ZOOM_NONE),
-    _trash_icon_press_zoom(LV_IMG_ZOOM_NONE),
-    _main_obj(nullptr),
-    _memory_obj(nullptr),
-    _memory_label(nullptr),
-    _snapshot_table(nullptr),
-    _trash_obj(nullptr),
-    _trash_icon(nullptr)
+    _trash_icon_press_zoom(LV_IMG_ZOOM_NONE)
 {
 }
 

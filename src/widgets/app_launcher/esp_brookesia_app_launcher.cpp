@@ -24,10 +24,7 @@ ESP_Brookesia_AppLauncher::ESP_Brookesia_AppLauncher(ESP_Brookesia_Core &core, c
     _table_current_page_index(-1),
     _table_page_icon_count_max(0),
     _table_page_pad_row(0),
-    _table_page_pad_column(0),
-    _main_obj(nullptr),
-    _table_obj(nullptr),
-    _indicator_obj(nullptr)
+    _table_page_pad_column(0)
 {
 }
 

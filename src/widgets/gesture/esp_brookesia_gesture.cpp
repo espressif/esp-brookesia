@@ -41,7 +41,6 @@ ESP_Brookesia_Gesture::ESP_Brookesia_Gesture(ESP_Brookesia_Core &core_in, const 
     _indicator_bar_max_lengths{},
     _touch_start_tick(0),
     _detect_timer(nullptr),
-    _event_mask_obj(nullptr),
     _indicator_bars{},
     _indicator_bar_anim_var{},
     _indicator_bar_scale_back_anims{},

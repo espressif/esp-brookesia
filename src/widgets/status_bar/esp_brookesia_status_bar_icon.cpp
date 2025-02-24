@@ -17,8 +17,7 @@ using namespace std;
 ESP_Brookesia_StatusBarIcon::ESP_Brookesia_StatusBarIcon(const ESP_Brookesia_StatusBarIconData_t &data):
     _data(data),
     _is_out_of_parent(false),
-    _current_state(0),
-    _main_obj(nullptr)
+    _current_state(0)
 {
 }
 
