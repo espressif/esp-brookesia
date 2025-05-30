@@ -74,35 +74,6 @@ target_directory="./"
 
 echo "Checking directory: ${target_directory}"
 
-echo "Checking file: library.properties"
-# Check if "library.properties" file exists
-check_file_exists "${target_directory}/library.properties"
-if [ $? -ne 0 ]; then
-    exit 1
-fi
-# Read the version information from the file
-arduino_version=v$(grep -E '^version=' "${target_directory}/library.properties" | cut -d '=' -f 2)
-echo "Get Arduino version: ${arduino_version}"
-# Check the version format
-check_version_format "${arduino_version}"
-result=$?
-if [ ${result} -ne 0 ]; then
-    echo "Arduino version (${arduino_version}) format is incorrect."
-    exit 1
-fi
-
-# Compare Arduino Library version with the latest release version
-compare_versions "${arduino_version}" "${latest_version}"
-result=$?
-if [ ${result} -ne 1 ]; then
-    if [ ${result} -eq 3 ]; then
-        echo "Arduino version (${arduino_version}) is incorrect."
-    else
-        echo "Arduino version (${arduino_version}) is not greater than the latest release version (${latest_version})."
-        exit 1
-    fi
-fi
-
 echo "Checking file: idf_component.yml"
 # Check if "idf_component.yml" file exists
 check_file_exists "${target_directory}/idf_component.yml"

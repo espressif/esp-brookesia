@@ -1,0 +1,91 @@
+menu "Core"
+    menuconfig ESP_BROOKESIA_CONF_CORE_ENABLE_DEBUG_LOG
+        bool "Enable debug log output"
+        depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
+        default y
+
+    if ESP_BROOKESIA_CONF_CORE_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_CONF_CORE_APP_ENABLE_DEBUG_LOG
+            bool "App"
+            default y
+
+        config ESP_BROOKESIA_CONF_CORE_HOME_ENABLE_DEBUG_LOG
+            bool "Home"
+            default y
+
+        config ESP_BROOKESIA_CONF_CORE_MANAGER_ENABLE_DEBUG_LOG
+            bool "Manager"
+            default y
+
+        config ESP_BROOKESIA_CONF_CORE_CORE_ENABLE_DEBUG_LOG
+            bool "Core"
+            default y
+    endif # ESP_BROOKESIA_CONF_CORE_ENABLE_DEBUG_LOG
+endmenu
+
+menuconfig ESP_BROOKESIA_CONF_SYSTEMS_ENABLE_PHONE
+    bool "Phone"
+    default y
+
+if ESP_BROOKESIA_CONF_SYSTEMS_ENABLE_PHONE
+    menuconfig ESP_BROOKESIA_CONF_PHONE_ENABLE_DEBUG_LOG
+        bool "Enable debug log output"
+        depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
+        default y
+
+    if ESP_BROOKESIA_CONF_PHONE_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_CONF_PHONE_APP_ENABLE_DEBUG_LOG
+            bool "App"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_DISPLAY_ENABLE_DEBUG_LOG
+            bool "Display"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_MANAGER_ENABLE_DEBUG_LOG
+            bool "Manager"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_LAUNCHER_ENABLE_DEBUG_LOG
+            bool "Launcher"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_RECENTS_SCREEN_ENABLE_DEBUG_LOG
+            bool "Recents screen"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_GESTURE_ENABLE_DEBUG_LOG
+            bool "Gesture"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_NAVIGATION_ENABLE_DEBUG_LOG
+            bool "Navigation"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_STATUS_BAR_ENABLE_DEBUG_LOG
+            bool "Status bar"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_PHONE_ENABLE_DEBUG_LOG
+            bool "Phone"
+            default y
+    endif # ESP_BROOKESIA_CONF_PHONE_ENABLE_DEBUG_LOG
+
+    menuconfig ESP_BROOKESIA_CONF_PHONE_ENABLE_APP_EXAMPLES
+        bool "App examples"
+        default y
+
+    if ESP_BROOKESIA_CONF_PHONE_ENABLE_APP_EXAMPLES
+        config ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_COMPLEX_CONF
+            bool "Complex conf"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_SIMPLE_CONF
+            bool "Simple conf"
+            default y
+
+        config ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_SQUARELINE
+            bool "Squareline"
+            default y
+    endif # ESP_BROOKESIA_CONF_PHONE_ENABLE_APP_EXAMPLES
+endif # ESP_BROOKESIA_CONF_SYSTEMS_ENABLE_PHONE

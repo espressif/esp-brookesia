@@ -3,15 +3,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "esp_brookesia_conf_internal.h"
+#if !ESP_BROOKESIA_CONF_PHONE_DISPLAY_ENABLE_DEBUG_LOG
+#   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
+#endif
+#include "private/esp_brookesia_utils.h"
 #include "esp_brookesia_phone_app.hpp"
 #include "esp_brookesia_phone_home.hpp"
 
-#if !ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_HOME
-#undef ESP_BROOKESIA_LOGD
-#define ESP_BROOKESIA_LOGD(...)
-#endif
-
 using namespace std;
+using namespace esp_brookesia::gui;
 
 ESP_Brookesia_PhoneHome::ESP_Brookesia_PhoneHome(ESP_Brookesia_Core &core, const ESP_Brookesia_PhoneHomeData_t &data):
     ESP_Brookesia_CoreHome(core, core.getCoreData().home),
@@ -278,7 +279,7 @@ bool ESP_Brookesia_PhoneHome::processMainScreenLoad(void)
                                          "Navigation bar set visual mode failed");
     }
 
-    ESP_BROOKESIA_CHECK_FALSE_RETURN(lv_obj_is_valid(main_screen), false, "Invalid main screen");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(checkLvObjIsValid(main_screen), false, "Invalid main screen");
     lv_scr_load(main_screen);
 
     return true;

@@ -12,31 +12,27 @@
 /* C-standard */
 #include "esp_brookesia.h"
 
-/* Core */
-#include "core/esp_brookesia_core_app.hpp"
-#include "core/esp_brookesia_core_home.hpp"
-#include "core/esp_brookesia_core_manager.hpp"
-#include "core/esp_brookesia_core.hpp"
-#include "core/esp_brookesia_core_event.hpp"
-#include "core/esp_brookesia_stylesheet_template.hpp"
-
-/* Widgets */
-// App Launcher
-#include "widgets/app_launcher/esp_brookesia_app_launcher.hpp"
-#include "widgets/app_launcher/esp_brookesia_app_launcher_icon.hpp"
-// Recents Screen
-#include "widgets/recents_screen/esp_brookesia_recents_screen.hpp"
-// Gesture
-#include "widgets/gesture/esp_brookesia_gesture.hpp"
-// Navigation Bar
-#include "widgets/navigation_bar/esp_brookesia_navigation_bar.hpp"
-// Status Bar
-#include "widgets/status_bar/esp_brookesia_status_bar.hpp"
-#include "widgets/status_bar/esp_brookesia_status_bar_icon.hpp"
+/* GUI */
+/* GUI - lvgl */
+#include "gui/esp_brookesia_gui_type.hpp"
+#include "gui/lvgl/esp_brookesia_lv_helper.hpp"
 
 /* Systems */
-// Phone
-#include "systems/phone/esp_brookesia_phone_app.hpp"
-#include "systems/phone/esp_brookesia_phone_home.hpp"
-#include "systems/phone/esp_brookesia_phone_manager.hpp"
-#include "systems/phone/esp_brookesia_phone.hpp"
+/* Systems - Core */
+#include "systems/core/esp_brookesia_core.hpp"
+/* Systems - Phone */
+#if ESP_BROOKESIA_CONF_SYSTEMS_ENABLE_PHONE
+#   include "systems/phone/esp_brookesia_phone.hpp"
+#   include "systems/phone/stylesheets/esp_brookesia_phone_stylesheets.hpp"
+#   if ESP_BROOKESIA_CONF_PHONE_ENABLE_APP_EXAMPLES
+#       if ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_SIMPLE_CONF
+#           include "systems/phone/app_examples/simple_conf/src/phone_app_simple_conf.hpp"
+#       endif
+#       if ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_COMPLEX_CONF
+#           include "systems/phone/app_examples/complex_conf/src/phone_app_complex_conf.hpp"
+#       endif
+#       if ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_SQUARELINE
+#           include "systems/phone/app_examples/squareline/src/phone_app_squareline.hpp"
+#       endif
+#   endif
+#endif

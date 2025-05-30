@@ -4,15 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <cmath>
+#include "esp_brookesia_conf_internal.h"
+#if !ESP_BROOKESIA_CONF_PHONE_MANAGER_ENABLE_DEBUG_LOG
+#   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
+#endif
+#include "private/esp_brookesia_utils.h"
 #include "esp_brookesia_phone_manager.hpp"
 #include "esp_brookesia_phone.hpp"
 
-#if !ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_MANAGER
-#undef ESP_BROOKESIA_LOGD
-#define ESP_BROOKESIA_LOGD(...)
-#endif
-
 using namespace std;
+using namespace esp_brookesia::gui;
 
 ESP_Brookesia_PhoneManager::ESP_Brookesia_PhoneManager(ESP_Brookesia_Core &core_in, ESP_Brookesia_PhoneHome &home_in,
         const ESP_Brookesia_PhoneManagerData_t &data_in):
@@ -170,7 +171,7 @@ bool ESP_Brookesia_PhoneManager::del(void)
     }
     if (home.getRecentsScreen() != nullptr) {
         temp_obj = home.getRecentsScreen()->getEventObject();
-        if (temp_obj != nullptr && lv_obj_is_valid(temp_obj)) {
+        if (temp_obj != nullptr && checkLvObjIsValid(temp_obj)) {
             lv_obj_remove_event_cb(temp_obj, onRecentsScreenSnapshotDeletedEventCallback);
         }
     }

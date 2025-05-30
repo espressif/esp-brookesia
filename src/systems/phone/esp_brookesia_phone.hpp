@@ -6,19 +6,26 @@
 #pragma once
 
 #include <list>
-#include "core/esp_brookesia_stylesheet_template.hpp"
-#include "stylesheets/stylesheets.h"
+#include <memory>
+#include "esp_brookesia_conf_internal.h"
+#include "systems/core/esp_brookesia_core_stylesheet_manager.hpp"
 #include "esp_brookesia_phone_home.hpp"
 #include "esp_brookesia_phone_manager.hpp"
 #include "esp_brookesia_phone_app.hpp"
-#include "esp_brookesia_phone_type.h"
-
-using ESP_Brookesia_PhoneStylesheet = ESP_Brookesia_StyleSheetTemplate<ESP_Brookesia_PhoneStylesheet_t>;
 
 // *INDENT-OFF*
-class ESP_Brookesia_Phone: public ESP_Brookesia_Core, public ESP_Brookesia_PhoneStylesheet {
+
+typedef struct {
+    ESP_Brookesia_CoreData_t core;
+    ESP_Brookesia_PhoneHomeData_t home;
+    ESP_Brookesia_PhoneManagerData_t manager;
+} ESP_Brookesia_PhoneStylesheet_t;
+
+using ESP_Brookesia_PhoneStylesheetManager = ESP_Brookesia_CoreStylesheetManager<ESP_Brookesia_PhoneStylesheet_t>;
+
+class ESP_Brookesia_Phone: public ESP_Brookesia_Core, public ESP_Brookesia_PhoneStylesheetManager {
 public:
-    ESP_Brookesia_Phone(lv_disp_t *display = nullptr);
+    ESP_Brookesia_Phone(lv_display_t *display = nullptr);
     ~ESP_Brookesia_Phone();
 
     int installApp(ESP_Brookesia_PhoneApp &app)    { return _core_manager.installApp(app); }
@@ -47,4 +54,5 @@ private:
 
     static const ESP_Brookesia_PhoneStylesheet_t _default_stylesheet_dark;
 };
-// *INDENT-OFF*
+
+// *INDENT-ON*

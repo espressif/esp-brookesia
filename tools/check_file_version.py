@@ -8,14 +8,6 @@ import re
 internal_version_file = 'src/esp_brookesia_versions.h'
 internal_version_macros = [
     {
-        'file': 'library.properties',
-        'macro': {
-            'major': 'ESP_BROOKESIA_VER_MAJOR',
-            'minor': 'ESP_BROOKESIA_VER_MINOR',
-            'patch': 'ESP_BROOKESIA_VER_PATCH'
-        },
-    },
-    {
         'file': 'esp_brookesia_conf.h',
         'macro': {
             'major': 'ESP_BROOKESIA_CONF_VER_MAJOR',

@@ -6,13 +6,67 @@
 #pragma once
 
 #include <string>
-#include "core/esp_brookesia_core_app.hpp"
-#include "widgets/gesture/esp_brookesia_gesture.hpp"
-#include "esp_brookesia_phone_type.h"
+#include "systems/core/esp_brookesia_core_app.hpp"
+#include "systems/phone/widgets/gesture/esp_brookesia_gesture.hpp"
+#include "widgets/status_bar/esp_brookesia_status_bar.hpp"
+#include "widgets/navigation_bar/esp_brookesia_navigation_bar.hpp"
+#include "widgets/recents_screen/esp_brookesia_recents_screen.hpp"
+
+// *INDENT-OFF*
+
+typedef struct {
+    uint8_t app_launcher_page_index;                    /*!< The index of the app launcher page where the icon is shown */
+    uint8_t status_icon_area_index;                     /*!< The index of the status area where the icon is shown */
+    ESP_Brookesia_StatusBarIconData_t status_icon_data;        /*!< The status icon data. If the `enable_status_icon_common_size`
+                                                             flag is set, the `size` in this value will be ignored */
+    ESP_Brookesia_StatusBarVisualMode_t status_bar_visual_mode;            /*!< The visual mode of the status bar */
+    ESP_Brookesia_NavigationBarVisualMode_t navigation_bar_visual_mode;    /*!< The visual mode of the navigation bar */
+    struct {
+        uint8_t enable_status_icon_common_size: 1;      /*!< If set, the size of the status icon will be set to the
+                                                             common size in the status bar data */
+        uint8_t enable_navigation_gesture: 1;           /*!< If set and the gesture is enabled, the navigation gesture
+                                                             will be enabled. */
+    } flags;                                            /*!< The flags for the phone app data */
+} ESP_Brookesia_PhoneAppData_t;
+
+/**
+ * @brief The default initializer for phone app data structure
+ *
+ * @note  The `app_launcher_page_index` and `status_icon_area_index` are set to 0
+ * @note  The `enable_status_icon_common_size` and `enable_navigation_gesture` flags are set by default
+ * @note  If the `use_navigation_bar` flag is set, the visual mode of the navigation bar will be set to
+ *        `ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX`
+ *
+ * @param status_icon The status icon image. Set to `NULL` if no icon is needed
+ * @param use_status_bar Flag to show the status bar
+ * @param use_navigation_bar Flag to show the navigation bar
+ *
+ */
+#define ESP_BROOKESIA_PHONE_APP_DATA_DEFAULT(status_icon, use_status_bar, use_navigation_bar)                 \
+    {                                                                                                  \
+        .app_launcher_page_index = 0,                                                                  \
+        .status_icon_area_index = 0,                                                                   \
+        .status_icon_data = {                                                                          \
+            .size = {},                                                                                \
+            .icon = {                                                                                  \
+                .image_num = (uint8_t)((status_icon != NULL) ? 1 : 0),                                 \
+                .images = {                                                                            \
+                    ESP_BROOKESIA_STYLE_IMAGE(status_icon),                                                   \
+                },                                                                                     \
+            },                                                                                         \
+        },                                                                                             \
+        .status_bar_visual_mode = (use_status_bar) ? ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED :        \
+                                                     ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_HIDE,               \
+        .navigation_bar_visual_mode = (use_navigation_bar) ? ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX : \
+                                                             ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE,       \
+        .flags = {                                                                                     \
+            .enable_status_icon_common_size = 1,                                                       \
+            .enable_navigation_gesture = 1,                                                            \
+        },                                                                                             \
+    }
 
 class ESP_Brookesia_Phone;
 
-// *INDENT-OFF*
 /**
  * @brief The phone app class. This serves as the base class for all phone app classes. User-defined phone app classes
  *        should inherit from this class.
@@ -117,4 +171,5 @@ private:
     ESP_Brookesia_PhoneAppData_t _active_data;
     ESP_Brookesia_RecentsScreenSnapshotConf_t _recents_screen_snapshot_conf;
 };
-// *INDENT-OFF*
+
+// *INDENT-ON*
