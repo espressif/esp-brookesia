@@ -29,6 +29,7 @@ IGNORE_WARNINGS = [
     r'managed_components/lvgl__lvgl/src/extra/libs/png/lv_png.c',
     r'warning: \'ADC_ATTEN_DB_11\' is deprecated',
     r'warning: unused variable \'ret\'',
+    r'WARNING  warning: unknown kconfig symbol',
 ]
 
 def _get_idf_version():

@@ -82,7 +82,7 @@ TEST_CASE("test esp-brookesia to add stylesheet", "[esp-brookesia][phone][add_st
     test_lvgl_init(&disp, &tp);
     phone = test_esp_brookesia_phone_init(disp, tp, false);
 
-    phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET();
+    phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t(TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET());
     TEST_ASSERT_TRUE_MESSAGE(phone->addStylesheet(phone_stylesheet), "Failed to add phone stylesheet");
     TEST_ASSERT_TRUE_MESSAGE(phone->activateStylesheet(phone_stylesheet), "Failed to active phone stylesheet");
     delete phone_stylesheet;

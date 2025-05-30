@@ -9,22 +9,18 @@ test_apps:
     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
 
 # Examples
-examples/esp_idf/esp_brookesia_phone_m5stace_core_s3:
+examples/phone_m5stace_core_s3:
   enable:
-    - if: IDF_TARGET in ["esp32s3"]
+    - if: IDF_TARGET in ["esp32s3"] and (IDF_VERSION_MAJOR == 5 and IDF_VERSION_MINOR >= 4)
 
-examples/esp_idf/esp_brookesia_phone_p4_function_ev_board:
+examples/phone_p4_function_ev_board:
   enable:
     - if: IDF_TARGET in ["esp32p4"]
 
-examples/esp_idf/esp_brookesia_phone_s3_box:
+examples/phone_s3_box_3:
   enable:
     - if: IDF_TARGET in ["esp32s3"]
 
-examples/esp_idf/esp_brookesia_phone_s3_box_3:
-  enable:
-    - if: IDF_TARGET in ["esp32s3"]
-
-examples/esp_idf/esp_brookesia_phone_s3_lcd_ev_board:
+examples/phone_s3_lcd_ev_board:
   enable:
     - if: IDF_TARGET in ["esp32s3"]

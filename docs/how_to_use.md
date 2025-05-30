@@ -7,28 +7,23 @@
 - [How to Use](#how-to-use)
   - [Table of Contents](#table-of-contents)
   - [Dependencies](#dependencies)
-  - [Based on ESP-IDF](#based-on-esp-idf)
-    - [Adding to Project](#adding-to-project)
-    - [Configuration Instructions](#configuration-instructions)
+  - [Adding to Project](#adding-to-project)
+  - [Configuration Instructions](#configuration-instructions)
     - [Project Examples](#project-examples)
-  - [Based on Arduino](#based-on-arduino)
-    - [Installing the Library](#installing-the-library)
-    - [Configuration Instructions](#configuration-instructions-1)
-    - [Project Examples](#project-examples-1)
-  - [App Development](#app-development)
+  - [How to Develop App](#how-to-develop-app)
     - [Principles and Features](#principles-and-features)
     - [General Examples](#general-examples)
     - [Considerations](#considerations)
 
 ## Dependencies
 
-| **Dependency** |   **Version**    |
-| -------------- | ---------------- |
-| lvgl           | >= 8.3 && < 9     |
+| **Dependency**  | **Version** |
+| --------------- | ----------- |
+| esp-idf         | 5.1.*       |
+| esp-lib-utils   | 0.2.*       |
+| lvgl            | 9.2.*       |
 
-## Based on [ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html)
-
-### Adding to Project
+## Adding to Project
 
 esp-brookesia has been uploaded to the [Espressif Component Registry](https://components.espressif.com/), and users can add it to their project using the `idf.py add-dependency` command, for example:
 
@@ -38,7 +33,7 @@ idf.py add-dependency "espressif/esp-brookesia"
 
 Alternatively, users can create or modify the `idf_component.yml` file in the project directory. For more details, please refer to the [Espressif Documentation - IDF Component Manager](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/idf-component-manager.html).
 
-### Configuration Instructions
+## Configuration Instructions
 
 When developing with esp-idf, users can configure esp-brookesia through the menuconfig:
 
@@ -49,64 +44,16 @@ When developing with esp-idf, users can configure esp-brookesia through the menu
 
 Here are examples of using esp-brookesia on the esp-idf development platform:
 
-- [esp_brookesia_phone_s3_lcd_ev_board](../examples/esp_idf/esp_brookesia_phone_s3_lcd_ev_board): This example demonstrates how to run the phone UI on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) development board.
-- [esp_brookesia_phone_p4_function_ev_board](../examples/esp_idf/esp_brookesia_phone_p4_function_ev_board): This example demonstrates how to run the phone UI on the [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html) development board.
+- [phone_m5stace_core_s3](../examples/phone_m5stace_core_s3): This example demonstrates how to run Phone UI on the [M5Stack Core S3](https://docs.m5stack.com/en/core/core_s3) development board.
+- [phone_p4_function_ev_board](../examples/phone_p4_function_ev_board): This example demonstrates how to run Phone UI on the [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html) development board.
+- [phone_s3_box_3](../examples/phone_s3_box_3): This example demonstrates how to run Phone UI on the [ESP32-S3-Box-3](https://github.com/espressif/esp-box) development board.
+- [phone_s3_lcd_ev_board](../examples/phone_s3_lcd_ev_board): This example demonstrates how to run Phone UI on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) development board.
 
-## Based on [Arduino](https://docs.espressif.com/projects/arduino-esp32/en/latest/getting_started.html)
-
-### Installing the Library
-
-For online installation, navigate to `Sketch` > `Include Library` > `Manage Libraries...` in the Arduino IDE, then search for `esp-brookesia` and click the `Install` button.
-
-For manual installation, download the required version of the `.zip` file from [esp-brookesia](https://github.com/espressif/esp-brookesia), then in the Arduino IDE, navigate to `Sketch` > `Include Library` > `Add .ZIP Library...`, select the downloaded `.zip` file, and click `Open` to install.
-
-Users can also refer to the [Arduino IDE v1.x.x](https://docs.arduino.cc/software/ide-v1/tutorials/installing-libraries) or [Arduino IDE v2.x.x](https://docs.arduino.cc/software/ide-v2/tutorials/ide-v2-installing-a-library) documentation for library installation guidelines.
-
-### Configuration Instructions
-
-When developing with Arduino, users can configure esp-brookesia by modifying the first *esp_brookesia_conf.h* file found in the search path, with the following features:
-
-1. esp-brookesia searches for configuration files in the following order: `current project directory` > `Arduino library directory` > `esp-brookesia directory`.
-2. All example projects in esp-brookesia include a configuration file by default, which users can modify directly. If you want to use a configuration file from a different path, delete the one in the project.
-3. For projects without a configuration file, users can copy it from the root directory of esp-brookesia or from example projects into their own project.
-4. If multiple projects need to use the same configuration, users can place the configuration file in the Arduino library directory, allowing all projects to share the same configuration.
-
-> [!NOTE]
-> * Users can find and modify the path of the Arduino library directory by selecting `File` > `Preferences` > `Settings` > `Sketchbook location` in the Arduino IDE menu.
-
-> [!WARNING]
-> * Due to potential desynchronization between configuration file updates and esp-brookesia version updates, the library manages its version independently and checks whether the user's current configuration file is compatible with the library during compilation. Detailed version information and checking rules can be found at the end of the [esp_brookesia_conf.h](../esp_brookesia_conf.h) file.
-
-Here is an example of enabling LOG debugging by modifying the *esp_brookesia_conf.h* file:
-
-```c
-...
-/**
- * Log level. Higher levels produce less log output. Choose one of the following:
- *      - ESP_BROOKESIA_LOG_LEVEL_DEBUG: Output all logs (most verbose)
- *      - ESP_BROOKESIA_LOG_LEVEL_INFO:  Output info, warnings, and errors
- *      - ESP_BROOKESIA_LOG_LEVEL_WARN:  Output warnings and errors
- *      - ESP_BROOKESIA_LOG_LEVEL_ERROR: Output only errors
- *      - ESP_BROOKESIA_LOG_LEVEL_NONE:  No log output (least verbose)
- *
- */
-#define ESP_BROOKESIA_LOG_LEVEL        (ESP_BROOKESIA_LOG_LEVEL_DEBUG)
-...
-```
-
-### Project Examples
-
-Users can access them by navigating to `File` > `Examples` > `esp-brookesia` in the Arduino IDE. If the `esp-brookesia` option is not available, check if the library is installed correctly and ensure that an ESP board is selected.
-
-Here are examples of using esp-brookesia on the Arduino development platform:
-
-- [Phone](../examples/arduino/Phone): This example demonstrates how to run the Phone UI using the [ESP32_Display_Panel](https://github.com/esp-arduino-libs/ESP32_Display_Panel) library.
-
-## App Development
+## How to Develop App
 
 ### Principles and Features
 
-esp-brookesia provides the capability to develop apps through C++ inheritance, allowing users to inherit from the appropriate system app base class (e.g., the [ESP_Brookesia_PhoneApp](../src/systems/phone/esp_brookesia_phone_app.hpp) class for Phone) and implement the necessary pure virtual functions (`run()` and `back()`). Users can also redefine other virtual functions as needed (e.g., `close()`, `init()`, and `pause()`), which are derived from the core app base class [ESP_Brookesia_CoreApp](../src/core/esp_brookesia_core_app.hpp).
+esp-brookesia provides the capability to develop apps through C++ inheritance, allowing users to inherit from the appropriate system app base class (e.g., the [ESP_Brookesia_PhoneApp](../src/systems/phone/esp_brookesia_phone_app.hpp) class for Phone) and implement the necessary pure virtual functions (`run()` and `back()`). Users can also redefine other virtual functions as needed (e.g., `close()`, `init()`, and `pause()`), which are derived from the core app base class [ESP_Brookesia_CoreApp](../src/systems/core/esp_brookesia_core_app.hpp).
 
 The system app base class in esp-brookesia inherits from the core app base class `ESP_Brookesia_CoreApp`, which provides the following user-configurable features:
 
@@ -130,10 +77,10 @@ Additionally, the system app base class in esp-brookesia provides extra user-con
 
 esp-brookesia provides general app examples for the following system UIs, allowing users to modify suitable examples based on actual needs for rapid custom app development:
 
-- [Phone](../src/app_examples/phone/)
-  - [Simple Conf](../src/app_examples/phone/simple_conf/): This example uses a simple app configuration, with most parameters set to default values and only a few necessary parameters requiring user configuration. It is suitable for the "handwritten code"<sup>[Note 1]</sup> approach to GUI development.
-  - [Complex Conf](../src/app_examples/phone/complex_conf/): This example utilizes a complex app configuration where all parameters require user configuration. It is suitable for the "handwritten code"<sup>[Note 1]</sup> approach to GUI development.
-  - [Squareline](../src/app_examples/phone/squareline/): This example employs a simple app configuration, with most parameters set to default values and only a few necessary parameters requiring user configuration. It is suitable for the "Squareline exported code"<sup>[Note 2]</sup> approach to GUI development. This example also demonstrates how to modify Squareline exported code to automatically clean up animation resources upon app exit.
+- [Phone](../src/systems/phone/app_examples/)
+  - [Simple Conf](../src/systems/phone/app_examples/simple_conf/): This example uses a simple app configuration, with most parameters set to default values and only a few necessary parameters requiring user configuration. It is suitable for the "handwritten code"<sup>[Note 1]</sup> approach to GUI development.
+  - [Complex Conf](../src/systems/phone/app_examples/complex_conf/): This example utilizes a complex app configuration where all parameters require user configuration. It is suitable for the "handwritten code"<sup>[Note 1]</sup> approach to GUI development.
+  - [Squareline](../src/systems/phone/app_examples/squareline/): This example employs a simple app configuration, with most parameters set to default values and only a few necessary parameters requiring user configuration. It is suitable for the "Squareline exported code"<sup>[Note 2]</sup> approach to GUI development. This example also demonstrates how to modify Squareline exported code to automatically clean up animation resources upon app exit.
 
 > [!NOTE]
 > 1. "Handwritten code" refers to the approach where users manually write code to implement GUI development, typically using `lv_scr_act()` to get the current screen object and adding all GUI elements to that screen object.
@@ -159,5 +106,5 @@ If users adopt the "Squareline exported code" approach, they should disable **Au
   extern uint32_t LV_EVENT_GET_COMP_CHILD;
   ```
 
-- **Animation Usage Not Recommended**: It is advised not to create and use animations in Squareline, as these animation resources cannot be directly accessed or cleaned up automatically or manually by users or esp-brookesia, which may lead to crashes or memory leaks when the app exits. If animations must be used, users need to modify the animation resource creation part of the exported code, as shown in the [Squareline example](../src/app_examples/phone/squareline/), which manually records animation resources using `startRecordResource()` and `stopRecordResource()` to ensure they can be cleaned up automatically when the app closes.
+- **Animation Usage Not Recommended**: It is advised not to create and use animations in Squareline, as these animation resources cannot be directly accessed or cleaned up automatically or manually by users or esp-brookesia, which may lead to crashes or memory leaks when the app exits. If animations must be used, users need to modify the animation resource creation part of the exported code, as shown in the [Squareline example](../src/systems/phone/app_examples/squareline/), which manually records animation resources using `startRecordResource()` and `stopRecordResource()` to ensure they can be cleaned up automatically when the app closes.
 - **Ensure Proper Compilation**: Furthermore, when using Squareline exported code, users may need to make additional modifications based on actual circumstances, such as renaming the `ui_init()` function to `<app_name>_ui_init()` to ensure the code compiles and runs correctly.

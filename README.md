@@ -1,8 +1,6 @@
-[![Arduino Lint](https://github.com/espressif/esp-brookesia/actions/workflows/arduino_lint.yml/badge.svg)](https://github.com/espressif/esp-brookesia/actions/workflows/arduino_lint.yml) [![Version Consistency](https://github.com/espressif/esp-brookesia/actions/workflows/check_lib_versions.yml/badge.svg)](https://github.com/espressif/esp-brookesia/actions/workflows/check_lib_versions.yml)
+![logo](./docs/_static/readme/logo.png)
 
-**Latest Arduino Library Version**: [![GitHub Release](https://img.shields.io/github/v/release/espressif/esp-brookesia)](https://github.com/espressif/esp-brookesia/releases)
-
-**Latest Espressif Component Version**: [![Espressif Release](https://components.espressif.com/components/espressif/esp-brookesia/badge.svg)](https://components.espressif.com/components/espressif/esp-brookesia)
+[![Espressif Release](https://components.espressif.com/components/espressif/esp-brookesia/badge.svg)](https://components.espressif.com/components/espressif/esp-brookesia)
 
 # ESP-Brookesia
 
@@ -17,7 +15,7 @@ ESP-Brookesia is a human-machine interaction development framework designed for 
 
 The key features of ESP-Brookesia include:
 
-- Developed in C++, it can be compiled for `PC` or `ESP SoCs` platforms and supports `VSCode`, `ESP-IDF`, and `Arduino` development environments.
+- Developed based on C/C++, natively supporting the ESP-IDF development system and fully leveraging the Espressif open-source component ecosystem
 - Offers a rich set of standardized system UIs with support for dynamic UI style adjustments.
 - Implements an app-based application management approach, ensuring UI isolation and coexistence across multiple apps, enabling users to focus on UI implementation within their target app.
 - Application UIs are compatible with "[Squareline](https://squareline.io/) exported code" development methods.
@@ -38,26 +36,20 @@ The system UI functionality demonstration is as follows:
 The functional block diagram of ESP-Brookesia is as follows, mainly consisting of the following components:
 
 <div align="center">
-    <img src="docs/_static/readme/block_diagram.png" alt="block_diagram" width="600">
+    <img src="docs/_static/readme/block_diagram.png" alt="block_diagram" width="800">
 </div>
 <br>
 
-- **System UI Core**: Implements the unified core logic of all system UIs, including app management, stylesheet management, event management, etc.
-- **System UI Widgets**: Encapsulates common widgets for system UIs, including status bar, navigation bar, gesture, etc.
-- **System UIs**: Implements various types of system UIs based on "System UI Core" and "System UI Widgets".
-- **Squareline**: Contains multiple versions of *ui_helpers* files exported from "Squareline Studio" to avoid function name conflicts when used across multiple apps.
-- **Fonts**: Contains the default fonts used by the system UIs.
+- **HAL**: Uses the hardware abstraction layer provided by ESP-IDF to provide access and control of underlying hardware.
+- **Middle**: Acts as a bridge connecting applications with underlying hardware, interfacing with the hardware abstraction layer through `Function Components` while providing standardized interfaces to applications through `System Services`, achieving decoupling and isolation of system resources.
+- **Application**: Provides AI application scenario support through `AI Framework`, including `HMI` (humanized interaction design for single and dual screens), `Agent` (compatible with mainstream LLM models like Doubao and Xiaozhi), and `Protocol` (MCP protocol for unified communication between LLM and system services). Provides various product-oriented (mobile devices, speakers, robots, etc.) system and application (settings, AI assistant, app store, etc.) support through `System Framework`.
 
-## Usage
+## Built-in Systems
 
-Please refer to the documentation - [How to Use](./docs/how_to_use.md).
-
-## System UIs
-
-Currently, ESP-Brookesia offers the following system UIs:
+Currently, ESP-Brookesia includes the following built-in systems:
 
 - [Phone](./docs/system_ui_phone.md)
 
-## System UI Widgets
+## How to Use
 
-Please refer to the documentation - [System UI Widgets](./docs/system_ui_widgets.md).
+Please refer to the documentation - [How to Use](./docs/how_to_use.md).
