@@ -1,7 +1,7 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 
-exclude: '(.*/assets/.*|app_examples/phone/squareline/src/ui/.*|.*src/squareline/ui_comp/.*|.*src/squareline/ui_helpers/.*|.*src/fonts/.*/.*|docs/|.*py|.*src/ai_framework/agents/xiaozhi/.*)'
+exclude: '(.*/assets/.*|systems/phone/app_examples/squareline/src/ui/.*|.*src/squareline/ui_comp/.*|.*src/squareline/ui_helpers/.*|.*src/fonts/.*/.*|docs/|.*py|.*src/ai_framework/agents/xiaozhi/.*)'
 repos:
   - repo: https://github.com/igrr/astyle_py.git
     rev: v1.0.5

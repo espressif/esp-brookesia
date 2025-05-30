@@ -26,7 +26,6 @@ file_version_macros = [
         },
     },
 ]
-arduino_version_file = 'library.properties'
 
 
 def extract_file_version(file_path, version_dict):
@@ -99,19 +98,3 @@ if __name__ == '__main__':
                             print(f"Version mismatch: '{internal_version['file']}'")
                             sys.exit(1)
                     print(f'Version matched')
-
-        # Extract arduino version
-        arduino_version_path = os.path.join(search_directory, arduino_version_file)
-        arduino_version = extract_arduino_version(arduino_version_path)
-        print(f"Arduino version extracted from '{arduino_version_path}")
-        if arduino_version:
-            print(f'Arduino version: {arduino_version}')
-        else:
-            print(f'Arduino version not found')
-
-        # Check arduino version
-        for internal_version in internal_versions:
-            if (internal_version['file'] == arduino_version_file) and (internal_version['version'] != arduino_version['version']):
-                print(f"Arduino version mismatch: '{internal_version['file']}'")
-                sys.exit(1)
-        print(f'Arduino Version matched')
