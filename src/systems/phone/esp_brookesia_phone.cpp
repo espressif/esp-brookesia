@@ -4,21 +4,22 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <algorithm>
-#include "esp_brookesia_phone_type.h"
+#include "esp_brookesia_conf_internal.h"
+#if !ESP_BROOKESIA_CONF_PHONE_PHONE_ENABLE_DEBUG_LOG
+#   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
+#endif
+#include "private/esp_brookesia_utils.h"
+#include "stylesheets/esp_brookesia_phone_stylesheets.hpp"
 #include "esp_brookesia_phone.hpp"
 
-#if !ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_PHONE
-#undef ESP_BROOKESIA_LOGD
-#define ESP_BROOKESIA_LOGD(...)
-#endif
-
 using namespace std;
+using namespace esp_brookesia::gui;
 
 const ESP_Brookesia_PhoneStylesheet_t ESP_Brookesia_Phone::_default_stylesheet_dark = ESP_BROOKESIA_PHONE_DEFAULT_DARK_STYLESHEET();
 
-ESP_Brookesia_Phone::ESP_Brookesia_Phone(lv_disp_t *display):
+ESP_Brookesia_Phone::ESP_Brookesia_Phone(lv_display_t *display):
     ESP_Brookesia_Core(_active_stylesheet.core, _home, _manager, display),
-    ESP_Brookesia_PhoneStylesheet(),
+    ESP_Brookesia_PhoneStylesheetManager(),
     _home(*this, _active_stylesheet.home),
     _manager(*this, _home, _active_stylesheet.manager)
 {
@@ -50,9 +51,9 @@ bool ESP_Brookesia_Phone::begin(void)
     }
     // Check if any phone stylesheet is activated, if not, activate default stylesheet
     if (_active_stylesheet.core.name == nullptr) {
-        ESP_BROOKESIA_CHECK_NULL_RETURN(_display, false, "Invalid display");
-        display_size.width = lv_disp_get_hor_res(_display);
-        display_size.height = lv_disp_get_ver_res(_display);
+        ESP_BROOKESIA_CHECK_NULL_RETURN(_display_device, false, "Invalid display");
+        display_size.width = lv_disp_get_hor_res(_display_device);
+        display_size.height = lv_disp_get_ver_res(_display_device);
 
         ESP_BROOKESIA_LOGW("No phone stylesheet is activated, try to find first stylesheet with display size(%dx%d)",
                            display_size.width, display_size.height);
@@ -85,8 +86,8 @@ bool ESP_Brookesia_Phone::del(void)
     if (!_home.del()) {
         ESP_BROOKESIA_LOGE("Delete home failed");
     }
-    if (!ESP_Brookesia_PhoneStylesheet::del()) {
-        ESP_BROOKESIA_LOGE("Delete core template failed");
+    if (!ESP_Brookesia_PhoneStylesheetManager::del()) {
+        ESP_BROOKESIA_LOGE("Delete stylesheet manager failed");
     }
     if (!delCore()) {
         ESP_BROOKESIA_LOGE("Delete core failed");
@@ -100,7 +101,7 @@ bool ESP_Brookesia_Phone::addStylesheet(const ESP_Brookesia_PhoneStylesheet_t &s
     ESP_BROOKESIA_LOGD("Add phone(0x%p) stylesheet", this);
 
     ESP_BROOKESIA_CHECK_FALSE_RETURN(
-        ESP_Brookesia_PhoneStylesheet::addStylesheet(stylesheet.core.name, stylesheet.core.screen_size, stylesheet),
+        ESP_Brookesia_PhoneStylesheetManager::addStylesheet(stylesheet.core.name, stylesheet.core.screen_size, stylesheet),
         false, "Failed to add phone stylesheet"
     );
 
@@ -121,7 +122,7 @@ bool ESP_Brookesia_Phone::activateStylesheet(const ESP_Brookesia_PhoneStylesheet
     ESP_BROOKESIA_LOGD("Activate phone(0x%p) stylesheet", this);
 
     ESP_BROOKESIA_CHECK_FALSE_RETURN(
-        ESP_Brookesia_PhoneStylesheet::activateStylesheet(stylesheet.core.name, stylesheet.core.screen_size),
+        ESP_Brookesia_PhoneStylesheetManager::activateStylesheet(stylesheet.core.name, stylesheet.core.screen_size),
         false, "Failed to activate phone stylesheet"
     );
 
@@ -166,7 +167,7 @@ bool ESP_Brookesia_Phone::calibrateScreenSize(ESP_Brookesia_StyleSize_t &size)
 
     ESP_Brookesia_StyleSize_t display_size = {};
     ESP_BROOKESIA_CHECK_FALSE_RETURN(getDisplaySize(display_size), false, "Get display size failed");
-    ESP_BROOKESIA_CHECK_FALSE_RETURN(_core_home.calibrateCoreObjectSize(display_size, size), false, "Invalid screen size");
+    ESP_BROOKESIA_CHECK_FALSE_RETURN(_core_display.calibrateCoreObjectSize(display_size, size), false, "Invalid screen size");
 
     return true;
 }

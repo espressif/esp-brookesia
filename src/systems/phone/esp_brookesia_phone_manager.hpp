@@ -7,12 +7,37 @@
 
 #include <memory>
 #include "lvgl.h"
-#include "core/esp_brookesia_core_manager.hpp"
-#include "widgets/gesture/esp_brookesia_gesture.hpp"
+#include "systems/core/esp_brookesia_core_manager.hpp"
+#include "systems/phone/widgets/gesture/esp_brookesia_gesture.hpp"
 #include "esp_brookesia_phone_home.hpp"
 #include "esp_brookesia_phone_app.hpp"
 
 // *INDENT-OFF*
+
+typedef struct {
+    ESP_Brookesia_GestureData_t gesture;
+    uint32_t gesture_mask_indicator_trigger_time_ms;
+    struct {
+        int drag_snapshot_y_step;
+        int drag_snapshot_y_threshold;
+        int drag_snapshot_angle_threshold;
+        int delete_snapshot_y_threshold;
+    } recents_screen;
+    struct {
+        uint8_t enable_gesture: 1;
+        uint8_t enable_gesture_navigation_back: 1;
+        uint8_t enable_recents_screen_snapshot_drag: 1;
+        uint8_t enable_recents_screen_hide_when_no_snapshot: 1;
+    } flags;
+} ESP_Brookesia_PhoneManagerData_t;
+
+typedef enum {
+    ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN = 0,
+    ESP_BROOKESIA_PHONE_MANAGER_SCREEN_APP,
+    ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN,
+    ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAX,
+} ESP_Brookesia_PhoneManagerScreen_t;
+
 class ESP_Brookesia_PhoneManager: public ESP_Brookesia_CoreManager {
 public:
     friend class ESP_Brookesia_Phone;
@@ -102,4 +127,5 @@ private:
     ESP_Brookesia_CoreApp *_recents_screen_active_app;
     ESP_Brookesia_CoreApp *_recents_screen_pause_app;
 };
-// *INDENT-OFF*
+
+// *INDENT-ON*

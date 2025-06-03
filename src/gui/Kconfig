@@ -1,0 +1,46 @@
+menu "LVGL"
+    menuconfig ESP_BROOKESIA_CONF_LVGL_ENABLE_DEBUG_LOG
+        bool "Enable debug log output"
+        depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
+        default y
+
+    if ESP_BROOKESIA_CONF_LVGL_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_CONF_LVGL_ANIMATION_ENABLE_DEBUG_LOG
+            bool "Animation"
+            default y
+
+        config ESP_BROOKESIA_CONF_LVGL_CANVAS_ENABLE_DEBUG_LOG
+            bool "Canvas"
+            default y
+
+        config ESP_BROOKESIA_CONF_LVGL_CONTAINER_ENABLE_DEBUG_LOG
+            bool "Container"
+            default y
+
+        config ESP_BROOKESIA_CONF_LVGL_DISPLAY_ENABLE_DEBUG_LOG
+            bool "Display"
+            default y
+
+        config ESP_BROOKESIA_CONF_LVGL_OBJECT_ENABLE_DEBUG_LOG
+            bool "Object"
+            default y
+
+        config ESP_BROOKESIA_CONF_LVGL_SCREEN_ENABLE_DEBUG_LOG
+            bool "Screen"
+            default y
+
+        config ESP_BROOKESIA_CONF_LVGL_TIMER_ENABLE_DEBUG_LOG
+            bool "Timer"
+            default y
+    endif # ESP_BROOKESIA_CONF_LVGL_ENABLE_DEBUG_LOG
+endmenu
+
+menu "Squareline Helpers"
+    config ESP_BROOKESIA_CONF_GUI_SQUARELINE_ENABLE_UI_COMP
+        bool "Use UI component from inside"
+        default y
+
+    config ESP_BROOKESIA_CONF_GUI_SQUARELINE_ENABLE_UI_HELPERS
+        bool "Use UI helpers from inside"
+        default y
+endmenu

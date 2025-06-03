@@ -1,20 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include "core_data.h"
-#include "app_launcher_data.h"
-#include "recents_screen_data.h"
-#include "gesture_data.h"
-#include "navigation_bar_data.h"
-#include "status_bar_data.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "stylesheet.hpp"
 
 /* Home */
 #define ESP_BROOKESIA_PHONE_DEFAULT_DARK_HOME_DATA()                                     \
@@ -71,7 +62,3 @@ extern "C" {
         .home = ESP_BROOKESIA_PHONE_DEFAULT_DARK_HOME_DATA(),       \
         .manager = ESP_BROOKESIA_PHONE_DEFAULT_DARK_MANAGER_DATA(), \
     }
-
-#ifdef __cplusplus
-}
-#endif

@@ -6,46 +6,53 @@
 #pragma once
 
 // *INDENT-OFF*
+
 /* Handle special Kconfig options */
 #ifndef ESP_BROOKESIA_KCONFIG_IGNORE
     #include "sdkconfig.h"
-    #ifdef CONFIG_ESP_BROOKESIA_CONF_SKIP
-        #define ESP_BROOKESIA_CONF_SKIP
+
+    #ifdef CONFIG_ESP_BROOKESIA_CONF_FILE_SKIP
+        #define ESP_BROOKESIA_CONF_FILE_SKIP
     #endif
 #endif
 
-#include "core/esp_brookesia_core_type.h"
-
-/* If "esp_brookesia_conf.h" is not skipped, include it */
-#ifndef ESP_BROOKESIA_CONF_SKIP
-    #ifdef __has_include                                /* If "esp_brookesia_conf.h" is available from here, try to use it later */
-        #if __has_include("esp_brookesia_conf.h")
-            #ifndef ESP_BROOKESIA_CONF_INCLUDE_SIMPLE
-                #define ESP_BROOKESIA_CONF_INCLUDE_SIMPLE
-            #endif
-        #elif __has_include("../../esp_brookesia_conf.h")
-            #ifndef ESP_BROOKESIA_CONF_INCLUDE_OUTSIDE
-                #define ESP_BROOKESIA_CONF_INCLUDE_OUTSIDE
-            #endif
-        #else
-            #define ESP_BROOKESIA_CONF_INCLUDE_INSIDE
-        #endif
+#ifndef ESP_BROOKESIA_CONF_FILE_SKIP
+    /* Try to locate the configuration file in different paths */
+    #if __has_include("esp_brookesia_conf.h")
+        #define ESP_BROOKESIA_INCLUDE_SIMPLE
+    #elif __has_include("../../../esp_brookesia_conf.h")
+        #define ESP_BROOKESIA_INCLUDE_OUTSIDE
+    #else
+        #define ESP_BROOKESIA_INCLUDE_INSIDE
     #endif
 
-    #ifdef ESP_BROOKESIA_CONF_PATH                             /* If there is a path defined for "esp_brookesia_conf.h" use it */
+    /* Include the configuration file based on the path found */
+    #ifdef ESP_BROOKESIA_CONF_PATH
+        /* Use the custom path if defined */
         #define __TO_STR_AUX(x) #x
         #define __TO_STR(x) __TO_STR_AUX(x)
-        #include __TO_STR(ESP_BROOKESIA_CONF_PATH)
+        #include __TO_STR(ESP_BROOKESIA_PATH)
         #undef __TO_STR_AUX
         #undef __TO_STR
-    #elif defined(ESP_BROOKESIA_CONF_INCLUDE_SIMPLE)           /* Or simply include if "esp_brookesia_conf.h" is available */
+    #elif defined(ESP_BROOKESIA_INCLUDE_SIMPLE)
         #include "esp_brookesia_conf.h"
-    #elif defined(ESP_BROOKESIA_CONF_INCLUDE_OUTSIDE)          /* Or include if "../../ESP_Panel_Conf.h" is available */
+    #elif defined(ESP_BROOKESIA_INCLUDE_OUTSIDE)
         #include "../../esp_brookesia_conf.h"
-    #elif defined(ESP_BROOKESIA_CONF_INCLUDE_INSIDE)           /* Or include the default configuration */
+    #elif defined(ESP_BROOKESIA_INCLUDE_INSIDE)
         #include "../esp_brookesia_conf.h"
     #endif
-#endif
+
+    #include "esp_brookesia_versions.h"
+
+    /* Check version compatibility */
+    #if ESP_BROOKESIA_CONF_FILE_VER_MAJOR != ESP_BROOKESIA_CONF_VER_MAJOR
+        #error "The file `esp_brookesia_conf.h` version is not compatible. Please update it with the file from the library"
+    #elif ESP_BROOKESIA_CONF_FILE_VER_MINOR < ESP_BROOKESIA_CONF_VER_MINOR
+        #warning "The file `esp_brookesia_conf.h` version is outdated. Some new configurations are missing"
+    #elif ESP_BROOKESIA_CONF_FILE_VER_MINOR > ESP_BROOKESIA_CONF_VER_MINOR
+        #warning "The file `esp_brookesia_conf.h` version is newer than the library. Some new configurations are not supported"
+    #endif
+#endif // ESP_BROOKESIA_FILE_SKIP
 
 #ifndef ESP_BROOKESIA_CONF_INCLUDE_INSIDE
     /**
@@ -57,11 +64,4 @@
     #include "esp_brookesia_conf_kconfig.h"
 #endif
 
-#if ESP_BROOKESIA_SQUARELINE_USE_INTERNAL_UI_HELPERS
-// Check if multiple Squareline and LVGL versions are defined
-#if defined(ESP_BROOKESIA_SQ1_3_4_LV8_2_0) + defined(ESP_BROOKESIA_SQ1_3_4_LV8_3_3) + defined(ESP_BROOKESIA_SQ1_3_4_LV8_3_4) + \
-    defined(ESP_BROOKESIA_SQ1_3_4_LV8_3_6) + defined(ESP_BROOKESIA_SQ1_4_0_LV8_3_6) + defined(ESP_BROOKESIA_SQ1_4_0_LV8_3_11) + \
-    defined(ESP_BROOKESIA_SQ1_4_1_LV8_3_6) + defined(ESP_BROOKESIA_SQ1_4_1_LV8_3_11) > 1
-    #error "Multiple Squareline and LVGL versions are defined"
-#endif
-#endif
+// *INDENT-ON*

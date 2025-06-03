@@ -1,7 +1,7 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 
-exclude: '(.*/assets/.*|app_examples/phone/squareline/src/ui/.*|.*src/squareline/ui_comp/.*|.*src/squareline/ui_helpers/.*|.*src/fonts/.*/.*|docs/|.*py)'
+exclude: '(.*/assets/.*|systems/phone/app_examples/squareline/src/ui/.*|.*src/squareline/ui_comp/.*|.*src/squareline/ui_helpers/.*|.*src/fonts/.*/.*|docs/|.*py|.*src/ai_framework/agents/xiaozhi/.*)'
 repos:
   - repo: https://github.com/igrr/astyle_py.git
     rev: v1.0.5
@@ -91,12 +91,4 @@ repos:
         name: Update when versions change
         entry: python3 tools/check_file_version.py ./
         language: system
-        files: '(.*esp_brookesia_conf.h|library.properties|.*esp_brookesia_versions.h)'
-
-  - repo: local
-    hooks:
-      - id: check-library-versions
-        name: Check library versions
-        entry: ./.github/scripts/check_lib_versions.sh
-        language: system
-        files: '(idf_component.yml|library.properties)'
+        files: '(.*esp_brookesia_conf.h|.*esp_brookesia_versions.h)'

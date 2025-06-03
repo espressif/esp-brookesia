@@ -3,15 +3,16 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "esp_brookesia_conf_internal.h"
+#if !ESP_BROOKESIA_CONF_PHONE_APP_ENABLE_DEBUG_LOG
+#   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
+#endif
+#include "private/esp_brookesia_utils.h"
 #include "esp_brookesia_phone.hpp"
 #include "esp_brookesia_phone_app.hpp"
 
-#if !ESP_BROOKESIA_LOG_ENABLE_DEBUG_PHONE_APP
-#undef ESP_BROOKESIA_LOGD
-#define ESP_BROOKESIA_LOGD(...)
-#endif
-
 using namespace std;
+using namespace esp_brookesia::gui;
 
 ESP_Brookesia_PhoneApp::ESP_Brookesia_PhoneApp(const ESP_Brookesia_CoreAppData_t &core_data, const ESP_Brookesia_PhoneAppData_t &phone_data):
     ESP_Brookesia_CoreApp(core_data),
