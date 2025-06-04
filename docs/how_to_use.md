@@ -44,7 +44,7 @@ When developing with esp-idf, users can configure esp-brookesia through the menu
 
 Here are examples of using esp-brookesia on the esp-idf development platform:
 
-- [phone_m5stace_core_s3](../examples/phone_m5stace_core_s3): This example demonstrates how to run Phone UI on the [M5Stack Core S3](https://docs.m5stack.com/en/core/core_s3) development board.
+- [phone_m5stack_core_s3](../examples/phone_m5stack_core_s3): This example demonstrates how to run Phone UI on the [M5Stack Core S3](https://docs.m5stack.com/en/core/core_s3) development board.
 - [phone_p4_function_ev_board](../examples/phone_p4_function_ev_board): This example demonstrates how to run Phone UI on the [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html) development board.
 - [phone_s3_box_3](../examples/phone_s3_box_3): This example demonstrates how to run Phone UI on the [ESP32-S3-Box-3](https://github.com/espressif/esp-box) development board.
 - [phone_s3_lcd_ev_board](../examples/phone_s3_lcd_ev_board): This example demonstrates how to run Phone UI on the [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) development board.

@@ -44,7 +44,7 @@ idf.py add-dependency "espressif/esp-brookesia"
 
 以下是在 esp-idf 开发平台下使用 esp-brookesia 的示例：
 
-- [phone_m5stace_core_s3](../examples/phone_m5stace_core_s3): 此示例演示了如何在 [M5Stack Core S3](https://docs.m5stack.com/zh_CN/core/core_s3) 开发板上运行 Phone UI。
+- [phone_m5stack_core_s3](../examples/phone_m5stack_core_s3): 此示例演示了如何在 [M5Stack Core S3](https://docs.m5stack.com/zh_CN/core/core_s3) 开发板上运行 Phone UI。
 - [phone_p4_function_ev_board](../examples/phone_p4_function_ev_board): 此示例演示了如何在 [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html) 开发板上运行 Phone UI。
 - [phone_s3_box_3](../examples/phone_s3_box_3): 此示例演示了如何在 [ESP32-S3-Box-3](https://github.com/espressif/esp-box) 开发板上运行 Phone UI。
 - [phone_s3_lcd_ev_board](../examples/phone_s3_lcd_ev_board): 此示例演示了如何在 [ESP32-S3-LCD-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/esp32-s3-lcd-ev-board/index.html) 开发板上运行 Phone UI。
