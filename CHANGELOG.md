@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.5.1 - 2025-06-17
+
+### Bugfixes:
+
+* fix(examples): Spelling error for M5Stack CoreS33 @netseye (#27)
+* feat(ci): remove lib version check
+
 ## v0.5.0 - 2025-05-30
 
 ### Breaking Changes:
