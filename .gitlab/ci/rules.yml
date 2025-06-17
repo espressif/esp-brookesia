@@ -22,8 +22,8 @@
   - "**/*.md"
 
 # examples folder
-.patterns-example_phone_m5stace_core_s3: &patterns-example_phone_m5stace_core_s3
-  - "examples/phone_m5stace_core_s3/**/*"
+.patterns-example_phone_m5stack_core_s3: &patterns-example_phone_m5stack_core_s3
+  - "examples/phone_m5stack_core_s3/**/*"
 
 .patterns-example_phone_p4_function_ev_board: &patterns-example_phone_p4_function_ev_board
   - "examples/phone_p4_function_ev_board/**/*"
@@ -74,7 +74,7 @@
       changes: *patterns-build_system
 
 # rules for examples
-.rules:build:example_phone_m5stace_core_s3:
+.rules:build:example_phone_m5stack_core_s3:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
@@ -83,7 +83,7 @@
     - <<: *if-dev-push
       changes: *patterns-component
     - <<: *if-dev-push
-      changes: *patterns-example_phone_m5stace_core_s3
+      changes: *patterns-example_phone_m5stack_core_s3
     - <<: *if-dev-push
       changes: *patterns-build_system
 
