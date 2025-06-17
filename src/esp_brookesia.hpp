@@ -26,13 +26,13 @@
 #   include "systems/phone/stylesheets/esp_brookesia_phone_stylesheets.hpp"
 #   if ESP_BROOKESIA_CONF_PHONE_ENABLE_APP_EXAMPLES
 #       if ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_SIMPLE_CONF
-#           include "systems/phone/app_examples/simple_conf/src/phone_app_simple_conf.hpp"
+#           include "systems/phone/app_examples/simple_conf/phone_app_simple_conf.hpp"
 #       endif
 #       if ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_COMPLEX_CONF
-#           include "systems/phone/app_examples/complex_conf/src/phone_app_complex_conf.hpp"
+#           include "systems/phone/app_examples/complex_conf/phone_app_complex_conf.hpp"
 #       endif
 #       if ESP_BROOKESIA_CONF_PHONE_APP_EXAMPLES_ENABLE_SQUARELINE
-#           include "systems/phone/app_examples/squareline/src/phone_app_squareline.hpp"
+#           include "systems/phone/app_examples/squareline/phone_app_squareline.hpp"
 #       endif
 #   endif
 #endif
