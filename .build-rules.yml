@@ -4,23 +4,27 @@
 #    *  (A == 1 and B == 2) or (C not in ["3", "4", 5])
 
 # Componet test_apps
-test_apps:
-  enable:
-    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+# test_apps:
+#   enable:
+#     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
 
-# Examples
-examples/phone_m5stack_core_s3:
+# Products
+products/phone/phone_m5stack_core_s3:
   enable:
     - if: IDF_TARGET in ["esp32s3"] and (IDF_VERSION_MAJOR == 5 and IDF_VERSION_MINOR >= 4)
 
-examples/phone_p4_function_ev_board:
+products/phone/phone_p4_function_ev_board:
   enable:
     - if: IDF_TARGET in ["esp32p4"]
 
-examples/phone_s3_box_3:
+products/phone/phone_s3_box_3:
   enable:
     - if: IDF_TARGET in ["esp32s3"]
 
-examples/phone_s3_lcd_ev_board:
+products/phone/phone_s3_lcd_ev_board:
   enable:
     - if: IDF_TARGET in ["esp32s3"]
+
+products/speaker:
+  enable:
+    - if: IDF_TARGET in ["esp32s3"] and (IDF_VERSION_MAJOR == 5 and IDF_VERSION_MINOR >= 5)

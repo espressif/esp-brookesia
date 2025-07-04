@@ -1,0 +1,14 @@
+version: "0.6.2"
+description: Espressif GMF AI Audio Elements Module
+url: https://github.com/espressif/esp-gmf/tree/main/elements/gmf_ai_audio
+documentation: "https://github.com/espressif/esp-gmf/blob/main/elements/gmf_ai_audio/README.md"
+issues: "https://github.com/espressif/esp-gmf/issues"
+
+tags:
+   - "gmf"
+
+dependencies:
+  espressif/esp-sr:
+    version: "2.1.1"
+  espressif/gmf_core:
+    version: "^0.6"

@@ -1,0 +1,18 @@
+{
+    "public_key": "lsKjtB67xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "appid": "110049xxxxxxx",
+    "bots": [
+        {
+            "bot_name": "Lin Jia Nv Hai",
+            "bot_id": "7516538xxxxxxxxxxxx",
+            "voice_id": "7426720361733144585",
+            "description": "A warm-voiced female AI character who listens to the user's thoughts and offers comforting responses."
+        },
+        {
+            "bot_name": "Wan Qu Da Shu",
+            "bot_id": "7516538xxxxxxxxxxxx",
+            "voice_id": "7426720361732915209",
+            "description": "A male AI character with a regional accent. He responds quickly and concisely, but does not perform actions on behalf of the user."
+        }
+    ]
+}

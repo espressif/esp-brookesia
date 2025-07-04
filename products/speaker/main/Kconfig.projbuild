@@ -1,0 +1,70 @@
+menu "Example Configuration"
+
+    menuconfig EXAMPLE_COZE_AGENT_ENABLE_DEFAULT_CONFIG
+        bool "Default coze agent config"
+        default n
+
+    if EXAMPLE_COZE_AGENT_ENABLE_DEFAULT_CONFIG
+
+        config EXAMPLE_COZE_AGENT_APP_ID
+            string "App ID"
+            default "110049xxxxxxx"
+
+        config EXAMPLE_COZE_AGENT_PUBLIC_KEY
+            string "Public key"
+            default "lsKjtB67xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+        config EXAMPLE_COZE_AGENT_PRIVATE_KEY_FILE_PATH
+            string "Private key"
+            default "./private_key.pem"
+
+        config EXAMPLE_COZE_AGENT_CUSTOM_CONSUMER
+            string "Custom consumer (Optional)"
+            default ""
+
+        menuconfig EXAMPLE_COZE_AGENT_BOT1_ENABLE
+            bool "Bot 1"
+            default y
+
+        if EXAMPLE_COZE_AGENT_BOT1_ENABLE
+            config EXAMPLE_COZE_AGENT_BOT1_NAME
+                string "Bot name"
+                default "Lin Jia Nv Hai"
+
+            config EXAMPLE_COZE_AGENT_BOT1_ID
+                string "Bot ID"
+                default "7516538xxxxxxxxxxxx"
+
+            config EXAMPLE_COZE_AGENT_BOT1_DESCRIPTION
+                string "Bot description"
+                default "A warm-voiced female AI character who listens to the user's thoughts and offers comforting responses."
+
+            config EXAMPLE_COZE_AGENT_BOT1_VOICE_ID
+                string "Bot voice ID"
+                default "7426720361733144585"
+        endif
+
+        menuconfig EXAMPLE_COZE_AGENT_BOT2_ENABLE
+            bool "Bot 2"
+            default y
+
+        if EXAMPLE_COZE_AGENT_BOT2_ENABLE
+            config EXAMPLE_COZE_AGENT_BOT2_NAME
+                string "Bot name"
+                default "Wan Qu Da Shu"
+
+            config EXAMPLE_COZE_AGENT_BOT2_ID
+                string "Bot ID"
+                default "7516538xxxxxxxxxxxx"
+
+            config EXAMPLE_COZE_AGENT_BOT2_DESCRIPTION
+                string "Bot description"
+                default "A male AI character with a regional accent. He responds quickly and concisely, but does not perform actions on behalf of the user."
+
+            config EXAMPLE_COZE_AGENT_BOT2_VOICE_ID
+                string "Bot voice ID"
+                default "7426720361732915209"
+        endif
+    endif
+
+endmenu

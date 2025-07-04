@@ -1,6 +1,6 @@
 # ChangeLog
 
-## v0.6.0-alpha1 - 2025-07-04
+## v0.6.0-beta1 - 2025-07-04
 
 ### Breaking Changes:
 
