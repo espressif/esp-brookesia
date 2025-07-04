@@ -9,30 +9,58 @@
   - "conftest.py"
   - "pytest.ini"
 
-# component folder
-.patterns-component: &patterns-component
-  - "src/**/*"
-  - "CMakeLists.txt"
-  - "esp_brookesia_conf.h"
-  - "idf_component.yml"
-  - "Kconfig"
+# apps folder
+# brookesia_app_ai_profile
+.patterns-app_brookesia_app_ai_profile: &patterns-app_brookesia_app_ai_profile
+  - "apps/brookesia_app_ai_profile/**/*"
+# brookesia_app_calculator
+.patterns-app_brookesia_app_calculator: &patterns-app_brookesia_app_calculator
+  - "apps/brookesia_app_calculator/**/*"
+# brookesia_app_game_2048
+.patterns-app_brookesia_app_game_2048: &patterns-app_brookesia_app_game_2048
+  - "apps/brookesia_app_game_2048/**/*"
+# brookesia_app_settings
+.patterns-app_brookesia_app_settings: &patterns-app_brookesia_app_settings
+  - "apps/brookesia_app_settings/**/*"
+# brookesia_app_squareline_demo
+.patterns-app_brookesia_app_squareline_demo: &patterns-app_brookesia_app_squareline_demo
+  - "apps/brookesia_app_squareline_demo/**/*"
+
+# components folder
+# brookesia_core
+.patterns-component_brookesia_core: &patterns-component_brookesia_core
+  - "core/brookesia_core/ai_framework/**/*"
+  - "core/brookesia_core/gui/**/*"
+  - "core/brookesia_core/services/**/*"
+  - "core/brookesia_core/systems/**/*"
+  - "core/brookesia_core/*.h"
+  - "core/brookesia_core/*.hpp"
+  - "core/brookesia_core/CMakeLists.txt"
+  - "core/brookesia_core/idf_component.yml"
+  - "core/brookesia_core/Kconfig"
+
+# test_apps folder
+# brookesia_core
+.patterns-test_apps_brookesia_core: &patterns-test_apps_brookesia_core
+  - "core/brookesia_core/test_apps/**/*"
 
 # docs folder
 .patterns-docs_md: &patterns-docs_md
   - "**/*.md"
 
-# examples folder
-.patterns-example_phone_m5stack_core_s3: &patterns-example_phone_m5stack_core_s3
-  - "examples/phone_m5stack_core_s3/**/*"
-
-.patterns-example_phone_p4_function_ev_board: &patterns-example_phone_p4_function_ev_board
-  - "examples/phone_p4_function_ev_board/**/*"
-
-.patterns-example_phone_s3_box_3: &patterns-example_phone_s3_box_3
-  - "examples/phone_s3_box_3/**/*"
-
-.patterns-example_phone_s3_lcd_ev_board: &patterns-example_phone_s3_lcd_ev_board
-  - "examples/phone_s3_lcd_ev_board/**/*"
+# products folder
+# phone
+.patterns-products_phone_m5stack_core_s3: &patterns-products_phone_m5stack_core_s3
+  - "products/phone/phone_m5stack_core_s3/**/*"
+.patterns-products_phone_p4_function_ev_board: &patterns-products_phone_p4_function_ev_board
+  - "products/phone/phone_p4_function_ev_board/**/*"
+.patterns-products_phone_s3_box_3: &patterns-products_phone_s3_box_3
+  - "products/phone/phone_s3_box_3/**/*"
+.patterns-products_phone_s3_lcd_ev_board: &patterns-products_phone_s3_lcd_ev_board
+  - "products/phone/phone_s3_lcd_ev_board/**/*"
+# speaker
+.patterns-products_speaker: &patterns-products_speaker
+  - "products/speaker/**/*"
 
 ##############
 # if anchors #
@@ -61,72 +89,104 @@
 .if_label-deploy: &if-label-deploy
   if: '$BOT_LABEL_DEPLOY || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*deploy(?:,[^,\n\r]+)*$/i'
 
-# rules for component test_apps
-.rules:build:component_test_apps:
+# # rules for component test_apps
+# .rules:build:component_test_apps:
+#   rules:
+#     - <<: *if-protected
+#     - <<: *if-label-build
+#     - <<: *if-label-target_test
+#     - <<: *if-trigger-job
+#     - <<: *if-dev-push
+#       changes: *patterns-build_system
+#     - <<: *if-dev-push
+#       changes: *patterns-component_brookesia_core
+#     - <<: *if-dev-push
+#       changes: *patterns-test_apps_brookesia_core
+
+# rules for products
+.rules:build:products_phone_m5stack_core_s3:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
     - <<: *if-label-target_test
     - <<: *if-trigger-job
     - <<: *if-dev-push
-      changes: *patterns-component
-    - <<: *if-dev-push
       changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_core
+    - <<: *if-dev-push
+      changes: *patterns-products_phone_m5stack_core_s3
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_squareline_demo
 
-# rules for examples
-.rules:build:example_phone_m5stack_core_s3:
+.rules:build:products_phone_p4_function_ev_board:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
     - <<: *if-label-target_test
     - <<: *if-trigger-job
     - <<: *if-dev-push
-      changes: *patterns-component
+      changes: *patterns-component_brookesia_core
     - <<: *if-dev-push
-      changes: *patterns-example_phone_m5stack_core_s3
+      changes: *patterns-products_phone_p4_function_ev_board
     - <<: *if-dev-push
       changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_squareline_demo
 
-.rules:build:example_phone_p4_function_ev_board:
+.rules:build:products_phone_s3_box_3:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
     - <<: *if-label-target_test
     - <<: *if-trigger-job
     - <<: *if-dev-push
-      changes: *patterns-component
+      changes: *patterns-component_brookesia_core
     - <<: *if-dev-push
-      changes: *patterns-example_phone_p4_function_ev_board
+      changes: *patterns-products_phone_s3_box_3
     - <<: *if-dev-push
       changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_squareline_demo
 
-.rules:build:example_phone_s3_box_3:
+.rules:build:products_phone_s3_lcd_ev_board:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
     - <<: *if-label-target_test
     - <<: *if-trigger-job
     - <<: *if-dev-push
-      changes: *patterns-component
+      changes: *patterns-component_brookesia_core
     - <<: *if-dev-push
-      changes: *patterns-example_phone_s3_box_3
+      changes: *patterns-products_phone_s3_lcd_ev_board
     - <<: *if-dev-push
       changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_squareline_demo
 
-.rules:build:example_phone_s3_lcd_ev_board:
+.rules:build:products_speaker:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
     - <<: *if-label-target_test
     - <<: *if-trigger-job
     - <<: *if-dev-push
-      changes: *patterns-component
-    - <<: *if-dev-push
-      changes: *patterns-example_phone_s3_lcd_ev_board
-    - <<: *if-dev-push
       changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_core
+    - <<: *if-dev-push
+      changes: *patterns-products_speaker
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_ai_profile
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_calculator
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_game_2048
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_settings
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_squareline_demo
 
-# rules for readme
 .rules:pre_check:readme:
   rules:
     - <<: *if-protected

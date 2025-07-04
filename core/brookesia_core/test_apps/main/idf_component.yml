@@ -1,0 +1,9 @@
+## IDF Component Manager Manifest File
+dependencies:
+  brookesia_core:
+    version: "*"
+    override_path: "../../../brookesia_core"
+
+  brookesia_app_squareline_demo:
+    version: "*"
+    override_path: "../../../../apps/brookesia_app_squareline_demo"

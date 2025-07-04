@@ -1,0 +1,10 @@
+menuconfig ESP_BROOKESIA_SERVICES_ENABLE_STORAGE_NVS
+    bool "Storage NVS Services"
+    default y
+
+if ESP_BROOKESIA_SERVICES_ENABLE_STORAGE_NVS
+    config ESP_BROOKESIA_STORAGE_NVS_ENABLE_DEBUG_LOG
+        bool "Enable debug log output"
+        depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
+        default y
+endif # ESP_BROOKESIA_SERVICES_ENABLE_STORAGE_NVS
