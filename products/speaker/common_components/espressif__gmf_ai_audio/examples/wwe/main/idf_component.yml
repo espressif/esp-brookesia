@@ -1,0 +1,15 @@
+dependencies:
+  espressif/gmf_ai_audio:
+    override_path: ../../../../gmf_ai_audio
+  espressif/gmf_io:
+    override_path: ../../../../gmf_io
+  espressif/gmf_misc:
+    override_path: ../../../../gmf_misc
+  espressif/gmf_video:
+    override_path: ../../../../gmf_video
+  espressif/gmf_core:
+    override_path: ../../../../../gmf_core
+  espressif/gmf_app_utils:
+    override_path: ../../../../../packages/gmf_app_utils
+  espressif/gmf_loader:
+    override_path: ../../../../../packages/gmf_loader

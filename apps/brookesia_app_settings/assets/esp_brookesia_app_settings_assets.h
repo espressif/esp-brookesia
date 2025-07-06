@@ -1,0 +1,37 @@
+#pragma once
+
+#include "lvgl.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Large
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_calculator_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_call_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_heater_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_music_player_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_settings_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_smart_home_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_squareline_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_terminal_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_timer_112_112);
+LV_IMG_DECLARE(esp_brookesia_app_icon_arrow_left_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_arrow_right_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_brightness_less_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_brightness_more_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_media_display_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_media_sound_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_more_about_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_more_developer_mode_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_more_help_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_more_restart_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_sound_less_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_sound_more_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_wireless_bluetooth_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_wireless_wlan_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_wlan_lock_48_48);
+
+#ifdef __cplusplus
+}
+#endif

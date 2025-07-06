@@ -1,0 +1,11 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp-box-3: "^3"
+
+  brookesia_core:
+    version: "*"
+    override_path: "../../../../core/brookesia_core"
+
+  brookesia_app_squareline_demo:
+    version: "*"
+    override_path: "../../../../apps/brookesia_app_squareline_demo"

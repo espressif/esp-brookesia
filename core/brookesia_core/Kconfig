@@ -1,0 +1,33 @@
+menu "ESP Brookesia - Core Configurations"
+    menuconfig ESP_BROOKESIA_ENABLE_AI_FRAMEWORK
+        bool "AI Framework"
+        default y
+
+    if ESP_BROOKESIA_ENABLE_AI_FRAMEWORK
+        rsource "ai_framework/Kconfig"
+    endif
+
+    menuconfig ESP_BROOKESIA_ENABLE_GUI
+        bool "GUI"
+        default y
+
+    if ESP_BROOKESIA_ENABLE_GUI
+        rsource "gui/Kconfig"
+    endif
+
+    menuconfig ESP_BROOKESIA_ENABLE_SERVICES
+        bool "Services"
+        default y
+
+    if ESP_BROOKESIA_ENABLE_SERVICES
+        rsource "services/Kconfig"
+    endif
+
+    menuconfig ESP_BROOKESIA_ENABLE_SYSTEMS
+        bool "Systems"
+        default y
+
+    if ESP_BROOKESIA_ENABLE_SYSTEMS
+        rsource "systems/Kconfig"
+    endif
+endmenu

@@ -1,0 +1,14 @@
+## IDF Component Manager Manifest File
+dependencies:
+  ## Required IDF version
+  idf: ">=5.3"
+
+  espressif/esp32_p4_function_ev_board: "5.0.*"
+
+  brookesia_core:
+    version: "*"
+    override_path: "../../../../core/brookesia_core"
+
+  brookesia_app_squareline_demo:
+    version: "*"
+    override_path: "../../../../apps/brookesia_app_squareline_demo"

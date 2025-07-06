@@ -30,6 +30,7 @@ IGNORE_WARNINGS = [
     r'warning: \'ADC_ATTEN_DB_11\' is deprecated',
     r'warning: unused variable \'ret\'',
     r'WARNING  warning: unknown kconfig symbol',
+    r'warning:',
 ]
 
 def _get_idf_version():

@@ -1,0 +1,10 @@
+version: "0.1.0"
+dependencies:
+  espressif/esp-brookesia:
+    version: "*"
+    override_path: "../../../../../esp-brookesia"
+    public: true
+
+  espressif/esp-boost:
+    version: "0.3.*"
+    public: true

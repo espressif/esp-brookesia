@@ -1,0 +1,9 @@
+version: 0.6.0
+dependencies:
+  brookesia_core:
+    version: "0.6.*"
+    public: true
+
+  espressif/esp-lib-utils:
+    version: "0.2.*"
+    public: false
