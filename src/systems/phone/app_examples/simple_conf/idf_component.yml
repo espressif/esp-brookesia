@@ -1,9 +1,0 @@
-version: 0.1.0
-description: This package offers a phone app template with simple configuration.
-dependencies:
-  lvgl/lvgl:
-    version: "9.2.*"
-    public: true
-  esp-brookesia:
-    version: "0.5.*"
-    public: true

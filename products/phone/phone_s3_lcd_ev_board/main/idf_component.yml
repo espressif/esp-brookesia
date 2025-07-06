@@ -1,0 +1,11 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp32_s3_lcd_ev_board: "4.0.*"
+
+  brookesia_core:
+    version: "*"
+    override_path: "../../../../core/brookesia_core"
+
+  brookesia_app_squareline_demo:
+    version: "*"
+    override_path: "../../../../apps/brookesia_app_squareline_demo"
