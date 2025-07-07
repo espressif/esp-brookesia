@@ -62,7 +62,7 @@ brookesia-core 的系统 app 基类是继承自内核 app 基类 `ESP_Brookesia_
   extern uint32_t LV_EVENT_GET_COMP_CHILD;
   ```
 
-- **不推荐使用动画**：建议用户不要在 Squareline 创建和使用动画，因为这些动画资源无法被用户或者 brookesia-core 直接获取，从而无法被自动或者手动清理，可能会在 app 退出时导致程序崩溃或内存泄漏问题。如果一定要使用，需要对导出代码中动画资源的创建部分进行修改，具体请参考 [Squareline 示例](../systems/phone/app_examples/squareline/) 中的实现，该示例通过在 `lv_anim_start()` 前后添加 `startRecordResource()` 和 `stopRecordResource()` 函数来手动记录动画资源，使其能够在 app 关闭时被自动清理。
+- **不推荐使用动画**：建议用户不要在 Squareline 创建和使用动画，因为这些动画资源无法被用户或者 brookesia-core 直接获取，从而无法被自动或者手动清理，可能会在 app 退出时导致程序崩溃或内存泄漏问题。如果一定要使用，需要对导出代码中动画资源的创建部分进行修改，具体请参考 [Squareline 示例](https://github.com/espressif/esp-brookesia/blob/master/apps/brookesia_app_squareline_demo/esp_brookesia_app_squareline_demo.cpp) 中的实现，该示例通过在 `lv_anim_start()` 前后添加 `startRecordResource()` 和 `stopRecordResource()` 函数来手动记录动画资源，使其能够在 app 关闭时被自动清理。
 - **确保正常编译**：除此之外，使用 Squareline 导出的代码时，用户仍需根据实际情况进行一些额外的修改，如修改 `ui_init()` 函数名为 `<app_name>_ui_init()`，以确保代码能够被正常编译与运行。
 
 > [!NOTE]
