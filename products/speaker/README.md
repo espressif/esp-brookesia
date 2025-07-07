@@ -1,5 +1,9 @@
 # EchoEar（喵伴）出厂示例
 
+<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia/launchpad.toml">
+    <img alt="Try it with ESP Launchpad" src="https://espressif.github.io/esp-launchpad/assets/try_with_launchpad.png" width="200" height="56">
+</a>
+
 这个示例演示了如何在 EchoEar 开发板上运行 ESP-Brookesia Speaker，并支持通过语音唤醒与 Coze 智能体进行语音交互。
 
 请参阅 [EchoEar（喵伴）用户指南](https://espressif.craft.me/1gOl65rON8G8FK) 了解产品信息和固件使用方法。
