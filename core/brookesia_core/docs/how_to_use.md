@@ -1,6 +1,6 @@
 # How to Use
 
-* [中文版本](./system_ui_phone_CN.md)
+* [中文版本](./how_to_use_CN.md)
 
 ## Table of Contents
 
