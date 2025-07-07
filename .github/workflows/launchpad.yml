@@ -35,6 +35,7 @@ jobs:
         shell: bash
         run: |
           cp tools/launchpad.toml images/launchpad.toml
+          cd products/speaker/
           . ${IDF_PATH}/export.sh
           idf.py set-target ${{matrix.idf_target}} build
           cd build
