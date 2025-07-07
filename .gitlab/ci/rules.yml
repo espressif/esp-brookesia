@@ -51,16 +51,33 @@
 # products folder
 # phone
 .patterns-products_phone_m5stack_core_s3: &patterns-products_phone_m5stack_core_s3
-  - "products/phone/phone_m5stack_core_s3/**/*"
+  - "products/phone/phone_m5stack_core_s3/main/**/*"
+  - "products/phone/phone_m5stack_core_s3/CMakeLists.txt"
+  - "products/phone/phone_m5stack_core_s3/partitions.csv"
+  - "products/phone/phone_m5stack_core_s3/sdkconfig.defaults"
 .patterns-products_phone_p4_function_ev_board: &patterns-products_phone_p4_function_ev_board
-  - "products/phone/phone_p4_function_ev_board/**/*"
+  - "products/phone/phone_p4_function_ev_board/main/**/*"
+  - "products/phone/phone_p4_function_ev_board/CMakeLists.txt"
+  - "products/phone/phone_p4_function_ev_board/partitions.csv"
+  - "products/phone/phone_p4_function_ev_board/sdkconfig.defaults"
 .patterns-products_phone_s3_box_3: &patterns-products_phone_s3_box_3
-  - "products/phone/phone_s3_box_3/**/*"
+  - "products/phone/phone_s3_box_3/main/**/*"
+  - "products/phone/phone_s3_box_3/CMakeLists.txt"
+  - "products/phone/phone_s3_box_3/partitions.csv"
+  - "products/phone/phone_s3_box_3/sdkconfig.defaults"
 .patterns-products_phone_s3_lcd_ev_board: &patterns-products_phone_s3_lcd_ev_board
-  - "products/phone/phone_s3_lcd_ev_board/**/*"
+  - "products/phone/phone_s3_lcd_ev_board/main/**/*"
+  - "products/phone/phone_s3_lcd_ev_board/CMakeLists.txt"
+  - "products/phone/phone_s3_lcd_ev_board/partitions.csv"
+  - "products/phone/phone_s3_lcd_ev_board/sdkconfig.defaults"
 # speaker
 .patterns-products_speaker: &patterns-products_speaker
-  - "products/speaker/**/*"
+  - "products/speaker/common_components/**/*"
+  - "products/speaker/main/**/*"
+  - "products/speaker/spiffs/**/*"
+  - "products/speaker/CMakeLists.txt"
+  - "products/speaker/partitions.csv"
+  - "products/speaker/sdkconfig.defaults"
 
 ##############
 # if anchors #
