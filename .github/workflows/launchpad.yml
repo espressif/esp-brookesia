@@ -1,0 +1,70 @@
+name: Build demo
+
+on:
+  push:
+    branches:
+      - main
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        idf_ver: ["release-v5.5"]
+        idf_target: ["esp32s3"]
+    runs-on: ubuntu-latest
+    container: espressif/idf:${{ matrix.idf_ver }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      - run: mkdir -p images
+      - name: Build demo
+        env:
+          IDF_TARGET: ${{ matrix.idf_target }}
+        shell: bash
+        run: |
+          cp tools/launchpad.toml images/launchpad.toml
+          . ${IDF_PATH}/export.sh
+          idf.py set-target ${{matrix.idf_target}} build
+          cd build
+          IDF_VERSION=`echo ${{ matrix.idf_ver }} | tr '-' '_' | tr '.' '_'`
+          esptool.py --chip ${{matrix.idf_target}} merge_bin -o "$GITHUB_WORKSPACE/images/factory_echoear_speaker_${{matrix.idf_target}}_$IDF_VERSION.bin" @flash_args
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: build-images
+          path: images/
+
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download builds
+        uses: actions/download-artifact@v3
+        with:
+          name: build-images
+          path: images/
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: images/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
