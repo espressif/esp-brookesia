@@ -354,8 +354,8 @@ bool AI_Buddy::resume()
         stopAudio(AudioType::MicOff);
         sendAudioEvent({AudioType::MicOn});
         if (!_agent->hasChatState(Agent::_ChatStateSleep)) {
-            ESP_UTILS_CHECK_FALSE_EXIT(
-                _agent->sendChatEvent(Agent::ChatEvent::Sleep), "Send chat event sleep failed"
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                _agent->sendChatEvent(Agent::ChatEvent::Sleep), false, "Send chat event sleep failed"
             );
         } else {
             sendAudioEvent({AudioType::WakeUp});

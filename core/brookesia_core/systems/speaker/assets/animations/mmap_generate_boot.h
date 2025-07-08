@@ -14,8 +14,8 @@
 #include "esp_mmap_assets.h"
 
 #define MMAP_BOOT_FILES           1
-#define MMAP_BOOT_CHECKSUM        0x862C
+#define MMAP_BOOT_CHECKSUM        0x889D
 
 enum MMAP_BOOT_LISTS {
-    MMAP_BOOT_ESP_BROOKESIA_SPEAKER_BOOT_ANIMATION_360_360_AAF = 0,        /*!< esp_brookesia_speaker_boot_animation_360_360.aaf */
+    MMAP_BOOT_BOOT_ANIMATION_360_360_AAF = 0,        /*!< boot_animation_360_360.aaf */
 };
