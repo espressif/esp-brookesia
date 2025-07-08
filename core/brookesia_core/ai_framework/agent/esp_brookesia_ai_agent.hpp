@@ -24,22 +24,26 @@ public:
     enum ChatState {
         ChatStateDeinit   = 0,
         _ChatStateInit    = (1ULL << 0),
-        ChatStateIniting  = (_ChatStateInit   | (1ULL << 1)),
-        ChatStateInited   = (_ChatStateInit   | (1ULL << 2)),
-        _ChatStateStop    = (ChatStateInited  | (1ULL << 3)),
-        ChatStateStopping = (_ChatStateStop   | (1ULL << 4)),
-        ChatStateStopped  = (_ChatStateStop   | (1ULL << 5)),
-        _ChatStateStart   = (ChatStateInited  | (1ULL << 6)),
-        ChatStateStarting = (_ChatStateStart  | (1ULL << 7)),
-        ChatStateStarted  = (_ChatStateStart  | (1ULL << 8)),
+        ChatStateIniting  = (_ChatStateInit    | (1ULL << 1)),
+        ChatStateInited   = (_ChatStateInit    | (1ULL << 2)),
+        _ChatStateStop    = (ChatStateInited   | (1ULL << 3)),
+        ChatStateStopping = (_ChatStateStop    | (1ULL << 4)),
+        ChatStateStopped  = (_ChatStateStop    | (1ULL << 5)),
+        _ChatStateStart   = (ChatStateInited   | (1ULL << 6)),
+        ChatStateStarting = (_ChatStateStart   | (1ULL << 7)),
+        ChatStateStarted  = (_ChatStateStart   | (1ULL << 8)),
+        _ChatStateSleep   = (ChatStateStarted  | (1ULL << 9)),
+        ChatStateSleeping = (_ChatStateSleep   | (1ULL << 10)),
+        ChatStateSlept    = (_ChatStateSleep   | (1ULL << 11)),
+        _ChatStateWake    = (ChatStateStarted  | (1ULL << 12)),
+        ChatStateWaking   = (_ChatStateWake    | (1ULL << 13)),
+        ChatStateWaked    = (_ChatStateWake    | (1ULL << 14)),
     };
     enum class ChatEvent {
         Deinit,
         Init,
         Stop,
         Start,
-        Pause,
-        Resume,
         Sleep,
         WakeUp,
     };
@@ -63,6 +67,8 @@ public:
 
     bool begin();
     bool del();
+    bool pause();
+    bool resume();
 
     bool setCurrentRobotIndex(int index);
     bool getCurrentRobotIndex(int &index) const;
@@ -85,13 +91,10 @@ public:
         return _flags.is_paused;
     }
 
-    bool isSleep() const
-    {
-        return _flags.is_sleep;
-    }
-
     static std::shared_ptr<Agent> requestInstance();
     static void releaseInstance();
+    static std::string chatEventToString(const ChatEvent &event);
+    static std::string chatStateToString(const ChatState &state);
 
     ChatEventProcessSpecialSignal chat_event_process_special_signal;
     ChatEventProcessStartSignal chat_event_process_start_signal;
@@ -114,7 +117,6 @@ private:
     struct {
         int is_begun: 1;
         int is_paused: 1;
-        int is_sleep: 1;
     } _flags = {};
     std::mutex _mutex;
 

@@ -1,4 +1,4 @@
-version: "0.6.0-beta1"
+version: "0.6.0-beta2"
 description: ESP-Brookesia-Core is a core component of ESP-Brookesia.
 url: https://github.com/espressif/esp-brookesia/tree/master/core/brookesia_core
 issues: https://github.com/espressif/esp-brookesia/issues
