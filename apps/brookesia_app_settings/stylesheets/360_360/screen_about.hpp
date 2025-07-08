@@ -57,7 +57,7 @@ constexpr SettingsUI_ScreenAboutData SETTINGS_UI_360_360_SCREEN_ABOUT_DATA()
         },
         .cell_confs = {
             [(int)SettingsUI_ScreenAboutCellIndex::SYSTEM_FIRMWARE_VERSION] =
-            SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_SYSTEM_NAME("Firmware version"),
+            SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_SYSTEM_NAME("Firmware"),
             [(int)SettingsUI_ScreenAboutCellIndex::SYSTEM_OS_NAME] =
             SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_SYSTEM_NAME("OS"),
             [(int)SettingsUI_ScreenAboutCellIndex::SYSTEM_OS_VERSION] =

@@ -377,6 +377,8 @@ lv_obj_t *Game2048::addBackgroundCell(lv_obj_t *parent)
     // Background
     lv_obj_set_style_bg_color(cell, CELL_BG_COLOR, 0);
     lv_obj_set_style_bg_opa(cell, CELL_OPA_1, 0);
+    // Others
+    lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
 
     return cell;
 }
@@ -435,7 +437,8 @@ void Game2048::generateForegroundCell()
     lv_obj_set_style_bg_color(cell, CELL_BG_COLOR, 0);
     lv_obj_set_style_opa(cell, CELL_OPA_2, 0);
     // Others
-    lv_obj_clear_flag(cell, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(cell, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(cell, LV_OBJ_FLAG_SCROLLABLE);
 
     lv_obj_t *label = lv_label_create(cell);
     lv_label_set_text_fmt(label, "%d", 1 << target_weight);

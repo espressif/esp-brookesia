@@ -62,8 +62,8 @@
 #define VERSION_STR(x, y, z)                           _VERSION_STR(x, y, z)
 #define UI_SCREEN_ABOUT_SYSTEM_OS_NAME                  "FreeRTOS"
 #define UI_SCREEN_ABOUT_SYSTEM_UI_NAME                  "ESP-Brookesia & LVGL"
-#define UI_SCREEN_ABOUT_SYSTEM_UI_BROOKESIA_VERSION     VERSION_STR(ESP_BROOKESIA_VER_MAJOR, ESP_BROOKESIA_VER_MINOR ,\
-                                                                    ESP_BROOKESIA_VER_PATCH)
+#define UI_SCREEN_ABOUT_SYSTEM_UI_BROOKESIA_VERSION     VERSION_STR(BROOKESIA_CORE_VER_MAJOR, BROOKESIA_CORE_VER_MINOR ,\
+                                                                    BROOKESIA_CORE_VER_PATCH)
 #define UI_SCREEN_ABOUT_SYSTEM_UI_LVGL_VERSION          VERSION_STR(LVGL_VERSION_MAJOR, LVGL_VERSION_MINOR, \
                                                                     LVGL_VERSION_PATCH)
 #define UI_SCREEN_ABOUT_DEVICE_MANUFACTURER             "Espressif"
