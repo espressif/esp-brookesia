@@ -40,10 +40,10 @@
 #include "audio_sys.h"
 #include "coze_agent_config_default.h"
 
-constexpr bool        EXAMPLE_SHOW_MEM_INFO        = false;
+constexpr bool        EXAMPLE_SHOW_MEM_INFO     = false;
 
-constexpr const char *MUSIC_PARTITION_LABEL = "spiffs_data";
-constexpr int         DEVELOPER_MODE_KEY    = 0x655;
+constexpr const char *MUSIC_PARTITION_LABEL     = "spiffs_data";
+constexpr int         DEVELOPER_MODE_KEY        = 0x655;
 
 constexpr int         LVGL_TASK_PRIORITY        = 4;
 constexpr int         LVGL_TASK_CORE_ID         = 1;
@@ -107,12 +107,14 @@ extern "C" void app_main()
 {
     printf("Project version: %s\n", CONFIG_APP_PROJECT_VER);
 
-    init_display_and_draw_logic();
-    check_whether_enter_developer_mode();
-    init_media_audio();
-    init_services();
-    load_coze_agent_config();
-    create_speaker_and_install_apps();
+    assert(init_display_and_draw_logic()        && "Initialize display and draw logic failed");
+    assert(check_whether_enter_developer_mode() && "Check whether enter developer mode failed");
+    assert(init_media_audio()                   && "Initialize media audio failed");
+    assert(init_services()                      && "Initialize services failed");
+    if (!load_coze_agent_config()) {
+        ESP_UTILS_LOGE("Load coze agent config failed");
+    }
+    assert(create_speaker_and_install_apps()    && "Create speaker and install apps failed");
 
     if constexpr (EXAMPLE_SHOW_MEM_INFO) {
         esp_utils::thread_config_guard thread_config({
@@ -589,7 +591,7 @@ static bool create_speaker_and_install_apps()
         false, "Create app settings stylesheet failed"
     );
     app_settings_stylesheet->screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100);
-    app_settings_stylesheet->manager.wlan.scan_ap_count_max = 20;
+    app_settings_stylesheet->manager.wlan.scan_ap_count_max = 30;
     app_settings_stylesheet->manager.wlan.scan_interval_ms = 10000;
     app_settings_stylesheet->manager.about.device_board_name = "EchoEar";
     app_settings_stylesheet->manager.about.device_ram_main = "512KB";

@@ -6,33 +6,25 @@ dependencies:
   espressif/esp_tinyusb: "^1.2"
 
   echoear:
-    version: "*"
     override_path: "../common_components/echoear"
 
   espressif/gmf_core:
-    version: "*"
     override_path: "../common_components/espressif__gmf_core"
 
   espressif/gmf_ai_audio:
-    version: "*"
     override_path: "../common_components/espressif__gmf_ai_audio"
 
   brookesia_core:
-    version: "*"
     override_path: "../../../core/brookesia_core"
 
   brookesia_app_settings:
-    version: "*"
     override_path: "../../../apps/brookesia_app_settings"
 
   brookesia_app_ai_profile:
-    version: "*"
     override_path: "../../../apps/brookesia_app_ai_profile"
 
   brookesia_app_game_2048:
-    version: "*"
     override_path: "../../../apps/brookesia_app_game_2048"
 
   brookesia_app_calculator:
-    version: "*"
     override_path: "../../../apps/brookesia_app_calculator"
