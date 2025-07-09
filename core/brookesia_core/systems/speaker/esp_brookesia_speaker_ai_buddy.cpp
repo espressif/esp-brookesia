@@ -139,7 +139,10 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     _agent_connections.push_back(_agent->chat_event_process_start_signal.connect([this](const Agent::ChatEvent & current_event, const Agent::ChatEvent & last_event) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
-        ESP_UTILS_LOGD("Param: current_event(%d), last_event(%d)", static_cast<int>(current_event), static_cast<int>(last_event));
+        ESP_UTILS_LOGD(
+            "Param: current_event(%s), last_event(%s)", Agent::chatEventToString(current_event).c_str(),
+            Agent::chatEventToString(last_event).c_str()
+        );
 
         switch (current_event) {
         case Agent::ChatEvent::Init:
@@ -176,7 +179,10 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     _agent_connections.push_back(_agent->chat_event_process_end_signal.connect([this](const Agent::ChatEvent & current_event, const Agent::ChatEvent & last_event) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
-        ESP_UTILS_LOGD("Param: current_event(%d), last_event(%d)", static_cast<int>(current_event), static_cast<int>(last_event));
+        ESP_UTILS_LOGD(
+            "Param: current_event(%s), last_event(%s)", Agent::chatEventToString(current_event).c_str(),
+            Agent::chatEventToString(last_event).c_str()
+        );
 
         switch (current_event) {
         case Agent::ChatEvent::Init:
@@ -192,24 +198,14 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
             ESP_UTILS_CHECK_FALSE_EXIT(
                 expression.setSystemIcon("server_connected", {.immediate = true}), "Set server connected icon failed"
             );
-            ESP_UTILS_CHECK_FALSE_EXIT(
-                _agent->sendChatEvent(_agent->isPaused() ? Agent::ChatEvent::Pause : Agent::ChatEvent::Sleep),
-                "Send chat event pause or sleep failed"
-            );
-            break;
-        case Agent::ChatEvent::Pause:
-            stopAudio(AudioType::MicOn);
-            sendAudioEvent({AudioType::MicOff});
-            break;
-        case Agent::ChatEvent::Resume:
-            stopAudio(AudioType::MicOff);
-            sendAudioEvent({AudioType::MicOn});
-            if (!_agent->isSleep()) {
+            if (!isPause()) {
+                _agent->resume();
                 ESP_UTILS_CHECK_FALSE_EXIT(
                     _agent->sendChatEvent(Agent::ChatEvent::Sleep), "Send chat event sleep failed"
                 );
             } else {
-                sendAudioEvent({AudioType::WakeUp});
+                stopAudio(AudioType::MicOn);
+                sendAudioEvent({AudioType::MicOff});
             }
             break;
         case Agent::ChatEvent::Sleep:
@@ -217,11 +213,6 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
                 expression.setEmoji("sleepy", {.repeat = false, .keep_when_stop = true}, {.repeat = true}),
                 "Set emoji failed"
             );
-            if (last_event == Agent::ChatEvent::WakeUp) {
-                if (!play_random_audio(_sleep_audios)) {
-                    ESP_UTILS_LOGW("Play sleep audio failed");
-                }
-            }
             sendAudioEvent({AudioType::WakeUp});
             break;
         case Agent::ChatEvent::WakeUp:
@@ -234,6 +225,10 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     _agent_connections.push_back(coze_chat_response_signal.connect([this]() {
         ESP_UTILS_LOG_TRACE_GUARD();
 
+        if (!isWiFiValid()) {
+            return;
+        }
+
         ESP_UTILS_CHECK_FALSE_EXIT(play_random_audio(_response_audios), "Play random audio failed");
     }));
     _agent_connections.push_back(coze_chat_wake_up_signal.connect([this](bool is_wake_up) {
@@ -241,16 +236,23 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
 
         ESP_UTILS_LOGD("Param: is_wake_up(%d)", is_wake_up);
 
+        if (!isWiFiValid()) {
+            return;
+        }
+
         boost::thread([this, is_wake_up]() {
             if (is_wake_up) {
                 ESP_UTILS_CHECK_FALSE_EXIT(expression.setEmoji("neutral"), "Set emoji failed");
-                if (_agent->isSleep()) {
+                if (_agent->hasChatState(Agent::_ChatStateSleep)) {
                     ESP_UTILS_CHECK_FALSE_EXIT(
                         _agent->sendChatEvent(Agent::ChatEvent::WakeUp), "Send chat event wake up failed"
                     );
                 }
             } else {
-                if (!_agent->isSleep()) {
+                if (!_agent->hasChatState(Agent::_ChatStateSleep)) {
+                    if (!play_random_audio(_sleep_audios)) {
+                        ESP_UTILS_LOGW("Play sleep audio failed");
+                    }
                     ESP_UTILS_CHECK_FALSE_EXIT(
                         _agent->sendChatEvent(Agent::ChatEvent::Sleep), "Send chat event sleep failed"
                     );
@@ -275,6 +277,10 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     _agent_connections.push_back(coze_chat_speaking_signal.connect([this](bool is_speaking) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
+        if (!isWiFiValid()) {
+            return;
+        }
+
         ESP_UTILS_LOGI("Speaking: %s", is_speaking ? "true" : "false");
         if (!is_speaking && isWiFiValid()) {
             boost::thread([this]() {
@@ -287,6 +293,10 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     }));
     _agent_connections.push_back(coze_chat_websocket_disconnected_signal.connect([this]() {
         ESP_UTILS_LOG_TRACE_GUARD();
+
+        if (!isWiFiValid()) {
+            return;
+        }
 
         ESP_UTILS_CHECK_FALSE_EXIT(
             _agent->sendChatEvent(Agent::ChatEvent::Stop), "Send chat event stop failed"
@@ -302,6 +312,9 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     terminateChat.setCallback([this](const std::vector<FunctionParameter> &params) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
+        if (!play_random_audio(_sleep_audios)) {
+            ESP_UTILS_LOGW("Play sleep audio failed");
+        }
         ESP_UTILS_CHECK_FALSE_EXIT(
             _agent->sendChatEvent(Agent::ChatEvent::Sleep), "Send chat event sleep failed"
         );
@@ -334,11 +347,21 @@ bool AI_Buddy::resume()
     }
 
     _flags.is_pause = false;
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        _agent->sendChatEvent(Agent::ChatEvent::Resume), false, "Send chat event resume failed"
-    );
+    bool is_chat_started = _agent->hasChatState(Agent::ChatStateStarted);
 
-    bool is_chat_started = _agent->isChatState(Agent::ChatStateStarted);
+    if (is_chat_started) {
+        ESP_UTILS_CHECK_FALSE_RETURN(_agent->resume(), false, "Agent resume failed");
+        stopAudio(AudioType::MicOff);
+        sendAudioEvent({AudioType::MicOn});
+        if (!_agent->hasChatState(Agent::_ChatStateSleep)) {
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                _agent->sendChatEvent(Agent::ChatEvent::Sleep), false, "Send chat event sleep failed"
+            );
+        } else {
+            sendAudioEvent({AudioType::WakeUp});
+        }
+    }
+
     ESP_UTILS_CHECK_FALSE_RETURN(expression.resume(!is_chat_started, !is_chat_started), false, "Expression resume failed");
     if (is_chat_started) {
         ESP_UTILS_CHECK_FALSE_RETURN(
@@ -362,7 +385,12 @@ bool AI_Buddy::pause()
         return true;
     }
 
-    ESP_UTILS_CHECK_FALSE_RETURN(_agent->sendChatEvent(Agent::ChatEvent::Pause), false, "Send chat event pause failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(_agent->pause(), false, "Agent pause failed");
+    if (_agent->hasChatState(Agent::ChatStateStarted)) {
+        stopAudio(AudioType::MicOn);
+        sendAudioEvent({AudioType::MicOff});
+    }
+
     ESP_UTILS_CHECK_FALSE_RETURN(expression.pause(), false, "Expression pause failed");
 
     _flags.is_pause = true;
@@ -465,9 +493,6 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         ESP_UTILS_CHECK_FALSE_RETURN(
             _agent->sendChatEvent(Agent::ChatEvent::Start), false, "Send chat event start failed"
         );
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            _agent->sendChatEvent(Agent::ChatEvent::Sleep, false), false, "Send chat event sleep failed"
-        );
         stopAudio(AudioType::WifiNeedConnect);
         sendAudioEvent({AudioType::WifiConnected});
         break;
@@ -504,7 +529,6 @@ bool AI_Buddy::processAudioEvent(AudioProcessInfo &info)
 
     // If the audio has been played before, check if the playback interval has been reached, if not, skip playback
     if ((info.last_play_time_ms != 0) && (info.last_play_time_ms + info.event.repeat_interval_ms) > (esp_timer_get_time() / 1000)) {
-        ESP_UTILS_LOGD("Audio(%s) repeat interval not reached, skip play", getAudioName(info.event.type).c_str());
         return true;
     }
 

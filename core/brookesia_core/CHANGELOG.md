@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.6.0-beta2 - 2025-07-08
+
+### Bugfixes:
+
+* fix(ai_framework): prevent Agent from being awakened within apps
+* fix(systems): shorten animation filename to avoid warning
+
 ## v0.6.0-beta1 - 2025-07-04
 
 ### Breaking Changes:

@@ -14,7 +14,7 @@
 #include "esp_mmap_assets.h"
 
 #define MMAP_EMOTION_FILES           6
-#define MMAP_EMOTION_CHECKSUM        0x138F
+#define MMAP_EMOTION_CHECKSUM        0x2567
 
 enum MMAP_EMOTION_LISTS {
     MMAP_EMOTION_EMOTION_ANGRY_284_126_AAF = 0,        /*!< emotion_angry_284_126.aaf */

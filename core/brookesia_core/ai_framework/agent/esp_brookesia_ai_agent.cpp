@@ -143,6 +143,36 @@ bool Agent::del()
     return ret;
 }
 
+bool Agent::pause()
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (_flags.is_paused) {
+        ESP_UTILS_LOGW("Already paused");
+        return true;
+    }
+
+    coze_chat_app_pause();
+    _flags.is_paused = true;
+
+    return true;
+}
+
+bool Agent::resume()
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!_flags.is_paused) {
+        ESP_UTILS_LOGW("Not paused");
+        return true;
+    }
+
+    coze_chat_app_resume();
+    _flags.is_paused = false;
+
+    return true;
+}
+
 bool Agent::setCurrentRobotIndex(int index)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
@@ -189,7 +219,7 @@ bool Agent::sendChatEvent(const ChatEvent &event, bool clear_queue, int wait_fin
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     ESP_UTILS_LOGD(
-        "Param: event(%d), clear_queue(%d), wait_finish_timeout_ms(%d)", static_cast<int>(event),
+        "Param: event(%s), clear_queue(%d), wait_finish_timeout_ms(%d)", chatEventToString(event).c_str(),
         clear_queue, wait_finish_timeout_ms
     );
     ESP_UTILS_CHECK_FALSE_RETURN(_flags.is_begun, false, "Not begun");
@@ -210,7 +240,7 @@ bool Agent::sendChatEvent(const ChatEvent &event, bool clear_queue, int wait_fin
             while (!_chat_event_queue.empty()) {
                 auto event_wrapper_tmp = _chat_event_queue.front();
                 _chat_event_queue.pop();
-                ESP_UTILS_LOGD("Pop event: %d", static_cast<int>(event_wrapper_tmp.event));
+                ESP_UTILS_LOGD("Pop event: %s", chatEventToString(event_wrapper_tmp.event).c_str());
             }
         }
         _chat_event_queue.push(event_wrapper);
@@ -223,7 +253,8 @@ bool Agent::sendChatEvent(const ChatEvent &event, bool clear_queue, int wait_fin
     }
 
     ESP_UTILS_LOGD(
-        "Wait chat event finish: %d, timeout_ms(%d)", static_cast<int>(event_wrapper.event), wait_finish_timeout_ms
+        "Wait chat event finish: %s, timeout_ms(%d)", chatEventToString(event_wrapper.event).c_str(),
+        wait_finish_timeout_ms
     );
     auto future = event_wrapper.promise->get_future();
     ESP_UTILS_CHECK_FALSE_RETURN(
@@ -257,6 +288,56 @@ void Agent::releaseInstance()
     }
 }
 
+std::string Agent::chatStateToString(const ChatState &state)
+{
+    switch (state) {
+    case ChatState::ChatStateDeinit:
+        return "Deinit";
+    case ChatState::ChatStateIniting:
+        return "Initing";
+    case ChatState::ChatStateInited:
+        return "Inited";
+    case ChatState::ChatStateStopping:
+        return "Stopping";
+    case ChatState::ChatStateStopped:
+        return "Stopped";
+    case ChatState::ChatStateStarting:
+        return "Starting";
+    case ChatState::ChatStateStarted:
+        return "Started";
+    case ChatState::ChatStateSleeping:
+        return "Sleeping";
+    case ChatState::ChatStateSlept:
+        return "Slept";
+    case ChatState::ChatStateWaking:
+        return "Waking";
+    case ChatState::ChatStateWaked:
+        return "Waked";
+    default:
+        return "Unknown";
+    }
+}
+
+std::string Agent::chatEventToString(const ChatEvent &event)
+{
+    switch (event) {
+    case ChatEvent::Deinit:
+        return "Deinit";
+    case ChatEvent::Init:
+        return "Init";
+    case ChatEvent::Stop:
+        return "Stop";
+    case ChatEvent::Start:
+        return "Start";
+    case ChatEvent::Sleep:
+        return "Sleep";
+    case ChatEvent::WakeUp:
+        return "WakeUp";
+    default:
+        return "Unknown";
+    }
+}
+
 bool Agent::isTimeSync()
 {
     time_t now;
@@ -271,11 +352,16 @@ bool Agent::processChatEvent(const ChatEvent &event)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
-    ESP_UTILS_LOGD("Process chat event: %d", static_cast<int>(event));
+    ESP_UTILS_LOGD("Process chat event: %s", chatEventToString(event).c_str());
     ESP_UTILS_LOGD(
-        "Current chat state(%d), last chat event(%d)", static_cast<int>(_chat_state),
-        static_cast<int>(_last_chat_event)
+        "Current chat state(%s), last chat event(%s)", chatStateToString(_chat_state).c_str(),
+        chatEventToString(_last_chat_event).c_str()
     );
+
+    if (event == _last_chat_event) {
+        ESP_UTILS_LOGW("Chat event already processed");
+        return true;
+    }
 
     chat_event_process_start_signal(event, _last_chat_event);
 
@@ -283,10 +369,7 @@ bool Agent::processChatEvent(const ChatEvent &event)
     case ChatEvent::Deinit:
         break;
     case ChatEvent::Init: {
-        if (hasChatState(_ChatStateInit)) {
-            ESP_UTILS_LOGW("Chat already initing or inited");
-            return true;
-        }
+        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateDeinit), false, "Chat not deinit");
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
@@ -315,19 +398,12 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Stop: {
-        if (hasChatState(_ChatStateStop)) {
-            ESP_UTILS_LOGW("Chat already stopping or stopped");
-            return true;
-        }
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            hasChatState(_ChatStateStart), false, "Invalid chat state(%d)", static_cast<int>(_chat_state)
-        );
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Invalid chat state");
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
             chat_state_guard.set(ChatStateStopping);
 
-            coze_chat_app_pause();
             ESP_UTILS_CHECK_FALSE_RETURN(coze_chat_app_stop() == ESP_OK, false, "Stop chat failed");
 
             chat_state_guard.set(ChatStateStopped);
@@ -336,13 +412,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Start: {
-        if (hasChatState(_ChatStateStart)) {
-            ESP_UTILS_LOGW("Chat already starting or started");
+        if (hasChatState(ChatStateStarted)) {
+            ESP_UTILS_LOGW("Chat already started");
             return true;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            hasChatState(ChatStateInited), false, "Invalid chat state(%d)", static_cast<int>(_chat_state)
-        );
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateInited), false, "Invalid chat state");
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
@@ -370,58 +444,38 @@ bool Agent::processChatEvent(const ChatEvent &event)
                 chat_event_process_special_signal(ChatEventSpecialSignalType::StartMaxRetry);
                 ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Start chat failed after %d retries", max_retries);
             }
-            coze_chat_app_resume();
-            _flags.is_sleep = false;
-            _flags.is_paused = false;
 
             chat_state_guard.set(ChatStateStarted);
             chat_state_guard.release();
         }
         break;
     }
-    case ChatEvent::Pause: {
-        if (_flags.is_paused) {
-            ESP_UTILS_LOGW("Chat already paused");
-            return true;
-        }
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(_ChatStateStart), false, "Chat not started");
-
-        coze_chat_app_pause();
-        _flags.is_paused = true;
-        break;
-    }
-    case ChatEvent::Resume: {
-        if (!_flags.is_paused) {
-            ESP_UTILS_LOGW("Chat not paused");
-            return true;
-        }
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(_ChatStateStart), false, "Chat not started");
-
-        coze_chat_app_resume();
-        _flags.is_paused = false;
-        break;
-    }
     case ChatEvent::Sleep: {
-        if (_flags.is_sleep) {
-            ESP_UTILS_LOGW("Chat already sleep");
-            return true;
-        }
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(_ChatStateStart), false, "Chat not started");
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Chat not started");
 
-        // Should be called before set chat state to sleep
+        esp_utils::value_guard chat_state_guard(_chat_state);
+        chat_state_guard.set(ChatStateSleeping);
+
         coze_chat_app_sleep();
-        _flags.is_sleep = true;
+
+        chat_state_guard.set(ChatStateSlept);
+        chat_state_guard.release();
         break;
     }
     case ChatEvent::WakeUp: {
-        if (!_flags.is_sleep) {
-            ESP_UTILS_LOGW("Chat not sleep");
+        if (isChatState(ChatStateStarted)) {
+            ESP_UTILS_LOGW("Chat already woke up");
             return true;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(_ChatStateStart), false, "Chat not started");
+        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateSlept), false, "Chat not slept");
+
+        esp_utils::value_guard chat_state_guard(_chat_state);
+        chat_state_guard.set(ChatStateWaking);
 
         coze_chat_app_wakeup();
-        _flags.is_sleep = false;
+
+        chat_state_guard.set(ChatStateWaked);
+        chat_state_guard.release();
         break;
     }
     default:
