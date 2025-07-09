@@ -529,7 +529,6 @@ bool AI_Buddy::processAudioEvent(AudioProcessInfo &info)
 
     // If the audio has been played before, check if the playback interval has been reached, if not, skip playback
     if ((info.last_play_time_ms != 0) && (info.last_play_time_ms + info.event.repeat_interval_ms) > (esp_timer_get_time() / 1000)) {
-        ESP_UTILS_LOGD("Audio(%s) repeat interval not reached, skip play", getAudioName(info.event.type).c_str());
         return true;
     }
 
