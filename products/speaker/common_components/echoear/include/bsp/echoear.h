@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -35,8 +35,10 @@
 #define BSP_I2S_MCLK          (GPIO_NUM_42)
 #define BSP_I2S_LCLK          (GPIO_NUM_39) // WS
 #define BSP_I2S_DOUT          (GPIO_NUM_41)     // To Codec ES8311
-#define BSP_I2S_DSIN          (GPIO_NUM_15)    // From ADC ES7210
-#define BSP_POWER_AMP_IO      (GPIO_NUM_4)
+#define BSP_I2S_DSIN_V1_0     (GPIO_NUM_15)    // From ADC ES7210
+#define BSP_I2S_DSIN_V1_2     (GPIO_NUM_3)
+#define BSP_POWER_AMP_IO_V1_0 (GPIO_NUM_4)
+#define BSP_POWER_AMP_IO_V1_2 (GPIO_NUM_15)
 
 /* Display */
 #define BSP_LCD_DATA3         (GPIO_NUM_12)
@@ -46,31 +48,22 @@
 #define BSP_LCD_PCLK          (GPIO_NUM_18)
 #define BSP_LCD_CS            (GPIO_NUM_14)
 #define BSP_LCD_DC            (GPIO_NUM_45)
-#define BSP_LCD_RST           (GPIO_NUM_3)
+#define BSP_LCD_RST_V1_0      (GPIO_NUM_3)
+#define BSP_LCD_RST_V1_2      (GPIO_NUM_47)
 #define LCD_BACKLIIGHT_CHANNEL LEDC_CHANNEL_1
 #define BSP_LCD_BACKLIGHT     (GPIO_NUM_44)
 #define BSP_LCD_TOUCH_INT     (GPIO_NUM_10)
 
-/* Buttons */
-#define BSP_BUTTON            (GPIO_NUM_2)
-#define BSP_BUTTON_CTRL       (GPIO_NUM_1)
-
 /* Power */
 #define BSP_POWER_OFF         (GPIO_NUM_9)
-#define BSP_POWER_VOUT_EN     (GPIO_NUM_11)
-#define PMS_BTN_DISABLE       1
 
-
-/* Vibration */
-#define BSP_VIBRATION_PIN     (GPIO_NUM_38)
-#define PWM_CHANNEL           LEDC_CHANNEL_0
-#define PWM_FREQ_HZ           2000
-#define PWM_RESOLUTION        LEDC_TIMER_10_BIT
-
-/* LED */
-#define BSP_LEDR_GPIO          (GPIO_NUM_NC)
-#define BSP_LEDG_GPIO          (GPIO_NUM_NC)
-#define BSP_LEDB_GPIO          (GPIO_NUM_NC)
+/* Others */
+#define BSP_UART1_TX_V1_0       (GPIO_NUM_6)
+#define BSP_UART1_TX_V1_2       (GPIO_NUM_5)
+#define BSP_UART1_RX_V1_0       (GPIO_NUM_5)
+#define BSP_UART1_RX_V1_2       (GPIO_NUM_4)
+#define BSP_TOUCH_PAD2_V1_0     (GPIO_NUM_NC)
+#define BSP_TOUCH_PAD2_V1_2     (GPIO_NUM_6)
 
 #ifdef __cplusplus
 extern "C" {
@@ -200,9 +193,79 @@ bool bsp_display_lock(uint32_t timeout_ms);
  */
 void bsp_display_unlock(void);
 
+/**
+ * @brief Initialize display brightness
+ *
+ * @return
+ *      - ESP_OK                On success
+ *      - ESP_ERR_INVALID_ARG   I2C parameter error
+ *      - ESP_FAIL              I2C driver installation error
+ *
+ */
 esp_err_t bsp_display_brightness_init(void);
 
+/**
+ * @brief Initialize power
+ *
+ * @param power_en power enable
+ *
+ * @return
+ *      - ESP_OK                On success
+ *      - ESP_ERR_INVALID_ARG   I2C parameter error
+ *      - ESP_FAIL              I2C driver installation error
+ *
+ */
 esp_err_t bsp_power_init(uint8_t power_en);
+
+/**************************************************************************************************
+ *
+ * PCB version detect
+ *
+ **************************************************************************************************/
+/**
+ * @brief PCB version
+ *
+ */
+typedef enum {
+    BSP_PCB_VERSION_V1_0 = 0,
+    BSP_PCB_VERSION_V1_2,
+} bsp_pcb_version_t;
+
+/**
+ * @brief PCB version information
+ *
+ */
+typedef struct {
+    bsp_pcb_version_t version;
+    struct {
+        int i2s_din_pin;
+        int pa_pin;
+    } audio;
+    struct {
+        int pad2_pin;
+    } touch;
+    struct {
+        int tx_pin;
+        int rx_pin;
+    } uart;
+    struct {
+        int rst_pin;
+        int rst_active_level;
+    } lcd;
+} bsp_pcd_diff_info_t;
+
+/**
+ * @brief Get PCB version information
+ *
+ * @param info Pointer to PCB version information
+ *
+ * @return
+ *      - ESP_OK                On success
+ *      - ESP_ERR_INVALID_ARG   Invalid argument
+ *      - ESP_FAIL              Failed to detect PCB version
+ *
+ */
+esp_err_t bsp_pcb_version_detect(bsp_pcd_diff_info_t *info);
 
 #ifdef __cplusplus
 }

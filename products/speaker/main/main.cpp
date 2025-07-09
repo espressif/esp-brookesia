@@ -192,7 +192,6 @@ static bool init_display_and_draw_logic()
 
     /* Initialize BSP */
     bsp_power_init(0);
-    bsp_i2c_init();
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = {
             .task_priority = LVGL_TASK_PRIORITY,
@@ -339,8 +338,42 @@ static bool init_media_audio()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
 
+    bsp_pcd_diff_info_t pcb_info = {};
+    ESP_UTILS_CHECK_ERROR_RETURN(bsp_pcb_version_detect(&pcb_info), false, "Detect PCB version failed");
+
+    esp_gmf_setup_periph_hardware_info periph_info = {
+        .i2c = {
+            .handle = bsp_i2c_get_handle(),
+        },
+        .codec = {
+            .io_pa = pcb_info.audio.pa_pin,
+            .type = ESP_GMF_CODEC_TYPE_ES7210_IN_ES8311_OUT,
+            .dac = {
+                .io_mclk = BSP_I2S_MCLK,
+                .io_bclk = BSP_I2S_SCLK,
+                .io_ws = BSP_I2S_LCLK,
+                .io_do = BSP_I2S_DOUT,
+                .io_di = pcb_info.audio.i2s_din_pin,
+                .sample_rate = 16000,
+                .channel = 2,
+                .bits_per_sample = 32,
+                .port_num  = 0,
+            },
+            .adc = {
+                .io_mclk = BSP_I2S_MCLK,
+                .io_bclk = BSP_I2S_SCLK,
+                .io_ws = BSP_I2S_LCLK,
+                .io_do = BSP_I2S_DOUT,
+                .io_di = pcb_info.audio.i2s_din_pin,
+                .sample_rate = 16000,
+                .channel = 2,
+                .bits_per_sample = 32,
+                .port_num  = 0,
+            },
+        },
+    };
     ESP_UTILS_CHECK_ERROR_RETURN(
-        audio_manager_init(bsp_i2c_get_handle(), &play_dev, &rec_dev), false, "Initialize audio manager failed"
+        audio_manager_init(&periph_info, &play_dev, &rec_dev), false, "Initialize audio manager failed"
     );
     ESP_UTILS_CHECK_ERROR_RETURN(audio_prompt_open(), false, "Open audio prompt failed");
 

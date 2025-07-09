@@ -270,12 +270,12 @@ static void esp_gmf_thread_fun(void *pv)
             }
         }
         int ret = esp_gmf_task_event_state_change_and_notify(tsk, ESP_GMF_EVENT_STATE_RUNNING);
-        tsk->_running = 0;
         GMF_TASK_SET_STATE_BITS(tsk->event_group, GMF_TASK_RUN_BIT);
         if (ret != ESP_GMF_ERR_OK) {
             ESP_LOGE(TAG, "Failed on prepare, [%s,%p],ret:%d", OBJ_GET_TAG((esp_gmf_obj_handle_t)tsk), tsk, ret);
             continue;
         }
+        tsk->_running = 0;
         // Loop jobs until done or error
         process_func(tsk, tsk->ctx);
     }
