@@ -8,6 +8,7 @@
 
 #include "esp_err.h"
 #include "esp_gmf_afe.h"
+#include "esp_gmf_setup_peripheral.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,7 +41,7 @@ typedef void (*recorder_event_callback_t)(void *event, void *ctx);
  *       - ESP_OK  On success
  *       - Other   Appropriate esp_err_t error code on failure
  */
-esp_err_t audio_manager_init(void *i2c_handle, void **play_dev, void **rec_dev);
+esp_err_t audio_manager_init(esp_gmf_setup_periph_hardware_info *info, void **play_dev, void **rec_dev);
 
 /**
  * @brief  Deinitializes the audio manager component

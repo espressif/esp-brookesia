@@ -24,7 +24,6 @@
 #include "esp_audio_simple_player_advance.h"
 #include "esp_gmf_setup_pool.h"
 #include "esp_gmf_setup_peripheral.h"
-#include "esp_gmf_gpio_config.h"
 #include "esp_codec_dev.h"
 #include "esp_gmf_fifo.h"
 
@@ -41,21 +40,6 @@
 #define VAD_ENABLE       (true)
 #define VCMD_ENABLE      (false)
 #define DEFAULT_FIFO_NUM (5)
-
-#if CONFIG_KEY_PRESS_DIALOG_MODE
-#define CHANNELS    1
-#define SAMPLE_BITS 16
-#else
-#if CODEC_ES7210_IN_ES8311_OUT
-#define INPUT_CH_ALLOCATION ("RMNM")
-#define CHANNELS            2
-#define SAMPLE_BITS         32
-#elif CODEC_ES8311_IN_OUT
-#define INPUT_CH_ALLOCATION ("MR")
-#define CHANNELS            2
-#define SAMPLE_BITS         16
-#endif  // CODEC_ES7210_IN_ES8311_OUT
-#endif  // CONFIG_KEY_PRESS_DIALOG_MODE
 
 #define DEFAULT_PLAYBACK_VOLUME (70)
 
@@ -110,23 +94,10 @@ static audio_recordert_t audio_recorder;
 static audio_playback_t  audio_playback;
 static audio_prompt_t    audio_prompt;
 
-esp_err_t audio_manager_init(void *i2c_handle, void **play_dev, void **rec_dev)
+esp_err_t audio_manager_init(esp_gmf_setup_periph_hardware_info *info, void **play_dev, void **rec_dev)
 {
-    esp_gmf_setup_periph_i2c(0, i2c_handle);
-    esp_gmf_setup_periph_aud_info play_info = {
-        .sample_rate = 16000,
-        .channel = CHANNELS,
-        .bits_per_sample = SAMPLE_BITS,
-        .port_num  = 0,
-    };
-    esp_gmf_setup_periph_aud_info record_info = {
-        .sample_rate = 16000,
-        .channel = CHANNELS,
-        .bits_per_sample = SAMPLE_BITS,
-        .port_num = 0,
-    };
-
-    esp_gmf_setup_periph_codec(&play_info, &record_info, &audio_manager.play_dev, &audio_manager.rec_dev);
+    esp_gmf_setup_periph(info);
+    esp_gmf_setup_periph_codec(&audio_manager.play_dev, &audio_manager.rec_dev);
     esp_gmf_pool_init(&audio_manager.pool);
     pool_register_io(audio_manager.pool);
     pool_register_audio_codecs(audio_manager.pool);
@@ -150,7 +121,6 @@ esp_err_t audio_manager_deinit()
     pool_unregister_audio_codecs();
     esp_gmf_pool_deinit(audio_manager.pool);
     esp_gmf_teardown_periph_codec(audio_manager.play_dev, audio_manager.rec_dev);
-    esp_gmf_teardown_periph_i2c(0);
     return ESP_OK;
 }
 
@@ -279,8 +249,12 @@ esp_err_t audio_recorder_open(recorder_event_callback_t cb, void *ctx)
     (void)ctx;
     return ESP_OK;
 #else
+
+    esp_gmf_setup_periph_hardware_info hardware_info = {};
+    esp_gmf_get_periph_info(&hardware_info);
+
     srmodel_list_t *models = esp_srmodel_init("model");
-    const char *ch_format = INPUT_CH_ALLOCATION;
+    const char *ch_format = hardware_info.codec.type == ESP_GMF_CODEC_TYPE_ES7210_IN_ES8311_OUT ? "RMNM" : "MR";
     audio_recorder.afe_cfg = afe_config_init(ch_format, models, AFE_TYPE_SR, AFE_MODE_HIGH_PERF);
     audio_recorder.afe_cfg->vad_init = VAD_ENABLE;
     audio_recorder.afe_cfg->vad_mode = VAD_MODE_3;

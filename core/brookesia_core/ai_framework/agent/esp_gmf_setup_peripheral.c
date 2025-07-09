@@ -10,7 +10,6 @@
 #include "esp_gmf_oal_mem.h"
 #include "driver/i2c_master.h"
 #include "driver/i2c.h"
-#include "esp_gmf_gpio_config.h"
 #include "esp_gmf_setup_peripheral.h"
 #include "sd_pwr_ctrl_by_on_chip_ldo.h"
 #ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
@@ -47,7 +46,8 @@ typedef enum {
 } i2s_create_mode_t;
 
 static const char        *TAG = "SETUP_PERIPH";
-i2c_master_bus_handle_t   i2c_handle  = NULL;
+static i2c_master_bus_handle_t   i2c_handle  = NULL;
+static esp_gmf_setup_periph_hardware_info hardware_info = {};
 
 #ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
 static esp_err_t setup_periph_i2s_tx_init(esp_gmf_setup_periph_aud_info *aud_info)
@@ -56,11 +56,11 @@ static esp_err_t setup_periph_i2s_tx_init(esp_gmf_setup_periph_aud_info *aud_inf
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(aud_info->sample_rate),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(aud_info->bits_per_sample, aud_info->channel),
         .gpio_cfg = {
-            .mclk = ESP_GMF_I2S_DAC_MCLK_IO_NUM,
-            .bclk = ESP_GMF_I2S_DAC_BCLK_IO_NUM,
-            .ws = ESP_GMF_I2S_DAC_WS_IO_NUM,
-            .dout = ESP_GMF_I2S_DAC_DO_IO_NUM,
-            .din = ESP_GMF_I2S_DAC_DI_IO_NUM,
+            .mclk = aud_info->io_mclk,
+            .bclk = aud_info->io_bclk,
+            .ws = aud_info->io_ws,
+            .dout = aud_info->io_do,
+            .din = aud_info->io_di,
         },
     };
     return i2s_channel_init_std_mode(tx_handle, &std_cfg);
@@ -72,11 +72,11 @@ static esp_err_t setup_periph_i2s_rx_init(esp_gmf_setup_periph_aud_info *aud_inf
         .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(aud_info->sample_rate),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(aud_info->bits_per_sample, aud_info->channel),
         .gpio_cfg = {
-            .mclk = ESP_GMF_I2S_ADC_MCLK_IO_NUM,
-            .bclk = ESP_GMF_I2S_ADC_BCLK_IO_NUM,
-            .ws = ESP_GMF_I2S_ADC_WS_IO_NUM,
-            .dout = ESP_GMF_I2S_ADC_DO_IO_NUM,
-            .din = ESP_GMF_I2S_ADC_DI_IO_NUM,
+            .mclk = aud_info->io_mclk,
+            .bclk = aud_info->io_bclk,
+            .ws = aud_info->io_ws,
+            .dout = aud_info->io_do,
+            .din = aud_info->io_di,
         },
     };
     return i2s_channel_init_std_mode(rx_handle, &std_cfg);
@@ -127,7 +127,7 @@ static void setup_periph_new_play_codec()
         .codec_mode = ESP_CODEC_DEV_WORK_MODE_DAC,
         .ctrl_if = out_ctrl_if,
         .gpio_if = gpio_if,
-        .pa_pin = ESP_GMF_AMP_IO_NUM,
+        .pa_pin = hardware_info.codec.io_pa,
         .use_mclk = false,
     };
     out_codec_if = es8311_codec_new(&es8311_cfg);
@@ -135,29 +135,28 @@ static void setup_periph_new_play_codec()
 
 static void setup_periph_new_record_codec()
 {
-#if CODEC_ES8311_IN_OUT
-    audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES8311_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
-    in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
-    gpio_if = audio_codec_new_gpio();
-    // New output codec interface
-    es8311_codec_cfg_t es8311_cfg = {
-        .codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH,
-        .ctrl_if = in_ctrl_if,
-        .gpio_if = gpio_if,
-        .pa_pin = ESP_GMF_AMP_IO_NUM,
-        .use_mclk = false,
-    };
-    in_codec_if = es8311_codec_new(&es8311_cfg);
-#elif CODEC_ES7210_IN_ES8311_OUT
-    audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES7210_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
-    in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
-    es7210_codec_cfg_t es7210_cfg = {
-        .ctrl_if = in_ctrl_if,
-        .mic_selected = ES7120_SEL_MIC1 | ES7120_SEL_MIC2 | ES7120_SEL_MIC3,
-    };
-    in_codec_if = es7210_codec_new(&es7210_cfg);
-#endif  /* defined CONFIG_IDF_TARGET_ESP32P4 */
-
+    if (hardware_info.codec.type == ESP_GMF_CODEC_TYPE_ES8311_IN_OUT) {
+        audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES8311_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
+        in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
+        gpio_if = audio_codec_new_gpio();
+        // New output codec interface
+        es8311_codec_cfg_t es8311_cfg = {
+            .codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH,
+            .ctrl_if = in_ctrl_if,
+            .gpio_if = gpio_if,
+            .pa_pin = hardware_info.codec.io_pa,
+            .use_mclk = false,
+        };
+        in_codec_if = es8311_codec_new(&es8311_cfg);
+    } else {
+        audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES7210_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
+        in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
+        es7210_codec_cfg_t es7210_cfg = {
+            .ctrl_if = in_ctrl_if,
+            .mic_selected = ES7120_SEL_MIC1 | ES7120_SEL_MIC2 | ES7120_SEL_MIC3,
+        };
+        in_codec_if = es7210_codec_new(&es7210_cfg);
+    }
 }
 
 static esp_codec_dev_handle_t setup_periph_create_codec_dev(esp_codec_dev_type_t dev_type, esp_gmf_setup_periph_aud_info *aud_info)
@@ -229,51 +228,62 @@ void teardown_periph_record_codec(void *record_dev)
 }
 #endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
 
-void esp_gmf_setup_periph_i2c(int port, void *handle)
+esp_gmf_err_t esp_gmf_setup_periph(esp_gmf_setup_periph_hardware_info *info)
 {
-    if (handle != NULL) {
-        i2c_handle = (i2c_master_bus_handle_t)handle;
-        return;
+    if (info == NULL) {
+        ESP_LOGE(TAG, "Invalid hardware info");
+        return ESP_GMF_ERR_INVALID_ARG;
     }
 
-    i2c_master_bus_config_t i2c_config = {
-        .i2c_port = 0,
-        .sda_io_num = ESP_GMF_I2C_SDA_IO_NUM,
-        .scl_io_num = ESP_GMF_I2C_SCL_IO_NUM,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .flags.enable_internal_pullup = true,
-        .glitch_ignore_cnt = 7,
-    };
-    i2c_new_master_bus(&i2c_config, &i2c_handle);
+    if (info->i2c.handle != NULL) {
+        i2c_handle = (i2c_master_bus_handle_t)info->i2c.handle;
+    } else {
+        i2c_master_bus_config_t i2c_config = {
+            .i2c_port = info->i2c.port,
+            .sda_io_num = info->i2c.io_sda,
+            .scl_io_num = info->i2c.io_scl,
+            .clk_source = I2C_CLK_SRC_DEFAULT,
+            .flags.enable_internal_pullup = true,
+            .glitch_ignore_cnt = 7,
+        };
+        ESP_GMF_RET_ON_NOT_OK(TAG, i2c_new_master_bus(&i2c_config, &i2c_handle), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2C master bus");
+    }
+
+    hardware_info = *info;
+
+    return ESP_GMF_ERR_OK;
 }
 
-void esp_gmf_teardown_periph_i2c(int port)
+esp_gmf_err_t esp_gmf_get_periph_info(esp_gmf_setup_periph_hardware_info *info)
 {
-    if (i2c_handle != NULL) {
-        i2c_del_master_bus(i2c_handle);
-        i2c_handle = NULL;
+    if (info == NULL) {
+        ESP_LOGE(TAG, "Invalid hardware info");
+        return ESP_GMF_ERR_INVALID_ARG;
     }
+
+    *info = hardware_info;
+
+    return ESP_GMF_ERR_OK;
 }
 
 #ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
-esp_gmf_err_t esp_gmf_setup_periph_codec(esp_gmf_setup_periph_aud_info *play_info, esp_gmf_setup_periph_aud_info *rec_info,
-        void **play_dev, void **record_dev)
+esp_gmf_err_t esp_gmf_setup_periph_codec(void **play_dev, void **record_dev)
 {
     if ((play_dev != NULL) && (record_dev != NULL)) {
-        if (play_info->port_num == rec_info->port_num) {
-            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_AND_RX, play_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx and rx");
+        if (hardware_info.codec.dac.port_num == hardware_info.codec.adc.port_num) {
+            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_AND_RX, &hardware_info.codec.dac), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx and rx");
         } else {
-            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_ONLY, play_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx");
-            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_RX_ONLY, rec_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S rx");
+            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_ONLY, &hardware_info.codec.dac), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx");
+            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_RX_ONLY, &hardware_info.codec.adc), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S rx");
         }
-        setup_periph_play_codec(play_info, play_dev);
-        setup_periph_record_codec(rec_info, record_dev);
+        setup_periph_play_codec(&hardware_info.codec.dac, play_dev);
+        setup_periph_record_codec(&hardware_info.codec.adc, record_dev);
     } else if (play_dev != NULL) {
-        ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_ONLY, play_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx");
-        setup_periph_play_codec(play_info, play_dev);
+        ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_ONLY, &hardware_info.codec.dac), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx");
+        setup_periph_play_codec(&hardware_info.codec.dac, play_dev);
     } else if (record_dev != NULL) {
-        ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_RX_ONLY, rec_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S rx");
-        setup_periph_record_codec(rec_info, record_dev);
+        ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_RX_ONLY, &hardware_info.codec.adc), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S rx");
+        setup_periph_record_codec(&hardware_info.codec.adc, record_dev);
     } else {
         return ESP_GMF_ERR_FAIL;
     }

@@ -3,24 +3,6 @@ menuconfig ESP_BROOKESIA_AI_FRAMEWORK_ENABLE_AGENT
     default y
 
 if ESP_BROOKESIA_AI_FRAMEWORK_ENABLE_AGENT
-    choice ESP_BROOKESIA_AGENT_AUDIO_BOARD
-        prompt "Audio board"
-        default ESP_BROOKESIA_AUDIO_BOARD_ECHOEAR
-
-        config ESP_BROOKESIA_AUDIO_BOARD_CUSTOM
-            bool "Custom audio board"
-        config ESP_BROOKESIA_AUDIO_BOARD_ESP32_S3_KORVO2_V3
-            bool "ESP32-S3-Korvo-2 v3"
-        config ESP_BROOKESIA_AUDIO_BOARD_ESP32_S3_KORVO2L_V1
-            bool "ESP32-S3-Korvo-2L v1"
-        config ESP_BROOKESIA_AUDIO_BOARD_ESP32_S3_BOX_3
-            bool "ESP32-S3-BOX-3"
-        config ESP_BROOKESIA_AUDIO_BOARD_ECHOEAR
-            bool "EchoEar"
-        config ESP_BROOKESIA_AUDIO_BOARD_ESP32_P4_FUNCTION_EV
-            bool "ESP32-P4-FUNCTION-EV-BOARD"
-    endchoice
-
     config ESP_BROOKESIA_AGENT_ENABLE_DEBUG_LOG
         bool "Enable debug log output"
         depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG

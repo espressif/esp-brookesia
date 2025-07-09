@@ -2,6 +2,10 @@
 
 ## v0.6.0-beta2 - 2025-07-08
 
+### Enhancements:
+
+* feat(ai_framework): agent support configure peripheral outside
+
 ### Bugfixes:
 
 * fix(ai_framework): prevent Agent from being awakened within apps
