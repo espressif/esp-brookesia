@@ -83,6 +83,7 @@ using namespace esp_brookesia::services;
 using namespace esp_brookesia::ai_framework;
 
 static bool init_display_and_draw_logic();
+static bool init_sdcard();
 static bool check_whether_enter_developer_mode();
 static bool init_media_audio();
 static bool init_services();
@@ -108,6 +109,7 @@ extern "C" void app_main()
     printf("Project version: %s\n", CONFIG_APP_PROJECT_VER);
 
     assert(init_display_and_draw_logic()        && "Initialize display and draw logic failed");
+    assert(init_sdcard()                        && "Initialize SD card failed");
     assert(check_whether_enter_developer_mode() && "Check whether enter developer mode failed");
     assert(init_media_audio()                   && "Initialize media audio failed");
     assert(init_services()                      && "Initialize services failed");
@@ -262,6 +264,15 @@ static bool init_display_and_draw_logic()
 
         is_lvgl_dummy_draw = enable;
     });
+
+    return true;
+}
+
+static bool init_sdcard()
+{
+    ESP_UTILS_LOG_TRACE_GUARD();
+
+    ESP_UTILS_CHECK_ERROR_RETURN(bsp_sdcard_mount(), false, "Mount SD card failed");
 
     return true;
 }

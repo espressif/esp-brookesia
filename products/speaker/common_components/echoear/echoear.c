@@ -44,6 +44,7 @@ static bsp_pcd_diff_info_t pcd_info = {};
 static bool pcd_info_initialized = false;
 
 static i2c_master_bus_handle_t i2c_handle = NULL;
+static sdmmc_card_t *bsp_sdcard = NULL;    // Global uSD card handler
 static bool i2c_initialized = false;
 
 esp_err_t bsp_i2c_init(void)
@@ -492,7 +493,7 @@ lv_disp_t *bsp_display_start(void)
 {
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
-        .buffer_size = BSP_LCD_H_RES * BSP_LCD_V_RES,
+        .buffer_size = BSP_LCD_H_RES * CONFIG_BSP_LCD_DRAW_BUF_HEIGHT,
 #if CONFIG_BSP_LCD_DRAW_BUF_DOUBLE
         .double_buffer = 1,
 #else
@@ -607,4 +608,86 @@ esp_err_t bsp_pcb_version_detect(bsp_pcd_diff_info_t *info)
     pcd_info_initialized = true;
 
     return ESP_OK;
+}
+
+sdmmc_card_t *bsp_sdcard_get_handle(void)
+{
+    return bsp_sdcard;
+}
+
+void bsp_sdcard_get_sdmmc_host(const int slot, sdmmc_host_t *config)
+{
+    assert(config);
+
+    sdmmc_host_t host_config = SDMMC_HOST_DEFAULT();
+
+    memcpy(config, &host_config, sizeof(sdmmc_host_t));
+}
+
+void bsp_sdcard_sdmmc_get_slot(const int slot, sdmmc_slot_config_t *config)
+{
+    assert(config);
+
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+    /* SD card is connected to Slot 0 pins. Slot 0 uses IO MUX, so not specifying the pins here */
+    slot_config.cmd = BSP_SD_CMD;
+    slot_config.clk = BSP_SD_CLK;
+    slot_config.d0 = BSP_SD_D0;
+    slot_config.width = 1;
+    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+    *config = slot_config;
+}
+
+esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg)
+{
+    sdmmc_host_t sdhost = {0};
+    sdmmc_slot_config_t sdslot = {0};
+    const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+#ifdef CONFIG_BSP_SD_FORMAT_ON_MOUNT_FAIL
+        .format_if_mount_failed = true,
+#else
+        .format_if_mount_failed = false,
+#endif
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024
+    };
+    assert(cfg);
+
+    if (!cfg->mount) {
+        cfg->mount = &mount_config;
+    }
+
+    if (!cfg->host) {
+        bsp_sdcard_get_sdmmc_host(SDMMC_HOST_SLOT_0, &sdhost);
+        cfg->host = &sdhost;
+    }
+
+    if (!cfg->slot.sdmmc) {
+        bsp_sdcard_sdmmc_get_slot(SDMMC_HOST_SLOT_0, &sdslot);
+        cfg->slot.sdmmc = &sdslot;
+    }
+
+#if !CONFIG_FATFS_LONG_FILENAMES
+    ESP_LOGW(TAG, "Warning: Long filenames on SD card are disabled in menuconfig!");
+#endif
+
+    return esp_vfs_fat_sdmmc_mount(BSP_SD_MOUNT_POINT, cfg->host, cfg->slot.sdmmc, cfg->mount, &bsp_sdcard);
+}
+
+esp_err_t bsp_sdcard_mount(void)
+{
+    bsp_sdcard_cfg_t cfg = {0};
+    return bsp_sdcard_sdmmc_mount(&cfg);
+}
+
+esp_err_t bsp_sdcard_unmount(void)
+{
+    esp_err_t ret = ESP_OK;
+
+    ret |= esp_vfs_fat_sdcard_unmount(BSP_SD_MOUNT_POINT, bsp_sdcard);
+    bsp_sdcard = NULL;
+
+    return ret;
 }

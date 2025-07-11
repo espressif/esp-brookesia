@@ -64,7 +64,6 @@ menu "Board Support Package(ESP-BOX-3)"
             default "/sdcard"
             help
                 Mount point of the SD card in the Virtual File System
-
     endmenu
 
     menu "Display"
@@ -89,11 +88,4 @@ menu "Board Support Package(ESP-BOX-3)"
         help
             Whether to enable double framebuf.
     endmenu
-
-    config BSP_I2S_NUM
-        int "I2S peripheral index"
-        default 1
-        range 0 1
-        help
-            ESP32S3 has two I2S peripherals, pick the one you want to use.
 endmenu

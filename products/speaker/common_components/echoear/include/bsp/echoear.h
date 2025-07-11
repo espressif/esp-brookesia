@@ -7,9 +7,12 @@
 #pragma once
 
 #include "sdkconfig.h"
+#include "soc/usb_pins.h"
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
-#include "soc/usb_pins.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "esp_vfs_fat.h"
 #include "lvgl.h"
 #include "esp_lvgl_port.h"
 #include "bsp/display.h"
@@ -24,6 +27,7 @@
 #define BSP_CAPS_AUDIO          0
 #define BSP_CAPS_AUDIO_SPEAKER  0
 #define BSP_CAPS_AUDIO_MIC      0
+#define BSP_CAPS_SDCARD         1
 #define BSP_CAPS_IMU            0
 
 /* I2C */
@@ -56,6 +60,11 @@
 
 /* Power */
 #define BSP_POWER_OFF         (GPIO_NUM_9)
+
+/* SD card */
+#define BSP_SD_D0             (GPIO_NUM_17)
+#define BSP_SD_CMD            (GPIO_NUM_38)
+#define BSP_SD_CLK            (GPIO_NUM_16)
 
 /* Others */
 #define BSP_UART1_TX_V1_0       (GPIO_NUM_6)
@@ -216,6 +225,101 @@ esp_err_t bsp_display_brightness_init(void);
  *
  */
 esp_err_t bsp_power_init(uint8_t power_en);
+
+/**************************************************************************************************
+ *
+ * SD card
+ *
+ * After mounting the SD card, it can be accessed with stdio functions ie.:
+ * \code{.c}
+ * FILE* f = fopen(BSP_SD_MOUNT_POINT"/hello.txt", "w");
+ * fprintf(f, "Hello %s!\n", bsp_sdcard->cid.name);
+ * fclose(f);
+ * \endcode
+ *
+ * @attention IO2 is also routed to RGB LED and push button
+ **************************************************************************************************/
+#define BSP_SD_MOUNT_POINT      CONFIG_BSP_SD_MOUNT_POINT
+
+/**
+ * @brief BSP SD card configuration structure
+ */
+typedef struct {
+    const esp_vfs_fat_sdmmc_mount_config_t *mount;
+    sdmmc_host_t *host;
+    union {
+        const sdmmc_slot_config_t   *sdmmc;
+    } slot;
+} bsp_sdcard_cfg_t;
+
+/**
+ * @brief Mount microSD card to virtual file system
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_sdmmc_mount was already called
+ *      - ESP_ERR_NO_MEM if memory can not be allocated
+ *      - ESP_FAIL if partition can not be mounted
+ *      - other error codes from SDMMC or SPI drivers, SDMMC protocol, or FATFS drivers
+ */
+esp_err_t bsp_sdcard_mount(void);
+
+/**
+ * @brief Unmount micorSD card from virtual file system
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_NOT_FOUND if the partition table does not contain FATFS partition with given label
+ *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_spiflash_mount was already called
+ *      - ESP_ERR_NO_MEM if memory can not be allocated
+ *      - ESP_FAIL if partition can not be mounted
+ *      - other error codes from wear levelling library, SPI flash driver, or FATFS drivers
+ */
+esp_err_t bsp_sdcard_unmount(void);
+
+/**
+ * @brief Get SD card handle
+ *
+ * @return SD card handle
+ */
+sdmmc_card_t *bsp_sdcard_get_handle(void);
+
+/**
+ * @brief Get SD card MMC host config
+ *
+ * @param slot SD card slot
+ * @param config Structure which will be filled
+ */
+void bsp_sdcard_get_sdmmc_host(const int slot, sdmmc_host_t *config);
+
+/**
+ * @brief Get SD card MMC slot config
+ *
+ * @param slot SD card slot
+ * @param config Structure which will be filled
+ */
+void bsp_sdcard_sdmmc_get_slot(const int slot, sdmmc_slot_config_t *config);
+
+/**
+ * @brief Mount microSD card to virtual file system (MMC mode)
+ *
+ * @param cfg SD card configuration
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_sdmmc_mount was already called
+ *      - ESP_ERR_NO_MEM if memory cannot be allocated
+ *      - ESP_FAIL if partition cannot be mounted
+ *      - other error codes from SDMMC or SPI drivers, SDMMC protocol, or FATFS drivers
+ */
+esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg);
+
+/**
+ * @brief Get SD card handle
+ *
+ * @return SD card handle
+ */
+sdmmc_card_t *bsp_sdcard_get_handle(void);
 
 /**************************************************************************************************
  *
