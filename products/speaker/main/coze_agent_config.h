@@ -27,11 +27,9 @@ typedef struct {
     } bot[MAX_BOT_NUM];
 } coze_agent_config_t;
 
-esp_err_t read_bot_config_from_flash(coze_agent_config_t *config);
+esp_err_t coze_agent_config_read(coze_agent_config_t *config);
 
-esp_err_t release_bot_config(coze_agent_config_t *config);
-
-esp_err_t mount_wl_basic_and_tusb(void);
+esp_err_t coze_agent_config_release(coze_agent_config_t *config);
 
 #ifdef __cplusplus
 }

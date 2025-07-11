@@ -36,8 +36,9 @@
 #define ESP_UTILS_LOG_TAG "Main"
 #include "esp_lib_utils.h"
 
-#include "tusb_composite.h"
+#include "usb_msc.h"
 #include "audio_sys.h"
+#include "coze_agent_config.h"
 #include "coze_agent_config_default.h"
 
 constexpr bool        EXAMPLE_SHOW_MEM_INFO     = false;
@@ -272,7 +273,36 @@ static bool init_sdcard()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
 
-    ESP_UTILS_CHECK_ERROR_RETURN(bsp_sdcard_mount(), false, "Mount SD card failed");
+    auto ret = bsp_sdcard_mount();
+    if (ret == ESP_OK) {
+        ESP_UTILS_LOGI("Mount SD card successfully");
+        return true;
+    } else {
+        ESP_UTILS_LOGE("Mount SD card failed(%s)", esp_err_to_name(ret));
+    }
+
+    Display::on_dummy_draw_signal(false);
+
+    bsp_display_lock(0);
+
+    auto label = lv_label_create(lv_screen_active());
+    lv_obj_set_size(label, 300, LV_SIZE_CONTENT);
+    lv_obj_set_style_text_font(label, &esp_brookesia_font_maison_neue_book_26, 0);
+    lv_label_set_text(label, "SD card not found, please insert a SD card!");
+    lv_obj_center(label);
+
+    bsp_display_unlock();
+
+    while ((ret = bsp_sdcard_mount()) != ESP_OK) {
+        ESP_UTILS_LOGE("Mount SD card failed(%s), retry...", esp_err_to_name(ret));
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    bsp_display_lock(0);
+    lv_obj_del(label);
+    bsp_display_unlock();
+
+    Display::on_dummy_draw_signal(true);
 
     return true;
 }
@@ -338,7 +368,8 @@ static bool check_whether_enter_developer_mode()
 
     bsp_display_unlock();
 
-    mount_wl_basic_and_tusb();
+    // mount_wl_basic_and_tusb();
+    ESP_UTILS_CHECK_ERROR_RETURN(usb_msc_mount(), false, "Mount USB MSC failed");
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -527,7 +558,7 @@ static bool load_coze_agent_config()
     CozeChatAgentInfo agent_info = {};
     std::vector<CozeChatRobotInfo> robot_infos;
 
-    if (read_bot_config_from_flash(&config) == ESP_OK) {
+    if (coze_agent_config_read(&config) == ESP_OK) {
         agent_info.custom_consumer = config.custom_consumer ? config.custom_consumer : "";
         agent_info.app_id = config.appid ? config.appid : "";
         agent_info.public_key = config.public_key ? config.public_key : "";
@@ -540,7 +571,7 @@ static bool load_coze_agent_config()
                 .description = config.bot[i].bot_description ? config.bot[i].bot_description : "",
             });
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(release_bot_config(&config) == ESP_OK, false, "Release bot config failed");
+        ESP_UTILS_CHECK_FALSE_RETURN(coze_agent_config_release(&config) == ESP_OK, false, "Release bot config failed");
     } else {
 #if COZE_AGENT_ENABLE_DEFAULT_CONFIG
         ESP_UTILS_LOGW("Failed to read bot config from flash, use default config");
@@ -565,7 +596,7 @@ static bool load_coze_agent_config()
         });
 #endif // COZE_AGENT_BOT2_ENABLE
 #else
-        ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Failed to read bot config from flash");
+        ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Failed to read bot config");
 #endif // COZE_AGENT_ENABLE_DEFAULT_CONFIG
     }
 

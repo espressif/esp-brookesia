@@ -669,7 +669,7 @@ esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg)
         cfg->slot.sdmmc = &sdslot;
     }
 
-#if !CONFIG_FATFS_LONG_FILENAMES
+#if CONFIG_FATFS_LFN_NONE
     ESP_LOGW(TAG, "Warning: Long filenames on SD card are disabled in menuconfig!");
 #endif
 
