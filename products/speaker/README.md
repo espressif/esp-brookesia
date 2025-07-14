@@ -1,61 +1,63 @@
-# EchoEar（喵伴）出厂示例
+# EchoEar Factory Example
+
+[中文版本](./README_CN.md)
 
 <a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia/launchpad.toml">
     <img alt="Try it with ESP Launchpad" src="https://espressif.github.io/esp-launchpad/assets/try_with_launchpad.png" width="200" height="56">
 </a>
 
-这个示例演示了如何在 EchoEar 开发板上运行 ESP-Brookesia Speaker，并支持通过语音唤醒与 Coze 智能体进行语音交互。
+This example demonstrates how to run the ESP-Brookesia Speaker on the EchoEar development board, and supports voice wake-up and voice interaction with the Coze agent.
 
-请参阅 [EchoEar（喵伴）用户指南](https://espressif.craft.me/1gOl65rON8G8FK) 了解产品信息和固件使用方法。
+Please refer to the [EchoEar (Meow Companion) User Guide](https://espressif.craft.me/1gOl65rON8G8FK) for product information and firmware usage instructions.
 
-## 入门指南
+## Getting Started Guide
 
-### 硬件要求
+### Hardware Requirements
 
-* 一个 EchoEar 开发板。
+* An EchoEar development board (with SD card inserted).
 
-### ESP-IDF 要求
+### ESP-IDF Requirements
 
-- 此示例支持 IDF release/v5.5 及更高的分支。默认情况下，它在 IDF release/v5.5 上运行。
-- 请按照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。**我们强烈建议**您 [构建第一个项目](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#build-your-first-project)，以熟悉 ESP-IDF 并确保环境设置正确。
+- This example supports IDF release/v5.5 and later branches. By default, it runs on IDF release/v5.5.
+- Please follow the [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) to set up your development environment. **We strongly recommend** you [build your first project](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#build-your-first-project) to get familiar with ESP-IDF and ensure your environment is set up correctly.
 
-### 获取 esp-brookesia 仓库
+### Getting the esp-brookesia Repository
 
-要从 esp-brookesia 示例开始，请在终端运行以下命令，将仓库克隆到本地电脑：
+To get started with the esp-brookesia example, run the following command in the terminal to clone the repository to your local computer:
 
 ```
 git clone --recursive https://github.com/espressif/esp-brookesia.git
 ```
 
-### 配置
+### Configuration
 
-运行 `idf.py menuconfig` > `Example Configuration` 配置 COZE 相关参数。
+Run `idf.py menuconfig` > `Example Configuration` to configure COZE related parameters.
 
-请参阅 [EchoEar（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/1gOl65rON8G8FK) 了解相关配置参数。
+Please refer to the [EchoEar (Meow Companion) User Guide - Getting Started - Developer Mode](https://espressif.craft.me/1gOl65rON8G8FK) for relevant configuration parameters.
 
-## 如何使用示例
+## How to Use the Example
 
-### 构建和烧录示例
+### Build and Flash the Example
 
-构建项目并将其烧录到开发板，然后运行监视工具查看串行输出（将 `PORT` 替换为您的开发板串口名称）：
+Build the project and flash it to the board, then run monitor tool to view serial output (replace `PORT` with your board's serial port name):
 
 ```c
 idf.py -p PORT flash monitor
 ```
 
-要退出串行监视器，请输入 ``Ctrl-]``。
+To exit the serial monitor, type `Ctrl-]`.
 
-完整的配置和使用 ESP-IDF 构建项目的步骤，请参见 [ESP-IDF 入门指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/get-started/index.html)。
+See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-idf/en/latest/get-started/index.html) for full steps to configure and use ESP-IDF to build projects.
 
-### 已知问题
+### Known Issues
 
-- 设备上电或复位后反复重启：这是丝印为 `v1.0` 版本 PCBA 已知问题，需要删除 `Baseboard` 的 `C1`、`C10` 和 `CoreBoard` 的 `C4`，三个 `10uF` 的电容，这些电容会影响板上 VCC 电源域供电能力，会导致概率触发芯片设备重启
+- Device repeatedly restarts after power-on or reset: This is a known issue with the PCBA version silk-screened as `v1.0`. You need to remove the `C1`, `C10` capacitors from the `Baseboard` and the `C4` capacitor from the `CoreBoard`, three `10uF` capacitors in total. These capacitors affect the power supply capability of the VCC power domain on the board and may cause the device to restart randomly.
 
-## 技术支持和反馈
+## Technical Support and Feedback
 
-请使用以下反馈渠道：
+Please use the following feedback channels:
 
-- 有技术问题，请访问 [esp32.com](https://esp32.com/viewforum.php?f=35) 论坛。
-- 如需提交功能请求或错误报告，请创建 [GitHub issue](https://github.com/espressif/esp-brookesia/issues)。
+- For technical queries, go to the [esp32.com](https://esp32.com/viewforum.php?f=22) forum.
+- For a feature request or bug report, create a [GitHub issue](https://github.com/espressif/esp-brookesia/issues).
 
-我们会尽快回复您。
+We will get back to you as soon as possible.
