@@ -18,6 +18,7 @@
 
 #define AUDIO_PLAY_TIMEOUT_MS                   (10 * 1000)
 #define AUDIO_PROCESS_LOOP_TIMEOUT_MS           (100)
+#define AUDIO_PLAY_LOOP_COUNT                   (3)
 
 #define AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS      (20 * 1000)
 #define AUDIO_SERVER_CONNECTING_REPEAT_INTERVAL_MS      (20 * 1000)
@@ -150,7 +151,7 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
             break;
         case Agent::ChatEvent::Start:
             stopAudio(AudioType::ServerDisconnected);
-            sendAudioEvent({AudioType::ServerConnecting, -1, AUDIO_SERVER_CONNECTING_REPEAT_INTERVAL_MS});
+            sendAudioEvent({AudioType::ServerConnecting, AUDIO_PLAY_LOOP_COUNT, AUDIO_SERVER_CONNECTING_REPEAT_INTERVAL_MS});
             ESP_UTILS_CHECK_FALSE_EXIT(
                 expression.setSystemIcon("server_connecting", {.immediate = true}), "Set server connecting icon failed"
             );
@@ -166,11 +167,11 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
 
         switch (type) {
         case Agent::ChatEventSpecialSignalType::InitInvalidConfig:
-            sendAudioEvent({AudioType::InvalidConfig, -1, AUDIO_INVALID_CONFIG_REPEAT_INTERVAL_MS});
+            sendAudioEvent({AudioType::InvalidConfig, AUDIO_PLAY_LOOP_COUNT, AUDIO_INVALID_CONFIG_REPEAT_INTERVAL_MS});
             break;
         case Agent::ChatEventSpecialSignalType::StartMaxRetry:
             stopAudio(AudioType::ServerConnecting);
-            sendAudioEvent({AudioType::ServerDisconnected, -1, AUDIO_SERVER_DISCONNECTED_REPEAT_INTERVAL_MS});
+            sendAudioEvent({AudioType::ServerDisconnected, AUDIO_PLAY_LOOP_COUNT, AUDIO_SERVER_DISCONNECTED_REPEAT_INTERVAL_MS});
             break;
         default:
             break;
@@ -190,7 +191,7 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
             ESP_UTILS_CHECK_FALSE_EXIT(expression.setSystemIcon("wifi_disconnected"), "Set WiFi icon failed");
             break;
         case Agent::ChatEvent::Stop:
-            sendAudioEvent({AudioType::ServerDisconnected, -1, AUDIO_SERVER_DISCONNECTED_REPEAT_INTERVAL_MS});
+            sendAudioEvent({AudioType::ServerDisconnected, AUDIO_PLAY_LOOP_COUNT, AUDIO_SERVER_DISCONNECTED_REPEAT_INTERVAL_MS});
             break;
         case Agent::ChatEvent::Start:
             stopAudio(AudioType::ServerConnecting);
@@ -323,11 +324,25 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
 
     _flags.is_begun = true;
 
-    sendAudioEvent({AudioType::WifiNeedConnect, -1, AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS});
     ESP_UTILS_CHECK_FALSE_RETURN(expression.setEmoji("neutral"), false, "Set emoji failed");
     ESP_UTILS_CHECK_FALSE_RETURN(
         _agent->sendChatEvent(Agent::ChatEvent::Init), false, "Send chat event init failed"
     );
+    {
+        esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
+            .name = "wifi_check",
+            .stack_size = 4 * 1024,
+            .stack_in_ext = true,
+        });
+        boost::thread([this]() {
+            ESP_UTILS_LOG_TRACE_GUARD();
+            // Wait for 3 seconds to ensure the WiFi is connected
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(5000));
+            if (!isWiFiValid()) {
+                sendAudioEvent({AudioType::WifiNeedConnect, AUDIO_PLAY_LOOP_COUNT, AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS});
+            }
+        }).detach();
+    }
 
     del_function.release();
 
@@ -486,7 +501,7 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         ESP_UTILS_CHECK_FALSE_RETURN(expression.setEmoji("neutral"), false, "Set emoji failed");
         ESP_UTILS_CHECK_FALSE_RETURN(expression.setSystemIcon("wifi_disconnected"), false, "Set WiFi icon failed");
         sendAudioEvent({AudioType::WifiDisconnected});
-        sendAudioEvent({AudioType::WifiNeedConnect, -1, AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS});
+        sendAudioEvent({AudioType::WifiNeedConnect, AUDIO_PLAY_LOOP_COUNT, AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS});
         break;
     case WIFI_EVENT_STA_CONNECTED:
         _flags.is_wifi_connected = true;
@@ -508,7 +523,7 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         ESP_UTILS_CHECK_FALSE_RETURN(expression.setEmoji("neutral"), false, "Set emoji failed");
         ESP_UTILS_CHECK_FALSE_RETURN(expression.setSystemIcon("wifi_disconnected"), false, "Set WiFi icon failed");
         sendAudioEvent({AudioType::WifiDisconnected});
-        sendAudioEvent({AudioType::WifiNeedConnect, -1, AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS});
+        sendAudioEvent({AudioType::WifiNeedConnect, AUDIO_PLAY_LOOP_COUNT, AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS});
         break;
     }
     default:

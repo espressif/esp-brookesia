@@ -5,6 +5,7 @@
 ### Enhancements:
 
 * feat(ai_framework): agent support configure peripheral outside
+* feat(systems): speaker prevents infinite audio playback
 
 ### Bugfixes:
 
