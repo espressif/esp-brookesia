@@ -346,8 +346,8 @@ static bool check_whether_enter_developer_mode()
     lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_18, 0);
     lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(
-        content_label, "Please connect the device to your computer via USB. A USB drive will appear. You can \
-        create or modify the `bot_setting.json` and `private_key.pem` files as needed."
+        content_label, "Please connect the device to your computer via USB. A USB drive will appear. "
+        "You can create or modify the files in the SD card (like `bot_setting.json` and `private_key.pem`) as needed."
     );
     lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
 

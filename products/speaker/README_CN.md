@@ -26,7 +26,7 @@
 要从 esp-brookesia 示例开始，请在终端运行以下命令，将仓库克隆到本地电脑：
 
 ```
-git clone --recursive https://github.com/espressif/esp-brookesia.git
+git clone https://github.com/espressif/esp-brookesia.git
 ```
 
 ### 配置

@@ -26,7 +26,7 @@ Please refer to the [EchoEar (Meow Companion) User Guide](https://espressif.craf
 To get started with the esp-brookesia example, run the following command in the terminal to clone the repository to your local computer:
 
 ```
-git clone --recursive https://github.com/espressif/esp-brookesia.git
+git clone https://github.com/espressif/esp-brookesia.git
 ```
 
 ### Configuration
