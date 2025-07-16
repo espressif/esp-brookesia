@@ -459,12 +459,6 @@ esp_err_t bsp_touch_new(const bsp_touch_config_t *config, esp_lcd_touch_handle_t
         },
     };
 
-    if (tp_cfg.int_gpio_num != GPIO_NUM_NC) {
-        ESP_LOGW(TAG, "Touch interrupt supported!");
-        init_touch_isr_mux();
-        tp_cfg.interrupt_callback = lvgl_port_touch_isr_cb;
-    }
-
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
     esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
 
@@ -515,6 +509,7 @@ lv_disp_t *bsp_display_start_with_config(const bsp_display_cfg_t *cfg)
     BSP_ERROR_CHECK_RETURN_NULL(bsp_display_brightness_init());
 
     BSP_NULL_CHECK(disp = bsp_display_lcd_init(cfg), NULL);
+    lv_display_set_user_data(disp, (void *)panel_handle);
 
     BSP_NULL_CHECK(disp_indev = bsp_display_indev_init(disp), NULL);
 

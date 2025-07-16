@@ -162,15 +162,14 @@ static bool draw_bitmap_with_lock(lv_disp_t *disp, int x_start, int y_start, int
 
     std::lock_guard<boost::mutex> lock(draw_mutex);
 
-    lvgl_port_take_trans_sem(disp, 0);
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        esp_lcd_panel_draw_bitmap(panel_handle, x_start, y_start, x_end, y_end, data) == ESP_OK, false,
-        "Draw bitmap failed"
+    lvgl_port_disp_take_trans_sem(disp, 0);
+    ESP_UTILS_CHECK_ERROR_RETURN(
+        esp_lcd_panel_draw_bitmap(panel_handle, x_start, y_start, x_end, y_end, data), false, "Draw bitmap failed"
     );
 
     // Wait for the last frame buffer to complete transmission
-    ESP_UTILS_CHECK_FALSE_RETURN(lvgl_port_take_trans_sem(disp, portMAX_DELAY) == ESP_OK, false, "Take trans sem failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(lvgl_port_give_trans_sem(disp, false) == ESP_OK, false, "Give trans sem failed");
+    ESP_UTILS_CHECK_ERROR_RETURN(lvgl_port_disp_take_trans_sem(disp, portMAX_DELAY), false, "Take trans sem failed");
+    lvgl_port_disp_give_trans_sem(disp, false);
 
     return true;
 }
@@ -201,8 +200,8 @@ static bool init_display_and_draw_logic()
             .task_stack = LVGL_TASK_STACK_SIZE,
             .task_affinity = LVGL_TASK_CORE_ID,
             .task_max_sleep_ms = LVGL_TASK_MAX_SLEEP_MS,
+            .task_stack_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT,
             .timer_period_ms = LVGL_TASK_TIMER_PERIOD_MS,
-            .task_in_ext = LVGL_TASK_STACK_CAPS_EXT,
         },
         .buffer_size = BSP_LCD_H_RES * BSP_LCD_V_RES,
         .double_buffer = true,
@@ -251,9 +250,9 @@ static bool init_display_and_draw_logic()
     Display::on_dummy_draw_signal.connect([ = ](bool enable) {
         ESP_UTILS_LOGI("Dummy draw: %d", enable);
 
-        ESP_UTILS_CHECK_FALSE_EXIT(lvgl_port_take_trans_sem(disp, portMAX_DELAY) == ESP_OK, "Take trans sem failed");
-        ESP_UTILS_CHECK_FALSE_EXIT(lvgl_port_set_dummy_draw(disp, enable) == ESP_OK, "Set dummy draw failed");
-        ESP_UTILS_CHECK_FALSE_EXIT(lvgl_port_give_trans_sem(disp, false) == ESP_OK, "Give trans sem failed");
+        ESP_UTILS_CHECK_ERROR_EXIT(lvgl_port_disp_take_trans_sem(disp, portMAX_DELAY), "Take trans sem failed");
+        lvgl_port_disp_set_dummy_draw(disp, enable);
+        lvgl_port_disp_give_trans_sem(disp, false);
 
         if (!enable) {
             bsp_display_lock(0);

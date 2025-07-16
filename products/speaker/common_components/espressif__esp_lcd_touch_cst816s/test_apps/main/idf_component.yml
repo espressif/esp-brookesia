@@ -1,6 +1,0 @@
-## IDF Component Manager Manifest File
-dependencies:
-  idf: ">=4.4"
-  esp_lcd_touch_cst816s:
-    version: "*"
-    override_path: "../../../esp_lcd_touch_cst816s"

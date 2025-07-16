@@ -8,7 +8,7 @@
  */
 
 /**
- * @file lv_draw_sw_blend_rgb888.h
+ * @file lv_draw_sw_blend_to_rgb888.h
  *
  */
 

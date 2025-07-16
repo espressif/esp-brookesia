@@ -12,6 +12,7 @@
 #pragma once
 
 #include "esp_err.h"
+#include "esp_heap_caps.h"
 #include "lvgl.h"
 #include "esp_lvgl_port_disp.h"
 #include "esp_lvgl_port_touch.h"
@@ -48,26 +49,26 @@ typedef struct {
  * @brief Init configuration structure
  */
 typedef struct {
-    int task_priority;      /*!< LVGL task priority */
-    int task_stack;         /*!< LVGL task stack size */
-    int task_affinity;      /*!< LVGL task pinned to core (-1 is no affinity) */
-    int task_max_sleep_ms;  /*!< Maximum sleep in LVGL task */
-    int timer_period_ms;    /*!< LVGL timer tick period in ms */
-    bool task_in_ext;
+    int task_priority;        /*!< LVGL task priority */
+    int task_stack;           /*!< LVGL task stack size */
+    int task_affinity;        /*!< LVGL task pinned to core (-1 is no affinity) */
+    int task_max_sleep_ms;    /*!< Maximum sleep in LVGL task */
+    unsigned task_stack_caps; /*!< LVGL task stack memory capabilities (see esp_heap_caps.h) */
+    int timer_period_ms;      /*!< LVGL timer tick period in ms */
 } lvgl_port_cfg_t;
 
 /**
  * @brief LVGL port configuration structure
  *
  */
-#define ESP_LVGL_PORT_INIT_CONFIG() \
-    {                               \
-        .task_priority = 4,       \
-        .task_stack = 7168,       \
-        .task_affinity = -1,      \
-        .task_max_sleep_ms = 500, \
-        .timer_period_ms = 5,     \
-        .task_in_ext = false, \
+#define ESP_LVGL_PORT_INIT_CONFIG()                \
+    {                                              \
+        .task_priority = 4,                        \
+        .task_stack = 7168,                        \
+        .task_affinity = -1,                       \
+        .task_max_sleep_ms = 500,                  \
+        .task_stack_caps = MALLOC_CAP_DEFAULT,     \
+        .timer_period_ms = 5,                      \
     }
 
 /**

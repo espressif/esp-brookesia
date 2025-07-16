@@ -12,7 +12,7 @@ dependencies:
   espressif/esp_lcd_st77916: "^1.0.1"
 
   espressif/esp_lcd_touch_cst816s:
-    override_path: "../espressif__esp_lcd_touch_cst816s"
+    version: "^1.1.0"
     public: true
 
   espressif/esp_lvgl_port:

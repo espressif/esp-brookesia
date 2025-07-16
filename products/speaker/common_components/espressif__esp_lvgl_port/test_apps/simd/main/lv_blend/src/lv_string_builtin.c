@@ -8,7 +8,7 @@
  */
 
 /**
- * @file lv_string.c
+ * @file lv_string_builtin.c
  */
 
 /*********************

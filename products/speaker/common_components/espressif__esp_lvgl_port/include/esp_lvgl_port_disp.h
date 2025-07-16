@@ -128,11 +128,30 @@ lv_display_t *lvgl_port_add_disp_rgb(const lvgl_port_display_cfg_t *disp_cfg, co
  */
 esp_err_t lvgl_port_remove_disp(lv_display_t *disp);
 
-esp_err_t lvgl_port_set_dummy_draw(lv_display_t *disp, bool enable);
+/**
+ * @brief Set dummy draw to bypass the display driver during LVGL flush
+ *
+ * @param disp LVGL display handle
+ * @param enable True to enable dummy draw, False to disable
+ */
+void lvgl_port_disp_set_dummy_draw(lv_display_t *disp, bool enable);
 
-esp_err_t lvgl_port_take_trans_sem(lv_display_t *disp, portBASE_TYPE xBlockTime);
+/**
+ * @brief Take the transfer semaphore
+ *
+ * @param disp LVGL display handle
+ * @param timeout_ms Timeout in milliseconds
+ * @return ESP_OK on success, ESP_ERR_TIMEOUT on timeout
+ */
+esp_err_t lvgl_port_disp_take_trans_sem(lv_display_t *disp, uint32_t timeout_ms);
 
-esp_err_t lvgl_port_give_trans_sem(lv_display_t *disp, bool from_isr);
+/**
+ * @brief Give the transfer semaphore
+ *
+ * @param disp LVGL display handle
+ * @param from_isr True if called from ISR
+ */
+void lvgl_port_disp_give_trans_sem(lv_display_t *disp, bool from_isr);
 
 #ifdef __cplusplus
 }
