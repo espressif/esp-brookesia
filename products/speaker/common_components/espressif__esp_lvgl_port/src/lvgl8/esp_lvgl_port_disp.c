@@ -17,11 +17,6 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
-#include "sdkconfig.h"
-#if CONFIG_SPI_DMA_MOUNT_PSRAM
-#include "hal/cache_hal.h"
-#include "hal/cache_ll.h"
-#endif
 
 #if CONFIG_IDF_TARGET_ESP32S3 && ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
 #include "esp_lcd_panel_rgb.h"
@@ -73,17 +68,6 @@ static bool lvgl_port_flush_dpi_vsync_ready_callback(esp_lcd_panel_handle_t pane
 static void lvgl_port_flush_callback(lv_disp_drv_t *drv, const lv_area_t *area, lv_color_t *color_map);
 static void lvgl_port_update_callback(lv_disp_drv_t *drv);
 static void lvgl_port_pix_monochrome_callback(lv_disp_drv_t *drv, uint8_t *buf, lv_coord_t buf_w, lv_coord_t x, lv_coord_t y, lv_color_t color, lv_opa_t opa);
-
-#if CONFIG_SPI_DMA_MOUNT_PSRAM
-void rounder_callback(lv_disp_drv_t *disp_drv, lv_area_t *area)
-{
-    area->x1 &= ~0x7U;
-    area->y1 &= ~0x7U;
-    area->x2 = (area->x2 & ~0x7U) + 7;
-    area->y2 = (area->y2 & ~0x7U) + 7;
-}
-#endif
-
 
 /*******************************************************************************
 * Public API functions
@@ -281,20 +265,16 @@ static lv_disp_t *lvgl_port_add_disp_priv(const lvgl_port_display_cfg_t *disp_cf
         disp_ctx->trans_sem = trans_sem;
     } else {
         uint32_t buff_caps = MALLOC_CAP_DEFAULT;
-        uint32_t cache_width = 1;
         if (disp_cfg->flags.buff_dma && disp_cfg->flags.buff_spiram && (0 == disp_cfg->trans_size)) {
             ESP_GOTO_ON_FALSE(false, ESP_ERR_NOT_SUPPORTED, err, TAG, "Alloc DMA capable buffer in SPIRAM is not supported!");
         } else if (disp_cfg->flags.buff_dma) {
             buff_caps = MALLOC_CAP_DMA;
         } else if (disp_cfg->flags.buff_spiram) {
             buff_caps = MALLOC_CAP_SPIRAM;
-#if CONFIG_SPI_DMA_MOUNT_PSRAM
-            cache_width = cache_hal_get_cache_line_size(CACHE_LL_LEVEL_EXT_MEM, CACHE_TYPE_DATA);
-#endif
         }
 
         if (disp_cfg->trans_size) {
-            buf3 = heap_caps_aligned_calloc(cache_width, 1, disp_cfg->trans_size * sizeof(lv_color_t), MALLOC_CAP_DMA);
+            buf3 = heap_caps_malloc(disp_cfg->trans_size * sizeof(lv_color_t), MALLOC_CAP_DMA);
             ESP_GOTO_ON_FALSE(buf3, ESP_ERR_NO_MEM, err, TAG, "Not enough memory for buffer(transport) allocation!");
             disp_ctx->trans_buf = buf3;
 
@@ -305,10 +285,10 @@ static lv_disp_t *lvgl_port_add_disp_priv(const lvgl_port_display_cfg_t *disp_cf
 
         /* alloc draw buffers used by LVGL */
         /* it's recommended to choose the size of the draw buffer(s) to be at least 1/10 screen sized */
-        buf1 = heap_caps_aligned_calloc(cache_width, 1, buffer_size * sizeof(lv_color_t), buff_caps);
+        buf1 = heap_caps_malloc(buffer_size * sizeof(lv_color_t), buff_caps);
         ESP_GOTO_ON_FALSE(buf1, ESP_ERR_NO_MEM, err, TAG, "Not enough memory for LVGL buffer (buf1) allocation!");
         if (disp_cfg->double_buffer) {
-            buf2 = heap_caps_aligned_calloc(cache_width, 1, buffer_size * sizeof(lv_color_t), buff_caps);
+            buf2 = heap_caps_malloc(buffer_size * sizeof(lv_color_t), buff_caps);
             ESP_GOTO_ON_FALSE(buf2, ESP_ERR_NO_MEM, err, TAG, "Not enough memory for LVGL buffer (buf2) allocation!");
         }
     }
@@ -324,9 +304,6 @@ static lv_disp_t *lvgl_port_add_disp_priv(const lvgl_port_display_cfg_t *disp_cf
     disp_ctx->disp_drv.hor_res = disp_cfg->hres;
     disp_ctx->disp_drv.ver_res = disp_cfg->vres;
     disp_ctx->disp_drv.flush_cb = lvgl_port_flush_callback;
-#if CONFIG_SPI_DMA_MOUNT_PSRAM
-    disp_ctx->disp_drv.rounder_cb = rounder_callback;
-#endif
     disp_ctx->disp_drv.draw_buf = disp_buf;
     disp_ctx->disp_drv.user_data = disp_ctx;
 

@@ -12,8 +12,6 @@
 
 static const char *TAG = "LVGL";
 
-static SemaphoreHandle_t touch_isr_mux = NULL;
-
 /*******************************************************************************
 * Types definitions
 *******************************************************************************/
@@ -126,12 +124,9 @@ static void lvgl_port_touchpad_read(lv_indev_t *indev_drv, lv_indev_data_t *data
     /* Read data from touch controller into memory */
     esp_lcd_touch_read_data(touch_ctx->handle);
 
-    /* Read data from touch controller into memory */
-    if (touch_isr_mux == NULL || xSemaphoreTake(touch_isr_mux, 0) == pdTRUE) {
-        esp_lcd_touch_read_data(touch_ctx->handle);
-    }
-
+    /* Read data from touch controller */
     bool touchpad_pressed = esp_lcd_touch_get_coordinates(touch_ctx->handle, touchpad_x, touchpad_y, NULL, &touchpad_cnt, 1);
+
     if (touchpad_pressed && touchpad_cnt > 0) {
         data->point.x = touch_ctx->scale.x * touchpad_x[0];
         data->point.y = touch_ctx->scale.y * touchpad_y[0];
@@ -147,22 +142,4 @@ static void IRAM_ATTR lvgl_port_touch_interrupt_callback(esp_lcd_touch_handle_t 
 
     /* Wake LVGL task, if needed */
     lvgl_port_task_wake(LVGL_PORT_EVENT_TOUCH, touch_ctx->indev);
-}
-
-void lvgl_port_touch_isr_cb(esp_lcd_touch_handle_t tp)
-{
-    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-    xSemaphoreGiveFromISR(touch_isr_mux, &xHigherPriorityTaskWoken);
-
-    if (xHigherPriorityTaskWoken) {
-        portYIELD_FROM_ISR();
-    }
-}
-
-SemaphoreHandle_t init_touch_isr_mux(void)
-{
-    touch_isr_mux = xSemaphoreCreateBinary();
-    assert(touch_isr_mux);
-
-    return touch_isr_mux;
 }

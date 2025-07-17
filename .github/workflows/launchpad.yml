@@ -30,18 +30,23 @@ jobs:
         with:
           submodules: 'recursive'
       - run: mkdir -p images
+      - name: Get speaker version
+        shell: bash
+        run: |
+          SPEAKER_VERSION=$(.github/tools/get_example_version.sh products/speaker)
+          echo "SPEAKER_VERSION=$SPEAKER_VERSION" >> $GITHUB_ENV
+          echo "Speaker version: $SPEAKER_VERSION"
       - name: Build demo
         env:
           IDF_TARGET: ${{ matrix.idf_target }}
         shell: bash
         run: |
-          cp tools/launchpad.toml images/launchpad.toml
+          cp .github/tools/launchpad.toml images/launchpad.toml
           cd products/speaker/
           . ${IDF_PATH}/export.sh
           idf.py set-target ${{matrix.idf_target}} build
           cd build
-          IDF_VERSION=`echo ${{ matrix.idf_ver }} | tr '-' '_' | tr '.' '_'`
-          esptool.py --chip ${{matrix.idf_target}} merge_bin -o "$GITHUB_WORKSPACE/images/factory_echoear_speaker_${{matrix.idf_target}}_$IDF_VERSION.bin" @flash_args
+          esptool.py --chip ${{matrix.idf_target}} merge_bin -o "$GITHUB_WORKSPACE/images/factory_echoear_speaker_$SPEAKER_VERSION.bin" @flash_args
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

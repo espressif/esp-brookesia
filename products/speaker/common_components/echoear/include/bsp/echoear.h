@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2021-2022 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2021-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,9 +7,12 @@
 #pragma once
 
 #include "sdkconfig.h"
+#include "soc/usb_pins.h"
 #include "driver/gpio.h"
 #include "driver/i2c_master.h"
-#include "soc/usb_pins.h"
+#include "driver/sdmmc_host.h"
+#include "driver/sdspi_host.h"
+#include "esp_vfs_fat.h"
 #include "lvgl.h"
 #include "esp_lvgl_port.h"
 #include "bsp/display.h"
@@ -24,6 +27,7 @@
 #define BSP_CAPS_AUDIO          0
 #define BSP_CAPS_AUDIO_SPEAKER  0
 #define BSP_CAPS_AUDIO_MIC      0
+#define BSP_CAPS_SDCARD         1
 #define BSP_CAPS_IMU            0
 
 /* I2C */
@@ -35,8 +39,10 @@
 #define BSP_I2S_MCLK          (GPIO_NUM_42)
 #define BSP_I2S_LCLK          (GPIO_NUM_39) // WS
 #define BSP_I2S_DOUT          (GPIO_NUM_41)     // To Codec ES8311
-#define BSP_I2S_DSIN          (GPIO_NUM_15)    // From ADC ES7210
-#define BSP_POWER_AMP_IO      (GPIO_NUM_4)
+#define BSP_I2S_DSIN_V1_0     (GPIO_NUM_15)    // From ADC ES7210
+#define BSP_I2S_DSIN_V1_2     (GPIO_NUM_3)
+#define BSP_POWER_AMP_IO_V1_0 (GPIO_NUM_4)
+#define BSP_POWER_AMP_IO_V1_2 (GPIO_NUM_15)
 
 /* Display */
 #define BSP_LCD_DATA3         (GPIO_NUM_12)
@@ -46,31 +52,27 @@
 #define BSP_LCD_PCLK          (GPIO_NUM_18)
 #define BSP_LCD_CS            (GPIO_NUM_14)
 #define BSP_LCD_DC            (GPIO_NUM_45)
-#define BSP_LCD_RST           (GPIO_NUM_3)
+#define BSP_LCD_RST_V1_0      (GPIO_NUM_3)
+#define BSP_LCD_RST_V1_2      (GPIO_NUM_47)
 #define LCD_BACKLIIGHT_CHANNEL LEDC_CHANNEL_1
 #define BSP_LCD_BACKLIGHT     (GPIO_NUM_44)
 #define BSP_LCD_TOUCH_INT     (GPIO_NUM_10)
 
-/* Buttons */
-#define BSP_BUTTON            (GPIO_NUM_2)
-#define BSP_BUTTON_CTRL       (GPIO_NUM_1)
-
 /* Power */
 #define BSP_POWER_OFF         (GPIO_NUM_9)
-#define BSP_POWER_VOUT_EN     (GPIO_NUM_11)
-#define PMS_BTN_DISABLE       1
 
+/* SD card */
+#define BSP_SD_D0             (GPIO_NUM_17)
+#define BSP_SD_CMD            (GPIO_NUM_38)
+#define BSP_SD_CLK            (GPIO_NUM_16)
 
-/* Vibration */
-#define BSP_VIBRATION_PIN     (GPIO_NUM_38)
-#define PWM_CHANNEL           LEDC_CHANNEL_0
-#define PWM_FREQ_HZ           2000
-#define PWM_RESOLUTION        LEDC_TIMER_10_BIT
-
-/* LED */
-#define BSP_LEDR_GPIO          (GPIO_NUM_NC)
-#define BSP_LEDG_GPIO          (GPIO_NUM_NC)
-#define BSP_LEDB_GPIO          (GPIO_NUM_NC)
+/* Others */
+#define BSP_UART1_TX_V1_0       (GPIO_NUM_6)
+#define BSP_UART1_TX_V1_2       (GPIO_NUM_5)
+#define BSP_UART1_RX_V1_0       (GPIO_NUM_5)
+#define BSP_UART1_RX_V1_2       (GPIO_NUM_4)
+#define BSP_TOUCH_PAD2_V1_0     (GPIO_NUM_NC)
+#define BSP_TOUCH_PAD2_V1_2     (GPIO_NUM_6)
 
 #ifdef __cplusplus
 extern "C" {
@@ -200,9 +202,174 @@ bool bsp_display_lock(uint32_t timeout_ms);
  */
 void bsp_display_unlock(void);
 
+/**
+ * @brief Initialize display brightness
+ *
+ * @return
+ *      - ESP_OK                On success
+ *      - ESP_ERR_INVALID_ARG   I2C parameter error
+ *      - ESP_FAIL              I2C driver installation error
+ *
+ */
 esp_err_t bsp_display_brightness_init(void);
 
+/**
+ * @brief Initialize power
+ *
+ * @param power_en power enable
+ *
+ * @return
+ *      - ESP_OK                On success
+ *      - ESP_ERR_INVALID_ARG   I2C parameter error
+ *      - ESP_FAIL              I2C driver installation error
+ *
+ */
 esp_err_t bsp_power_init(uint8_t power_en);
+
+/**************************************************************************************************
+ *
+ * SD card
+ *
+ * After mounting the SD card, it can be accessed with stdio functions ie.:
+ * \code{.c}
+ * FILE* f = fopen(BSP_SD_MOUNT_POINT"/hello.txt", "w");
+ * fprintf(f, "Hello %s!\n", bsp_sdcard->cid.name);
+ * fclose(f);
+ * \endcode
+ *
+ * @attention IO2 is also routed to RGB LED and push button
+ **************************************************************************************************/
+#define BSP_SD_MOUNT_POINT      CONFIG_BSP_SD_MOUNT_POINT
+
+/**
+ * @brief BSP SD card configuration structure
+ */
+typedef struct {
+    const esp_vfs_fat_sdmmc_mount_config_t *mount;
+    sdmmc_host_t *host;
+    union {
+        const sdmmc_slot_config_t   *sdmmc;
+    } slot;
+} bsp_sdcard_cfg_t;
+
+/**
+ * @brief Mount microSD card to virtual file system
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_sdmmc_mount was already called
+ *      - ESP_ERR_NO_MEM if memory can not be allocated
+ *      - ESP_FAIL if partition can not be mounted
+ *      - other error codes from SDMMC or SPI drivers, SDMMC protocol, or FATFS drivers
+ */
+esp_err_t bsp_sdcard_mount(void);
+
+/**
+ * @brief Unmount micorSD card from virtual file system
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_NOT_FOUND if the partition table does not contain FATFS partition with given label
+ *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_spiflash_mount was already called
+ *      - ESP_ERR_NO_MEM if memory can not be allocated
+ *      - ESP_FAIL if partition can not be mounted
+ *      - other error codes from wear levelling library, SPI flash driver, or FATFS drivers
+ */
+esp_err_t bsp_sdcard_unmount(void);
+
+/**
+ * @brief Get SD card handle
+ *
+ * @return SD card handle
+ */
+sdmmc_card_t *bsp_sdcard_get_handle(void);
+
+/**
+ * @brief Get SD card MMC host config
+ *
+ * @param slot SD card slot
+ * @param config Structure which will be filled
+ */
+void bsp_sdcard_get_sdmmc_host(const int slot, sdmmc_host_t *config);
+
+/**
+ * @brief Get SD card MMC slot config
+ *
+ * @param slot SD card slot
+ * @param config Structure which will be filled
+ */
+void bsp_sdcard_sdmmc_get_slot(const int slot, sdmmc_slot_config_t *config);
+
+/**
+ * @brief Mount microSD card to virtual file system (MMC mode)
+ *
+ * @param cfg SD card configuration
+ *
+ * @return
+ *      - ESP_OK on success
+ *      - ESP_ERR_INVALID_STATE if esp_vfs_fat_sdmmc_mount was already called
+ *      - ESP_ERR_NO_MEM if memory cannot be allocated
+ *      - ESP_FAIL if partition cannot be mounted
+ *      - other error codes from SDMMC or SPI drivers, SDMMC protocol, or FATFS drivers
+ */
+esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg);
+
+/**
+ * @brief Get SD card handle
+ *
+ * @return SD card handle
+ */
+sdmmc_card_t *bsp_sdcard_get_handle(void);
+
+/**************************************************************************************************
+ *
+ * PCB version detect
+ *
+ **************************************************************************************************/
+/**
+ * @brief PCB version
+ *
+ */
+typedef enum {
+    BSP_PCB_VERSION_V1_0 = 0,
+    BSP_PCB_VERSION_V1_2,
+} bsp_pcb_version_t;
+
+/**
+ * @brief PCB version information
+ *
+ */
+typedef struct {
+    bsp_pcb_version_t version;
+    struct {
+        int i2s_din_pin;
+        int pa_pin;
+    } audio;
+    struct {
+        int pad2_pin;
+    } touch;
+    struct {
+        int tx_pin;
+        int rx_pin;
+    } uart;
+    struct {
+        int rst_pin;
+        int rst_active_level;
+    } lcd;
+} bsp_pcd_diff_info_t;
+
+/**
+ * @brief Get PCB version information
+ *
+ * @param info Pointer to PCB version information
+ *
+ * @return
+ *      - ESP_OK                On success
+ *      - ESP_ERR_INVALID_ARG   Invalid argument
+ *      - ESP_FAIL              Failed to detect PCB version
+ *
+ */
+esp_err_t bsp_pcb_version_detect(bsp_pcd_diff_info_t *info);
 
 #ifdef __cplusplus
 }

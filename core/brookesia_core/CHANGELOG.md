@@ -1,11 +1,17 @@
 # ChangeLog
 
-## v0.6.0-beta2 - 2025-07-08
+## v0.6.0-beta2 - 2025-07-14
+
+### Enhancements:
+
+* feat(ai_framework): agent support configure peripheral outside
+* feat(systems): speaker prevents infinite audio playback
 
 ### Bugfixes:
 
 * fix(ai_framework): prevent Agent from being awakened within apps
 * fix(systems): shorten animation filename to avoid warning
+* fix(services): only erase NVS namespace instead of full partition
 
 ## v0.6.0-beta1 - 2025-07-04
 

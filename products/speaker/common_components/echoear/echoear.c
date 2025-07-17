@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2022-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -40,8 +40,11 @@ static lv_disp_t *disp;
 static lv_indev_t *disp_indev = NULL;
 static esp_lcd_touch_handle_t tp;   // LCD touch handle
 static esp_lcd_panel_handle_t panel_handle = NULL;
+static bsp_pcd_diff_info_t pcd_info = {};
+static bool pcd_info_initialized = false;
 
 static i2c_master_bus_handle_t i2c_handle = NULL;
+static sdmmc_card_t *bsp_sdcard = NULL;    // Global uSD card handler
 static bool i2c_initialized = false;
 
 esp_err_t bsp_i2c_init(void)
@@ -328,6 +331,7 @@ esp_err_t bsp_display_new(const bsp_display_config_t *config, esp_lcd_panel_hand
     assert(config != NULL && config->max_transfer_sz > 0);
 
     ESP_RETURN_ON_ERROR(bsp_display_brightness_init(), TAG, "Brightness init failed");
+    BSP_ERROR_CHECK_RETURN_ERR(bsp_pcb_version_detect(NULL));
 
     /* Initialize I2C */
     BSP_ERROR_CHECK_RETURN_ERR(bsp_i2c_init());
@@ -367,9 +371,12 @@ esp_err_t bsp_display_new(const bsp_display_config_t *config, esp_lcd_panel_hand
         },
     };
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = BSP_LCD_RST, // Shared with Touch reset
+        .reset_gpio_num = pcd_info.lcd.rst_pin, // Shared with Touch reset
         .color_space = BSP_LCD_COLOR_SPACE,
         .bits_per_pixel = BSP_LCD_BITS_PER_PIXEL,
+        .flags = {
+            .reset_active_high = pcd_info.lcd.rst_active_level,
+        },
         .vendor_config = (void *) &vendor_config,
     };
 
@@ -452,12 +459,6 @@ esp_err_t bsp_touch_new(const bsp_touch_config_t *config, esp_lcd_touch_handle_t
         },
     };
 
-    if (tp_cfg.int_gpio_num != GPIO_NUM_NC) {
-        ESP_LOGW(TAG, "Touch interrupt supported!");
-        init_touch_isr_mux();
-        tp_cfg.interrupt_callback = lvgl_port_touch_isr_cb;
-    }
-
     esp_lcd_panel_io_handle_t tp_io_handle = NULL;
     esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_CST816S_CONFIG();
 
@@ -486,7 +487,7 @@ lv_disp_t *bsp_display_start(void)
 {
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = ESP_LVGL_PORT_INIT_CONFIG(),
-        .buffer_size = BSP_LCD_H_RES * BSP_LCD_V_RES,
+        .buffer_size = BSP_LCD_H_RES * CONFIG_BSP_LCD_DRAW_BUF_HEIGHT,
 #if CONFIG_BSP_LCD_DRAW_BUF_DOUBLE
         .double_buffer = 1,
 #else
@@ -508,6 +509,7 @@ lv_disp_t *bsp_display_start_with_config(const bsp_display_cfg_t *cfg)
     BSP_ERROR_CHECK_RETURN_NULL(bsp_display_brightness_init());
 
     BSP_NULL_CHECK(disp = bsp_display_lcd_init(cfg), NULL);
+    lv_display_set_user_data(disp, (void *)panel_handle);
 
     BSP_NULL_CHECK(disp_indev = bsp_display_indev_init(disp), NULL);
 
@@ -540,4 +542,147 @@ esp_err_t bsp_power_init(uint8_t power_en)
     gpio_set_level(BSP_POWER_OFF, power_en);
 
     return ESP_OK;
+}
+
+esp_err_t bsp_pcb_version_detect(bsp_pcd_diff_info_t *info)
+{
+    if (pcd_info_initialized) {
+        if (info) {
+            *info = pcd_info;
+        }
+        return ESP_OK;
+    }
+
+    BSP_ERROR_CHECK_RETURN_ERR(bsp_i2c_init());
+
+    bsp_pcd_diff_info_t temp_info = {0};
+    esp_err_t ret = i2c_master_probe(bsp_i2c_get_handle(), 0x18, 100);
+    if (ret == ESP_OK) {
+        ESP_LOGI(TAG, "Detect PCB version V1.0");
+        temp_info.version = BSP_PCB_VERSION_V1_0;
+        temp_info.audio.i2s_din_pin = BSP_I2S_DSIN_V1_0;
+        temp_info.audio.pa_pin = BSP_POWER_AMP_IO_V1_0;
+        temp_info.touch.pad2_pin = BSP_TOUCH_PAD2_V1_0;
+        temp_info.uart.tx_pin = BSP_UART1_TX_V1_0;
+        temp_info.uart.rx_pin = BSP_UART1_RX_V1_0;
+        temp_info.lcd.rst_pin = BSP_LCD_RST_V1_0;
+        temp_info.lcd.rst_active_level = 0;
+    } else {
+        gpio_config_t gpio_conf = {
+            .pin_bit_mask = (1ULL << GPIO_NUM_48),
+            .mode = GPIO_MODE_OUTPUT,
+            .pull_up_en = GPIO_PULLUP_DISABLE,
+            .pull_down_en = GPIO_PULLDOWN_DISABLE,
+            .intr_type = GPIO_INTR_DISABLE
+        };
+        ESP_ERROR_CHECK(gpio_config(&gpio_conf));
+        ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_48, 1));
+
+        vTaskDelay(pdMS_TO_TICKS(100));
+
+        ret = i2c_master_probe(bsp_i2c_get_handle(), 0x18, 100);
+        if (ret == ESP_OK) {
+            ESP_LOGI(TAG, "Detect PCB version V1.2");
+            temp_info.version = BSP_PCB_VERSION_V1_2;
+            temp_info.audio.i2s_din_pin = BSP_I2S_DSIN_V1_2;
+            temp_info.audio.pa_pin = BSP_POWER_AMP_IO_V1_2;
+            temp_info.touch.pad2_pin = BSP_TOUCH_PAD2_V1_2;
+            temp_info.uart.tx_pin = BSP_UART1_TX_V1_2;
+            temp_info.uart.rx_pin = BSP_UART1_RX_V1_2;
+            temp_info.lcd.rst_pin = BSP_LCD_RST_V1_2;
+            temp_info.lcd.rst_active_level = 1;
+        } else {
+            ESP_LOGE(TAG, "PCB version detection error");
+        }
+    }
+
+    if (info) {
+        *info = temp_info;
+    }
+    pcd_info = temp_info;
+    pcd_info_initialized = true;
+
+    return ESP_OK;
+}
+
+sdmmc_card_t *bsp_sdcard_get_handle(void)
+{
+    return bsp_sdcard;
+}
+
+void bsp_sdcard_get_sdmmc_host(const int slot, sdmmc_host_t *config)
+{
+    assert(config);
+
+    sdmmc_host_t host_config = SDMMC_HOST_DEFAULT();
+
+    memcpy(config, &host_config, sizeof(sdmmc_host_t));
+}
+
+void bsp_sdcard_sdmmc_get_slot(const int slot, sdmmc_slot_config_t *config)
+{
+    assert(config);
+
+    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+
+    /* SD card is connected to Slot 0 pins. Slot 0 uses IO MUX, so not specifying the pins here */
+    slot_config.cmd = BSP_SD_CMD;
+    slot_config.clk = BSP_SD_CLK;
+    slot_config.d0 = BSP_SD_D0;
+    slot_config.width = 1;
+    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+
+    *config = slot_config;
+}
+
+esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg)
+{
+    sdmmc_host_t sdhost = {0};
+    sdmmc_slot_config_t sdslot = {0};
+    const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+#ifdef CONFIG_BSP_SD_FORMAT_ON_MOUNT_FAIL
+        .format_if_mount_failed = true,
+#else
+        .format_if_mount_failed = false,
+#endif
+        .max_files = 5,
+        .allocation_unit_size = 16 * 1024
+    };
+    assert(cfg);
+
+    if (!cfg->mount) {
+        cfg->mount = &mount_config;
+    }
+
+    if (!cfg->host) {
+        bsp_sdcard_get_sdmmc_host(SDMMC_HOST_SLOT_0, &sdhost);
+        cfg->host = &sdhost;
+    }
+
+    if (!cfg->slot.sdmmc) {
+        bsp_sdcard_sdmmc_get_slot(SDMMC_HOST_SLOT_0, &sdslot);
+        cfg->slot.sdmmc = &sdslot;
+    }
+
+#if CONFIG_FATFS_LFN_NONE
+    ESP_LOGW(TAG, "Warning: Long filenames on SD card are disabled in menuconfig!");
+#endif
+
+    return esp_vfs_fat_sdmmc_mount(BSP_SD_MOUNT_POINT, cfg->host, cfg->slot.sdmmc, cfg->mount, &bsp_sdcard);
+}
+
+esp_err_t bsp_sdcard_mount(void)
+{
+    bsp_sdcard_cfg_t cfg = {0};
+    return bsp_sdcard_sdmmc_mount(&cfg);
+}
+
+esp_err_t bsp_sdcard_unmount(void)
+{
+    esp_err_t ret = ESP_OK;
+
+    ret |= esp_vfs_fat_sdcard_unmount(BSP_SD_MOUNT_POINT, bsp_sdcard);
+    bsp_sdcard = NULL;
+
+    return ret;
 }

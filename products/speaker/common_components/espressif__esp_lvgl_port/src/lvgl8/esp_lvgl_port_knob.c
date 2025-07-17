@@ -70,15 +70,14 @@ lv_indev_t *lvgl_port_add_encoder(const lvgl_port_encoder_cfg_t *encoder_cfg)
         ESP_GOTO_ON_FALSE(encoder_cfg->encoder_enter, ESP_ERR_INVALID_ARG, err, TAG, "Invalid button handler!");
         encoder_ctx->btn_handle = encoder_cfg->encoder_enter;
 #endif
-    }
-
 #if BUTTON_VER_MAJOR < 4
-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, lvgl_port_encoder_btn_down_handler, encoder_ctx));
-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, lvgl_port_encoder_btn_up_handler, encoder_ctx));
+        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, lvgl_port_encoder_btn_down_handler, encoder_ctx));
+        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, lvgl_port_encoder_btn_up_handler, encoder_ctx));
 #else
-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, NULL, lvgl_port_encoder_btn_down_handler, encoder_ctx));
-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, NULL, lvgl_port_encoder_btn_up_handler, encoder_ctx));
+        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, NULL, lvgl_port_encoder_btn_down_handler, encoder_ctx));
+        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, NULL, lvgl_port_encoder_btn_up_handler, encoder_ctx));
 #endif
+    }
 
     encoder_ctx->btn_enter = false;
     encoder_ctx->diff = 0;

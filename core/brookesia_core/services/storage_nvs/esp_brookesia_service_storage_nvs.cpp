@@ -240,8 +240,13 @@ bool StorageNVS::doEventOperationUpdateNVS(const Key &key)
     ESP_UTILS_LOGD("Update key(%s) NVS parameter", key.c_str());
 
     nvs_handle_t nvs_handle;
-    esp_err_t ret = nvs_open(STORAGE_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle);
-    ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Open NVS namespace failed");
+    ESP_UTILS_CHECK_ERROR_RETURN(
+        nvs_open(STORAGE_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle), false, "Open NVS namespace failed"
+    );
+
+    esp_utils::function_guard nvs_close_guard([&]() {
+        nvs_close(nvs_handle);
+    });
 
     auto &value = it->second;
     const char *key_str = key.c_str();
@@ -250,29 +255,23 @@ bool StorageNVS::doEventOperationUpdateNVS(const Key &key)
         auto value_int = std::get<int>(value);
         ESP_UTILS_LOGD("Set key(%s) value(%d)", key_str, value_int);
 
-        ret = nvs_set_i32(nvs_handle, key_str, static_cast<int32_t>(value_int));
-        ESP_UTILS_CHECK_FALSE_GOTO(ret == ESP_OK, end, "Set NVS parameter failed");
+        ESP_UTILS_CHECK_ERROR_RETURN(
+            nvs_set_i32(nvs_handle, key_str, static_cast<int32_t>(value_int)), false, "Set NVS parameter failed"
+        );
     } else if (std::holds_alternative<std::string>(value)) {
         auto value_str = std::get<std::string>(value);
         ESP_UTILS_LOGD("Set key(%s) value(%s)", key_str, value_str.c_str());
 
-        ret = nvs_set_str(nvs_handle, key_str, value_str.c_str());
-        ESP_UTILS_CHECK_FALSE_GOTO(ret == ESP_OK, end, "Set NVS parameter failed");
+        ESP_UTILS_CHECK_ERROR_RETURN(
+            nvs_set_str(nvs_handle, key_str, value_str.c_str()), false, "Set NVS parameter failed"
+        );
     } else {
-        ESP_UTILS_CHECK_FALSE_GOTO(false, end, "Invalid NVS key(%s) value type", key_str);
+        ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Invalid NVS key(%s) value type", key_str);
     }
 
-    ret = nvs_commit(nvs_handle);
-    ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Commit NVS failed");
+    ESP_UTILS_CHECK_ERROR_RETURN(nvs_commit(nvs_handle), false, "Commit NVS failed");
 
-end:
-    nvs_close(nvs_handle);
-
-    if (ret != ESP_OK) {
-        ESP_UTILS_LOGE("Failed reason(%s)", esp_err_to_name(ret));
-    }
-
-    return (ret == ESP_OK);
+    return true;
 }
 
 bool StorageNVS::doEventOperationUpdateParam()
@@ -282,8 +281,13 @@ bool StorageNVS::doEventOperationUpdateParam()
     std::lock_guard<std::mutex> lock(_params_mutex);
 
     nvs_handle_t nvs_handle;
-    esp_err_t ret = nvs_open(STORAGE_NVS_NAMESPACE, NVS_READONLY, &nvs_handle);
-    ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Open NVS namespace failed(%s)", esp_err_to_name(ret));
+    ESP_UTILS_CHECK_ERROR_RETURN(
+        nvs_open(STORAGE_NVS_NAMESPACE, NVS_READONLY, &nvs_handle), false, "Open NVS namespace failed"
+    );
+
+    esp_utils::function_guard nvs_close_guard([&]() {
+        nvs_close(nvs_handle);
+    });
 
     ESP_UTILS_LOGI("Finding keys in NVS...");
 
@@ -304,6 +308,7 @@ bool StorageNVS::doEventOperationUpdateParam()
             continue;
         }
 
+        esp_err_t ret = ESP_OK;
         switch (info.type) {
         case NVS_TYPE_I32: {
             int32_t value_int;
@@ -339,7 +344,6 @@ bool StorageNVS::doEventOperationUpdateParam()
         res = nvs_entry_next(&it);
     }
     nvs_release_iterator(it);
-    nvs_close(nvs_handle);
 
     ESP_UTILS_LOGI("Found %d keys in NVS", static_cast<int>(_local_params.size()));
 
@@ -350,7 +354,19 @@ bool StorageNVS::doEventOperationEraseNVS()
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
-    ESP_UTILS_CHECK_FALSE_RETURN(nvs_flash_erase() == ESP_OK, false, "Erase NVS failed");
+    ESP_UTILS_LOGI("Erase NVS...");
+
+    nvs_handle_t nvs_handle;
+    ESP_UTILS_CHECK_ERROR_RETURN(
+        nvs_open(STORAGE_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle), false, "Open NVS namespace failed"
+    );
+
+    esp_utils::function_guard nvs_close_guard([&]() {
+        nvs_close(nvs_handle);
+    });
+
+    ESP_UTILS_CHECK_ERROR_RETURN(nvs_erase_all(nvs_handle), false, "Erase NVS failed");
+    ESP_UTILS_CHECK_ERROR_RETURN(nvs_commit(nvs_handle), false, "Commit NVS failed");
 
     return true;
 }

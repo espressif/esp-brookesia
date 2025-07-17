@@ -59,11 +59,6 @@ lv_indev_t *lvgl_port_add_touch(const lvgl_port_touch_cfg_t *touch_cfg);
  *      - ESP_OK                    on success
  */
 esp_err_t lvgl_port_remove_touch(lv_indev_t *touch);
-
-void lvgl_port_touch_isr_cb(esp_lcd_touch_handle_t tp);
-
-SemaphoreHandle_t init_touch_isr_mux(void);
-
 #endif
 
 #ifdef __cplusplus

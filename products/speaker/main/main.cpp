@@ -36,8 +36,9 @@
 #define ESP_UTILS_LOG_TAG "Main"
 #include "esp_lib_utils.h"
 
-#include "tusb_composite.h"
+#include "usb_msc.h"
 #include "audio_sys.h"
+#include "coze_agent_config.h"
 #include "coze_agent_config_default.h"
 
 constexpr bool        EXAMPLE_SHOW_MEM_INFO     = false;
@@ -83,6 +84,7 @@ using namespace esp_brookesia::services;
 using namespace esp_brookesia::ai_framework;
 
 static bool init_display_and_draw_logic();
+static bool init_sdcard();
 static bool check_whether_enter_developer_mode();
 static bool init_media_audio();
 static bool init_services();
@@ -108,6 +110,7 @@ extern "C" void app_main()
     printf("Project version: %s\n", CONFIG_APP_PROJECT_VER);
 
     assert(init_display_and_draw_logic()        && "Initialize display and draw logic failed");
+    assert(init_sdcard()                        && "Initialize SD card failed");
     assert(check_whether_enter_developer_mode() && "Check whether enter developer mode failed");
     assert(init_media_audio()                   && "Initialize media audio failed");
     assert(init_services()                      && "Initialize services failed");
@@ -159,15 +162,14 @@ static bool draw_bitmap_with_lock(lv_disp_t *disp, int x_start, int y_start, int
 
     std::lock_guard<boost::mutex> lock(draw_mutex);
 
-    lvgl_port_take_trans_sem(disp, 0);
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        esp_lcd_panel_draw_bitmap(panel_handle, x_start, y_start, x_end, y_end, data) == ESP_OK, false,
-        "Draw bitmap failed"
+    lvgl_port_disp_take_trans_sem(disp, 0);
+    ESP_UTILS_CHECK_ERROR_RETURN(
+        esp_lcd_panel_draw_bitmap(panel_handle, x_start, y_start, x_end, y_end, data), false, "Draw bitmap failed"
     );
 
     // Wait for the last frame buffer to complete transmission
-    ESP_UTILS_CHECK_FALSE_RETURN(lvgl_port_take_trans_sem(disp, portMAX_DELAY) == ESP_OK, false, "Take trans sem failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(lvgl_port_give_trans_sem(disp, false) == ESP_OK, false, "Give trans sem failed");
+    ESP_UTILS_CHECK_ERROR_RETURN(lvgl_port_disp_take_trans_sem(disp, portMAX_DELAY), false, "Take trans sem failed");
+    lvgl_port_disp_give_trans_sem(disp, false);
 
     return true;
 }
@@ -192,15 +194,14 @@ static bool init_display_and_draw_logic()
 
     /* Initialize BSP */
     bsp_power_init(0);
-    bsp_i2c_init();
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = {
             .task_priority = LVGL_TASK_PRIORITY,
             .task_stack = LVGL_TASK_STACK_SIZE,
             .task_affinity = LVGL_TASK_CORE_ID,
             .task_max_sleep_ms = LVGL_TASK_MAX_SLEEP_MS,
+            .task_stack_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT,
             .timer_period_ms = LVGL_TASK_TIMER_PERIOD_MS,
-            .task_in_ext = LVGL_TASK_STACK_CAPS_EXT,
         },
         .buffer_size = BSP_LCD_H_RES * BSP_LCD_V_RES,
         .double_buffer = true,
@@ -249,9 +250,9 @@ static bool init_display_and_draw_logic()
     Display::on_dummy_draw_signal.connect([ = ](bool enable) {
         ESP_UTILS_LOGI("Dummy draw: %d", enable);
 
-        ESP_UTILS_CHECK_FALSE_EXIT(lvgl_port_take_trans_sem(disp, portMAX_DELAY) == ESP_OK, "Take trans sem failed");
-        ESP_UTILS_CHECK_FALSE_EXIT(lvgl_port_set_dummy_draw(disp, enable) == ESP_OK, "Set dummy draw failed");
-        ESP_UTILS_CHECK_FALSE_EXIT(lvgl_port_give_trans_sem(disp, false) == ESP_OK, "Give trans sem failed");
+        ESP_UTILS_CHECK_ERROR_EXIT(lvgl_port_disp_take_trans_sem(disp, portMAX_DELAY), "Take trans sem failed");
+        lvgl_port_disp_set_dummy_draw(disp, enable);
+        lvgl_port_disp_give_trans_sem(disp, false);
 
         if (!enable) {
             bsp_display_lock(0);
@@ -263,6 +264,44 @@ static bool init_display_and_draw_logic()
 
         is_lvgl_dummy_draw = enable;
     });
+
+    return true;
+}
+
+static bool init_sdcard()
+{
+    ESP_UTILS_LOG_TRACE_GUARD();
+
+    auto ret = bsp_sdcard_mount();
+    if (ret == ESP_OK) {
+        ESP_UTILS_LOGI("Mount SD card successfully");
+        return true;
+    } else {
+        ESP_UTILS_LOGE("Mount SD card failed(%s)", esp_err_to_name(ret));
+    }
+
+    Display::on_dummy_draw_signal(false);
+
+    bsp_display_lock(0);
+
+    auto label = lv_label_create(lv_screen_active());
+    lv_obj_set_size(label, 300, LV_SIZE_CONTENT);
+    lv_obj_set_style_text_font(label, &esp_brookesia_font_maison_neue_book_26, 0);
+    lv_label_set_text(label, "SD card not found, please insert a SD card!");
+    lv_obj_center(label);
+
+    bsp_display_unlock();
+
+    while ((ret = bsp_sdcard_mount()) != ESP_OK) {
+        ESP_UTILS_LOGE("Mount SD card failed(%s), retry...", esp_err_to_name(ret));
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+
+    bsp_display_lock(0);
+    lv_obj_del(label);
+    bsp_display_unlock();
+
+    Display::on_dummy_draw_signal(true);
 
     return true;
 }
@@ -306,8 +345,8 @@ static bool check_whether_enter_developer_mode()
     lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_18, 0);
     lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
     lv_label_set_text(
-        content_label, "Please connect the device to your computer via USB. A USB drive will appear. You can \
-        create or modify the `bot_setting.json` and `private_key.pem` files as needed."
+        content_label, "Please connect the device to your computer via USB. A USB drive will appear. "
+        "You can create or modify the files in the SD card (like `bot_setting.json` and `private_key.pem`) as needed."
     );
     lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
 
@@ -328,7 +367,8 @@ static bool check_whether_enter_developer_mode()
 
     bsp_display_unlock();
 
-    mount_wl_basic_and_tusb();
+    // mount_wl_basic_and_tusb();
+    ESP_UTILS_CHECK_ERROR_RETURN(usb_msc_mount(), false, "Mount USB MSC failed");
 
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -339,8 +379,42 @@ static bool init_media_audio()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
 
+    bsp_pcd_diff_info_t pcb_info = {};
+    ESP_UTILS_CHECK_ERROR_RETURN(bsp_pcb_version_detect(&pcb_info), false, "Detect PCB version failed");
+
+    esp_gmf_setup_periph_hardware_info periph_info = {
+        .i2c = {
+            .handle = bsp_i2c_get_handle(),
+        },
+        .codec = {
+            .io_pa = pcb_info.audio.pa_pin,
+            .type = ESP_GMF_CODEC_TYPE_ES7210_IN_ES8311_OUT,
+            .dac = {
+                .io_mclk = BSP_I2S_MCLK,
+                .io_bclk = BSP_I2S_SCLK,
+                .io_ws = BSP_I2S_LCLK,
+                .io_do = BSP_I2S_DOUT,
+                .io_di = pcb_info.audio.i2s_din_pin,
+                .sample_rate = 16000,
+                .channel = 2,
+                .bits_per_sample = 32,
+                .port_num  = 0,
+            },
+            .adc = {
+                .io_mclk = BSP_I2S_MCLK,
+                .io_bclk = BSP_I2S_SCLK,
+                .io_ws = BSP_I2S_LCLK,
+                .io_do = BSP_I2S_DOUT,
+                .io_di = pcb_info.audio.i2s_din_pin,
+                .sample_rate = 16000,
+                .channel = 2,
+                .bits_per_sample = 32,
+                .port_num  = 0,
+            },
+        },
+    };
     ESP_UTILS_CHECK_ERROR_RETURN(
-        audio_manager_init(bsp_i2c_get_handle(), &play_dev, &rec_dev), false, "Initialize audio manager failed"
+        audio_manager_init(&periph_info, &play_dev, &rec_dev), false, "Initialize audio manager failed"
     );
     ESP_UTILS_CHECK_ERROR_RETURN(audio_prompt_open(), false, "Open audio prompt failed");
 
@@ -483,7 +557,7 @@ static bool load_coze_agent_config()
     CozeChatAgentInfo agent_info = {};
     std::vector<CozeChatRobotInfo> robot_infos;
 
-    if (read_bot_config_from_flash(&config) == ESP_OK) {
+    if (coze_agent_config_read(&config) == ESP_OK) {
         agent_info.custom_consumer = config.custom_consumer ? config.custom_consumer : "";
         agent_info.app_id = config.appid ? config.appid : "";
         agent_info.public_key = config.public_key ? config.public_key : "";
@@ -496,7 +570,7 @@ static bool load_coze_agent_config()
                 .description = config.bot[i].bot_description ? config.bot[i].bot_description : "",
             });
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(release_bot_config(&config) == ESP_OK, false, "Release bot config failed");
+        ESP_UTILS_CHECK_FALSE_RETURN(coze_agent_config_release(&config) == ESP_OK, false, "Release bot config failed");
     } else {
 #if COZE_AGENT_ENABLE_DEFAULT_CONFIG
         ESP_UTILS_LOGW("Failed to read bot config from flash, use default config");
@@ -521,7 +595,7 @@ static bool load_coze_agent_config()
         });
 #endif // COZE_AGENT_BOT2_ENABLE
 #else
-        ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Failed to read bot config from flash");
+        ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Failed to read bot config");
 #endif // COZE_AGENT_ENABLE_DEFAULT_CONFIG
     }
 

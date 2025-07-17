@@ -1,5 +1,9 @@
 # Changelog
 
+## [Unreleased]
+### Features
+- Added option to place LVGL task stack to external RAM
+
 ## 2.6.0
 
 ### Features

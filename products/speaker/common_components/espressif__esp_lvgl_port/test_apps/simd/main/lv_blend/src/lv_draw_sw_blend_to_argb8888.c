@@ -8,7 +8,7 @@
  */
 
 /**
- * @file lv_draw_sw_blend.c
+ * @file lv_draw_sw_blend_to_argb8888.c
  *
  */
 
