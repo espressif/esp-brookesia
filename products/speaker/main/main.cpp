@@ -30,6 +30,7 @@
 #include "esp_brookesia_app_ai_profile.hpp"
 #include "esp_brookesia_app_game_2048.hpp"
 #include "esp_brookesia_app_calculator.hpp"
+#include "esp_brookesia_app_timer.hpp"
 #ifdef ESP_UTILS_LOG_TAG
 #   undef ESP_UTILS_LOG_TAG
 #endif
@@ -764,6 +765,12 @@ static bool create_speaker_and_install_apps()
     auto app_calculator_id = speaker->installApp(app_calculator);
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_calculator_id), false, "Install calculator app failed");
 
+    /* Install timer app */
+    auto app_timer = Timer::requestInstance();
+    ESP_UTILS_CHECK_NULL_RETURN(app_timer, false, "Get timer app failed");
+    auto app_timer_id = speaker->installApp(app_timer);
+    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_timer_id), false, "Install timer app failed");
+
     speaker->unlockLv();
 
     /* Register function callings */
@@ -776,7 +783,8 @@ static bool create_speaker_and_install_apps()
             {app_settings_id, {app_settings->getName(), "setting", "settings", "设置", "设置应用", "设置app"}},
             {app_game_2048_id, {app_game_2048->getName(), "2048", "game", "游戏", "2048游戏", "2048app"}},
             {app_calculator_id, {app_calculator->getName(), "calculator", "calc", "计算器", "计算器应用", "计算器app"}},
-            {app_ai_profile_id, {app_ai_profile->getName(), "AI profile", "ai 配置", "ai配置", "ai设置", "ai设置应用", "ai设置app"}}
+            {app_ai_profile_id, {app_ai_profile->getName(), "AI profile", "ai 配置", "ai配置", "ai设置", "ai设置应用", "ai设置app"}},
+            {app_timer_id, {app_timer->getName(), "timer", "时钟", "时钟应用", "时钟app"}}
         };
 
         for (const auto &param : params) {

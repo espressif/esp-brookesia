@@ -28,3 +28,6 @@ dependencies:
 
   brookesia_app_calculator:
     override_path: "../../../apps/brookesia_app_calculator"
+
+  brookesia_app_timer:
+    override_path: "../../../apps/brookesia_app_timer"
