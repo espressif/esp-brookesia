@@ -35,17 +35,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  delete-old-artifacts:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Delete old artifacts
-        uses: geekyeggo/delete-artifact@v2
-        with:
-          name: build-images-* # Delete all artifacts with name starting with build-images-
+  # delete-old-artifacts:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Delete old artifacts
+  #       uses: geekyeggo/delete-artifact@v2
+  #       with:
+  #         name: build-images-* # Delete all artifacts with name starting with build-images-
 
   job1:
     name: "Build Speaker"
-    needs: [delete-old-artifacts]
+    # needs: [delete-old-artifacts]
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
     strategy:
