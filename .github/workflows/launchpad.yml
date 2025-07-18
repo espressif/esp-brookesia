@@ -1,4 +1,21 @@
-name: Build demo
+# Copyright 2022 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow build examples, store the artifacts and deploy them to github pages.
+# Generates the launchpad configuration file that can be used with the url.
+
+name: "Build products and deploy launchpad"
 
 on:
   workflow_dispatch:
@@ -18,54 +35,77 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  delete-old-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old artifacts
+        uses: geekyeggo/delete-artifact@v2
+        with:
+          name: build-images-* # Delete all artifacts with name starting with build-images-
+
+  job1:
+    name: "Build Speaker"
+    needs: [delete-old-artifacts]
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.5
     strategy:
       matrix:
-        idf_ver: ["release-v5.5"]
-        idf_target: ["esp32s3"]
-    runs-on: ubuntu-latest
-    container: espressif/idf:${{ matrix.idf_ver }}
+        boards: ['echoear']
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
       - run: mkdir -p images
-      - name: Get speaker version
+      - name: Get product version
         shell: bash
         run: |
-          SPEAKER_VERSION=$(.github/tools/get_example_version.sh products/speaker)
-          echo "SPEAKER_VERSION=$SPEAKER_VERSION" >> $GITHUB_ENV
-          echo "Speaker version: $SPEAKER_VERSION"
-      - name: Build demo
-        env:
-          IDF_TARGET: ${{ matrix.idf_target }}
+          PRODUCT_VERSION=$(.github/tools/get_example_version.sh products/speaker)
+          echo "PRODUCT_VERSION=$PRODUCT_VERSION" >> $GITHUB_ENV
+          echo "Product version: $PRODUCT_VERSION"
+      - name: Build product
         shell: bash
         run: |
-          cp .github/tools/launchpad.toml images/launchpad.toml
-          cd products/speaker/
+          cd products/speaker
           . ${IDF_PATH}/export.sh
-          idf.py set-target ${{matrix.idf_target}} build
+          idf.py build
           cd build
-          esptool.py --chip ${{matrix.idf_target}} merge_bin -o "$GITHUB_WORKSPACE/images/factory_echoear_speaker_$SPEAKER_VERSION.bin" @flash_args
+          esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/speaker_${{matrix.boards}}_$PRODUCT_VERSION.bin" @flash_args
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-images
+          name: build-images-speaker-${{matrix.boards}}
           path: images/
+          overwrite: true
 
   deploy:
-    needs: build
+    needs: [job1]
+
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
       - name: Download builds
         uses: actions/download-artifact@v4
         with:
-          name: build-images
+          pattern: build-images-*
           path: images/
+          merge-multiple: true
+
+      - name: generate launchpad config
+        run: |
+          cd images/
+          ls *
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v2
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

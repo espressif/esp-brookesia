@@ -3,3 +3,4 @@
 .gitlab/tools/push_to_github.sh
 
 .github/tools/get_example_version.sh
+.github/tools/generate_launchpad_config.sh
