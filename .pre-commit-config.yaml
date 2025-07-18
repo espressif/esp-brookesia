@@ -12,6 +12,7 @@ exclude: |
     | .*private_key.pem
     | apps/brookesia_app_ai_profile/ui/.*
     | apps/brookesia_app_squareline/ui/.*
+    | apps/brookesia_app_timer/ui/.*
     | core/brookesia_core/gui/squareline/.*
     | docs/.*
   )

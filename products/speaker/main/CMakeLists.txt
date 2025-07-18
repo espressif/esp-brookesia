@@ -58,24 +58,6 @@ if(CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM)
     )
 endif()
 
-# Add compile options for 2048 game app
-get_component_library("brookesia_app_game_2048" GAME_2048_LIB)
-target_compile_options(
-    ${GAME_2048_LIB}
-    PUBLIC
-        "-Wno-missing-field-initializers"
-        "-Wno-deprecated-enum-enum-conversion"
-)
-
-# Add compile options for calculator app
-get_component_library("brookesia_app_calculator" CALCULATOR_LIB)
-target_compile_options(
-    ${CALCULATOR_LIB}
-    PUBLIC
-        "-Wno-missing-field-initializers"
-        "-Wno-deprecated-enum-enum-conversion"
-)
-
 get_component_library("gmf_core" GMF_CORE_LIB)
 target_compile_options(
     ${GMF_CORE_LIB}
