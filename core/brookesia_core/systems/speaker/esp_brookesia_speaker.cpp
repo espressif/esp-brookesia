@@ -38,7 +38,6 @@ Speaker::~Speaker()
 
 bool Speaker::begin(void)
 {
-    bool ret = true;
     const SpeakerStylesheet_t *default_find_data = nullptr;
     ESP_Brookesia_StyleSize_t display_size = {};
 
@@ -47,10 +46,10 @@ bool Speaker::begin(void)
 
     // Check if any speaker stylesheet is added, if not, add default stylesheet
     if (getStylesheetCount() == 0) {
-        ESP_UTILS_LOGW("No speaker stylesheet is added, adding default dark stylesheet(%s)",
-                       _default_stylesheet_dark.core.name);
-        ESP_UTILS_CHECK_FALSE_GOTO(ret = addStylesheet(_default_stylesheet_dark), end,
-                                   "Failed to add default stylesheet");
+        ESP_UTILS_LOGW(
+            "No speaker stylesheet is added, adding default dark stylesheet(%s)", _default_stylesheet_dark.core.name
+        );
+        ESP_UTILS_CHECK_FALSE_RETURN(addStylesheet(_default_stylesheet_dark), false, "Failed to add default stylesheet");
     }
     // Check if any speaker stylesheet is activated, if not, activate default stylesheet
     if (_active_stylesheet.core.name == nullptr) {
@@ -58,29 +57,33 @@ bool Speaker::begin(void)
         display_size.width = lv_disp_get_hor_res(_display_device);
         display_size.height = lv_disp_get_ver_res(_display_device);
 
-        ESP_UTILS_LOGW("No speaker stylesheet is activated, try to find first stylesheet with display size(%dx%d)",
-                       display_size.width, display_size.height);
+        ESP_UTILS_LOGW(
+            "No speaker stylesheet is activated, try to find first stylesheet with display size(%dx%d)",
+            display_size.width, display_size.height
+        );
         default_find_data = getStylesheet(display_size);
-        ESP_UTILS_CHECK_NULL_GOTO(default_find_data, end, "Failed to get default stylesheet");
+        ESP_UTILS_CHECK_NULL_RETURN(default_find_data, false, "Failed to get default stylesheet");
 
-        ret = activateStylesheet(*default_find_data);
-        ESP_UTILS_CHECK_FALSE_GOTO(ret, end, "Failed to activate default stylesheet");
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            activateStylesheet(*default_find_data), false, "Failed to activate default stylesheet"
+        );
     }
 
-    ESP_UTILS_CHECK_FALSE_GOTO(ret = beginCore(), end, "Failed to begin core");
-    ESP_UTILS_CHECK_FALSE_GOTO(ret = display.begin(), end, "Failed to begin display");
+    ESP_UTILS_CHECK_FALSE_RETURN(beginCore(), false, "Failed to begin core");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.begin(), false, "Failed to begin display");
 
     // Show boot animation first
-    ESP_UTILS_CHECK_FALSE_GOTO(ret = display.processDummyDraw(true), end, "Process dummy draw failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.processDummyDraw(true), false, "Process dummy draw failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.startBootAnimation(), false, "Start boot animation failed");
     audio_prompt_play_with_block(MUSIC_FILE_BOOT, -1);
-    ESP_UTILS_CHECK_FALSE_GOTO(ret = display.startBootAnimation(), end, "Start boot animation failed");
-    ESP_UTILS_CHECK_FALSE_GOTO(
-        ret = AI_Buddy::requestInstance()->begin(_active_stylesheet.ai_buddy), end, "Failed to begin ai buddy"
-    );
-    ESP_UTILS_CHECK_FALSE_GOTO(ret = manager.begin(), end, "Failed to begin manager");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.waitBootAnimationStop(), false, "Wait boot animation stop failed");
 
-end:
-    return ret;
+    auto ai_buddy = AI_Buddy::requestInstance();
+    ESP_UTILS_CHECK_NULL_RETURN(ai_buddy, false, "Failed to request ai buddy instance");
+    ESP_UTILS_CHECK_FALSE_RETURN(ai_buddy->begin(_active_stylesheet.ai_buddy), false, "Failed to begin ai buddy");
+    ESP_UTILS_CHECK_FALSE_RETURN(manager.begin(), false, "Failed to begin manager");
+
+    return true;
 }
 
 bool Speaker::del(void)

@@ -5,13 +5,14 @@
  */
 #pragma once
 
+#include "esp_brookesia_systems_internal.h"
+#include "assets/esp_brookesia_speaker_assets.h"
+#include "esp_brookesia_speaker.hpp"
 #include "core_data.hpp"
 #include "app_launcher_data.hpp"
 #include "gesture_data.hpp"
 #include "quick_settings.hpp"
 #include "keyboard.hpp"
-#include "assets/esp_brookesia_speaker_assets.h"
-#include "esp_brookesia_speaker.hpp"
 
 namespace esp_brookesia::speaker {
 
@@ -25,26 +26,29 @@ constexpr DisplayData ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA = {
                 .width = 360,
                 .height = 360,
             },
+            .source = gui::AnimPlayerPartitionConfig{
+                .partition_label = "anim_boot",
+                .max_files = MMAP_BOOT_FILES,
+                .fps = (const int []) { 18 },
+                .checksum = MMAP_BOOT_CHECKSUM,
+            },
+            // .source = gui::AnimPlayerResourcesConfig{
+            //     .num = 1,
+            //     .resources = (const gui::AnimPlayerAnimPath [])
+            //     {
+            //         {
+            //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/boot_animation_360_360.aaf",
+            //             .fps = 18,
+            //         },
+            //     },
+            // },
             .task = {
                 .task_priority = 4,
                 .task_stack = 10 * 1024,
                 .task_affinity = 0,
                 .task_stack_in_ext = true,
             },
-            .source = {
-                .animation_num = 1,
-                .animation_configs = (const gui::AnimPlayerAnimConfig [])
-                {
-                    { .fps = 18, },
-                },
-                .partition_config = gui::AnimPlayerPartitionConfig{
-                    .partition_label = "anim_boot",
-                    .max_files = MMAP_BOOT_FILES,
-                    .checksum = MMAP_BOOT_CHECKSUM,
-                },
-            },
             .flags = {
-                .enable_source_partition = true,
                 .enable_data_swap_bytes = true,
             },
         },
@@ -94,31 +98,44 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
                         .width = 284,
                         .height = 126,
                     },
+                    .source = gui::AnimPlayerPartitionConfig{
+                        .partition_label = "anim_emotion",
+                        .max_files = MMAP_EMOTION_FILES,
+                        .fps = (const int []) { 30, 30, 30, 30, 30, 30 },
+                        .checksum = MMAP_EMOTION_CHECKSUM,
+                    },
+                    // .source = gui::AnimPlayerResourcesConfig{
+                    //     .num = 6,
+                    //     .resources = (const gui::AnimPlayerAnimPath [])
+                    //     {
+                    //         {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_angry_284_126.aaf",
+                    //             .fps = 30,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_blink_fast_284_126.aaf",
+                    //             .fps = 30,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_blink_slow_284_126.aaf",
+                    //             .fps = 30,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_happy_284_126.aaf",
+                    //             .fps = 30,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_sad_284_126.aaf",
+                    //             .fps = 30,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_sleep_284_126.aaf",
+                    //             .fps = 30,
+                    //         },
+                    //     },
+                    // },
                     .task = {
                         .task_priority = 4,
                         .task_stack = 10 * 1024,
                         .task_affinity = 0,
                         .task_stack_in_ext = true,
                     },
-                    .source = {
-                        .animation_num = 6,
-                        .animation_configs = (const gui::AnimPlayerAnimConfig [])
-                        {
-                            { .fps = 30, },
-                            { .fps = 30, },
-                            { .fps = 30, },
-                            { .fps = 30, },
-                            { .fps = 30, },
-                            { .fps = 30, },
-                        },
-                        .partition_config = gui::AnimPlayerPartitionConfig{
-                            .partition_label = "anim_emotion",
-                            .max_files = MMAP_EMOTION_FILES,
-                            .checksum = MMAP_EMOTION_CHECKSUM,
-                        },
-                    },
                     .flags = {
-                        .enable_source_partition = true,
                         .enable_data_swap_bytes = true,
                     },
                 },
@@ -131,36 +148,59 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
                         .width = 64,
                         .height = 64,
                     },
+                    .source = gui::AnimPlayerPartitionConfig{
+                        .partition_label = "anim_icon",
+                        .max_files = MMAP_ICON_FILES,
+                        .fps = (const int []) { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15 },
+                        .checksum = MMAP_ICON_CHECKSUM,
+                    },
+                    // .source = gui::AnimPlayerResourcesConfig{
+                    //     .num = 11,
+                    //     .resources = (const gui::AnimPlayerAnimPath [])
+                    //     {
+                    //         {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_brightness_down_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_brightness_up_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_emotion_confused_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_emotion_sleep_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_emotion_thinking_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_server_connected_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_server_connecting_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_volume_down_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_volume_mute_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_volume_up_64.aaf",
+                    //             .fps = 15,
+                    //         }, {
+                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_wifi_disconnect_64.aaf",
+                    //             .fps = 15,
+                    //         },
+                    //     },
+                    // },
                     .task = {
                         .task_priority = 4,
                         .task_stack = 10 * 1024,
                         .task_affinity = 0,
                         .task_stack_in_ext = true,
                     },
-                    .source = {
-                        .animation_num = 11,
-                        .animation_configs = (const gui::AnimPlayerAnimConfig [])
-                        {
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                            { .fps = 15, },
-                        },
-                        .partition_config = gui::AnimPlayerPartitionConfig{
-                            .partition_label = "anim_icon",
-                            .max_files = MMAP_ICON_FILES,
-                            .checksum = MMAP_ICON_CHECKSUM,
-                        },
-                    },
                     .flags = {
-                        .enable_source_partition = true,
                         .enable_data_swap_bytes = true,
                     },
                 },

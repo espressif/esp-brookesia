@@ -33,18 +33,17 @@ bool Expression::begin(const ExpressionData &data, const EmojiMap *emoji_map, co
     });
 
     if (data.flags.enable_emotion) {
-        ESP_UTILS_CHECK_FALSE_RETURN(data.emotion.data.source.animation_num > 0, false, "Invalid emotion animation num");
+        auto animation_num = data.emotion.data.getAnimationNum();
+        ESP_UTILS_CHECK_FALSE_RETURN(animation_num > 0, false, "Invalid emotion animation num");
         ESP_UTILS_CHECK_NULL_RETURN(emoji_map, false, "Invalid emoji map");
 
         auto &emoji_map_tmp = *emoji_map;
         for (auto &[emoji, emotion_icon] : emoji_map_tmp) {
             ESP_UTILS_CHECK_VALUE_RETURN(
-                emotion_icon.first, EMOTION_TYPE_NONE, data.emotion.data.source.animation_num - 1, false,
-                "Emotion index out of data range"
+                emotion_icon.first, EMOTION_TYPE_NONE, animation_num - 1, false, "Emotion index out of data range"
             );
             ESP_UTILS_CHECK_VALUE_RETURN(
-                emotion_icon.second, EMOTION_TYPE_NONE, data.icon.data.source.animation_num - 1, false,
-                "Icon index out of data range"
+                emotion_icon.second, EMOTION_TYPE_NONE, animation_num - 1, false, "Icon index out of data range"
             );
         }
 
@@ -54,14 +53,14 @@ bool Expression::begin(const ExpressionData &data, const EmojiMap *emoji_map, co
         ESP_UTILS_CHECK_FALSE_RETURN(_emotion_player->begin(data.emotion.data), false, "Emotion player begin failed");
     }
     if (data.flags.enable_icon) {
-        ESP_UTILS_CHECK_FALSE_RETURN(data.icon.data.source.animation_num > 0, false, "Invalid icon animation num");
+        auto animation_num = data.icon.data.getAnimationNum();
+        ESP_UTILS_CHECK_FALSE_RETURN(animation_num > 0, false, "Invalid icon animation num");
         ESP_UTILS_CHECK_NULL_RETURN(system_icon_map, false, "Invalid system icon map");
 
         auto &system_icon_map_tmp = *system_icon_map;
         for (auto &[icon, icon_type] : system_icon_map_tmp) {
             ESP_UTILS_CHECK_VALUE_RETURN(
-                icon_type, ICON_TYPE_NONE, data.icon.data.source.animation_num - 1, false,
-                "Icon index out of data range"
+                icon_type, ICON_TYPE_NONE, animation_num - 1, false, "Icon index out of data range"
             );
         }
 
