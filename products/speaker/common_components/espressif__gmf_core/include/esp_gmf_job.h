@@ -103,7 +103,7 @@ typedef struct {
 
 static inline esp_gmf_err_t esp_gmf_job_stack_create(esp_gmf_job_stack_t **stack)
 {
-    *stack = esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_stack_t));
+    *stack = (esp_gmf_job_stack_t*)esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_stack_t));
     ESP_GMF_MEM_CHECK("GMF_JOB_STACK", *stack, return ESP_GMF_ERR_MEMORY_LACK);
     return ESP_GMF_ERR_OK;
 }
@@ -111,7 +111,7 @@ static inline esp_gmf_err_t esp_gmf_job_stack_create(esp_gmf_job_stack_t **stack
 static inline esp_gmf_err_t esp_gmf_job_stack_push(esp_gmf_job_stack_t *stack, uint32_t node_addr)
 {
     ESP_GMF_NULL_CHECK("GMF_JOB_STACK", stack, return ESP_GMF_ERR_INVALID_ARG);
-    esp_gmf_job_node_t *node = esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_node_t));
+    esp_gmf_job_node_t *node = (esp_gmf_job_node_t*)esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_node_t));
     ESP_GMF_MEM_CHECK("GMF_JOB_STACK", node, return ESP_GMF_ERR_MEMORY_LACK);
     node->node_addr = node_addr;
     node->next = stack->top;

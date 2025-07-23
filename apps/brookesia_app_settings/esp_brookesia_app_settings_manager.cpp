@@ -1693,6 +1693,8 @@ bool SettingsManager::processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_
         toggleWlanScanTimer(true, true);
     }
 
+    event_signal(EventType::EnterScreen, ui_screen);
+
     return true;
 }
 

@@ -33,6 +33,7 @@
 /* I2C */
 #define BSP_I2C_SCL           (GPIO_NUM_1)
 #define BSP_I2C_SDA           (GPIO_NUM_2)
+#define BSP_IMU_INT           (GPIO_NUM_21)
 
 /* Audio */
 #define BSP_I2S_SCLK          (GPIO_NUM_40) // BCLK
@@ -86,6 +87,7 @@
 #else
 #   define BSP_TOUCH_PAD2     (GPIO_NUM_NC)
 #endif
+#define BSP_HEAD_LED          (GPIO_NUM_43) // GREEN LED
 
 #ifdef __cplusplus
 extern "C" {
@@ -333,6 +335,29 @@ esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg);
  * @return SD card handle
  */
 sdmmc_card_t *bsp_sdcard_get_handle(void);
+
+/**
+ * @brief Set head LED
+ *
+ * @param on true to turn on, false to turn off
+ *
+ * @return
+ *     - ESP_OK on success
+ *     - ESP_ERR_INVALID_ARG if the parameter is invalid
+ */
+esp_err_t bsp_set_head_led(bool on);
+
+/**
+ * @brief Set peripheral power
+ *
+ * @param on true to turn on, false to turn off
+ *
+ * @return
+ *     - ESP_OK on success
+ *     - ESP_ERR_INVALID_ARG if the parameter is invalid
+ */
+esp_err_t bsp_set_peripheral_power(bool on);
+
 
 #ifdef __cplusplus
 }

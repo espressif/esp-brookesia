@@ -7,6 +7,10 @@ dependencies:
 
   echoear:
     override_path: "../common_components/echoear"
+  bq27220:
+    override_path: "../common_components/bq27220"
+
+  espressif2022/bmi270: ^1.1.0~2
 
   espressif/gmf_core:
     override_path: "../common_components/espressif__gmf_core"

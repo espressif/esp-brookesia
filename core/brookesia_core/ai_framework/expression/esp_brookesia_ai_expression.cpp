@@ -178,6 +178,34 @@ bool Expression::resume(bool update_emotion, bool update_icon)
     return true;
 }
 
+void Expression::emojiTimerCallback(TimerHandle_t timer)
+{
+    auto expression = static_cast<Expression *>(pvTimerGetTimerID(timer));
+    if (expression != nullptr && !expression->_flags.is_paused) {
+        expression->setEmoji(expression->_last_emoji, AnimOperationConfig{}, AnimOperationConfig{.en = false});
+        ESP_UTILS_LOGI("Emoji timer callback: set emoji to %s", expression->_last_emoji.c_str());
+    }
+    xTimerDelete(timer, 0);
+    expression->timer = nullptr;
+}
+
+bool Expression::insertEmojiTemporary(const std::string &emoji, uint32_t duration_ms)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (timer) {
+        ESP_UTILS_LOGW("Emoji timer already exists");
+        return true;
+    }
+    std::string emoji_tmp = this->_last_emoji;
+    setEmoji(emoji, AnimOperationConfig{}, AnimOperationConfig{.en = false});
+    this->_last_emoji = emoji_tmp;
+    timer = xTimerCreate("insertEmoji", pdMS_TO_TICKS(duration_ms), pdFALSE, this, emojiTimerCallback);
+    ESP_UTILS_CHECK_FALSE_RETURN(timer != nullptr, false, "Failed to create emoji timer");
+    xTimerStart(timer, 0);
+    return true;
+}
+
 bool Expression::setEmoji(
     const std::string &emoji, const AnimOperationConfig &emotion_config, const AnimOperationConfig &icon_config
 )
@@ -199,8 +227,9 @@ bool Expression::setEmoji(
 
     auto it = _emoji_map.find(emoji);
     ESP_UTILS_CHECK_FALSE_RETURN(it != _emoji_map.end(), false, "Unknown emoji");
+    _last_emoji = emoji;
 
-    if (_emotion_player != nullptr) {
+    if (_emotion_player != nullptr && emotion_config.en) {
         auto emotion_type = it->second.first;
         gui::AnimPlayer::Operation emotion_operation = gui::AnimPlayer::Operation::Stop;
         if (emotion_type != EMOTION_TYPE_NONE) {
@@ -213,7 +242,7 @@ bool Expression::setEmoji(
         );
     }
 
-    if (_icon_player != nullptr) {
+    if (_icon_player != nullptr && icon_config.en) {
         auto icon_type = it->second.second;
         gui::AnimPlayer::Operation icon_operation = gui::AnimPlayer::Operation::Stop;
         if (icon_type != ICON_TYPE_NONE) {

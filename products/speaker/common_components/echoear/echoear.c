@@ -535,7 +535,7 @@ esp_err_t bsp_power_init(bool power_en)
 {
     gpio_config_t power_gpio_config = {
         .mode = GPIO_MODE_OUTPUT,
-        .pin_bit_mask = BIT64(BSP_POWER_OFF),
+        .pin_bit_mask = BIT64(BSP_POWER_OFF) | BIT64(BSP_HEAD_LED),
     };
 #if defined(BSP_POWER_CODEC_EN)
     power_gpio_config.pin_bit_mask |= BIT64(BSP_POWER_CODEC_EN);
@@ -543,6 +543,7 @@ esp_err_t bsp_power_init(bool power_en)
     ESP_ERROR_CHECK(gpio_config(&power_gpio_config));
 
     gpio_set_level(BSP_POWER_OFF, !power_en);
+    gpio_set_level(BSP_HEAD_LED, 0); // led on
 #if defined(BSP_POWER_CODEC_EN)
     gpio_set_level(BSP_POWER_CODEC_EN, power_en);
     ESP_LOGI(TAG, "Using PCB version V1.2");
@@ -635,4 +636,14 @@ esp_err_t bsp_sdcard_unmount(void)
     bsp_sdcard = NULL;
 
     return ret;
+}
+
+esp_err_t bsp_set_head_led(bool on)
+{
+    return gpio_set_level(BSP_HEAD_LED, !on);
+}
+
+esp_err_t bsp_set_peripheral_power(bool on)
+{
+    return gpio_set_level(BSP_POWER_OFF, !on);
 }

@@ -527,6 +527,7 @@ static void audio_data_read_task(void *pv)
 
 static void audio_pipe_open(void)
 {
+    vTaskDelay(pdMS_TO_TICKS(800)); // Delay a little time to stagger other initializations
     audio_recorder_open(recorder_event_callback_fn, NULL);
     audio_playback_open();
     audio_playback_run();

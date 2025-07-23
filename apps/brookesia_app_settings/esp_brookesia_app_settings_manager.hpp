@@ -63,9 +63,11 @@ public:
 
     enum class EventType {
         EnterDeveloperMode,
+        EnterScreen,
     };
     using EventData = std::any;
     using EventDataEnterDeveloperMode = std::monostate;
+    using EventDataEnterScreenIndex = UI_Screen;
 
     struct FirstTrue {
         using result_type = bool;

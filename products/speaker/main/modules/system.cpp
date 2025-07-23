@@ -28,6 +28,9 @@
 #include "usb_msc.h"
 #include "system.hpp"
 
+#include "battery_monitor.h"
+#include "imu_gesture.h"
+
 constexpr const char *FUNCTION_OPEN_APP_THREAD_NAME               = "open_app";
 constexpr int         FUNCTION_OPEN_APP_THREAD_STACK_SIZE         = 10 * 1024;
 constexpr int         FUNCTION_OPEN_APP_WAIT_SPEAKING_PRE_MS      = 2000;
@@ -62,28 +65,38 @@ static RTC_NOINIT_ATTR int developer_mode_key;
 extern const char private_key_pem_start[] asm("_binary_private_key_pem_start");
 extern const char private_key_pem_end[]   asm("_binary_private_key_pem_end");
 #endif
+static BatteryMonitor battery_monitor;
+static IMUGesture imu_gesture;
 
 static std::string to_lower(const std::string &input);
 static std::string get_before_space(const std::string &input);
 static bool load_coze_agent_config();
 static bool check_whether_enter_developer_mode();
+static void show_low_power(const Speaker *speaker);
+static void update_battery_info(const Speaker *speaker, const Settings *app_settings);
 
 bool system_init()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
+    Speaker *speaker = nullptr;
+    /* Create a speaker object */
+    ESP_UTILS_CHECK_EXCEPTION_RETURN(
+        speaker = new Speaker(), false, "Create speaker failed"
+    );
 
+    battery_monitor.setBatteryShutdownCallback(
+    [speaker]() {
+        show_low_power(speaker);
+    }
+    );
+    ESP_UTILS_CHECK_FALSE_RETURN(battery_monitor.init(), false, "Battery monitor init failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(imu_gesture.init(), false, "IMU gesture init failed");
     ESP_UTILS_CHECK_FALSE_RETURN(check_whether_enter_developer_mode(), false, "Check whether enter developer mode failed");
 
     /* Load coze agent config */
     if (!load_coze_agent_config()) {
         ESP_UTILS_LOGE("Load coze agent config failed");
     }
-
-    Speaker *speaker = nullptr;
-    /* Create a speaker object */
-    ESP_UTILS_CHECK_EXCEPTION_RETURN(
-        speaker = new Speaker(), false, "Create speaker failed"
-    );
 
     /* Try using a stylesheet that corresponds to the resolution */
     std::unique_ptr<SpeakerStylesheet_t> stylesheet;
@@ -104,6 +117,15 @@ bool system_init()
     speaker->lockLv();
 
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->begin(), false, "Begin failed");
+
+    // bind imu gesture to expression
+    auto ai_buddy = AI_Buddy::requestInstance();
+    ESP_UTILS_CHECK_NULL_RETURN(ai_buddy, false, "Failed to get ai buddy instance");
+    imu_gesture.gesture_signal.connect([ai_buddy](IMUGesture::GestureType type) {
+        if (type == IMUGesture::GestureType::ANY_MOTION) {
+            ESP_UTILS_CHECK_FALSE_EXIT(ai_buddy->expression.insertEmojiTemporary("dizzy", 2500), "Set emoji failed");
+        }
+    });
 
     /* Install app settings */
     auto app_settings = Settings::requestInstance();
@@ -127,8 +149,29 @@ bool system_init()
         app_settings->activateStylesheet(app_settings_stylesheet.get()), false, "Activate app settings stylesheet failed"
     );
     app_settings_stylesheet = nullptr;
+
+    // Update battery
+    battery_monitor.setBatteryStatusCallback(
+    [speaker](const BatteryStatus & status) {
+        static BatteryStatus bat_last_status = {};
+        if (bat_last_status.full != status.full) {
+            bat_last_status = status;
+            speaker->lockLv();
+            auto &quick_settings = speaker->display.getQuickSettings();
+            quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC());
+            speaker->unlockLv();
+        }
+    }
+    );
+
+    battery_monitor.setMonitorPeriodCallback(
+    [speaker, app_settings]() {
+        update_battery_info(speaker, app_settings);
+    }
+    );
+
     // Process settings events
-    app_settings->manager.event_signal.connect([](SettingsManager::EventType event_type, SettingsManager::EventData event_data) {
+    app_settings->manager.event_signal.connect([ = ](SettingsManager::EventType event_type, SettingsManager::EventData event_data) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
         ESP_UTILS_LOGD("Param: event_type(%d), event_data(%s)", static_cast<int>(event_type), event_data.type().name());
@@ -143,6 +186,18 @@ bool system_init()
             ESP_UTILS_LOGW("Enter developer mode");
             developer_mode_key = DEVELOPER_MODE_KEY;
             esp_restart();
+            break;
+        }
+        case SettingsManager::EventType::EnterScreen: {
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                event_data.type() == typeid(SettingsManager::EventDataEnterScreenIndex), false,
+                "Invalid developer mode type"
+            );
+            auto screen_index = std::any_cast<SettingsManager::EventDataEnterScreenIndex>(event_data);
+            if (screen_index == SettingsManager::UI_Screen::MORE_ABOUT) {
+                // update about info immediately
+                update_battery_info(speaker, app_settings);
+            }
             break;
         }
         default:
@@ -534,4 +589,87 @@ static bool check_whether_enter_developer_mode()
     while (true) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
+}
+
+static void show_low_power(const Speaker *speaker)
+{
+    ESP_UTILS_LOGW("Low power triggered");
+    bsp_display_lock(0);
+    lv_obj_t *low_batt_scr = lv_obj_create(NULL);
+    auto title_label = lv_label_create(low_batt_scr);
+    lv_obj_set_size(title_label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_style_text_font(title_label, &esp_brookesia_font_maison_neue_book_30, 0);
+    lv_label_set_text(title_label, "Low Power");
+    lv_obj_set_style_text_color(title_label, lv_color_make(255, 0, 0), 0);
+    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 60);
+
+    auto content_label = lv_label_create(low_batt_scr);
+    lv_obj_set_size(content_label, LV_PCT(80), LV_SIZE_CONTENT);
+    lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_20, 0);
+    lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_text(content_label, "The battery is low. Device will sleep soon.\n"
+                      "Please connect the device to a power source to charge it.");
+    lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
+    lv_scr_load(low_batt_scr);
+
+    auto &quick_settings = speaker->display.getQuickSettings();
+    quick_settings.setVisible(false);
+    bsp_display_unlock();
+
+    auto ai_buddy = AI_Buddy::requestInstance();
+    if (ai_buddy) {
+        if (ai_buddy->expression.pause()) {
+            vTaskDelay(pdMS_TO_TICKS(1300));
+        }
+    }
+
+    Display::on_dummy_draw_signal(false); // Disable dummy draw to enable LVGL
+    StorageNVS::Value volume_value;
+    StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value);
+    StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, 65); // set volume to 65%
+    audio_prompt_play_with_block("file://spiffs/low_power.mp3", 1500);
+    for (size_t i = 0; i < 20; i++) {
+        bsp_set_head_led(i % 2 == 0); // blink head LED
+        vTaskDelay(pdMS_TO_TICKS(200));
+    }
+    StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value); // restore volume
+    vTaskDelay(pdMS_TO_TICKS(100)); // ensure storage nvs write completed
+    bsp_set_peripheral_power(false); // board peripheral off
+    ESP_UTILS_LOGW("Low power triggered, device will sleep now");
+}
+
+static void update_battery_info(const Speaker *speaker, const Settings *app_settings)
+{
+    speaker->lockLv();
+    auto &quick_settings = speaker->display.getQuickSettings();
+    quick_settings.setBatteryPercent(battery_monitor.is_charging(), battery_monitor.getBatterySOC());
+
+    char battery_info_str[32] = {0};
+    auto _cell = app_settings->ui.screen_about.getCell(
+                     static_cast<int>(SettingsUI_ScreenAboutContainerIndex::DEVICE),
+                     static_cast<int>(SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CAPACITY)
+                 );
+    if (_cell) {
+        snprintf(battery_info_str, sizeof(battery_info_str), "%dmAh", battery_monitor.getCapacity());
+        _cell->updateRightMainLabel(battery_info_str);
+    }
+
+    _cell = app_settings->ui.screen_about.getCell(
+                static_cast<int>(SettingsUI_ScreenAboutContainerIndex::DEVICE),
+                static_cast<int>(SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_VOLTAGE)
+            );
+    if (_cell) {
+        snprintf(battery_info_str, sizeof(battery_info_str), "%dmV", battery_monitor.getVoltage());
+        _cell->updateRightMainLabel(battery_info_str);
+    }
+
+    _cell = app_settings->ui.screen_about.getCell(
+                static_cast<int>(SettingsUI_ScreenAboutContainerIndex::DEVICE),
+                static_cast<int>(SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CURRENT)
+            );
+    if (_cell) {
+        snprintf(battery_info_str, sizeof(battery_info_str), "%dmA", battery_monitor.getCurrent());
+        _cell->updateRightMainLabel(battery_info_str);
+    }
+    speaker->unlockLv();
 }

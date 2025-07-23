@@ -288,72 +288,6 @@ bool QuickSettings::setWifiIconState(WifiState state)
     return true;
 }
 
-
-bool QuickSettings::setBatteryIconState(BatteryState state)
-{
-    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
-
-    ESP_UTILS_LOGD("Param: state(%d)", state);
-    ESP_UTILS_CHECK_FALSE_RETURN(isBegun(), false, "Not begun");
-
-    auto battery_icon = ui_comp_get_child(
-                            _main_object->getNativeHandle(),
-                            UI_COMP_CONTAINERQUICKSETTINGS_CONTAINERSTATUS_CONTAINERSTATUSINTERNAL_CONTAINERSTATUSINTERNALTOP_CONTAINERSTATUSINTERNALRIGHT_IMAGESTATUSINTERNALRIGHTBATTERY
-                        );
-    ESP_UTILS_CHECK_NULL_RETURN(battery_icon, false, "Invalid battery_icon");
-
-    const lv_image_dsc_t *image_src = nullptr;
-    lv_color_t color = BATTERY_ICON_COLOR_CHARGING;
-    switch (state) {
-    case BatteryState::LEVEL_1:
-        image_src = &speaker_image_middle_quick_settings_battery_level1_20_20;
-        color = BATTERY_ICON_COLOR_LEVEL_1;
-        break;
-    case BatteryState::LEVEL_2:
-        image_src = &speaker_image_middle_quick_settings_battery_level2_20_20;
-        color = BATTERY_ICON_COLOR_LEVEL_2;
-        break;
-    case BatteryState::LEVEL_3:
-        image_src = &speaker_image_middle_quick_settings_battery_level3_20_20;
-        color = BATTERY_ICON_COLOR_LEVEL_3;
-        break;
-    case BatteryState::LEVEL_4:
-        image_src = &speaker_image_middle_quick_settings_battery_level4_20_20;
-        color = BATTERY_ICON_COLOR_LEVEL_4;
-        break;
-    case BatteryState::CHARGING:
-        image_src = &speaker_image_middle_quick_settings_battery_charge_20_20;
-        color = BATTERY_ICON_COLOR_CHARGING;
-        break;
-    default:
-        break;
-    }
-    ESP_UTILS_CHECK_NULL_RETURN(image_src, false, "Invalid image_src");
-
-    lv_image_set_src(battery_icon, image_src);
-    lv_obj_set_style_image_recolor(battery_icon, color, 0);
-    lv_obj_set_style_image_recolor_opa(battery_icon, LV_OPA_COVER, 0);
-
-    return true;
-}
-
-bool QuickSettings::setBatteryLabel(int percent)
-{
-    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
-
-    ESP_UTILS_LOGD("Param: percent(%d)", percent);
-    ESP_UTILS_CHECK_FALSE_RETURN(isBegun(), false, "Not begun");
-
-    auto battery_label = ui_comp_get_child(
-                             _main_object->getNativeHandle(),
-                             UI_COMP_CONTAINERQUICKSETTINGS_CONTAINERSTATUS_CONTAINERSTATUSINTERNAL_CONTAINERSTATUSINTERNALTOP_CONTAINERSTATUSINTERNALRIGHT_LABELSTATUSINTERNALRIGHTBATTERYPERCENT
-                         );
-    ESP_UTILS_CHECK_NULL_RETURN(battery_label, false, "Invalid battery_label");
-    lv_label_set_text_fmt(battery_label, "%d%%", percent);
-
-    return true;
-}
-
 bool QuickSettings::setBatteryPercent(bool charge_flag, int percent)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
@@ -362,18 +296,48 @@ bool QuickSettings::setBatteryPercent(bool charge_flag, int percent)
     ESP_UTILS_CHECK_FALSE_RETURN(isBegun(), false, "Not begun");
 
     percent = std::clamp(percent, QUICK_SETTINGS_BATTERY_PERCENT_MIN, QUICK_SETTINGS_BATTERY_PERCENT_MAX);
-    ESP_UTILS_CHECK_FALSE_RETURN(setBatteryLabel(percent), false, "Set battery label failed");
+    auto battery_label = ui_comp_get_child(
+                             _main_object->getNativeHandle(),
+                             UI_COMP_CONTAINERQUICKSETTINGS_CONTAINERSTATUS_CONTAINERSTATUSINTERNAL_CONTAINERSTATUSINTERNALTOP_CONTAINERSTATUSINTERNALRIGHT_LABELSTATUSINTERNALRIGHTBATTERYPERCENT
+                         );
+    ESP_UTILS_CHECK_NULL_RETURN(battery_label, false, "Invalid battery_label");
+    lv_label_set_text_fmt(battery_label, "%d%%", percent);
 
-    auto level_interval =
-        ((QUICK_SETTINGS_BATTERY_PERCENT_MAX - QUICK_SETTINGS_BATTERY_PERCENT_MIN) / static_cast<int>(BatteryState::MAX));
-    auto level = static_cast<BatteryState>((percent - QUICK_SETTINGS_BATTERY_PERCENT_MIN) / level_interval);
-    if (level >= BatteryState::MAX) {
-        level = BatteryState::LEVEL_4;
+    auto battery_icon = ui_comp_get_child(
+                            _main_object->getNativeHandle(),
+                            UI_COMP_CONTAINERQUICKSETTINGS_CONTAINERSTATUS_CONTAINERSTATUSINTERNAL_CONTAINERSTATUSINTERNALTOP_CONTAINERSTATUSINTERNALRIGHT_IMAGESTATUSINTERNALRIGHTBATTERY
+                        );
+    ESP_UTILS_CHECK_NULL_RETURN(battery_icon, false, "Invalid battery_icon");
+    const lv_image_dsc_t *image_src = nullptr;
+    lv_color_t color = BATTERY_ICON_COLOR_CHARGING;
+    const lv_image_dsc_t *_images[] = {
+        &speaker_image_middle_quick_settings_battery_level1_20_20,
+        &speaker_image_middle_quick_settings_battery_level2_20_20,
+        &speaker_image_middle_quick_settings_battery_level3_20_20,
+        &speaker_image_middle_quick_settings_battery_level4_20_20,
+    };
+    if (charge_flag) {
+        image_src = &speaker_image_middle_quick_settings_battery_charge_20_20;
+        color = BATTERY_ICON_COLOR_CHARGING;
+    } else {
+        if (percent >= 75) {
+            image_src = _images[3];
+            color = BATTERY_ICON_COLOR_LEVEL_4;
+        } else if (percent >= 50) {
+            image_src = _images[2];
+            color = BATTERY_ICON_COLOR_LEVEL_3;
+        } else if (percent >= 20) {
+            image_src = _images[1];
+            color = BATTERY_ICON_COLOR_LEVEL_2;
+        } else {
+            image_src = _images[0];
+            color = BATTERY_ICON_COLOR_LEVEL_1;
+        }
     }
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        setBatteryIconState(charge_flag ? BatteryState::CHARGING : level), false,
-        "Set battery icon state failed"
-    );
+
+    lv_image_set_src(battery_icon, image_src);
+    lv_obj_set_style_image_recolor(battery_icon, color, 0);
+    lv_obj_set_style_image_recolor_opa(battery_icon, LV_OPA_COVER, 0);
 
     return true;
 }

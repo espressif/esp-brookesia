@@ -10,7 +10,6 @@
 
 lv_obj_t * ui_ContainerQuickSettings_create(lv_obj_t * comp_parent)
 {
-
     lv_obj_t * cui_ContainerQuickSettings;
     cui_ContainerQuickSettings = lv_obj_create(comp_parent);
     lv_obj_remove_style_all(cui_ContainerQuickSettings);

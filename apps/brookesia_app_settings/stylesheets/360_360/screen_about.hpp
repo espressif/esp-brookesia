@@ -76,6 +76,12 @@ constexpr SettingsUI_ScreenAboutData SETTINGS_UI_360_360_SCREEN_ABOUT_DATA()
             SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_GENERAL_NAME("Flash"),
             [(int)SettingsUI_ScreenAboutCellIndex::DEVICE_RAM_SIZE] =
             SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_GENERAL_NAME("RAM"),
+            [(int)SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CAPACITY] =
+            SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_GENERAL_NAME("Battery capacity"),
+            [(int)SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_VOLTAGE] =
+            SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_GENERAL_NAME("Battery voltage"),
+            [(int)SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CURRENT] =
+            SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_GENERAL_NAME("Battery current"),
             [(int)SettingsUI_ScreenAboutCellIndex::CHIP_NAME] =
             SETTINGS_UI_360_360_SCREEN_ABOUT_ELEMENT_CONF_GENERAL_NAME("Name"),
             [(int)SettingsUI_ScreenAboutCellIndex::CHIP_VERSION] =

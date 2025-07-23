@@ -101,7 +101,7 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
                     .source = gui::AnimPlayerPartitionConfig{
                         .partition_label = "anim_emotion",
                         .max_files = MMAP_EMOTION_FILES,
-                        .fps = (const int []) { 30, 30, 30, 30, 30, 30 },
+                        .fps = (const int []) { 30, 30, 30, 30, 30, 30, 30, 30},
                         .checksum = MMAP_EMOTION_CHECKSUM,
                     },
                     // .source = gui::AnimPlayerResourcesConfig{

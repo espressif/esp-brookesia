@@ -88,8 +88,6 @@ public:
 
     bool setWifiIconState(WifiState state);
 
-    bool setBatteryIconState(BatteryState state);
-    bool setBatteryLabel(int percent);
     bool setBatteryPercent(bool charge_flag, int percent);
 
     bool setVolume(VolumeLevel level);

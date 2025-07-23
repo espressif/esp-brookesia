@@ -25,8 +25,10 @@ public:
     enum ExpressionEmotionType {
         ExpressionEmotionTypeNone = ai_framework::Expression::EMOTION_TYPE_NONE,
         ExpressionEmotionAngry = 0,
+        ExpressionEmotionBlush,
         ExpressionEmotionFastBlink,
         ExpressionEmotionSlowBlink,
+        ExpressionEmotionDizzy,
         ExpressionEmotionHappy,
         ExpressionEmotionSad,
         ExpressionEmotionSleep,
@@ -172,6 +174,8 @@ private:
         {"silly", std::make_pair(ExpressionEmotionFastBlink, ExpressionIconTypeNone)},
         {"confused", std::make_pair(ExpressionEmotionFastBlink, ExpressionIconEmotionConfused)},
         {"curious", std::make_pair(ExpressionEmotionFastBlink, ExpressionIconEmotionConfused)},
+        {"dizzy", std::make_pair(ExpressionEmotionDizzy, ExpressionIconTypeNone)},
+        {"blink", std::make_pair(ExpressionEmotionBlush, ExpressionIconTypeNone)},
     };
     inline static ai_framework::Expression::SystemIconMap _system_icon_map = {
         {"brightness_down", ExpressionIconSystemBrightnessDown},
