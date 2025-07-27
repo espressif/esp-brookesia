@@ -6,6 +6,7 @@
 
 * feat(ai_framework): agent support configure peripheral outside
 * feat(systems): speaker prevents infinite audio playback
+* feat(systems): speaker add invalid file animation
 * feat(gui): animation player supports loading animation from file system
 
 ### Bugfixes:

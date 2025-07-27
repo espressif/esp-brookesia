@@ -21,7 +21,7 @@
 #define AUDIO_PLAY_LOOP_COUNT                   (3)
 
 #define AUDIO_WIFI_NEED_CONNECT_REPEAT_INTERVAL_MS      (20 * 1000)
-#define AUDIO_WIFI_NEED_CONNECT_DELAY_MS                (5 * 1000)
+#define AUDIO_WIFI_NEED_CONNECT_DELAY_MS                (10 * 1000)
 #define AUDIO_SERVER_CONNECTING_REPEAT_INTERVAL_MS      (20 * 1000)
 #define AUDIO_SERVER_DISCONNECTED_REPEAT_INTERVAL_MS    (20 * 1000)
 #define AUDIO_INVALID_CONFIG_REPEAT_INTERVAL_MS         (20 * 1000)
@@ -169,6 +169,9 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
         switch (type) {
         case Agent::ChatEventSpecialSignalType::InitInvalidConfig:
             sendAudioEvent({AudioType::InvalidConfig, AUDIO_PLAY_LOOP_COUNT, AUDIO_INVALID_CONFIG_REPEAT_INTERVAL_MS});
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                expression.setSystemIcon("invalid_config", {.immediate = true}), "Set invalid config icon failed"
+            );
             break;
         case Agent::ChatEventSpecialSignalType::StartMaxRetry:
             stopAudio(AudioType::ServerConnecting);
@@ -191,6 +194,10 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
             if (!isWiFiValid()) {
                 ESP_UTILS_CHECK_FALSE_EXIT(expression.setSystemIcon("wifi_disconnected"), "Set WiFi icon failed");
                 play_wifi_need_connect_audio();
+            } else {
+                ESP_UTILS_CHECK_FALSE_EXIT(
+                    _agent->sendChatEvent(Agent::ChatEvent::Start), "Send chat event start failed"
+                );
             }
             break;
         case Agent::ChatEvent::Stop:
@@ -492,9 +499,11 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         break;
     case WIFI_EVENT_STA_CONNECTED:
         _flags.is_wifi_connected = true;
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            _agent->sendChatEvent(Agent::ChatEvent::Start), false, "Send chat event start failed"
-        );
+        if (_agent->hasChatState(Agent::ChatStateInited)) {
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                _agent->sendChatEvent(Agent::ChatEvent::Start), false, "Send chat event start failed"
+            );
+        }
         stopAudio(AudioType::WifiNeedConnect);
         sendAudioEvent({AudioType::WifiConnected});
         break;

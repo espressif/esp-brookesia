@@ -151,7 +151,7 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
                     .source = gui::AnimPlayerPartitionConfig{
                         .partition_label = "anim_icon",
                         .max_files = MMAP_ICON_FILES,
-                        .fps = (const int []) { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15 },
+                        .fps = (const int []) { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15 },
                         .checksum = MMAP_ICON_CHECKSUM,
                     },
                     // .source = gui::AnimPlayerResourcesConfig{

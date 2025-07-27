@@ -38,6 +38,7 @@ public:
         ExpressionIconEmotionConfused,
         ExpressionIconEmotionSleep,
         ExpressionIconEmotionThinking,
+        ExpressionIconSystemInvalidFile,
         ExpressionIconSystemServerConnected,
         ExpressionIconSystemServerConnecting,
         ExpressionIconSystemVolumeDown,
@@ -173,6 +174,7 @@ private:
     inline static ai_framework::Expression::SystemIconMap _system_icon_map = {
         {"brightness_down", ExpressionIconSystemBrightnessDown},
         {"brightness_up", ExpressionIconSystemBrightnessUp},
+        {"invalid_config", ExpressionIconSystemInvalidFile},
         {"server_connected", ExpressionIconSystemServerConnected},
         {"server_connecting", ExpressionIconSystemServerConnecting},
         {"volume_down", ExpressionIconSystemVolumeDown},
