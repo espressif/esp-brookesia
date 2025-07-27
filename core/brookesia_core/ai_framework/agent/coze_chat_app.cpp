@@ -557,9 +557,9 @@ esp_err_t coze_chat_app_start(const CozeChatAgentInfo &agent_info, const CozeCha
     chat_config.subscribe_event = (const char *[]) {
         "conversation.chat.requires_action", NULL
     };
-    chat_config.user_id = static_cast<char *>(agent_info.user_id.c_str());
-    chat_config.bot_id = static_cast<char *>(robot_info.bot_id.c_str());
-    chat_config.voice_id = static_cast<char *>(robot_info.voice_id.c_str());
+    chat_config.user_id = const_cast<char *>(agent_info.user_id.c_str());
+    chat_config.bot_id = const_cast<char *>(robot_info.bot_id.c_str());
+    chat_config.voice_id = const_cast<char *>(robot_info.voice_id.c_str());
     chat_config.access_token = token_str;
     chat_config.uplink_audio_type = ESP_COZE_CHAT_AUDIO_TYPE_G711A;
     chat_config.audio_callback = audio_data_callback;
@@ -575,7 +575,7 @@ esp_err_t coze_chat_app_start(const CozeChatAgentInfo &agent_info, const CozeCha
     static auto func_call = FunctionDefinitionList::requestInstance().getJson();
 
     esp_coze_parameters_kv_t param[] = {
-        {"func_call", static_cast<char *>(func_call.c_str())},
+        {"func_call", const_cast<char *>(func_call.c_str())},
         {NULL, NULL}
     };
     ret = esp_coze_set_chat_config_parameters(coze_chat.chat, param);
