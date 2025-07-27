@@ -48,14 +48,14 @@ bool Agent::configCozeAgentConfig(CozeChatAgentInfo &agent_info, std::vector<Coz
     _agent_info.public_key = agent_info.public_key;
     _agent_info.private_key = agent_info.private_key;
     ESP_UTILS_CHECK_FALSE_RETURN(_agent_info.isValid(), false, "Invalid chat info");
-#if ESP_UTILS_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
+#if ESP_UTILS_CONF_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
     _agent_info.dump();
 #endif
 
     _robot_infos = robot_infos;
     for (auto &robot_info : _robot_infos) {
         ESP_UTILS_CHECK_FALSE_RETURN(robot_info.isValid(), false, "Invalid robot info");
-#if ESP_UTILS_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
+#if ESP_UTILS_CONF_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
         robot_info.dump();
 #endif
     }

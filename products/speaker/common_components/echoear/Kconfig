@@ -1,4 +1,14 @@
 menu "Board Support Package(ESP-BOX-3)"
+    choice BSP_PCB_VERSION
+        prompt "PCB version"
+        default BSP_PCB_VERSION_V1_2
+
+        config BSP_PCB_VERSION_V1_0
+            bool "V1.0"
+
+        config BSP_PCB_VERSION_V1_2
+            bool "V1.2"
+    endchoice
 
     config BSP_ERROR_CHECK
         bool "Enable error check in BSP"

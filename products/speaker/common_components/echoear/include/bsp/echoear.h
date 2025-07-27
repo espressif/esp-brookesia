@@ -39,10 +39,14 @@
 #define BSP_I2S_MCLK          (GPIO_NUM_42)
 #define BSP_I2S_LCLK          (GPIO_NUM_39) // WS
 #define BSP_I2S_DOUT          (GPIO_NUM_41)     // To Codec ES8311
-#define BSP_I2S_DSIN_V1_0     (GPIO_NUM_15)    // From ADC ES7210
-#define BSP_I2S_DSIN_V1_2     (GPIO_NUM_3)
-#define BSP_POWER_AMP_IO_V1_0 (GPIO_NUM_4)
-#define BSP_POWER_AMP_IO_V1_2 (GPIO_NUM_15)
+#if CONFIG_BSP_PCB_VERSION_V1_2
+#   define BSP_I2S_DSIN        (GPIO_NUM_3)
+#   define BSP_POWER_AMP_IO    (GPIO_NUM_15)
+#   define BSP_POWER_CODEC_EN  (GPIO_NUM_48)
+#else
+#   define BSP_I2S_DSIN        (GPIO_NUM_15)    // From ADC ES7210
+#   define BSP_POWER_AMP_IO    (GPIO_NUM_4)
+#endif
 
 /* Display */
 #define BSP_LCD_DATA3         (GPIO_NUM_12)
@@ -52,8 +56,11 @@
 #define BSP_LCD_PCLK          (GPIO_NUM_18)
 #define BSP_LCD_CS            (GPIO_NUM_14)
 #define BSP_LCD_DC            (GPIO_NUM_45)
-#define BSP_LCD_RST_V1_0      (GPIO_NUM_3)
-#define BSP_LCD_RST_V1_2      (GPIO_NUM_47)
+#if CONFIG_BSP_PCB_VERSION_V1_2
+#   define BSP_LCD_RST        (GPIO_NUM_47)
+#else
+#   define BSP_LCD_RST        (GPIO_NUM_3)
+#endif
 #define LCD_BACKLIIGHT_CHANNEL LEDC_CHANNEL_1
 #define BSP_LCD_BACKLIGHT     (GPIO_NUM_44)
 #define BSP_LCD_TOUCH_INT     (GPIO_NUM_10)
@@ -67,12 +74,18 @@
 #define BSP_SD_CLK            (GPIO_NUM_16)
 
 /* Others */
-#define BSP_UART1_TX_V1_0       (GPIO_NUM_6)
-#define BSP_UART1_TX_V1_2       (GPIO_NUM_5)
-#define BSP_UART1_RX_V1_0       (GPIO_NUM_5)
-#define BSP_UART1_RX_V1_2       (GPIO_NUM_4)
-#define BSP_TOUCH_PAD2_V1_0     (GPIO_NUM_NC)
-#define BSP_TOUCH_PAD2_V1_2     (GPIO_NUM_6)
+#if CONFIG_BSP_PCB_VERSION_V1_2
+#   define BSP_UART1_TX       (GPIO_NUM_5)
+#   define BSP_UART1_RX       (GPIO_NUM_4)
+#else
+#   define BSP_UART1_TX       (GPIO_NUM_6)
+#   define BSP_UART1_RX       (GPIO_NUM_5)
+#endif
+#if CONFIG_BSP_PCB_VERSION_V1_2
+#   define BSP_TOUCH_PAD2     (GPIO_NUM_6)
+#else
+#   define BSP_TOUCH_PAD2     (GPIO_NUM_NC)
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -224,7 +237,7 @@ esp_err_t bsp_display_brightness_init(void);
  *      - ESP_FAIL              I2C driver installation error
  *
  */
-esp_err_t bsp_power_init(uint8_t power_en);
+esp_err_t bsp_power_init(bool power_en);
 
 /**************************************************************************************************
  *
@@ -320,56 +333,6 @@ esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg);
  * @return SD card handle
  */
 sdmmc_card_t *bsp_sdcard_get_handle(void);
-
-/**************************************************************************************************
- *
- * PCB version detect
- *
- **************************************************************************************************/
-/**
- * @brief PCB version
- *
- */
-typedef enum {
-    BSP_PCB_VERSION_V1_0 = 0,
-    BSP_PCB_VERSION_V1_2,
-} bsp_pcb_version_t;
-
-/**
- * @brief PCB version information
- *
- */
-typedef struct {
-    bsp_pcb_version_t version;
-    struct {
-        int i2s_din_pin;
-        int pa_pin;
-    } audio;
-    struct {
-        int pad2_pin;
-    } touch;
-    struct {
-        int tx_pin;
-        int rx_pin;
-    } uart;
-    struct {
-        int rst_pin;
-        int rst_active_level;
-    } lcd;
-} bsp_pcd_diff_info_t;
-
-/**
- * @brief Get PCB version information
- *
- * @param info Pointer to PCB version information
- *
- * @return
- *      - ESP_OK                On success
- *      - ESP_ERR_INVALID_ARG   Invalid argument
- *      - ESP_FAIL              Failed to detect PCB version
- *
- */
-esp_err_t bsp_pcb_version_detect(bsp_pcd_diff_info_t *info);
 
 #ifdef __cplusplus
 }

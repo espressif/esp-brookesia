@@ -40,8 +40,6 @@ static lv_disp_t *disp;
 static lv_indev_t *disp_indev = NULL;
 static esp_lcd_touch_handle_t tp;   // LCD touch handle
 static esp_lcd_panel_handle_t panel_handle = NULL;
-static bsp_pcd_diff_info_t pcd_info = {};
-static bool pcd_info_initialized = false;
 
 static i2c_master_bus_handle_t i2c_handle = NULL;
 static sdmmc_card_t *bsp_sdcard = NULL;    // Global uSD card handler
@@ -63,7 +61,6 @@ esp_err_t bsp_i2c_init(void)
     BSP_ERROR_CHECK_RETURN_ERR(i2c_new_master_bus(&i2c_config, &i2c_handle));
 
     i2c_initialized = true;
-
     return ESP_OK;
 }
 
@@ -331,7 +328,6 @@ esp_err_t bsp_display_new(const bsp_display_config_t *config, esp_lcd_panel_hand
     assert(config != NULL && config->max_transfer_sz > 0);
 
     ESP_RETURN_ON_ERROR(bsp_display_brightness_init(), TAG, "Brightness init failed");
-    BSP_ERROR_CHECK_RETURN_ERR(bsp_pcb_version_detect(NULL));
 
     /* Initialize I2C */
     BSP_ERROR_CHECK_RETURN_ERR(bsp_i2c_init());
@@ -371,11 +367,15 @@ esp_err_t bsp_display_new(const bsp_display_config_t *config, esp_lcd_panel_hand
         },
     };
     esp_lcd_panel_dev_config_t panel_config = {
-        .reset_gpio_num = pcd_info.lcd.rst_pin, // Shared with Touch reset
+        .reset_gpio_num = BSP_LCD_RST, // Shared with Touch reset
         .color_space = BSP_LCD_COLOR_SPACE,
         .bits_per_pixel = BSP_LCD_BITS_PER_PIXEL,
         .flags = {
-            .reset_active_high = pcd_info.lcd.rst_active_level,
+#if CONFIG_BSP_PCB_VERSION_V1_2
+            .reset_active_high = true,
+#else
+            .reset_active_high = false,
+#endif
         },
         .vendor_config = (void *) &vendor_config,
     };
@@ -531,76 +531,26 @@ void bsp_display_unlock(void)
     lvgl_port_unlock();
 }
 
-esp_err_t bsp_power_init(uint8_t power_en)
+esp_err_t bsp_power_init(bool power_en)
 {
     gpio_config_t power_gpio_config = {
         .mode = GPIO_MODE_OUTPUT,
         .pin_bit_mask = BIT64(BSP_POWER_OFF),
     };
+#if defined(BSP_POWER_CODEC_EN)
+    power_gpio_config.pin_bit_mask |= BIT64(BSP_POWER_CODEC_EN);
+#endif
     ESP_ERROR_CHECK(gpio_config(&power_gpio_config));
 
-    gpio_set_level(BSP_POWER_OFF, power_en);
+    gpio_set_level(BSP_POWER_OFF, !power_en);
+#if defined(BSP_POWER_CODEC_EN)
+    gpio_set_level(BSP_POWER_CODEC_EN, power_en);
+    ESP_LOGI(TAG, "Using PCB version V1.2");
+#else
+    ESP_LOGI(TAG, "Using PCB version V1.0");
+#endif
 
-    return ESP_OK;
-}
-
-esp_err_t bsp_pcb_version_detect(bsp_pcd_diff_info_t *info)
-{
-    if (pcd_info_initialized) {
-        if (info) {
-            *info = pcd_info;
-        }
-        return ESP_OK;
-    }
-
-    BSP_ERROR_CHECK_RETURN_ERR(bsp_i2c_init());
-
-    bsp_pcd_diff_info_t temp_info = {0};
-    esp_err_t ret = i2c_master_probe(bsp_i2c_get_handle(), 0x18, 100);
-    if (ret == ESP_OK) {
-        ESP_LOGI(TAG, "Detect PCB version V1.0");
-        temp_info.version = BSP_PCB_VERSION_V1_0;
-        temp_info.audio.i2s_din_pin = BSP_I2S_DSIN_V1_0;
-        temp_info.audio.pa_pin = BSP_POWER_AMP_IO_V1_0;
-        temp_info.touch.pad2_pin = BSP_TOUCH_PAD2_V1_0;
-        temp_info.uart.tx_pin = BSP_UART1_TX_V1_0;
-        temp_info.uart.rx_pin = BSP_UART1_RX_V1_0;
-        temp_info.lcd.rst_pin = BSP_LCD_RST_V1_0;
-        temp_info.lcd.rst_active_level = 0;
-    } else {
-        gpio_config_t gpio_conf = {
-            .pin_bit_mask = (1ULL << GPIO_NUM_48),
-            .mode = GPIO_MODE_OUTPUT,
-            .pull_up_en = GPIO_PULLUP_DISABLE,
-            .pull_down_en = GPIO_PULLDOWN_DISABLE,
-            .intr_type = GPIO_INTR_DISABLE
-        };
-        ESP_ERROR_CHECK(gpio_config(&gpio_conf));
-        ESP_ERROR_CHECK(gpio_set_level(GPIO_NUM_48, 1));
-
-        vTaskDelay(pdMS_TO_TICKS(100));
-
-        ret = i2c_master_probe(bsp_i2c_get_handle(), 0x18, 100);
-        if (ret == ESP_OK) {
-            ESP_LOGI(TAG, "Detect PCB version V1.2");
-            temp_info.version = BSP_PCB_VERSION_V1_2;
-            temp_info.audio.i2s_din_pin = BSP_I2S_DSIN_V1_2;
-            temp_info.audio.pa_pin = BSP_POWER_AMP_IO_V1_2;
-            temp_info.touch.pad2_pin = BSP_TOUCH_PAD2_V1_2;
-            temp_info.uart.tx_pin = BSP_UART1_TX_V1_2;
-            temp_info.uart.rx_pin = BSP_UART1_RX_V1_2;
-            temp_info.lcd.rst_pin = BSP_LCD_RST_V1_2;
-            temp_info.lcd.rst_active_level = 1;
-        } else {
-            ESP_LOGE(TAG, "PCB version detection error");
-        }
-    }
-
-    if (info) {
-        *info = temp_info;
-    }
-    pcd_info = temp_info;
-    pcd_info_initialized = true;
+    vTaskDelay(pdMS_TO_TICKS(100));
 
     return ESP_OK;
 }
