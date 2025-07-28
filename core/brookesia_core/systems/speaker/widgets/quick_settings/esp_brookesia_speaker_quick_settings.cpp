@@ -12,7 +12,7 @@
 #include "style/esp_brookesia_gui_style.hpp"
 #include "esp_brookesia_speaker_quick_settings.hpp"
 #include "squareline/ui_comp/ui_comp.h"
-#include "ui_comp_quicksettings.h"
+#include "ui/ui_comp_quicksettings.h"
 
 namespace esp_brookesia::speaker {
 

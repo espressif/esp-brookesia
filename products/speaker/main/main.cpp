@@ -605,25 +605,6 @@ static bool load_coze_agent_config()
     return true;
 }
 
-// static void on_clock_update_timer_cb(struct _lv_timer_t *t)
-
-// {
-//     time_t now;
-//     struct tm timeinfo;
-//     Speaker *speaker = (Speaker *)t->user_data;
-
-//     time(&now);
-//     localtime_r(&now, &timeinfo);
-
-//     /* Since this callback is called from LVGL task, it is safe to operate LVGL */
-//     // Update clock on "Status Bar"
-//     ESP_UTILS_CHECK_FALSE_EXIT(
-//         speaker->display.getQuickSettings().setClockTime(timeinfo.tm_hour, timeinfo.tm_min),
-//         "Refresh status bar failed"
-//     );
-
-// }
-
 static bool create_speaker_and_install_apps()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
@@ -915,25 +896,39 @@ static bool create_speaker_and_install_apps()
     }));
     FunctionDefinitionList::requestInstance().addFunction(setBrightness);
 
-    // /* Connect the quick settings event signal */
-    // speaker->getDisplay().getQuickSettings().on_event_signal.connect([=](QuickSettings::EventType event_type) {
-    //     if ((event_type != QuickSettings::EventType::SettingsButtonClicked) &&
-    //         (speaker->getCoreManager().getRunningAppById(app_settings_id) != nullptr)) {
-    //         return true;
-    //     }
+    /* Connect the quick settings event signal */
+    speaker->display.getQuickSettings().on_event_signal.connect([ = ](QuickSettings::EventType event_type) {
+        if ((event_type != QuickSettings::EventType::SettingsButtonClicked) ||
+                (speaker->getCoreManager().getRunningAppById(app_settings_id) != nullptr)) {
+            return true;
+        }
 
-    //     ESP_Brookesia_CoreAppEventData_t event_data = {
-    //         .id = app_settings_id,
-    //         .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
-    //         .data = nullptr
-    //     };
-    //     speaker->sendAppEvent(&event_data);
+        ESP_Brookesia_CoreAppEventData_t event_data = {
+            .id = app_settings_id,
+            .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
+            .data = nullptr
+        };
+        speaker->sendAppEvent(&event_data);
 
-    //     return true;
-    // });
+        return true;
+    });
 
     /* Create a timer to update the clock */
-    // ESP_UTILS_CHECK_NULL_EXIT(lv_timer_create(on_clock_update_timer_cb, 1000, speaker), "Create clock update timer failed");
+    ESP_UTILS_CHECK_NULL_RETURN(lv_timer_create([](struct _lv_timer_t *t) {
+        time_t now;
+        struct tm timeinfo;
+        Speaker *speaker = (Speaker *)t->user_data;
+
+        time(&now);
+        localtime_r(&now, &timeinfo);
+
+        /* Since this callback is called from LVGL task, it is safe to operate LVGL */
+        // Update clock on "Status Bar"
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            speaker->display.getQuickSettings().setClockTime(timeinfo.tm_hour, timeinfo.tm_min),
+            "Refresh status bar failed"
+        );
+    }, 1000, speaker), false, "Create clock update timer failed");
 
     return true;
 }

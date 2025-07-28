@@ -10,5 +10,5 @@ idf_component_register(
 set_source_files_properties(
     ${PROJ_SRCS_CPP}
     PROPERTIES
-        COMPILE_FLAGS "-Wno-missing-field-initializers"
+        COMPILE_FLAGS "-Wno-missing-field-initializers -Wno-deprecated-enum-enum-conversion"
 )

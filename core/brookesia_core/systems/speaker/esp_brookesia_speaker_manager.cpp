@@ -220,46 +220,46 @@ bool Manager::begin(void)
             _gesture->getEventObj(), onAppLauncherGestureEventCallback, _gesture->getReleaseEventCode(), this
         );
 
-        // // Quick Settings
-        // lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-        //     ESP_UTILS_LOG_TRACE_GUARD();
+        // Quick Settings
+        lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
+            ESP_UTILS_LOG_TRACE_GUARD();
 
-        //     ESP_UTILS_LOGD("Param: event(%p)", event);
-        //     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
+            ESP_UTILS_LOGD("Param: event(%p)", event);
+            ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-        //     auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
-        //     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-        //     ESP_UTILS_CHECK_FALSE_EXIT(
-        //         manager->processQuickSettingsGesturePressEvent(event),
-        //         "Process quick settings gesture press event failed"
-        //     );
-        // }, _gesture->getPressEventCode(), this);
-        // lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-        //     ESP_UTILS_LOG_TRACE_GUARD();
+            auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
+            ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                manager->processQuickSettingsGesturePressEvent(event),
+                "Process quick settings gesture press event failed"
+            );
+        }, _gesture->getPressEventCode(), this);
+        lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
+            ESP_UTILS_LOG_TRACE_GUARD();
 
-        //     ESP_UTILS_LOGD("Param: event(%p)", event);
-        //     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
+            ESP_UTILS_LOGD("Param: event(%p)", event);
+            ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-        //     auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
-        //     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-        //     ESP_UTILS_CHECK_FALSE_EXIT(
-        //         manager->processQuickSettingsGesturePressingEvent(event),
-        //         "Process quick settings gesture pressing event failed"
-        //     );
-        // }, _gesture->getPressingEventCode(), this);
-        // lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-        //     ESP_UTILS_LOG_TRACE_GUARD();
+            auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
+            ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                manager->processQuickSettingsGesturePressingEvent(event),
+                "Process quick settings gesture pressing event failed"
+            );
+        }, _gesture->getPressingEventCode(), this);
+        lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
+            ESP_UTILS_LOG_TRACE_GUARD();
 
-        //     ESP_UTILS_LOGD("Param: event(%p)", event);
-        //     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
+            ESP_UTILS_LOGD("Param: event(%p)", event);
+            ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-        //     auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
-        //     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-        //     ESP_UTILS_CHECK_FALSE_EXIT(
-        //         manager->processQuickSettingsGestureReleaseEvent(event),
-        //         "Process quick settings gesture release event failed"
-        //     );
-        // }, _gesture->getReleaseEventCode(), this);
+            auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
+            ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                manager->processQuickSettingsGestureReleaseEvent(event),
+                "Process quick settings gesture release event failed"
+            );
+        }, _gesture->getReleaseEventCode(), this);
     }
     _flags.is_initialized = true;
 
