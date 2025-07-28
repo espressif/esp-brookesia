@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <cmath>
+#include "esp_heap_caps.h"
 #include "esp_brookesia_systems_internal.h"
 #if !ESP_BROOKESIA_SPEAKER_MANAGER_ENABLE_DEBUG_LOG
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
@@ -11,6 +12,7 @@
 #include "private/esp_brookesia_speaker_utils.hpp"
 #include "widgets/gesture/esp_brookesia_gesture.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
+#include "storage_nvs/esp_brookesia_service_storage_nvs.hpp"
 #include "esp_brookesia_speaker_manager.hpp"
 #include "esp_brookesia_speaker.hpp"
 #include "boost/thread.hpp"
@@ -18,8 +20,12 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 using namespace esp_brookesia::ai_framework;
+using namespace esp_brookesia::services;
 
 namespace esp_brookesia::speaker {
+
+constexpr int QUICK_SETTINGS_UPDATE_CLOCK_INTERVAL_MS  = 1000;
+constexpr int QUICK_SETTINGS_UPDATE_MEMORY_INTERVAL_MS = 5000;
 
 Manager::Manager(ESP_Brookesia_Core &core_in, Display &display_in, const ManagerData &data_in):
     ESP_Brookesia_CoreManager(core_in, core_in.getCoreData().manager),
@@ -113,6 +119,101 @@ bool Manager::begin(void)
             "Process screen change failed"
         );
     }, data.ai_buddy_resume_time_ms, this);
+
+    // Quick settings
+    // Process quick settings event signal
+    display.getQuickSettings().connectEventSignal([this](QuickSettings::EventData event_data) {
+        ESP_UTILS_LOG_TRACE_GUARD();
+
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            processQuickSettingsEventSignal(event_data), "Process quick settings event signal failed"
+        );
+    });
+    // Process quick settings storage service event signal
+    StorageNVS::requestInstance().connectEventSignal([this](const StorageNVS::Event & event) {
+        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.sender == &display.getQuickSettings())) {
+            ESP_UTILS_LOGD("Ignore event: operation(%d), sender(%p)", static_cast<int>(event.operation), event.sender);
+            return;
+        }
+
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            processQuickSettingsStorageServiceEventSignal(event.key),
+            "Process quick settings storage service event signal failed"
+        );
+    });
+    // Init quick settings info
+    StorageNVS::Value value;
+    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, value)) {
+        auto wifi_switch = display.getQuickSettings().getWifiButton();
+        ESP_UTILS_CHECK_NULL_RETURN(wifi_switch, false, "Invalid wifi switch");
+
+        ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
+
+        auto is_checked = std::get<int>(value);
+        if (is_checked) {
+            lv_obj_add_state(wifi_switch->getNativeHandle(), LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(wifi_switch->getNativeHandle(), LV_STATE_CHECKED);
+        }
+    } else {
+        ESP_UTILS_LOGW("No wifi switch is set");
+    }
+    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, value)) {
+        ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
+
+        auto percent = std::get<int>(value);
+        ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setVolume(percent), false, "Set volume failed");
+    } else {
+        ESP_UTILS_LOGW("No volume is set");
+    }
+    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, value)) {
+        ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
+
+        auto percent = std::get<int>(value);
+        ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setBrightness(percent), false, "Set brightness failed");
+    } else {
+        ESP_UTILS_LOGW("No brightness is set");
+    }
+    // Create timers to update quick settings info
+    // Update clock
+    _quick_settings_update_clock_timer = std::make_unique<LvTimer>([this](void *) {
+        auto &quick_settings = display.getQuickSettings();
+        if (!quick_settings.isVisible()) {
+            return;
+        }
+
+        time_t now;
+        struct tm timeinfo;
+        time(&now);
+        localtime_r(&now, &timeinfo);
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            quick_settings.setClockTime(timeinfo.tm_hour, timeinfo.tm_min),
+            "Refresh status bar failed"
+        );
+    }, QUICK_SETTINGS_UPDATE_CLOCK_INTERVAL_MS, this);
+    ESP_UTILS_CHECK_NULL_RETURN(_quick_settings_update_clock_timer, false, "Create quick settings update clock timer failed");
+    // Update memory
+    _quick_settings_update_memory_timer = std::make_unique<LvTimer>([this](void *) {
+        auto &quick_settings = display.getQuickSettings();
+        if (!quick_settings.isVisible()) {
+            return;
+        }
+
+        auto sram_total_size = static_cast<int>(heap_caps_get_total_size(MALLOC_CAP_INTERNAL));
+        auto sram_free_size = static_cast<int>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL));
+        auto sram_used_size = sram_total_size - sram_free_size;
+        auto sram_used_percent = sram_used_size * 100 / sram_total_size;
+        ESP_UTILS_LOGI("Memory SRAM: %d%%(used: %d/%d KB)", sram_used_percent, sram_used_size / 1024, sram_total_size / 1024);
+        ESP_UTILS_CHECK_FALSE_EXIT(quick_settings.setMemorySRAM(sram_used_percent), "Set memory sram failed");
+
+        auto psram_total_size = static_cast<int>(heap_caps_get_total_size(MALLOC_CAP_SPIRAM));
+        auto psram_free_size = static_cast<int>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+        auto psram_used_size = psram_total_size - psram_free_size;
+        auto psram_used_percent = psram_used_size * 100 / psram_total_size;
+        ESP_UTILS_LOGI("Memory PSRAM: %d%%(used: %d/%d KB)", psram_used_percent, psram_used_size / 1024, psram_total_size / 1024);
+        ESP_UTILS_CHECK_FALSE_EXIT(quick_settings.setMemoryPSRAM(psram_used_percent), "Set memory psram failed");
+    }, QUICK_SETTINGS_UPDATE_MEMORY_INTERVAL_MS, this);
+    ESP_UTILS_CHECK_NULL_RETURN(_quick_settings_update_memory_timer, false, "Create quick settings update memory timer failed");
 
     // Gesture
     if (data.flags.enable_gesture) {
@@ -261,6 +362,7 @@ bool Manager::begin(void)
             );
         }, _gesture->getReleaseEventCode(), this);
     }
+
     _flags.is_initialized = true;
 
     // Then load the ai_buddy screen
@@ -280,12 +382,10 @@ bool Manager::del(void)
         goto end;
     }
 
-    if (_gesture != nullptr) {
-        _gesture = nullptr;
-    }
-    if (_draw_dummy_timer != nullptr) {
-        _draw_dummy_timer = nullptr;
-    }
+    _gesture.reset();
+    _draw_dummy_timer.reset();
+    _quick_settings_update_clock_timer.reset();
+    _quick_settings_update_memory_timer.reset();
     _flags.is_initialized = false;
 
 end:
@@ -607,6 +707,117 @@ end:
     return ret;
 }
 
+bool Manager::processQuickSettingsEventSignal(QuickSettings::EventData event_data)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto &type = event_data.type;
+    auto &storage_service = StorageNVS::requestInstance();
+    bool is_long_pressed = false;
+    switch (type) {
+    case QuickSettings::EventType::WifiButtonClicked: {
+        auto wifi_button = display.getQuickSettings().getWifiButton();
+        ESP_UTILS_CHECK_NULL_RETURN(wifi_button, false, "Invalid wifi button");
+
+        StorageNVS::Value value = static_cast<int>(wifi_button->hasState(LV_STATE_CHECKED));
+        ESP_UTILS_LOGI("Wifi button clicked, value: %d", std::get<int>(value));
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, value, &display.getQuickSettings()), false,
+            "Set wifi state failed"
+        );
+        break;
+    }
+    case QuickSettings::EventType::VolumeButtonClicked: {
+        ESP_UTILS_LOGI("Volume button clicked");
+        auto level = display.getQuickSettings().getVolumeLevel();
+        level = static_cast<QuickSettings::VolumeLevel>(static_cast<int>(level) + 1);
+        if (level >= QuickSettings::VolumeLevel::MAX) {
+            level = QuickSettings::VolumeLevel::MUTE;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setVolume(level), false, "Set volume failed");
+
+        int percent = display.getQuickSettings().getVolumePercent();
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_VOLUME, percent, &display.getQuickSettings()), false,
+            "Set volume failed"
+        );
+        break;
+    }
+    case QuickSettings::EventType::BrightnessButtonClicked: {
+        ESP_UTILS_LOGI("Brightness button clicked");
+        auto level = display.getQuickSettings().getBrightnessLevel();
+        level = static_cast<QuickSettings::BrightnessLevel>(static_cast<int>(level) + 1);
+        if (level >= QuickSettings::BrightnessLevel::MAX) {
+            level = QuickSettings::BrightnessLevel::LEVEL_1;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setBrightness(level), false, "Set brightness failed");
+
+        int percent = display.getQuickSettings().getBrightnessPercent();
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, percent, &display.getQuickSettings()), false,
+            "Set brightness failed"
+        );
+        break;
+    }
+    case QuickSettings::EventType::WifiButtonLongPressed:
+    case QuickSettings::EventType::VolumeButtonLongPressed:
+    case QuickSettings::EventType::BrightnessButtonLongPressed: {
+        is_long_pressed = true;
+        break;
+    }
+    default:
+        break;
+    }
+
+    if (is_long_pressed) {
+        ESP_UTILS_CHECK_FALSE_RETURN(processQuickSettingsScrollTop(), false, "Process quick settings scroll top failed");
+    }
+
+    return true;
+}
+
+bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD("Param: key(%s)", key.c_str());
+
+    StorageNVS::Value value;
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        StorageNVS::requestInstance().getLocalParam(key, value), false, "Get local param failed"
+    );
+
+    _core.lockLv();
+
+    if (key == SETTINGS_NVS_KEY_WLAN_SWITCH) {
+        auto wifi_button = display.getQuickSettings().getWifiButton();
+        ESP_UTILS_CHECK_NULL_RETURN(wifi_button, false, "Invalid wifi button");
+
+        ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
+
+        auto is_checked = std::get<int>(value);
+        if (is_checked) {
+            lv_obj_add_state(wifi_button->getNativeHandle(), LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(wifi_button->getNativeHandle(), LV_STATE_CHECKED);
+        }
+    } else if (key == SETTINGS_NVS_KEY_VOLUME) {
+        ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
+
+        auto percent = std::get<int>(value);
+        ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setVolume(percent), false, "Set volume failed");
+    } else if (key == SETTINGS_NVS_KEY_BRIGHTNESS) {
+        ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
+
+        auto percent = std::get<int>(value);
+        ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setBrightness(percent), false, "Set brightness failed");
+    }
+
+    _core.unlockLv();
+
+    return true;
+}
+
 bool Manager::processQuickSettingsGesturePressEvent(lv_event_t *event)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
@@ -704,10 +915,16 @@ bool Manager::processQuickSettingsGestureReleaseEvent(lv_event_t *event)
             ESP_UTILS_CHECK_FALSE_RETURN(
                 processQuickSettingsScrollBottom(), false, "Process quick settings scroll bottom failed"
             );
+            if ((_draw_dummy_timer != nullptr) && (_display_active_screen == ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN)) {
+                _draw_dummy_timer->pause();
+            }
         } else {
             ESP_UTILS_CHECK_FALSE_RETURN(
                 processQuickSettingsScrollTop(), false, "Process quick settings scroll top failed"
             );
+            if ((_draw_dummy_timer != nullptr) && (_display_active_screen == ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN)) {
+                _draw_dummy_timer->restart();
+            }
         }
 
         _flags.is_quick_settings_enabled = false;
@@ -721,23 +938,24 @@ end:
     return true;
 }
 
-bool Manager::processQuickSettingsMoveTop(void)
+bool Manager::processQuickSettingsMoveTop()
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
     auto &quick_settings = display.getQuickSettings();
     // Move the quick settings to the top edge and hide it
-    ESP_UTILS_CHECK_FALSE_RETURN(quick_settings.moveY_To(
-                                     _gesture->data.threshold.horizontal_edge - _core.getCoreData().screen_size.height), false,
-                                 "Move quick settings failed"
-                                );
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        quick_settings.moveY_To(
+            _gesture->data.threshold.horizontal_edge - _core.getCoreData().screen_size.height
+        ), false, "Move quick settings failed"
+    );
     ESP_UTILS_CHECK_FALSE_RETURN(quick_settings.setVisible(false), false, "Set quick settings visible failed");
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;
 }
 
-bool Manager::processQuickSettingsScrollTop(void)
+bool Manager::processQuickSettingsScrollTop()
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -758,7 +976,7 @@ bool Manager::processQuickSettingsScrollTop(void)
     return true;
 }
 
-bool Manager::processQuickSettingsScrollBottom(void)
+bool Manager::processQuickSettingsScrollBottom()
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 

@@ -5,8 +5,8 @@
  */
 #pragma once
 
-#include <cstdint>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include "lvgl.h"
 #include "esp_brookesia_systems_internal.h"
@@ -19,6 +19,12 @@
 // *INDENT-OFF*
 
 namespace esp_brookesia::speaker {
+
+constexpr const char *SETTINGS_NVS_KEY_VOLUME = "volume";
+constexpr const char *SETTINGS_NVS_KEY_BRIGHTNESS = "brightness";
+constexpr const char *SETTINGS_NVS_KEY_WLAN_SWITCH = "wlan_switch";
+constexpr const char *SETTINGS_NVS_KEY_WLAN_SSID = "wlan_ssid";
+constexpr const char *SETTINGS_NVS_KEY_WLAN_PASSWORD = "wlan_password";
 
 struct ManagerData {
     GestureData gesture;
@@ -58,9 +64,9 @@ public:
     Manager& operator=(const Manager&) = delete;
     Manager& operator=(Manager&&) = delete;
 
-    bool processQuickSettingsMoveTop(void);
-    bool processQuickSettingsScrollTop(void);
-    bool processQuickSettingsScrollBottom(void);
+    bool processQuickSettingsMoveTop();
+    bool processQuickSettingsScrollTop();
+    bool processQuickSettingsScrollBottom();
     bool processDisplayScreenChange(ManagerScreen screen, void *param);
 
     bool checkInitialized(void) const   { return _flags.is_initialized; }
@@ -86,6 +92,8 @@ private:
     bool processGestureScreenChange(ManagerScreen screen, void *param);
     bool processAI_BuddyResumeTimer(void);
     bool processAppLauncherGestureEvent(lv_event_t *event);
+    bool processQuickSettingsEventSignal(QuickSettings::EventData event_data);
+    bool processQuickSettingsStorageServiceEventSignal(std::string key);
     bool processQuickSettingsGesturePressEvent(lv_event_t *event);
     bool processQuickSettingsGesturePressingEvent(lv_event_t *event);
     bool processQuickSettingsGestureReleaseEvent(lv_event_t *event);
@@ -125,7 +133,10 @@ private:
     ManagerScreen _display_active_screen = ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAX;
     // Gesture
     std::unique_ptr<Gesture> _gesture;
+    // Timer
     gui::LvTimerUniquePtr _draw_dummy_timer;
+    gui::LvTimerUniquePtr _quick_settings_update_clock_timer;
+    gui::LvTimerUniquePtr _quick_settings_update_memory_timer;
 };
 // *INDENT-OFF*
 

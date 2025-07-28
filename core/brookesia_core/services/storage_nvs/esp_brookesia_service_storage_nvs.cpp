@@ -89,34 +89,62 @@ bool StorageNVS::begin()
     }
 
     // Initialize NVS parameters
-    sendEvent({
-        .operation = Operation::UpdateParam
-    }, -1);
+    EventFuture future;
+    ESP_UTILS_CHECK_FALSE_RETURN(sendEvent({
+        .operation = Operation::UpdateParam,
+    }, &future), false, "Send update NVS parameters event failed");
+    future.wait();
 
     return true;
 }
 
-bool StorageNVS::setLocalParam(const Key &key, const Value &value, std::optional<int> wait_finish_timeout_ms)
+bool StorageNVS::sendEvent(const Event &event, EventFuture *future)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: key(%s), value(%s), wait_finish_timeout_ms(%s)", key.c_str(),
-                   std::holds_alternative<int>(value) ?
-                   std::to_string(std::get<int>(value)).c_str() : std::get<std::string>(value).c_str(),
-                   wait_finish_timeout_ms.has_value() ? std::to_string(wait_finish_timeout_ms.value()).c_str() : "None"
-                  );
+    ESP_UTILS_LOGD("Param: event(%p), future(%p)", &event, future);
+#if ESP_UTILS_CONF_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
+    event.dump();
+#endif
+
+    EventWrapper event_wrapper = {
+        .event = event,
+    };
+    if (future != nullptr) {
+        ESP_UTILS_CHECK_EXCEPTION_RETURN(
+            event_wrapper.promise = std::make_shared<EventPromise>(), false, "Make event promise failed"
+        );
+        *future = event_wrapper.promise->get_future();
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(_event_mutex);
+        _event_queue.push(event_wrapper);
+        _event_cv.notify_one();
+    }
+
+    return true;
+}
+
+bool StorageNVS::setLocalParam(const Key &key, const Value &value, const void *sender, EventFuture *future)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD(
+        "Param: key(%s), value(%s), future(%p)", key.c_str(), std::holds_alternative<int>(value) ?
+        std::to_string(std::get<int>(value)).c_str() : std::get<std::string>(value).c_str(), future
+    );
 
     {
         std::lock_guard<std::mutex> lock(_params_mutex);
         _local_params[key] = value;
     }
 
-    if (wait_finish_timeout_ms.has_value()) {
-        ESP_UTILS_CHECK_FALSE_RETURN(sendEvent({
-            .operation = Operation::UpdateNVS,
-            .key = key,
-        }, wait_finish_timeout_ms.value()), false, "Send storage NVS event failed");
-    }
+    ESP_UTILS_CHECK_FALSE_RETURN(sendEvent({
+        .sender = sender,
+        .operation = Operation::UpdateNVS,
+        .key = key,
+    }, future), false, "Send update NVS event failed");
 
     return true;
 }
@@ -136,64 +164,25 @@ bool StorageNVS::getLocalParam(const Key &key, Value &value)
     return true;
 }
 
-bool StorageNVS::eraseNVS(std::optional<int> wait_finish_timeout_ms)
+bool StorageNVS::eraseNVS(const void *sender, EventFuture *future)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
-    ESP_UTILS_LOGD(
-        "Param: wait_finish_timeout_ms(%s)", wait_finish_timeout_ms.has_value() ?
-        std::to_string(wait_finish_timeout_ms.value()).c_str() : "None"
-    );
+    ESP_UTILS_LOGD("Param: future(%p)", future);
 
     ESP_UTILS_CHECK_FALSE_RETURN(sendEvent({
+        .sender = sender,
         .operation = Operation::EraseNVS,
-    }, wait_finish_timeout_ms.has_value() ? wait_finish_timeout_ms.value() : 0), false, "Send storage NVS event failed");
+    }, future), false, "Send erase NVS event failed");
 
     return true;
 }
 
-bool StorageNVS::sendEvent(const Event &event, int wait_finish_timeout_ms)
+boost::signals2::connection StorageNVS::connectEventSignal(EventSignal::slot_type slot)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p), wait_finish_timeout_ms(%d)", &event, wait_finish_timeout_ms);
-#if ESP_UTILS_CONF_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
-    event.dump();
-#endif
-
-    EventWrapper event_wrapper = {
-        .event = event,
-    };
-    if (wait_finish_timeout_ms != 0) {
-        event_wrapper.promise = std::make_shared<EventPromise>();
-    }
-    if (wait_finish_timeout_ms < 0) {
-        wait_finish_timeout_ms = EVENT_WAIT_FINISH_TIMEOUT_MS_MAX;
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(_event_mutex);
-        _event_queue.push(event_wrapper);
-        _event_cv.notify_one();
-    }
-
-    if (event_wrapper.promise == nullptr) {
-        ESP_UTILS_LOGD("Don't wait event finish");
-        return true;
-    }
-
-    ESP_UTILS_LOGD(
-        "Wait event finish: %d, timeout_ms(%d)", static_cast<int>(event_wrapper.event.operation),
-        wait_finish_timeout_ms
-    );
-    auto future = event_wrapper.promise->get_future();
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        future.wait_for(std::chrono::milliseconds(wait_finish_timeout_ms)) == std::future_status::ready,
-        false, "Wait for event finished timeout"
-    );
-    ESP_UTILS_CHECK_FALSE_RETURN(future.get(), false, "Event operation failed");
-
-    return true;
+    return _event_signal.connect(slot);
 }
 
 bool StorageNVS::processEvent(const Event &event)
@@ -221,6 +210,8 @@ bool StorageNVS::processEvent(const Event &event)
     default:
         ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Invalid operation(%d)", static_cast<int>(event.operation));
     }
+
+    _event_signal(event);
 
     return true;
 }

@@ -31,19 +31,7 @@
 #define WLAN_DEFAULT_RSSI           -127
 #define WLAN_DEFAULT_AUTHMODE       WIFI_AUTH_OPEN
 
-#define SETTINGS_EVENT_DATA_TYPE_ENTER_DEVELOPER_MODE   std::monostate
-#define SETTINGS_EVENT_DATA_TYPE_SET_SOUND_VOLUME       int
-#define SETTINGS_EVENT_DATA_TYPE_GET_SOUND_VOLUME       std::reference_wrapper<int>
-#define SETTINGS_EVENT_DATA_TYPE_SET_DISPLAY_BRIGHTNESS int
-#define SETTINGS_EVENT_DATA_TYPE_GET_DISPLAY_BRIGHTNESS std::reference_wrapper<int>
-
 namespace esp_brookesia::speaker_apps {
-
-constexpr const char *SETTINGS_NVS_KEY_VOLUME = "volume";
-constexpr const char *SETTINGS_NVS_KEY_BRIGHTNESS = "brightness";
-constexpr const char *SETTINGS_NVS_KEY_WLAN_SWITCH = "wlan_switch";
-constexpr const char *SETTINGS_NVS_KEY_WLAN_SSID = "wlan_ssid";
-constexpr const char *SETTINGS_NVS_KEY_WLAN_PASSWORD = "wlan_password";
 
 struct SettingsManagerData {
     struct {
@@ -74,12 +62,9 @@ public:
 
     enum class EventType {
         EnterDeveloperMode,
-        SetSoundVolume,
-        GetSoundVolume,
-        SetDisplayBrightness,
-        GetDisplayBrightness,
     };
     using EventData = std::any;
+    using EventDataEnterDeveloperMode = std::monostate;
 
     struct FirstTrue {
         using result_type = bool;
@@ -96,6 +81,16 @@ public:
     };
     using EventSignal = boost::signals2::signal<bool(EventType, EventData), FirstTrue>;
 
+    enum class AppOperationCode {
+        EnterScreen,
+    };
+    using AppOperationEnterScreenPayloadType = UI_Screen;
+    using AppOperationPayloadType = std::any;
+    struct AppOperationData {
+        AppOperationCode code;
+        AppOperationPayloadType payload;
+    };
+
     SettingsManager(speaker::App &app_in, SettingsUI &ui_in, const SettingsManagerData &data_in);
     ~SettingsManager();
 
@@ -108,11 +103,6 @@ public:
     bool processRun();
     bool processBack();
     bool processClose();
-
-    bool setSoundVolume(int in_volume, int *out_volume);
-    bool getSoundVolume(int &volume);
-    bool setDisplayBrightness(int in_brightness, int *out_brightness);
-    bool getDisplayBrightness(int &brightness);
 
     bool checkClosed() const
     {
@@ -165,6 +155,15 @@ private:
     // friend WlanGeneraState operator&(WlanGeneraState lhs, WlanGeneraState rhs);
     // friend WlanGeneraState &operator|=(WlanGeneraState &lhs, WlanGeneraState rhs);
     // friend WlanGeneraState &operator&=(WlanGeneraState &lhs, WlanGeneraState rhs);
+
+    // App Event
+    bool processAppEventOperation(AppOperationData &operation_data);
+    bool processAppEventEnterScreen(AppOperationEnterScreenPayloadType payload);
+
+    // Signal
+    bool processStorageServiceEventSignalUpdateWlanSwitch(bool is_open);
+    bool processStorageServiceEventSignalUpdateVolume(int volume);
+    bool processStorageServiceEventSignalUpdateBrightness(int brightness);
 
     // All Screens
     bool processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_t *ui_screen_object);

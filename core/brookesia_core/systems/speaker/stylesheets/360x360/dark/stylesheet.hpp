@@ -55,7 +55,7 @@ constexpr DisplayData ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA = {
     },
     .app_launcher = {
         .data = ESP_BROOKESIA_SPEAKER_360_360_DARK_APP_LAUNCHER_DATA,
-        .default_image = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_image_middle_app_launcher_default_112_112),
+        .default_image = ESP_BROOKESIA_STYLE_IMAGE(&speaker_image_middle_app_launcher_default_112_112),
     },
     .quick_settings = {
         .data = ESP_BROOKESIA_SPEAKER_360_360_DARK_QUICK_SETTINGS_DATA,

@@ -119,8 +119,8 @@ private:
     void sendAudioEvent(const AudioEvent &event);
     void stopAudio(AudioType type);
     bool processAudioEvent(AudioProcessInfo &info);
-    void play_wifi_need_connect_audio();
-    bool play_random_audio(const RandomAudios &audios);
+    void playWiFiNeedConnectAudio();
+    bool playRandomAudio(const RandomAudios &audios);
     std::string getAudioName(AudioType type) const;
 
     bool processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id, void *event_data);

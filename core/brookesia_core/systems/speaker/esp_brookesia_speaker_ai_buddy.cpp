@@ -193,7 +193,7 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
         case Agent::ChatEvent::Init:
             if (!isWiFiValid()) {
                 ESP_UTILS_CHECK_FALSE_EXIT(expression.setSystemIcon("wifi_disconnected"), "Set WiFi icon failed");
-                play_wifi_need_connect_audio();
+                playWiFiNeedConnectAudio();
             } else {
                 ESP_UTILS_CHECK_FALSE_EXIT(
                     _agent->sendChatEvent(Agent::ChatEvent::Start), "Send chat event start failed"
@@ -240,7 +240,7 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
             return;
         }
 
-        ESP_UTILS_CHECK_FALSE_EXIT(play_random_audio(_response_audios), "Play random audio failed");
+        ESP_UTILS_CHECK_FALSE_EXIT(playRandomAudio(_response_audios), "Play random audio failed");
     }));
     _agent_connections.push_back(coze_chat_wake_up_signal.connect([this](bool is_wake_up) {
         ESP_UTILS_LOG_TRACE_GUARD();
@@ -261,7 +261,7 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
                 }
             } else {
                 if (!_agent->hasChatState(Agent::_ChatStateSleep)) {
-                    if (!play_random_audio(_sleep_audios)) {
+                    if (!playRandomAudio(_sleep_audios)) {
                         ESP_UTILS_LOGW("Play sleep audio failed");
                     }
                     ESP_UTILS_CHECK_FALSE_EXIT(
@@ -323,7 +323,7 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     terminateChat.setCallback([this](const std::vector<FunctionParameter> &params) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
-        if (!play_random_audio(_sleep_audios)) {
+        if (!playRandomAudio(_sleep_audios)) {
             ESP_UTILS_LOGW("Play sleep audio failed");
         }
         ESP_UTILS_CHECK_FALSE_EXIT(
@@ -492,10 +492,6 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
     case WIFI_EVENT_STA_START:
         break;
     case WIFI_EVENT_STA_STOP:
-        ESP_UTILS_CHECK_FALSE_RETURN(expression.setEmoji("neutral"), false, "Set emoji failed");
-        ESP_UTILS_CHECK_FALSE_RETURN(expression.setSystemIcon("wifi_disconnected"), false, "Set WiFi icon failed");
-        sendAudioEvent({AudioType::WifiDisconnected});
-        play_wifi_need_connect_audio();
         break;
     case WIFI_EVENT_STA_CONNECTED:
         _flags.is_wifi_connected = true;
@@ -519,7 +515,7 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         ESP_UTILS_CHECK_FALSE_RETURN(expression.setEmoji("neutral"), false, "Set emoji failed");
         ESP_UTILS_CHECK_FALSE_RETURN(expression.setSystemIcon("wifi_disconnected"), false, "Set WiFi icon failed");
         sendAudioEvent({AudioType::WifiDisconnected});
-        play_wifi_need_connect_audio();
+        playWiFiNeedConnectAudio();
         break;
     }
     default:
@@ -531,7 +527,7 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
 
 bool AI_Buddy::processAudioEvent(AudioProcessInfo &info)
 {
-    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     auto it = _audio_file_map.find(info.event.type);
     ESP_UTILS_CHECK_FALSE_RETURN(
@@ -570,7 +566,7 @@ bool AI_Buddy::processAudioEvent(AudioProcessInfo &info)
     return true;
 }
 
-void AI_Buddy::play_wifi_need_connect_audio()
+void AI_Buddy::playWiFiNeedConnectAudio()
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -596,7 +592,7 @@ void AI_Buddy::play_wifi_need_connect_audio()
     }
 }
 
-bool AI_Buddy::play_random_audio(const RandomAudios &audios)
+bool AI_Buddy::playRandomAudio(const RandomAudios &audios)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 

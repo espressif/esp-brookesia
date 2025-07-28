@@ -41,6 +41,10 @@
 #define WLAN_TIME_SYNC_THREAD_STACK_SIZE        (6 * 1024)
 #define WLAN_TIME_SYNC_THREAD_STACK_CAPS_EXT    (true)
 
+#define ENTER_SCREEN_THREAD_NAME                "enter_screen"
+#define ENTER_SCREEN_THREAD_STACK_SIZE          (4 * 1024)
+#define ENTER_SCREEN_THREAD_STACK_CAPS_EXT      (true)
+
 // UI screens
 #define UI_SCREEN_BACK_MAP() \
     { \
@@ -162,9 +166,51 @@ bool SettingsManager::processInit()
 {
     ESP_UTILS_CHECK_FALSE_RETURN(initWlan(), false, "Init WLAN failed");
 
+    auto &storage_service = StorageNVS::requestInstance();
+    storage_service.connectEventSignal([this](const StorageNVS::Event & event) {
+        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.sender == this)) {
+            ESP_UTILS_LOGD("Ignore event: operation(%d), sender(%p)", static_cast<int>(event.operation), event.sender);
+            return;
+        }
+
+        StorageNVS::Value value;
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            StorageNVS::requestInstance().getLocalParam(event.key, value), "Get NVS value failed"
+        );
+
+        if (event.key == SETTINGS_NVS_KEY_WLAN_SWITCH) {
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                std::holds_alternative<int>(value), "Invalid WLAN switch flag type"
+            );
+
+            auto is_open = static_cast<bool>(std::get<int>(value));
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                processStorageServiceEventSignalUpdateWlanSwitch(is_open), "Process WLAN switch flag updated failed"
+            );
+        } else if (event.key == SETTINGS_NVS_KEY_VOLUME) {
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                std::holds_alternative<int>(value), "Invalid volume type"
+            );
+
+            auto volume = std::get<int>(value);
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                processStorageServiceEventSignalUpdateVolume(volume), "Process volume updated failed"
+            );
+        } else if (event.key == SETTINGS_NVS_KEY_BRIGHTNESS) {
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                std::holds_alternative<int>(value), "Invalid brightness type"
+            );
+
+            auto brightness = std::get<int>(value);
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                processStorageServiceEventSignalUpdateBrightness(brightness), "Process brightness updated failed"
+            );
+        }
+    });
+
     StorageNVS::Value wlan_sw_flag;
     int wlan_sw_flag_int = WLAN_SW_FLAG_DEFAULT;
-    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, wlan_sw_flag)) {
+    if (storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, wlan_sw_flag)) {
         ESP_UTILS_CHECK_FALSE_RETURN(
             std::holds_alternative<int>(wlan_sw_flag), false, "Invalid WLAN switch flag type"
         );
@@ -172,7 +218,7 @@ bool SettingsManager::processInit()
     } else {
         ESP_UTILS_LOGW("WLAN switch flag not found in NVS, set to default value(%d)", static_cast<int>(wlan_sw_flag_int));
         ESP_UTILS_CHECK_FALSE_RETURN(
-            StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, wlan_sw_flag_int), false,
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, wlan_sw_flag_int, this), false,
             "Failed to set WLAN switch flag"
         );
     }
@@ -194,23 +240,40 @@ bool SettingsManager::processInit()
 
     StorageNVS::Value wlan_ssid;
     std::string wlan_ssid_str = WLAN_DEFAULT_SSID;
-    if (!StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, wlan_ssid)) {
+    if (!storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, wlan_ssid)) {
         ESP_UTILS_LOGW("WLAN SSID not found in NVS, set to default value(%s)", wlan_ssid_str.c_str());
         ESP_UTILS_CHECK_FALSE_RETURN(
-            StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, wlan_ssid_str, !wlan_ssid_str.empty()),
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, wlan_ssid_str, this),
             false, "Failed to set WLAN SSID"
         );
     }
 
     StorageNVS::Value wlan_password;
     std::string wlan_password_str = WLAN_DEFAULT_PWD;
-    if (!StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, wlan_password)) {
+    if (!storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, wlan_password)) {
         ESP_UTILS_LOGW("WLAN password not found in NVS, set to default value(%s)", wlan_password_str.c_str());
         ESP_UTILS_CHECK_FALSE_RETURN(
-            StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, wlan_password_str,
-                    !wlan_password_str.empty()), false, "Failed to set WLAN password"
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, wlan_password_str, this), false,
+            "Failed to set WLAN password"
         );
     }
+
+    app.getSystem()->registerAppEventCallback([](lv_event_t *event) {
+        auto manager = static_cast<SettingsManager *>(lv_event_get_user_data(event));
+        ESP_UTILS_CHECK_NULL_EXIT(manager, "Manager is null");
+
+        auto event_data = static_cast<ESP_Brookesia_CoreAppEventData_t *>(lv_event_get_param(event));
+        ESP_UTILS_CHECK_NULL_EXIT(event_data, "Event data is null");
+
+        if ((event_data->type != ESP_BROOKESIA_CORE_APP_EVENT_TYPE_OPERATION) || (event_data->id != manager->app.getId())) {
+            return;
+        }
+
+        auto operation_data = static_cast<AppOperationData *>(event_data->data);
+        ESP_UTILS_CHECK_NULL_EXIT(operation_data, "Operation data is null");
+
+        ESP_UTILS_CHECK_FALSE_EXIT(manager->processAppEventOperation(*operation_data), "Process app event failed");
+    }, this);
 
     return true;
 }
@@ -390,8 +453,12 @@ bool SettingsManager::processRunUI_ScreenSettings()
         ESP_UTILS_CHECK_FALSE_GOTO(
             app.getCore()->getCoreEvent()->registerEvent(
         restart_cell->getEventObject(), [](const ESP_Brookesia_CoreEvent::HandlerData & data) {
-            ESP_UTILS_LOGW("Erase NVS flash and restart system");
-            ESP_UTILS_CHECK_FALSE_RETURN(StorageNVS::requestInstance().eraseNVS(-1), false, "Erase NVS failed");
+            ESP_UTILS_LOGW("Erase NVS flash");
+            StorageNVS::EventFuture future;
+            ESP_UTILS_CHECK_FALSE_RETURN(StorageNVS::requestInstance().eraseNVS(&future), false, "Erase NVS failed");
+            future.wait();
+
+            ESP_UTILS_LOGW("Restart system");
             esp_restart();
             return true;
         }, restart_cell->getClickEventID(), nullptr
@@ -744,7 +811,7 @@ bool SettingsManager::updateUI_ScreenWlanConnected(bool use_current, WlanGeneraS
             boost::thread([this]() {
                 boost::this_thread::sleep_for(boost::chrono::milliseconds(WLAN_DISCONNECT_HIDE_TIME_MS));
 
-                if (_is_ui_initialized && !this->checkIsWlanGeneralState(WlanGeneraState::_CONNECT)) {
+                if (ui.checkInitialized() && !this->checkIsWlanGeneralState(WlanGeneraState::_CONNECT)) {
                     app.getCore()->lockLv();
                     if (!ui.screen_wlan.setConnectedVisible(false)) {
                         ESP_UTILS_LOGE("Set WLAN connect visible failed");
@@ -1000,16 +1067,12 @@ bool SettingsManager::processRunUI_ScreenSound()
                              );
         ESP_UTILS_CHECK_NULL_GOTO(volume_slider, err, "Get cell volume slider failed");
 
-        int volume = 0;
-        if (!getSoundVolume(volume)) {
-            ESP_UTILS_LOGE("Get volume failed, skip");
-            return true;
-        }
-        if (!setSoundVolume(volume, &volume)) {
-            ESP_UTILS_LOGE("Set sound volume failed, skip");
-            return true;
-        }
-
+        StorageNVS::Value value;
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, value), false,
+            "Get media sound volume failed"
+        );
+        lv_slider_set_value(volume_slider, std::get<int>(value), LV_ANIM_OFF);
         lv_obj_add_event_cb(volume_slider, onUI_ScreenSoundVolumeSliderValueChangeEvent, LV_EVENT_VALUE_CHANGED, this);
     }
 
@@ -1031,12 +1094,10 @@ bool SettingsManager::processOnUI_ScreenSoundVolumeSliderValueChangeEvent(lv_eve
     ESP_UTILS_CHECK_NULL_RETURN(slider, false, "Invalid slider");
 
     int target_value = lv_slider_get_value(slider);
-    int out_volume = 0;
-
-    if (!setSoundVolume(target_value, &out_volume)) {
-        ESP_UTILS_LOGE("Set sound volume failed, set slider back to %d", static_cast<int>(out_volume));
-        lv_slider_set_value(slider, out_volume, LV_ANIM_OFF);
-    }
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, target_value), false,
+        "Set media sound volume failed"
+    );
 
     return true;
 }
@@ -1084,16 +1145,12 @@ bool SettingsManager::processRunUI_ScreenDisplay()
                                  );
         ESP_UTILS_CHECK_NULL_GOTO(brightness_slider, err, "Get cell display slider failed");
 
-        int brightness = 0;
-        if (!getDisplayBrightness(brightness)) {
-            ESP_UTILS_LOGE("Get brightness failed, skip");
-            return true;
-        }
-        if (!setDisplayBrightness(brightness, &brightness)) {
-            ESP_UTILS_LOGE("Set brightness failed, skip");
-            return true;
-        }
-
+        StorageNVS::Value value;
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, value), false,
+            "Get media display brightness failed"
+        );
+        lv_slider_set_value(brightness_slider, std::get<int>(value), LV_ANIM_OFF);
         lv_obj_add_event_cb(
             brightness_slider, onUI_ScreenDisplayBrightnessSliderValueChangeEvent, LV_EVENT_VALUE_CHANGED, this
         );
@@ -1117,12 +1174,10 @@ bool SettingsManager::processOnUI_ScreenDisplayBrightnessSliderValueChangeEvent(
     ESP_UTILS_CHECK_NULL_RETURN(slider, false, "Invalid slider");
 
     int target_value = lv_slider_get_value(slider);
-    int out_brightness = 0;
-
-    if (!setDisplayBrightness(target_value, &out_brightness)) {
-        ESP_UTILS_LOGE("Set brightness failed, set slider back to %d", static_cast<int>(out_brightness));
-        lv_slider_set_value(slider, out_brightness, LV_ANIM_OFF);
-    }
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, target_value), false,
+        "Set media display brightness failed"
+    );
 
     return true;
 }
@@ -1226,6 +1281,155 @@ bool SettingsManager::processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_
     return true;
 }
 
+bool SettingsManager::processAppEventOperation(AppOperationData &operation_data)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto operation_code = operation_data.code;
+    auto operation_payload = operation_data.payload;
+
+    // Open app if not running
+    auto open_app_func = [this]() -> bool {
+        auto system = app.getSystem();
+        ESP_UTILS_CHECK_NULL_RETURN(system, false, "Invalid system");
+
+        if (system->getCoreManager().getRunningAppById(app.getId()) != nullptr)
+        {
+            return true;
+        }
+        ESP_Brookesia_CoreAppEventData_t event_data = {
+            .id = app.getId(),
+            .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
+            .data = nullptr
+        };
+        ESP_UTILS_CHECK_FALSE_RETURN(system->sendAppEvent(&event_data), false, "Send app start event failed");
+        return true;
+    };
+
+    switch (operation_code) {
+    case AppOperationCode::EnterScreen:
+        ESP_UTILS_CHECK_FALSE_RETURN(open_app_func(), false, "Open app failed");
+        // Since the manager.processRun() is called asynchronously,
+        // we need to wait for the UI to be initialized before processing the enter screen event
+        {
+            esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
+                .name = ENTER_SCREEN_THREAD_NAME,
+                .stack_size = ENTER_SCREEN_THREAD_STACK_SIZE,
+                .stack_in_ext = ENTER_SCREEN_THREAD_STACK_CAPS_EXT,
+            });
+            boost::thread([this, operation_payload]() {
+                while (!ui.checkInitialized()) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                }
+
+                auto system = app.getSystem();
+                ESP_UTILS_CHECK_NULL_EXIT(system, "Invalid system");
+
+                system->lockLv();
+                ESP_UTILS_CHECK_FALSE_EXIT(
+                    processAppEventEnterScreen(std::any_cast<AppOperationEnterScreenPayloadType>(operation_payload)),
+                    "Process app event enter screen failed"
+                );
+                system->unlockLv();
+            }).detach();
+        }
+        break;
+    default:
+        ESP_UTILS_LOGE("Invalid app operation code: %d", static_cast<int>(operation_code));
+    }
+
+    return true;
+}
+
+bool SettingsManager::processAppEventEnterScreen(AppOperationEnterScreenPayloadType payload)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD("Param: payload(%d)", static_cast<int>(payload));
+
+    auto ui_screen = getUI_Screen(payload);
+    ESP_UTILS_CHECK_NULL_RETURN(ui_screen, false, "Invalid UI screen");
+
+    auto ui_screen_object = ui_screen->getScreenObject();
+    ESP_UTILS_CHECK_NULL_RETURN(ui_screen_object, false, "Invalid UI screen object");
+
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        processUI_ScreenChange(payload, ui_screen_object), false, "Process UI screen change failed"
+    );
+
+    return true;
+}
+
+bool SettingsManager::processStorageServiceEventSignalUpdateWlanSwitch(bool is_open)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (ui.checkInitialized()) {
+        app.getSystem()->lockLv();
+        // Process WLAN switch
+        lv_obj_t *wlan_sw = ui.screen_wlan.getElementObject(
+                                static_cast<int>(SettingsUI_ScreenWlanContainerIndex::CONTROL),
+                                static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONTROL_SW),
+                                SettingsUI_WidgetCellElement::RIGHT_SWITCH
+                            );
+        ESP_UTILS_CHECK_NULL_RETURN(wlan_sw, false, "Get WLAN switch failed");
+        if (is_open) {
+            lv_obj_add_state(wlan_sw, LV_STATE_CHECKED);
+        } else {
+            lv_obj_remove_state(wlan_sw, LV_STATE_CHECKED);
+        }
+        lv_obj_send_event(wlan_sw, LV_EVENT_VALUE_CHANGED, nullptr);
+        app.getSystem()->unlockLv();
+    } else {
+        boost::thread([this, is_open]() {
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                forceWlanOperation(is_open ? WlanOperation::START : WlanOperation::STOP, WLAN_START_WAIT_TIMEOUT_MS),
+                "Force WLAN operation start/stop failed"
+            );
+        }).detach();
+    }
+
+    return true;
+}
+
+bool SettingsManager::processStorageServiceEventSignalUpdateVolume(int volume)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (ui.checkInitialized()) {
+        app.getSystem()->lockLv();
+        auto volume_slider = ui.screen_sound.getElementObject(
+                                 static_cast<int>(SettingsUI_ScreenSoundContainerIndex::VOLUME),
+                                 static_cast<int>(SettingsUI_ScreenSoundCellIndex::VOLUME_SLIDER),
+                                 SettingsUI_WidgetCellElement::CENTER_SLIDER
+                             );
+        ESP_UTILS_CHECK_NULL_RETURN(volume_slider, false, "Get cell volume slider failed");
+        lv_slider_set_value(volume_slider, volume, LV_ANIM_OFF);
+        app.getSystem()->unlockLv();
+    }
+
+    return true;
+}
+
+bool SettingsManager::processStorageServiceEventSignalUpdateBrightness(int brightness)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (ui.checkInitialized()) {
+        app.getSystem()->lockLv();
+        auto brightness_slider = ui.screen_display.getElementObject(
+                                     static_cast<int>(SettingsUI_ScreenDisplayContainerIndex::BRIGHTNESS),
+                                     static_cast<int>(SettingsUI_ScreenDisplayCellIndex::BRIGHTNESS_SLIDER),
+                                     SettingsUI_WidgetCellElement::CENTER_SLIDER
+                                 );
+        ESP_UTILS_CHECK_NULL_RETURN(brightness_slider, false, "Get cell display slider failed");
+        lv_slider_set_value(brightness_slider, brightness, LV_ANIM_OFF);
+        app.getSystem()->unlockLv();
+    }
+
+    return true;
+}
+
 bool SettingsManager::onScreenNavigationClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data)
 {
     ESP_UTILS_LOGD("Navigation click event");
@@ -1233,98 +1437,6 @@ bool SettingsManager::onScreenNavigationClickEventHandler(const ESP_Brookesia_Co
 
     SettingsManager *manager = static_cast<SettingsManager *>(data.user_data);
     ESP_UTILS_CHECK_FALSE_RETURN(manager->processBack(), false, "Process back failed");
-
-    return true;
-}
-
-bool SettingsManager::setSoundVolume(int in_volume, int *out_volume)
-{
-    ESP_UTILS_LOGD("Set sound volume(%d)", static_cast<int>(in_volume));
-
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        event_signal(EventType::SetSoundVolume, in_volume), false, "Set media sound volume failed"
-    );
-
-    int ret_volume = in_volume;
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        event_signal(EventType::GetSoundVolume, std::ref(ret_volume)), false, "Get media sound volume failed"
-    );
-    if (ret_volume != in_volume) {
-        ESP_UTILS_LOGW("Mismatch volume, target(%d), actual(%d)", in_volume, ret_volume);
-    }
-
-    if (out_volume != nullptr) {
-        *out_volume = ret_volume;
-    }
-
-    if (ui.checkInitialized()) {
-        auto volume_slider = ui.screen_sound.getElementObject(
-                                 static_cast<int>(SettingsUI_ScreenSoundContainerIndex::VOLUME),
-                                 static_cast<int>(SettingsUI_ScreenSoundCellIndex::VOLUME_SLIDER),
-                                 SettingsUI_WidgetCellElement::CENTER_SLIDER
-                             );
-        ESP_UTILS_CHECK_NULL_RETURN(volume_slider, false, "Get cell volume slider failed");
-        lv_slider_set_value(volume_slider, ret_volume, LV_ANIM_OFF);
-    }
-
-    return true;
-}
-
-bool SettingsManager::getSoundVolume(int &volume)
-{
-    int ret_volume = 0;
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        event_signal(EventType::GetSoundVolume, std::ref(ret_volume)), false, "Get media sound volume failed"
-    );
-
-    ESP_UTILS_CHECK_FALSE_RETURN(ret_volume >= 0, false, "Invalid volume");
-    volume = ret_volume;
-
-    return true;
-}
-
-bool SettingsManager::setDisplayBrightness(int in_brightness, int *out_brightness)
-{
-    ESP_UTILS_LOGD("Set display brightness(%d)", static_cast<int>(in_brightness));
-
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        event_signal(EventType::SetDisplayBrightness, in_brightness), false, "Set media display brightness failed"
-    );
-
-    int ret_brightness = in_brightness;
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        event_signal(EventType::GetDisplayBrightness, std::ref(ret_brightness)), false, "Get media display brightness failed"
-    );
-    if (ret_brightness != in_brightness) {
-        ESP_UTILS_LOGW("Mismatch brightness, target(%d), actual(%d)", in_brightness, ret_brightness);
-    }
-
-    if (out_brightness != nullptr) {
-        *out_brightness = ret_brightness;
-    }
-
-    if (ui.checkInitialized()) {
-        auto brightness_slider = ui.screen_display.getElementObject(
-                                     static_cast<int>(SettingsUI_ScreenDisplayContainerIndex::BRIGHTNESS),
-                                     static_cast<int>(SettingsUI_ScreenDisplayCellIndex::BRIGHTNESS_SLIDER),
-                                     SettingsUI_WidgetCellElement::CENTER_SLIDER
-                                 );
-        ESP_UTILS_CHECK_NULL_RETURN(brightness_slider, false, "Get cell display slider failed");
-        lv_slider_set_value(brightness_slider, ret_brightness, LV_ANIM_OFF);
-    }
-
-    return true;
-}
-
-bool SettingsManager::getDisplayBrightness(int &brightness)
-{
-    int ret_brightness = 0;
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        event_signal(EventType::GetDisplayBrightness, std::ref(ret_brightness)), false, "Get media display brightness failed"
-    );
-
-    ESP_UTILS_CHECK_FALSE_RETURN(ret_brightness >= 0, false, "Invalid brightness");
-    brightness = ret_brightness;
 
     return true;
 }
@@ -1419,7 +1531,7 @@ bool SettingsManager::processOnWlanScanTimer(lv_timer_t *t)
         return true;
     }
 
-    if (_is_ui_initialized && !_is_wlan_retry_connecting) {
+    if (ui.checkInitialized() && !_is_wlan_retry_connecting) {
         ESP_UTILS_CHECK_FALSE_RETURN(
             updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed"
         );
@@ -2141,7 +2253,7 @@ bool SettingsManager::processOnWlanUI_Thread()
                             ESP_UTILS_CHECK_FALSE_EXIT(
                                 forceWlanOperation(WlanOperation::CONNECT, 0), "Force WLAN operation connect failed"
                             );
-                            if (_is_ui_initialized) {
+                            if (ui.checkInitialized()) {
                                 app.getCore()->lockLv();
                                 // Update connecting WLAN data
                                 if (!checkIsWlanGeneralState(WlanGeneraState::CONNECTED)) {
@@ -2197,11 +2309,11 @@ bool SettingsManager::processOnWlanUI_Thread()
         std::string current_pwd((char *)_wlan_config.sta.password);
         if ((last_ssid_str != current_ssid) || (last_pwd_str != current_pwd)) {
             ESP_UTILS_CHECK_FALSE_RETURN(
-                StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, current_ssid), false,
+                StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, current_ssid, this), false,
                 "Set last SSID failed"
             );
             ESP_UTILS_CHECK_FALSE_RETURN(
-                StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, current_pwd), false,
+                StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, current_pwd, this), false,
                 "Set last PWD failed"
             );
         }
@@ -2277,7 +2389,7 @@ bool SettingsManager::processOnWlanUI_Thread()
         break;
     }
 
-    if (!_is_ui_initialized) {
+    if (!ui.checkInitialized()) {
         ESP_UTILS_LOGD("Skip APP UI update when not initialized");
         goto end;
     }
@@ -2523,7 +2635,7 @@ bool SettingsManager::processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t 
         );
 
         ESP_UTILS_CHECK_FALSE_EXIT(
-            StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, static_cast<int>(wlan_sw_flag)),
+            StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, static_cast<int>(wlan_sw_flag), this),
             "Set WLAN switch flag failed"
         );
     }).detach();
