@@ -7,6 +7,10 @@
 #include <src/widgets/label/lv_label.h>
 #include <src/widgets/textarea/lv_textarea.h>
 #include "cell_container.hpp"
+#ifdef ESP_UTILS_LOGD
+#   undef ESP_UTILS_LOGD
+#endif
+#define ESP_UTILS_LOGD(...)
 
 #define DOULE_LABEL_MAIN_HEIHGH_FACTOR  (1.5)
 

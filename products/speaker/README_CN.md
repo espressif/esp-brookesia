@@ -57,7 +57,7 @@ idf.py -p PORT flash monitor
 
 请使用以下反馈渠道：
 
-- 有技术问题，请访问 [esp32.com](https://esp32.com/viewforum.php?f=35) 论坛。
+- 有技术问题，请访问 [esp32.com](https://esp32.com/viewforum.php?f=52) 论坛。
 - 如需提交功能请求或错误报告，请创建 [GitHub issue](https://github.com/espressif/esp-brookesia/issues)。
 
 我们会尽快回复您。

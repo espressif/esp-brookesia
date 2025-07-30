@@ -288,7 +288,7 @@ end:
 
 bool SettingsUI_ScreenWlan::updateCellWlanData(SettingsUI_WidgetCell *cell, const WlanData &wlan_data)
 {
-    ESP_UTILS_LOGD("Update cell(%p) WLAN data", cell);
+    // ESP_UTILS_LOGD("Update cell(%p) WLAN data", cell);
     ESP_UTILS_CHECK_NULL_RETURN(cell, false, "Invalid cell");
     ESP_UTILS_CHECK_FALSE_RETURN(!wlan_data.ssid.empty(), false, "Invalid data ssid");
 

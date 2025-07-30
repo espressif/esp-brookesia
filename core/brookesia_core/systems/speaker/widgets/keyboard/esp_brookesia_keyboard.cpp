@@ -57,14 +57,14 @@ static const char *const default_kb_map_spec[] = {
     "+", "|", "\\", "\"", "<", ">", "{", "}", "[", "]", "\n",
     LV_KB_PHR_STR, "~", "@", "#", "!", "%", "&", "*", "(", ")", LV_KB_PHR_STR, "\n",
     LV_KB_PHR_STR, LV_KB_LOWER_STR, "'", "/", "-", "_", ":", ";", "?", LV_KB_PHR_STR, "\n",
-    LV_KB_PHR_STR, LV_KB_NUMBER_STR, LV_KB_SPACE_STR, LV_SYMBOL_BACKSPACE, LV_KB_PHR_STR, "\n",
+    LV_KB_PHR_STR, LV_KB_NUMBER_STR, ".", LV_KB_SPACE_STR, LV_SYMBOL_BACKSPACE, LV_KB_PHR_STR, "\n",
     LV_KB_PHR_STR, LV_SYMBOL_LEFT, LV_SYMBOL_OK, LV_SYMBOL_RIGHT, LV_KB_PHR_STR, ""
 };
 static const lv_buttonmatrix_ctrl_t default_kb_ctrl_spec_map[] = {
     LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2),
     LV_KB_PHR(1), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_PHR(1),
     LV_KB_PHR(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_PHR(2),
-    LV_KB_PHR(3), LV_KB_BTN(4), LV_KB_BTN(6), LV_KB_BTN(4), LV_KB_PHR(3),
+    LV_KB_PHR(2), LV_KB_BTN(3), LV_KB_BTN(2), LV_KB_BTN(6), LV_KB_BTN(4), LV_KB_PHR(3),
     LV_KB_PHR(3), LV_KB_BTN(4), LV_KB_BTN(6), LV_KB_BTN(4), LV_KB_PHR(3)
 };
 

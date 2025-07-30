@@ -155,7 +155,7 @@ SettingsManager::SettingsManager(speaker::App &app_in, SettingsUI &ui_in, const 
 
 SettingsManager::~SettingsManager()
 {
-    ESP_UTILS_LOGD("Destroy(0x%p)", this);
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (!checkClosed()) {
         ESP_UTILS_CHECK_FALSE_EXIT(processClose(), "Close failed");
@@ -164,6 +164,8 @@ SettingsManager::~SettingsManager()
 
 bool SettingsManager::processInit()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_CHECK_FALSE_RETURN(initWlan(), false, "Init WLAN failed");
 
     auto &storage_service = StorageNVS::requestInstance();
@@ -232,6 +234,8 @@ bool SettingsManager::processInit()
     // Force WLAN operation later since the Wlan init may take some time
     target_operation = wlan_sw_flag_int ? WlanOperation::START : WlanOperation::STOP;
     boost::thread([this, target_operation]() {
+        ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
         // std::this_thread::sleep_for(boost::chrono::milliseconds(WLAN_INIT_WAIT_TIMEOUT_MS));
         if (!forceWlanOperation(target_operation, 0)) {
             ESP_UTILS_LOGE("Force WLAN operation(%d) failed", static_cast<int>(target_operation));
@@ -259,6 +263,8 @@ bool SettingsManager::processInit()
     }
 
     app.getSystem()->registerAppEventCallback([](lv_event_t *event) {
+        ESP_UTILS_LOG_TRACE_GUARD();
+
         auto manager = static_cast<SettingsManager *>(lv_event_get_user_data(event));
         ESP_UTILS_CHECK_NULL_EXIT(manager, "Manager is null");
 
@@ -280,7 +286,8 @@ bool SettingsManager::processInit()
 
 bool SettingsManager::processRun()
 {
-    ESP_UTILS_LOGD("Process run");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_CHECK_FALSE_RETURN(checkClosed(), false, "Already running");
 
     ESP_UTILS_CHECK_FALSE_GOTO(processRunUI_ScreenSettings(), err, "Process run UI screen settings failed");
@@ -310,7 +317,7 @@ err:
 
 bool SettingsManager::processBack()
 {
-    ESP_UTILS_LOGD("Process back");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     lv_obj_t *back_screen = nullptr;
     UI_Screen back_ui = UI_Screen::HOME;
@@ -327,7 +334,8 @@ bool SettingsManager::processBack()
 
 bool SettingsManager::processClose()
 {
-    ESP_UTILS_LOGD("Process close");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_CHECK_FALSE_RETURN(!checkClosed(), false, "Already closed");
 
     _is_ui_initialized = false;
@@ -359,7 +367,7 @@ bool SettingsManager::processClose()
 
 bool SettingsManager::processRunUI_ScreenSettings()
 {
-    ESP_UTILS_LOGD("Process run UI screen settings");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     // Wireless: WLAN
     SettingsUI_WidgetCell *wlan_cell = ui.screen_settings.getCell(
@@ -500,7 +508,7 @@ err:
 
 bool SettingsManager::processRunUI_ScreenWlan()
 {
-    ESP_UTILS_LOGD("Process run UI screen WLAN");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     // Process screen header
     ESP_UTILS_CHECK_FALSE_RETURN(
@@ -557,7 +565,7 @@ err:
 
 bool SettingsManager::processRunUI_ScreenWlanVerification()
 {
-    ESP_UTILS_LOGD("Process run UI screen WLAN verification");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     // Register Navigation click event
     ESP_UTILS_CHECK_FALSE_GOTO(
@@ -589,7 +597,7 @@ err:
 
 bool SettingsManager::processRunUI_ScreenAbout()
 {
-    ESP_UTILS_LOGD("Process run UI screen about");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     char str_buffer[128] = {0};
 
@@ -789,8 +797,10 @@ err:
 
 bool SettingsManager::updateUI_ScreenWlanConnected(bool use_current, WlanGeneraState current_state)
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_LOGD(
-        "Update UI screen WLAN connected (%d, state: %s)", use_current,
+        "Parameter: use_current(%d), current_state(%s)", use_current,
         use_current ? getWlanGeneralStateStr(current_state) : getWlanGeneralStateStr(_wlan_general_state)
     );
 
@@ -809,6 +819,8 @@ bool SettingsManager::updateUI_ScreenWlanConnected(bool use_current, WlanGeneraS
                 "Update WLAN connect state failed"
             );
             boost::thread([this]() {
+                ESP_UTILS_LOG_TRACE_GUARD();
+
                 boost::this_thread::sleep_for(boost::chrono::milliseconds(WLAN_DISCONNECT_HIDE_TIME_MS));
 
                 if (ui.checkInitialized() && !this->checkIsWlanGeneralState(WlanGeneraState::_CONNECT)) {
@@ -857,8 +869,10 @@ bool SettingsManager::updateUI_ScreenWlanConnected(bool use_current, WlanGeneraS
 
 bool SettingsManager::updateUI_ScreenWlanAvailable(bool use_current, WlanGeneraState current_state)
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_LOGI(
-        "Update UI screen WLAN available (%d, state: %s)", use_current,
+        "Parameter: use_current(%d), current_state(%s)", use_current,
         use_current ? getWlanGeneralStateStr(current_state) : getWlanGeneralStateStr(_wlan_general_state)
     );
 
@@ -895,7 +909,7 @@ bool SettingsManager::updateUI_ScreenWlanAvailable(bool use_current, WlanGeneraS
 
 bool SettingsManager::scrollUI_ScreenWlanConnectedToView()
 {
-    ESP_UTILS_LOGD("Show WLAN connected");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     ESP_UTILS_CHECK_FALSE_RETURN(
         ui.screen_wlan.scrollConnectedToView(), false, "Scroll WLAN connect to view failed"
@@ -906,7 +920,7 @@ bool SettingsManager::scrollUI_ScreenWlanConnectedToView()
 
 bool SettingsManager::onUI_ScreenWlanAvailableCellClickEventHander(const ESP_Brookesia_CoreEvent::HandlerData &data)
 {
-    ESP_UTILS_LOGD("On UI screen WLAN available cell clicked event handler");
+    ESP_UTILS_LOG_TRACE_GUARD();
 
     SettingsManager *manager = (SettingsManager *)data.user_data;
     ESP_UTILS_CHECK_NULL_RETURN(manager, false, "Invalid manager");
@@ -921,8 +935,9 @@ bool SettingsManager::onUI_ScreenWlanAvailableCellClickEventHander(const ESP_Bro
 
 void SettingsManager::onUI_ScreenWlanGestureEvent(lv_event_t *e)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(e, "Invalid event");
-    // ESP_UTILS_LOGD("On UI screen WLAN gesture press event");
 
     SettingsManager *manager = (SettingsManager *)lv_event_get_user_data(e);
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid app pointer");
@@ -938,8 +953,9 @@ void SettingsManager::onUI_ScreenWlanGestureEvent(lv_event_t *e)
 
 void SettingsManager::onUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(e, "Invalid event");
-    ESP_UTILS_LOGD("On UI screen WLAN control switch value changed event");
 
     SettingsManager *manager = (SettingsManager *)lv_event_get_user_data(e);
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid app pointer");
@@ -1007,9 +1023,10 @@ std::pair<SettingsManager::UI_Screen, lv_obj_t *> SettingsManager::getUI_BackScr
 
 bool SettingsManager::onScreenSettingsCellClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_RETURN(data.object, false, "Invalid object");
     ESP_UTILS_CHECK_NULL_RETURN(data.user_data, false, "Invalid user data");
-    ESP_UTILS_LOGD("On screen settings cell clicked event handler");
 
     SettingsManager *manager = static_cast<SettingsManager *>(data.user_data);
     auto ui_screen_object_it = manager->_ui_screen_object_map.find(static_cast<lv_obj_t *>(data.object));
@@ -1027,6 +1044,8 @@ bool SettingsManager::onScreenSettingsCellClickEventHandler(const ESP_Brookesia_
 
 bool SettingsManager::processCloseUI_ScreenSettings()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     // Container Wireless
     SettingsUI_WidgetCell *wlan_cell = ui.screen_settings.getCell(
                                            static_cast<int>(SettingsUI_ScreenSettingsContainerIndex::WIRELESS),
@@ -1050,7 +1069,7 @@ bool SettingsManager::processCloseUI_ScreenSettings()
 
 bool SettingsManager::processRunUI_ScreenSound()
 {
-    ESP_UTILS_LOGD("Process run UI screen sound");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     ESP_UTILS_CHECK_FALSE_GOTO(
         app.getCore()->getCoreEvent()->registerEvent(
@@ -1088,7 +1107,7 @@ err:
 
 bool SettingsManager::processOnUI_ScreenSoundVolumeSliderValueChangeEvent(lv_event_t *e)
 {
-    ESP_UTILS_LOGD("Process on UI screen sound volume slider value change event");
+    ESP_UTILS_LOG_TRACE_GUARD();
 
     lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
     ESP_UTILS_CHECK_NULL_RETURN(slider, false, "Invalid slider");
@@ -1104,8 +1123,9 @@ bool SettingsManager::processOnUI_ScreenSoundVolumeSliderValueChangeEvent(lv_eve
 
 void SettingsManager::onUI_ScreenSoundVolumeSliderValueChangeEvent(lv_event_t *e)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(e, "Invalid event");
-    ESP_UTILS_LOGD("On UI screen sound volume slider value change event");
 
     SettingsManager *manager = (SettingsManager *)lv_event_get_user_data(e);
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid app pointer");
@@ -1118,6 +1138,8 @@ void SettingsManager::onUI_ScreenSoundVolumeSliderValueChangeEvent(lv_event_t *e
 
 bool SettingsManager::processCloseUI_ScreenSound()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     app.getCore()->getCoreEvent()->unregisterEvent(
         ui.screen_sound.getEventObject(), onScreenNavigationClickEventHandler,
         ui.screen_sound.getNavigaitionClickEventID()
@@ -1128,7 +1150,7 @@ bool SettingsManager::processCloseUI_ScreenSound()
 
 bool SettingsManager::processRunUI_ScreenDisplay()
 {
-    ESP_UTILS_LOGD("Process run UI screen display");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     ESP_UTILS_CHECK_FALSE_GOTO(
         app.getCore()->getCoreEvent()->registerEvent(
@@ -1168,7 +1190,7 @@ err:
 
 bool SettingsManager::processOnUI_ScreenDisplayBrightnessSliderValueChangeEvent(lv_event_t *e)
 {
-    ESP_UTILS_LOGD("Process on UI screen display brightness slider value change event");
+    ESP_UTILS_LOG_TRACE_GUARD();
 
     lv_obj_t *slider = (lv_obj_t *)lv_event_get_target(e);
     ESP_UTILS_CHECK_NULL_RETURN(slider, false, "Invalid slider");
@@ -1184,8 +1206,9 @@ bool SettingsManager::processOnUI_ScreenDisplayBrightnessSliderValueChangeEvent(
 
 void SettingsManager::onUI_ScreenDisplayBrightnessSliderValueChangeEvent(lv_event_t *e)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(e, "Invalid event");
-    ESP_UTILS_LOGD("On UI screen display brightness slider value change event");
 
     SettingsManager *manager = (SettingsManager *)lv_event_get_user_data(e);
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid app pointer");
@@ -1198,6 +1221,8 @@ void SettingsManager::onUI_ScreenDisplayBrightnessSliderValueChangeEvent(lv_even
 
 bool SettingsManager::processCloseUI_ScreenDisplay()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     app.getCore()->getCoreEvent()->unregisterEvent(
         ui.screen_display.getEventObject(), onScreenNavigationClickEventHandler,
         ui.screen_display.getNavigaitionClickEventID()
@@ -1208,6 +1233,8 @@ bool SettingsManager::processCloseUI_ScreenDisplay()
 
 bool SettingsManager::processCloseUI_ScreenAbout()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     app.getCore()->getCoreEvent()->unregisterEvent(
         ui.screen_about.getEventObject(), onScreenNavigationClickEventHandler,
         ui.screen_about.getNavigaitionClickEventID()
@@ -1252,8 +1279,13 @@ bool SettingsManager::processCloseUI_ScreenAbout()
 
 bool SettingsManager::processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_t *ui_screen_object)
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_LOGD(
-        "Process UI screen change(%d -> %d)", static_cast<int>(_ui_current_screen), static_cast<int>(ui_screen)
+        "Parameter: ui_screen(%d), ui_screen_object(0x%p)", static_cast<int>(ui_screen), ui_screen_object
+    );
+    ESP_UTILS_LOGD(
+        "UI screen change(%d -> %d)", static_cast<int>(_ui_current_screen), static_cast<int>(ui_screen)
     );
 
     if (_ui_current_screen == ui_screen) {
@@ -1318,6 +1350,8 @@ bool SettingsManager::processAppEventOperation(AppOperationData &operation_data)
                 .stack_in_ext = ENTER_SCREEN_THREAD_STACK_CAPS_EXT,
             });
             boost::thread([this, operation_payload]() {
+                ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
                 while (!ui.checkInitialized()) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(10));
                 }
@@ -1382,6 +1416,8 @@ bool SettingsManager::processStorageServiceEventSignalUpdateWlanSwitch(bool is_o
         app.getSystem()->unlockLv();
     } else {
         boost::thread([this, is_open]() {
+            ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
             ESP_UTILS_CHECK_FALSE_EXIT(
                 forceWlanOperation(is_open ? WlanOperation::START : WlanOperation::STOP, WLAN_START_WAIT_TIMEOUT_MS),
                 "Force WLAN operation start/stop failed"
@@ -1432,7 +1468,8 @@ bool SettingsManager::processStorageServiceEventSignalUpdateBrightness(int brigh
 
 bool SettingsManager::onScreenNavigationClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data)
 {
-    ESP_UTILS_LOGD("Navigation click event");
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_RETURN(data.user_data, false, "Invalid user data");
 
     SettingsManager *manager = static_cast<SettingsManager *>(data.user_data);
@@ -1443,7 +1480,8 @@ bool SettingsManager::onScreenNavigationClickEventHandler(const ESP_Brookesia_Co
 
 bool SettingsManager::initWlan()
 {
-    ESP_UTILS_LOGD("Initialize WLAN");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     ESP_UTILS_CHECK_FALSE_RETURN(checkIsWlanGeneralState(WlanGeneraState::DEINIT), false, "WLAN already initialized");
 
     {
@@ -1476,7 +1514,7 @@ bool SettingsManager::initWlan()
 
 bool SettingsManager::deinitWlan()
 {
-    ESP_UTILS_LOGD("Deinitialize WLAN");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     ESP_UTILS_CHECK_FALSE_RETURN(
         forceWlanOperation(WlanOperation::DEINIT, 0), false, "Force WLAN operation deinit failed"
@@ -1491,15 +1529,17 @@ bool SettingsManager::deinitWlan()
 
 bool SettingsManager::processCloseWlan()
 {
-    ESP_UTILS_LOGD("Close WLAN");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     return true;
 }
 
 bool SettingsManager::toggleWlanScanTimer(bool is_start, bool is_once)
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD("Param: is_start(%d), is_once(%d)", is_start, is_once);
     ESP_UTILS_CHECK_NULL_RETURN(_wlan_update_timer, false, "Invalid WLAN scan timer");
-    ESP_UTILS_LOGD("Toggle UI screen WLAN scan timer(%s)", is_start ? "start" : "stop");
 
     if (is_start) {
         lv_timer_resume(_wlan_update_timer.get());
@@ -1515,8 +1555,9 @@ bool SettingsManager::toggleWlanScanTimer(bool is_start, bool is_once)
 
 bool SettingsManager::processOnWlanScanTimer(lv_timer_t *t)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_RETURN(t, false, "Invalid timer");
-    ESP_UTILS_LOGD("On WLAN update timer");
 
     if (_wlan_scan_timer_once) {
         _wlan_scan_timer_once = false;
@@ -1546,10 +1587,11 @@ bool SettingsManager::processOnWlanScanTimer(lv_timer_t *t)
 
 bool SettingsManager::triggerWlanOperation(WlanOperation operation, int timeout_ms)
 {
-    ESP_UTILS_LOGI(
-        "Trigger WLAN operation(%s) (general state:%s, scan state:%s)",
-        getWlanOperationStr(operation),
-        getWlanGeneralStateStr(_wlan_general_state.load()),
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD("Param: operation(%s), timeout_ms(%d)", getWlanOperationStr(operation), timeout_ms);
+    ESP_UTILS_LOGD(
+        "General state: %s, Scan state: %s", getWlanGeneralStateStr(_wlan_general_state.load()),
         getWlanScanStateStr(_wlan_scan_state.load())
     );
 
@@ -1574,12 +1616,12 @@ bool SettingsManager::triggerWlanOperation(WlanOperation operation, int timeout_
 
 bool SettingsManager::forceWlanOperation(WlanOperation operation, int timeout_ms)
 {
-    ESP_UTILS_LOGI(
-        "Force WLAN operation(%s) in %d ms (general state:%s, scan state:%s)",
-        getWlanOperationStr(operation), static_cast<int>(timeout_ms),
-        getWlanGeneralStateStr(_wlan_general_state.load()),
+    ESP_UTILS_LOGI("Param: operation(%s), timeout_ms(%d)", getWlanOperationStr(operation), timeout_ms);
+    ESP_UTILS_LOGD(
+        "General state: %s, Scan state: %s", getWlanGeneralStateStr(_wlan_general_state.load()),
         getWlanScanStateStr(_wlan_scan_state.load())
     );
+
     if (operation == WlanOperation::STOP) {
         ESP_UTILS_LOGD("Force WLAN operation stop");
     }
@@ -1694,10 +1736,9 @@ bool SettingsManager::forceWlanOperation(WlanOperation operation, int timeout_ms
 
 bool SettingsManager::tryWlanOperation(WlanOperation operation, int timeout_ms)
 {
+    ESP_UTILS_LOGD("Param: operation(%s), timeout_ms(%d)", getWlanOperationStr(operation), timeout_ms);
     ESP_UTILS_LOGD(
-        "Try WLAN operation(%s) in %d ms (general state:%s, scan state:%s)",
-        getWlanOperationStr(operation), static_cast<int>(timeout_ms),
-        getWlanGeneralStateStr(_wlan_general_state.load()),
+        "General state: %s, Scan state: %s", getWlanGeneralStateStr(_wlan_general_state.load()),
         getWlanScanStateStr(_wlan_scan_state.load())
     );
 
@@ -1827,7 +1868,7 @@ bool SettingsManager::tryWlanOperation(WlanOperation operation, int timeout_ms)
 
 bool SettingsManager::doWlanOperationInit()
 {
-    ESP_UTILS_LOGD("Do WLAN operation init");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanGeneralState(WlanGeneraState::INIT)) {
         ESP_UTILS_LOGD("Ignore init");
@@ -1874,7 +1915,8 @@ end:
 
 bool SettingsManager::doWlanOperationDeinit()
 {
-    ESP_UTILS_LOGD("Do WLAN operation deinit");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     bool ret = true;
 
     if (checkIsWlanGeneralState(WlanGeneraState::INIT)) {
@@ -1908,7 +1950,7 @@ bool SettingsManager::doWlanOperationDeinit()
 
 bool SettingsManager::doWlanOperationStart()
 {
-    ESP_UTILS_LOGD("Do WLAN operation start");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanGeneralState(WlanGeneraState::_START)) {
         ESP_UTILS_LOGD("Ignore start");
@@ -1935,7 +1977,7 @@ end:
 
 bool SettingsManager::doWlanOperationStop()
 {
-    ESP_UTILS_LOGD("Do WLAN operation stop");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanGeneralState(WlanGeneraState::_STOP)) {
         ESP_UTILS_LOGD("Ignore start");
@@ -1962,7 +2004,7 @@ end:
 
 bool SettingsManager::doWlanOperationConnect()
 {
-    ESP_UTILS_LOGD("Do WLAN operation connect");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanGeneralState(WlanGeneraState::_CONNECT)) {
         ESP_UTILS_LOGD("Ignore start");
@@ -2006,7 +2048,7 @@ end:
 
 bool SettingsManager::doWlanOperationDisconnect()
 {
-    ESP_UTILS_LOGD("Do WLAN operation disconnect");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanGeneralState(WlanGeneraState::_DISCONNECT)) {
         ESP_UTILS_LOGD("Ignore start");
@@ -2033,7 +2075,7 @@ end:
 
 bool SettingsManager::doWlanOperationScanStart()
 {
-    ESP_UTILS_LOGD("Do WLAN operation scan start");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanScanState(WlanScanState::SCANNING)) {
         ESP_UTILS_LOGD("Ignore start");
@@ -2060,7 +2102,7 @@ end:
 
 bool SettingsManager::doWlanOperationScanStop()
 {
-    ESP_UTILS_LOGD("Do WLAN operation scan stop");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (checkIsWlanScanState(WlanScanState::SCAN_STOPPED)) {
         ESP_UTILS_LOGD("Ignore stop");
@@ -2087,6 +2129,8 @@ end:
 
 bool SettingsManager::processOnWlanOperationThread()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     std::unique_lock<std::mutex> start_lock(_wlan_operation_start_mutex);
     _wlan_operation_start_cv.wait(start_lock, [this] { return !_wlan_operation_queue.empty(); });
     _is_wlan_operation_stopped = false;
@@ -2161,6 +2205,8 @@ end:
 
 bool SettingsManager::processOnWlanUI_Thread()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     std::unique_lock<std::mutex> lock(_wlan_event_mutex);
     _wlan_event_cv.wait(lock, [this] {
         return _is_wlan_event_updated;
@@ -2180,6 +2226,8 @@ bool SettingsManager::processOnWlanUI_Thread()
     auto &quick_settings = system->display.getQuickSettings();
     // Use temp variable to avoid `_ui_wlan_available_data` being modified outside lvgl task
     decltype(_ui_wlan_available_data) temp_available_data;
+
+    auto &storage_service = StorageNVS::requestInstance();
 
     // Process non-UI
     switch (wlan_event_id) {
@@ -2218,11 +2266,11 @@ bool SettingsManager::processOnWlanUI_Thread()
                 StorageNVS::Value default_connect_ssid;
                 StorageNVS::Value default_connect_pwd;
                 ESP_UTILS_CHECK_FALSE_RETURN(
-                    StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, default_connect_ssid), false,
+                    storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, default_connect_ssid), false,
                     "Get default connect SSID failed"
                 );
                 ESP_UTILS_CHECK_FALSE_RETURN(
-                    StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, default_connect_pwd), false,
+                    storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, default_connect_pwd), false,
                     "Get default connect PWD failed"
                 );
                 ESP_UTILS_CHECK_FALSE_RETURN(
@@ -2236,7 +2284,7 @@ bool SettingsManager::processOnWlanUI_Thread()
 
                 if ((default_connect_ssid_str.size() > 0) &&
                         strcmp((const char *)ap_info[i].ssid, default_connect_ssid_str.c_str()) == 0) {
-                    ESP_UTILS_LOGD("Connect to default AP(%s)", default_connect_ssid_str.c_str());
+                    ESP_UTILS_LOGD("Found default AP(%s), try to connect later", default_connect_ssid_str.c_str());
                     _wlan_connecting_info.first = getWlanDataFromApInfo(ap_info[i]);
                     _wlan_connecting_info.second = default_connect_pwd_str;
 
@@ -2248,6 +2296,8 @@ bool SettingsManager::processOnWlanUI_Thread()
                             .stack_in_ext = WLAN_CONNECT_THREAD_STACK_CAPS_EXT,
                         });
                         boost::thread([this]() {
+                            ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
                             boost::this_thread::sleep_for(boost::chrono::milliseconds(WLAN_SCAN_CONNECT_AP_DELAY_MS));
                             ESP_UTILS_LOGI("Connect to default AP(%s)", _wlan_connecting_info.first.ssid.c_str());
                             ESP_UTILS_CHECK_FALSE_EXIT(
@@ -2291,10 +2341,10 @@ bool SettingsManager::processOnWlanUI_Thread()
         StorageNVS::Value last_ssid;
         StorageNVS::Value last_pwd;
         ESP_UTILS_CHECK_FALSE_RETURN(
-            StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, last_ssid), false, "Get last SSID failed"
+            storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, last_ssid), false, "Get last SSID failed"
         );
         ESP_UTILS_CHECK_FALSE_RETURN(
-            StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, last_pwd), false, "Get last PWD failed"
+            storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, last_pwd), false, "Get last PWD failed"
         );
         ESP_UTILS_CHECK_FALSE_RETURN(
             std::holds_alternative<std::string>(last_ssid), false, "Invalid last SSID type"
@@ -2309,11 +2359,11 @@ bool SettingsManager::processOnWlanUI_Thread()
         std::string current_pwd((char *)_wlan_config.sta.password);
         if ((last_ssid_str != current_ssid) || (last_pwd_str != current_pwd)) {
             ESP_UTILS_CHECK_FALSE_RETURN(
-                StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, current_ssid, this), false,
+                storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, current_ssid, this), false,
                 "Set last SSID failed"
             );
             ESP_UTILS_CHECK_FALSE_RETURN(
-                StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, current_pwd, this), false,
+                storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, current_pwd, this), false,
                 "Set last PWD failed"
             );
         }
@@ -2442,8 +2492,6 @@ bool SettingsManager::processOnWlanUI_Thread()
 end:
     app.getCore()->unlockLv();
 
-    ESP_UTILS_LOGD("Process on wlan UI thread stop");
-
     return ret;
 }
 
@@ -2480,8 +2528,9 @@ const char *SettingsManager::getWlanOperationStr(WlanOperation operation)
 
 void SettingsManager::onWlanScanTimer(lv_timer_t *t)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(t, "Invalid timer");
-    ESP_UTILS_LOGD("On WLAN scan timer");
 
     SettingsManager *manager = (SettingsManager *)t->user_data;
     ESP_UTILS_CHECK_FALSE_EXIT(manager->processOnWlanScanTimer(t), "Process on WLAN update timer failed");
@@ -2489,8 +2538,9 @@ void SettingsManager::onWlanScanTimer(lv_timer_t *t)
 
 void SettingsManager::onWlanOperationThread(SettingsManager *manager)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    ESP_UTILS_LOGD("On WLAN operation thread start");
 
     while (true) {
         if (!manager->processOnWlanOperationThread()) {
@@ -2506,8 +2556,9 @@ void SettingsManager::onWlanOperationThread(SettingsManager *manager)
 
 void SettingsManager::onWlanUI_Thread(SettingsManager *manager)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    ESP_UTILS_LOGD("On WLAN UI thread start");
 
     while (true) {
         if (!manager->processOnWlanUI_Thread()) {
@@ -2523,6 +2574,8 @@ void SettingsManager::onWlanUI_Thread(SettingsManager *manager)
 
 bool SettingsManager::processCloseUI_ScreenWlan()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     app.getCore()->getCoreEvent()->unregisterEvent(
         ui.screen_wlan.getEventObject(), onScreenNavigationClickEventHandler, ui.screen_wlan.getNavigaitionClickEventID()
     );
@@ -2540,6 +2593,8 @@ bool SettingsManager::processCloseUI_ScreenWlan()
 
 bool SettingsManager::processCloseUI_ScreenWlanVerification()
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     app.getCore()->getCoreEvent()->unregisterEvent(
         ui.screen_wlan_verification.getEventObject(), onScreenNavigationClickEventHandler,
         ui.screen_wlan_verification.getNavigaitionClickEventID()
@@ -2552,7 +2607,6 @@ bool SettingsManager::processOnUI_ScreenWlanVerificationKeyboardConfirmEvent(std
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Process on UI screen WLAN connect keyboard confirm event handler");
     ESP_UTILS_LOGI("SSID: %s, PWD: %s", ssid_with_pwd.first.data(), ssid_with_pwd.second.data());
 
     auto [ssid, pwd] = ssid_with_pwd;
@@ -2587,6 +2641,8 @@ bool SettingsManager::processOnUI_ScreenWlanVerificationKeyboardConfirmEvent(std
     _wlan_connecting_info.second = pwd;
     ESP_UTILS_LOGI("Connecting to Wlan %s (pwd: %s)", ssid.data(), pwd.data());
     boost::thread([this]() {
+        ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
         ESP_UTILS_CHECK_FALSE_EXIT(
             forceWlanOperation(WlanOperation::CONNECT, 0), "Force WLAN operation connect failed"
         );
@@ -2597,7 +2653,7 @@ bool SettingsManager::processOnUI_ScreenWlanVerificationKeyboardConfirmEvent(std
 
 bool SettingsManager::processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e)
 {
-    ESP_UTILS_LOGD("Process on UI screen WLAN control switch value changed event");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     lv_obj_t *sw = (lv_obj_t *)lv_event_get_target(e);
     ESP_UTILS_CHECK_NULL_RETURN(sw, false, "Get switch failed");
@@ -2630,6 +2686,8 @@ bool SettingsManager::processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t 
     );
 
     boost::thread([this, wlan_sw_flag]() {
+        ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
         ESP_UTILS_CHECK_FALSE_EXIT(
             forceWlanOperation(wlan_sw_flag ? WlanOperation::START : WlanOperation::STOP, WLAN_START_WAIT_TIMEOUT_MS),
         );
@@ -2645,7 +2703,7 @@ bool SettingsManager::processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t 
 
 bool SettingsManager::processOnUI_ScreenWlanAvailableCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data)
 {
-    ESP_UTILS_LOGD("Process on UI screen WLAN available cell clicked event");
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     SettingsUI_WidgetCell *cell = (SettingsUI_WidgetCell *)data.object;
     ESP_UTILS_CHECK_NULL_RETURN(cell, false, "Invalid cell");
@@ -2707,8 +2765,9 @@ bool SettingsManager::processOnUI_ScreenWlanAvailableCellClickEvent(const ESP_Br
 
 bool SettingsManager::processOnUI_ScreenWlanGestureEvent(lv_event_t *e)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_NULL_RETURN(e, false, "Invalid event");
-    // ESP_UTILS_LOGD("Process on UI screen WLAN gesture press event");
 
     if (_ui_current_screen != UI_Screen::WIRELESS_WLAN) {
         return true;
@@ -2739,7 +2798,9 @@ bool SettingsManager::processOnUI_ScreenWlanGestureEvent(lv_event_t *e)
 
 bool SettingsManager::processOnWlanEventHandler(int event_id, void *event_data)
 {
-    ESP_UTILS_LOGI("Process WLAN event(%s) start", getWlanEventStr(static_cast<wifi_event_t>(event_id)));
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD("Param: event_id(%d), event_data(0x%p)", event_id, event_data);
 
     std::unique_lock<std::mutex> lock(_wlan_event_mutex);
 
@@ -2793,7 +2854,7 @@ bool SettingsManager::processOnWlanEventHandler(int event_id, void *event_data)
         break;
     default:
         ESP_UTILS_LOGD("Ignore WLAN event(%d)", static_cast<int>(event_id));
-        goto end;
+        return true;
     }
 
     if (event_id == WIFI_EVENT_SCAN_DONE) {
@@ -2813,22 +2874,22 @@ bool SettingsManager::processOnWlanEventHandler(int event_id, void *event_data)
         );
     }
 
-end:
-    ESP_UTILS_LOGD("Process WLAN event end");
-
     return true;
 }
 
 bool SettingsManager::waitForWlanGeneralState(const std::vector<WlanGeneraState> &state, int timeout_ms)
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     std::string state_str = "";
     for (auto &s : state) {
         state_str += " ";
         state_str += getWlanGeneralStateStr(s);
     }
 
-    ESP_UTILS_LOGD("Wait for WLAN general state(%s) in %d ms", state_str.c_str(), static_cast<int>(timeout_ms));
+    ESP_UTILS_LOGD("Param: state(%s), timeout_ms(%d)", state_str.c_str(), timeout_ms);
     ESP_UTILS_LOGD("Current general state: %s", getWlanGeneralStateStr(_wlan_general_state));
+
     for (auto &s : state) {
         if (checkIsWlanGeneralState(s)) {
             ESP_UTILS_LOGD("General state(%s) is already", getWlanGeneralStateStr(s));
@@ -2847,20 +2908,22 @@ bool SettingsManager::waitForWlanGeneralState(const std::vector<WlanGeneraState>
         return false;
     });
     ESP_UTILS_CHECK_FALSE_RETURN(status, false, "Wait timeout");
-    ESP_UTILS_LOGD("Wait state finish");
 
     return status;
 }
 
 bool SettingsManager::waitForWlanScanState(const std::vector<WlanScanState> &state, int timeout_ms)
 {
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
     std::string state_str = "";
     for (auto &s : state) {
         state_str += " ";
         state_str += getWlanScanStateStr(s);
     }
 
-    ESP_UTILS_LOGD("Wait for WLAN scan state(%s) in %d ms", state_str.c_str(), static_cast<int>(timeout_ms));
+    ESP_UTILS_LOGD("Param: state(%s), timeout_ms(%d)", state_str.c_str(), timeout_ms);
+
     for (auto &s : state) {
         if (checkIsWlanScanState(s)) {
             ESP_UTILS_LOGD("Scan state(%s) is already", getWlanScanStateStr(s));
@@ -2879,7 +2942,6 @@ bool SettingsManager::waitForWlanScanState(const std::vector<WlanScanState> &sta
         return false;
     });
     ESP_UTILS_CHECK_FALSE_RETURN(status, false, "Wait timeout");
-    ESP_UTILS_LOGD("Wait state finish");
 
     return true;
 }
@@ -2896,10 +2958,12 @@ const char *SettingsManager::getWlanEventStr(wifi_event_t event)
 
 void SettingsManager::onWlanEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
+    ESP_UTILS_LOG_TRACE_GUARD();
+
     ESP_UTILS_CHECK_FALSE_EXIT(event_base == WIFI_EVENT, "Invalid event");
+
     SettingsManager *manager = (SettingsManager *)arg;
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    ESP_UTILS_LOGD("On WLAN event handler");
 
     ESP_UTILS_CHECK_FALSE_EXIT(
         manager->processOnWlanEventHandler(static_cast<int>(event_id), event_data), "Process WLAN event failed"
