@@ -25,7 +25,7 @@ namespace esp_brookesia::speaker {
 constexpr int QUICK_SETTINGS_BATTERY_PERCENT_MIN = 0;
 constexpr int QUICK_SETTINGS_BATTERY_PERCENT_MAX = 100;
 constexpr int QUICK_SETTINGS_VOLUME_PERCENT_MIN = 0;
-constexpr int QUICK_SETTINGS_VOLUME_PERCENT_MAX = 100;
+constexpr int QUICK_SETTINGS_VOLUME_PERCENT_MAX = 90;
 constexpr int QUICK_SETTINGS_BRIGHTNESS_PERCENT_MIN = 10;
 constexpr int QUICK_SETTINGS_BRIGHTNESS_PERCENT_MAX = 100;
 constexpr int QUICK_SETTINGS_MEMORY_SRAM_PERCENT_MIN = 0;
@@ -67,10 +67,19 @@ bool QuickSettings::begin(const gui::LvObject &parent)
         auto quick_settings = static_cast<QuickSettings *>(lv_event_get_user_data(e));
         ESP_UTILS_CHECK_NULL_EXIT(quick_settings, "Invalid user data");
 
+        auto wifi_button = static_cast<lv_obj_t *>(lv_event_get_target(e));
+        ESP_UTILS_CHECK_NULL_EXIT(wifi_button, "Invalid target");
+
         if (!quick_settings->_flags.is_wifi_button_long_pressed) {
             quick_settings->_event_signal({EventType::WifiButtonClicked});
         } else {
             quick_settings->_flags.is_wifi_button_long_pressed = false;
+            // Avoid the button state is checked when long pressed
+            if (lv_obj_has_state(wifi_button, LV_STATE_CHECKED)) {
+                lv_obj_remove_state(wifi_button, LV_STATE_CHECKED);
+            } else {
+                lv_obj_add_state(wifi_button, LV_STATE_CHECKED);
+            }
         }
     }, LV_EVENT_CLICKED, this);
     _wifi_button->addEventCallback([](lv_event_t *e) {

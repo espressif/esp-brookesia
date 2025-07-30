@@ -8,6 +8,8 @@
 #include <bitset>
 #include <queue>
 #include <future>
+#include <variant>
+#include <string>
 #include "boost/thread.hpp"
 #include "boost/signals2.hpp"
 
@@ -84,4 +86,4 @@ private:
     EventSignal _event_signal;
 };
 
-} // namespace esp_brookesia::service
+} // namespace esp_brookesia::services

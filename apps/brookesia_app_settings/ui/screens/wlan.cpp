@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -19,7 +19,14 @@ namespace esp_brookesia::speaker_apps {
         | SettingsUI_WidgetCellElement::RIGHT_SWITCH, \
         SettingsUI_WidgetCellConf{} \
     }
-#define CELL_ELEMENT_CONF_AP() \
+#define CELL_ELEMENT_CONF_PROVISIONING_SOFTAP() \
+    { \
+        SettingsUI_WidgetCellElement::MAIN \
+        | SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL \
+        | SettingsUI_WidgetCellElement::RIGHT_ICONS, \
+        SettingsUI_WidgetCellConf{} \
+    }
+#define CELL_ELEMENT_CONF_CONNECTED_AP() \
     { \
         SettingsUI_WidgetCellElement::MAIN \
         | SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL \
@@ -41,13 +48,21 @@ namespace esp_brookesia::speaker_apps {
             SettingsUI_ScreenWlanContainerIndex::CONNECTED, { \
                 {}, \
                 { \
-                    { SettingsUI_ScreenWlanCellIndex::CONNECTED_AP, CELL_ELEMENT_CONF_AP() }, \
+                    { SettingsUI_ScreenWlanCellIndex::CONNECTED_AP, CELL_ELEMENT_CONF_CONNECTED_AP() }, \
                 }, \
             }, \
         },\
         { \
             SettingsUI_ScreenWlanContainerIndex::AVAILABLE, { {}, {}, }, \
         },\
+        { \
+            SettingsUI_ScreenWlanContainerIndex::PROVISIONING, { \
+                {}, \
+                { \
+                    { SettingsUI_ScreenWlanCellIndex::PROVISIONING_SOFTAP, CELL_ELEMENT_CONF_PROVISIONING_SOFTAP() }, \
+                }, \
+            } \
+        }, \
     }
 
 // *INDENT-OFF*
@@ -139,7 +154,7 @@ bool SettingsUI_ScreenWlan::setConnectedVisible(bool visible)
     return true;
 }
 
-bool SettingsUI_ScreenWlan::updateConnectedData(const WlanData &wlan_data)
+bool SettingsUI_ScreenWlan::updateConnectedData(WlanData wlan_data)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(!wlan_data.ssid.empty(), false, "Invalid data ssid");
 
@@ -183,6 +198,7 @@ bool SettingsUI_ScreenWlan::updateConnectedState(ConnectState state)
     ESP_UTILS_CHECK_FALSE_RETURN(
         cell->updateLeftMinorLabel(text), false, "Update left minor label failed"
     );
+    _connected_state = state;
 
     return true;
 }
@@ -233,7 +249,7 @@ bool SettingsUI_ScreenWlan::setAvailableVisible(bool visible)
 }
 
 bool SettingsUI_ScreenWlan::updateAvailableData(
-    const std::vector<WlanData> &wlan_data, ESP_Brookesia_CoreEvent::Handler event_handler, void *user_data
+    std::vector<WlanData> &&wlan_data, ESP_Brookesia_CoreEvent::Handler event_handler, void *user_data
 )
 {
     auto cell_container = getCellContainer(static_cast<int>(SettingsUI_ScreenWlanContainerIndex::AVAILABLE));
@@ -251,6 +267,11 @@ bool SettingsUI_ScreenWlan::updateAvailableData(
                        cell_number, SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL | SettingsUI_WidgetCellElement::RIGHT_ICONS
                    );
             ESP_UTILS_CHECK_FALSE_GOTO(ret = (cell != nullptr), end, "Add cell(%d) failed", cell_number);
+
+            auto left_main_label = cell->getElementObject(SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL);
+            ESP_UTILS_CHECK_NULL_GOTO(left_main_label, end, "Get left main label failed");
+            lv_label_set_long_mode(left_main_label, LV_LABEL_LONG_SCROLL);
+            lv_obj_set_width(left_main_label, data.cell_left_main_label_size.width);
 
             ESP_UTILS_CHECK_FALSE_GOTO(
                 ret = app.getCore()->getCoreEvent()->registerEvent(
@@ -286,7 +307,7 @@ end:
     return ret;
 }
 
-bool SettingsUI_ScreenWlan::updateCellWlanData(SettingsUI_WidgetCell *cell, const WlanData &wlan_data)
+bool SettingsUI_ScreenWlan::updateCellWlanData(SettingsUI_WidgetCell *cell, WlanData wlan_data)
 {
     // ESP_UTILS_LOGD("Update cell(%p) WLAN data", cell);
     ESP_UTILS_CHECK_NULL_RETURN(cell, false, "Invalid cell");
@@ -349,6 +370,27 @@ bool SettingsUI_ScreenWlan::setAvaliableClickable(bool clickable)
     return true;
 }
 
+bool SettingsUI_ScreenWlan::setSoftAPVisible(bool visible)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    SettingsUI_WidgetCellContainer *container = getCellContainer(
+        static_cast<int>(SettingsUI_ScreenWlanContainerIndex::PROVISIONING)
+    );
+    ESP_UTILS_CHECK_NULL_RETURN(container, false, "Get container failed");
+
+    lv_obj_t *object = container->getMainObject();
+    ESP_UTILS_CHECK_NULL_RETURN(object, false, "Get main object failed");
+
+    if (visible) {
+        lv_obj_remove_flag(object, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_add_flag(object, LV_OBJ_FLAG_HIDDEN);
+    }
+
+    return true;
+}
+
 bool SettingsUI_ScreenWlan::processCellContainerMapInit()
 {
     ESP_UTILS_LOGD("Process cell container map init");
@@ -368,22 +410,32 @@ bool SettingsUI_ScreenWlan::processCellContainerMapUpdate()
     ESP_UTILS_LOGD("Process cell container map init");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONTROL].first =
-        data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::CONTROL];
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONTROL].second[SettingsUI_ScreenWlanCellIndex::CONTROL_SW].second =
-        data.cell_confs[(int)SettingsUI_ScreenWlanCellIndex::CONTROL_SW];
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONTROL].second[SettingsUI_ScreenWlanCellIndex::CONTROL_SW].second =
-        data.cell_confs[(int)SettingsUI_ScreenWlanCellIndex::CONTROL_SW];
+    auto &control_container_conf = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONTROL].first;
+    control_container_conf = data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::CONTROL];
+    auto &control_cell_confs = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONTROL].second;
+    for (int i = static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONTROL_SW);
+            i <= static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONTROL_SW); i++) {
+        control_cell_confs[static_cast<SettingsUI_ScreenWlanCellIndex>(i)].second = data.cell_confs[i];
+    }
 
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONNECTED].first =
-        data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::CONNECTED];
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONNECTED].second[SettingsUI_ScreenWlanCellIndex::CONNECTED_AP].second =
-        data.cell_confs[(int)SettingsUI_ScreenWlanCellIndex::CONNECTED_AP];
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONNECTED].second[SettingsUI_ScreenWlanCellIndex::CONNECTED_AP].second =
-        data.cell_confs[(int)SettingsUI_ScreenWlanCellIndex::CONNECTED_AP];
+    auto &connected_container_conf = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONNECTED].first;
+    connected_container_conf = data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::CONNECTED];
+    auto &connected_cell_confs = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::CONNECTED].second;
+    for (int i = static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONNECTED_AP);
+            i <= static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONNECTED_AP); i++) {
+        connected_cell_confs[static_cast<SettingsUI_ScreenWlanCellIndex>(i)].second = data.cell_confs[i];
+    }
 
-    _cell_container_map[SettingsUI_ScreenWlanContainerIndex::AVAILABLE].first =
-        data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::AVAILABLE];
+    auto &available_container_conf = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::AVAILABLE].first;
+    available_container_conf = data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::AVAILABLE];
+
+    auto &softap_container_conf = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::PROVISIONING].first;
+    softap_container_conf = data.container_confs[(int)SettingsUI_ScreenWlanContainerIndex::PROVISIONING];
+    auto &softap_cell_confs = _cell_container_map[SettingsUI_ScreenWlanContainerIndex::PROVISIONING].second;
+    for (int i = static_cast<int>(SettingsUI_ScreenWlanCellIndex::PROVISIONING_SOFTAP);
+            i <= static_cast<int>(SettingsUI_ScreenWlanCellIndex::PROVISIONING_SOFTAP); i++) {
+        softap_cell_confs[static_cast<SettingsUI_ScreenWlanCellIndex>(i)].second = data.cell_confs[i];
+    }
 
     if (!SettingsUI_ScreenBase::processCellContainerMapUpdate<SettingsUI_ScreenWlanContainerIndex,
          SettingsUI_ScreenWlanCellIndex>(_cell_container_map)) {

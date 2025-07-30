@@ -72,7 +72,12 @@ bool Speaker::begin(void)
     ESP_UTILS_CHECK_FALSE_RETURN(beginCore(), false, "Failed to begin core");
     ESP_UTILS_CHECK_FALSE_RETURN(display.begin(), false, "Failed to begin display");
 
-    // Show boot animation first
+    // Initialize agent before boot animation to prevent waiting for boot animation if crash happens
+    auto agent = ai_framework::Agent::requestInstance();
+    ESP_UTILS_CHECK_NULL_RETURN(agent, false, "Failed to request agent instance");
+    ESP_UTILS_CHECK_FALSE_RETURN(agent->begin(), false, "Agent begin failed");
+
+    // Show boot animation after agent begin
     ESP_UTILS_CHECK_FALSE_RETURN(display.processDummyDraw(true), false, "Process dummy draw failed");
     ESP_UTILS_CHECK_FALSE_RETURN(display.startBootAnimation(), false, "Start boot animation failed");
     audio_prompt_play_with_block(MUSIC_FILE_BOOT, -1);

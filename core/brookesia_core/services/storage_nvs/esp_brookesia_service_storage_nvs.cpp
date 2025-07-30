@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <map>
+#include <chrono>
 #include "nvs_flash.h"
 #include "nvs.h"
 #include "private/esp_brookesia_service_storage_nvs_utils.hpp"
@@ -93,7 +94,10 @@ bool StorageNVS::begin()
     ESP_UTILS_CHECK_FALSE_RETURN(sendEvent({
         .operation = Operation::UpdateParam,
     }, &future), false, "Send update NVS parameters event failed");
-    future.wait();
+
+    auto status = future.wait_for(std::chrono::milliseconds(EVENT_WAIT_FINISH_TIMEOUT_MS_MAX));
+    ESP_UTILS_CHECK_FALSE_RETURN(status == std::future_status::ready, false, "Wait for update param event timeout");
+    ESP_UTILS_CHECK_FALSE_RETURN(future.get(), false, "Update param event failed");
 
     return true;
 }

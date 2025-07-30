@@ -369,7 +369,10 @@ bool Agent::processChatEvent(const ChatEvent &event)
     case ChatEvent::Deinit:
         break;
     case ChatEvent::Init: {
-        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateDeinit), false, "Chat not deinit");
+        if (hasChatState(_ChatStateInit)) {
+            ESP_UTILS_LOGW("Chat already init");
+            return true;
+        }
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
@@ -398,7 +401,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Stop: {
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Invalid chat state");
+        if (hasChatState(_ChatStateStop)) {
+            ESP_UTILS_LOGW("Chat already stopped");
+            return true;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateInited), false, "Invalid chat state");
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
@@ -412,7 +419,7 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Start: {
-        if (hasChatState(ChatStateStarted)) {
+        if (hasChatState(_ChatStateStart)) {
             ESP_UTILS_LOGW("Chat already started");
             return true;
         }
@@ -451,7 +458,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Sleep: {
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Chat not started");
+        if (hasChatState(_ChatStateSleep)) {
+            ESP_UTILS_LOGW("Chat already slept");
+            return true;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Invalid chat state");
 
         esp_utils::value_guard chat_state_guard(_chat_state);
         chat_state_guard.set(ChatStateSleeping);
@@ -463,11 +474,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::WakeUp: {
-        if (isChatState(ChatStateStarted)) {
+        if (hasChatState(_ChatStateWake)) {
             ESP_UTILS_LOGW("Chat already woke up");
             return true;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateSlept), false, "Chat not slept");
+        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateSlept), false, "Invalid chat state");
 
         esp_utils::value_guard chat_state_guard(_chat_state);
         chat_state_guard.set(ChatStateWaking);

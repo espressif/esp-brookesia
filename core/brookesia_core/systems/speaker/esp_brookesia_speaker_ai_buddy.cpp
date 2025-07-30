@@ -195,9 +195,11 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
                 ESP_UTILS_CHECK_FALSE_EXIT(expression.setSystemIcon("wifi_disconnected"), "Set WiFi icon failed");
                 playWiFiNeedConnectAudio();
             } else {
-                ESP_UTILS_CHECK_FALSE_EXIT(
-                    _agent->sendChatEvent(Agent::ChatEvent::Start), "Send chat event start failed"
-                );
+                if (!_agent->hasChatState(Agent::_ChatStateStart)) {
+                    ESP_UTILS_CHECK_FALSE_EXIT(
+                        _agent->sendChatEvent(Agent::ChatEvent::Start), "Send chat event start failed"
+                    );
+                }
             }
             break;
         case Agent::ChatEvent::Stop:
@@ -495,7 +497,7 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         break;
     case WIFI_EVENT_STA_CONNECTED:
         _flags.is_wifi_connected = true;
-        if (_agent->hasChatState(Agent::ChatStateInited)) {
+        if (_agent->hasChatState(Agent::ChatStateInited) && !_agent->hasChatState(Agent::_ChatStateStart)) {
             ESP_UTILS_CHECK_FALSE_RETURN(
                 _agent->sendChatEvent(Agent::ChatEvent::Start), false, "Send chat event start failed"
             );

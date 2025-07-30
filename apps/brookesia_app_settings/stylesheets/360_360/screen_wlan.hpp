@@ -11,10 +11,10 @@
 
 namespace esp_brookesia::speaker_apps {
 
-constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_SW()
+constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_SW(const char *label_text)
 {
     return {
-        .left_main_label_text = "WLAN",
+        .left_main_label_text = label_text,
         .flags = {
             .enable_left_main_label = 1,
         },
@@ -30,6 +30,21 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF
             .enable_left_main_label = 1,
             .enable_left_minor_label = 1,
             .enable_clickable = 0,
+        },
+    };
+}
+
+constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_PROVISIONING_SOFTAP()
+{
+    return {
+        .left_main_label_text = "SoftAP Mode",
+        .right_icon_images = {
+            ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
+        },
+        .flags = {
+            .enable_left_main_label = 1,
+            .enable_right_icons = 1,
+            .enable_clickable = 1,
         },
     };
 }
@@ -56,10 +71,20 @@ constexpr SettingsUI_ScreenWlanData SETTINGS_UI_360_360_SCREEN_WLAN_DATA()
                     .enable_title = 1,
                 },
             },
+            [(int)SettingsUI_ScreenWlanContainerIndex::PROVISIONING] = {
+                .title_text = "Provisioning",
+                .flags = {
+                    .enable_title = 1,
+                },
+            },
         },
         .cell_confs = {
-            [(int)SettingsUI_ScreenWlanCellIndex::CONTROL_SW] = SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_SW(),
-            [(int)SettingsUI_ScreenWlanCellIndex::CONNECTED_AP] = SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_CONNECTED_AP(),
+            [(int)SettingsUI_ScreenWlanCellIndex::CONTROL_SW] =
+            SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_SW("WLAN"),
+            [(int)SettingsUI_ScreenWlanCellIndex::CONNECTED_AP] =
+            SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_CONNECTED_AP(),
+            [(int)SettingsUI_ScreenWlanCellIndex::PROVISIONING_SOFTAP] =
+            SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_PROVISIONING_SOFTAP(),
         },
         .icon_wlan_signals = {
             ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_large_status_bar_wifi_level1_36_36),
@@ -67,6 +92,7 @@ constexpr SettingsUI_ScreenWlanData SETTINGS_UI_360_360_SCREEN_WLAN_DATA()
             ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_large_status_bar_wifi_level3_36_36),
         },
         .icon_wlan_lock = ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_lock_48_48),
+        .cell_left_main_label_size = ESP_BROOKESIA_STYLE_SIZE_RECT(200, 24),
     };
 }
 

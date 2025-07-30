@@ -250,9 +250,9 @@ bool Manager::begin(void)
         _flags.enable_gesture_navigation = true;
         // Navigation
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -262,9 +262,9 @@ bool Manager::begin(void)
             );
         }, _gesture->getPressingEventCode(), this);
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -275,9 +275,9 @@ bool Manager::begin(void)
         }, _gesture->getReleaseEventCode(), this);
         // Mask object and indicator bar
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -287,9 +287,9 @@ bool Manager::begin(void)
             );
         }, _gesture->getPressingEventCode(), this);
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -302,9 +302,9 @@ bool Manager::begin(void)
 
     if (_gesture != nullptr) {
         auto onAppLauncherGestureEventCallback = [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -323,9 +323,9 @@ bool Manager::begin(void)
 
         // Quick Settings
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -336,9 +336,9 @@ bool Manager::begin(void)
             );
         }, _gesture->getPressEventCode(), this);
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -349,9 +349,9 @@ bool Manager::begin(void)
             );
         }, _gesture->getPressingEventCode(), this);
         lv_obj_add_event_cb(_gesture->getEventObj(), [](lv_event_t *event) {
-            ESP_UTILS_LOG_TRACE_GUARD();
+            // ESP_UTILS_LOG_TRACE_GUARD();
 
-            ESP_UTILS_LOGD("Param: event(%p)", event);
+            // ESP_UTILS_LOGD("Param: event(%p)", event);
             ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
             auto manager = static_cast<Manager *>(lv_event_get_user_data(event));
@@ -516,9 +516,9 @@ bool Manager::processAI_BuddyResumeTimer(void)
 
 bool Manager::processAppLauncherGestureEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, false, "Invalid event");
 
     lv_event_code_t event_code = _LV_EVENT_LAST;
@@ -820,9 +820,9 @@ bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
 
 bool Manager::processQuickSettingsGesturePressEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, false, "Invalid event");
 
     auto dummy_draw_mask = display.getDummyDrawMask();
@@ -866,9 +866,9 @@ end:
 
 bool Manager::processQuickSettingsGesturePressingEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, true, "Invalid event");
 
     // Exit if the quick settings is not enabled
@@ -893,9 +893,9 @@ end:
 
 bool Manager::processQuickSettingsGestureReleaseEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, true, "Invalid event");
 
     {
@@ -997,9 +997,9 @@ bool Manager::processQuickSettingsScrollBottom()
 
 bool Manager::processNavigationGesturePressingEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_GUARD();
+    // ESP_UTILS_LOG_TRACE_GUARD();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, true, "Invalid event");
 
     GestureInfo *gesture_info = nullptr;
@@ -1042,7 +1042,7 @@ end:
 
 bool Manager::processNavigationGestureReleaseEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
     GestureInfo *gesture_info = nullptr;
     ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
@@ -1080,9 +1080,9 @@ end:
 
 bool Manager::processMaskIndicatorBarGesturePressingEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, true, "Invalid event");
 
     bool is_gesture_mask_enabled = false;
@@ -1133,7 +1133,7 @@ bool Manager::processMaskIndicatorBarGesturePressingEvent(lv_event_t *event)
         if (gesture->checkIndicatorBarVisible(gesture_indicator_bar_type)) {
             ESP_UTILS_CHECK_FALSE_RETURN(
                 gesture->setIndicatorBarLengthByOffset(gesture_indicator_bar_type, gesture_indicator_offset),
-                false, "Gesture set bottom indicator bar length by offset failed"
+                false, "Gesture set indicator bar length by offset failed"
             );
         } else {
             if (gesture->checkIndicatorBarScaleBackAnimRunning(gesture_indicator_bar_type)) {
@@ -1163,9 +1163,9 @@ end:
 
 bool Manager::processMaskIndicatorBarGestureReleaseEvent(lv_event_t *event)
 {
-    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+    // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event(%p)", event);
+    // ESP_UTILS_LOGD("Param: event(%p)", event);
     ESP_UTILS_CHECK_NULL_RETURN(event, true, "Invalid event");
 
     Gesture *gesture = nullptr;
