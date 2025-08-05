@@ -14,6 +14,9 @@ dependencies:
   espressif/gmf_ai_audio:
     override_path: "../common_components/espressif__gmf_ai_audio"
 
+  espressif/esp_websocket_client:
+    override_path: "../common_components/espressif__esp_websocket_client"
+
   brookesia_core:
     override_path: "../../../core/brookesia_core"
 

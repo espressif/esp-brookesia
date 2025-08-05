@@ -88,20 +88,30 @@ bool SettingsUI_ScreenWlan::begin()
 
     ESP_UTILS_CHECK_FALSE_RETURN(SettingsUI_ScreenBase::begin("WLAN", "Settings"), false, "Screen base begin failed");
 
+    esp_utils::function_guard end_guard([this]() {
+        ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+        ESP_UTILS_CHECK_FALSE_EXIT(del(), "Delete failed");
+    });
+
     _cell_container_map = CELL_CONTAINER_MAP();
-    ESP_UTILS_CHECK_FALSE_GOTO(processCellContainerMapInit(), err, "Process cell container map init failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(processCellContainerMapInit(), false, "Process cell container map init failed");
+
+    auto connected_left_main_label = getElementObject(
+        static_cast<int>(SettingsUI_ScreenWlanContainerIndex::CONNECTED),
+        static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONNECTED_AP),
+        SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL
+    );
+    ESP_UTILS_CHECK_NULL_RETURN(connected_left_main_label, false, "Get connected left main label failed");
+    lv_label_set_long_mode(connected_left_main_label, LV_LABEL_LONG_SCROLL);
 
     // Update UI
-    ESP_UTILS_CHECK_FALSE_GOTO(processDataUpdate(), err, "Process data update failed");
-    ESP_UTILS_CHECK_FALSE_GOTO(setConnectedVisible(false), err, "Set connected visible failed");
-    ESP_UTILS_CHECK_FALSE_GOTO(setAvailableVisible(false), err, "Set available visible failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(processDataUpdate(), false, "Process data update failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(setConnectedVisible(false), false, "Set connected visible failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(setAvailableVisible(false), false, "Set available visible failed");
+
+    end_guard.release();
 
     return true;
-
-err:
-    ESP_UTILS_CHECK_FALSE_RETURN(del(), false, "Delete failed");
-
-    return false;
 }
 
 bool SettingsUI_ScreenWlan::del()
@@ -129,6 +139,14 @@ bool SettingsUI_ScreenWlan::processDataUpdate()
 
     ESP_UTILS_CHECK_FALSE_RETURN(SettingsUI_ScreenBase::processDataUpdate(), false, "Process base data update failed");
     ESP_UTILS_CHECK_FALSE_RETURN(processCellContainerMapUpdate(), false, "Process cell container map update failed");
+
+    auto connected_left_main_label = getElementObject(
+        static_cast<int>(SettingsUI_ScreenWlanContainerIndex::CONNECTED),
+        static_cast<int>(SettingsUI_ScreenWlanCellIndex::CONNECTED_AP),
+        SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL
+    );
+    ESP_UTILS_CHECK_NULL_RETURN(connected_left_main_label, false, "Get connected left main label failed");
+    lv_obj_set_width(connected_left_main_label, data.cell_left_main_label_size.width);
 
     return true;
 }
@@ -163,6 +181,11 @@ bool SettingsUI_ScreenWlan::updateConnectedData(WlanData wlan_data)
 
     auto cell = container->getCellByIndex(0);
     ESP_UTILS_CHECK_NULL_RETURN(cell, false, "Get connected cell failed");
+
+    auto left_main_label = cell->getElementObject(SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL);
+    ESP_UTILS_CHECK_NULL_RETURN(left_main_label, false, "Get left main label failed");
+    lv_label_set_long_mode(left_main_label, LV_LABEL_LONG_SCROLL);
+    lv_obj_set_width(left_main_label, data.cell_left_main_label_size.width);
 
     ESP_UTILS_CHECK_FALSE_RETURN(
         updateCellWlanData(cell, wlan_data), false, "Update WLAN connected cell failed"

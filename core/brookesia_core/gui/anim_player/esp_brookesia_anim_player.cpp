@@ -442,6 +442,10 @@ bool AnimPlayer::processEvent(std::shared_ptr<EventWrapper> event_wrapper)
 
     {
         _player_flags.is_starting = true;
+        esp_utils::function_guard end_guard([this]() {
+            ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+            _player_flags.is_starting = false;
+        });
 
         if (_current_event != nullptr) {
             if (!event.flags.enable_interrupt) {
@@ -482,7 +486,10 @@ bool AnimPlayer::processEvent(std::shared_ptr<EventWrapper> event_wrapper)
             bool is_repeat = (event.operation == Operation::PlayLoop);
 
             ESP_UTILS_LOGD("Animation[%d] set src data start", index);
-            anim_player_set_src_data(_player_handle, config.data_address, config.data_length);
+            ESP_UTILS_CHECK_ERROR_RETURN(
+                anim_player_set_src_data(_player_handle, config.data_address, config.data_length), false,
+                "Failed to set src data"
+            );
             ESP_UTILS_LOGD("Animation[%d] set src data end", index);
 
             _player_state = OperationState::Play;
@@ -516,8 +523,6 @@ bool AnimPlayer::processEvent(std::shared_ptr<EventWrapper> event_wrapper)
             break;
         }
     }
-
-    _player_flags.is_starting = false;
 
     return true;
 }

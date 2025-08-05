@@ -99,6 +99,7 @@ private:
         SleepWoTuiXiaLe,
         SleepXianZheYangLo,
         InvalidConfig,
+        CozeErrorInsufficientCreditsBalance,
         Max,
     };
     struct AudioEvent {
@@ -130,6 +131,7 @@ private:
         int is_pause: 1;
         int is_wifi_connected: 1;
         int is_speaking: 1;
+        int is_coze_error: 1;
     } _flags = {};
     std::recursive_mutex _mutex;
 
@@ -201,6 +203,7 @@ private:
         {AI_Buddy::AudioType::SleepWoTuiXiaLe,      {"file://spiffs/sleep_wo_tui_xia_le.mp3", 2 * 1000}},
         {AI_Buddy::AudioType::SleepXianZheYangLo,   {"file://spiffs/sleep_xian_zhe_yang_lo.mp3", 3 * 1000}},
         {AI_Buddy::AudioType::InvalidConfig,        {"file://spiffs/invalid_config_file.mp3", 5 * 1000}},
+        {AI_Buddy::AudioType::CozeErrorInsufficientCreditsBalance, {"file://spiffs/coze_error_credits.mp3", 7 * 1000}},
     };
     inline static RandomAudios _response_audios = {
         {0.25, AudioType::ResponseLaiLo},

@@ -82,6 +82,15 @@ bool Agent::begin()
         }
     });
 
+    _connections.push_back(coze_chat_error_signal.connect([this](int code) {
+        ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+        if (code == COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_1 ||
+                code == COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_2) {
+            _flags.is_coze_error = true;
+        }
+    }));
+
     {
         esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
             .name = CHAT_EVENT_THREAD_NAME,
@@ -125,6 +134,11 @@ bool Agent::del()
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     std::lock_guard lock(_mutex);
+
+    for (auto &connection : _connections) {
+        connection.disconnect();
+    }
+    _connections.clear();
 
     bool ret = true;
     if (!sendChatEvent(ChatEvent::Stop, true, SEND_CHAT_EVENT_TIMEOUT_MS)) {
@@ -434,9 +448,10 @@ bool Agent::processChatEvent(const ChatEvent &event)
                 boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
             }
 
+            _flags.is_coze_error = false;
             int retry_count = 0;
             const int max_retries = CHAT_EVENT_COZE_START_REPEAT_TIMEOUT_MS / 1000;
-            while (retry_count < max_retries) {
+            while ((retry_count < max_retries) && !_flags.is_coze_error) {
                 if (coze_chat_app_start(_agent_info, _robot_infos[_robot_index]) == ESP_OK) {
                     break;
                 }
@@ -446,6 +461,8 @@ bool Agent::processChatEvent(const ChatEvent &event)
                     boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
                 }
             }
+
+            ESP_UTILS_CHECK_FALSE_RETURN(!_flags.is_coze_error, false, "Coze error");
 
             if (retry_count >= max_retries) {
                 chat_event_process_special_signal(ChatEventSpecialSignalType::StartMaxRetry);

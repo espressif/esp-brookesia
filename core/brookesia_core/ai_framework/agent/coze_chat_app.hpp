@@ -10,6 +10,9 @@
 #include "esp_err.h"
 #include "boost/signals2/signal.hpp"
 
+#define COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_1 (4027)
+#define COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_2 (4028)
+
 struct CozeChatAgentInfo {
     void dump() const;
     bool isValid() const;
@@ -38,6 +41,7 @@ extern boost::signals2::signal<void(bool is_speaking)> coze_chat_speaking_signal
 extern boost::signals2::signal<void(void)> coze_chat_response_signal;
 extern boost::signals2::signal<void(bool is_wake_up)> coze_chat_wake_up_signal;
 extern boost::signals2::signal<void(void)> coze_chat_websocket_disconnected_signal;
+extern boost::signals2::signal<void(int code)> coze_chat_error_signal;
 
 /**
  * @brief  Initialize the Coze chat application

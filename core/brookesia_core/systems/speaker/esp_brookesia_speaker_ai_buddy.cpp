@@ -25,6 +25,7 @@
 #define AUDIO_SERVER_CONNECTING_REPEAT_INTERVAL_MS      (20 * 1000)
 #define AUDIO_SERVER_DISCONNECTED_REPEAT_INTERVAL_MS    (20 * 1000)
 #define AUDIO_INVALID_CONFIG_REPEAT_INTERVAL_MS         (20 * 1000)
+#define AUDIO_COZE_ERROR_INSUFFICIENT_CREDITS_BALANCE_REPEAT_INTERVAL_MS (20 * 1000)
 
 using namespace esp_brookesia::ai_framework;
 
@@ -311,13 +312,43 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
             return;
         }
 
-        ESP_UTILS_CHECK_FALSE_EXIT(
-            _agent->sendChatEvent(Agent::ChatEvent::Stop), "Send chat event stop failed"
-        );
-        if (isWiFiValid()) {
+        if (_agent->hasChatState(Agent::_ChatStateStart)) {
             ESP_UTILS_CHECK_FALSE_EXIT(
-                _agent->sendChatEvent(Agent::ChatEvent::Start, false), "Send chat event start failed"
+                _agent->sendChatEvent(Agent::ChatEvent::Stop), "Send chat event stop failed"
             );
+        }
+        if (isWiFiValid()) {
+            if (_flags.is_coze_error) {
+                boost::thread([this]() {
+                    auto delay_ms = AUDIO_COZE_ERROR_INSUFFICIENT_CREDITS_BALANCE_REPEAT_INTERVAL_MS * AUDIO_PLAY_LOOP_COUNT;
+                    boost::this_thread::sleep_for(boost::chrono::milliseconds(delay_ms));
+
+                    if (!_agent->hasChatState(Agent::_ChatStateStart) && isWiFiValid()) {
+                        ESP_UTILS_CHECK_FALSE_EXIT(
+                            _agent->sendChatEvent(Agent::ChatEvent::Start), "Send chat event start failed"
+                        );
+                    }
+                }).detach();
+            } else {
+                ESP_UTILS_CHECK_FALSE_EXIT(
+                    _agent->sendChatEvent(Agent::ChatEvent::Start, false), "Send chat event start failed"
+                );
+            }
+        }
+    }));
+    _agent_connections.push_back(coze_chat_error_signal.connect([this](int code) {
+        ESP_UTILS_LOG_TRACE_GUARD();
+
+        ESP_UTILS_LOGI("Chat error code: %d", code);
+
+        if (code == COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_1 ||
+                code == COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_2) {
+            _flags.is_coze_error = true;
+
+            sendAudioEvent({
+                AudioType::CozeErrorInsufficientCreditsBalance, AUDIO_PLAY_LOOP_COUNT,
+                AUDIO_COZE_ERROR_INSUFFICIENT_CREDITS_BALANCE_REPEAT_INTERVAL_MS
+            });
         }
     }));
 
@@ -415,6 +446,9 @@ bool AI_Buddy::del()
     std::lock_guard lock(_mutex);
 
     _flags = {};
+    for (auto &connection : _agent_connections) {
+        connection.disconnect();
+    }
     _agent_connections.clear();
 
     if (!expression.del()) {

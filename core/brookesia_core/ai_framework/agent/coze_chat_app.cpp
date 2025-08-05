@@ -22,6 +22,7 @@
 #include "esp_coze_chat.h"
 #include "esp_coze_utils.h"
 #include "http_client_request.h"
+#include "cJSON.h"
 #include "boost/thread.hpp"
 #include "private/esp_brookesia_ai_agent_utils.hpp"
 #include "audio_processor.h"
@@ -62,6 +63,7 @@ boost::signals2::signal<void(bool is_speaking)> coze_chat_speaking_signal;
 boost::signals2::signal<void(void)> coze_chat_response_signal;
 boost::signals2::signal<void(bool is_wake_up)> coze_chat_wake_up_signal;
 boost::signals2::signal<void(void)> coze_chat_websocket_disconnected_signal;
+boost::signals2::signal<void(int code)> coze_chat_error_signal;
 
 void CozeChatAgentInfo::dump() const
 {
@@ -167,9 +169,40 @@ static void change_wakeup_state(bool is_wakeup, bool force = false)
     coze_chat_wake_up_signal(is_wakeup);
 }
 
+static int parse_chat_error_code(const char *data)
+{
+    ESP_UTILS_LOG_TRACE_GUARD();
+
+    ESP_UTILS_CHECK_NULL_RETURN(data, -1, "Invalid data");
+
+    cJSON *json_root = cJSON_Parse(data);
+    ESP_UTILS_CHECK_NULL_RETURN(json_root, -1, "Failed to parse JSON data");
+
+    esp_utils::function_guard delete_guard([&]() {
+        cJSON_Delete(json_root);
+    });
+
+    cJSON *data_obj = cJSON_GetObjectItem(json_root, "data");
+    ESP_UTILS_CHECK_NULL_RETURN(data_obj, -1, "No data found in JSON data");
+    ESP_UTILS_CHECK_FALSE_RETURN(cJSON_IsObject(data_obj), -1, "data is not an object");
+
+    cJSON *code_item = cJSON_GetObjectItem(data_obj, "code");
+    ESP_UTILS_CHECK_NULL_RETURN(code_item, -1, "No code found in JSON data");
+    ESP_UTILS_CHECK_FALSE_RETURN(cJSON_IsNumber(code_item), -1, "code is not a number");
+
+    return static_cast<int>(cJSON_GetNumberValue(code_item));
+}
+
 static void audio_event_callback(esp_coze_chat_event_t event, char *data, void *ctx)
 {
-    if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STARTED) {
+    if (event == ESP_COZE_CHAT_EVENT_CHAT_ERROR) {
+        ESP_UTILS_LOGE("chat error: %s", data);
+
+        int code = parse_chat_error_code(data);
+        ESP_UTILS_CHECK_FALSE_EXIT(code != -1, "Failed to parse chat error code");
+
+        coze_chat_error_signal(code);
+    } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STARTED) {
         ESP_UTILS_LOGI("chat start");
         coze_chat.wakeup_start = false;
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STOPED) {
@@ -461,15 +494,9 @@ static void recorder_event_callback_fn(void *event, void *ctx)
         change_wakeup_state(false);
         break;
     case ESP_GMF_AFE_EVT_VAD_START:
-        if (esp_gmf_afe_keep_awake(audio_processor_get_afe_handle(), true) != ESP_OK) {
-            ESP_UTILS_LOGE("Keep awake failed");
-        }
         ESP_UTILS_LOGI("vad start");
         break;
     case ESP_GMF_AFE_EVT_VAD_END:
-        if (esp_gmf_afe_keep_awake(audio_processor_get_afe_handle(), false) != ESP_OK) {
-            ESP_UTILS_LOGE("Keep awake failed");
-        }
         ESP_UTILS_LOGI("vad end");
         break;
     case ESP_GMF_AFE_EVT_VCMD_DECT_TIMEOUT:
