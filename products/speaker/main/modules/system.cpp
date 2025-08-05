@@ -72,8 +72,8 @@ static std::string to_lower(const std::string &input);
 static std::string get_before_space(const std::string &input);
 static bool load_coze_agent_config();
 static bool check_whether_enter_developer_mode();
-static void show_low_power(const Speaker *speaker);
-static void update_battery_info(const Speaker *speaker, const Settings *app_settings);
+static void show_low_power(Speaker *speaker);
+static void update_battery_info(Speaker *speaker, const Settings *app_settings);
 
 bool system_init()
 {
@@ -115,6 +115,9 @@ bool system_init()
     ESP_UTILS_LOGI("Display ESP-Brookesia speaker demo");
 
     speaker->lockLv();
+    esp_utils::function_guard end_guard([speaker]() {
+        speaker->unlockLv();
+    });
 
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->begin(), false, "Begin failed");
 
@@ -157,9 +160,14 @@ bool system_init()
         if (bat_last_status.full != status.full) {
             bat_last_status = status;
             speaker->lockLv();
+            esp_utils::function_guard end_guard([speaker]() {
+                speaker->unlockLv();
+            });
             auto &quick_settings = speaker->display.getQuickSettings();
-            quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC());
-            speaker->unlockLv();
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC()),
+                "Set battery percent failed"
+            );
         }
     }
     );
@@ -172,8 +180,6 @@ bool system_init()
 
     // Process settings events
     app_settings->manager.event_signal.connect([ = ](SettingsManager::EventType event_type, SettingsManager::EventData event_data) {
-        ESP_UTILS_LOG_TRACE_GUARD();
-
         ESP_UTILS_LOGD("Param: event_type(%d), event_data(%s)", static_cast<int>(event_type), event_data.type().name());
 
         switch (event_type) {
@@ -238,8 +244,6 @@ bool system_init()
     ESP_UTILS_CHECK_NULL_RETURN(app_pos, false, "Get pos app failed");
     auto app_pos_id = speaker->installApp(app_pos);
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_pos_id), false, "Install pos app failed");
-
-    speaker->unlockLv();
 
     /* Init quick settings info */
     speaker->display.getQuickSettings().connectEventSignal([ = ](QuickSettings::EventData event_data) {
@@ -336,11 +340,13 @@ bool system_init()
                 }
 
                 speaker->lockLv();
+                esp_utils::function_guard end_guard([speaker]() {
+                    speaker->unlockLv();
+                });
                 speaker->manager.processDisplayScreenChange(
                     ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN, nullptr
                 );
                 speaker->sendAppEvent(&event_data);
-                speaker->unlockLv();
             }
         }
     }, std::make_optional<FunctionDefinition::CallbackThreadConfig>({
@@ -591,7 +597,7 @@ static bool check_whether_enter_developer_mode()
     }
 }
 
-static void show_low_power(const Speaker *speaker)
+static void show_low_power(Speaker *speaker)
 {
     ESP_UTILS_LOGW("Low power triggered");
     bsp_display_lock(0);
@@ -638,11 +644,18 @@ static void show_low_power(const Speaker *speaker)
     ESP_UTILS_LOGW("Low power triggered, device will sleep now");
 }
 
-static void update_battery_info(const Speaker *speaker, const Settings *app_settings)
+static void update_battery_info(Speaker *speaker, const Settings *app_settings)
 {
     speaker->lockLv();
+    esp_utils::function_guard end_guard([speaker]() {
+        speaker->unlockLv();
+    });
+
     auto &quick_settings = speaker->display.getQuickSettings();
-    quick_settings.setBatteryPercent(battery_monitor.is_charging(), battery_monitor.getBatterySOC());
+    ESP_UTILS_CHECK_FALSE_EXIT(
+        quick_settings.setBatteryPercent(battery_monitor.is_charging(), battery_monitor.getBatterySOC()),
+        "Set battery percent failed"
+    );
 
     char battery_info_str[32] = {0};
     auto _cell = app_settings->ui.screen_about.getCell(
@@ -671,5 +684,4 @@ static void update_battery_info(const Speaker *speaker, const Settings *app_sett
         snprintf(battery_info_str, sizeof(battery_info_str), "%dmA", battery_monitor.getCurrent());
         _cell->updateRightMainLabel(battery_info_str);
     }
-    speaker->unlockLv();
 }

@@ -197,7 +197,7 @@ bool IMUGesture::init()
     {
         esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
             .name = "gesture_thread",
-            .stack_size = 1024 * 3,
+            .stack_size = 1024 * 5,
             .stack_in_ext = true,
         });
         try {

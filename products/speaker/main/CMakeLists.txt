@@ -65,8 +65,9 @@ target_compile_options(
         "-fpermissive"
 )
 
-get_component_library("gmf_ai_audio" GMF_AI_AUDIO_LIB)
+get_component_library("esp_lcd_touch_cst816s" LCD_TOUCH_LIB)
 target_compile_options(
-    ${GMF_AI_AUDIO_LIB}
+    ${LCD_TOUCH_LIB}
     PUBLIC
+        "-Wno-unused-function"
 )

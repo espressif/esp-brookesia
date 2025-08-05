@@ -64,7 +64,19 @@ bool StorageNVS::begin()
                 ESP_UTILS_CHECK_FALSE_RETURN(nvs_flash_erase() == ESP_OK, false, "Erase NVS flash failed");
                 ESP_UTILS_CHECK_FALSE_RETURN(nvs_flash_init() == ESP_OK, false, "Init NVS flash failed");
             } else {
-                ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Initialize NVS flash failed");
+                ESP_UTILS_CHECK_ERROR_RETURN(ret, false, "Initialize NVS flash failed");
+            }
+
+            // Create NVS namespace if not exists
+            {
+                nvs_handle_t nvs_handle;
+                ESP_UTILS_CHECK_ERROR_RETURN(
+                    nvs_open(STORAGE_NVS_NAMESPACE, NVS_READWRITE, &nvs_handle), false, "Open NVS namespace failed"
+                );
+                esp_utils::function_guard nvs_close_guard([&]() {
+                    nvs_close(nvs_handle);
+                });
+                ESP_UTILS_CHECK_ERROR_RETURN(nvs_commit(nvs_handle), false, "Commit NVS failed");
             }
 
             while (true) {

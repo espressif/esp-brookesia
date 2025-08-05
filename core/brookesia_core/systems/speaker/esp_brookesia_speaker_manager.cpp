@@ -788,6 +788,9 @@ bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
     );
 
     _core.lockLv();
+    esp_utils::function_guard end_guard([this]() {
+        _core.unlockLv();
+    });
 
     if (key == SETTINGS_NVS_KEY_WLAN_SWITCH) {
         auto wifi_button = display.getQuickSettings().getWifiButton();
@@ -812,8 +815,6 @@ bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
         auto percent = std::get<int>(value);
         ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setBrightness(percent), false, "Set brightness failed");
     }
-
-    _core.unlockLv();
 
     return true;
 }

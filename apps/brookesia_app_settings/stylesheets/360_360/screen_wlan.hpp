@@ -87,9 +87,9 @@ constexpr SettingsUI_ScreenWlanData SETTINGS_UI_360_360_SCREEN_WLAN_DATA()
             SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_PROVISIONING_SOFTAP(),
         },
         .icon_wlan_signals = {
-            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_large_status_bar_wifi_level1_36_36),
-            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_large_status_bar_wifi_level2_36_36),
-            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_large_status_bar_wifi_level3_36_36),
+            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level1_36_36),
+            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level2_36_36),
+            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level3_36_36),
         },
         .icon_wlan_lock = ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_lock_48_48),
         .cell_left_main_label_size = ESP_BROOKESIA_STYLE_SIZE_RECT(200, 24),

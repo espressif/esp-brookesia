@@ -132,8 +132,10 @@ bool Settings::run()
         });
         boost::thread([this]() {
             getCore()->lockLv();
+            esp_utils::function_guard end_guard([this]() {
+                getCore()->unlockLv();
+            });
             ESP_UTILS_CHECK_FALSE_EXIT(manager.processRun(), "Manager process run failed");
-            getCore()->unlockLv();
             _is_starting = false;
         }).detach();
     }
@@ -163,10 +165,12 @@ bool Settings::close()
             boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
         }
         getCore()->lockLv();
+        esp_utils::function_guard end_guard([this]() {
+            getCore()->unlockLv();
+        });
         ESP_UTILS_CHECK_FALSE_EXIT(manager.processClose(), "Manager process close failed");
         ESP_UTILS_CHECK_FALSE_EXIT(ui.del(), "UI delete failed");
         _is_stopping = false;
-        getCore()->unlockLv();
     }).detach();
 
     return true;

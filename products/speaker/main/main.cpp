@@ -37,19 +37,10 @@ extern "C" void app_main()
             .stack_size = 4096,
         });
         boost::thread([ = ]() {
-            char buffer[512];    /* Make sure buffer is enough for `sprintf` */
-
             while (1) {
                 // heap_caps_check_integrity_all(true);
 
                 esp_utils_mem_print_info();
-
-                lv_mem_monitor_t mon;
-                lv_mem_monitor(&mon);
-                sprintf(buffer, "used: %zu (%3d %%), frag: %3d %%, biggest free: %zu, total: %zu, free: %zu",
-                        mon.total_size - mon.free_size, mon.used_pct, mon.frag_pct,
-                        mon.free_biggest_size, mon.total_size, mon.free_size);
-                ESP_UTILS_LOGI("%s", buffer);
 
                 audio_sys_get_real_time_stats();
 
