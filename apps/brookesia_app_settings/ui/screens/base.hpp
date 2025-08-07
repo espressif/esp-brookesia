@@ -13,7 +13,7 @@
 #include "gui/lvgl/esp_brookesia_lv.hpp"
 #include "../widgets/cell_container.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenBaseType {
     ROOT,
@@ -206,4 +206,4 @@ private:
     std::map<int, std::unique_ptr<SettingsUI_WidgetCellContainer>> _cell_containers_map;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

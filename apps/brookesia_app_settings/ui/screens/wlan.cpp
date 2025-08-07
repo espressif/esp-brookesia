@@ -10,7 +10,7 @@
 using namespace std;
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 #define CELL_ELEMENT_CONF_SW() \
     { \

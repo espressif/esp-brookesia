@@ -23,6 +23,7 @@ idf_component_register(
     INCLUDE_DIRS ${PROJ_SRC_DIR}
     REQUIRES esp_event esp_wifi esp_http_server json spi_flash
     EMBED_TXTFILES ${PROJ_SRC_DIR}/html/wifi.html
+    WHOLE_ARCHIVE
 )
 
 set_source_files_properties(

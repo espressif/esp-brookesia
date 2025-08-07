@@ -9,6 +9,8 @@
 #include "private/esp_brookesia_app_settings_utils.hpp"
 #include "esp_brookesia_app_settings.hpp"
 
+#define APP_NAME "Settings"
+
 #define MANAGER_THREAD_NAME                     "manager_run"
 #define MANAGER_THREAD_STACK_SIZE_BIG           (12 * 1024)
 #define MANAGER_THREAD_STACK_CAPS_EXT           (true)
@@ -17,11 +19,11 @@ using namespace std;
 using namespace esp_brookesia::speaker;
 using namespace esp_brookesia::ai_framework;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 Settings::Settings():
     App({
-    .name = "Settings",
+    .name = APP_NAME,
     .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_app_icon_launcher_settings_112_112),
     .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
     .flags = {
@@ -237,4 +239,9 @@ bool Settings::calibrateScreenSize(ESP_Brookesia_StyleSize_t &size)
     return true;
 }
 
-} // namespace esp_brookesia::speaker_apps
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::CoreApp, Settings, APP_NAME, []()
+{
+    return std::shared_ptr<Settings>(Settings::requestInstance(), [](Settings * p) {});
+})
+
+} // namespace esp_brookesia::apps

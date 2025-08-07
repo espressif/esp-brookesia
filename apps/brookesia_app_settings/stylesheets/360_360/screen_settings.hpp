@@ -9,7 +9,7 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "assets/esp_brookesia_app_settings_assets.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_WIRELESS(const auto &icon, const char *left_text, const char *right_text)
 {
@@ -135,4 +135,4 @@ constexpr SettingsUI_ScreenSettingsData SETTINGS_UI_360_360_SCREEN_SETTINGS_DATA
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

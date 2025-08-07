@@ -12,7 +12,7 @@
 #include "esp_brookesia.hpp"
 #include "base.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenWlanSoftAPContainerIndex {
     QRCODE,

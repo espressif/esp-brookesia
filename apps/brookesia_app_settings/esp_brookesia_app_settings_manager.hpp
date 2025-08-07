@@ -33,7 +33,7 @@
 
 constexpr const char *SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH = "touch_switch";
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsManagerData {
     struct {
@@ -322,4 +322,4 @@ private:
     static const std::unordered_map<wifi_event_t, std::string> _wlan_event_str;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

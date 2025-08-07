@@ -9,7 +9,7 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "assets/esp_brookesia_app_settings_assets.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_SW(const char *label_text)
 {
@@ -96,4 +96,4 @@ constexpr SettingsUI_ScreenWlanData SETTINGS_UI_360_360_SCREEN_WLAN_DATA()
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

@@ -3,7 +3,3 @@ dependencies:
   brookesia_core:
     override_path: "../../core/brookesia_core"
     public: true
-
-  espressif/esp-lib-utils:
-    version: "0.2.*"
-    public: false

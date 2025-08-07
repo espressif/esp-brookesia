@@ -12,7 +12,7 @@
 using namespace std;
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 #define CELL_ELEMENT_CONF_PASSWORD() \
     { \
@@ -50,17 +50,12 @@ namespace esp_brookesia::speaker_apps {
 
 #define TEXT_EDIT_SEND_CONFIRM_EVENT_LEN_MIN    8
 
-const SettingsUI_ScreenWlanVerificationCellContainerMap SettingsUI_ScreenWlanVerification::_init_cell_container_map =
-    CELL_CONTAINER_MAP();
-
 SettingsUI_ScreenWlanVerification::SettingsUI_ScreenWlanVerification(
     speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
     const SettingsUI_ScreenWlanVerificationData &main_data
 ):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
-    data(main_data),
-    _flags{}
-    // ,_last_keyboard_mode(-1)
+    data(main_data)
 {
 }
 
@@ -150,9 +145,7 @@ bool SettingsUI_ScreenWlanVerification::del()
         ret  = false;
         ESP_UTILS_LOGE("Screen base delete failed");
     }
-    // app.getCore()->getCoreEvent()->unregisterEvent(_keyboard_confirm_event_id);
-    // Avoid enter keyboard event callback after delete
-    // lv_obj_remove_event_cb(_keyboard.get(), onKeyboardAllEventCallback);
+
     // Avoid enter gesture event when App is closed
     auto gesture = app.getSystem()->manager.getGesture();
     if ((gesture != nullptr) && (gesture->getEventObj() != nullptr)) {
@@ -162,8 +155,6 @@ bool SettingsUI_ScreenWlanVerification::del()
     }
 
     _flags = {};
-    // _last_keyboard_mode = -1;
-    // _keyboard.reset();
     _cell_container_map.clear();
 
     return ret;

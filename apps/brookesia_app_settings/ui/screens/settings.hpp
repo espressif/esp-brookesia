@@ -10,7 +10,7 @@
 #include "base.hpp"
 #include "../widgets/cell_container.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenSettingsContainerIndex {
     WIRELESS,

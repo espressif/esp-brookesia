@@ -9,7 +9,7 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "assets/esp_brookesia_app_settings_assets.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_WidgetCellData SETTINGS_UI_360_360_WIDGET_CELL_DATA()
 {
@@ -92,4 +92,4 @@ constexpr SettingsUI_WidgetCellContainerData SETTINGS_UI_360_360_WIDGET_CELL_CON
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

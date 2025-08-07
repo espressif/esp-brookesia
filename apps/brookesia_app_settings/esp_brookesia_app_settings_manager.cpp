@@ -107,7 +107,7 @@ using namespace esp_brookesia::speaker;
 using namespace esp_brookesia::services;
 using namespace esp_utils;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 const std::unordered_map<wifi_event_t, std::string> SettingsManager::_wlan_event_str = {
     {WIFI_EVENT_SCAN_DONE, "WIFI_EVENT_SCAN_DONE"},
@@ -3345,4 +3345,4 @@ bool SettingsManager::isTimeSync()
     return (timeinfo.tm_year > (2020 - 1900));
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

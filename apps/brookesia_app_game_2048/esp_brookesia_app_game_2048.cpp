@@ -15,6 +15,8 @@
 #include "esp_lib_utils.h"
 #include "esp_brookesia_app_game_2048.hpp"
 
+#define APP_NAME "2048"
+
 #define ENABLE_CELL_DEBUG       (1)
 
 #define BOARD_BG_COLOR          lv_color_white()
@@ -45,10 +47,10 @@ using namespace std;
 
 LV_IMG_DECLARE(img_app_2048);
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr ESP_Brookesia_CoreAppData_t CORE_DATA = {
-    .name = "2048",
+    .name = APP_NAME,
     .launcher_icon = gui::StyleImage::IMAGE(&img_app_2048),
     .screen_size = gui::StyleSize::RECT_PERCENT(100, 100),
     .flags = {
@@ -64,10 +66,8 @@ constexpr speaker::AppData_t APP_DATA = {
     },
 };
 
-Game2048::Game2048(int width, int height)
+Game2048::Game2048()
     : App(CORE_DATA, APP_DATA)
-    , _width(width)
-    , _height(height)
 {
 }
 
@@ -80,6 +80,11 @@ bool Game2048::init()
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
+    ESP_Brookesia_StyleSize_t size;
+    ESP_UTILS_CHECK_FALSE_RETURN(_core->getDisplaySize(size), false, "Get display size failed");
+
+    _width = size.width / 3 * 2;
+    _height = _width;
     ESP_UTILS_CHECK_FALSE_RETURN(_width > 0, false, "Invalid width(%d)", _width);
     ESP_UTILS_CHECK_FALSE_RETURN(_height > 0, false, "Invalid height(%d)", _height);
 
@@ -1017,4 +1022,6 @@ void Game2048::anim_finish_cb(lv_anim_t *a)
     }
 }
 
-} // namespace esp_brookesia::speaker_apps
+ESP_UTILS_REGISTER_PLUGIN(systems::CoreApp, Game2048, APP_NAME)
+
+} // namespace esp_brookesia::apps

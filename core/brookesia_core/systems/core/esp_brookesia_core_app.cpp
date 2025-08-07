@@ -20,51 +20,14 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_CoreApp::ESP_Brookesia_CoreApp(const ESP_Brookesia_CoreAppData_t &data):
-    _core(nullptr),
-    _core_init_data(data),
-    _status(ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED),
-    _id(-1),
-    _flags{},
-    _display_style{},
-    _app_style{},
-    _resource_timer_count(0),
-    _resource_anim_count(0),
-    _resource_head_screen_index(0),
-    _resource_screen_count(0),
-    _last_screen(nullptr),
-    _active_screen(nullptr),
-    _resource_head_timer(nullptr),
-    _resource_head_anim(nullptr)
+namespace esp_brookesia::systems {
+
+bool CoreApp::checkInitialized(void) const
 {
+    return (_id >= APP_ID_MIN) && (_core != nullptr) && (_core->getCoreManager().getInstalledApp(_id) == this);
 }
 
-ESP_Brookesia_CoreApp::ESP_Brookesia_CoreApp(const char *name, const void *launcher_icon, bool use_default_screen):
-    _core(nullptr),
-    _core_init_data(ESP_BROOKESIA_CORE_APP_DATA_DEFAULT(name, launcher_icon, use_default_screen)),
-    _status(ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED),
-    _id(-1),
-    _flags{},
-    _display_style{},
-    _app_style{},
-    _resource_timer_count(0),
-    _resource_anim_count(0),
-    _resource_head_screen_index(0),
-    _resource_screen_count(0),
-    _last_screen(nullptr),
-    _active_screen(nullptr),
-    _resource_head_timer(nullptr),
-    _resource_head_anim(nullptr)
-{
-}
-
-bool ESP_Brookesia_CoreApp::checkInitialized(void) const
-{
-    return (_id >= ESP_BROOKESIA_CORE_APP_ID_MIN) && (_core != nullptr) &&
-           (_core->getCoreManager().getInstalledApp(_id) == this);
-}
-
-bool ESP_Brookesia_CoreApp::notifyCoreClosed(void) const
+bool CoreApp::notifyCoreClosed(void) const
 {
     lv_obj_t *event_obj = nullptr;
     lv_event_code_t event_code = _LV_EVENT_LAST;
@@ -93,12 +56,12 @@ bool ESP_Brookesia_CoreApp::notifyCoreClosed(void) const
     return true;
 }
 
-void ESP_Brookesia_CoreApp::setLauncherIconImage(const ESP_Brookesia_StyleImage_t &icon_image)
+void CoreApp::setLauncherIconImage(const gui::StyleImage &icon_image)
 {
     _core_active_data.launcher_icon = icon_image;
 }
 
-bool ESP_Brookesia_CoreApp::startRecordResource(void)
+bool CoreApp::startRecordResource(void)
 {
     lv_display_t *disp = nullptr;
     lv_area_t &visual_area = _app_style.calibrate_visual_area;
@@ -130,7 +93,7 @@ bool ESP_Brookesia_CoreApp::startRecordResource(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::endRecordResource(void)
+bool CoreApp::endRecordResource(void)
 {
     bool ret = true;
     uint32_t resource_loop_count = 0;
@@ -243,7 +206,7 @@ bool ESP_Brookesia_CoreApp::endRecordResource(void)
     return ret;
 }
 
-bool ESP_Brookesia_CoreApp::cleanRecordResource(void)
+bool CoreApp::cleanRecordResource(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) clean resource", getName(), _id);
@@ -370,7 +333,7 @@ bool ESP_Brookesia_CoreApp::cleanRecordResource(void)
     return ret;
 }
 
-bool ESP_Brookesia_CoreApp::processInstall(ESP_Brookesia_Core *core, int id)
+bool CoreApp::processInstall(ESP_Brookesia_Core *core, int id)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
     ESP_UTILS_CHECK_NULL_RETURN(_core_init_data.name, false, "App name is invalid");
@@ -399,14 +362,14 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_CoreApp::processUninstall(void)
+bool CoreApp::processUninstall(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) uninstall", getName(), _id);
 
     _core = nullptr;
     _core_active_data = {};
-    _status = ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED;
+    _status = Status::UNINSTALLED;
     _id = -1;
     _flags = {};
     _display_style = {};
@@ -433,7 +396,7 @@ bool ESP_Brookesia_CoreApp::processUninstall(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::processRun()
+bool CoreApp::processRun()
 {
     bool ret = true;
 
@@ -464,7 +427,7 @@ bool ESP_Brookesia_CoreApp::processRun()
     }
     ESP_UTILS_CHECK_FALSE_GOTO(ret, err, "App run failed");
 
-    _status = ESP_BROOKESIA_CORE_APP_STATUS_RUNNING;
+    _status = Status::RUNNING;
 
     return true;
 
@@ -474,7 +437,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_CoreApp::processResume(void)
+bool CoreApp::processResume(void)
 {
     bool ret = true;
 
@@ -490,7 +453,7 @@ bool ESP_Brookesia_CoreApp::processResume(void)
     }
     ESP_UTILS_CHECK_FALSE_GOTO(endRecordResource(), err, "End record resource failed");
 
-    _status = ESP_BROOKESIA_CORE_APP_STATUS_RUNNING;
+    _status = Status::RUNNING;
 
     return ret;
 
@@ -500,7 +463,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_CoreApp::processPause(void)
+bool CoreApp::processPause(void)
 {
     bool ret = true;
 
@@ -515,7 +478,7 @@ bool ESP_Brookesia_CoreApp::processPause(void)
     ESP_UTILS_CHECK_FALSE_GOTO(saveRecentScreen(false), err, "Save recent screen failed");
     ESP_UTILS_CHECK_FALSE_GOTO(loadDisplayTheme(), err, "Load display theme failed");
 
-    _status = ESP_BROOKESIA_CORE_APP_STATUS_PAUSED;
+    _status = Status::PAUSED;
 
     return ret;
 
@@ -525,7 +488,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_CoreApp::processClose(bool is_app_active)
+bool CoreApp::processClose(bool is_app_active)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) close", getName(), _id);
@@ -566,7 +529,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_CoreApp::setVisualArea(const lv_area_t &area)
+bool CoreApp::setVisualArea(const lv_area_t &area)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) set origin visual area[(%d,%d)-(%d,%d)]", getName(),
@@ -577,15 +540,15 @@ bool ESP_Brookesia_CoreApp::setVisualArea(const lv_area_t &area)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::calibrateVisualArea(void)
+bool CoreApp::calibrateVisualArea(void)
 {
     int visual_area_x = 0;
     int visual_area_y = 0;
     int visual_area_w = 0;
     int visual_area_h = 0;
     lv_area_t visual_area = _app_style.origin_visual_area;
-    const ESP_Brookesia_StyleSize_t &screen_size = _core->getCoreData().screen_size;
-    const ESP_Brookesia_StyleSize_t &app_size = getCoreActiveData().screen_size;
+    const gui::StyleSize &screen_size = _core->getCoreData().screen_size;
+    const gui::StyleSize &app_size = getCoreActiveData().screen_size;
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) calibrate visual area[origin: (%d,%d)-(%d,%d)]", getName(),
@@ -617,7 +580,7 @@ bool ESP_Brookesia_CoreApp::calibrateVisualArea(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::initDefaultScreen(void)
+bool CoreApp::initDefaultScreen(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) init default screen", getName(), _id);
@@ -635,7 +598,7 @@ bool ESP_Brookesia_CoreApp::initDefaultScreen(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::cleanDefaultScreen(void)
+bool CoreApp::cleanDefaultScreen(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) clean default active screen", getName(), _id);
@@ -650,7 +613,7 @@ bool ESP_Brookesia_CoreApp::cleanDefaultScreen(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::saveRecentScreen(bool check_valid)
+bool CoreApp::saveRecentScreen(bool check_valid)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) save recent screen", getName(), _id);
@@ -667,7 +630,7 @@ bool ESP_Brookesia_CoreApp::saveRecentScreen(bool check_valid)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::loadRecentScreen(void)
+bool CoreApp::loadRecentScreen(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) load recent screen", getName(), _id);
@@ -688,7 +651,7 @@ bool ESP_Brookesia_CoreApp::loadRecentScreen(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::resetRecordResource(void)
+bool CoreApp::resetRecordResource(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) reset record resource", getName(), _id);
@@ -713,7 +676,7 @@ bool ESP_Brookesia_CoreApp::resetRecordResource(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::enableAutoClean(void)
+bool CoreApp::enableAutoClean(void)
 {
     lv_obj_t *last_screen = _core->getDisplayDevice()->scr_to_load;
 
@@ -732,7 +695,7 @@ bool ESP_Brookesia_CoreApp::enableAutoClean(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::saveDisplayTheme(void)
+bool CoreApp::saveDisplayTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *theme = nullptr;
@@ -751,7 +714,7 @@ bool ESP_Brookesia_CoreApp::saveDisplayTheme(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::loadDisplayTheme(void)
+bool CoreApp::loadDisplayTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *&theme = _display_style.theme;
@@ -768,7 +731,7 @@ bool ESP_Brookesia_CoreApp::loadDisplayTheme(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::saveAppTheme(void)
+bool CoreApp::saveAppTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *theme = nullptr;
@@ -787,7 +750,7 @@ bool ESP_Brookesia_CoreApp::saveAppTheme(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreApp::loadAppTheme(void)
+bool CoreApp::loadAppTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *&theme = _display_style.theme;
@@ -804,14 +767,14 @@ bool ESP_Brookesia_CoreApp::loadAppTheme(void)
     return true;
 }
 
-void ESP_Brookesia_CoreApp::onCleanResourceEventCallback(lv_event_t *event)
+void CoreApp::onCleanResourceEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_CoreApp *app = nullptr;
+    CoreApp *app = nullptr;
 
     ESP_UTILS_LOGD("App clean resource event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    app = (ESP_Brookesia_CoreApp *)lv_event_get_user_data(event);
+    app = (CoreApp *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(app, "Invalid app");
 
     ESP_UTILS_LOGD("Clean app(%s: %d) resources", app->getName(), app->_id);
@@ -829,16 +792,16 @@ void ESP_Brookesia_CoreApp::onCleanResourceEventCallback(lv_event_t *event)
     }
 }
 
-void ESP_Brookesia_CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
+void CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_CoreApp *app = nullptr;
+    CoreApp *app = nullptr;
     lv_obj_t *screen = nullptr;
     lv_area_t area = { 0 };
 
     ESP_UTILS_LOGD("App resize screen loaded event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    app = (ESP_Brookesia_CoreApp *)lv_event_get_user_data(event);
+    app = (CoreApp *)lv_event_get_user_data(event);
     screen = (lv_obj_t *)lv_event_get_target(event);
     ESP_UTILS_CHECK_NULL_EXIT(app, "Invalid app");
     ESP_UTILS_CHECK_NULL_EXIT(screen, "Invalid screen");
@@ -851,7 +814,7 @@ void ESP_Brookesia_CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 }
 
 // TODO
-// bool ESP_Brookesia_CoreApp::createAndloadTempScreen(void)
+// bool CoreApp::createAndloadTempScreen(void)
 // {
 //     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 //     ESP_UTILS_LOGD("App(%s: %d) create temp screen", getName(), _id);
@@ -867,7 +830,7 @@ void ESP_Brookesia_CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 //     return true;
 // }
 
-// bool ESP_Brookesia_CoreApp::delTempScreen(void)
+// bool CoreApp::delTempScreen(void)
 // {
 //     ESP_UTILS_CHECK_FALSE_RETURN((_temp_screen != nullptr) && checkLvObjIsValid(_temp_screen), false, "Invalid temp screen");
 //     ESP_UTILS_LOGD("App(%s: %d) delete temp screen", getName(), _id);
@@ -877,3 +840,5 @@ void ESP_Brookesia_CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 
 //     return true;
 // }
+
+}

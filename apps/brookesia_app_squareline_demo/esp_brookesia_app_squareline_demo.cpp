@@ -13,6 +13,8 @@
 #include "ui/ui.h"
 #include "esp_brookesia_app_squareline_demo.hpp"
 
+#define APP_NAME "Squareline"
+
 using namespace std;
 using namespace esp_brookesia::gui;
 
@@ -31,7 +33,7 @@ SquarelineDemo *SquarelineDemo::requestInstance(bool use_status_bar, bool use_na
 }
 
 SquarelineDemo::SquarelineDemo(bool use_status_bar, bool use_navigation_bar):
-    ESP_Brookesia_PhoneApp("Squareline", &esp_brookesia_app_icon_launcher_squareline_112_112, false, use_status_bar, use_navigation_bar)
+    ESP_Brookesia_PhoneApp(APP_NAME, &esp_brookesia_app_icon_launcher_squareline_112_112, false, use_status_bar, use_navigation_bar)
 {
 }
 
@@ -372,5 +374,10 @@ extern "C" {
     }
 
 } // extern "C"
+
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::CoreApp, SquarelineDemo, APP_NAME, []()
+{
+    return std::shared_ptr<SquarelineDemo>(SquarelineDemo::requestInstance(), [](SquarelineDemo * p) {});
+})
 
 } // namespace esp_brookesia::apps

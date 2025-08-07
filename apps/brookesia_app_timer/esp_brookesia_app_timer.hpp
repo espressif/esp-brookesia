@@ -14,7 +14,7 @@
 #include <string>
 #include <ctime>
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 typedef enum {
     TIMER_SCREEN_DIGITAL,
@@ -100,4 +100,4 @@ private:
     lv_obj_t *_toast_label = nullptr;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

@@ -11,7 +11,7 @@
 #include <atomic>
 #include <string>
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 typedef enum {
     POS_SCREEN_S1,      // Welcome screen
@@ -112,4 +112,4 @@ private:
     lv_obj_t *_toast_label = nullptr;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

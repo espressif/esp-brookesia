@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -77,7 +77,7 @@ public:
     bool unregisterAppEventCallback(lv_event_cb_t callback, void *user_data) const;
     bool sendAppEvent(const ESP_Brookesia_CoreAppEventData_t *data) const;
     lv_event_code_t getAppEventCode(void) const         { return _app_event_code; }
-    bool checkAppID_Valid(int id) const;
+    bool checkAppID_Valid(int id) const { return _core_manager.checkAppID_Valid(id); }
 
     /* LVGL */
     void registerLvLockCallback(ESP_Brookesia_GUI_LockCallback_t callback, int timeout);
@@ -86,6 +86,18 @@ public:
     bool lockLv(void) const;
     void unlockLv(void) const;
 
+    /* App */
+    bool initAppFromRegistry(std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> &app_infos)
+    {
+        return _core_manager.initAppFromRegistry(app_infos);
+    }
+    bool installAppFromRegistry(
+        std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> &app_infos,
+        std::vector<std::string> *ordered_app_names = nullptr
+    )
+    {
+        return _core_manager.installAppFromRegistry(app_infos, ordered_app_names);
+    }
 
     /**
      * @brief Back compatibility

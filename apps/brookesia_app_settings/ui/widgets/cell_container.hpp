@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include "esp_brookesia.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsUI_WidgetCellData {
     struct {
@@ -265,4 +265,4 @@ private:
     std::list<std::pair<int, std::unique_ptr<SettingsUI_WidgetCell>>> _cells;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

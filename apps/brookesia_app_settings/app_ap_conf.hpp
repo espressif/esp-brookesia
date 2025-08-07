@@ -34,7 +34,7 @@
 #include "esp_wifi.h"
 #include "esp_http_server.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 class ApProvision {
 public:
@@ -101,4 +101,4 @@ private:
     static void       deinit_dns_server();
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

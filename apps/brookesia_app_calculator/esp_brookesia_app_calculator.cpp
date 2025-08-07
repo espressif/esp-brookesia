@@ -29,6 +29,8 @@ LV_IMG_DECLARE(img_app_calculator);
 #define LABEL_COLOR             lv_color_hex(0xFF3034)
 #define LABEL_FORMULA_LEN_MAX   256
 
+#define APP_NAME                "Calculator"
+
 // Adaptation for 360x360 round screen
 #define SCREEN_360_EFFECTIVE_WIDTH  320  // Effective display area for round screen
 #define SCREEN_360_EFFECTIVE_HEIGHT 320
@@ -41,11 +43,11 @@ static const char *keyboard_map[] = {
     "0", ".", "=", ""
 };
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 Calculator::Calculator():
     App( {
-    .name = "Calculator",
+    .name = APP_NAME,
     .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&img_app_calculator),
     .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
     .flags = {
@@ -536,5 +538,7 @@ void Calculator::keyboard_event_cb(lv_event_t *e)
         }
     }
 }
+
+ESP_UTILS_REGISTER_PLUGIN(systems::CoreApp, Calculator, APP_NAME)
 
 }

@@ -13,11 +13,6 @@
 #include "bsp/esp-bsp.h"
 #include "esp_brookesia.hpp"
 #include "esp_brookesia_app_settings.hpp"
-#include "esp_brookesia_app_ai_profile.hpp"
-#include "esp_brookesia_app_game_2048.hpp"
-#include "esp_brookesia_app_calculator.hpp"
-#include "esp_brookesia_app_timer.hpp"
-#include "esp_brookesia_app_pos.hpp"
 #ifdef ESP_UTILS_LOG_TAG
 #   undef ESP_UTILS_LOG_TAG
 #endif
@@ -54,7 +49,7 @@ constexpr int         DEVELOPER_MODE_KEY = 0x655;
 
 using namespace esp_brookesia::speaker;
 using namespace esp_brookesia::gui;
-using namespace esp_brookesia::speaker_apps;
+using namespace esp_brookesia::apps;
 using namespace esp_brookesia::services;
 using namespace esp_brookesia::ai_framework;
 
@@ -89,11 +84,9 @@ bool system_init()
         speaker = new Speaker(), false, "Create speaker failed"
     );
 
-    battery_monitor.setBatteryShutdownCallback(
-    [speaker]() {
+    battery_monitor.setBatteryShutdownCallback([speaker]() {
         show_low_power(speaker);
-    }
-    );
+    });
     ESP_UTILS_CHECK_FALSE_RETURN(battery_monitor.init(), false, "Battery monitor init failed");
     ESP_UTILS_CHECK_FALSE_RETURN(imu_gesture.init(), false, "IMU gesture init failed");
     ESP_UTILS_CHECK_FALSE_RETURN(touch_sensor.init(), false, "Touch sensor init failed");
@@ -127,219 +120,134 @@ bool system_init()
 
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->begin(), false, "Begin failed");
 
-    // bind imu gesture to expression
-    auto ai_buddy = AI_Buddy::requestInstance();
-    ESP_UTILS_CHECK_NULL_RETURN(ai_buddy, false, "Failed to get ai buddy instance");
-    imu_gesture.gesture_signal.connect([ai_buddy](IMUGesture::GestureType type) {
-        if (type == IMUGesture::GestureType::ANY_MOTION) {
-            ESP_UTILS_CHECK_FALSE_EXIT(ai_buddy->expression.insertEmojiTemporary("dizzy", 2500), "Set emoji failed");
-        }
-    });
+    /* Init app from registry */
+    std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> inited_apps;
+    ESP_UTILS_CHECK_FALSE_RETURN(speaker->initAppFromRegistry(inited_apps), false, "Init app registry failed");
 
-    /* Install app settings */
-    auto app_settings = Settings::requestInstance();
-    ESP_UTILS_CHECK_NULL_RETURN(app_settings, false, "Get app settings failed");
-    // Add app settings stylesheet
-    std::unique_ptr<SettingsStylesheetData> app_settings_stylesheet;
-    ESP_UTILS_CHECK_EXCEPTION_RETURN(
-        app_settings_stylesheet = std::make_unique<SettingsStylesheetData>(SETTINGS_UI_360_360_STYLESHEET_DARK()),
-        false, "Create app settings stylesheet failed"
-    );
-    app_settings_stylesheet->screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100);
-    app_settings_stylesheet->manager.wlan.scan_ap_count_max = 30;
-    app_settings_stylesheet->manager.wlan.scan_interval_ms = 10000;
+    /* Process apps */
+    Settings *app_settings = nullptr;
+    for (const auto &[app_name, app] : inited_apps) {
+        if (app_name == "Settings") { // Settings
+            auto app_settings_ptr = std::dynamic_pointer_cast<Settings>(app);
+            ESP_UTILS_CHECK_NULL_RETURN(app_settings_ptr, false, "Failed to get app settings");
+
+            app_settings = app_settings_ptr.get();
+        }
+    }
+    // Settings
+    if (app_settings) {
+        std::unique_ptr<SettingsStylesheetData> app_settings_stylesheet;
+        ESP_UTILS_CHECK_EXCEPTION_RETURN(
+            app_settings_stylesheet = std::make_unique<SettingsStylesheetData>(SETTINGS_UI_360_360_STYLESHEET_DARK()),
+            false, "Create app settings stylesheet failed"
+        );
+        app_settings_stylesheet->screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100);
+        app_settings_stylesheet->manager.wlan.scan_ap_count_max = 30;
+        app_settings_stylesheet->manager.wlan.scan_interval_ms = 10000;
 #if CONFIG_BSP_PCB_VERSION_V1_0
-    app_settings_stylesheet->manager.about.device_board_name = "EchoEar V1.0";
+        app_settings_stylesheet->manager.about.device_board_name = "EchoEar V1.0";
 #elif CONFIG_BSP_PCB_VERSION_V1_2
-    app_settings_stylesheet->manager.about.device_board_name = "EchoEar V1.2";
+        app_settings_stylesheet->manager.about.device_board_name = "EchoEar V1.2";
 #else
-    app_settings_stylesheet->manager.about.device_board_name = "EchoEar";
+        app_settings_stylesheet->manager.about.device_board_name = "EchoEar";
 #endif
-    app_settings_stylesheet->manager.about.device_ram_main = "512KB";
-    app_settings_stylesheet->manager.about.device_ram_minor = "16MB";
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        app_settings->addStylesheet(speaker, app_settings_stylesheet.get()), false, "Add app settings stylesheet failed"
-    );
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        app_settings->activateStylesheet(app_settings_stylesheet.get()), false, "Activate app settings stylesheet failed"
-    );
-    app_settings_stylesheet = nullptr;
+        app_settings_stylesheet->manager.about.device_ram_main = "512KB";
+        app_settings_stylesheet->manager.about.device_ram_minor = "16MB";
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            app_settings->addStylesheet(speaker, app_settings_stylesheet.get()), false, "Add app settings stylesheet failed"
+        );
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            app_settings->activateStylesheet(app_settings_stylesheet.get()), false, "Activate app settings stylesheet failed"
+        );
+        app_settings_stylesheet = nullptr;
 
-    // Update battery
-    battery_monitor.setBatteryStatusCallback(
-    [speaker](const BatteryStatus & status) {
-        static BatteryStatus bat_last_status = {};
-        if (bat_last_status.full != status.full) {
-            bat_last_status = status;
-            speaker->lockLv();
-            esp_utils::function_guard end_guard([speaker]() {
-                speaker->unlockLv();
-            });
-            auto &quick_settings = speaker->display.getQuickSettings();
-            ESP_UTILS_CHECK_FALSE_EXIT(
-                quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC()),
-                "Set battery percent failed"
-            );
-        }
-    }
-    );
+        // Process settings events
+        app_settings->manager.event_signal.connect([ = ](SettingsManager::EventType event_type, SettingsManager::EventData event_data) {
+            ESP_UTILS_LOGD("Param: event_type(%d), event_data(%s)", static_cast<int>(event_type), event_data.type().name());
 
-    battery_monitor.setMonitorPeriodCallback(
-    [speaker, app_settings]() {
-        update_battery_info(speaker, app_settings);
-    }
-    );
+            switch (event_type) {
+            case SettingsManager::EventType::EnterDeveloperMode: {
+                ESP_UTILS_CHECK_FALSE_RETURN(
+                    event_data.type() == typeid(SettingsManager::EventDataEnterDeveloperMode), false,
+                    "Invalid developer mode type"
+                );
 
-    // Process settings events
-    app_settings->manager.event_signal.connect([ = ](SettingsManager::EventType event_type, SettingsManager::EventData event_data) {
-        ESP_UTILS_LOGD("Param: event_type(%d), event_data(%s)", static_cast<int>(event_type), event_data.type().name());
-
-        switch (event_type) {
-        case SettingsManager::EventType::EnterDeveloperMode: {
-            ESP_UTILS_CHECK_FALSE_RETURN(
-                event_data.type() == typeid(SettingsManager::EventDataEnterDeveloperMode), false,
-                "Invalid developer mode type"
-            );
-
-            ESP_UTILS_LOGW("Enter developer mode");
-            developer_mode_key = DEVELOPER_MODE_KEY;
-            esp_restart();
-            break;
-        }
-        case SettingsManager::EventType::EnterScreen: {
-            ESP_UTILS_CHECK_FALSE_RETURN(
-                event_data.type() == typeid(SettingsManager::EventDataEnterScreenIndex), false,
-                "Invalid developer mode type"
-            );
-            auto screen_index = std::any_cast<SettingsManager::EventDataEnterScreenIndex>(event_data);
-            if (screen_index == SettingsManager::UI_Screen::MORE_ABOUT) {
-                // update about info immediately
-                update_battery_info(speaker, app_settings);
+                ESP_UTILS_LOGW("Enter developer mode");
+                developer_mode_key = DEVELOPER_MODE_KEY;
+                esp_restart();
+                break;
             }
-            break;
-        }
-        default:
-            return false;
-        }
+            case SettingsManager::EventType::EnterScreen: {
+                ESP_UTILS_CHECK_FALSE_RETURN(
+                    event_data.type() == typeid(SettingsManager::EventDataEnterScreenIndex), false,
+                    "Invalid developer mode type"
+                );
+                auto screen_index = std::any_cast<SettingsManager::EventDataEnterScreenIndex>(event_data);
+                if (screen_index == SettingsManager::UI_Screen::MORE_ABOUT) {
+                    // update about info immediately
+                    update_battery_info(speaker, app_settings);
+                }
+                break;
+            }
+            default:
+                return false;
+            }
 
-        return true;
-    });
-    auto app_settings_id = speaker->installApp(app_settings);
-    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_settings_id), false, "Install app settings failed");
+            return true;
+        });
+    }
 
-    /* Install app ai profile */
-    auto app_ai_profile = AI_Profile::requestInstance();
-    ESP_UTILS_CHECK_NULL_RETURN(app_ai_profile, false, "Get app ai profile failed");
-    auto app_ai_profile_id = speaker->installApp(app_ai_profile);
-    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_ai_profile_id), false, "Install app ai profile failed");
+    /* Install app from registry */
+    // The app will be installed in the order of the vector, this determines the order of app icons in the main interface
+    std::vector<std::string> ordered_app_names = {"Settings", "AI_Profile", "2048", "Calculator", "Timer", "Pos"};
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        speaker->installAppFromRegistry(inited_apps, &ordered_app_names), false, "Install app registry failed"
+    );
 
-    /* Install 2048 game app */
-    Game2048 *app_game_2048 = nullptr;
-    ESP_UTILS_CHECK_EXCEPTION_RETURN(app_game_2048 = new Game2048(240, 360), false, "Create 2048 game app failed");
-    auto app_game_2048_id = speaker->installApp(app_game_2048);
-    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_game_2048_id), false, "Install 2048 game app failed");
-
-    /* Install calculator app */
-    Calculator *app_calculator = nullptr;
-    ESP_UTILS_CHECK_EXCEPTION_RETURN(app_calculator = new Calculator(), false, "Create calculator app failed");
-    auto app_calculator_id = speaker->installApp(app_calculator);
-    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_calculator_id), false, "Install calculator app failed");
-
-    /* Install timer app */
-    auto app_timer = Timer::requestInstance();
-    ESP_UTILS_CHECK_NULL_RETURN(app_timer, false, "Get timer app failed");
-    auto app_timer_id = speaker->installApp(app_timer);
-    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_timer_id), false, "Install timer app failed");
-
-    /* Install pos app */
-    auto app_pos = Pos::requestInstance();
-    ESP_UTILS_CHECK_NULL_RETURN(app_pos, false, "Get pos app failed");
-    auto app_pos_id = speaker->installApp(app_pos);
-    ESP_UTILS_CHECK_FALSE_RETURN(speaker->checkAppID_Valid(app_pos_id), false, "Install pos app failed");
-
-    /* Init quick settings info */
-    speaker->display.getQuickSettings().connectEventSignal([ = ](QuickSettings::EventData event_data) {
-        ESP_UTILS_LOG_TRACE_GUARD();
-
-        auto &type = event_data.type;
-        std::optional<SettingsManager::AppOperationData> operation_data = {};
-        switch (type) {
-        case QuickSettings::EventType::WifiButtonLongPressed: {
-            ESP_UTILS_LOGI("Wifi button long pressed");
-            operation_data = SettingsManager::AppOperationData{
-                .code = SettingsManager::AppOperationCode::EnterScreen,
-                .payload = SettingsManager::UI_Screen::WIRELESS_WLAN,
-            };
-            break;
-        }
-        case QuickSettings::EventType::VolumeButtonLongPressed: {
-            ESP_UTILS_LOGI("Volume button long pressed");
-            operation_data = SettingsManager::AppOperationData{
-                .code = SettingsManager::AppOperationCode::EnterScreen,
-                .payload = SettingsManager::UI_Screen::MEDIA_SOUND,
-            };
-            break;
-        }
-        case QuickSettings::EventType::BrightnessButtonLongPressed: {
-            ESP_UTILS_LOGI("Brightness button long pressed");
-            operation_data = SettingsManager::AppOperationData{
-                .code = SettingsManager::AppOperationCode::EnterScreen,
-                .payload = SettingsManager::UI_Screen::MEDIA_DISPLAY,
-            };
-            break;
-        }
-        default:
-            break;
-        }
-
-        if (operation_data.has_value()) {
-            auto &operation_data_value = operation_data.value();
-            ESP_Brookesia_CoreAppEventData_t event_data = {
-                .id = app_settings_id,
-                .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_OPERATION,
-                .data = &operation_data_value,
-            };
-            ESP_UTILS_CHECK_FALSE_EXIT(speaker->sendAppEvent(&event_data), "Send app event failed");
-        }
-    });
-
-    /* Register function callings */
+    /* Register agent function calling */
     FunctionDefinition openApp("open_app", "Open a specific app.打开一个应用");
     openApp.addParameter("app_name", "The name of the app to open.应用名称", FunctionParameter::ValueType::String);
     openApp.setCallback([ = ](const std::vector<FunctionParameter> &params) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
-        static std::map<int, std::vector<std::string>> app_name_map = {
-            {app_settings_id, {app_settings->getName(), "setting", "settings", "设置", "设置应用", "设置app"}},
-            {app_game_2048_id, {app_game_2048->getName(), "2048", "game", "游戏", "2048游戏", "2048app"}},
-            {app_calculator_id, {app_calculator->getName(), "calculator", "calc", "计算器", "计算器应用", "计算器app"}},
-            {app_ai_profile_id, {app_ai_profile->getName(), "AI profile", "ai 配置", "ai配置", "ai设置", "ai设置应用", "ai设置app"}},
-            {app_timer_id, {app_timer->getName(), "timer", "时钟", "时钟应用", "时钟app"}},
-            {app_pos_id, {app_pos->getName(), "POS", "POS应用", "POSapp"}}
+        static auto all_apps = inited_apps;
+        static std::map<std::string, std::vector<std::string>> app_name_map = {
+            {"Settings",   {"setting", "settings", "设置", "设置应用", "设置app"}},
+            {"2048",       {"2048", "game", "游戏", "2048游戏", "2048app"}},
+            {"Calculator", {"calculator", "calc", "计算器", "计算器应用", "计算器app"}},
+            {"AI_Profile", {"aiprofile", "ai配置", "ai配置", "ai设置", "ai设置应用", "ai设置app"}},
+            {"Timer",      {"timer", "时钟", "时钟应用", "时钟app"}},
+            {"Pos",        {"pos", "pos应用", "posapp"}}
+        };
+        auto get_app_id = [&](const std::string & target_name) -> int {
+            for (const auto &[app_name, alias_names] : app_name_map)
+            {
+                if (std::find(alias_names.begin(), alias_names.end(), target_name) == alias_names.end()) {
+                    continue;
+                }
+
+                for (const auto &[name, app] : all_apps) {
+                    if (name == target_name) {
+                        return app->getId();
+                    }
+                }
+
+                break;
+            }
+            return -1;
         };
 
         for (const auto &param : params) {
             if (param.name() == "app_name") {
-                auto app_name = param.string();
-                ESP_UTILS_LOGI("Opening app: %s", app_name.c_str());
-
+                auto target_name = param.string();
                 ESP_Brookesia_CoreAppEventData_t event_data = {
-                    .id = -1,
+                    .id = get_app_id(to_lower(get_before_space(target_name))),
                     .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
                     .data = nullptr
                 };
-                auto target_name = to_lower(get_before_space(app_name));
-                for (const auto &pair : app_name_map) {
-                    if (std::find(pair.second.begin(), pair.second.end(), target_name) != pair.second.end()) {
-                        event_data.id = pair.first;
-                        break;
-                    }
-                }
+                ESP_UTILS_CHECK_FALSE_EXIT(speaker->checkAppID_Valid(event_data.id), "App not found");
 
-                if (event_data.id == -1) {
-                    ESP_UTILS_LOGW("App name not found");
-                    return;
-                }
+                ESP_UTILS_LOGI("Opening app(%s, %d)", target_name.c_str(), event_data.id);
 
                 boost::this_thread::sleep_for(boost::chrono::milliseconds(FUNCTION_OPEN_APP_WAIT_SPEAKING_PRE_MS));
 
@@ -460,6 +368,53 @@ bool system_init()
     }));
     FunctionDefinitionList::requestInstance().addFunction(setBrightness);
 
+    /* Process quick settings */
+    speaker->display.getQuickSettings().connectEventSignal([ = ](QuickSettings::EventData event_data) {
+        ESP_UTILS_LOG_TRACE_GUARD();
+
+        auto &type = event_data.type;
+        std::optional<SettingsManager::AppOperationData> operation_data = {};
+        switch (type) {
+        case QuickSettings::EventType::WifiButtonLongPressed: {
+            ESP_UTILS_LOGI("Wifi button long pressed");
+            operation_data = SettingsManager::AppOperationData{
+                .code = SettingsManager::AppOperationCode::EnterScreen,
+                .payload = SettingsManager::UI_Screen::WIRELESS_WLAN,
+            };
+            break;
+        }
+        case QuickSettings::EventType::VolumeButtonLongPressed: {
+            ESP_UTILS_LOGI("Volume button long pressed");
+            operation_data = SettingsManager::AppOperationData{
+                .code = SettingsManager::AppOperationCode::EnterScreen,
+                .payload = SettingsManager::UI_Screen::MEDIA_SOUND,
+            };
+            break;
+        }
+        case QuickSettings::EventType::BrightnessButtonLongPressed: {
+            ESP_UTILS_LOGI("Brightness button long pressed");
+            operation_data = SettingsManager::AppOperationData{
+                .code = SettingsManager::AppOperationCode::EnterScreen,
+                .payload = SettingsManager::UI_Screen::MEDIA_DISPLAY,
+            };
+            break;
+        }
+        default:
+            break;
+        }
+
+        if (operation_data.has_value() && (app_settings != nullptr)) {
+            auto &operation_data_value = operation_data.value();
+            ESP_Brookesia_CoreAppEventData_t event_data = {
+                .id = app_settings->getId(),
+                .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_OPERATION,
+                .data = &operation_data_value,
+            };
+            ESP_UTILS_CHECK_FALSE_EXIT(speaker->sendAppEvent(&event_data), "Send app event failed");
+        }
+    });
+
+    /* Process touch sensor */
     auto &storage_service = StorageNVS::requestInstance();
     storage_service.connectEventSignal([](const StorageNVS::Event & event) {
         if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.key != SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH)) {
@@ -470,7 +425,39 @@ bool system_init()
     });
     touch_sensor_switch(); // update touch switch
 
+    /* Bind imu gesture to expression */
+    auto ai_buddy = AI_Buddy::requestInstance();
+    ESP_UTILS_CHECK_NULL_RETURN(ai_buddy, false, "Failed to get ai buddy instance");
+    imu_gesture.gesture_signal.connect([ai_buddy](IMUGesture::GestureType type) {
+        if (type == IMUGesture::GestureType::ANY_MOTION) {
+            ESP_UTILS_CHECK_FALSE_EXIT(ai_buddy->expression.insertEmojiTemporary("dizzy", 2500), "Set emoji failed");
+        }
+    });
+
+    /* Process battery monitor */
+    battery_monitor.setBatteryStatusCallback(
+    [speaker](const BatteryStatus & status) {
+        static BatteryStatus bat_last_status = {};
+        if (bat_last_status.full != status.full) {
+            bat_last_status = status;
+            speaker->lockLv();
+            esp_utils::function_guard end_guard([speaker]() {
+                speaker->unlockLv();
+            });
+            auto &quick_settings = speaker->display.getQuickSettings();
+            ESP_UTILS_CHECK_FALSE_EXIT(
+                quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC()),
+                "Set battery percent failed"
+            );
+        }
+    }
+    );
+    battery_monitor.setMonitorPeriodCallback([speaker, app_settings]() {
+        update_battery_info(speaker, app_settings);
+    });
+
     ESP_UTILS_CHECK_FALSE_RETURN(led_indicator_register_wifi_event(), false, "Failed to register wifi event");
+
     return true;
 }
 

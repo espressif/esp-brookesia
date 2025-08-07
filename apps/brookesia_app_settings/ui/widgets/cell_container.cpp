@@ -17,7 +17,7 @@
 using namespace std;
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 SettingsUI_WidgetCell::SettingsUI_WidgetCell(speaker::App &ui_app, const SettingsUI_WidgetCellData &cell_data,
         SettingsUI_WidgetCellElement elements):
@@ -1100,4 +1100,4 @@ bool SettingsUI_WidgetCellContainer::calibrateData(const ESP_Brookesia_StyleSize
     return true;
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

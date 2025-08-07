@@ -12,7 +12,7 @@
 #include "esp_brookesia.hpp"
 #include "base.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenWlanVerificationContainerIndex {
     PASSWORD,
@@ -97,7 +97,6 @@ private:
         uint8_t is_screen_loaded_gesture: 1;
     } _flags = {};
     SettingsUI_ScreenWlanVerificationCellContainerMap _cell_container_map;
-    static const SettingsUI_ScreenWlanVerificationCellContainerMap _init_cell_container_map;
 };
 
 } // namespace esp_brookesia::speaker

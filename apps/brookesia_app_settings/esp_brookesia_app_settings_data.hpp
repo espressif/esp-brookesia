@@ -9,7 +9,7 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "esp_brookesia_app_settings_manager.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsStylesheetData {
     const char *name;
@@ -18,4 +18,4 @@ struct SettingsStylesheetData {
     SettingsManagerData manager;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

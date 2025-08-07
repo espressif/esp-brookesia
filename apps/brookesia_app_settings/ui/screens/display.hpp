@@ -10,7 +10,7 @@
 #include "base.hpp"
 #include "../widgets/cell_container.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenDisplayContainerIndex {
     BRIGHTNESS,
@@ -48,7 +48,6 @@ private:
     bool processCellContainerMapUpdate();
 
     SettingsUI_ScreenDisplayCellContainerMap _cell_container_map;
-    static const SettingsUI_ScreenDisplayCellContainerMap _init_cell_container_map;
 };
 
 } // namespace esp_brookesia::speaker

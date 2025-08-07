@@ -8,7 +8,7 @@
 #include "lvgl.h"
 #include "esp_brookesia.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 /**
  * @brief A template for a phone app with UIs exported from AI_Profile Studio. Users can modify this template
@@ -81,4 +81,4 @@ private:
     inline static AI_Profile *_instance = nullptr; // Singleton instance
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

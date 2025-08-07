@@ -13,6 +13,7 @@ exclude: |
     | apps/brookesia_app_ai_profile/ui/.*
     | apps/brookesia_app_squareline/ui/.*
     | apps/brookesia_app_timer/ui/.*
+    | apps/brookesia_app_pos/ui/.*
     | core/brookesia_core/gui/squareline/.*
     | core/brookesia_core/systems/speaker/widgets/quick_settings/ui/.*
     | docs/.*

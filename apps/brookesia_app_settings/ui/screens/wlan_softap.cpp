@@ -10,7 +10,7 @@
 using namespace std;
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 #define CELL_ELEMENT_CONF_QRCODE_IMAGE() \
     { \
@@ -34,8 +34,7 @@ SettingsUI_ScreenWlanSoftAP::SettingsUI_ScreenWlanSoftAP(
     const SettingsUI_ScreenWlanSoftAPData &main_data
 ):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
-    data(main_data),
-    _cell_container_map(CELL_CONTAINER_MAP())
+    data(main_data)
 {
 }
 
@@ -56,6 +55,7 @@ bool SettingsUI_ScreenWlanSoftAP::begin()
         ESP_UTILS_CHECK_FALSE_EXIT(del(), "Delete failed");
     });
 
+    _cell_container_map = CELL_CONTAINER_MAP();
     ESP_UTILS_CHECK_FALSE_RETURN(SettingsUI_ScreenBase::begin("SoftAP", "WLAN"), false, "Screen base begin failed");
     ESP_UTILS_CHECK_FALSE_RETURN(processCellContainerMapInit(), false, "Process cell container map init failed");
 
@@ -93,6 +93,8 @@ bool SettingsUI_ScreenWlanSoftAP::del()
         ret  = false;
         ESP_UTILS_LOGE("Screen base delete failed");
     }
+
+    _cell_container_map.clear();
 
     return ret;
 }

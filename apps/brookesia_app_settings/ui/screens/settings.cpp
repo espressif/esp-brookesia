@@ -9,7 +9,7 @@
 using namespace std;
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 #define CELL_ELEMENT_CONF_WIRELESS() \
     { \
@@ -124,7 +124,8 @@ bool SettingsUI_ScreenSettings::del()
         ret  = false;
         ESP_UTILS_LOGE("Screen base delete failed");
     }
-    _cell_container_map = {};
+
+    _cell_container_map.clear();
 
     return ret;
 }

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,76 +10,84 @@
 #include <string>
 #include "lvgl.h"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
+#include "more/esp_utils_plugin_registry.hpp"
 
 // *INDENT-OFF*
 
-typedef struct {
-    const char *name;                           /*!< App name string */
-    ESP_Brookesia_StyleImage_t launcher_icon;          /*!< Launcher icon image, use `ESP_BROOKESIA_STYLE_IMAGE*` macros to set */
-    ESP_Brookesia_StyleSize_t screen_size;             /*!< App screen size, use `ESP_BROOKESIA_STYLE_SIZE_*` macros to set */
-    struct {
-        uint8_t enable_default_screen: 1;       /*!< If this flag is enabled, when app starts, the core will create a
-                                                     default screen which will be automatically loaded and cleaned up.
-                                                     Otherwise, the app needs to create a new screen and load it
-                                                     manually in app's `run()` function */
-        uint8_t enable_recycle_resource: 1;     /*!< If this flag is enabled, when app closes, the core will cleaned up
-                                                     all recorded resources(screens, timers, and animations) automatically.
-                                                     These resources are recorded in app's `run()` and `pause()` functions,
-                                                     or between the `startRecordResource()` and `stopRecordResource()`
-                                                     functions.  Otherwise, the app needs to call `cleanRecordResource()`
-                                                     function to clean manually */
-        uint8_t enable_resize_visual_area: 1;   /*!< If this flag is enabled, the core will resize the visual area of
-                                                     all recorded screens which are recorded in app's `run()` and `pause()`
-                                                     functions, or between the `startRecordResource()` and `stopRecordResource()`
-                                                     functions. This is useful when the screen displays floating UIs, such as a
-                                                     status bar. Otherwise, the app's screens will be displayed in full screen,
-                                                     but some areas might be not visible. The app can call the `getVisualArea()`
-                                                     function to retrieve the final visual area */
-    } flags;                                    /*!< Core app data flags */
-} ESP_Brookesia_CoreAppData_t;
-
-/**
- * @brief The default initializer for core app data structure
- *
- * @note The `enable_recycle_resource` and `enable_resize_visual_area` flags are enabled by default.
- * @note The `screen_size` is set to the full screen by default.
- *
- * @param app_name The name of the app
- * @param icon The icon image of the app
- * @param use_default_screen description
- *
- */
-#define ESP_BROOKESIA_CORE_APP_DATA_DEFAULT(app_name, icon, use_default_screen) \
-    {                                                                    \
-        .name = app_name,                                                \
-        .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(icon),                      \
-        .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),         \
-        .flags = {                                                       \
-            .enable_default_screen = use_default_screen,                 \
-            .enable_recycle_resource = 1,                                \
-            .enable_resize_visual_area = 1,                              \
-        },                                                               \
-    }
-
-typedef enum {
-    ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED = 0,
-    ESP_BROOKESIA_CORE_APP_STATUS_RUNNING,
-    ESP_BROOKESIA_CORE_APP_STATUS_PAUSED,
-    ESP_BROOKESIA_CORE_APP_STATUS_CLOSED,
-} ESP_Brookesia_CoreAppStatus_t;
-
-constexpr int ESP_BROOKESIA_CORE_APP_ID_MIN = 1;
-
 class ESP_Brookesia_Core;
+class ESP_Brookesia_CoreManager;
+
+namespace esp_brookesia::systems {
 
 /**
  * @brief The core app class. This serves as the base class for all internal app classes. User-defined app classes
  *        should not inherit from this class directly.
  *
  */
-class ESP_Brookesia_CoreApp {
+class CoreApp {
 public:
-    friend class ESP_Brookesia_CoreManager;
+    friend class ::ESP_Brookesia_CoreManager;
+
+    struct Config {
+        /**
+         * @brief The default initializer for core app data structure
+         *
+         * @note The `enable_recycle_resource` and `enable_resize_visual_area` flags are enabled by default.
+         * @note The `screen_size` is set to the full screen by default.
+         *
+         * @param app_name The name of the app
+         * @param icon The icon image of the app
+         * @param use_default_screen description
+         *
+         */
+        static constexpr Config SIMPLE_CONSTRUCTOR(const char *name, const void *launcher_icon, bool use_default_screen)
+        {
+            return {
+                .name = name,
+                .launcher_icon = gui::StyleImage::IMAGE(launcher_icon),
+                .screen_size = gui::StyleSize::RECT_PERCENT(100, 100),
+                .flags = {
+                    .enable_default_screen = use_default_screen,
+                    .enable_recycle_resource = 1,
+                    .enable_resize_visual_area = 1,
+                }
+            };
+        }
+
+        const char *name;                           /*!< App name string */
+        gui::StyleImage launcher_icon;          /*!< Launcher icon image */
+        gui::StyleSize screen_size;             /*!< App screen size */
+        struct {
+            uint8_t enable_default_screen: 1;       /*!< If this flag is enabled, when app starts, the core will create a
+                                                        default screen which will be automatically loaded and cleaned up.
+                                                        Otherwise, the app needs to create a new screen and load it
+                                                        manually in app's `run()` function */
+            uint8_t enable_recycle_resource: 1;     /*!< If this flag is enabled, when app closes, the core will cleaned up
+                                                        all recorded resources(screens, timers, and animations) automatically.
+                                                        These resources are recorded in app's `run()` and `pause()` functions,
+                                                        or between the `startRecordResource()` and `stopRecordResource()`
+                                                        functions.  Otherwise, the app needs to call `cleanRecordResource()`
+                                                        function to clean manually */
+            uint8_t enable_resize_visual_area: 1;   /*!< If this flag is enabled, the core will resize the visual area of
+                                                        all recorded screens which are recorded in app's `run()` and `pause()`
+                                                        functions, or between the `startRecordResource()` and `stopRecordResource()`
+                                                        functions. This is useful when the screen displays floating UIs, such as a
+                                                        status bar. Otherwise, the app's screens will be displayed in full screen,
+                                                        but some areas might be not visible. The app can call the `getVisualArea()`
+                                                        function to retrieve the final visual area */
+        } flags;                                    /*!< Core app data flags */
+    };
+
+    enum class Status: uint8_t {
+        UNINSTALLED = 0,
+        RUNNING,
+        PAUSED,
+        CLOSED,
+    };
+
+    using Registry = esp_utils::PluginRegistry<CoreApp>;
+
+    static constexpr int APP_ID_MIN = 1;
 
     /**
      * @brief Construct a core app with detailed configuration.
@@ -87,7 +95,10 @@ public:
      * @param data The configuration data for the core app.
      *
      */
-    ESP_Brookesia_CoreApp(const ESP_Brookesia_CoreAppData_t &data);
+    CoreApp(const Config &data)
+        : _core_init_data(data)
+    {
+    }
 
     /**
      * @brief Construct a core app with basic configuration
@@ -99,12 +110,15 @@ public:
      *                           automatically cleaned up
      *
      */
-    ESP_Brookesia_CoreApp(const char *name, const void *launcher_icon, bool use_default_screen);
+    CoreApp(const char *name, const void *launcher_icon, bool use_default_screen)
+        : _core_init_data(Config::SIMPLE_CONSTRUCTOR(name, launcher_icon, use_default_screen))
+    {
+    }
 
     /**
      * @brief Destructor for the core app, should be defined by the user's app class.
      */
-    virtual ~ESP_Brookesia_CoreApp() = default;
+    virtual ~CoreApp() = default;
 
     /**
      * @brief  Check if the app is initialized
@@ -142,7 +156,7 @@ public:
      * @return image: the icon image of the app
      *
      */
-    const ESP_Brookesia_StyleImage_t &getLauncherIcon(void) const
+    const gui::StyleImage &getLauncherIcon(void) const
     {
         return _core_active_data.launcher_icon;
     }
@@ -164,7 +178,7 @@ public:
      * @return data: the core data of the app
      *
      */
-    const ESP_Brookesia_CoreAppData_t &getCoreInitData(void) const
+    const Config &getCoreInitData(void) const
     {
         return _core_init_data;
     }
@@ -175,7 +189,7 @@ public:
      * @return data: the core data of the app
      *
      */
-    const ESP_Brookesia_CoreAppData_t &getCoreActiveData(void) const
+    const Config &getCoreActiveData(void) const
     {
         return _core_active_data;
     }
@@ -196,15 +210,15 @@ protected:
      * @brief Called when the app starts running. This is the entry point for the app, where all UI resources should be
      *        created.
      *
-     * @note If the `enable_default_screen` flag in `ESP_Brookesia_CoreAppData_t` is set, when app starts, the core will create
+     * @note If the `enable_default_screen` flag in `Config` is set, when app starts, the core will create
      *       a default screen which will be automatically loaded and cleaned up. Then the app should create all UI
      *       resources on it using `lv_scr_act()` in this function. Otherwise, the app needs to create a new screen and
      *       load it manually in this function
-     * @note If the `enable_recycle_resource` flag in `ESP_Brookesia_CoreAppData_t` is set, when app closes, the core will
+     * @note If the `enable_recycle_resource` flag in `Config` is set, when app closes, the core will
      *       automatically cleanup all recorded resources, including screens (`lv_obj_create(NULL)`),
      *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`). The resources created in this function
      *       will be recorded. Otherwise, the app needs to call `cleanRecordResource()` function to clean manually
-     * @note If the `enable_resize_visual_area` flag in `ESP_Brookesia_CoreAppData_t` is set, the core will resize the visual
+     * @note If the `enable_resize_visual_area` flag in `Config` is set, the core will resize the visual
      *       area of all recorded screens. The screens created in this function will be recorded. This is useful when
      *       the screen displays floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in
      *       full screen, but some areas might be not visible. The app can call the `getVisualArea()` function to
@@ -273,11 +287,11 @@ protected:
     /**
      * @brief Called when the app resumes. The app can perform necessary operations here.
      *
-     * @note If the `enable_recycle_resource` flag in `ESP_Brookesia_CoreAppData_t` is set, when app closes, the core will
+     * @note If the `enable_recycle_resource` flag in `Config` is set, when app closes, the core will
      *       automatically cleanup all recorded resources, including screens (`lv_obj_create(NULL)`),
      *       animations (`lv_anim_start()`), and timers (`lv_timer_create()`). The resources created in this function
      *       will be recorded. Otherwise, the app needs to call `cleanRecordResource()` function to clean manually
-     * @note If the `enable_resize_visual_area` flag in `ESP_Brookesia_CoreAppData_t` is set, the core will resize the visual
+     * @note If the `enable_resize_visual_area` flag in `Config` is set, the core will resize the visual
      *       area of all recorded screens. The screens created in this function will be recorded. This is useful when
      *       the screen displays floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in
      *       full screen, but some areas might be not visible. The app can call the `getVisualArea()` function to
@@ -323,12 +337,12 @@ protected:
      * @param icon_image The icon image of the app.
      *
      */
-    void setLauncherIconImage(const ESP_Brookesia_StyleImage_t &icon_image);
+    void setLauncherIconImage(const gui::StyleImage &icon_image);
 
     /**
      * @brief Start recording resources(screens, timers, and animations) manually.
      *
-     * @note If the `enable_resize_visual_area` flag in `ESP_Brookesia_CoreAppData_t` is set, the core will resize the visual
+     * @note If the `enable_resize_visual_area` flag in `Config` is set, the core will resize the visual
      *       area of all recorded screens which are recorded in this function. This is useful when the screen displays
      *       floating UIs, such as a status bar. Otherwise, the app's screens will be displayed in full screen, but
      *       some areas might be not visible. The final visual area of the app is the intersection of the app's visual
@@ -360,7 +374,7 @@ protected:
      *        app's `run()` and `pause()` functions, or between the `startRecordResource()` and `stopRecordResource()`
      *        functions.
      *
-     * @note If the `enable_recycle_resource` flag in `ESP_Brookesia_CoreAppData_t` is set, when app closes, the core will
+     * @note If the `enable_recycle_resource` flag in `Config` is set, when app closes, the core will
      *       call this function automatically. So the app doesn't need to call this function manually.
      * @note This function will clear all resources records after finishing the cleanup.
      *
@@ -401,43 +415,62 @@ private:
     static void onResizeScreenLoadedEventCallback(lv_event_t *e);
 
     // Core
-    ESP_Brookesia_CoreAppData_t _core_init_data;
-    ESP_Brookesia_CoreAppData_t _core_active_data;
-    ESP_Brookesia_CoreAppStatus_t _status;
+    Config _core_init_data = {};
+    Config _core_active_data = {};
+    Status _status = Status::UNINSTALLED;
     // Attributes
-    int _id;
+    int _id = APP_ID_MIN - 1;
     struct {
         uint8_t is_closing: 1;
         uint8_t is_screen_small: 1;
         uint8_t is_resource_recording: 1;
-    } _flags;
+    } _flags = {};
     struct {
         int w;
         int h;
         lv_theme_t *theme;
-    } _display_style;
+    } _display_style = {};
     struct {
         lv_area_t origin_visual_area;
         lv_area_t calibrate_visual_area;
         lv_theme_t *theme;
-    } _app_style;
+    } _app_style = {};
     // Resources
-    int _resource_timer_count;
-    int _resource_anim_count;
-    int _resource_head_screen_index;
-    int _resource_screen_count;
-    lv_obj_t *_last_screen;
-    lv_obj_t *_active_screen;
+    int _resource_timer_count = 0;
+    int _resource_anim_count = 0;
+    int _resource_head_screen_index = 0;
+    int _resource_screen_count = 0;
+    lv_obj_t *_last_screen = nullptr;
+    lv_obj_t *_active_screen = nullptr;
     // lv_obj_t *_temp_screen;
-    lv_timer_t *_resource_head_timer;
-    lv_anim_t *_resource_head_anim;
-    std::list <lv_obj_t *> _resource_screens;
-    std::list <lv_timer_t *> _resource_timers;
-    std::list <lv_anim_t *> _resource_anims;
+    lv_timer_t *_resource_head_timer = nullptr;
+    lv_anim_t *_resource_head_anim = nullptr;
+    std::list <lv_obj_t *> _resource_screens = {};
+    std::list <lv_timer_t *> _resource_timers = {};
+    std::list <lv_anim_t *> _resource_anims = {};
     // These maps are meant to store additional information about the recorded resources to prevent accidental cleanup
     std::map<lv_obj_t *, std::pair<const lv_obj_class_t *, lv_obj_t *>> _resource_screens_class_parent_map;
     std::map<lv_timer_t *, std::pair<lv_timer_cb_t, void *>> _resource_timers_cb_usr_map;
     std::map<lv_anim_t *, std::pair<void *, lv_anim_exec_xcb_t>> _resource_anims_var_exec_map;
 };
+
+}
+
+/**
+ * Backward compatibility
+ */
+using ESP_Brookesia_CoreApp [[deprecated("Use `esp_brookesia::systems::CoreApp` instead")]] =
+    esp_brookesia::systems::CoreApp;
+using ESP_Brookesia_CoreAppData_t [[deprecated("Use `esp_brookesia::systems::CoreApp::Config` instead")]] =
+    esp_brookesia::systems::CoreApp::Config;
+using ESP_Brookesia_CoreAppStatus_t [[deprecated("Use `esp_brookesia::systems::CoreApp::Status` instead")]] =
+    esp_brookesia::systems::CoreApp::Status;
+#define ESP_BROOKESIA_CORE_APP_DATA_DEFAULT(app_name, icon, use_default_screen) \
+    esp_brookesia::systems::CoreApp::Config::SIMPLE_CONSTRUCTOR(app_name, icon, use_default_screen)
+#define ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED esp_brookesia::systems::CoreApp::Status::UNINSTALLED
+#define ESP_BROOKESIA_CORE_APP_STATUS_RUNNING esp_brookesia::systems::CoreApp::Status::RUNNING
+#define ESP_BROOKESIA_CORE_APP_STATUS_PAUSED esp_brookesia::systems::CoreApp::Status::PAUSED
+#define ESP_BROOKESIA_CORE_APP_STATUS_CLOSED esp_brookesia::systems::CoreApp::Status::CLOSED
+#define ESP_BROOKESIA_CORE_APP_ID_MIN esp_brookesia::systems::CoreApp::APP_ID_MIN
 
 // *INDENT-ON*

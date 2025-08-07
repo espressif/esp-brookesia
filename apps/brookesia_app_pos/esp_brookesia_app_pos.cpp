@@ -22,8 +22,10 @@
 #include "ui/ui.h"
 #include "esp_lib_utils.h"
 
+#define APP_NAME "POS"
+
 using namespace std;
-using namespace esp_brookesia::speaker_apps;
+using namespace esp_brookesia::apps;
 
 // Custom digit keyboard mapping
 static const char *custom_digit_map[] = {
@@ -37,7 +39,7 @@ LV_IMG_DECLARE(img_app_pos);
 
 #define POS_AUTO_ADVANCE_INTERVAL_MS    3000
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 Pos *Pos::_instance = nullptr;
 
@@ -51,7 +53,7 @@ Pos *Pos::requestInstance()
 
 Pos::Pos():
     App( {
-    .name = "POS",
+    .name = APP_NAME,
     .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&img_app_pos),
     .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
     .flags = {
@@ -684,4 +686,9 @@ void Pos::toast_timer_callback(void *arg)
     }
 }
 
-} // namespace esp_brookesia::speaker_apps
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::CoreApp, Pos, APP_NAME, []()
+{
+    return std::shared_ptr<Pos>(Pos::requestInstance(), [](Pos * p) {});
+})
+
+} // namespace esp_brookesia::apps

@@ -9,7 +9,7 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "assets/esp_brookesia_app_settings_assets.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_ScreenWlanSoftAPData SETTINGS_UI_360_360_SCREEN_WLAN_SOFTAP_DATA()
 {
@@ -42,4 +42,4 @@ constexpr SettingsUI_ScreenWlanSoftAPData SETTINGS_UI_360_360_SCREEN_WLAN_SOFTAP
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

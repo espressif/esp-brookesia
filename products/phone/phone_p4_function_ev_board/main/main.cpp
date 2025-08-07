@@ -10,7 +10,6 @@
 #include "esp_log.h"
 #include "bsp/esp-bsp.h"
 #include "esp_brookesia.hpp"
-#include "esp_brookesia_app_squareline_demo.hpp"
 
 #define EXAMPLE_SHOW_MEM_INFO             (1)
 
@@ -95,10 +94,10 @@ extern "C" void app_main(void)
     assert(phone->begin() && "Begin failed");
     // assert(phone->getCoreHome().showContainerBorder() && "Show container border failed");
 
-    /* Install apps */
-    esp_brookesia::apps::SquarelineDemo *app_squareline = esp_brookesia::apps::SquarelineDemo::requestInstance();
-    assert(app_squareline && "Create app squareline failed");
-    assert((phone->installApp(app_squareline) >= 0) && "Install app squareline failed");
+    /* Init and install apps from registry */
+    std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> inited_apps;
+    assert(phone->initAppFromRegistry(inited_apps) && "Init app registry failed");
+    assert(phone->installAppFromRegistry(inited_apps) && "Install app registry failed");
 
     /* Create a timer to update the clock */
     lv_timer_create(on_clock_update_timer_cb, 1000, phone);

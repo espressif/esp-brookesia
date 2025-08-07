@@ -11,7 +11,7 @@
 #include "assets/esp_brookesia_app_settings_assets.h"
 #include "widget_cell_container.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 // Header
 constexpr SettingsUI_ScreenBaseHeaderData SETTINGS_UI_360_360_SCREEN_BASE_HEADER_DATA()
@@ -75,4 +75,4 @@ constexpr SettingsUI_ScreenBaseData SETTINGS_UI_360_360_SCREEN_BASE_DATA = {
     },
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

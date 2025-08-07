@@ -163,11 +163,6 @@ bool ESP_Brookesia_Core::sendAppEvent(const ESP_Brookesia_CoreAppEventData_t *da
     return true;
 }
 
-bool ESP_Brookesia_Core::checkAppID_Valid(int id) const
-{
-    return (id >= ESP_BROOKESIA_CORE_APP_ID_MIN) && (_core_manager.getInstalledApp(id) != nullptr);
-}
-
 void ESP_Brookesia_Core::registerLvLockCallback(ESP_Brookesia_GUI_LockCallback_t callback, int timeout)
 {
     _lv_lock_callback = callback;

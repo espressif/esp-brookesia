@@ -9,7 +9,7 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "assets/esp_brookesia_app_settings_assets.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_DISPLAY_ELEMENT_CONF_DISPLAY_BRIGHTNESS_SLIDER()
 {
@@ -57,4 +57,4 @@ constexpr SettingsUI_ScreenDisplayData SETTINGS_UI_360_360_SCREEN_DISPLAY_DATA()
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

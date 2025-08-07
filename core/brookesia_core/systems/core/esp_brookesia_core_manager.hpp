@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2023-2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2023-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <tuple>
 #include <map>
 #include <unordered_map>
 #include "lvgl/esp_brookesia_lv_helper.hpp"
@@ -33,6 +34,8 @@ class ESP_Brookesia_CoreManager {
 public:
     friend class ESP_Brookesia_Core;
 
+    using RegistryAppInfo = std::tuple<std::string, std::shared_ptr<ESP_Brookesia_CoreApp>>;
+
     ESP_Brookesia_CoreManager(ESP_Brookesia_Core &core, const ESP_Brookesia_CoreManagerData_t &data);
     ~ESP_Brookesia_CoreManager();
 
@@ -42,7 +45,14 @@ public:
     int uninstallApp(ESP_Brookesia_CoreApp *app);
     bool uninstallApp(int id);
 
+    bool initAppFromRegistry(std::vector<RegistryAppInfo> &app_infos);
+    bool installAppFromRegistry(std::vector<RegistryAppInfo> &app_infos, std::vector<std::string> *ordered_app_names = nullptr);
+
     // *INDENT-OFF*
+    bool checkAppID_Valid(int id)
+    {
+        return (id >= ESP_BROOKESIA_CORE_APP_ID_MIN) && (getInstalledApp(id) != nullptr);
+    }
     int getAppFreeId(void) const             { return _app_free_id++; }
     uint8_t getRunningAppCount(void) const   { return _id_running_app_map.size(); }
     int getRunningAppIndexByApp(ESP_Brookesia_CoreApp *app);

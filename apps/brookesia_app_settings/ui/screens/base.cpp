@@ -14,7 +14,7 @@
 using namespace std;
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 SettingsUI_ScreenBase::SettingsUI_ScreenBase(
     speaker::App &ui_app,
@@ -465,4 +465,4 @@ void SettingsUI_ScreenBase::onNavigationTouchEventCallback(lv_event_t *event)
     }
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

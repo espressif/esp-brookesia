@@ -137,6 +137,75 @@ bool ESP_Brookesia_CoreManager::uninstallApp(int id)
     return true;
 }
 
+bool ESP_Brookesia_CoreManager::initAppFromRegistry(std::vector<RegistryAppInfo> &app_infos)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    app_infos.clear();
+
+    ESP_Brookesia_CoreApp::Registry::forEach([&](const auto & plugin) {
+        ESP_UTILS_LOGI("Found app: %s", plugin.name.c_str());
+
+        auto app = ESP_Brookesia_CoreApp::Registry::get(plugin.name);
+        if (app == nullptr) {
+            ESP_UTILS_LOGE("\t - Get instance failed");
+            return;
+        }
+        ESP_UTILS_LOGI("\t - Get instance(%p) success", app.get());
+
+        app_infos.emplace_back(plugin.name, app);
+    });
+
+    return true;
+}
+
+bool ESP_Brookesia_CoreManager::installAppFromRegistry(std::vector<RegistryAppInfo> &app_infos, std::vector<std::string> *ordered_app_names)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    // Reorder app_infos according to the order in ordered_app_names
+    if (ordered_app_names != nullptr && !ordered_app_names->empty()) {
+        std::vector<RegistryAppInfo> reordered_app_infos;
+
+        // First add the apps in the order specified in ordered_app_names
+        for (const std::string &ordered_name : *ordered_app_names) {
+            auto it = std::find_if(app_infos.begin(), app_infos.end(), [&ordered_name](const RegistryAppInfo & info) {
+                return std::get<0>(info) == ordered_name;
+            });
+
+            if (it != app_infos.end()) {
+                reordered_app_infos.push_back(*it);
+                app_infos.erase(it);
+            }
+        }
+
+        // Then add the remaining apps
+        for (const auto &info : app_infos) {
+            reordered_app_infos.push_back(info);
+        }
+
+        // Replace the original app_infos
+        app_infos = std::move(reordered_app_infos);
+    }
+
+    // Install apps
+    for (auto &[name, app] : app_infos) {
+        ESP_UTILS_LOGI("Install app: %s", name.c_str());
+
+        auto app_id = installApp(app.get());
+        if (!checkAppID_Valid(app_id)) {
+            ESP_UTILS_LOGE("\t - Install failed");
+        }
+        ESP_UTILS_LOGI("\t - Install success (id: %d)", app_id);
+
+        if (ordered_app_names != nullptr) {
+            ordered_app_names->emplace_back(name);
+        }
+    }
+
+    return true;
+}
+
 bool ESP_Brookesia_CoreManager::startApp(int id)
 {
     ESP_Brookesia_CoreApp *app = NULL;

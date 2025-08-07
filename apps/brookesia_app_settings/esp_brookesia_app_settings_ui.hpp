@@ -16,7 +16,7 @@
 #include "ui/screens/sound.hpp"
 #include "ui/screens/display.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsUI_Data {
     SettingsUI_ScreenBaseData screen_base;

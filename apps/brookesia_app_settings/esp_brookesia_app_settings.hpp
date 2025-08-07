@@ -13,7 +13,7 @@
 #include "stylesheets/stylesheets.hpp"
 #include "assets/esp_brookesia_app_settings_assets.h"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 using SettingsStylesheet = ESP_Brookesia_CoreStylesheetManager<SettingsStylesheetData>;
 
@@ -66,4 +66,4 @@ private:
     inline static Settings *_instance = nullptr;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

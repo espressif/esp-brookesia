@@ -8,7 +8,7 @@
 
 using namespace esp_brookesia::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 SettingsUI::SettingsUI(speaker::App &ui_app, const SettingsUI_Data &ui_data):
     app(ui_app),

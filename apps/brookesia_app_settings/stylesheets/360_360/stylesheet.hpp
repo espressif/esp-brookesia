@@ -16,7 +16,7 @@
 #include "screen_display.hpp"
 #include "esp_brookesia_app_settings_data.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_Data SETTINGS_UI_360_360_DATA()
 {
@@ -41,4 +41,4 @@ constexpr SettingsStylesheetData SETTINGS_UI_360_360_STYLESHEET_DARK()
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps
