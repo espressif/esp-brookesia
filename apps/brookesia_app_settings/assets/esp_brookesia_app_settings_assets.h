@@ -31,6 +31,9 @@ LV_IMG_DECLARE(esp_brookesia_app_icon_sound_more_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_wireless_bluetooth_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_wireless_wlan_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_wlan_lock_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_wlan_level1_36_36);
+LV_IMG_DECLARE(esp_brookesia_app_icon_wlan_level2_36_36);
+LV_IMG_DECLARE(esp_brookesia_app_icon_wlan_level3_36_36);
 
 #ifdef __cplusplus
 }

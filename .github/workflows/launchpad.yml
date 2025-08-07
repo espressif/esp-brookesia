@@ -48,9 +48,6 @@ jobs:
     # needs: [delete-old-artifacts]
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
-    strategy:
-      matrix:
-        boards: ['echoear']
     steps:
       - uses: actions/checkout@v3
         with:
@@ -62,19 +59,29 @@ jobs:
           PRODUCT_VERSION=$(.github/tools/get_example_version.sh products/speaker)
           echo "PRODUCT_VERSION=$PRODUCT_VERSION" >> $GITHUB_ENV
           echo "Product version: $PRODUCT_VERSION"
+      - name: Get boards name
+        shell: bash
+        run: |
+          BOARDS_NAME=$(.github/tools/get_boards_name.sh products/speaker)
+          echo "BOARDS_NAME=$BOARDS_NAME" >> $GITHUB_ENV
+          echo "All boards name: $BOARDS_NAME"
       - name: Build product
         shell: bash
         run: |
           cd products/speaker
           . ${IDF_PATH}/export.sh
-          idf.py build
-          cd build
-          esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/speaker_${{matrix.boards}}_$PRODUCT_VERSION.bin" @flash_args
+          for board in $BOARDS_NAME; do
+            idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.board.${board}" set-target esp32s3 && idf.py build
+            pushd build
+            esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/speaker_${PRODUCT_VERSION}_${board}.bin" @flash_args
+            popd
+            rm -rf sdkconfig build managed_components dependencies.lock
+          done
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-images-speaker-${{matrix.boards}}
+          name: build-images-speaker
           path: images/
           overwrite: true
 

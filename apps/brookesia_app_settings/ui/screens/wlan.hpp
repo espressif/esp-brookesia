@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,12 +16,14 @@ enum class SettingsUI_ScreenWlanContainerIndex {
     CONTROL,
     CONNECTED,
     AVAILABLE,
+    PROVISIONING,
     MAX,
 };
 
 enum class SettingsUI_ScreenWlanCellIndex {
     CONTROL_SW,
     CONNECTED_AP,
+    PROVISIONING_SOFTAP,
     MAX,
 };
 
@@ -32,6 +34,7 @@ struct SettingsUI_ScreenWlanData {
     ESP_Brookesia_StyleImage_t icon_wlan_lock;
     ESP_Brookesia_StyleColor_t cell_connected_active_color;
     ESP_Brookesia_StyleColor_t cell_connected_inactive_color;
+    ESP_Brookesia_StyleSize_t cell_left_main_label_size;
 };
 
 using SettingsUI_ScreenWlanCellContainerMap =
@@ -67,28 +70,36 @@ public:
 
     // Connected list
     bool setConnectedVisible(bool visible);
-    bool updateConnectedData(const WlanData &wlan_data);
+    bool updateConnectedData(WlanData wlan_data);
     bool updateConnectedState(ConnectState state);
     bool scrollConnectedToView();
     bool checkConnectedVisible();
+    ConnectState getConnectedState() const
+    {
+        return _connected_state;
+    }
 
     // Available list
     bool setAvailableVisible(bool visible);
     bool updateAvailableData(
-        const std::vector<WlanData> &wlan_data, ESP_Brookesia_CoreEvent::Handler event_handler, void *user_data
+        std::vector<WlanData> &&wlan_data, ESP_Brookesia_CoreEvent::Handler event_handler, void *user_data
     );
     bool cleanAvailable();
     bool setAvaliableClickable(bool clickable);
+
+    // SoftAP
+    bool setSoftAPVisible(bool visible);
 
     const SettingsUI_ScreenWlanData &data;
 
 private:
     SettingsUI_ScreenWlanCellContainerMap _cell_container_map;
+    ConnectState _connected_state = ConnectState::DISCONNECT;
     // static const SettingsUI_ScreenWlanCellContainerMap _init_cell_container_map;
 
     bool processCellContainerMapInit();
     bool processCellContainerMapUpdate();
-    bool updateCellWlanData(SettingsUI_WidgetCell *cell, const WlanData &wlan_data);
+    bool updateCellWlanData(SettingsUI_WidgetCell *cell, WlanData wlan_data);
 };
 
 } // namespace esp_brookesia::speaker

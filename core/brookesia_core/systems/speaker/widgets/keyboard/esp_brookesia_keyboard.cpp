@@ -57,14 +57,14 @@ static const char *const default_kb_map_spec[] = {
     "+", "|", "\\", "\"", "<", ">", "{", "}", "[", "]", "\n",
     LV_KB_PHR_STR, "~", "@", "#", "!", "%", "&", "*", "(", ")", LV_KB_PHR_STR, "\n",
     LV_KB_PHR_STR, LV_KB_LOWER_STR, "'", "/", "-", "_", ":", ";", "?", LV_KB_PHR_STR, "\n",
-    LV_KB_PHR_STR, LV_KB_NUMBER_STR, LV_KB_SPACE_STR, LV_SYMBOL_BACKSPACE, LV_KB_PHR_STR, "\n",
+    LV_KB_PHR_STR, LV_KB_NUMBER_STR, ".", LV_KB_SPACE_STR, LV_SYMBOL_BACKSPACE, LV_KB_PHR_STR, "\n",
     LV_KB_PHR_STR, LV_SYMBOL_LEFT, LV_SYMBOL_OK, LV_SYMBOL_RIGHT, LV_KB_PHR_STR, ""
 };
 static const lv_buttonmatrix_ctrl_t default_kb_ctrl_spec_map[] = {
     LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2),
     LV_KB_PHR(1), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_PHR(1),
     LV_KB_PHR(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_BTN(2), LV_KB_PHR(2),
-    LV_KB_PHR(3), LV_KB_BTN(4), LV_KB_BTN(6), LV_KB_BTN(4), LV_KB_PHR(3),
+    LV_KB_PHR(2), LV_KB_BTN(3), LV_KB_BTN(2), LV_KB_BTN(6), LV_KB_BTN(4), LV_KB_PHR(3),
     LV_KB_PHR(3), LV_KB_BTN(4), LV_KB_BTN(6), LV_KB_BTN(4), LV_KB_PHR(3)
 };
 
@@ -118,9 +118,9 @@ bool Keyboard::begin(const gui::LvObject *parent)
     _keyboard->setStyleAttribute(gui::STYLE_FLAG_SEND_DRAW_TASK_EVENTS, true);
     _keyboard->setStyle(style);
     _keyboard->addEventCallback([](lv_event_t *e) -> void {
-        ESP_UTILS_LOG_TRACE_GUARD();
+        // ESP_UTILS_LOG_TRACE_GUARD();
 
-        ESP_UTILS_LOGD("Param: e(%p)", e);
+        // ESP_UTILS_LOGD("Param: e(%p)", e);
         ESP_UTILS_CHECK_NULL_EXIT(e, "Invalid event");
 
         auto keyboard = (Keyboard *)lv_event_get_user_data(e);
@@ -131,9 +131,9 @@ bool Keyboard::begin(const gui::LvObject *parent)
         );
     }, LV_EVENT_VALUE_CHANGED, this);
     _keyboard->addEventCallback([](lv_event_t *e) -> void {
-        ESP_UTILS_LOG_TRACE_GUARD();
+        // ESP_UTILS_LOG_TRACE_GUARD();
 
-        ESP_UTILS_LOGD("Param: e(%p)", e);
+        // ESP_UTILS_LOGD("Param: e(%p)", e);
         ESP_UTILS_CHECK_NULL_EXIT(e, "Invalid event");
 
         auto keyboard = (Keyboard *)lv_event_get_user_data(e);
@@ -212,9 +212,9 @@ bool Keyboard::setMode(lv_keyboard_mode_t mode) const
 
 bool Keyboard::processOnKeyboardValueChanged(lv_event_t *e)
 {
-    ESP_UTILS_LOG_TRACE_GUARD();
+    // ESP_UTILS_LOG_TRACE_GUARD();
 
-    ESP_UTILS_LOGD("Param: e(%p)", e);
+    // ESP_UTILS_LOGD("Param: e(%p)", e);
     ESP_UTILS_CHECK_FALSE_RETURN(isBegun(), false, "Not begun");
 
     lv_event_code_t code = lv_event_get_code(e);
@@ -276,9 +276,9 @@ end:
 
 bool Keyboard::processOnKeyboardDrawTask(lv_event_t *e)
 {
-    ESP_UTILS_LOG_TRACE_GUARD();
+    // ESP_UTILS_LOG_TRACE_GUARD();
 
-    ESP_UTILS_LOGD("Param: e(%p)", e);
+    // ESP_UTILS_LOGD("Param: e(%p)", e);
     ESP_UTILS_CHECK_FALSE_RETURN(isBegun(), false, "Not begun");
 
     lv_event_code_t code = lv_event_get_code(e);

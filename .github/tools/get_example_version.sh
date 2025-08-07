@@ -35,6 +35,6 @@ if [ -z "$version" ]; then
 fi
 
 # Output version information
-# Replace . with _ and take part before -
-formatted_version=$(echo "$version" | cut -d'-' -f1 | tr '.' '_')
+# Replace . and - with _
+formatted_version=$(echo "$version" | tr '.-' '_')
 echo "$formatted_version"

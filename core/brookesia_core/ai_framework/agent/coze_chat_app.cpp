@@ -22,6 +22,7 @@
 #include "esp_coze_chat.h"
 #include "esp_coze_utils.h"
 #include "http_client_request.h"
+#include "cJSON.h"
 #include "boost/thread.hpp"
 #include "private/esp_brookesia_ai_agent_utils.hpp"
 #include "audio_processor.h"
@@ -62,6 +63,7 @@ boost::signals2::signal<void(bool is_speaking)> coze_chat_speaking_signal;
 boost::signals2::signal<void(void)> coze_chat_response_signal;
 boost::signals2::signal<void(bool is_wake_up)> coze_chat_wake_up_signal;
 boost::signals2::signal<void(void)> coze_chat_websocket_disconnected_signal;
+boost::signals2::signal<void(int code)> coze_chat_error_signal;
 
 void CozeChatAgentInfo::dump() const
 {
@@ -167,9 +169,40 @@ static void change_wakeup_state(bool is_wakeup, bool force = false)
     coze_chat_wake_up_signal(is_wakeup);
 }
 
+static int parse_chat_error_code(const char *data)
+{
+    ESP_UTILS_LOG_TRACE_GUARD();
+
+    ESP_UTILS_CHECK_NULL_RETURN(data, -1, "Invalid data");
+
+    cJSON *json_root = cJSON_Parse(data);
+    ESP_UTILS_CHECK_NULL_RETURN(json_root, -1, "Failed to parse JSON data");
+
+    esp_utils::function_guard delete_guard([&]() {
+        cJSON_Delete(json_root);
+    });
+
+    cJSON *data_obj = cJSON_GetObjectItem(json_root, "data");
+    ESP_UTILS_CHECK_NULL_RETURN(data_obj, -1, "No data found in JSON data");
+    ESP_UTILS_CHECK_FALSE_RETURN(cJSON_IsObject(data_obj), -1, "data is not an object");
+
+    cJSON *code_item = cJSON_GetObjectItem(data_obj, "code");
+    ESP_UTILS_CHECK_NULL_RETURN(code_item, -1, "No code found in JSON data");
+    ESP_UTILS_CHECK_FALSE_RETURN(cJSON_IsNumber(code_item), -1, "code is not a number");
+
+    return static_cast<int>(cJSON_GetNumberValue(code_item));
+}
+
 static void audio_event_callback(esp_coze_chat_event_t event, char *data, void *ctx)
 {
-    if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STARTED) {
+    if (event == ESP_COZE_CHAT_EVENT_CHAT_ERROR) {
+        ESP_UTILS_LOGE("chat error: %s", data);
+
+        int code = parse_chat_error_code(data);
+        ESP_UTILS_CHECK_FALSE_EXIT(code != -1, "Failed to parse chat error code");
+
+        coze_chat_error_signal(code);
+    } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STARTED) {
         ESP_UTILS_LOGI("chat start");
         coze_chat.wakeup_start = false;
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STOPED) {
@@ -333,10 +366,10 @@ static char *coze_get_access_token(const CozeChatAgentInfo &agent_info)
         cJSON_Delete(payload_json);
         return NULL;
     }
-    ESP_UTILS_LOGI("payload_str: %s\n", payload_str);
+    ESP_UTILS_LOGD("payload_str: %s\n", payload_str);
     char *formatted_payload_str = cJSON_Print(payload_json);
     if (formatted_payload_str) {
-        ESP_UTILS_LOGI("formatted_payload_str: %s\n", formatted_payload_str);
+        ESP_UTILS_LOGD("formatted_payload_str: %s\n", formatted_payload_str);
         free(formatted_payload_str);
     }
 
@@ -395,13 +428,13 @@ static char *coze_get_access_token(const CozeChatAgentInfo &agent_info)
 
     char *access_token = NULL;
     if (response.body) {
-        ESP_UTILS_LOGI("response: %s\n", response.body);
+        ESP_UTILS_LOGD("response: %s\n", response.body);
 
         cJSON *root = cJSON_Parse(response.body);
         if (root) {
             cJSON *access_token_item = cJSON_GetObjectItem(root, "access_token");
             if (cJSON_IsString(access_token_item) && access_token_item->valuestring != NULL) {
-                ESP_UTILS_LOGI("access_token: %s\n", access_token_item->valuestring);
+                ESP_UTILS_LOGD("access_token: %s\n", access_token_item->valuestring);
                 access_token = strdup(access_token_item->valuestring);
             } else {
                 ESP_UTILS_LOGE("access_token is invalid or not exist");
@@ -409,12 +442,12 @@ static char *coze_get_access_token(const CozeChatAgentInfo &agent_info)
 
             cJSON *expires_in_item = cJSON_GetObjectItem(root, "expires_in");
             if (cJSON_IsNumber(expires_in_item)) {
-                ESP_UTILS_LOGI("expires_in: %d\n", expires_in_item->valueint);
+                ESP_UTILS_LOGD("expires_in: %d\n", expires_in_item->valueint);
             }
 
             cJSON *token_type_item = cJSON_GetObjectItem(root, "token_type");
             if (cJSON_IsString(token_type_item)) {
-                ESP_UTILS_LOGI("token_type: %s\n", token_type_item->valuestring);
+                ESP_UTILS_LOGD("token_type: %s\n", token_type_item->valuestring);
             }
 
             cJSON_Delete(root);
@@ -461,15 +494,9 @@ static void recorder_event_callback_fn(void *event, void *ctx)
         change_wakeup_state(false);
         break;
     case ESP_GMF_AFE_EVT_VAD_START:
-        if (esp_gmf_afe_keep_awake(audio_processor_get_afe_handle(), true) != ESP_OK) {
-            ESP_UTILS_LOGE("Keep awake failed");
-        }
         ESP_UTILS_LOGI("vad start");
         break;
     case ESP_GMF_AFE_EVT_VAD_END:
-        if (esp_gmf_afe_keep_awake(audio_processor_get_afe_handle(), false) != ESP_OK) {
-            ESP_UTILS_LOGE("Keep awake failed");
-        }
         ESP_UTILS_LOGI("vad end");
         break;
     case ESP_GMF_AFE_EVT_VCMD_DECT_TIMEOUT:
@@ -500,6 +527,7 @@ static void audio_data_read_task(void *pv)
 
 static void audio_pipe_open(void)
 {
+    vTaskDelay(pdMS_TO_TICKS(800)); // Delay a little time to stagger other initializations
     audio_recorder_open(recorder_event_callback_fn, NULL);
     audio_playback_open();
     audio_playback_run();
@@ -557,9 +585,9 @@ esp_err_t coze_chat_app_start(const CozeChatAgentInfo &agent_info, const CozeCha
     chat_config.subscribe_event = (const char *[]) {
         "conversation.chat.requires_action", NULL
     };
-    chat_config.user_id = agent_info.user_id.c_str();
-    chat_config.bot_id = robot_info.bot_id.c_str();
-    chat_config.voice_id = robot_info.voice_id.c_str();
+    chat_config.user_id = const_cast<char *>(agent_info.user_id.c_str());
+    chat_config.bot_id = const_cast<char *>(robot_info.bot_id.c_str());
+    chat_config.voice_id = const_cast<char *>(robot_info.voice_id.c_str());
     chat_config.access_token = token_str;
     chat_config.uplink_audio_type = ESP_COZE_CHAT_AUDIO_TYPE_G711A;
     chat_config.audio_callback = audio_data_callback;
@@ -575,7 +603,7 @@ esp_err_t coze_chat_app_start(const CozeChatAgentInfo &agent_info, const CozeCha
     static auto func_call = FunctionDefinitionList::requestInstance().getJson();
 
     esp_coze_parameters_kv_t param[] = {
-        {"func_call", func_call.c_str()},
+        {"func_call", const_cast<char *>(func_call.c_str())},
         {NULL, NULL}
     };
     ret = esp_coze_set_chat_config_parameters(coze_chat.chat, param);

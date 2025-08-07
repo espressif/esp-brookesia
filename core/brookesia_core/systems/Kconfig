@@ -123,4 +123,8 @@ if ESP_BROOKESIA_SYSTEMS_ENABLE_SPEAKER
             bool "Quick settings"
             default y
     endif
+
+    config ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT
+        string "File system mount point"
+        default "/sdcard"
 endif # ESP_BROOKESIA_SYSTEMS_ENABLE_SPEAKER

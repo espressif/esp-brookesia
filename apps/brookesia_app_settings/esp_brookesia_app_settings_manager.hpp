@@ -31,19 +31,7 @@
 #define WLAN_DEFAULT_RSSI           -127
 #define WLAN_DEFAULT_AUTHMODE       WIFI_AUTH_OPEN
 
-#define SETTINGS_EVENT_DATA_TYPE_ENTER_DEVELOPER_MODE   std::monostate
-#define SETTINGS_EVENT_DATA_TYPE_SET_SOUND_VOLUME       int
-#define SETTINGS_EVENT_DATA_TYPE_GET_SOUND_VOLUME       std::reference_wrapper<int>
-#define SETTINGS_EVENT_DATA_TYPE_SET_DISPLAY_BRIGHTNESS int
-#define SETTINGS_EVENT_DATA_TYPE_GET_DISPLAY_BRIGHTNESS std::reference_wrapper<int>
-
 namespace esp_brookesia::speaker_apps {
-
-constexpr const char *SETTINGS_NVS_KEY_VOLUME = "volume";
-constexpr const char *SETTINGS_NVS_KEY_BRIGHTNESS = "brightness";
-constexpr const char *SETTINGS_NVS_KEY_WLAN_SWITCH = "wlan_switch";
-constexpr const char *SETTINGS_NVS_KEY_WLAN_SSID = "wlan_ssid";
-constexpr const char *SETTINGS_NVS_KEY_WLAN_PASSWORD = "wlan_password";
 
 struct SettingsManagerData {
     struct {
@@ -68,18 +56,18 @@ public:
         MEDIA_DISPLAY,
         WIRELESS_WLAN,
         WLAN_VERIFICATION,
+        WLAN_SOFTAP,
         MORE_ABOUT,
         MAX,
     };
 
     enum class EventType {
         EnterDeveloperMode,
-        SetSoundVolume,
-        GetSoundVolume,
-        SetDisplayBrightness,
-        GetDisplayBrightness,
+        EnterScreen,
     };
     using EventData = std::any;
+    using EventDataEnterDeveloperMode = std::monostate;
+    using EventDataEnterScreenIndex = UI_Screen;
 
     struct FirstTrue {
         using result_type = bool;
@@ -96,6 +84,16 @@ public:
     };
     using EventSignal = boost::signals2::signal<bool(EventType, EventData), FirstTrue>;
 
+    enum class AppOperationCode {
+        EnterScreen,
+    };
+    using AppOperationEnterScreenPayloadType = UI_Screen;
+    using AppOperationPayloadType = std::any;
+    struct AppOperationData {
+        AppOperationCode code;
+        AppOperationPayloadType payload;
+    };
+
     SettingsManager(speaker::App &app_in, SettingsUI &ui_in, const SettingsManagerData &data_in);
     ~SettingsManager();
 
@@ -108,11 +106,6 @@ public:
     bool processRun();
     bool processBack();
     bool processClose();
-
-    bool setSoundVolume(int in_volume, int *out_volume);
-    bool getSoundVolume(int &volume);
-    bool setDisplayBrightness(int in_brightness, int *out_brightness);
-    bool getDisplayBrightness(int &brightness);
 
     bool checkClosed() const
     {
@@ -166,6 +159,15 @@ private:
     // friend WlanGeneraState &operator|=(WlanGeneraState &lhs, WlanGeneraState rhs);
     // friend WlanGeneraState &operator&=(WlanGeneraState &lhs, WlanGeneraState rhs);
 
+    // App Event
+    bool processAppEventOperation(AppOperationData &operation_data);
+    bool processAppEventEnterScreen(AppOperationEnterScreenPayloadType payload);
+
+    // Signal
+    bool processStorageServiceEventSignalUpdateWlanSwitch(bool is_open);
+    bool processStorageServiceEventSignalUpdateVolume(int volume);
+    bool processStorageServiceEventSignalUpdateBrightness(int brightness);
+
     // All Screens
     bool processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_t *ui_screen_object);
     SettingsUI_ScreenBase *getUI_Screen(const UI_Screen &ui_screen);
@@ -183,9 +185,8 @@ private:
     bool processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e);
     bool processOnUI_ScreenWlanAvailableCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
     bool processOnUI_ScreenWlanGestureEvent(lv_event_t *e);
-    bool updateUI_ScreenWlanConnected(bool use_current, WlanGeneraState current_state = WlanGeneraState::DEINIT);
-    bool updateUI_ScreenWlanAvailable(bool use_current, WlanGeneraState current_state = WlanGeneraState::DEINIT);
-    bool scrollUI_ScreenWlanConnectedToView();
+    bool updateUI_ScreenWlanConnected(bool use_target, WlanGeneraState target_state = WlanGeneraState::DEINIT);
+    bool updateUI_ScreenWlanAvailable(bool use_target, WlanGeneraState target_state = WlanGeneraState::DEINIT);
     static void onUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e);
     static bool onUI_ScreenWlanAvailableCellClickEventHander(const ESP_Brookesia_CoreEvent::HandlerData &data);
     static void onUI_ScreenWlanGestureEvent(lv_event_t *e);
@@ -194,6 +195,12 @@ private:
     bool processRunUI_ScreenWlanVerification();
     bool processCloseUI_ScreenWlanVerification();
     bool processOnUI_ScreenWlanVerificationKeyboardConfirmEvent(std::pair<std::string_view, std::string_view> ssid_with_pwd);
+
+    // Screen: WLAN softap
+    bool processRunUI_ScreenWlanSoftAP();
+    bool processCloseUI_ScreenWlanSoftAP();
+    bool processOnUI_ScreenWlanSoftAPCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    bool processOnUI_ScreenWlanSoftAPNavigationClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
 
     // Screen: Sound
     bool processCloseUI_ScreenSound();
@@ -218,7 +225,7 @@ private:
     bool toggleWlanScanTimer(bool is_start, bool is_once = false);
     bool processOnWlanScanTimer(lv_timer_t *t);
     bool triggerWlanOperation(WlanOperation operation, int timeout_ms = 0);
-
+    bool asyncWlanConnect(int timeout_ms = 0);
     bool forceWlanOperation(WlanOperation operation, int timeout_ms = 0);
     bool tryWlanOperation(WlanOperation operation, int timeout_ms = 0);
     bool doWlanOperationInit();
@@ -234,6 +241,7 @@ private:
     bool processOnWlanOperationThread();
     bool processOnWlanUI_Thread();
     bool processOnWlanEventHandler(int event_id, void *event_data);
+    bool saveWlanConfig(std::string ssid, std::string pwd);
     bool checkIsWlanGeneralState(WlanGeneraState state)
     {
         return ((_wlan_general_state & state) == state);
@@ -261,14 +269,18 @@ private:
     const std::map<UI_Screen, UI_Screen> _ui_screen_back_map;
     // Screen: WLAN
     bool _ui_wlan_available_clickable = true;
+    std::mutex _ui_wlan_available_data_mutex;
     std::vector<SettingsUI_ScreenWlan::WlanData> _ui_wlan_available_data;
+    // Screen: WLAN softap
+    bool _ui_wlan_softap_visible = false;
     // WLAN
     int _wlan_connect_retry_count = 0;
     std::atomic<bool> _is_wlan_operation_stopped = true;
     std::atomic<bool> _is_wlan_force_connecting = false;
     std::atomic<bool> _is_wlan_retry_connecting = false;
-    std::atomic<WlanGeneraState> _wlan_general_state = WlanGeneraState::DEINIT;
-    std::atomic<WlanScanState> _wlan_scan_state = WlanScanState::SCAN_STOPPED;
+    std::atomic<bool> _is_wlan_sw_flag = false;
+    WlanGeneraState _wlan_general_state = WlanGeneraState::DEINIT;
+    WlanScanState _wlan_scan_state = WlanScanState::SCAN_STOPPED;
     std::atomic<int> _wlan_event_id;
     std::atomic<int> _wlan_event_id_prev;
     boost::thread _wlan_operation_thread;

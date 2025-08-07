@@ -234,13 +234,22 @@ bool Display::startBootAnimation(void)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    std::unique_ptr<gui::AnimPlayer> boot_animation = std::make_unique<gui::AnimPlayer>();
-    ESP_UTILS_CHECK_FALSE_RETURN(boot_animation->begin(_data.boot_animation.data), false, "Begin boot animation failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(
-        boot_animation->sendEvent({0, gui::AnimPlayer::Operation::PlayOnceStop, {true, true}}, true), false,
-        "Set boot animation failed"
-    );
-    ESP_UTILS_CHECK_FALSE_RETURN(boot_animation->waitAnimationStop(), false, "Wait boot animation end failed");
+    _boot_animation = std::make_unique<gui::AnimPlayer>();
+    ESP_UTILS_CHECK_FALSE_RETURN(_boot_animation->begin(_data.boot_animation.data), false, "Begin boot animation failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(_boot_animation->sendEvent({
+        0, gui::AnimPlayer::Operation::PlayOncePause, {true, true}
+    }, true, &_boot_animation_future), false, "Send boot animation event failed");
+
+    ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
+    return true;
+}
+
+bool Display::waitBootAnimationStop(void)
+{
+    ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
+
+    _boot_animation_future.wait();
+    _boot_animation.reset();
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;

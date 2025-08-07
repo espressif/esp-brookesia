@@ -7,12 +7,19 @@ dependencies:
 
   echoear:
     override_path: "../common_components/echoear"
+  bq27220:
+    override_path: "../common_components/bq27220"
+
+  espressif2022/bmi270: ^1.1.0~2
 
   espressif/gmf_core:
     override_path: "../common_components/espressif__gmf_core"
 
   espressif/gmf_ai_audio:
     override_path: "../common_components/espressif__gmf_ai_audio"
+
+  espressif/esp_websocket_client:
+    override_path: "../common_components/espressif__esp_websocket_client"
 
   brookesia_core:
     override_path: "../../../core/brookesia_core"
@@ -31,3 +38,6 @@ dependencies:
 
   brookesia_app_timer:
     override_path: "../../../apps/brookesia_app_timer"
+
+  brookesia_app_pos:
+    override_path: "../../../apps/brookesia_app_pos"

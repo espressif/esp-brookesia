@@ -48,6 +48,9 @@ namespace esp_brookesia::speaker_apps {
                     { SettingsUI_ScreenAboutCellIndex::DEVICE_RESOLUTION, CELL_ELEMENT_CONF_GENERAL() }, \
                     { SettingsUI_ScreenAboutCellIndex::DEVICE_FLASH_SIZE, CELL_ELEMENT_CONF_GENERAL() }, \
                     { SettingsUI_ScreenAboutCellIndex::DEVICE_RAM_SIZE, CELL_ELEMENT_CONF_RAM() }, \
+                    { SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CAPACITY, CELL_ELEMENT_CONF_GENERAL() }, \
+                    { SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_VOLTAGE, CELL_ELEMENT_CONF_GENERAL() }, \
+                    { SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CURRENT, CELL_ELEMENT_CONF_GENERAL() }, \
                 }, \
             } \
         }, \
@@ -157,7 +160,7 @@ bool SettingsUI_ScreenAbout::processCellContainerMapUpdate()
     chip_container_conf = data.container_confs[(int)SettingsUI_ScreenAboutContainerIndex::DEVICE];
     auto &chip_cell_confs = _cell_container_map[SettingsUI_ScreenAboutContainerIndex::DEVICE].second;
     for (int i = static_cast<int>(SettingsUI_ScreenAboutCellIndex::DEVICE_MANUFACTURER);
-            i <= static_cast<int>(SettingsUI_ScreenAboutCellIndex::DEVICE_RAM_SIZE); i++) {
+            i <= static_cast<int>(SettingsUI_ScreenAboutCellIndex::DEVICE_BATTERY_CURRENT); i++) {
         chip_cell_confs[static_cast<SettingsUI_ScreenAboutCellIndex>(i)].second = data.cell_confs[i];
     }
 

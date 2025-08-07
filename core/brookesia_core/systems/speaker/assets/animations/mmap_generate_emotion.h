@@ -13,14 +13,16 @@
 
 #include "esp_mmap_assets.h"
 
-#define MMAP_EMOTION_FILES           6
-#define MMAP_EMOTION_CHECKSUM        0x2567
+#define MMAP_EMOTION_FILES           8
+#define MMAP_EMOTION_CHECKSUM        0x86FB
 
 enum MMAP_EMOTION_LISTS {
     MMAP_EMOTION_EMOTION_ANGRY_284_126_AAF = 0,        /*!< emotion_angry_284_126.aaf */
-    MMAP_EMOTION_EMOTION_BLINK_FAST_284_126_AAF = 1,        /*!< emotion_blink_fast_284_126.aaf */
-    MMAP_EMOTION_EMOTION_BLINK_SLOW_284_126_AAF = 2,        /*!< emotion_blink_slow_284_126.aaf */
-    MMAP_EMOTION_EMOTION_HAPPY_284_126_AAF = 3,        /*!< emotion_happy_284_126.aaf */
-    MMAP_EMOTION_EMOTION_SAD_284_126_AAF = 4,        /*!< emotion_sad_284_126.aaf */
-    MMAP_EMOTION_EMOTION_SLEEP_284_126_AAF = 5,        /*!< emotion_sleep_284_126.aaf */
+    MMAP_EMOTION_EMOTION_BLINK1_284_126_AAF = 1,        /*!< emotion_blink1_284_126.aaf */
+    MMAP_EMOTION_EMOTION_BLINK_FAST_284_126_AAF = 2,        /*!< emotion_blink_fast_284_126.aaf */
+    MMAP_EMOTION_EMOTION_BLINK_SLOW_284_126_AAF = 3,        /*!< emotion_blink_slow_284_126.aaf */
+    MMAP_EMOTION_EMOTION_DIZZY_284_126_AAF = 4,        /*!< emotion_dizzy_284_126.aaf */
+    MMAP_EMOTION_EMOTION_HAPPY_284_126_AAF = 5,        /*!< emotion_happy_284_126.aaf */
+    MMAP_EMOTION_EMOTION_SAD_284_126_AAF = 6,        /*!< emotion_sad_284_126.aaf */
+    MMAP_EMOTION_EMOTION_SLEEP_284_126_AAF = 7,        /*!< emotion_sleep_284_126.aaf */
 };

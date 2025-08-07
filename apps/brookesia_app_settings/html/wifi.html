@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wi-Fi Configuration</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; color: #1c1e21; margin: 1rem 0; display: flex; justify-content: center; }
+        .container { background-color: #ffffff; padding: 30px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,0.1); width: 100%; max-width: 500px; margin-left: 1rem; margin-right: 1rem; box-sizing: border-box; }
+        h1 { color: #1877f2; text-align: center; font-size: 24px; margin-bottom: 25px;}
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #606770; }
+        input[type="text"], input[type="password"] { width: 100%; padding: 12px; border: 1px solid #dddfe2; border-radius: 6px; box-sizing: border-box; font-size: 16px; }
+        .btn { background-color: #1877f2; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; transition: background-color 0.2s; }
+        .btn:hover { background-color: #166fe5; }
+        .btn-secondary { background-color: #e4e6eb; color: #4b4f56; }
+        .btn-secondary:hover { background-color: #d8dade; }
+        .wifi-list.hidden { display:none; }
+        .wifi-list { list-style: none; padding: 0; max-height: 200px; overflow-y: auto; border: 1px solid #dddfe2; border-radius: 6px; margin-top: 10px; }
+        .wifi-list li { padding: 12px; border-bottom: 1px solid #dddfe2; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+        .wifi-list li:last-child { border-bottom: none; }
+        .wifi-list li:hover { background-color: #f0f2f5; }
+        .wifi-list li.selected { background-color: #e7f3ff; font-weight: 600; color: #1877f2; }
+        .hidden { display: none; }
+        .loader { border: 4px solid #f0f2f5; border-top: 4px solid #1877f2; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        #status { text-align: center; margin-top: 20px; font-weight: 600; padding: 10px; border-radius: 6px; }
+        .status-success { background-color: #e7f3ff; color: #1877f2; }
+        .status-error { background-color: #fbe2e2; color: #c01a1a; }
+        .status-connecting { background-color: #fffbe2; color: #7a6300; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wi-Fi Configuration</h1>
+        <div id="scan-section">
+            <div id="loader" class="loader hidden"></div>
+            <ul id="wifi-list" class="wifi-list"></ul>
+            <button class="btn btn-secondary" style="margin-top:10px;margin-right:10px;" onclick="scanWifi()">Refresh List</button>
+            <button class="btn btn-secondary" style="margin-top:10px" onclick="manualInput()">Manual Input</button>
+        </div>
+        <div id="config-section" class="hidden">
+            <div class="form-group">
+                <label for="ssid">Network (SSID)</label>
+                <input type="text" id="ssid" name="ssid" placeholder="Enter SSID or select from list">
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" placeholder="Leave empty for open networks">
+            </div>
+            <button class="btn" onclick="connectWifi()">Connect</button>
+        </div>
+        <div id="status"></div>
+    </div>
+
+    <script>
+        let selectedSsid = '';
+        let pollInterval = null;
+
+        function startStatusPolling() {
+            if (pollInterval) return; // already polling
+            pollInterval = setInterval(() => {
+                fetch('/api/wifi/status')
+                .then(resp => resp.json())
+                .then(data => {
+                    if (data.status === 'connecting') {
+                        // keep waiting
+                        showStatus('Connecting to ' + selectedSsid + '...', 'connecting');
+                    } else if (data.status === 'success') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        showStatus('Connected to ' + selectedSsid + ' successfully!', 'success');
+                    } else if (data.status === 'failed') {
+                        clearInterval(pollInterval);
+                        pollInterval = null;
+                        let reason = data.reason ? (' (' + data.reason + ')') : '';
+                        showStatus('Failed to connect' + reason + '.', 'error');
+                    }
+                })
+                .catch(err => {
+                    console.error('Status polling error', err);
+                });
+            }, 2000);
+        }
+
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerText = message;
+            statusDiv.className = 'status-' + type;
+        }
+
+        function scanWifi() {
+            document.getElementById('loader').classList.remove('hidden');
+            const wifiListEl = document.getElementById('wifi-list');
+            wifiListEl.innerHTML = '';
+            wifiListEl.classList.add('hidden');
+            document.getElementById('status').className = '';
+            document.getElementById('status').innerText = '';
+
+
+            fetch('/api/wifi/scan')
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loader').classList.add('hidden');
+                    const wifiList = document.getElementById('wifi-list');
+                    wifiList.classList.remove('hidden');
+                    if (data.length === 0) {
+                        wifiList.innerHTML = '<li>No networks found.</li>';
+                        return;
+                    }
+                    data.sort((a, b) => b.rssi - a.rssi); // Sort by signal strength
+                    data.forEach(net => {
+                        const listItem = document.createElement('li');
+                        let signalIcon = '&#128246;'; // Wi-Fi icon
+                        listItem.innerHTML = `<span>${net.ssid}</span> <span>${signalIcon} ${net.rssi} dBm</span>`;
+                        listItem.onclick = () => selectSsid(net.ssid, listItem);
+                        wifiList.appendChild(listItem);
+                    });
+                })
+                .catch(error => {
+                    document.getElementById('loader').classList.add('hidden');
+                    showStatus('Error scanning for networks.', 'error');
+                    console.error('Error:', error);
+                });
+        }
+
+        function selectSsid(ssid, element) {
+            selectedSsid = ssid;
+            document.getElementById('ssid').value = ssid;
+            document.getElementById('config-section').classList.remove('hidden');
+
+            const listItems = document.querySelectorAll('#wifi-list li');
+            listItems.forEach(item => item.classList.remove('selected'));
+            element.classList.add('selected');
+        }
+
+        function manualInput() {
+            selectedSsid = '';
+            document.getElementById('ssid').value = '';
+            document.getElementById('config-section').classList.remove('hidden');
+        }
+
+        function connectWifi() {
+            const password = document.getElementById('password').value;
+            const ssidField = document.getElementById('ssid').value.trim();
+            const ssidToSend = selectedSsid || ssidField;
+            if (!ssidToSend) {
+                 showStatus('Please enter or select a Wi-Fi network first.', 'error');
+                 return;
+            }
+            showStatus('Sending credentials to device...', 'connecting');
+
+            fetch('/api/wifi/connect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ssid: ssidToSend, password: password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    selectedSsid = ssidToSend;
+                    showStatus('Connecting to ' + ssidToSend + '...', 'connecting');
+                    startStatusPolling();
+                } else {
+                    showStatus('Configuration failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                showStatus('An error occurred during connection.', 'error');
+                console.error('Error:', error);
+            });
+        }
+
+        window.onload = scanWifi; // Automatically scan on page load
+    </script>
+</body>
+</html>

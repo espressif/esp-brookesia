@@ -1,11 +1,13 @@
 # ChangeLog
 
-## v0.6.0-beta2 - 2025-07-14
+## v0.6.0-beta2 - 2025-07-23
 
 ### Enhancements:
 
 * feat(ai_framework): agent support configure peripheral outside
 * feat(systems): speaker prevents infinite audio playback
+* feat(systems): speaker add invalid file animation
+* feat(gui): animation player supports loading animation from file system
 
 ### Bugfixes:
 

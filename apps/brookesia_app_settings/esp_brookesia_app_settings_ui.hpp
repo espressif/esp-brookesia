@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@
 #include "ui/screens/settings.hpp"
 #include "ui/screens/wlan.hpp"
 #include "ui/screens/wlan_verification.hpp"
+#include "ui/screens/wlan_softap.hpp"
 #include "ui/screens/about.hpp"
 #include "ui/screens/sound.hpp"
 #include "ui/screens/display.hpp"
@@ -22,6 +23,7 @@ struct SettingsUI_Data {
     SettingsUI_ScreenSettingsData screen_settings;
     SettingsUI_ScreenWlanData screen_wlan;
     SettingsUI_ScreenWlanVerificationData screen_wlan_verification;
+    SettingsUI_ScreenWlanSoftAPData screen_wlan_softap;
     SettingsUI_ScreenAboutData screen_about;
     SettingsUI_ScreenSoundData screen_sound;
     SettingsUI_ScreenDisplayData screen_display;
@@ -53,6 +55,7 @@ public:
     SettingsUI_ScreenSettings screen_settings;
     SettingsUI_ScreenWlan screen_wlan;
     SettingsUI_ScreenWlanVerification screen_wlan_verification;
+    SettingsUI_ScreenWlanSoftAP screen_wlan_softap;
     SettingsUI_ScreenAbout screen_about;
     SettingsUI_ScreenSound screen_sound;
     SettingsUI_ScreenDisplay screen_display;

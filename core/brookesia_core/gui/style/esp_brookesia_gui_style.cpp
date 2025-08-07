@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -22,8 +22,8 @@ bool StyleSize::calibrate(const StyleSize &parent)
         width = StyleSize::LENGTH_AUTO;
     } else if (flags.enable_width_percent) {
         ESP_UTILS_CHECK_VALUE_RETURN(width_percent, 1, 100, false, "Invalid width percent");
-        width = (parent_w * width_percent) / 100;
-    } else {
+        width = (parent_w != StyleSize::LENGTH_AUTO) ? (parent_w * width_percent) / 100 : StyleSize::LENGTH_AUTO;
+    } else if (width != StyleSize::LENGTH_AUTO) {
         ESP_UTILS_CHECK_VALUE_RETURN(width, 1, parent_w, false, "Invalid width");
     }
 
@@ -32,7 +32,7 @@ bool StyleSize::calibrate(const StyleSize &parent)
         height = StyleSize::LENGTH_AUTO;
     } else if (flags.enable_height_percent) {
         ESP_UTILS_CHECK_VALUE_RETURN(height_percent, 1, 100, false, "Invalid Height percent");
-        height = (parent_h * height_percent) / 100;
+        height = (parent_h != StyleSize::LENGTH_AUTO) ? (parent_h * height_percent) / 100 : StyleSize::LENGTH_AUTO;
     } else {
         ESP_UTILS_CHECK_VALUE_RETURN(height, 1, parent_h, false, "Invalid Height");
     }

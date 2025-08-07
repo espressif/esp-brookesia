@@ -166,6 +166,13 @@
 #           define ESP_BROOKESIA_SPEAKER_ENABLE_DEBUG_LOG  (0)
 #       endif
 #   endif
+#   if !defined(ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT)
+#       if defined(CONFIG_ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT)
+#           define ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT  CONFIG_ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT
+#       else
+#           error "`ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT` is not set"
+#       endif
+#   endif
 #endif
 
 #if ESP_BROOKESIA_SPEAKER_ENABLE_DEBUG_LOG

@@ -25,6 +25,10 @@
 #define SERVER_NAME_2   "ntp.tencent.com"
 #define SERVER_NAME_3   "cn.pool.ntp.org"
 
+#define MAX_FAIL            3
+#define MAX_RETRY           20
+#define RETRY_INTERVAL_MS   1000
+
 static const char *TAG = "sntp";
 
 static void obtain_time(void);
@@ -41,8 +45,13 @@ void sntp_sync_time(struct timeval *tv)
 
 static void time_sync_notification_cb(struct timeval *tv)
 {
-    ESP_LOGI(TAG, "Notification of a time synchronization event, sec=%"PRId64, tv->tv_sec);
-    settimeofday(tv, NULL);
+    ESP_LOGI(TAG, "Time sync callback triggered");
+
+    time_t now = 0;
+    struct tm timeinfo = {0};
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    ESP_LOGI(TAG, "time: hour()=%d, minute()=%d, second()=%d", timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
 }
 
 void app_sntp_init(void)
@@ -113,18 +122,41 @@ static void obtain_time(void)
 {
     initialize_sntp();
 
-    // wait for time to be set
-    time_t now = 0;
-    struct tm timeinfo = {0};
     int retry = 0;
-    const int retry_count = 10000;
+    int fail = 0;
 
-    while (sntp_get_sync_status() == SNTP_SYNC_STATUS_RESET && ++retry < retry_count) {
-        ESP_LOGI(TAG, "Waiting for system time to be set... (%d/%d)", retry, retry_count);
-        vTaskDelay(2000 / portTICK_PERIOD_MS);
+    time_t now = 0;
+    struct tm timeinfo = { 0 };
+
+    while (true) {
+        while (retry < MAX_RETRY) {
+            time(&now);
+            localtime_r(&now, &timeinfo);
+
+            if (timeinfo.tm_year > (2020 - 1900)) {
+                ESP_LOGI(TAG, "Time synchronized successfully");
+                break;
+            }
+
+            ESP_LOGI(TAG, "Time not synced yet... retry %d/%d", retry + 1, MAX_RETRY);
+            ++retry;
+            vTaskDelay(pdMS_TO_TICKS(RETRY_INTERVAL_MS));
+        }
+
+        if (retry == MAX_RETRY) {
+            ESP_LOGW(TAG, "SNTP sync failed after %d retries, restart SNTP", MAX_RETRY);
+            sntp_restart();
+            retry = 0;
+            fail++;
+        } else {
+            break;
+        }
+
+        if (fail == MAX_FAIL) {
+            ESP_LOGE(TAG, "SNTP sync failed after %d retries, restart device", MAX_FAIL);
+            esp_restart();
+        }
     }
-    time(&now);
-    localtime_r(&now, &timeinfo);
 }
 
 static void initialize_sntp(void)

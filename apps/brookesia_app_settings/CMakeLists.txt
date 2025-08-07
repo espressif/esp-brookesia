@@ -21,7 +21,8 @@ list(APPEND SRCS_CPP ${UI_SRCS_CPP})
 idf_component_register(
     SRCS ${SRCS_C} ${SRCS_CPP}
     INCLUDE_DIRS ${PROJ_SRC_DIR}
-    REQUIRES esp_event esp_wifi spi_flash
+    REQUIRES esp_event esp_wifi esp_http_server json spi_flash
+    EMBED_TXTFILES ${PROJ_SRC_DIR}/html/wifi.html
 )
 
 set_source_files_properties(

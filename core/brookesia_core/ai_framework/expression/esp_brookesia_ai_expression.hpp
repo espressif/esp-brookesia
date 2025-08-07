@@ -28,6 +28,7 @@ struct ExpressionData {
 class Expression {
 public:
     struct AnimOperationConfig {
+        bool en = true;
         bool repeat = true;
         bool keep_when_stop = false;
         bool immediate = true;
@@ -61,6 +62,7 @@ public:
     {
         return setEmoji(emoji, AnimOperationConfig{}, AnimOperationConfig{});
     }
+    bool insertEmojiTemporary(const std::string &emoji, uint32_t duration_ms = 1000);
     bool setSystemIcon(const std::string &icon, const AnimOperationConfig &config);
     bool setSystemIcon(const std::string &icon)
     {
@@ -70,6 +72,7 @@ public:
 private:
     bool setEmotion(EmotionType type, gui::AnimPlayer::Operation operation, bool immediate);
     bool setIcon(IconType type, gui::AnimPlayer::Operation operation, bool immediate);
+    static void emojiTimerCallback(TimerHandle_t timer);
 
     struct {
         int is_begun: 1;
@@ -79,6 +82,8 @@ private:
 
     EmojiMap _emoji_map;
     SystemIconMap _system_icon_map;
+    std::string _last_emoji;
+    TimerHandle_t timer;
 
     EmotionType _emotion_type_before_pause = EMOTION_TYPE_NONE;
     gui::AnimPlayer::Operation _emotion_operation_before_pause = gui::AnimPlayer::Operation::PlayOnceStop;

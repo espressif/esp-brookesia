@@ -33,18 +33,17 @@ bool Expression::begin(const ExpressionData &data, const EmojiMap *emoji_map, co
     });
 
     if (data.flags.enable_emotion) {
-        ESP_UTILS_CHECK_FALSE_RETURN(data.emotion.data.source.animation_num > 0, false, "Invalid emotion animation num");
+        auto animation_num = data.emotion.data.getAnimationNum();
+        ESP_UTILS_CHECK_FALSE_RETURN(animation_num > 0, false, "Invalid emotion animation num");
         ESP_UTILS_CHECK_NULL_RETURN(emoji_map, false, "Invalid emoji map");
 
         auto &emoji_map_tmp = *emoji_map;
         for (auto &[emoji, emotion_icon] : emoji_map_tmp) {
             ESP_UTILS_CHECK_VALUE_RETURN(
-                emotion_icon.first, EMOTION_TYPE_NONE, data.emotion.data.source.animation_num - 1, false,
-                "Emotion index out of data range"
+                emotion_icon.first, EMOTION_TYPE_NONE, animation_num - 1, false, "Emotion index out of data range"
             );
             ESP_UTILS_CHECK_VALUE_RETURN(
-                emotion_icon.second, EMOTION_TYPE_NONE, data.icon.data.source.animation_num - 1, false,
-                "Icon index out of data range"
+                emotion_icon.second, EMOTION_TYPE_NONE, animation_num - 1, false, "Icon index out of data range"
             );
         }
 
@@ -54,14 +53,14 @@ bool Expression::begin(const ExpressionData &data, const EmojiMap *emoji_map, co
         ESP_UTILS_CHECK_FALSE_RETURN(_emotion_player->begin(data.emotion.data), false, "Emotion player begin failed");
     }
     if (data.flags.enable_icon) {
-        ESP_UTILS_CHECK_FALSE_RETURN(data.icon.data.source.animation_num > 0, false, "Invalid icon animation num");
+        auto animation_num = data.icon.data.getAnimationNum();
+        ESP_UTILS_CHECK_FALSE_RETURN(animation_num > 0, false, "Invalid icon animation num");
         ESP_UTILS_CHECK_NULL_RETURN(system_icon_map, false, "Invalid system icon map");
 
         auto &system_icon_map_tmp = *system_icon_map;
         for (auto &[icon, icon_type] : system_icon_map_tmp) {
             ESP_UTILS_CHECK_VALUE_RETURN(
-                icon_type, ICON_TYPE_NONE, data.icon.data.source.animation_num - 1, false,
-                "Icon index out of data range"
+                icon_type, ICON_TYPE_NONE, animation_num - 1, false, "Icon index out of data range"
             );
         }
 
@@ -179,6 +178,34 @@ bool Expression::resume(bool update_emotion, bool update_icon)
     return true;
 }
 
+void Expression::emojiTimerCallback(TimerHandle_t timer)
+{
+    auto expression = static_cast<Expression *>(pvTimerGetTimerID(timer));
+    if (expression != nullptr && !expression->_flags.is_paused) {
+        expression->setEmoji(expression->_last_emoji, AnimOperationConfig{}, AnimOperationConfig{.en = false});
+        ESP_UTILS_LOGI("Emoji timer callback: set emoji to %s", expression->_last_emoji.c_str());
+    }
+    xTimerDelete(timer, 0);
+    expression->timer = nullptr;
+}
+
+bool Expression::insertEmojiTemporary(const std::string &emoji, uint32_t duration_ms)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (timer) {
+        ESP_UTILS_LOGW("Emoji timer already exists");
+        return true;
+    }
+    std::string emoji_tmp = this->_last_emoji;
+    setEmoji(emoji, AnimOperationConfig{}, AnimOperationConfig{.en = false});
+    this->_last_emoji = emoji_tmp;
+    timer = xTimerCreate("insertEmoji", pdMS_TO_TICKS(duration_ms), pdFALSE, this, emojiTimerCallback);
+    ESP_UTILS_CHECK_FALSE_RETURN(timer != nullptr, false, "Failed to create emoji timer");
+    xTimerStart(timer, 0);
+    return true;
+}
+
 bool Expression::setEmoji(
     const std::string &emoji, const AnimOperationConfig &emotion_config, const AnimOperationConfig &icon_config
 )
@@ -200,8 +227,9 @@ bool Expression::setEmoji(
 
     auto it = _emoji_map.find(emoji);
     ESP_UTILS_CHECK_FALSE_RETURN(it != _emoji_map.end(), false, "Unknown emoji");
+    _last_emoji = emoji;
 
-    if (_emotion_player != nullptr) {
+    if (_emotion_player != nullptr && emotion_config.en) {
         auto emotion_type = it->second.first;
         gui::AnimPlayer::Operation emotion_operation = gui::AnimPlayer::Operation::Stop;
         if (emotion_type != EMOTION_TYPE_NONE) {
@@ -214,7 +242,7 @@ bool Expression::setEmoji(
         );
     }
 
-    if (_icon_player != nullptr) {
+    if (_icon_player != nullptr && icon_config.en) {
         auto icon_type = it->second.second;
         gui::AnimPlayer::Operation icon_operation = gui::AnimPlayer::Operation::Stop;
         if (icon_type != ICON_TYPE_NONE) {

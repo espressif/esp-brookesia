@@ -59,6 +59,7 @@ public:
     gui::LvContainer *getDummyDrawMask(void)        { return _dummy_draw_mask.get(); }
 
     bool startBootAnimation(void);
+    bool waitBootAnimationStop(void);
 
     bool calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, DisplayData &data);
 
@@ -79,6 +80,8 @@ private:
 
     // Core
     const DisplayData &_data;
+    std::unique_ptr<gui::AnimPlayer> _boot_animation;
+    gui::AnimPlayer::EventFuture _boot_animation_future;
     // Widgets
     AppLauncher _app_launcher;
     QuickSettings _quick_settings;

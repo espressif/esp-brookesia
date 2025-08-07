@@ -117,6 +117,7 @@ private:
     struct {
         int is_begun: 1;
         int is_paused: 1;
+        int is_coze_error: 1;
     } _flags = {};
     std::mutex _mutex;
 
@@ -130,6 +131,8 @@ private:
     std::queue<ChatEventWrapper> _chat_event_queue;
     std::recursive_mutex _chat_event_mutex;
     boost::condition_variable_any _chat_event_cv;
+
+    std::vector<boost::signals2::connection> _connections;
 
     inline static std::mutex _instance_mutex;
     inline static std::shared_ptr<Agent> _instance;

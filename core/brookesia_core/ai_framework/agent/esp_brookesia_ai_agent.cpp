@@ -48,14 +48,14 @@ bool Agent::configCozeAgentConfig(CozeChatAgentInfo &agent_info, std::vector<Coz
     _agent_info.public_key = agent_info.public_key;
     _agent_info.private_key = agent_info.private_key;
     ESP_UTILS_CHECK_FALSE_RETURN(_agent_info.isValid(), false, "Invalid chat info");
-#if ESP_UTILS_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
+#if ESP_UTILS_CONF_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
     _agent_info.dump();
 #endif
 
     _robot_infos = robot_infos;
     for (auto &robot_info : _robot_infos) {
         ESP_UTILS_CHECK_FALSE_RETURN(robot_info.isValid(), false, "Invalid robot info");
-#if ESP_UTILS_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
+#if ESP_UTILS_CONF_LOG_LEVEL == ESP_UTILS_LOG_LEVEL_DEBUG
         robot_info.dump();
 #endif
     }
@@ -81,6 +81,15 @@ bool Agent::begin()
             ESP_UTILS_LOGE("Del failed");
         }
     });
+
+    _connections.push_back(coze_chat_error_signal.connect([this](int code) {
+        ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+        if (code == COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_1 ||
+                code == COZE_CHAT_ERROR_CODE_INSUFFICIENT_CREDITS_BALANCE_2) {
+            _flags.is_coze_error = true;
+        }
+    }));
 
     {
         esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
@@ -125,6 +134,11 @@ bool Agent::del()
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     std::lock_guard lock(_mutex);
+
+    for (auto &connection : _connections) {
+        connection.disconnect();
+    }
+    _connections.clear();
 
     bool ret = true;
     if (!sendChatEvent(ChatEvent::Stop, true, SEND_CHAT_EVENT_TIMEOUT_MS)) {
@@ -369,7 +383,10 @@ bool Agent::processChatEvent(const ChatEvent &event)
     case ChatEvent::Deinit:
         break;
     case ChatEvent::Init: {
-        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateDeinit), false, "Chat not deinit");
+        if (hasChatState(_ChatStateInit)) {
+            ESP_UTILS_LOGW("Chat already init");
+            return true;
+        }
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
@@ -398,7 +415,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Stop: {
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Invalid chat state");
+        if (hasChatState(_ChatStateStop)) {
+            ESP_UTILS_LOGW("Chat already stopped");
+            return true;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateInited), false, "Invalid chat state");
 
         {
             esp_utils::value_guard chat_state_guard(_chat_state);
@@ -412,7 +433,7 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Start: {
-        if (hasChatState(ChatStateStarted)) {
+        if (hasChatState(_ChatStateStart)) {
             ESP_UTILS_LOGW("Chat already started");
             return true;
         }
@@ -427,9 +448,10 @@ bool Agent::processChatEvent(const ChatEvent &event)
                 boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
             }
 
+            _flags.is_coze_error = false;
             int retry_count = 0;
             const int max_retries = CHAT_EVENT_COZE_START_REPEAT_TIMEOUT_MS / 1000;
-            while (retry_count < max_retries) {
+            while ((retry_count < max_retries) && !_flags.is_coze_error) {
                 if (coze_chat_app_start(_agent_info, _robot_infos[_robot_index]) == ESP_OK) {
                     break;
                 }
@@ -439,6 +461,8 @@ bool Agent::processChatEvent(const ChatEvent &event)
                     boost::this_thread::sleep_for(boost::chrono::milliseconds(1000));
                 }
             }
+
+            ESP_UTILS_CHECK_FALSE_RETURN(!_flags.is_coze_error, false, "Coze error");
 
             if (retry_count >= max_retries) {
                 chat_event_process_special_signal(ChatEventSpecialSignalType::StartMaxRetry);
@@ -451,7 +475,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::Sleep: {
-        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Chat not started");
+        if (hasChatState(_ChatStateSleep)) {
+            ESP_UTILS_LOGW("Chat already slept");
+            return true;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(hasChatState(ChatStateStarted), false, "Invalid chat state");
 
         esp_utils::value_guard chat_state_guard(_chat_state);
         chat_state_guard.set(ChatStateSleeping);
@@ -463,11 +491,11 @@ bool Agent::processChatEvent(const ChatEvent &event)
         break;
     }
     case ChatEvent::WakeUp: {
-        if (isChatState(ChatStateStarted)) {
+        if (hasChatState(_ChatStateWake)) {
             ESP_UTILS_LOGW("Chat already woke up");
             return true;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateSlept), false, "Chat not slept");
+        ESP_UTILS_CHECK_FALSE_RETURN(isChatState(ChatStateSlept), false, "Invalid chat state");
 
         esp_utils::value_guard chat_state_guard(_chat_state);
         chat_state_guard.set(ChatStateWaking);
