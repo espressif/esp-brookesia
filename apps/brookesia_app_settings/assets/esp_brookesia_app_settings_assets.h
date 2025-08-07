@@ -22,6 +22,7 @@ LV_IMG_DECLARE(esp_brookesia_app_icon_brightness_less_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_brightness_more_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_media_display_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_media_sound_48_48);
+LV_IMG_DECLARE(esp_brookesia_app_icon_input_touch_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_more_about_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_more_developer_mode_48_48);
 LV_IMG_DECLARE(esp_brookesia_app_icon_more_help_48_48);

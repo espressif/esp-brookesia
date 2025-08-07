@@ -81,7 +81,6 @@ public:
 
     ai_framework::Expression expression;
 
-private:
     enum class AudioType {
         WifiNeedConnect,
         WifiConnected,
@@ -109,6 +108,9 @@ private:
         int repeat_count;
         int repeat_interval_ms;
     };
+    void sendAudioEvent(const AudioEvent &event);
+
+private:
     struct AudioProcessInfo {
         AudioEvent event;
         int64_t create_time_ms;
@@ -119,7 +121,6 @@ private:
 
     AI_Buddy() = default;
 
-    void sendAudioEvent(const AudioEvent &event);
     void stopAudio(AudioType type);
     bool processAudioEvent(AudioProcessInfo &info);
     void playWiFiNeedConnectAudio();

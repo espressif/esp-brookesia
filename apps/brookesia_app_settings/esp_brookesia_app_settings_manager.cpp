@@ -99,6 +99,8 @@
 #define WLAN_SCAN_START_WAIT_TIMEOUT_MS (5000)
 #define WLAN_SCAN_STOP_WAIT_TIMEOUT_MS  (1000)
 
+#define TOUCH_SW_FLAG_DEFAULT           (1)
+
 #define NVS_ERASE_WAIT_TIMEOUT_MS       (1000)
 
 using namespace esp_brookesia::speaker;
@@ -236,6 +238,21 @@ bool SettingsManager::processInit()
         );
     }
     _is_wlan_sw_flag = wlan_sw_flag_int;
+
+    StorageNVS::Value touch_sw_flag;
+    int touch_sw_flag_int = TOUCH_SW_FLAG_DEFAULT;
+    if (storage_service.getLocalParam(SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH, touch_sw_flag)) {
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            std::holds_alternative<int>(touch_sw_flag), false, "Invalid touch switch flag type"
+        );
+        touch_sw_flag_int = std::get<int>(touch_sw_flag);
+    } else {
+        ESP_UTILS_LOGW("touch switch flag not found in NVS, set to default value(%d)", static_cast<int>(touch_sw_flag_int));
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            storage_service.setLocalParam(SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH, touch_sw_flag_int, this), false,
+            "Failed to set touch switch flag"
+        );
+    }
 
     WlanOperation target_operation = WlanOperation::NONE;
     ESP_UTILS_CHECK_FALSE_RETURN(
@@ -463,6 +480,33 @@ bool SettingsManager::processRunUI_ScreenSettings()
             ), false, "Register event failed"
         );
     }
+
+    // Process touch sensor switch
+    lv_obj_t *touch_sw = ui.screen_settings.getElementObject(
+                             static_cast<int>(SettingsUI_ScreenSettingsContainerIndex::INPUT),
+                             static_cast<int>(SettingsUI_ScreenSettingsCellIndex::INPUT_TOUCH),
+                             SettingsUI_WidgetCellElement::RIGHT_SWITCH
+                         );
+    ESP_UTILS_CHECK_NULL_RETURN(touch_sw, false, "Get Touch switch failed");
+    StorageNVS::Value touch_sw_flag;
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH, touch_sw_flag), false,
+        "Get Touch switch flag failed"
+    );
+    ESP_UTILS_CHECK_FALSE_RETURN(
+        std::holds_alternative<int>(touch_sw_flag), false, "Invalid Touch switch flag type"
+    );
+    auto &touch_sw_flag_int = std::get<int>(touch_sw_flag);
+    if (touch_sw_flag_int) {
+        lv_obj_add_state(touch_sw, LV_STATE_CHECKED);
+    } else {
+        lv_obj_clear_state(touch_sw, LV_STATE_CHECKED);
+    }
+    lv_obj_add_event_cb(touch_sw, [] ( lv_obj_t *obj, lv_event_t event ) {
+        int s = lv_obj_has_state(obj, LV_STATE_CHECKED) ? 0 : 1;
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH, s), "Get Touch switch flag failed");
+    }, LV_EVENT_VALUE_CHANGED, this);
 
     // More: About
     {

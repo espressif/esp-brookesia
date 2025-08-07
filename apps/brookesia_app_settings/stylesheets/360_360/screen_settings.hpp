@@ -60,6 +60,19 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_
     };
 }
 
+constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_INPUT_TOUCH(const auto &icon, const char *text)
+{
+    return {
+        .left_icon_image = ESP_BROOKESIA_STYLE_IMAGE(&icon),
+        .left_main_label_text = text,
+        .flags = {
+            .enable_left_icon = 1,
+            .enable_left_main_label = 1,
+            .enable_clickable = 1,
+        },
+    };
+}
+
 constexpr SettingsUI_ScreenSettingsData SETTINGS_UI_360_360_SCREEN_SETTINGS_DATA()
 {
     return {
@@ -72,6 +85,12 @@ constexpr SettingsUI_ScreenSettingsData SETTINGS_UI_360_360_SCREEN_SETTINGS_DATA
             },
             [(int)SettingsUI_ScreenSettingsContainerIndex::MEDIA] = {
                 .title_text = "Media",
+                .flags = {
+                    .enable_title = 1,
+                },
+            },
+            [(int)SettingsUI_ScreenSettingsContainerIndex::INPUT] = {
+                .title_text = "Input",
                 .flags = {
                     .enable_title = 1,
                 },
@@ -95,6 +114,10 @@ constexpr SettingsUI_ScreenSettingsData SETTINGS_UI_360_360_SCREEN_SETTINGS_DATA
             [(int)SettingsUI_ScreenSettingsCellIndex::MEDIA_DISPLAY] =
             SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_GENERAL(
                 esp_brookesia_app_icon_media_display_48_48, "Display"
+            ),
+            [(int)SettingsUI_ScreenSettingsCellIndex::INPUT_TOUCH] =
+            SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_INPUT_TOUCH(
+                esp_brookesia_app_icon_input_touch_48_48, "Touch"
             ),
             [(int)SettingsUI_ScreenSettingsCellIndex::MORE_ABOUT] =
             SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_GENERAL(

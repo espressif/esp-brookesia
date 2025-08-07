@@ -30,6 +30,7 @@
 
 #include "battery_monitor.h"
 #include "imu_gesture.h"
+#include "touch_sensor.h"
 
 constexpr const char *FUNCTION_OPEN_APP_THREAD_NAME               = "open_app";
 constexpr int         FUNCTION_OPEN_APP_THREAD_STACK_SIZE         = 10 * 1024;
@@ -67,11 +68,14 @@ extern const char private_key_pem_end[]   asm("_binary_private_key_pem_end");
 #endif
 static BatteryMonitor battery_monitor;
 static IMUGesture imu_gesture;
+static TouchSensor touch_sensor;
 
 static std::string to_lower(const std::string &input);
 static std::string get_before_space(const std::string &input);
 static bool load_coze_agent_config();
 static bool check_whether_enter_developer_mode();
+static void touch_btn_event_cb(void *button_handle, void *usr_data);
+static void touch_sensor_switch();
 static void show_low_power(Speaker *speaker);
 static void update_battery_info(Speaker *speaker, const Settings *app_settings);
 
@@ -91,6 +95,7 @@ bool system_init()
     );
     ESP_UTILS_CHECK_FALSE_RETURN(battery_monitor.init(), false, "Battery monitor init failed");
     ESP_UTILS_CHECK_FALSE_RETURN(imu_gesture.init(), false, "IMU gesture init failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(touch_sensor.init(), false, "Touch sensor init failed");
     ESP_UTILS_CHECK_FALSE_RETURN(check_whether_enter_developer_mode(), false, "Check whether enter developer mode failed");
 
     /* Load coze agent config */
@@ -454,6 +459,17 @@ bool system_init()
     }));
     FunctionDefinitionList::requestInstance().addFunction(setBrightness);
 
+    auto &storage_service = StorageNVS::requestInstance();
+    storage_service.connectEventSignal([](const StorageNVS::Event & event) {
+        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.key != SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH)) {
+            return;
+        }
+        ESP_UTILS_LOG_TRACE_GUARD();
+        touch_sensor_switch();
+    });
+    touch_sensor_switch(); // update touch switch
+
+    bsp_head_led_brightness_set(5); // set head led brightness to 50
     return true;
 }
 
@@ -603,6 +619,75 @@ static bool check_whether_enter_developer_mode()
     }
 }
 
+static void touch_sensor_switch()
+{
+    auto &storage_service = StorageNVS::requestInstance();
+    StorageNVS::Value value;
+    ESP_UTILS_CHECK_FALSE_EXIT(
+        storage_service.getLocalParam(SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH, value), "Get NVS volume failed"
+    );
+
+    auto enable = std::get<int>(value);
+    ESP_UTILS_LOGI("switch touch to %d", enable);
+    button_handle_t btn = touch_sensor.get_button_handle();
+    if (enable) {
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_SINGLE_CLICK, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_LONG_PRESS_START, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_PRESS_DOWN, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_PRESS_UP, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
+    } else {
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_SINGLE_CLICK, NULL), "Failed to unregister button event callback");
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_LONG_PRESS_START, NULL), "Failed to unregister button event callback");
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_PRESS_DOWN, NULL), "Failed to unregister button event callback");
+        ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_PRESS_UP, NULL), "Failed to unregister button event callback");
+    }
+}
+
+static void touch_btn_event_cb(void *button_handle, void *usr_data)
+{
+    button_event_t event = iot_button_get_event((button_handle_t)button_handle);
+
+    auto _agent = Agent::requestInstance();
+    auto ai_buddy = AI_Buddy::requestInstance();
+    if (!ai_buddy || !_agent || ai_buddy->isPause()) {
+        return;
+    }
+    static uint8_t last_brightness = 0;
+    switch (event) {
+    case BUTTON_PRESS_DOWN:
+        last_brightness = bsp_head_led_brightness_get();
+        bsp_head_led_brightness_set(100);
+        break;
+    case BUTTON_PRESS_UP:
+        bsp_head_led_brightness_set(last_brightness);
+        break;
+    case BUTTON_SINGLE_CLICK:
+        if (_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
+            ESP_UTILS_LOGI("Chat Wake up");
+            coze_chat_response_signal();
+            ESP_UTILS_CHECK_FALSE_EXIT(_agent->sendChatEvent(Agent::ChatEvent::WakeUp), "Send chat event sleep failed");
+        } else if (ai_buddy->isSpeaking()) {
+            ESP_UTILS_LOGI("Chat interrupt");
+            coze_chat_response_signal();
+            coze_chat_app_interrupt();
+        } else {
+            ESP_UTILS_LOGI("Chat nothing");
+        }
+        break;
+
+    case BUTTON_LONG_PRESS_START:
+        if (!_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
+            ESP_UTILS_LOGI("Chat Sleep");
+            ai_buddy->sendAudioEvent({AI_Buddy::AudioType::SleepBaiBaiLo});
+            ESP_UTILS_CHECK_FALSE_EXIT(_agent->sendChatEvent(Agent::ChatEvent::Sleep), "Send chat event sleep failed");
+        }
+        break;
+
+    default:
+        break;
+    }
+}
+
 static void show_low_power(Speaker *speaker)
 {
     ESP_UTILS_LOGW("Low power triggered");
@@ -641,7 +726,7 @@ static void show_low_power(Speaker *speaker)
     StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, 65); // set volume to 65%
     audio_prompt_play_with_block("file://spiffs/low_power.mp3", 1500);
     for (size_t i = 0; i < 20; i++) {
-        bsp_set_head_led(i % 2 == 0); // blink head LED
+        bsp_head_led_brightness_set(i % 2 ? 100 : 0); // blink head LED
         vTaskDelay(pdMS_TO_TICKS(200));
     }
     StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value); // restore volume
