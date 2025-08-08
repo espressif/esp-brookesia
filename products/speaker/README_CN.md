@@ -8,7 +8,7 @@
 
 这个示例演示了如何在 EchoEar 开发板上运行 ESP-Brookesia Speaker，并支持通过语音唤醒与 Coze 智能体进行语音交互。
 
-请参阅 [EchoEar（喵伴）用户指南](https://espressif.craft.me/1gOl65rON8G8FK) 了解产品信息和固件使用方法。
+请参阅 [EchoEar（喵伴）用户指南](https://espressif.craft.me/BBkCPR3ZaoLCV8) 了解产品信息和固件使用方法。
 
 ## 入门指南
 
@@ -33,7 +33,7 @@ git clone https://github.com/espressif/esp-brookesia.git
 
 运行 `idf.py menuconfig` > `Example Configuration` 配置 COZE 相关参数。
 
-请参阅 [EchoEar（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/1gOl65rON8G8FK) 了解相关配置参数。
+请参阅 [EchoEar（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/BBkCPR3ZaoLCV8) 了解相关配置参数。
 
 ## 如何使用示例
 
