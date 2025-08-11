@@ -31,6 +31,13 @@ namespace esp_brookesia::speaker_apps {
         SettingsUI_WidgetCellElement::RIGHT_ICONS, \
         SettingsUI_WidgetCellConf{} \
     }
+#define CELL_ELEMENT_CONF_SWITCH() \
+    { \
+        SettingsUI_WidgetCellElement::MAIN | \
+        SettingsUI_WidgetCellElement::LEFT_ICON | SettingsUI_WidgetCellElement::LEFT_MAIN_LABEL | \
+        SettingsUI_WidgetCellElement::RIGHT_SWITCH, \
+        SettingsUI_WidgetCellConf{} \
+    }
 #define CELL_CONTAINER_MAP() \
     { \
         { \
@@ -47,6 +54,14 @@ namespace esp_brookesia::speaker_apps {
                 { \
                     { SettingsUI_ScreenSettingsCellIndex::MEDIA_SOUND, CELL_ELEMENT_CONF_GENERAL() }, \
                     { SettingsUI_ScreenSettingsCellIndex::MEDIA_DISPLAY, CELL_ELEMENT_CONF_GENERAL() }, \
+                }, \
+            }, \
+        },\
+        { \
+            SettingsUI_ScreenSettingsContainerIndex::INPUT, { \
+                {}, \
+                { \
+                    { SettingsUI_ScreenSettingsCellIndex::INPUT_TOUCH, CELL_ELEMENT_CONF_SWITCH() }, \
                 }, \
             }, \
         },\
@@ -158,6 +173,14 @@ bool SettingsUI_ScreenSettings::processCellContainerMapUpdate()
     for (int i = static_cast<int>(SettingsUI_ScreenSettingsCellIndex::MEDIA_SOUND);
             i <= static_cast<int>(SettingsUI_ScreenSettingsCellIndex::MEDIA_DISPLAY); i++) {
         media_cell_confs[static_cast<SettingsUI_ScreenSettingsCellIndex>(i)].second = data.cell_confs[i];
+    }
+
+    auto &input_container_conf = _cell_container_map[SettingsUI_ScreenSettingsContainerIndex::INPUT].first;
+    input_container_conf = data.container_confs[(int)SettingsUI_ScreenSettingsContainerIndex::INPUT];
+    auto &input_cell_confs = _cell_container_map[SettingsUI_ScreenSettingsContainerIndex::INPUT].second;
+    for (int i = static_cast<int>(SettingsUI_ScreenSettingsCellIndex::INPUT_TOUCH);
+            i <= static_cast<int>(SettingsUI_ScreenSettingsCellIndex::INPUT_TOUCH); i++) {
+        input_cell_confs[static_cast<SettingsUI_ScreenSettingsCellIndex>(i)].second = data.cell_confs[i];
     }
 
     auto &more_container_conf = _cell_container_map[SettingsUI_ScreenSettingsContainerIndex::MORE].first;

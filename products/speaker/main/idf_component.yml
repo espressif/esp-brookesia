@@ -10,6 +10,12 @@ dependencies:
   bq27220:
     override_path: "../common_components/bq27220"
 
+  touch_button:
+    version: "*"
+
+  touch_slider_sensor:
+    version: "*"
+
   espressif2022/bmi270: ^1.1.0~2
 
   espressif/gmf_core:

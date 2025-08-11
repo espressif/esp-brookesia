@@ -44,7 +44,7 @@
 #   define BSP_I2S_DSIN        (GPIO_NUM_3)
 #   define BSP_POWER_AMP_IO    (GPIO_NUM_15)
 #   define BSP_POWER_CODEC_EN  (GPIO_NUM_48)
-#else
+#elif CONFIG_BSP_PCB_VERSION_V1_0
 #   define BSP_I2S_DSIN        (GPIO_NUM_15)    // From ADC ES7210
 #   define BSP_POWER_AMP_IO    (GPIO_NUM_4)
 #endif
@@ -59,10 +59,9 @@
 #define BSP_LCD_DC            (GPIO_NUM_45)
 #if CONFIG_BSP_PCB_VERSION_V1_2
 #   define BSP_LCD_RST        (GPIO_NUM_47)
-#else
+#elif CONFIG_BSP_PCB_VERSION_V1_0
 #   define BSP_LCD_RST        (GPIO_NUM_3)
 #endif
-#define LCD_BACKLIIGHT_CHANNEL LEDC_CHANNEL_1
 #define BSP_LCD_BACKLIGHT     (GPIO_NUM_44)
 #define BSP_LCD_TOUCH_INT     (GPIO_NUM_10)
 
@@ -78,14 +77,15 @@
 #if CONFIG_BSP_PCB_VERSION_V1_2
 #   define BSP_UART1_TX       (GPIO_NUM_5)
 #   define BSP_UART1_RX       (GPIO_NUM_4)
-#else
+#elif CONFIG_BSP_PCB_VERSION_V1_0
 #   define BSP_UART1_TX       (GPIO_NUM_6)
 #   define BSP_UART1_RX       (GPIO_NUM_5)
 #endif
 #if CONFIG_BSP_PCB_VERSION_V1_2
+#   define BSP_TOUCH_PAD1     (GPIO_NUM_7)
 #   define BSP_TOUCH_PAD2     (GPIO_NUM_6)
-#else
-#   define BSP_TOUCH_PAD2     (GPIO_NUM_NC)
+#elif CONFIG_BSP_PCB_VERSION_V1_0
+#   define BSP_TOUCH_PAD1     (GPIO_NUM_7)
 #endif
 #define BSP_HEAD_LED          (GPIO_NUM_43) // GREEN LED
 
@@ -337,15 +337,22 @@ esp_err_t bsp_sdcard_sdmmc_mount(bsp_sdcard_cfg_t *cfg);
 sdmmc_card_t *bsp_sdcard_get_handle(void);
 
 /**
- * @brief Set head LED
+ * @brief Set head LED brightness
  *
- * @param on true to turn on, false to turn off
+ * @param brightness_percent Brightness in percent (0-100)
  *
  * @return
  *     - ESP_OK on success
  *     - ESP_ERR_INVALID_ARG if the parameter is invalid
  */
-esp_err_t bsp_set_head_led(bool on);
+esp_err_t bsp_head_led_brightness_set(int brightness_percent);
+
+/**
+ * @brief Get head LED brightness
+ *
+ * @return uint8_t The brightness in percent (0-100)
+ */
+uint8_t bsp_head_led_brightness_get(void);
 
 /**
  * @brief Set peripheral power

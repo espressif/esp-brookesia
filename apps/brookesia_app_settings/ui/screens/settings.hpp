@@ -15,6 +15,7 @@ namespace esp_brookesia::speaker_apps {
 enum class SettingsUI_ScreenSettingsContainerIndex {
     WIRELESS,
     MEDIA,
+    INPUT,
     MORE,
     MAX,
 };
@@ -23,6 +24,7 @@ enum class SettingsUI_ScreenSettingsCellIndex {
     WIRELESS_WLAN,
     MEDIA_SOUND,
     MEDIA_DISPLAY,
+    INPUT_TOUCH,
     MORE_ABOUT,
     MORE_DEVELOPER_MODE,
     MORE_RESTORE,

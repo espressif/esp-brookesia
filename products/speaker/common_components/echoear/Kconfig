@@ -1,4 +1,4 @@
-menu "Board Support Package(ESP-BOX-3)"
+menu "Board Support Package(EchoEar)"
     choice BSP_PCB_VERSION
         prompt "PCB version"
         default BSP_PCB_VERSION_V1_2
@@ -98,4 +98,11 @@ menu "Board Support Package(ESP-BOX-3)"
         help
             Whether to enable double framebuf.
     endmenu
+
+    config BSP_HEAD_LED_LEDC_CH
+        int "LEDC channel index"
+        default 2
+        range 0 7
+        help
+            LEDC channel is used to generate PWM signal that controls led brightness.
 endmenu

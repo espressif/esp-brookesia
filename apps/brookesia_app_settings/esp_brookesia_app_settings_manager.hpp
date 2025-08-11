@@ -31,6 +31,8 @@
 #define WLAN_DEFAULT_RSSI           -127
 #define WLAN_DEFAULT_AUTHMODE       WIFI_AUTH_OPEN
 
+constexpr const char *SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH = "touch_switch";
+
 namespace esp_brookesia::speaker_apps {
 
 struct SettingsManagerData {
