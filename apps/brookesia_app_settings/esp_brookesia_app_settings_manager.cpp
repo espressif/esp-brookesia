@@ -116,6 +116,9 @@ const std::unordered_map<wifi_event_t, std::string> SettingsManager::_wlan_event
     {WIFI_EVENT_STA_CONNECTED, "WIFI_EVENT_STA_CONNECTED"},
     {WIFI_EVENT_STA_DISCONNECTED, "WIFI_EVENT_STA_DISCONNECTED"},
 };
+const std::unordered_map<ip_event_t, std::string> SettingsManager::_ip_event_str = {
+    {IP_EVENT_STA_GOT_IP, "IP_EVENT_STA_GOT_IP"},
+};
 
 const std::unordered_map<SettingsManager::WlanGeneraState, std::string> SettingsManager::_wlan_general_state_str = {
     {WlanGeneraState::DEINIT, "DEINIT"},
@@ -160,7 +163,7 @@ SettingsManager::SettingsManager(speaker::App &app_in, SettingsUI &ui_in, const 
     _ui_current_screen(UI_Screen::HOME),
     _ui_screen_back_map(UI_SCREEN_BACK_MAP()),
     _is_wlan_operation_stopped(true),
-    _wlan_event_id(WIFI_EVENT_WIFI_READY),
+    _wlan_event(WIFI_EVENT_WIFI_READY),
     _wlan_sta_netif(nullptr),
     _wlan_event_handler_instance(nullptr)
 {
@@ -2386,6 +2389,12 @@ bool SettingsManager::doWlanOperationInit()
             &_wlan_event_handler_instance
         ), false, "Register WLAN event handler failed"
     );
+    ESP_UTILS_CHECK_ERROR_RETURN(
+        esp_event_handler_instance_register(
+            IP_EVENT, static_cast<int32_t>(IP_EVENT_STA_GOT_IP), onWlanEventHandler, this,
+            &_ip_event_handler_instance
+        ), false, "Register IP event handler failed"
+    );
 
     ESP_UTILS_CHECK_ERROR_RETURN(esp_wifi_set_mode(WLAN_INIT_MODE_DEFAULT), false, "Set WLAN mode failed");
 
@@ -2644,13 +2653,14 @@ bool SettingsManager::processOnWlanUI_Thread()
     });
     _is_wlan_event_updated = false;
 
-    int wlan_event_id = _wlan_event_id;
+    auto wlan_event = _wlan_event;
     lock.unlock();
-    ESP_UTILS_LOGI(
-        "Process on wlan UI thread start (event: %s)", getWlanEventStr(static_cast<wifi_event_t>(_wlan_event_id.load()))
-    );
 
-    _wlan_event_id_prev = wlan_event_id;
+    ESP_UTILS_LOGI("Process on wlan UI thread start (event: %s)", getWlanEventStr(wlan_event));
+
+    bool is_wifi_event = std::holds_alternative<wifi_event_t>(wlan_event);
+    auto event_id = is_wifi_event ?
+                    static_cast<int>(std::get<wifi_event_t>(wlan_event)) : static_cast<int>(std::get<ip_event_t>(wlan_event));
 
     auto system = app.getSystem();
     auto &quick_settings = system->display.getQuickSettings();
@@ -2659,104 +2669,106 @@ bool SettingsManager::processOnWlanUI_Thread()
     decltype(_ui_wlan_available_data) temp_available_data;
 
     // Process non-UI
-    switch (wlan_event_id) {
-    case WIFI_EVENT_STA_STOP: {
-        std::lock_guard<std::mutex> lock(_ui_wlan_available_data_mutex);
-        _ui_wlan_available_data.clear();
-        break;
-    }
-    case WIFI_EVENT_SCAN_DONE: {
-        bool psk_flag = false;
-        uint16_t number = data.wlan.scan_ap_count_max;
-        uint16_t ap_count = 0;
-        SettingsUI_ScreenWlan::SignalLevel signal_level = SettingsUI_ScreenWlan::SignalLevel::WEAK;
-
-        if (ApProvision::get_ap_ssid()) {
-            ESP_UTILS_LOGW("AP Provisioning is running, skip update AP list to UI");
+    if (is_wifi_event) {
+        switch (event_id) {
+        case WIFI_EVENT_STA_STOP: {
+            std::lock_guard<std::mutex> lock(_ui_wlan_available_data_mutex);
+            _ui_wlan_available_data.clear();
             break;
         }
+        case WIFI_EVENT_SCAN_DONE: {
+            bool psk_flag = false;
+            uint16_t number = data.wlan.scan_ap_count_max;
+            uint16_t ap_count = 0;
+            SettingsUI_ScreenWlan::SignalLevel signal_level = SettingsUI_ScreenWlan::SignalLevel::WEAK;
 
-        std::shared_ptr<wifi_ap_record_t[]> ap_info(new wifi_ap_record_t[number]);
-        ESP_UTILS_CHECK_NULL_RETURN(ap_info, false, "Allocate AP info failed");
+            if (ApProvision::get_ap_ssid()) {
+                ESP_UTILS_LOGW("AP Provisioning is running, skip update AP list to UI");
+                break;
+            }
 
-        ESP_UTILS_CHECK_FALSE_RETURN(esp_wifi_scan_get_ap_num(&ap_count) == ESP_OK, false, "Get AP number failed");
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            esp_wifi_scan_get_ap_records(&number, ap_info.get()) == ESP_OK, false, "Get AP records failed"
-        );
+            std::shared_ptr<wifi_ap_record_t[]> ap_info(new wifi_ap_record_t[number]);
+            ESP_UTILS_CHECK_NULL_RETURN(ap_info, false, "Allocate AP info failed");
 
-        ESP_UTILS_LOGD("Get AP count: %d", std::min(number, ap_count));
+            ESP_UTILS_CHECK_FALSE_RETURN(esp_wifi_scan_get_ap_num(&ap_count) == ESP_OK, false, "Get AP number failed");
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                esp_wifi_scan_get_ap_records(&number, ap_info.get()) == ESP_OK, false, "Get AP records failed"
+            );
 
-        for (uint16_t i = 0; (i < ap_count) && (i < number); i++) {
+            ESP_UTILS_LOGD("Get AP count: %d", std::min(number, ap_count));
+
+            for (uint16_t i = 0; (i < ap_count) && (i < number); i++) {
 #if WLAN_SCAN_ENABLE_DEBUG_LOG
-            printf("SSID: \t\t%s\n", ap_info[i].ssid);
-            printf("RSSI: \t\t%d\n", ap_info[i].rssi);
-            printf("Channel: \t\t%d\n", ap_info[i].primary);
-            printf("Locked: %s\n", psk_flag ? "yes" : "no");
-            printf("Signal Level: %d\n\n", static_cast<int>(signal_level));
+                printf("SSID: \t\t%s\n", ap_info[i].ssid);
+                printf("RSSI: \t\t%d\n", ap_info[i].rssi);
+                printf("Channel: \t\t%d\n", ap_info[i].primary);
+                printf("Locked: %s\n", psk_flag ? "yes" : "no");
+                printf("Signal Level: %d\n\n", static_cast<int>(signal_level));
 #endif
-            if (checkIsWlanGeneralState(WlanGeneraState::_CONNECT)) {
-                // Skip connected AP
-                if (strcmp((const char *)ap_info[i].ssid, _wlan_connected_info.first.ssid.c_str()) == 0) {
-                    ESP_UTILS_LOGD("Skip connecting or connected AP(%s)", _wlan_connected_info.first.ssid.c_str());
-                    continue;
-                }
-                if (strcmp((const char *)ap_info[i].ssid, _wlan_connecting_info.first.ssid.c_str()) == 0) {
-                    ESP_UTILS_LOGD("Skip connecting AP(%s)", _wlan_connecting_info.first.ssid.c_str());
-                    continue;
-                }
-            } else if (checkIsWlanGeneralState(WlanGeneraState::_START)) {
-                // Only connect to default AP when WLAN is not connecting or connected
-                // Check if default AP is in scan list
-                StorageNVS::Value default_connect_ssid;
-                StorageNVS::Value default_connect_pwd;
-                ESP_UTILS_CHECK_FALSE_RETURN(
-                    storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, default_connect_ssid), false,
-                    "Get default connect SSID failed"
-                );
-                ESP_UTILS_CHECK_FALSE_RETURN(
-                    storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, default_connect_pwd), false,
-                    "Get default connect PWD failed"
-                );
-                ESP_UTILS_CHECK_FALSE_RETURN(
-                    std::holds_alternative<std::string>(default_connect_ssid), false, "Invalid default connect SSID type"
-                );
-                ESP_UTILS_CHECK_FALSE_RETURN(
-                    std::holds_alternative<std::string>(default_connect_pwd), false, "Invalid default connect PWD type"
-                );
-                auto &default_connect_ssid_str = std::get<std::string>(default_connect_ssid);
-                auto &default_connect_pwd_str = std::get<std::string>(default_connect_pwd);
+                if (checkIsWlanGeneralState(WlanGeneraState::_CONNECT)) {
+                    // Skip connected AP
+                    if (strcmp((const char *)ap_info[i].ssid, _wlan_connected_info.first.ssid.c_str()) == 0) {
+                        ESP_UTILS_LOGD("Skip connecting or connected AP(%s)", _wlan_connected_info.first.ssid.c_str());
+                        continue;
+                    }
+                    if (strcmp((const char *)ap_info[i].ssid, _wlan_connecting_info.first.ssid.c_str()) == 0) {
+                        ESP_UTILS_LOGD("Skip connecting AP(%s)", _wlan_connecting_info.first.ssid.c_str());
+                        continue;
+                    }
+                } else if (checkIsWlanGeneralState(WlanGeneraState::_START)) {
+                    // Only connect to default AP when WLAN is not connecting or connected
+                    // Check if default AP is in scan list
+                    StorageNVS::Value default_connect_ssid;
+                    StorageNVS::Value default_connect_pwd;
+                    ESP_UTILS_CHECK_FALSE_RETURN(
+                        storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_SSID, default_connect_ssid), false,
+                        "Get default connect SSID failed"
+                    );
+                    ESP_UTILS_CHECK_FALSE_RETURN(
+                        storage_service.getLocalParam(SETTINGS_NVS_KEY_WLAN_PASSWORD, default_connect_pwd), false,
+                        "Get default connect PWD failed"
+                    );
+                    ESP_UTILS_CHECK_FALSE_RETURN(
+                        std::holds_alternative<std::string>(default_connect_ssid), false, "Invalid default connect SSID type"
+                    );
+                    ESP_UTILS_CHECK_FALSE_RETURN(
+                        std::holds_alternative<std::string>(default_connect_pwd), false, "Invalid default connect PWD type"
+                    );
+                    auto &default_connect_ssid_str = std::get<std::string>(default_connect_ssid);
+                    auto &default_connect_pwd_str = std::get<std::string>(default_connect_pwd);
 
-                if ((default_connect_ssid_str.size() > 0) &&
-                        strcmp((const char *)ap_info[i].ssid, default_connect_ssid_str.c_str()) == 0) {
-                    ESP_UTILS_LOGD("Found default AP(%s), try to connect later", default_connect_ssid_str.c_str());
-                    _wlan_connecting_info.first = getWlanDataFromApInfo(ap_info[i]);
-                    _wlan_connecting_info.second = default_connect_pwd_str;
+                    if ((default_connect_ssid_str.size() > 0) &&
+                            strcmp((const char *)ap_info[i].ssid, default_connect_ssid_str.c_str()) == 0) {
+                        ESP_UTILS_LOGD("Found default AP(%s), try to connect later", default_connect_ssid_str.c_str());
+                        _wlan_connecting_info.first = getWlanDataFromApInfo(ap_info[i]);
+                        _wlan_connecting_info.second = default_connect_pwd_str;
 
-                    if (!ui.checkInitialized() ||
-                            !ui.screen_wlan.checkConnectedVisible() ||
-                            (ui.screen_wlan.getConnectedState() != SettingsUI_ScreenWlan::ConnectState::DISCONNECT)) {
-                        asyncWlanConnect(WLAN_SCAN_CONNECT_AP_DELAY_MS);
+                        if (!ui.checkInitialized() ||
+                                !ui.screen_wlan.checkConnectedVisible() ||
+                                (ui.screen_wlan.getConnectedState() != SettingsUI_ScreenWlan::ConnectState::DISCONNECT)) {
+                            asyncWlanConnect(WLAN_SCAN_CONNECT_AP_DELAY_MS);
+                        }
                     }
                 }
+                psk_flag = (ap_info[i].authmode != WIFI_AUTH_OPEN);
+                if (ap_info[i].rssi <= -70) {
+                    signal_level = SettingsUI_ScreenWlan::SignalLevel::WEAK;
+                } else if (ap_info[i].rssi <= -50) {
+                    signal_level = SettingsUI_ScreenWlan::SignalLevel::MODERATE;
+                } else {
+                    signal_level = SettingsUI_ScreenWlan::SignalLevel::GOOD;
+                }
+                temp_available_data.push_back(
+                    SettingsUI_ScreenWlan::WlanData{std::string((char *)ap_info[i].ssid), psk_flag, signal_level}
+                );
             }
-            psk_flag = (ap_info[i].authmode != WIFI_AUTH_OPEN);
-            if (ap_info[i].rssi <= -70) {
-                signal_level = SettingsUI_ScreenWlan::SignalLevel::WEAK;
-            } else if (ap_info[i].rssi <= -50) {
-                signal_level = SettingsUI_ScreenWlan::SignalLevel::MODERATE;
-            } else {
-                signal_level = SettingsUI_ScreenWlan::SignalLevel::GOOD;
-            }
-            temp_available_data.push_back(
-                SettingsUI_ScreenWlan::WlanData{std::string((char *)ap_info[i].ssid), psk_flag, signal_level}
-            );
+            std::lock_guard<std::mutex> lock(_ui_wlan_available_data_mutex);
+            _ui_wlan_available_data = std::move(temp_available_data);
+            break;
         }
-        std::lock_guard<std::mutex> lock(_ui_wlan_available_data_mutex);
-        _ui_wlan_available_data = std::move(temp_available_data);
-        break;
-    }
-    default:
-        break;
+        default:
+            break;
+        }
     }
 
     app.getCore()->lockLv();
@@ -2765,60 +2777,67 @@ bool SettingsManager::processOnWlanUI_Thread()
     });
 
     // Process system UI
-    switch (wlan_event_id) {
-    case WIFI_EVENT_STA_START:
-        // Show status bar WLAN icon
-        quick_settings.setWifiIconState(QuickSettings::WifiState::DISCONNECTED);
-        if (!_ui_wlan_softap_visible) {
-            ESP_UTILS_CHECK_FALSE_RETURN(toggleWlanScanTimer(true), false, "Toggle WLAN scan timer failed");
-        }
-        break;
-    case WIFI_EVENT_STA_STOP:
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            quick_settings.setWifiIconState(QuickSettings::WifiState::CLOSED), false, "Set WLAN icon state failed"
-        );
-        ESP_UTILS_CHECK_FALSE_RETURN(toggleWlanScanTimer(false), false, "Toggle WLAN scan timer failed");
-        break;
-    case WIFI_EVENT_STA_CONNECTED: {
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            toggleWlanScanTimer(_ui_current_screen == UI_Screen::WIRELESS_WLAN, true), false, "Toggle WLAN scan timer failed"
-        );
-        wifi_ap_record_t ap_info = {};
-        ESP_UTILS_CHECK_FALSE_RETURN(esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK, false, "Get AP info failed");
-        auto data = getWlanDataFromApInfo(ap_info);
-        ESP_UTILS_LOGI("Connected to AP(%s, %d)", data.ssid.c_str(), data.signal_level);
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            quick_settings.setWifiIconState(static_cast<QuickSettings::WifiState>(data.signal_level + 1)), false,
-            "Set WLAN icon state failed"
-        );
-        if (!isTimeSync()) {
-            if (!_wlan_time_sync_thread.joinable()) {
-                esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
-                    .name = WLAN_TIME_SYNC_THREAD_NAME,
-                    .stack_size = WLAN_TIME_SYNC_THREAD_STACK_SIZE,
-                    .stack_in_ext = WLAN_TIME_SYNC_THREAD_STACK_CAPS_EXT,
-                });
-                _wlan_time_sync_thread = boost::thread([this]() {
-                    ESP_UTILS_LOGD("Update time start");
-                    app_sntp_init();
-                    ESP_UTILS_LOGD("Update time end");
-                });
-            } else {
-                ESP_UTILS_LOGD("Update time thread is running");
+    if (is_wifi_event) {
+        switch (event_id) {
+        case WIFI_EVENT_STA_START:
+            // Show status bar WLAN icon
+            quick_settings.setWifiIconState(QuickSettings::WifiState::DISCONNECTED);
+            if (!_ui_wlan_softap_visible) {
+                ESP_UTILS_CHECK_FALSE_RETURN(toggleWlanScanTimer(true), false, "Toggle WLAN scan timer failed");
             }
-        } else {
-            ESP_UTILS_LOGD("Time is synchronized");
+            break;
+        case WIFI_EVENT_STA_STOP:
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                quick_settings.setWifiIconState(QuickSettings::WifiState::CLOSED), false, "Set WLAN icon state failed"
+            );
+            ESP_UTILS_CHECK_FALSE_RETURN(toggleWlanScanTimer(false), false, "Toggle WLAN scan timer failed");
+            break;
+        case WIFI_EVENT_STA_DISCONNECTED: {
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                quick_settings.setWifiIconState(QuickSettings::WifiState::DISCONNECTED), false, "Set WLAN icon state failed"
+            );
+            break;
         }
-        break;
-    }
-    case WIFI_EVENT_STA_DISCONNECTED: {
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            quick_settings.setWifiIconState(QuickSettings::WifiState::DISCONNECTED), false, "Set WLAN icon state failed"
-        );
-        break;
-    }
-    default:
-        break;
+        default:
+            break;
+        }
+    } else {
+        switch (event_id) {
+        case IP_EVENT_STA_GOT_IP: {
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                toggleWlanScanTimer(_ui_current_screen == UI_Screen::WIRELESS_WLAN, true), false, "Toggle WLAN scan timer failed"
+            );
+            wifi_ap_record_t ap_info = {};
+            ESP_UTILS_CHECK_FALSE_RETURN(esp_wifi_sta_get_ap_info(&ap_info) == ESP_OK, false, "Get AP info failed");
+            auto data = getWlanDataFromApInfo(ap_info);
+            ESP_UTILS_LOGI("Connected to AP(%s, %d)", data.ssid.c_str(), data.signal_level);
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                quick_settings.setWifiIconState(static_cast<QuickSettings::WifiState>(data.signal_level + 1)), false,
+                "Set WLAN icon state failed"
+            );
+            if (!isTimeSync()) {
+                if (!_wlan_time_sync_thread.joinable()) {
+                    esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
+                        .name = WLAN_TIME_SYNC_THREAD_NAME,
+                        .stack_size = WLAN_TIME_SYNC_THREAD_STACK_SIZE,
+                        .stack_in_ext = WLAN_TIME_SYNC_THREAD_STACK_CAPS_EXT,
+                    });
+                    _wlan_time_sync_thread = boost::thread([this]() {
+                        ESP_UTILS_LOGD("Update time start");
+                        app_sntp_init();
+                        ESP_UTILS_LOGD("Update time end");
+                    });
+                } else {
+                    ESP_UTILS_LOGD("Update time thread is running");
+                }
+            } else {
+                ESP_UTILS_LOGD("Time is synchronized");
+            }
+            break;
+        }
+        default:
+            break;
+        }
     }
 
     if (!ui.checkInitialized()) {
@@ -2827,42 +2846,38 @@ bool SettingsManager::processOnWlanUI_Thread()
     }
 
     // Process APP UI
-    switch (wlan_event_id) {
-    case WIFI_EVENT_STA_START:
-        // ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanAvailable(false), false, "Update UI screen WLAN available failed");
-        // ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed");
-        // ESP_UTILS_CHECK_FALSE_RETURN(ui.screen_wlan.setSoftAPVisible(true), false, "Set softap visible failed");
-        break;
-    case WIFI_EVENT_STA_STOP:
-        // ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanAvailable(false), false, "Update UI screen WLAN available failed");
-        // ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed");
-        // ESP_UTILS_CHECK_FALSE_RETURN(ui.screen_wlan.setSoftAPVisible(false), false, "Set softap visible failed");
-        break;
-    case WIFI_EVENT_STA_CONNECTED: {
-        ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed");
-        break;
-    }
-    case WIFI_EVENT_STA_DISCONNECTED: {
-        if (_is_wlan_force_connecting) {
-            _is_wlan_force_connecting = false;
-            ESP_UTILS_LOGD("Ignore disconnect event when force connecting");
+    if (is_wifi_event) {
+        switch (event_id) {
+        case WIFI_EVENT_STA_DISCONNECTED: {
+            if (_is_wlan_force_connecting) {
+                _is_wlan_force_connecting = false;
+                ESP_UTILS_LOGD("Ignore disconnect event when force connecting");
+                break;
+            }
+            if (_is_wlan_retry_connecting) {
+                ESP_UTILS_LOGD("Ignore disconnect event when retry connecting");
+                break;
+            }
+            // Clear connected WLAN data
+            _wlan_connected_info = {};
+            ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed");
             break;
         }
-        if (_is_wlan_retry_connecting) {
-            ESP_UTILS_LOGD("Ignore disconnect event when retry connecting");
+        case WIFI_EVENT_SCAN_DONE:
+            ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanAvailable(false), false, "Update UI screen WLAN available failed");
+            break;
+        default:
             break;
         }
-        // Clear connected WLAN data
-        _wlan_connected_info = {};
-        ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed");
-        break;
-    }
-    case WIFI_EVENT_SCAN_DONE:
-        ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanAvailable(false), false, "Update UI screen WLAN available failed");
-        break;
-    default:
-        ESP_UTILS_LOGD("Ignore WLAN event(%d)", wlan_event_id);
-        break;
+    } else {
+        switch (event_id) {
+        case IP_EVENT_STA_GOT_IP: {
+            ESP_UTILS_CHECK_FALSE_RETURN(updateUI_ScreenWlanConnected(false), false, "Update UI screen WLAN connected failed");
+            break;
+        }
+        default:
+            break;
+        }
     }
 
     return true;
@@ -3080,95 +3095,106 @@ bool SettingsManager::processOnUI_ScreenWlanGestureEvent(lv_event_t *e)
     return true;
 }
 
-bool SettingsManager::processOnWlanEventHandler(int event_id, void *event_data)
+bool SettingsManager::processOnWlanEventHandler(WlanEvent event, void *event_data)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
-    ESP_UTILS_LOGD("Param: event_id(%d), event_data(0x%p)", event_id, event_data);
+    ESP_UTILS_LOGD("Param: event(%s), event_data(0x%p)", getWlanEventStr(event), event_data);
+
+    bool is_wifi_event = std::holds_alternative<wifi_event_t>(event);
+    auto event_id = is_wifi_event ?
+                    static_cast<int>(std::get<wifi_event_t>(event)) : static_cast<int>(std::get<ip_event_t>(event));
 
     std::unique_lock<std::mutex> lock(_wlan_event_mutex);
 
-    switch (event_id) {
-    case WIFI_EVENT_STA_START:
-        _wlan_general_state = WlanGeneraState::STARTED;
-        _wlan_scan_state = WlanScanState::SCAN_STOPPED;
-        break;
-    case WIFI_EVENT_STA_STOP:
-        _wlan_general_state = WlanGeneraState::STOPPED;
-        _wlan_scan_state = WlanScanState::SCAN_STOPPED;
-        break;
-    case WIFI_EVENT_STA_CONNECTED: {
-        _wlan_general_state = WlanGeneraState::CONNECTED;
-        _wlan_connect_retry_count = 0;
-        _is_wlan_retry_connecting = false;
-
-        {
-            esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
-                .name  = SAVE_WLAN_CONFIG_THREAD_NAME,
-                .stack_size = SAVE_WLAN_CONFIG_THREAD_STACK_SIZE,
-                .stack_in_ext = SAVE_WLAN_CONFIG_THREAD_STACK_CAPS_EXT,
-            });
-            boost::thread([this]() {
-                ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
-
-                ESP_UTILS_CHECK_FALSE_EXIT(
-                    saveWlanConfig(
-                        std::string((char *)_wlan_config.sta.ssid), std::string((char *)_wlan_config.sta.password)
-                    ), "Save WLAN config failed"
-                );
-            }).detach();
-        }
-
-        break;
-    }
-    case WIFI_EVENT_STA_DISCONNECTED: {
-        wifi_event_sta_disconnected_t *data = (wifi_event_sta_disconnected_t *)event_data;
-        ESP_UTILS_LOGD("Disconnect! (ssid: %s, reason: %d)", data->ssid, data->reason);
-        bool need_check_retry = (
-                                    !_is_wlan_force_connecting &&
-                                    checkIsWlanGeneralState(WlanGeneraState::CONNECTING) &&
-                                    (data->reason != WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT) &&
-                                    (data->reason != WIFI_REASON_AUTH_FAIL)
-                                );
-        _wlan_general_state = WlanGeneraState::DISCONNECTED;
-        if (need_check_retry) {
-            if (++_wlan_connect_retry_count <= WLAN_CONNECT_RETRY_MAX) {
-                ESP_UTILS_LOGD(
-                    "Retry connect to WLAN (%s %d/%d)", _wlan_connecting_info.first.ssid.c_str(),
-                    _wlan_connect_retry_count, WLAN_CONNECT_RETRY_MAX
-                );
-                _is_wlan_retry_connecting = true;
-            } else {
-                ESP_UTILS_LOGD("Retry connect to WLAN failed");
-                _is_wlan_retry_connecting = false;
-                _wlan_connect_retry_count = 0;
-                _wlan_connecting_info = {};
-            }
-        } else if (!_is_wlan_force_connecting) {
-            _wlan_connecting_info = {};
-            toggleWlanScanTimer(true);
-        }
-        break;
-    }
-    case WIFI_EVENT_SCAN_DONE:
-        if (_wlan_scan_state == WlanScanState::SCANNING) {
-            _wlan_scan_state = WlanScanState::SCAN_DONE;
-        } else {
+    if (is_wifi_event) {
+        switch (event_id) {
+        case WIFI_EVENT_STA_START:
+            _wlan_general_state = WlanGeneraState::STARTED;
             _wlan_scan_state = WlanScanState::SCAN_STOPPED;
+            break;
+        case WIFI_EVENT_STA_STOP:
+            _wlan_general_state = WlanGeneraState::STOPPED;
+            _wlan_scan_state = WlanScanState::SCAN_STOPPED;
+            break;
+        case WIFI_EVENT_STA_DISCONNECTED: {
+            wifi_event_sta_disconnected_t *data = (wifi_event_sta_disconnected_t *)event_data;
+            ESP_UTILS_LOGD("Disconnect! (ssid: %s, reason: %d)", data->ssid, data->reason);
+            bool need_check_retry = (
+                                        !_is_wlan_force_connecting &&
+                                        checkIsWlanGeneralState(WlanGeneraState::CONNECTING) &&
+                                        (data->reason != WIFI_REASON_4WAY_HANDSHAKE_TIMEOUT) &&
+                                        (data->reason != WIFI_REASON_AUTH_FAIL)
+                                    );
+            _wlan_general_state = WlanGeneraState::DISCONNECTED;
+            if (need_check_retry) {
+                if (++_wlan_connect_retry_count <= WLAN_CONNECT_RETRY_MAX) {
+                    ESP_UTILS_LOGD(
+                        "Retry connect to WLAN (%s %d/%d)", _wlan_connecting_info.first.ssid.c_str(),
+                        _wlan_connect_retry_count, WLAN_CONNECT_RETRY_MAX
+                    );
+                    _is_wlan_retry_connecting = true;
+                } else {
+                    ESP_UTILS_LOGD("Retry connect to WLAN failed");
+                    _is_wlan_retry_connecting = false;
+                    _wlan_connect_retry_count = 0;
+                    _wlan_connecting_info = {};
+                }
+            } else if (!_is_wlan_force_connecting) {
+                _wlan_connecting_info = {};
+                toggleWlanScanTimer(true);
+            }
+            break;
         }
-        break;
-    default:
-        ESP_UTILS_LOGD("Ignore WLAN event(%d)", static_cast<int>(event_id));
-        return true;
+        case WIFI_EVENT_SCAN_DONE:
+            if (_wlan_scan_state == WlanScanState::SCANNING) {
+                _wlan_scan_state = WlanScanState::SCAN_DONE;
+            } else {
+                _wlan_scan_state = WlanScanState::SCAN_STOPPED;
+            }
+            break;
+        default:
+            ESP_UTILS_LOGD("Ignore WLAN event(%d)", static_cast<int>(event_id));
+            return true;
+        }
+    } else {
+        switch (event_id) {
+        case IP_EVENT_STA_GOT_IP: {
+            _wlan_general_state = WlanGeneraState::CONNECTED;
+            _wlan_connect_retry_count = 0;
+            _is_wlan_retry_connecting = false;
+
+            {
+                esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
+                    .name  = SAVE_WLAN_CONFIG_THREAD_NAME,
+                    .stack_size = SAVE_WLAN_CONFIG_THREAD_STACK_SIZE,
+                    .stack_in_ext = SAVE_WLAN_CONFIG_THREAD_STACK_CAPS_EXT,
+                });
+                boost::thread([this]() {
+                    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+                    ESP_UTILS_CHECK_FALSE_EXIT(
+                        saveWlanConfig(
+                            std::string((char *)_wlan_config.sta.ssid), std::string((char *)_wlan_config.sta.password)
+                        ), "Save WLAN config failed"
+                    );
+                }).detach();
+            }
+            break;
+        }
+        default:
+            ESP_UTILS_LOGD("Ignore WLAN event(%d)", static_cast<int>(event_id));
+            return true;
+        }
     }
 
-    if (event_id == WIFI_EVENT_SCAN_DONE) {
+    if (is_wifi_event && (event_id == WIFI_EVENT_SCAN_DONE)) {
         ESP_UTILS_LOGI("Set WLAN scan state(%s)", getWlanScanStateStr(_wlan_scan_state));
     } else {
         ESP_UTILS_LOGI("Set WLAN general state(%s)", getWlanGeneralStateStr(_wlan_general_state));
     }
 
-    _wlan_event_id = event_id;
+    _wlan_event = event;
     _is_wlan_event_updated = true;
     lock.unlock();
     _wlan_event_cv.notify_all();
@@ -3294,11 +3320,22 @@ bool SettingsManager::waitForWlanScanState(const std::vector<WlanScanState> &sta
     return true;
 }
 
-const char *SettingsManager::getWlanEventStr(wifi_event_t event)
+const char *SettingsManager::getWlanEventStr(WlanEvent event)
 {
-    auto it = _wlan_event_str.find(event);
-    if (it != _wlan_event_str.end()) {
-        return it->second.c_str();
+    bool is_wifi_event = std::holds_alternative<wifi_event_t>(event);
+    auto event_id = is_wifi_event ?
+                    static_cast<int>(std::get<wifi_event_t>(event)) : static_cast<int>(std::get<ip_event_t>(event));
+
+    if (is_wifi_event) {
+        auto it = _wlan_event_str.find(static_cast<wifi_event_t>(event_id));
+        if (it != _wlan_event_str.end()) {
+            return it->second.c_str();
+        }
+    } else {
+        auto it = _ip_event_str.find(static_cast<ip_event_t>(event_id));
+        if (it != _ip_event_str.end()) {
+            return it->second.c_str();
+        }
     }
 
     return "UNKNOWN";
@@ -3308,13 +3345,20 @@ void SettingsManager::onWlanEventHandler(void *arg, esp_event_base_t event_base,
 {
     ESP_UTILS_LOG_TRACE_GUARD();
 
-    ESP_UTILS_CHECK_FALSE_EXIT(event_base == WIFI_EVENT, "Invalid event");
+    ESP_UTILS_CHECK_FALSE_EXIT((event_base == WIFI_EVENT) || (event_base == IP_EVENT), "Invalid event");
 
     SettingsManager *manager = (SettingsManager *)arg;
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
 
+    WlanEvent wlan_event;
+    if (event_base == WIFI_EVENT) {
+        wlan_event = static_cast<wifi_event_t>(event_id);
+    } else if (event_base == IP_EVENT) {
+        wlan_event = static_cast<ip_event_t>(event_id);
+    }
+
     ESP_UTILS_CHECK_FALSE_EXIT(
-        manager->processOnWlanEventHandler(static_cast<int>(event_id), event_data), "Process WLAN event failed"
+        manager->processOnWlanEventHandler(wlan_event, event_data), "Process WLAN event failed"
     );
 }
 

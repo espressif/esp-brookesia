@@ -127,7 +127,8 @@ private:
     bool playRandomAudio(const RandomAudios &audios);
     std::string getAudioName(AudioType type) const;
 
-    bool processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id, void *event_data);
+    bool processOnWiFiEvent(int32_t event_id, void *event_data);
+    bool processOnIpEvent(int32_t event_id, void *event_data);
 
     struct {
         int is_begun: 1;
@@ -150,6 +151,7 @@ private:
     boost::condition_variable_any _audio_event_cv;
 
     esp_event_handler_instance_t _wifi_event_handler = nullptr;
+    esp_event_handler_instance_t _ip_event_handler = nullptr;
 
     inline static std::mutex _instance_mutex;
     inline static std::shared_ptr<AI_Buddy> _instance;
