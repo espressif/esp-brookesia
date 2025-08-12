@@ -44,7 +44,6 @@ static esp_lcd_panel_handle_t panel_handle = NULL;
 static i2c_master_bus_handle_t i2c_handle = NULL;
 static sdmmc_card_t *bsp_sdcard = NULL;    // Global uSD card handler
 static bool i2c_initialized = false;
-static uint8_t head_led_brightness = 0;
 
 esp_err_t bsp_i2c_init(void)
 {
@@ -532,55 +531,6 @@ void bsp_display_unlock(void)
     lvgl_port_unlock();
 }
 
-esp_err_t bsp_head_led_brightness_init(void)
-{
-    // Setup LEDC peripheral for PWM backlight control
-    const ledc_channel_config_t LCD_backlight_channel = {
-        .gpio_num = BSP_HEAD_LED,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = CONFIG_BSP_HEAD_LED_LEDC_CH,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER_0,
-        .duty = 0,
-        .hpoint = 0,
-        .flags.output_invert = 1, // Invert the signal to drive the LED
-    };
-    const ledc_timer_config_t LCD_backlight_timer = {
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_10_BIT,
-        .timer_num = LEDC_TIMER_0,
-        .freq_hz = 4000,
-        .clk_cfg = LEDC_AUTO_CLK
-    };
-
-    BSP_ERROR_CHECK_RETURN_ERR(ledc_timer_config(&LCD_backlight_timer));
-    BSP_ERROR_CHECK_RETURN_ERR(ledc_channel_config(&LCD_backlight_channel));
-    bsp_head_led_brightness_set(100); // LED on
-
-    return ESP_OK;
-}
-
-esp_err_t bsp_head_led_brightness_set(int brightness_percent)
-{
-    if (brightness_percent > 100) {
-        brightness_percent = 100;
-    }
-    if (brightness_percent < 0) {
-        brightness_percent = 0;
-    }
-
-    ESP_LOGD(TAG, "Setting led backlight: %d%%", brightness_percent);
-    uint32_t duty_cycle = (1023 * brightness_percent) / 100; // LEDC resolution set to 10bits, thus: 100% = 1023
-    BSP_ERROR_CHECK_RETURN_ERR(ledc_set_duty(LEDC_LOW_SPEED_MODE, CONFIG_BSP_HEAD_LED_LEDC_CH, duty_cycle));
-    BSP_ERROR_CHECK_RETURN_ERR(ledc_update_duty(LEDC_LOW_SPEED_MODE, CONFIG_BSP_HEAD_LED_LEDC_CH));
-    head_led_brightness = brightness_percent;
-    return ESP_OK;
-}
-
-uint8_t bsp_head_led_brightness_get(void)
-{
-    return head_led_brightness;
-}
 
 esp_err_t bsp_power_init(bool power_en)
 {
@@ -594,7 +544,6 @@ esp_err_t bsp_power_init(bool power_en)
     ESP_ERROR_CHECK(gpio_config(&power_gpio_config));
 
     gpio_set_level(BSP_POWER_OFF, !power_en);
-    bsp_head_led_brightness_init();
 #if defined(BSP_POWER_CODEC_EN)
     gpio_set_level(BSP_POWER_CODEC_EN, power_en);
     ESP_LOGI(TAG, "Using PCB version V1.2");
