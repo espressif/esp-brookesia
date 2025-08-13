@@ -11,7 +11,11 @@
 extern "C" {
 #endif
 
-void app_sntp_init(void);
+bool app_sntp_init(void);
+
+bool app_sntp_start(void);
+
+bool app_sntp_is_time_synced(void);
 
 #ifdef __cplusplus
 }

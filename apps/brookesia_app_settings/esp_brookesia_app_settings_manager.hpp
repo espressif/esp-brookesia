@@ -263,7 +263,6 @@ private:
     static const char *getWlanEventStr(WlanEvent event);
     static void onWlanEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     SettingsUI_ScreenWlan::WlanData getWlanDataFromApInfo(wifi_ap_record_t &ap_info);
-    static bool isTimeSync();
 
     UI_Screen _ui_current_screen;
     std::atomic<bool> _is_ui_initialized = false;

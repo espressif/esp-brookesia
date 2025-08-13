@@ -183,6 +183,8 @@ bool SettingsManager::processInit()
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
+    ESP_UTILS_CHECK_FALSE_RETURN(app_sntp_init(), false, "Init SNTP failed");
+
     ESP_UTILS_CHECK_FALSE_RETURN(initWlan(), false, "Init WLAN failed");
 
     auto &storage_service = StorageNVS::requestInstance();
@@ -506,8 +508,9 @@ bool SettingsManager::processRunUI_ScreenSettings()
     } else {
         lv_obj_clear_state(touch_sw, LV_STATE_CHECKED);
     }
-    lv_obj_add_event_cb(touch_sw, [] ( lv_obj_t *obj, lv_event_t event ) {
-        int s = lv_obj_has_state(obj, LV_STATE_CHECKED) ? 0 : 1;
+    lv_obj_add_event_cb(touch_sw, [] (lv_event_t *event) {
+        auto obj = lv_event_get_target_obj(event);
+        int s = lv_obj_has_state(obj, LV_STATE_CHECKED) ? 1 : 0;
         ESP_UTILS_CHECK_FALSE_EXIT(
             StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH, s), "Get Touch switch flag failed");
     }, LV_EVENT_VALUE_CHANGED, this);
@@ -2795,7 +2798,7 @@ bool SettingsManager::processOnWlanUI_Thread()
                 quick_settings.setWifiIconState(static_cast<QuickSettings::WifiState>(data.signal_level + 1)), false,
                 "Set WLAN icon state failed"
             );
-            if (!isTimeSync()) {
+            if (!app_sntp_is_time_synced()) {
                 if (!_wlan_time_sync_thread.joinable()) {
                     esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
                         .name = WLAN_TIME_SYNC_THREAD_NAME,
@@ -2804,7 +2807,12 @@ bool SettingsManager::processOnWlanUI_Thread()
                     });
                     _wlan_time_sync_thread = boost::thread([this]() {
                         ESP_UTILS_LOGD("Update time start");
-                        app_sntp_init();
+
+                        if (!app_sntp_start()) {
+                            ESP_UTILS_LOGE("Start SNTP failed, restart the device");
+                            esp_restart();
+                        }
+
                         ESP_UTILS_LOGD("Update time end");
                     });
                 } else {
@@ -3357,16 +3365,6 @@ SettingsUI_ScreenWlan::WlanData SettingsManager::getWlanDataFromApInfo(wifi_ap_r
         std::string((char *)ap_info.ssid), (ap_info.authmode != WIFI_AUTH_OPEN) &&(ap_info.authmode != WIFI_AUTH_OWE),
         signal_level
     };
-}
-
-bool SettingsManager::isTimeSync()
-{
-    time_t now;
-    struct tm timeinfo;
-    time(&now);
-    localtime_r(&now, &timeinfo);
-
-    return (timeinfo.tm_year > (2020 - 1900));
 }
 
 } // namespace esp_brookesia::apps

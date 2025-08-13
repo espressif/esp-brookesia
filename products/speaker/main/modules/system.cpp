@@ -614,6 +614,8 @@ static bool check_whether_enter_developer_mode()
 
 static void touch_sensor_switch()
 {
+    static bool is_callback_registered = false;
+
     auto &storage_service = StorageNVS::requestInstance();
     StorageNVS::Value value;
     ESP_UTILS_CHECK_FALSE_EXIT(
@@ -623,16 +625,18 @@ static void touch_sensor_switch()
     auto enable = std::get<int>(value);
     ESP_UTILS_LOGI("switch touch to %d", enable);
     button_handle_t btn = touch_sensor.get_button_handle();
-    if (enable) {
+    if (enable && !is_callback_registered) {
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_SINGLE_CLICK, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_LONG_PRESS_START, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_PRESS_DOWN, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_register_cb(btn, BUTTON_PRESS_UP, NULL, touch_btn_event_cb, NULL), "Failed to register button event callback");
-    } else {
+        is_callback_registered = true;
+    } else if (!enable && is_callback_registered) {
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_SINGLE_CLICK, NULL), "Failed to unregister button event callback");
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_LONG_PRESS_START, NULL), "Failed to unregister button event callback");
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_PRESS_DOWN, NULL), "Failed to unregister button event callback");
         ESP_UTILS_CHECK_FALSE_EXIT(ESP_OK == iot_button_unregister_cb(btn, BUTTON_PRESS_UP, NULL), "Failed to unregister button event callback");
+        is_callback_registered = false;
     }
 }
 
