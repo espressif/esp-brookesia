@@ -30,7 +30,11 @@ IGNORE_WARNINGS = [
     r'warning: \'ADC_ATTEN_DB_11\' is deprecated',
     r'warning: unused variable \'ret\'',
     r'WARNING  warning: unknown kconfig symbol',
-    r'warning:',
+    r'espressif__i2c_bus/Kconfig:6: warning:',
+    r'warning: #warning High Performance Mode',
+    r'warning: #warning HPM-DC',
+    r'warning: #warning To enable this feature',
+    r'warning: #warning If your bootloader does not support it',
 ]
 
 def _get_idf_version():

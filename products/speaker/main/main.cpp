@@ -40,13 +40,11 @@ extern "C" void app_main()
         });
         boost::thread([ = ]() {
             while (1) {
-                // heap_caps_check_integrity_all(true);
-
                 esp_utils_mem_print_info();
 
                 audio_sys_get_real_time_stats();
 
-                vTaskDelay(pdMS_TO_TICKS(5000));
+                boost::this_thread::sleep_for(boost::chrono::seconds(5));
             }
         }).detach();
     }

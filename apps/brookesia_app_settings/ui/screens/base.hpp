@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -32,17 +32,17 @@ enum class SettingsUI_ScreenBaseObject {
 };
 
 struct SettingsUI_ScreenBaseHeaderData {
-    ESP_Brookesia_StyleSize_t size;
+    gui::StyleSize size;
     uint16_t align_top_offset;
-    ESP_Brookesia_StyleColor_t background_color;
-    ESP_Brookesia_StyleFont_t title_text_font;
-    ESP_Brookesia_StyleColor_t title_text_color;
+    gui::StyleColor background_color;
+    gui::StyleFont title_text_font;
+    gui::StyleColor title_text_color;
 };
 
 struct SettingsUI_ScreenBaseContentData {
-    ESP_Brookesia_StyleSize_t size;
+    gui::StyleSize size;
     uint16_t align_bottom_offset;
-    ESP_Brookesia_StyleColor_t background_color;
+    gui::StyleColor background_color;
     uint16_t row_pad;
     uint16_t top_pad;
     uint16_t bottom_pad;
@@ -51,18 +51,18 @@ struct SettingsUI_ScreenBaseContentData {
 };
 
 struct SettingsUI_ScreenBaseHeaderNavigation {
-    ESP_Brookesia_StyleAlign_t align;
+    gui::StyleAlign align;
     uint16_t main_column_pad;
-    ESP_Brookesia_StyleSize_t icon_size;
-    ESP_Brookesia_StyleImage_t icon_image;
-    ESP_Brookesia_StyleFont_t title_text_font;
-    ESP_Brookesia_StyleColor_t title_text_color;
+    gui::StyleSize icon_size;
+    gui::StyleImage icon_image;
+    gui::StyleFont title_text_font;
+    gui::StyleColor title_text_color;
 };
 
 struct SettingsUI_ScreenBaseData {
     struct {
-        ESP_Brookesia_StyleSize_t size;
-        ESP_Brookesia_StyleColor_t background_color;
+        gui::StyleSize size;
+        gui::StyleColor background_color;
     } screen;
     SettingsUI_ScreenBaseHeaderData header;
     SettingsUI_ScreenBaseHeaderNavigation header_navigation;
@@ -85,7 +85,7 @@ using SettingsUI_ScreenBaseCellContainerMap =
 class SettingsUI_ScreenBase {
 public:
     SettingsUI_ScreenBase(
-        speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data, SettingsUI_ScreenBaseType type
+        systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data, SettingsUI_ScreenBaseType type
     );
     ~SettingsUI_ScreenBase();
 
@@ -124,29 +124,29 @@ public:
     {
         return _screen_object;
     }
-    ESP_Brookesia_CoreEvent::ID getNavigaitionClickEventID() const
+    systems::base::Event::ID getNavigaitionClickEventID() const
     {
         return _navigation_click_event_id;
     }
 
     static bool calibrateCommonHeader(
-        const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+        const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseHeaderData &data
     );
     static bool calibrateCommonContent(
-        const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+        const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseContentData &data
     );
     static bool calibrateHeaderNavigation(
-        const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+        const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseHeaderNavigation &data
     );
     static bool calibrateData(
-        const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+        const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseData &data
     );
 
-    speaker::App &app;
+    systems::speaker::App &app;
     const SettingsUI_ScreenBaseData &data;
 
 protected:
@@ -200,7 +200,7 @@ private:
     } _flags;
     // Don't use smart pointers here, avoid deleting screen twice
     lv_obj_t *_screen_object;
-    ESP_Brookesia_CoreEvent::ID _navigation_click_event_id;
+    systems::base::Event::ID _navigation_click_event_id;
     SettingsUI_ScreenBaseType _type;
     std::array<ESP_Brookesia_LvObj_t, (int)SettingsUI_ScreenBaseObject::MAX> _objects;
     std::map<int, std::unique_ptr<SettingsUI_WidgetCellContainer>> _cell_containers_map;

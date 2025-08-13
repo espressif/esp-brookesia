@@ -5,13 +5,13 @@
  */
 #include <algorithm>
 #include "esp_brookesia_systems_internal.h"
-#if !ESP_BROOKESIA_CORE_APP_ENABLE_DEBUG_LOG
+#if !ESP_BROOKESIA_BASE_APP_ENABLE_DEBUG_LOG
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
-#include "private/esp_brookesia_core_utils.hpp"
+#include "private/esp_brookesia_base_utils.hpp"
 #include "lvgl/esp_brookesia_lv.hpp"
-#include "esp_brookesia_core.hpp"
-#include "esp_brookesia_core_app.hpp"
+#include "esp_brookesia_base_context.hpp"
+#include "esp_brookesia_base_app.hpp"
 
 #define RESOURCE_LOOP_COUNT_MAX     (1000)
 
@@ -20,33 +20,33 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-namespace esp_brookesia::systems {
+namespace esp_brookesia::systems::base {
 
-bool CoreApp::checkInitialized(void) const
+bool App::checkInitialized(void) const
 {
-    return (_id >= APP_ID_MIN) && (_core != nullptr) && (_core->getCoreManager().getInstalledApp(_id) == this);
+    return (_id >= APP_ID_MIN) && (_system_context != nullptr) && (_system_context->getManager().getInstalledApp(_id) == this);
 }
 
-bool CoreApp::notifyCoreClosed(void) const
+bool App::notifyCoreClosed(void) const
 {
     lv_obj_t *event_obj = nullptr;
     lv_event_code_t event_code = _LV_EVENT_LAST;
     lv_res_t res = LV_RES_OK;
-    ESP_Brookesia_CoreAppEventData_t event_data = {
+    Context::AppEventData event_data = {
         .id = _id,
-        .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_STOP,
+        .type = Context::AppEventType::STOP,
         .data = nullptr
     };
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_LOGD("App(%s: %d) notify core closed", getName(), _id);
+    ESP_UTILS_LOGD("App(%s: %d) notify closed", getName(), _id);
 
     if (_flags.is_closing) {
         return true;
     }
 
-    event_obj = _core->getEventObject();
-    event_code = _core->getAppEventCode();
+    event_obj = _system_context->getEventObject();
+    event_code = _system_context->getAppEventCode();
     ESP_UTILS_CHECK_FALSE_RETURN(event_obj != nullptr, false, "Event object is invalid");
     ESP_UTILS_CHECK_FALSE_RETURN(esp_brookesia_core_utils_check_event_code_valid(event_code), false, "Event code is invalid");
 
@@ -56,12 +56,12 @@ bool CoreApp::notifyCoreClosed(void) const
     return true;
 }
 
-void CoreApp::setLauncherIconImage(const gui::StyleImage &icon_image)
+void App::setLauncherIconImage(const gui::StyleImage &icon_image)
 {
-    _core_active_data.launcher_icon = icon_image;
+    _active_config.launcher_icon = icon_image;
 }
 
-bool CoreApp::startRecordResource(void)
+bool App::startRecordResource(void)
 {
     lv_display_t *disp = nullptr;
     lv_area_t &visual_area = _app_style.calibrate_visual_area;
@@ -69,7 +69,7 @@ bool CoreApp::startRecordResource(void)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) start record resource", getName(), _id);
 
-    disp = _core->getDisplayDevice();
+    disp = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(disp, false, "Invalid display");
 
     if (_flags.is_resource_recording) {
@@ -77,7 +77,7 @@ bool CoreApp::startRecordResource(void)
         return true;
     }
 
-    if (_core_active_data.flags.enable_resize_visual_area) {
+    if (_active_config.flags.enable_resize_visual_area) {
         ESP_UTILS_LOGD("Resieze screen to visual area[(%d,%d)-(%d,%d)]", visual_area.x1, visual_area.y1, visual_area.x2,
                        visual_area.y2);
         _display_style.w = disp->hor_res;
@@ -93,7 +93,7 @@ bool CoreApp::startRecordResource(void)
     return true;
 }
 
-bool CoreApp::endRecordResource(void)
+bool App::endRecordResource(void)
 {
     bool ret = true;
     uint32_t resource_loop_count = 0;
@@ -111,7 +111,7 @@ bool CoreApp::endRecordResource(void)
         return true;
     }
 
-    disp = _core->getDisplayDevice();
+    disp = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(disp, false, "Invalid display");
 
     // Screen
@@ -126,7 +126,7 @@ bool CoreApp::endRecordResource(void)
             _resource_screens.push_back(screen);
             _resource_screen_count++;
             // Move screens to visual area when loaded only if needed
-            if (_core_active_data.flags.enable_resize_visual_area) {
+            if (_active_config.flags.enable_resize_visual_area) {
                 lv_obj_set_pos(screen, visual_area.x1, visual_area.y1);
                 lv_obj_add_event_cb(screen, onResizeScreenLoadedEventCallback, LV_EVENT_SCREEN_LOAD_START, this);
                 // Avoid resetting the position of the previous screen when using animations with `lv_scr_load_anim()`
@@ -196,7 +196,7 @@ bool CoreApp::endRecordResource(void)
         ESP_UTILS_LOGD("record animation(%d): ", _resource_anim_count);
     }
 
-    if (_core_active_data.flags.enable_resize_visual_area) {
+    if (_active_config.flags.enable_resize_visual_area) {
         ESP_UTILS_LOGD("Resize screen back to display size(%d x %d)", _display_style.w, _display_style.h);
         disp->hor_res = _display_style.w;
         disp->ver_res = _display_style.h;
@@ -206,7 +206,7 @@ bool CoreApp::endRecordResource(void)
     return ret;
 }
 
-bool CoreApp::cleanRecordResource(void)
+bool App::cleanRecordResource(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) clean resource", getName(), _id);
@@ -220,7 +220,7 @@ bool CoreApp::cleanRecordResource(void)
     lv_timer_t *timer_node = nullptr;
     lv_anim_t *anim_node = nullptr;
 
-    disp = _core->getDisplayDevice();
+    disp = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(disp, false, "Invalid display");
 
     // Screen
@@ -333,26 +333,26 @@ bool CoreApp::cleanRecordResource(void)
     return ret;
 }
 
-bool CoreApp::processInstall(ESP_Brookesia_Core *core, int id)
+bool App::processInstall(Context *system_context, int id)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
-    ESP_UTILS_CHECK_NULL_RETURN(_core_init_data.name, false, "App name is invalid");
-    ESP_UTILS_CHECK_NULL_RETURN(core, false, "Core is invalid");
+    ESP_UTILS_CHECK_NULL_RETURN(_init_config.name, false, "App name is invalid");
+    ESP_UTILS_CHECK_NULL_RETURN(system_context, false, "Context is invalid");
 
-    ESP_UTILS_LOGD("App(%s: %d) install", _core_init_data.name, id);
+    ESP_UTILS_LOGD("App(%s: %d) install", _init_config.name, id);
 
-    _core_active_data = _core_init_data;
+    _active_config = _init_config;
     ESP_UTILS_CHECK_FALSE_RETURN(
-        core->getCoreHome().calibrateCoreObjectSize(core->getCoreData().screen_size, _core_active_data.screen_size),
+        system_context->getDisplay().calibrateCoreObjectSize(system_context->getData().screen_size, _active_config.screen_size),
         false, "Calibrate screen size failed"
     );
-    _core = core;
+    _system_context = system_context;
     _id = id;
 
     ESP_UTILS_CHECK_FALSE_GOTO(beginExtra(), err, "Begin extra failed");
     ESP_UTILS_CHECK_FALSE_GOTO(init(), err, "Init failed");
 
-    _status = ESP_BROOKESIA_CORE_APP_STATUS_CLOSED;
+    _status = Status::CLOSED;
 
     return true;
 
@@ -362,13 +362,13 @@ err:
     return false;
 }
 
-bool CoreApp::processUninstall(void)
+bool App::processUninstall(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) uninstall", getName(), _id);
 
-    _core = nullptr;
-    _core_active_data = {};
+    _system_context = nullptr;
+    _active_config = {};
     _status = Status::UNINSTALLED;
     _id = -1;
     _flags = {};
@@ -378,7 +378,7 @@ bool CoreApp::processUninstall(void)
     _resource_anim_count = 0;
     _resource_head_screen_index = 0;
     _resource_screen_count = 0;
-    if (_core_active_data.flags.enable_default_screen && checkLvObjIsValid(_active_screen)) {
+    if (_active_config.flags.enable_default_screen && checkLvObjIsValid(_active_screen)) {
         lv_obj_del(_active_screen);
     }
     _active_screen = nullptr;
@@ -396,7 +396,7 @@ bool CoreApp::processUninstall(void)
     return true;
 }
 
-bool CoreApp::processRun()
+bool App::processRun()
 {
     bool ret = true;
 
@@ -411,7 +411,7 @@ bool CoreApp::processRun()
     ESP_UTILS_CHECK_FALSE_RETURN(saveRecentScreen(false), false, "Save recent screen before run failed");
     ESP_UTILS_CHECK_FALSE_RETURN(resetRecordResource(), false, "Reset record resource failed");
     ESP_UTILS_CHECK_FALSE_RETURN(startRecordResource(), false, "Start record resource failed");
-    if (_core_active_data.flags.enable_default_screen) {
+    if (_active_config.flags.enable_default_screen) {
         ESP_UTILS_CHECK_FALSE_RETURN(initDefaultScreen(), false, "Create active screen failed");
     }
     ESP_UTILS_CHECK_FALSE_RETURN(saveDisplayTheme(), false, "Save display theme failed");
@@ -437,7 +437,7 @@ err:
     return false;
 }
 
-bool CoreApp::processResume(void)
+bool App::processResume(void)
 {
     bool ret = true;
 
@@ -463,7 +463,7 @@ err:
     return false;
 }
 
-bool CoreApp::processPause(void)
+bool App::processPause(void)
 {
     bool ret = true;
 
@@ -488,7 +488,7 @@ err:
     return false;
 }
 
-bool CoreApp::processClose(bool is_app_active)
+bool App::processClose(bool is_app_active)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) close", getName(), _id);
@@ -510,16 +510,16 @@ bool CoreApp::processClose(bool is_app_active)
         if (!cleanResource()) {
             ESP_UTILS_LOGE("Clean resource failed");
         }
-        if (_core_active_data.flags.enable_recycle_resource) {
+        if (_active_config.flags.enable_recycle_resource) {
             ESP_UTILS_CHECK_FALSE_GOTO(cleanRecordResource(), err, "Clean record resource failed");
-        } else if (_core_active_data.flags.enable_default_screen) {
+        } else if (_active_config.flags.enable_default_screen) {
             ESP_UTILS_CHECK_FALSE_GOTO(cleanDefaultScreen(), err, "Clean active screen failed");
         }
     }
     ESP_UTILS_CHECK_FALSE_GOTO(loadDisplayTheme(), err, "Load display theme failed");
 
     _flags.is_closing = false;
-    _status = ESP_BROOKESIA_CORE_APP_STATUS_CLOSED;
+    _status = Status::CLOSED;
 
     return true;
 
@@ -529,7 +529,7 @@ err:
     return false;
 }
 
-bool CoreApp::setVisualArea(const lv_area_t &area)
+bool App::setVisualArea(const lv_area_t &area)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) set origin visual area[(%d,%d)-(%d,%d)]", getName(),
@@ -540,14 +540,14 @@ bool CoreApp::setVisualArea(const lv_area_t &area)
     return true;
 }
 
-bool CoreApp::calibrateVisualArea(void)
+bool App::calibrateVisualArea(void)
 {
     int visual_area_x = 0;
     int visual_area_y = 0;
     int visual_area_w = 0;
     int visual_area_h = 0;
     lv_area_t visual_area = _app_style.origin_visual_area;
-    const gui::StyleSize &screen_size = _core->getCoreData().screen_size;
+    const gui::StyleSize &screen_size = _system_context->getData().screen_size;
     const gui::StyleSize &app_size = getCoreActiveData().screen_size;
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -580,7 +580,7 @@ bool CoreApp::calibrateVisualArea(void)
     return true;
 }
 
-bool CoreApp::initDefaultScreen(void)
+bool App::initDefaultScreen(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) init default screen", getName(), _id);
@@ -598,7 +598,7 @@ bool CoreApp::initDefaultScreen(void)
     return true;
 }
 
-bool CoreApp::cleanDefaultScreen(void)
+bool App::cleanDefaultScreen(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) clean default active screen", getName(), _id);
@@ -613,12 +613,12 @@ bool CoreApp::cleanDefaultScreen(void)
     return true;
 }
 
-bool CoreApp::saveRecentScreen(bool check_valid)
+bool App::saveRecentScreen(bool check_valid)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) save recent screen", getName(), _id);
 
-    lv_obj_t *active_screen = lv_disp_get_scr_act(_core->getDisplayDevice());
+    lv_obj_t *active_screen = lv_disp_get_scr_act(_system_context->getDisplayDevice());
     ESP_UTILS_CHECK_FALSE_RETURN(active_screen != nullptr, false, "Invalid active screen");
 
     if (check_valid) {
@@ -630,7 +630,7 @@ bool CoreApp::saveRecentScreen(bool check_valid)
     return true;
 }
 
-bool CoreApp::loadRecentScreen(void)
+bool App::loadRecentScreen(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) load recent screen", getName(), _id);
@@ -651,7 +651,7 @@ bool CoreApp::loadRecentScreen(void)
     return true;
 }
 
-bool CoreApp::resetRecordResource(void)
+bool App::resetRecordResource(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) reset record resource", getName(), _id);
@@ -676,9 +676,9 @@ bool CoreApp::resetRecordResource(void)
     return true;
 }
 
-bool CoreApp::enableAutoClean(void)
+bool App::enableAutoClean(void)
 {
-    lv_obj_t *last_screen = _core->getDisplayDevice()->scr_to_load;
+    lv_obj_t *last_screen = _system_context->getDisplayDevice()->scr_to_load;
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) enable auto clean", getName(), _id);
@@ -695,7 +695,7 @@ bool CoreApp::enableAutoClean(void)
     return true;
 }
 
-bool CoreApp::saveDisplayTheme(void)
+bool App::saveDisplayTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *theme = nullptr;
@@ -703,7 +703,7 @@ bool CoreApp::saveDisplayTheme(void)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) save display theme", getName(), _id);
 
-    display = _core->getDisplayDevice();
+    display = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(display, false, "Invalid display");
 
     theme = lv_disp_get_theme(display);
@@ -714,7 +714,7 @@ bool CoreApp::saveDisplayTheme(void)
     return true;
 }
 
-bool CoreApp::loadDisplayTheme(void)
+bool App::loadDisplayTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *&theme = _display_style.theme;
@@ -722,7 +722,7 @@ bool CoreApp::loadDisplayTheme(void)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) load display theme", getName(), _id);
 
-    display = _core->getDisplayDevice();
+    display = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(display, false, "Invalid display");
 
     ESP_UTILS_CHECK_NULL_RETURN(theme, false, "Invalid display theme");
@@ -731,7 +731,7 @@ bool CoreApp::loadDisplayTheme(void)
     return true;
 }
 
-bool CoreApp::saveAppTheme(void)
+bool App::saveAppTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *theme = nullptr;
@@ -739,7 +739,7 @@ bool CoreApp::saveAppTheme(void)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) save app theme", getName(), _id);
 
-    display = _core->getDisplayDevice();
+    display = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(display, false, "Invalid display");
 
     theme = lv_disp_get_theme(display);
@@ -750,7 +750,7 @@ bool CoreApp::saveAppTheme(void)
     return true;
 }
 
-bool CoreApp::loadAppTheme(void)
+bool App::loadAppTheme(void)
 {
     lv_display_t *display = nullptr;
     lv_theme_t *&theme = _display_style.theme;
@@ -758,7 +758,7 @@ bool CoreApp::loadAppTheme(void)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("App(%s: %d) load app theme", getName(), _id);
 
-    display = _core->getDisplayDevice();
+    display = _system_context->getDisplayDevice();
     ESP_UTILS_CHECK_NULL_RETURN(display, false, "Invalid display");
 
     ESP_UTILS_CHECK_NULL_RETURN(theme, false, "Invalid app theme");
@@ -767,14 +767,14 @@ bool CoreApp::loadAppTheme(void)
     return true;
 }
 
-void CoreApp::onCleanResourceEventCallback(lv_event_t *event)
+void App::onCleanResourceEventCallback(lv_event_t *event)
 {
-    CoreApp *app = nullptr;
+    App *app = nullptr;
 
     ESP_UTILS_LOGD("App clean resource event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    app = (CoreApp *)lv_event_get_user_data(event);
+    app = (App *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(app, "Invalid app");
 
     ESP_UTILS_LOGD("Clean app(%s: %d) resources", app->getName(), app->_id);
@@ -783,25 +783,25 @@ void CoreApp::onCleanResourceEventCallback(lv_event_t *event)
     if (!app->cleanResource()) {
         ESP_UTILS_LOGE("Clean resource failed");
     }
-    if (app->_core_active_data.flags.enable_recycle_resource) {
+    if (app->_active_config.flags.enable_recycle_resource) {
         if (!app->cleanRecordResource()) {
             ESP_UTILS_LOGE("Clean record resource failed");
         }
-    } else if (app->_core_active_data.flags.enable_default_screen && !app->cleanDefaultScreen()) {
+    } else if (app->_active_config.flags.enable_default_screen && !app->cleanDefaultScreen()) {
         ESP_UTILS_LOGE("Clean default screen failed");
     }
 }
 
-void CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
+void App::onResizeScreenLoadedEventCallback(lv_event_t *event)
 {
-    CoreApp *app = nullptr;
+    App *app = nullptr;
     lv_obj_t *screen = nullptr;
     lv_area_t area = { 0 };
 
     ESP_UTILS_LOGD("App resize screen loaded event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    app = (CoreApp *)lv_event_get_user_data(event);
+    app = (App *)lv_event_get_user_data(event);
     screen = (lv_obj_t *)lv_event_get_target(event);
     ESP_UTILS_CHECK_NULL_EXIT(app, "Invalid app");
     ESP_UTILS_CHECK_NULL_EXIT(screen, "Invalid screen");
@@ -814,7 +814,7 @@ void CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 }
 
 // TODO
-// bool CoreApp::createAndloadTempScreen(void)
+// bool App::createAndloadTempScreen(void)
 // {
 //     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 //     ESP_UTILS_LOGD("App(%s: %d) create temp screen", getName(), _id);
@@ -822,15 +822,15 @@ void CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 //     _temp_screen = lv_obj_create(nullptr);
 //     ESP_UTILS_CHECK_NULL_RETURN(_temp_screen, false, "Create temp screen failed");
 
-//     lv_obj_set_style_bg_color(_temp_screen, lv_color_hex(_core->getCoreData().home.background.color.color), 0);
-//     lv_obj_set_style_bg_opa(_temp_screen, _core->getCoreData().home.background.color.opacity, 0);
+//     lv_obj_set_style_bg_color(_temp_screen, lv_color_hex(_system_context->getData().display.background.color.color), 0);
+//     lv_obj_set_style_bg_opa(_temp_screen, _system_context->getData().display.background.color.opacity, 0);
 //     lv_scr_load(_temp_screen);
 //     lv_obj_invalidate(_temp_screen);
 
 //     return true;
 // }
 
-// bool CoreApp::delTempScreen(void)
+// bool App::delTempScreen(void)
 // {
 //     ESP_UTILS_CHECK_FALSE_RETURN((_temp_screen != nullptr) && checkLvObjIsValid(_temp_screen), false, "Invalid temp screen");
 //     ESP_UTILS_LOGD("App(%s: %d) delete temp screen", getName(), _id);
@@ -841,4 +841,4 @@ void CoreApp::onResizeScreenLoadedEventCallback(lv_event_t *event)
 //     return true;
 // }
 
-}
+} // namespace esp_brookesia::systems::base

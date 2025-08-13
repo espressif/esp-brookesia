@@ -73,7 +73,7 @@ The [Navigation Bar](../systems/phone/widgets/navigation_bar/) provides navigati
 </div>
 
 - **Position**: Located at the bottom of the screen.
-- **Navigation Buttons**: Provides three buttons: "Back," "Home," and "Recents Screen," which control interface switching by clicking.
+- **Navigation Buttons**: Provides three buttons: "Back," "Display," and "Recents Screen," which control interface switching by clicking.
 - **Dynamic Adjustment**: Supports adjusting the button position order through stylesheet parameters.
 
 ### Recents Screen

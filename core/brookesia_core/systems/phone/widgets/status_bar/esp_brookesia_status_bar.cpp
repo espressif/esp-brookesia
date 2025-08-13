@@ -10,36 +10,24 @@
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
 #include "phone/private/esp_brookesia_phone_utils.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 #include "esp_brookesia_status_bar.hpp"
 
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_StatusBar::ESP_Brookesia_StatusBar(const ESP_Brookesia_Core &core, const ESP_Brookesia_StatusBarData_t &data, int battery_id,
-        int wifi_id):
-    _core(core),
-    _data(data),
-    _main_obj(nullptr),
-    _battery_id(battery_id),
-    _is_battery_initialed(false),
-    _battery_state(-1),
-    _is_battery_lable_out_of_area(false),
-    _battery_label(nullptr),
-    _wifi_id(wifi_id),
-    _clock_hour(-1),
-    _clock_min(-1),
-    _is_clock_out_of_area(false),
-    _clock_obj(nullptr),
-    _clock_hour_label(nullptr),
-    _clock_dot_label(nullptr),
-    _clock_min_label(nullptr),
-    _clock_period_label(nullptr)
+namespace esp_brookesia::systems::phone {
+
+StatusBar::StatusBar(base::Context &core, const StatusBar::Data &data, int battery_id, int wifi_id)
+    : _system_context(core)
+    , _data(data)
+    , _battery_id(battery_id)
+    , _wifi_id(wifi_id)
 {
 }
 
-ESP_Brookesia_StatusBar::~ESP_Brookesia_StatusBar()
+StatusBar::~StatusBar()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
     if (!del()) {
@@ -47,7 +35,7 @@ ESP_Brookesia_StatusBar::~ESP_Brookesia_StatusBar()
     }
 }
 
-bool ESP_Brookesia_StatusBar::begin(lv_obj_t *parent)
+bool StatusBar::begin(lv_obj_t *parent)
 {
     ESP_UTILS_LOGD("Begin(@0x%p)", this);
     ESP_UTILS_CHECK_NULL_RETURN(parent, false, "Invalid parent");
@@ -58,7 +46,7 @@ bool ESP_Brookesia_StatusBar::begin(lv_obj_t *parent)
     ESP_UTILS_CHECK_FALSE_GOTO(beginBattery(), err, "Begin battery failed");
     ESP_UTILS_CHECK_FALSE_GOTO(beginClock(), err, "Begin clock failed");
 
-    ESP_UTILS_CHECK_FALSE_RETURN(_core.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(_system_context.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
                                  "Register data update event callback failed");
 
     return true;
@@ -69,7 +57,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_StatusBar::del(void)
+bool StatusBar::del(void)
 {
     bool ret = true;
 
@@ -79,7 +67,7 @@ bool ESP_Brookesia_StatusBar::del(void)
         return true;
     }
 
-    if (_core.checkCoreInitialized() && !_core.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
+    if (_system_context.checkCoreInitialized() && !_system_context.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
         ESP_UTILS_LOGE("Unregister data update event callback failed");
         ret = false;
     }
@@ -102,16 +90,16 @@ bool ESP_Brookesia_StatusBar::del(void)
     return ret;
 }
 
-bool ESP_Brookesia_StatusBar::setVisualMode(ESP_Brookesia_StatusBarVisualMode_t mode) const
+bool StatusBar::setVisualMode(StatusBar::VisualMode mode) const
 {
     ESP_UTILS_LOGD("Set Visual Mode(%d)", mode);
     ESP_UTILS_CHECK_FALSE_RETURN(checkMainInitialized(), false, "Not initialized");
 
     switch (mode) {
-    case ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_HIDE:
+    case StatusBar::VisualMode::HIDE:
         lv_obj_add_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
         break;
-    case ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED:
+    case StatusBar::VisualMode::SHOW_FIXED:
         lv_obj_clear_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
         break;
     default:
@@ -121,23 +109,23 @@ bool ESP_Brookesia_StatusBar::setVisualMode(ESP_Brookesia_StatusBarVisualMode_t 
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::addIcon(const ESP_Brookesia_StatusBarIconData_t &data, uint8_t area_index, int id)
+bool StatusBar::addIcon(const StatusBarIcon::Data &data, uint8_t area_index, int id)
 {
     ESP_UTILS_LOGD("Add icon(%d) in area(%d)", id, area_index);
     ESP_UTILS_CHECK_FALSE_RETURN(checkMainInitialized(), false, "Not initialized");
 
-    shared_ptr<ESP_Brookesia_StatusBarIcon> icon = make_shared<ESP_Brookesia_StatusBarIcon>(data);
+    shared_ptr<StatusBarIcon> icon = make_shared<StatusBarIcon>(data);
     ESP_UTILS_CHECK_NULL_RETURN(icon, false, "Alloc icon failed");
 
-    ESP_UTILS_CHECK_FALSE_RETURN(icon->begin(_core, _area_objs[area_index].get()), false, "Init icon failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(icon->begin(_system_context, _area_objs[area_index].get()), false, "Init icon failed");
 
-    auto ret = _id_icon_map.insert(pair <int, shared_ptr<ESP_Brookesia_StatusBarIcon>> (id, icon));
+    auto ret = _id_icon_map.insert(pair <int, shared_ptr<StatusBarIcon>> (id, icon));
     ESP_UTILS_CHECK_FALSE_RETURN(ret.second, false, "Insert icon failed");
 
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::removeIcon(int id)
+bool StatusBar::removeIcon(int id)
 {
     ESP_UTILS_LOGD("Remove icon(%d)", id);
     ESP_UTILS_CHECK_FALSE_RETURN(checkMainInitialized(), false, "Not initialized");
@@ -151,9 +139,9 @@ bool ESP_Brookesia_StatusBar::removeIcon(int id)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::setIconState(int id, int state) const
+bool StatusBar::setIconState(int id, int state) const
 {
-    shared_ptr<ESP_Brookesia_StatusBarIcon> icon = nullptr;
+    shared_ptr<StatusBarIcon> icon = nullptr;
 
     ESP_UTILS_LOGD("Set icon(%d) state(%d)", id, state);
 
@@ -168,52 +156,52 @@ bool ESP_Brookesia_StatusBar::setIconState(int id, int state) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::checkVisible(void) const
+bool StatusBar::checkVisible(void) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkMainInitialized(), false, "Not initialized");
 
     return !lv_obj_has_flag(_main_obj.get(), LV_OBJ_FLAG_HIDDEN);
 }
 
-bool ESP_Brookesia_StatusBar::calibrateIconData(const ESP_Brookesia_StatusBarData_t &bar_data, const ESP_Brookesia_CoreHome &home,
-        ESP_Brookesia_StatusBarIconData_t &icon_data)
+bool StatusBar::calibrateIconData(const StatusBar::Data &bar_data, const base::Display &display,
+                                  StatusBarIcon::Data &icon_data)
 {
-    const ESP_Brookesia_StatusBarAreaData_t &area = bar_data.area.data[bar_data.battery.area_index];
+    const StatusBar::AreaData &area = bar_data.area.data[bar_data.battery.area_index];
 
     ESP_UTILS_LOGD("Calibrate data");
 
     // Size
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(area.size, icon_data.size), false, "Calibrate size failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(area.size, icon_data.size), false, "Calibrate size failed");
     // Image
-    ESP_UTILS_CHECK_VALUE_RETURN(icon_data.icon.image_num, 1, ESP_BROOKESIA_STATUS_BAR_DATA_ICON_IMAGE_NUM_MAX,
+    ESP_UTILS_CHECK_VALUE_RETURN(icon_data.icon.image_num, 1, StatusBarIcon::IMAGE_NUM_MAX,
                                  false, "Icon image num is invalid");
     for (int i = 0; i < icon_data.icon.image_num; i++) {
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreIconImage(icon_data.icon.images[i]), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreIconImage(icon_data.icon.images[i]), false,
                                      "Calibrate icon image failed");
     }
 
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreHome &home,
-        ESP_Brookesia_StatusBarData_t &data)
+bool StatusBar::calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
+                              StatusBar::Data &data)
 {
-    const ESP_Brookesia_StyleSize_t *parent_size = &screen_size;
+    const gui::StyleSize *parent_size = &screen_size;
 
     ESP_UTILS_LOGD("Calibrate data");
 
     // Calibrate the min and max size
     if (data.flags.enable_main_size_min) {
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(screen_size, data.main.size_min), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(screen_size, data.main.size_min), false,
                                      "Calibrate data main size min failed");
     }
     if (data.flags.enable_main_size_max) {
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(screen_size, data.main.size_max), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(screen_size, data.main.size_max), false,
                                      "Calibrate data main size max failed");
     }
 
     /* Main */
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.main.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.main.size), false,
                                  "Calibrate main size failed");
     // Adjust the size according to the min and max size
     if (data.flags.enable_main_size_min) {
@@ -226,18 +214,20 @@ bool ESP_Brookesia_StatusBar::calibrateData(const ESP_Brookesia_StyleSize_t &scr
     }
     // Text
     parent_size = &data.main.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(parent_size, data.main.text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(parent_size, data.main.text_font), false,
                                  "Calibrate main text font failed");
 
     /* Area */
     parent_size = &data.main.size;
-    ESP_UTILS_CHECK_VALUE_RETURN(data.area.num, 1, ESP_BROOKESIA_STATUS_BAR_DATA_ICON_IMAGE_NUM_MAX, false,
+    ESP_UTILS_CHECK_VALUE_RETURN(data.area.num, 1, StatusBarIcon::IMAGE_NUM_MAX, false,
                                  "Area data num is invalid");
     for (int i = 0; i < data.area.num; i++) {
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.area.data[i].size), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.area.data[i].size), false,
                                      "Calibrate area(%d) size failed", i);
-        ESP_UTILS_CHECK_VALUE_RETURN(data.area.data[i].layout_column_align, ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_UNKNOWN + 1,
-                                     ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_MAX - 1, false, "Area(%d) layout align is invalid", i);
+        ESP_UTILS_CHECK_VALUE_RETURN(
+            static_cast<int>(data.area.data[i].layout_column_align), static_cast<int>(AreaAlign::UNKNOWN) + 1,
+            static_cast<int>(AreaAlign::MAX) - 1, false, "Area(%d) layout align is invalid", i
+        );
         ESP_UTILS_CHECK_VALUE_RETURN(data.area.data[i].layout_column_start_offset, 0, data.area.data[i].size.width,
                                      false, "Area(%d) layout start offset is invalid", i);
         ESP_UTILS_CHECK_VALUE_RETURN(data.area.data[i].layout_column_pad, 0, data.area.data[i].size.width,
@@ -247,7 +237,7 @@ bool ESP_Brookesia_StatusBar::calibrateData(const ESP_Brookesia_StyleSize_t &scr
     /* Icon */
     // Common size
     parent_size = &data.main.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.icon_common_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.icon_common_size), false,
                                  "Calibrate icon common size failed");
     // Battery
     if (data.flags.enable_battery_icon) {
@@ -255,7 +245,7 @@ bool ESP_Brookesia_StatusBar::calibrateData(const ESP_Brookesia_StyleSize_t &scr
         if (data.flags.enable_battery_icon_common_size) {
             data.battery.icon_data.size = data.icon_common_size;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(calibrateIconData(data, home, data.battery.icon_data), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(calibrateIconData(data, display, data.battery.icon_data), false,
                                      "Calibrate battery icon data failed");
     }
     // Wifi
@@ -264,14 +254,14 @@ bool ESP_Brookesia_StatusBar::calibrateData(const ESP_Brookesia_StyleSize_t &scr
         if (data.flags.enable_wifi_icon_common_size) {
             data.wifi.icon_data.size = data.icon_common_size;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(calibrateIconData(data, home, data.wifi.icon_data), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(calibrateIconData(data, display, data.wifi.icon_data), false,
                                      "Calibrate wifi icon data failed");
     }
 
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::beginMain(lv_obj_t *parent)
+bool StatusBar::beginMain(lv_obj_t *parent)
 {
     lv_align_t area_align = LV_ALIGN_DEFAULT;
     ESP_Brookesia_LvObj_t main_obj = nullptr;
@@ -294,21 +284,21 @@ bool ESP_Brookesia_StatusBar::beginMain(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_align(main_obj.get(), LV_ALIGN_TOP_MID);
     lv_obj_set_style_bg_opa(main_obj.get(), LV_OPA_COVER, 0);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Area
     for (size_t i = 0; i < area_objs.size(); i++) {
-        lv_obj_add_style(area_objs[i].get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+        lv_obj_add_style(area_objs[i].get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
         switch (_data.area.data[i].layout_column_align) {
-        case ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_START:
+        case StatusBar::AreaAlign::START:
             area_align = LV_ALIGN_LEFT_MID;
             break;
-        case ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_CENTER:
+        case StatusBar::AreaAlign::CENTER:
             area_align = LV_ALIGN_CENTER;
             break;
-        case ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_END:
+        case StatusBar::AreaAlign::END:
             area_align = LV_ALIGN_RIGHT_MID;
             break;
         default:
@@ -334,7 +324,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_StatusBar::updateMainByNewData(void)
+bool StatusBar::updateMainByNewData(void)
 {
     ESP_UTILS_LOGD("Update main(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(checkMainInitialized(), false, "Not initialized");
@@ -351,15 +341,15 @@ bool ESP_Brookesia_StatusBar::updateMainByNewData(void)
         lv_obj_set_size(_area_objs[i].get(), _data.area.data[i].size.width, _data.area.data[i].size.height);
         lv_obj_set_style_pad_column(_area_objs[i].get(), _data.area.data[i].layout_column_pad, 0);
         switch (_data.area.data[i].layout_column_align) {
-        case ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_START:
+        case StatusBar::AreaAlign::START:
             main_align = LV_FLEX_ALIGN_START;
             lv_obj_set_style_pad_left(_area_objs[i].get(), _data.area.data[i].layout_column_start_offset, 0);
             break;
-        case ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_END:
+        case StatusBar::AreaAlign::END:
             main_align = LV_FLEX_ALIGN_END;
             lv_obj_set_style_pad_right(_area_objs[i].get(), _data.area.data[i].layout_column_start_offset, 0);
             break;
-        case ESP_BROOKESIA_STATUS_BAR_AREA_ALIGN_CENTER:
+        case StatusBar::AreaAlign::CENTER:
             main_align = LV_FLEX_ALIGN_CENTER;
             break;
         default:
@@ -372,7 +362,7 @@ bool ESP_Brookesia_StatusBar::updateMainByNewData(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::delMain(void)
+bool StatusBar::delMain(void)
 {
     ESP_UTILS_LOGD("Delete main(0x%p)", this);
 
@@ -386,7 +376,7 @@ bool ESP_Brookesia_StatusBar::delMain(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::beginBattery(void)
+bool StatusBar::beginBattery(void)
 {
     ESP_Brookesia_LvObj_t battery_label = nullptr;
 
@@ -397,7 +387,7 @@ bool ESP_Brookesia_StatusBar::beginBattery(void)
         battery_label = ESP_BROOKESIA_LV_OBJ(label, _area_objs[_data.battery.area_index].get());
         ESP_UTILS_CHECK_NULL_RETURN(battery_label, false, "Create battery label failed");
 
-        lv_obj_add_style(battery_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+        lv_obj_add_style(battery_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
         _battery_label = battery_label;
     }
     if (_data.flags.enable_battery_icon) {
@@ -419,7 +409,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_StatusBar::updateBatteryByNewData(void)
+bool StatusBar::updateBatteryByNewData(void)
 {
     ESP_UTILS_LOGD("Update battery(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(checkBatteryInitialized(), false, "Not initialized");
@@ -442,7 +432,7 @@ bool ESP_Brookesia_StatusBar::updateBatteryByNewData(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::delBattery(void)
+bool StatusBar::delBattery(void)
 {
     ESP_UTILS_LOGD("Delete battery(0x%p)", this);
 
@@ -459,7 +449,7 @@ bool ESP_Brookesia_StatusBar::delBattery(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::setBatteryPercent(bool charge_flag, int percent) const
+bool StatusBar::setBatteryPercent(bool charge_flag, int percent) const
 {
     ESP_UTILS_LOGD("Set battery percent(0x%p: %d%%)", this, percent);
 
@@ -480,7 +470,7 @@ bool ESP_Brookesia_StatusBar::setBatteryPercent(bool charge_flag, int percent) c
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::showBatteryPercent(void) const
+bool StatusBar::showBatteryPercent(void) const
 {
     ESP_UTILS_LOGD("Show battery percent(0x%p)", this);
     ESP_UTILS_CHECK_NULL_RETURN(_battery_label, false, "No battery label");
@@ -490,7 +480,7 @@ bool ESP_Brookesia_StatusBar::showBatteryPercent(void) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::hideBatteryPercent(void) const
+bool StatusBar::hideBatteryPercent(void) const
 {
     ESP_UTILS_LOGD("Hide battery percent(0x%p)", this);
     ESP_UTILS_CHECK_NULL_RETURN(_battery_label, false, "No battery label");
@@ -500,7 +490,7 @@ bool ESP_Brookesia_StatusBar::hideBatteryPercent(void) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::showBatteryIcon(void) const
+bool StatusBar::showBatteryIcon(void) const
 {
     ESP_UTILS_LOGD("Show battery icon(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(setIconState(_battery_id, _battery_state), false, "Set battery icon state failed");
@@ -508,7 +498,7 @@ bool ESP_Brookesia_StatusBar::showBatteryIcon(void) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::hideBatteryIcon(void) const
+bool StatusBar::hideBatteryIcon(void) const
 {
     ESP_UTILS_LOGD("Hide battery icon(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(setIconState(_battery_id, -1), false, "Set battery icon state failed");
@@ -516,7 +506,7 @@ bool ESP_Brookesia_StatusBar::hideBatteryIcon(void) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::beginWifi(void)
+bool StatusBar::beginWifi(void)
 {
     ESP_UTILS_LOGD("Begin wifi(0x%p)", this);
 
@@ -532,7 +522,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_StatusBar::setWifiIconState(int state) const
+bool StatusBar::setWifiIconState(int state) const
 {
     ESP_UTILS_LOGD("Set wifi icon state(0x%p: %d)", this, state);
     ESP_UTILS_CHECK_FALSE_RETURN(setIconState(_wifi_id, state), false, "Set wifi icon state failed");
@@ -540,7 +530,7 @@ bool ESP_Brookesia_StatusBar::setWifiIconState(int state) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::setWifiIconState(WifiState state) const
+bool StatusBar::setWifiIconState(WifiState state) const
 {
     ESP_UTILS_LOGD("Set wifi icon state(0x%p: %d)", this, static_cast<int>(state));
     ESP_UTILS_CHECK_FALSE_RETURN(
@@ -550,7 +540,7 @@ bool ESP_Brookesia_StatusBar::setWifiIconState(WifiState state) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::beginClock(void)
+bool StatusBar::beginClock(void)
 {
     ESP_Brookesia_LvObj_t clock_obj = nullptr;
     ESP_Brookesia_LvObj_t clock_hour_label = nullptr;
@@ -567,23 +557,23 @@ bool ESP_Brookesia_StatusBar::beginClock(void)
 
     clock_hour_label = ESP_BROOKESIA_LV_OBJ(label, clock_obj.get());
     ESP_UTILS_CHECK_NULL_RETURN(clock_hour_label, false, "Alloc clock hour label failed");
-    lv_obj_add_style(clock_hour_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(clock_hour_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
 
     clock_dot_label = ESP_BROOKESIA_LV_OBJ(label, clock_obj.get());
     ESP_UTILS_CHECK_NULL_RETURN(clock_dot_label, false, "Alloc clock dot label failed");
-    lv_obj_add_style(clock_dot_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(clock_dot_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_label_set_text(clock_dot_label.get(), ":");
 
     clock_min_label = ESP_BROOKESIA_LV_OBJ(label, clock_obj.get());
     ESP_UTILS_CHECK_NULL_RETURN(clock_min_label, false, "Alloc clock min label failed");
-    lv_obj_add_style(clock_min_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(clock_min_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
 
     clock_period_label = ESP_BROOKESIA_LV_OBJ(label, clock_obj.get());
     ESP_UTILS_CHECK_NULL_RETURN(clock_period_label, false, "Alloc clock period label failed");
-    lv_obj_add_style(clock_period_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(clock_period_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
 
     // Setup objects style
-    lv_obj_add_style(clock_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(clock_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_size(clock_obj.get(), LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(clock_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(clock_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -608,7 +598,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_StatusBar::updateClockByNewData(void)
+bool StatusBar::updateClockByNewData(void)
 {
     ESP_UTILS_LOGD("Update clock(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(checkClockInitialized(), false, "Not initialized");
@@ -635,7 +625,7 @@ bool ESP_Brookesia_StatusBar::updateClockByNewData(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::delClock(void)
+bool StatusBar::delClock(void)
 {
     ESP_UTILS_LOGD("Delete clock(0x%p)", this);
 
@@ -652,7 +642,7 @@ bool ESP_Brookesia_StatusBar::delClock(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::setClockFormat(ClockFormat format) const
+bool StatusBar::setClockFormat(ClockFormat format) const
 {
     ESP_UTILS_LOGD("Set clock format(%d)", static_cast<int>(format));
     ESP_UTILS_CHECK_NULL_RETURN(_clock_period_label, false, "Invalid clock period label");
@@ -674,7 +664,7 @@ bool ESP_Brookesia_StatusBar::setClockFormat(ClockFormat format) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::setClock(int hour, int minute, bool is_pm) const
+bool StatusBar::setClock(int hour, int minute, bool is_pm) const
 {
     ESP_UTILS_LOGD("Set clock(%02d:%02d %s)", hour, minute, is_pm ? "PM" : "AM");
     ESP_UTILS_CHECK_NULL_RETURN(_clock_obj, false, "Invalid clock");
@@ -703,7 +693,7 @@ bool ESP_Brookesia_StatusBar::setClock(int hour, int minute, bool is_pm) const
     return true;
 }
 
-bool ESP_Brookesia_StatusBar::setClock(int hour, int minute) const
+bool StatusBar::setClock(int hour, int minute) const
 {
     ESP_UTILS_LOGD("Set clock(%02d:%02d)", hour, minute);
 
@@ -716,14 +706,14 @@ bool ESP_Brookesia_StatusBar::setClock(int hour, int minute) const
     return true;
 }
 
-void ESP_Brookesia_StatusBar::onDataUpdateEventCallback(lv_event_t *event)
+void StatusBar::onDataUpdateEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_StatusBar *status_bar = nullptr;
+    StatusBar *status_bar = nullptr;
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
     ESP_UTILS_LOGD("Data update event callback");
-    status_bar = (ESP_Brookesia_StatusBar *)lv_event_get_user_data(event);
+    status_bar = (StatusBar *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(status_bar, "Invalid status bar object");
 
     // Main
@@ -742,3 +732,5 @@ void ESP_Brookesia_StatusBar::onDataUpdateEventCallback(lv_event_t *event)
         ESP_UTILS_LOGE("Update clock object style failed");
     }
 }
+
+} // namespace esp_brookesia::systems::phone

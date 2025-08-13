@@ -10,7 +10,7 @@
 #define DEFAULT_KEYBOARD_MODE LV_KEYBOARD_MODE_TEXT_LOWER
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
@@ -51,7 +51,7 @@ namespace esp_brookesia::apps {
 #define TEXT_EDIT_SEND_CONFIRM_EVENT_LEN_MIN    8
 
 SettingsUI_ScreenWlanVerification::SettingsUI_ScreenWlanVerification(
-    speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    App &ui_app, const SettingsUI_ScreenBaseData &base_data,
     const SettingsUI_ScreenWlanVerificationData &main_data
 ):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
@@ -92,7 +92,7 @@ bool SettingsUI_ScreenWlanVerification::begin()
         lv_textarea_set_one_line(text_edit, true);
         lv_obj_add_event_cb(text_edit, onTextEditValueChangeEventCallback, LV_EVENT_VALUE_CHANGED, this);
         // Keyboard
-        auto &keyboard = app.getSystem()->display.getKeyboard();
+        auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
         keyboard.on_keyboard_value_changed_signal.connect([this](const std::string_view & text) {
             ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -112,10 +112,10 @@ bool SettingsUI_ScreenWlanVerification::begin()
         //     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
         // });
         // Gesture
-        lv_obj_t *gesture_object = app.getSystem()->manager.getGesture()->getEventObj();
+        lv_obj_t *gesture_object = app.getSystem()->getManager().getGesture()->getEventObj();
         ESP_UTILS_CHECK_NULL_GOTO(gesture_object, err, "Get gesture object failed");
-        lv_event_code_t gesture_press_code = app.getSystem()->manager.getGesture()->getPressEventCode();
-        lv_event_code_t gesture_release_code = app.getSystem()->manager.getGesture()->getReleaseEventCode();
+        lv_event_code_t gesture_press_code = app.getSystem()->getManager().getGesture()->getPressEventCode();
+        lv_event_code_t gesture_release_code = app.getSystem()->getManager().getGesture()->getReleaseEventCode();
         lv_obj_add_event_cb(gesture_object, onGestureEventCallback, gesture_press_code, this);
         lv_obj_add_event_cb(gesture_object, onGestureEventCallback, gesture_release_code, this);
 
@@ -147,7 +147,7 @@ bool SettingsUI_ScreenWlanVerification::del()
     }
 
     // Avoid enter gesture event when App is closed
-    auto gesture = app.getSystem()->manager.getGesture();
+    auto gesture = app.getSystem()->getManager().getGesture();
     if ((gesture != nullptr) && (gesture->getEventObj() != nullptr)) {
         if (!lv_obj_remove_event_cb(gesture->getEventObj(), onGestureEventCallback)) {
             ESP_UTILS_LOGE("Remove gesture event callback failed");
@@ -191,7 +191,7 @@ bool SettingsUI_ScreenWlanVerification::setKeyboardVisible(bool visible)
                           );
     ESP_UTILS_CHECK_NULL_RETURN(text_edit, false, "Get text edit failed");
 
-    auto &keyboard = app.getSystem()->display.getKeyboard();
+    auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
     if (visible) {
         keyboard.setVisible(true);
         lv_obj_add_state(text_edit, LV_STATE_FOCUSED);
@@ -205,19 +205,19 @@ bool SettingsUI_ScreenWlanVerification::setKeyboardVisible(bool visible)
 }
 
 bool SettingsUI_ScreenWlanVerification::calibrateData(
-    const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+    const gui::StyleSize &parent_size, const systems::base::Display &display,
     SettingsUI_ScreenWlanVerificationData &data
 )
 {
     ESP_UTILS_LOGD("Calibrate data");
 
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     // Keyboard
     compare_size = &parent_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.keyboard.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.keyboard.size), false,
                                  "Invalid keyboard size");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.keyboard.text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.keyboard.text_font), false,
                                  "Invalid keyboard text font");
 
     return true;
@@ -248,7 +248,7 @@ bool SettingsUI_ScreenWlanVerification::processOnKeyboardValueChangedEventCallba
                           );
     ESP_UTILS_CHECK_NULL_RETURN(text_edit, false, "Get text edit failed");
 
-    auto &keyboard = app.getSystem()->display.getKeyboard();
+    auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
     std::string pwd = lv_textarea_get_text(text_edit);
     keyboard.setOkEnabled(pwd.length() >= TEXT_EDIT_SEND_CONFIRM_EVENT_LEN_MIN);
 
@@ -275,7 +275,7 @@ bool SettingsUI_ScreenWlanVerification::processOnKeyboardValueChangedEventCallba
 // {
 //     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-//     // auto &keyboard = app.getSystem()->display.getKeyboard();
+//     // auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
 //     // int keyboard_mode = (int)keyboard.get;
 
 //     // lv_draw_task_t *draw_task = lv_event_get_draw_task(e);
@@ -369,7 +369,7 @@ bool SettingsUI_ScreenWlanVerification::processOnGestureEventCallback(lv_event_t
         .y2 = text_edit->coords.y2,
     };
     lv_area_t keyboard_area = {};
-    auto &keyboard = app.getSystem()->display.getKeyboard();
+    auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
     ESP_UTILS_CHECK_FALSE_RETURN(keyboard.getArea(keyboard_area), false, "Get keyboard area failed");
 
     GestureInfo *gesture_info = (GestureInfo *)lv_event_get_param(e);
@@ -380,8 +380,8 @@ bool SettingsUI_ScreenWlanVerification::processOnGestureEventCallback(lv_event_t
     bool touch_on_keyboard = keyboard.isVisible() && lv_area_is_point_on(&keyboard_area, &gesture_point, 0);
 
     lv_event_code_t code = lv_event_get_code(e);
-    lv_event_code_t gesture_press_code = app.getSystem()->manager.getGesture()->getPressEventCode();
-    lv_event_code_t gesture_release_code = app.getSystem()->manager.getGesture()->getReleaseEventCode();
+    lv_event_code_t gesture_press_code = app.getSystem()->getManager().getGesture()->getPressEventCode();
+    lv_event_code_t gesture_release_code = app.getSystem()->getManager().getGesture()->getReleaseEventCode();
     if (code == gesture_press_code) {
         _flags.text_edit_pressed = touch_on_text_edit;
     } else if (code == gesture_release_code) {
@@ -411,7 +411,7 @@ bool SettingsUI_ScreenWlanVerification::processOnScreenLoadEventCallback(lv_even
 
     // Keyboard
     ESP_UTILS_CHECK_FALSE_RETURN(setKeyboardVisible(true), false, "Set keyboard visible failed");
-    auto &keyboard = app.getSystem()->display.getKeyboard();
+    auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
     ESP_UTILS_CHECK_FALSE_RETURN(keyboard.setMode(DEFAULT_KEYBOARD_MODE), false, "Set keyboard mode failed");
     ESP_UTILS_CHECK_FALSE_RETURN(keyboard.setOkEnabled(false), false, "Set keyboard ok enabled failed");
     ESP_UTILS_CHECK_FALSE_RETURN(keyboard.setTextEdit(text_edit), false, "Set text edit failed");
@@ -431,7 +431,7 @@ bool SettingsUI_ScreenWlanVerification::processOnScreenUnloadEventCallback(lv_ev
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     // ESP_UTILS_LOGD("Process on gesture event callback");
 
-    auto &keyboard = app.getSystem()->display.getKeyboard();
+    auto &keyboard = app.getSystem()->getDisplay().getKeyboard();
     ESP_UTILS_CHECK_FALSE_RETURN(keyboard.setVisible(false), false, "Hide keyboard failed");
 
     _flags.gesture_enabled = false;
@@ -547,4 +547,4 @@ void SettingsUI_ScreenWlanVerification::onScreenUnloadEventCallback(lv_event_t *
     );
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -31,19 +31,19 @@ struct SettingsUI_ScreenWlanVerificationData {
     SettingsUI_WidgetCellContainerConf container_confs[(int)SettingsUI_ScreenWlanVerificationContainerIndex::MAX];
     SettingsUI_WidgetCellConf cell_confs[(int)SettingsUI_ScreenWlanVerificationCellIndex::MAX];
     struct {
-        ESP_Brookesia_StyleSize_t size;
+        gui::StyleSize size;
         uint16_t align_bottom_offset;
         uint16_t top_pad;
         uint16_t bottom_pad;
         uint16_t left_pad;
         uint16_t right_pad;
-        ESP_Brookesia_StyleColor_t main_background_color;
-        ESP_Brookesia_StyleColor_t normal_button_background_color;
-        ESP_Brookesia_StyleColor_t special_button_background_color;
-        ESP_Brookesia_StyleColor_t ok_button_disabled_background_color;
-        ESP_Brookesia_StyleColor_t ok_button_enabled_background_color;
-        ESP_Brookesia_StyleFont_t text_font;
-        ESP_Brookesia_StyleColor_t text_color;
+        gui::StyleColor main_background_color;
+        gui::StyleColor normal_button_background_color;
+        gui::StyleColor special_button_background_color;
+        gui::StyleColor ok_button_disabled_background_color;
+        gui::StyleColor ok_button_enabled_background_color;
+        gui::StyleFont text_font;
+        gui::StyleColor text_color;
     } keyboard;
 };
 
@@ -55,7 +55,7 @@ public:
     using OnKeyboardConfirmSignal = boost::signals2::signal<void(std::pair<std::string_view, std::string_view> ssid_with_pwd)>;
     using OnKeyboardConfirmSignalSlot = OnKeyboardConfirmSignal::slot_type;
 
-    SettingsUI_ScreenWlanVerification(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    SettingsUI_ScreenWlanVerification(systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                                       const SettingsUI_ScreenWlanVerificationData &main_data);
     ~SettingsUI_ScreenWlanVerification();
 
@@ -66,7 +66,7 @@ public:
     bool setKeyboardVisible(bool visible);
 
     static bool calibrateData(
-        const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+        const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenWlanVerificationData &data
     );
 
@@ -99,4 +99,4 @@ private:
     SettingsUI_ScreenWlanVerificationCellContainerMap _cell_container_map;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

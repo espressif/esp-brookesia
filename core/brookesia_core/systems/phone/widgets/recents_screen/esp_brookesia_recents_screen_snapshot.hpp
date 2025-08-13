@@ -1,63 +1,79 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 
-// *INDENT-OFF*
+namespace esp_brookesia::systems::phone {
 
-typedef struct {
-    const char *name;
-    const void *icon_image_resource;
-    const void *snapshot_image_resource;
-    int id;
-} ESP_Brookesia_RecentsScreenSnapshotConf_t;
-
-typedef struct {
-    ESP_Brookesia_StyleSize_t main_size;
-    struct {
-        ESP_Brookesia_StyleSize_t main_size;
-        uint8_t main_layout_column_pad;
-        ESP_Brookesia_StyleSize_t icon_size;
-        ESP_Brookesia_StyleFont_t text_font;
-        ESP_Brookesia_StyleColor_t text_color;
-    } title;
-    struct {
-        ESP_Brookesia_StyleSize_t main_size;
-        uint8_t radius;
-    } image;
-    struct {
-        uint8_t enable_all_main_size_refer_screen: 1;
-    } flags;
-} ESP_Brookesia_RecentsScreenSnapshotData_t;
-
-class ESP_Brookesia_RecentsScreenSnapshot {
+class RecentsScreenSnapshot {
 public:
-    ESP_Brookesia_RecentsScreenSnapshot(const ESP_Brookesia_Core &core, const ESP_Brookesia_RecentsScreenSnapshotConf_t &conf,
-                                 const ESP_Brookesia_RecentsScreenSnapshotData_t &data);
-    ~ESP_Brookesia_RecentsScreenSnapshot();
+    struct Conf {
+        const char *name;
+        const void *icon_image_resource;
+        const void *snapshot_image_resource;
+        int id;
+    };
+
+    struct Data {
+        gui::StyleSize main_size;
+        struct {
+            gui::StyleSize main_size;
+            uint8_t main_layout_column_pad;
+            gui::StyleSize icon_size;
+            gui::StyleFont text_font;
+            gui::StyleColor text_color;
+        } title;
+        struct {
+            gui::StyleSize main_size;
+            uint8_t radius;
+        } image;
+        struct {
+            uint8_t enable_all_main_size_refer_screen: 1;
+        } flags;
+    };
+
+    RecentsScreenSnapshot(const RecentsScreenSnapshot &) = delete;
+    RecentsScreenSnapshot(RecentsScreenSnapshot &&) = delete;
+    RecentsScreenSnapshot &operator=(const RecentsScreenSnapshot &) = delete;
+    RecentsScreenSnapshot &operator=(RecentsScreenSnapshot &&) = delete;
+
+    RecentsScreenSnapshot(base::Context &core, const Conf &conf, const Data &data);
+    ~RecentsScreenSnapshot();
 
     bool begin(lv_obj_t *parent);
     bool del(void);
 
-    bool checkInitialized(void) const { return (_main_obj != nullptr); }
-    lv_obj_t *getMainObj(void) const  { return _main_obj.get(); }
-    lv_obj_t *getDragObj(void) const  { return _drag_obj.get(); }
-    int getOriginY(void) const        { return _origin_y; }
+    bool checkInitialized(void) const
+    {
+        return (_main_obj != nullptr);
+    }
+    lv_obj_t *getMainObj(void) const
+    {
+        return _main_obj.get();
+    }
+    lv_obj_t *getDragObj(void) const
+    {
+        return _drag_obj.get();
+    }
+    int getOriginY(void) const
+    {
+        return _origin_y;
+    }
     int getCurrentY(void) const;
 
     bool updateByNewData(void);
 
 private:
-    const ESP_Brookesia_Core &_core;
-    const ESP_Brookesia_RecentsScreenSnapshotConf_t &_conf;
-    const ESP_Brookesia_RecentsScreenSnapshotData_t &_data;
+    base::Context &_system_context;
+    const Conf &_conf;
+    const Data &_data;
 
-    int _origin_y;
+    int _origin_y = 0;
     ESP_Brookesia_LvObj_t _main_obj;
     ESP_Brookesia_LvObj_t _drag_obj;
     ESP_Brookesia_LvObj_t _title_obj;
@@ -67,4 +83,11 @@ private:
     ESP_Brookesia_LvObj_t _snapshot_image;
 };
 
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::phone
+
+using ESP_Brookesia_RecentsScreenSnapshotConf_t [[deprecated("Use `esp_brookesia::systems::phone::RecentsScreenSnapshot::Conf` instead")]] =
+    esp_brookesia::systems::phone::RecentsScreenSnapshot::Conf;
+using ESP_Brookesia_RecentsScreenSnapshotData_t [[deprecated("Use `esp_brookesia::systems::phone::RecentsScreenSnapshot::Data` instead")]] =
+    esp_brookesia::systems::phone::RecentsScreenSnapshot::Data;
+using ESP_Brookesia_RecentsScreenSnapshot [[deprecated("Use `esp_brookesia::systems::phone::RecentsScreenSnapshot` instead")]] =
+    esp_brookesia::systems::phone::RecentsScreenSnapshot;

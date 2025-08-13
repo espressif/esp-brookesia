@@ -20,7 +20,7 @@
 #define APP_NAME "Timer"
 
 using namespace std;
-using namespace esp_brookesia::apps;
+using namespace esp_brookesia::systems::speaker;
 
 LV_IMG_DECLARE(img_app_timer);
 
@@ -39,8 +39,8 @@ Timer *Timer::requestInstance()
 Timer::Timer():
     App( {
     .name = APP_NAME,
-    .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&img_app_timer),
-    .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
+    .launcher_icon = gui::StyleImage::IMAGE(&img_app_timer),
+    .screen_size = gui::StyleSize::RECT_PERCENT(100, 100),
     .flags = {
         .enable_default_screen = 0,
         .enable_recycle_resource = 1,
@@ -394,7 +394,7 @@ void Timer::clock_tick_callback(void *arg)
     }, timer);
 }
 
-ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::CoreApp, Timer, APP_NAME, []()
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::base::App, Timer, APP_NAME, []()
 {
     return std::shared_ptr<Timer>(Timer::requestInstance(), [](Timer * p) {});
 })

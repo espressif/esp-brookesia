@@ -15,9 +15,9 @@
 
 namespace esp_brookesia::apps {
 
-using SettingsStylesheet = ESP_Brookesia_CoreStylesheetManager<SettingsStylesheetData>;
+using SettingsStylesheet = gui::StylesheetManager<SettingsStylesheetData>;
 
-class Settings: public speaker::App, public SettingsStylesheet {
+class Settings: public systems::speaker::App, public SettingsStylesheet {
 public:
     Settings(const Settings &) = delete;
     Settings(Settings &&) = delete;
@@ -29,7 +29,7 @@ public:
     bool addStylesheet(const SettingsStylesheetData *data);
     bool addStylesheet(speaker::Speaker *speaker, const SettingsStylesheetData *data);
     bool activateStylesheet(const SettingsStylesheetData *data);
-    bool activateStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size);
+    bool activateStylesheet(const char *name, const gui::StyleSize &screen_size);
 
     static Settings *requestInstance();
 
@@ -55,8 +55,8 @@ protected:
 private:
     Settings();
 
-    bool calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, SettingsStylesheetData &sheetstyle) override;
-    bool calibrateScreenSize(ESP_Brookesia_StyleSize_t &size) override;
+    bool calibrateStylesheet(const gui::StyleSize &screen_size, SettingsStylesheetData &sheetstyle) override;
+    bool calibrateScreenSize(gui::StyleSize &size) override;
 
     const SettingsStylesheetData _default_stylesheet_dark = {};
 

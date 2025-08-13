@@ -16,7 +16,7 @@ typedef struct {
     int weight;
 } cell_weight_t;
 
-class Game2048: public speaker::App {
+class Game2048: public systems::speaker::App {
 public:
     Game2048();
     ~Game2048();

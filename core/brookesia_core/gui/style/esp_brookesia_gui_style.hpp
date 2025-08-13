@@ -527,6 +527,7 @@ struct StyleAnimation {
     int start_value;
     int end_value;
     int duration_ms;
+    int delay_ms;
     AnimationPathType path_type;
 };
 
@@ -549,8 +550,6 @@ inline StyleFlag operator|(StyleFlag a, StyleFlag b)
 /**
  * @brief Backward compatibility for macro definitions
  */
-#define ESP_BROOKESIA_SIZE_MIN                   esp_brookesia::gui::StyleFont::FONT_SIZE_MIN
-#define ESP_BROOKESIA_SIZE_MAX                   esp_brookesia::gui::StyleFont::FONT_SIZE_MAX
 #define ESP_BROOKESIA_STYLE_SIZE_RECT(w, h)                 esp_brookesia::gui::StyleSize::RECT(w, h)
 #define ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(w_p, h_p)     esp_brookesia::gui::StyleSize::RECT_PERCENT(w_p, h_p)
 #define ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(w_p, h)     esp_brookesia::gui::StyleSize::RECT_W_PERCENT(w_p, h)
@@ -559,6 +558,8 @@ inline StyleFlag operator|(StyleFlag a, StyleFlag b)
 #define ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(p)          esp_brookesia::gui::StyleSize::SQUARE_PERCENT(p)
 #define ESP_BROOKESIA_STYLE_SIZE_CIRCLE(s)                  esp_brookesia::gui::StyleSize::CIRCLE(s)
 #define ESP_BROOKESIA_STYLE_SIZE_CIRCLE_PERCENT(p)          esp_brookesia::gui::StyleSize::CIRCLE_PERCENT(p)
+#define ESP_BROOKESIA_FONT_SIZE_MIN                         esp_brookesia::gui::StyleFont::FONT_SIZE_MIN
+#define ESP_BROOKESIA_FONT_SIZE_MAX                         esp_brookesia::gui::StyleFont::FONT_SIZE_MAX
 #define ESP_BROOKESIA_STYLE_FONT_SIZE(s)                    esp_brookesia::gui::StyleFont::SIZE(s)
 #define ESP_BROOKESIA_STYLE_FONT_HEIGHT(h)                  esp_brookesia::gui::StyleFont::HEIGHT(h)
 #define ESP_BROOKESIA_STYLE_FONT_HEIGHT_PERCENT(p)          esp_brookesia::gui::StyleFont::HEIGHT_PERCENT(p)
@@ -620,15 +621,29 @@ inline StyleFlag operator|(StyleFlag a, StyleFlag b)
 /**
  * @brief Backward compatibility for type definitions
  */
-typedef struct esp_brookesia::gui::StyleSize ESP_Brookesia_StyleSize_t;
-typedef struct esp_brookesia::gui::StyleFont ESP_Brookesia_StyleFont_t;
-typedef enum   esp_brookesia::gui::StyleColorItem ESP_Brookesia_StyleColorItem_t;
-typedef struct esp_brookesia::gui::StyleColor ESP_Brookesia_StyleColor_t;
-typedef struct esp_brookesia::gui::StyleImage ESP_Brookesia_StyleImage_t;
-typedef enum   esp_brookesia::gui::StyleAlignType ESP_Brookesia_StyleAlignType_t;
-typedef struct esp_brookesia::gui::StyleAlign ESP_Brookesia_StyleAlign_t;
-typedef struct esp_brookesia::gui::StyleGap ESP_Brookesia_StyleGap_t;
-typedef enum   esp_brookesia::gui::StyleLayoutFlex::FlowType ESP_Brookesia_StyleFlexFlow_t;
-typedef enum   esp_brookesia::gui::StyleLayoutFlex::AlignType ESP_Brookesia_StyleFlexAlign_t;
-typedef struct esp_brookesia::gui::StyleLayoutFlex ESP_Brookesia_StyleLayoutFlex_t;
-typedef enum   esp_brookesia::gui::StyleAnimation::AnimationPathType ESP_BROOKESIA_ANIMPathType_t;
+using ESP_Brookesia_StyleSize_t       [[deprecated("Use `esp_brookesia::gui::StyleSize` instead")]] =
+    esp_brookesia::gui::StyleSize;
+using ESP_Brookesia_StyleFont_t       [[deprecated("Use `esp_brookesia::gui::StyleFont` instead")]] =
+    esp_brookesia::gui::StyleFont;
+using ESP_Brookesia_StyleColorItem_t  [[deprecated("Use `esp_brookesia::gui::StyleColorItem` instead")]] =
+    esp_brookesia::gui::StyleColorItem;
+using ESP_Brookesia_StyleColor_t      [[deprecated("Use `esp_brookesia::gui::StyleColor` instead")]] =
+    esp_brookesia::gui::StyleColor;
+using ESP_Brookesia_StyleImage_t      [[deprecated("Use `esp_brookesia::gui::StyleImage` instead")]] =
+    esp_brookesia::gui::StyleImage;
+using ESP_Brookesia_StyleAlignType_t  [[deprecated("Use `esp_brookesia::gui::StyleAlignType` instead")]] =
+    esp_brookesia::gui::StyleAlignType;
+using ESP_Brookesia_StyleAlign_t      [[deprecated("Use `esp_brookesia::gui::StyleAlign` instead")]] =
+    esp_brookesia::gui::StyleAlign;
+using ESP_Brookesia_StyleGap_t        [[deprecated("Use `esp_brookesia::gui::StyleGap` instead")]] =
+    esp_brookesia::gui::StyleGap;
+using ESP_Brookesia_StyleFlexFlow_t   [[deprecated("Use `esp_brookesia::gui::StyleLayoutFlex::FlowType` instead")]] =
+    esp_brookesia::gui::StyleLayoutFlex::FlowType;
+using ESP_Brookesia_StyleFlexAlign_t  [[deprecated("Use `esp_brookesia::gui::StyleLayoutFlex::AlignType` instead")]] =
+    esp_brookesia::gui::StyleLayoutFlex::AlignType;
+using ESP_Brookesia_StyleLayoutFlex_t [[deprecated("Use `esp_brookesia::gui::StyleLayoutFlex` instead")]] =
+    esp_brookesia::gui::StyleLayoutFlex;
+using ESP_Brookesia_AnimPathType_t    [[deprecated("Use `esp_brookesia::gui::StyleAnimation::AnimationPathType` instead")]] =
+    esp_brookesia::gui::StyleAnimation::AnimationPathType;
+using ESP_Brookesia_StyleAnimation_t  [[deprecated("Use `esp_brookesia::gui::StyleAnimation` instead")]] =
+    esp_brookesia::gui::StyleAnimation;

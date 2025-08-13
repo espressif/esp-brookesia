@@ -1,27 +1,27 @@
-menu "Core"
-    menuconfig ESP_BROOKESIA_CORE_ENABLE_DEBUG_LOG
+menu "Base"
+    menuconfig ESP_BROOKESIA_BASE_ENABLE_DEBUG_LOG
         bool "Enable debug log output"
         depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
         default y
 
-    if ESP_BROOKESIA_CORE_ENABLE_DEBUG_LOG
-        config ESP_BROOKESIA_CORE_APP_ENABLE_DEBUG_LOG
+    if ESP_BROOKESIA_BASE_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_BASE_APP_ENABLE_DEBUG_LOG
             bool "App"
             default y
 
-        config ESP_BROOKESIA_CORE_DISPLAY_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_BASE_DISPLAY_ENABLE_DEBUG_LOG
             bool "Display"
             default y
 
-        config ESP_BROOKESIA_CORE_EVENT_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_BASE_EVENT_ENABLE_DEBUG_LOG
             bool "Event"
             default y
 
-        config ESP_BROOKESIA_CORE_MANAGER_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_BASE_MANAGER_ENABLE_DEBUG_LOG
             bool "Manager"
             default y
 
-        config ESP_BROOKESIA_CORE_CORE_ENABLE_DEBUG_LOG
+        config ESP_BROOKESIA_BASE_CORE_ENABLE_DEBUG_LOG
             bool "Core"
             default y
     endif
@@ -43,7 +43,7 @@ if ESP_BROOKESIA_SYSTEMS_ENABLE_PHONE
             default y
 
         config ESP_BROOKESIA_PHONE_HONE_ENABLE_DEBUG_LOG
-            bool "Home"
+            bool "Display"
             default y
 
         config ESP_BROOKESIA_PHONE_MANAGER_ENABLE_DEBUG_LOG

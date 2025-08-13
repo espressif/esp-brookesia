@@ -17,7 +17,7 @@ constexpr int SOUND_VOLUME_MIN      = 0;
 constexpr int SOUND_VOLUME_MAX      = 100;
 constexpr int SOUND_VOLUME_DEFAULT  = 70;
 
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 using namespace esp_brookesia::services;
 
 static esp_codec_dev_handle_t play_dev = nullptr;
@@ -68,7 +68,7 @@ bool audio_init()
     /* Update media sound volume when NVS volume is updated */
     auto &storage_service = StorageNVS::requestInstance();
     storage_service.connectEventSignal([&](const StorageNVS::Event & event) {
-        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.key != SETTINGS_NVS_KEY_VOLUME)) {
+        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.key != Manager::SETTINGS_VOLUME)) {
             return;
         }
 
@@ -76,7 +76,7 @@ bool audio_init()
 
         StorageNVS::Value value;
         ESP_UTILS_CHECK_FALSE_EXIT(
-            storage_service.getLocalParam(SETTINGS_NVS_KEY_VOLUME, value), "Get NVS volume failed"
+            storage_service.getLocalParam(Manager::SETTINGS_VOLUME, value), "Get NVS volume failed"
         );
 
         auto volume = std::clamp(std::get<int>(value), SOUND_VOLUME_MIN, SOUND_VOLUME_MAX);
@@ -88,10 +88,10 @@ bool audio_init()
 
     /* Initialize media sound volume */
     StorageNVS::Value volume = SOUND_VOLUME_DEFAULT;
-    if (!storage_service.getLocalParam(SETTINGS_NVS_KEY_VOLUME, volume)) {
+    if (!storage_service.getLocalParam(Manager::SETTINGS_VOLUME, volume)) {
         ESP_UTILS_LOGW("Volume not found in NVS, set to default value(%d)", std::get<int>(volume));
     }
-    storage_service.setLocalParam(SETTINGS_NVS_KEY_VOLUME, volume);
+    storage_service.setLocalParam(Manager::SETTINGS_VOLUME, volume);
 
     return true;
 }

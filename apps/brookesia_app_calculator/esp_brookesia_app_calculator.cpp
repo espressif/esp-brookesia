@@ -13,8 +13,7 @@
 #include "esp_lib_utils.h"
 #include "esp_brookesia_app_calculator.hpp"
 
-using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 LV_IMG_DECLARE(img_app_calculator);
 
@@ -48,8 +47,8 @@ namespace esp_brookesia::apps {
 Calculator::Calculator():
     App( {
     .name = APP_NAME,
-    .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&img_app_calculator),
-    .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
+    .launcher_icon = gui::StyleImage::IMAGE(&img_app_calculator),
+    .screen_size = gui::StyleSize::RECT_PERCENT(100, 100),
     .flags = {
         .enable_default_screen = 1,
         .enable_recycle_resource = 0,
@@ -312,7 +311,7 @@ bool Calculator::isLegalDot(void)
 
 double Calculator::calculate(const char *input)
 {
-    vector<double> stk;
+    std::vector<double> stk;
     int input_len = strlen(input);
     double num = 0;
     bool dot_flag = false;
@@ -539,6 +538,6 @@ void Calculator::keyboard_event_cb(lv_event_t *e)
     }
 }
 
-ESP_UTILS_REGISTER_PLUGIN(systems::CoreApp, Calculator, APP_NAME)
+ESP_UTILS_REGISTER_PLUGIN(systems::base::App, Calculator, APP_NAME)
 
 }

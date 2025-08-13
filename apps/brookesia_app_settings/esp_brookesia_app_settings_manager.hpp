@@ -96,7 +96,7 @@ public:
         AppOperationPayloadType payload;
     };
 
-    SettingsManager(speaker::App &app_in, SettingsUI &ui_in, const SettingsManagerData &data_in);
+    SettingsManager(systems::speaker::App &app_in, SettingsUI &ui_in, const SettingsManagerData &data_in);
     ~SettingsManager();
 
     SettingsManager(const SettingsManager &) = delete;
@@ -114,7 +114,7 @@ public:
         return (_ui_screen_object_map.size() == 0);
     }
 
-    speaker::App &app;
+    systems::speaker::App &app;
     SettingsUI &ui;
     const SettingsManagerData &data;
 
@@ -175,23 +175,23 @@ private:
     bool processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_t *ui_screen_object);
     SettingsUI_ScreenBase *getUI_Screen(const UI_Screen &ui_screen);
     std::pair<UI_Screen, lv_obj_t *> getUI_BackScreenObject(const UI_Screen &ui_screen);
-    static bool onScreenNavigationClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    static bool onScreenNavigationClickEventHandler(const systems::base::Event::HandlerData &data);
 
     // Screen: Settings
     bool processRunUI_ScreenSettings();
     bool processCloseUI_ScreenSettings();
-    static bool onScreenSettingsCellClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    static bool onScreenSettingsCellClickEventHandler(const systems::base::Event::HandlerData &data);
 
     // Screen: WLAN
     bool processRunUI_ScreenWlan();
     bool processCloseUI_ScreenWlan();
     bool processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e);
-    bool processOnUI_ScreenWlanAvailableCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    bool processOnUI_ScreenWlanAvailableCellClickEvent(const systems::base::Event::HandlerData &data);
     bool processOnUI_ScreenWlanGestureEvent(lv_event_t *e);
     bool updateUI_ScreenWlanConnected(bool use_target, WlanGeneraState target_state = WlanGeneraState::DEINIT);
     bool updateUI_ScreenWlanAvailable(bool use_target, WlanGeneraState target_state = WlanGeneraState::DEINIT);
     static void onUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e);
-    static bool onUI_ScreenWlanAvailableCellClickEventHander(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    static bool onUI_ScreenWlanAvailableCellClickEventHander(const systems::base::Event::HandlerData &data);
     static void onUI_ScreenWlanGestureEvent(lv_event_t *e);
 
     // Screen: WLAN verification
@@ -202,8 +202,8 @@ private:
     // Screen: WLAN softap
     bool processRunUI_ScreenWlanSoftAP();
     bool processCloseUI_ScreenWlanSoftAP();
-    bool processOnUI_ScreenWlanSoftAPCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
-    bool processOnUI_ScreenWlanSoftAPNavigationClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    bool processOnUI_ScreenWlanSoftAPCellClickEvent(const systems::base::Event::HandlerData &data);
+    bool processOnUI_ScreenWlanSoftAPNavigationClickEvent(const systems::base::Event::HandlerData &data);
 
     // Screen: Sound
     bool processCloseUI_ScreenSound();

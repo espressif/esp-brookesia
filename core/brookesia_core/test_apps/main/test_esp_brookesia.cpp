@@ -12,7 +12,9 @@
 #include "unity_test_utils_memory.h"
 #include "lvgl.h"
 #include "esp_brookesia.hpp"
-#include "private/esp_brookesia_utils.h"
+
+using namespace esp_brookesia;
+using namespace esp_brookesia::systems::phone;
 
 #define TEST_LVGL_RESOLUTION_WIDTH          CONFIG_TEST_LVGL_RESOLUTION_WIDTH
 #define TEST_LVGL_RESOLUTION_HEIGHT         CONFIG_TEST_LVGL_RESOLUTION_HEIGHT
@@ -20,35 +22,35 @@
 
 /* Try using a stylesheet that corresponds to the resolution */
 #if (TEST_LVGL_RESOLUTION_WIDTH == 320) && (TEST_LVGL_RESOLUTION_HEIGHT == 240)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_320_240_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 320) && (TEST_LVGL_RESOLUTION_HEIGHT == 480)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_320_480_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_320_480_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 480) && (TEST_LVGL_RESOLUTION_HEIGHT == 480)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_480_480_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_480_480_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 720) && (TEST_LVGL_RESOLUTION_HEIGHT == 1280)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_720_1280_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_720_1280_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 800) && (TEST_LVGL_RESOLUTION_HEIGHT == 480)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_480_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_800_480_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 800) && (TEST_LVGL_RESOLUTION_HEIGHT == 1280)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_800_1280_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_800_1280_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 1024) && (TEST_LVGL_RESOLUTION_HEIGHT == 600)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_1024_600_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_1024_600_DARK
 #elif (TEST_LVGL_RESOLUTION_WIDTH == 1280) && (TEST_LVGL_RESOLUTION_HEIGHT == 800)
-#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   ESP_BROOKESIA_PHONE_1280_800_DARK_STYLESHEET()
+#define TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET()   STYLESHEET_1280_800_DARK
 #endif
 
 static const char *TAG = "test_esp_brookesia_phone";
 
 static void test_lvgl_init(lv_display_t **disp_out, lv_indev_t **tp_out);
 static void test_lvgl_deinit(lv_display_t *disp, lv_indev_t *indev);
-static ESP_Brookesia_Phone *test_esp_brookesia_phone_init(lv_display_t *disp, lv_indev_t *tp, bool enable_begin);
-static void test_esp_brookesia_phone_deinit(ESP_Brookesia_Phone *phone);
+static systems::phone::Phone *test_esp_brookesia_phone_init(lv_display_t *disp, lv_indev_t *tp, bool enable_begin);
+static void test_esp_brookesia_phone_deinit(systems::phone::Phone *phone);
 
 TEST_CASE("test esp-brookesia to begin and delete", "[esp-brookesia][phone][begin_del]")
 {
     lv_display_t *disp = nullptr;
     lv_indev_t *tp = nullptr;
-    ESP_Brookesia_Phone *phone = nullptr;
+    systems::phone::Phone *phone = nullptr;
 
     test_lvgl_init(&disp, &tp);
 
@@ -76,13 +78,13 @@ TEST_CASE("test esp-brookesia to add stylesheet", "[esp-brookesia][phone][add_st
 {
     lv_display_t *disp = nullptr;
     lv_indev_t *tp = nullptr;
-    ESP_Brookesia_Phone *phone = nullptr;
-    ESP_Brookesia_PhoneStylesheet_t *phone_stylesheet = nullptr;
+    systems::phone::Phone *phone = nullptr;
+    systems::phone::Stylesheet *phone_stylesheet = nullptr;
 
     test_lvgl_init(&disp, &tp);
     phone = test_esp_brookesia_phone_init(disp, tp, false);
 
-    phone_stylesheet = new ESP_Brookesia_PhoneStylesheet_t(TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET());
+    phone_stylesheet = new systems::phone::Stylesheet(TEST_ESP_BROOKESIA_PHONE_DARK_STYLESHEET());
     TEST_ASSERT_TRUE_MESSAGE(phone->addStylesheet(phone_stylesheet), "Failed to add phone stylesheet");
     TEST_ASSERT_TRUE_MESSAGE(phone->activateStylesheet(phone_stylesheet), "Failed to active phone stylesheet");
     delete phone_stylesheet;
@@ -97,7 +99,7 @@ TEST_CASE("test esp-brookesia to add stylesheet", "[esp-brookesia][phone][add_st
 // {
 //     lv_display_t *disp = nullptr;
 //     lv_indev_t *tp = nullptr;
-//     ESP_Brookesia_Phone *phone = nullptr;
+//     systems::phone::Phone *phone = nullptr;
 //     int phone_app_simple_conf_0_id = -1;
 //     int phone_app_simple_conf_1_id = -1;
 //     int phone_app_complex_conf_0_id = -1;
@@ -190,10 +192,10 @@ static void test_lvgl_deinit(lv_display_t *disp, lv_indev_t *indev)
     lv_deinit();
 }
 
-static ESP_Brookesia_Phone *test_esp_brookesia_phone_init(lv_display_t *disp, lv_indev_t *tp, bool enable_begin)
+static systems::phone::Phone *test_esp_brookesia_phone_init(lv_display_t *disp, lv_indev_t *tp, bool enable_begin)
 {
     ESP_LOGI(TAG, "Create phone object");
-    ESP_Brookesia_Phone *phone = new ESP_Brookesia_Phone(disp);
+    systems::phone::Phone *phone = new systems::phone::Phone(disp);
     TEST_ASSERT_NOT_NULL_MESSAGE(phone, "Failed to create phone");
 
     if (tp != nullptr) {
@@ -209,7 +211,7 @@ static ESP_Brookesia_Phone *test_esp_brookesia_phone_init(lv_display_t *disp, lv
     return phone;
 }
 
-static void test_esp_brookesia_phone_deinit(ESP_Brookesia_Phone *phone)
+static void test_esp_brookesia_phone_deinit(systems::phone::Phone *phone)
 {
     ESP_LOGI(TAG, "Phone delete");
     delete phone;

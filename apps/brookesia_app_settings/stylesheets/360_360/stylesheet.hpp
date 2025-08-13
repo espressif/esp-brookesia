@@ -36,7 +36,7 @@ constexpr SettingsStylesheetData SETTINGS_UI_360_360_STYLESHEET_DARK()
 {
     return {
         .name = "Brookesia-Dark",
-        .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT(360, 360),
+        .screen_size = gui::StyleSize::RECT(360, 360),
         .ui = SETTINGS_UI_360_360_DATA(),
     };
 }

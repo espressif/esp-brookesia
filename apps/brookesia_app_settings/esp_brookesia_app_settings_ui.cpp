@@ -6,11 +6,11 @@
 #include "private/esp_brookesia_app_settings_utils.hpp"
 #include "esp_brookesia_app_settings_ui.hpp"
 
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
-SettingsUI::SettingsUI(speaker::App &ui_app, const SettingsUI_Data &ui_data):
+SettingsUI::SettingsUI(App &ui_app, const SettingsUI_Data &ui_data):
     app(ui_app),
     data(ui_data),
     screen_settings(ui_app, ui_data.screen_base, ui_data.screen_settings),
@@ -74,10 +74,10 @@ bool SettingsUI::del()
     return true;
 }
 
-bool SettingsUI::calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, SettingsUI_Data &ui_data)
+bool SettingsUI::calibrateData(const gui::StyleSize &parent_size, SettingsUI_Data &ui_data)
 {
     ESP_UTILS_LOGD("Calibrate data");
-    const ESP_Brookesia_CoreHome &core_home = app.getCore()->getCoreHome();
+    const systems::base::Display &core_home = app.getSystemContext()->getDisplay();
     ESP_UTILS_CHECK_FALSE_RETURN(
         SettingsUI_ScreenBase::calibrateData(parent_size, core_home, ui_data.screen_base),
         false, "Screen base calibrate data failed"
@@ -112,4 +112,4 @@ bool SettingsUI::processStylesheetUpdate()
     return true;
 }
 
-}; // namespace esp_brookesia::speaker
+}; // namespace esp_brookesia::apps

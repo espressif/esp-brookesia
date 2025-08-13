@@ -7,10 +7,10 @@
 
 #include <string_view>
 #include "lvgl/esp_brookesia_lv.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "boost/signals2/signal.hpp"
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 struct KeyboardData {
     struct {
@@ -46,7 +46,7 @@ public:
     using OnKeyboardDrawTaskSignal = boost::signals2::signal<void(lv_event_t *e)>;
     using OnKeyboardDrawTaskSignalSlot = OnKeyboardDrawTaskSignal::slot_type;
 
-    Keyboard(ESP_Brookesia_Core &core, const KeyboardData &data);
+    Keyboard(base::Context &core, const KeyboardData &data);
     ~Keyboard();
 
     Keyboard &operator=(const Keyboard &other) = delete;
@@ -72,7 +72,7 @@ public:
     bool getTextEdit(lv_obj_t *&text_edit) const;
 
     static bool calibrateData(
-        const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display, KeyboardData &data
+        const gui::StyleSize &screen_size, const base::Display &display, KeyboardData &data
     );
 
     OnKeyboardValueChangedSignal on_keyboard_value_changed_signal;
@@ -83,7 +83,7 @@ private:
     bool processOnKeyboardValueChanged(lv_event_t *e);
     bool processOnKeyboardDrawTask(lv_event_t *e);
 
-    ESP_Brookesia_Core &_core;
+    base::Context &_system_context;
     const KeyboardData &_data;
 
     bool _is_keyboard_ok_enabled = true;
@@ -95,4 +95,4 @@ private:
     static const std::vector<std::string_view> _keyboard_special_str;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

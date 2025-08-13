@@ -14,45 +14,47 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_PhoneApp::ESP_Brookesia_PhoneApp(const ESP_Brookesia_CoreAppData_t &core_data, const ESP_Brookesia_PhoneAppData_t &phone_data):
-    ESP_Brookesia_CoreApp(core_data),
-    _init_data(phone_data),
+namespace esp_brookesia::systems::phone {
+
+App::App(const base::App::Config &core_data, const Config &phone_data):
+    base::App(core_data),
+    _init_config(phone_data),
     _recents_screen_snapshot_conf{}
 {
 }
 
-ESP_Brookesia_PhoneApp::ESP_Brookesia_PhoneApp(const char *name, const void *launcher_icon, bool use_default_screen,
-        bool use_status_bar, bool use_navigation_bar):
-    ESP_Brookesia_CoreApp(name, launcher_icon, use_default_screen),
-    _init_data(ESP_BROOKESIA_PHONE_APP_DATA_DEFAULT(launcher_icon, use_status_bar, use_navigation_bar)),
+App::App(const char *name, const void *launcher_icon, bool use_default_screen,
+         bool use_status_bar, bool use_navigation_bar):
+    base::App(name, launcher_icon, use_default_screen),
+    _init_config(Config::SIMPLE_CONSTRUCTOR(launcher_icon, use_status_bar, use_navigation_bar)),
     _recents_screen_snapshot_conf{}
 {
 }
 
-ESP_Brookesia_PhoneApp::ESP_Brookesia_PhoneApp(const char *name, const void *launcher_icon, bool use_default_screen):
-    ESP_Brookesia_CoreApp(name, launcher_icon, use_default_screen),
-    _init_data(ESP_BROOKESIA_PHONE_APP_DATA_DEFAULT(launcher_icon, true, false)),
+App::App(const char *name, const void *launcher_icon, bool use_default_screen):
+    base::App(name, launcher_icon, use_default_screen),
+    _init_config(Config::SIMPLE_CONSTRUCTOR(launcher_icon, true, false)),
     _recents_screen_snapshot_conf{}
 {
 }
 
-ESP_Brookesia_PhoneApp::~ESP_Brookesia_PhoneApp()
+App::~App()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
 
     // Uninstall the app if it is initialized
     if (checkInitialized()) {
-        if (!getPhone()->getManager().uninstallApp(this)) {
+        if (!getSystem()->getManager().uninstallApp(this)) {
             ESP_UTILS_LOGE("Uninstall app failed");
         }
     }
 }
 
-bool ESP_Brookesia_PhoneApp::setStatusIconState(uint8_t state)
+bool App::setStatusIconState(int state)
 {
-    ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "App is not initialized");
+    ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "base::App is not initialized");
 
-    ESP_Brookesia_StatusBar *status_bar = getPhone()->getHome().getStatusBar();
+    StatusBar *status_bar = getSystem()->getDisplay().getStatusBar();
     ESP_UTILS_CHECK_NULL_RETURN(status_bar, false, "Status bar is invalid");
 
     ESP_UTILS_CHECK_FALSE_RETURN(status_bar->setIconState(getId(), state), false, "Failed to set status icon state");
@@ -60,67 +62,69 @@ bool ESP_Brookesia_PhoneApp::setStatusIconState(uint8_t state)
     return true;
 }
 
-ESP_Brookesia_Phone *ESP_Brookesia_PhoneApp::getPhone(void)
+Phone *App::getSystem(void)
 {
-    return static_cast<ESP_Brookesia_Phone *>(getCore());
+    return static_cast<Phone *>(getSystemContext());
 }
 
-bool ESP_Brookesia_PhoneApp::beginExtra(void)
+bool App::beginExtra(void)
 {
     ESP_UTILS_LOGD("Begin extra(@0x%p)", this);
 
-    ESP_Brookesia_NavigationBar *navigation_bar = getPhone()->getHome().getNavigationBar();
-    ESP_Brookesia_Gesture *gesture = getPhone()->getManager().getGesture();
+    NavigationBar *navigation_bar = getSystem()->getDisplay().getNavigationBar();
+    Gesture *gesture = getSystem()->getManager().getGesture();
 
-    _active_data = _init_data;
+    _active_config = _init_config;
 
     // Check navigation bar and gesture
-    if ((_active_data.navigation_bar_visual_mode != ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE) &&
+    if ((_active_config.navigation_bar_visual_mode != NavigationBar::VisualMode::HIDE) &&
             (navigation_bar == nullptr)) {
         ESP_UTILS_LOGE("Navigation bar is enabled but not provided, disable it");
-        _active_data.navigation_bar_visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE;
+        _active_config.navigation_bar_visual_mode = NavigationBar::VisualMode::HIDE;
     }
-    if (_active_data.flags.enable_navigation_gesture && (gesture == nullptr)) {
+    if (_active_config.flags.enable_navigation_gesture && (gesture == nullptr)) {
         ESP_UTILS_LOGE("Navigation gesture is enabled but not provided, disable it");
-        _active_data.flags.enable_navigation_gesture = false;
+        _active_config.flags.enable_navigation_gesture = false;
     }
-    if ((_active_data.navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED) &&
-            _active_data.flags.enable_navigation_gesture) {
+    if ((_active_config.navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FIXED) &&
+            _active_config.flags.enable_navigation_gesture) {
         ESP_UTILS_LOGW("Both navigation bar(fixed) and gesture are enabled, only bar will be used");
-        _active_data.flags.enable_navigation_gesture = false;
+        _active_config.flags.enable_navigation_gesture = false;
     }
 
     // Check status icon
-    if ((_active_data.status_icon_data.icon.image_num > 0) &&
-            (_active_data.status_icon_data.icon.images[0].resource == nullptr)) {
+    if ((_active_config.status_icon_data.icon.image_num > 0) &&
+            (_active_config.status_icon_data.icon.images[0].resource == nullptr)) {
         ESP_UTILS_LOGW("No status icon provided, use launcher icon");
-        _active_data.status_icon_data.icon.images[0].resource = getLauncherIcon().resource;
+        _active_config.status_icon_data.icon.images[0].resource = getLauncherIcon().resource;
     }
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneApp::delExtra(void)
+bool App::delExtra(void)
 {
     ESP_UTILS_LOGD("Delete extra(@0x%p)", this);
 
-    _active_data = {};
+    _active_config = {};
     _recents_screen_snapshot_conf = {};
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneApp::updateRecentsScreenSnapshotConf(const void *image_resource)
+bool App::updateRecentsScreenSnapshotConf(const void *image_resource)
 {
     ESP_UTILS_LOGD("Update recents_screen snapshot conf");
-    ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "App is not initialized");
+    ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "base::App is not initialized");
 
-    _recents_screen_snapshot_conf = (ESP_Brookesia_RecentsScreenSnapshotConf_t) {
+    _recents_screen_snapshot_conf = {
         .name = getName(),
         .icon_image_resource = getLauncherIcon().resource,
         .snapshot_image_resource = (image_resource == nullptr) ? getLauncherIcon().resource : image_resource,
-        .id = getId(),
+        .id = getId()
     };
 
     return true;
 }
+
+} // namespace esp_brookesia::systems::phone

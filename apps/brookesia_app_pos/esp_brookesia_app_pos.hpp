@@ -38,7 +38,7 @@ typedef struct {
     uint64_t transaction_id;
 } pos_info_t;
 
-class Pos: public speaker::App {
+class Pos: public systems::speaker::App {
 public:
     /**
      * @brief Get the singleton instance of Pos
@@ -59,8 +59,8 @@ public:
     bool init(void) override;
     bool deinit(void) override;
 
-    using speaker::App::startRecordResource;
-    using speaker::App::endRecordResource;
+    using App::startRecordResource;
+    using App::endRecordResource;
 
 protected:
     /**

@@ -30,11 +30,11 @@ enum class SettingsUI_ScreenWlanCellIndex {
 struct SettingsUI_ScreenWlanData {
     SettingsUI_WidgetCellContainerConf container_confs[(int)SettingsUI_ScreenWlanContainerIndex::MAX];
     SettingsUI_WidgetCellConf cell_confs[(int)SettingsUI_ScreenWlanCellIndex::MAX];
-    ESP_Brookesia_StyleImage_t icon_wlan_signals[3];
-    ESP_Brookesia_StyleImage_t icon_wlan_lock;
-    ESP_Brookesia_StyleColor_t cell_connected_active_color;
-    ESP_Brookesia_StyleColor_t cell_connected_inactive_color;
-    ESP_Brookesia_StyleSize_t cell_left_main_label_size;
+    gui::StyleImage icon_wlan_signals[3];
+    gui::StyleImage icon_wlan_lock;
+    gui::StyleColor cell_connected_active_color;
+    gui::StyleColor cell_connected_inactive_color;
+    gui::StyleSize cell_left_main_label_size;
 };
 
 using SettingsUI_ScreenWlanCellContainerMap =
@@ -59,7 +59,7 @@ public:
     };
 
     SettingsUI_ScreenWlan(
-        speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+        systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
         const SettingsUI_ScreenWlanData &main_data
     );
     ~SettingsUI_ScreenWlan();
@@ -82,7 +82,7 @@ public:
     // Available list
     bool setAvailableVisible(bool visible);
     bool updateAvailableData(
-        std::vector<WlanData> &&wlan_data, ESP_Brookesia_CoreEvent::Handler event_handler, void *user_data
+        std::vector<WlanData> &&wlan_data, systems::base::Event::Handler event_handler, void *user_data
     );
     bool cleanAvailable();
     bool setAvaliableClickable(bool clickable);
@@ -101,4 +101,4 @@ private:
     bool updateCellWlanData(SettingsUI_WidgetCell *cell, WlanData wlan_data);
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

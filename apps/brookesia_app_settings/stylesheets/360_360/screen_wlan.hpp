@@ -39,7 +39,7 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF
     return {
         .left_main_label_text = "SoftAP Mode",
         .right_icon_images = {
-            ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
+            gui::StyleImage::IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
         },
         .flags = {
             .enable_left_main_label = 1,
@@ -87,12 +87,12 @@ constexpr SettingsUI_ScreenWlanData SETTINGS_UI_360_360_SCREEN_WLAN_DATA()
             SETTINGS_UI_360_360_SCREEN_WLAN_ELEMENT_CONF_PROVISIONING_SOFTAP(),
         },
         .icon_wlan_signals = {
-            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level1_36_36),
-            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level2_36_36),
-            ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level3_36_36),
+            gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level1_36_36),
+            gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level2_36_36),
+            gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_level3_36_36),
         },
-        .icon_wlan_lock = ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_lock_48_48),
-        .cell_left_main_label_size = ESP_BROOKESIA_STYLE_SIZE_RECT(200, 24),
+        .icon_wlan_lock = gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_app_icon_wlan_lock_48_48),
+        .cell_left_main_label_size = gui::StyleSize::RECT(200, 24),
     };
 }
 

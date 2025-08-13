@@ -9,13 +9,15 @@
 #endif
 #include "private/esp_brookesia_phone_utils.hpp"
 #include "esp_brookesia_phone_app.hpp"
-#include "esp_brookesia_phone_home.hpp"
+#include "esp_brookesia_phone_display.hpp"
 
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_PhoneHome::ESP_Brookesia_PhoneHome(ESP_Brookesia_Core &core, const ESP_Brookesia_PhoneHomeData_t &data):
-    ESP_Brookesia_CoreHome(core, core.getCoreData().home),
+namespace esp_brookesia::systems::phone {
+
+Display::Display(base::Context &core, const Display::Data &data):
+    base::Display(core, core.getData().display),
     _data(data),
     _app_launcher(core, data.app_launcher.data),
     _status_bar(nullptr),
@@ -24,7 +26,7 @@ ESP_Brookesia_PhoneHome::ESP_Brookesia_PhoneHome(ESP_Brookesia_Core &core, const
 {
 }
 
-ESP_Brookesia_PhoneHome::~ESP_Brookesia_PhoneHome()
+Display::~Display()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
     if (!del()) {
@@ -32,28 +34,28 @@ ESP_Brookesia_PhoneHome::~ESP_Brookesia_PhoneHome()
     }
 }
 
-bool ESP_Brookesia_PhoneHome::begin(void)
+bool Display::begin(void)
 {
-    lv_obj_t *main_screen_obj = _core.getCoreHome().getMainScreenObject();
-    lv_obj_t *system_screen_obj = _core.getCoreHome().getSystemScreenObject();
-    shared_ptr<ESP_Brookesia_StatusBar> status_bar = nullptr;
-    shared_ptr<ESP_Brookesia_NavigationBar> navigation_bar = nullptr;
-    shared_ptr<ESP_Brookesia_RecentsScreen> recents_screen = nullptr;
+    lv_obj_t *main_screen_obj = _system_context.getDisplay().getMainScreenObject();
+    lv_obj_t *system_screen_obj = _system_context.getDisplay().getSystemScreenObject();
+    shared_ptr<StatusBar> status_bar = nullptr;
+    shared_ptr<NavigationBar> navigation_bar = nullptr;
+    shared_ptr<RecentsScreen> recents_screen = nullptr;
 
     ESP_UTILS_LOGD("Begin(@0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
 
     // Recents Screen
     if (_data.flags.enable_recents_screen) {
-        recents_screen = std::make_shared<ESP_Brookesia_RecentsScreen>(_core, _data.recents_screen.data);
+        recents_screen = std::make_shared<RecentsScreen>(_system_context, _data.recents_screen.data);
         ESP_UTILS_CHECK_NULL_RETURN(recents_screen, false, "Create recents_screen failed");
         ESP_UTILS_CHECK_FALSE_RETURN(recents_screen->begin(system_screen_obj), false, "Begin recents_screen failed");
     }
 
     // Status bar
     if (_data.flags.enable_status_bar) {
-        status_bar = std::make_shared<ESP_Brookesia_StatusBar>(_core, _data.status_bar.data,
-                     _core.getCoreManager().getAppFreeId(), _core.getCoreManager().getAppFreeId());
+        status_bar = std::make_shared<StatusBar>(_system_context, _data.status_bar.data,
+                     _system_context.getManager().getAppFreeId(), _system_context.getManager().getAppFreeId());
         ESP_UTILS_CHECK_NULL_RETURN(status_bar, false, "Create status bar failed");
         ESP_UTILS_CHECK_FALSE_RETURN(status_bar->begin(system_screen_obj), false, "Begin status bar failed");
         ESP_UTILS_CHECK_FALSE_RETURN(status_bar->setVisualMode(_data.status_bar.visual_mode), false,
@@ -62,14 +64,14 @@ bool ESP_Brookesia_PhoneHome::begin(void)
 
     // Navigation bar
     if (_data.flags.enable_navigation_bar) {
-        navigation_bar = std::make_shared<ESP_Brookesia_NavigationBar>(_core, _data.navigation_bar.data);
+        navigation_bar = std::make_shared<NavigationBar>(_system_context, _data.navigation_bar.data);
         ESP_UTILS_CHECK_NULL_RETURN(navigation_bar, false, "Create navigation bar failed");
         ESP_UTILS_CHECK_FALSE_RETURN(navigation_bar->begin(system_screen_obj), false, "Begin navigation bar failed");
         ESP_UTILS_CHECK_FALSE_RETURN(navigation_bar->setVisualMode(_data.navigation_bar.visual_mode), false,
                                      "Navigation bar set visual mode failed");
     }
 
-    // App table
+    // base::App table
     ESP_UTILS_CHECK_FALSE_RETURN(_app_launcher.begin(main_screen_obj), false, "Begin app launcher failed");
 
     _status_bar = status_bar;
@@ -79,7 +81,7 @@ bool ESP_Brookesia_PhoneHome::begin(void)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::del(void)
+bool Display::del(void)
 {
     ESP_UTILS_LOGD("Delete(@0x%p)", this);
 
@@ -103,17 +105,17 @@ bool ESP_Brookesia_PhoneHome::del(void)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processAppInstall(ESP_Brookesia_CoreApp *app)
+bool Display::processAppInstall(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
-    ESP_Brookesia_AppLauncherIconInfo_t icon_info = {};
+    App *phone_app = static_cast<App *>(app);
+    phone::AppLauncherIcon::Info icon_info = {};
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process when app(%d) install", phone_app->getId());
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     // Process app launcher
-    icon_info = (ESP_Brookesia_AppLauncherIconInfo_t) {
+    icon_info = (phone::AppLauncherIcon::Info) {
         phone_app->getName(), phone_app->getLauncherIcon(), phone_app->getId()
     };
     if (phone_app->getLauncherIcon().resource == nullptr) {
@@ -121,15 +123,15 @@ bool ESP_Brookesia_PhoneHome::processAppInstall(ESP_Brookesia_CoreApp *app)
         icon_info.image = _data.app_launcher.default_image;
         phone_app->setLauncherIconImage(icon_info.image);
     }
-    ESP_UTILS_CHECK_FALSE_RETURN(_app_launcher.addIcon(phone_app->getActiveData().app_launcher_page_index, icon_info),
+    ESP_UTILS_CHECK_FALSE_RETURN(_app_launcher.addIcon(phone_app->getActiveConfig().app_launcher_page_index, icon_info),
                                  false, "Add launcher icon failed");
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processAppUninstall(ESP_Brookesia_CoreApp *app)
+bool Display::processAppUninstall(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process when app(%d) uninstall", phone_app->getId());
@@ -141,15 +143,15 @@ bool ESP_Brookesia_PhoneHome::processAppUninstall(ESP_Brookesia_CoreApp *app)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processAppRun(ESP_Brookesia_CoreApp *app)
+bool Display::processAppRun(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process when app(%d) run", phone_app->getId());
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    const ESP_Brookesia_PhoneAppData_t &app_data = phone_app->getActiveData();
+    const App::Config &app_data = phone_app->getActiveConfig();
     // Process status bar
     if (_status_bar == nullptr) {
         ESP_UTILS_LOGD("No status_bar");
@@ -158,10 +160,10 @@ bool ESP_Brookesia_PhoneHome::processAppRun(ESP_Brookesia_CoreApp *app)
         if (app_data.status_icon_data.icon.image_num > 0) {
             if (app_data.flags.enable_status_icon_common_size) {
                 ESP_UTILS_LOGD("Use common size for status icon");
-                phone_app->_active_data.status_icon_data.size = _data.status_bar.data.icon_common_size;
+                phone_app->_active_config.status_icon_data.size = _data.status_bar.data.icon_common_size;
             }
             ESP_UTILS_CHECK_FALSE_RETURN(
-                ESP_Brookesia_StatusBar::calibrateIconData(_data.status_bar.data, *this, phone_app->_active_data.status_icon_data),
+                StatusBar::calibrateIconData(_data.status_bar.data, *this, phone_app->_active_config.status_icon_data),
                 false, "Calibrate status icon data failed"
             );
             ESP_UTILS_CHECK_FALSE_RETURN(
@@ -197,15 +199,15 @@ bool ESP_Brookesia_PhoneHome::processAppRun(ESP_Brookesia_CoreApp *app)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processAppResume(ESP_Brookesia_CoreApp *app)
+bool Display::processAppResume(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process when app(%d) resume", phone_app->getId());
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    const ESP_Brookesia_PhoneAppData_t &app_data = phone_app->getActiveData();
+    const App::Config &app_data = phone_app->getActiveConfig();
     // Process status bar
     if (_status_bar == nullptr) {
         ESP_UTILS_LOGD("No status_bar");
@@ -227,9 +229,9 @@ bool ESP_Brookesia_PhoneHome::processAppResume(ESP_Brookesia_CoreApp *app)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processAppClose(ESP_Brookesia_CoreApp *app)
+bool Display::processAppClose(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process when app(%d) close", phone_app->getId());
@@ -238,7 +240,7 @@ bool ESP_Brookesia_PhoneHome::processAppClose(ESP_Brookesia_CoreApp *app)
     // Process status bar
     if (_status_bar == nullptr) {
         ESP_UTILS_LOGD("No status_bar");
-    } else if (phone_app->getActiveData().status_icon_data.icon.image_num > 0) {
+    } else if (phone_app->getActiveConfig().status_icon_data.icon.image_num > 0) {
         // Remove status bar icon if created
         ESP_UTILS_CHECK_FALSE_RETURN(_status_bar->removeIcon(phone_app->getId()), false, "Remove status icon failed");
     }
@@ -256,11 +258,11 @@ bool ESP_Brookesia_PhoneHome::processAppClose(ESP_Brookesia_CoreApp *app)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processMainScreenLoad(void)
+bool Display::processMainScreenLoad(void)
 {
-    lv_obj_t *main_screen = _core.getCoreHome().getMainScreen();
+    lv_obj_t *main_screen = _system_context.getDisplay().getMainScreen();
 
-    ESP_UTILS_LOGD("Process when load home");
+    ESP_UTILS_LOGD("Process when load display");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     // Process status bar
@@ -285,29 +287,29 @@ bool ESP_Brookesia_PhoneHome::processMainScreenLoad(void)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::getAppVisualArea(ESP_Brookesia_CoreApp *app, lv_area_t &app_visual_area) const
+bool Display::getAppVisualArea(base::App *app, lv_area_t &app_visual_area) const
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
 
     lv_area_t visual_area = {
         .x1 = 0,
         .y1 = 0,
-        .x2 = (lv_coord_t)(_core.getCoreData().screen_size.width - 1),
-        .y2 = (lv_coord_t)(_core.getCoreData().screen_size.height - 1),
+        .x2 = (lv_coord_t)(_system_context.getData().screen_size.width - 1),
+        .y2 = (lv_coord_t)(_system_context.getData().screen_size.height - 1),
     };
-    const ESP_Brookesia_PhoneAppData_t &app_data = phone_app->getActiveData();
+    const App::Config &app_data = phone_app->getActiveConfig();
 
     // Process status bar
-    if ((_status_bar != nullptr) && (app_data.status_bar_visual_mode == ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED) &&
+    if ((_status_bar != nullptr) && (app_data.status_bar_visual_mode == StatusBar::VisualMode::SHOW_FIXED) &&
             (_data.status_bar.data.main.background_color.opacity == LV_OPA_COVER)) {
         visual_area.y1 = _data.status_bar.data.main.size.height;
     }
 
     // Process navigation bar
     if ((_navigation_bar != nullptr) &&
-            (app_data.navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED)) {
+            (app_data.navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FIXED)) {
         visual_area.y2 -= _data.navigation_bar.data.main.size.height;
     }
 
@@ -316,7 +318,7 @@ bool ESP_Brookesia_PhoneHome::getAppVisualArea(ESP_Brookesia_CoreApp *app, lv_ar
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::processRecentsScreenShow(void)
+bool Display::processRecentsScreenShow(void)
 {
     ESP_UTILS_LOGD("Process when show recents_screen");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -343,7 +345,7 @@ bool ESP_Brookesia_PhoneHome::processRecentsScreenShow(void)
     return true;
 }
 
-bool ESP_Brookesia_PhoneHome::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, ESP_Brookesia_PhoneHomeData_t &data)
+bool Display::calibrateData(const gui::StyleSize &screen_size, Display::Data &data)
 {
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -361,31 +363,31 @@ bool ESP_Brookesia_PhoneHome::calibrateData(const ESP_Brookesia_StyleSize_t &scr
 
     // Status bar
     if (data.flags.enable_status_bar) {
-        ESP_UTILS_CHECK_FALSE_RETURN(ESP_Brookesia_StatusBar::calibrateData(screen_size, *this, data.status_bar.data),
+        ESP_UTILS_CHECK_FALSE_RETURN(StatusBar::calibrateData(screen_size, *this, data.status_bar.data),
                                      false, "Calibrate status bar data failed");
         if (data.flags.enable_app_launcher_flex_size &&
-                (data.status_bar.visual_mode == ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED)) {
+                (data.status_bar.visual_mode == StatusBar::VisualMode::SHOW_FIXED)) {
             data.app_launcher.data.main.y_start += data.status_bar.data.main.size.height;
             data.app_launcher.data.main.size.height -= data.status_bar.data.main.size.height;
         }
         if (data.flags.enable_recents_screen && data.flags.enable_recents_screen_flex_size &&
-                (data.recents_screen.status_bar_visual_mode == ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_SHOW_FIXED)) {
+                (data.recents_screen.status_bar_visual_mode == StatusBar::VisualMode::SHOW_FIXED)) {
             data.recents_screen.data.main.y_start += data.status_bar.data.main.size.height;
             data.recents_screen.data.main.size.height -= data.status_bar.data.main.size.height;
         }
     }
     // Navigation bar
     if (data.flags.enable_navigation_bar) {
-        ESP_UTILS_CHECK_FALSE_RETURN(ESP_Brookesia_NavigationBar::calibrateData(screen_size, *this, data.navigation_bar.data),
+        ESP_UTILS_CHECK_FALSE_RETURN(NavigationBar::calibrateData(screen_size, *this, data.navigation_bar.data),
                                      false, "Calibrate navigation bar data failed");
         if (data.flags.enable_app_launcher_flex_size &&
-                (data.navigation_bar.visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED)) {
+                (data.navigation_bar.visual_mode == NavigationBar::VisualMode::SHOW_FIXED)) {
             ESP_UTILS_CHECK_VALUE_RETURN(data.app_launcher.data.main.y_start + data.navigation_bar.data.main.size.height,
                                          1, screen_size.height, false, "Invalid app launcher height flex");
             data.app_launcher.data.main.size.height -= data.navigation_bar.data.main.size.height;
         }
         if (data.flags.enable_recents_screen && data.flags.enable_recents_screen_flex_size &&
-                (data.recents_screen.navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED)) {
+                (data.recents_screen.navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FIXED)) {
             ESP_UTILS_CHECK_VALUE_RETURN(data.recents_screen.data.main.y_start + data.recents_screen.data.main.size.height,
                                          1, screen_size.height, false, "Invalid app launcher height flex");
             data.recents_screen.data.main.size.height -= data.navigation_bar.data.main.size.height;
@@ -393,12 +395,14 @@ bool ESP_Brookesia_PhoneHome::calibrateData(const ESP_Brookesia_StyleSize_t &scr
     }
     // Recents Screen
     if (data.flags.enable_recents_screen) {
-        ESP_UTILS_CHECK_FALSE_RETURN(ESP_Brookesia_RecentsScreen::calibrateData(screen_size, *this, data.recents_screen.data),
+        ESP_UTILS_CHECK_FALSE_RETURN(RecentsScreen::calibrateData(screen_size, *this, data.recents_screen.data),
                                      false, "Calibrate recents_screen data failed");
     }
-    // App table
-    ESP_UTILS_CHECK_FALSE_RETURN(ESP_Brookesia_AppLauncher::calibrateData(screen_size, *this, data.app_launcher.data),
+    // base::App table
+    ESP_UTILS_CHECK_FALSE_RETURN(AppLauncher::calibrateData(screen_size, *this, data.app_launcher.data),
                                  false, "Calibrate app launcher data failed");
 
     return true;
 }
+
+} // namespace esp_brookesia::systems::phone

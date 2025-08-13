@@ -15,24 +15,16 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_PhoneManager::ESP_Brookesia_PhoneManager(ESP_Brookesia_Core &core_in, ESP_Brookesia_PhoneHome &home_in,
-        const ESP_Brookesia_PhoneManagerData_t &data_in):
-    ESP_Brookesia_CoreManager(core_in, core_in.getCoreData().manager),
-    home(home_in),
-    data(data_in),
-    _flags{},
-    _home_active_screen(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAX),
-    _app_launcher_gesture_dir(ESP_BROOKESIA_GESTURE_DIR_NONE),
-    _navigation_bar_gesture_dir(ESP_BROOKESIA_GESTURE_DIR_NONE),
-    _gesture(nullptr),
-    _recents_screen_drag_tan_threshold(0),
-    _recents_screen_start_point{},
-    _recents_screen_last_point{},
-    _recents_screen_active_app(nullptr)
+namespace esp_brookesia::systems::phone {
+
+Manager::Manager(base::Context &core_in, Display &display_in, const Data &data_in)
+    : base::Manager(core_in, core_in.getData().manager)
+    , display(display_in)
+    , data(data_in)
 {
 }
 
-ESP_Brookesia_PhoneManager::~ESP_Brookesia_PhoneManager()
+Manager::~Manager()
 {
     ESP_UTILS_LOGD("Destroy(0x%p)", this);
     if (!del()) {
@@ -40,60 +32,59 @@ ESP_Brookesia_PhoneManager::~ESP_Brookesia_PhoneManager()
     }
 }
 
-bool ESP_Brookesia_PhoneManager::calibrateData(const ESP_Brookesia_StyleSize_t screen_size, ESP_Brookesia_PhoneHome &home,
-        ESP_Brookesia_PhoneManagerData_t &data)
+bool Manager::calibrateData(const gui::StyleSize &screen_size, Display &display, Data &data)
 {
     ESP_UTILS_LOGD("Calibrate data");
 
     if (data.flags.enable_gesture) {
-        ESP_UTILS_CHECK_FALSE_RETURN(ESP_Brookesia_Gesture::calibrateData(screen_size, home, data.gesture), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(Gesture::calibrateData(screen_size, display, data.gesture), false,
                                      "Calibrate gesture data failed");
     }
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::begin(void)
+bool Manager::begin(void)
 {
-    const ESP_Brookesia_RecentsScreen *recents_screen = home.getRecentsScreen();
-    unique_ptr<ESP_Brookesia_Gesture> gesture = nullptr;
+    const RecentsScreen *recents_screen = display.getRecentsScreen();
+    unique_ptr<Gesture> gesture = nullptr;
     lv_indev_t *touch = nullptr;
 
     ESP_UTILS_LOGD("Begin(@0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
 
-    // Home
-    lv_obj_add_event_cb(home.getMainScreen(), onHomeMainScreenLoadEventCallback, LV_EVENT_SCREEN_LOADED, this);
+    // base::Display
+    lv_obj_add_event_cb(display.getMainScreen(), onDisplayMainScreenLoadEventCallback, LV_EVENT_SCREEN_LOADED, this);
 
     // Gesture
     if (data.flags.enable_gesture) {
         // Get the touch device
-        touch = _core.getTouchDevice();
+        touch = _system_context.getTouchDevice();
         if (touch == nullptr) {
             ESP_UTILS_LOGW("No touch device is set, try to use default touch device");
 
-            touch = esp_brookesia_core_utils_get_input_dev(_core.getDisplayDevice(), LV_INDEV_TYPE_POINTER);
+            touch = esp_brookesia_core_utils_get_input_dev(_system_context.getDisplayDevice(), LV_INDEV_TYPE_POINTER);
             ESP_UTILS_CHECK_NULL_RETURN(touch, false, "No touch device is initialized");
             ESP_UTILS_LOGW("Using default touch device(@0x%p)", touch);
 
-            ESP_UTILS_CHECK_FALSE_RETURN(_core.setTouchDevice(touch), false, "Core set touch device failed");
+            ESP_UTILS_CHECK_FALSE_RETURN(_system_context.setTouchDevice(touch), false, "Core set touch device failed");
         }
 
         // Create and begin gesture
-        gesture = make_unique<ESP_Brookesia_Gesture>(_core, data.gesture);
+        gesture = make_unique<Gesture>(_system_context, data.gesture);
         ESP_UTILS_CHECK_NULL_RETURN(gesture, false, "Create gesture failed");
-        ESP_UTILS_CHECK_FALSE_RETURN(gesture->begin(home.getSystemScreenObject()), false, "Gesture begin failed");
+        ESP_UTILS_CHECK_FALSE_RETURN(gesture->begin(display.getSystemScreenObject()), false, "Gesture begin failed");
         ESP_UTILS_CHECK_FALSE_RETURN(gesture->setMaskObjectVisible(false), false, "Hide mask object failed");
         ESP_UTILS_CHECK_FALSE_RETURN(
-            gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT, false),
+            gesture->setIndicatorBarVisible(Gesture::IndicatorBarType::LEFT, false),
             false, "Set left indicator bar visible failed"
         );
         ESP_UTILS_CHECK_FALSE_RETURN(
-            gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT, false),
+            gesture->setIndicatorBarVisible(Gesture::IndicatorBarType::RIGHT, false),
             false, "Set right indicator bar visible failed"
         );
         ESP_UTILS_CHECK_FALSE_RETURN(
-            gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM, true),
+            gesture->setIndicatorBarVisible(Gesture::IndicatorBarType::BOTTOM, true),
             false, "Set bottom indicator bar visible failed"
         );
 
@@ -118,7 +109,7 @@ bool ESP_Brookesia_PhoneManager::begin(void)
                             gesture->getReleaseEventCode(), this);
 
         // Navigation Bar
-        if (home.getNavigationBar() != nullptr) {
+        if (display.getNavigationBar() != nullptr) {
             lv_obj_add_event_cb(gesture->getEventObj(), onNavigationBarGestureEventCallback,
                                 gesture->getPressingEventCode(), this);
             lv_obj_add_event_cb(gesture->getEventObj(), onNavigationBarGestureEventCallback,
@@ -150,13 +141,13 @@ bool ESP_Brookesia_PhoneManager::begin(void)
     }
     _flags.is_initialized = true;
 
-    ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::MAIN, nullptr), false,
                                  "Process screen change failed");
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::del(void)
+bool Manager::del(void)
 {
     lv_obj_t *temp_obj = nullptr;
 
@@ -169,8 +160,8 @@ bool ESP_Brookesia_PhoneManager::del(void)
     if (_gesture != nullptr) {
         _gesture.reset();
     }
-    if (home.getRecentsScreen() != nullptr) {
-        temp_obj = home.getRecentsScreen()->getEventObject();
+    if (display.getRecentsScreen() != nullptr) {
+        temp_obj = display.getRecentsScreen()->getEventObject();
         if (temp_obj != nullptr && checkLvObjIsValid(temp_obj)) {
             lv_obj_remove_event_cb(temp_obj, onRecentsScreenSnapshotDeletedEventCallback);
         }
@@ -181,46 +172,46 @@ bool ESP_Brookesia_PhoneManager::del(void)
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processAppRunExtra(ESP_Brookesia_CoreApp *app)
+bool Manager::processAppRunExtra(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process app(%p) run extra", phone_app);
 
-    ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_APP, phone_app), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::APP, phone_app), false,
                                  "Process screen change failed");
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processAppResumeExtra(ESP_Brookesia_CoreApp *app)
+bool Manager::processAppResumeExtra(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process app(%p) resume extra", phone_app);
 
-    ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_APP, phone_app), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::APP, phone_app), false,
                                  "Process screen change failed");
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processAppCloseExtra(ESP_Brookesia_CoreApp *app)
+bool Manager::processAppCloseExtra(base::App *app)
 {
-    ESP_Brookesia_PhoneApp *phone_app = static_cast<ESP_Brookesia_PhoneApp *>(app);
+    App *phone_app = static_cast<App *>(app);
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
     ESP_UTILS_LOGD("Process app(%p) close extra", phone_app);
 
     if (getActiveApp() == app) {
         // Switch to the main screen to release the app resources
-        ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::MAIN, nullptr), false,
                                      "Process screen change failed");
         // If the recents_screen is visible, change back to the recents_screen
-        if (home.getRecentsScreen()->checkVisible()) {
-            ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN, nullptr), false,
+        if (display.getRecentsScreen()->checkVisible()) {
+            ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::RECENTS_SCREEN, nullptr), false,
                                          "Process screen change failed");
         }
     }
@@ -228,49 +219,49 @@ bool ESP_Brookesia_PhoneManager::processAppCloseExtra(ESP_Brookesia_CoreApp *app
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processHomeScreenChange(ESP_Brookesia_PhoneManagerScreen_t screen, void *param)
+bool Manager::processDisplayScreenChange(Screen screen, void *param)
 {
     ESP_UTILS_LOGD("Process Screen Change(%d)", screen);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(screen < ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAX, false, "Invalid screen");
+    ESP_UTILS_CHECK_FALSE_RETURN(screen < Screen::MAX, false, "Invalid screen");
 
     ESP_UTILS_CHECK_FALSE_RETURN(processStatusBarScreenChange(screen, param), false, "Process status bar failed");
     ESP_UTILS_CHECK_FALSE_RETURN(processNavigationBarScreenChange(screen, param), false, "Process navigation bar failed");
     ESP_UTILS_CHECK_FALSE_RETURN(processGestureScreenChange(screen, param), false, "Process gesture failed");
 
-    if (screen == ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN) {
-        ESP_UTILS_CHECK_FALSE_RETURN(home.processMainScreenLoad(), false, "Home load main screen failed");
+    if (screen == Screen::MAIN) {
+        ESP_UTILS_CHECK_FALSE_RETURN(display.processMainScreenLoad(), false, "base::Display load main screen failed");
     }
-    _home_active_screen = screen;
+    _display_active_screen = screen;
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processStatusBarScreenChange(ESP_Brookesia_PhoneManagerScreen_t screen, void *param)
+bool Manager::processStatusBarScreenChange(Screen screen, void *param)
 {
-    ESP_Brookesia_StatusBar *status_bar = home._status_bar.get();
-    ESP_Brookesia_StatusBarVisualMode_t status_bar_visual_mode = ESP_BROOKESIA_STATUS_BAR_VISUAL_MODE_HIDE;
-    const ESP_Brookesia_PhoneAppData_t *app_data = nullptr;
+    StatusBar *status_bar = display._status_bar.get();
+    StatusBar::VisualMode status_bar_visual_mode = StatusBar::VisualMode::HIDE;
+    const App::Config *app_data = nullptr;
 
     ESP_UTILS_LOGD("Process status bar when screen change");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(screen < ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAX, false, "Invalid screen");
+    ESP_UTILS_CHECK_FALSE_RETURN(screen < Screen::MAX, false, "Invalid screen");
 
     if (status_bar == nullptr) {
         return true;
     }
 
     switch (screen) {
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN:
-        status_bar_visual_mode = home.getData().status_bar.visual_mode;
+    case Screen::MAIN:
+        status_bar_visual_mode = display.getData().status_bar.visual_mode;
         break;
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_APP:
+    case Screen::APP:
         ESP_UTILS_CHECK_NULL_RETURN(param, false, "Invalid param");
-        app_data = &((ESP_Brookesia_PhoneApp *)param)->getActiveData();
+        app_data = &((App *)param)->getActiveConfig();
         status_bar_visual_mode = app_data->status_bar_visual_mode;
         break;
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN:
-        status_bar_visual_mode = home.getData().recents_screen.status_bar_visual_mode;
+    case Screen::RECENTS_SCREEN:
+        status_bar_visual_mode = display.getData().recents_screen.status_bar_visual_mode;
         break;
     default:
         ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Invalid screen");
@@ -284,15 +275,15 @@ bool ESP_Brookesia_PhoneManager::processStatusBarScreenChange(ESP_Brookesia_Phon
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processNavigationBarScreenChange(ESP_Brookesia_PhoneManagerScreen_t screen, void *param)
+bool Manager::processNavigationBarScreenChange(Screen screen, void *param)
 {
-    ESP_Brookesia_NavigationBar *navigation_bar = home._navigation_bar.get();
-    ESP_Brookesia_NavigationBarVisualMode_t navigation_bar_visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE;
-    const ESP_Brookesia_PhoneAppData_t *app_data = nullptr;
+    NavigationBar *navigation_bar = display._navigation_bar.get();
+    NavigationBar::VisualMode navigation_bar_visual_mode = NavigationBar::VisualMode::HIDE;
+    const App::Config *app_data = nullptr;
 
     ESP_UTILS_LOGD("Process navigation bar when screen change");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(screen < ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAX, false, "Invalid screen");
+    ESP_UTILS_CHECK_FALSE_RETURN(screen < Screen::MAX, false, "Invalid screen");
 
     // Process status bar
     if (navigation_bar == nullptr) {
@@ -300,16 +291,16 @@ bool ESP_Brookesia_PhoneManager::processNavigationBarScreenChange(ESP_Brookesia_
     }
 
     switch (screen) {
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN:
-        navigation_bar_visual_mode = home.getData().navigation_bar.visual_mode;
+    case Screen::MAIN:
+        navigation_bar_visual_mode = display.getData().navigation_bar.visual_mode;
         break;
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_APP:
+    case Screen::APP:
         ESP_UTILS_CHECK_NULL_RETURN(param, false, "Invalid param");
-        app_data = &((ESP_Brookesia_PhoneApp *)param)->getActiveData();
+        app_data = &((App *)param)->getActiveConfig();
         navigation_bar_visual_mode = app_data->navigation_bar_visual_mode;
         break;
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN:
-        navigation_bar_visual_mode = home.getData().recents_screen.navigation_bar_visual_mode;
+    case Screen::RECENTS_SCREEN:
+        navigation_bar_visual_mode = display.getData().recents_screen.navigation_bar_visual_mode;
         break;
     default:
         ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Invalid screen");
@@ -317,56 +308,56 @@ bool ESP_Brookesia_PhoneManager::processNavigationBarScreenChange(ESP_Brookesia_
     }
     ESP_UTILS_LOGD("Visual Mode: navigation bar(%d)", navigation_bar_visual_mode);
 
-    _flags.enable_navigation_bar_gesture = (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX);
+    _flags.enable_navigation_bar_gesture = (navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FLEX);
     ESP_UTILS_CHECK_FALSE_RETURN(navigation_bar->setVisualMode(navigation_bar_visual_mode), false,
                                  "Navigation bar set visual mode failed");
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneManagerScreen_t screen, void *param)
+bool Manager::processGestureScreenChange(Screen screen, void *param)
 {
-    ESP_Brookesia_NavigationBar *navigation_bar = home._navigation_bar.get();
-    ESP_Brookesia_NavigationBarVisualMode_t navigation_bar_visual_mode = ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE;
-    const ESP_Brookesia_PhoneAppData_t *app_data = nullptr;
+    NavigationBar *navigation_bar = display._navigation_bar.get();
+    NavigationBar::VisualMode navigation_bar_visual_mode = NavigationBar::VisualMode::HIDE;
+    const App::Config *app_data = nullptr;
 
     ESP_UTILS_LOGD("Process gesture when screen change");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(screen < ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAX, false, "Invalid screen");
+    ESP_UTILS_CHECK_FALSE_RETURN(screen < Screen::MAX, false, "Invalid screen");
 
     switch (screen) {
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN:
-        navigation_bar_visual_mode = home.getData().navigation_bar.visual_mode;
+    case Screen::MAIN:
+        navigation_bar_visual_mode = display.getData().navigation_bar.visual_mode;
         _flags.enable_gesture_navigation = ((navigation_bar == nullptr) ||
-                                            (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE));
+                                            (navigation_bar_visual_mode == NavigationBar::VisualMode::HIDE));
         _flags.enable_gesture_navigation_back = false;
         _flags.enable_gesture_navigation_home = false;
         _flags.enable_gesture_navigation_recents_app = _flags.enable_gesture_navigation;
         _flags.enable_gesture_show_mask_left_right_edge = false;
         _flags.enable_gesture_show_mask_bottom_edge = (_flags.enable_gesture_navigation ||
-                (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX));
+                (navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FLEX));
         _flags.enable_gesture_show_left_right_indicator_bar = false;
         _flags.enable_gesture_show_bottom_indicator_bar = _flags.enable_gesture_show_mask_bottom_edge;
         break;
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_APP:
+    case Screen::APP:
         ESP_UTILS_CHECK_NULL_RETURN(param, false, "Invalid param");
-        app_data = &((ESP_Brookesia_PhoneApp *)param)->getActiveData();
+        app_data = &((App *)param)->getActiveConfig();
         navigation_bar_visual_mode = app_data->navigation_bar_visual_mode;
         _flags.enable_gesture_navigation = (app_data->flags.enable_navigation_gesture &&
-                                            (navigation_bar_visual_mode != ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FIXED));
+                                            (navigation_bar_visual_mode != NavigationBar::VisualMode::SHOW_FIXED));
         _flags.enable_gesture_navigation_back = (_flags.enable_gesture_navigation &&
                                                 data.flags.enable_gesture_navigation_back);
         _flags.enable_gesture_navigation_home = (_flags.enable_gesture_navigation &&
-                                                (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_HIDE));
+                                                (navigation_bar_visual_mode == NavigationBar::VisualMode::HIDE));
         _flags.enable_gesture_navigation_recents_app = _flags.enable_gesture_navigation_home;
         _flags.enable_gesture_show_mask_left_right_edge = (_flags.enable_gesture_navigation ||
-                (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX));
+                (navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FLEX));
         _flags.enable_gesture_show_mask_bottom_edge = (_flags.enable_gesture_navigation ||
-                (navigation_bar_visual_mode == ESP_BROOKESIA_NAVIGATION_BAR_VISUAL_MODE_SHOW_FLEX));
+                (navigation_bar_visual_mode == NavigationBar::VisualMode::SHOW_FLEX));
         _flags.enable_gesture_show_left_right_indicator_bar = _flags.enable_gesture_show_mask_left_right_edge;
         _flags.enable_gesture_show_bottom_indicator_bar = _flags.enable_gesture_show_mask_bottom_edge;
         break;
-    case ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN:
+    case Screen::RECENTS_SCREEN:
         _flags.enable_gesture_navigation = false;
         _flags.enable_gesture_navigation_back = false;
         _flags.enable_gesture_navigation_home = false;
@@ -380,7 +371,7 @@ bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneM
         ESP_UTILS_CHECK_FALSE_RETURN(false, false, "Invalid screen");
         break;
     }
-    ESP_UTILS_LOGD("Gesture Navigation: all(%d), back(%d), home(%d), recents(%d)", _flags.enable_gesture_navigation,
+    ESP_UTILS_LOGD("Gesture Navigation: all(%d), back(%d), display(%d), recents(%d)", _flags.enable_gesture_navigation,
                    _flags.enable_gesture_navigation_back, _flags.enable_gesture_navigation_home,
                    _flags.enable_gesture_navigation_recents_app);
     ESP_UTILS_LOGD("Gesture Mask & Indicator: mask(left_right: %d, bottom: %d), indicator_left_right(%d), "
@@ -390,68 +381,68 @@ bool ESP_Brookesia_PhoneManager::processGestureScreenChange(ESP_Brookesia_PhoneM
 
     if (!_flags.enable_gesture_show_left_right_indicator_bar) {
         ESP_UTILS_CHECK_FALSE_RETURN(
-            _gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT, false), false,
+            _gesture->setIndicatorBarVisible(Gesture::IndicatorBarType::LEFT, false), false,
             "Gesture set left indicator bar visible failed"
         );
         ESP_UTILS_CHECK_FALSE_RETURN(
-            _gesture->setIndicatorBarVisible(ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT, false), false,
+            _gesture->setIndicatorBarVisible(Gesture::IndicatorBarType::RIGHT, false), false,
             "Gesture set right indicator bar visible failed"
         );
     }
     ESP_UTILS_CHECK_FALSE_RETURN(
         _gesture->setIndicatorBarVisible(
-            ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM, _flags.enable_gesture_show_bottom_indicator_bar
+            Gesture::IndicatorBarType::BOTTOM, _flags.enable_gesture_show_bottom_indicator_bar
         ), false, "Gesture set bottom indicator bar visible failed"
     );
 
     return true;
 }
 
-void ESP_Brookesia_PhoneManager::onHomeMainScreenLoadEventCallback(lv_event_t *event)
+void Manager::onDisplayMainScreenLoadEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
+    Manager *manager = nullptr;
+    RecentsScreen *recents_screen = nullptr;
 
-    ESP_UTILS_LOGD("Home main screen load event callback");
+    ESP_UTILS_LOGD("base::Display main screen load event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    recents_screen = manager->home.getRecentsScreen();
+    recents_screen = manager->display.getRecentsScreen();
 
     // Only process the screen change if the recents_screen is not visible
     if ((recents_screen == nullptr) || !recents_screen->checkVisible()) {
         ESP_UTILS_CHECK_FALSE_EXIT(
-            manager->processStatusBarScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+            manager->processStatusBarScreenChange(Screen::MAIN, nullptr),
             "Process status bar failed");
         ESP_UTILS_CHECK_FALSE_EXIT(
-            manager->processNavigationBarScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+            manager->processNavigationBarScreenChange(Screen::MAIN, nullptr),
             "Process navigation bar failed");
         ESP_UTILS_CHECK_FALSE_EXIT(
-            manager->processGestureScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr),
+            manager->processGestureScreenChange(Screen::MAIN, nullptr),
             "Process gesture failed");
     }
 }
 
-void ESP_Brookesia_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *event)
+void Manager::onAppLauncherGestureEventCallback(lv_event_t *event)
 {
     lv_event_code_t event_code = _LV_EVENT_LAST;
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_AppLauncher *app_launcher = nullptr;
-    ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
-    ESP_Brookesia_Gesture *gesture = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_GestureDirection_t dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
+    Manager *manager = nullptr;
+    AppLauncher *app_launcher = nullptr;
+    RecentsScreen *recents_screen = nullptr;
+    Gesture *gesture = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    Gesture::Direction dir_type = Gesture::DIR_NONE;
 
-    // ESP_UTILS_LOGD("App launcher gesture event callback");
+    // ESP_UTILS_LOGD("base::App launcher gesture event callback");
     ESP_UTILS_CHECK_NULL_GOTO(event, end, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_GOTO(manager, end, "Invalid manager");
     gesture = manager->_gesture.get();
     ESP_UTILS_CHECK_NULL_GOTO(gesture, end, "Invalid gesture");
-    recents_screen = manager->home._recents_screen.get();
-    app_launcher = &manager->home._app_launcher;
+    recents_screen = manager->display._recents_screen.get();
+    app_launcher = &manager->display._app_launcher;
     ESP_UTILS_CHECK_NULL_GOTO(app_launcher, end, "Invalid app launcher");
     event_code = lv_event_get_code(event);
     ESP_UTILS_CHECK_FALSE_GOTO(
@@ -475,31 +466,31 @@ void ESP_Brookesia_PhoneManager::onAppLauncherGestureEventCallback(lv_event_t *e
 
     dir_type = manager->_app_launcher_gesture_dir;
     // Check if the dir type is already set. If so, just ignore and return
-    if (dir_type != ESP_BROOKESIA_GESTURE_DIR_NONE) {
+    if (dir_type != Gesture::DIR_NONE) {
         // Check if the gesture is released
         if (event_code == gesture->getReleaseEventCode()) {   // If so, reset the navigation type
-            dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
+            dir_type = Gesture::DIR_NONE;
             goto end;
         }
         return;
     }
 
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_GOTO(gesture_info, end, "Invalid gesture info");
     // Check if there is a gesture
-    if (gesture_info->direction == ESP_BROOKESIA_GESTURE_DIR_NONE) {
+    if (gesture_info->direction == Gesture::DIR_NONE) {
         return;
     }
 
     dir_type = gesture_info->direction;
     switch (dir_type) {
-    case ESP_BROOKESIA_GESTURE_DIR_LEFT:
-        ESP_UTILS_LOGD("App table gesture left");
-        ESP_UTILS_CHECK_FALSE_GOTO(app_launcher->scrollToRightPage(), end, "App table scroll to right page failed");
+    case Gesture::DIR_LEFT:
+        ESP_UTILS_LOGD("base::App table gesture left");
+        ESP_UTILS_CHECK_FALSE_GOTO(app_launcher->scrollToRightPage(), end, "base::App table scroll to right page failed");
         break;
-    case ESP_BROOKESIA_GESTURE_DIR_RIGHT:
-        ESP_UTILS_LOGD("App table gesture right");
-        ESP_UTILS_CHECK_FALSE_GOTO(app_launcher->scrollToLeftPage(), end, "App table scroll to left page failed");
+    case Gesture::DIR_RIGHT:
+        ESP_UTILS_LOGD("base::App table gesture right");
+        ESP_UTILS_CHECK_FALSE_GOTO(app_launcher->scrollToLeftPage(), end, "base::App table scroll to left page failed");
         break;
     default:
         break;
@@ -509,20 +500,20 @@ end:
     manager->_app_launcher_gesture_dir = dir_type;
 }
 
-void ESP_Brookesia_PhoneManager::onNavigationBarGestureEventCallback(lv_event_t *event)
+void Manager::onNavigationBarGestureEventCallback(lv_event_t *event)
 {
     lv_event_code_t event_code = _LV_EVENT_LAST;
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_NavigationBar *navigation_bar = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_GestureDirection_t dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
+    Manager *manager = nullptr;
+    NavigationBar *navigation_bar = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    Gesture::Direction dir_type = Gesture::DIR_NONE;
 
     // ESP_UTILS_LOGD("Navigation bar gesture event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    navigation_bar = manager->home.getNavigationBar();
+    navigation_bar = manager->display.getNavigationBar();
     ESP_UTILS_CHECK_NULL_EXIT(navigation_bar, "Invalid navigation bar");
     event_code = lv_event_get_code(event);
     ESP_UTILS_CHECK_FALSE_EXIT((event_code == manager->_gesture->getPressingEventCode()) ||
@@ -541,22 +532,22 @@ void ESP_Brookesia_PhoneManager::onNavigationBarGestureEventCallback(lv_event_t 
 
     dir_type = manager->_navigation_bar_gesture_dir;
     // Check if the dir type is already set. If so, just ignore and return
-    if (dir_type != ESP_BROOKESIA_GESTURE_DIR_NONE) {
+    if (dir_type != Gesture::DIR_NONE) {
         // Check if the gesture is released
         if (event_code == manager->_gesture->getReleaseEventCode()) {   // If so, reset the navigation type
-            dir_type = ESP_BROOKESIA_GESTURE_DIR_NONE;
+            dir_type = Gesture::DIR_NONE;
             goto end;
         }
         return;
     }
 
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
 
     // Check if there is a valid gesture
     dir_type = gesture_info->direction;
-    if ((dir_type == ESP_BROOKESIA_GESTURE_DIR_UP) &&
-            (gesture_info->start_area & ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE)) {
+    if ((dir_type == Gesture::DIR_UP) &&
+            (gesture_info->start_area & Gesture::AREA_BOTTOM_EDGE)) {
         ESP_UTILS_LOGD("Navigation bar gesture up");
         ESP_UTILS_CHECK_FALSE_EXIT(navigation_bar->triggerVisualFlexShow(), "Navigation bar trigger visual flex show failed");
     }
@@ -565,12 +556,12 @@ end:
     manager->_navigation_bar_gesture_dir = dir_type;
 }
 
-bool ESP_Brookesia_PhoneManager::processNavigationEvent(ESP_Brookesia_CoreNavigateType_t type)
+bool Manager::processNavigationEvent(base::Manager::NavigateType type)
 {
     bool ret = true;
-    ESP_Brookesia_RecentsScreen *recents_screen = home._recents_screen.get();
-    ESP_Brookesia_PhoneApp *active_app = static_cast<ESP_Brookesia_PhoneApp *>(getActiveApp());
-    ESP_Brookesia_PhoneApp *phone_app = nullptr;
+    RecentsScreen *recents_screen = display._recents_screen.get();
+    App *active_app = static_cast<App *>(getActiveApp());
+    App *phone_app = nullptr;
 
     ESP_UTILS_LOGD("Process navigation event type(%d)", type);
 
@@ -585,31 +576,31 @@ bool ESP_Brookesia_PhoneManager::processNavigationEvent(ESP_Brookesia_CoreNaviga
             ESP_UTILS_LOGE("Hide recents_screen failed");
             ret = false;
         }
-        // Directly return if the type is not home
-        if (type != ESP_BROOKESIA_CORE_NAVIGATE_TYPE_HOME) {
+        // Directly return if the type is not display
+        if (type != base::Manager::NavigateType::HOME) {
             return ret;
         }
     }
 
     switch (type) {
-    case ESP_BROOKESIA_CORE_NAVIGATE_TYPE_BACK:
+    case base::Manager::NavigateType::BACK:
         if (active_app == nullptr) {
             goto end;
         }
         // Call app back function
-        ESP_UTILS_CHECK_FALSE_GOTO(ret = (active_app->back()), end, "App(%d) back failed", active_app->getId());
+        ESP_UTILS_CHECK_FALSE_GOTO(ret = (active_app->back()), end, "base::App(%d) back failed", active_app->getId());
         break;
-    case ESP_BROOKESIA_CORE_NAVIGATE_TYPE_HOME:
+    case base::Manager::NavigateType::HOME:
         if (active_app == nullptr) {
             goto end;
         }
         // Process app pause
-        ESP_UTILS_CHECK_FALSE_GOTO(ret = processAppPause(active_app), end, "App(%d) pause failed", active_app->getId());
-        ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+        ESP_UTILS_CHECK_FALSE_GOTO(ret = processAppPause(active_app), end, "base::App(%d) pause failed", active_app->getId());
+        ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::MAIN, nullptr), false,
                                      "Process screen change failed");
         resetActiveApp();
         break;
-    case ESP_BROOKESIA_CORE_NAVIGATE_TYPE_RECENTS_SCREEN:
+    case base::Manager::NavigateType::RECENTS_SCREEN:
         if (recents_screen == nullptr) {
             ESP_UTILS_LOGW("Recents screen is disabled");
             goto end;
@@ -632,12 +623,12 @@ bool ESP_Brookesia_PhoneManager::processNavigationEvent(ESP_Brookesia_CoreNaviga
         }
         // Update the snapshot, need to be called after `processAppPause()`
         for (int i = 0; i < getRunningAppCount(); i++) {
-            phone_app = static_cast<ESP_Brookesia_PhoneApp *>(getRunningAppByIdenx(i));
+            phone_app = static_cast<App *>(getRunningAppByIdenx(i));
             ESP_UTILS_CHECK_FALSE_GOTO(ret = (phone_app != nullptr), end, "Invalid active app");
 
             // Update snapshot conf and image
             ESP_UTILS_CHECK_FALSE_GOTO(ret = phone_app->updateRecentsScreenSnapshotConf(getAppSnapshot(phone_app->getId())),
-                                       end, "App update snapshot(%d) conf failed", phone_app->getId());
+                                       end, "base::App update snapshot(%d) conf failed", phone_app->getId());
             ESP_UTILS_CHECK_FALSE_GOTO(ret = recents_screen->updateSnapshotImage(phone_app->getId()), end,
                                        "Recents screen update snapshot(%d) image failed", phone_app->getId());
         }
@@ -650,56 +641,56 @@ end:
     return ret;
 }
 
-void ESP_Brookesia_PhoneManager::onGestureNavigationPressingEventCallback(lv_event_t *event)
+void Manager::onGestureNavigationPressingEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
+    Manager *manager = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    base::Manager::NavigateType navigation_type = base::Manager::NavigateType::MAX;
 
     // ESP_UTILS_LOGD("Gesture navigation pressing event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
     // Check if the gesture is released and enabled
     if (!manager->_flags.enable_gesture_navigation || manager->_flags.is_gesture_navigation_disabled) {
         return;
     }
 
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
     // Check if there is a gesture
-    if (gesture_info->direction == ESP_BROOKESIA_GESTURE_DIR_NONE) {
+    if (gesture_info->direction == Gesture::DIR_NONE) {
         return;
     }
 
     // Check if there is a "back" gesture
-    if ((gesture_info->start_area & (ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE | ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE)) &&
-            (gesture_info->direction & ESP_BROOKESIA_GESTURE_DIR_HOR) && manager->_flags.enable_gesture_navigation_back) {
-        navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_BACK;
-    } else if ((gesture_info->start_area & ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE) && (!gesture_info->flags.short_duration) &&
-               (gesture_info->direction & ESP_BROOKESIA_GESTURE_DIR_UP) && manager->_flags.enable_gesture_navigation_recents_app) {
+    if ((gesture_info->start_area & (Gesture::AREA_LEFT_EDGE | Gesture::AREA_RIGHT_EDGE)) &&
+            (gesture_info->direction & Gesture::DIR_HOR) && manager->_flags.enable_gesture_navigation_back) {
+        navigation_type = base::Manager::NavigateType::BACK;
+    } else if ((gesture_info->start_area & Gesture::AREA_BOTTOM_EDGE) && (!gesture_info->flags.short_duration) &&
+               (gesture_info->direction & Gesture::DIR_UP) && manager->_flags.enable_gesture_navigation_recents_app) {
         // Check if there is a "recents_screen" gesture
-        navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_RECENTS_SCREEN;
+        navigation_type = base::Manager::NavigateType::RECENTS_SCREEN;
     }
 
     // Only process the navigation event if the navigation type is valid
-    if (navigation_type != ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX) {
+    if (navigation_type != base::Manager::NavigateType::MAX) {
         manager->_flags.is_gesture_navigation_disabled = true;
         ESP_UTILS_CHECK_FALSE_EXIT(manager->processNavigationEvent(navigation_type), "Process navigation event failed");
     }
 }
 
-void ESP_Brookesia_PhoneManager::onGestureNavigationReleaseEventCallback(lv_event_t *event)
+void Manager::onGestureNavigationReleaseEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
+    Manager *manager = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    base::Manager::NavigateType navigation_type = base::Manager::NavigateType::MAX;
 
     ESP_UTILS_LOGD("Gesture navigation release event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
     manager->_flags.is_gesture_navigation_disabled = false;
     // Check if the gesture is released and enabled
@@ -707,44 +698,44 @@ void ESP_Brookesia_PhoneManager::onGestureNavigationReleaseEventCallback(lv_even
         return;
     }
 
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
     // Check if there is a gesture
-    if (gesture_info->direction == ESP_BROOKESIA_GESTURE_DIR_NONE) {
+    if (gesture_info->direction == Gesture::DIR_NONE) {
         return;
     }
 
-    // Check if there is a "home" gesture
-    if ((gesture_info->start_area & ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE) && (gesture_info->flags.short_duration) &&
-            (gesture_info->direction & ESP_BROOKESIA_GESTURE_DIR_UP) && manager->_flags.enable_gesture_navigation_home) {
-        navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_HOME;
+    // Check if there is a "display" gesture
+    if ((gesture_info->start_area & Gesture::AREA_BOTTOM_EDGE) && (gesture_info->flags.short_duration) &&
+            (gesture_info->direction & Gesture::DIR_UP) && manager->_flags.enable_gesture_navigation_home) {
+        navigation_type = base::Manager::NavigateType::HOME;
     }
 
     // Only process the navigation event if the navigation type is valid
-    if (navigation_type != ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX) {
+    if (navigation_type != base::Manager::NavigateType::MAX) {
         ESP_UTILS_CHECK_FALSE_EXIT(manager->processNavigationEvent(navigation_type), "Process navigation event failed");
     }
 }
 
-void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorPressingEventCallback(lv_event_t *event)
+void Manager::onGestureMaskIndicatorPressingEventCallback(lv_event_t *event)
 {
     bool is_gesture_mask_enabled = false;
     int gesture_indicator_offset = 0;
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_NavigationBar *navigation_bar = nullptr;
-    ESP_Brookesia_Gesture *gesture = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_GestureIndicatorBarType_t gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX;
+    Manager *manager = nullptr;
+    NavigationBar *navigation_bar = nullptr;
+    Gesture *gesture = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    Gesture::IndicatorBarType gesture_indicator_bar_type = Gesture::IndicatorBarType::MAX;
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
     gesture = manager->getGesture();
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
-    navigation_bar = manager->home.getNavigationBar();
+    navigation_bar = manager->display.getNavigationBar();
 
     // Just return if the navigation bar is visible or the gesture duration is less than the trigger time
     if (((navigation_bar != nullptr) && navigation_bar->checkVisible()) ||
@@ -754,23 +745,23 @@ void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorPressingEventCallback(lv_
 
     // Get the type of the indicator bar and the offset of the gesture
     switch (gesture_info->start_area) {
-    case ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE:
+    case Gesture::AREA_LEFT_EDGE:
         if (manager->_flags.enable_gesture_show_left_right_indicator_bar) {
-            gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT;
+            gesture_indicator_bar_type = Gesture::IndicatorBarType::LEFT;
             gesture_indicator_offset = gesture_info->stop_x - gesture_info->start_x;
         }
         is_gesture_mask_enabled = manager->_flags.enable_gesture_show_mask_left_right_edge;
         break;
-    case ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE:
+    case Gesture::AREA_RIGHT_EDGE:
         if (manager->_flags.enable_gesture_show_left_right_indicator_bar) {
-            gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT;
+            gesture_indicator_bar_type = Gesture::IndicatorBarType::RIGHT;
             gesture_indicator_offset = gesture_info->start_x - gesture_info->stop_x;
         }
         is_gesture_mask_enabled = manager->_flags.enable_gesture_show_mask_left_right_edge;
         break;
-    case ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE:
+    case Gesture::AREA_BOTTOM_EDGE:
         if (manager->_flags.enable_gesture_show_bottom_indicator_bar) {
-            gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM;
+            gesture_indicator_bar_type = Gesture::IndicatorBarType::BOTTOM;
             gesture_indicator_offset = gesture_info->start_y - gesture_info->stop_y;
         }
         is_gesture_mask_enabled = manager->_flags.enable_gesture_show_mask_bottom_edge;
@@ -780,7 +771,7 @@ void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorPressingEventCallback(lv_
     }
 
     // If the gesture indicator bar type is valid, update the indicator bar
-    if (gesture_indicator_bar_type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX) {
+    if (static_cast<int>(gesture_indicator_bar_type) < static_cast<int>(Gesture::IndicatorBarType::MAX)) {
         if (gesture->checkIndicatorBarVisible(gesture_indicator_bar_type)) {
             ESP_UTILS_CHECK_FALSE_EXIT(
                 gesture->setIndicatorBarLengthByOffset(gesture_indicator_bar_type, gesture_indicator_offset),
@@ -806,38 +797,38 @@ void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorPressingEventCallback(lv_
     }
 }
 
-void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorReleaseEventCallback(lv_event_t *event)
+void Manager::onGestureMaskIndicatorReleaseEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_Gesture *gesture = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_GestureIndicatorBarType_t gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX;
+    Manager *manager = nullptr;
+    Gesture *gesture = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    Gesture::IndicatorBarType gesture_indicator_bar_type = Gesture::IndicatorBarType::MAX;
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
     gesture = manager->getGesture();
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
 
     // Update the mask object and indicator bar of the gesture
     ESP_UTILS_CHECK_FALSE_EXIT(gesture->setMaskObjectVisible(false), "Gesture hide mask object failed");
     switch (gesture_info->start_area) {
-    case ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE:
-        gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT;
+    case Gesture::AREA_LEFT_EDGE:
+        gesture_indicator_bar_type = Gesture::IndicatorBarType::LEFT;
         break;
-    case ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE:
-        gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT;
+    case Gesture::AREA_RIGHT_EDGE:
+        gesture_indicator_bar_type = Gesture::IndicatorBarType::RIGHT;
         break;
-    case ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE:
-        gesture_indicator_bar_type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM;
+    case Gesture::AREA_BOTTOM_EDGE:
+        gesture_indicator_bar_type = Gesture::IndicatorBarType::BOTTOM;
         break;
     default:
         break;
     }
-    if (gesture_indicator_bar_type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX &&
+    if (static_cast<int>(gesture_indicator_bar_type) < static_cast<int>(Gesture::IndicatorBarType::MAX) &&
             (gesture->checkIndicatorBarVisible(gesture_indicator_bar_type))) {
         ESP_UTILS_CHECK_FALSE_EXIT(
             gesture->controlIndicatorBarScaleBackAnim(gesture_indicator_bar_type, true),
@@ -846,21 +837,21 @@ void ESP_Brookesia_PhoneManager::onGestureMaskIndicatorReleaseEventCallback(lv_e
     }
 }
 
-bool ESP_Brookesia_PhoneManager::processRecentsScreenShow(void)
+bool Manager::processRecentsScreenShow(void)
 {
     ESP_UTILS_LOGD("Process recents_screen show");
 
-    ESP_UTILS_CHECK_FALSE_RETURN(home.processRecentsScreenShow(), false, "Load recents_screen failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_RECENTS_SCREEN, nullptr), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.processRecentsScreenShow(), false, "Load recents_screen failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::RECENTS_SCREEN, nullptr), false,
                                  "Process screen change failed");
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processRecentsScreenHide(void)
+bool Manager::processRecentsScreenHide(void)
 {
-    ESP_Brookesia_RecentsScreen *recents_screen = home.getRecentsScreen();
-    ESP_Brookesia_PhoneApp *active_app = static_cast<ESP_Brookesia_PhoneApp *>(getActiveApp());
+    RecentsScreen *recents_screen = display.getRecentsScreen();
+    App *active_app = static_cast<App *>(getActiveApp());
 
     ESP_UTILS_LOGD("Process recents_screen hide");
     ESP_UTILS_CHECK_NULL_RETURN(recents_screen, false, "Invalid recents_screen");
@@ -868,17 +859,17 @@ bool ESP_Brookesia_PhoneManager::processRecentsScreenHide(void)
 
     // Load the main screen if there is no active app
     if (active_app == nullptr) {
-        ESP_UTILS_CHECK_FALSE_RETURN(processHomeScreenChange(ESP_BROOKESIA_PHONE_MANAGER_SCREEN_MAIN, nullptr), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::MAIN, nullptr), false,
                                      "Process screen change failed");
     }
 
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processRecentsScreenMoveLeft(void)
+bool Manager::processRecentsScreenMoveLeft(void)
 {
     int recents_screen_active_app_index = getRunningAppIndexByApp(_recents_screen_active_app);
-    ESP_Brookesia_RecentsScreen *recents_screen = home._recents_screen.get();
+    RecentsScreen *recents_screen = display._recents_screen.get();
 
     ESP_UTILS_LOGD("Process recents_screen move left");
     ESP_UTILS_CHECK_NULL_RETURN(recents_screen, false, "Invalid recents_screen");
@@ -901,10 +892,10 @@ bool ESP_Brookesia_PhoneManager::processRecentsScreenMoveLeft(void)
     return true;
 }
 
-bool ESP_Brookesia_PhoneManager::processRecentsScreenMoveRight(void)
+bool Manager::processRecentsScreenMoveRight(void)
 {
     int recents_screen_active_app_index = getRunningAppIndexByApp(_recents_screen_active_app);
-    ESP_Brookesia_RecentsScreen *recents_screen = home._recents_screen.get();
+    RecentsScreen *recents_screen = display._recents_screen.get();
 
     ESP_UTILS_LOGD("Process recents_screen move right");
     ESP_UTILS_CHECK_NULL_RETURN(recents_screen, false, "Invalid recents_screen");
@@ -927,19 +918,19 @@ bool ESP_Brookesia_PhoneManager::processRecentsScreenMoveRight(void)
     return true;
 }
 
-void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressEventCallback(lv_event_t *event)
+void Manager::onRecentsScreenGesturePressEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    const ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
+    Manager *manager = nullptr;
+    const RecentsScreen *recents_screen = nullptr;
+    Gesture::Info *gesture_info = nullptr;
     lv_point_t start_point = {};
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
 
-    recents_screen = manager->home.getRecentsScreen();
+    recents_screen = manager->display.getRecentsScreen();
     ESP_UTILS_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
 
     // Check if recents_screen is visible
@@ -947,7 +938,7 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressEventCallback(lv_eve
         return;
     }
 
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
 
     start_point = (lv_point_t) {
@@ -968,12 +959,12 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressEventCallback(lv_eve
     ESP_UTILS_LOGD("Recents screen press(%d, %d)", start_point.x, start_point.y);
 }
 
-void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressingEventCallback(lv_event_t *event)
+void Manager::onRecentsScreenGesturePressingEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    const ESP_Brookesia_PhoneManagerData_t *data = nullptr;
+    Manager *manager = nullptr;
+    RecentsScreen *recents_screen = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    const Data *data = nullptr;
     lv_point_t start_point = { 0 };
     int drag_app_id = -1;
     int app_y_max = 0;
@@ -986,7 +977,7 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressingEventCallback(lv_
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
 
     // Check if there is an active app and the recents_screen is pressed
@@ -994,20 +985,20 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressingEventCallback(lv_
         return;
     }
 
-    recents_screen = manager->home._recents_screen.get();
+    recents_screen = manager->display._recents_screen.get();
     ESP_UTILS_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
 
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
 
     // Check if scroll to the left or right
-    if ((gesture_info->direction & ESP_BROOKESIA_GESTURE_DIR_LEFT) && !manager->_flags.is_recents_screen_snapshot_move_hor &&
+    if ((gesture_info->direction & Gesture::DIR_LEFT) && !manager->_flags.is_recents_screen_snapshot_move_hor &&
             !manager->_flags.is_recents_screen_snapshot_move_ver) {
         if (!manager->processRecentsScreenMoveLeft()) {
             ESP_UTILS_LOGE("Recents screen app move left failed");
         }
         manager->_flags.is_recents_screen_snapshot_move_hor = true;
-    } else if ((gesture_info->direction & ESP_BROOKESIA_GESTURE_DIR_RIGHT) &&
+    } else if ((gesture_info->direction & Gesture::DIR_RIGHT) &&
                !manager->_flags.is_recents_screen_snapshot_move_hor &&
                !manager->_flags.is_recents_screen_snapshot_move_ver) {
         if (!manager->processRecentsScreenMoveRight()) {
@@ -1055,7 +1046,7 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenGesturePressingEventCallback(lv_
     };
 }
 
-void ESP_Brookesia_PhoneManager::onRecentsScreenGestureReleaseEventCallback(lv_event_t *event)
+void Manager::onRecentsScreenGestureReleaseEventCallback(lv_event_t *event)
 {
     enum {
         // Default
@@ -1078,23 +1069,23 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenGestureReleaseEventCallback(lv_e
     int state = RECENTS_SCREEN_NONE;
     lv_event_code_t event_code = _LV_EVENT_LAST;
     lv_point_t start_point = { 0 };
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
-    ESP_Brookesia_GestureInfo_t *gesture_info = nullptr;
-    ESP_Brookesia_CoreAppEventData_t app_event_data = {
-        .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_MAX,
+    Manager *manager = nullptr;
+    RecentsScreen *recents_screen = nullptr;
+    Gesture::Info *gesture_info = nullptr;
+    base::Context::AppEventData app_event_data = {
+        .type = base::Context::AppEventType::MAX,
     };
-    const ESP_Brookesia_PhoneManagerData_t *data = nullptr;
+    const Data *data = nullptr;
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    recents_screen = manager->home._recents_screen.get();
+    recents_screen = manager->display._recents_screen.get();
     ESP_UTILS_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
-    gesture_info = (ESP_Brookesia_GestureInfo_t *)lv_event_get_param(event);
+    gesture_info = (Gesture::Info *)lv_event_get_param(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture_info, "Invalid gesture info");
-    event_code = manager->_core.getAppEventCode();
+    event_code = manager->_system_context.getAppEventCode();
     ESP_UTILS_CHECK_FALSE_EXIT(esp_brookesia_core_utils_check_event_code_valid(event_code), "Invalid event code");
 
     // Check if the recents_screen is not pressed or the snapshot is moved
@@ -1148,11 +1139,11 @@ process:
     if (state & RECENTS_SCREEN_APP_CLOSE) {
         ESP_UTILS_LOGD("Recents screen close app(%d)", target_app_id);
         app_event_data.id = target_app_id;
-        app_event_data.type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_STOP;
+        app_event_data.type = base::Context::AppEventType::STOP;
     } else if (state & RECENTS_SCREEN_APP_SHOW) {
         ESP_UTILS_LOGD("Recents screen start app(%d)", target_app_id);
         app_event_data.id = target_app_id;
-        app_event_data.type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START;
+        app_event_data.type = base::Context::AppEventType::START;
     }
 
     if (state & RECENTS_SCREEN_HIDE) {
@@ -1161,13 +1152,13 @@ process:
     }
 
     manager->_flags.is_recents_screen_pressed = false;
-    if (app_event_data.type != ESP_BROOKESIA_CORE_APP_EVENT_TYPE_MAX) {
+    if (app_event_data.type != base::Context::AppEventType::MAX) {
         // Get the index of the next dragging snapshot before close it
         recents_screen_active_snapshot_index = max(manager->getRunningAppIndexById(target_app_id) - 1, 0);
         // Start or close the dragging app
-        ESP_UTILS_CHECK_FALSE_EXIT(manager->_core.sendAppEvent(&app_event_data), "Core send app event failed");
+        ESP_UTILS_CHECK_FALSE_EXIT(manager->_system_context.sendAppEvent(&app_event_data), "Core send app event failed");
         // Scroll to another running app snapshot if the dragging app is closed
-        if (app_event_data.type == ESP_BROOKESIA_CORE_APP_EVENT_TYPE_STOP) {
+        if (app_event_data.type == base::Context::AppEventType::STOP) {
             manager->_recents_screen_active_app = manager->getRunningAppByIdenx(recents_screen_active_snapshot_index);
             if (manager->_recents_screen_active_app != nullptr) {
                 // If there are active apps, scroll to the previous app snapshot
@@ -1187,27 +1178,27 @@ process:
     }
 }
 
-void ESP_Brookesia_PhoneManager::onRecentsScreenSnapshotDeletedEventCallback(lv_event_t *event)
+void Manager::onRecentsScreenSnapshotDeletedEventCallback(lv_event_t *event)
 {
     int app_id = -1;
-    ESP_Brookesia_PhoneManager *manager = nullptr;
-    ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
-    ESP_Brookesia_CoreAppEventData_t app_event_data = {
-        .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_STOP,
+    Manager *manager = nullptr;
+    RecentsScreen *recents_screen = nullptr;
+    base::Context::AppEventData app_event_data = {
+        .type = base::Context::AppEventType::STOP,
     };
 
     ESP_UTILS_LOGD("Recents screen snapshot deleted event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    manager = static_cast<ESP_Brookesia_PhoneManager *>(lv_event_get_user_data(event));
+    manager = static_cast<Manager *>(lv_event_get_user_data(event));
     ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
-    recents_screen = manager->home._recents_screen.get();
+    recents_screen = manager->display._recents_screen.get();
     ESP_UTILS_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen");
     app_id = (intptr_t)lv_event_get_param(event);
 
     if (app_id > 0) {
         app_event_data.id = app_id;
-        ESP_UTILS_CHECK_FALSE_EXIT(manager->_core.sendAppEvent(&app_event_data), "Core send app event failed");
+        ESP_UTILS_CHECK_FALSE_EXIT(manager->_system_context.sendAppEvent(&app_event_data), "Core send app event failed");
     }
 
     if (recents_screen->getSnapshotCount() == 0) {
@@ -1218,3 +1209,5 @@ void ESP_Brookesia_PhoneManager::onRecentsScreenSnapshotDeletedEventCallback(lv_
         }
     }
 }
+
+} // namespace esp_brookesia::systems::phone

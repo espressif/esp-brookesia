@@ -1,16 +1,14 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include "lvgl.h"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 
-// *INDENT-OFF*
-
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 enum GestureDirection {
     GESTURE_DIR_NONE  = 0,
@@ -39,18 +37,18 @@ enum GestureIndicatorBarType {
 
 struct GestureIndicatorBarData {
     struct {
-        ESP_Brookesia_StyleSize_t size_min;
-        ESP_Brookesia_StyleSize_t size_max;
+        gui::StyleSize size_min;
+        gui::StyleSize size_max;
         uint8_t radius;
         uint8_t layout_pad_all;
-        ESP_Brookesia_StyleColor_t color;
+        gui::StyleColor color;
     } main;
     struct {
         uint8_t radius;
-        ESP_Brookesia_StyleColor_t color;
+        gui::StyleColor color;
     } indicator;
     struct {
-        ESP_BROOKESIA_ANIMPathType_t scale_back_path_type;
+        gui::StyleAnimation::AnimationPathType scale_back_path_type;
         uint32_t scale_back_time_ms;
     } animation;
 };
@@ -91,7 +89,7 @@ struct GestureInfo {
 
 class Gesture {
 public:
-    Gesture(ESP_Brookesia_Core &core_in, const GestureData &data_in);
+    Gesture(base::Context &core_in, const GestureData &data_in);
     ~Gesture();
 
     bool readTouchPoint(int &x, int &y) const;
@@ -104,22 +102,42 @@ public:
     bool setIndicatorBarVisible(GestureIndicatorBarType type, bool visible);
     bool controlIndicatorBarScaleBackAnim(GestureIndicatorBarType type, bool start);
 
-    bool checkInitialized(void) const                { return (_event_mask_obj != nullptr); }
-    bool checkGestureStart(void) const               { return ((_info.start_x != -1) && (_info.start_y != -1)); }
+    bool checkInitialized(void) const
+    {
+        return (_event_mask_obj != nullptr);
+    }
+    bool checkGestureStart(void) const
+    {
+        return ((_info.start_x != -1) && (_info.start_y != -1));
+    }
     bool checkMaskVisible(void) const;
     bool checkIndicatorBarVisible(GestureIndicatorBarType type) const;
     bool checkIndicatorBarScaleBackAnimRunning(GestureIndicatorBarType type) const
-                                                     { return _flags.is_indicator_bar_scale_back_anim_running[type]; }
-    lv_obj_t *getEventObj(void) const                { return _event_mask_obj.get(); }
-    lv_event_code_t getPressEventCode(void) const    { return _press_event_code; }
-    lv_event_code_t getPressingEventCode(void) const { return _pressing_event_code; }
-    lv_event_code_t getReleaseEventCode(void) const  { return _release_event_code; }
+    {
+        return _flags.is_indicator_bar_scale_back_anim_running[type];
+    }
+    lv_obj_t *getEventObj(void) const
+    {
+        return _event_mask_obj.get();
+    }
+    lv_event_code_t getPressEventCode(void) const
+    {
+        return _press_event_code;
+    }
+    lv_event_code_t getPressingEventCode(void) const
+    {
+        return _pressing_event_code;
+    }
+    lv_event_code_t getReleaseEventCode(void) const
+    {
+        return _release_event_code;
+    }
     int getIndicatorBarLength(GestureIndicatorBarType type) const;
 
-    static bool calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display,
+    static bool calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
                               GestureData &data);
 
-    ESP_Brookesia_Core &core;
+    base::Context &core;
     const GestureData &data;
 
 private:
@@ -158,6 +176,4 @@ private:
     GestureInfo _event_data;
 };
 
-} // namespace esp_brookesia::speaker
-
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::speaker

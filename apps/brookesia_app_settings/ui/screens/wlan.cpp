@@ -8,7 +8,7 @@
 #include "wlan.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
@@ -66,7 +66,7 @@ namespace esp_brookesia::apps {
     }
 
 // *INDENT-OFF*
-SettingsUI_ScreenWlan::SettingsUI_ScreenWlan(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+SettingsUI_ScreenWlan::SettingsUI_ScreenWlan(App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                           const SettingsUI_ScreenWlanData &main_data):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
     data(main_data)
@@ -272,7 +272,7 @@ bool SettingsUI_ScreenWlan::setAvailableVisible(bool visible)
 }
 
 bool SettingsUI_ScreenWlan::updateAvailableData(
-    std::vector<WlanData> &&wlan_data, ESP_Brookesia_CoreEvent::Handler event_handler, void *user_data
+    std::vector<WlanData> &&wlan_data, systems::base::Event::Handler event_handler, void *user_data
 )
 {
     auto cell_container = getCellContainer(static_cast<int>(SettingsUI_ScreenWlanContainerIndex::AVAILABLE));
@@ -297,7 +297,7 @@ bool SettingsUI_ScreenWlan::updateAvailableData(
             lv_obj_set_width(left_main_label, data.cell_left_main_label_size.width);
 
             ESP_UTILS_CHECK_FALSE_GOTO(
-                ret = app.getCore()->getCoreEvent()->registerEvent(
+                ret = app.getSystemContext()->getEvent().registerEvent(
                           cell->getEventObject(), event_handler, cell->getClickEventID(), user_data
                       ), end, "Register cell(%d) click event failed", cell_number
             );
@@ -469,4 +469,4 @@ bool SettingsUI_ScreenWlan::processCellContainerMapUpdate()
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,50 +7,51 @@
 
 #include <vector>
 #include <map>
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 
-// *INDENT-OFF*
-
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 typedef struct {
     const char *name;
-    ESP_Brookesia_StyleImage_t image;
+    gui::StyleImage image;
     int id;
 } AppLauncherIconInfo_t;
 
 typedef struct {
     struct {
-        ESP_Brookesia_StyleSize_t size;
+        gui::StyleSize size;
         uint8_t layout_row_pad;
     } main;
     struct {
-        ESP_Brookesia_StyleSize_t default_size;
-        ESP_Brookesia_StyleSize_t press_size;
+        gui::StyleSize default_size;
+        gui::StyleSize press_size;
     } image;
     struct {
-        ESP_Brookesia_StyleFont_t text_font;
-        ESP_Brookesia_StyleColor_t text_color;
+        gui::StyleFont text_font;
+        gui::StyleColor text_color;
     } label;
 } AppLauncherIconData;
 
 class AppLauncherIcon {
 public:
-    AppLauncherIcon(ESP_Brookesia_Core &core, const AppLauncherIconInfo_t &info, const AppLauncherIconData &data);
+    AppLauncherIcon(base::Context &core, const AppLauncherIconInfo_t &info, const AppLauncherIconData &data);
     ~AppLauncherIcon();
 
     bool begin(lv_obj_t *parent);
     bool del(void);
     bool toggleClickable(bool clickable);
 
-    bool checkInitialized(void) const { return (_main_obj != nullptr); }
+    bool checkInitialized(void) const
+    {
+        return (_main_obj != nullptr);
+    }
 
     bool updateByNewData(void);
 
 private:
     static void onIconTouchEventCallback(lv_event_t *event);
 
-    ESP_Brookesia_Core &_core;
+    base::Context &_system_context;
     AppLauncherIconInfo_t _info;
     const AppLauncherIconData &_data;
 
@@ -66,6 +67,4 @@ private:
     ESP_Brookesia_LvObj_t _name_label;
 };
 
-} // namespace esp_brookesia::speaker
-
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::speaker

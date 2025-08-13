@@ -7,11 +7,11 @@
 
 #include "style/esp_brookesia_gui_style.hpp"
 #include "lvgl/esp_brookesia_lv_object.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv.hpp"
 #include "boost/signals2.hpp"
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 struct QuickSettingsData {
     struct {
@@ -75,7 +75,7 @@ public:
         MAX,
     };
 
-    QuickSettings(ESP_Brookesia_Core &core, const QuickSettingsData &data);
+    QuickSettings(base::Context &core, const QuickSettingsData &data);
     ~QuickSettings();
 
     bool begin(const gui::LvObject &parent);
@@ -142,13 +142,13 @@ public:
     }
 
     static bool calibrateData(
-        const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display, QuickSettingsData &data
+        const gui::StyleSize &screen_size, const base::Display &display, QuickSettingsData &data
     );
 
 private:
     bool updateByNewData(void);
 
-    ESP_Brookesia_Core &_core;
+    base::Context &_system_context;
     const QuickSettingsData &_data;
 
     struct {
@@ -172,4 +172,4 @@ private:
     gui::LvAnimationUniquePtr _animation{nullptr};
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

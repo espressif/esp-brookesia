@@ -33,7 +33,7 @@ using SettingsUI_ScreenDisplayCellContainerMap =
 
 class SettingsUI_ScreenDisplay: public SettingsUI_ScreenBase {
 public:
-    SettingsUI_ScreenDisplay(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    SettingsUI_ScreenDisplay(systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                              const SettingsUI_ScreenDisplayData &main_data);
     ~SettingsUI_ScreenDisplay();
 
@@ -50,4 +50,4 @@ private:
     SettingsUI_ScreenDisplayCellContainerMap _cell_container_map;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

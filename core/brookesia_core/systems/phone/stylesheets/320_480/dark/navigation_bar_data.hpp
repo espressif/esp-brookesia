@@ -8,39 +8,42 @@
 #include "systems/phone/widgets/navigation_bar/esp_brookesia_navigation_bar.hpp"
 #include "systems/phone/assets/esp_brookesia_phone_assets.h"
 
-constexpr ESP_Brookesia_NavigationBarData_t ESP_BROOKESIA_PHONE_320_480_DARK_NAVIGATION_BAR_DATA()
-{
-    return {
-        .main = {
-            .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 40),
-            .background_color = ESP_BROOKESIA_STYLE_COLOR(0x38393A),
+namespace esp_brookesia::systems::phone {
+
+constexpr NavigationBar::Data STYLESHEET_320_480_DARK_NAVIGATION_BAR_DATA = {
+    .main = {
+        .size = gui::StyleSize::RECT_W_PERCENT(100, 40),
+        .background_color = gui::StyleColor::COLOR(0x38393A),
+    },
+    .button = {
+        .icon_size = gui::StyleSize::SQUARE_PERCENT(60),
+        .icon_images = {
+            gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_back_24_24),
+            gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_home_24_24),
+            gui::StyleImage::IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_recents_screen_24_24),
         },
-        .button = {
-            .icon_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE_PERCENT(60),
-            .icon_images = {
-                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_back_24_24),
-                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_home_24_24),
-                ESP_BROOKESIA_STYLE_IMAGE_RECOLOR_WHITE(&esp_brookesia_image_small_navigation_bar_recents_screen_24_24),
-            },
-            .navigate_types = {
-                ESP_BROOKESIA_CORE_NAVIGATE_TYPE_BACK,
-                ESP_BROOKESIA_CORE_NAVIGATE_TYPE_HOME,
-                ESP_BROOKESIA_CORE_NAVIGATE_TYPE_RECENTS_SCREEN,
-            },
-            .active_background_color = ESP_BROOKESIA_STYLE_COLOR_WITH_OPACITY(0xFFFFFF, LV_OPA_50),
+        .navigate_types = {
+            base::Manager::NavigateType::BACK,
+            base::Manager::NavigateType::HOME,
+            base::Manager::NavigateType::RECENTS_SCREEN,
         },
-        .visual_flex = {
-            .show_animation_time_ms = 200,
-            .show_animation_delay_ms = 0,
-            .show_animation_path_type = ESP_BROOKESIA_LV_ANIM_PATH_TYPE_EASE_OUT,
-            .show_duration_ms = 2000,
-            .hide_animation_time_ms = 200,
-            .hide_animation_delay_ms = 0,
-            .hide_animation_path_type = ESP_BROOKESIA_LV_ANIM_PATH_TYPE_EASE_IN,
+        .active_background_color = gui::StyleColor::COLOR_WITH_OPACITY(0xFFFFFF, LV_OPA_50),
+    },
+    .visual_flex = {
+        .show_animation = {
+            .duration_ms = 200,
+            .path_type = gui::StyleAnimation::ANIM_PATH_TYPE_EASE_OUT,
         },
-        .flags = {
-            .enable_main_size_min = 0,
-            .enable_main_size_max = 0,
+        .hide_animation = {
+            .duration_ms = 200,
+            .path_type = gui::StyleAnimation::ANIM_PATH_TYPE_EASE_IN,
         },
-    };
-}
+        .hide_timer_period_ms = 2000,
+    },
+    .flags = {
+        .enable_main_size_min = 0,
+        .enable_main_size_max = 0,
+    },
+};
+
+} // namespace esp_brookesia::systems::phone

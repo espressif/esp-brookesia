@@ -12,16 +12,16 @@
 #include "expression/esp_brookesia_ai_expression.hpp"
 #include "assets/esp_brookesia_speaker_assets.h"
 
-namespace esp_brookesia::speaker {
-
-struct AI_BuddyData {
-    struct {
-        ai_framework::ExpressionData data;
-    } expression;
-};
+namespace esp_brookesia::systems::speaker {
 
 class AI_Buddy {
 public:
+    struct Data {
+        struct {
+            ai_framework::ExpressionData data;
+        } expression;
+    };
+
     enum ExpressionEmotionType {
         ExpressionEmotionTypeNone = ai_framework::Expression::EMOTION_TYPE_NONE,
         ExpressionEmotionAngry = 0,
@@ -56,7 +56,7 @@ public:
 
     ~AI_Buddy();
 
-    bool begin(const AI_BuddyData &data);
+    bool begin(const Data &data);
     bool resume();
     bool pause();
     bool del();
@@ -192,25 +192,25 @@ private:
         {"wifi_disconnected", ExpressionIconSystemWifiDisconnected},
     };
     inline static std::map<AudioType, AudioInfo> _audio_file_map = {
-        {AI_Buddy::AudioType::WifiNeedConnect,      {"file://spiffs/wifi_need_connect.mp3", 4 * 1000}},
-        {AI_Buddy::AudioType::WifiConnected,        {"file://spiffs/wifi_connect_success.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::WifiDisconnected,     {"file://spiffs/wifi_disconnect.mp3", 4 * 1000}},
-        {AI_Buddy::AudioType::ServerConnected,      {"file://spiffs/server_connected.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::ServerDisconnected,   {"file://spiffs/server_disconnect.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::ServerConnecting,     {"file://spiffs/server_connecting.mp3", 3 * 1000}},
-        {AI_Buddy::AudioType::MicOn,                {"file://spiffs/mic_open.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::MicOff,               {"file://spiffs/mic_close.mp3", 5 * 1000}},
-        {AI_Buddy::AudioType::WakeUp,               {"file://spiffs/wake_up.mp3", 3 * 1000}},
-        {AI_Buddy::AudioType::ResponseLaiLo,        {"file://spiffs/response_lai_lo.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::ResponseWoZaiTingNe,  {"file://spiffs/response_wo_zai_ting_ne.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::ResponseWoZai,        {"file://spiffs/response_wo_zai.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::ResponseZaiNe,        {"file://spiffs/response_zai_ne.mp3", 1 * 1000}},
-        {AI_Buddy::AudioType::SleepBaiBaiLo,        {"file://spiffs/sleep_bai_bai_lo.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::SleepHaoDe,           {"file://spiffs/sleep_hao_de.mp3", 3 * 1000}},
-        {AI_Buddy::AudioType::SleepWoTuiXiaLe,      {"file://spiffs/sleep_wo_tui_xia_le.mp3", 2 * 1000}},
-        {AI_Buddy::AudioType::SleepXianZheYangLo,   {"file://spiffs/sleep_xian_zhe_yang_lo.mp3", 3 * 1000}},
-        {AI_Buddy::AudioType::InvalidConfig,        {"file://spiffs/invalid_config_file.mp3", 5 * 1000}},
-        {AI_Buddy::AudioType::CozeErrorInsufficientCreditsBalance, {"file://spiffs/coze_error_credits.mp3", 7 * 1000}},
+        {AudioType::WifiNeedConnect,      {"file://spiffs/wifi_need_connect.mp3", 4 * 1000}},
+        {AudioType::WifiConnected,        {"file://spiffs/wifi_connect_success.mp3", 2 * 1000}},
+        {AudioType::WifiDisconnected,     {"file://spiffs/wifi_disconnect.mp3", 4 * 1000}},
+        {AudioType::ServerConnected,      {"file://spiffs/server_connected.mp3", 2 * 1000}},
+        {AudioType::ServerDisconnected,   {"file://spiffs/server_disconnect.mp3", 2 * 1000}},
+        {AudioType::ServerConnecting,     {"file://spiffs/server_connecting.mp3", 3 * 1000}},
+        {AudioType::MicOn,                {"file://spiffs/mic_open.mp3", 2 * 1000}},
+        {AudioType::MicOff,               {"file://spiffs/mic_close.mp3", 5 * 1000}},
+        {AudioType::WakeUp,               {"file://spiffs/wake_up.mp3", 3 * 1000}},
+        {AudioType::ResponseLaiLo,        {"file://spiffs/response_lai_lo.mp3", 2 * 1000}},
+        {AudioType::ResponseWoZaiTingNe,  {"file://spiffs/response_wo_zai_ting_ne.mp3", 2 * 1000}},
+        {AudioType::ResponseWoZai,        {"file://spiffs/response_wo_zai.mp3", 2 * 1000}},
+        {AudioType::ResponseZaiNe,        {"file://spiffs/response_zai_ne.mp3", 1 * 1000}},
+        {AudioType::SleepBaiBaiLo,        {"file://spiffs/sleep_bai_bai_lo.mp3", 2 * 1000}},
+        {AudioType::SleepHaoDe,           {"file://spiffs/sleep_hao_de.mp3", 3 * 1000}},
+        {AudioType::SleepWoTuiXiaLe,      {"file://spiffs/sleep_wo_tui_xia_le.mp3", 2 * 1000}},
+        {AudioType::SleepXianZheYangLo,   {"file://spiffs/sleep_xian_zhe_yang_lo.mp3", 3 * 1000}},
+        {AudioType::InvalidConfig,        {"file://spiffs/invalid_config_file.mp3", 5 * 1000}},
+        {AudioType::CozeErrorInsufficientCreditsBalance, {"file://spiffs/coze_error_credits.mp3", 7 * 1000}},
     };
     inline static RandomAudios _response_audios = {
         {0.25, AudioType::ResponseLaiLo},
@@ -226,4 +226,8 @@ private:
     };
 };
 
-} // namespace esp_brookesia::ai_buddy
+/* Keep compatibility with old code */
+using AI_BuddyData [[deprecated("Use `esp_brookesia::systems::speaker::AI_Buddy::Data` instead")]] =
+    AI_Buddy::Data;
+
+} // namespace esp_brookesia::systems::speaker

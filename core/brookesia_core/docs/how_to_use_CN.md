@@ -22,25 +22,25 @@
 
 ### 原理及功能
 
-brookesia-core 提供了通过 C++ 继承的方式来开发 app 的功能，用户可以根据目标系统 UI 继承相应的系统 app 基类（如 Phone 中的 [ESP_Brookesia_PhoneApp](../systems/phone/esp_brookesia_phone_app.hpp) 类），然后实现必要的纯虚函数（`run()` 和 `back()`），还可以根据需求重定义其他虚函数（如 `close()`、`init()` 和 `pause()` 等）,这些虚函数源自内核 app 基类 [ESP_Brookesia_CoreApp](../systems/core/esp_brookesia_core_app.hpp)。
+brookesia-core 提供了通过 C++ 继承的方式来开发 app 的功能，用户可以根据目标系统 UI 继承相应的系统 app 基类（如 Phone 中的 [esp_brookesia::systems::phone::App](../systems/phone/esp_brookesia_phone_app.hpp) 类），然后实现必要的纯虚函数（`run()` 和 `back()`），还可以根据需求重定义其他虚函数（如 `close()`、`init()` 和 `pause()` 等）,这些虚函数源自 app 基类 [esp_brookesia::systems::base::App](../systems/base/esp_brookesia_base_app.hpp)。
 
-brookesia-core 的系统 app 基类是继承自内核 app 基类 `ESP_Brookesia_CoreApp`，它提供了以下用户可静态配置的功能：
+brookesia-core 的系统 app 基类是继承自 app 基类 `esp_brookesia::systems::base::App`，它提供了以下用户可静态配置的功能：
 
-- **名称**：通过设置 `esp_brookesia::systems::CoreApp::Config` 中 `name` 字段来设置 app 的名称。
-- **图标**：通过设置 `esp_brookesia::systems::CoreApp::Config` 中 `launcher_icon` 字段来设置 app 的图标。
-- **屏幕大小**：通过设置 `esp_brookesia::systems::CoreApp::Config` 中 `screen_size` 字段来设置 app 的屏幕大小。由于当 app 屏幕大小小于实际屏幕大小时，空闲屏幕区域的显示会出现异常，因此建议用户设置的屏幕大小等于实际屏幕大小，即 `screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100)`。
-- **自动创建默认屏幕**：通过设置 `esp_brookesia::systems::CoreApp::Config` 中 `enable_default_screen = 1` 开启,开启后系统会在 app 执行 `run()` 时自动创建并加载一个默认屏幕，用户可以通过 `lv_scr_act()` 获取当前屏幕对象。如果用户需要自行创建和加载屏幕对象，请关闭此功能。
-- 自动清理资源的功能：通过设置 `esp_brookesia::systems::CoreApp::Config` 中 `enable_recycle_resource = 1` 开启,开启后系统会在 app 退出时会自动清理包括 **屏幕**（`lv_obj_create(NULL)`）、 **动画**（`lv_anim_start()`） 和 **定时器**（`lv_timer_create()`）在内的资源，此功能要求用户在 `run()/resume()` 函数内或者 `startRecordResource()` 与 `stopRecordResource()` 之间完成所有资源的创建。
-- **自动调整屏幕大小的功能**：通过设置 `esp_brookesia::systems::CoreApp::Config` 中 `enable_resize_visual_area = 1` 开启,开启后系统会在 app 创建屏幕时自动调整屏幕的大小为可视区域的大小，此功能要求用户在 `run()/resume()` 函数内或者 `startRecordResource()` 与 `stopRecordResource()` 函数之间完成所有屏幕的创建（`lv_obj_create(NULL)`, `lv_timer_create()`, `lv_anim_start()`）。当屏幕显示悬浮 UI（如状态栏）时，如果未开启此功能，app 的屏幕将默认以全屏大小显示，但某些区域可能被遮挡。app 可以调用 `getVisualArea()` 函数来获取最终的可视区域。
+- **名称**：通过设置 `esp_brookesia::systems::base::App::Config` 中 `name` 字段来设置 app 的名称。
+- **图标**：通过设置 `esp_brookesia::systems::base::App::Config` 中 `launcher_icon` 字段来设置 app 的图标。
+- **屏幕大小**：通过设置 `esp_brookesia::systems::base::App::Config` 中 `screen_size` 字段来设置 app 的屏幕大小。由于当 app 屏幕大小小于实际屏幕大小时，空闲屏幕区域的显示会出现异常，因此建议用户设置的屏幕大小等于实际屏幕大小，即 `screen_size = gui::StyleSize::RECT_PERCENT(100, 100)`。
+- **自动创建默认屏幕**：通过设置 `esp_brookesia::systems::base::App::Config` 中 `enable_default_screen = 1` 开启,开启后系统会在 app 执行 `run()` 时自动创建并加载一个默认屏幕，用户可以通过 `lv_scr_act()` 获取当前屏幕对象。如果用户需要自行创建和加载屏幕对象，请关闭此功能。
+- 自动清理资源的功能：通过设置 `esp_brookesia::systems::base::App::Config` 中 `enable_recycle_resource = 1` 开启,开启后系统会在 app 退出时会自动清理包括 **屏幕**（`lv_obj_create(NULL)`）、 **动画**（`lv_anim_start()`） 和 **定时器**（`lv_timer_create()`）在内的资源，此功能要求用户在 `run()/resume()` 函数内或者 `startRecordResource()` 与 `stopRecordResource()` 之间完成所有资源的创建。
+- **自动调整屏幕大小的功能**：通过设置 `esp_brookesia::systems::base::App::Config` 中 `enable_resize_visual_area = 1` 开启,开启后系统会在 app 创建屏幕时自动调整屏幕的大小为可视区域的大小，此功能要求用户在 `run()/resume()` 函数内或者 `startRecordResource()` 与 `stopRecordResource()` 函数之间完成所有屏幕的创建（`lv_obj_create(NULL)`, `lv_timer_create()`, `lv_anim_start()`）。当屏幕显示悬浮 UI（如状态栏）时，如果未开启此功能，app 的屏幕将默认以全屏大小显示，但某些区域可能被遮挡。app 可以调用 `getVisualArea()` 函数来获取最终的可视区域。
 
-除此之外，brookesia-core 的系统 app 基类也提供了一些额外的用户可静态配置的功能，以 Phone 的 app 基类 `ESP_Brookesia_PhoneApp` 为例：
+除此之外，brookesia-core 的系统 app 基类也提供了一些额外的用户可静态配置的功能，以 Phone 的 app 基类 `App` 为例：
 
-- **图标页索引**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `app_launcher_page_index` 字段来设置 app 图标显示在主页的第几页（通常分为 3 页）。
-- **状态图标区域索引**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `status_icon_area_index` 字段来设置 app 状态图标显示在状态栏的第几个区域（通常分为 `左-中-右` 三个区域或 `左-右` 两个区域）。
-- **状态图标**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `status_icon` 字段来设置 app 的状态图标。
-- **状态栏显示模式**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `status_bar_visual_mode` 字段来设置 app 的状态栏显示模式，支持 `固定` 和 `隐藏` 两种模式。
-- **导航栏显示模式**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `navigation_bar_visual_mode` 字段来设置 app 的导航栏显示模式，支持 `固定`、`隐藏` 和 `动态` 三种模式。
-- **手势导航**：通过设置 `ESP_Brookesia_PhoneAppData_t` 中 `enable_navigation_gesture` 字段来设置 app 是否支持通过手势进行导航，该功能默认仅支持从底部向上滑动打开概览屏幕，可以通过设置样式表 `ESP_Brookesia_PhoneManagerData_t` 中 `enable_gesture_navigation_back` 字段来支持侧边滑动返回上一级页面。
+- **图标页索引**：通过设置 `App::Config` 中 `app_launcher_page_index` 字段来设置 app 图标显示在主页的第几页（通常分为 3 页）。
+- **状态图标区域索引**：通过设置 `App::Config` 中 `status_icon_area_index` 字段来设置 app 状态图标显示在状态栏的第几个区域（通常分为 `左-中-右` 三个区域或 `左-右` 两个区域）。
+- **状态图标**：通过设置 `App::Config` 中 `status_icon` 字段来设置 app 的状态图标。
+- **状态栏显示模式**：通过设置 `App::Config` 中 `status_bar_visual_mode` 字段来设置 app 的状态栏显示模式，支持 `固定` 和 `隐藏` 两种模式。
+- **导航栏显示模式**：通过设置 `App::Config` 中 `navigation_bar_visual_mode` 字段来设置 app 的导航栏显示模式，支持 `固定`、`隐藏` 和 `动态` 三种模式。
+- **手势导航**：通过设置 `App::Config` 中 `enable_navigation_gesture` 字段来设置 app 是否支持通过手势进行导航，该功能默认仅支持从底部向上滑动打开概览屏幕，可以通过设置样式表 `Manager::Data` 中 `enable_gesture_navigation_back` 字段来支持侧边滑动返回上一级页面。
 
 ### 注意事项
 

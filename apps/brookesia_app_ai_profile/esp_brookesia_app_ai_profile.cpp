@@ -25,7 +25,7 @@
 
 using namespace std;
 using namespace esp_brookesia::gui;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 using namespace esp_brookesia::ai_framework;
 
 LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_ai_profile_112_112);
@@ -43,7 +43,7 @@ AI_Profile *AI_Profile::requestInstance()
 }
 
 AI_Profile::AI_Profile():
-    speaker::App(APP_NAME, &esp_brookesia_app_icon_launcher_ai_profile_112_112, true)
+    App(APP_NAME, &esp_brookesia_app_icon_launcher_ai_profile_112_112, true)
 {
 }
 
@@ -253,7 +253,7 @@ end:
 //     return true;
 // }
 
-ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::CoreApp, AI_Profile, APP_NAME, []()
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::base::App, AI_Profile, APP_NAME, []()
 {
     return std::shared_ptr<AI_Profile>(AI_Profile::requestInstance(), [](AI_Profile * p) {});
 })

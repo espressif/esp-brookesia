@@ -12,25 +12,22 @@
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 #include "more/esp_utils_plugin_registry.hpp"
 
-// *INDENT-OFF*
+namespace esp_brookesia::systems::base {
 
-class ESP_Brookesia_Core;
-class ESP_Brookesia_CoreManager;
-
-namespace esp_brookesia::systems {
+class Context;
 
 /**
  * @brief The core app class. This serves as the base class for all internal app classes. User-defined app classes
  *        should not inherit from this class directly.
  *
  */
-class CoreApp {
+class App {
 public:
-    friend class ::ESP_Brookesia_CoreManager;
+    friend class Manager;
 
     struct Config {
         /**
-         * @brief The default initializer for core app data structure
+         * @brief The default initializer for core app config structure
          *
          * @note The `enable_recycle_resource` and `enable_resize_visual_area` flags are enabled by default.
          * @note The `screen_size` is set to the full screen by default.
@@ -75,19 +72,27 @@ public:
                                                         status bar. Otherwise, the app's screens will be displayed in full screen,
                                                         but some areas might be not visible. The app can call the `getVisualArea()`
                                                         function to retrieve the final visual area */
-        } flags;                                    /*!< Core app data flags */
+        } flags;                                    /*!< Core app config flags */
     };
 
-    enum class Status: uint8_t {
+    enum class Status : uint8_t {
         UNINSTALLED = 0,
         RUNNING,
         PAUSED,
         CLOSED,
     };
 
-    using Registry = esp_utils::PluginRegistry<CoreApp>;
+    using Registry = esp_utils::PluginRegistry<App>;
 
     static constexpr int APP_ID_MIN = 1;
+
+    /**
+     * @brief Delete copy constructor and assignment operator
+     */
+    App(const App &) = delete;
+    App(App &&) = delete;
+    App &operator=(const App &) = delete;
+    App &operator=(App &&) = delete;
 
     /**
      * @brief Construct a core app with detailed configuration.
@@ -95,8 +100,8 @@ public:
      * @param data The configuration data for the core app.
      *
      */
-    CoreApp(const Config &data)
-        : _core_init_data(data)
+    App(const Config &data)
+        : _init_config(data)
     {
     }
 
@@ -110,15 +115,15 @@ public:
      *                           automatically cleaned up
      *
      */
-    CoreApp(const char *name, const void *launcher_icon, bool use_default_screen)
-        : _core_init_data(Config::SIMPLE_CONSTRUCTOR(name, launcher_icon, use_default_screen))
+    App(const char *name, const void *launcher_icon, bool use_default_screen)
+        : _init_config(Config::SIMPLE_CONSTRUCTOR(name, launcher_icon, use_default_screen))
     {
     }
 
     /**
      * @brief Destructor for the core app, should be defined by the user's app class.
      */
-    virtual ~CoreApp() = default;
+    virtual ~App() = default;
 
     /**
      * @brief  Check if the app is initialized
@@ -147,7 +152,7 @@ public:
      */
     const char *getName(void) const
     {
-        return _core_active_data.name;
+        return _active_config.name;
     }
 
     /**
@@ -158,7 +163,7 @@ public:
      */
     const gui::StyleImage &getLauncherIcon(void) const
     {
-        return _core_active_data.launcher_icon;
+        return _active_config.launcher_icon;
     }
 
     /**
@@ -180,7 +185,7 @@ public:
      */
     const Config &getCoreInitData(void) const
     {
-        return _core_init_data;
+        return _init_config;
     }
 
     /**
@@ -191,18 +196,24 @@ public:
      */
     const Config &getCoreActiveData(void) const
     {
-        return _core_active_data;
+        return _active_config;
     }
 
     /**
-     * @brief Get the core object.
+     * @brief Get the system context
      *
-     * @return core: used to access the core functions
+     * @return context: the system context of the app
      *
      */
-    ESP_Brookesia_Core *getCore(void) const
+    Context *getSystemContext(void) const
     {
-        return _core;
+        return _system_context;
+    }
+
+    [[deprecated("Use `getSystemContext()` instead")]]
+    Context *getCore(void) const
+    {
+        return getSystemContext();
     }
 
 protected:
@@ -383,12 +394,18 @@ protected:
      */
     bool cleanRecordResource(void);
 
-    ESP_Brookesia_Core *_core;
+    Context *_system_context = nullptr;
 
 private:
-    virtual bool beginExtra(void) { return true; }
-    virtual bool delExtra(void)   { return true; }
-    virtual bool processInstall(ESP_Brookesia_Core *core, int id);
+    virtual bool beginExtra(void)
+    {
+        return true;
+    }
+    virtual bool delExtra(void)
+    {
+        return true;
+    }
+    virtual bool processInstall(Context *system_context, int id);
     virtual bool processUninstall(void);
     virtual bool processRun(void);
     virtual bool processResume(void);
@@ -415,8 +432,8 @@ private:
     static void onResizeScreenLoadedEventCallback(lv_event_t *e);
 
     // Core
-    Config _core_init_data = {};
-    Config _core_active_data = {};
+    Config _init_config = {};
+    Config _active_config = {};
     Status _status = Status::UNINSTALLED;
     // Attributes
     int _id = APP_ID_MIN - 1;
@@ -459,18 +476,16 @@ private:
 /**
  * Backward compatibility
  */
-using ESP_Brookesia_CoreApp [[deprecated("Use `esp_brookesia::systems::CoreApp` instead")]] =
-    esp_brookesia::systems::CoreApp;
-using ESP_Brookesia_CoreAppData_t [[deprecated("Use `esp_brookesia::systems::CoreApp::Config` instead")]] =
-    esp_brookesia::systems::CoreApp::Config;
-using ESP_Brookesia_CoreAppStatus_t [[deprecated("Use `esp_brookesia::systems::CoreApp::Status` instead")]] =
-    esp_brookesia::systems::CoreApp::Status;
+using ESP_Brookesia_CoreApp [[deprecated("Use `esp_brookesia::systems::base::App` instead")]] =
+    esp_brookesia::systems::base::App;
+using ESP_Brookesia_CoreAppData_t [[deprecated("Use `esp_brookesia::systems::base::App::Config` instead")]] =
+    esp_brookesia::systems::base::App::Config;
+using ESP_Brookesia_CoreAppStatus_t [[deprecated("Use `esp_brookesia::systems::base::App::Status` instead")]] =
+    esp_brookesia::systems::base::App::Status;
+#define ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED ESP_Brookesia_CoreAppStatus_t::UNINSTALLED
+#define ESP_BROOKESIA_CORE_APP_STATUS_RUNNING     ESP_Brookesia_CoreAppStatus_t::RUNNING
+#define ESP_BROOKESIA_CORE_APP_STATUS_PAUSED      ESP_Brookesia_CoreAppStatus_t::PAUSED
+#define ESP_BROOKESIA_CORE_APP_STATUS_CLOSED      ESP_Brookesia_CoreAppStatus_t::CLOSED
+#define ESP_BROOKESIA_CORE_APP_ID_MIN             ESP_Brookesia_CoreAppStatus_t::APP_ID_MIN
 #define ESP_BROOKESIA_CORE_APP_DATA_DEFAULT(app_name, icon, use_default_screen) \
-    esp_brookesia::systems::CoreApp::Config::SIMPLE_CONSTRUCTOR(app_name, icon, use_default_screen)
-#define ESP_BROOKESIA_CORE_APP_STATUS_UNINSTALLED esp_brookesia::systems::CoreApp::Status::UNINSTALLED
-#define ESP_BROOKESIA_CORE_APP_STATUS_RUNNING esp_brookesia::systems::CoreApp::Status::RUNNING
-#define ESP_BROOKESIA_CORE_APP_STATUS_PAUSED esp_brookesia::systems::CoreApp::Status::PAUSED
-#define ESP_BROOKESIA_CORE_APP_STATUS_CLOSED esp_brookesia::systems::CoreApp::Status::CLOSED
-#define ESP_BROOKESIA_CORE_APP_ID_MIN esp_brookesia::systems::CoreApp::APP_ID_MIN
-
-// *INDENT-ON*
+    esp_brookesia::systems::base::App::Config::SIMPLE_CONSTRUCTOR(app_name, icon, use_default_screen)

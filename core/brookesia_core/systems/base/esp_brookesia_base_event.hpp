@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,7 +11,9 @@
 #include <functional>
 #include <memory>
 
-class ESP_Brookesia_CoreEvent {
+namespace esp_brookesia::systems::base {
+
+class Event {
 public:
     enum class ID {
         APP,
@@ -27,8 +29,8 @@ public:
     };
     using Handler = bool (*)(const HandlerData &data);
 
-    ESP_Brookesia_CoreEvent();
-    ~ESP_Brookesia_CoreEvent();
+    Event();
+    ~Event();
 
     void reset(void);
     bool registerEvent(void *object, Handler handler, ID id, void *user_data = nullptr);
@@ -52,3 +54,8 @@ private:
     std::unordered_map<void *, std::unordered_map<ID, HandlerList>> _event_handlers;
     std::unordered_set<ID> _available_event_ids;
 };
+
+} // namespace esp_brookesia::systems::base
+
+using ESP_Brookesia_CoreEvent [[deprecated("Use `esp_brookesia::systems::base::Event` instead")]] =
+    esp_brookesia::systems::base::Event;

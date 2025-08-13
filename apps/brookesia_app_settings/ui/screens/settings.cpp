@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +7,7 @@
 #include "settings.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
@@ -78,7 +78,7 @@ namespace esp_brookesia::apps {
     }
 
 // *INDENT-OFF*
-SettingsUI_ScreenSettings::SettingsUI_ScreenSettings(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+SettingsUI_ScreenSettings::SettingsUI_ScreenSettings(App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                           const SettingsUI_ScreenSettingsData &main_data):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::ROOT),
     data(main_data)
@@ -201,4 +201,4 @@ bool SettingsUI_ScreenSettings::processCellContainerMapUpdate()
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

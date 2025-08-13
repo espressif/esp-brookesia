@@ -5,46 +5,48 @@
  */
 #include <algorithm>
 #include "esp_brookesia_systems_internal.h"
-#if !ESP_BROOKESIA_CORE_EVENT_ENABLE_DEBUG_LOG
+#if !ESP_BROOKESIA_BASE_EVENT_ENABLE_DEBUG_LOG
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
-#include "private/esp_brookesia_core_utils.hpp"
-#include "esp_brookesia_core_event.hpp"
+#include "private/esp_brookesia_base_utils.hpp"
+#include "esp_brookesia_base_event.hpp"
 
 using namespace std;
 
-ESP_Brookesia_CoreEvent::ESP_Brookesia_CoreEvent():
+namespace esp_brookesia::systems::base {
+
+Event::Event():
     _free_event_id(ID::CUSTOM)
 {
 }
 
-ESP_Brookesia_CoreEvent::~ESP_Brookesia_CoreEvent()
+Event::~Event()
 {
 }
 
-ESP_Brookesia_CoreEvent::ID &operator++(ESP_Brookesia_CoreEvent::ID &id)
+Event::ID &operator++(Event::ID &id)
 {
-    id = static_cast<ESP_Brookesia_CoreEvent::ID>(static_cast<int>(id) + 1);
+    id = static_cast<Event::ID>(static_cast<int>(id) + 1);
 
     return id;
 }
 
-ESP_Brookesia_CoreEvent::ID operator++(ESP_Brookesia_CoreEvent::ID &id, int)
+Event::ID operator++(Event::ID &id, int)
 {
-    ESP_Brookesia_CoreEvent::ID old = id;
+    Event::ID old = id;
     ++id;
 
     return old;
 }
 
-void ESP_Brookesia_CoreEvent::reset(void)
+void Event::reset(void)
 {
     _free_event_id = ID::CUSTOM;
     _event_handlers.clear();
     _available_event_ids.clear();
 }
 
-bool ESP_Brookesia_CoreEvent::registerEvent(void *object, Handler handler, ID id, void *user_data)
+bool Event::registerEvent(void *object, Handler handler, ID id, void *user_data)
 {
     ESP_UTILS_LOGD("Register event for object(0x%p) ID(%d) handler(0x%p), user_data(0x%p)", object, static_cast<int>(id),
                    handler, user_data);
@@ -56,7 +58,7 @@ bool ESP_Brookesia_CoreEvent::registerEvent(void *object, Handler handler, ID id
     return true;
 }
 
-bool ESP_Brookesia_CoreEvent::sendEvent(void *object, ID id, void *param) const
+bool Event::sendEvent(void *object, ID id, void *param) const
 {
     ESP_UTILS_LOGD("Send event for object(0x%p) ID(%d) param(0x%p)", object, static_cast<int>(id), param);
 
@@ -90,7 +92,7 @@ bool ESP_Brookesia_CoreEvent::sendEvent(void *object, ID id, void *param) const
     return ret;
 }
 
-void ESP_Brookesia_CoreEvent::unregisterEvent(void *object)
+void Event::unregisterEvent(void *object)
 {
     ESP_UTILS_LOGD("Unregister event for object(0x%p)", object);
 
@@ -119,7 +121,7 @@ void ESP_Brookesia_CoreEvent::unregisterEvent(void *object)
     }
 }
 
-void ESP_Brookesia_CoreEvent::unregisterEvent(void *object, ID id)
+void Event::unregisterEvent(void *object, ID id)
 {
     ESP_UTILS_LOGD("Unregister event for object(0x%p) ID(%d)", object, static_cast<int>(id));
 
@@ -145,7 +147,7 @@ void ESP_Brookesia_CoreEvent::unregisterEvent(void *object, ID id)
     }
 }
 
-void ESP_Brookesia_CoreEvent::unregisterEvent(void *object, Handler handler, ID id)
+void Event::unregisterEvent(void *object, Handler handler, ID id)
 {
     ESP_UTILS_LOGD("Unregister event for object(0x%p) ID(%d) handler(0x%p)", object, static_cast<int>(id), handler);
 
@@ -185,7 +187,7 @@ void ESP_Brookesia_CoreEvent::unregisterEvent(void *object, Handler handler, ID 
     }
 }
 
-void ESP_Brookesia_CoreEvent::unregisterEvent(ID id)
+void Event::unregisterEvent(ID id)
 {
     ESP_UTILS_LOGD("Unregister event for ID(%d)", static_cast<int>(id));
 
@@ -204,7 +206,7 @@ void ESP_Brookesia_CoreEvent::unregisterEvent(ID id)
     _available_event_ids.insert(id);
 }
 
-void ESP_Brookesia_CoreEvent::unregisterEvent(Handler handler)
+void Event::unregisterEvent(Handler handler)
 {
     ESP_UTILS_LOGD("Unregister event for handler(0x%p)", handler);
 
@@ -237,7 +239,7 @@ void ESP_Brookesia_CoreEvent::unregisterEvent(Handler handler)
     }
 }
 
-bool ESP_Brookesia_CoreEvent::checkUsedEventID(ID id) const
+bool Event::checkUsedEventID(ID id) const
 {
     for (auto &object_handler_pair : _event_handlers) {
         auto &handlers_for_object = object_handler_pair.second;
@@ -248,7 +250,7 @@ bool ESP_Brookesia_CoreEvent::checkUsedEventID(ID id) const
     return false;
 }
 
-ESP_Brookesia_CoreEvent::ID ESP_Brookesia_CoreEvent::getFreeEventID()
+Event::ID Event::getFreeEventID()
 {
     if (!_available_event_ids.empty()) {
         ID id = *_available_event_ids.begin();
@@ -260,7 +262,7 @@ ESP_Brookesia_CoreEvent::ID ESP_Brookesia_CoreEvent::getFreeEventID()
     return ++_free_event_id;
 }
 
-size_t ESP_Brookesia_CoreEvent::getEventHandlersCount(void) const
+size_t Event::getEventHandlersCount(void) const
 {
     size_t count = 0;
     for (auto &object_handler_pair : _event_handlers) {
@@ -272,7 +274,7 @@ size_t ESP_Brookesia_CoreEvent::getEventHandlersCount(void) const
     return count;
 }
 
-void ESP_Brookesia_CoreEvent::cleanEmptyHandlers()
+void Event::cleanEmptyHandlers()
 {
     for (auto it = _event_handlers.begin(); it != _event_handlers.end(); ) {
         auto &id_map = it->second;
@@ -290,3 +292,5 @@ void ESP_Brookesia_CoreEvent::cleanEmptyHandlers()
         }
     }
 }
+
+} // namespace esp_brookesia::systems::base

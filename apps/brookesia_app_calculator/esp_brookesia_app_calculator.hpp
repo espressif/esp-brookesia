@@ -10,7 +10,7 @@
 
 namespace esp_brookesia::apps {
 
-class Calculator: public speaker::App {
+class Calculator: public systems::speaker::App {
 public:
     Calculator();
     ~Calculator();

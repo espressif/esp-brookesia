@@ -14,10 +14,10 @@
 #include "quick_settings.hpp"
 #include "keyboard.hpp"
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 /* Display */
-constexpr DisplayData ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA = {
+constexpr Display::Data STYLESHEET_360_360_DARK_DISPLAY_DATA = {
     .boot_animation = {
         .data = {
             .canvas = {
@@ -37,7 +37,7 @@ constexpr DisplayData ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA = {
             //     .resources = (const gui::AnimPlayerAnimPath [])
             //     {
             //         {
-            //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/boot_animation_360_360.aaf",
+            //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/boot_animation_360_360.aaf",
             //             .fps = 18,
             //         },
             //     },
@@ -54,14 +54,14 @@ constexpr DisplayData ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA = {
         },
     },
     .app_launcher = {
-        .data = ESP_BROOKESIA_SPEAKER_360_360_DARK_APP_LAUNCHER_DATA,
-        .default_image = ESP_BROOKESIA_STYLE_IMAGE(&speaker_image_middle_app_launcher_default_112_112),
+        .data = STYLESHEET_360_360_DARK_APP_LAUNCHER_DATA,
+        .default_image = gui::StyleImage::IMAGE(&speaker_image_middle_app_launcher_default_112_112),
     },
     .quick_settings = {
-        .data = ESP_BROOKESIA_SPEAKER_360_360_DARK_QUICK_SETTINGS_DATA,
+        .data = STYLESHEET_360_360_DARK_QUICK_SETTINGS_DATA,
     },
     .keyboard = {
-        .data = ESP_BROOKESIA_SPEAKER_360_360_DARK_KEYBOARD_DATA,
+        .data = STYLESHEET_360_360_DARK_KEYBOARD_DATA,
     },
     .flags = {
         .enable_app_launcher_flex_size = 1,
@@ -69,8 +69,8 @@ constexpr DisplayData ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA = {
 };
 
 /* Manager */
-constexpr ManagerData ESP_BROOKESIA_SPEAKER_360_360_DARK_MANAGER_DATA = {
-    .gesture = ESP_BROOKESIA_SPEAKER_360_360_DARK_GESTURE_DATA,
+constexpr Manager::Data STYLESHEET_360_360_DARK_MANAGER_DATA = {
+    .gesture = STYLESHEET_360_360_DARK_GESTURE_DATA,
     .gesture_mask_indicator_trigger_time_ms = 0,
     .ai_buddy_resume_time_ms = 5000,
     .quick_settings = {
@@ -86,8 +86,8 @@ constexpr ManagerData ESP_BROOKESIA_SPEAKER_360_360_DARK_MANAGER_DATA = {
     },
 };
 
-/* AI Agent */
-constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
+/* AI Buddy */
+constexpr AI_Buddy::Data STYLESHEET_360_360_DARK_AI_BUDDY_DATA = {
     .expression = {
         .data = {
             .emotion = {
@@ -109,22 +109,22 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
                     //     .resources = (const gui::AnimPlayerAnimPath [])
                     //     {
                     //         {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_angry_284_126.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/emotion_angry_284_126.aaf",
                     //             .fps = 30,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_blink_fast_284_126.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/emotion_blink_fast_284_126.aaf",
                     //             .fps = 30,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_blink_slow_284_126.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/emotion_blink_slow_284_126.aaf",
                     //             .fps = 30,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_happy_284_126.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/emotion_happy_284_126.aaf",
                     //             .fps = 30,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_sad_284_126.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/emotion_sad_284_126.aaf",
                     //             .fps = 30,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/emotion_sleep_284_126.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/emotion_sleep_284_126.aaf",
                     //             .fps = 30,
                     //         },
                     //     },
@@ -159,37 +159,37 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
                     //     .resources = (const gui::AnimPlayerAnimPath [])
                     //     {
                     //         {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_brightness_down_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_brightness_down_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_brightness_up_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_brightness_up_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_emotion_confused_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_emotion_confused_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_emotion_sleep_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_emotion_sleep_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_emotion_thinking_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_emotion_thinking_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_server_connected_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_server_connected_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_server_connecting_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_server_connecting_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_volume_down_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_volume_down_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_volume_mute_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_volume_mute_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_volume_up_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_volume_up_64.aaf",
                     //             .fps = 15,
                     //         }, {
-                    //             .path = ESP_BROOKESIA_SPEAKER_FS_MOUNT_POINT "/system/animations/icon_wifi_disconnect_64.aaf",
+                    //             .path = STYLESHEET_FS_MOUNT_POINT "/system/animations/icon_wifi_disconnect_64.aaf",
                     //             .fps = 15,
                     //         },
                     //     },
@@ -214,11 +214,13 @@ constexpr AI_BuddyData ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA = {
 };
 
 /* Speaker */
-constexpr SpeakerStylesheet_t ESP_BROOKESIA_SPEAKER_360_360_DARK_STYLESHEET = {
-    .core = ESP_BROOKESIA_SPEAKER_360_360_DARK_CORE_DATA,
-    .display = ESP_BROOKESIA_SPEAKER_360_360_DARK_DISPLAY_DATA,
-    .manager = ESP_BROOKESIA_SPEAKER_360_360_DARK_MANAGER_DATA,
-    .ai_buddy = ESP_BROOKESIA_SPEAKER_360_360_DARK_AI_AGENT_DATA,
+constexpr Stylesheet STYLESHEET_360_360_DARK_STYLESHEET = {
+    .core = STYLESHEET_360_360_DARK_CORE_DATA,
+    .display = STYLESHEET_360_360_DARK_DISPLAY_DATA,
+    .manager = STYLESHEET_360_360_DARK_MANAGER_DATA,
+    .ai_buddy = STYLESHEET_360_360_DARK_AI_BUDDY_DATA,
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker
+
+#define ESP_BROOKESIA_SPEAKER_360_360_DARK_STYLESHEET  esp_brookesia::systems::speaker::STYLESHEET_360_360_DARK_STYLESHEET

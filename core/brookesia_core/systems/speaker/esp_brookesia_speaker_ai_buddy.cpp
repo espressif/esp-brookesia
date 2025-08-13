@@ -29,7 +29,7 @@
 
 using namespace esp_brookesia::ai_framework;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 AI_Buddy::~AI_Buddy()
 {
@@ -38,7 +38,7 @@ AI_Buddy::~AI_Buddy()
     ESP_UTILS_CHECK_FALSE_EXIT(!_flags.is_begun || del(), "Del failed");
 }
 
-bool AI_Buddy::begin(const AI_BuddyData &data)
+bool AI_Buddy::begin(const Data &data)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -694,4 +694,4 @@ std::string AI_Buddy::getAudioName(AudioType type) const
     return it->second.first;
 }
 
-} // namespace esp_brookesia::ai_buddy
+} // namespace esp_brookesia::systems::speaker

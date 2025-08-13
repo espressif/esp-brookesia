@@ -26,7 +26,7 @@ constexpr int  BRIGHTNESS_DEFAULT        = 100;
 
 using namespace esp_brookesia::gui;
 using namespace esp_brookesia::services;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 static bool draw_bitmap_with_lock(lv_disp_t *disp, int x_start, int y_start, int x_end, int y_end, const void *data);
 static bool clear_display(lv_disp_t *disp);
@@ -66,7 +66,7 @@ bool display_init(bool default_dummy_draw)
     /* Update display brightness when NVS brightness is updated */
     auto &storage_service = StorageNVS::requestInstance();
     storage_service.connectEventSignal([&](const StorageNVS::Event & event) {
-        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.key != SETTINGS_NVS_KEY_BRIGHTNESS)) {
+        if ((event.operation != StorageNVS::Operation::UpdateNVS) || (event.key != Manager::SETTINGS_BRIGHTNESS)) {
             return;
         }
 
@@ -74,7 +74,7 @@ bool display_init(bool default_dummy_draw)
 
         StorageNVS::Value value;
         ESP_UTILS_CHECK_FALSE_EXIT(
-            storage_service.getLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, value), "Get NVS brightness failed"
+            storage_service.getLocalParam(Manager::SETTINGS_BRIGHTNESS, value), "Get NVS brightness failed"
         );
 
         auto brightness = std::clamp(std::get<int>(value), BRIGHTNESS_MIN, BRIGHTNESS_MAX);
@@ -84,10 +84,10 @@ bool display_init(bool default_dummy_draw)
 
     /* Initialize display brightness */
     StorageNVS::Value brightness = BRIGHTNESS_DEFAULT;
-    if (!storage_service.getLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, brightness)) {
+    if (!storage_service.getLocalParam(Manager::SETTINGS_BRIGHTNESS, brightness)) {
         ESP_UTILS_LOGW("Brightness not found in NVS, set to default value(%d)", std::get<int>(brightness));
     }
-    storage_service.setLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, brightness);
+    storage_service.setLocalParam(Manager::SETTINGS_BRIGHTNESS, brightness);
 
     /* Process animation player events */
     AnimPlayer::flush_ready_signal.connect(

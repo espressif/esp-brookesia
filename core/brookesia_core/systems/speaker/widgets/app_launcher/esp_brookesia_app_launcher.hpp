@@ -1,37 +1,35 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include "style/esp_brookesia_gui_style.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 #include "esp_brookesia_app_launcher_icon.hpp"
 
-// *INDENT-OFF*
-
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 struct AppLauncherData {
     struct {
         int y_start;
-        ESP_Brookesia_StyleSize_t size;
+        gui::StyleSize size;
     } main;
     struct {
         uint8_t default_num;
-        ESP_Brookesia_StyleSize_t size;
-        ESP_Brookesia_StyleAlign_t align;
+        gui::StyleSize size;
+        gui::StyleAlign align;
     } table;
     struct {
-        ESP_Brookesia_StyleSize_t main_size;
-        ESP_Brookesia_StyleAlign_t main_align;
-        ESP_Brookesia_StyleGap_t main_gap;
-        ESP_Brookesia_StyleSize_t spot_inactive_size;
-        ESP_Brookesia_StyleSize_t spot_active_size;
-        ESP_Brookesia_StyleColor_t spot_inactive_background_color;
-        ESP_Brookesia_StyleColor_t spot_active_background_color;
+        gui::StyleSize main_size;
+        gui::StyleAlign main_align;
+        gui::StyleGap main_gap;
+        gui::StyleSize spot_inactive_size;
+        gui::StyleSize spot_active_size;
+        gui::StyleColor spot_inactive_background_color;
+        gui::StyleColor spot_active_background_color;
     } indicator;
     AppLauncherIconData icon;
     struct {
@@ -41,7 +39,7 @@ struct AppLauncherData {
 
 class AppLauncher {
 public:
-    AppLauncher(ESP_Brookesia_Core &core, const AppLauncherData &data);
+    AppLauncher(base::Context &core, const AppLauncherData &data);
     ~AppLauncher();
 
     bool begin(lv_obj_t *parent);
@@ -54,13 +52,19 @@ public:
     bool scrollToRightPage(void);
     bool scrollToLeftPage(void);
 
-    bool checkInitialized(void) const        { return (_main_obj != nullptr); }
+    bool checkInitialized(void) const
+    {
+        return (_main_obj != nullptr);
+    }
     bool checkTableFull(uint8_t page_index) const;
     bool checkVisible(void) const;
     bool checkPointInsideMain(lv_point_t &point) const;
-    uint8_t getActiveScreenIndex(void) const { return _table_current_page_index; }
+    uint8_t getActiveScreenIndex(void) const
+    {
+        return _table_current_page_index;
+    }
 
-    static bool calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display,
+    static bool calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
                               AppLauncherData &data);
 
 private:
@@ -89,7 +93,7 @@ private:
     static void onPageTouchEventCallback(lv_event_t *event);
 
     // Core
-    ESP_Brookesia_Core &_core;
+    base::Context &_system_context;
     const AppLauncherData &_data;
 
     int _table_current_page_index;
@@ -103,6 +107,4 @@ private:
     std::map <int, AppLauncherMixIcon_t> _id_mix_icon_map;
 };
 
-} // namespace esp_brookesia::speaker
-
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::speaker

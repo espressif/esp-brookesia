@@ -14,7 +14,7 @@
 #include "squareline/ui_comp/ui_comp.h"
 #include "ui/ui_comp_quicksettings.h"
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 #define BATTERY_ICON_COLOR_CHARGING  lv_color_hex(0x00FF00)
 #define BATTERY_ICON_COLOR_LEVEL_1   lv_color_hex(0xFF0000)
@@ -33,8 +33,8 @@ constexpr int QUICK_SETTINGS_MEMORY_SRAM_PERCENT_MAX = 100;
 constexpr int QUICK_SETTINGS_MEMORY_PSRAM_PERCENT_MIN = 0;
 constexpr int QUICK_SETTINGS_MEMORY_PSRAM_PERCENT_MAX = 100;
 
-QuickSettings::QuickSettings(ESP_Brookesia_Core &core, const QuickSettingsData &data):
-    _core(core),
+QuickSettings::QuickSettings(base::Context &core, const QuickSettingsData &data):
+    _system_context(core),
     _data(data)
 {
 }
@@ -634,7 +634,7 @@ bool QuickSettings::scrollBack(void) const
 }
 
 bool QuickSettings::calibrateData(
-    const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display, QuickSettingsData &data
+    const gui::StyleSize &screen_size, const base::Display &display, QuickSettingsData &data
 )
 {
     ESP_UTILS_LOG_TRACE_GUARD();
@@ -661,4 +661,4 @@ bool QuickSettings::updateByNewData(void)
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

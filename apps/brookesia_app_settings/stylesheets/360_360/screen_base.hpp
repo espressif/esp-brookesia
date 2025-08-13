@@ -17,11 +17,11 @@ namespace esp_brookesia::apps {
 constexpr SettingsUI_ScreenBaseHeaderData SETTINGS_UI_360_360_SCREEN_BASE_HEADER_DATA()
 {
     return {
-        .size = ESP_BROOKESIA_STYLE_SIZE_RECT_W_PERCENT(100, 48),
+        .size = gui::StyleSize::RECT_W_PERCENT(100, 48),
         .align_top_offset = 10,
-        .background_color = ESP_BROOKESIA_STYLE_COLOR_WITH_OPACITY(0, 0),
-        .title_text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(30),
-        .title_text_color = ESP_BROOKESIA_STYLE_COLOR(0xFFFFFF),
+        .background_color = gui::StyleColor::COLOR_WITH_OPACITY(0, 0),
+        .title_text_font = gui::StyleFont::SIZE(30),
+        .title_text_color = gui::StyleColor::COLOR(0xFFFFFF),
     };
 }
 
@@ -33,19 +33,19 @@ constexpr SettingsUI_ScreenBaseHeaderNavigation SETTINGS_UI_360_360_SCREEN_BASE_
         .offset_y = 0,
     },
     .main_column_pad = 0,
-    .icon_size = ESP_BROOKESIA_STYLE_SIZE_SQUARE(24),
-    .icon_image = ESP_BROOKESIA_STYLE_IMAGE_RECOLOR(&esp_brookesia_app_icon_arrow_left_48_48, 0xFF3034),
-    .title_text_font = ESP_BROOKESIA_STYLE_FONT_SIZE(24),
-    .title_text_color = ESP_BROOKESIA_STYLE_COLOR(0xFF3034),
+    .icon_size = gui::StyleSize::SQUARE(24),
+    .icon_image = gui::StyleImage::IMAGE_RECOLOR(&esp_brookesia_app_icon_arrow_left_48_48, 0xFF3034),
+    .title_text_font = gui::StyleFont::SIZE(24),
+    .title_text_color = gui::StyleColor::COLOR(0xFF3034),
 };
 
 // Content
 constexpr SettingsUI_ScreenBaseContentData SETTINGS_UI_360_360_SCREEN_BASE_CONTENT_DATA()
 {
     return {
-        .size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
+        .size = gui::StyleSize::RECT_PERCENT(100, 100),
         .align_bottom_offset = 0,
-        .background_color = ESP_BROOKESIA_STYLE_COLOR_WITH_OPACITY(0, 0),
+        .background_color = gui::StyleColor::COLOR_WITH_OPACITY(0, 0),
         .row_pad = 16,
         .top_pad = 16,
         .bottom_pad = 76,
@@ -62,8 +62,8 @@ constexpr auto SETTINGS_UI_360_360_SCREEN_BASE_CELL_CONTAINER()
 
 constexpr SettingsUI_ScreenBaseData SETTINGS_UI_360_360_SCREEN_BASE_DATA = {
     .screen = {
-        .size = ESP_BROOKESIA_STYLE_SIZE_CIRCLE_PERCENT(100),
-        .background_color = ESP_BROOKESIA_STYLE_COLOR(0x1A1A1A),
+        .size = gui::StyleSize::CIRCLE_PERCENT(100),
+        .background_color = gui::StyleColor::COLOR(0x1A1A1A),
     },
     .header = SETTINGS_UI_360_360_SCREEN_BASE_HEADER_DATA(),
     .header_navigation = SETTINGS_UI_360_360_SCREEN_BASE_HEADER_NAVIGATION_DATA,

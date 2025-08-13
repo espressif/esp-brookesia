@@ -22,13 +22,13 @@ using namespace esp_brookesia::gui;
 using namespace esp_brookesia::ai_framework;
 using namespace esp_brookesia::services;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 constexpr int QUICK_SETTINGS_UPDATE_CLOCK_INTERVAL_MS  = 1000;
 constexpr int QUICK_SETTINGS_UPDATE_MEMORY_INTERVAL_MS = 5000;
 
-Manager::Manager(ESP_Brookesia_Core &core_in, Display &display_in, const ManagerData &data_in):
-    ESP_Brookesia_CoreManager(core_in, core_in.getCoreData().manager),
+Manager::Manager(base::Context &core_in, Display &display_in, const Data &data_in):
+    base::Manager(core_in, core_in.getData().manager),
     display(display_in),
     data(data_in)
 {
@@ -45,7 +45,7 @@ Manager::~Manager()
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
 }
 
-bool Manager::calibrateData(const ESP_Brookesia_StyleSize_t screen_size, Display &display, ManagerData &data)
+bool Manager::calibrateData(const gui::StyleSize screen_size, Display &display, Data &data)
 {
     ESP_UTILS_LOG_TRACE_GUARD();
     ESP_UTILS_LOGD(
@@ -96,7 +96,7 @@ bool Manager::begin(void)
         ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
 
         ESP_UTILS_CHECK_FALSE_EXIT(
-            manager->processGestureScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN, nullptr),
+            manager->processGestureScreenChange(Screen::MAIN, nullptr),
             "Process gesture failed"
         );
     }, LV_EVENT_SCREEN_LOADED, this);
@@ -109,13 +109,13 @@ bool Manager::begin(void)
         ESP_UTILS_CHECK_NULL_EXIT(manager, "Invalid manager");
 
         ESP_UTILS_CHECK_FALSE_EXIT(
-            manager->processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN, nullptr),
+            manager->processDisplayScreenChange(Screen::MAIN, nullptr),
             "Process screen change failed"
         );
     }, LV_EVENT_LONG_PRESSED, this);
     _draw_dummy_timer = std::make_unique<LvTimer>([this](void *) {
         ESP_UTILS_CHECK_FALSE_EXIT(
-            this->processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY, nullptr),
+            this->processDisplayScreenChange(Screen::DRAW_DUMMY, nullptr),
             "Process screen change failed"
         );
     }, data.ai_buddy_resume_time_ms, this);
@@ -143,7 +143,7 @@ bool Manager::begin(void)
     });
     // Init quick settings info
     StorageNVS::Value value;
-    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, value)) {
+    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_WLAN_SWITCH, value)) {
         auto wifi_switch = display.getQuickSettings().getWifiButton();
         ESP_UTILS_CHECK_NULL_RETURN(wifi_switch, false, "Invalid wifi switch");
 
@@ -158,7 +158,7 @@ bool Manager::begin(void)
     } else {
         ESP_UTILS_LOGW("No wifi switch is set");
     }
-    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, value)) {
+    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_VOLUME, value)) {
         ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
 
         auto percent = std::get<int>(value);
@@ -166,7 +166,7 @@ bool Manager::begin(void)
     } else {
         ESP_UTILS_LOGW("No volume is set");
     }
-    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, value)) {
+    if (StorageNVS::requestInstance().getLocalParam(SETTINGS_BRIGHTNESS, value)) {
         ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
 
         auto percent = std::get<int>(value);
@@ -218,19 +218,19 @@ bool Manager::begin(void)
     // Gesture
     if (data.flags.enable_gesture) {
         // Get the touch device
-        lv_indev_t *touch = _core.getTouchDevice();
+        lv_indev_t *touch = _system_context.getTouchDevice();
         if (touch == nullptr) {
             ESP_UTILS_LOGW("No touch device is set, try to use default touch device");
 
-            touch = getLvInputDev(_core.getDisplayDevice(), LV_INDEV_TYPE_POINTER);
+            touch = getLvInputDev(_system_context.getDisplayDevice(), LV_INDEV_TYPE_POINTER);
             ESP_UTILS_CHECK_NULL_RETURN(touch, false, "No touch device is initialized");
             ESP_UTILS_LOGW("Using default touch device(@0x%p)", touch);
 
-            ESP_UTILS_CHECK_FALSE_RETURN(_core.setTouchDevice(touch), false, "Core set touch device failed");
+            ESP_UTILS_CHECK_FALSE_RETURN(_system_context.setTouchDevice(touch), false, "Core set touch device failed");
         }
 
         // Create and begin gesture
-        _gesture = std::make_unique<Gesture>(_core, data.gesture);
+        _gesture = std::make_unique<Gesture>(_system_context, data.gesture);
         ESP_UTILS_CHECK_NULL_RETURN(_gesture, false, "Create gesture failed");
         ESP_UTILS_CHECK_FALSE_RETURN(_gesture->begin(display.getSystemScreenObject()), false, "Gesture begin failed");
         ESP_UTILS_CHECK_FALSE_RETURN(_gesture->setMaskObjectVisible(false), false, "Hide mask object failed");
@@ -367,7 +367,7 @@ bool Manager::begin(void)
 
     // Then load the ai_buddy screen
     ESP_UTILS_CHECK_FALSE_RETURN(
-        processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY, nullptr), false,
+        processDisplayScreenChange(Screen::DRAW_DUMMY, nullptr), false,
         "Process screen change failed"
     );
 
@@ -393,7 +393,7 @@ end:
     return true;
 }
 
-bool Manager::processAppRunExtra(ESP_Brookesia_CoreApp *app)
+bool Manager::processAppRunExtra(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: app(%p)", app);
@@ -402,14 +402,14 @@ bool Manager::processAppRunExtra(ESP_Brookesia_CoreApp *app)
 
     ESP_UTILS_CHECK_NULL_RETURN(speaker_app, false, "Invalid speaker app");
 
-    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_APP, speaker_app), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::APP, speaker_app), false,
                                  "Process screen change failed");
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;
 }
 
-bool Manager::processAppResumeExtra(ESP_Brookesia_CoreApp *app)
+bool Manager::processAppResumeExtra(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: app(%p)", app);
@@ -418,14 +418,14 @@ bool Manager::processAppResumeExtra(ESP_Brookesia_CoreApp *app)
 
     ESP_UTILS_CHECK_NULL_RETURN(speaker_app, false, "Invalid speaker app");
 
-    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_APP, speaker_app), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::APP, speaker_app), false,
                                  "Process screen change failed");
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;
 }
 
-bool Manager::processAppCloseExtra(ESP_Brookesia_CoreApp *app)
+bool Manager::processAppCloseExtra(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: app(%p)", app);
@@ -436,7 +436,7 @@ bool Manager::processAppCloseExtra(ESP_Brookesia_CoreApp *app)
 
     if (getActiveApp() == app) {
         // Switch to the main screen to release the app resources
-        ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN, nullptr), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(processDisplayScreenChange(Screen::MAIN, nullptr), false,
                                      "Process screen change failed");
     }
 
@@ -444,13 +444,13 @@ bool Manager::processAppCloseExtra(ESP_Brookesia_CoreApp *app)
     return true;
 }
 
-bool Manager::processDisplayScreenChange(ManagerScreen screen, void *param)
+bool Manager::processDisplayScreenChange(Screen screen, void *param)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: screen(%d), param(%p)", screen, param);
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(screen < ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAX, false, "Invalid screen");
+    ESP_UTILS_CHECK_FALSE_RETURN(screen < Screen::MAX, false, "Invalid screen");
 
     if (_display_active_screen == screen) {
         ESP_UTILS_LOGW("Already on the screen");
@@ -459,20 +459,20 @@ bool Manager::processDisplayScreenChange(ManagerScreen screen, void *param)
 
     ESP_UTILS_CHECK_FALSE_RETURN(processGestureScreenChange(screen, param), false, "Process gesture failed");
 
-    if ((screen != ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY) &&
-            (_display_active_screen == ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY)) {
+    if ((screen != Screen::DRAW_DUMMY) &&
+            (_display_active_screen == Screen::DRAW_DUMMY)) {
         _ai_buddy->pause();
         ESP_UTILS_CHECK_FALSE_RETURN(display.processDummyDraw(false), false, "Display load ai_buddy failed");
     }
 
     switch (screen) {
-    case ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN:
+    case Screen::MAIN:
         ESP_UTILS_CHECK_FALSE_RETURN(display.processMainScreenLoad(), false, "Display load main screen failed");
         if (_draw_dummy_timer != nullptr) {
             ESP_UTILS_CHECK_FALSE_RETURN(_draw_dummy_timer->restart(), false, "Restart ai_buddy resume timer failed");
         }
         break;
-    case ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_APP:
+    case Screen::APP:
         if (_draw_dummy_timer != nullptr) {
             ESP_UTILS_CHECK_FALSE_RETURN(_draw_dummy_timer->pause(), false, "Pause ai_buddy resume timer failed");
         }
@@ -482,7 +482,7 @@ bool Manager::processDisplayScreenChange(ManagerScreen screen, void *param)
             );
         }
         break;
-    case ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY:
+    case Screen::DRAW_DUMMY:
         ESP_UTILS_CHECK_FALSE_RETURN(display.processDummyDraw(true), false, "Display load ai_buddy failed");
         if (_ai_buddy->isPause()) {
             _ai_buddy->resume();
@@ -538,7 +538,7 @@ bool Manager::processAppLauncherGestureEvent(lv_event_t *event)
     );
 
     // Check if the display active screen is main, if so, clear the ai_buddy_resume_timer
-    if (getDisplayActiveScreen() == ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN) {
+    if (getDisplayActiveScreen() == Screen::MAIN) {
         processAI_BuddyResumeTimer();
     } else {
         goto end;
@@ -597,16 +597,16 @@ end:
     return true;
 }
 
-bool Manager::processGestureScreenChange(ManagerScreen screen, void *param)
+bool Manager::processGestureScreenChange(Screen screen, void *param)
 {
-    const AppData_t *app_data = nullptr;
+    const App::Config *app_data = nullptr;
 
     ESP_UTILS_LOGD("Process gesture when screen change");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(screen < ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAX, false, "Invalid screen");
+    ESP_UTILS_CHECK_FALSE_RETURN(screen < Screen::MAX, false, "Invalid screen");
 
     switch (screen) {
-    case ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN:
+    case Screen::MAIN:
         _flags.enable_gesture_navigation = data.flags.enable_app_launcher_gesture_navigation;
         _flags.enable_gesture_navigation_back = 0;
         _flags.enable_gesture_navigation_home = _flags.enable_gesture_navigation;
@@ -616,7 +616,7 @@ bool Manager::processGestureScreenChange(ManagerScreen screen, void *param)
         _flags.enable_gesture_show_left_right_indicator_bar = false;
         _flags.enable_gesture_show_bottom_indicator_bar = _flags.enable_gesture_navigation;
         break;
-    case ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY:
+    case Screen::DRAW_DUMMY:
         _flags.enable_gesture_navigation = false;
         _flags.enable_gesture_navigation_back = false;
         _flags.enable_gesture_navigation_home = false;
@@ -626,9 +626,9 @@ bool Manager::processGestureScreenChange(ManagerScreen screen, void *param)
         _flags.enable_gesture_show_left_right_indicator_bar = false;
         _flags.enable_gesture_show_bottom_indicator_bar = false;
         break;
-    case ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_APP:
+    case Screen::APP:
         ESP_UTILS_CHECK_NULL_RETURN(param, false, "Invalid param");
-        app_data = &((App *)param)->getActiveData();
+        app_data = &((App *)param)->getActiveConfig();
         _flags.enable_gesture_navigation = app_data->flags.enable_navigation_gesture;
         _flags.enable_gesture_navigation_back = (_flags.enable_gesture_navigation &&
                                                 data.flags.enable_gesture_navigation_back);
@@ -670,7 +670,7 @@ bool Manager::processGestureScreenChange(ManagerScreen screen, void *param)
     return true;
 }
 
-bool Manager::processNavigationEvent(ESP_Brookesia_CoreNavigateType_t type)
+bool Manager::processNavigationEvent(base::Manager::NavigateType type)
 {
     bool ret = true;
     App *active_app = static_cast<App *>(getActiveApp());
@@ -681,17 +681,17 @@ bool Manager::processNavigationEvent(ESP_Brookesia_CoreNavigateType_t type)
     _flags.is_app_launcher_gesture_disabled = true;
 
     switch (type) {
-    case ESP_BROOKESIA_CORE_NAVIGATE_TYPE_BACK:
+    case base::Manager::NavigateType::BACK:
         if (active_app == nullptr) {
             goto end;
         }
         // Call app back function
         ESP_UTILS_CHECK_FALSE_GOTO(ret = (active_app->back()), end, "App(%d) back failed", active_app->getId());
         break;
-    case ESP_BROOKESIA_CORE_NAVIGATE_TYPE_HOME:
-    case ESP_BROOKESIA_CORE_NAVIGATE_TYPE_RECENTS_SCREEN:
+    case base::Manager::NavigateType::HOME:
+    case base::Manager::NavigateType::RECENTS_SCREEN:
         if (active_app == nullptr) {
-            processDisplayScreenChange(ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_DRAW_DUMMY, nullptr);
+            processDisplayScreenChange(Screen::DRAW_DUMMY, nullptr);
             goto end;
         }
         /* Process app close */
@@ -722,7 +722,7 @@ bool Manager::processQuickSettingsEventSignal(QuickSettings::EventData event_dat
         StorageNVS::Value value = static_cast<int>(wifi_button->hasState(LV_STATE_CHECKED));
         ESP_UTILS_LOGI("Wifi button clicked, value: %d", std::get<int>(value));
         ESP_UTILS_CHECK_FALSE_RETURN(
-            storage_service.setLocalParam(SETTINGS_NVS_KEY_WLAN_SWITCH, value, &display.getQuickSettings()), false,
+            storage_service.setLocalParam(SETTINGS_WLAN_SWITCH, value, &display.getQuickSettings()), false,
             "Set wifi state failed"
         );
         break;
@@ -738,7 +738,7 @@ bool Manager::processQuickSettingsEventSignal(QuickSettings::EventData event_dat
 
         int percent = display.getQuickSettings().getVolumePercent();
         ESP_UTILS_CHECK_FALSE_RETURN(
-            storage_service.setLocalParam(SETTINGS_NVS_KEY_VOLUME, percent, &display.getQuickSettings()), false,
+            storage_service.setLocalParam(SETTINGS_VOLUME, percent, &display.getQuickSettings()), false,
             "Set volume failed"
         );
         break;
@@ -754,7 +754,7 @@ bool Manager::processQuickSettingsEventSignal(QuickSettings::EventData event_dat
 
         int percent = display.getQuickSettings().getBrightnessPercent();
         ESP_UTILS_CHECK_FALSE_RETURN(
-            storage_service.setLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, percent, &display.getQuickSettings()), false,
+            storage_service.setLocalParam(SETTINGS_BRIGHTNESS, percent, &display.getQuickSettings()), false,
             "Set brightness failed"
         );
         break;
@@ -788,7 +788,7 @@ bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
     );
 
     LvLockGuard gui_guard;
-    if (key == SETTINGS_NVS_KEY_WLAN_SWITCH) {
+    if (key == SETTINGS_WLAN_SWITCH) {
         auto wifi_button = display.getQuickSettings().getWifiButton();
         ESP_UTILS_CHECK_NULL_RETURN(wifi_button, false, "Invalid wifi button");
 
@@ -800,12 +800,12 @@ bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
         } else {
             lv_obj_remove_state(wifi_button->getNativeHandle(), LV_STATE_CHECKED);
         }
-    } else if (key == SETTINGS_NVS_KEY_VOLUME) {
+    } else if (key == SETTINGS_VOLUME) {
         ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
 
         auto percent = std::get<int>(value);
         ESP_UTILS_CHECK_FALSE_RETURN(display.getQuickSettings().setVolume(percent), false, "Set volume failed");
-    } else if (key == SETTINGS_NVS_KEY_BRIGHTNESS) {
+    } else if (key == SETTINGS_BRIGHTNESS) {
         ESP_UTILS_CHECK_FALSE_RETURN(std::holds_alternative<int>(value), false, "Invalid value");
 
         auto percent = std::get<int>(value);
@@ -912,14 +912,14 @@ bool Manager::processQuickSettingsGestureReleaseEvent(lv_event_t *event)
             ESP_UTILS_CHECK_FALSE_RETURN(
                 processQuickSettingsScrollBottom(), false, "Process quick settings scroll bottom failed"
             );
-            if ((_draw_dummy_timer != nullptr) && (_display_active_screen == ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN)) {
+            if ((_draw_dummy_timer != nullptr) && (_display_active_screen == Screen::MAIN)) {
                 _draw_dummy_timer->pause();
             }
         } else {
             ESP_UTILS_CHECK_FALSE_RETURN(
                 processQuickSettingsScrollTop(), false, "Process quick settings scroll top failed"
             );
-            if ((_draw_dummy_timer != nullptr) && (_display_active_screen == ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN)) {
+            if ((_draw_dummy_timer != nullptr) && (_display_active_screen == Screen::MAIN)) {
                 _draw_dummy_timer->restart();
             }
         }
@@ -943,7 +943,7 @@ bool Manager::processQuickSettingsMoveTop()
     // Move the quick settings to the top edge and hide it
     ESP_UTILS_CHECK_FALSE_RETURN(
         quick_settings.moveY_To(
-            _gesture->data.threshold.horizontal_edge - _core.getCoreData().screen_size.height
+            _gesture->data.threshold.horizontal_edge - _system_context.getData().screen_size.height
         ), false, "Move quick settings failed"
     );
     ESP_UTILS_CHECK_FALSE_RETURN(quick_settings.setVisible(false), false, "Set quick settings visible failed");
@@ -965,7 +965,7 @@ bool Manager::processQuickSettingsScrollTop()
     // Move the quick settings to the bottom edge and hide it
     ESP_UTILS_CHECK_FALSE_RETURN(
         quick_settings.moveY_ToWithAnimation(
-            _gesture->data.threshold.horizontal_edge - _core.getCoreData().screen_size.height, false
+            _gesture->data.threshold.horizontal_edge - _system_context.getData().screen_size.height, false
         ), false, "Move quick settings failed"
     );
 
@@ -1000,7 +1000,7 @@ bool Manager::processNavigationGesturePressingEvent(lv_event_t *event)
     ESP_UTILS_CHECK_NULL_RETURN(event, true, "Invalid event");
 
     GestureInfo *gesture_info = nullptr;
-    ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
+    base::Manager::NavigateType navigation_type = base::Manager::NavigateType::MAX;
 
     // Check if the gesture is released and enabled
     if (!_flags.enable_gesture_navigation || _flags.is_gesture_navigation_disabled || display.getQuickSettings().isVisible()) {
@@ -1018,15 +1018,15 @@ bool Manager::processNavigationGesturePressingEvent(lv_event_t *event)
     // Check if there is a "back" gesture
     if ((gesture_info->start_area & (GESTURE_AREA_LEFT_EDGE | GESTURE_AREA_RIGHT_EDGE)) &&
             (gesture_info->direction & GESTURE_DIR_HOR) && _flags.enable_gesture_navigation_back) {
-        navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_BACK;
+        navigation_type = base::Manager::NavigateType::BACK;
     } else if ((gesture_info->start_area & GESTURE_AREA_BOTTOM_EDGE) && (!gesture_info->flags.short_duration) &&
                (gesture_info->direction & GESTURE_DIR_UP) && _flags.enable_gesture_navigation_recents_app) {
         // Check if there is a "recents_screen" gesture
-        navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_RECENTS_SCREEN;
+        navigation_type = base::Manager::NavigateType::RECENTS_SCREEN;
     }
 
     // Only process the navigation event if the navigation type is valid
-    if (navigation_type != ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX) {
+    if (navigation_type != base::Manager::NavigateType::MAX) {
         _flags.is_gesture_navigation_disabled = true;
         ESP_UTILS_CHECK_FALSE_RETURN(
             processNavigationEvent(navigation_type), false, "Process navigation event failed"
@@ -1042,7 +1042,7 @@ bool Manager::processNavigationGestureReleaseEvent(lv_event_t *event)
     // ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
     GestureInfo *gesture_info = nullptr;
-    ESP_Brookesia_CoreNavigateType_t navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX;
+    base::Manager::NavigateType navigation_type = base::Manager::NavigateType::MAX;
 
     _flags.is_gesture_navigation_disabled = false;
     // Check if the gesture is released and enabled
@@ -1060,11 +1060,11 @@ bool Manager::processNavigationGestureReleaseEvent(lv_event_t *event)
     // Check if there is a "display" gesture
     if ((gesture_info->start_area & GESTURE_AREA_BOTTOM_EDGE) && (gesture_info->flags.short_duration) &&
             (gesture_info->direction & GESTURE_DIR_UP) && _flags.enable_gesture_navigation_home) {
-        navigation_type = ESP_BROOKESIA_CORE_NAVIGATE_TYPE_HOME;
+        navigation_type = base::Manager::NavigateType::HOME;
     }
 
     // Only process the navigation event if the navigation type is valid
-    if (navigation_type != ESP_BROOKESIA_CORE_NAVIGATE_TYPE_MAX) {
+    if (navigation_type != base::Manager::NavigateType::MAX) {
         ESP_UTILS_CHECK_FALSE_RETURN(
             processNavigationEvent(navigation_type), false, "Process navigation event failed"
         );
@@ -1204,4 +1204,4 @@ bool Manager::processMaskIndicatorBarGestureReleaseEvent(lv_event_t *event)
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

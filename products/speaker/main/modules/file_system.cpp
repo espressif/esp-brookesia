@@ -17,7 +17,8 @@
 
 constexpr const char *MUSIC_PARTITION_LABEL = "spiffs_data";
 
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::gui;
+using namespace esp_brookesia::systems::speaker;
 
 bool file_system_init()
 {

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,19 +12,19 @@
 #include "base.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
 SettingsUI_ScreenBase::SettingsUI_ScreenBase(
-    speaker::App &ui_app,
+    App &ui_app,
     const SettingsUI_ScreenBaseData &base_data,
     SettingsUI_ScreenBaseType type
 ):
     app(ui_app),
     data(base_data),
     _screen_object(nullptr),
-    _navigation_click_event_id(ESP_Brookesia_CoreEvent::ID::CUSTOM),
+    _navigation_click_event_id(systems::base::Event::ID::CUSTOM),
     _type(type),
     _objects{}
 {
@@ -72,7 +72,7 @@ bool SettingsUI_ScreenBase::begin(std::string header_title_name, std::string nav
     content_object = ESP_BROOKESIA_LV_OBJ(obj, _screen_object);
     ESP_UTILS_CHECK_NULL_RETURN(content_object, false, "Create content object failed");
 
-    ESP_Brookesia_CoreHome &core_home = app.getCore()->getCoreHome();
+    systems::base::Display &core_home = app.getSystemContext()->getDisplay();
     // Screen
     // lv_obj_add_style(_screen_object, core_home.getCoreContainerStyle(), 0);
     lv_obj_set_size(_screen_object, data.screen.size.width, data.screen.size.height);
@@ -137,7 +137,7 @@ bool SettingsUI_ScreenBase::begin(std::string header_title_name, std::string nav
     ESP_UTILS_CHECK_FALSE_GOTO(processDataUpdate(), err, "Process data update failed");
 
     if (_type == SettingsUI_ScreenBaseType::CHILD) {
-        _navigation_click_event_id = app.getCore()->getCoreEvent()->getFreeEventID();
+        _navigation_click_event_id = app.getSystemContext()->getEvent().getFreeEventID();
     }
 
     return true;
@@ -163,7 +163,7 @@ bool SettingsUI_ScreenBase::del()
     _cell_containers_map.clear();
 
     if (_type == SettingsUI_ScreenBaseType::CHILD) {
-        app.getCore()->getCoreEvent()->unregisterEvent(_navigation_click_event_id);
+        app.getSystemContext()->getEvent().unregisterEvent(_navigation_click_event_id);
     }
 
     return true;
@@ -315,37 +315,37 @@ lv_obj_t *SettingsUI_ScreenBase::getElementObject(int container_key, int cell_ke
     return cell->getElementObject(element);
 }
 
-bool SettingsUI_ScreenBase::calibrateCommonHeader(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+bool SettingsUI_ScreenBase::calibrateCommonHeader(const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseHeaderData &data)
 {
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate common header");
 
     compare_size = &parent_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.size), false, "Invalid");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.size), false, "Invalid");
     ESP_UTILS_CHECK_VALUE_RETURN(data.align_top_offset, 0, compare_size->height - data.size.height, false,
                                  "Invalid align_top_offset");
 
     compare_size = &data.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.title_text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.title_text_font), false,
                                  "Invalid title_text_font");
 
     return true;
 }
 
-bool SettingsUI_ScreenBase::calibrateCommonContent(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+bool SettingsUI_ScreenBase::calibrateCommonContent(const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseContentData &data)
 {
     uint16_t parent_w = 0;
     uint16_t parent_h = 0;
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate common content");
 
     compare_size = &parent_size;
     parent_h = compare_size->height;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.size), false, "Invalid size");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.size), false, "Invalid size");
     ESP_UTILS_CHECK_VALUE_RETURN(data.align_bottom_offset, 0, parent_h - data.size.height, false,
                                  "Invalid align_bottom_offset");
 
@@ -361,34 +361,34 @@ bool SettingsUI_ScreenBase::calibrateCommonContent(const ESP_Brookesia_StyleSize
     return true;
 }
 
-bool SettingsUI_ScreenBase::calibrateHeaderNavigation(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+bool SettingsUI_ScreenBase::calibrateHeaderNavigation(const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseHeaderNavigation &data)
 {
     uint16_t parent_w = 0;
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate header navigation");
 
     compare_size = &parent_size;
     parent_w = compare_size->width;
     ESP_UTILS_CHECK_VALUE_RETURN(data.main_column_pad, 0, parent_w, false, "Invalid main_column_pad");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.icon_size), false, "Invalid icon_size");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreIconImage(data.icon_image), false, "Invalid icon_image");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.title_text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.icon_size), false, "Invalid icon_size");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreIconImage(data.icon_image), false, "Invalid icon_image");
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.title_text_font), false,
                                  "Invalid title_text_font");
 
     return true;
 }
 
-bool SettingsUI_ScreenBase::calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+bool SettingsUI_ScreenBase::calibrateData(const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenBaseData &data)
 {
-    ESP_Brookesia_StyleSize_t compare_size = {};
+    gui::StyleSize compare_size = {};
 
     ESP_UTILS_LOGD("Calibrate data");
 
     ESP_UTILS_CHECK_FALSE_RETURN(
-        home.calibrateCoreObjectSize(parent_size, data.screen.size), false, "Invalid screen size"
+        display.calibrateCoreObjectSize(parent_size, data.screen.size), false, "Invalid screen size"
     );
 
     SettingsUI_ScreenBaseHeaderData &header_data = data.header;
@@ -396,10 +396,10 @@ bool SettingsUI_ScreenBase::calibrateData(const ESP_Brookesia_StyleSize_t &paren
     SettingsUI_ScreenBaseHeaderNavigation &navigation_data = data.header_navigation;
     // Header
     compare_size = data.screen.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(calibrateCommonHeader(compare_size, home, header_data), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(calibrateCommonHeader(compare_size, display, header_data), false,
                                  "Invalid child header");
     // Header Navigation
-    ESP_UTILS_CHECK_FALSE_RETURN(calibrateHeaderNavigation(compare_size, home, navigation_data), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(calibrateHeaderNavigation(compare_size, display, navigation_data), false,
                                  "Invalid child header navigation");
     // Content
     compare_size = data.screen.size;
@@ -413,11 +413,11 @@ bool SettingsUI_ScreenBase::calibrateData(const ESP_Brookesia_StyleSize_t &paren
         content_data.size.flags.enable_height_percent = false;
         content_data.size.flags.enable_square = false;
     }
-    ESP_UTILS_CHECK_FALSE_RETURN(calibrateCommonContent(compare_size, home, content_data), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(calibrateCommonContent(compare_size, display, content_data), false,
                                  "Invalid child content");
     // Cell Container
     ESP_UTILS_CHECK_FALSE_RETURN(
-        SettingsUI_WidgetCellContainer::calibrateData(parent_size, home, data.cell_container),
+        SettingsUI_WidgetCellContainer::calibrateData(parent_size, display, data.cell_container),
         false, "Invalid child cell container data"
     );
 
@@ -444,7 +444,7 @@ void SettingsUI_ScreenBase::onNavigationTouchEventCallback(lv_event_t *event)
             break;
         }
         ESP_UTILS_CHECK_FALSE_EXIT(
-            screen->app.getCore()->getCoreEvent()->sendEvent(screen->getEventObject(), screen->getNavigaitionClickEventID(),
+            screen->app.getSystemContext()->getEvent().sendEvent(screen->getEventObject(), screen->getNavigaitionClickEventID(),
                     (void *)screen), "Send navigation click event failed"
         );
         break;

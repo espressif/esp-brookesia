@@ -527,4 +527,4 @@ bool AnimPlayer::processEvent(std::shared_ptr<EventWrapper> event_wrapper)
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::gui

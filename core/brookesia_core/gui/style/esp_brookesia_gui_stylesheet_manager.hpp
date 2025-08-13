@@ -5,7 +5,7 @@
  */
 
 /**
- * @brief This file includes "private/esp_brookesia_core_utils.hpp", so it cannot be included by public header files
+ * @brief This file includes "private/esp_brookesia_base_utils.hpp", so it cannot be included by public header files
  */
 
 #pragma once
@@ -15,31 +15,33 @@
 #include <list>
 #include <map>
 #include <unordered_map>
-// #include "private/esp_brookesia_core_utils.hpp"
+// #include "private/esp_brookesia_base_utils.hpp"
 #include "style/esp_brookesia_gui_style.hpp"
 
-template <typename T>
-using ESP_Brookesia_NameStylesheetMap_t = std::unordered_map<std::string, std::shared_ptr<T>>;
+namespace esp_brookesia::gui {
 
 template <typename T>
-using ESP_Brookesia_ResolutionNameStylesheetMap_t = std::map<uint32_t, ESP_Brookesia_NameStylesheetMap_t<T>>;
+using NameStylesheetMap = std::unordered_map<std::string, std::shared_ptr<T>>;
+
+template <typename T>
+using ResolutionNameStylesheetMap = std::map<uint32_t, NameStylesheetMap<T>>;
 
 // *INDENT-OFF*
 template <typename T>
-class ESP_Brookesia_CoreStylesheetManager {
+class StylesheetManager {
 public:
-    ESP_Brookesia_CoreStylesheetManager();
-    virtual ~ESP_Brookesia_CoreStylesheetManager();
+    StylesheetManager();
+    virtual ~StylesheetManager();
 
-    virtual bool calibrateScreenSize(ESP_Brookesia_StyleSize_t &size) = 0;
+    virtual bool calibrateScreenSize(StyleSize &size) = 0;
 
-    bool addStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size, const T &stylesheet);
-    bool activateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, const T &stylesheet);
-    bool activateStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size);
+    bool addStylesheet(const char *name, const StyleSize &screen_size, const T &stylesheet);
+    bool activateStylesheet(const StyleSize &screen_size, const T &stylesheet);
+    bool activateStylesheet(const char *name, const StyleSize &screen_size);
 
     size_t getStylesheetCount(void) const;
-    typename ESP_Brookesia_NameStylesheetMap_t<T>::iterator findNameStylesheetMap(const ESP_Brookesia_StyleSize_t &screen_size);
-    typename ESP_Brookesia_NameStylesheetMap_t<T>::iterator getNameStylesheetMapEnd(const ESP_Brookesia_StyleSize_t &screen_size);
+    typename NameStylesheetMap<T>::iterator findNameStylesheetMap(const StyleSize &screen_size);
+    typename NameStylesheetMap<T>::iterator getNameStylesheetMapEnd(const StyleSize &screen_size);
 
     /**
      * @brief Get the active stylesheet
@@ -58,7 +60,7 @@ public:
      * @return stylesheet
      *
      */
-    const T *getStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size);
+    const T *getStylesheet(const char *name, const StyleSize &screen_size);
 
     /**
      * @brief Get the first stylesheet which matches the screen size
@@ -68,19 +70,19 @@ public:
      * @return stylesheet
      *
      */
-    const T *getStylesheet(const ESP_Brookesia_StyleSize_t &screen_size);
+    const T *getStylesheet(const StyleSize &screen_size);
 
 protected:
     T _active_stylesheet;
 
-    virtual bool calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, T &stylesheet) = 0;
+    virtual bool calibrateStylesheet(const StyleSize &screen_size, T &stylesheet) = 0;
 
     bool del(void);
 
 private:
-    ESP_Brookesia_ResolutionNameStylesheetMap_t<T> _resolution_name_stylesheet_map;
+    ResolutionNameStylesheetMap<T> _resolution_name_stylesheet_map;
 
-    uint32_t getResolution(const ESP_Brookesia_StyleSize_t &screen_size)
+    uint32_t getResolution(const StyleSize &screen_size)
     {
         return (screen_size.width << 16) | screen_size.height;
     }
@@ -88,13 +90,13 @@ private:
 // *INDENT-ON*
 
 template <typename T>
-ESP_Brookesia_CoreStylesheetManager<T>::ESP_Brookesia_CoreStylesheetManager():
+StylesheetManager<T>::StylesheetManager():
     _active_stylesheet{}
 {
 }
 
 template <typename T>
-ESP_Brookesia_CoreStylesheetManager<T>::~ESP_Brookesia_CoreStylesheetManager()
+StylesheetManager<T>::~StylesheetManager()
 {
     // ESP_UTILS_LOGD("Delete(0x%p)", this);
     if (!del()) {
@@ -103,10 +105,10 @@ ESP_Brookesia_CoreStylesheetManager<T>::~ESP_Brookesia_CoreStylesheetManager()
 }
 
 template <typename T>
-bool ESP_Brookesia_CoreStylesheetManager<T>::addStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size, const T &stylesheet)
+bool StylesheetManager<T>::addStylesheet(const char *name, const StyleSize &screen_size, const T &stylesheet)
 {
     uint32_t resolution = 0;
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
     std::shared_ptr<T> calibration_stylesheet = std::make_shared<T>(stylesheet);
 
     // ESP_UTILS_CHECK_NULL_RETURN(name, false, "Invalid name");
@@ -149,10 +151,10 @@ bool ESP_Brookesia_CoreStylesheetManager<T>::addStylesheet(const char *name, con
 }
 
 template <typename T>
-bool ESP_Brookesia_CoreStylesheetManager<T>::activateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size,
+bool StylesheetManager<T>::activateStylesheet(const StyleSize &screen_size,
         const T &stylesheet)
 {
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
     // ESP_UTILS_CHECK_FALSE_RETURN(calibrateScreenSize(calibrate_size), false, "Invalid screen size");
     if (!calibrateScreenSize(calibrate_size)) {
         return false;
@@ -177,9 +179,9 @@ bool ESP_Brookesia_CoreStylesheetManager<T>::activateStylesheet(const ESP_Brooke
 }
 
 template <typename T>
-bool ESP_Brookesia_CoreStylesheetManager<T>::activateStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size)
+bool StylesheetManager<T>::activateStylesheet(const char *name, const StyleSize &screen_size)
 {
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
     const T *stylesheet = nullptr;
 
     // ESP_UTILS_CHECK_NULL_RETURN(name, false, "Invalid name");
@@ -205,7 +207,7 @@ bool ESP_Brookesia_CoreStylesheetManager<T>::activateStylesheet(const char *name
 }
 
 template <typename T>
-size_t ESP_Brookesia_CoreStylesheetManager<T>::getStylesheetCount(void) const
+size_t StylesheetManager<T>::getStylesheetCount(void) const
 {
     size_t count = 0;
 
@@ -217,10 +219,10 @@ size_t ESP_Brookesia_CoreStylesheetManager<T>::getStylesheetCount(void) const
 }
 
 template <typename T>
-typename ESP_Brookesia_NameStylesheetMap_t<T>::iterator ESP_Brookesia_CoreStylesheetManager<T>::findNameStylesheetMap(const ESP_Brookesia_StyleSize_t &screen_size)
+typename NameStylesheetMap<T>::iterator StylesheetManager<T>::findNameStylesheetMap(const StyleSize &screen_size)
 {
     uint32_t resolution = 0;
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
 
     // ESP_UTILS_CHECK_FALSE_RETURN(calibrateScreenSize(calibrate_size), false, "Invalid screen size");
     if (!calibrateScreenSize(calibrate_size)) {
@@ -232,10 +234,10 @@ typename ESP_Brookesia_NameStylesheetMap_t<T>::iterator ESP_Brookesia_CoreStyles
 }
 
 template <typename T>
-typename ESP_Brookesia_NameStylesheetMap_t<T>::iterator ESP_Brookesia_CoreStylesheetManager<T>::getNameStylesheetMapEnd(const ESP_Brookesia_StyleSize_t &screen_size)
+typename NameStylesheetMap<T>::iterator StylesheetManager<T>::getNameStylesheetMapEnd(const StyleSize &screen_size)
 {
     uint32_t resolution = 0;
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
 
     // ESP_UTILS_CHECK_FALSE_RETURN(calibrateScreenSize(calibrate_size), false, "Invalid screen size");
     if (!calibrateScreenSize(calibrate_size)) {
@@ -247,10 +249,10 @@ typename ESP_Brookesia_NameStylesheetMap_t<T>::iterator ESP_Brookesia_CoreStyles
 }
 
 template <typename T>
-const T *ESP_Brookesia_CoreStylesheetManager<T>::getStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size)
+const T *StylesheetManager<T>::getStylesheet(const char *name, const StyleSize &screen_size)
 {
     uint32_t resolution = 0;
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
 
     // ESP_UTILS_CHECK_NULL_RETURN(name, nullptr, "Invalid name");
     if (name == nullptr) {
@@ -279,10 +281,10 @@ const T *ESP_Brookesia_CoreStylesheetManager<T>::getStylesheet(const char *name,
 }
 
 template <typename T>
-const T *ESP_Brookesia_CoreStylesheetManager<T>::getStylesheet(const ESP_Brookesia_StyleSize_t &screen_size)
+const T *StylesheetManager<T>::getStylesheet(const StyleSize &screen_size)
 {
     uint32_t resolution = 0;
-    ESP_Brookesia_StyleSize_t calibrate_size = screen_size;
+    StyleSize calibrate_size = screen_size;
 
     // ESP_UTILS_CHECK_FALSE_RETURN(calibrateScreenSize(calibrate_size), nullptr, "Invalid screen size");
     if (!calibrateScreenSize(calibrate_size)) {
@@ -306,10 +308,22 @@ const T *ESP_Brookesia_CoreStylesheetManager<T>::getStylesheet(const ESP_Brookes
 }
 
 template <typename T>
-bool ESP_Brookesia_CoreStylesheetManager<T>::del(void)
+bool StylesheetManager<T>::del(void)
 {
     _active_stylesheet = {};
     _resolution_name_stylesheet_map.clear();
 
     return true;
 }
+
+} // namespace esp_brookesia::gui
+
+template <typename T>
+using ESP_Brookesia_NameStylesheetMap [[deprecated("Use `esp_brookesia::gui::NameStylesheetMap` instead")]] =
+    esp_brookesia::gui::NameStylesheetMap<T>;
+template <typename T>
+using ESP_Brookesia_ResolutionNameStylesheetMap [[deprecated("Use `esp_brookesia::gui::ResolutionNameStylesheetMap` instead")]] =
+    esp_brookesia::gui::ResolutionNameStylesheetMap<T>;
+template <typename T>
+using ESP_Brookesia_CoreStylesheetManager [[deprecated("Use `esp_brookesia::gui::StylesheetManager` instead")]] =
+    esp_brookesia::gui::StylesheetManager<T>;

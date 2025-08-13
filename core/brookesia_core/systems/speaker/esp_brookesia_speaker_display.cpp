@@ -14,12 +14,12 @@
 
 using namespace std;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 Display::OnDummyDrawSignal Display::on_dummy_draw_signal;
 
-Display::Display(ESP_Brookesia_Core &core, const DisplayData &data):
-    ESP_Brookesia_CoreDisplay(core, core.getCoreData().display),
+Display::Display(base::Context &core, const Data &data):
+    base::Display(core, core.getData().display),
     _data(data),
     _app_launcher(core, data.app_launcher.data),
     _quick_settings(core, data.quick_settings.data),
@@ -44,12 +44,12 @@ bool Display::begin(void)
 
     ESP_UTILS_CHECK_FALSE_RETURN(!checkInitialized(), false, "Already initialized");
 
-    const auto main_screen_obj = _core.getCoreDisplay().getMainScreenObjectPtr();
+    const auto main_screen_obj = _system_context.getDisplay().getMainScreenObjectPtr();
     ESP_UTILS_CHECK_FALSE_RETURN(
         _app_launcher.begin(main_screen_obj->getNativeHandle()), false, "Begin app launcher failed"
     );
 
-    const auto system_screen_obj = _core.getCoreDisplay().getSystemScreenObjectPtr();
+    const auto system_screen_obj = _system_context.getDisplay().getSystemScreenObjectPtr();
     ESP_UTILS_CHECK_FALSE_RETURN(
         _keyboard.begin(system_screen_obj), false, "Begin keyboard failed"
     );
@@ -64,7 +64,7 @@ bool Display::begin(void)
         _quick_settings.setVisible(false), false, "Set quick settings visible failed"
     );
 
-    _dummy_draw_mask = std::make_unique<gui::LvContainer>(_core.getCoreDisplay().getSystemScreenObjectPtr());
+    _dummy_draw_mask = std::make_unique<gui::LvContainer>(_system_context.getDisplay().getSystemScreenObjectPtr());
     ESP_UTILS_CHECK_NULL_RETURN(_dummy_draw_mask, false, "Create dummy draw mask failed");
     _dummy_draw_mask->moveForeground();
     _dummy_draw_mask->setStyleAttribute(gui::StyleFlag::STYLE_FLAG_HIDDEN | gui::StyleFlag::STYLE_FLAG_CLICKABLE, true);
@@ -90,7 +90,7 @@ bool Display::del(void)
     return true;
 }
 
-bool Display::processAppInstall(ESP_Brookesia_CoreApp *app)
+bool Display::processAppInstall(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -110,14 +110,14 @@ bool Display::processAppInstall(ESP_Brookesia_CoreApp *app)
         icon_info.image = _data.app_launcher.default_image;
         speaker_app->setLauncherIconImage(icon_info.image);
     }
-    ESP_UTILS_CHECK_FALSE_RETURN(_app_launcher.addIcon(speaker_app->getActiveData().app_launcher_page_index, icon_info),
+    ESP_UTILS_CHECK_FALSE_RETURN(_app_launcher.addIcon(speaker_app->getActiveConfig().app_launcher_page_index, icon_info),
                                  false, "Add launcher icon failed");
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;
 }
 
-bool Display::processAppUninstall(ESP_Brookesia_CoreApp *app)
+bool Display::processAppUninstall(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -134,7 +134,7 @@ bool Display::processAppUninstall(ESP_Brookesia_CoreApp *app)
     return true;
 }
 
-bool Display::processAppRun(ESP_Brookesia_CoreApp *app)
+bool Display::processAppRun(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -144,13 +144,13 @@ bool Display::processAppRun(ESP_Brookesia_CoreApp *app)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("Param: app_id(%d)", speaker_app->getId());
 
-    // const AppData_t &app_data = speaker_app->getActiveData();
+    // const App::Config &app_data = speaker_app->getActiveConfig();
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;
 }
 
-bool Display::processAppResume(ESP_Brookesia_CoreApp *app)
+bool Display::processAppResume(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -160,13 +160,13 @@ bool Display::processAppResume(ESP_Brookesia_CoreApp *app)
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("Param: app_id(%d)", speaker_app->getId());
 
-    // const AppData_t &app_data = speaker_app->getActiveData();
+    // const App::Config &app_data = speaker_app->getActiveConfig();
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
     return true;
 }
 
-bool Display::processAppClose(ESP_Brookesia_CoreApp *app)
+bool Display::processAppClose(base::App *app)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -186,7 +186,7 @@ bool Display::processMainScreenLoad(void)
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    lv_obj_t *main_screen = _core.getCoreDisplay().getMainScreen();
+    lv_obj_t *main_screen = _system_context.getDisplay().getMainScreen();
     ESP_UTILS_CHECK_FALSE_RETURN(lv_obj_is_valid(main_screen), false, "Invalid main screen");
     lv_scr_load(main_screen);
 
@@ -194,7 +194,7 @@ bool Display::processMainScreenLoad(void)
     return true;
 }
 
-bool Display::getAppVisualArea(ESP_Brookesia_CoreApp *app, lv_area_t &app_visual_area) const
+bool Display::getAppVisualArea(base::App *app, lv_area_t &app_visual_area) const
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -206,8 +206,8 @@ bool Display::getAppVisualArea(ESP_Brookesia_CoreApp *app, lv_area_t &app_visual
     lv_area_t visual_area = {
         .x1 = 0,
         .y1 = 0,
-        .x2 = (lv_coord_t)(_core.getCoreData().screen_size.width - 1),
-        .y2 = (lv_coord_t)(_core.getCoreData().screen_size.height - 1),
+        .x2 = (lv_coord_t)(_system_context.getData().screen_size.width - 1),
+        .y2 = (lv_coord_t)(_system_context.getData().screen_size.height - 1),
     };
 
     app_visual_area = visual_area;
@@ -255,7 +255,7 @@ bool Display::waitBootAnimationStop(void)
     return true;
 }
 
-bool Display::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, DisplayData &data)
+bool Display::calibrateData(const gui::StyleSize &screen_size, Data &data)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
@@ -286,4 +286,4 @@ bool Display::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, Displa
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

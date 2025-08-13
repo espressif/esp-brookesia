@@ -13,7 +13,9 @@
 #define ESP_UTILS_LOG_TAG "Main"
 #include "esp_lib_utils.h"
 
+using namespace esp_brookesia;
 using namespace esp_brookesia::gui;
+using namespace esp_brookesia::systems::phone;
 
 #define LVGL_PORT_INIT_CONFIG() \
     {                               \
@@ -24,7 +26,7 @@ using namespace esp_brookesia::gui;
         .timer_period_ms = 5,     \
     }
 
-constexpr bool EXAMPLE_SHOW_MEM_INFO = false;
+constexpr bool EXAMPLE_SHOW_MEM_INFO = true;
 
 extern "C" void app_main(void)
 {
@@ -60,11 +62,11 @@ extern "C" void app_main(void)
     });
 
     /* Create a phone object */
-    ESP_Brookesia_Phone *phone = new (std::nothrow) ESP_Brookesia_Phone();
+    Phone *phone = new (std::nothrow) Phone();
     ESP_UTILS_CHECK_NULL_EXIT(phone, "Create phone failed");
 
     if ((BSP_LCD_H_RES == 320) && (BSP_LCD_V_RES == 240)) {
-        ESP_Brookesia_PhoneStylesheet_t *stylesheet = new (std::nothrow) ESP_Brookesia_PhoneStylesheet_t(ESP_BROOKESIA_PHONE_320_240_DARK_STYLESHEET());
+        Stylesheet *stylesheet = new (std::nothrow) Stylesheet(STYLESHEET_320_240_DARK);
         ESP_UTILS_CHECK_NULL_EXIT(stylesheet, "Create stylesheet failed");
 
         ESP_UTILS_LOGI("Using stylesheet (%s)", stylesheet->core.name);
@@ -79,10 +81,10 @@ extern "C" void app_main(void)
 
         /* Begin the phone */
         ESP_UTILS_CHECK_FALSE_EXIT(phone->begin(), "Begin failed");
-        // assert(phone->getCoreHome().showContainerBorder() && "Show container border failed");
+        // assert(phone->getDisplay().showContainerBorder() && "Show container border failed");
 
         /* Init and install apps from registry */
-        std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> inited_apps;
+        std::vector<systems::base::Manager::RegistryAppInfo> inited_apps;
         ESP_UTILS_CHECK_FALSE_EXIT(phone->initAppFromRegistry(inited_apps), "Init app registry failed");
         ESP_UTILS_CHECK_FALSE_EXIT(phone->installAppFromRegistry(inited_apps), "Install app registry failed");
 
@@ -90,7 +92,7 @@ extern "C" void app_main(void)
         lv_timer_create([](lv_timer_t *t) {
             time_t now;
             struct tm timeinfo;
-            ESP_Brookesia_Phone *phone = (ESP_Brookesia_Phone *)t->user_data;
+            Phone *phone = (Phone *)t->user_data;
 
             ESP_UTILS_CHECK_NULL_EXIT(phone, "Invalid phone");
 
@@ -98,7 +100,7 @@ extern "C" void app_main(void)
             localtime_r(&now, &timeinfo);
 
             ESP_UTILS_CHECK_FALSE_EXIT(
-                phone->getHome().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min),
+                phone->getDisplay().getStatusBar()->setClock(timeinfo.tm_hour, timeinfo.tm_min),
                 "Refresh status bar failed"
             );
         }, 1000, phone);
@@ -110,10 +112,35 @@ extern "C" void app_main(void)
             .stack_size = 4096,
         });
         boost::thread([ = ]() {
-            while (1) {
-                esp_utils_mem_print_info();
+            char buffer[128];    /* Make sure buffer is enough for `sprintf` */
+            size_t internal_free = 0;
+            size_t internal_total = 0;
+            size_t external_free = 0;
+            size_t external_total = 0;
 
-                vTaskDelay(pdMS_TO_TICKS(5000));
+            while (1) {
+                internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+                internal_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+                external_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+                external_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+                sprintf(buffer,
+                        "\t           Biggest /     Free /    Total\n"
+                        "\t  SRAM : [%8d / %8d / %8d]\n"
+                        "\t PSRAM : [%8d / %8d / %8d]",
+                        heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL), internal_free, internal_total,
+                        heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM), external_free, external_total);
+                ESP_UTILS_LOGI("\n%s", buffer);
+
+                {
+                    LvLockGuard gui_guard;
+                    ESP_UTILS_CHECK_FALSE_EXIT(
+                        phone->getDisplay().getRecentsScreen()->setMemoryLabel(
+                            internal_free / 1024, internal_total / 1024, external_free / 1024, external_total / 1024
+                        ), "Set memory label failed"
+                    );
+                }
+
+                boost::this_thread::sleep_for(boost::chrono::seconds(5));
             }
         }).detach();
     }

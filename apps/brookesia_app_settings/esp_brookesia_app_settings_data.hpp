@@ -13,7 +13,7 @@ namespace esp_brookesia::apps {
 
 struct SettingsStylesheetData {
     const char *name;
-    ESP_Brookesia_StyleSize_t screen_size;
+    gui::StyleSize screen_size;
     SettingsUI_Data ui;
     SettingsManagerData manager;
 };

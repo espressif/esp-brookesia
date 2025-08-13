@@ -9,37 +9,34 @@
 #include "lvgl/esp_brookesia_lv_screen.hpp"
 #include <src/core/lv_obj_style_gen.h>
 #include <src/display/lv_display.h>
-#if !ESP_BROOKESIA_CORE_DISPLAY_ENABLE_DEBUG_LOG
+#if !ESP_BROOKESIA_BASE_DISPLAY_ENABLE_DEBUG_LOG
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
-#include "private/esp_brookesia_core_utils.hpp"
-#include "esp_brookesia_core_display.hpp"
-#include "esp_brookesia_core_app.hpp"
-#include "esp_brookesia_core.hpp"
+#include "private/esp_brookesia_base_utils.hpp"
+#include "esp_brookesia_base_display.hpp"
+#include "esp_brookesia_base_app.hpp"
+#include "esp_brookesia_base_context.hpp"
 
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_CoreDisplay::ESP_Brookesia_CoreDisplay(ESP_Brookesia_Core &core, const ESP_Brookesia_CoreDisplayData &data):
-    _core(core),
-    _core_data(data),
-    _main_screen(nullptr),
-    _system_screen(nullptr),
-    _main_screen_obj(nullptr),
-    _system_screen_obj(nullptr),
-    _container_style_index(0)
+namespace esp_brookesia::systems::base {
+
+Display::Display(Context &core, const Data &data)
+    : _system_context(core)
+    , _core_data(data)
 {
 }
 
-ESP_Brookesia_CoreDisplay::~ESP_Brookesia_CoreDisplay()
+Display::~Display()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
-    if (!delCore()) {
+    if (!del()) {
         ESP_UTILS_LOGE("Delete failed");
     }
 }
 
-bool ESP_Brookesia_CoreDisplay::showContainerBorder(void)
+bool Display::showContainerBorder(void)
 {
     ESP_UTILS_LOGD("Show container border");
     ESP_UTILS_CHECK_FALSE_RETURN(checkCoreInitialized(), false, "Not initialized");
@@ -51,7 +48,7 @@ bool ESP_Brookesia_CoreDisplay::showContainerBorder(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::hideContainerBorder(void)
+bool Display::hideContainerBorder(void)
 {
     ESP_UTILS_LOGD("Hide container border");
     ESP_UTILS_CHECK_FALSE_RETURN(checkCoreInitialized(), false, "Not initialized");
@@ -63,7 +60,7 @@ bool ESP_Brookesia_CoreDisplay::hideContainerBorder(void)
     return true;
 }
 
-lv_style_t *ESP_Brookesia_CoreDisplay::getCoreContainerStyle(void)
+lv_style_t *Display::getCoreContainerStyle(void)
 {
     int index = _container_style_index++;
     if (_container_style_index > (_container_styles.size() - 1)) {
@@ -73,7 +70,7 @@ lv_style_t *ESP_Brookesia_CoreDisplay::getCoreContainerStyle(void)
     return &_container_styles[index];
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateCoreObjectSize(const StyleSize &parent, StyleSize &target) const
+bool Display::calibrateCoreObjectSize(const StyleSize &parent, StyleSize &target) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(target.calibrate(parent), false, "Calibrate failed");
     ESP_UTILS_CHECK_FALSE_RETURN(calibrateStyleSizeInternal(target), false, "Calibrate internal failed");
@@ -81,7 +78,7 @@ bool ESP_Brookesia_CoreDisplay::calibrateCoreObjectSize(const StyleSize &parent,
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateCoreObjectSize(
+bool Display::calibrateCoreObjectSize(
     const StyleSize &parent, StyleSize &target, bool check_width, bool check_height
 ) const
 {
@@ -91,7 +88,7 @@ bool ESP_Brookesia_CoreDisplay::calibrateCoreObjectSize(
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateCoreObjectSize(
+bool Display::calibrateCoreObjectSize(
     const StyleSize &parent, StyleSize &target, bool allow_zero
 ) const
 {
@@ -101,7 +98,7 @@ bool ESP_Brookesia_CoreDisplay::calibrateCoreObjectSize(
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateCoreFont(const StyleSize *parent, StyleFont &target) const
+bool Display::calibrateCoreFont(const StyleSize *parent, StyleFont &target) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(target.calibrate(
                                      parent,
@@ -119,14 +116,14 @@ bool ESP_Brookesia_CoreDisplay::calibrateCoreFont(const StyleSize *parent, Style
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateCoreIconImage(const StyleImage &target) const
+bool Display::calibrateCoreIconImage(const StyleImage &target) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(target.calibrate(), false, "Calibrate failed");
 
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::processMainScreenLoad(void)
+bool Display::processMainScreenLoad(void)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkCoreInitialized(), false, "Not initialized");
     ESP_UTILS_CHECK_FALSE_RETURN(_main_screen->isValid(), false, "Invalid main screen");
@@ -136,9 +133,9 @@ bool ESP_Brookesia_CoreDisplay::processMainScreenLoad(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::beginCore(void)
+bool Display::begin(void)
 {
-    lv_display_t *display = _core.getDisplayDevice();
+    lv_display_t *display = _system_context.getDisplayDevice();
 
     ESP_UTILS_LOGD("Begin(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(!checkCoreInitialized(), false, "Already initialized");
@@ -189,12 +186,12 @@ bool ESP_Brookesia_CoreDisplay::beginCore(void)
     return true;
 
 err:
-    ESP_UTILS_CHECK_FALSE_RETURN(delCore(), false, "Delete core home failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(del(), false, "Delete core display failed");
 
     return false;
 }
 
-bool ESP_Brookesia_CoreDisplay::delCore(void)
+bool Display::del(void)
 {
     ESP_UTILS_LOGD("Delete(0x%p)", this);
 
@@ -220,11 +217,11 @@ bool ESP_Brookesia_CoreDisplay::delCore(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::updateByNewData(void)
+bool Display::updateByNewData(void)
 {
-    const ESP_Brookesia_StyleSize_t &screen_size = _core.getCoreData().screen_size;
+    const StyleSize &screen_size = _system_context.getData().screen_size;
 
-    ESP_UTILS_LOGD("Update core home by new data");
+    ESP_UTILS_LOGD("Update core display by new data");
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkCoreInitialized(), false, "Not initialized");
 
@@ -265,7 +262,7 @@ bool ESP_Brookesia_CoreDisplay::updateByNewData(void)
     return true;
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateCoreData(ESP_Brookesia_CoreDisplayData &data)
+bool Display::calibrateCoreData(Data &data)
 {
     const lv_font_t *font_resource = nullptr;
 
@@ -298,21 +295,21 @@ bool ESP_Brookesia_CoreDisplay::calibrateCoreData(ESP_Brookesia_CoreDisplayData 
     return true;
 }
 
-void ESP_Brookesia_CoreDisplay::saveLvScreens(void)
+void Display::saveLvScreens(void)
 {
-    auto display = _core.getDisplayDevice();
+    auto display = _system_context.getDisplayDevice();
     _lv_main_screen = lv_display_get_screen_active(display);
     _lv_system_screen = lv_display_get_layer_sys(display);
 }
 
-void ESP_Brookesia_CoreDisplay::loadLvScreens(void)
+void Display::loadLvScreens(void)
 {
-    auto display = _core.getDisplayDevice();
+    auto display = _system_context.getDisplayDevice();
     display->sys_layer = _lv_system_screen;
     lv_scr_load(_lv_main_screen);
 }
 
-bool ESP_Brookesia_CoreDisplay::calibrateStyleSizeInternal(StyleSize &target) const
+bool Display::calibrateStyleSizeInternal(StyleSize &target) const
 {
     if (target.width == StyleSize::LENGTH_AUTO) {
         target.width = LV_SIZE_CONTENT;
@@ -327,7 +324,7 @@ bool ESP_Brookesia_CoreDisplay::calibrateStyleSizeInternal(StyleSize &target) co
     return true;
 }
 
-const lv_font_t *ESP_Brookesia_CoreDisplay::getFontBySize(int size_px) const
+const lv_font_t *Display::getFontBySize(int size_px) const
 {
     ESP_UTILS_CHECK_VALUE_RETURN(
         size_px, StyleFont::FONT_SIZE_MIN, StyleFont::FONT_SIZE_MAX, nullptr, "Invalid size"
@@ -339,7 +336,7 @@ const lv_font_t *ESP_Brookesia_CoreDisplay::getFontBySize(int size_px) const
     return it->second;
 }
 
-const lv_font_t *ESP_Brookesia_CoreDisplay::getFontByHeight(int height, int *size_px) const
+const lv_font_t *Display::getFontByHeight(int height, int *size_px) const
 {
     int ret_size = 0;
 
@@ -362,3 +359,5 @@ const lv_font_t *ESP_Brookesia_CoreDisplay::getFontByHeight(int height, int *siz
 
     return lower->second;
 }
+
+} // namespace esp_brookesia::systems::base

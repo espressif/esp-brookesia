@@ -14,11 +14,11 @@ namespace esp_brookesia::apps {
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_WIRELESS(const auto &icon, const char *left_text, const char *right_text)
 {
     return {
-        .left_icon_image = ESP_BROOKESIA_STYLE_IMAGE(&icon),
+        .left_icon_image = gui::StyleImage::IMAGE(&icon),
         .left_main_label_text = left_text,
         .right_main_label_text = right_text,
         .right_icon_images = {
-            ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
+            gui::StyleImage::IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
         },
         .flags = {
             .enable_left_icon = 1,
@@ -33,10 +33,10 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_GENERAL(const auto &icon, const char *text)
 {
     return {
-        .left_icon_image = ESP_BROOKESIA_STYLE_IMAGE(&icon),
+        .left_icon_image = gui::StyleImage::IMAGE(&icon),
         .left_main_label_text = text,
         .right_icon_images = {
-            ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
+            gui::StyleImage::IMAGE(&esp_brookesia_app_icon_arrow_right_48_48),
         },
         .flags = {
             .enable_left_icon = 1,
@@ -50,7 +50,7 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_MORE_RESTORE(const auto &icon, const char *text)
 {
     return {
-        .left_icon_image = ESP_BROOKESIA_STYLE_IMAGE(&icon),
+        .left_icon_image = gui::StyleImage::IMAGE(&icon),
         .left_main_label_text = text,
         .flags = {
             .enable_left_icon = 1,
@@ -63,7 +63,7 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_
 constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_CONF_INPUT_TOUCH(const auto &icon, const char *text)
 {
     return {
-        .left_icon_image = ESP_BROOKESIA_STYLE_IMAGE(&icon),
+        .left_icon_image = gui::StyleImage::IMAGE(&icon),
         .left_main_label_text = text,
         .flags = {
             .enable_left_icon = 1,

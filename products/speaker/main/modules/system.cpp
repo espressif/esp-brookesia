@@ -47,7 +47,8 @@ constexpr int         FUNCTION_BRIGHTNESS_CHANGE_STEP                  = 30;
 
 constexpr int         DEVELOPER_MODE_KEY = 0x655;
 
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia;
+using namespace esp_brookesia::systems::speaker;
 using namespace esp_brookesia::gui;
 using namespace esp_brookesia::apps;
 using namespace esp_brookesia::services;
@@ -115,9 +116,9 @@ bool system_init()
     }
 
     /* Try using a stylesheet that corresponds to the resolution */
-    std::unique_ptr<SpeakerStylesheet_t> stylesheet;
+    std::unique_ptr<Stylesheet> stylesheet;
     ESP_UTILS_CHECK_EXCEPTION_RETURN(
-        stylesheet = std::make_unique<SpeakerStylesheet_t>(ESP_BROOKESIA_SPEAKER_360_360_DARK_STYLESHEET), false,
+        stylesheet = std::make_unique<Stylesheet>(ESP_BROOKESIA_SPEAKER_360_360_DARK_STYLESHEET), false,
         "Create stylesheet failed"
     );
     ESP_UTILS_LOGI("Using stylesheet (%s)", stylesheet->core.name);
@@ -130,7 +131,7 @@ bool system_init()
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->begin(), false, "Begin failed");
 
     /* Init app from registry */
-    std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> inited_apps;
+    std::vector<systems::base::Manager::RegistryAppInfo> inited_apps;
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->initAppFromRegistry(inited_apps), false, "Init app registry failed");
 
     /* Process apps */
@@ -150,7 +151,7 @@ bool system_init()
             app_settings_stylesheet = std::make_unique<SettingsStylesheetData>(SETTINGS_UI_360_360_STYLESHEET_DARK()),
             false, "Create app settings stylesheet failed"
         );
-        app_settings_stylesheet->screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100);
+        app_settings_stylesheet->screen_size = StyleSize::RECT_PERCENT(100, 100);
         app_settings_stylesheet->manager.wlan.scan_ap_count_max = 30;
         app_settings_stylesheet->manager.wlan.scan_interval_ms = 10000;
 #if CONFIG_BSP_PCB_VERSION_V1_0
@@ -249,9 +250,9 @@ bool system_init()
         for (const auto &param : params) {
             if (param.name() == "app_name") {
                 auto target_name = param.string();
-                ESP_Brookesia_CoreAppEventData_t event_data = {
+                systems::base::Context::AppEventData event_data = {
                     .id = get_app_id(to_lower(get_before_space(target_name))),
-                    .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
+                    .type = systems::base::Context::AppEventType::START,
                     .data = nullptr
                 };
                 ESP_UTILS_CHECK_FALSE_EXIT(speaker->checkAppID_Valid(event_data.id), "App not found");
@@ -269,8 +270,8 @@ bool system_init()
                 }
 
                 LvLockGuard gui_guard;
-                speaker->manager.processDisplayScreenChange(
-                    ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN, nullptr
+                speaker->getManager().processDisplayScreenChange(
+                    Manager::Screen::MAIN, nullptr
                 );
                 speaker->sendAppEvent(&event_data);
             }
@@ -294,7 +295,7 @@ bool system_init()
             if (param.name() == "level") {
                 StorageNVS::Value value;
                 ESP_UTILS_CHECK_FALSE_EXIT(
-                    StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, value),
+                    StorageNVS::requestInstance().getLocalParam(Manager::SETTINGS_VOLUME, value),
                     "Get media sound volume failed"
                 );
 
@@ -320,7 +321,7 @@ bool system_init()
                     );
                 }
                 ESP_UTILS_CHECK_FALSE_EXIT(
-                    StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, volume), "Failed to set volume"
+                    StorageNVS::requestInstance().setLocalParam(Manager::SETTINGS_VOLUME, volume), "Failed to set volume"
                 );
             }
         }
@@ -343,7 +344,7 @@ bool system_init()
             if (param.name() == "level") {
                 StorageNVS::Value value;
                 ESP_UTILS_CHECK_FALSE_EXIT(
-                    StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, value),
+                    StorageNVS::requestInstance().getLocalParam(Manager::SETTINGS_BRIGHTNESS, value),
                     "Get media display brightness failed"
                 );
 
@@ -362,7 +363,7 @@ bool system_init()
                     );
                 }
                 ESP_UTILS_CHECK_FALSE_EXIT(
-                    StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_BRIGHTNESS, brightness),
+                    StorageNVS::requestInstance().setLocalParam(Manager::SETTINGS_BRIGHTNESS, brightness),
                     "Failed to set brightness"
                 );
             }
@@ -375,7 +376,7 @@ bool system_init()
     FunctionDefinitionList::requestInstance().addFunction(setBrightness);
 
     /* Process quick settings */
-    speaker->display.getQuickSettings().connectEventSignal([ = ](QuickSettings::EventData event_data) {
+    speaker->getDisplay().getQuickSettings().connectEventSignal([ = ](QuickSettings::EventData event_data) {
         ESP_UTILS_LOG_TRACE_GUARD();
 
         auto &type = event_data.type;
@@ -411,9 +412,9 @@ bool system_init()
 
         if (operation_data.has_value() && (app_settings != nullptr)) {
             auto &operation_data_value = operation_data.value();
-            ESP_Brookesia_CoreAppEventData_t event_data = {
+            systems::base::Context::AppEventData event_data = {
                 .id = app_settings->getId(),
-                .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_OPERATION,
+                .type = systems::base::Context::AppEventType::OPERATION,
                 .data = &operation_data_value,
             };
             ESP_UTILS_CHECK_FALSE_EXIT(speaker->sendAppEvent(&event_data), "Send app event failed");
@@ -448,7 +449,7 @@ bool system_init()
             bat_last_status = status;
 
             LvLockGuard gui_guard;
-            auto &quick_settings = speaker->display.getQuickSettings();
+            auto &quick_settings = speaker->getDisplay().getQuickSettings();
             ESP_UTILS_CHECK_FALSE_EXIT(
                 quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC()),
                 "Set battery percent failed"
@@ -703,7 +704,7 @@ static void show_low_power(Speaker *speaker)
     lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
     lv_scr_load(low_batt_scr);
 
-    auto &quick_settings = speaker->display.getQuickSettings();
+    auto &quick_settings = speaker->getDisplay().getQuickSettings();
     quick_settings.setVisible(false);
     bsp_display_unlock();
 
@@ -716,13 +717,13 @@ static void show_low_power(Speaker *speaker)
 
     Display::on_dummy_draw_signal(false); // Disable dummy draw to enable LVGL
     StorageNVS::Value volume_value;
-    StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value);
-    StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, 65); // set volume to 65%
+    StorageNVS::requestInstance().getLocalParam(Manager::SETTINGS_VOLUME, volume_value);
+    StorageNVS::requestInstance().setLocalParam(Manager::SETTINGS_VOLUME, 65); // set volume to 65%
     audio_prompt_play_with_block("file://spiffs/low_power.mp3", 1500);
     led_indicator_start(led_indicator_handle, BLINK_LOW_POWER);
     vTaskDelay(pdMS_TO_TICKS(4000));
     led_indicator_stop(led_indicator_handle, BLINK_LOW_POWER);
-    StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value); // restore volume
+    StorageNVS::requestInstance().setLocalParam(Manager::SETTINGS_VOLUME, volume_value); // restore volume
     vTaskDelay(pdMS_TO_TICKS(100)); // ensure storage nvs write completed
     bsp_set_peripheral_power(false); // board peripheral off
     ESP_UTILS_LOGW("Low power triggered, device will sleep now");
@@ -734,7 +735,7 @@ static void update_battery_info(Speaker *speaker, const Settings *app_settings)
 
     LvLockGuard gui_guard;
 
-    auto &quick_settings = speaker->display.getQuickSettings();
+    auto &quick_settings = speaker->getDisplay().getQuickSettings();
     ESP_UTILS_CHECK_FALSE_EXIT(
         quick_settings.setBatteryPercent(battery_monitor.is_charging(), battery_monitor.getBatterySOC()),
         "Set battery percent failed"

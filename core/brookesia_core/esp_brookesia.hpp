@@ -15,6 +15,7 @@
 /* GUI */
 /* GUI - lvgl */
 #include "style/esp_brookesia_gui_style.hpp"
+#include "style/esp_brookesia_gui_stylesheet_manager.hpp"
 #include "gui/lvgl/esp_brookesia_lv_helper.hpp"
 
 /* Services */
@@ -25,7 +26,7 @@
 
 /* Systems */
 /* Systems - Core */
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 /* Systems - Phone */
 #if ESP_BROOKESIA_SYSTEMS_ENABLE_PHONE
 #   include "systems/phone/esp_brookesia_phone.hpp"

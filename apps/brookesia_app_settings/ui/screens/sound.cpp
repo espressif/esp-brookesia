@@ -7,7 +7,7 @@
 #include "sound.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
@@ -31,7 +31,7 @@ namespace esp_brookesia::apps {
         }, \
     }
 
-SettingsUI_ScreenSound::SettingsUI_ScreenSound(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+SettingsUI_ScreenSound::SettingsUI_ScreenSound(App &ui_app, const SettingsUI_ScreenBaseData &base_data,
         const SettingsUI_ScreenSoundData &main_data):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
     data(main_data)
@@ -131,4 +131,4 @@ bool SettingsUI_ScreenSound::processCellContainerMapUpdate()
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

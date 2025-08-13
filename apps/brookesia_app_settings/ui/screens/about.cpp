@@ -7,7 +7,7 @@
 #include "about.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
 namespace esp_brookesia::apps {
 
@@ -67,7 +67,7 @@ namespace esp_brookesia::apps {
         }, \
     }
 
-SettingsUI_ScreenAbout::SettingsUI_ScreenAbout(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+SettingsUI_ScreenAbout::SettingsUI_ScreenAbout(App &ui_app, const SettingsUI_ScreenBaseData &base_data,
         const SettingsUI_ScreenAboutData &main_data):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
     data(main_data)
@@ -181,4 +181,4 @@ bool SettingsUI_ScreenAbout::processCellContainerMapUpdate()
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

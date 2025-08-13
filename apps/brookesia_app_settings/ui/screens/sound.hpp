@@ -32,7 +32,7 @@ using SettingsUI_ScreenSoundCellContainerMap =
 
 class SettingsUI_ScreenSound: public SettingsUI_ScreenBase {
 public:
-    SettingsUI_ScreenSound(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    SettingsUI_ScreenSound(systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                            const SettingsUI_ScreenSoundData &main_data);
     ~SettingsUI_ScreenSound();
 
@@ -49,4 +49,4 @@ private:
     SettingsUI_ScreenSoundCellContainerMap _cell_container_map;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps
