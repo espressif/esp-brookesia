@@ -1,0 +1,71 @@
+diff --git a/include/esp_gmf_job.h b/include/esp_gmf_job.h
+index 848a3a2..f1cfa5f 100644
+--- a/include/esp_gmf_job.h
++++ b/include/esp_gmf_job.h
+@@ -103,7 +103,7 @@ typedef struct {
+ 
+ static inline esp_gmf_err_t esp_gmf_job_stack_create(esp_gmf_job_stack_t **stack)
+ {
+-    *stack = esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_stack_t));
++    *stack = (esp_gmf_job_stack_t*)esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_stack_t));
+     ESP_GMF_MEM_CHECK("GMF_JOB_STACK", *stack, return ESP_GMF_ERR_MEMORY_LACK);
+     return ESP_GMF_ERR_OK;
+ }
+@@ -111,7 +111,7 @@ static inline esp_gmf_err_t esp_gmf_job_stack_create(esp_gmf_job_stack_t **stack
+ static inline esp_gmf_err_t esp_gmf_job_stack_push(esp_gmf_job_stack_t *stack, uint32_t node_addr)
+ {
+     ESP_GMF_NULL_CHECK("GMF_JOB_STACK", stack, return ESP_GMF_ERR_INVALID_ARG);
+-    esp_gmf_job_node_t *node = esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_node_t));
++    esp_gmf_job_node_t *node = (esp_gmf_job_node_t*)esp_gmf_oal_calloc(1, sizeof(esp_gmf_job_node_t));
+     ESP_GMF_MEM_CHECK("GMF_JOB_STACK", node, return ESP_GMF_ERR_MEMORY_LACK);
+     node->node_addr = node_addr;
+     node->next = stack->top;
+diff --git a/include/esp_gmf_task.h b/include/esp_gmf_task.h
+index facf1cd..373af18 100644
+--- a/include/esp_gmf_task.h
++++ b/include/esp_gmf_task.h
+@@ -63,8 +63,8 @@ typedef struct _esp_gmf_task {
+     void                   *wait_sem;       /*!< Semaphore for task waiting */
+     int                     api_sync_time;  /*!< Timeout for synchronization */
+ 
+-    uint8_t                 _task_run : 1;  /*!< Internal flag for task execution */
+     uint8_t                 _running  : 1;  /*!< Internal flag for task running state */
++    uint8_t                 _task_run : 1;  /*!< Internal flag for task execution */
+     uint8_t                 _pause    : 1;  /*!< Internal flag for task pause state */
+     uint8_t                 _stop     : 1;  /*!< Internal flag for task stop state */
+     uint8_t                 _destroy  : 1;  /*!< Internal flag for task destruction */
+diff --git a/src/esp_gmf_task.c b/src/esp_gmf_task.c
+index 6c35ba8..c8bf0bc 100644
+--- a/src/esp_gmf_task.c
++++ b/src/esp_gmf_task.c
+@@ -257,6 +257,7 @@ static inline int process_func(esp_gmf_task_handle_t handle, void *para)
+ static void esp_gmf_thread_fun(void *pv)
+ {
+     esp_gmf_task_t *tsk = (esp_gmf_task_t *)pv;
++
+     tsk->_destroy = 0;
+     while (tsk->_task_run) {
+         while ((tsk->working == NULL) || (tsk->_running == 0)) {
+@@ -264,20 +265,19 @@ static void esp_gmf_thread_fun(void *pv)
+             xSemaphoreTake(tsk->block_sem, portMAX_DELAY);
+             if (tsk->_destroy) {
+                 tsk->_destroy = 0;
+-                ESP_LOGD(TAG, "Thread will be destroyed, [%s,%p]", OBJ_GET_TAG((esp_gmf_obj_handle_t)tsk), tsk);
++                ESP_LOGE(TAG, "Thread will be destroyed, [%s,%p]", OBJ_GET_TAG((esp_gmf_obj_handle_t)tsk), tsk);
+                 goto ESP_GMF_THREAD_EXIT;
+             }
+         }
+         int ret = esp_gmf_task_event_state_change_and_notify(tsk, ESP_GMF_EVENT_STATE_RUNNING);
+         GMF_TASK_SET_STATE_BITS(tsk->event_group, GMF_TASK_RUN_BIT);
+         if (ret != ESP_GMF_ERR_OK) {
+-            tsk->_running = 0;
+             ESP_LOGE(TAG, "Failed on prepare, [%s,%p],ret:%d", OBJ_GET_TAG((esp_gmf_obj_handle_t)tsk), tsk, ret);
+             continue;
+         }
++        tsk->_running = 0;
+         // Loop jobs until done or error
+         process_func(tsk, tsk->ctx);
+-        tsk->_running = 0;
+     }
+ ESP_GMF_THREAD_EXIT:
+     tsk->state = ESP_GMF_EVENT_STATE_NONE;

@@ -1,0 +1,12 @@
+diff --git a/esp_websocket_client.c b/esp_websocket_client.c
+index 508cca5..ef0c9b7 100644
+--- a/esp_websocket_client.c
++++ b/esp_websocket_client.c
+@@ -611,6 +611,7 @@ static int esp_websocket_client_send_with_exact_opcode(esp_websocket_client_hand
+     }
+ 
+     if (!esp_websocket_client_is_connected(client)) {
++        esp_websocket_client_dispatch_event(client, WEBSOCKET_EVENT_DISCONNECTED, NULL, 0);
+         ESP_LOGE(TAG, "Websocket client is not connected");
+         return -1;
+     }

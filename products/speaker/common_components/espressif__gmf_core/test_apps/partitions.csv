@@ -1,3 +1,0 @@
-# Name,   Type, SubType, Offset,  Size, Flags
-factory,  app,  factory, 0x10000, 2M,
-storage,  data, fat,     ,        528k,

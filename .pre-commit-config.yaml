@@ -16,6 +16,7 @@ exclude: |
     | apps/brookesia_app_pos/ui/.*
     | core/brookesia_core/gui/squareline/.*
     | core/brookesia_core/systems/speaker/widgets/quick_settings/ui/.*
+    | products/speaker/tools/patches/.*
     | docs/.*
   )
 repos:
