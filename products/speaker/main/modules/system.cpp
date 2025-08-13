@@ -29,7 +29,7 @@
 #include "led_indicator.h"
 
 constexpr const char *FUNCTION_OPEN_APP_THREAD_NAME               = "open_app";
-constexpr int         FUNCTION_OPEN_APP_THREAD_STACK_SIZE         = 10 * 1024;
+constexpr int         FUNCTION_OPEN_APP_THREAD_STACK_SIZE         = 20 * 1024;
 constexpr int         FUNCTION_OPEN_APP_WAIT_SPEAKING_PRE_MS      = 2000;
 constexpr int         FUNCTION_OPEN_APP_WAIT_SPEAKING_INTERVAL_MS = 10;
 constexpr int         FUNCTION_OPEN_APP_WAIT_SPEAKING_MAX_MS      = 2000;
@@ -78,8 +78,25 @@ static void update_battery_info(Speaker *speaker, const Settings *app_settings);
 bool system_init()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
-    Speaker *speaker = nullptr;
+
+    /* Configure LVGL */
+    LvLock::registerCallbacks([](int timeout_ms) {
+        if (timeout_ms < 0) {
+            timeout_ms = 0;
+        } else if (timeout_ms == 0) {
+            timeout_ms = 1;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(bsp_display_lock(timeout_ms), false, "Lock failed");
+
+        return true;
+    }, []() {
+        bsp_display_unlock();
+
+        return true;
+    });
+
     /* Create a speaker object */
+    Speaker *speaker = nullptr;
     ESP_UTILS_CHECK_EXCEPTION_RETURN(
         speaker = new Speaker(), false, "Create speaker failed"
     );
@@ -108,16 +125,8 @@ bool system_init()
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->activateStylesheet(stylesheet.get()), false, "Activate stylesheet failed");
     stylesheet = nullptr;
 
-    /* Configure and begin the speaker */
-    speaker->registerLvLockCallback((LockCallback)(bsp_display_lock), 0);
-    speaker->registerLvUnlockCallback((UnlockCallback)(bsp_display_unlock));
-    ESP_UTILS_LOGI("Display ESP-Brookesia speaker demo");
-
-    speaker->lockLv();
-    esp_utils::function_guard end_guard([speaker]() {
-        speaker->unlockLv();
-    });
-
+    /* Begin the speaker */
+    LvLockGuard gui_guard;
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->begin(), false, "Begin failed");
 
     /* Init app from registry */
@@ -227,7 +236,7 @@ bool system_init()
                 }
 
                 for (const auto &[name, app] : all_apps) {
-                    if (name == target_name) {
+                    if (name == app_name) {
                         return app->getId();
                     }
                 }
@@ -259,10 +268,7 @@ bool system_init()
                     wait_count++;
                 }
 
-                speaker->lockLv();
-                esp_utils::function_guard end_guard([speaker]() {
-                    speaker->unlockLv();
-                });
+                LvLockGuard gui_guard;
                 speaker->manager.processDisplayScreenChange(
                     ESP_BROOKESIA_SPEAKER_MANAGER_SCREEN_MAIN, nullptr
                 );
@@ -440,10 +446,8 @@ bool system_init()
         static BatteryStatus bat_last_status = {};
         if (bat_last_status.full != status.full) {
             bat_last_status = status;
-            speaker->lockLv();
-            esp_utils::function_guard end_guard([speaker]() {
-                speaker->unlockLv();
-            });
+
+            LvLockGuard gui_guard;
             auto &quick_settings = speaker->display.getQuickSettings();
             ESP_UTILS_CHECK_FALSE_EXIT(
                 quick_settings.setBatteryPercent(!status.DSG, battery_monitor.getBatterySOC()),
@@ -722,10 +726,9 @@ static void show_low_power(Speaker *speaker)
 
 static void update_battery_info(Speaker *speaker, const Settings *app_settings)
 {
-    speaker->lockLv();
-    esp_utils::function_guard end_guard([speaker]() {
-        speaker->unlockLv();
-    });
+    ESP_UTILS_LOG_TRACE_GUARD();
+
+    LvLockGuard gui_guard;
 
     auto &quick_settings = speaker->display.getQuickSettings();
     ESP_UTILS_CHECK_FALSE_EXIT(

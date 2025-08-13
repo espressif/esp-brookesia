@@ -9,10 +9,12 @@
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
 #include "private/esp_brookesia_core_utils.hpp"
+#include "gui/lvgl/esp_brookesia_lv_lock.hpp"
 #include "squareline/ui_comp/ui_comp.h"
 #include "esp_brookesia_core.hpp"
 
 using namespace std;
+using namespace esp_brookesia::gui;
 
 ESP_Brookesia_Core::ESP_Brookesia_Core(
     const ESP_Brookesia_CoreData_t &data, ESP_Brookesia_CoreHome &home, ESP_Brookesia_CoreManager &manager,
@@ -28,9 +30,7 @@ ESP_Brookesia_Core::ESP_Brookesia_Core(
     _event_obj(nullptr),
     _data_update_event_code(_LV_EVENT_LAST),
     _navigate_event_code(_LV_EVENT_LAST),
-    _app_event_code(_LV_EVENT_LAST),
-    _lv_lock_callback(nullptr),
-    _lv_unlock_callback(nullptr)
+    _app_event_code(_LV_EVENT_LAST)
 {
 }
 
@@ -163,38 +163,18 @@ bool ESP_Brookesia_Core::sendAppEvent(const ESP_Brookesia_CoreAppEventData_t *da
     return true;
 }
 
-void ESP_Brookesia_Core::registerLvLockCallback(ESP_Brookesia_GUI_LockCallback_t callback, int timeout)
-{
-    _lv_lock_callback = callback;
-    _lv_lock_timeout = timeout;
-}
-
-void ESP_Brookesia_Core::registerLvUnlockCallback(ESP_Brookesia_GUI_UnlockCallback_t callback)
-{
-    _lv_unlock_callback = callback;
-}
-
-bool ESP_Brookesia_Core::lockLv(void) const
-{
-    ESP_UTILS_CHECK_NULL_RETURN(_lv_lock_callback, false, "Lock callback is not set");
-    ESP_UTILS_CHECK_FALSE_RETURN(_lv_lock_callback(_lv_lock_timeout), false, "Lock failed");
-
-    return false;
-}
-
 bool ESP_Brookesia_Core::lockLv(int timeout) const
 {
-    ESP_UTILS_CHECK_NULL_RETURN(_lv_lock_callback, false, "Lock callback is not set");
-    ESP_UTILS_CHECK_FALSE_RETURN(_lv_lock_callback(timeout), false, "Lock failed");
+    ESP_UTILS_CHECK_FALSE_RETURN(LvLock::getInstance().lock(timeout), false, "Lock failed");
 
-    return false;
+    return true;
 }
 
-void ESP_Brookesia_Core::unlockLv(void) const
+bool ESP_Brookesia_Core::unlockLv() const
 {
-    ESP_UTILS_CHECK_NULL_EXIT(_lv_unlock_callback, "Unlock callback is not set");
+    ESP_UTILS_CHECK_FALSE_RETURN(LvLock::getInstance().unlock(), false, "Unlock failed");
 
-    _lv_unlock_callback();
+    return true;
 }
 
 bool ESP_Brookesia_Core::beginCore(void)

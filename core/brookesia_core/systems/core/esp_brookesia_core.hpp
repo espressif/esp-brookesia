@@ -80,11 +80,8 @@ public:
     bool checkAppID_Valid(int id) const { return _core_manager.checkAppID_Valid(id); }
 
     /* LVGL */
-    void registerLvLockCallback(ESP_Brookesia_GUI_LockCallback_t callback, int timeout);
-    void registerLvUnlockCallback(ESP_Brookesia_GUI_UnlockCallback_t callback);
-    bool lockLv(int timeout) const;
-    bool lockLv(void) const;
-    void unlockLv(void) const;
+    bool lockLv(int timeout = -1) const;
+    bool unlockLv() const;
 
     /* App */
     bool initAppFromRegistry(std::vector<ESP_Brookesia_CoreManager::RegistryAppInfo> &app_infos)
@@ -128,11 +125,6 @@ private:
     lv_event_code_t _data_update_event_code;
     lv_event_code_t _navigate_event_code;
     lv_event_code_t _app_event_code;
-
-    // LVGL
-    int _lv_lock_timeout;
-    ESP_Brookesia_GUI_LockCallback_t _lv_lock_callback;
-    ESP_Brookesia_GUI_UnlockCallback_t _lv_unlock_callback;
 };
 
 // *INDENT-ON*

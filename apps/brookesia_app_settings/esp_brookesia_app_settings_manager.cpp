@@ -105,6 +105,7 @@
 
 using namespace esp_brookesia::speaker;
 using namespace esp_brookesia::services;
+using namespace esp_brookesia::gui;
 using namespace esp_utils;
 
 namespace esp_brookesia::apps {
@@ -1023,11 +1024,7 @@ bool SettingsManager::processOnUI_ScreenWlanSoftAPCellClickEvent(const ESP_Brook
 
                 ESP_UTILS_CHECK_FALSE_EXIT(saveWlanConfig(ssid, pwd), "Save WLAN config failed");
 
-                app.getCore()->lockLv();
-                esp_utils::function_guard lock_guard([&]() {
-                    app.getCore()->unlockLv();
-                });
-
+                LvLockGuard gui_guard;
                 ESP_Brookesia_CoreEvent::HandlerData fake_data = {};
                 ESP_UTILS_CHECK_FALSE_EXIT(
                     processOnUI_ScreenWlanSoftAPNavigationClickEvent(fake_data),
@@ -1117,11 +1114,7 @@ bool SettingsManager::updateUI_ScreenWlanConnected(bool use_target, WlanGeneraSt
                 }
 
                 if (ui.checkInitialized()) {
-                    app.getCore()->lockLv();
-                    esp_utils::function_guard del_guard([&]() {
-                        app.getCore()->unlockLv();
-                    });
-
+                    LvLockGuard gui_guard;
                     ESP_UTILS_CHECK_FALSE_EXIT(
                         ui.screen_wlan.setConnectedVisible(false), "Set WLAN connect visible failed"
                     );
@@ -1796,10 +1789,7 @@ bool SettingsManager::processAppEventOperation(AppOperationData &operation_data)
                 auto system = app.getSystem();
                 ESP_UTILS_CHECK_NULL_EXIT(system, "Invalid system");
 
-                system->lockLv();
-                esp_utils::function_guard end_guard([system]() {
-                    system->unlockLv();
-                });
+                LvLockGuard gui_guard;
                 ESP_UTILS_CHECK_FALSE_EXIT(
                     processAppEventEnterScreen(std::any_cast<AppOperationEnterScreenPayloadType>(operation_payload)),
                     "Process app event enter screen failed"
@@ -1838,10 +1828,8 @@ bool SettingsManager::processStorageServiceEventSignalUpdateWlanSwitch(bool is_o
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (ui.checkInitialized()) {
-        app.getSystem()->lockLv();
-        esp_utils::function_guard end_guard([this]() {
-            app.getSystem()->unlockLv();
-        });
+        LvLockGuard gui_guard;
+
         // Process WLAN switch
         lv_obj_t *wlan_sw = ui.screen_wlan.getElementObject(
                                 static_cast<int>(SettingsUI_ScreenWlanContainerIndex::CONTROL),
@@ -1875,10 +1863,8 @@ bool SettingsManager::processStorageServiceEventSignalUpdateVolume(int volume)
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (ui.checkInitialized()) {
-        app.getSystem()->lockLv();
-        esp_utils::function_guard end_guard([this]() {
-            app.getSystem()->unlockLv();
-        });
+        LvLockGuard gui_guard;
+
         auto volume_slider = ui.screen_sound.getElementObject(
                                  static_cast<int>(SettingsUI_ScreenSoundContainerIndex::VOLUME),
                                  static_cast<int>(SettingsUI_ScreenSoundCellIndex::VOLUME_SLIDER),
@@ -1896,10 +1882,8 @@ bool SettingsManager::processStorageServiceEventSignalUpdateBrightness(int brigh
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
     if (ui.checkInitialized()) {
-        app.getSystem()->lockLv();
-        esp_utils::function_guard end_guard([this]() {
-            app.getSystem()->unlockLv();
-        });
+        LvLockGuard gui_guard;
+
         auto brightness_slider = ui.screen_display.getElementObject(
                                      static_cast<int>(SettingsUI_ScreenDisplayContainerIndex::BRIGHTNESS),
                                      static_cast<int>(SettingsUI_ScreenDisplayCellIndex::BRIGHTNESS_SLIDER),
@@ -2078,8 +2062,7 @@ bool SettingsManager::asyncWlanConnect(int timeout_ms)
         }
 
         if (ui.checkInitialized()) {
-            app.getCore()->lockLv();
-            esp_utils::function_guard end_guard([this] { app.getCore()->unlockLv(); });
+            LvLockGuard gui_guard;
 
             if (!checkIsWlanGeneralState(WlanGeneraState::STARTED)) {
                 ESP_UTILS_LOGD("Ignore connect to default AP when not started");
@@ -2771,10 +2754,7 @@ bool SettingsManager::processOnWlanUI_Thread()
         }
     }
 
-    app.getCore()->lockLv();
-    esp_utils::function_guard end_guard([this]() {
-        app.getCore()->unlockLv();
-    });
+    LvLockGuard gui_guard;
 
     // Process system UI
     if (is_wifi_event) {

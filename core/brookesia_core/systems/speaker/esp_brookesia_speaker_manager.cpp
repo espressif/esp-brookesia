@@ -787,11 +787,7 @@ bool Manager::processQuickSettingsStorageServiceEventSignal(std::string key)
         StorageNVS::requestInstance().getLocalParam(key, value), false, "Get local param failed"
     );
 
-    _core.lockLv();
-    esp_utils::function_guard end_guard([this]() {
-        _core.unlockLv();
-    });
-
+    LvLockGuard gui_guard;
     if (key == SETTINGS_NVS_KEY_WLAN_SWITCH) {
         auto wifi_button = display.getQuickSettings().getWifiButton();
         ESP_UTILS_CHECK_NULL_RETURN(wifi_button, false, "Invalid wifi button");

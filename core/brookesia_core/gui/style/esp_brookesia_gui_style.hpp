@@ -544,19 +544,6 @@ inline StyleFlag operator|(StyleFlag a, StyleFlag b)
     return static_cast<StyleFlag>((static_cast<int>(a) | static_cast<int>(b)));
 }
 
-/**
- * @brief Function pointer type for lock callback
- *
- * @param timeout_ms Timeout in milliseconds
- * @return true if lock was acquired successfully, false otherwise
- */
-using LockCallback = std::function<bool (int timeout_ms)>;
-
-/**
- * @brief Function pointer type for unlock callback
- */
-using UnlockCallback = std::function<void (void)>;
-
 } // namespace esp_brookesia::gui
 
 /**
@@ -645,5 +632,3 @@ typedef enum   esp_brookesia::gui::StyleLayoutFlex::FlowType ESP_Brookesia_Style
 typedef enum   esp_brookesia::gui::StyleLayoutFlex::AlignType ESP_Brookesia_StyleFlexAlign_t;
 typedef struct esp_brookesia::gui::StyleLayoutFlex ESP_Brookesia_StyleLayoutFlex_t;
 typedef enum   esp_brookesia::gui::StyleAnimation::AnimationPathType ESP_BROOKESIA_ANIMPathType_t;
-typedef esp_brookesia::gui::LockCallback ESP_Brookesia_GUI_LockCallback_t;
-typedef esp_brookesia::gui::UnlockCallback ESP_Brookesia_GUI_UnlockCallback_t;

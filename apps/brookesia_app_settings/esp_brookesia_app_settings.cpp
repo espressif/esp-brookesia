@@ -16,6 +16,7 @@
 #define MANAGER_THREAD_STACK_CAPS_EXT           (true)
 
 using namespace std;
+using namespace esp_brookesia::gui;
 using namespace esp_brookesia::speaker;
 using namespace esp_brookesia::ai_framework;
 
@@ -133,10 +134,7 @@ bool Settings::run()
             .stack_in_ext = MANAGER_THREAD_STACK_CAPS_EXT,
         });
         boost::thread([this]() {
-            getCore()->lockLv();
-            esp_utils::function_guard end_guard([this]() {
-                getCore()->unlockLv();
-            });
+            LvLockGuard gui_guard;
             ESP_UTILS_CHECK_FALSE_EXIT(manager.processRun(), "Manager process run failed");
             _is_starting = false;
         }).detach();
@@ -166,10 +164,7 @@ bool Settings::close()
         while (isStarting()) {
             boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
         }
-        getCore()->lockLv();
-        esp_utils::function_guard end_guard([this]() {
-            getCore()->unlockLv();
-        });
+        LvLockGuard gui_guard;
         ESP_UTILS_CHECK_FALSE_EXIT(manager.processClose(), "Manager process close failed");
         ESP_UTILS_CHECK_FALSE_EXIT(ui.del(), "UI delete failed");
         _is_stopping = false;
