@@ -193,7 +193,7 @@ bool system_init()
 
     /* Install app from registry */
     // The app will be installed in the order of the vector, this determines the order of app icons in the main interface
-    std::vector<std::string> ordered_app_names = {"Settings", "AI_Profile", "2048", "Calculator", "Timer", "Pos"};
+    std::vector<std::string> ordered_app_names = {"Settings", "AI_Profile", "2048", "Calculator", "Timer", "Pos", "UsbdNcm"};
     ESP_UTILS_CHECK_FALSE_RETURN(
         speaker->installAppFromRegistry(inited_apps, &ordered_app_names), false, "Install app registry failed"
     );
@@ -211,7 +211,8 @@ bool system_init()
             {"Calculator", {"calculator", "calc", "计算器", "计算器应用", "计算器app"}},
             {"AI_Profile", {"aiprofile", "ai配置", "ai配置", "ai设置", "ai设置应用", "ai设置app"}},
             {"Timer",      {"timer", "时钟", "时钟应用", "时钟app"}},
-            {"Pos",        {"pos", "pos应用", "posapp"}}
+            {"Pos",        {"pos", "pos应用", "posapp"}},
+            {"UsbdNcm",    {"usbdncm", "usb网卡", "usbdncmapp"}}
         };
         auto get_app_id = [&](const std::string & target_name) -> int {
             for (const auto &[app_name, alias_names] : app_name_map)

@@ -32,3 +32,6 @@ dependencies:
     override_path: "../../../apps/brookesia_app_timer"
   brookesia_app_pos:
     override_path: "../../../apps/brookesia_app_pos"
+
+  brookesia_app_usbd_ncm:
+    override_path: "../../../apps/brookesia_app_usbd_ncm"

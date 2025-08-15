@@ -14,6 +14,7 @@ exclude: |
     | apps/brookesia_app_squareline/ui/.*
     | apps/brookesia_app_timer/ui/.*
     | apps/brookesia_app_pos/ui/.*
+    | apps/brookesia_app_usbd_ncm/ui/.*
     | core/brookesia_core/gui/squareline/.*
     | core/brookesia_core/systems/speaker/widgets/quick_settings/ui/.*
     | products/speaker/tools/patches/.*

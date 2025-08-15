@@ -1,0 +1,7 @@
+version: 0.6.0
+dependencies:
+  brookesia_core:
+    override_path: "../../core/brookesia_core"
+    public: true
+
+  espressif/esp_tinyusb: "^2.0.0"
