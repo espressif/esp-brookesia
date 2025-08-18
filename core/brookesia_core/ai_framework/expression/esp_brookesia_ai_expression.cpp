@@ -182,7 +182,7 @@ void Expression::emojiTimerCallback(TimerHandle_t timer)
 {
     auto expression = static_cast<Expression *>(pvTimerGetTimerID(timer));
     if (expression != nullptr && !expression->_flags.is_paused) {
-        expression->setEmoji(expression->_last_emoji, AnimOperationConfig{}, AnimOperationConfig{.en = false});
+        expression->setEmoji(expression->_last_emoji, expression->_last_emotion_config, expression->_last_icon_config);
         ESP_UTILS_LOGI("Emoji timer callback: set emoji to %s", expression->_last_emoji.c_str());
     }
     xTimerDelete(timer, 0);
@@ -198,8 +198,12 @@ bool Expression::insertEmojiTemporary(const std::string &emoji, uint32_t duratio
         return true;
     }
     std::string emoji_tmp = this->_last_emoji;
+    AnimOperationConfig emotion_config = this->_last_emotion_config;
+    AnimOperationConfig icon_config = this->_last_icon_config;
     setEmoji(emoji, AnimOperationConfig{}, AnimOperationConfig{.en = false});
     this->_last_emoji = emoji_tmp;
+    this->_last_emotion_config = emotion_config;
+    this->_last_icon_config = icon_config;
     timer = xTimerCreate("insertEmoji", pdMS_TO_TICKS(duration_ms), pdFALSE, this, emojiTimerCallback);
     ESP_UTILS_CHECK_FALSE_RETURN(timer != nullptr, false, "Failed to create emoji timer");
     xTimerStart(timer, 0);
@@ -228,6 +232,8 @@ bool Expression::setEmoji(
     auto it = _emoji_map.find(emoji);
     ESP_UTILS_CHECK_FALSE_RETURN(it != _emoji_map.end(), false, "Unknown emoji");
     _last_emoji = emoji;
+    _last_emotion_config = emotion_config;
+    _last_icon_config = icon_config;
 
     if (_emotion_player != nullptr && emotion_config.en) {
         auto emotion_type = it->second.first;
