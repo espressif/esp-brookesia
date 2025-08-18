@@ -55,7 +55,7 @@ def get_cmake_apps(
     idf_ver = _get_idf_version()
     apps = find_apps(
         paths,
-        recursive=True,
+        recursive=False,
         target=target,
         build_dir=f'{idf_ver}/build_@t_@w',
         config_rules_str=config_rules_str,

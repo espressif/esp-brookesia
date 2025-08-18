@@ -17,6 +17,7 @@
 #include "modules/audio.hpp"
 #include "modules/system.hpp"
 #include "modules/file_system.hpp"
+#include "modules/led_indicator.h"
 
 constexpr bool EXAMPLE_SHOW_MEM_INFO = false;
 
@@ -27,6 +28,7 @@ extern "C" void app_main()
     assert(services_init()                      && "Initialize services failed");
     auto default_dummy_draw = !system_check_is_developer_mode();
     assert(display_init(default_dummy_draw)     && "Initialize display failed");
+    assert(led_indicator_init()                 && "Initialize led indicator failed");
     assert(file_system_init()                   && "Initialize file system failed");
     assert(audio_init()                         && "Initialize audio failed");
     assert(system_init()                        && "Initialize system failed");

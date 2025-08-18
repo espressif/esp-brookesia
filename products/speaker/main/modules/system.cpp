@@ -31,6 +31,7 @@
 #include "battery_monitor.h"
 #include "imu_gesture.h"
 #include "touch_sensor.h"
+#include "led_indicator.h"
 
 constexpr const char *FUNCTION_OPEN_APP_THREAD_NAME               = "open_app";
 constexpr int         FUNCTION_OPEN_APP_THREAD_STACK_SIZE         = 10 * 1024;
@@ -469,7 +470,7 @@ bool system_init()
     });
     touch_sensor_switch(); // update touch switch
 
-    bsp_head_led_brightness_set(5); // set head led brightness to 50
+    ESP_UTILS_CHECK_FALSE_RETURN(led_indicator_register_wifi_event(), false, "Failed to register wifi event");
     return true;
 }
 
@@ -611,6 +612,7 @@ static bool check_whether_enter_developer_mode()
 
     bsp_display_unlock();
 
+    led_indicator_start(led_indicator_handle, BLINK_DEVELOP_MODE);
     // mount_wl_basic_and_tusb();
     ESP_UTILS_CHECK_ERROR_RETURN(usb_msc_mount(), false, "Mount USB MSC failed");
 
@@ -652,14 +654,12 @@ static void touch_btn_event_cb(void *button_handle, void *usr_data)
     if (!ai_buddy || !_agent || ai_buddy->isPause()) {
         return;
     }
-    static uint8_t last_brightness = 0;
     switch (event) {
     case BUTTON_PRESS_DOWN:
-        last_brightness = bsp_head_led_brightness_get();
-        bsp_head_led_brightness_set(100);
+        led_indicator_start(led_indicator_handle, BLINK_TOUCH_PRESS_DOWN);
         break;
     case BUTTON_PRESS_UP:
-        bsp_head_led_brightness_set(last_brightness);
+        led_indicator_stop(led_indicator_handle, BLINK_TOUCH_PRESS_DOWN);
         break;
     case BUTTON_SINGLE_CLICK:
         if (_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
@@ -725,10 +725,9 @@ static void show_low_power(Speaker *speaker)
     StorageNVS::requestInstance().getLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value);
     StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, 65); // set volume to 65%
     audio_prompt_play_with_block("file://spiffs/low_power.mp3", 1500);
-    for (size_t i = 0; i < 20; i++) {
-        bsp_head_led_brightness_set(i % 2 ? 100 : 0); // blink head LED
-        vTaskDelay(pdMS_TO_TICKS(200));
-    }
+    led_indicator_start(led_indicator_handle, BLINK_LOW_POWER);
+    vTaskDelay(pdMS_TO_TICKS(4000));
+    led_indicator_stop(led_indicator_handle, BLINK_LOW_POWER);
     StorageNVS::requestInstance().setLocalParam(SETTINGS_NVS_KEY_VOLUME, volume_value); // restore volume
     vTaskDelay(pdMS_TO_TICKS(100)); // ensure storage nvs write completed
     bsp_set_peripheral_power(false); // board peripheral off

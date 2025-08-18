@@ -18,6 +18,8 @@ dependencies:
 
   espressif2022/bmi270: ^1.1.0~2
 
+  espressif/led_indicator: ^2.0.1
+
   espressif/gmf_core:
     override_path: "../common_components/espressif__gmf_core"
 
