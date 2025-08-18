@@ -83,6 +83,8 @@ private:
     EmojiMap _emoji_map;
     SystemIconMap _system_icon_map;
     std::string _last_emoji;
+    AnimOperationConfig _last_emotion_config;
+    AnimOperationConfig _last_icon_config;
     TimerHandle_t timer;
 
     EmotionType _emotion_type_before_pause = EMOTION_TYPE_NONE;

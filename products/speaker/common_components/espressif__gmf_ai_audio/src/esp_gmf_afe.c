@@ -710,3 +710,14 @@ esp_gmf_err_t esp_gmf_afe_keep_awake(esp_gmf_element_handle_t handle, bool enabl
         return ESP_GMF_ERR_INVALID_STATE;
     }
 }
+
+esp_gmf_err_t esp_gmf_trigger_wakeup(esp_gmf_element_handle_t handle)
+{
+    ESP_GMF_NULL_CHECK(TAG, handle, return ESP_GMF_ERR_INVALID_ARG;);
+
+    afe_fetch_result_t result = {
+        .wakeup_state = WAKENET_DETECTED,
+    };
+    wakeup_afe_monitor(&result, handle);
+    return ESP_GMF_ERR_OK;
+}

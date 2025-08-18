@@ -53,6 +53,15 @@ esp_err_t audio_manager_init(esp_gmf_setup_periph_hardware_info *info, void **pl
 esp_err_t audio_manager_deinit();
 
 /**
+ * @brief Trigger the AFE to wakeup manually
+ *
+ * @return
+ *       - ESP_OK  On success
+ *       - Other   Appropriate esp_err_t error code on failure
+ */
+esp_err_t audio_gmf_trigger_wakeup();
+
+/**
  * @brief  Opens the audio recorder and registers an event callback
  *
  * @param[in]  cb   Pointer to the event callback function, which will be invoked on recorder events

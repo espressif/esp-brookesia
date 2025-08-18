@@ -241,6 +241,12 @@ static void esp_gmf_afe_event_cb(esp_gmf_obj_handle_t obj, esp_gmf_afe_evt_t *ev
 }
 #endif  /* CONFIG_KEY_PRESS_DIALOG_MODE */
 
+esp_err_t audio_gmf_trigger_wakeup()
+{
+    esp_gmf_trigger_wakeup(audio_processor_get_afe_handle());
+    return ESP_OK;
+}
+
 esp_err_t audio_recorder_open(recorder_event_callback_t cb, void *ctx)
 {
     esp_gmf_rb_create(1, 1024 * 3, &out_rb);

@@ -72,6 +72,7 @@
   - "products/phone/phone_s3_lcd_ev_board/sdkconfig.defaults"
 # speaker
 .patterns-products_speaker: &patterns-products_speaker
+  - "products/speaker/bootloader_components/**/*"
   - "products/speaker/common_components/**/*"
   - "products/speaker/main/**/*"
   - "products/speaker/spiffs/**/*"
