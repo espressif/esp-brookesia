@@ -178,6 +178,16 @@ esp_gmf_err_t esp_gmf_afe_set_event_cb(esp_gmf_element_handle_t handle, esp_gmf_
  */
 esp_gmf_err_t esp_gmf_afe_keep_awake(esp_gmf_element_handle_t handle, bool enable);
 
+/**
+ * @brief  Trigger wakeup event manually
+ * 
+ * @param handle 
+ * 
+ * @return 
+ *       - ESP_GMF_ERR_OK             Success
+ */
+esp_gmf_err_t esp_gmf_trigger_wakeup(esp_gmf_element_handle_t handle);
+
 #ifdef __cplusplus
 }
 #endif  /* __cplusplus */

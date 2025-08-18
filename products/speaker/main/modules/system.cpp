@@ -664,14 +664,13 @@ static void touch_btn_event_cb(void *button_handle, void *usr_data)
     case BUTTON_SINGLE_CLICK:
         if (_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
             ESP_UTILS_LOGI("Chat Wake up");
-            coze_chat_response_signal();
-            ESP_UTILS_CHECK_FALSE_EXIT(_agent->sendChatEvent(Agent::ChatEvent::WakeUp), "Send chat event sleep failed");
+            audio_gmf_trigger_wakeup();
         } else if (ai_buddy->isSpeaking()) {
             ESP_UTILS_LOGI("Chat interrupt");
             coze_chat_response_signal();
             coze_chat_app_interrupt();
         } else {
-            ESP_UTILS_LOGI("Chat nothing");
+            ESP_UTILS_LOGI("Chat nothing to do");
         }
         break;
 
