@@ -80,22 +80,6 @@ bool system_init()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
 
-    /* Configure LVGL */
-    LvLock::registerCallbacks([](int timeout_ms) {
-        if (timeout_ms < 0) {
-            timeout_ms = 0;
-        } else if (timeout_ms == 0) {
-            timeout_ms = 1;
-        }
-        ESP_UTILS_CHECK_FALSE_RETURN(bsp_display_lock(timeout_ms), false, "Lock failed");
-
-        return true;
-    }, []() {
-        bsp_display_unlock();
-
-        return true;
-    });
-
     /* Create a speaker object */
     Speaker *speaker = nullptr;
     ESP_UTILS_CHECK_EXCEPTION_RETURN(
@@ -569,40 +553,40 @@ static bool check_whether_enter_developer_mode()
         return true;
     }
 
-    bsp_display_lock(0);
+    {
+        LvLockGuard gui_guard;
 
-    auto title_label = lv_label_create(lv_screen_active());
-    lv_obj_set_size(title_label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(title_label, &esp_brookesia_font_maison_neue_book_26, 0);
-    lv_label_set_text(title_label, "Developer Mode");
-    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 60);
+        auto title_label = lv_label_create(lv_screen_active());
+        lv_obj_set_size(title_label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_text_font(title_label, &esp_brookesia_font_maison_neue_book_26, 0);
+        lv_label_set_text(title_label, "Developer Mode");
+        lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 60);
 
-    auto content_label = lv_label_create(lv_screen_active());
-    lv_obj_set_size(content_label, LV_PCT(80), LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_18, 0);
-    lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(
-        content_label, "Please connect the device to your computer via USB. A USB drive will appear. "
-        "You can create or modify the files in the SD card (like `bot_setting.json` and `private_key.pem`) as needed."
-    );
-    lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
+        auto content_label = lv_label_create(lv_screen_active());
+        lv_obj_set_size(content_label, LV_PCT(80), LV_SIZE_CONTENT);
+        lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_18, 0);
+        lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_text(
+            content_label, "Please connect the device to your computer via USB. A USB drive will appear. "
+            "You can create or modify the files in the SD card (like `bot_setting.json` and `private_key.pem`) as needed."
+        );
+        lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
 
-    auto exit_button = lv_btn_create(lv_screen_active());
-    lv_obj_set_size(exit_button, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_align(exit_button, LV_ALIGN_BOTTOM_MID, 0, -60);
-    lv_obj_add_event_cb(exit_button, [](lv_event_t *e) {
-        ESP_UTILS_LOGI("Exit developer mode");
-        developer_mode_key = 0;
-        _usb_serial_jtag_phy_init();
-        esp_restart();
-    }, LV_EVENT_CLICKED, nullptr);
+        auto exit_button = lv_btn_create(lv_screen_active());
+        lv_obj_set_size(exit_button, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_align(exit_button, LV_ALIGN_BOTTOM_MID, 0, -60);
+        lv_obj_add_event_cb(exit_button, [](lv_event_t *e) {
+            ESP_UTILS_LOGI("Exit developer mode");
+            developer_mode_key = 0;
+            _usb_serial_jtag_phy_init();
+            esp_restart();
+        }, LV_EVENT_CLICKED, nullptr);
 
-    auto label_button = lv_label_create(exit_button);
-    lv_obj_set_style_text_font(label_button, &esp_brookesia_font_maison_neue_book_16, 0);
-    lv_label_set_text(label_button, "Exit and reboot");
-    lv_obj_center(label_button);
-
-    bsp_display_unlock();
+        auto label_button = lv_label_create(exit_button);
+        lv_obj_set_style_text_font(label_button, &esp_brookesia_font_maison_neue_book_16, 0);
+        lv_label_set_text(label_button, "Exit and reboot");
+        lv_obj_center(label_button);
+    }
 
     led_indicator_start(led_indicator_handle, BLINK_DEVELOP_MODE);
     // mount_wl_basic_and_tusb();
@@ -658,26 +642,26 @@ static void touch_btn_event_cb(void *button_handle, void *usr_data)
         led_indicator_stop(led_indicator_handle, BLINK_TOUCH_PRESS_DOWN);
         break;
     case BUTTON_SINGLE_CLICK:
-        if (_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
-            ESP_UTILS_LOGI("Chat Wake up");
-            audio_gmf_trigger_wakeup();
-        } else if (ai_buddy->isSpeaking()) {
-            ESP_UTILS_LOGI("Chat interrupt");
-            coze_chat_response_signal();
-            coze_chat_app_interrupt();
+        if (_agent->hasChatState(Agent::ChatState::ChatStateStarted)) {
+            if (_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
+                ESP_UTILS_LOGI("Chat Wake up");
+                audio_gmf_trigger_wakeup();
+            } else if (ai_buddy->isSpeaking()) {
+                ESP_UTILS_LOGI("Chat interrupt");
+                coze_chat_response_signal();
+                coze_chat_app_interrupt();
+            }
         } else {
             ESP_UTILS_LOGI("Chat nothing to do");
         }
         break;
-
     case BUTTON_LONG_PRESS_START:
-        if (!_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
+        if (_agent->hasChatState(Agent::ChatState::ChatStateStarted) && !_agent->isChatState(Agent::ChatState::ChatStateSlept)) {
             ESP_UTILS_LOGI("Chat Sleep");
             ai_buddy->sendAudioEvent({AI_Buddy::AudioType::SleepBaiBaiLo});
             ESP_UTILS_CHECK_FALSE_EXIT(_agent->sendChatEvent(Agent::ChatEvent::Sleep), "Send chat event sleep failed");
         }
         break;
-
     default:
         break;
     }
@@ -686,27 +670,30 @@ static void touch_btn_event_cb(void *button_handle, void *usr_data)
 static void show_low_power(Speaker *speaker)
 {
     ESP_UTILS_LOGW("Low power triggered");
-    bsp_display_lock(0);
-    lv_obj_t *low_batt_scr = lv_obj_create(NULL);
-    auto title_label = lv_label_create(low_batt_scr);
-    lv_obj_set_size(title_label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(title_label, &esp_brookesia_font_maison_neue_book_30, 0);
-    lv_label_set_text(title_label, "Low Power");
-    lv_obj_set_style_text_color(title_label, lv_color_make(255, 0, 0), 0);
-    lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 60);
 
-    auto content_label = lv_label_create(low_batt_scr);
-    lv_obj_set_size(content_label, LV_PCT(80), LV_SIZE_CONTENT);
-    lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_20, 0);
-    lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
-    lv_label_set_text(content_label, "The battery is low. Device will sleep soon.\n"
-                      "Please connect the device to a power source to charge it.");
-    lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
-    lv_scr_load(low_batt_scr);
+    {
+        LvLockGuard gui_guard;
 
-    auto &quick_settings = speaker->getDisplay().getQuickSettings();
-    quick_settings.setVisible(false);
-    bsp_display_unlock();
+        lv_obj_t *low_batt_scr = lv_obj_create(NULL);
+        auto title_label = lv_label_create(low_batt_scr);
+        lv_obj_set_size(title_label, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+        lv_obj_set_style_text_font(title_label, &esp_brookesia_font_maison_neue_book_30, 0);
+        lv_label_set_text(title_label, "Low Power");
+        lv_obj_set_style_text_color(title_label, lv_color_make(255, 0, 0), 0);
+        lv_obj_align(title_label, LV_ALIGN_TOP_MID, 0, 60);
+
+        auto content_label = lv_label_create(low_batt_scr);
+        lv_obj_set_size(content_label, LV_PCT(80), LV_SIZE_CONTENT);
+        lv_obj_set_style_text_font(content_label, &esp_brookesia_font_maison_neue_book_20, 0);
+        lv_obj_set_style_text_align(content_label, LV_TEXT_ALIGN_CENTER, 0);
+        lv_label_set_text(content_label, "The battery is low. Device will sleep soon.\n"
+                          "Please connect the device to a power source to charge it.");
+        lv_obj_align_to(content_label, title_label, LV_ALIGN_OUT_BOTTOM_MID, 0, 20);
+        lv_scr_load(low_batt_scr);
+
+        auto &quick_settings = speaker->getDisplay().getQuickSettings();
+        quick_settings.setVisible(false);
+    }
 
     auto ai_buddy = AI_Buddy::requestInstance();
     if (ai_buddy) {

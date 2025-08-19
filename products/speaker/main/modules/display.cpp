@@ -63,6 +63,22 @@ bool display_init(bool default_dummy_draw)
     }
     bsp_display_backlight_on();
 
+    /* Configure LVGL lock and unlock */
+    LvLock::registerCallbacks([](int timeout_ms) {
+        if (timeout_ms < 0) {
+            timeout_ms = 0;
+        } else if (timeout_ms == 0) {
+            timeout_ms = 1;
+        }
+        ESP_UTILS_CHECK_FALSE_RETURN(bsp_display_lock(timeout_ms), false, "Lock failed");
+
+        return true;
+    }, []() {
+        bsp_display_unlock();
+
+        return true;
+    });
+
     /* Update display brightness when NVS brightness is updated */
     auto &storage_service = StorageNVS::requestInstance();
     storage_service.connectEventSignal([&](const StorageNVS::Event & event) {
@@ -126,9 +142,8 @@ bool display_init(bool default_dummy_draw)
         lvgl_port_disp_give_trans_sem(disp, false);
 
         if (!enable) {
-            bsp_display_lock(0);
+            LvLockGuard gui_guard;
             lv_obj_invalidate(lv_screen_active());
-            bsp_display_unlock();
         } else {
             ESP_UTILS_CHECK_FALSE_EXIT(clear_display(disp), "Clear display failed");
         }

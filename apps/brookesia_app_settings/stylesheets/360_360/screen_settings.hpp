@@ -68,7 +68,6 @@ constexpr SettingsUI_WidgetCellConf SETTINGS_UI_360_360_SCREEN_SETTINGS_ELEMENT_
         .flags = {
             .enable_left_icon = 1,
             .enable_left_main_label = 1,
-            .enable_clickable = 1,
         },
     };
 }

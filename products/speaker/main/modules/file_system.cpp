@@ -15,6 +15,8 @@
 #include "file_system.hpp"
 #include "display.hpp"
 
+constexpr int SD_CARD_NOT_FOUND_RETRY_INTERVAL_MS = 1000;
+constexpr int SD_CARD_NOT_FOUND_RETRY_MAX_COUNT = 10;
 constexpr const char *MUSIC_PARTITION_LABEL = "spiffs_data";
 
 using namespace esp_brookesia::gui;
@@ -32,24 +34,47 @@ bool file_system_init()
 
         Display::on_dummy_draw_signal(false);
 
-        bsp_display_lock(0);
+        lv_obj_t *label_title = nullptr;
+        lv_obj_t *label_content = nullptr;
+        {
+            LvLockGuard gui_guard;
 
-        auto label = lv_label_create(lv_screen_active());
-        lv_obj_set_size(label, 300, LV_SIZE_CONTENT);
-        lv_obj_set_style_text_font(label, &esp_brookesia_font_maison_neue_book_26, 0);
-        lv_label_set_text(label, "SD card not found, please insert a SD card!");
-        lv_obj_center(label);
+            label_title = lv_label_create(lv_screen_active());
+            lv_obj_set_size(label_title, 300, LV_SIZE_CONTENT);
+            lv_obj_set_style_text_font(label_title, &esp_brookesia_font_maison_neue_book_26, 0);
+            lv_obj_set_style_text_color(label_title, lv_color_make(255, 0, 0), 0);
+            lv_obj_set_style_text_align(label_title, LV_TEXT_ALIGN_CENTER, 0);
+            lv_label_set_text(label_title, "WARNING");
+            lv_obj_align(label_title, LV_ALIGN_TOP_MID, 0, 60);
 
-        bsp_display_unlock();
+            label_content = lv_label_create(lv_screen_active());
+            lv_obj_set_size(label_content, LV_PCT(90), LV_SIZE_CONTENT);
+            lv_obj_set_style_text_font(label_content, &esp_brookesia_font_maison_neue_book_20, 0);
+            lv_obj_set_style_text_align(label_content, LV_TEXT_ALIGN_CENTER, 0);
+            lv_label_set_text_fmt(
+                label_content,
+                "SD card not detected. Please insert an SD card to continue.\nOr wait %d seconds to enter the system without an SD card (Related features will be disabled).",
+                SD_CARD_NOT_FOUND_RETRY_MAX_COUNT * SD_CARD_NOT_FOUND_RETRY_INTERVAL_MS / 1000
+            );
+            lv_obj_align_to(label_content, label_title, LV_ALIGN_OUT_BOTTOM_MID, 0, 40);
+        }
 
+        int retry_count = 0;
         while ((ret = bsp_sdcard_mount()) != ESP_OK) {
             ESP_UTILS_LOGE("Mount SD card failed(%s), retry...", esp_err_to_name(ret));
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(SD_CARD_NOT_FOUND_RETRY_INTERVAL_MS));
+            if (++retry_count >= SD_CARD_NOT_FOUND_RETRY_MAX_COUNT) {
+                break;
+            }
         }
-        bsp_display_lock(0);
-        lv_obj_del(label);
-        bsp_display_unlock();
+
         {
+            LvLockGuard gui_guard;
+            lv_obj_del(label_title);
+            lv_obj_del(label_content);
+        }
+
+        if (retry_count < SD_CARD_NOT_FOUND_RETRY_MAX_COUNT) {
             uint64_t total = 0;
             uint64_t free = 0;
             ESP_UTILS_CHECK_ERROR_RETURN(

@@ -4,7 +4,7 @@
 
 This example demonstrates how to run the ESP-Brookesia Speaker on the EchoEar development board, and supports voice wake-up and voice interaction with the Coze agent.
 
-Please refer to the [EchoEar (Meow Companion) User Guide](https://espressif.craft.me/BBkCPR3ZaoLCV8) for product information and firmware usage instructions.
+Please refer to the [EchoEar User Guide](https://espressif.craft.me/BBkCPR3ZaoLCV8) for product information and firmware usage instructions.
 
 ## Getting Started Guide
 
