@@ -15,47 +15,15 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-#define ESP_BROOKESIA_GESTURE_INFO_INIT()                \
-    {                                             \
-        .direction = ESP_BROOKESIA_GESTURE_DIR_NONE,     \
-        .start_area = ESP_BROOKESIA_GESTURE_AREA_CENTER, \
-        .stop_area = ESP_BROOKESIA_GESTURE_AREA_CENTER,  \
-        .start_x = -1,                            \
-        .start_y = -1,                            \
-        .stop_x = -1,                             \
-        .stop_y = -1,                             \
-        .duration_ms = 0,                         \
-        .distance_px = 0,                         \
-        .flags = {                                \
-            .slow_speed = 0,                      \
-            .short_duration = 0,                  \
-        },                                        \
-    }
+namespace esp_brookesia::systems::phone {
 
-ESP_Brookesia_Gesture::ESP_Brookesia_Gesture(ESP_Brookesia_Core &core_in, const ESP_Brookesia_GestureData_t &data_in):
-    core(core_in),
-    data(data_in),
-    _touch_device(nullptr),
-    _flags{},
-    _direction_tan_threshold(0),
-    _indicator_bar_min_lengths{},
-    _indicator_bar_max_lengths{},
-    _touch_start_tick(0),
-    _detect_timer(nullptr),
-    _event_mask_obj(nullptr),
-    _indicator_bars{},
-    _indicator_bar_anim_var{},
-    _indicator_bar_scale_back_anims{},
-    _indicator_bar_scale_factors{},
-    _press_event_code(LV_EVENT_ALL),
-    _pressing_event_code(LV_EVENT_ALL),
-    _release_event_code(LV_EVENT_ALL),
-    _info((ESP_Brookesia_GestureInfo_t)ESP_BROOKESIA_GESTURE_INFO_INIT()),
-    _event_data((ESP_Brookesia_GestureInfo_t)ESP_BROOKESIA_GESTURE_INFO_INIT())
+Gesture::Gesture(base::Context &core_in, const Gesture::Data &data_in)
+    : core(core_in)
+    , data(data_in)
 {
 }
 
-ESP_Brookesia_Gesture::~ESP_Brookesia_Gesture()
+Gesture::~Gesture()
 {
     ESP_UTILS_LOGD("Destroy(0x%p)", this);
     if (!del()) {
@@ -63,12 +31,12 @@ ESP_Brookesia_Gesture::~ESP_Brookesia_Gesture()
     }
 }
 
-bool ESP_Brookesia_Gesture::begin(lv_obj_t *parent)
+bool Gesture::begin(lv_obj_t *parent)
 {
     ESP_Brookesia_LvTimer_t detect_timer = nullptr;
     ESP_Brookesia_LvObj_t event_mask_obj = nullptr;
-    array<ESP_Brookesia_LvObj_t, ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX> indicator_bars = {};
-    array<ESP_Brookesia_LvAnim_t, ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX> indicator_bar_scale_back_anims = {};
+    array<ESP_Brookesia_LvObj_t, static_cast<int>(Gesture::IndicatorBarType::MAX)> indicator_bars = {};
+    array<ESP_Brookesia_LvAnim_t, static_cast<int>(Gesture::IndicatorBarType::MAX)> indicator_bar_scale_back_anims = {};
     lv_event_code_t press_event_code = LV_EVENT_ALL;
     lv_event_code_t pressing_event_code = LV_EVENT_ALL;
     lv_event_code_t release_event_code = LV_EVENT_ALL;
@@ -90,26 +58,26 @@ bool ESP_Brookesia_Gesture::begin(lv_obj_t *parent)
     release_event_code = core.getFreeEventCode();
     ESP_UTILS_CHECK_FALSE_RETURN(esp_brookesia_core_utils_check_event_code_valid(release_event_code), false,
                                  "Invalid release event code");
-    for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
+    for (int i = 0; i < static_cast<int>(Gesture::IndicatorBarType::MAX); i++) {
         indicator_bars[i] = ESP_BROOKESIA_LV_OBJ(bar, parent);
         ESP_UTILS_CHECK_NULL_RETURN(indicator_bars[i], false, "Create indicator bar failed");
         indicator_bar_scale_back_anims[i] = ESP_BROOKESIA_LV_ANIM();
         ESP_UTILS_CHECK_NULL_RETURN(indicator_bar_scale_back_anims[i], false, "Create indicator bar animation failed");
         _indicator_bar_anim_var[i] = {
             .gesture = this,
-            .type = (ESP_Brookesia_GestureIndicatorBarType_t)i,
+            .type = (Gesture::IndicatorBarType)i,
         };
     }
 
     /* Setup objects */
     // Event mask
-    lv_obj_add_style(event_mask_obj.get(), core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(event_mask_obj.get(), core.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_add_flag(event_mask_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_HIDDEN);
     lv_obj_center(event_mask_obj.get());
     // Indicator bar
-    for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
+    for (int i = 0; i < static_cast<int>(Gesture::IndicatorBarType::MAX); i++) {
         // Bar
-        lv_obj_add_style(indicator_bars[i].get(), core.getCoreHome().getCoreContainerStyle(), 0);
+        lv_obj_add_style(indicator_bars[i].get(), core.getDisplay().getCoreContainerStyle(), 0);
         lv_obj_clear_flag(indicator_bars[i].get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(indicator_bars[i].get(), LV_OBJ_FLAG_HIDDEN);
         lv_bar_set_range(indicator_bars[i].get(), 0, 100);
@@ -144,7 +112,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_Gesture::del(void)
+bool Gesture::del(void)
 {
     ESP_UTILS_LOGD("Delete(0x%p)", this);
 
@@ -153,14 +121,14 @@ bool ESP_Brookesia_Gesture::del(void)
     _detect_timer.reset();
     resetGestureInfo();
     _event_mask_obj.reset();
-    for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
+    for (int i = 0; i < static_cast<int>(Gesture::IndicatorBarType::MAX); i++) {
         _indicator_bar_scale_back_anims[i].reset();
     }
 
     return true;
 }
 
-bool ESP_Brookesia_Gesture::readTouchPoint(int &x, int &y) const
+bool Gesture::readTouchPoint(int &x, int &y) const
 {
     lv_point_t point = {};
 
@@ -171,7 +139,7 @@ bool ESP_Brookesia_Gesture::readTouchPoint(int &x, int &y) const
     }
 
     lv_indev_get_point(_touch_device, &point);
-    if ((point.x >= core.getCoreData().screen_size.width) || (point.y >= core.getCoreData().screen_size.height)) {
+    if ((point.x >= core.getData().screen_size.width) || (point.y >= core.getData().screen_size.height)) {
         return false;
     }
 
@@ -181,44 +149,46 @@ bool ESP_Brookesia_Gesture::readTouchPoint(int &x, int &y) const
     return true;
 }
 
-bool ESP_Brookesia_Gesture::checkMaskVisible(void) const
+bool Gesture::checkMaskVisible(void) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     return !lv_obj_has_flag(_event_mask_obj.get(), LV_OBJ_FLAG_HIDDEN);
 }
 
-bool ESP_Brookesia_Gesture::checkIndicatorBarVisible(ESP_Brookesia_GestureIndicatorBarType_t type) const
+bool Gesture::checkIndicatorBarVisible(Gesture::IndicatorBarType type) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, false, "Invalid indicator bar type");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_RETURN(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), false, "Invalid indicator bar type");
 
-    return !lv_obj_has_flag(_indicator_bars[type].get(), LV_OBJ_FLAG_HIDDEN);
+    return !lv_obj_has_flag(_indicator_bars[type_int].get(), LV_OBJ_FLAG_HIDDEN);
 }
 
-int ESP_Brookesia_Gesture::getIndicatorBarLength(ESP_Brookesia_GestureIndicatorBarType_t type) const
+int Gesture::getIndicatorBarLength(Gesture::IndicatorBarType type) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), -1, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, -1, "Invalid indicator bar type");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_RETURN(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), false, "Invalid indicator bar type");
 
-    lv_obj_update_layout(_indicator_bars[type].get());
-    lv_obj_refresh_self_size(_indicator_bars[type].get());
+    lv_obj_update_layout(_indicator_bars[type_int].get());
+    lv_obj_refresh_self_size(_indicator_bars[type_int].get());
 
-    if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT || type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
-        return lv_obj_get_height(_indicator_bars[type].get());
-    } else if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
-        return lv_obj_get_width(_indicator_bars[type].get());
+    if (type == Gesture::IndicatorBarType::LEFT || type == Gesture::IndicatorBarType::RIGHT) {
+        return lv_obj_get_height(_indicator_bars[type_int].get());
+    } else if (type == Gesture::IndicatorBarType::BOTTOM) {
+        return lv_obj_get_width(_indicator_bars[type_int].get());
     }
 
     return -1;
 }
 
-bool ESP_Brookesia_Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreHome &home,
-        ESP_Brookesia_GestureData_t &data)
+bool Gesture::calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
+                            Gesture::Data &data)
 {
     int parent_w = 0;
     int parent_h = 0;
-    const ESP_Brookesia_StyleSize_t *parent_size = nullptr;
+    const gui::StyleSize *parent_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -237,23 +207,23 @@ bool ESP_Brookesia_Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &scree
     ESP_UTILS_CHECK_FALSE_RETURN(data.threshold.speed_slow_px_per_ms > 0, false, "Invalid speed slow threshold");
     ESP_UTILS_CHECK_FALSE_RETURN(data.threshold.duration_short_ms > 0, false, "Invalid duration short threshold");
     // Left/Right indicator bar
-    for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
+    for (int i = 0; i < static_cast<int>(Gesture::IndicatorBarType::MAX); i++) {
         if (!data.flags.enable_indicator_bars[i]) {
             continue;
         }
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(screen_size, data.indicator_bars[i].main.size_max), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(screen_size, data.indicator_bars[i].main.size_max), false,
                                      "Calibrate indicator bar main size max failed");
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(screen_size, data.indicator_bars[i].main.size_min, true),
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(screen_size, data.indicator_bars[i].main.size_min, true),
                                      false, "Calibrate indicator bar main size min failed");
-        switch (i) {
-        case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT:
-        case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT:
+        switch (static_cast<Gesture::IndicatorBarType>(i)) {
+        case Gesture::IndicatorBarType::LEFT:
+        case Gesture::IndicatorBarType::RIGHT:
             parent_size = &data.indicator_bars[i].main.size_min;
             parent_w = parent_size->width;
             ESP_UTILS_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_w / 2, false,
                                          "Invalid indicator bar main layout pad all");
             break;
-        case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM:
+        case Gesture::IndicatorBarType::BOTTOM:
             parent_size = &data.indicator_bars[i].main.size_min;
             parent_h = parent_size->height;
             ESP_UTILS_CHECK_VALUE_RETURN(data.indicator_bars[i].main.layout_pad_all, 0, parent_h / 2, false,
@@ -267,7 +237,7 @@ bool ESP_Brookesia_Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &scree
     return true;
 }
 
-bool ESP_Brookesia_Gesture::setMaskObjectVisible(bool visible) const
+bool Gesture::setMaskObjectVisible(bool visible) const
 {
     ESP_UTILS_LOGD("Set mask object visible(%d)", visible);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -283,99 +253,105 @@ bool ESP_Brookesia_Gesture::setMaskObjectVisible(bool visible) const
     return true;
 }
 
-bool ESP_Brookesia_Gesture::setIndicatorBarLength(ESP_Brookesia_GestureIndicatorBarType_t type, int length) const
+bool Gesture::setIndicatorBarLength(Gesture::IndicatorBarType type, int length) const
 {
     ESP_UTILS_LOGD("Set indicator bar(%d) length(%d)", type, length);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, -1, "Invalid indicator bar type");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_RETURN(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), false, "Invalid indicator bar type");
 
-    if (!data.flags.enable_indicator_bars[type]) {
+    if (!data.flags.enable_indicator_bars[type_int]) {
         return true;
     }
 
-    const ESP_Brookesia_GestureIndicatorBarData_t &bar_data = data.indicator_bars[type];
-    if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT || type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
+    const Gesture::IndicatorBarData &bar_data = data.indicator_bars[type_int];
+    if (type == Gesture::IndicatorBarType::LEFT || type == Gesture::IndicatorBarType::RIGHT) {
         length = max(min(length, bar_data.main.size_max.height), bar_data.main.size_min.height);
-        lv_obj_set_height(_indicator_bars[type].get(), length);
-    } else if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+        lv_obj_set_height(_indicator_bars[type_int].get(), length);
+    } else if (type == Gesture::IndicatorBarType::BOTTOM) {
         length = max(min(length, bar_data.main.size_max.width), bar_data.main.size_min.width);
-        lv_obj_set_width(_indicator_bars[type].get(), length);
+        lv_obj_set_width(_indicator_bars[type_int].get(), length);
     }
 
     return true;
 }
 
-bool ESP_Brookesia_Gesture::setIndicatorBarLengthByOffset(ESP_Brookesia_GestureIndicatorBarType_t type, int offset) const
+bool Gesture::setIndicatorBarLengthByOffset(Gesture::IndicatorBarType type, int offset) const
 {
     ESP_UTILS_LOGD("Set indicator bar(%d) length by offset(%d)", type, offset);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
-    ESP_UTILS_CHECK_FALSE_RETURN(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, -1, "Invalid indicator bar type");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_RETURN(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), false, "Invalid indicator bar type");
 
     int target_len = 0;
     int max_len = 0;
     float erase_len_ratio = 0;
 
-    if (!data.flags.enable_indicator_bars[type]) {
+    if (!data.flags.enable_indicator_bars[type_int]) {
         return true;
     }
 
     switch (type) {
-    case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT:
-    case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT:
+    case Gesture::IndicatorBarType::LEFT:
+    case Gesture::IndicatorBarType::RIGHT:
         offset = max(0, min(offset, (int)data.threshold.direction_horizon));
-        max_len = data.indicator_bars[type].main.size_max.height;
+        max_len = data.indicator_bars[type_int].main.size_max.height;
         break;
-    case ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM:
+    case Gesture::IndicatorBarType::BOTTOM:
         offset = max(0, min(offset, (int)data.threshold.direction_vertical));
-        max_len = data.indicator_bars[type].main.size_max.width;
+        max_len = data.indicator_bars[type_int].main.size_max.width;
         break;
     default:
         ESP_UTILS_CHECK_FALSE_RETURN(false, -1, "Invalid type");
     }
-    erase_len_ratio = (offset * _indicator_bar_scale_factors[type]) / (float)max_len;
+    erase_len_ratio = (offset * _indicator_bar_scale_factors[type_int]) / (float)max_len;
     target_len =  max_len * (1 - erase_len_ratio);
 
-    const ESP_Brookesia_GestureIndicatorBarData_t &bar_data = data.indicator_bars[type];
-    if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT || type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
+    const Gesture::IndicatorBarData &bar_data = data.indicator_bars[type_int];
+    if (type == Gesture::IndicatorBarType::LEFT || type == Gesture::IndicatorBarType::RIGHT) {
         target_len = max(target_len, (int)bar_data.main.size_min.height);
-        lv_obj_set_height(_indicator_bars[type].get(), target_len);
-    } else if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+        lv_obj_set_height(_indicator_bars[type_int].get(), target_len);
+    } else if (type == Gesture::IndicatorBarType::BOTTOM) {
         target_len = max(target_len, (int)bar_data.main.size_min.width);
-        lv_obj_set_width(_indicator_bars[type].get(), target_len);
+        lv_obj_set_width(_indicator_bars[type_int].get(), target_len);
     }
 
     return true;
 }
 
-bool ESP_Brookesia_Gesture::setIndicatorBarVisible(ESP_Brookesia_GestureIndicatorBarType_t type, bool visible)
+bool Gesture::setIndicatorBarVisible(Gesture::IndicatorBarType type, bool visible)
 {
     ESP_UTILS_LOGD("Set indicator bar(%d) visible(%d)", type, visible);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_RETURN(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), false, "Invalid indicator bar type");
 
-    if (!data.flags.enable_indicator_bars[type]) {
+    if (!data.flags.enable_indicator_bars[type_int]) {
         return true;
     }
 
     if (visible) {
-        lv_obj_move_foreground(_indicator_bars[type].get());
-        lv_obj_clear_flag(_indicator_bars[type].get(), LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(_indicator_bars[type_int].get());
+        lv_obj_clear_flag(_indicator_bars[type_int].get(), LV_OBJ_FLAG_HIDDEN);
     } else {
-        lv_obj_add_flag(_indicator_bars[type].get(), LV_OBJ_FLAG_HIDDEN);
-        ESP_UTILS_CHECK_FALSE_RETURN(setIndicatorBarLength(type, _indicator_bar_max_lengths[type]), false,
+        lv_obj_add_flag(_indicator_bars[type_int].get(), LV_OBJ_FLAG_HIDDEN);
+        ESP_UTILS_CHECK_FALSE_RETURN(setIndicatorBarLength(type, _indicator_bar_max_lengths[type_int]), false,
                                      "Set indicator bar length failed");
     }
 
     return true;
 }
 
-bool ESP_Brookesia_Gesture::controlIndicatorBarScaleBackAnim(ESP_Brookesia_GestureIndicatorBarType_t type, bool start)
+bool Gesture::controlIndicatorBarScaleBackAnim(Gesture::IndicatorBarType type, bool start)
 {
     int length = 0;
 
     ESP_UTILS_LOGD("Control indicator bar(%d) scale back animation(%d)", type, start);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_RETURN(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), false, "Invalid indicator bar type");
 
-    if (!data.flags.enable_indicator_bars[type]) {
+    if (!data.flags.enable_indicator_bars[type_int]) {
         return true;
     }
 
@@ -383,41 +359,41 @@ bool ESP_Brookesia_Gesture::controlIndicatorBarScaleBackAnim(ESP_Brookesia_Gestu
     ESP_UTILS_CHECK_FALSE_RETURN(length >= 0, false, "Get indicator bar length failed");
 
     if (start) {
-        if (_flags.is_indicator_bar_scale_back_anim_running[type]) {
+        if (_flags.is_indicator_bar_scale_back_anim_running[type_int]) {
             return true;
         }
-        if (length == _indicator_bar_max_lengths[type]) {
-            if (type != ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+        if (length == _indicator_bar_max_lengths[type_int]) {
+            if (type != Gesture::IndicatorBarType::BOTTOM) {
                 ESP_UTILS_CHECK_FALSE_RETURN(
                     setIndicatorBarVisible(type, false), false, "Set indicator bar visible failed"
                 );
             }
             return true;
         }
-        lv_anim_set_values(_indicator_bar_scale_back_anims[type].get(), length, _indicator_bar_max_lengths[type]);
-        ESP_UTILS_CHECK_NULL_RETURN(lv_anim_start(_indicator_bar_scale_back_anims[type].get()), false,
+        lv_anim_set_values(_indicator_bar_scale_back_anims[type_int].get(), length, _indicator_bar_max_lengths[type_int]);
+        ESP_UTILS_CHECK_NULL_RETURN(lv_anim_start(_indicator_bar_scale_back_anims[type_int].get()), false,
                                     "Start animation failed");
-        _flags.is_indicator_bar_scale_back_anim_running[type] = true;
+        _flags.is_indicator_bar_scale_back_anim_running[type_int] = true;
     } else {
-        if (_flags.is_indicator_bar_scale_back_anim_running[type]) {
+        if (_flags.is_indicator_bar_scale_back_anim_running[type_int]) {
             ESP_UTILS_CHECK_FALSE_RETURN(
-                lv_anim_del(_indicator_bar_scale_back_anims[type]->var, _indicator_bar_scale_back_anims[type]->exec_cb),
+                lv_anim_del(_indicator_bar_scale_back_anims[type_int]->var, _indicator_bar_scale_back_anims[type_int]->exec_cb),
                 false, "Delete animation failed"
             );
-            _flags.is_indicator_bar_scale_back_anim_running[type] = false;
+            _flags.is_indicator_bar_scale_back_anim_running[type_int] = false;
         }
     }
 
     return true;
 }
 
-void ESP_Brookesia_Gesture::resetGestureInfo(void)
+void Gesture::resetGestureInfo(void)
 {
-    ESP_Brookesia_GestureInfo_t reset_info = (ESP_Brookesia_GestureInfo_t)ESP_BROOKESIA_GESTURE_INFO_INIT();
+    Info reset_info = GESTURE_INFO_INIT;
     _info = reset_info;
 }
 
-bool ESP_Brookesia_Gesture::updateByNewData(void)
+bool Gesture::updateByNewData(void)
 {
     ESP_UTILS_LOGD("Update(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -429,10 +405,10 @@ bool ESP_Brookesia_Gesture::updateByNewData(void)
     // Timer
     lv_timer_set_period(_detect_timer.get(), data.detect_period_ms);
     // Mask
-    lv_obj_set_size(_event_mask_obj.get(), core.getCoreData().screen_size.width, core.getCoreData().screen_size.height);
+    lv_obj_set_size(_event_mask_obj.get(), core.getData().screen_size.width, core.getData().screen_size.height);
     // Indicator bar
-    for (int i = 0; i < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
-        const ESP_Brookesia_GestureIndicatorBarData_t &bar_data = data.indicator_bars[i];
+    for (int i = 0; i < static_cast<int>(Gesture::IndicatorBarType::MAX); i++) {
+        const Gesture::IndicatorBarData &bar_data = data.indicator_bars[i];
         // Main
         lv_obj_set_size(_indicator_bars[i].get(), bar_data.main.size_max.width, bar_data.main.size_max.height);
         lv_obj_set_style_radius(_indicator_bars[i].get(), bar_data.main.radius, 0);
@@ -448,21 +424,22 @@ bool ESP_Brookesia_Gesture::updateByNewData(void)
                             esp_brookesia_core_utils_get_anim_path_cb(bar_data.animation.scale_back_path_type));
         lv_anim_set_time(_indicator_bar_scale_back_anims[i].get(), bar_data.animation.scale_back_time_ms);
         // Others
-        if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT) {
+        auto i_type = static_cast<Gesture::IndicatorBarType>(i);
+        if (i_type == Gesture::IndicatorBarType::LEFT) {
             align = LV_ALIGN_LEFT_MID;
             align_x_offset = max(data.threshold.horizontal_edge - bar_data.main.size_max.width, 0);
             align_y_offset = 0;
             _indicator_bar_min_lengths[i] = bar_data.main.size_min.height;
             _indicator_bar_max_lengths[i] = bar_data.main.size_max.height;
             bar_range = data.threshold.direction_horizon;
-        } else if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
+        } else if (i_type == Gesture::IndicatorBarType::RIGHT) {
             align = LV_ALIGN_RIGHT_MID;
             align_x_offset = min(-data.threshold.horizontal_edge + bar_data.main.size_max.width, 0);
             align_y_offset = 0;
             _indicator_bar_min_lengths[i] = bar_data.main.size_min.height;
             _indicator_bar_max_lengths[i] = bar_data.main.size_max.height;
             bar_range = data.threshold.direction_horizon;
-        } else if (i == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+        } else if (i_type == Gesture::IndicatorBarType::BOTTOM) {
             align = LV_ALIGN_BOTTOM_MID;
             align_x_offset = 0;
             align_y_offset = min(-data.threshold.vertical_edge + bar_data.main.size_max.height, 0);
@@ -481,20 +458,20 @@ bool ESP_Brookesia_Gesture::updateByNewData(void)
     return true;
 }
 
-void ESP_Brookesia_Gesture::onDataUpdateEventCallback(lv_event_t *event)
+void Gesture::onDataUpdateEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_Gesture *gesture = nullptr;
+    Gesture *gesture = nullptr;
 
     ESP_UTILS_LOGD("Data update event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    gesture = (ESP_Brookesia_Gesture *)lv_event_get_user_data(event);
+    gesture = (Gesture *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture object");
 
     ESP_UTILS_CHECK_FALSE_EXIT(gesture->updateByNewData(), "Update gesture object style failed");
 }
 
-void ESP_Brookesia_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
+void Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
 {
     bool touched = false;
     int distance_x = 0;
@@ -502,24 +479,24 @@ void ESP_Brookesia_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
     float distance_tan = numeric_limits<float>::infinity();
     lv_event_code_t event_code = LV_EVENT_ALL;
 
-    ESP_Brookesia_Gesture *gesture = (ESP_Brookesia_Gesture *)t->user_data;
+    Gesture *gesture = (Gesture *)t->user_data;
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
 
-    const ESP_Brookesia_GestureData_t &data = gesture->data;
-    const int &display_w = gesture->core.getCoreData().screen_size.width;
-    const int &display_h = gesture->core.getCoreData().screen_size.height;
+    const Gesture::Data &data = gesture->data;
+    const int &display_w = gesture->core.getData().screen_size.width;
+    const int &display_h = gesture->core.getData().screen_size.height;
     const float &distance_tan_threshold = gesture->_direction_tan_threshold;
-    ESP_Brookesia_GestureInfo_t &info = gesture->_info;
+    Gesture::Info &info = gesture->_info;
 
     // Check if touched and save the last touch point
     touched = gesture->readTouchPoint(info.stop_x, info.stop_y);
 
     // Process the stop area
-    info.stop_area = ESP_BROOKESIA_GESTURE_AREA_CENTER;
-    info.stop_area |= (info.stop_y < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_TOP_EDGE : 0;
-    info.stop_area |= ((display_h - info.stop_y) < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE : 0;
-    info.stop_area |= (info.stop_x < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE : 0;
-    info.stop_area |= ((display_w - info.stop_x) < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE : 0;
+    info.stop_area = Gesture::AREA_CENTER;
+    info.stop_area |= (info.stop_y < data.threshold.vertical_edge) ? Gesture::AREA_TOP_EDGE : 0;
+    info.stop_area |= ((display_h - info.stop_y) < data.threshold.vertical_edge) ? Gesture::AREA_BOTTOM_EDGE : 0;
+    info.stop_area |= (info.stop_x < data.threshold.horizontal_edge) ? Gesture::AREA_LEFT_EDGE : 0;
+    info.stop_area |= ((display_w - info.stop_x) < data.threshold.horizontal_edge) ? Gesture::AREA_RIGHT_EDGE : 0;
 
     // If not touched before and now, just ignore and return
     if (!gesture->checkGestureStart() && !touched) {
@@ -534,11 +511,11 @@ void ESP_Brookesia_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
         info.start_y = info.stop_y;
 
         // Process the start area
-        info.start_area = ESP_BROOKESIA_GESTURE_AREA_CENTER;
-        info.start_area |= (info.start_y < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_TOP_EDGE : 0;
-        info.start_area |= ((display_h - info.start_y) < data.threshold.vertical_edge) ? ESP_BROOKESIA_GESTURE_AREA_BOTTOM_EDGE : 0;
-        info.start_area |= (info.start_x < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_LEFT_EDGE : 0;
-        info.start_area |= ((display_w - info.start_x) < data.threshold.horizontal_edge) ? ESP_BROOKESIA_GESTURE_AREA_RIGHT_EDGE : 0;
+        info.start_area = Gesture::AREA_CENTER;
+        info.start_area |= (info.start_y < data.threshold.vertical_edge) ? Gesture::AREA_TOP_EDGE : 0;
+        info.start_area |= ((display_h - info.start_y) < data.threshold.vertical_edge) ? Gesture::AREA_BOTTOM_EDGE : 0;
+        info.start_area |= (info.start_x < data.threshold.horizontal_edge) ? Gesture::AREA_LEFT_EDGE : 0;
+        info.start_area |= ((display_w - info.start_x) < data.threshold.horizontal_edge) ? Gesture::AREA_RIGHT_EDGE : 0;
 
         // Set the press event code
         event_code = gesture->_press_event_code;
@@ -583,16 +560,16 @@ void ESP_Brookesia_Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
             (distance_tan < -distance_tan_threshold)) {
         // Check the distance in y axis
         if (distance_y > data.threshold.direction_vertical) {
-            info.direction = ESP_BROOKESIA_GESTURE_DIR_DOWN;
+            info.direction = Gesture::DIR_DOWN;
         } else if (distance_y < -data.threshold.direction_vertical) {
-            info.direction = ESP_BROOKESIA_GESTURE_DIR_UP;
+            info.direction = Gesture::DIR_UP;
         }
     } else {
         // Check the distance in x axis
         if (distance_x > data.threshold.direction_horizon) {
-            info.direction = ESP_BROOKESIA_GESTURE_DIR_RIGHT;
+            info.direction = Gesture::DIR_RIGHT;
         } else if (distance_x < -data.threshold.direction_horizon) {
-            info.direction = ESP_BROOKESIA_GESTURE_DIR_LEFT;
+            info.direction = Gesture::DIR_LEFT;
         }
     }
 
@@ -613,30 +590,31 @@ event_process:
     }
 }
 
-void ESP_Brookesia_Gesture::onIndicatorBarScaleBackAnimationExecuteCallback(void *var, int32_t value)
+void Gesture::onIndicatorBarScaleBackAnimationExecuteCallback(void *var, int32_t value)
 {
     auto anim_var = static_cast<IndicatorBarAnimVar_t *>(var);
-    ESP_Brookesia_Gesture *gesture = nullptr;
-    ESP_Brookesia_GestureIndicatorBarType_t type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX;
+    Gesture *gesture = nullptr;
+    Gesture::IndicatorBarType type = Gesture::IndicatorBarType::MAX;
 
     ESP_UTILS_CHECK_NULL_EXIT(anim_var, "Invalid var");
 
     gesture = anim_var->gesture;
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
     type = anim_var->type;
-    ESP_UTILS_CHECK_FALSE_EXIT(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, "Invalid indicator bar type");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_EXIT(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), "Invalid indicator bar type");
 
-    if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_LEFT || type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_RIGHT) {
-        lv_obj_set_height(gesture->_indicator_bars[type].get(), value);
-    } else if (type == ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
-        lv_obj_set_width(gesture->_indicator_bars[type].get(), value);
+    if (type == Gesture::IndicatorBarType::LEFT || type == Gesture::IndicatorBarType::RIGHT) {
+        lv_obj_set_height(gesture->_indicator_bars[type_int].get(), value);
+    } else if (type == Gesture::IndicatorBarType::BOTTOM) {
+        lv_obj_set_width(gesture->_indicator_bars[type_int].get(), value);
     }
 }
 
-void ESP_Brookesia_Gesture::onIndicatorBarScaleBackAnimationReadyCallback(lv_anim_t *anim)
+void Gesture::onIndicatorBarScaleBackAnimationReadyCallback(lv_anim_t *anim)
 {
-    ESP_Brookesia_Gesture *gesture = nullptr;
-    ESP_Brookesia_GestureIndicatorBarType_t type = ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX;
+    Gesture *gesture = nullptr;
+    Gesture::IndicatorBarType type = Gesture::IndicatorBarType::MAX;
 
     ESP_UTILS_LOGD("Indicator bar scale back animation ready callback");
     ESP_UTILS_CHECK_NULL_EXIT(anim, "Invalid anim");
@@ -646,11 +624,14 @@ void ESP_Brookesia_Gesture::onIndicatorBarScaleBackAnimationReadyCallback(lv_ani
     gesture = anim_var->gesture;
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
     type = anim_var->type;
-    ESP_UTILS_CHECK_FALSE_EXIT(type < ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_MAX, "Invalid indicator bar type");
+    auto type_int = static_cast<int>(type);
+    ESP_UTILS_CHECK_VALUE_EXIT(type_int, 0, static_cast<int>(Gesture::IndicatorBarType::MAX), "Invalid indicator bar type");
 
-    gesture->_flags.is_indicator_bar_scale_back_anim_running[type] = false;
+    gesture->_flags.is_indicator_bar_scale_back_anim_running[type_int] = false;
     // If the animation is finished, hide the indicator bar (except the bottom one)
-    if (type != ESP_BROOKESIA_GESTURE_INDICATOR_BAR_TYPE_BOTTOM) {
+    if (type != Gesture::IndicatorBarType::BOTTOM) {
         ESP_UTILS_CHECK_FALSE_EXIT(gesture->setIndicatorBarVisible(type, false), "Hide indicator bar failed");
     }
 }
+
+} // namespace esp_brookesia::systems::phone

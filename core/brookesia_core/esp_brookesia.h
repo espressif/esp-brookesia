@@ -38,7 +38,7 @@
 #   include "systems/esp_brookesia_systems_internal.h"
 #endif
 /* Systems - Core */
-#include "systems/core/assets/esp_brookesia_core_assets.h"
+#include "systems/base/assets/esp_brookesia_base_assets.h"
 /* Systems - Phone */
 #if ESP_BROOKESIA_SYSTEMS_ENABLE_PHONE
 #   include "systems/phone/assets/esp_brookesia_phone_assets.h"

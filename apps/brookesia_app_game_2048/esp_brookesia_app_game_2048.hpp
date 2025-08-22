@@ -8,7 +8,7 @@
 #include "lvgl.h"
 #include "esp_brookesia.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 typedef struct {
     int x; // Index of row
@@ -16,9 +16,9 @@ typedef struct {
     int weight;
 } cell_weight_t;
 
-class Game2048: public speaker::App {
+class Game2048: public systems::speaker::App {
 public:
-    Game2048(int width, int height);
+    Game2048();
     ~Game2048();
 
     // Core app interface methods
@@ -78,4 +78,4 @@ private:
     lv_color_t _cell_colors[11] = {};
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

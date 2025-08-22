@@ -10,7 +10,7 @@
 #include "base.hpp"
 #include "../widgets/cell_container.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenAboutContainerIndex {
     SYSTEM,
@@ -50,7 +50,7 @@ using SettingsUI_ScreenAboutCellContainerMap =
 
 class SettingsUI_ScreenAbout: public SettingsUI_ScreenBase {
 public:
-    SettingsUI_ScreenAbout(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    SettingsUI_ScreenAbout(systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                            const SettingsUI_ScreenAboutData &main_data);
     ~SettingsUI_ScreenAbout();
 
@@ -65,7 +65,6 @@ private:
     bool processCellContainerMapUpdate();
 
     SettingsUI_ScreenAboutCellContainerMap _cell_container_map;
-    // static const SettingsUI_ScreenAboutCellContainerMap _init_cell_container_map;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

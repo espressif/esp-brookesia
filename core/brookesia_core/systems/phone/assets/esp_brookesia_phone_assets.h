@@ -1,7 +1,7 @@
 #pragma once
 
 #include "lvgl.h"
-#include "core/assets/esp_brookesia_core_assets.h"
+#include "base/assets/esp_brookesia_base_assets.h"
 
 #ifdef __cplusplus
 extern "C" {

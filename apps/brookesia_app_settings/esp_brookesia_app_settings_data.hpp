@@ -9,13 +9,13 @@
 #include "esp_brookesia_app_settings_ui.hpp"
 #include "esp_brookesia_app_settings_manager.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsStylesheetData {
     const char *name;
-    ESP_Brookesia_StyleSize_t screen_size;
+    gui::StyleSize screen_size;
     SettingsUI_Data ui;
     SettingsManagerData manager;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

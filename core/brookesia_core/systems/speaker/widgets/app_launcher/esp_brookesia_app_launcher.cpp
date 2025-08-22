@@ -16,7 +16,7 @@
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
 #include "speaker/private/esp_brookesia_speaker_utils.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 #include "esp_brookesia_app_launcher.hpp"
 
@@ -26,10 +26,10 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
-AppLauncher::AppLauncher(ESP_Brookesia_Core &core, const AppLauncherData &data):
-    _core(core),
+AppLauncher::AppLauncher(base::Context &core, const AppLauncherData &data):
+    _system_context(core),
     _data(data),
     _table_current_page_index(-1),
     _table_page_icon_count_max(0),
@@ -80,9 +80,9 @@ bool AppLauncher::begin(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     // Table
-    lv_obj_add_style(table_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(table_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(table_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(table_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(table_obj.get(), LV_SCROLLBAR_MODE_OFF);
@@ -90,11 +90,11 @@ bool AppLauncher::begin(lv_obj_t *parent)
     lv_obj_clear_flag(table_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(table_obj.get(), onPageTouchEventCallback, LV_EVENT_RELEASED, this);
     // Indicator
-    lv_obj_add_style(indicator_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(indicator_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(indicator_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(indicator_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     // Event
-    ESP_UTILS_CHECK_FALSE_RETURN(_core.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(_system_context.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
                                  "Register data update event callback failed");
 
     /* Save objects */
@@ -128,7 +128,7 @@ bool AppLauncher::del(void)
         return true;
     }
 
-    if (_core.checkCoreInitialized() && !_core.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
+    if (_system_context.checkCoreInitialized() && !_system_context.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
         ESP_UTILS_LOGE("Unregister data update event callback failed");
         ret = false;
     }
@@ -173,7 +173,7 @@ bool AppLauncher::addIcon(uint8_t page_index, const AppLauncherIconInfo_t &info)
     }
     mix_icon.current_page_index = page_index;
 
-    mix_icon.icon = make_shared<AppLauncherIcon>(_core, info, _data.icon);
+    mix_icon.icon = make_shared<AppLauncherIcon>(_system_context, info, _data.icon);
     ESP_UTILS_CHECK_NULL_RETURN(mix_icon.icon, false, "Create icon failed");
 
     ESP_UTILS_CHECK_FALSE_RETURN(mix_icon.icon->begin(_mix_objs[page_index].page_obj.get()), false,
@@ -312,11 +312,11 @@ bool AppLauncher::checkPointInsideMain(lv_point_t &point) const
     return _lv_area_is_point_on(&area, &point, lv_obj_get_style_radius(_main_obj.get(), 0));
 }
 
-bool AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display,
+bool AppLauncher::calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
                                 AppLauncherData &data)
 {
     int parent_h = 0;
-    const ESP_Brookesia_StyleSize_t *parent_size = nullptr;
+    const gui::StyleSize *parent_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -394,17 +394,17 @@ bool AppLauncher::createMixObject(ESP_Brookesia_LvObj_t &table_obj, ESP_Brookesi
     spot_obj = ESP_BROOKESIA_LV_OBJ(obj, indicator_obj.get());
     ESP_UTILS_CHECK_NULL_RETURN(spot_obj, false, "Create spot_obj failed");
 
-    lv_obj_add_style(page_main_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(page_main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_add_flag(page_main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
 
     lv_obj_center(page_obj.get());
-    lv_obj_add_style(page_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(page_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(page_obj.get(), LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(page_obj.get(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(page_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(page_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
 
-    lv_obj_add_style(spot_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(spot_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_style_radius(spot_obj.get(), LV_RADIUS_CIRCLE, 0);
 
     mix_objs.push_back({0, page_main_obj, page_obj, spot_obj});
@@ -663,4 +663,4 @@ void AppLauncher::onPageTouchEventCallback(lv_event_t *event)
     );
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

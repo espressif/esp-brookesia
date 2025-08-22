@@ -20,7 +20,7 @@
 #include "lwip/inet.h"
 #include "app_ap_conf.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 static const char *TAG = "ApProvision";
 
@@ -519,4 +519,4 @@ void ApProvision::ip_event_handler(void *arg, esp_event_base_t base, int32_t id,
     }
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

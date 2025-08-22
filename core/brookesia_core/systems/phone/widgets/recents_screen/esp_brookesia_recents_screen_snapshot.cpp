@@ -13,24 +13,20 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_RecentsScreenSnapshot::ESP_Brookesia_RecentsScreenSnapshot(const ESP_Brookesia_Core &core,
-        const ESP_Brookesia_RecentsScreenSnapshotConf_t &conf,
-        const ESP_Brookesia_RecentsScreenSnapshotData_t &data):
-    _core(core),
-    _conf(conf),
-    _data(data),
-    _origin_y(0),
-    _main_obj(nullptr),
-    _drag_obj(nullptr),
-    _title_obj(nullptr),
-    _title_icon(nullptr),
-    _title_label(nullptr),
-    _snapshot_obj(nullptr),
-    _snapshot_image(nullptr)
+namespace esp_brookesia::systems::phone {
+
+RecentsScreenSnapshot::RecentsScreenSnapshot(
+    base::Context &core,
+    const RecentsScreenSnapshot::Conf &conf,
+    const RecentsScreenSnapshot::Data &data
+)
+    : _system_context(core)
+    , _conf(conf)
+    , _data(data)
 {
 }
 
-ESP_Brookesia_RecentsScreenSnapshot::~ESP_Brookesia_RecentsScreenSnapshot()
+RecentsScreenSnapshot::~RecentsScreenSnapshot()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
     if (!del()) {
@@ -38,7 +34,7 @@ ESP_Brookesia_RecentsScreenSnapshot::~ESP_Brookesia_RecentsScreenSnapshot()
     }
 }
 
-bool ESP_Brookesia_RecentsScreenSnapshot::begin(lv_obj_t *parent)
+bool RecentsScreenSnapshot::begin(lv_obj_t *parent)
 {
     ESP_Brookesia_LvObj_t main_obj = NULL;
     ESP_Brookesia_LvObj_t drag_obj = NULL;
@@ -73,33 +69,33 @@ bool ESP_Brookesia_RecentsScreenSnapshot::begin(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Drag
-    lv_obj_add_style(drag_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(drag_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_center(drag_obj.get());
     lv_obj_clear_flag(drag_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Title
-    lv_obj_add_style(title_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(title_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_align(title_obj.get(), LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_flex_flow(title_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(title_obj.get(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(title_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Title icon
-    lv_obj_add_style(title_icon.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(title_icon.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     // lv_obj_set_size(title_icon.get(), LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_image_set_inner_align(title_icon.get(), LV_IMAGE_ALIGN_CENTER);
     lv_img_set_src(title_icon.get(), _conf.icon_image_resource);
     // Tile label
-    lv_obj_add_style(title_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(title_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_label_set_text_static(title_label.get(), _conf.name);
     // Snapshot
-    lv_obj_add_style(snapshot_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(snapshot_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_align(snapshot_obj.get(), LV_ALIGN_BOTTOM_MID, 0, 0);
     lv_obj_clear_flag(snapshot_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_clip_corner(snapshot_obj.get(), true, 0);
     // Snapshot image
-    lv_obj_add_style(snapshot_image.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(snapshot_image.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_center(snapshot_image.get());
     lv_image_set_inner_align(snapshot_image.get(), LV_IMAGE_ALIGN_CENTER);
     lv_obj_clear_flag(snapshot_image.get(), LV_OBJ_FLAG_SCROLLABLE);
@@ -127,7 +123,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_RecentsScreenSnapshot::del(void)
+bool RecentsScreenSnapshot::del(void)
 {
     ESP_UTILS_LOGD("Delete@0x%p)", this);
 
@@ -146,7 +142,7 @@ bool ESP_Brookesia_RecentsScreenSnapshot::del(void)
     return true;
 }
 
-int ESP_Brookesia_RecentsScreenSnapshot::getCurrentY(void) const
+int RecentsScreenSnapshot::getCurrentY(void) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), 0, "Not initialized");
 
@@ -156,7 +152,7 @@ int ESP_Brookesia_RecentsScreenSnapshot::getCurrentY(void) const
     return lv_obj_get_y(_drag_obj.get());
 }
 
-bool ESP_Brookesia_RecentsScreenSnapshot::updateByNewData(void)
+bool RecentsScreenSnapshot::updateByNewData(void)
 {
     int app_img_zoom = 0;
     float h_factor = 0;
@@ -209,3 +205,5 @@ bool ESP_Brookesia_RecentsScreenSnapshot::updateByNewData(void)
 
     return true;
 }
+
+} // namespace esp_brookesia::systems::phone

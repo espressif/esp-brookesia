@@ -8,9 +8,9 @@
 #include "wlan_softap.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 #define CELL_ELEMENT_CONF_QRCODE_IMAGE() \
     { \
@@ -30,12 +30,11 @@ namespace esp_brookesia::speaker_apps {
     }
 
 SettingsUI_ScreenWlanSoftAP::SettingsUI_ScreenWlanSoftAP(
-    speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    App &ui_app, const SettingsUI_ScreenBaseData &base_data,
     const SettingsUI_ScreenWlanSoftAPData &main_data
 ):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
-    data(main_data),
-    _cell_container_map(CELL_CONTAINER_MAP())
+    data(main_data)
 {
 }
 
@@ -56,6 +55,7 @@ bool SettingsUI_ScreenWlanSoftAP::begin()
         ESP_UTILS_CHECK_FALSE_EXIT(del(), "Delete failed");
     });
 
+    _cell_container_map = CELL_CONTAINER_MAP();
     ESP_UTILS_CHECK_FALSE_RETURN(SettingsUI_ScreenBase::begin("SoftAP", "WLAN"), false, "Screen base begin failed");
     ESP_UTILS_CHECK_FALSE_RETURN(processCellContainerMapInit(), false, "Process cell container map init failed");
 
@@ -94,6 +94,8 @@ bool SettingsUI_ScreenWlanSoftAP::del()
         ESP_UTILS_LOGE("Screen base delete failed");
     }
 
+    _cell_container_map.clear();
+
     return ret;
 }
 
@@ -123,30 +125,30 @@ bool SettingsUI_ScreenWlanSoftAP::processDataUpdate()
 }
 
 bool SettingsUI_ScreenWlanSoftAP::calibrateData(
-    const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+    const gui::StyleSize &parent_size, const systems::base::Display &display,
     SettingsUI_ScreenWlanSoftAPData &data
 )
 {
     ESP_UTILS_LOG_TRACE_GUARD();
 
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     // QR code image
     compare_size = &parent_size;
     ESP_UTILS_CHECK_FALSE_RETURN(
-        home.calibrateCoreObjectSize(*compare_size, data.qrcode_image.main_size), false,
+        display.calibrateCoreObjectSize(*compare_size, data.qrcode_image.main_size), false,
         "Invalid QR code image size"
     );
 
     // Info label
     compare_size = &parent_size;
     ESP_UTILS_CHECK_FALSE_RETURN(
-        home.calibrateCoreObjectSize(*compare_size, data.info_label.size), false,
+        display.calibrateCoreObjectSize(*compare_size, data.info_label.size), false,
         "Invalid info label size"
     );
     compare_size = &data.info_label.size;
     ESP_UTILS_CHECK_FALSE_RETURN(
-        home.calibrateCoreFont(compare_size, data.info_label.text_font), false,
+        display.calibrateCoreFont(compare_size, data.info_label.text_font), false,
         "Invalid info label text font"
     );
 
@@ -190,4 +192,4 @@ bool SettingsUI_ScreenWlanSoftAP::processCellContainerMapUpdate()
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

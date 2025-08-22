@@ -12,7 +12,7 @@
 #include "style/esp_brookesia_gui_style.hpp"
 #include "esp_brookesia_keyboard.hpp"
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 #define KEYBOARD_NUM_MODE_KEYBOARD_BTN_ID       3
 #define KEYBOARD_NUM_MODE_OK_BTN_ID             7
@@ -89,8 +89,8 @@ static const std::vector<std::string_view> keyboard_special_str = {
     LV_KB_SPACE_STR, LV_KB_UPPER_STR, LV_KB_LOWER_STR, LV_KB_NUMBER_STR, LV_KB_SPEC_STR,
 };
 
-Keyboard::Keyboard(ESP_Brookesia_Core &core, const KeyboardData &data):
-    _core(core),
+Keyboard::Keyboard(base::Context &core, const KeyboardData &data):
+    _system_context(core),
     _data(data)
 {
 }
@@ -106,7 +106,7 @@ bool Keyboard::begin(const gui::LvObject *parent)
     ESP_UTILS_CHECK_FALSE_RETURN(!isBegun(), false, "Already begun");
     ESP_UTILS_LOGD("Param: parent(0x%p)", parent);
 
-    auto style = _core.getCoreDisplay().getCoreContainerStyle();
+    auto style = _system_context.getDisplay().getCoreContainerStyle();
 
     _main_object = std::make_unique<gui::LvContainer>(parent);
     ESP_UTILS_CHECK_NULL_RETURN(_main_object, false, "Failed to create main object");
@@ -427,7 +427,7 @@ bool Keyboard::getTextEdit(lv_obj_t *&text_edit) const
 }
 
 bool Keyboard::calibrateData(
-    const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display, KeyboardData &data
+    const gui::StyleSize &screen_size, const base::Display &display, KeyboardData &data
 )
 {
     ESP_UTILS_LOG_TRACE_GUARD();
@@ -477,4 +477,4 @@ bool Keyboard::updateByNewData(void)
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

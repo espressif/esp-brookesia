@@ -6,9 +6,9 @@
 #include "style/esp_brookesia_gui_style.hpp"
 #include "widgets/keyboard/esp_brookesia_keyboard.hpp"
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
-constexpr KeyboardData ESP_BROOKESIA_SPEAKER_360_360_DARK_KEYBOARD_DATA = {
+constexpr KeyboardData STYLESHEET_360_360_DARK_KEYBOARD_DATA = {
     .main{
         .size = gui::StyleSize::RECT_PERCENT(100, 60),
         .align{
@@ -41,4 +41,4 @@ constexpr KeyboardData ESP_BROOKESIA_SPEAKER_360_360_DARK_KEYBOARD_DATA = {
     },
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

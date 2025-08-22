@@ -35,12 +35,6 @@ static const uint32_t touch_channel_list[] = { // define touch channels
 
 // Touch button handles for multi-tap gestures
 static button_handle_t touch_btn_handle[2] = {NULL, NULL};
-static touch_slider_handle_t touch_slider_handle = NULL;
-
-// Touch gesture coordination variables (for shared channels 6&7)
-static bool is_sliding_detected = false;           // True when sliding is detected
-static int current_volume = 50;  // Default volume (0-100)
-
 
 static esp_err_t init_touch_button(void)
 {
@@ -84,6 +78,10 @@ static esp_err_t init_touch_button(void)
 
 
 #if TOUCH_SLIDER_ENABLED
+static int current_volume = 50;  // Default volume (0-100)
+// Touch gesture coordination variables (for shared channels 6&7)
+static bool is_sliding_detected = false;           // True when sliding is detected
+static touch_slider_handle_t touch_slider_handle = NULL;
 
 static void touch_slider_callback(touch_slider_handle_t handle, touch_slider_event_t event, int32_t data, void *cb_arg)
 {

@@ -9,6 +9,6 @@ tags:
 
 dependencies:
   espressif/esp-sr:
-    version: "2.1.1"
+    version: "^2.1.1"
   espressif/gmf_core:
     version: "^0.6"

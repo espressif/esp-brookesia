@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,43 +7,57 @@
 
 #include <vector>
 #include <map>
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 
-// *INDENT-OFF*
+namespace esp_brookesia::systems::phone {
 
-#define ESP_BROOKESIA_STATUS_BAR_DATA_ICON_IMAGE_NUM_MAX       (6)
-
-typedef struct {
-    uint8_t image_num;
-    ESP_Brookesia_StyleImage_t images[ESP_BROOKESIA_STATUS_BAR_DATA_ICON_IMAGE_NUM_MAX];
-} ESP_Brookesia_StatusBarIconImage_t;
-
-typedef struct {
-    ESP_Brookesia_StyleSize_t size;
-    ESP_Brookesia_StatusBarIconImage_t icon;
-} ESP_Brookesia_StatusBarIconData_t;
-
-class ESP_Brookesia_StatusBarIcon {
+class StatusBarIcon {
 public:
-    ESP_Brookesia_StatusBarIcon(const ESP_Brookesia_StatusBarIconData_t &data);
-    ~ESP_Brookesia_StatusBarIcon();
+    static constexpr int IMAGE_NUM_MAX = 6;
 
-    bool begin(const ESP_Brookesia_Core &core, lv_obj_t *parent);
+    struct Image {
+        uint8_t image_num;
+        gui::StyleImage images[IMAGE_NUM_MAX];
+    };
+
+    struct Data {
+        gui::StyleSize size;
+        Image icon;
+    };
+
+    StatusBarIcon(const StatusBarIcon &) = delete;
+    StatusBarIcon(StatusBarIcon &&) = delete;
+    StatusBarIcon &operator=(const StatusBarIcon &) = delete;
+    StatusBarIcon &operator=(StatusBarIcon &&) = delete;
+
+    StatusBarIcon(const Data &data);
+    ~StatusBarIcon();
+
+    bool begin(base::Context &core, lv_obj_t *parent);
     bool del(void);
     bool setCurrentState(int state);
 
-    bool checkInitialized(void) const { return (_main_obj != nullptr); }
+    bool checkInitialized(void) const
+    {
+        return (_main_obj != nullptr);
+    }
 
     bool updateByNewData(void);
 
 private:
-    const ESP_Brookesia_StatusBarIconData_t &_data;
+    const Data &_data;
 
-    bool _is_out_of_parent;
-    int _current_state;
+    bool _is_out_of_parent = false;
+    int _current_state = 0;
     ESP_Brookesia_LvObj_t _main_obj;
     std::vector<ESP_Brookesia_LvObj_t> _image_objs;
 };
 
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::phone
+
+using ESP_Brookesia_StatusBarIconData_t [[deprecated("Use `esp_brookesia::systems::phone::StatusBarIcon::Data` instead")]] =
+    esp_brookesia::systems::phone::StatusBarIcon::Data;
+using ESP_Brookesia_StatusBarIcon [[deprecated("Use `esp_brookesia::systems::phone::StatusBarIcon` instead")]] =
+    esp_brookesia::systems::phone::StatusBarIcon;
+#define ESP_BROOKESIA_STATUS_BAR_DATA_ICON_IMAGE_NUM_MAX ESP_Brookesia_StatusBarIcon::IMAGE_NUM_MAX

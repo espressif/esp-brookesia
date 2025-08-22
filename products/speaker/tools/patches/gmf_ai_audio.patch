@@ -1,0 +1,3723 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 786374c..008edcc 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -1,5 +1,24 @@
+ # Changelog
+ 
++## *Unreleased*
++
++### Features
++
++- Added `esp_gmf_afe_set_event_cb` API to register AFE element event callbacks
++- Replaced the interface for decoder reconfiguration
++- Introduced `esp_gmf_wn` element to support wake word detection
++- Corrected return value validation for *acq_write* and *acq_release* callback function implementations
++- Added `esp_gmf_afe_keep_awake` API to enable/disable the keep awake feature
++
++### Bug Fixes
++
++- Fixed an issue where the output attribute of the `esp_gmf_afe` element was not set correctly
++- Fixed a build error occurring when SPIRAM is disabled
++- Integrated gmf_app_utils package for peripheral and system management
++- Migrated common utilities to gmf_app_utils package
++- Standardize TAG identifier format across all elements with `ai` prefix
++- Fixed examples TAGs issue because of updating TAGs gmf_audio gmf_io 
++
+ ## v0.6.2
+ 
+ ### Features
+@@ -16,4 +35,4 @@
+ 
+ ### Features
+ 
+-- Initial version of GMF AI Audio Elements
+\ No newline at end of file
++- Initial version of GMF AI Audio Elements
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 538c36a..a457585 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,5 +1,12 @@
++set(srcs "./src/esp_gmf_wn.c")
++
++if((${IDF_TARGET} STREQUAL "esp32s3") OR (${IDF_TARGET} STREQUAL "esp32p4") OR (${IDF_TARGET} STREQUAL "esp32"))
++    list(APPEND srcs "./src/esp_gmf_afe_manager.c" "./src/esp_gmf_afe.c" "./src/esp_gmf_aec.c")
++endif()
++
+ idf_component_register(
+-    SRC_DIRS "./src"
++    SRCS "${srcs}"
+     INCLUDE_DIRS "./include"
++    PRIV_INCLUDE_DIRS "./private_include"
+     REQUIRES esp-sr esp_timer
+ )
+diff --git a/README.md b/README.md
+index 215821e..83d0d1f 100644
+--- a/README.md
++++ b/README.md
+@@ -4,9 +4,16 @@
+ 
+ `GMF AI Audio` is an artificial intelligence audio processing module that provides users with convenient and easy-to-use intelligent audio processing algorithms at the [GMF](https://github.com/espressif/esp-gmf) framework, such as voice wake-up, command word recognition, and echo cancellation. Currently, it offers the following modules based on `esp-sr`:
+ 
+-* [esp_gmf_afe_manager](./src/esp_gmf_afe_manager.c): `audio front end(afe)` manager
+-* [esp_gmf_aec](./src/esp_gmf_aec.c): Echo Cancellation
+-* [esp_gmf_afe](./src/esp_gmf_afe.c): An easy-to-use interface based on the `audio front end (afe)` from `esp-sr`, providing functionalities such as voice wake-up, command word recognition, and speech detection
++- [esp_gmf_afe_manager](./src/esp_gmf_afe_manager.c): `audio front end(afe)` manager
++- [esp_gmf_aec](./src/esp_gmf_aec.c): Echo Cancellation
++- [esp_gmf_wn](./src/esp_gmf_wn.c): A standalone wake word detection module that can be used independently
++- [esp_gmf_afe](./src/esp_gmf_afe.c): An easy-to-use interface based on the `audio front end (afe)` from `esp-sr`, providing functionalities such as voice wake-up, command word recognition, and speech detection
++
++| Name | Tag | Function | Method | Input Channel Number | Output Channel Number | Model Partition Dependency | Input Frame Length | Notes |
++|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----|
++| esp_gmf_afe | ai_afe | Audio front-end processing: Wake word detection, command word recognition, voice enhancement, echo cancellation, noise suppression, automatic gain control | `start_vcmd_det` | 1-4 | 1 | Yes | 256(sample) | Currently supports up to 2 microphone channels + 1 speaker reference signal, remaining channel selection marked as N, requires following voice command detection procedure |
++| esp_gmf_aec | ai_aec | Echo cancellation: Eliminates echo interference in audio, improves voice quality | None | 1-4 | 1 | No | 256(sample) | Input channels can be set to multiple microphones, uses first microphone channel and reference channel for calculation, must include reference signal |
++| esp_gmf_wn | ai_wn | Independent wake word detection: Lightweight wake word detection, independent of AFE, low resource consumption | None | 1-4 | 1 | Yes | 256(sample) | Supports up to 3 microphone channels, microphone channel count in input format must match working mode |
+ 
+ ## AFE Manager `esp_gmf_afe_manager`
+ 
+@@ -53,7 +60,27 @@
+ 
+ ### Technical Specifications
+ 
+-- Supported Hardware: `ESP32`, `ESP32-S3`, `ESP32-C5`, and `ESP32-P4`
++- Supported Hardware: `ESP32`, `ESP32-S3`, and `ESP32-P4`
++- Input Format
++  - Sampling Rate: 8 kHz and 16 kHz
++  - Bit Width: 16-bit PCM
++- Channel Configuration: String identifiers (e.g., `MMNR`)
++  - `M`: Microphone Channel
++  - `R`: Reference Signal Channel
++  - `N`: Invalid Signal
++- Output Format: 16-bit single-channel PCM
++
++## Wake Word Detection `esp_gmf_wn`
++
++### Features
++
++- Runs independently without AFE dependency, low resource usage
++- Supports multi-channel input and single-channel output
++- Notifies wake word detection results via callback function
++
++### Technical Specifications
++
++- Supported Hardware: `ESP32`, `ESP32-S3`, `ESP32-C3`, `ESP32-C5` and `ESP32-P4`
+ - Input Format
+   - Sampling Rate: 16 kHz
+   - Bit Width: 16-bit PCM
+@@ -165,7 +192,7 @@ The following illustrates state transitions when features are enabled. The `/` c
+ 
+ - **Enable Both Wake Word Detection and VAD**
+ 
+-  This scenario combines command word detection with voice activity detection to avoid frequent voice activity events outside the wake word interval
++  This scenario combines wake word detection with voice activity detection to avoid frequent voice activity events outside the wake word interval
+ 
+   Modify the configuration in the example [wwe](./examples/wwe/main/main.c) to use this scenario
+ 
+@@ -193,8 +220,8 @@ The following illustrates state transitions when features are enabled. The `/` c
+ 
+ Users need to decide when to start command word detection. A typical use case is to enable detection after the state machine pushes a (WAKEUP_START) event and determine the next operation based on the detected command word index in the callback function
+ 
+-* Command word detection is independent of the wake word state machine
+-* Command word detection supports continuous detection until timeout
++- Command word detection is independent of the wake word state machine
++- Command word detection supports continuous detection until timeout
+ 
+ ## Usage
+ 
+diff --git a/README_CN.md b/README_CN.md
+index 19edd5d..522ef9c 100644
+--- a/README_CN.md
++++ b/README_CN.md
+@@ -4,9 +4,16 @@
+ 
+ `GMF AI Audio` 是一个人工智能语音处理模块，它在 [GMF](https://github.com/espressif/esp-gmf) 层面为用户提供方便、易用的语音唤醒、命令词识别和回声消除等常用智能语音处理算法。目前基于 `esp-sr` 提供以下模块：
+ 
+-* [esp_gmf_afe_manager](./src/esp_gmf_afe_manager.c): `audio front end(afe)` 管理器
+-* [esp_gmf_aec](./src/esp_gmf_aec.c): 回声消除
+-* [esp_gmf_afe](./src/esp_gmf_afe.c): 基于 `esp-sr` 中 `audio front end (afe)` 实现的易用接口，提供了语音唤醒，命令词识别，人声检测等语音识别的功能
++- [esp_gmf_afe_manager](./src/esp_gmf_afe_manager.c): `audio front end(afe)` 管理器
++- [esp_gmf_aec](./src/esp_gmf_aec.c): 回声消除
++- [esp_gmf_wn](./src/esp_gmf_wn.c): 独立的唤醒词检测模块，不依赖AFE
++- [esp_gmf_afe](./src/esp_gmf_afe.c): 基于 `esp-sr` 中 `audio front end (afe)` 实现的易用接口，提供了语音唤醒，命令词识别，人声检测等语音识别的功能
++
++| 名称 | 标签 | 功能 | 函数方法 | 输入通道 | 输出通道 | 依赖模型数据分区 | 输入帧长 | 备注 |
++|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----:|:----|
++| esp_gmf_afe | ai_afe | 语音前处理：唤醒词检测、命令词识别、人声增强、回声消除、降噪、自动增益控制 | `start_vcmd_det` | 1-4 | 1 | 是 | 256(sample) | 目前最多支持2通道麦克风+1个扬声器的回采信号，剩余通道选择记为N，同时需要按照命令词检测步骤操作 |
++| esp_gmf_aec | ai_aec | 回声消除：消除音频中的回声干扰，提升语音质量 | 无 | 1-4 | 1 | 否 | 256(sample) | 输入通道可以设置多个麦克风，采用第一个麦克风通道和回采通道进行计算，且必须包含回采信号 |
++| esp_gmf_wn | ai_wn | 独立唤醒词检测：轻量级唤醒词检测，不依赖AFE，资源占用小 | 无 | 1-4 | 1 | 是 | 256(sample) | 最高支持3通道麦克风，输入格式中的麦克风通道数需要与工作模式对应 |
+ 
+ ## AFE 管理器 `esp_gmf_afe_manager`
+ 
+@@ -53,7 +60,7 @@
+ 
+ ### 技术规格
+ 
+-- 支持硬件：`ESP32`、`ESP32-S3`、`ESP32-C5` 和 `ESP32-P4`
++- 支持硬件：`ESP32`、`ESP32-S3` 和 `ESP32-P4`
+ - 输入格式
+   - 采样率：16 kHz
+   - 位宽：16-bit PCM
+@@ -63,6 +70,26 @@
+   - `N`：无效信号
+ - 输出格式：16-bit 单通道 PCM
+ 
++## 唤醒词检测 `esp_gmf_wn`
++
++### 功能
++
++- 独立运行，不依赖AFE，资源占用小
++- 支持多通道输入，单通道输出
++- 通过回调函数通知唤醒词检测结果
++
++### 技术规格
++
++- 支持硬件：`ESP32`、`ESP32-S3`、`ESP32-C3`、`ESP32-C5` 和 `ESP32-P4`
++- 输入格式
++  - 采样率：8 kHz, 16 kHz
++  - 位宽：16-bit PCM
++- 通道配置：字符串标识（如 `MMNR`）
++  - `M`：麦克风通道
++  - `R`：回采信号通道
++  - `N`：无效信号
++- 输出格式：16-bit 单通道 PCM
++
+ ## 语音识别 `esp_gmf_afe`
+ 
+ ### 功能
+@@ -165,7 +192,7 @@
+ 
+ - **使能唤醒和VAD**
+ 
+-  该场景结合命令词与人声检测，避免在唤醒间隔之外频繁触发人声检测事件
++  该场景结合唤醒词与人声检测，避免在唤醒间隔之外频繁触发人声检测事件
+ 
+   修改示例 [wwe](./examples/wwe/main/main.c) 中的配置，从而使用该场景
+ 
+@@ -193,8 +220,8 @@
+ 
+ 用户需决定何时开始检测命令词，如典型的使用场景：在状态机推送（WAKEUP_START）事件之后，开启检测，并在回调函数中根据检测到的命令词序号决定下一步操作
+ 
+-* 命令词检测与唤醒状态机独立
+-* 命令词支持连续检测，直到超时
++- 命令词检测与唤醒状态机独立
++- 命令词支持连续检测，直到超时
+ 
+ ## 示例
+ 
+diff --git a/examples/aec_rec/CMakeLists.txt b/examples/aec_rec/CMakeLists.txt
+index 792e95a..23233bb 100644
+--- a/examples/aec_rec/CMakeLists.txt
++++ b/examples/aec_rec/CMakeLists.txt
+@@ -2,8 +2,6 @@
+ # CMakeLists in this exact order for cmake to work correctly
+ cmake_minimum_required(VERSION 3.5)
+ 
+-set(EXTRA_COMPONENT_DIRS ${EXTRA_COMPONENT_DIRS} "../common")
+-
+ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+ 
+ project(aec_rec)
+diff --git a/examples/aec_rec/README.md b/examples/aec_rec/README.md
+index 22163c0..8a629a3 100644
+--- a/examples/aec_rec/README.md
++++ b/examples/aec_rec/README.md
+@@ -63,17 +63,6 @@ By configuring these parameters, you can adjust the performance and resource usa
+ 
+ This example supports IDF release/v5.3 and later branches
+ 
+-### Configuration
+-
+-This example supports the ESP32-LyraT-Mini and ESP32s3_Korvo_2 boards. Other boards require modifications to the following files in the [gmf_setup](../common/gmf_setup) folder:
+-
+-| Configuration | Related Files | Related Functions |
+-|:-------------:|:-------------:|:-----------------:|
+-| I2S Port and I2S Format | `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_create_i2s` |
+-| I2C Port | `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `esp_gmf_setup_periph_i2c` |
+-| Codec Type and Format | `esp_gmf_setup_peripheral.c` | `setup_periph_new_play_codec` |
+-| PA Port | `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_new_play_codec` |
+-
+ ### Build and Flash
+ 
+ Before compiling this example, ensure that the ESP-IDF environment is properly configured. If it is already set up, you can proceed to the next configuration step. If not, run the following script in the root directory of ESP-IDF to set up the build environment. For detailed steps on configuring and using ESP-IDF, please refer to the [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/index.html)
+@@ -96,6 +85,12 @@ cd gmf_ai_audio/examples/aec_rec
+ ```
+ idf.py set-target esp32s3
+ ```
++- Select the compilation board, taking ESP32-S3-Korvo V2 as an example:
++
++```
++idf.py menuconfig
++In 'menuconfig', select 'GMF APP Configuration' -> 'Audio Board' -> 'ESP32-S3-Korvo V2', and then save and exit
++```
+ 
+ - Build the example:
+ 
+@@ -153,36 +148,36 @@ I (1112) ES7210: Enable TDM mode
+ I (1118) ES7210: Unmuted
+ I (1118) Adev_Codec: Open codec device OK
+ I (1123) ESP_GMF_POOL: Registered items on pool:0x3c23ddf8, app_main-142
+-I (1129) ESP_GMF_POOL: IO, Item:0x3c23decc, H:0x3c23de0c, TAG:http
+-I (1135) ESP_GMF_POOL: IO, Item:0x3c23df9c, H:0x3c23dedc, TAG:http
+-I (1142) ESP_GMF_POOL: IO, Item:0x3c23e038, H:0x3c23dfac, TAG:file
+-I (1149) ESP_GMF_POOL: IO, Item:0x3c23e0d4, H:0x3c23e048, TAG:file
+-I (1156) ESP_GMF_POOL: IO, Item:0x3c23e204, H:0x3c23e170, TAG:embed_flash
+-I (1163) ESP_GMF_POOL: IO, Item:0x3c23ede0, H:0x3c23ed50, TAG:codec_dev_tx
+-I (1171) ESP_GMF_POOL: IO, Item:0x3c23ee80, H:0x3c23edf0, TAG:codec_dev_rx
++I (1129) ESP_GMF_POOL: IO, Item:0x3c23decc, H:0x3c23de0c, TAG:io_http
++I (1135) ESP_GMF_POOL: IO, Item:0x3c23df9c, H:0x3c23dedc, TAG:io_http
++I (1142) ESP_GMF_POOL: IO, Item:0x3c23e038, H:0x3c23dfac, TAG:io_file
++I (1149) ESP_GMF_POOL: IO, Item:0x3c23e0d4, H:0x3c23e048, TAG:io_file
++I (1156) ESP_GMF_POOL: IO, Item:0x3c23e204, H:0x3c23e170, TAG:io_embed_flash
++I (1163) ESP_GMF_POOL: IO, Item:0x3c23ede0, H:0x3c23ed50, TAG:io_codec_dev
++I (1171) ESP_GMF_POOL: IO, Item:0x3c23ee80, H:0x3c23edf0, TAG:io_codec_dev
+ I (1178) ESP_GMF_POOL: EL, Item:0x3c23e160, H:0x3c23e0e4, TAG:copier
+-I (1185) ESP_GMF_POOL: EL, Item:0x3c23e2e8, H:0x3c23e214, TAG:encoder
+-I (1193) ESP_GMF_POOL: EL, Item:0x3c23e3e8, H:0x3c23e2f8, TAG:aud_simp_dec
+-I (1200) ESP_GMF_POOL: EL, Item:0x3c23e4bc, H:0x3c23e3f8, TAG:alc
+-I (1207) ESP_GMF_POOL: EL, Item:0x3c23e570, H:0x3c23e4cc, TAG:eq
+-I (1214) ESP_GMF_POOL: EL, Item:0x3c23e5a4, H:0x3c23e6d8, TAG:ch_cvt
+-I (1221) ESP_GMF_POOL: EL, Item:0x3c23e5d4, H:0x3c23e774, TAG:bit_cvt
+-I (1228) ESP_GMF_POOL: EL, Item:0x3c23e8ac, H:0x3c23e810, TAG:rate_cvt
+-I (1235) ESP_GMF_POOL: EL, Item:0x3c23e988, H:0x3c23e8bc, TAG:fade
+-I (1242) ESP_GMF_POOL: EL, Item:0x3c23ea84, H:0x3c23e998, TAG:sonic
+-I (1249) ESP_GMF_POOL: EL, Item:0x3c23eb64, H:0x3c23ea94, TAG:deinterleave
+-I (1256) ESP_GMF_POOL: EL, Item:0x3c23ec40, H:0x3c23eb74, TAG:interleave
+-I (1264) ESP_GMF_POOL: EL, Item:0x3c23ed40, H:0x3c23ec50, TAG:mixer
+-I (1271) ESP_GMF_POOL: EL, Item:0x3c23ef60, H:0x3c23ee90, TAG:aec
+-W (1278) ESP_GMF_PIPELINE: There is no thread for add jobs, pipe:0x3c23ef70, tsk:0x0, [el:rate_cvt-0x3c23efa8]
++I (1185) ESP_GMF_POOL: EL, Item:0x3c23e2e8, H:0x3c23e214, TAG:aud_enc
++I (1193) ESP_GMF_POOL: EL, Item:0x3c23e3e8, H:0x3c23e2f8, TAG:aud_dec
++I (1200) ESP_GMF_POOL: EL, Item:0x3c23e4bc, H:0x3c23e3f8, TAG:aud_alc
++I (1207) ESP_GMF_POOL: EL, Item:0x3c23e570, H:0x3c23e4cc, TAG:aud_eq
++I (1214) ESP_GMF_POOL: EL, Item:0x3c23e5a4, H:0x3c23e6d8, TAG:aud_ch_cvt
++I (1221) ESP_GMF_POOL: EL, Item:0x3c23e5d4, H:0x3c23e774, TAG:aud_bit_cvt
++I (1228) ESP_GMF_POOL: EL, Item:0x3c23e8ac, H:0x3c23e810, TAG:aud_rate_cvt
++I (1235) ESP_GMF_POOL: EL, Item:0x3c23e988, H:0x3c23e8bc, TAG:aud_fade
++I (1242) ESP_GMF_POOL: EL, Item:0x3c23ea84, H:0x3c23e998, TAG:aud_sonic
++I (1249) ESP_GMF_POOL: EL, Item:0x3c23eb64, H:0x3c23ea94, TAG:aud_deintlv
++I (1256) ESP_GMF_POOL: EL, Item:0x3c23ec40, H:0x3c23eb74, TAG:aud_intlv
++I (1264) ESP_GMF_POOL: EL, Item:0x3c23ed40, H:0x3c23ec50, TAG:aud_mixer
++I (1271) ESP_GMF_POOL: EL, Item:0x3c23ef60, H:0x3c23ee90, TAG:ai_aec
++W (1278) ESP_GMF_PIPELINE: There is no thread for add jobs, pipe:0x3c23ef70, tsk:0x0, [el:aud_rate_cvt-0x3c23efa8]
+ I (1288) ESP_GMF_THREAD: The TSK_0x3fcb5404 created on internal memory
+ I (1288) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcb5404-0x3fcb5404, wk:0x0, run:0]
+ I (1304) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:NULL-0x3c23ef70, type:8192, sub:ESP_GMF_EVENT_STATE_OPENING, payload:0x0, size:0,0x0
+-I (1328) ESP_GMF_PORT: ACQ IN, new self payload:0x3c23f35c, port:0x3c23f2a8, el:0x3c23efa8-rate_cvt
+-I (1329) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c23fe68, p:0x3c23f1a8, el:0x3c23efa8-rate_cvt
++I (1328) ESP_GMF_PORT: ACQ IN, new self payload:0x3c23f35c, port:0x3c23f2a8, el:0x3c23efa8-aud_rate_cvt
++I (1329) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c23fe68, p:0x3c23f1a8, el:0x3c23efa8-aud_rate_cvt
+ I (1358) GMF_AEC: GMF AEC open, frame_len: 2048, nch 4, chunksize 256
+-I (1359) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aec-0x3c23f0c4, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fcb6790, size:12,0x0
+-I (1371) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aec-0x3c23f0c4, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
++I (1359) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:ai_aec-0x3c23f0c4, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fcb6790, size:12,0x0
++I (1371) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:ai_aec-0x3c23f0c4, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
+ I (1383) ESP_GMF_TASK: One times job is complete, del[wk:0x3c23f3dc,ctx:0x3c23f0c4, label:aec_open]
+ I (1401) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcca2f8-0x3fcca2f8, wk:0x0, run:0]
+ I (1401) ESP_GMF_THREAD: The TSK_0x3fcca2f8 created on internal memory
+@@ -191,18 +186,18 @@ I (1433) ESP_GMF_FILE: Open, dir:1, uri:/sdcard/test.mp3
+ I (1446) ESP_GMF_FILE: File size: 2994349 byte, file position: 0
+ I (1447) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:NULL-0x3c25230c, type:8192
+ I (1460) ESP_GMF_TASK: One times job is complete, del[wk:0x3c252ac0,ctx:0x3c252344, label:aud_simp_dec_open]
+-I (1469) ESP_GMF_PORT: ACQ IN, new self payload:0x3c252ac0, port:0x3c252964, el:0x3c252344-aud_simp_dec
+-I (1482) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c252d64, p:0x3c25252c, el:0x3c252344-aud_simp_dec
++I (1469) ESP_GMF_PORT: ACQ IN, new self payload:0x3c252ac0, port:0x3c252964, el:0x3c252344-aud_dec
++I (1482) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c252d64, p:0x3c25252c, el:0x3c252344-aud_dec
+ W (1491) ESP_GMF_ASMP_DEC: Not enough memory for out, need:4608, old: 1024, new: 4608
+ I (1505) ESP_GMF_ASMP_DEC: NOTIFY Info, rate: 0, bits: 0, ch: 0 --> rate: 44100, bits: 16, ch: 2
+ Audio >
+ I (1589) ESP_GMF_TASK: One times job is complete, del[wk:0x3c253fa4,ctx:0x3c252420, label:rate_cvt_open]
+-I (1590) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c253fa4, p:0x3c2526c4, el:0x3c252420-rate_cvt
++I (1590) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c253fa4, p:0x3c2526c4, el:0x3c252420-aud_rate_cvt
+ I (1603) ESP_GMF_TASK: One times job is complete, del[wk:0x3c253fec,ctx:0x3c2525ac, label:ch_cvt_open]
+-I (1615) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:bit_cvt-0x3c252744, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccb680, size:12,0x0
+-I (1627) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:bit_cvt-0x3c252744, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
++I (1615) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aud_bit_cvt-0x3c252744, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccb680, size:12,0x0
++I (1627) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aud_bit_cvt-0x3c252744, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
+ I (1639) ESP_GMF_TASK: One times job is complete, del[wk:0x3c255608,ctx:0x3c252744, label:bit_cvt_open]
+-I (1651) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c255608, port:0x3c252a34, el:0x3c252744-bit_cvt
++I (1651) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c255608, port:0x3c252a34, el:0x3c252744-aud_bit_cvt
+ I (21462) ESP_GMF_CODEC_DEV: CLose, 0x3c23f228, pos = 7716864/0
+ I (21464) ESP_GMF_TASK: One times job is complete, del[wk:0x3c23f410,ctx:0x3c23efa8, label:rate_cvt_close]
+ I (21478) ESP_GMF_TASK: One times job is complete, del[wk:0x3c253fec,ctx:0x3c23f0c4, label:aec_close]
+@@ -245,5 +240,5 @@ I (25314) main_task: Returned from app_main()
+ 
+ Since the AEC algorithm requires significant CPU resources, consider the following steps if issues arise:
+ 
+-- Identify CPU-intensive elements in the pipeline, such as `gmf_aec`, `encoder`, or `file IO`
++- Identify CPU-intensive elements in the pipeline, such as `ai_aec`, `aud_enc`, or `io_file`
+ - Split the problematic pipeline into two separate pipelines, run them on different CPU cores, and connect them using `gmf port`
+diff --git a/examples/aec_rec/README_CN.md b/examples/aec_rec/README_CN.md
+index e99231d..c7438f4 100644
+--- a/examples/aec_rec/README_CN.md
++++ b/examples/aec_rec/README_CN.md
+@@ -63,17 +63,6 @@ esp_gmf_aec_init(&gmf_aec_cfg, &gmf_aec_handle);
+ 
+ 本例程支持 IDF release/v5.3 及以后的分支
+ 
+-### 配置
+-
+-本例程支持 ESP32-LyraT-Mini, ESP32s3_Korvo_2 板子。其他板子支持需要修改[ gmf_setup ](../common/gmf_setup) 文件夹中的以下内容：
+-
+-| 配置内容 | 相关文件 |  相关函数   |
+-|:----:| :-----: | :----: |
+-|I2S 端口和 I2S 格式| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_create_i2s` |
+-|I2C 端口| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `esp_gmf_setup_periph_i2c` |
+-|Codec 类型和格式|`esp_gmf_setup_peripheral.c` |`setup_periph_new_play_codec`  |
+-|PA 端口| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_new_play_codec` |
+-
+ ### 编译和下载
+ 
+ 编译本例程前需要先确保已配置 ESP-IDF 的环境，如果已配置可跳到下一项配置，如果未配置需要先在 ESP-IDF 根目录运行下面脚本设置编译环境，有关配置和使用 ESP-IDF 完整步骤，请参阅 [《ESP-IDF 编程指南》](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32s3/index.html)
+@@ -96,6 +85,12 @@ cd gmf_ai_audio/examples/aec_rec
+ ```
+ idf.py set-target esp32s3
+ ```
++- 选择编译目标板，以 ESP32-S3-Korvo V2 为例：
++
++```
++idf.py menuconfig
++在 `menuconfig` 中选择 `GMF APP Configuration` -> `Audio Board` -> `ESP32-S3-Korvo V2`，然后保存退出
++```
+ 
+ - 编译例子程序
+ 
+@@ -153,56 +148,56 @@ I (1112) ES7210: Enable TDM mode
+ I (1118) ES7210: Unmuted
+ I (1118) Adev_Codec: Open codec device OK
+ I (1123) ESP_GMF_POOL: Registered items on pool:0x3c23ddf8, app_main-142
+-I (1129) ESP_GMF_POOL: IO, Item:0x3c23decc, H:0x3c23de0c, TAG:http
+-I (1135) ESP_GMF_POOL: IO, Item:0x3c23df9c, H:0x3c23dedc, TAG:http
+-I (1142) ESP_GMF_POOL: IO, Item:0x3c23e038, H:0x3c23dfac, TAG:file
+-I (1149) ESP_GMF_POOL: IO, Item:0x3c23e0d4, H:0x3c23e048, TAG:file
+-I (1156) ESP_GMF_POOL: IO, Item:0x3c23e204, H:0x3c23e170, TAG:embed_flash
+-I (1163) ESP_GMF_POOL: IO, Item:0x3c23ede0, H:0x3c23ed50, TAG:codec_dev_tx
+-I (1171) ESP_GMF_POOL: IO, Item:0x3c23ee80, H:0x3c23edf0, TAG:codec_dev_rx
++I (1129) ESP_GMF_POOL: IO, Item:0x3c23decc, H:0x3c23de0c, TAG:io_http
++I (1135) ESP_GMF_POOL: IO, Item:0x3c23df9c, H:0x3c23dedc, TAG:io_http
++I (1142) ESP_GMF_POOL: IO, Item:0x3c23e038, H:0x3c23dfac, TAG:io_file
++I (1149) ESP_GMF_POOL: IO, Item:0x3c23e0d4, H:0x3c23e048, TAG:io_file
++I (1156) ESP_GMF_POOL: IO, Item:0x3c23e204, H:0x3c23e170, TAG:io_embed_flash
++I (1163) ESP_GMF_POOL: IO, Item:0x3c23ede0, H:0x3c23ed50, TAG:io_codec_dev
++I (1171) ESP_GMF_POOL: IO, Item:0x3c23ee80, H:0x3c23edf0, TAG:io_codec_dev
+ I (1178) ESP_GMF_POOL: EL, Item:0x3c23e160, H:0x3c23e0e4, TAG:copier
+-I (1185) ESP_GMF_POOL: EL, Item:0x3c23e2e8, H:0x3c23e214, TAG:encoder
+-I (1193) ESP_GMF_POOL: EL, Item:0x3c23e3e8, H:0x3c23e2f8, TAG:aud_simp_dec
+-I (1200) ESP_GMF_POOL: EL, Item:0x3c23e4bc, H:0x3c23e3f8, TAG:alc
+-I (1207) ESP_GMF_POOL: EL, Item:0x3c23e570, H:0x3c23e4cc, TAG:eq
+-I (1214) ESP_GMF_POOL: EL, Item:0x3c23e5a4, H:0x3c23e6d8, TAG:ch_cvt
+-I (1221) ESP_GMF_POOL: EL, Item:0x3c23e5d4, H:0x3c23e774, TAG:bit_cvt
+-I (1228) ESP_GMF_POOL: EL, Item:0x3c23e8ac, H:0x3c23e810, TAG:rate_cvt
+-I (1235) ESP_GMF_POOL: EL, Item:0x3c23e988, H:0x3c23e8bc, TAG:fade
+-I (1242) ESP_GMF_POOL: EL, Item:0x3c23ea84, H:0x3c23e998, TAG:sonic
+-I (1249) ESP_GMF_POOL: EL, Item:0x3c23eb64, H:0x3c23ea94, TAG:deinterleave
+-I (1256) ESP_GMF_POOL: EL, Item:0x3c23ec40, H:0x3c23eb74, TAG:interleave
+-I (1264) ESP_GMF_POOL: EL, Item:0x3c23ed40, H:0x3c23ec50, TAG:mixer
+-I (1271) ESP_GMF_POOL: EL, Item:0x3c23ef60, H:0x3c23ee90, TAG:aec
+-W (1278) ESP_GMF_PIPELINE: There is no thread for add jobs, pipe:0x3c23ef70, tsk:0x0, [el:rate_cvt-0x3c23efa8]
++I (1185) ESP_GMF_POOL: EL, Item:0x3c23e2e8, H:0x3c23e214, TAG:aud_enc
++I (1193) ESP_GMF_POOL: EL, Item:0x3c23e3e8, H:0x3c23e2f8, TAG:aud_dec
++I (1200) ESP_GMF_POOL: EL, Item:0x3c23e4bc, H:0x3c23e3f8, TAG:aud_alc
++I (1207) ESP_GMF_POOL: EL, Item:0x3c23e570, H:0x3c23e4cc, TAG:aud_eq
++I (1214) ESP_GMF_POOL: EL, Item:0x3c23e5a4, H:0x3c23e6d8, TAG:aud_ch_cvt
++I (1221) ESP_GMF_POOL: EL, Item:0x3c23e5d4, H:0x3c23e774, TAG:aud_bit_cvt
++I (1228) ESP_GMF_POOL: EL, Item:0x3c23e8ac, H:0x3c23e810, TAG:aud_rate_cvt
++I (1235) ESP_GMF_POOL: EL, Item:0x3c23e988, H:0x3c23e8bc, TAG:aud_fade
++I (1242) ESP_GMF_POOL: EL, Item:0x3c23ea84, H:0x3c23e998, TAG:aud_sonic
++I (1249) ESP_GMF_POOL: EL, Item:0x3c23eb64, H:0x3c23ea94, TAG:aud_deintlv
++I (1256) ESP_GMF_POOL: EL, Item:0x3c23ec40, H:0x3c23eb74, TAG:aud_intlv
++I (1264) ESP_GMF_POOL: EL, Item:0x3c23ed40, H:0x3c23ec50, TAG:aud_mixer
++I (1271) ESP_GMF_POOL: EL, Item:0x3c23ef60, H:0x3c23ee90, TAG:ai_aec
++W (1278) ESP_GMF_PIPELINE: There is no thread for add jobs, pipe:0x3c23ef70, tsk:0x0, [el:aud_rate_cvt-0x3c23efa8]
+ I (1288) ESP_GMF_THREAD: The TSK_0x3fcb5404 created on internal memory
+ I (1288) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcb5404-0x3fcb5404, wk:0x0, run:0]
+ I (1304) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:NULL-0x3c23ef70, type:8192, sub:ESP_GMF_EVENT_STATE_OPENING, payload:0x0, size:0,0x0
+-I (1328) ESP_GMF_PORT: ACQ IN, new self payload:0x3c23f35c, port:0x3c23f2a8, el:0x3c23efa8-rate_cvt
+-I (1329) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c23fe68, p:0x3c23f1a8, el:0x3c23efa8-rate_cvt
++I (1328) ESP_GMF_PORT: ACQ IN, new self payload:0x3c23f35c, port:0x3c23f2a8, el:0x3c23efa8-aud_rate_cvt
++I (1329) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c23fe68, p:0x3c23f1a8, el:0x3c23efa8-aud_rate_cvt
+ I (1358) GMF_AEC: GMF AEC open, frame_len: 2048, nch 4, chunksize 256
+-I (1359) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aec-0x3c23f0c4, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fcb6790, size:12,0x0
+-I (1371) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aec-0x3c23f0c4, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
++I (1359) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:ai_aec-0x3c23f0c4, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fcb6790, size:12,0x0
++I (1371) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:ai_aec-0x3c23f0c4, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
+ I (1383) ESP_GMF_TASK: One times job is complete, del[wk:0x3c23f3dc,ctx:0x3c23f0c4, label:aec_open]
+ I (1401) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcca2f8-0x3fcca2f8, wk:0x0, run:0]
+ I (1401) ESP_GMF_THREAD: The TSK_0x3fcca2f8 created on internal memory
+ I (1432) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcca2f8-0x3fcca2f8, wk:0x3c252ac0, run:0]
+ I (1433) ESP_GMF_FILE: Open, dir:1, uri:/sdcard/test.mp3
+-I (1446) ESP_GMF_FILE: File size: 2994349 byte, file position: 0
++I (1446) ESP_GMF_FILE: File size: 2994349 byte, io_file position: 0
+ I (1447) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:NULL-0x3c25230c, type:8192
+ I (1460) ESP_GMF_TASK: One times job is complete, del[wk:0x3c252ac0,ctx:0x3c252344, label:aud_simp_dec_open]
+-I (1469) ESP_GMF_PORT: ACQ IN, new self payload:0x3c252ac0, port:0x3c252964, el:0x3c252344-aud_simp_dec
+-I (1482) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c252d64, p:0x3c25252c, el:0x3c252344-aud_simp_dec
++I (1469) ESP_GMF_PORT: ACQ IN, new self payload:0x3c252ac0, port:0x3c252964, el:0x3c252344-aud_dec
++I (1482) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c252d64, p:0x3c25252c, el:0x3c252344-aud_dec
+ W (1491) ESP_GMF_ASMP_DEC: Not enough memory for out, need:4608, old: 1024, new: 4608
+ I (1505) ESP_GMF_ASMP_DEC: NOTIFY Info, rate: 0, bits: 0, ch: 0 --> rate: 44100, bits: 16, ch: 2
+ Audio >
+ I (1589) ESP_GMF_TASK: One times job is complete, del[wk:0x3c253fa4,ctx:0x3c252420, label:rate_cvt_open]
+-I (1590) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c253fa4, p:0x3c2526c4, el:0x3c252420-rate_cvt
++I (1590) ESP_GMF_PORT: ACQ OUT SET, new self payload:0x3c253fa4, p:0x3c2526c4, el:0x3c252420-aud_rate_cvt
+ I (1603) ESP_GMF_TASK: One times job is complete, del[wk:0x3c253fec,ctx:0x3c2525ac, label:ch_cvt_open]
+-I (1615) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:bit_cvt-0x3c252744, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccb680, size:12,0x0
+-I (1627) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:bit_cvt-0x3c252744, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
++I (1615) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aud_bit_cvt-0x3c252744, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccb680, size:12,0x0
++I (1627) AEC_EL_2_FILE: CB: RECV Pipeline EVT: el:aud_bit_cvt-0x3c252744, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
+ I (1639) ESP_GMF_TASK: One times job is complete, del[wk:0x3c255608,ctx:0x3c252744, label:bit_cvt_open]
+-I (1651) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c255608, port:0x3c252a34, el:0x3c252744-bit_cvt
++I (1651) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c255608, port:0x3c252a34, el:0x3c252744-aud_bit_cvt
+ I (21462) ESP_GMF_CODEC_DEV: CLose, 0x3c23f228, pos = 7716864/0
+ I (21464) ESP_GMF_TASK: One times job is complete, del[wk:0x3c23f410,ctx:0x3c23efa8, label:rate_cvt_close]
+ I (21478) ESP_GMF_TASK: One times job is complete, del[wk:0x3c253fec,ctx:0x3c23f0c4, label:aec_close]
+@@ -245,5 +240,5 @@ I (25314) main_task: Returned from app_main()
+ 
+ 由于 AEC 算法需要的 cpu 算力较多，所以组建包含 AEC 元素的 Pipeline 时，需合理分配资源，如遇到问题，可按如下方式处理：
+ 
+-- 查看 Pipeline 有哪些需要 cpu 算力较多的元素，如 `gmf_aec`, `encoder`, `file IO` 等
++- 查看 Pipeline 有哪些需要 cpu 算力较多的元素，如 `ai_aec`, `aud_enc`, `io_file` 等
+ - 将出现问题的 Pipeline 拆分为两个，分别运行到不同的 cpu 核心上，使用 `gmf port` 连接
+diff --git a/examples/aec_rec/main/CMakeLists.txt b/examples/aec_rec/main/CMakeLists.txt
+index 7fc2511..cf2c455 100644
+--- a/examples/aec_rec/main/CMakeLists.txt
++++ b/examples/aec_rec/main/CMakeLists.txt
+@@ -1,3 +1,2 @@
+ idf_component_register(SRCS "main.c"
+-                    INCLUDE_DIRS "."
+-                    REQUIRES gmf_setup cli)
++                    INCLUDE_DIRS ".")
+diff --git a/examples/aec_rec/main/idf_component.yml b/examples/aec_rec/main/idf_component.yml
+index cec1520..dcf2738 100644
+--- a/examples/aec_rec/main/idf_component.yml
++++ b/examples/aec_rec/main/idf_component.yml
+@@ -12,4 +12,7 @@ dependencies:
+     version: "^0.6"
+   espressif/gmf_ai_audio:
+     override_path: ../../../../gmf_ai_audio
+-
++  espressif/gmf_loader:
++    version: "^0.6"
++  espressif/gmf_app_utils:
++    version: "^0.6"
+diff --git a/examples/aec_rec/main/main.c b/examples/aec_rec/main/main.c
+index 4ff75aa..cb5c668 100644
+--- a/examples/aec_rec/main/main.c
++++ b/examples/aec_rec/main/main.c
+@@ -7,25 +7,25 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
++#include "esp_err.h"
++#include "esp_log.h"
++
+ #include "esp_gmf_err.h"
++#include "esp_gmf_io_codec_dev.h"
+ #include "esp_gmf_obj.h"
+ #include "esp_gmf_payload.h"
+ #include "esp_gmf_port.h"
+-
+-#include "esp_err.h"
+-#include "esp_log.h"
+-
+ #include "esp_gmf_aec.h"
+ #include "esp_gmf_element.h"
+ #include "esp_gmf_pipeline.h"
+ #include "esp_gmf_pool.h"
+-#include "esp_gmf_setup_peripheral.h"
+-#include "esp_gmf_setup_pool.h"
+ #include "esp_gmf_rate_cvt.h"
+ #include "esp_gmf_bit_cvt.h"
+ #include "esp_gmf_ch_cvt.h"
+-#include "esp_gmf_audio_helper.h"
+-#include "cli.h"
++#include "esp_gmf_audio_dec.h"
++#include "esp_gmf_app_setup_peripheral.h"
++#include "esp_gmf_app_cli.h"
++#include "gmf_loader_setup_defaults.h"
+ 
+ #define BOARD_LYRAT_MINI (0)
+ #define BOARD_KORVO_2    (1)
+@@ -75,12 +75,12 @@ static esp_err_t _pipeline_event(esp_gmf_event_pkt_t *event, void *ctx)
+     return ESP_OK;
+ }
+ 
+-static int pcm_buf_acq_write(void *handle, esp_gmf_payload_t *load, int wanted_size, int block_ticks)
++static esp_gmf_err_io_t pcm_buf_acq_write(void *handle, esp_gmf_payload_t *load, int wanted_size, int block_ticks)
+ {
+-    return wanted_size;
++    return ESP_GMF_IO_OK;
+ }
+ 
+-static int pcm_buf_release_write(void *handle, esp_gmf_payload_t *load, int block_ticks)
++static esp_gmf_err_io_t pcm_buf_release_write(void *handle, esp_gmf_payload_t *load, int block_ticks)
+ {
+     if (load == NULL) {
+         return ESP_GMF_IO_FAIL;
+@@ -94,8 +94,6 @@ static int pcm_buf_release_write(void *handle, esp_gmf_payload_t *load, int bloc
+ 
+ void app_main(void)
+ {
+-    esp_err_t ret = ESP_OK;
+-
+     esp_log_level_set("*", ESP_LOG_INFO);
+ 
+     pcm_buffer = heap_caps_malloc(buf_size, MALLOC_CAP_SPIRAM);
+@@ -105,63 +103,45 @@ void app_main(void)
+     }
+     pcm_received = 0;
+ 
+-    void *card = NULL;
+-    esp_gmf_setup_periph_sdmmc(&card);
+-    esp_gmf_setup_periph_i2c(0);
+-    esp_gmf_setup_periph_aud_info player_info = {
+-        .sample_rate = 48000,
+-        .channel = DAC_I2S_CH,
+-        .bits_per_sample = DAC_I2S_BITS,
+-        .port_num = DAC_I2S_PORT,
+-    };
+-    esp_gmf_setup_periph_aud_info recorder_info = {
+-        .sample_rate = 48000,
+-        .channel = ADC_I2S_CH,
+-        .bits_per_sample = ADC_I2S_BITS,
+-        .port_num = ADC_I2S_PORT,
+-    };
+-    void *play_dev = NULL;
+-    void *record_dev = NULL;
+-    ret = esp_gmf_setup_periph_codec(&player_info, &recorder_info, &play_dev, &record_dev);
+-    ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return;}, "Failed to setup audio codec");
++    esp_gmf_app_codec_info_t codec_info = ESP_GMF_APP_CODEC_INFO_DEFAULT();
++    codec_info.play_info.sample_rate = 48000;
++    codec_info.play_info.channel = DAC_I2S_CH;
++    codec_info.play_info.bits_per_sample = DAC_I2S_BITS;
++    codec_info.record_info.sample_rate = codec_info.play_info.sample_rate;
++    codec_info.record_info.channel = ADC_I2S_CH;
++    codec_info.record_info.bits_per_sample = ADC_I2S_BITS;
++    esp_gmf_app_setup_codec_dev(&codec_info);
++
++    void *sdcard_handle = NULL;
++    esp_gmf_app_setup_sdcard(&sdcard_handle);
+ 
+     esp_gmf_pool_handle_t pool = NULL;
+     esp_gmf_pool_init(&pool);
+-    pool_register_io(pool);
+-    pool_register_audio_codecs(pool);
+-    pool_register_audio_effects(pool);
+-    pool_register_codec_dev_io(pool, play_dev, record_dev);
+-
+-    esp_gmf_element_handle_t gmf_aec_handle = NULL;
+-    esp_gmf_aec_cfg_t gmf_aec_cfg = {
+-        .filter_len = 4,
+-        .type = AFE_TYPE_VC,
+-        .mode = AFE_MODE_HIGH_PERF,
+-        .input_format = INPUT_CH_ALLOCATION,
+-    };
+-    esp_gmf_aec_init(&gmf_aec_cfg, &gmf_aec_handle);
+-    esp_gmf_pool_register_element(pool, gmf_aec_handle, NULL);
++    gmf_loader_setup_all_defaults(pool);
+ 
+     ESP_GMF_POOL_SHOW_ITEMS(pool);
+     esp_gmf_pipeline_handle_t read_pipe = NULL;
+ 
+ #if ENCODER_ENABLE
+-    const char *name[] = {"rate_cvt", "aec", "encoder"};
++    const char *name[] = {"aud_rate_cvt", "ai_aec", "aud_enc"};
+ #else
+-    const char *name[] = {"rate_cvt", "aec"};
++    const char *name[] = {"aud_rate_cvt", "ai_aec"};
+ #endif  /* ENCODER_ENABLE */
+-    esp_gmf_pool_new_pipeline(pool, "codec_dev_rx", name, sizeof(name) / sizeof(char *), NULL, &read_pipe);
++    esp_gmf_pool_new_pipeline(pool, "io_codec_dev", name, sizeof(name) / sizeof(char *), NULL, &read_pipe);
+     if (read_pipe == NULL) {
+         ESP_LOGE(TAG, "There is no pipeline");
+         return;
+     }
++    esp_gmf_io_codec_dev_set_dev(ESP_GMF_PIPELINE_GET_IN_INSTANCE(read_pipe), esp_gmf_app_get_record_handle());
++
+     esp_gmf_port_handle_t out_port = NEW_ESP_GMF_PORT_OUT_BYTE(pcm_buf_acq_write, pcm_buf_release_write, NULL, NULL, 1024, portMAX_DELAY);
+     esp_gmf_element_register_out_port(read_pipe->last_el, out_port);
+     esp_gmf_obj_handle_t rate_cvt = NULL;
+-    esp_gmf_pipeline_get_el_by_name(read_pipe, "rate_cvt", &rate_cvt);
++    esp_gmf_pipeline_get_el_by_name(read_pipe, "aud_rate_cvt", &rate_cvt);
+     esp_gmf_rate_cvt_set_dest_rate(rate_cvt, 16000);
+ 
+     esp_gmf_info_sound_t info = {
++        .format_id = ESP_AUDIO_SIMPLE_DEC_TYPE_MP3,
+         .sample_rates = 48000,
+         .channels = INPUT_CH_NUM,
+         .bits = INPUT_CH_BITS,
+@@ -178,25 +158,27 @@ void app_main(void)
+     esp_gmf_pipeline_set_event(read_pipe, _pipeline_event, NULL);
+     esp_gmf_pipeline_run(read_pipe);
+ 
+-    cli_init("Audio >");
++    esp_gmf_app_cli_init("Audio >", NULL);
+ 
+     // New pipeline to play 'test.mp3'
+     esp_gmf_pipeline_handle_t play_pipe = NULL;
+-    const char *play_name[] = {"aud_simp_dec", "rate_cvt", "ch_cvt", "bit_cvt"};
+-    esp_gmf_pool_new_pipeline(pool, "file", play_name, sizeof(play_name) / sizeof(char *), "codec_dev_tx", &play_pipe);
++    const char *play_name[] = {"aud_dec", "aud_rate_cvt", "aud_ch_cvt", "aud_bit_cvt"};
++    esp_gmf_pool_new_pipeline(pool, "io_file", play_name, sizeof(play_name) / sizeof(char *), "io_codec_dev", &play_pipe);
+     if (play_pipe == NULL) {
+         ESP_LOGE(TAG, "There is no play pipeline");
+         return;
+     }
++    esp_gmf_io_codec_dev_set_dev(ESP_GMF_PIPELINE_GET_OUT_INSTANCE(play_pipe), esp_gmf_app_get_playback_handle());
++
+     esp_gmf_obj_handle_t bit_cvt = NULL;
+-    esp_gmf_pipeline_get_el_by_name(play_pipe, "bit_cvt", &bit_cvt);
++    esp_gmf_pipeline_get_el_by_name(play_pipe, "aud_bit_cvt", &aud_bit_cvt);
+     esp_gmf_bit_cvt_set_dest_bits(bit_cvt, DAC_I2S_BITS);
+     esp_gmf_obj_handle_t ch_cvt = NULL;
+-    esp_gmf_pipeline_get_el_by_name(play_pipe, "ch_cvt", &ch_cvt);
++    esp_gmf_pipeline_get_el_by_name(play_pipe, "aud_ch_cvt", &ch_cvt);
+     esp_gmf_ch_cvt_set_dest_channel(ch_cvt, DAC_I2S_CH);
+     esp_gmf_obj_handle_t dec_el = NULL;
+-    esp_gmf_pipeline_get_el_by_name(play_pipe, "aud_simp_dec", &dec_el);
+-    esp_gmf_audio_helper_reconfig_dec_by_uri("/sdcard/test.mp3", &info, OBJ_GET_CFG(dec_el));
++    esp_gmf_pipeline_get_el_by_name(play_pipe, "aud_dec", &dec_el);
++    esp_gmf_audio_dec_reconfig_by_sound_info(dec_el, &info);
+ 
+     esp_gmf_pipeline_set_in_uri(play_pipe, "/sdcard/test.mp3");
+ 
+@@ -226,13 +208,12 @@ void app_main(void)
+     }
+     heap_caps_free(pcm_buffer);
+ 
+-    pool_unregister_audio_codecs();
+     esp_gmf_task_deinit(read_task);
+     esp_gmf_task_deinit(play_task);
+     esp_gmf_pipeline_destroy(read_pipe);
+     esp_gmf_pipeline_destroy(play_pipe);
++    gmf_loader_teardown_all_defaults(pool);
+     esp_gmf_pool_deinit(pool);
+-    esp_gmf_teardown_periph_codec(play_dev, record_dev);
+-    esp_gmf_teardown_periph_i2c(0);
+-    esp_gmf_teardown_periph_sdmmc(card);
++    esp_gmf_app_teardown_codec_dev();
++    esp_gmf_app_teardown_sdcard(sdcard_handle);
+ }
+diff --git a/examples/aec_rec/sdkconfig.defaults.esp32 b/examples/aec_rec/sdkconfig.defaults.esp32
+index 2ede448..2200670 100644
+--- a/examples/aec_rec/sdkconfig.defaults.esp32
++++ b/examples/aec_rec/sdkconfig.defaults.esp32
+@@ -17,4 +17,6 @@ CONFIG_SDK_TOOLPREFIX="xtensa-esp32-elf-"
+ # CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_80 is not set
+ # CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_160 is not set
+ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+-CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
+\ No newline at end of file
++CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=240
++
++CONFIG_AUDIO_BOARD="LYRAT_MINI_V1"
+diff --git a/examples/aec_rec/sdkconfig.defaults.esp32s3 b/examples/aec_rec/sdkconfig.defaults.esp32s3
+index 2625759..7d88e7c 100644
+--- a/examples/aec_rec/sdkconfig.defaults.esp32s3
++++ b/examples/aec_rec/sdkconfig.defaults.esp32s3
+@@ -15,3 +15,5 @@ CONFIG_SPIRAM_MODE_OCT=y
+ CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240=y
+ CONFIG_ESP32S3_INSTRUCTION_CACHE_32KB=y
+ CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
++
++CONFIG_AUDIO_BOARD="S3_Korvo_V2"
+diff --git a/examples/common/cli/CMakeLists.txt b/examples/common/cli/CMakeLists.txt
+deleted file mode 100644
+index 070c360..0000000
+--- a/examples/common/cli/CMakeLists.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-set(srcs
+-    "cli.c"
+-    "cli_sys.c"
+-    )
+-
+-idf_component_register(SRCS ${srcs}
+-    INCLUDE_DIRS "./"
+-    REQUIRES console driver
+-    )
+diff --git a/examples/common/cli/cli.c b/examples/common/cli/cli.c
+deleted file mode 100644
+index 854a552..0000000
+--- a/examples/common/cli/cli.c
++++ /dev/null
+@@ -1,53 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#include <stdbool.h>
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include <string.h>
+-
+-#include "esp_console.h"
+-#include "esp_err.h"
+-#include "esp_log.h"
+-
+-#include "cli.h"
+-
+-static bool __cli_init = false;
+-
+-extern void cli_register_sys();
+-
+-esp_err_t cli_init(char *prompt)
+-{
+-    if (__cli_init) {
+-        return ESP_OK;
+-    }
+-
+-    esp_console_repl_t *repl = NULL;
+-    esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
+-
+-    repl_config.prompt = prompt;
+-
+-    // init console REPL environment
+-#if CONFIG_ESP_CONSOLE_UART
+-    esp_console_dev_uart_config_t uart_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
+-    ESP_ERROR_CHECK(esp_console_new_repl_uart(&uart_config, &repl_config, &repl));
+-#elif CONFIG_ESP_CONSOLE_USB_CDC
+-    esp_console_dev_usb_cdc_config_t cdc_config = ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
+-    ESP_ERROR_CHECK(esp_console_new_repl_usb_cdc(&cdc_config, &repl_config, &repl));
+-#elif CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG
+-    esp_console_dev_usb_serial_jtag_config_t usbjtag_config = ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT();
+-    ESP_ERROR_CHECK(esp_console_new_repl_usb_serial_jtag(&usbjtag_config, &repl_config, &repl));
+-#endif  /* CONFIG_ESP_CONSOLE_UART */
+-
+-    cli_register_sys();
+-
+-    // start console REPL
+-    ESP_ERROR_CHECK(esp_console_start_repl(repl));
+-
+-    __cli_init = true;
+-
+-    return ESP_OK;
+-}
+diff --git a/examples/common/cli/cli.h b/examples/common/cli/cli.h
+deleted file mode 100644
+index 78adf66..0000000
+--- a/examples/common/cli/cli.h
++++ /dev/null
+@@ -1,14 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#ifndef __CLI_H__
+-#define __CLI_H__
+-#include <stdint.h>
+-#include "esp_err.h"
+-
+-esp_err_t cli_init(char *prompt);
+-
+-#endif  /* __CLI_H__ */
+diff --git a/examples/common/cli/cli_sys.c b/examples/common/cli/cli_sys.c
+deleted file mode 100644
+index 98d2e0d..0000000
+--- a/examples/common/cli/cli_sys.c
++++ /dev/null
+@@ -1,165 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#include "esp_console.h"
+-#include "esp_log.h"
+-#include "esp_system.h"
+-#include "esp_gmf_oal_sys.h"
+-#include "driver/gpio.h"
+-
+-#include "argtable3/argtable3.h"
+-
+-#ifdef CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS
+-#define WITH_TASKS_INFO 1
+-#endif  /* CONFIG_FREERTOS_USE_STATS_FORMATTING_FUNCTIONS */
+-
+-static int restart(int argc, char **argv)
+-{
+-    printf("Restarting\n");
+-    esp_restart();
+-}
+-
+-static int free_mem(int argc, char **argv)
+-{
+-    printf("\nFree heap size: internal %u, psram %u\nmin  heap size: internal %u, psram %u\n",
+-           heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+-           heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+-           heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL),
+-           heap_caps_get_minimum_free_size(MALLOC_CAP_SPIRAM));
+-
+-    return 0;
+-}
+-
+-/** 'tasks' command prints the list of tasks and related information */
+-#if WITH_TASKS_INFO
+-static int tasks_info(int argc, char **argv)
+-{
+-    return esp_gmf_oal_sys_get_real_time_stats(1000, false);
+-}
+-#endif  // WITH_TASKS_INFO
+-
+-static struct {
+-    struct arg_str *tag;
+-    struct arg_int *lvl;
+-    struct arg_end *end;
+-} log_args;
+-
+-static char *log_lvl_2_str(int lvl)
+-{
+-    switch (lvl) {
+-        case ESP_LOG_NONE:
+-            return "NONE";
+-        case ESP_LOG_ERROR:
+-            return "ERROR";
+-        case ESP_LOG_WARN:
+-            return "WARN";
+-        case ESP_LOG_INFO:
+-            return "INFO";
+-        case ESP_LOG_DEBUG:
+-            return "DEBUG";
+-        case ESP_LOG_VERBOSE:
+-            return "VERBOSE";
+-        default:
+-            return "UNKNOWN";
+-    }
+-}
+-
+-static int log_set(int argc, char **argv)
+-{
+-    int nerrors = arg_parse(argc, argv, (void **)&log_args);
+-    if (nerrors != 0) {
+-        arg_print_errors(stderr, log_args.end, argv[0]);
+-        return 1;
+-    }
+-
+-    if (log_args.tag->count == 0 || log_args.lvl->count == 0) {
+-        return 2;
+-    }
+-    printf("Set log [%s] : %s\n", log_args.tag->sval[0], log_lvl_2_str(log_args.lvl->ival[0]));
+-    if (log_args.lvl->ival[0] <= ESP_LOG_VERBOSE) {
+-        esp_log_level_set(log_args.tag->sval[0], log_args.lvl->ival[0]);
+-    } else {
+-        return 3;
+-    }
+-    return 0;
+-}
+-
+-static struct {
+-    struct arg_int *io;
+-    struct arg_int *lvl;
+-    struct arg_end *end;
+-} io_args;
+-
+-static int io_set(int argc, char **argv)
+-{
+-    int nerrors = arg_parse(argc, argv, (void **)&io_args);
+-    if (nerrors != 0) {
+-        arg_print_errors(stderr, io_args.end, argv[0]);
+-        return 1;
+-    }
+-
+-    if (io_args.io->count == 0 || io_args.lvl->count == 0) {
+-        return 2;
+-    }
+-    printf("Set IO [%d] - [%d]\n", io_args.io->ival[0], io_args.lvl->ival[0]);
+-    if (io_args.lvl->ival[0] == 0 || io_args.lvl->ival[0] == 1) {
+-        gpio_set_level(io_args.io->ival[0], io_args.lvl->ival[0]);
+-    } else {
+-        return 3;
+-    }
+-    return 0;
+-}
+-
+-void cli_register_sys()
+-{
+-    static const esp_console_cmd_t cmds[] = {
+-        {
+-            .command = "restart",
+-            .help = "Software reset of the chip",
+-            .hint = NULL,
+-            .func = &restart,
+-        },
+-        {
+-            .command = "free",
+-            .help = "Get the current size of free heap memory",
+-            .hint = NULL,
+-            .func = &free_mem,
+-        },
+-#if WITH_TASKS_INFO
+-        {
+-            .command = "tasks",
+-            .help = "Get information about running tasks",
+-            .hint = NULL,
+-            .func = &tasks_info,
+-        },
+-#endif  /* WITH_TASKS_INFO */
+-        {
+-            .command = "log",
+-            .help = "Set the log mode",
+-            .hint = NULL,
+-            .func = &log_set,
+-            .argtable = &log_args,
+-        },
+-        {
+-            .command = "io",
+-            .help = "Set the io level",
+-            .hint = NULL,
+-            .func = &io_set,
+-            .argtable = &io_args,
+-        }};
+-
+-    log_args.tag = arg_str0(NULL, NULL, "<string>", "TAG of the log want to be set");
+-    log_args.lvl = arg_int0(NULL, NULL, "<0 - 5>", "Log level want to be set");
+-    log_args.end = arg_end(2);
+-
+-    io_args.io = arg_int0(NULL, NULL, "<0 - 40>", "GPIO Number");
+-    io_args.lvl = arg_int0(NULL, NULL, "<0 - 1>", "IO level want to be set");
+-    io_args.end = arg_end(2);
+-
+-    for (int i = 0; i < sizeof(cmds) / sizeof(esp_console_cmd_t); i++) {
+-        ESP_ERROR_CHECK(esp_console_cmd_register(&cmds[i]));
+-    }
+-}
+diff --git a/examples/common/cli/idf_component.yml b/examples/common/cli/idf_component.yml
+deleted file mode 100644
+index 224f6cf..0000000
+--- a/examples/common/cli/idf_component.yml
++++ /dev/null
+@@ -1,3 +0,0 @@
+-dependencies:
+-  espressif/gmf_core:
+-    version: "^0.6"
+diff --git a/examples/common/gmf_setup/CMakeLists.txt b/examples/common/gmf_setup/CMakeLists.txt
+deleted file mode 100644
+index e322424..0000000
+--- a/examples/common/gmf_setup/CMakeLists.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-get_directory_property(defined_defs COMPILE_DEFINITIONS)
+-message("Defined preprocessor variables-USER: ${defined_defs}")
+-
+-idf_component_register(SRC_DIRS "./"
+-                       INCLUDE_DIRS "./"
+-                       REQUIRES "sdmmc" "fatfs" "esp_wifi" "nvs_flash")
+diff --git a/examples/common/gmf_setup/esp_gmf_gpio_config.h b/examples/common/gmf_setup/esp_gmf_gpio_config.h
+deleted file mode 100644
+index 3e39434..0000000
+--- a/examples/common/gmf_setup/esp_gmf_gpio_config.h
++++ /dev/null
+@@ -1,163 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#pragma once
+-
+-#ifdef __cplusplus
+-extern "C" {
+-#endif  /* __cplusplus */
+-
+-#if CONFIG_IDF_TARGET_ESP32
+-// ESP32-LyraT-mini
+-// Sdmmc
+-#define ESP_GMF_SD_CLK_IO_NUM (GPIO_NUM_14)
+-#define ESP_GMF_SD_CMD_IO_NUM (GPIO_NUM_15)
+-#define ESP_GMF_SD_D0_IO_NUM  (GPIO_NUM_2)
+-#define ESP_GMF_SD_D1_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D2_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D3_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D4_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D5_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D6_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D7_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_CD_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WP_IO_NUM  (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WIDTH      (1)
+-
+-// I2C
+-#define ESP_GMF_I2C_SDA_IO_NUM (GPIO_NUM_18)
+-#define ESP_GMF_I2C_SCL_IO_NUM (GPIO_NUM_23)
+-
+-// I2S
+-#define ESP_GMF_I2S_DAC_MCLK_IO_NUM (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_DAC_BCLK_IO_NUM (GPIO_NUM_5)
+-#define ESP_GMF_I2S_DAC_WS_IO_NUM   (GPIO_NUM_25)
+-#define ESP_GMF_I2S_DAC_DO_IO_NUM   (GPIO_NUM_26)
+-#define ESP_GMF_I2S_DAC_DI_IO_NUM   (GPIO_NUM_35)
+-
+-#define ESP_GMF_I2S_ADC_MCLK_IO_NUM (GPIO_NUM_0)
+-#define ESP_GMF_I2S_ADC_BCLK_IO_NUM (GPIO_NUM_32)
+-#define ESP_GMF_I2S_ADC_WS_IO_NUM   (GPIO_NUM_33)
+-#define ESP_GMF_I2S_ADC_DO_IO_NUM   (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_ADC_DI_IO_NUM   (GPIO_NUM_36)
+-
+-// PA
+-#define ESP_GMF_AMP_IO_NUM (GPIO_NUM_21)
+-
+-#elif CONFIG_IDF_TARGET_ESP32C3
+-// ESP32c3-Lyra
+-// Sdmmc
+-#define ESP_GMF_SD_CLK_IO_NUM       (GPIO_NUM_NC)
+-#define ESP_GMF_SD_CMD_IO_NUM       (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D0_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D1_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D2_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D3_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D4_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D5_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D6_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D7_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_CD_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WP_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WIDTH            (1)
+-
+-// I2C
+-#define ESP_GMF_I2C_SDA_IO_NUM      (GPIO_NUM_9)
+-#define ESP_GMF_I2C_SCL_IO_NUM      (GPIO_NUM_8)
+-
+-// I2S
+-#define ESP_GMF_I2S_DAC_MCLK_IO_NUM (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_DAC_BCLK_IO_NUM (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_DAC_WS_IO_NUM   (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_DAC_DO_IO_NUM   (GPIO_NUM_3)
+-#define ESP_GMF_I2S_DAC_DI_IO_NUM   (GPIO_NUM_NC)
+-
+-#define ESP_GMF_I2S_ADC_MCLK_IO_NUM (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_ADC_BCLK_IO_NUM (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_ADC_WS_IO_NUM   (GPIO_NUM_NC)
+-#define ESP_GMF_I2S_ADC_DO_IO_NUM   (GPIO_NUM_3)
+-#define ESP_GMF_I2S_ADC_DI_IO_NUM   (GPIO_NUM_NC)
+-
+-// PA
+-#define ESP_GMF_AMP_IO_NUM          (GPIO_NUM_1)
+-
+-#elif CONFIG_IDF_TARGET_ESP32S3
+-// ESP32s3_Korvo_2
+-// Sdmmc
+-#define ESP_GMF_SD_CLK_IO_NUM       (GPIO_NUM_15)
+-#define ESP_GMF_SD_CMD_IO_NUM       (GPIO_NUM_7)
+-#define ESP_GMF_SD_D0_IO_NUM        (GPIO_NUM_4)
+-#define ESP_GMF_SD_D1_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D2_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D3_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D4_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D5_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D6_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D7_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_CD_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WP_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WIDTH            (1)
+-
+-// I2C
+-#define ESP_GMF_I2C_SDA_IO_NUM      (GPIO_NUM_17)
+-#define ESP_GMF_I2C_SCL_IO_NUM      (GPIO_NUM_18)
+-
+-// I2S
+-#define ESP_GMF_I2S_DAC_MCLK_IO_NUM (GPIO_NUM_16)
+-#define ESP_GMF_I2S_DAC_BCLK_IO_NUM (GPIO_NUM_9)
+-#define ESP_GMF_I2S_DAC_WS_IO_NUM   (GPIO_NUM_45)
+-#define ESP_GMF_I2S_DAC_DO_IO_NUM   (GPIO_NUM_8)
+-#define ESP_GMF_I2S_DAC_DI_IO_NUM   (GPIO_NUM_10)
+-
+-#define ESP_GMF_I2S_ADC_MCLK_IO_NUM (GPIO_NUM_16)
+-#define ESP_GMF_I2S_ADC_BCLK_IO_NUM (GPIO_NUM_9)
+-#define ESP_GMF_I2S_ADC_WS_IO_NUM   (GPIO_NUM_45)
+-#define ESP_GMF_I2S_ADC_DO_IO_NUM   (GPIO_NUM_8)
+-#define ESP_GMF_I2S_ADC_DI_IO_NUM   (GPIO_NUM_10)
+-// PA
+-#define ESP_GMF_AMP_IO_NUM          (GPIO_NUM_48)
+-
+-#elif CONFIG_IDF_TARGET_ESP32P4
+-// ESP32p4_Function_EV_Board
+-// Sdmmc
+-#define ESP_GMF_SD_CLK_IO_NUM       (GPIO_NUM_43)
+-#define ESP_GMF_SD_CMD_IO_NUM       (GPIO_NUM_44)
+-#define ESP_GMF_SD_D0_IO_NUM        (GPIO_NUM_39)
+-#define ESP_GMF_SD_D1_IO_NUM        (GPIO_NUM_40)
+-#define ESP_GMF_SD_D2_IO_NUM        (GPIO_NUM_41)
+-#define ESP_GMF_SD_D3_IO_NUM        (GPIO_NUM_42)
+-#define ESP_GMF_SD_D4_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D5_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D6_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_D7_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_CD_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WP_IO_NUM        (GPIO_NUM_NC)
+-#define ESP_GMF_SD_WIDTH            (4)
+-
+-// I2C
+-#define ESP_GMF_I2C_SDA_IO_NUM      (GPIO_NUM_7)
+-#define ESP_GMF_I2C_SCL_IO_NUM      (GPIO_NUM_8)
+-
+-// I2S
+-#define ESP_GMF_I2S_DAC_MCLK_IO_NUM (GPIO_NUM_13)
+-#define ESP_GMF_I2S_DAC_BCLK_IO_NUM (GPIO_NUM_12)
+-#define ESP_GMF_I2S_DAC_WS_IO_NUM   (GPIO_NUM_10)
+-#define ESP_GMF_I2S_DAC_DO_IO_NUM   (GPIO_NUM_9)
+-#define ESP_GMF_I2S_DAC_DI_IO_NUM   (GPIO_NUM_11)
+-
+-#define ESP_GMF_I2S_ADC_MCLK_IO_NUM (GPIO_NUM_13)
+-#define ESP_GMF_I2S_ADC_BCLK_IO_NUM (GPIO_NUM_12)
+-#define ESP_GMF_I2S_ADC_WS_IO_NUM   (GPIO_NUM_10)
+-#define ESP_GMF_I2S_ADC_DO_IO_NUM   (GPIO_NUM_9)
+-#define ESP_GMF_I2S_ADC_DI_IO_NUM   (GPIO_NUM_11)
+-// PA
+-#define ESP_GMF_AMP_IO_NUM          (GPIO_NUM_53)
+-
+-#endif  /* CONFIG_IDF_TARGET_ESP32 */
+-
+-#ifdef __cplusplus
+-}
+-#endif  /* __cplusplus */
+diff --git a/examples/common/gmf_setup/esp_gmf_setup_peripheral.c b/examples/common/gmf_setup/esp_gmf_setup_peripheral.c
+deleted file mode 100644
+index 0d1a3be..0000000
+--- a/examples/common/gmf_setup/esp_gmf_setup_peripheral.c
++++ /dev/null
+@@ -1,486 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#include "esp_log.h"
+-#include "driver/sdmmc_host.h"
+-#include "vfs_fat_internal.h"
+-#include "esp_wifi.h"
+-#include "esp_event.h"
+-#include "nvs_flash.h"
+-#include "esp_gmf_oal_mem.h"
+-#include "driver/i2c_master.h"
+-#include "driver/i2c.h"
+-#include "esp_gmf_gpio_config.h"
+-#include "esp_gmf_setup_peripheral.h"
+-#include "sd_pwr_ctrl_by_on_chip_ldo.h"
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-#include "esp_gmf_io_codec_dev.h"
+-#include "esp_gmf_io_i2s_pdm.h"
+-#include "driver/i2s_std.h"
+-#include "driver/i2s_tdm.h"
+-#include "driver/i2s_pdm.h"
+-#include "esp_codec_dev_defaults.h"
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-
+-#define WIFI_CONNECTED_BIT     BIT0
+-#define WIFI_FAIL_BIT          BIT1
+-#define WIFI_RECONNECT_RETRIES 30
+-
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-i2s_chan_handle_t            rx_handle   = NULL;
+-const audio_codec_data_if_t *in_data_if  = NULL;
+-const audio_codec_ctrl_if_t *in_ctrl_if  = NULL;
+-const audio_codec_if_t      *in_codec_if = NULL;
+-
+-i2s_chan_handle_t            tx_handle    = NULL;
+-const audio_codec_data_if_t *out_data_if  = NULL;
+-const audio_codec_ctrl_if_t *out_ctrl_if  = NULL;
+-const audio_codec_if_t      *out_codec_if = NULL;
+-
+-const audio_codec_gpio_if_t *gpio_if = NULL;
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-
+-#ifndef CONFIG_EXAMPLE_ESP_GMF_WIFI
+-#define CONFIG_EXAMPLE_ESP_GMF_WIFI_SSID "****"
+-#define CONFIG_EXAMPLE_ESP_GMF_WIFI_PASS "****"
+-#endif  /* CONFIG_EXAMPLE_ESP_GMF_WIFI */
+-
+-typedef enum {
+-    I2S_CREATE_MODE_TX_ONLY   = 0,
+-    I2S_CREATE_MODE_RX_ONLY   = 1,
+-    I2S_CREATE_MODE_TX_AND_RX = 2,
+-} i2s_create_mode_t;
+-
+-static const char        *TAG = "SETUP_PERIPH";
+-static esp_netif_t       *s_esp_gmf_setup_sta_netif;
+-static EventGroupHandle_t s_wifi_event_group;
+-static int                s_retry_num = 0;
+-i2c_master_bus_handle_t   i2c_handle  = NULL;
+-
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-static esp_err_t setup_periph_i2s_tx_init(esp_gmf_setup_periph_aud_info *aud_info)
+-{
+-#if defined CONFIG_IDF_TARGET_ESP32C3
+-    i2s_pdm_tx_config_t pdm_tx_cfg = {
+-        .clk_cfg = I2S_PDM_TX_CLK_DEFAULT_CONFIG(aud_info->sample_rate),
+-        /* The data bit-width of PDM mode is fixed to 16 */
+-        .slot_cfg = I2S_PDM_TX_SLOT_DEFAULT_CONFIG(aud_info->bits_per_sample, aud_info->channel),
+-        .gpio_cfg = {
+-            .clk = ESP_GMF_I2S_DAC_BCLK_IO_NUM,
+-            .dout = ESP_GMF_I2S_DAC_DO_IO_NUM,
+-            .invert_flags = {
+-                .clk_inv = false,
+-            },
+-        },
+-    };
+-    return i2s_channel_init_pdm_tx_mode(tx_handle, &pdm_tx_cfg);
+-#else
+-    i2s_std_config_t std_cfg = {
+-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(aud_info->sample_rate),
+-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(aud_info->bits_per_sample, aud_info->channel),
+-        .gpio_cfg = {
+-            .mclk = ESP_GMF_I2S_DAC_MCLK_IO_NUM,
+-            .bclk = ESP_GMF_I2S_DAC_BCLK_IO_NUM,
+-            .ws = ESP_GMF_I2S_DAC_WS_IO_NUM,
+-            .dout = ESP_GMF_I2S_DAC_DO_IO_NUM,
+-            .din = ESP_GMF_I2S_DAC_DI_IO_NUM,
+-        },
+-    };
+-#if defined CONFIG_IDF_TARGET_ESP32
+-    std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_LEFT;
+-#endif  /* defined CONFIG_IDF_TARGET_ESP32 */
+-    return i2s_channel_init_std_mode(tx_handle, &std_cfg);
+-#endif  /* defined CONFIG_IDF_TARGET_ESP32C3 */
+-}
+-
+-static esp_err_t setup_periph_i2s_rx_init(esp_gmf_setup_periph_aud_info *aud_info)
+-{
+-    i2s_std_config_t std_cfg = {
+-        .clk_cfg = I2S_STD_CLK_DEFAULT_CONFIG(aud_info->sample_rate),
+-        .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(aud_info->bits_per_sample, aud_info->channel),
+-        .gpio_cfg = {
+-            .mclk = ESP_GMF_I2S_ADC_MCLK_IO_NUM,
+-            .bclk = ESP_GMF_I2S_ADC_BCLK_IO_NUM,
+-            .ws = ESP_GMF_I2S_ADC_WS_IO_NUM,
+-            .dout = ESP_GMF_I2S_ADC_DO_IO_NUM,
+-            .din = ESP_GMF_I2S_ADC_DI_IO_NUM,
+-        },
+-    };
+-    return i2s_channel_init_std_mode(rx_handle, &std_cfg);
+-}
+-
+-static esp_err_t setup_periph_create_i2s(i2s_create_mode_t mode, esp_gmf_setup_periph_aud_info *aud_info)
+-{
+-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(aud_info->port_num, I2S_ROLE_MASTER);
+-    chan_cfg.auto_clear = true;
+-    esp_err_t ret = ESP_OK;
+-    if (mode == I2S_CREATE_MODE_TX_ONLY) {
+-        ret = i2s_new_channel(&chan_cfg, &tx_handle, NULL);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to new I2S tx handle");
+-        ret = setup_periph_i2s_tx_init(aud_info);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to initialize I2S tx");
+-    } else if (mode == I2S_CREATE_MODE_RX_ONLY) {
+-        ret = i2s_new_channel(&chan_cfg, NULL, &rx_handle);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to new I2S rx handle");
+-        ret = setup_periph_i2s_rx_init(aud_info);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to initialize I2S rx");
+-    } else {
+-        ret = i2s_new_channel(&chan_cfg, &tx_handle, &rx_handle);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to new I2S tx and rx handle");
+-        ret = setup_periph_i2s_tx_init(aud_info);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to initialize I2S tx");
+-        ret = setup_periph_i2s_rx_init(aud_info);
+-        ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret;}, "Failed to initialize I2S rx");
+-    }
+-    return ret;
+-}
+-
+-static const audio_codec_data_if_t *setup_periph_new_i2s_data(void *tx_hd, void *rx_hd)
+-{
+-    audio_codec_i2s_cfg_t i2s_cfg = {
+-        .rx_handle = rx_hd,
+-        .tx_handle = tx_hd,
+-    };
+-    return audio_codec_new_i2s_data(&i2s_cfg);
+-}
+-
+-static void setup_periph_new_play_codec()
+-{
+-#ifdef CONFIG_IDF_TARGET_ESP32C3
+-    gpio_if = audio_codec_new_gpio();
+-    gpio_if->setup(ESP_GMF_AMP_IO_NUM, AUDIO_GPIO_DIR_OUT, AUDIO_GPIO_MODE_PULL_DOWN);
+-    gpio_if->set(ESP_GMF_AMP_IO_NUM, 1);
+-#else
+-    audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES8311_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
+-    out_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
+-    gpio_if = audio_codec_new_gpio();
+-    // New output codec interface
+-    es8311_codec_cfg_t es8311_cfg = {
+-        .codec_mode = ESP_CODEC_DEV_WORK_MODE_DAC,
+-        .ctrl_if = out_ctrl_if,
+-        .gpio_if = gpio_if,
+-        .pa_pin = ESP_GMF_AMP_IO_NUM,
+-        .use_mclk = true,
+-    };
+-    out_codec_if = es8311_codec_new(&es8311_cfg);
+-#endif  /* CONFIG_IDF_TARGET_ESP32C3 */
+-}
+-
+-static void setup_periph_new_record_codec()
+-{
+-#if defined CONFIG_IDF_TARGET_ESP32P4
+-    audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES8311_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
+-    in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
+-    gpio_if = audio_codec_new_gpio();
+-    // New output codec interface
+-    es8311_codec_cfg_t es8311_cfg = {
+-        .codec_mode = ESP_CODEC_DEV_WORK_MODE_BOTH,
+-        .ctrl_if = in_ctrl_if,
+-        .gpio_if = gpio_if,
+-        .pa_pin = ESP_GMF_AMP_IO_NUM,
+-        .use_mclk = true,
+-    };
+-    in_codec_if = es8311_codec_new(&es8311_cfg);
+-#elif CONFIG_IDF_TARGET_ESP32
+-    audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES7243_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
+-    in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
+-    gpio_if = audio_codec_new_gpio();
+-    // New output codec interface
+-    es7243_codec_cfg_t es7243_cfg = {
+-        .ctrl_if = in_ctrl_if,
+-    };
+-    in_codec_if = es7243_codec_new(&es7243_cfg);
+-#else
+-    audio_codec_i2c_cfg_t i2c_ctrl_cfg = {.addr = ES7210_CODEC_DEFAULT_ADDR, .port = 0, .bus_handle = i2c_handle};
+-    in_ctrl_if = audio_codec_new_i2c_ctrl(&i2c_ctrl_cfg);
+-    es7210_codec_cfg_t es7210_cfg = {
+-        .ctrl_if = in_ctrl_if,
+-        .mic_selected = ES7120_SEL_MIC1 | ES7120_SEL_MIC2 | ES7120_SEL_MIC3,
+-    };
+-    in_codec_if = es7210_codec_new(&es7210_cfg);
+-#endif  /* defined CONFIG_IDF_TARGET_ESP32P4 */
+-}
+-
+-static esp_codec_dev_handle_t setup_periph_create_codec_dev(esp_codec_dev_type_t dev_type, esp_gmf_setup_periph_aud_info *aud_info)
+-{
+-    esp_codec_dev_sample_info_t fs = {
+-        .sample_rate = aud_info->sample_rate,
+-        .channel = aud_info->channel,
+-        .bits_per_sample = aud_info->bits_per_sample,
+-    };
+-    esp_codec_dev_cfg_t dev_cfg = {0};
+-    esp_codec_dev_handle_t codec_dev = NULL;
+-    if (dev_type == ESP_CODEC_DEV_TYPE_OUT) {
+-        // New output codec device
+-        dev_cfg.codec_if = out_codec_if;
+-        dev_cfg.data_if = out_data_if;
+-        dev_cfg.dev_type = ESP_CODEC_DEV_TYPE_OUT;
+-        codec_dev = esp_codec_dev_new(&dev_cfg);
+-        esp_codec_dev_set_out_vol(codec_dev, 80.0);
+-        esp_codec_dev_open(codec_dev, &fs);
+-    } else {
+-        // New input codec device
+-        dev_cfg.codec_if = in_codec_if;
+-        dev_cfg.data_if = in_data_if;
+-        dev_cfg.dev_type = ESP_CODEC_DEV_TYPE_IN;
+-        codec_dev = esp_codec_dev_new(&dev_cfg);
+-        esp_codec_dev_set_in_gain(codec_dev, 30.0);
+-#ifdef CONFIG_IDF_TARGET_ESP32
+-        if (fs.channel == 1) {
+-            fs.channel = 2;
+-            fs.channel_mask = 2;
+-        }
+-#endif  /* CONFIG_IDF_TARGET_ESP32 */
+-        esp_codec_dev_open(codec_dev, &fs);
+-    }
+-    return codec_dev;
+-}
+-
+-static void setup_periph_play_codec(esp_gmf_setup_periph_aud_info *aud_info, void **play_dev)
+-{
+-    out_data_if = setup_periph_new_i2s_data(tx_handle, NULL);
+-    setup_periph_new_play_codec();
+-    *play_dev = setup_periph_create_codec_dev(ESP_CODEC_DEV_TYPE_OUT, aud_info);
+-}
+-
+-static void setup_periph_record_codec(esp_gmf_setup_periph_aud_info *aud_info, void **record_dev)
+-{
+-    in_data_if = setup_periph_new_i2s_data(NULL, rx_handle);
+-    setup_periph_new_record_codec();
+-    *record_dev = setup_periph_create_codec_dev(ESP_CODEC_DEV_TYPE_IN, aud_info);
+-}
+-
+-void teardown_periph_play_codec(void *play_dev)
+-{
+-    esp_codec_dev_close(play_dev);
+-    esp_codec_dev_delete(play_dev);
+-    audio_codec_delete_codec_if(out_codec_if);
+-    audio_codec_delete_ctrl_if(out_ctrl_if);
+-    audio_codec_delete_gpio_if(gpio_if);
+-    audio_codec_delete_data_if(out_data_if);
+-    i2s_channel_disable(tx_handle);
+-    i2s_del_channel(tx_handle);
+-    tx_handle = NULL;
+-}
+-
+-void teardown_periph_record_codec(void *record_dev)
+-{
+-    esp_codec_dev_close(record_dev);
+-    esp_codec_dev_delete(record_dev);
+-    audio_codec_delete_codec_if(in_codec_if);
+-    audio_codec_delete_ctrl_if(in_ctrl_if);
+-    audio_codec_delete_data_if(in_data_if);
+-    i2s_channel_disable(rx_handle);
+-    i2s_del_channel(rx_handle);
+-    rx_handle = NULL;
+-}
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-
+-void esp_gmf_setup_periph_sdmmc(void **out_card)
+-{
+-    sdmmc_card_t *card = NULL;
+-    sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+-    sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
+-#if defined CONFIG_IDF_TARGET_ESP32P4
+-    host.slot = SDMMC_HOST_SLOT_0;
+-    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+-    sd_pwr_ctrl_ldo_config_t ldo_config = {
+-        .ldo_chan_id = 4,
+-    };
+-    sd_pwr_ctrl_handle_t pwr_ctrl_handle = NULL;
+-    esp_err_t ret = sd_pwr_ctrl_new_on_chip_ldo(&ldo_config, &pwr_ctrl_handle);
+-    if (ret != ESP_OK) {
+-        ESP_LOGE(TAG, "Failed to create a new on-chip LDO power control driver");
+-        return;
+-    }
+-    host.pwr_ctrl_handle = pwr_ctrl_handle;
+-#endif  /* defined CONFIG_IDF_TARGET_ESP32P4 */
+-
+-#if defined CONFIG_IDF_TARGET_ESP32
+-    gpio_config_t sdcard_pwr_pin_cfg = {
+-        .pin_bit_mask = 1UL << GPIO_NUM_13,
+-        .mode = GPIO_MODE_OUTPUT,
+-        .pull_up_en = GPIO_PULLUP_DISABLE,
+-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+-        .intr_type = GPIO_INTR_DISABLE,
+-    };
+-    gpio_config(&sdcard_pwr_pin_cfg);
+-    gpio_set_level(GPIO_NUM_13, 0);
+-#endif  /* defined CONFIG_IDF_TARGET_ESP32 */
+-
+-    slot_config.width = ESP_GMF_SD_WIDTH;
+-    esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+-        .format_if_mount_failed = false,
+-        .max_files = 5,
+-        .allocation_unit_size = 12 * 1024};
+-#if SOC_SDMMC_USE_GPIO_MATRIX
+-    slot_config.clk = ESP_GMF_SD_CLK_IO_NUM;
+-    slot_config.cmd = ESP_GMF_SD_CMD_IO_NUM;
+-    slot_config.d0 = ESP_GMF_SD_D0_IO_NUM;
+-    slot_config.d1 = ESP_GMF_SD_D1_IO_NUM;
+-    slot_config.d2 = ESP_GMF_SD_D2_IO_NUM;
+-    slot_config.d3 = ESP_GMF_SD_D3_IO_NUM;
+-    slot_config.d4 = ESP_GMF_SD_D4_IO_NUM;
+-    slot_config.d5 = ESP_GMF_SD_D5_IO_NUM;
+-    slot_config.d6 = ESP_GMF_SD_D6_IO_NUM;
+-    slot_config.d7 = ESP_GMF_SD_D7_IO_NUM;
+-    slot_config.cd = ESP_GMF_SD_CD_IO_NUM;
+-    slot_config.wp = ESP_GMF_SD_WP_IO_NUM;
+-#endif  /* SOC_SDMMC_USE_GPIO_MATRIX */
+-#if defined CONFIG_IDF_TARGET_ESP32P4
+-    slot_config.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
+-#endif  /* defined CONFIG_IDF_TARGET_ESP32P4 */
+-    esp_vfs_fat_sdmmc_mount("/sdcard", &host, &slot_config, &mount_config, &card);
+-    *out_card = card;
+-}
+-
+-void esp_gmf_teardown_periph_sdmmc(void *card)
+-{
+-    esp_vfs_fat_sdcard_unmount("/sdcard", card);
+-}
+-
+-static void event_handler(void *arg, esp_event_base_t event_base,
+-                          int32_t event_id, void *event_data)
+-{
+-    if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
+-        esp_wifi_connect();
+-    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
+-        if (s_retry_num < WIFI_RECONNECT_RETRIES) {
+-            esp_wifi_connect();
+-            s_retry_num++;
+-            ESP_LOGI(TAG, "Retry to connect to the AP");
+-        } else {
+-            xEventGroupSetBits(s_wifi_event_group, WIFI_FAIL_BIT);
+-        }
+-        ESP_LOGI(TAG, "connect to the AP fail");
+-    } else if (event_base == IP_EVENT && event_id == IP_EVENT_STA_GOT_IP) {
+-        ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
+-        ESP_LOGI(TAG, "got ip:" IPSTR, IP2STR(&event->ip_info.ip));
+-        s_retry_num = 0;
+-        xEventGroupSetBits(s_wifi_event_group, WIFI_CONNECTED_BIT);
+-    }
+-}
+-
+-void esp_gmf_setup_periph_wifi(void)
+-{
+-    esp_err_t ret = nvs_flash_init();
+-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+-        ESP_ERROR_CHECK(nvs_flash_erase());
+-        ret = nvs_flash_init();
+-    }
+-    ESP_ERROR_CHECK(ret);
+-    s_wifi_event_group = xEventGroupCreate();
+-    ESP_ERROR_CHECK(esp_netif_init());
+-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+-    s_esp_gmf_setup_sta_netif = esp_netif_create_default_wifi_sta();
+-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+-    esp_event_handler_instance_t instance_any_id;
+-    esp_event_handler_instance_t instance_got_ip;
+-    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT,
+-                                                        ESP_EVENT_ANY_ID,
+-                                                        &event_handler,
+-                                                        NULL,
+-                                                        &instance_any_id));
+-    ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT,
+-                                                        IP_EVENT_STA_GOT_IP,
+-                                                        &event_handler,
+-                                                        NULL,
+-                                                        &instance_got_ip));
+-    wifi_config_t wifi_config = {
+-        .sta = {
+-            .ssid = CONFIG_EXAMPLE_ESP_GMF_WIFI_SSID,
+-            .password = CONFIG_EXAMPLE_ESP_GMF_WIFI_PASS,
+-        },
+-    };
+-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
+-    ESP_ERROR_CHECK(esp_wifi_start());
+-    ESP_LOGI(TAG, "wifi_init_sta finished.");
+-    EventBits_t bits = xEventGroupWaitBits(s_wifi_event_group,
+-                                           WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdFALSE, pdFALSE, portMAX_DELAY);
+-    if (bits & WIFI_CONNECTED_BIT) {
+-        ESP_LOGI(TAG, "connected to ap SSID:%s password:%s",
+-                 CONFIG_EXAMPLE_ESP_GMF_WIFI_SSID, CONFIG_EXAMPLE_ESP_GMF_WIFI_PASS);
+-    } else if (bits & WIFI_FAIL_BIT) {
+-        ESP_LOGI(TAG, "Failed to connect to SSID:%s, password:%s",
+-                 CONFIG_EXAMPLE_ESP_GMF_WIFI_SSID, CONFIG_EXAMPLE_ESP_GMF_WIFI_PASS);
+-    } else {
+-        ESP_LOGE(TAG, "UNEXPECTED EVENT");
+-    }
+-}
+-
+-void esp_gmf_teardown_periph_wifi(void)
+-{
+-    esp_wifi_disconnect();
+-    esp_err_t err = esp_wifi_stop();
+-    if (err == ESP_ERR_WIFI_NOT_INIT) {
+-        ESP_LOGE(TAG, "WIFI stop got an error");
+-        return;
+-    }
+-    ESP_ERROR_CHECK(esp_wifi_deinit());
+-    esp_event_loop_delete_default();
+-    ESP_ERROR_CHECK(esp_wifi_clear_default_wifi_driver_and_handlers(s_esp_gmf_setup_sta_netif));
+-    esp_netif_destroy(s_esp_gmf_setup_sta_netif);
+-    s_esp_gmf_setup_sta_netif = NULL;
+-}
+-
+-void esp_gmf_setup_periph_i2c(int port)
+-{
+-    i2c_master_bus_config_t i2c_config = {
+-        .i2c_port = 0,
+-        .sda_io_num = ESP_GMF_I2C_SDA_IO_NUM,
+-        .scl_io_num = ESP_GMF_I2C_SCL_IO_NUM,
+-        .clk_source = I2C_CLK_SRC_DEFAULT,
+-        .flags.enable_internal_pullup = true,
+-        .glitch_ignore_cnt = 7,
+-    };
+-    i2c_new_master_bus(&i2c_config, &i2c_handle);
+-}
+-
+-void esp_gmf_teardown_periph_i2c(int port)
+-{
+-    if (i2c_handle != NULL) {
+-        i2c_del_master_bus(i2c_handle);
+-        i2c_handle = NULL;
+-    }
+-}
+-
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-esp_gmf_err_t esp_gmf_setup_periph_codec(esp_gmf_setup_periph_aud_info *play_info, esp_gmf_setup_periph_aud_info *rec_info,
+-                                         void **play_dev, void **record_dev)
+-{
+-    if ((play_dev != NULL) && (record_dev != NULL)) {
+-        if (play_info->port_num == rec_info->port_num) {
+-            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_AND_RX, play_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx and rx");
+-        } else {
+-            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_ONLY, play_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx");
+-            ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_RX_ONLY, rec_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S rx");
+-        }
+-        setup_periph_play_codec(play_info, play_dev);
+-        setup_periph_record_codec(rec_info, record_dev);
+-    } else if (play_dev != NULL) {
+-        ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_TX_ONLY, play_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S tx");
+-        setup_periph_play_codec(play_info, play_dev);
+-    } else if (record_dev != NULL) {
+-        ESP_GMF_RET_ON_NOT_OK(TAG, setup_periph_create_i2s(I2S_CREATE_MODE_RX_ONLY, rec_info), { return ESP_GMF_ERR_FAIL;}, "Failed to create I2S rx");
+-        setup_periph_record_codec(rec_info, record_dev);
+-    } else {
+-        return ESP_GMF_ERR_FAIL;
+-    }
+-    return ESP_GMF_ERR_OK;
+-}
+-
+-void esp_gmf_teardown_periph_codec(void *play_dev, void *record_dev)
+-{
+-    if (play_dev != NULL) {
+-        teardown_periph_play_codec(play_dev);
+-    }
+-    if (record_dev != NULL) {
+-        teardown_periph_record_codec(record_dev);
+-    }
+-}
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+diff --git a/examples/common/gmf_setup/esp_gmf_setup_peripheral.h b/examples/common/gmf_setup/esp_gmf_setup_peripheral.h
+deleted file mode 100644
+index 6bfc61a..0000000
+--- a/examples/common/gmf_setup/esp_gmf_setup_peripheral.h
++++ /dev/null
+@@ -1,91 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#pragma once
+-
+-#include "esp_gmf_err.h"
+-
+-#ifdef __cplusplus
+-extern "C" {
+-#endif  /* __cplusplus */
+-
+-/**
+- * @brief  Audio information structure of gmf element
+- */
+-typedef struct {
+-    uint32_t sample_rate;      /*!< The audio sample rate */
+-    uint8_t  channel;          /*!< The audio channel number */
+-    uint8_t  bits_per_sample;  /*!< The audio bits per sample */
+-    uint8_t  port_num;         /*!< The number of i2s prot */
+-} esp_gmf_setup_periph_aud_info;
+-
+-/**
+- * @brief  Set up sdmmc
+- *
+- * @param[out]  out_card  Out handle of sdmmc
+- */
+-void esp_gmf_setup_periph_sdmmc(void **out_card);
+-
+-/**
+- * @brief  Teardown sdmmc
+- *
+- * @param[in]  card  Handle of sdmmc
+- */
+-void esp_gmf_teardown_periph_sdmmc(void *card);
+-
+-/**
+- * @brief  Set up wifi
+- */
+-void esp_gmf_setup_periph_wifi(void);
+-
+-/**
+- * @brief  Teardown wifi
+- */
+-void esp_gmf_teardown_periph_wifi(void);
+-
+-/**
+- * @brief  Set up i2c
+- *
+- * @param[in]  port  Number of i2c port
+- */
+-void esp_gmf_setup_periph_i2c(int port);
+-
+-/**
+- * @brief  Teardown i2c
+- *
+- * @param[in]  port  Number of i2c port
+- */
+-void esp_gmf_teardown_periph_i2c(int port);
+-
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-
+-/**
+- * @brief  Set up record and play codec
+- *
+- * @param[in]   play_info   Audio information for play codec device
+- * @param[in]   rec_info    Audio information for record codec device
+- * @param[out]  play_dev    Handle of play codec device
+- * @param[out]  record_dev  Handle of record codec device
+- *
+- * @return
+- *       - ESP_GMF_ERR_OK    Success
+- *       - ESP_GMF_ERR_FAIL  Failed to setup play and record codec
+- */
+-esp_gmf_err_t esp_gmf_setup_periph_codec(esp_gmf_setup_periph_aud_info *play_info, esp_gmf_setup_periph_aud_info *rec_info,
+-                                         void **play_dev, void **record_dev);
+-
+-/**
+- * @brief  Teardown play and record codec
+- *
+- * @param[in]  play_dev    Handle of play codec device
+- * @param[in]  record_dev  Handle of record codec device
+- */
+-void esp_gmf_teardown_periph_codec(void *play_dev, void *record_dev);
+-
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-#ifdef __cplusplus
+-}
+-#endif  /* __cplusplus */
+diff --git a/examples/common/gmf_setup/esp_gmf_setup_pool.c b/examples/common/gmf_setup/esp_gmf_setup_pool.c
+deleted file mode 100644
+index 528cead..0000000
+--- a/examples/common/gmf_setup/esp_gmf_setup_pool.c
++++ /dev/null
+@@ -1,371 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#include <string.h>
+-#include "esp_log.h"
+-
+-#include "esp_log.h"
+-#include "esp_err.h"
+-#include "esp_gmf_element.h"
+-#include "esp_gmf_pipeline.h"
+-#include "esp_gmf_pool.h"
+-#include "esp_gmf_oal_mem.h"
+-
+-#include "esp_gmf_io_file.h"
+-#include "esp_gmf_io_http.h"
+-#include "esp_gmf_io_embed_flash.h"
+-#include "esp_gmf_copier.h"
+-#include "esp_gmf_setup_pool.h"
+-
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-#include "esp_gmf_io_codec_dev.h"
+-#include "esp_gmf_io_i2s_pdm.h"
+-#include "driver/i2s_pdm.h"
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-
+-#include "esp_gmf_ch_cvt.h"
+-#include "esp_gmf_bit_cvt.h"
+-#include "esp_gmf_rate_cvt.h"
+-#include "esp_gmf_sonic.h"
+-#include "esp_gmf_alc.h"
+-#include "esp_gmf_eq.h"
+-#include "esp_gmf_fade.h"
+-#include "esp_gmf_mixer.h"
+-#include "esp_gmf_interleave.h"
+-#include "esp_gmf_deinterleave.h"
+-#include "esp_gmf_audio_dec.h"
+-#include "esp_audio_simple_dec_default.h"
+-
+-#include "esp_audio_enc_default.h"
+-#include "esp_gmf_audio_enc.h"
+-
+-#include "esp_audio_dec_default.h"
+-#include "esp_audio_dec_reg.h"
+-#include "esp_http_client.h"
+-#include "esp_gmf_gpio_config.h"
+-#include "esp_gmf_audio_helper.h"
+-#include "driver/i2c_master.h"
+-
+-static const char *TAG = "ESP_GMF_SETUP_POOL";
+-
+-#define SETUP_AUDIO_SAMPLE_RATE 16000
+-#define SETUP_AUDIO_BITS        16
+-#define SETUP_AUDIO_CHANNELS    1
+-
+-static const char *header_type[] = {
+-    "audio/aac",
+-    "audio/opus",
+-    "audio/wav",
+-};
+-
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-i2s_chan_handle_t pdm_tx_chan = NULL;
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-
+-static esp_err_t _http_stream_event_handle(http_stream_event_msg_t *msg)
+-{
+-    esp_http_client_handle_t http = (esp_http_client_handle_t)msg->http_client;
+-    char len_buf[16];
+-    static int total_write = 0;
+-
+-    if (msg->event_id == HTTP_STREAM_PRE_REQUEST) {
+-        // set header
+-        ESP_LOGE(TAG, "[ + ] HTTP client HTTP_STREAM_PRE_REQUEST, length=%d, format:%s", msg->buffer_len, (char *)msg->user_data);
+-        esp_http_client_set_method(http, HTTP_METHOD_POST);
+-        char dat[10] = {0};
+-        snprintf(dat, sizeof(dat), "%d", SETUP_AUDIO_SAMPLE_RATE);
+-        esp_http_client_set_header(http, "x-audio-sample-rates", dat);
+-        esp_audio_type_t fmt = 0;
+-        esp_gmf_audio_helper_get_audio_type_by_uri((char *)msg->user_data, &fmt);
+-        if (fmt == ESP_AUDIO_TYPE_AAC) {
+-            esp_http_client_set_header(http, "Content-Type", header_type[0]);
+-        } else if (fmt == ESP_AUDIO_TYPE_OPUS) {
+-            esp_http_client_set_header(http, "Content-Type", header_type[1]);
+-        } else {
+-            esp_http_client_set_header(http, "Content-Type", header_type[2]);
+-        }
+-
+-        memset(dat, 0, sizeof(dat));
+-        snprintf(dat, sizeof(dat), "%d", SETUP_AUDIO_BITS);
+-        esp_http_client_set_header(http, "x-audio-bits", dat);
+-        memset(dat, 0, sizeof(dat));
+-        snprintf(dat, sizeof(dat), "%d", SETUP_AUDIO_CHANNELS);
+-        esp_http_client_set_header(http, "x-audio-channel", dat);
+-        total_write = 0;
+-        return ESP_OK;
+-    }
+-
+-    if (msg->event_id == HTTP_STREAM_ON_REQUEST) {
+-        // write data
+-        int wlen = sprintf(len_buf, "%x\r\n", msg->buffer_len);
+-        if (esp_http_client_write(http, len_buf, wlen) <= 0) {
+-            return ESP_FAIL;
+-        }
+-        if (esp_http_client_write(http, msg->buffer, msg->buffer_len) <= 0) {
+-            return ESP_FAIL;
+-        }
+-        if (esp_http_client_write(http, "\r\n", 2) <= 0) {
+-            return ESP_FAIL;
+-        }
+-        total_write += msg->buffer_len;
+-        printf("\033[A\33[2K\rTotal bytes written: %d\n", total_write);
+-        return msg->buffer_len;
+-    }
+-
+-    if (msg->event_id == HTTP_STREAM_POST_REQUEST) {
+-        ESP_LOGE(TAG, "[ + ] HTTP client HTTP_STREAM_POST_REQUEST, write end chunked marker");
+-        if (esp_http_client_write(http, "0\r\n\r\n", 5) <= 0) {
+-            return ESP_FAIL;
+-        }
+-        return ESP_OK;
+-    }
+-
+-    if (msg->event_id == HTTP_STREAM_FINISH_REQUEST) {
+-        ESP_LOGE(TAG, "[ + ] HTTP client HTTP_STREAM_FINISH_REQUEST");
+-        char *buf = calloc(1, 64);
+-        assert(buf);
+-        int read_len = esp_http_client_read(http, buf, 64);
+-        if (read_len <= 0) {
+-            free(buf);
+-            return ESP_FAIL;
+-        }
+-        buf[read_len] = 0;
+-        ESP_LOGI(TAG, "Got HTTP Response = %s", (char *)buf);
+-        free(buf);
+-        total_write = 0;
+-        return ESP_OK;
+-    }
+-    return ESP_OK;
+-}
+-
+-void pool_register_i2s_pdm_tx(esp_gmf_pool_handle_t pool, uint32_t sample_rate, uint8_t bits, uint8_t channel)
+-{
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-    /* Setp 1: Determine the I2S channel configuration and allocate TX channel only
+-     * The default configuration can be generated by the helper macro,
+-     * it only requires the I2S controller id and I2S role,
+-     * but note that PDM channel can only be registered on I2S_NUM_0 */
+-    i2s_chan_config_t tx_chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_AUTO, I2S_ROLE_MASTER);
+-    tx_chan_cfg.auto_clear = true;
+-    tx_chan_cfg.dma_desc_num = 10;
+-    tx_chan_cfg.dma_frame_num = 900;
+-    ESP_ERROR_CHECK(i2s_new_channel(&tx_chan_cfg, &pdm_tx_chan, NULL));
+-
+-    /* Step 2: Setting the configurations of PDM TX mode and initialize the TX channel
+-     * The slot configuration and clock configuration can be generated by the macros
+-     * These two helper macros is defined in 'i2s_pdm.h' which can only be used in PDM TX mode.
+-     * They can help to specify the slot and clock configurations for initialization or re-configuring */
+-    i2s_pdm_tx_config_t pdm_tx_cfg = {
+-#if CONFIG_EXAMPLE_PDM_TX_DAC
+-        .clk_cfg = I2S_PDM_TX_CLK_DAC_DEFAULT_CONFIG(sample_rate),
+-        /* The data bit-width of PDM mode is fixed to 16 */
+-        .slot_cfg = I2S_PDM_TX_SLOT_DAC_DEFAULT_CONFIG(bits, channel),
+-#else
+-        .clk_cfg = I2S_PDM_TX_CLK_DEFAULT_CONFIG(sample_rate),
+-        /* The data bit-width of PDM mode is fixed to 16 */
+-        .slot_cfg = I2S_PDM_TX_SLOT_DEFAULT_CONFIG(bits, channel),
+-#endif  /* CONFIG_EXAMPLE_PDM_TX_DAC */
+-        .gpio_cfg = {
+-            .clk = ESP_GMF_I2S_DAC_BCLK_IO_NUM,
+-            .dout = ESP_GMF_I2S_DAC_DO_IO_NUM,
+-            .invert_flags = {
+-                .clk_inv = false,
+-            },
+-        },
+-    };
+-    ESP_ERROR_CHECK(i2s_channel_init_pdm_tx_mode(pdm_tx_chan, &pdm_tx_cfg));
+-
+-    i2s_pdm_io_cfg_t pdm_cfg = ESP_GMF_IO_I2S_PDM_CFG_DEFAULT();
+-    pdm_cfg.dir = ESP_GMF_IO_DIR_WRITER;
+-    pdm_cfg.pdm_chan = pdm_tx_chan;
+-    esp_gmf_io_handle_t pdm = NULL;
+-    esp_gmf_io_i2s_pdm_init(&pdm_cfg, &pdm);
+-    esp_gmf_pool_register_io(pool, pdm, NULL);
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-}
+-
+-void pool_unregister_i2s_pdm_tx(void)
+-{
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-    i2s_del_channel(pdm_tx_chan);
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-}
+-
+-void pool_register_codec_dev_io(esp_gmf_pool_handle_t pool, void *play_dev, void *record_dev)
+-{
+-#ifdef USE_ESP_GMF_ESP_CODEC_DEV_IO
+-    if (play_dev != NULL) {
+-        codec_dev_io_cfg_t tx_codec_dev_cfg = ESP_GMF_IO_CODEC_DEV_CFG_DEFAULT();
+-        tx_codec_dev_cfg.dir = ESP_GMF_IO_DIR_WRITER;
+-        tx_codec_dev_cfg.dev = play_dev;
+-        tx_codec_dev_cfg.name = "codec_dev_tx";
+-        esp_gmf_io_handle_t tx_dev = NULL;
+-        esp_gmf_io_codec_dev_init(&tx_codec_dev_cfg, &tx_dev);
+-        esp_gmf_pool_register_io(pool, tx_dev, NULL);
+-    }
+-    if (record_dev != NULL) {
+-        codec_dev_io_cfg_t rx_codec_dev_cfg = ESP_GMF_IO_CODEC_DEV_CFG_DEFAULT();
+-        rx_codec_dev_cfg.dir = ESP_GMF_IO_DIR_READER;
+-        rx_codec_dev_cfg.dev = record_dev;
+-        rx_codec_dev_cfg.name = "codec_dev_rx";
+-        esp_gmf_io_handle_t rx_dev = NULL;
+-        esp_gmf_io_codec_dev_init(&rx_codec_dev_cfg, &rx_dev);
+-        esp_gmf_pool_register_io(pool, rx_dev, NULL);
+-    }
+-#endif  /* USE_ESP_GMF_ESP_CODEC_DEV_IO */
+-}
+-
+-void pool_register_io(esp_gmf_pool_handle_t pool)
+-{
+-    http_io_cfg_t http_cfg = HTTP_STREAM_CFG_DEFAULT();
+-    esp_gmf_io_handle_t http = NULL;
+-    http_cfg.dir = ESP_GMF_IO_DIR_WRITER;
+-    http_cfg.event_handle = _http_stream_event_handle;
+-    esp_gmf_io_http_init(&http_cfg, &http);
+-    esp_gmf_pool_register_io(pool, http, NULL);
+-
+-    http_cfg.dir = ESP_GMF_IO_DIR_READER;
+-    http_cfg.event_handle = NULL;
+-    http = NULL;
+-    esp_gmf_io_http_init(&http_cfg, &http);
+-    esp_gmf_pool_register_io(pool, http, NULL);
+-
+-    file_io_cfg_t fs_cfg = FILE_IO_CFG_DEFAULT();
+-    fs_cfg.dir = ESP_GMF_IO_DIR_READER;
+-    esp_gmf_io_handle_t fs = NULL;
+-    esp_gmf_io_file_init(&fs_cfg, &fs);
+-    esp_gmf_pool_register_io(pool, fs, NULL);
+-
+-    fs_cfg.dir = ESP_GMF_IO_DIR_WRITER;
+-    esp_gmf_io_file_init(&fs_cfg, &fs);
+-    esp_gmf_pool_register_io(pool, fs, NULL);
+-
+-    esp_gmf_copier_cfg_t copier_cfg = {
+-        .copy_num = 1,
+-    };
+-    esp_gmf_element_handle_t copier = NULL;
+-    esp_gmf_copier_init(&copier_cfg, &copier);
+-    esp_gmf_pool_register_element(pool, copier, NULL);
+-
+-    embed_flash_io_cfg_t flash_cfg = EMBED_FLASH_CFG_DEFAULT();
+-    esp_gmf_io_handle_t flash = NULL;
+-    esp_gmf_io_embed_flash_init(&flash_cfg, &flash);
+-    esp_gmf_pool_register_io(pool, flash, NULL);
+-}
+-
+-void pool_register_audio_codecs(esp_gmf_pool_handle_t pool)
+-{
+-    esp_audio_enc_register_default();
+-    esp_audio_enc_config_t es_enc_cfg = DEFAULT_ESP_GMF_AUDIO_ENC_CONFIG();
+-    esp_aac_enc_config_t aac_enc_cfg = ESP_AAC_ENC_CONFIG_DEFAULT();
+-    aac_enc_cfg.sample_rate = 16000;
+-    aac_enc_cfg.channel = 1;
+-    aac_enc_cfg.bits_per_sample = 16;
+-    aac_enc_cfg.bitrate = 64000;
+-    aac_enc_cfg.adts_used = true;
+-    es_enc_cfg.type = ESP_AUDIO_TYPE_AAC;
+-    es_enc_cfg.cfg = &aac_enc_cfg;
+-    es_enc_cfg.cfg_sz = sizeof(esp_aac_enc_config_t);
+-    esp_gmf_element_handle_t enc_handle = NULL;
+-    esp_gmf_audio_enc_init(&es_enc_cfg, &enc_handle);
+-    esp_gmf_pool_register_element(pool, enc_handle, NULL);
+-
+-    esp_audio_dec_register_default();
+-    esp_audio_simple_dec_register_default();
+-    esp_audio_simple_dec_cfg_t es_dec_cfg = DEFAULT_ESP_GMF_AUDIO_DEC_CONFIG();
+-    esp_gmf_element_handle_t es_hd = NULL;
+-    esp_gmf_audio_dec_init(&es_dec_cfg, &es_hd);
+-    esp_gmf_pool_register_element(pool, es_hd, NULL);
+-}
+-
+-void pool_unregister_audio_codecs()
+-{
+-    esp_audio_enc_unregister_default();
+-    esp_audio_dec_unregister_default();
+-    esp_audio_simple_dec_unregister_default();
+-}
+-
+-void pool_register_audio_effects(esp_gmf_pool_handle_t pool)
+-{
+-    esp_ae_alc_cfg_t alc_cfg = DEFAULT_ESP_GMF_ALC_CONFIG();
+-    esp_gmf_element_handle_t alc_hd = NULL;
+-    esp_gmf_alc_init(&alc_cfg, &alc_hd);
+-    esp_gmf_pool_register_element(pool, alc_hd, NULL);
+-
+-    esp_ae_eq_cfg_t eq_cfg = DEFAULT_ESP_GMF_EQ_CONFIG();
+-    esp_gmf_element_handle_t eq_hd = NULL;
+-    esp_gmf_eq_init(&eq_cfg, &eq_hd);
+-    esp_gmf_pool_register_element(pool, eq_hd, NULL);
+-
+-    esp_ae_ch_cvt_cfg_t ch_cvt_cfg = DEFAULT_ESP_GMF_CH_CVT_CONFIG();
+-    esp_gmf_element_handle_t ch_hd = NULL;
+-    ch_cvt_cfg.dest_ch = 2;
+-    esp_gmf_ch_cvt_init(&ch_cvt_cfg, &ch_hd);
+-    esp_gmf_pool_register_element(pool, ch_hd, NULL);
+-
+-    esp_ae_bit_cvt_cfg_t bit_cvt_cfg = DEFAULT_ESP_GMF_BIT_CVT_CONFIG();
+-    bit_cvt_cfg.dest_bits = 16;
+-    esp_gmf_element_handle_t bit_hd = NULL;
+-    esp_gmf_bit_cvt_init(&bit_cvt_cfg, &bit_hd);
+-    esp_gmf_pool_register_element(pool, bit_hd, NULL);
+-
+-    esp_ae_rate_cvt_cfg_t rate_cvt_cfg = DEFAULT_ESP_GMF_RATE_CVT_CONFIG();
+-    rate_cvt_cfg.dest_rate = 48000;
+-    esp_gmf_element_handle_t rate_hd = NULL;
+-    esp_gmf_rate_cvt_init(&rate_cvt_cfg, &rate_hd);
+-    esp_gmf_pool_register_element(pool, rate_hd, NULL);
+-
+-    esp_ae_fade_cfg_t fade_cfg = DEFAULT_ESP_GMF_FADE_CONFIG();
+-    esp_gmf_element_handle_t fade_hd = NULL;
+-    esp_gmf_fade_init(&fade_cfg, &fade_hd);
+-    esp_gmf_pool_register_element(pool, fade_hd, NULL);
+-
+-    esp_ae_sonic_cfg_t sonic_cfg = DEFAULT_ESP_GMF_SONIC_CONFIG();
+-    esp_gmf_element_handle_t sonic_hd = NULL;
+-    esp_gmf_sonic_init(&sonic_cfg, &sonic_hd);
+-    esp_gmf_pool_register_element(pool, sonic_hd, NULL);
+-
+-    esp_gmf_deinterleave_cfg deinterleave_cfg = DEFAULT_ESP_GMF_DEINTERLEAVE_CONFIG();
+-    esp_gmf_element_handle_t deinterleave_hd = NULL;
+-    esp_gmf_deinterleave_init(&deinterleave_cfg, &deinterleave_hd);
+-    esp_gmf_pool_register_element(pool, deinterleave_hd, NULL);
+-
+-    esp_gmf_interleave_cfg interleave_cfg = DEFAULT_ESP_GMF_INTERLEAVE_CONFIG();
+-    esp_gmf_element_handle_t interleave_hd = NULL;
+-    esp_gmf_interleave_init(&interleave_cfg, &interleave_hd);
+-    esp_gmf_pool_register_element(pool, interleave_hd, NULL);
+-
+-    esp_ae_mixer_cfg_t mixer_cfg = {0};
+-    mixer_cfg.sample_rate = 48000;
+-    mixer_cfg.channel = 2;
+-    mixer_cfg.bits_per_sample = 16;
+-    mixer_cfg.src_num = 2;
+-    esp_ae_mixer_info_t source_info[2];
+-    esp_ae_mixer_info_t mixer_info1 = {
+-        .weight1 = 1,
+-        .weight2 = 0.5,
+-        .transit_time = 500,
+-    };
+-    esp_ae_mixer_info_t mixer_info2 = {
+-        .weight1 = 0.0,
+-        .weight2 = 0.5,
+-        .transit_time = 500,
+-    };
+-    source_info[0] = mixer_info1;
+-    source_info[1] = mixer_info2;
+-    mixer_cfg.src_info = source_info;
+-    esp_gmf_element_handle_t mixer_hd = NULL;
+-    esp_gmf_mixer_init(&mixer_cfg, &mixer_hd);
+-    esp_gmf_pool_register_element(pool, mixer_hd, NULL);
+-}
+-
+-void pool_register_all(esp_gmf_pool_handle_t pool, void *play_dev, void *codec_dev)
+-{
+-    pool_register_audio_codecs(pool);
+-    pool_register_audio_effects(pool);
+-    pool_register_io(pool);
+-    pool_register_codec_dev_io(pool, play_dev, codec_dev);
+-}
+diff --git a/examples/common/gmf_setup/esp_gmf_setup_pool.h b/examples/common/gmf_setup/esp_gmf_setup_pool.h
+deleted file mode 100644
+index c978ed4..0000000
+--- a/examples/common/gmf_setup/esp_gmf_setup_pool.h
++++ /dev/null
+@@ -1,66 +0,0 @@
+-/*
+- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
+- *
+- * SPDX-License-Identifier: Apache-2.0
+- */
+-
+-#pragma once
+-
+-#ifdef __cplusplus
+-extern "C" {
+-#endif  /* __cplusplus */
+-
+-/**
+- * @brief  Register codec device io to gmf element pool
+- *
+- * @param[in]  pool        Handle of gmf pool
+- * @param[in]  play_dev    Handle of play codec device
+- * @param[in]  record_dev  Handle of record codec device
+- */
+-void pool_register_codec_dev_io(esp_gmf_pool_handle_t pool, void *play_dev, void *record_dev);
+-
+-/**
+- * @brief  Register IO to gmf element pool
+- *
+- * @param[in]  pool  Handle of gmf pool
+- */
+-void pool_register_io(esp_gmf_pool_handle_t pool);
+-
+-/**
+- * @brief  Register audio codec element to gmf element pool
+- *
+- * @param[in]  pool  Handle of gmf pool
+- */
+-void pool_register_audio_codecs(esp_gmf_pool_handle_t pool);
+-
+-/**
+- * @brief  Unregister audio codec
+- */
+-void pool_unregister_audio_codecs(void);
+-
+-/**
+- * @brief  Register audio effect element to gmf element pool
+- *
+- * @param[in]  pool  Handle of gmf pool
+- */
+-void pool_register_audio_effects(esp_gmf_pool_handle_t pool);
+-
+-/**
+- * @brief  Register image element to gmf element pool
+- *
+- * @param[in]  pool  Handle of gmf pool
+- */
+-void pool_register_image(esp_gmf_pool_handle_t pool);
+-
+-/**
+- * @brief  Register all the gmf element to gmf element pool
+- *
+- * @param[in]  pool        Handle of gmf pool
+- * @param[in]  play_dev    Handle of play codec device
+- * @param[in]  record_dev  Handle of record codec device
+- */
+-void pool_register_all(esp_gmf_pool_handle_t pool, void *play_dev, void *codec_dev);
+-
+-#ifdef __cplusplus
+-}
+-#endif  /* __cplusplus */
+diff --git a/examples/common/gmf_setup/idf_component.yml b/examples/common/gmf_setup/idf_component.yml
+deleted file mode 100644
+index 20485bc..0000000
+--- a/examples/common/gmf_setup/idf_component.yml
++++ /dev/null
+@@ -1,9 +0,0 @@
+-dependencies:
+-  espressif/gmf_core:
+-    version: "^0.6"
+-  espressif/gmf_io:
+-    version: "^0.6"
+-  espressif/gmf_misc:
+-    version: "^0.6"
+-  espressif/gmf_audio:
+-    version: "^0.6"
+diff --git a/examples/wwe/CMakeLists.txt b/examples/wwe/CMakeLists.txt
+index bdf0f98..810df38 100644
+--- a/examples/wwe/CMakeLists.txt
++++ b/examples/wwe/CMakeLists.txt
+@@ -2,8 +2,6 @@
+ # CMakeLists in this exact order for cmake to work correctly
+ cmake_minimum_required(VERSION 3.5)
+ 
+-set(EXTRA_COMPONENT_DIRS ${EXTRA_COMPONENT_DIRS} "../common")
+-
+ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+ 
+ project(gmf_wwe_demo)
+diff --git a/examples/wwe/README.md b/examples/wwe/README.md
+index 5d7735d..79816e1 100644
+--- a/examples/wwe/README.md
++++ b/examples/wwe/README.md
+@@ -37,21 +37,6 @@ This example supports IDF release/v5.3 and later branches
+ 
+ The voice wake word and command word detection used in this example are derived from `esp-sr`. Please familiarize yourself with its configuration and usage: [README](https://github.com/espressif/esp-sr/blob/master/README.md)
+ 
+-### Configuration
+-
+-This example supports the following development boards:
+-- ESP32-LyraT-Mini
+-- ESP32S3_Korvo_2
+-
+-Other boards require modifications to the following files in the [gmf_setup](../common/gmf_setup) folder:
+-
+-| Configuration | Related Files |  Related Functions   |
+-|:----:| :-----: | :----: |
+-|I2S Port and I2S Format| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_create_i2s` |
+-|I2C Port| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `esp_gmf_setup_periph_i2c` |
+-|Codec Type and Format|`esp_gmf_setup_peripheral.c` |`setup_periph_new_play_codec`  |
+-|PA Port| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_new_play_codec` |
+-
+ ### Build and Flash
+ 
+ Before compiling this example, ensure that the ESP-IDF environment is properly configured. If it is already set up, you can proceed to the next configuration step. If not, run the following script in the root directory of ESP-IDF to set up the build environment. For detailed steps on configuring and using ESP-IDF, please refer to the [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32s3/index.html)
+@@ -74,6 +59,12 @@ cd gmf_ai_audio/examples/wwe
+ ```
+ idf.py set-target esp32s3
+ ```
++- Select the compilation board, taking ESP32-S3-Korvo V2 as an example:
++
++```
++idf.py menuconfig
++In 'menuconfig', select 'GMF APP Configuration' -> 'Audio Board' -> 'ESP32-S3-Korvo V2', and then save and exit
++```
+ 
+ - Build the example:
+ 
+@@ -105,9 +96,9 @@ I (1547) AFE: AFE Version: (2MIC_V250113)
+ I (1550) AFE: Input PCM Config: total 4 channels(2 microphone, 1 playback), sample rate:16000
+ I (1560) AFE: AFE Pipeline: [input] -> |AEC(SR_HIGH_PERF)| -> |SE(BSS)| -> |VAD(WebRTC)| -> |WakeNet(wn9_hilexin,)| -> [output]
+ I (1572) AFE_manager: Feed task, ch 4, chunk 1024, buf size 8192
+-I (1579) GMF_AFE: Create AFE, gmf_afe-0x3c2dcf90
+-I (1584) GMF_AFE: Create AFE, gmf_afe-0x3c2dd0b8
+-I (1589) GMF_AFE: New an object,gmf_afe-0x3c2dd0b8
++I (1579) GMF_AFE: Create AFE, ai_afe-0x3c2dcf90
++I (1584) GMF_AFE: Create AFE, ai_afe-0x3c2dd0b8
++I (1589) GMF_AFE: New an object,ai_afe-0x3c2dd0b8
+ I (1595) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcc500c-0x3fcc500c, wk:0x0, run:0]
+ I (1603) ESP_GMF_THREAD: The TSK_0x3fcc500c created on internal memory
+ I (1610) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcc500c-0x3fcc500c, wk:0x3c2dd17c, run:0]
+@@ -121,15 +112,15 @@ I (2639) NEW_DATA_BUS: New ringbuffer:0x3c6feeb4, num:2, item_cnt:8192, db:0x3c6
+ I (2643) NEW_DATA_BUS: New ringbuffer:0x3c6fe4d0, num:1, item_cnt:20480, db:0x3c6fcbd8
+ I (2651) AFE_manager: AFE manager suspend 1
+ I (2656) AFE_manager: AFE manager suspend 0
+-I (2661) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:gmf_afe-0x3c2dd0b8, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccd920, size:12,0x0
+-I (2675) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:gmf_afe-0x3c2dd0b8, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
++I (2661) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:ai_afe-0x3c2dd0b8, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccd920, size:12,0x0
++I (2675) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:ai_afe-0x3c2dd0b8, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
+ I (2688) ESP_GMF_TASK: One times job is complete, del[wk:0x3c2dd17c,ctx:0x3c2dd0b8, label:gmf_afe_open]
+-I (2698) ESP_GMF_PORT: ACQ IN, new self payload:0x3c2dd17c, port:0x3c2dd240, el:0x3c2dd0b8-gmf_afe
++I (2698) ESP_GMF_PORT: ACQ IN, new self payload:0x3c2dd17c, port:0x3c2dd240, el:0x3c2dd0b8-ai_afe
+ 
+ Type 'help' to get the list of commands.
+ Use UP/DOWN arrows to navigate through command history.
+ Press TAB when typing command name to auto-complete.
+-I (2893) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c6fc548, port:0x3c2dd280, el:0x3c2dd0b8-gmf_afe
++I (2893) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c6fc548, port:0x3c2dd280, el:0x3c2dd0b8-ai_afe
+ Audio > I (5668) AFE_manager: AFE Ctrl [1, 1]
+ I (5669) AFE_manager: VAD ctrl ret 1
+ I (5674) AI_AUDIO_WWE: WAKEUP_START [1 : 1]
+diff --git a/examples/wwe/README_CN.md b/examples/wwe/README_CN.md
+index da8581b..950cdae 100644
+--- a/examples/wwe/README_CN.md
++++ b/examples/wwe/README_CN.md
+@@ -37,21 +37,6 @@ graph
+ 
+ 例程中使用的语音唤醒和命令词检测，源自于 `esp-sr`，请先了解其配置和使用: [README](https://github.com/espressif/esp-sr/blob/master/README.md)
+ 
+-### 配置
+-
+-本例程支持以下开发板：
+-- ESP32-LyraT-Mini
+-- ESP32S3_Korvo_2
+-
+-其他板子支持需要修改 [gmf_setup](../common/gmf_setup) 文件夹中的以下内容：
+-
+-| 配置内容 | 相关文件 |  相关函数   |
+-|:----:| :-----: | :----: |
+-|I2S 端口和 I2S 格式| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_create_i2s` |
+-|I2C 端口| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `esp_gmf_setup_periph_i2c` |
+-|Codec 类型和格式|`esp_gmf_setup_peripheral.c` |`setup_periph_new_play_codec`  |
+-|PA 端口| `esp_gmf_gpio_config.h`<br>`esp_gmf_setup_peripheral.c` | `setup_periph_new_play_codec` |
+-
+ ### 编译和下载
+ 
+ 编译本例程前需要先确保已配置 ESP-IDF 的环境，如果已配置可跳到下一项配置，如果未配置需要先在 ESP-IDF 根目录运行下面脚本设置编译环境，有关配置和使用 ESP-IDF 完整步骤，请参阅 [《ESP-IDF 编程指南》](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32s3/index.html)
+@@ -74,6 +59,12 @@ cd gmf_ai_audio/examples/wwe
+ ```
+ idf.py set-target esp32s3
+ ```
++- 选择编译目标板，以 ESP32-S3-Korvo V2 为例：
++
++```
++idf.py menuconfig
++在 `menuconfig` 中选择 `GMF APP Configuration` -> `Audio Board` -> `ESP32-S3-Korvo V2`，然后保存退出
++```
+ 
+ - 编译例子程序
+ 
+@@ -111,9 +102,9 @@ I (1547) AFE: AFE Version: (2MIC_V250113)
+ I (1550) AFE: Input PCM Config: total 4 channels(2 microphone, 1 playback), sample rate:16000
+ I (1560) AFE: AFE Pipeline: [input] -> |AEC(SR_HIGH_PERF)| -> |SE(BSS)| -> |VAD(WebRTC)| -> |WakeNet(wn9_hilexin,)| -> [output]
+ I (1572) AFE_manager: Feed task, ch 4, chunk 1024, buf size 8192
+-I (1579) GMF_AFE: Create AFE, gmf_afe-0x3c2dcf90
+-I (1584) GMF_AFE: Create AFE, gmf_afe-0x3c2dd0b8
+-I (1589) GMF_AFE: New an object,gmf_afe-0x3c2dd0b8
++I (1579) GMF_AFE: Create AFE, ai_afe-0x3c2dcf90
++I (1584) GMF_AFE: Create AFE, ai_afe-0x3c2dd0b8
++I (1589) GMF_AFE: New an object,ai_afe-0x3c2dd0b8
+ I (1595) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcc500c-0x3fcc500c, wk:0x0, run:0]
+ I (1603) ESP_GMF_THREAD: The TSK_0x3fcc500c created on internal memory
+ I (1610) ESP_GMF_TASK: Waiting to run... [tsk:TSK_0x3fcc500c-0x3fcc500c, wk:0x3c2dd17c, run:0]
+@@ -127,15 +118,15 @@ I (2639) NEW_DATA_BUS: New ringbuffer:0x3c6feeb4, num:2, item_cnt:8192, db:0x3c6
+ I (2643) NEW_DATA_BUS: New ringbuffer:0x3c6fe4d0, num:1, item_cnt:20480, db:0x3c6fcbd8
+ I (2651) AFE_manager: AFE manager suspend 1
+ I (2656) AFE_manager: AFE manager suspend 0
+-I (2661) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:gmf_afe-0x3c2dd0b8, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccd920, size:12,0x0
+-I (2675) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:gmf_afe-0x3c2dd0b8, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
++I (2661) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:ai_afe-0x3c2dd0b8, type:12288, sub:ESP_GMF_EVENT_STATE_INITIALIZED, payload:0x3fccd920, size:12,0x0
++I (2675) AI_AUDIO_WWE: CB: RECV Pipeline EVT: el:ai_afe-0x3c2dd0b8, type:8192, sub:ESP_GMF_EVENT_STATE_RUNNING, payload:0x0, size:0,0x0
+ I (2688) ESP_GMF_TASK: One times job is complete, del[wk:0x3c2dd17c,ctx:0x3c2dd0b8, label:gmf_afe_open]
+-I (2698) ESP_GMF_PORT: ACQ IN, new self payload:0x3c2dd17c, port:0x3c2dd240, el:0x3c2dd0b8-gmf_afe
++I (2698) ESP_GMF_PORT: ACQ IN, new self payload:0x3c2dd17c, port:0x3c2dd240, el:0x3c2dd0b8-ai_afe
+ 
+ Type 'help' to get the list of commands.
+ Use UP/DOWN arrows to navigate through command history.
+ Press TAB when typing command name to auto-complete.
+-I (2893) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c6fc548, port:0x3c2dd280, el:0x3c2dd0b8-gmf_afe
++I (2893) ESP_GMF_PORT: ACQ OUT, new self payload:0x3c6fc548, port:0x3c2dd280, el:0x3c2dd0b8-ai_afe
+ Audio > I (5668) AFE_manager: AFE Ctrl [1, 1]
+ I (5669) AFE_manager: VAD ctrl ret 1
+ I (5674) AI_AUDIO_WWE: WAKEUP_START [1 : 1]
+diff --git a/examples/wwe/main/idf_component.yml b/examples/wwe/main/idf_component.yml
+index 39b116b..98f98fa 100644
+--- a/examples/wwe/main/idf_component.yml
++++ b/examples/wwe/main/idf_component.yml
+@@ -1,3 +1,15 @@
+ dependencies:
+   espressif/gmf_ai_audio:
+     override_path: ../../../../gmf_ai_audio
++  espressif/gmf_io:
++    override_path: ../../../../gmf_io
++  espressif/gmf_misc:
++    override_path: ../../../../gmf_misc
++  espressif/gmf_video:
++    override_path: ../../../../gmf_video
++  espressif/gmf_core:
++    override_path: ../../../../../gmf_core
++  espressif/gmf_app_utils:
++    override_path: ../../../../../packages/gmf_app_utils
++  espressif/gmf_loader:
++    override_path: ../../../../../packages/gmf_loader
+\ No newline at end of file
+diff --git a/examples/wwe/main/main.c b/examples/wwe/main/main.c
+index 658b500..b508e62 100644
+--- a/examples/wwe/main/main.c
++++ b/examples/wwe/main/main.c
+@@ -4,44 +4,59 @@
+  * SPDX-License-Identifier: Apache-2.0
+  */
+ 
++#include <stdbool.h>
+ #include <stdio.h>
+ #include <string.h>
+ 
+ #include "esp_err.h"
+ #include "esp_log.h"
+-#include "esp_check.h"
+-#include "esp_vad.h"
++#include "soc/soc_caps.h"
+ 
+ #include "esp_gmf_io.h"
+ #include "esp_gmf_pipeline.h"
+ #include "esp_gmf_pool.h"
+-#include "esp_gmf_setup_peripheral.h"
+-#include "esp_gmf_setup_pool.h"
++#include "esp_gmf_app_setup_peripheral.h"
+ 
+-#include "esp_afe_config.h"
+-#include "esp_gmf_afe_manager.h"
+-#include "esp_gmf_afe.h"
+-#include "cli.h"
++#include "esp_gmf_io_codec_dev.h"
++#include "esp_gmf_app_cli.h"
++#include "gmf_loader_setup_defaults.h"
+ 
+-#define VOICE2FILE     (true)
++#if SOC_SDMMC_HOST_SUPPORTED == 1
++#define VOICE2FILE     (false)
++#endif  /* SOC_SDMMC_HOST_SUPPORTED == 1 */
++#ifdef CONFIG_GMF_AI_AUDIO_WAKEUP_ENABLE
+ #define WAKENET_ENABLE (true)
++#else
++#define WAKENET_ENABLE (false)
++#endif /* CONFIG_GMF_AI_AUDIO_WAKEUP_ENABLE */
++#ifdef CONFIG_GMF_AI_AUDIO_VOICE_COMMAND_ENABLE
++#define VCMD_ENABLE (true)
++#else
++#define VCMD_ENABLE (false)
++#endif /* CONFIG_GMF_AI_AUDIO_VOICE_COMMAND_ENABLE */
+ #define VAD_ENABLE     (true)
+ #define QUIT_CMD_FOUND (BIT0)
+ 
+ #define BOARD_LYRAT_MINI (0)
+ #define BOARD_KORVO_2    (1)
++#define BOARD_XD_AIOT_C3 (2)
++#define BOARD_ESP_SPOT   (3)
+ 
+ #if defined CONFIG_IDF_TARGET_ESP32S3
++#define WITH_AFE    (true)
+ #define AUDIO_BOARD (BOARD_KORVO_2)
+ #elif defined CONFIG_IDF_TARGET_ESP32
++#define WITH_AFE    (true)
+ #define AUDIO_BOARD (BOARD_LYRAT_MINI)
++#elif defined CONFIG_IDF_TARGET_ESP32C3
++#define WITH_AFE    (false)
++#define AUDIO_BOARD (BOARD_XD_AIOT_C3)
++#elif defined CONFIG_IDF_TARGET_ESP32C5
++#define WITH_AFE    (false)
++#define AUDIO_BOARD (BOARD_ESP_SPOT)
+ #endif  /* defined CONFIG_IDF_TARGET_ESP32S3 */
+ 
+ #if AUDIO_BOARD == BOARD_KORVO_2
+-#define AEC_ENABLE          (true)
+-#define VCMD_ENABLE         (true)
+-
+-#define ADC_I2S_PORT        (0)
+ #define ADC_I2S_CH          (2)
+ #define ADC_I2S_BITS        (32)
+ #define INPUT_CH_NUM        (4)
+@@ -49,21 +64,37 @@
+                                    2-channel mode to accommodate 16-bit, 4-channel data */
+ #define INPUT_CH_ALLOCATION ("RMNM")
+ #elif AUDIO_BOARD == BOARD_LYRAT_MINI
+-#define AEC_ENABLE          (false)
+-#define VCMD_ENABLE         (false)
+-
+-#define ADC_I2S_PORT        (1)
+ #define ADC_I2S_CH          (2)
+ #define ADC_I2S_BITS        (16)
+ #define INPUT_CH_NUM        (ADC_I2S_CH)
+ #define INPUT_CH_BITS       (ADC_I2S_BITS)
+ #define INPUT_CH_ALLOCATION ("RM")
++#elif AUDIO_BOARD == BOARD_XD_AIOT_C3
++#define ADC_I2S_CH          (2)
++#define ADC_I2S_BITS        (16)
++#define INPUT_CH_NUM        (ADC_I2S_CH)
++#define INPUT_CH_BITS       (ADC_I2S_BITS)
++#define INPUT_CH_ALLOCATION ("MR")
++#elif AUDIO_BOARD == BOARD_ESP_SPOT
++#define ADC_I2S_CH          (2)
++#define ADC_I2S_BITS        (16)
++#define INPUT_CH_NUM        (ADC_I2S_CH)
++#define INPUT_CH_BITS       (ADC_I2S_BITS)
++#define INPUT_CH_ALLOCATION ("MR")
+ #endif  /* AUDIO_BOARD == BOARD_KORVO_2 */
+ 
++#if WITH_AFE == true
++#include "esp_gmf_afe.h"
++#else
++#include "esp_gmf_wn.h"
++#endif  /* WITH_AFE == true */
++
+ static const char *TAG = "AI_AUDIO_WWE";
+ 
+-static bool               speeching     = false;
+-static bool               wakeup        = false;
++#if WITH_AFE == true
++static bool speeching = false;
++static bool wakeup    = false;
++#endif  /* WITH_AFE == true */
+ static EventGroupHandle_t g_event_group = NULL;
+ 
+ static esp_err_t _pipeline_event(esp_gmf_event_pkt_t *event, void *ctx)
+@@ -74,40 +105,41 @@ static esp_err_t _pipeline_event(esp_gmf_event_pkt_t *event, void *ctx)
+     return 0;
+ }
+ 
++#if WITH_AFE == true
+ void esp_gmf_afe_event_cb(esp_gmf_obj_handle_t obj, esp_gmf_afe_evt_t *event, void *user_data)
+ {
+     switch (event->type) {
+         case ESP_GMF_AFE_EVT_WAKEUP_START: {
+             wakeup = true;
+-#if WAKENET_ENABLE == true
++#if WAKENET_ENABLE == true && VCMD_ENABLE == true
+             esp_gmf_afe_vcmd_detection_cancel(obj);
+             esp_gmf_afe_vcmd_detection_begin(obj);
+-#endif  /* WAKENET_ENABLE == true */
++#endif  /* WAKENET_ENABLE == true && VCMD_ENABLE == true */
+             esp_gmf_afe_wakeup_info_t *info = event->event_data;
+             ESP_LOGI(TAG, "WAKEUP_START [%d : %d]", info->wake_word_index, info->wakenet_model_index);
+             break;
+         }
+         case ESP_GMF_AFE_EVT_WAKEUP_END: {
+             wakeup = false;
+-#if WAKENET_ENABLE == true
++#if WAKENET_ENABLE == true && VCMD_ENABLE == true
+             esp_gmf_afe_vcmd_detection_cancel(obj);
+-#endif  /* WAKENET_ENABLE == true */
++#endif  /* WAKENET_ENABLE == true && VCMD_ENABLE == true */
+             ESP_LOGI(TAG, "WAKEUP_END");
+             break;
+         }
+         case ESP_GMF_AFE_EVT_VAD_START: {
+-#if WAKENET_ENABLE != true
++#if WAKENET_ENABLE != true && VCMD_ENABLE == true
+             esp_gmf_afe_vcmd_detection_cancel(obj);
+             esp_gmf_afe_vcmd_detection_begin(obj);
+-#endif  /* WAKENET_ENABLE != true */
++#endif  /* WAKENET_ENABLE != true && VCMD_ENABLE == true */
+             speeching = true;
+             ESP_LOGI(TAG, "VAD_START");
+             break;
+         }
+         case ESP_GMF_AFE_EVT_VAD_END: {
+-#if WAKENET_ENABLE != true
++#if WAKENET_ENABLE != true && VCMD_ENABLE == true
+             esp_gmf_afe_vcmd_detection_cancel(obj);
+-#endif  /* WAKENET_ENABLE != true */
++#endif  /* WAKENET_ENABLE != true && VCMD_ENABLE == true */
+             speeching = false;
+             ESP_LOGI(TAG, "VAD_END");
+             break;
+@@ -128,10 +160,36 @@ void esp_gmf_afe_event_cb(esp_gmf_obj_handle_t obj, esp_gmf_afe_evt_t *event, vo
+             if (event->type == 1) {
+                 xEventGroupSetBits(g_event_group, QUIT_CMD_FOUND);
+             }
++            /* Here use the third command to enable the `keep awake` mode of gmf_afe
++             * For Chinese model, the second default command is `ba xiao shi hou kai ji`
++             * For English model, the second default command is `sing a song`
++             * If user had modified the commands, please refer to the commands setting.
++             */
++            else if (event->type == 2) {
++                esp_gmf_afe_keep_awake(obj, true);
++            }
++            /* Here use the fourth command to disable the `keep awake` mode of gmf_afe
++             * For Chinese model, the third default command is `bi kai wo chui`
++             * For English model, the third default command is `play new channel`
++             * If user had modified the commands, please refer to the commands setting.
++             */
++            else if (event->type == 3) {
++                esp_gmf_afe_keep_awake(obj, false);
++            }
+             break;
+         }
+     }
+ }
++#else
++static void esp_gmf_wn_event_cb(esp_gmf_obj_handle_t obj, int32_t trigger_ch, void *user_ctx)
++{
++    static int32_t cnt = 1;
++    ESP_LOGI(TAG, "WWE detected on channel %" PRIi32 ", cnt: %" PRIi32, trigger_ch, cnt++);
++    if (cnt >= 10) {
++        xEventGroupSetBits(g_event_group, QUIT_CMD_FOUND);
++    }
++}
++#endif  /* WITH_AFE == true */
+ 
+ static void voice_2_file(uint8_t *buffer, int len)
+ {
+@@ -164,76 +222,71 @@ static void voice_2_file(uint8_t *buffer, int len)
+ #endif  /* VOICE2FILE == true */
+ }
+ 
+-static int outport_acquire_write(void *handle, esp_gmf_payload_t *load, int wanted_size, int block_ticks)
++static esp_gmf_err_io_t outport_acquire_write(void *handle, esp_gmf_payload_t *load, int wanted_size, int block_ticks)
+ {
+     ESP_LOGD(TAG, "Acquire write");
+-    return wanted_size;
++    return ESP_GMF_IO_OK;
+ }
+ 
+-static int outport_release_write(void *handle, esp_gmf_payload_t *load, int block_ticks)
++static esp_gmf_err_io_t outport_release_write(void *handle, esp_gmf_payload_t *load, int block_ticks)
+ {
+     ESP_LOGD(TAG, "Release write");
+     voice_2_file(load->buf, load->valid_size);
+-    return load->valid_size;
++    return ESP_GMF_IO_OK;
+ }
+ 
+ void app_main(void)
+ {
+-    int ret = 0;
+     esp_log_level_set("*", ESP_LOG_INFO);
+-
+-    void *card = NULL;
+-    esp_gmf_setup_periph_sdmmc(&card);
+-    esp_gmf_setup_periph_i2c(0);
+-    esp_gmf_setup_periph_aud_info audio_info = {
+-        .sample_rate = 16000,
+-        .channel = ADC_I2S_CH,
+-        .bits_per_sample = ADC_I2S_BITS,
+-        .port_num = ADC_I2S_PORT,
+-    };
+-    void *record_dev = NULL;
+-    ret = esp_gmf_setup_periph_codec(NULL, &audio_info, NULL, &record_dev);
+-    ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return;}, "Failed to setup audio codec");
++    esp_gmf_app_codec_info_t codec_info = ESP_GMF_APP_CODEC_INFO_DEFAULT();
++    codec_info.record_info.sample_rate = 16000;
++    codec_info.record_info.channel = ADC_I2S_CH;
++    codec_info.record_info.bits_per_sample = ADC_I2S_BITS;
++    codec_info.play_info.sample_rate = codec_info.record_info.sample_rate;
++    esp_gmf_app_setup_codec_dev(&codec_info);
++    void *sdcard_handle = NULL;
++    esp_gmf_app_setup_sdcard(&sdcard_handle);
+     g_event_group = xEventGroupCreate();
+ 
+     esp_gmf_pool_handle_t pool = NULL;
+     esp_gmf_pool_init(&pool);
+-    pool_register_io(pool);
+-    pool_register_audio_codecs(pool);
+-    pool_register_audio_effects(pool);
+-    pool_register_codec_dev_io(pool, NULL, record_dev);
++    gmf_loader_setup_all_defaults(pool);
+ 
+-    esp_gmf_afe_manager_handle_t afe_manager = NULL;
+-    srmodel_list_t *models = esp_srmodel_init("model");
+-    const char *ch_format = INPUT_CH_ALLOCATION;
+-    afe_config_t *afe_cfg = afe_config_init(ch_format, models, AFE_TYPE_SR, AFE_MODE_HIGH_PERF);
+-    afe_cfg->vad_init = VAD_ENABLE;
+-    afe_cfg->vad_mode = VAD_MODE_3;
+-    afe_cfg->vad_min_speech_ms = 64;
+-    afe_cfg->vad_min_noise_ms = 1000;
+-    afe_cfg->wakenet_init = WAKENET_ENABLE;
+-    afe_cfg->aec_init = AEC_ENABLE;
+-    esp_gmf_afe_manager_cfg_t afe_manager_cfg = DEFAULT_GMF_AFE_MANAGER_CFG(afe_cfg, NULL, NULL, NULL, NULL);
+-    ESP_GOTO_ON_ERROR(esp_gmf_afe_manager_create(&afe_manager_cfg, &afe_manager), __quit, TAG, "AFE Manager Create failed");
+-    esp_gmf_element_handle_t gmf_afe = NULL;
+-    esp_gmf_afe_cfg_t gmf_afe_cfg = DEFAULT_GMF_AFE_CFG(afe_manager, esp_gmf_afe_event_cb, NULL, models);
+-    gmf_afe_cfg.vcmd_detect_en = VCMD_ENABLE;
+-    esp_gmf_afe_init(&gmf_afe_cfg, &gmf_afe);
+-    esp_gmf_pool_register_element(pool, gmf_afe, NULL);
+     esp_gmf_pipeline_handle_t pipe = NULL;
+-    const char *name[] = {"gmf_afe"};
+-    esp_gmf_pool_new_pipeline(pool, "codec_dev_rx", name, sizeof(name) / sizeof(char *), NULL, &pipe);
++#if WITH_AFE == true
++    const char *name[] = {"ai_afe"};
++#else
++    const char *name[] = {"ai_wn"};
++#endif  /* WITH_AFE == true */
++    esp_gmf_pool_new_pipeline(pool, "io_codec_dev", name, sizeof(name) / sizeof(char *), NULL, &pipe);
+     if (pipe == NULL) {
+         ESP_LOGE(TAG, "There is no pipeline");
+         goto __quit;
+     }
++    esp_gmf_io_codec_dev_set_dev(ESP_GMF_PIPELINE_GET_IN_INSTANCE(pipe), esp_gmf_app_get_record_handle());
++#if WITH_AFE == true
++    esp_gmf_element_handle_t afe = NULL;
++    esp_gmf_pipeline_get_el_by_name(pipe, "ai_afe", &afe);
++    esp_gmf_afe_set_event_cb(afe, esp_gmf_afe_event_cb, NULL);
++#else
++    esp_gmf_element_handle_t wn = NULL;
++    esp_gmf_pipeline_get_el_by_name(pipe, "ai_wn", &wn);
++    esp_gmf_wn_set_detect_cb(wn, esp_gmf_wn_event_cb, NULL);
++#endif  /* WITH_AFE == true */
+     esp_gmf_port_handle_t outport = NEW_ESP_GMF_PORT_OUT_BYTE(outport_acquire_write,
+                                                               outport_release_write,
+                                                               NULL,
+                                                               NULL,
+                                                               2048,
+                                                               100);
+-    esp_gmf_pipeline_reg_el_port(pipe, "gmf_afe", ESP_GMF_IO_DIR_WRITER, outport);
++    esp_gmf_pipeline_reg_el_port(pipe, name[0], ESP_GMF_IO_DIR_WRITER, outport);
++
++    esp_gmf_info_sound_t info = {
++        .sample_rates = 16000,
++        .channels = INPUT_CH_NUM,
++        .bits = INPUT_CH_BITS,
++    };
++    esp_gmf_pipeline_report_info(pipe, ESP_GMF_INFO_SOUND, &info, sizeof(info));
+ 
+     esp_gmf_task_cfg_t cfg = DEFAULT_ESP_GMF_TASK_CONFIG();
+     cfg.ctx = NULL;
+@@ -248,7 +301,7 @@ void app_main(void)
+     esp_gmf_pipeline_set_event(pipe, _pipeline_event, NULL);
+     esp_gmf_pipeline_run(pipe);
+ 
+-    cli_init("Audio >");
++    esp_gmf_app_cli_init("Audio >", NULL);
+ 
+     while (1) {
+         EventBits_t bits = xEventGroupWaitBits(g_event_group, QUIT_CMD_FOUND, pdTRUE, pdFALSE, portMAX_DELAY);
+@@ -262,13 +315,10 @@ __quit:
+     esp_gmf_pipeline_stop(pipe);
+     esp_gmf_task_deinit(task);
+     esp_gmf_pipeline_destroy(pipe);
+-    afe_config_free(afe_cfg);
+-    esp_gmf_afe_manager_destroy(afe_manager);
+-    pool_unregister_audio_codecs();
++    gmf_loader_teardown_all_defaults(pool);
+     esp_gmf_pool_deinit(pool);
+-    esp_gmf_teardown_periph_codec(NULL, record_dev);
+-    esp_gmf_teardown_periph_i2c(0);
+-    esp_gmf_teardown_periph_sdmmc(card);
++    esp_gmf_app_teardown_codec_dev();
++    esp_gmf_app_teardown_sdcard(sdcard_handle);
+     vEventGroupDelete(g_event_group);
+     ESP_LOGW(TAG, "Wake word engine demo finished");
+ }
+diff --git a/examples/wwe/sdkconfig.defaults.esp32 b/examples/wwe/sdkconfig.defaults.esp32
+index 140f75f..e939f37 100644
+--- a/examples/wwe/sdkconfig.defaults.esp32
++++ b/examples/wwe/sdkconfig.defaults.esp32
+@@ -37,3 +37,17 @@ CONFIG_SR_MN_CN_NONE=y
+ # CONFIG_SR_MN_CN_MULTINET2_SINGLE_RECOGNITION is not set
+ CONFIG_SR_MN_EN_NONE=y
+ # end of ESP Speech Recognition
++
++#
++# GMF AI Audio
++#
++CONFIG_GMF_AI_AUDIO_INIT_AEC=y
++CONFIG_GMF_AI_AUDIO_INIT_AFE=y
++
++CONFIG_GMF_AI_AUDIO_AFE_MODEL_PARTITION="model"
++CONFIG_GMF_AI_AUDIO_AFE_VAD_ENABLE=y
++CONFIG_GMF_AI_AUDIO_VAD_MODE=3
++CONFIG_GMF_AI_AUDIO_WAKEUP_ENABLE=y
++# end of GMF AI Audio
++
++CONFIG_AUDIO_BOARD="LYRAT_MINI_V1"
+diff --git a/examples/wwe/sdkconfig.defaults.esp32c3 b/examples/wwe/sdkconfig.defaults.esp32c3
+new file mode 100644
+index 0000000..2e51e56
+--- /dev/null
++++ b/examples/wwe/sdkconfig.defaults.esp32c3
+@@ -0,0 +1,32 @@
++#
++# Partition Table
++#
++CONFIG_PARTITION_TABLE_CUSTOM=y
++CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
++CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
++CONFIG_PARTITION_TABLE_OFFSET=0x8000
++CONFIG_PARTITION_TABLE_MD5=y
++# end of Partition Table
++
++#
++# ESP Speech Recognition
++#
++CONFIG_AFE_INTERFACE_V1=y
++CONFIG_SR_NSN_WEBRTC=y
++CONFIG_SR_VADN_WEBRTC=y
++
++#
++# Load Multiple Wake Words
++#
++CONFIG_SR_WN_WN9S_HILEXIN=y
++# CONFIG_SR_WN_WN9S_HIESP is not set
++# CONFIG_SR_WN_WN9S_NIHAOXIAOZHI is not set
++# CONFIG_SR_WN_WN9S_HIJASON is not set
++# end of Load Multiple Wake Words
++
++CONFIG_SR_MN_CN_NONE=y
++CONFIG_SR_MN_EN_NONE=y
++# end of ESP Speech Recognition
++
++CONFIG_GMF_AI_AUDIO_INIT_WN=y
++CONFIG_GMF_AI_AUDIO_WN_CH_ALLOCATION="MR"
+diff --git a/examples/wwe/sdkconfig.defaults.esp32c5 b/examples/wwe/sdkconfig.defaults.esp32c5
+new file mode 100644
+index 0000000..339a4ca
+--- /dev/null
++++ b/examples/wwe/sdkconfig.defaults.esp32c5
+@@ -0,0 +1,34 @@
++#
++# Partition Table
++#
++CONFIG_PARTITION_TABLE_CUSTOM=y
++CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
++CONFIG_PARTITION_TABLE_FILENAME="partitions.csv"
++CONFIG_PARTITION_TABLE_OFFSET=0x8000
++CONFIG_PARTITION_TABLE_MD5=y
++# end of Partition Table
++
++#
++# ESP Speech Recognition
++#
++CONFIG_AFE_INTERFACE_V1=y
++CONFIG_SR_NSN_WEBRTC=y
++CONFIG_SR_VADN_WEBRTC=y
++
++#
++# Load Multiple Wake Words
++#
++CONFIG_SR_WN_WN9S_HILEXIN=y
++# CONFIG_SR_WN_WN9S_HIESP is not set
++# CONFIG_SR_WN_WN9S_NIHAOXIAOZHI is not set
++# CONFIG_SR_WN_WN9S_HIJASON is not set
++# end of Load Multiple Wake Words
++
++CONFIG_SR_MN_CN_NONE=y
++CONFIG_SR_MN_EN_NONE=y
++# end of ESP Speech Recognition
++
++CONFIG_GMF_AI_AUDIO_INIT_WN=y
++CONFIG_GMF_AI_AUDIO_WN_CH_ALLOCATION="MR"
++
++CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+diff --git a/examples/wwe/sdkconfig.defaults.esp32s3 b/examples/wwe/sdkconfig.defaults.esp32s3
+index a091cda..bdd8205 100644
+--- a/examples/wwe/sdkconfig.defaults.esp32s3
++++ b/examples/wwe/sdkconfig.defaults.esp32s3
+@@ -70,4 +70,19 @@ CONFIG_ESP32S3_DATA_CACHE_8WAYS=y
+ CONFIG_ESP32S3_DCACHE_ASSOCIATED_WAYS=8
+ CONFIG_ESP32S3_DATA_CACHE_LINE_64B=y
+ CONFIG_ESP32S3_DATA_CACHE_LINE_SIZE=64
+-# end of Cache config
+\ No newline at end of file
++# end of Cache config
++
++#
++# GMF AI Audio
++#
++CONFIG_GMF_AI_AUDIO_INIT_AEC=y
++CONFIG_GMF_AI_AUDIO_INIT_AFE=y
++
++CONFIG_GMF_AI_AUDIO_AFE_MODEL_PARTITION="model"
++CONFIG_GMF_AI_AUDIO_AFE_VAD_ENABLE=y
++CONFIG_GMF_AI_AUDIO_AFE_AEC_ENABLE=y
++CONFIG_GMF_AI_AUDIO_WAKEUP_ENABLE=y
++CONFIG_GMF_AI_AUDIO_VOICE_COMMAND_ENABLE=y
++# end of GMF AI Audio
++
++CONFIG_AUDIO_BOARD="S3_Korvo_V2"
+diff --git a/idf_component.yml b/idf_component.yml
+index 43e45a5..890b297 100644
+--- a/idf_component.yml
++++ b/idf_component.yml
+@@ -1,13 +1,14 @@
++version: "0.6.2"
++description: Espressif GMF AI Audio Elements Module
++url: https://github.com/espressif/esp-gmf/tree/main/elements/gmf_ai_audio
++documentation: "https://github.com/espressif/esp-gmf/blob/main/elements/gmf_ai_audio/README.md"
++issues: "https://github.com/espressif/esp-gmf/issues"
++
++tags:
++   - "gmf"
++
+ dependencies:
+   espressif/esp-sr:
+-    version: 2.0.3
++    version: "^2.1.1"
+   espressif/gmf_core:
+-    version: ^0.6
+-description: Espressif GMF AI Audio Elements Module
+-documentation: https://github.com/espressif/esp-gmf/blob/main/gmf_elements/gmf_ai_audio/README.md
+-issues: https://github.com/espressif/esp-gmf/issues
+-repository: git://github.com/espressif/esp-gmf.git
+-tags:
+-- gmf
+-url: https://github.com/espressif/esp-gmf/tree/main/gmf_elements/gmf_ai_audio
+-version: 0.6.2
++    version: "^0.6"
+diff --git a/include/esp_gmf_afe.h b/include/esp_gmf_afe.h
+index 7abce6b..0ea1c76 100644
+--- a/include/esp_gmf_afe.h
++++ b/include/esp_gmf_afe.h
+@@ -20,8 +20,8 @@ extern "C" {
+ #define ESP_GMF_AFE_VCMD_MAX_LEN (256)
+ 
+ #define ESP_GMF_AFE_DEFAULT_DELAY_SAMPLES   (2048)
+-#define ESP_GMF_AFE_DEFAULT_WAKEUP_TIME_MS  (10000)
+-#define ESP_GMF_AFE_DEFAULT_WAKEUP_END_MS   (2000)
++#define ESP_GMF_AFE_DEFAULT_WAKEUP_TIME_MS  (30000)
++#define ESP_GMF_AFE_DEFAULT_WAKEUP_END_MS   (30000)
+ #define ESP_GMF_AFE_DEFAULT_VCMD_TIMEOUT_MS (5760)
+ 
+ /**
+@@ -142,6 +142,52 @@ esp_gmf_err_t esp_gmf_afe_vcmd_detection_begin(esp_gmf_element_handle_t handle);
+  */
+ esp_gmf_err_t esp_gmf_afe_vcmd_detection_cancel(esp_gmf_element_handle_t handle);
+ 
++/**
++ * @brief  Set the event callback for the AFE (Audio Front-End) element
++ *
++ *         This function registers a callback function to handle events generated by the
++ *         AFE element. The callback will be invoked with the specified context whenever
++ *         an event occurs
++ *
++ * @param  handle  The handle to the AFE element
++ * @param  cb      The callback function to handle AFE events
++ * @param  ctx     User-defined context to be passed to the callback function
++ *
++ * @return
++ *       - ESP_GMF_ERR_OK             Success
++ *       - ESP_GMF_ERR_INVALID_ARG    Invalid argument
++ *       - ESP_GMF_ERR_INVALID_STATE  Config not exist
++ */
++esp_gmf_err_t esp_gmf_afe_set_event_cb(esp_gmf_element_handle_t handle, esp_gmf_afe_event_cb_t cb, void *ctx);
++
++/**
++ * @brief  Enable or disable keep-awake mode
++ *
++ *         When keep-awake mode is enabled, the system will remain in the wake state
++ *         and prevent wakeup_end events from being triggered automatically
++ *         This is useful for scenarios where you want to keep the system active
++ *         without automatic timeout
++ *
++ * @param  handle  The handle to the AFE element
++ * @param  enable  True to enable keep-awake mode, false to disable
++ *
++ * @return
++ *       - ESP_GMF_ERR_OK             Success
++ *       - ESP_GMF_ERR_INVALID_ARG    Invalid argument
++ *       - ESP_GMF_ERR_INVALID_STATE  Config not exist
++ */
++esp_gmf_err_t esp_gmf_afe_keep_awake(esp_gmf_element_handle_t handle, bool enable);
++
++/**
++ * @brief  Trigger wakeup event manually
++ * 
++ * @param handle 
++ * 
++ * @return 
++ *       - ESP_GMF_ERR_OK             Success
++ */
++esp_gmf_err_t esp_gmf_trigger_wakeup(esp_gmf_element_handle_t handle);
++
+ #ifdef __cplusplus
+ }
+ #endif  /* __cplusplus */
+diff --git a/include/esp_gmf_afe_manager.h b/include/esp_gmf_afe_manager.h
+index d005288..f4612e1 100644
+--- a/include/esp_gmf_afe_manager.h
++++ b/include/esp_gmf_afe_manager.h
+@@ -85,9 +85,9 @@ typedef struct {
+     esp_gmf_afe_manager_task_setting_t feed_task_setting;   /*!< Feed task setting */
+     esp_gmf_afe_manager_task_setting_t fetch_task_setting;  /*!< Fetch task setting */
+     esp_gmf_afe_manager_read_cb_t      read_cb;             /*!< Callback function for reading audio data */
+-    void                          *read_ctx;            /*!< Context for the read callback function */
++    void                              *read_ctx;            /*!< Context for the read callback function */
+     esp_gmf_afe_manager_result_cb_t    result_cb;           /*!< Callback function for processing AFE results */
+-    void                          *result_ctx;          /*!< Context for the result callback function */
++    void                              *result_ctx;          /*!< Context for the result callback function */
+ } esp_gmf_afe_manager_cfg_t;
+ 
+ #define DEFAULT_GMF_AFE_MANAGER_CFG(_afe_cfg, _read_cb, _read_ctx, _result_cb, _result_ctx) {   \
+diff --git a/include/esp_gmf_wn.h b/include/esp_gmf_wn.h
+new file mode 100644
+index 0000000..83b78e5
+--- /dev/null
++++ b/include/esp_gmf_wn.h
+@@ -0,0 +1,77 @@
++/*
++ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
++ * SPDX-License-Identifier: LicenseRef-Espressif-Modified-MIT
++ *
++ * See LICENSE file for details.
++ */
++
++#pragma once
++
++#include "esp_gmf_element.h"
++#include "esp_gmf_err.h"
++#include "esp_wn_iface.h"
++#include "model_path.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif  /* __cplusplus */
++
++/**
++ * @brief  Callback type for WakeNet detection
++ *
++ * @param[in]  handle      Handle to the WakeNet object
++ * @param[in]  trigger_ch  The microphone channel that triggered the detection
++ * @param[in]  user_ctx    User context passed during initialization
++ */
++typedef void (*esp_wn_detect_cb_t)(esp_gmf_element_handle_t handle, int32_t trigger_ch, void *user_ctx);
++
++/**
++ * @brief  Configuration structure for WakeNet
++ *
++ * @note  The input format, same as afe config:
++ *        `M` to represent the microphone channel,
++ *        `R` to represent the playback reference channel,
++ *        `N` to represent an unknown or unused channel
++ *        For example, input_format="MMNR" indicates that the input data consists of four channels,
++ *        which are the microphone channel, the microphone channel, an unused channel, and the playback channel
++ */
++typedef struct {
++    srmodel_list_t     *models;        /*!< Model list containing wake word models */
++    det_mode_t          det_mode;      /*!< Detection mode */
++    char               *input_format;  /*!< Input format */
++    esp_wn_detect_cb_t  detect_cb;     /*!< Detection callback function */
++    void               *user_ctx;      /*!< User context to be passed to the callback function */
++} esp_gmf_wn_cfg_t;
++
++/**
++ * @brief  Initialize the WakeNet element
++ *
++ * @param[in]   config  Pointer to the configuration structure
++ * @param[out]  handle  Pointer to the handle to be initialized
++ *
++ * @return
++ *       - ESP_GMF_ERR_OK           Success
++ *       - ESP_GMF_ERR_INVALID_ARG  Invalid argument
++ *       - ESP_GMF_ERR_MEMORY_LACK  Memory allocation failed
++ *       - ESP_GMF_ERR_FAIL         Other failures
++ */
++esp_gmf_err_t esp_gmf_wn_init(esp_gmf_wn_cfg_t *config, esp_gmf_element_handle_t *handle);
++
++/**
++ * @brief  Set the voice trigger detection callback for WakeNet
++ *         This function registers a user-defined callback that will be invoked
++ *         when WakeNet detects a wake word
++ *
++ * @param[in]  handle     Handle to the WakeNet element
++ * @param[in]  detect_cb  Callback function to be called on wake word detection
++ * @param[in]  ctx        User-defined context to be passed to the callback
++ *
++ * @return
++ *       - ESP_GMF_ERR_OK           Success
++ *       - ESP_GMF_ERR_INVALID_ARG  Invalid argument
++ */
++esp_gmf_err_t esp_gmf_wn_set_detect_cb(esp_gmf_element_handle_t handle, esp_wn_detect_cb_t detect_cb, void *ctx);
++
++#ifdef __cplusplus
++}
++#endif  /* __cplusplus */
+diff --git a/private_include/esp_gmf_ch_sort.h b/private_include/esp_gmf_ch_sort.h
+new file mode 100644
+index 0000000..c4515b3
+--- /dev/null
++++ b/private_include/esp_gmf_ch_sort.h
+@@ -0,0 +1,56 @@
++/*
++ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
++ * SPDX-License-Identifier: LicenseRef-Espressif-Modified-MIT
++ *
++ * See LICENSE file for details.
++ */
++
++#pragma once
++
++#include "esp_types.h"
++
++#ifdef __cplusplus
++extern "C" {
++#endif  /* __cplusplus */
++
++/**
++ * @brief  Sort input data according to the input format and convert data layout
++ *
++ * @note  This function performs two operations:
++ *          1. Channel sorting: Keeps microphone (M) channels in original order, removes unused (N) channels,
++ *             and places reference (R) channels at the end
++ *          2. Layout conversion: Converts data from interleaved format (M0[0]R[0]M1[0]N[0]M0[1]R[1]M1[1]N[1]...) to block format (M0[0]M0[1]...M1[0]M1[1]...R[0]R[1]...)
++ *
++ * @param[in]   input_data    Pointer to the interleaved input data buffer
++ * @param[in]   input_format  Input format string (e.g., "MMNR" for 2 mic channels, 1 unused, 1 reference)
++ * @param[in]   num_samples   Number of samples per channel
++ * @param[in]   num_channels  Total number of channels in the input data
++ * @param[out]  sorted_data   Pointer to the output buffer for block-formatted sorted data
++ *                            Data will be arranged as: [mic_samples][ref_samples]
++ */
++static inline void esp_gmf_sort_with_format(int16_t *input_data, const char *input_format, int num_samples, int num_channels, int16_t *sorted_data)
++{
++    int mic_index = 0;
++    int ref_index = 0;
++
++    for (int ch = 0; ch < num_channels; ++ch) {
++        if (input_format[ch] == 'M') {
++            for (int sample = 0; sample < num_samples; ++sample) {
++                sorted_data[mic_index++] = input_data[sample * num_channels + ch];
++            }
++        }
++    }
++
++    ref_index = mic_index;
++    for (int ch = 0; ch < num_channels; ++ch) {
++        if (input_format[ch] == 'R') {
++            for (int sample = 0; sample < num_samples; ++sample) {
++                sorted_data[ref_index++] = input_data[sample * num_channels + ch];
++            }
++        }
++    }
++}
++
++#ifdef __cplusplus
++}
++#endif  /* __cplusplus */
+diff --git a/src/esp_gmf_aec.c b/src/esp_gmf_aec.c
+index 2815d9f..958772f 100644
+--- a/src/esp_gmf_aec.c
++++ b/src/esp_gmf_aec.c
+@@ -225,7 +225,7 @@ esp_gmf_err_t esp_gmf_aec_init(esp_gmf_aec_cfg_t *config, esp_gmf_obj_handle_t *
+     memcpy(obj_cfg, config, sizeof(esp_gmf_aec_cfg_t));
+     esp_gmf_err_t ret = esp_gmf_obj_set_config(obj, obj_cfg, sizeof(esp_gmf_aec_cfg_t));
+     ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed set OBJ configuration");
+-    ret = esp_gmf_obj_set_tag(obj, "aec");
++    ret = esp_gmf_obj_set_tag(obj, "ai_aec");
+     ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed set OBJ tag");
+     esp_gmf_element_cfg_t el_cfg = {0};
+     ESP_GMF_ELEMENT_IN_PORT_ATTR_SET(el_cfg.in_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
+diff --git a/src/esp_gmf_afe.c b/src/esp_gmf_afe.c
+index 8cb6fd8..b444c98 100644
+--- a/src/esp_gmf_afe.c
++++ b/src/esp_gmf_afe.c
+@@ -8,6 +8,7 @@
+ #include <stdbool.h>
+ #include <stdint.h>
+ #include <stdio.h>
++#include <string.h>
+ #include "freertos/idf_additions.h"
+ #include "esp_log.h"
+ #include "esp_timer.h"
+@@ -27,6 +28,7 @@
+ #include "esp_gmf_method.h"
+ #include "esp_gmf_ai_audio_methods.h"
+ 
++#define AFE_DEFAULT_DATA_SIZE     (2048)
+ #define WAKEUP_ST_SET(handle, st) (handle->wakeup_state = st)
+ 
+ /**
+@@ -54,6 +56,7 @@ typedef enum {
+     ET_SPEECH_DECT,
+     ET_WWE_DECT,
+     ET_WAKEUP_TIMER_EXPIRED,
++    ET_KEEP_WAKE_MODIFIED,
+     ET_UNKNOWN
+ } wakeup_event_t;
+ 
+@@ -66,6 +69,7 @@ typedef struct {
+     esp_gmf_db_handle_t     out_db;
+     wakeup_state_t          wakeup_state;
+     bool                    origin_vad_enable;
++    bool                    keep_wake;
+     esp_timer_handle_t      wakeup_timer;
+     SemaphoreHandle_t       wake_st_lock;
+     model_iface_data_t     *mn_handle;
+@@ -88,6 +92,7 @@ static const char *event_str[] = {
+     "ET_SPEECH_DECT",
+     "ET_WWE_DECT",
+     "ET_WAKEUP_TIMER_EXPIRED",
++    "ET_KEEP_WAKE_MODIFIED",
+     "ET_UNKNOWN",
+ };
+ 
+@@ -129,6 +134,14 @@ static void wakeup_state_reset(esp_gmf_afe_t *gmf_afe)
+ {
+     esp_timer_stop(gmf_afe->wakeup_timer);
+     WAKEUP_ST_SET(gmf_afe, ST_IDLE);
++    esp_gmf_afe_manager_features_t feat = { 0 };
++    esp_gmf_afe_cfg_t *cfg = OBJ_GET_CFG(gmf_afe);
++    if (cfg && cfg->afe_manager) {
++        esp_gmf_afe_manager_get_features(cfg->afe_manager, &feat);
++        if (feat.wakeup && gmf_afe->origin_vad_enable) {
++            esp_gmf_afe_manager_enable_features(cfg->afe_manager, ESP_AFE_FEATURE_VAD, false);
++        }
++    }
+ }
+ 
+ static void wakeup_timer_start(esp_gmf_afe_t *gmf_afe)
+@@ -151,7 +164,8 @@ static void wakeup_state_update(esp_gmf_afe_t *gmf_afe, wakeup_event_t event, vo
+     esp_gmf_afe_cfg_t *cfg = OBJ_GET_CFG(gmf_afe);
+     esp_gmf_afe_manager_features_t afe_feat = {0};
+     static wakeup_event_t last_event = ET_UNKNOWN;
+-    if (last_event != event) {
++    int32_t user_event = -1;
++    if (event == ET_KEEP_WAKE_MODIFIED || last_event != event) {
+         ESP_LOGV(TAG, "Recorder update state, cur %s, event %s", state_str[gmf_afe->wakeup_state], event_str[event]);
+         last_event = event;
+     } else {
+@@ -166,50 +180,70 @@ static void wakeup_state_update(esp_gmf_afe_t *gmf_afe, wakeup_event_t event, vo
+         case ST_IDLE: {
+             if (event == ET_WWE_DECT) {
+                 WAKEUP_ST_SET(gmf_afe, ST_WAKEUP);
+-                wakeup_timer_start(gmf_afe);
++                if (!gmf_afe->keep_wake) {
++                    wakeup_timer_start(gmf_afe);
++                }
+                 if (gmf_afe->origin_vad_enable) {
+                     esp_gmf_afe_manager_enable_features(cfg->afe_manager, ESP_AFE_FEATURE_VAD, true);
+                 }
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_WAKEUP_START, event_data, len);
++                user_event = ESP_GMF_AFE_EVT_WAKEUP_START;
+             } else if (event == ET_SPEECH_DECT && afe_feat.wakeup == false) {
+                 WAKEUP_ST_SET(gmf_afe, ST_SPEECHING);
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_VAD_START, event_data, len);
++                user_event = ESP_GMF_AFE_EVT_VAD_START;
+             }
+             break;
+         }
+         case ST_WAKEUP: {
+             if (event == ET_SPEECH_DECT) {
++                esp_timer_stop(gmf_afe->wakeup_timer);
+                 WAKEUP_ST_SET(gmf_afe, ST_SPEECHING);
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_VAD_START, event_data, len);
++                user_event = ESP_GMF_AFE_EVT_VAD_START;
++            } else if (event == ET_KEEP_WAKE_MODIFIED) {
++                if (gmf_afe->keep_wake) {
++                    esp_timer_stop(gmf_afe->wakeup_timer);
++                } else {
++                    wakeup_timer_start(gmf_afe);
++                }
+             } else if (event == ET_WAKEUP_TIMER_EXPIRED) {
+                 WAKEUP_ST_SET(gmf_afe, ST_IDLE);
+                 esp_timer_stop(gmf_afe->wakeup_timer);
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_WAKEUP_END, NULL, 0);
++                user_event = ESP_GMF_AFE_EVT_WAKEUP_END;
+             }
+             break;
+         }
+         case ST_SPEECHING: {
+             if (event == ET_NOISE_DECT) {
+                 if (afe_feat.wakeup == true) {
+-                    WAKEUP_ST_SET(gmf_afe, ST_WAIT_FOR_SLEEP);
+-                    wakeup_timer_start(gmf_afe);
++                    if (!gmf_afe->keep_wake) {
++                        WAKEUP_ST_SET(gmf_afe, ST_WAIT_FOR_SLEEP);
++                        wakeup_timer_start(gmf_afe);
++                    } else {
++                        WAKEUP_ST_SET(gmf_afe, ST_WAKEUP);
++                    }
+                 } else {
+                     WAKEUP_ST_SET(gmf_afe, ST_IDLE);
+                 }
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_VAD_END, NULL, 0);
++                user_event = ESP_GMF_AFE_EVT_VAD_END;
+             }
+             break;
+         }
+         case ST_WAIT_FOR_SLEEP: {
+             if (event == ET_SPEECH_DECT) {
+                 WAKEUP_ST_SET(gmf_afe, ST_SPEECHING);
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_VAD_START, event_data, len);
++                user_event = ESP_GMF_AFE_EVT_VAD_START;
+             } else if (event == ET_WAKEUP_TIMER_EXPIRED) {
+                 WAKEUP_ST_SET(gmf_afe, ST_IDLE);
+                 if (gmf_afe->origin_vad_enable) {
+                     esp_gmf_afe_manager_enable_features(cfg->afe_manager, ESP_AFE_FEATURE_VAD, false);
+                 }
+-                event_2_user(gmf_afe, ESP_GMF_AFE_EVT_WAKEUP_END, NULL, 0);
++                user_event = ESP_GMF_AFE_EVT_WAKEUP_END;
++            } else if (event == ET_KEEP_WAKE_MODIFIED) {
++                if (gmf_afe->keep_wake) {
++                    esp_timer_stop(gmf_afe->wakeup_timer);
++                    WAKEUP_ST_SET(gmf_afe, ST_WAKEUP);
++                } else {
++                    wakeup_timer_start(gmf_afe);
++                }
+             }
+             break;
+         }
+@@ -217,6 +251,9 @@ static void wakeup_state_update(esp_gmf_afe_t *gmf_afe, wakeup_event_t event, vo
+             break;
+     }
+     xSemaphoreGive(gmf_afe->wake_st_lock);
++    if (user_event != -1) {
++        event_2_user(gmf_afe, user_event, event_data, len);
++    }
+ }
+ 
+ static void wakeup_afe_monitor(afe_fetch_result_t *result, void *user_ctx)
+@@ -598,10 +635,14 @@ esp_gmf_err_t esp_gmf_afe_init(void *config, esp_gmf_obj_handle_t *handle)
+     esp_gmf_afe_cfg_t *obj_cfg = esp_gmf_oal_calloc(1, sizeof(esp_gmf_afe_cfg_t));
+     memcpy(obj_cfg, config, sizeof(esp_gmf_afe_cfg_t));
+     esp_gmf_obj_set_config(obj, obj_cfg, sizeof(esp_gmf_afe_cfg_t));
+-    int ret = esp_gmf_obj_set_tag(obj, "gmf_afe");
++    int ret = esp_gmf_obj_set_tag(obj, "ai_afe");
+     ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed set OBJ tag");
+ 
+     esp_gmf_element_cfg_t el_cfg = {0};
++    ESP_GMF_ELEMENT_IN_PORT_ATTR_SET(el_cfg.in_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
++                                     ESP_GMF_PORT_TYPE_BLOCK | ESP_GMF_PORT_TYPE_BYTE, AFE_DEFAULT_DATA_SIZE);
++    ESP_GMF_ELEMENT_OUT_PORT_ATTR_SET(el_cfg.out_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
++                                      ESP_GMF_PORT_TYPE_BLOCK | ESP_GMF_PORT_TYPE_BYTE, AFE_DEFAULT_DATA_SIZE);
+     el_cfg.dependency = false;
+     ret = esp_gmf_audio_el_init(gmf_afe, &el_cfg);
+     ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed to initialize audio element");
+@@ -642,3 +683,41 @@ esp_gmf_err_t esp_gmf_afe_vcmd_detection_cancel(esp_gmf_element_handle_t handle)
+ {
+     return esp_gmf_afe_set_vcmd_detection(handle, false);
+ }
++
++esp_gmf_err_t esp_gmf_afe_set_event_cb(esp_gmf_element_handle_t handle, esp_gmf_afe_event_cb_t cb, void *ctx)
++{
++    ESP_GMF_NULL_CHECK(TAG, handle, return ESP_GMF_ERR_INVALID_ARG;);
++    esp_gmf_afe_cfg_t *cfg = OBJ_GET_CFG(handle);
++    ESP_GMF_NULL_CHECK(TAG, cfg, return ESP_GMF_ERR_INVALID_STATE;)
++    cfg->event_cb = cb;
++    cfg->event_ctx = ctx;
++    return ESP_GMF_ERR_OK;
++}
++
++esp_gmf_err_t esp_gmf_afe_keep_awake(esp_gmf_element_handle_t handle, bool enable)
++{
++    ESP_GMF_NULL_CHECK(TAG, handle, return ESP_GMF_ERR_INVALID_ARG;);
++
++    esp_gmf_afe_t *gmf_afe = (esp_gmf_afe_t *)handle;
++
++    if (gmf_afe->wake_st_lock) {
++        xSemaphoreTake(gmf_afe->wake_st_lock, portMAX_DELAY);
++        gmf_afe->keep_wake = enable;
++        xSemaphoreGive(gmf_afe->wake_st_lock);
++        wakeup_state_update(gmf_afe, ET_KEEP_WAKE_MODIFIED, &enable, sizeof(enable));
++        return ESP_GMF_ERR_OK;
++    } else {
++        return ESP_GMF_ERR_INVALID_STATE;
++    }
++}
++
++esp_gmf_err_t esp_gmf_trigger_wakeup(esp_gmf_element_handle_t handle)
++{
++    ESP_GMF_NULL_CHECK(TAG, handle, return ESP_GMF_ERR_INVALID_ARG;);
++
++    afe_fetch_result_t result = {
++        .wakeup_state = WAKENET_DETECTED,
++    };
++    wakeup_afe_monitor(&result, handle);
++    return ESP_GMF_ERR_OK;
++}
+diff --git a/src/esp_gmf_afe_manager.c b/src/esp_gmf_afe_manager.c
+index d00b100..54dc0fa 100644
+--- a/src/esp_gmf_afe_manager.c
++++ b/src/esp_gmf_afe_manager.c
+@@ -178,7 +178,7 @@ esp_gmf_err_t esp_gmf_afe_manager_create(esp_gmf_afe_manager_cfg_t *cfg, esp_gmf
+         xEventGroupSetBits(afe_manager->ctrl_events, AFE_RUN_EVENT);
+     }
+ 
+-#if (configSUPPORT_STATIC_ALLOCATION == 1)
++#if (configSUPPORT_STATIC_ALLOCATION == 1) && defined(CONFIG_SPIRAM_BOOT_INIT)
+     prvTaskCreateDynamicPinnedToCoreWithCaps(feed_task,
+                                              "afe_feed",
+                                              cfg->feed_task_setting.stack_size,
+@@ -248,7 +248,7 @@ esp_gmf_err_t esp_gmf_afe_manager_enable_features(esp_gmf_afe_manager_handle_t h
+     esp_gmf_afe_manager_t *afe_manager = (esp_gmf_afe_manager_t *)handle;
+     ESP_RETURN_ON_FALSE(afe_manager, ESP_GMF_ERR_INVALID_ARG, TAG, "AFE suspend: handle NULL");
+     esp_gmf_err_t ret = ESP_GMF_ERR_OK;
+-    ESP_LOGI(TAG, "AFE Ctrl [%u, %d]", feature, enable);
++    ESP_LOGD(TAG, "AFE Ctrl [%u, %d]", feature, enable);
+     switch (feature) {
+         case ESP_AFE_FEATURE_WAKENET: {
+             if (enable) {
+@@ -256,7 +256,7 @@ esp_gmf_err_t esp_gmf_afe_manager_enable_features(esp_gmf_afe_manager_handle_t h
+             } else {
+                 ret = afe_manager->esp_afe->disable_wakenet(afe_manager->afe_data);
+             }
+-            ESP_LOGI(TAG, "Wakenet ctrl ret %d", ret);
++            ESP_LOGD(TAG, "Wakenet ctrl ret %d", ret);
+             if (ret >= 0) {
+                 afe_manager->feat.wakeup = ret;
+             }
+@@ -268,7 +268,7 @@ esp_gmf_err_t esp_gmf_afe_manager_enable_features(esp_gmf_afe_manager_handle_t h
+             } else {
+                 ret = afe_manager->esp_afe->disable_aec(afe_manager->afe_data);
+             }
+-            ESP_LOGI(TAG, "AEC ctrl ret %d", ret);
++            ESP_LOGD(TAG, "AEC ctrl ret %d", ret);
+             if (ret >= 0) {
+                 afe_manager->feat.aec = ret;
+             }
+@@ -280,7 +280,7 @@ esp_gmf_err_t esp_gmf_afe_manager_enable_features(esp_gmf_afe_manager_handle_t h
+             } else {
+                 ret = afe_manager->esp_afe->disable_se(afe_manager->afe_data);
+             }
+-            ESP_LOGI(TAG, "AE ctrl ret %d", ret);
++            ESP_LOGD(TAG, "AE ctrl ret %d", ret);
+             if (ret >= 0) {
+                 afe_manager->feat.se = ret;
+             }
+@@ -292,7 +292,7 @@ esp_gmf_err_t esp_gmf_afe_manager_enable_features(esp_gmf_afe_manager_handle_t h
+             } else {
+                 ret = afe_manager->esp_afe->disable_vad(afe_manager->afe_data);
+             }
+-            ESP_LOGI(TAG, "VAD ctrl ret %d", ret);
++            ESP_LOGD(TAG, "VAD ctrl ret %d", ret);
+             if (ret >= 0) {
+                 afe_manager->feat.vad = ret;
+             }
+diff --git a/src/esp_gmf_wn.c b/src/esp_gmf_wn.c
+new file mode 100644
+index 0000000..64416a9
+--- /dev/null
++++ b/src/esp_gmf_wn.c
+@@ -0,0 +1,287 @@
++/*
++ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO., LTD
++ * SPDX-License-Identifier: LicenseRef-Espressif-Modified-MIT
++ *
++ * See LICENSE file for details.
++ */
++
++#include <stdint.h>
++#include <stdio.h>
++#include <string.h>
++
++#include "esp_log.h"
++#include "esp_types.h"
++#include "esp_gmf_audio_element.h"
++#include "esp_gmf_cache.h"
++#include "esp_gmf_cap.h"
++#include "esp_gmf_caps_def.h"
++#include "esp_gmf_err.h"
++#include "esp_gmf_job.h"
++#include "esp_gmf_node.h"
++#include "esp_gmf_oal_mem.h"
++#include "esp_gmf_payload.h"
++
++#include "esp_wn_models.h"
++#include "esp_gmf_wn.h"
++#include "esp_gmf_ch_sort.h"
++
++#define ESP_WN_BYTES_PER_SAMPLE (sizeof(uint16_t))
++
++typedef struct {
++    esp_gmf_audio_element_t  parent;
++    esp_wn_iface_t          *wn_iface;
++    model_iface_data_t      *model_data;
++    uint32_t                 sample_rate;
++    uint32_t                 ch;
++    uint32_t                 chunk_size;
++    uint32_t                 frame_len;
++    esp_gmf_cache_t         *cache;
++    esp_gmf_payload_t       *in_load;
++} gmf_wn_t;
++
++static const char *TAG = "GMF_WN";
++
++static esp_gmf_err_t gmf_wn_new(void *cfg, esp_gmf_obj_handle_t *handle)
++{
++    ESP_GMF_NULL_CHECK(TAG, cfg, { return ESP_GMF_ERR_INVALID_ARG; });
++    ESP_GMF_NULL_CHECK(TAG, handle, { return ESP_GMF_ERR_INVALID_ARG; });
++    *handle = NULL;
++    return esp_gmf_wn_init((esp_gmf_wn_cfg_t *)cfg, (esp_gmf_element_handle_t *)handle);
++}
++
++static esp_gmf_err_t gmf_wn_received_event_handler(esp_gmf_event_pkt_t *evt, void *ctx)
++{
++    ESP_GMF_NULL_CHECK(TAG, evt, { return ESP_GMF_ERR_INVALID_ARG; });
++    ESP_GMF_NULL_CHECK(TAG, ctx, { return ESP_GMF_ERR_INVALID_ARG; });
++    esp_gmf_element_handle_t self = (esp_gmf_element_handle_t)ctx;
++    esp_gmf_element_handle_t el = evt->from;
++    esp_gmf_event_state_t state = ESP_GMF_EVENT_STATE_NONE;
++    esp_gmf_element_get_state(self, &state);
++    if (evt->sub == ESP_GMF_INFO_SOUND) {
++        esp_gmf_info_sound_t info = {0};
++        memcpy(&info, evt->payload, evt->payload_size);
++        ESP_LOGD(TAG, "RECV info, from: %s-%p, next: %p, self: %s-%p, type: %x, state: %s, rate: %d, ch: %d, bits: %d",
++                 OBJ_GET_TAG(el), el, esp_gmf_node_for_next((esp_gmf_node_t *)el), OBJ_GET_TAG(self), self, evt->type,
++                 esp_gmf_event_get_state_str(state), info.sample_rates, info.channels, info.bits);
++        if (info.sample_rates != 16000 || info.bits != 16) {
++            ESP_LOGE(TAG, "Unsupported format, rate: %d, bits: %d", info.sample_rates, info.bits);
++            return ESP_GMF_ERR_NOT_SUPPORT;
++        }
++    }
++    if (state == ESP_GMF_EVENT_STATE_NONE) {
++        esp_gmf_element_set_state(self, ESP_GMF_EVENT_STATE_INITIALIZED);
++    }
++
++    return ESP_GMF_ERR_OK;
++}
++
++static esp_gmf_err_t gmf_wn_destroy(esp_gmf_obj_handle_t self)
++{
++    ESP_GMF_NULL_CHECK(TAG, self, { return ESP_GMF_ERR_INVALID_ARG; });
++
++    gmf_wn_t *gmf_wn = (gmf_wn_t *)self;
++
++    if (OBJ_GET_CFG(self)) {
++        esp_gmf_oal_free(OBJ_GET_CFG(self));
++    }
++    if (gmf_wn->wn_iface && gmf_wn->model_data) {
++        gmf_wn->wn_iface->destroy(gmf_wn->model_data);
++        gmf_wn->model_data = NULL;
++    }
++    if (gmf_wn->cache) {
++        esp_gmf_cache_delete(gmf_wn->cache);
++        gmf_wn->cache = NULL;
++    }
++    ESP_LOGD(TAG, "Destroyed");
++    esp_gmf_audio_el_deinit(self);
++    esp_gmf_oal_free(self);
++
++    return ESP_GMF_ERR_OK;
++}
++
++static esp_gmf_job_err_t gmf_wn_open(esp_gmf_audio_element_handle_t self, void *para)
++{
++    gmf_wn_t *gmf_wn = (gmf_wn_t *)self;
++    esp_gmf_wn_cfg_t *cfg = OBJ_GET_CFG(self);
++    char *model_name = esp_srmodel_filter(cfg->models, ESP_WN_PREFIX, NULL);
++    ESP_GMF_NULL_CHECK(TAG, model_name, { return ESP_GMF_JOB_ERR_FAIL; });
++    gmf_wn->wn_iface = (esp_wn_iface_t *)esp_wn_handle_from_name(model_name);
++    ESP_GMF_NULL_CHECK(TAG, gmf_wn->wn_iface, { return ESP_GMF_JOB_ERR_FAIL; });
++    gmf_wn->model_data = gmf_wn->wn_iface->create(model_name, cfg->det_mode);
++    ESP_GMF_NULL_CHECK(TAG, gmf_wn->model_data, { return ESP_GMF_JOB_ERR_FAIL; });
++
++    int algo_ch_num = gmf_wn->wn_iface->get_channel_num(gmf_wn->model_data);
++    gmf_wn->ch = strlen(cfg->input_format);
++    if (algo_ch_num > gmf_wn->ch) {
++        ESP_LOGE(TAG, "Input channel number is less than needed");
++        return ESP_GMF_JOB_ERR_FAIL;
++    }
++    gmf_wn->sample_rate = gmf_wn->wn_iface->get_samp_rate(gmf_wn->model_data);
++    gmf_wn->chunk_size = gmf_wn->wn_iface->get_samp_chunksize(gmf_wn->model_data);
++    gmf_wn->frame_len = gmf_wn->chunk_size * gmf_wn->ch * ESP_WN_BYTES_PER_SAMPLE;
++
++    esp_gmf_cache_new(gmf_wn->frame_len, &gmf_wn->cache);
++    ESP_GMF_NULL_CHECK(TAG, gmf_wn->cache, { return ESP_GMF_JOB_ERR_FAIL; });
++
++    ESP_GMF_ELEMENT_IN_PORT_ATTR_SET(ESP_GMF_ELEMENT_GET(self)->in_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
++                                     ESP_GMF_PORT_TYPE_BLOCK | ESP_GMF_PORT_TYPE_BYTE, gmf_wn->frame_len);
++    ESP_GMF_ELEMENT_OUT_PORT_ATTR_SET(ESP_GMF_ELEMENT_GET(self)->out_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
++                                      ESP_GMF_PORT_TYPE_BLOCK | ESP_GMF_PORT_TYPE_BYTE, gmf_wn->chunk_size * ESP_WN_BYTES_PER_SAMPLE);
++    ESP_LOGI(TAG, "Open, frame_len: %" PRIu32 ", ch %" PRIu32 ", chunksize %" PRIu32, gmf_wn->frame_len, gmf_wn->ch, gmf_wn->chunk_size);
++    esp_gmf_info_sound_t snd_info = {0};
++    snd_info.sample_rates = 16000;
++    snd_info.bits = 16;
++    snd_info.channels = 1;
++    esp_gmf_element_notify_snd_info(self, &snd_info);
++    return ESP_GMF_JOB_ERR_OK;
++}
++
++static esp_gmf_job_err_t gmf_wn_process(esp_gmf_audio_element_handle_t self, void *para)
++{
++    int ret = ESP_GMF_JOB_ERR_OK;
++    gmf_wn_t *gmf_wn = (gmf_wn_t *)self;
++    esp_gmf_port_handle_t in_port = ESP_GMF_ELEMENT_GET(self)->in;
++    esp_gmf_port_handle_t out_port = ESP_GMF_ELEMENT_GET(self)->out;
++    esp_gmf_payload_t *out_load = NULL;
++    esp_gmf_payload_t *cache_load = NULL;
++    esp_gmf_err_io_t load_ret = 0;
++    esp_gmf_wn_cfg_t *cfg = OBJ_GET_CFG(self);
++    bool need_load = false;
++
++    esp_gmf_cache_ready_for_load(gmf_wn->cache, &need_load);
++    if (need_load) {
++        load_ret = esp_gmf_port_acquire_in(in_port, &gmf_wn->in_load, gmf_wn->frame_len, in_port->wait_ticks);
++        ESP_GMF_PORT_ACQUIRE_IN_CHECK(TAG, load_ret, ret, { goto __quit; });
++        esp_gmf_cache_load(gmf_wn->cache, gmf_wn->in_load);
++    }
++    esp_gmf_cache_acquire(gmf_wn->cache, gmf_wn->frame_len, &cache_load);
++    if (cache_load->valid_size != gmf_wn->frame_len) {
++        if (cache_load->is_done == true) {
++            ret = ESP_GMF_JOB_ERR_DONE;
++        } else {
++            ret = ESP_GMF_JOB_ERR_CONTINUE;
++            ESP_LOGD(TAG, "Return Continue, size:%u", cache_load->valid_size);
++        }
++        goto __quit;
++    }
++    load_ret = esp_gmf_port_acquire_out(out_port, &out_load, gmf_wn->frame_len, ESP_GMF_MAX_DELAY);
++    out_load->is_done = cache_load->is_done;
++    ESP_GMF_PORT_ACQUIRE_OUT_CHECK(TAG, load_ret, ret, { goto __quit; });
++    if (out_load->buf_length < gmf_wn->frame_len) {
++        ret = ESP_GMF_JOB_ERR_FAIL;
++        ESP_LOGE(TAG, "Output buffer is not enough");
++        goto __quit;
++    }
++    esp_gmf_sort_with_format((int16_t *)cache_load->buf,
++                             cfg->input_format,
++                             gmf_wn->chunk_size,
++                             gmf_wn->ch,
++                             (int16_t *)out_load->buf);
++    int res = gmf_wn->wn_iface->detect(gmf_wn->model_data, (int16_t *)out_load->buf);
++    if (res > 0) {
++        int trigger_ch = gmf_wn->wn_iface->get_triggered_channel(gmf_wn->model_data);
++        if (cfg->detect_cb) {
++            cfg->detect_cb(self, trigger_ch, cfg->user_ctx);
++        }
++    }
++
++    out_load->valid_size = gmf_wn->chunk_size * ESP_WN_BYTES_PER_SAMPLE;
++    esp_gmf_cache_ready_for_load(gmf_wn->cache, &need_load);
++    if (need_load == false) {
++        ret = ESP_GMF_JOB_ERR_TRUNCATE;
++    } else {
++        ret = (out_load->is_done == true ? ESP_GMF_JOB_ERR_DONE : ESP_GMF_JOB_ERR_OK);
++    }
++
++__quit:
++    if (out_load) {
++        esp_gmf_port_release_out(out_port, out_load, ESP_GMF_MAX_DELAY);
++    }
++    if (gmf_wn->in_load && (ret != ESP_GMF_JOB_ERR_TRUNCATE)) {
++        esp_gmf_port_release_in(in_port, gmf_wn->in_load, ESP_GMF_MAX_DELAY);
++        gmf_wn->in_load = NULL;
++    }
++    if (cache_load) {
++        esp_gmf_cache_release(gmf_wn->cache, cache_load);
++    }
++    return ret;
++}
++
++static esp_gmf_job_err_t gmf_wn_close(esp_gmf_audio_element_handle_t self, void *para)
++{
++    gmf_wn_t *gmf_wn = (gmf_wn_t *)self;
++    if (gmf_wn->wn_iface && gmf_wn->model_data) {
++        gmf_wn->wn_iface->destroy(gmf_wn->model_data);
++        gmf_wn->model_data = NULL;
++    }
++    if (gmf_wn->cache) {
++        esp_gmf_cache_delete(gmf_wn->cache);
++        gmf_wn->cache = NULL;
++    }
++    return ESP_GMF_JOB_ERR_OK;
++}
++
++static esp_gmf_err_t _load_wn_caps_func(esp_gmf_element_handle_t handle)
++{
++    esp_gmf_cap_t *caps = NULL;
++    esp_gmf_cap_t wn_caps = {0};
++    wn_caps.cap_eightcc = ESP_GMF_CAPS_AUDIO_WWE;
++    wn_caps.attr_fun = NULL;
++    int ret = esp_gmf_cap_append(&caps, &wn_caps);
++    ESP_GMF_RET_ON_NOT_OK(TAG, ret, { return ret; }, "Failed to create capability");
++
++    esp_gmf_element_t *el = (esp_gmf_element_t *)handle;
++    el->caps = caps;
++    return ESP_GMF_ERR_OK;
++}
++
++esp_gmf_err_t esp_gmf_wn_init(esp_gmf_wn_cfg_t *config, esp_gmf_element_handle_t *handle)
++{
++    esp_gmf_err_t ret = ESP_GMF_ERR_OK;
++    ESP_GMF_NULL_CHECK(TAG, config, { return ESP_GMF_ERR_INVALID_ARG; });
++    ESP_GMF_NULL_CHECK(TAG, handle, { return ESP_GMF_ERR_INVALID_ARG; });
++    *handle = NULL;
++    gmf_wn_t *gmf_wn = esp_gmf_oal_calloc(1, sizeof(gmf_wn_t));
++    ESP_GMF_MEM_VERIFY(TAG, gmf_wn, { return ESP_GMF_ERR_MEMORY_LACK; }, "wn", sizeof(gmf_wn_t));
++    esp_gmf_obj_t *obj = (esp_gmf_obj_t *)gmf_wn;
++    obj->new_obj = gmf_wn_new;
++    obj->del_obj = gmf_wn_destroy;
++
++    esp_gmf_wn_cfg_t *obj_cfg = esp_gmf_oal_calloc(1, sizeof(esp_gmf_wn_cfg_t));
++    ESP_GMF_NULL_CHECK(TAG, obj_cfg, { ret = ESP_GMF_ERR_MEMORY_LACK; goto __failed; });
++    memcpy(obj_cfg, config, sizeof(esp_gmf_wn_cfg_t));
++    ret = esp_gmf_obj_set_config(obj, obj_cfg, sizeof(esp_gmf_wn_cfg_t));
++    ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed set OBJ configuration");
++    ret = esp_gmf_obj_set_tag(obj, "ai_wn");
++    ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed set OBJ tag");
++    esp_gmf_element_cfg_t el_cfg = {0};
++    ESP_GMF_ELEMENT_IN_PORT_ATTR_SET(el_cfg.in_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
++                                     ESP_GMF_PORT_TYPE_BLOCK | ESP_GMF_PORT_TYPE_BYTE, 1024);
++    ESP_GMF_ELEMENT_OUT_PORT_ATTR_SET(el_cfg.out_attr, ESP_GMF_EL_PORT_CAP_SINGLE, 16, 0,
++                                      ESP_GMF_PORT_TYPE_BLOCK | ESP_GMF_PORT_TYPE_BYTE, 1024);
++    el_cfg.dependency = true;
++    ret = esp_gmf_audio_el_init(gmf_wn, &el_cfg);
++    ESP_GMF_RET_ON_NOT_OK(TAG, ret, goto __failed, "Failed to initialize wn element");
++
++    ESP_GMF_ELEMENT_GET(gmf_wn)->ops.open = gmf_wn_open;
++    ESP_GMF_ELEMENT_GET(gmf_wn)->ops.process = gmf_wn_process;
++    ESP_GMF_ELEMENT_GET(gmf_wn)->ops.close = gmf_wn_close;
++    ESP_GMF_ELEMENT_GET(gmf_wn)->ops.event_receiver = gmf_wn_received_event_handler;
++    ESP_GMF_ELEMENT_GET(gmf_wn)->ops.load_caps = _load_wn_caps_func;
++
++    *handle = obj;
++    return ESP_GMF_ERR_OK;
++__failed:
++    esp_gmf_obj_delete(obj);
++    return ret;
++}
++
++esp_gmf_err_t esp_gmf_wn_set_detect_cb(esp_gmf_element_handle_t self, esp_wn_detect_cb_t cb, void *ctx)
++{
++    ESP_GMF_NULL_CHECK(TAG, self, { return ESP_GMF_ERR_INVALID_ARG; });
++    ESP_GMF_NULL_CHECK(TAG, cb, { return ESP_GMF_ERR_INVALID_ARG; });
++    esp_gmf_wn_cfg_t *cfg = OBJ_GET_CFG(self);
++    cfg->detect_cb = cb;
++    cfg->user_ctx = ctx;
++    return ESP_GMF_ERR_OK;
++}

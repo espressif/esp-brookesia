@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,51 +8,70 @@
 #include <list>
 #include <memory>
 #include "esp_brookesia_systems_internal.h"
-#include "systems/core/esp_brookesia_core_stylesheet_manager.hpp"
-#include "esp_brookesia_phone_home.hpp"
+#include "gui/style/esp_brookesia_gui_stylesheet_manager.hpp"
+#include "esp_brookesia_phone_display.hpp"
 #include "esp_brookesia_phone_manager.hpp"
 #include "esp_brookesia_phone_app.hpp"
 
-// *INDENT-OFF*
+namespace esp_brookesia::systems::phone {
 
-typedef struct {
-    ESP_Brookesia_CoreData_t core;
-    ESP_Brookesia_PhoneHomeData_t home;
-    ESP_Brookesia_PhoneManagerData_t manager;
-} ESP_Brookesia_PhoneStylesheet_t;
+struct Stylesheet {
+    base::Context::Data core;
+    Display::Data display;
+    Manager::Data manager;
+};
 
-using ESP_Brookesia_PhoneStylesheetManager = ESP_Brookesia_CoreStylesheetManager<ESP_Brookesia_PhoneStylesheet_t>;
+using StylesheetManager = gui::StylesheetManager<Stylesheet>;
 
-class ESP_Brookesia_Phone: public ESP_Brookesia_Core, public ESP_Brookesia_PhoneStylesheetManager {
+class Phone: public base::Context, public StylesheetManager {
 public:
-    ESP_Brookesia_Phone(lv_display_t *display = nullptr);
-    ~ESP_Brookesia_Phone();
+    Phone(lv_display_t *display = nullptr);
+    ~Phone();
 
-    int installApp(ESP_Brookesia_PhoneApp &app)    { return _core_manager.installApp(app); }
-    int installApp(ESP_Brookesia_PhoneApp *app)    { return _core_manager.installApp(app); }
-    int uninstallApp(ESP_Brookesia_PhoneApp &app)  { return _core_manager.uninstallApp(app); }
-    int uninstallApp(ESP_Brookesia_PhoneApp *app)  { return _core_manager.uninstallApp(app); }
-    bool uninstallApp(int id)               { return _core_manager.uninstallApp(id); }
+    Phone(const Phone &) = delete;
+    Phone(Phone &&) = delete;
+    Phone &operator=(const Phone &) = delete;
+    Phone &operator=(Phone &&) = delete;
+
+    int installApp(App &app);
+    int installApp(App *app);
+    bool uninstallApp(App &app);
+    bool uninstallApp(App *app);
+    bool uninstallApp(int id);
 
     bool begin(void);
     bool del(void);
-    bool addStylesheet(const ESP_Brookesia_PhoneStylesheet_t &stylesheet);
-    bool addStylesheet(const ESP_Brookesia_PhoneStylesheet_t *stylesheet);
-    bool activateStylesheet(const ESP_Brookesia_PhoneStylesheet_t &stylesheet);
-    bool activateStylesheet(const ESP_Brookesia_PhoneStylesheet_t *stylesheet);
 
-    bool calibrateScreenSize(ESP_Brookesia_StyleSize_t &size) override;
+    bool addStylesheet(const Stylesheet &stylesheet);
+    bool addStylesheet(const Stylesheet *stylesheet);
+    bool activateStylesheet(const Stylesheet &stylesheet);
+    bool activateStylesheet(const Stylesheet *stylesheet);
 
-    ESP_Brookesia_PhoneHome &getHome(void)         { return _home; }
-    ESP_Brookesia_PhoneManager &getManager(void)   { return _manager; }
+    bool calibrateScreenSize(gui::StyleSize &size) override;
+
+    Display &getDisplay(void)
+    {
+        return _display;
+    }
+    Manager &getManager(void)
+    {
+        return _manager;
+    }
 
 private:
-    bool calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, ESP_Brookesia_PhoneStylesheet_t &sheetstyle) override;
+    bool calibrateStylesheet(const gui::StyleSize &screen_size, Stylesheet &sheetstyle) override;
 
-    ESP_Brookesia_PhoneHome _home;
-    ESP_Brookesia_PhoneManager _manager;
+    Display _display;
+    Manager _manager;
 
-    static const ESP_Brookesia_PhoneStylesheet_t _default_stylesheet_dark;
+    static const Stylesheet _default_stylesheet_dark;
 };
 
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::phone
+
+using ESP_Brookesia_PhoneStylesheet_t [[deprecated("Use `esp_brookesia::systems::phone::Stylesheet` instead")]] =
+    esp_brookesia::systems::phone::Stylesheet;
+using ESP_Brookesia_PhoneStylesheetManager [[deprecated("Use `esp_brookesia::systems::phone::StylesheetManager` instead")]] =
+    esp_brookesia::systems::phone::StylesheetManager;
+using ESP_Brookesia_Phone [[deprecated("Use `esp_brookesia::systems::phone::Phone` instead")]] =
+    esp_brookesia::systems::phone::Phone;

@@ -21,14 +21,16 @@
 #define RESTART_CHAT_THREAD_STACK_SIZE        (10 * 1024)
 #define RESTART_CHAT_THREAD_STACK_CAPS_EXT    (true)
 
+#define APP_NAME "AI_Profile"
+
 using namespace std;
 using namespace esp_brookesia::gui;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 using namespace esp_brookesia::ai_framework;
 
 LV_IMG_DECLARE(esp_brookesia_app_icon_launcher_ai_profile_112_112);
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 AI_Profile *AI_Profile::requestInstance()
 {
@@ -41,7 +43,7 @@ AI_Profile *AI_Profile::requestInstance()
 }
 
 AI_Profile::AI_Profile():
-    speaker::App("AI Profile", &esp_brookesia_app_icon_launcher_ai_profile_112_112, true)
+    App(APP_NAME, &esp_brookesia_app_icon_launcher_ai_profile_112_112, true)
 {
 }
 
@@ -251,4 +253,9 @@ end:
 //     return true;
 // }
 
-} // namespace esp_brookesia::speaker_apps
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::base::App, AI_Profile, APP_NAME, []()
+{
+    return std::shared_ptr<AI_Profile>(AI_Profile::requestInstance(), [](AI_Profile * p) {});
+})
+
+} // namespace esp_brookesia::apps

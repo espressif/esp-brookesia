@@ -13,9 +13,10 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_AppLauncherIcon::ESP_Brookesia_AppLauncherIcon(ESP_Brookesia_Core &core, const ESP_Brookesia_AppLauncherIconInfo_t &info,
-        const ESP_Brookesia_AppLauncherIconData_t &data):
-    _core(core),
+namespace esp_brookesia::systems::phone {
+
+AppLauncherIcon::AppLauncherIcon(base::Context &core, const Info &info, const Data &data):
+    _system_context(core),
     _info(info),
     _data(data),
     _flags{},
@@ -28,7 +29,7 @@ ESP_Brookesia_AppLauncherIcon::ESP_Brookesia_AppLauncherIcon(ESP_Brookesia_Core 
 {
 }
 
-ESP_Brookesia_AppLauncherIcon::~ESP_Brookesia_AppLauncherIcon()
+AppLauncherIcon::~AppLauncherIcon()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
     if (!del()) {
@@ -36,12 +37,12 @@ ESP_Brookesia_AppLauncherIcon::~ESP_Brookesia_AppLauncherIcon()
     }
 }
 
-bool ESP_Brookesia_AppLauncherIcon::begin(lv_obj_t *parent)
+bool AppLauncherIcon::begin(lv_obj_t *parent)
 {
-    ESP_Brookesia_LvObj_t main_obj = nullptr;
-    ESP_Brookesia_LvObj_t icon_main_obj = nullptr;
-    ESP_Brookesia_LvObj_t icon_image_obj = nullptr;
-    ESP_Brookesia_LvObj_t name_label = nullptr;
+    gui::LvObjSharedPtr main_obj = nullptr;
+    gui::LvObjSharedPtr icon_main_obj = nullptr;
+    gui::LvObjSharedPtr icon_image_obj = nullptr;
+    gui::LvObjSharedPtr name_label = nullptr;
 
     ESP_UTILS_LOGD("Begin(%d: @0x%p)", _info.id, this);
     ESP_UTILS_CHECK_NULL_RETURN(parent, false, "Invalid parent object");
@@ -65,17 +66,17 @@ bool ESP_Brookesia_AppLauncherIcon::begin(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(main_obj.get(), LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(main_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
     // Icon
-    lv_obj_add_style(icon_main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(icon_main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_clear_flag(icon_main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(icon_main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
     // Image
-    lv_obj_add_style(icon_image_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(icon_image_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_center(icon_image_obj.get());
     lv_img_set_src(icon_image_obj.get(), _info.image.resource);
     lv_obj_set_style_img_recolor(icon_image_obj.get(), lv_color_hex(_info.image.recolor.color), 0);
@@ -89,7 +90,7 @@ bool ESP_Brookesia_AppLauncherIcon::begin(lv_obj_t *parent)
     lv_obj_add_event_cb(icon_image_obj.get(), onIconTouchEventCallback, LV_EVENT_RELEASED, this);
     lv_obj_add_event_cb(icon_image_obj.get(), onIconTouchEventCallback, LV_EVENT_CLICKED, this);
     // Name
-    lv_obj_add_style(name_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(name_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_label_set_text_static(name_label.get(), _info.name);
 
     /* Save objects */
@@ -109,7 +110,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_AppLauncherIcon::del(void)
+bool AppLauncherIcon::del(void)
 {
     ESP_UTILS_LOGD("Delete(%d: @0x%p)", _info.id, this);
 
@@ -125,7 +126,7 @@ bool ESP_Brookesia_AppLauncherIcon::del(void)
     return true;
 }
 
-bool ESP_Brookesia_AppLauncherIcon::toggleClickable(bool clickable)
+bool AppLauncherIcon::toggleClickable(bool clickable)
 {
     ESP_UTILS_LOGD("Toggle clickable(%d: @0x%p)", _info.id, this);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Icon is not initialized");
@@ -140,7 +141,7 @@ bool ESP_Brookesia_AppLauncherIcon::toggleClickable(bool clickable)
     return true;
 }
 
-bool ESP_Brookesia_AppLauncherIcon::updateByNewData(void)
+bool AppLauncherIcon::updateByNewData(void)
 {
     float h_factor = 0;
     float w_factor = 0;
@@ -186,19 +187,19 @@ bool ESP_Brookesia_AppLauncherIcon::updateByNewData(void)
     return true;
 }
 
-void ESP_Brookesia_AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
+void AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_AppLauncherIcon *icon = nullptr;
+    AppLauncherIcon *icon = nullptr;
     lv_event_code_t event_code = _LV_EVENT_LAST;
     lv_obj_t *icon_image_obj = nullptr;
-    ESP_Brookesia_CoreAppEventData_t app_event_data = {
-        .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
+    base::Context::AppEventData app_event_data = {
+        .type = base::Context::AppEventType::START,
     };
 
     ESP_UTILS_LOGD("Icon touch event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    icon = (ESP_Brookesia_AppLauncherIcon *)lv_event_get_user_data(event);
+    icon = (AppLauncherIcon *)lv_event_get_user_data(event);
     event_code = lv_event_get_code(event);
     icon_image_obj = (lv_obj_t *)lv_event_get_current_target(event);
     ESP_UTILS_CHECK_NULL_EXIT(icon, "Invalid icon");
@@ -211,7 +212,7 @@ void ESP_Brookesia_AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
             break;
         }
         app_event_data.id = icon->_info.id;
-        ESP_UTILS_CHECK_FALSE_EXIT(icon->_core.sendAppEvent(&app_event_data), "Send app event failed");
+        ESP_UTILS_CHECK_FALSE_EXIT(icon->_system_context.sendAppEvent(&app_event_data), "Send app event failed");
         break;
     case LV_EVENT_PRESSED:
         ESP_UTILS_LOGD("Pressed");
@@ -240,3 +241,5 @@ void ESP_Brookesia_AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
         break;
     }
 }
+
+} // namespace esp_brookesia::systems::phone

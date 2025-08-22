@@ -100,7 +100,7 @@ bool LvObject::setStyleAttribute(StyleWidthItem width_type, int width)
     return true;
 }
 
-bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleSize_t &size)
+bool LvObject::setStyleAttribute(const gui::StyleSize &size)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: size(width=%d, height=%d, radius=%d)", size.width, size.height, size.radius);
@@ -115,7 +115,7 @@ bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleSize_t &size)
     return true;
 }
 
-bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleFont_t &font)
+bool LvObject::setStyleAttribute(const gui::StyleFont &font)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: font(font_resource=0x%p)", font.font_resource);
@@ -128,7 +128,7 @@ bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleFont_t &font)
     return true;
 }
 
-bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleAlign_t &align)
+bool LvObject::setStyleAttribute(const gui::StyleAlign &align)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: align(type=%d, offset_x=%d, offset_y=%d)", align.type, align.offset_x, align.offset_y);
@@ -141,7 +141,7 @@ bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleAlign_t &align)
     return true;
 }
 
-bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleLayoutFlex_t &layout)
+bool LvObject::setStyleAttribute(const gui::StyleLayoutFlex &layout)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: layout(flow=%d, main_place=%d, cross_place=%d, track_place=%d)",
@@ -165,7 +165,7 @@ bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleLayoutFlex_t &layout)
     return true;
 }
 
-bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleGap_t &gap)
+bool LvObject::setStyleAttribute(const gui::StyleGap &gap)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: gap(left=%d, right=%d, top=%d, bottom=%d, row=%d, column=%d)",
@@ -185,7 +185,7 @@ bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleGap_t &gap)
 }
 
 bool LvObject::setStyleAttribute(
-    ESP_Brookesia_StyleColorItem_t item, const ESP_Brookesia_StyleColor_t &color
+    gui::StyleColorItem item, const gui::StyleColor &color
 )
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
@@ -214,7 +214,7 @@ bool LvObject::setStyleAttribute(
     return true;
 }
 
-bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleImage_t &image)
+bool LvObject::setStyleAttribute(const gui::StyleImage &image)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD("Param: image(resource=0x%p, recolor.color=0x%x, recolor.opacity=%d)",
@@ -230,7 +230,7 @@ bool LvObject::setStyleAttribute(const ESP_Brookesia_StyleImage_t &image)
     return true;
 }
 
-bool LvObject::setStyleAttribute(LvObject &target, const ESP_Brookesia_StyleAlign_t &align)
+bool LvObject::setStyleAttribute(LvObject &target, const gui::StyleAlign &align)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
     ESP_UTILS_LOGD(

@@ -1,0 +1,310 @@
+diff --git a/include/esp_lvgl_port.h b/include/esp_lvgl_port.h
+index cbae7e8..5a2882f 100644
+--- a/include/esp_lvgl_port.h
++++ b/include/esp_lvgl_port.h
+@@ -12,6 +12,7 @@
+ #pragma once
+ 
+ #include "esp_err.h"
++#include "esp_heap_caps.h"
+ #include "lvgl.h"
+ #include "esp_lvgl_port_disp.h"
+ #include "esp_lvgl_port_touch.h"
+@@ -48,24 +49,26 @@ typedef struct {
+  * @brief Init configuration structure
+  */
+ typedef struct {
+-    int task_priority;      /*!< LVGL task priority */
+-    int task_stack;         /*!< LVGL task stack size */
+-    int task_affinity;      /*!< LVGL task pinned to core (-1 is no affinity) */
+-    int task_max_sleep_ms;  /*!< Maximum sleep in LVGL task */
+-    int timer_period_ms;    /*!< LVGL timer tick period in ms */
++    int task_priority;        /*!< LVGL task priority */
++    int task_stack;           /*!< LVGL task stack size */
++    int task_affinity;        /*!< LVGL task pinned to core (-1 is no affinity) */
++    int task_max_sleep_ms;    /*!< Maximum sleep in LVGL task */
++    unsigned task_stack_caps; /*!< LVGL task stack memory capabilities (see esp_heap_caps.h) */
++    int timer_period_ms;      /*!< LVGL timer tick period in ms */
+ } lvgl_port_cfg_t;
+ 
+ /**
+  * @brief LVGL port configuration structure
+  *
+  */
+-#define ESP_LVGL_PORT_INIT_CONFIG() \
+-    {                               \
+-        .task_priority = 4,       \
+-        .task_stack = 7168,       \
+-        .task_affinity = -1,      \
+-        .task_max_sleep_ms = 500, \
+-        .timer_period_ms = 5,     \
++#define ESP_LVGL_PORT_INIT_CONFIG()                \
++    {                                              \
++        .task_priority = 4,                        \
++        .task_stack = 7168,                        \
++        .task_affinity = -1,                       \
++        .task_max_sleep_ms = 500,                  \
++        .task_stack_caps = MALLOC_CAP_DEFAULT,     \
++        .timer_period_ms = 5,                      \
+     }
+ 
+ /**
+diff --git a/include/esp_lvgl_port_disp.h b/include/esp_lvgl_port_disp.h
+index a827287..410cb3f 100644
+--- a/include/esp_lvgl_port_disp.h
++++ b/include/esp_lvgl_port_disp.h
+@@ -1,5 +1,5 @@
+ /*
+- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
++ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+  *
+  * SPDX-License-Identifier: Apache-2.0
+  */
+@@ -63,6 +63,7 @@ typedef struct {
+ #endif
+         unsigned int full_refresh: 1;/*!< 1: Always make the whole screen redrawn */
+         unsigned int direct_mode: 1; /*!< 1: Use screen-sized buffers and draw to absolute coordinates */
++        unsigned int default_dummy_draw: 1; /*!< 1: Use dummy draw to bypass the display driver during initialization */
+     } flags;
+ } lvgl_port_display_cfg_t;
+ 
+@@ -127,6 +128,31 @@ lv_display_t *lvgl_port_add_disp_rgb(const lvgl_port_display_cfg_t *disp_cfg, co
+  */
+ esp_err_t lvgl_port_remove_disp(lv_display_t *disp);
+ 
++/**
++ * @brief Set dummy draw to bypass the display driver during LVGL flush
++ *
++ * @param disp LVGL display handle
++ * @param enable True to enable dummy draw, False to disable
++ */
++void lvgl_port_disp_set_dummy_draw(lv_display_t *disp, bool enable);
++
++/**
++ * @brief Take the transfer semaphore
++ *
++ * @param disp LVGL display handle
++ * @param timeout_ms Timeout in milliseconds
++ * @return ESP_OK on success, ESP_ERR_TIMEOUT on timeout
++ */
++esp_err_t lvgl_port_disp_take_trans_sem(lv_display_t *disp, uint32_t timeout_ms);
++
++/**
++ * @brief Give the transfer semaphore
++ *
++ * @param disp LVGL display handle
++ * @param from_isr True if called from ISR
++ */
++void lvgl_port_disp_give_trans_sem(lv_display_t *disp, bool from_isr);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/lvgl8/esp_lvgl_port.c b/src/lvgl8/esp_lvgl_port.c
+index dff705b..dcd2d26 100644
+--- a/src/lvgl8/esp_lvgl_port.c
++++ b/src/lvgl8/esp_lvgl_port.c
+@@ -1,5 +1,5 @@
+ /*
+- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
++ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+  *
+  * SPDX-License-Identifier: Apache-2.0
+  */
+@@ -13,6 +13,7 @@
+ #include "freertos/FreeRTOS.h"
+ #include "freertos/task.h"
+ #include "freertos/semphr.h"
++#include "freertos/idf_additions.h"
+ #include "esp_lvgl_port.h"
+ #include "esp_lvgl_port_priv.h"
+ #include "lvgl.h"
+@@ -77,10 +78,11 @@ esp_err_t lvgl_port_init(const lvgl_port_cfg_t *cfg)
+     ESP_GOTO_ON_FALSE(lvgl_port_ctx.task_mux, ESP_ERR_NO_MEM, err, TAG, "Create LVGL task sem fail!");
+ 
+     BaseType_t res;
++    const uint32_t caps = cfg->task_stack_caps ? cfg->task_stack_caps : MALLOC_CAP_DEFAULT; // caps cannot be zero
+     if (cfg->task_affinity < 0) {
+-        res = xTaskCreate(lvgl_port_task, "taskLVGL", cfg->task_stack, NULL, cfg->task_priority, &lvgl_port_ctx.lvgl_task);
++        res = xTaskCreateWithCaps(lvgl_port_task, "taskLVGL", cfg->task_stack, NULL, cfg->task_priority, &lvgl_port_ctx.lvgl_task, caps);
+     } else {
+-        res = xTaskCreatePinnedToCore(lvgl_port_task, "taskLVGL", cfg->task_stack, NULL, cfg->task_priority, &lvgl_port_ctx.lvgl_task, cfg->task_affinity);
++        res = xTaskCreatePinnedToCoreWithCaps(lvgl_port_task, "taskLVGL", cfg->task_stack, NULL, cfg->task_priority, &lvgl_port_ctx.lvgl_task, cfg->task_affinity, caps);
+     }
+     ESP_GOTO_ON_FALSE(res == pdPASS, ESP_FAIL, err, TAG, "Create LVGL task fail!");
+ 
+diff --git a/src/lvgl8/esp_lvgl_port_knob.c b/src/lvgl8/esp_lvgl_port_knob.c
+index fa6ba5b..72b2bbf 100644
+--- a/src/lvgl8/esp_lvgl_port_knob.c
++++ b/src/lvgl8/esp_lvgl_port_knob.c
+@@ -70,15 +70,14 @@ lv_indev_t *lvgl_port_add_encoder(const lvgl_port_encoder_cfg_t *encoder_cfg)
+         ESP_GOTO_ON_FALSE(encoder_cfg->encoder_enter, ESP_ERR_INVALID_ARG, err, TAG, "Invalid button handler!");
+         encoder_ctx->btn_handle = encoder_cfg->encoder_enter;
+ #endif
+-    }
+-
+ #if BUTTON_VER_MAJOR < 4
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, lvgl_port_encoder_btn_down_handler, encoder_ctx));
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, lvgl_port_encoder_btn_up_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, lvgl_port_encoder_btn_down_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, lvgl_port_encoder_btn_up_handler, encoder_ctx));
+ #else
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, NULL, lvgl_port_encoder_btn_down_handler, encoder_ctx));
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, NULL, lvgl_port_encoder_btn_up_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, NULL, lvgl_port_encoder_btn_down_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, NULL, lvgl_port_encoder_btn_up_handler, encoder_ctx));
+ #endif
++    }
+ 
+     encoder_ctx->btn_enter = false;
+     encoder_ctx->diff = 0;
+diff --git a/src/lvgl9/esp_lvgl_port.c b/src/lvgl9/esp_lvgl_port.c
+index 24d9d70..5551a2e 100644
+--- a/src/lvgl9/esp_lvgl_port.c
++++ b/src/lvgl9/esp_lvgl_port.c
+@@ -15,6 +15,7 @@
+ #include "freertos/task.h"
+ #include "freertos/semphr.h"
+ #include "freertos/event_groups.h"
++#include "freertos/idf_additions.h"
+ #include "esp_lvgl_port.h"
+ #include "esp_lvgl_port_priv.h"
+ #include "lvgl.h"
+@@ -84,10 +85,11 @@ esp_err_t lvgl_port_init(const lvgl_port_cfg_t *cfg)
+     ESP_GOTO_ON_FALSE(lvgl_port_ctx.lvgl_events, ESP_ERR_NO_MEM, err, TAG, "Create LVGL Event Group fail!");
+ 
+     BaseType_t res;
++    const uint32_t caps = cfg->task_stack_caps ? cfg->task_stack_caps : MALLOC_CAP_DEFAULT; // caps cannot be zero
+     if (cfg->task_affinity < 0) {
+-        res = xTaskCreate(lvgl_port_task, "taskLVGL", cfg->task_stack, xTaskGetCurrentTaskHandle(), cfg->task_priority, &lvgl_port_ctx.lvgl_task);
++        res = xTaskCreateWithCaps(lvgl_port_task, "taskLVGL", cfg->task_stack, xTaskGetCurrentTaskHandle(), cfg->task_priority, &lvgl_port_ctx.lvgl_task, caps);
+     } else {
+-        res = xTaskCreatePinnedToCore(lvgl_port_task, "taskLVGL", cfg->task_stack, xTaskGetCurrentTaskHandle(), cfg->task_priority, &lvgl_port_ctx.lvgl_task, cfg->task_affinity);
++        res = xTaskCreatePinnedToCoreWithCaps(lvgl_port_task, "taskLVGL", cfg->task_stack, xTaskGetCurrentTaskHandle(), cfg->task_priority, &lvgl_port_ctx.lvgl_task, cfg->task_affinity, caps);
+     }
+     ESP_GOTO_ON_FALSE(res == pdPASS, ESP_FAIL, err, TAG, "Create LVGL task fail!");
+ 
+diff --git a/src/lvgl9/esp_lvgl_port_disp.c b/src/lvgl9/esp_lvgl_port_disp.c
+index a5a07d7..ecbcc11 100644
+--- a/src/lvgl9/esp_lvgl_port_disp.c
++++ b/src/lvgl9/esp_lvgl_port_disp.c
+@@ -69,6 +69,7 @@ typedef struct {
+         unsigned int full_refresh: 1;   /* Always make the whole screen redrawn */
+         unsigned int direct_mode: 1;    /* Use screen-sized buffers and draw to absolute coordinates */
+         unsigned int sw_rotate: 1;    /* Use software rotation (slower) or PPA if available */
++        unsigned int dummy_draw: 1;   /* Use dummy draw to bypass the display driver */
+     } flags;
+ } lvgl_port_display_ctx_t;
+ 
+@@ -295,6 +296,7 @@ static lv_display_t *lvgl_port_add_disp_priv(const lvgl_port_display_cfg_t *disp
+     disp_ctx->flags.swap_bytes = disp_cfg->flags.swap_bytes;
+     disp_ctx->flags.sw_rotate = disp_cfg->flags.sw_rotate;
+     disp_ctx->current_rotation = LV_DISPLAY_ROTATION_0;
++    disp_ctx->flags.dummy_draw = disp_cfg->flags.default_dummy_draw;
+ 
+     uint32_t buff_caps = 0;
+ #if SOC_PSRAM_DMA_CAPABLE == 0
+@@ -337,6 +339,10 @@ static lv_display_t *lvgl_port_add_disp_priv(const lvgl_port_display_cfg_t *disp
+ 
+         disp_ctx->draw_buffs[0] = buf1;
+         disp_ctx->draw_buffs[1] = buf2;
++
++        trans_sem = xSemaphoreCreateCounting(1, 1);
++        ESP_GOTO_ON_FALSE(trans_sem, ESP_ERR_NO_MEM, err, TAG, "Failed to create transport counting Semaphore");
++        disp_ctx->trans_sem = trans_sem;
+     }
+ 
+     disp = lv_display_create(disp_cfg->hres, disp_cfg->vres);
+@@ -450,6 +456,7 @@ static bool lvgl_port_flush_io_ready_callback(esp_lcd_panel_io_handle_t panel_io
+     lv_display_t *disp_drv = (lv_display_t *)user_ctx;
+     assert(disp_drv != NULL);
+     lv_disp_flush_ready(disp_drv);
++    lvgl_port_disp_give_trans_sem(disp_drv, true);
+     return false;
+ }
+ 
+@@ -685,11 +692,14 @@ static void lvgl_port_flush_callback(lv_display_t *drv, const lv_area_t *area, u
+             xSemaphoreTake(disp_ctx->trans_sem, 0);
+             xSemaphoreTake(disp_ctx->trans_sem, portMAX_DELAY);
+         }
+-    } else {
+-        esp_lcd_panel_draw_bitmap(disp_ctx->panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
++    } else if (!disp_ctx->flags.dummy_draw) {
++        lvgl_port_disp_take_trans_sem(drv, portMAX_DELAY);
++        if (!disp_ctx->flags.dummy_draw) {
++            esp_lcd_panel_draw_bitmap(disp_ctx->panel_handle, offsetx1, offsety1, offsetx2 + 1, offsety2 + 1, color_map);
++        }
+     }
+ 
+-    if (disp_ctx->disp_type == LVGL_PORT_DISP_TYPE_RGB || (disp_ctx->disp_type == LVGL_PORT_DISP_TYPE_DSI && (disp_ctx->flags.direct_mode || disp_ctx->flags.full_refresh))) {
++    if (disp_ctx->disp_type == LVGL_PORT_DISP_TYPE_RGB || (disp_ctx->disp_type == LVGL_PORT_DISP_TYPE_DSI && (disp_ctx->flags.direct_mode || disp_ctx->flags.full_refresh)) || disp_ctx->flags.dummy_draw) {
+         lv_disp_flush_ready(drv);
+     }
+ }
+@@ -752,3 +762,41 @@ static void lvgl_port_display_invalidate_callback(lv_event_t *e)
+     /* Wake LVGL task, if needed */
+     lvgl_port_task_wake(LVGL_PORT_EVENT_DISPLAY, NULL);
+ }
++
++void lvgl_port_disp_set_dummy_draw(lv_display_t *disp, bool enable)
++{
++    assert(disp != NULL);
++    lvgl_port_display_ctx_t *disp_ctx = (lvgl_port_display_ctx_t *)lv_display_get_driver_data(disp);
++    assert(disp_ctx != NULL);
++    disp_ctx->flags.dummy_draw = enable;
++}
++
++esp_err_t lvgl_port_disp_take_trans_sem(lv_display_t *disp, uint32_t timeout_ms)
++{
++    assert(disp != NULL);
++    lvgl_port_display_ctx_t *disp_ctx = (lvgl_port_display_ctx_t *)lv_display_get_driver_data(disp);
++    assert(disp_ctx != NULL);
++
++    const TickType_t timeout_ticks = (timeout_ms == 0) ? portMAX_DELAY : pdMS_TO_TICKS(timeout_ms);
++    return (xSemaphoreTake(disp_ctx->trans_sem, timeout_ticks) == pdTRUE ? ESP_OK : ESP_ERR_TIMEOUT);
++}
++
++void lvgl_port_disp_give_trans_sem(lv_display_t *disp, bool from_isr)
++{
++    assert(disp != NULL);
++    lvgl_port_display_ctx_t *disp_ctx = (lvgl_port_display_ctx_t *)lv_display_get_driver_data(disp);
++    assert(disp_ctx != NULL);
++    assert(disp_ctx->trans_sem != NULL);
++
++    BaseType_t need_yield = pdFALSE;
++    if (from_isr) {
++        xSemaphoreGiveFromISR(disp_ctx->trans_sem, &need_yield);
++    } else {
++        xSemaphoreGive(disp_ctx->trans_sem);
++    }
++
++    if (need_yield == pdTRUE) {
++        portYIELD_FROM_ISR();
++    }
++
++}
+diff --git a/src/lvgl9/esp_lvgl_port_knob.c b/src/lvgl9/esp_lvgl_port_knob.c
+index e0c4b9d..b8e197a 100644
+--- a/src/lvgl9/esp_lvgl_port_knob.c
++++ b/src/lvgl9/esp_lvgl_port_knob.c
+@@ -70,15 +70,14 @@ lv_indev_t *lvgl_port_add_encoder(const lvgl_port_encoder_cfg_t *encoder_cfg)
+         ESP_GOTO_ON_FALSE(encoder_cfg->encoder_enter, ESP_ERR_INVALID_ARG, err, TAG, "Invalid button handler!");
+         encoder_ctx->btn_handle = encoder_cfg->encoder_enter;
+ #endif
+-    }
+-
+ #if BUTTON_VER_MAJOR < 4
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, lvgl_port_encoder_btn_down_handler, encoder_ctx));
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, lvgl_port_encoder_btn_up_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, lvgl_port_encoder_btn_down_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, lvgl_port_encoder_btn_up_handler, encoder_ctx));
+ #else
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, NULL, lvgl_port_encoder_btn_down_handler, encoder_ctx));
+-    ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, NULL, lvgl_port_encoder_btn_up_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_DOWN, NULL, lvgl_port_encoder_btn_down_handler, encoder_ctx));
++        ESP_ERROR_CHECK(iot_button_register_cb(encoder_ctx->btn_handle, BUTTON_PRESS_UP, NULL, lvgl_port_encoder_btn_up_handler, encoder_ctx));
+ #endif
++    }
+ 
+     encoder_ctx->btn_enter = false;
+     encoder_ctx->diff = 0;

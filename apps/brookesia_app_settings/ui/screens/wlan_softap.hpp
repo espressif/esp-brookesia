@@ -12,7 +12,7 @@
 #include "esp_brookesia.hpp"
 #include "base.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenWlanSoftAPContainerIndex {
     QRCODE,
@@ -28,15 +28,15 @@ struct SettingsUI_ScreenWlanSoftAPData {
     SettingsUI_WidgetCellContainerConf container_confs[(int)SettingsUI_ScreenWlanSoftAPContainerIndex::MAX];
     SettingsUI_WidgetCellConf cell_confs[(int)SettingsUI_ScreenWlanSoftAPCellIndex::MAX];
     struct {
-        ESP_Brookesia_StyleSize_t main_size;
-        ESP_Brookesia_StyleSize_t border_size;
-        ESP_Brookesia_StyleColor_t dark_color;
-        ESP_Brookesia_StyleColor_t light_color;
+        gui::StyleSize main_size;
+        gui::StyleSize border_size;
+        gui::StyleColor dark_color;
+        gui::StyleColor light_color;
     } qrcode_image;
     struct {
-        ESP_Brookesia_StyleSize_t size;
-        ESP_Brookesia_StyleColor_t text_color;
-        ESP_Brookesia_StyleFont_t text_font;
+        gui::StyleSize size;
+        gui::StyleColor text_color;
+        gui::StyleFont text_font;
     } info_label;
 };
 
@@ -45,7 +45,7 @@ using SettingsUI_ScreenWlanSoftAPCellContainerMap =
 
 class SettingsUI_ScreenWlanSoftAP: public SettingsUI_ScreenBase {
 public:
-    SettingsUI_ScreenWlanSoftAP(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    SettingsUI_ScreenWlanSoftAP(systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                                 const SettingsUI_ScreenWlanSoftAPData &main_data);
     ~SettingsUI_ScreenWlanSoftAP();
 
@@ -63,7 +63,7 @@ public:
     }
 
     static bool calibrateData(
-        const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+        const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_ScreenWlanSoftAPData &data
     );
 
@@ -79,4 +79,4 @@ private:
     lv_obj_t *_info_label = nullptr;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

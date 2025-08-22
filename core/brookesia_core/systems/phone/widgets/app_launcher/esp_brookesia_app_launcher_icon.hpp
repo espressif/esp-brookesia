@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,51 +7,54 @@
 
 #include <vector>
 #include <map>
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 
-// *INDENT-OFF*
+namespace esp_brookesia::systems::phone {
 
-typedef struct {
-    const char *name;
-    ESP_Brookesia_StyleImage_t image;
-    int id;
-} ESP_Brookesia_AppLauncherIconInfo_t;
-
-typedef struct {
-    struct {
-        ESP_Brookesia_StyleSize_t size;
-        uint8_t layout_row_pad;
-    } main;
-    struct {
-        ESP_Brookesia_StyleSize_t default_size;
-        ESP_Brookesia_StyleSize_t press_size;
-    } image;
-    struct {
-        ESP_Brookesia_StyleFont_t text_font;
-        ESP_Brookesia_StyleColor_t text_color;
-    } label;
-} ESP_Brookesia_AppLauncherIconData_t;
-
-class ESP_Brookesia_AppLauncherIcon {
+class AppLauncherIcon {
 public:
-    ESP_Brookesia_AppLauncherIcon(ESP_Brookesia_Core &core, const ESP_Brookesia_AppLauncherIconInfo_t &info, const ESP_Brookesia_AppLauncherIconData_t &data);
-    ~ESP_Brookesia_AppLauncherIcon();
+    struct Info {
+        const char *name;
+        gui::StyleImage image;
+        int id;
+    };
+
+    struct Data {
+        struct {
+            gui::StyleSize size;
+            uint8_t layout_row_pad;
+        } main;
+        struct {
+            gui::StyleSize default_size;
+            gui::StyleSize press_size;
+        } image;
+        struct {
+            gui::StyleFont text_font;
+            gui::StyleColor text_color;
+        } label;
+    };
+
+    AppLauncherIcon(base::Context &core, const Info &info, const Data &data);
+    ~AppLauncherIcon();
 
     bool begin(lv_obj_t *parent);
     bool del(void);
     bool toggleClickable(bool clickable);
 
-    bool checkInitialized(void) const { return (_main_obj != nullptr); }
+    bool checkInitialized(void) const
+    {
+        return (_main_obj != nullptr);
+    }
 
     bool updateByNewData(void);
 
 private:
     static void onIconTouchEventCallback(lv_event_t *event);
 
-    ESP_Brookesia_Core &_core;
-    ESP_Brookesia_AppLauncherIconInfo_t _info;
-    const ESP_Brookesia_AppLauncherIconData_t &_data;
+    base::Context &_system_context;
+    Info _info;
+    const Data &_data;
 
     struct {
         uint8_t is_pressed_losted: 1;
@@ -59,10 +62,17 @@ private:
     } _flags;
     int _image_default_zoom;
     int _image_press_zoom;
-    ESP_Brookesia_LvObj_t _main_obj;
-    ESP_Brookesia_LvObj_t _icon_main_obj;
-    ESP_Brookesia_LvObj_t _icon_image_obj;
-    ESP_Brookesia_LvObj_t _name_label;
+    gui::LvObjSharedPtr _main_obj;
+    gui::LvObjSharedPtr _icon_main_obj;
+    gui::LvObjSharedPtr _icon_image_obj;
+    gui::LvObjSharedPtr _name_label;
 };
 
-// *INDENT-ON*
+} // namespace esp_brookesia::systems::phone
+
+using ESP_Brookesia_AppLauncherIconInfo_t [[deprecated("Use `esp_brookesia::systems::phone::AppLauncherIcon::Info` instead")]] =
+    esp_brookesia::systems::phone::AppLauncherIcon::Info;
+using ESP_Brookesia_AppLauncherIconData_t [[deprecated("Use `esp_brookesia::systems::phone::AppLauncherIcon::Data` instead")]] =
+    esp_brookesia::systems::phone::AppLauncherIcon::Data;
+using ESP_Brookesia_AppLauncherIcon [[deprecated("Use `esp_brookesia::systems::phone::AppLauncherIcon` instead")]] =
+    esp_brookesia::systems::phone::AppLauncherIcon;

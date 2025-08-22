@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,9 +7,9 @@
 #include "display.hpp"
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 #define CELL_ELEMENT_CONF_SLIDER() \
     { \
@@ -39,13 +39,10 @@ namespace esp_brookesia::speaker_apps {
         }, \
     }
 
-const SettingsUI_ScreenDisplayCellContainerMap SettingsUI_ScreenDisplay::_init_cell_container_map = CELL_CONTAINER_MAP();
-
-SettingsUI_ScreenDisplay::SettingsUI_ScreenDisplay(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+SettingsUI_ScreenDisplay::SettingsUI_ScreenDisplay(App &ui_app, const SettingsUI_ScreenBaseData &base_data,
         const SettingsUI_ScreenDisplayData &main_data):
     SettingsUI_ScreenBase(ui_app, base_data, SettingsUI_ScreenBaseType::CHILD),
-    data(main_data),
-    _cell_container_map(_init_cell_container_map)
+    data(main_data)
 {
 }
 
@@ -65,6 +62,7 @@ bool SettingsUI_ScreenDisplay::begin()
         SettingsUI_ScreenBase::begin("Display", "Settings"), false, "Screen base begin failed"
     );
 
+    _cell_container_map = CELL_CONTAINER_MAP();
     ESP_UTILS_CHECK_FALSE_GOTO(processCellContainerMapInit(), err, "Process cell container map init failed");
     ESP_UTILS_CHECK_FALSE_GOTO(processDataUpdate(), err, "Process data update failed");
 
@@ -97,6 +95,8 @@ bool SettingsUI_ScreenDisplay::del()
         ret  = false;
         ESP_UTILS_LOGE("Screen base delete failed");
     }
+
+    _cell_container_map.clear();
 
     return ret;
 }
@@ -148,4 +148,4 @@ bool SettingsUI_ScreenDisplay::processCellContainerMapUpdate()
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

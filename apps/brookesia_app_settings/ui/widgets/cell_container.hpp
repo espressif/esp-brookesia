@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,14 +9,14 @@
 #include <sys/types.h>
 #include "esp_brookesia.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsUI_WidgetCellData {
     struct {
-        ESP_Brookesia_StyleSize_t size;
+        gui::StyleSize size;
         uint8_t radius;
-        ESP_Brookesia_StyleColor_t active_background_color;
-        ESP_Brookesia_StyleColor_t inactive_background_color;
+        gui::StyleColor active_background_color;
+        gui::StyleColor inactive_background_color;
     } main;
     struct {
         uint16_t left_align_x_offset;
@@ -25,44 +25,44 @@ struct SettingsUI_WidgetCellData {
         uint16_t right_column_pad;
     } area;
     struct {
-        ESP_Brookesia_StyleSize_t left_size;
-        ESP_Brookesia_StyleSize_t right_size;
+        gui::StyleSize left_size;
+        gui::StyleSize right_size;
     } icon;
     struct {
-        ESP_Brookesia_StyleSize_t main_size;
-        ESP_Brookesia_StyleColor_t active_indicator_color;
-        ESP_Brookesia_StyleColor_t inactive_indicator_color;
-        ESP_Brookesia_StyleSize_t knob_size;
-        ESP_Brookesia_StyleColor_t knob_color;
+        gui::StyleSize main_size;
+        gui::StyleColor active_indicator_color;
+        gui::StyleColor inactive_indicator_color;
+        gui::StyleSize knob_size;
+        gui::StyleColor knob_color;
     } sw;
     struct {
         uint8_t width;
-        ESP_Brookesia_StyleColor_t color;
+        gui::StyleColor color;
     } split_line;
     struct {
         uint16_t left_row_pad;
         uint16_t right_row_pad;
-        ESP_Brookesia_StyleFont_t left_main_text_font;
-        ESP_Brookesia_StyleColor_t left_main_text_color;
-        ESP_Brookesia_StyleFont_t left_minor_text_font;
-        ESP_Brookesia_StyleColor_t left_minor_text_color;
-        ESP_Brookesia_StyleFont_t right_main_text_font;
-        ESP_Brookesia_StyleColor_t right_main_text_color;
-        ESP_Brookesia_StyleFont_t right_minor_text_font;
-        ESP_Brookesia_StyleColor_t right_minor_text_color;
+        gui::StyleFont left_main_text_font;
+        gui::StyleColor left_main_text_color;
+        gui::StyleFont left_minor_text_font;
+        gui::StyleColor left_minor_text_color;
+        gui::StyleFont right_main_text_font;
+        gui::StyleColor right_main_text_color;
+        gui::StyleFont right_minor_text_font;
+        gui::StyleColor right_minor_text_color;
     } label;
     struct {
-        ESP_Brookesia_StyleSize_t size;
-        ESP_Brookesia_StyleFont_t text_font;
-        ESP_Brookesia_StyleColor_t text_color;
-        ESP_Brookesia_StyleColor_t cursor_color;
+        gui::StyleSize size;
+        gui::StyleFont text_font;
+        gui::StyleColor text_color;
+        gui::StyleColor cursor_color;
     } text_edit;
     struct {
-        ESP_Brookesia_StyleSize_t main_size;
-        ESP_Brookesia_StyleColor_t main_color;
-        ESP_Brookesia_StyleColor_t indicator_color;
-        ESP_Brookesia_StyleSize_t knob_size;
-        ESP_Brookesia_StyleColor_t knob_color;
+        gui::StyleSize main_size;
+        gui::StyleColor main_color;
+        gui::StyleColor indicator_color;
+        gui::StyleSize knob_size;
+        gui::StyleColor knob_color;
     } slider;
 };
 
@@ -101,15 +101,15 @@ inline bool operator&(SettingsUI_WidgetCellElement lhs, SettingsUI_WidgetCellEle
 }
 
 struct SettingsUI_WidgetCellConf {
-    ESP_Brookesia_StyleSize_t left_icon_size;
-    ESP_Brookesia_StyleImage_t left_icon_image;
+    gui::StyleSize left_icon_size;
+    gui::StyleImage left_icon_image;
     std::string left_main_label_text;
     std::string left_minor_label_text;
     std::string left_text_edit_placeholder_text;
     std::string right_main_label_text;
     std::string right_minor_label_text;
-    ESP_Brookesia_StyleSize_t right_icon_size;
-    std::vector<ESP_Brookesia_StyleImage_t> right_icon_images;
+    gui::StyleSize right_icon_size;
+    std::vector<gui::StyleImage> right_icon_images;
     struct {
         uint8_t enable_left_icon: 1;
         uint8_t enable_left_main_label: 1;
@@ -124,7 +124,7 @@ struct SettingsUI_WidgetCellConf {
 
 class SettingsUI_WidgetCell {
 public:
-    SettingsUI_WidgetCell(speaker::App &ui_app, const SettingsUI_WidgetCellData &cell_data,
+    SettingsUI_WidgetCell(systems::speaker::App &ui_app, const SettingsUI_WidgetCellData &cell_data,
                           SettingsUI_WidgetCellElement elements);
     ~SettingsUI_WidgetCell();
 
@@ -133,13 +133,13 @@ public:
     bool setSplitLineVisible(bool visible);
     bool processDataUpdate();
     bool updateConf(const SettingsUI_WidgetCellConf &conf);
-    bool updateLeftIcon(const ESP_Brookesia_StyleSize_t &size, const ESP_Brookesia_StyleImage_t &image);
+    bool updateLeftIcon(const gui::StyleSize &size, const gui::StyleImage &image);
     bool updateLeftMainLabel(std::string text);
     bool updateLeftMinorLabel(std::string text);
     bool updateLeftTextEditPlaceholder(std::string text);
     bool updateRightMainLabel(std::string text);
     bool updateRightMinorLabel(std::string text);
-    bool updateRightIcons(const ESP_Brookesia_StyleSize_t &size, const std::vector<ESP_Brookesia_StyleImage_t> &right_icons);
+    bool updateRightIcons(const gui::StyleSize &size, const std::vector<gui::StyleImage> &right_icons);
     bool updateClickable(bool clickable);
 
     bool checkElementExist(SettingsUI_WidgetCellElement element) const
@@ -162,18 +162,18 @@ public:
     {
         return (void *)this;
     }
-    ESP_Brookesia_CoreEvent::ID getClickEventID() const
+    systems::base::Event::ID getClickEventID() const
     {
         return _click_event_code;
     }
 
-    static bool calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+    static bool calibrateData(const gui::StyleSize &parent_size, const systems::base::Display &display,
                               SettingsUI_WidgetCellData &data);
 
     const SettingsUI_WidgetCellData &data;
 
 private:
-    bool updateIconImage(lv_obj_t *icon, const ESP_Brookesia_StyleImage_t &image, const ESP_Brookesia_StyleSize_t &size);
+    bool updateIconImage(lv_obj_t *icon, const gui::StyleImage &image, const gui::StyleSize &size);
 
     static void onCellTouchEventCallback(lv_event_t *event);
 
@@ -181,9 +181,9 @@ private:
         uint8_t is_cell_pressed_losted: 1;
         uint8_t is_cell_click_disable: 1;
     } _flags = {};
-    speaker::App &_core_app;
+    systems::speaker::App &_core_app;
     ESP_Brookesia_LvObj_t _left_icon_object;
-    ESP_Brookesia_CoreEvent::ID _click_event_code;
+    systems::base::Event::ID _click_event_code;
     ESP_Brookesia_LvObj_t _split_line;
     std::array<lv_point_precise_t, 2> _split_line_points;
     SettingsUI_WidgetCellConf _elements_conf;
@@ -197,13 +197,13 @@ struct SettingsUI_WidgetCellContainerData {
         uint16_t row_pad;
     } main;
     struct {
-        ESP_Brookesia_StyleFont_t text_font;
-        ESP_Brookesia_StyleColor_t text_color;
+        gui::StyleFont text_font;
+        gui::StyleColor text_color;
     } title;
     struct {
-        ESP_Brookesia_StyleSize_t size;
+        gui::StyleSize size;
         uint8_t radius;
-        ESP_Brookesia_StyleColor_t background_color;
+        gui::StyleColor background_color;
         uint16_t top_pad;
         uint16_t bottom_pad;
         uint16_t left_pad;
@@ -221,7 +221,7 @@ struct SettingsUI_WidgetCellContainerConf {
 
 class SettingsUI_WidgetCellContainer {
 public:
-    SettingsUI_WidgetCellContainer(speaker::App &ui_app,
+    SettingsUI_WidgetCellContainer(systems::speaker::App &ui_app,
                                    const SettingsUI_WidgetCellContainerData &container_data);
     ~SettingsUI_WidgetCellContainer();
 
@@ -250,13 +250,13 @@ public:
     SettingsUI_WidgetCell *getCellByIndex(size_t index) const;
     int getCellIndex(SettingsUI_WidgetCell *cell) const;
 
-    static bool calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+    static bool calibrateData(const gui::StyleSize &parent_size, const systems::base::Display &display,
                               SettingsUI_WidgetCellContainerData &data);
 
     const SettingsUI_WidgetCellContainerData &data;
 
 private:
-    speaker::App &_core_app;
+    systems::speaker::App &_core_app;
     ESP_Brookesia_LvObj_t _main_object;
     ESP_Brookesia_LvObj_t _container_object;
     ESP_Brookesia_LvObj_t _title_label;
@@ -265,4 +265,4 @@ private:
     std::list<std::pair<int, std::unique_ptr<SettingsUI_WidgetCell>>> _cells;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

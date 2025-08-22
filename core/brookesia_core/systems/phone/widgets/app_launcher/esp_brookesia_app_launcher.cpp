@@ -15,7 +15,7 @@
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
 #include "phone/private/esp_brookesia_phone_utils.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 #include "esp_brookesia_app_launcher.hpp"
 
@@ -25,8 +25,10 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_AppLauncher::ESP_Brookesia_AppLauncher(ESP_Brookesia_Core &core, const ESP_Brookesia_AppLauncherData_t &data):
-    _core(core),
+namespace esp_brookesia::systems::phone {
+
+AppLauncher::AppLauncher(base::Context &core, const AppLauncherData &data):
+    _system_context(core),
     _data(data),
     _table_current_page_index(-1),
     _table_page_icon_count_max(0),
@@ -38,7 +40,7 @@ ESP_Brookesia_AppLauncher::ESP_Brookesia_AppLauncher(ESP_Brookesia_Core &core, c
 {
 }
 
-ESP_Brookesia_AppLauncher::~ESP_Brookesia_AppLauncher()
+AppLauncher::~AppLauncher()
 {
     ESP_UTILS_LOGD("Destroy(0x%p)", this);
     if (!del()) {
@@ -46,14 +48,12 @@ ESP_Brookesia_AppLauncher::~ESP_Brookesia_AppLauncher()
     }
 }
 
-bool ESP_Brookesia_AppLauncher::begin(lv_obj_t *parent)
+bool AppLauncher::begin(lv_obj_t *parent)
 {
-    ESP_Brookesia_LvObj_t main_obj = nullptr;
-    ESP_Brookesia_LvObj_t table_obj = nullptr;
-    ESP_Brookesia_LvObj_t page_obj = nullptr;
-    ESP_Brookesia_LvObj_t indicator_obj = nullptr;
-    ESP_Brookesia_LvObj_t spot_obj = nullptr;
-    vector <ESP_Brookesia_AppLauncherMixObject_t> mix_objs;
+    gui::LvObjSharedPtr main_obj = nullptr;
+    gui::LvObjSharedPtr table_obj = nullptr;
+    gui::LvObjSharedPtr indicator_obj = nullptr;
+    vector <MixObject> mix_objs;
 
     ESP_UTILS_LOGD("Begin(0x%p)", this);
     ESP_UTILS_CHECK_NULL_RETURN(parent, false, "Invalid parent");
@@ -77,9 +77,9 @@ bool ESP_Brookesia_AppLauncher::begin(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     // Table
-    lv_obj_add_style(table_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(table_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_align(table_obj.get(), LV_ALIGN_TOP_MID, 0, 0);
     lv_obj_set_flex_flow(table_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(table_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
@@ -88,11 +88,11 @@ bool ESP_Brookesia_AppLauncher::begin(lv_obj_t *parent)
     lv_obj_clear_flag(table_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(table_obj.get(), onPageTouchEventCallback, LV_EVENT_RELEASED, this);
     // Indicator
-    lv_obj_add_style(indicator_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(indicator_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(indicator_obj.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(indicator_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     // Event
-    ESP_UTILS_CHECK_FALSE_RETURN(_core.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(_system_context.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
                                  "Register data update event callback failed");
 
     /* Save objects */
@@ -116,7 +116,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_AppLauncher::del(void)
+bool AppLauncher::del(void)
 {
     bool ret = true;
 
@@ -126,7 +126,7 @@ bool ESP_Brookesia_AppLauncher::del(void)
         return true;
     }
 
-    if (_core.checkCoreInitialized() && !_core.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
+    if (_system_context.checkCoreInitialized() && !_system_context.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
         ESP_UTILS_LOGE("Unregister data update event callback failed");
         ret = false;
     }
@@ -140,10 +140,10 @@ bool ESP_Brookesia_AppLauncher::del(void)
     return ret;
 }
 
-bool ESP_Brookesia_AppLauncher::addIcon(uint8_t page_index, const ESP_Brookesia_AppLauncherIconInfo_t &info)
+bool AppLauncher::addIcon(uint8_t page_index, const AppLauncherIcon::Info &info)
 {
     int table_last_page_index = _table_current_page_index;
-    ESP_Brookesia_AppLauncherMixIcon_t mix_icon = {};
+    MixIcon mix_icon = {};
 
     ESP_UTILS_LOGD("Add icon(%d) to table(%d)", info.id, page_index);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -171,13 +171,13 @@ bool ESP_Brookesia_AppLauncher::addIcon(uint8_t page_index, const ESP_Brookesia_
     }
     mix_icon.current_page_index = page_index;
 
-    mix_icon.icon = make_shared<ESP_Brookesia_AppLauncherIcon>(_core, info, _data.icon);
+    mix_icon.icon = make_shared<AppLauncherIcon>(_system_context, info, _data.icon);
     ESP_UTILS_CHECK_NULL_RETURN(mix_icon.icon, false, "Create icon failed");
 
     ESP_UTILS_CHECK_FALSE_RETURN(mix_icon.icon->begin(_mix_objs[page_index].page_obj.get()), false,
                                  "Begin icon failed");
 
-    auto res = _id_mix_icon_map.insert(pair<int, ESP_Brookesia_AppLauncherMixIcon_t>(info.id, mix_icon));
+    auto res = _id_mix_icon_map.insert(pair<int, MixIcon>(info.id, mix_icon));
     ESP_UTILS_CHECK_FALSE_RETURN(res.second, false, "Insert icon failed");
 
     _mix_objs[page_index].page_icon_count++;
@@ -185,7 +185,7 @@ bool ESP_Brookesia_AppLauncher::addIcon(uint8_t page_index, const ESP_Brookesia_
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::removeIcon(int id)
+bool AppLauncher::removeIcon(int id)
 {
     uint8_t current_page_index = 0;
 
@@ -208,7 +208,7 @@ bool ESP_Brookesia_AppLauncher::removeIcon(int id)
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::changeIconTable(int id, uint8_t new_table_index)
+bool AppLauncher::changeIconTable(int id, uint8_t new_table_index)
 {
     ESP_UTILS_LOGD("Change icon(%d) table to %d", id, new_table_index);
     ESP_UTILS_CHECK_VALUE_RETURN(new_table_index, 0, (int)_mix_objs.size(), false, "Table index out of range");
@@ -231,7 +231,7 @@ bool ESP_Brookesia_AppLauncher::changeIconTable(int id, uint8_t new_table_index)
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::scrollToPage(uint8_t index)
+bool AppLauncher::scrollToPage(uint8_t index)
 {
     ESP_UTILS_LOGD("Scroll to page(%d)", index);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -253,7 +253,7 @@ bool ESP_Brookesia_AppLauncher::scrollToPage(uint8_t index)
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::scrollToRightPage(void)
+bool AppLauncher::scrollToRightPage(void)
 {
     ESP_UTILS_LOGD("Current page is %d, scroll to right page", _table_current_page_index);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -272,7 +272,7 @@ bool ESP_Brookesia_AppLauncher::scrollToRightPage(void)
     return scrollToPage(next_page_index);
 }
 
-bool ESP_Brookesia_AppLauncher::scrollToLeftPage(void)
+bool AppLauncher::scrollToLeftPage(void)
 {
     ESP_UTILS_LOGD("Current page is %d, scroll to left page", _table_current_page_index);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -291,14 +291,14 @@ bool ESP_Brookesia_AppLauncher::scrollToLeftPage(void)
     return scrollToPage(next_page_index);
 }
 
-bool ESP_Brookesia_AppLauncher::checkVisible(void) const
+bool AppLauncher::checkVisible(void) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     return lv_obj_is_visible(_main_obj.get());
 }
 
-bool ESP_Brookesia_AppLauncher::checkPointInsideMain(lv_point_t &point) const
+bool AppLauncher::checkPointInsideMain(lv_point_t &point) const
 {
     lv_area_t area = {};
 
@@ -310,12 +310,11 @@ bool ESP_Brookesia_AppLauncher::checkPointInsideMain(lv_point_t &point) const
     return _lv_area_is_point_on(&area, &point, lv_obj_get_style_radius(_main_obj.get(), 0));
 }
 
-bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreHome &home,
-        ESP_Brookesia_AppLauncherData_t &data)
+bool AppLauncher::calibrateData(const gui::StyleSize &screen_size, const base::Display &display, AppLauncherData &data)
 {
     int parent_w = 0;
     int parent_h = 0;
-    const ESP_Brookesia_StyleSize_t *parent_size = nullptr;
+    const gui::StyleSize *parent_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -323,7 +322,7 @@ bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &s
     parent_size = &screen_size;
     parent_w = parent_size->width;
     parent_h = parent_size->height;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.main.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.main.size), false,
                                  "Invalid main size");
     ESP_UTILS_CHECK_VALUE_RETURN(data.main.y_start, 0, parent_h - 1, false, "Invalid main y start");
     ESP_UTILS_CHECK_VALUE_RETURN(data.main.y_start + data.main.size.height, 1, parent_h, false,
@@ -334,7 +333,7 @@ bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &s
     parent_w = parent_size->width;
     parent_h = parent_size->height;
     ESP_UTILS_CHECK_FALSE_RETURN(data.table.default_num > 0, false, "Invalid table default number");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.table.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.table.size), false,
                                  "Invalid table size");
 
     /* Spot */
@@ -342,7 +341,7 @@ bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &s
     parent_w = parent_size->width;
     parent_h = parent_size->height;
     // Main
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.indicator.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.indicator.main_size), false,
                                  "Invalid spot main size");
     ESP_UTILS_CHECK_VALUE_RETURN(data.indicator.main_layout_column_pad, 1, parent_w, false,
                                  "Invalid spot main layout column pad");
@@ -352,9 +351,9 @@ bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &s
     parent_size = &data.indicator.main_size;
     parent_w = parent_size->width;
     parent_h = parent_size->height;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.indicator.spot_inactive_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.indicator.spot_inactive_size), false,
                                  "Invalid spot icon inactive size");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.indicator.spot_active_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.indicator.spot_active_size), false,
                                  "Invalid spot icon active size");
 
     /* Launcher Icon */
@@ -362,7 +361,7 @@ bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &s
     parent_size = &data.table.size;
     parent_w = parent_size->width;
     parent_h = parent_size->height;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.icon.main.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.icon.main.size), false,
                                  "Invalid launcher icon main size");
     ESP_UTILS_CHECK_VALUE_RETURN(data.icon.main.layout_row_pad, 1, data.icon.main.size.height, false,
                                  "Invalid launcher icon main layout row pad");
@@ -370,23 +369,23 @@ bool ESP_Brookesia_AppLauncher::calibrateData(const ESP_Brookesia_StyleSize_t &s
     parent_size = &data.icon.main.size;
     parent_w = parent_size->width;
     parent_h = parent_size->height;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.icon.image.default_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.icon.image.default_size), false,
                                  "Invalid launcher icon image default size");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.icon.image.press_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.icon.image.press_size), false,
                                  "Invalid launcher icon image press size");
     // Label
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(nullptr, data.icon.label.text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(nullptr, data.icon.label.text_font), false,
                                  "Invalid label text font");
 
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::createMixObject(ESP_Brookesia_LvObj_t &table_obj, ESP_Brookesia_LvObj_t &indicator_obj,
-        vector<ESP_Brookesia_AppLauncherMixObject_t> &mix_objs)
+bool AppLauncher::createMixObject(gui::LvObjSharedPtr &table_obj, gui::LvObjSharedPtr &indicator_obj,
+                                  vector<MixObject> &mix_objs)
 {
-    ESP_Brookesia_LvObj_t page_main_obj = nullptr;
-    ESP_Brookesia_LvObj_t page_obj = nullptr;
-    ESP_Brookesia_LvObj_t spot_obj = nullptr;
+    gui::LvObjSharedPtr page_main_obj = nullptr;
+    gui::LvObjSharedPtr page_obj = nullptr;
+    gui::LvObjSharedPtr spot_obj = nullptr;
 
     ESP_UTILS_LOGD("Create mix object");
     ESP_UTILS_CHECK_NULL_RETURN(table_obj.get(), false, "Invalid table object");
@@ -399,17 +398,17 @@ bool ESP_Brookesia_AppLauncher::createMixObject(ESP_Brookesia_LvObj_t &table_obj
     spot_obj = ESP_BROOKESIA_LV_OBJ(obj, indicator_obj.get());
     ESP_UTILS_CHECK_NULL_RETURN(spot_obj, false, "Create spot_obj failed");
 
-    lv_obj_add_style(page_main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(page_main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_add_flag(page_main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
 
     lv_obj_center(page_obj.get());
-    lv_obj_add_style(page_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(page_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(page_obj.get(), LV_FLEX_FLOW_ROW_WRAP);
     lv_obj_set_flex_align(page_obj.get(), LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_START);
     lv_obj_clear_flag(page_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(page_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
 
-    lv_obj_add_style(spot_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(spot_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_style_radius(spot_obj.get(), LV_RADIUS_CIRCLE, 0);
 
     mix_objs.push_back({0, page_main_obj, page_obj, spot_obj});
@@ -417,7 +416,7 @@ bool ESP_Brookesia_AppLauncher::createMixObject(ESP_Brookesia_LvObj_t &table_obj
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::destoryMixObject(uint8_t index, vector <ESP_Brookesia_AppLauncherMixObject_t> &mix_objs)
+bool AppLauncher::destoryMixObject(uint8_t index, vector <MixObject> &mix_objs)
 {
     ESP_UTILS_LOGD("Destroy mix object(%d)", index);
     ESP_UTILS_CHECK_VALUE_RETURN(index, 0, (int)mix_objs.size() - 1, false, "Table page index out of range");
@@ -428,14 +427,14 @@ bool ESP_Brookesia_AppLauncher::destoryMixObject(uint8_t index, vector <ESP_Broo
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::updateMixByNewData(uint8_t index, vector<ESP_Brookesia_AppLauncherMixObject_t> &mix_objs)
+bool AppLauncher::updateMixByNewData(uint8_t index, vector<MixObject> &mix_objs)
 {
     ESP_UTILS_LOGD("Update mix object(%d) style", index);
     ESP_UTILS_CHECK_VALUE_RETURN(index, 0, (int)mix_objs.size() - 1, false, "Table page index out of range");
 
-    ESP_Brookesia_LvObj_t &page_main_obj = mix_objs[index].page_main_obj;
-    ESP_Brookesia_LvObj_t &page_obj = mix_objs[index].page_obj;
-    ESP_Brookesia_LvObj_t &spot_obj = mix_objs[index].spot_obj;
+    gui::LvObjSharedPtr &page_main_obj = mix_objs[index].page_main_obj;
+    gui::LvObjSharedPtr &page_obj = mix_objs[index].page_obj;
+    gui::LvObjSharedPtr &spot_obj = mix_objs[index].spot_obj;
 
     // Table
     lv_obj_set_size(page_main_obj.get(), _data.table.size.width, _data.table.size.height);
@@ -459,7 +458,7 @@ bool ESP_Brookesia_AppLauncher::updateMixByNewData(uint8_t index, vector<ESP_Bro
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::togglePageIconClickable(uint8_t page_index, bool clickable)
+bool AppLauncher::togglePageIconClickable(uint8_t page_index, bool clickable)
 {
     ESP_UTILS_LOGD("Toggle page(%d) icon %s", page_index, clickable ? "clickable" : "unclickable");
     ESP_UTILS_CHECK_VALUE_RETURN(page_index, 0, (int)_mix_objs.size() - 1, false, "Table page index out of range");
@@ -475,7 +474,7 @@ bool ESP_Brookesia_AppLauncher::togglePageIconClickable(uint8_t page_index, bool
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::toggleCurrentPageIconClickable(bool clickable)
+bool AppLauncher::toggleCurrentPageIconClickable(bool clickable)
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_LOGD("Toggle current page icon %s", clickable ? "clickable" : "unclickable");
@@ -483,7 +482,7 @@ bool ESP_Brookesia_AppLauncher::toggleCurrentPageIconClickable(bool clickable)
     return togglePageIconClickable(_table_current_page_index, clickable);
 }
 
-bool ESP_Brookesia_AppLauncher::checkTableFull(uint8_t page_index) const
+bool AppLauncher::checkTableFull(uint8_t page_index) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
     ESP_UTILS_CHECK_VALUE_RETURN(page_index, 0, (int)_mix_objs.size() - 1, false, "Table index out of range");
@@ -491,7 +490,7 @@ bool ESP_Brookesia_AppLauncher::checkTableFull(uint8_t page_index) const
     return (_mix_objs[page_index].page_icon_count >= _table_page_icon_count_max);
 }
 
-bool ESP_Brookesia_AppLauncher::updateActiveSpot(void)
+bool AppLauncher::updateActiveSpot(void)
 {
     ESP_UTILS_LOGD("Update active spot");
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -511,7 +510,7 @@ bool ESP_Brookesia_AppLauncher::updateActiveSpot(void)
     return true;
 }
 
-bool ESP_Brookesia_AppLauncher::updateByNewData(void)
+bool AppLauncher::updateByNewData(void)
 {
     uint8_t app_num_hor = 0;
     uint8_t app_num_ver = 0;
@@ -519,9 +518,6 @@ bool ESP_Brookesia_AppLauncher::updateByNewData(void)
     uint8_t old_table_num = 0;
     uint8_t new_table_icon_count_max = 0;
     uint8_t old_table_icon_count_max = 0;
-    ESP_Brookesia_LvObj_t table_obj = nullptr;
-    ESP_Brookesia_LvObj_t page_obj = nullptr;
-    ESP_Brookesia_LvObj_t spot_obj = nullptr;
 
     ESP_UTILS_LOGD("Update(0x%p)", this);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -631,26 +627,26 @@ next:
     return true;
 }
 
-void ESP_Brookesia_AppLauncher::onDataUpdateEventCallback(lv_event_t *event)
+void AppLauncher::onDataUpdateEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_AppLauncher *app_launcher = nullptr;
+    AppLauncher *app_launcher = nullptr;
 
     ESP_UTILS_LOGD("Data update event callback");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    app_launcher = (ESP_Brookesia_AppLauncher *)lv_event_get_user_data(event);
+    app_launcher = (AppLauncher *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(app_launcher, "Invalid app launcher object");
 
     ESP_UTILS_CHECK_FALSE_EXIT(app_launcher->updateByNewData(), "Update object style failed");
 }
 
-void ESP_Brookesia_AppLauncher::onPageTouchEventCallback(lv_event_t *event)
+void AppLauncher::onPageTouchEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_AppLauncher *app_launcher = nullptr;
+    AppLauncher *app_launcher = nullptr;
 
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    app_launcher = (ESP_Brookesia_AppLauncher *)lv_event_get_user_data(event);
+    app_launcher = (AppLauncher *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(app_launcher, "Invalid app launcher object");
 
     ESP_UTILS_LOGD("On page touch event callback");
@@ -660,3 +656,5 @@ void ESP_Brookesia_AppLauncher::onPageTouchEventCallback(lv_event_t *event)
         app_launcher->toggleCurrentPageIconClickable(true), "Toggle current page icon clickable failed"
     );
 }
+
+} // namespace esp_brookesia::systems::phone

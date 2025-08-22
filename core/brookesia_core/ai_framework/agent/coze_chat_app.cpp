@@ -471,7 +471,7 @@ static char *coze_get_access_token(const CozeChatAgentInfo &agent_info)
 static void recorder_event_callback_fn(void *event, void *ctx)
 {
     if (!coze_chat.chat_start || coze_chat.chat_pause) {
-        ESP_UTILS_LOGW("chat is not started or paused, skip SAFE event");
+        ESP_UTILS_LOGD("chat is not started or paused, skip AFE event");
         return;
     }
 

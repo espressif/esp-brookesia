@@ -9,21 +9,24 @@
 #include "private/esp_brookesia_app_settings_utils.hpp"
 #include "esp_brookesia_app_settings.hpp"
 
+#define APP_NAME "Settings"
+
 #define MANAGER_THREAD_NAME                     "manager_run"
 #define MANAGER_THREAD_STACK_SIZE_BIG           (12 * 1024)
 #define MANAGER_THREAD_STACK_CAPS_EXT           (true)
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::gui;
+using namespace esp_brookesia::systems::speaker;
 using namespace esp_brookesia::ai_framework;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 Settings::Settings():
     App({
-    .name = "Settings",
-    .launcher_icon = ESP_BROOKESIA_STYLE_IMAGE(&esp_brookesia_app_icon_launcher_settings_112_112),
-    .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT_PERCENT(100, 100),
+    .name = APP_NAME,
+    .launcher_icon = gui::StyleImage::IMAGE(&esp_brookesia_app_icon_launcher_settings_112_112),
+    .screen_size = gui::StyleSize::RECT_PERCENT(100, 100),
     .flags = {
         .enable_default_screen = 0,
         .enable_recycle_resource = 0,
@@ -64,7 +67,7 @@ bool Settings::addStylesheet(Speaker *speaker, const SettingsStylesheetData *dat
     ESP_UTILS_CHECK_NULL_RETURN(data, false, "Invalid data");
     ESP_UTILS_LOGD("Add stylesheet with speaker");
 
-    _core = static_cast<ESP_Brookesia_Core *>(speaker);
+    _system_context = static_cast<systems::base::Context *>(speaker);
     ESP_UTILS_CHECK_FALSE_RETURN(addStylesheet(data), false, "Failed to add stylesheet");
 
     return true;
@@ -82,7 +85,7 @@ bool Settings::activateStylesheet(const SettingsStylesheetData *data)
     return true;
 }
 
-bool Settings::activateStylesheet(const char *name, const ESP_Brookesia_StyleSize_t &screen_size)
+bool Settings::activateStylesheet(const char *name, const gui::StyleSize &screen_size)
 {
     ESP_UTILS_CHECK_NULL_RETURN(name, false, "Invalid name");
     ESP_UTILS_LOGD("Activate stylesheet");
@@ -131,10 +134,7 @@ bool Settings::run()
             .stack_in_ext = MANAGER_THREAD_STACK_CAPS_EXT,
         });
         boost::thread([this]() {
-            getCore()->lockLv();
-            esp_utils::function_guard end_guard([this]() {
-                getCore()->unlockLv();
-            });
+            LvLockGuard gui_guard;
             ESP_UTILS_CHECK_FALSE_EXIT(manager.processRun(), "Manager process run failed");
             _is_starting = false;
         }).detach();
@@ -164,10 +164,7 @@ bool Settings::close()
         while (isStarting()) {
             boost::this_thread::sleep_for(boost::chrono::milliseconds(10));
         }
-        getCore()->lockLv();
-        esp_utils::function_guard end_guard([this]() {
-            getCore()->unlockLv();
-        });
+        LvLockGuard gui_guard;
         ESP_UTILS_CHECK_FALSE_EXIT(manager.processClose(), "Manager process close failed");
         ESP_UTILS_CHECK_FALSE_EXIT(ui.del(), "UI delete failed");
         _is_stopping = false;
@@ -190,7 +187,7 @@ bool Settings::init()
 
     Speaker *speaker = getSystem();
     ESP_UTILS_CHECK_NULL_RETURN(speaker, false, "Invalid speaker");
-    ESP_Brookesia_StyleSize_t display_size = {};
+    gui::StyleSize display_size = {};
     ESP_UTILS_CHECK_FALSE_RETURN(speaker->getDisplaySize(display_size), false, "Failed to get display size");
 
     // Check if any speaker stylesheet is activated, if not, activate default stylesheet
@@ -216,7 +213,7 @@ bool Settings::deinit()
     return true;
 }
 
-bool Settings::calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size, SettingsStylesheetData &sheetstyle)
+bool Settings::calibrateStylesheet(const gui::StyleSize &screen_size, SettingsStylesheetData &sheetstyle)
 {
     ESP_UTILS_LOGD("Calibrate stylesheet");
 
@@ -225,7 +222,7 @@ bool Settings::calibrateStylesheet(const ESP_Brookesia_StyleSize_t &screen_size,
     return true;
 }
 
-bool Settings::calibrateScreenSize(ESP_Brookesia_StyleSize_t &size)
+bool Settings::calibrateScreenSize(gui::StyleSize &size)
 {
     ESP_UTILS_LOGD("Calibrate screen size");
 
@@ -237,4 +234,9 @@ bool Settings::calibrateScreenSize(ESP_Brookesia_StyleSize_t &size)
     return true;
 }
 
-} // namespace esp_brookesia::speaker_apps
+ESP_UTILS_REGISTER_PLUGIN_WITH_CONSTRUCTOR(systems::base::App, Settings, APP_NAME, []()
+{
+    return std::shared_ptr<Settings>(Settings::requestInstance(), [](Settings * p) {});
+})
+
+} // namespace esp_brookesia::apps

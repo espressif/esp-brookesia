@@ -10,7 +10,7 @@
 #include "base.hpp"
 #include "../widgets/cell_container.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 enum class SettingsUI_ScreenSettingsContainerIndex {
     WIRELESS,
@@ -41,7 +41,7 @@ using SettingsUI_ScreenSettingsCellContainerMap =
 
 class SettingsUI_ScreenSettings: public SettingsUI_ScreenBase {
 public:
-    SettingsUI_ScreenSettings(speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
+    SettingsUI_ScreenSettings(systems::speaker::App &ui_app, const SettingsUI_ScreenBaseData &base_data,
                               const SettingsUI_ScreenSettingsData &main_data);
     ~SettingsUI_ScreenSettings();
 
@@ -58,4 +58,4 @@ private:
     bool processCellContainerMapUpdate();
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

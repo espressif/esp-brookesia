@@ -17,22 +17,15 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_RecentsScreen::ESP_Brookesia_RecentsScreen(ESP_Brookesia_Core &core, const ESP_Brookesia_RecentsScreenData_t &data):
-    _core(core),
-    _data(data),
-    _is_trash_pressed_losted(false),
-    _trash_icon_default_zoom(LV_SCALE_NONE),
-    _trash_icon_press_zoom(LV_SCALE_NONE),
-    _main_obj(nullptr),
-    _memory_obj(nullptr),
-    _memory_label(nullptr),
-    _snapshot_table(nullptr),
-    _trash_obj(nullptr),
-    _trash_icon(nullptr)
+namespace esp_brookesia::systems::phone {
+
+RecentsScreen::RecentsScreen(base::Context &core, const RecentsScreen::Data &data)
+    : _system_context(core)
+    , _data(data)
 {
 }
 
-ESP_Brookesia_RecentsScreen::~ESP_Brookesia_RecentsScreen()
+RecentsScreen::~RecentsScreen()
 {
     ESP_UTILS_LOGD("Destroy(0x%p)", this);
     if (!del()) {
@@ -40,7 +33,7 @@ ESP_Brookesia_RecentsScreen::~ESP_Brookesia_RecentsScreen()
     }
 }
 
-bool ESP_Brookesia_RecentsScreen::begin(lv_obj_t *parent)
+bool RecentsScreen::begin(lv_obj_t *parent)
 {
     ESP_Brookesia_LvObj_t main_obj = nullptr;
     ESP_Brookesia_LvObj_t memory_obj = nullptr;
@@ -76,32 +69,32 @@ bool ESP_Brookesia_RecentsScreen::begin(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(main_obj.get(), LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(main_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Memory
     if (_data.flags.enable_memory) {
         // Object
-        lv_obj_add_style(memory_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+        lv_obj_add_style(memory_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
         lv_obj_clear_flag(memory_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
         // Label
-        lv_obj_add_style(memory_label.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+        lv_obj_add_style(memory_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
         lv_obj_clear_flag(memory_label.get(), LV_OBJ_FLAG_SCROLLABLE);
     }
     // Snapshot snapshot_table
-    lv_obj_add_style(snapshot_table.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(snapshot_table.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(snapshot_table.get(), LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(snapshot_table.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_scrollbar_mode(snapshot_table.get(), LV_SCROLLBAR_MODE_OFF);
     lv_obj_set_scroll_snap_x(snapshot_table.get(), LV_SCROLL_SNAP_CENTER);
     lv_obj_clear_flag(snapshot_table.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Trash
-    lv_obj_add_style(trash_obj.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(trash_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_clear_flag(trash_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Transh icon
     lv_obj_center(trash_icon.get());
-    lv_obj_add_style(trash_icon.get(), _core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(trash_icon.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     // lv_obj_set_size(trash_icon.get(), LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_image_set_inner_align(trash_icon.get(), LV_IMAGE_ALIGN_CENTER);
     lv_obj_add_flag(trash_icon.get(), LV_OBJ_FLAG_CLICKABLE);
@@ -111,7 +104,7 @@ bool ESP_Brookesia_RecentsScreen::begin(lv_obj_t *parent)
     lv_obj_add_event_cb(trash_icon.get(), onTrashTouchEventCallback, LV_EVENT_PRESS_LOST, this);
     lv_obj_add_event_cb(trash_icon.get(), onTrashTouchEventCallback, LV_EVENT_RELEASED, this);
     // Event
-    ESP_UTILS_CHECK_FALSE_RETURN(_core.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(_system_context.registerDateUpdateEventCallback(onDataUpdateEventCallback, this), false,
                                  "Register data update event callback failed");
 
     // Save objects
@@ -121,7 +114,7 @@ bool ESP_Brookesia_RecentsScreen::begin(lv_obj_t *parent)
     _snapshot_table = snapshot_table;
     _trash_obj = trash_obj;
     _trash_icon = trash_icon;
-    _snapshot_deleted_event_code = _core.getFreeEventCode();
+    _snapshot_deleted_event_code = _system_context.getFreeEventCode();
 
     // Update
     ESP_UTILS_CHECK_FALSE_GOTO(updateByNewData(), err, "Update failed");
@@ -136,7 +129,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_RecentsScreen::del(void)
+bool RecentsScreen::del(void)
 {
     bool ret = true;
 
@@ -146,7 +139,7 @@ bool ESP_Brookesia_RecentsScreen::del(void)
         return true;
     }
 
-    if (_core.checkCoreInitialized() && !_core.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
+    if (_system_context.checkCoreInitialized() && !_system_context.unregisterDateUpdateEventCallback(onDataUpdateEventCallback, this)) {
         ESP_UTILS_LOGE("Unregister data update event callback failed");
         ret = false;
     }
@@ -162,7 +155,7 @@ bool ESP_Brookesia_RecentsScreen::del(void)
     return ret;
 }
 
-bool ESP_Brookesia_RecentsScreen::setVisible(bool visible) const
+bool RecentsScreen::setVisible(bool visible) const
 {
     ESP_UTILS_LOGD("Set visible(%d)", visible);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -176,14 +169,14 @@ bool ESP_Brookesia_RecentsScreen::setVisible(bool visible) const
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::addSnapshot(const ESP_Brookesia_RecentsScreenSnapshotConf_t &conf)
+bool RecentsScreen::addSnapshot(const RecentsScreenSnapshot::Conf &conf)
 {
-    shared_ptr<ESP_Brookesia_RecentsScreenSnapshot> snapshot = nullptr;
+    shared_ptr<RecentsScreenSnapshot> snapshot = nullptr;
 
     ESP_UTILS_LOGD("Add snapshot(%d)", conf.id);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
-    snapshot = make_shared<ESP_Brookesia_RecentsScreenSnapshot>(_core, conf, _data.snapshot_table.snapshot);
+    snapshot = make_shared<RecentsScreenSnapshot>(_system_context, conf, _data.snapshot_table.snapshot);
     ESP_UTILS_CHECK_NULL_RETURN(snapshot, false, "Create snapshot failed");
 
     ESP_UTILS_CHECK_FALSE_RETURN(snapshot->begin(_snapshot_table.get()), false, "Begin snapshot failed");
@@ -192,7 +185,7 @@ bool ESP_Brookesia_RecentsScreen::addSnapshot(const ESP_Brookesia_RecentsScreenS
         ESP_UTILS_LOGW("Already exist, override it");
         _id_snapshot_map[conf.id] = snapshot;
     } else {
-        auto ret = _id_snapshot_map.insert(std::pair<int, shared_ptr<ESP_Brookesia_RecentsScreenSnapshot>>(conf.id, snapshot));
+        auto ret = _id_snapshot_map.insert(std::pair<int, shared_ptr<RecentsScreenSnapshot>>(conf.id, snapshot));
         ESP_UTILS_CHECK_FALSE_RETURN(ret.second, false, "Insert snapshot failed");
     }
 
@@ -201,7 +194,7 @@ bool ESP_Brookesia_RecentsScreen::addSnapshot(const ESP_Brookesia_RecentsScreenS
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::removeSnapshot(int id)
+bool RecentsScreen::removeSnapshot(int id)
 {
     ESP_UTILS_LOGD("Remove snapshot(%d)", id);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -213,7 +206,7 @@ bool ESP_Brookesia_RecentsScreen::removeSnapshot(int id)
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::scrollToSnapshotById(int id)
+bool RecentsScreen::scrollToSnapshotById(int id)
 {
     lv_obj_t *snapshot_main_obj = nullptr;
 
@@ -231,7 +224,7 @@ bool ESP_Brookesia_RecentsScreen::scrollToSnapshotById(int id)
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::scrollToSnapshotByIndex(uint8_t index)
+bool RecentsScreen::scrollToSnapshotByIndex(uint8_t index)
 {
     lv_obj_t *snapshot_main_obj = nullptr;
 
@@ -251,7 +244,7 @@ bool ESP_Brookesia_RecentsScreen::scrollToSnapshotByIndex(uint8_t index)
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::moveSnapshotY(int id, int y)
+bool RecentsScreen::moveSnapshotY(int id, int y)
 {
     lv_obj_t *drag_obj = NULL;
 
@@ -267,7 +260,7 @@ bool ESP_Brookesia_RecentsScreen::moveSnapshotY(int id, int y)
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::updateSnapshotImage(int id)
+bool RecentsScreen::updateSnapshotImage(int id)
 {
     ESP_UTILS_LOGD("Update snapshot(%d) image", id);
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
@@ -278,7 +271,7 @@ bool ESP_Brookesia_RecentsScreen::updateSnapshotImage(int id)
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::setMemoryLabel(int internal_free, int internal_total, int external_free, int external_total) const
+bool RecentsScreen::setMemoryLabel(int internal_free, int internal_total, int external_free, int external_total) const
 {
     ESP_UTILS_LOGD("Set memory label");
     ESP_UTILS_CHECK_FALSE_RETURN(_memory_label != nullptr, false, "Memory label is disabled");
@@ -290,21 +283,21 @@ bool ESP_Brookesia_RecentsScreen::setMemoryLabel(int internal_free, int internal
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::checkSnapshotExist(int id) const
+bool RecentsScreen::checkSnapshotExist(int id) const
 {
     auto it = _id_snapshot_map.find(id);
 
     return (it != _id_snapshot_map.end()) && (it->second != nullptr);
 }
 
-bool ESP_Brookesia_RecentsScreen::checkVisible(void) const
+bool RecentsScreen::checkVisible(void) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");
 
     return lv_obj_is_visible(_main_obj.get());
 }
 
-bool ESP_Brookesia_RecentsScreen::checkPointInsideMain(lv_point_t &point) const
+bool RecentsScreen::checkPointInsideMain(lv_point_t &point) const
 {
     bool point_in_main = false;
     bool point_in_trash = false;
@@ -324,7 +317,7 @@ bool ESP_Brookesia_RecentsScreen::checkPointInsideMain(lv_point_t &point) const
 }
 
 
-bool ESP_Brookesia_RecentsScreen::checkPointInsideTable(lv_point_t &point) const
+bool RecentsScreen::checkPointInsideTable(lv_point_t &point) const
 {
     lv_area_t area = {};
 
@@ -336,7 +329,7 @@ bool ESP_Brookesia_RecentsScreen::checkPointInsideTable(lv_point_t &point) const
     return _lv_area_is_point_on(&area, &point, lv_obj_get_style_radius(_snapshot_table.get(), 0));
 }
 
-bool ESP_Brookesia_RecentsScreen::checkPointInsideSnapshot(int id, lv_point_t &point) const
+bool RecentsScreen::checkPointInsideSnapshot(int id, lv_point_t &point) const
 {
     lv_area_t area = {};
     lv_obj_t *snapshot_main_obj = NULL;
@@ -353,21 +346,21 @@ bool ESP_Brookesia_RecentsScreen::checkPointInsideSnapshot(int id, lv_point_t &p
     return _lv_area_is_point_on(&area, &point, lv_obj_get_style_radius(snapshot_main_obj, 0));
 }
 
-int ESP_Brookesia_RecentsScreen::getSnapshotOriginY(int id) const
+int RecentsScreen::getSnapshotOriginY(int id) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkSnapshotExist(id), 0, "Snapshot is not exist");
 
     return _id_snapshot_map.at(id)->getOriginY();
 }
 
-int ESP_Brookesia_RecentsScreen::getSnapshotCurrentY(int id) const
+int RecentsScreen::getSnapshotCurrentY(int id) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkSnapshotExist(id), 0, "Snapshot is not exist");
 
     return _id_snapshot_map.at(id)->getCurrentY();
 }
 
-int ESP_Brookesia_RecentsScreen::getSnapshotIdPointIn(lv_point_t &point) const
+int RecentsScreen::getSnapshotIdPointIn(lv_point_t &point) const
 {
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), -1, "Not initialized");
 
@@ -380,13 +373,13 @@ int ESP_Brookesia_RecentsScreen::getSnapshotIdPointIn(lv_point_t &point) const
     return -1;
 }
 
-bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreHome &home,
-        ESP_Brookesia_RecentsScreenData_t &data)
+bool RecentsScreen::calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
+                                  RecentsScreen::Data &data)
 {
     int parent_w = 0;
     int parent_h = 0;
-    ESP_Brookesia_RecentsScreenSnapshotData_t &new_snapshot_data = data.snapshot_table.snapshot;
-    const ESP_Brookesia_StyleSize_t *parent_size = nullptr;
+    RecentsScreenSnapshot::Data &new_snapshot_data = data.snapshot_table.snapshot;
+    const gui::StyleSize *parent_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -395,7 +388,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
     parent_w = parent_size->width;
     parent_h = parent_size->height;
     // Size
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.main.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.main.size), false,
                                  "Invalid main size");
     ESP_UTILS_CHECK_VALUE_RETURN(data.main.y_start, 0, parent_h - 1, false, "Invalid main y start");
     ESP_UTILS_CHECK_VALUE_RETURN(data.main.y_start + data.main.size.height, 1, parent_h, false,
@@ -414,7 +407,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
         parent_w = parent_size->width;
         parent_h = parent_size->height;
         // Main
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.memory.main_size), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.memory.main_size), false,
                                      "Invalid memory main size");
         parent_size = &data.memory.main_size;
         parent_w = parent_size->width;
@@ -422,7 +415,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
         ESP_UTILS_CHECK_VALUE_RETURN(data.memory.main_layout_x_right_offset, 0, parent_w, false,
                                      "Invalid memory main layout x right offset");
         // Label
-        ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(parent_size, data.memory.label_text_font), false,
+        ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(parent_size, data.memory.label_text_font), false,
                                      "Invalid memory label text font size");
         ESP_UTILS_CHECK_NULL_RETURN(data.memory.label_unit_text, false, "Invalid memory label unit text");
     }
@@ -431,9 +424,9 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
     parent_size = &data.main.size;
     parent_w = parent_size->width;
     parent_h = parent_size->height;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.trash_icon.default_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.trash_icon.default_size), false,
                                  "Invalid trash icon default size");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.trash_icon.press_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.trash_icon.press_size), false,
                                  "Invalid trash icon eprbdefault size");
     ESP_UTILS_CHECK_NULL_RETURN(data.trash_icon.image.resource, false, "Invalid trash icon image resource");
 
@@ -449,7 +442,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
         data.snapshot_table.main_size.flags.enable_height_percent = 0;
         data.snapshot_table.main_size.flags.enable_square = 0;
     }
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, data.snapshot_table.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, data.snapshot_table.main_size), false,
                                  "Invalid snapshot_table main size");
     parent_size = &data.snapshot_table.main_size;
     parent_w = parent_size->width;
@@ -460,7 +453,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
     // Main
     parent_size = (new_snapshot_data.flags.enable_all_main_size_refer_screen) ? &screen_size :
                   &data.snapshot_table.main_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, new_snapshot_data.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, new_snapshot_data.main_size), false,
                                  "Invalid snapshot main size");
     // If referring to the screen, check with the main size
     if (new_snapshot_data.flags.enable_all_main_size_refer_screen) {
@@ -472,7 +465,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
     // Title
     parent_size = (new_snapshot_data.flags.enable_all_main_size_refer_screen) ? &screen_size :
                   &new_snapshot_data.main_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, new_snapshot_data.title.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, new_snapshot_data.title.main_size), false,
                                  "Invalid snapshot title size");
     // If referring to the screen, check with the main size
     if (new_snapshot_data.flags.enable_all_main_size_refer_screen) {
@@ -487,14 +480,14 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
                                  "Invalid snapshot title layout column pad");
     // Title Icon
     parent_size = &new_snapshot_data.title.main_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, new_snapshot_data.title.icon_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, new_snapshot_data.title.icon_size), false,
                                  "Invalid snapshot title icon size");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(parent_size, new_snapshot_data.title.text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(parent_size, new_snapshot_data.title.text_font), false,
                                  "Invalid snapshot title text font");
     // Image
     parent_size = (new_snapshot_data.flags.enable_all_main_size_refer_screen) ? &screen_size :
                   &new_snapshot_data.main_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*parent_size, new_snapshot_data.image.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*parent_size, new_snapshot_data.image.main_size), false,
                                  "Invalid snapshot image main size");
     // If referring to the screen, check with the main size
     if (new_snapshot_data.flags.enable_all_main_size_refer_screen) {
@@ -513,7 +506,7 @@ bool ESP_Brookesia_RecentsScreen::calibrateData(const ESP_Brookesia_StyleSize_t 
     return true;
 }
 
-bool ESP_Brookesia_RecentsScreen::updateByNewData(void)
+bool RecentsScreen::updateByNewData(void)
 {
     float h_factor = 0;
     float w_factor = 0;
@@ -580,24 +573,24 @@ bool ESP_Brookesia_RecentsScreen::updateByNewData(void)
     return true;
 }
 
-void ESP_Brookesia_RecentsScreen::onDataUpdateEventCallback(lv_event_t *event)
+void RecentsScreen::onDataUpdateEventCallback(lv_event_t *event)
 {
-    ESP_Brookesia_RecentsScreen *recents_screen = nullptr;
+    RecentsScreen *recents_screen = nullptr;
 
     ESP_UTILS_LOGD("Data update event");
     ESP_UTILS_CHECK_NULL_EXIT(event, "Invalid event object");
 
-    recents_screen = (ESP_Brookesia_RecentsScreen *)lv_event_get_user_data(event);
+    recents_screen = (RecentsScreen *)lv_event_get_user_data(event);
     ESP_UTILS_CHECK_NULL_EXIT(recents_screen, "Invalid app snapshot_table object");
 
     ESP_UTILS_CHECK_FALSE_EXIT(recents_screen->updateByNewData(), "Update object style failed");
 }
 
-void ESP_Brookesia_RecentsScreen::onTrashTouchEventCallback(lv_event_t *event)
+void RecentsScreen::onTrashTouchEventCallback(lv_event_t *event)
 {
     lv_event_code_t event_code = lv_event_get_code(event);
-    ESP_Brookesia_RecentsScreen *recents_screen = (ESP_Brookesia_RecentsScreen *)lv_event_get_user_data(event);
-    std::unordered_map<int, std::shared_ptr<ESP_Brookesia_RecentsScreenSnapshot>> id_snapshot_map;
+    RecentsScreen *recents_screen = (RecentsScreen *)lv_event_get_user_data(event);
+    std::unordered_map<int, std::shared_ptr<RecentsScreenSnapshot>> id_snapshot_map;
 
     ESP_UTILS_LOGD("Trash touch event callback");
     ESP_UTILS_CHECK_NULL_EXIT(recents_screen, "Invalid recents_screen object");
@@ -639,3 +632,5 @@ void ESP_Brookesia_RecentsScreen::onTrashTouchEventCallback(lv_event_t *event)
         break;
     }
 }
+
+} // namespace esp_brookesia::systems::phone

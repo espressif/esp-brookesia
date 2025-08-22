@@ -6,5 +6,4 @@
 #pragma once
 
 /* Speaker */
-#include "default/dark/stylesheet.hpp"
 #include "360x360/dark/stylesheet.hpp"

@@ -29,7 +29,9 @@ extern "C" void app_main()
     auto default_dummy_draw = !system_check_is_developer_mode();
     assert(display_init(default_dummy_draw)     && "Initialize display failed");
     assert(led_indicator_init()                 && "Initialize led indicator failed");
-    assert(file_system_init()                   && "Initialize file system failed");
+    if (!file_system_init()) {
+        ESP_UTILS_LOGE("Initialize file system failed, related features will be disabled");
+    }
     assert(audio_init()                         && "Initialize audio failed");
     assert(system_init()                        && "Initialize system failed");
 
@@ -40,13 +42,11 @@ extern "C" void app_main()
         });
         boost::thread([ = ]() {
             while (1) {
-                // heap_caps_check_integrity_all(true);
-
                 esp_utils_mem_print_info();
 
                 audio_sys_get_real_time_stats();
 
-                vTaskDelay(pdMS_TO_TICKS(5000));
+                boost::this_thread::sleep_for(boost::chrono::seconds(5));
             }
         }).detach();
     }

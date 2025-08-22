@@ -16,5 +16,5 @@ dependencies:
     public: true
 
   espressif/esp_lvgl_port:
-    override_path: "../espressif__esp_lvgl_port"
+    version: "^2.6.0"
     public: true

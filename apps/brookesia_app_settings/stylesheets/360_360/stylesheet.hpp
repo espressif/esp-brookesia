@@ -16,7 +16,7 @@
 #include "screen_display.hpp"
 #include "esp_brookesia_app_settings_data.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 constexpr SettingsUI_Data SETTINGS_UI_360_360_DATA()
 {
@@ -36,9 +36,9 @@ constexpr SettingsStylesheetData SETTINGS_UI_360_360_STYLESHEET_DARK()
 {
     return {
         .name = "Brookesia-Dark",
-        .screen_size = ESP_BROOKESIA_STYLE_SIZE_RECT(360, 360),
+        .screen_size = gui::StyleSize::RECT(360, 360),
         .ui = SETTINGS_UI_360_360_DATA(),
     };
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

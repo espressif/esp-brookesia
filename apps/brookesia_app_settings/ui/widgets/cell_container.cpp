@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -15,16 +15,16 @@
 #define DOULE_LABEL_MAIN_HEIHGH_FACTOR  (1.5)
 
 using namespace std;
-using namespace esp_brookesia::speaker;
+using namespace esp_brookesia::systems::speaker;
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
-SettingsUI_WidgetCell::SettingsUI_WidgetCell(speaker::App &ui_app, const SettingsUI_WidgetCellData &cell_data,
+SettingsUI_WidgetCell::SettingsUI_WidgetCell(App &ui_app, const SettingsUI_WidgetCellData &cell_data,
         SettingsUI_WidgetCellElement elements):
     data(cell_data),
     _flags{},
     _core_app(ui_app),
-    _click_event_code(ESP_Brookesia_CoreEvent::ID::CUSTOM),
+    _click_event_code(systems::base::Event::ID::CUSTOM),
     _split_line_points{},
     _elements_conf{},
     _elements(elements)
@@ -141,7 +141,7 @@ bool SettingsUI_WidgetCell::begin(lv_obj_t *parent)
     split_line = ESP_BROOKESIA_LV_OBJ(line, main_object.get());
     ESP_UTILS_CHECK_NULL_RETURN(split_line, false, "Create split line failed");
 
-    ESP_Brookesia_CoreHome &core_home = _core_app.getCore()->getCoreHome();
+    systems::base::Display &core_home = _core_app.getSystemContext()->getDisplay();
     // Main
     lv_obj_add_style(main_object.get(), core_home.getCoreContainerStyle(), 0);
     lv_obj_remove_flag(main_object.get(), LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_PRESS_LOCK);
@@ -255,7 +255,7 @@ bool SettingsUI_WidgetCell::begin(lv_obj_t *parent)
     lv_obj_align(split_line.get(), LV_ALIGN_BOTTOM_LEFT, 0, 0);
     _split_line = split_line;
     // Event
-    _click_event_code = _core_app.getCore()->getCoreEvent()->getFreeEventID();
+    _click_event_code = _core_app.getSystemContext()->getEvent().getFreeEventID();
 
     ESP_UTILS_CHECK_FALSE_GOTO(processDataUpdate(), err, "Process data update failed");
 
@@ -276,7 +276,7 @@ bool SettingsUI_WidgetCell::del()
 
     _elements_map.clear();
     _left_icon_object.reset();
-    _core_app.getCore()->getCoreEvent()->unregisterEvent(_click_event_code);
+    _core_app.getSystemContext()->getEvent().unregisterEvent(_click_event_code);
 
     return true;
 }
@@ -483,13 +483,13 @@ bool SettingsUI_WidgetCell::updateConf(const SettingsUI_WidgetCellConf &conf)
     return true;
 }
 
-bool SettingsUI_WidgetCell::updateLeftIcon(const ESP_Brookesia_StyleSize_t &size, const ESP_Brookesia_StyleImage_t &image)
+bool SettingsUI_WidgetCell::updateLeftIcon(const gui::StyleSize &size, const gui::StyleImage &image)
 {
     ESP_UTILS_LOGD("Update left icon");
     ESP_UTILS_CHECK_FALSE_RETURN(_elements & SettingsUI_WidgetCellElement::LEFT_ICON, false, "Left icon not enabled");
 
-    ESP_Brookesia_StyleSize_t calibrate_size = size;
-    _core_app.getCore()->getCoreHome().calibrateCoreObjectSize(data.main.size, calibrate_size, true);
+    gui::StyleSize calibrate_size = size;
+    _core_app.getSystemContext()->getDisplay().calibrateCoreObjectSize(data.main.size, calibrate_size, true);
     bool size_changed = ((calibrate_size.width != 0) && (calibrate_size.height != 0));
 
     lv_obj_t *left_icon_image = getElementObject(SettingsUI_WidgetCellElement::LEFT_ICON);
@@ -599,20 +599,20 @@ bool SettingsUI_WidgetCell::updateRightMinorLabel(std::string text)
 }
 
 bool SettingsUI_WidgetCell::updateRightIcons(
-    const ESP_Brookesia_StyleSize_t &size, const std::vector<ESP_Brookesia_StyleImage_t> &right_icons
+    const gui::StyleSize &size, const std::vector<gui::StyleImage> &right_icons
 )
 {
     ESP_UTILS_LOGD("Update right icons");
     ESP_UTILS_CHECK_FALSE_RETURN(_elements & SettingsUI_WidgetCellElement::RIGHT_ICONS, false, "Right icons not enabled");
 
-    ESP_Brookesia_StyleSize_t calibrate_size = size;
-    _core_app.getCore()->getCoreHome().calibrateCoreObjectSize(data.main.size, calibrate_size, true);
+    gui::StyleSize calibrate_size = size;
+    _core_app.getSystemContext()->getDisplay().calibrateCoreObjectSize(data.main.size, calibrate_size, true);
     bool size_changed = ((calibrate_size.width != 0) && (calibrate_size.height != 0));
 
     lv_obj_t *right_icons_object = getElementObject(SettingsUI_WidgetCellElement::RIGHT_ICONS);
     ESP_UTILS_CHECK_NULL_RETURN(right_icons_object, false, "Invalid right icons object");
 
-    lv_style_t *container_style = _core_app.getCore()->getCoreHome().getCoreContainerStyle();
+    lv_style_t *container_style = _core_app.getSystemContext()->getDisplay().getCoreContainerStyle();
     int update_count = right_icons.size();
     int current_count = _right_icon_object_images.size();
     for (int i = 0; (i < update_count) || (i < current_count); i++) {
@@ -682,18 +682,18 @@ bool SettingsUI_WidgetCell::updateClickable(bool clickable)
     return true;
 }
 
-bool SettingsUI_WidgetCell::calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+bool SettingsUI_WidgetCell::calibrateData(const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_WidgetCellData &data)
 {
     uint16_t compare_w = 0;
     uint16_t compare_h = 0;
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
     // Main
     compare_size = &parent_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.main.size, true, false), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.main.size, true, false), false,
                                  "Calibrate main size failed");
 
     // Area
@@ -704,58 +704,58 @@ bool SettingsUI_WidgetCell::calibrateData(const ESP_Brookesia_StyleSize_t &paren
 
     // Icon
     compare_size = &data.main.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.icon.left_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.icon.left_size), false,
                                  "Calibrate icon left size failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.icon.right_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.icon.right_size), false,
                                  "Calibrate icon right size failed");
 
     // Switch
     compare_size = &data.main.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.sw.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.sw.main_size), false,
                                  "Calibrate switch main size failed");
     compare_size = &data.sw.main_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.sw.knob_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.sw.knob_size), false,
                                  "Calibrate switch knob size failed");
 
     // Label Object
     compare_size = &data.main.size;
     compare_h = compare_size->height;
     ESP_UTILS_CHECK_VALUE_RETURN(data.label.left_row_pad, 0, compare_h, false, "Invalid label left row pad");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.label.left_main_text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.label.left_main_text_font), false,
                                  "Calibrate label left main text font failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.label.left_minor_text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.label.left_minor_text_font), false,
                                  "Calibrate label left minor text font failed");
     ESP_UTILS_CHECK_VALUE_RETURN(data.label.right_row_pad, 0, compare_h, false, "Invalid label right row pad");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.label.right_main_text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.label.right_main_text_font), false,
                                  "Calibrate label right main text font failed");
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.label.right_minor_text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.label.right_minor_text_font), false,
                                  "Calibrate label right minor text font failed");
 
     // Text Edit
     compare_size = &data.main.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.text_edit.size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.text_edit.size), false,
                                  "Calibrate left text edit size failed");
     compare_size = &data.text_edit.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.text_edit.text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.text_edit.text_font), false,
                                  "Calibrate left text edit text font failed");
 
     // Slider
     compare_size = &data.main.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.slider.main_size), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.slider.main_size), false,
                                  "Calibrate center slider main size failed");
     compare_size = &data.slider.main_size;
     ESP_UTILS_CHECK_FALSE_RETURN(
-        home.calibrateCoreObjectSize(*compare_size, data.slider.knob_size, false, false), false,
+        display.calibrateCoreObjectSize(*compare_size, data.slider.knob_size, false, false), false,
         "Calibrate center slider knob size failed"
     );
 
     return true;
 }
 
-bool SettingsUI_WidgetCell::updateIconImage(lv_obj_t *icon, const ESP_Brookesia_StyleImage_t &image,
-        const ESP_Brookesia_StyleSize_t &size)
+bool SettingsUI_WidgetCell::updateIconImage(lv_obj_t *icon, const gui::StyleImage &image,
+        const gui::StyleSize &size)
 {
-    ESP_UTILS_CHECK_FALSE_RETURN(_core_app.getCore()->getCoreHome().calibrateCoreIconImage(image), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(_core_app.getSystemContext()->getDisplay().calibrateCoreIconImage(image), false,
                                  "Invalid image");
     ESP_UTILS_CHECK_NULL_RETURN(icon, false, "Invalid icon_object");
 
@@ -795,7 +795,7 @@ void SettingsUI_WidgetCell::onCellTouchEventCallback(lv_event_t *event)
             break;
         }
         ESP_UTILS_CHECK_FALSE_EXIT(
-            cell->_core_app.getCore()->getCoreEvent()->sendEvent(
+            cell->_core_app.getSystemContext()->getEvent().sendEvent(
                 cell->getEventObject(), cell->getClickEventID(), (void *)cell
             ), "Send event failed"
         );
@@ -821,7 +821,7 @@ void SettingsUI_WidgetCell::onCellTouchEventCallback(lv_event_t *event)
     }
 }
 
-SettingsUI_WidgetCellContainer::SettingsUI_WidgetCellContainer(speaker::App &ui_app,
+SettingsUI_WidgetCellContainer::SettingsUI_WidgetCellContainer(App &ui_app,
         const SettingsUI_WidgetCellContainerData &container_data):
     data(container_data),
     _core_app(ui_app),
@@ -854,7 +854,7 @@ bool SettingsUI_WidgetCellContainer::begin(lv_obj_t *parent)
     container_object = ESP_BROOKESIA_LV_OBJ(obj, main_object.get());
     ESP_UTILS_CHECK_NULL_RETURN(container_object, false, "Create main object failed");
 
-    ESP_Brookesia_CoreHome &core_home = _core_app.getCore()->getCoreHome();
+    systems::base::Display &core_home = _core_app.getSystemContext()->getDisplay();
     // Main
     lv_obj_add_style(main_object.get(), core_home.getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(main_object.get(), LV_FLEX_FLOW_COLUMN);
@@ -1061,12 +1061,12 @@ int SettingsUI_WidgetCellContainer::getCellIndex(SettingsUI_WidgetCell *cell) co
     return index;
 }
 
-bool SettingsUI_WidgetCellContainer::calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, const ESP_Brookesia_CoreHome &home,
+bool SettingsUI_WidgetCellContainer::calibrateData(const gui::StyleSize &parent_size, const systems::base::Display &display,
         SettingsUI_WidgetCellContainerData &data)
 {
     uint16_t compare_w = 0;
     uint16_t compare_h = 0;
-    const ESP_Brookesia_StyleSize_t *compare_size = nullptr;
+    const gui::StyleSize *compare_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -1077,7 +1077,7 @@ bool SettingsUI_WidgetCellContainer::calibrateData(const ESP_Brookesia_StyleSize
 
     // Container
     compare_size = &parent_size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreObjectSize(*compare_size, data.container.size, true, false), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreObjectSize(*compare_size, data.container.size, true, false), false,
                                  "Invalid main size");
     compare_size = &data.container.size;
     compare_w = compare_size->width;
@@ -1089,15 +1089,15 @@ bool SettingsUI_WidgetCellContainer::calibrateData(const ESP_Brookesia_StyleSize
 
     // Title
     compare_size = &data.container.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(home.calibrateCoreFont(compare_size, data.title.text_font), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(display.calibrateCoreFont(compare_size, data.title.text_font), false,
                                  "Invalid title text font");
 
     // Cell
     compare_size = &data.container.size;
-    ESP_UTILS_CHECK_FALSE_RETURN(SettingsUI_WidgetCell::calibrateData(*compare_size, home, data.cell), false,
+    ESP_UTILS_CHECK_FALSE_RETURN(SettingsUI_WidgetCell::calibrateData(*compare_size, display, data.cell), false,
                                  "Calibrate cell data failed");
 
     return true;
 }
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

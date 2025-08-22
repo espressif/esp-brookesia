@@ -9,22 +9,21 @@
 #   define ESP_BROOKESIA_UTILS_DISABLE_DEBUG_LOG
 #endif
 #include "phone/private/esp_brookesia_phone_utils.hpp"
-#include "systems/core/esp_brookesia_core.hpp"
+#include "systems/base/esp_brookesia_base_context.hpp"
 #include "lvgl/esp_brookesia_lv_helper.hpp"
 #include "esp_brookesia_status_bar_icon.hpp"
 
 using namespace std;
 using namespace esp_brookesia::gui;
 
-ESP_Brookesia_StatusBarIcon::ESP_Brookesia_StatusBarIcon(const ESP_Brookesia_StatusBarIconData_t &data):
-    _data(data),
-    _is_out_of_parent(false),
-    _current_state(0),
-    _main_obj(nullptr)
+namespace esp_brookesia::systems::phone {
+
+StatusBarIcon::StatusBarIcon(const StatusBarIcon::Data &data)
+    : _data(data)
 {
 }
 
-ESP_Brookesia_StatusBarIcon::~ESP_Brookesia_StatusBarIcon()
+StatusBarIcon::~StatusBarIcon()
 {
     ESP_UTILS_LOGD("Destroy(@0x%p)", this);
     if (!del()) {
@@ -32,7 +31,7 @@ ESP_Brookesia_StatusBarIcon::~ESP_Brookesia_StatusBarIcon()
     }
 }
 
-bool ESP_Brookesia_StatusBarIcon::begin(const ESP_Brookesia_Core &core, lv_obj_t *parent)
+bool StatusBarIcon::begin(base::Context &core, lv_obj_t *parent)
 {
     ESP_Brookesia_LvObj_t main_obj = nullptr;
     ESP_Brookesia_LvObj_t image_obj = nullptr;
@@ -55,11 +54,11 @@ bool ESP_Brookesia_StatusBarIcon::begin(const ESP_Brookesia_Core &core, lv_obj_t
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), core.getCoreHome().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), core.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     // Image
     for (auto &image_obj_tmp : image_objs) {
-        lv_obj_add_style(image_obj_tmp.get(), core.getCoreHome().getCoreContainerStyle(), 0);
+        lv_obj_add_style(image_obj_tmp.get(), core.getDisplay().getCoreContainerStyle(), 0);
         lv_obj_align(image_obj_tmp.get(), LV_ALIGN_CENTER, 0, 0);
         lv_obj_set_size(image_obj_tmp.get(), LV_SIZE_CONTENT, LV_SIZE_CONTENT);
         // lv_image_set_size_mode(image_obj_tmp.get(), LV_IMG_SIZE_MODE_REAL);
@@ -82,7 +81,7 @@ err:
     return false;
 }
 
-bool ESP_Brookesia_StatusBarIcon::del(void)
+bool StatusBarIcon::del(void)
 {
     ESP_UTILS_LOGD("Delete(@0x%p)", this);
 
@@ -96,7 +95,7 @@ bool ESP_Brookesia_StatusBarIcon::del(void)
     return true;
 }
 
-bool ESP_Brookesia_StatusBarIcon::setCurrentState(int state)
+bool StatusBarIcon::setCurrentState(int state)
 {
     uint8_t image_resource_num = _image_objs.size();
     lv_obj_t *img_obj = nullptr;
@@ -131,7 +130,7 @@ end:
     return true;
 }
 
-bool ESP_Brookesia_StatusBarIcon::updateByNewData(void)
+bool StatusBarIcon::updateByNewData(void)
 {
     int image_resource_num = _image_objs.size();
     float h_factor = 0;
@@ -177,3 +176,5 @@ bool ESP_Brookesia_StatusBarIcon::updateByNewData(void)
 
     return true;
 }
+
+} // namespace esp_brookesia::systems::phone

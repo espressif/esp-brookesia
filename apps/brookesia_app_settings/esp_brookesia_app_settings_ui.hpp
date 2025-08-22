@@ -16,7 +16,7 @@
 #include "ui/screens/sound.hpp"
 #include "ui/screens/display.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsUI_Data {
     SettingsUI_ScreenBaseData screen_base;
@@ -31,7 +31,7 @@ struct SettingsUI_Data {
 
 class SettingsUI {
 public:
-    SettingsUI(speaker::App &ui_app, const SettingsUI_Data &ui_data);
+    SettingsUI(systems::speaker::App &ui_app, const SettingsUI_Data &ui_data);
     ~SettingsUI();
 
     SettingsUI(const SettingsUI &) = delete;
@@ -42,7 +42,7 @@ public:
     bool begin();
     bool del();
 
-    bool calibrateData(const ESP_Brookesia_StyleSize_t &parent_size, SettingsUI_Data &ui_data);
+    bool calibrateData(const gui::StyleSize &parent_size, SettingsUI_Data &ui_data);
     bool processStylesheetUpdate();
 
     bool checkInitialized() const
@@ -50,7 +50,7 @@ public:
         return _is_initialized;
     }
 
-    speaker::App &app;
+    systems::speaker::App &app;
     const SettingsUI_Data &data;
     SettingsUI_ScreenSettings screen_settings;
     SettingsUI_ScreenWlan screen_wlan;
@@ -63,4 +63,4 @@ public:
     std::atomic<bool> _is_initialized = false;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::apps

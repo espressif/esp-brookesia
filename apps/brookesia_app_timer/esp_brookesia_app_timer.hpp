@@ -14,7 +14,7 @@
 #include <string>
 #include <ctime>
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 typedef enum {
     TIMER_SCREEN_DIGITAL,
@@ -32,7 +32,7 @@ typedef struct {
     uint8_t weekday;
 } system_time_t;
 
-class Timer: public speaker::App {
+class Timer: public systems::speaker::App {
 public:
     /**
      * @brief Get the singleton instance of Timer
@@ -53,8 +53,8 @@ public:
     bool init(void) override;
     bool deinit(void) override;
 
-    using speaker::App::startRecordResource;
-    using speaker::App::endRecordResource;
+    using App::startRecordResource;
+    using App::endRecordResource;
 
 protected:
     /**
@@ -100,4 +100,4 @@ private:
     lv_obj_t *_toast_label = nullptr;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

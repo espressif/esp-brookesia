@@ -124,6 +124,11 @@ esp_err_t audio_manager_deinit()
     return ESP_OK;
 }
 
+esp_err_t audio_manager_suspend(bool suspend)
+{
+    return esp_gmf_afe_manager_suspend(audio_recorder.afe_manager, suspend);
+}
+
 static int prompt_out_data_callback(uint8_t *data, int data_size, void *ctx)
 {
     esp_codec_dev_write(audio_manager.play_dev, data, data_size);

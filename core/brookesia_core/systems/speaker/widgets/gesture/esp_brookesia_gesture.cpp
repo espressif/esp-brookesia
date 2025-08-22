@@ -32,9 +32,9 @@ using namespace esp_brookesia::gui;
         },                                        \
     }
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
-Gesture::Gesture(ESP_Brookesia_Core &core_in, const GestureData &data_in):
+Gesture::Gesture(base::Context &core_in, const GestureData &data_in):
     core(core_in),
     data(data_in),
     _touch_device(nullptr),
@@ -104,13 +104,13 @@ bool Gesture::begin(lv_obj_t *parent)
 
     /* Setup objects */
     // Event mask
-    lv_obj_add_style(event_mask_obj.get(), core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(event_mask_obj.get(), core.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_add_flag(event_mask_obj.get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_HIDDEN);
     lv_obj_center(event_mask_obj.get());
     // Indicator bar
     for (int i = 0; i < GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
         // Bar
-        lv_obj_add_style(indicator_bars[i].get(), core.getCoreDisplay().getCoreContainerStyle(), 0);
+        lv_obj_add_style(indicator_bars[i].get(), core.getDisplay().getCoreContainerStyle(), 0);
         lv_obj_clear_flag(indicator_bars[i].get(), LV_OBJ_FLAG_CLICKABLE | LV_OBJ_FLAG_SCROLLABLE);
         lv_obj_add_flag(indicator_bars[i].get(), LV_OBJ_FLAG_HIDDEN);
         lv_bar_set_range(indicator_bars[i].get(), 0, 100);
@@ -173,7 +173,7 @@ bool Gesture::readTouchPoint(int &x, int &y) const
     }
 
     lv_indev_get_point(_touch_device, &point);
-    if ((point.x >= core.getCoreData().screen_size.width) || (point.y >= core.getCoreData().screen_size.height)) {
+    if ((point.x >= core.getData().screen_size.width) || (point.y >= core.getData().screen_size.height)) {
         return false;
     }
 
@@ -215,12 +215,12 @@ int Gesture::getIndicatorBarLength(GestureIndicatorBarType type) const
     return -1;
 }
 
-bool Gesture::calibrateData(const ESP_Brookesia_StyleSize_t &screen_size, const ESP_Brookesia_CoreDisplay &display,
+bool Gesture::calibrateData(const gui::StyleSize &screen_size, const base::Display &display,
                             GestureData &data)
 {
     int parent_w = 0;
     int parent_h = 0;
-    const ESP_Brookesia_StyleSize_t *parent_size = nullptr;
+    const gui::StyleSize *parent_size = nullptr;
 
     ESP_UTILS_LOGD("Calibrate data");
 
@@ -431,7 +431,7 @@ bool Gesture::updateByNewData(void)
     // Timer
     lv_timer_set_period(_detect_timer.get(), data.detect_period_ms);
     // Mask
-    lv_obj_set_size(_event_mask_obj.get(), core.getCoreData().screen_size.width, core.getCoreData().screen_size.height);
+    lv_obj_set_size(_event_mask_obj.get(), core.getData().screen_size.width, core.getData().screen_size.height);
     // Indicator bar
     for (int i = 0; i < GESTURE_INDICATOR_BAR_TYPE_MAX; i++) {
         const GestureIndicatorBarData &bar_data = data.indicator_bars[i];
@@ -508,8 +508,8 @@ void Gesture::onTouchDetectTimerCallback(struct _lv_timer_t *t)
     ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
 
     const GestureData &data = gesture->data;
-    const int &display_w = gesture->core.getCoreData().screen_size.width;
-    const int &display_h = gesture->core.getCoreData().screen_size.height;
+    const int &display_w = gesture->core.getData().screen_size.width;
+    const int &display_h = gesture->core.getData().screen_size.height;
     const float &distance_tan_threshold = gesture->_direction_tan_threshold;
     GestureInfo &info = gesture->_info;
 
@@ -657,4 +657,4 @@ void Gesture::onIndicatorBarScaleBackAnimationReadyCallback(lv_anim_t *anim)
     }
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

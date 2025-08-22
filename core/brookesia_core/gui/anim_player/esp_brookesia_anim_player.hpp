@@ -173,4 +173,4 @@ private:
     mmap_assets_handle_t _assets_handle = nullptr;
 };
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::gui

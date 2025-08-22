@@ -1,51 +1,34 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  ## Required IDF version
   idf: ">=5.5.0"
-
   espressif/esp_tinyusb: "^1.2"
+  touch_button: "*"
+  touch_slider_sensor: "*"
+  espressif2022/bmi270: "^1.1.0~2"
+  espressif/led_indicator: ^2.0.1
+
+  # Since the following components need to be patched, a fixed version is used here
+  espressif/esp_websocket_client: "1.5.0"
+  espressif/gmf_core: "0.6.1"
+  espressif/esp_lvgl_port: "2.6.0"
 
   echoear:
     override_path: "../common_components/echoear"
-  bq27220:
-    override_path: "../common_components/bq27220"
-
-  touch_button:
-    version: "*"
-
-  touch_slider_sensor:
-    version: "*"
-
-  espressif2022/bmi270: ^1.1.0~2
-
-  espressif/led_indicator: ^2.0.1
-
-  espressif/gmf_core:
-    override_path: "../common_components/espressif__gmf_core"
-
   espressif/gmf_ai_audio:
     override_path: "../common_components/espressif__gmf_ai_audio"
-
-  espressif/esp_websocket_client:
-    override_path: "../common_components/espressif__esp_websocket_client"
-
+  bq27220:
+    override_path: "../common_components/bq27220"
   brookesia_core:
     override_path: "../../../core/brookesia_core"
-
   brookesia_app_settings:
     override_path: "../../../apps/brookesia_app_settings"
-
   brookesia_app_ai_profile:
     override_path: "../../../apps/brookesia_app_ai_profile"
-
   brookesia_app_game_2048:
     override_path: "../../../apps/brookesia_app_game_2048"
-
   brookesia_app_calculator:
     override_path: "../../../apps/brookesia_app_calculator"
-
   brookesia_app_timer:
     override_path: "../../../apps/brookesia_app_timer"
-
   brookesia_app_pos:
     override_path: "../../../apps/brookesia_app_pos"

@@ -29,7 +29,7 @@
 
 using namespace esp_brookesia::ai_framework;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
 AI_Buddy::~AI_Buddy()
 {
@@ -38,7 +38,7 @@ AI_Buddy::~AI_Buddy()
     ESP_UTILS_CHECK_FALSE_EXIT(!_flags.is_begun || del(), "Del failed");
 }
 
-bool AI_Buddy::begin(const AI_BuddyData &data)
+bool AI_Buddy::begin(const Data &data)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -68,18 +68,32 @@ bool AI_Buddy::begin(const AI_BuddyData &data)
     } else {
         ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Create default event loop failed(%s)", esp_err_to_name(ret));
     }
-    ret = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
-    [](void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+    ret = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, [](void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
         ESP_UTILS_LOG_TRACE_GUARD();
+
+        ESP_UTILS_CHECK_FALSE_EXIT(event_base == WIFI_EVENT, "Invalid event base");
 
         auto ai_buddy = static_cast<AI_Buddy *>(arg);
         ESP_UTILS_CHECK_NULL_EXIT(ai_buddy, "Invalid arg");
 
         ESP_UTILS_CHECK_FALSE_EXIT(
-            ai_buddy->processOnWiFiEvent(event_base, event_id, event_data), "Process WiFi event failed"
+            ai_buddy->processOnWiFiEvent(event_id, event_data), "Process WiFi event failed"
         );
     }, this, &_wifi_event_handler);
     ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Register WiFi event handler failed(%s)", esp_err_to_name(ret));
+    ret = esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, [](void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data) {
+        ESP_UTILS_LOG_TRACE_GUARD();
+
+        ESP_UTILS_CHECK_FALSE_EXIT(event_base == IP_EVENT, "Invalid event base");
+
+        auto ai_buddy = static_cast<AI_Buddy *>(arg);
+        ESP_UTILS_CHECK_NULL_EXIT(ai_buddy, "Invalid arg");
+
+        ESP_UTILS_CHECK_FALSE_EXIT(
+            ai_buddy->processOnIpEvent(event_id, event_data), "Process IP event failed"
+        );
+    }, this, &_ip_event_handler);
+    ESP_UTILS_CHECK_FALSE_RETURN(ret == ESP_OK, false, "Register IP event handler failed(%s)", esp_err_to_name(ret));
 
     {
         esp_utils::thread_config_guard thread_config(esp_utils::ThreadConfig{
@@ -412,6 +426,10 @@ bool AI_Buddy::resume()
         );
     }
 
+    if (_agent->hasChatState(Agent::ChatStateInited)) {
+        ESP_UTILS_CHECK_ERROR_RETURN(audio_manager_suspend(false), false, "Audio manager suspend failed");
+    }
+
     return true;
 }
 
@@ -431,6 +449,8 @@ bool AI_Buddy::pause()
     if (_agent->hasChatState(Agent::ChatStateStarted)) {
         stopAudio(AudioType::MicOn);
         sendAudioEvent({AudioType::MicOff});
+    } else if (_agent->hasChatState(Agent::ChatStateInited)) {
+        ESP_UTILS_CHECK_ERROR_RETURN(audio_manager_suspend(true), false, "Audio manager suspend failed");
     }
 
     ESP_UTILS_CHECK_FALSE_RETURN(expression.pause(), false, "Expression pause failed");
@@ -516,29 +536,13 @@ void AI_Buddy::stopAudio(AudioType type)
     _audio_removed_process_infos.push_back(type);
 }
 
-bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id, void *event_data)
+bool AI_Buddy::processOnWiFiEvent(int32_t event_id, void *event_data)
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
-
-    ESP_UTILS_CHECK_FALSE_RETURN(event_base == WIFI_EVENT, false, "Invalid event base");
 
     ESP_UTILS_LOGD("Process WiFi event: %d", static_cast<int>(event_id));
 
     switch (event_id) {
-    case WIFI_EVENT_STA_START:
-        break;
-    case WIFI_EVENT_STA_STOP:
-        break;
-    case WIFI_EVENT_STA_CONNECTED:
-        _flags.is_wifi_connected = true;
-        if (_agent->hasChatState(Agent::ChatStateInited) && !_agent->hasChatState(Agent::_ChatStateStart)) {
-            ESP_UTILS_CHECK_FALSE_RETURN(
-                _agent->sendChatEvent(Agent::ChatEvent::Start), false, "Send chat event start failed"
-            );
-        }
-        stopAudio(AudioType::WifiNeedConnect);
-        sendAudioEvent({AudioType::WifiConnected});
-        break;
     case WIFI_EVENT_STA_DISCONNECTED: {
         if (!_flags.is_wifi_connected) {
             break;
@@ -554,6 +558,30 @@ bool AI_Buddy::processOnWiFiEvent(esp_event_base_t event_base, int32_t event_id,
         playWiFiNeedConnectAudio();
         break;
     }
+    default:
+        break;
+    }
+
+    return true;
+}
+
+bool AI_Buddy::processOnIpEvent(int32_t event_id, void *event_data)
+{
+    ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
+
+    ESP_UTILS_LOGD("Process IP event: %d", static_cast<int>(event_id));
+
+    switch (event_id) {
+    case IP_EVENT_STA_GOT_IP:
+        _flags.is_wifi_connected = true;
+        if (_agent->hasChatState(Agent::ChatStateInited) && !_agent->hasChatState(Agent::_ChatStateStart)) {
+            ESP_UTILS_CHECK_FALSE_RETURN(
+                _agent->sendChatEvent(Agent::ChatEvent::Start), false, "Send chat event start failed"
+            );
+        }
+        stopAudio(AudioType::WifiNeedConnect);
+        sendAudioEvent({AudioType::WifiConnected});
+        break;
     default:
         break;
     }
@@ -672,4 +700,4 @@ std::string AI_Buddy::getAudioName(AudioType type) const
     return it->second.first;
 }
 
-} // namespace esp_brookesia::ai_buddy
+} // namespace esp_brookesia::systems::speaker

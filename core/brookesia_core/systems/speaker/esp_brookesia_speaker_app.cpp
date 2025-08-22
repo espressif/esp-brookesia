@@ -13,27 +13,27 @@
 
 using namespace std;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
-App::App(const ESP_Brookesia_CoreAppData_t &core_data, const AppData_t &speaker_data):
-    ESP_Brookesia_CoreApp(core_data),
-    _init_data(speaker_data)
+App::App(const base::App::Config &core_data, const Config &speaker_data):
+    base::App(core_data),
+    _init_config(speaker_data)
 {
 }
 
 App::App(
     const char *name, const void *launcher_icon, bool use_default_screen, bool enable_gesture_navigation
 ):
-    ESP_Brookesia_CoreApp(name, launcher_icon, use_default_screen),
-    _init_data(ESP_BROOKESIA_SPEAKER_APP_DATA_DEFAULT(enable_gesture_navigation))
+    base::App(name, launcher_icon, use_default_screen),
+    _init_config(App::Config::SIMPLE_CONSTRUCTOR(enable_gesture_navigation))
 {
 }
 
 App::App(
     const char *name, const void *launcher_icon, bool use_default_screen
 ):
-    ESP_Brookesia_CoreApp(name, launcher_icon, use_default_screen),
-    _init_data(ESP_BROOKESIA_SPEAKER_APP_DATA_DEFAULT(true))
+    base::App(name, launcher_icon, use_default_screen),
+    _init_config(App::Config::SIMPLE_CONSTRUCTOR(true))
 {
 }
 
@@ -43,7 +43,7 @@ App::~App()
 
     // Uninstall the app if it is initialized
     if (checkInitialized()) {
-        if (!getSystem()->manager.uninstallApp(this)) {
+        if (!getSystem()->getManager().uninstallApp(this)) {
             ESP_UTILS_LOGE("Uninstall app failed");
         }
     }
@@ -53,21 +53,21 @@ App::~App()
 
 Speaker *App::getSystem(void)
 {
-    return static_cast<Speaker *>(getCore());
+    return static_cast<Speaker *>(getSystemContext());
 }
 
 bool App::beginExtra(void)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    Gesture *gesture = getSystem()->manager.getGesture();
+    Gesture *gesture = getSystem()->getManager().getGesture();
 
-    _active_data = _init_data;
+    _active_config = _init_config;
 
     // Check navigation bar and gesture
-    if (_active_data.flags.enable_navigation_gesture && (gesture == nullptr)) {
+    if (_active_config.flags.enable_navigation_gesture && (gesture == nullptr)) {
         ESP_UTILS_LOGE("Navigation gesture is enabled but not provided, disable it");
-        _active_data.flags.enable_navigation_gesture = false;
+        _active_config.flags.enable_navigation_gesture = false;
     }
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
@@ -79,11 +79,11 @@ bool App::delExtra(void)
 {
     ESP_UTILS_LOG_TRACE_ENTER_WITH_THIS();
 
-    _active_data = {};
+    _active_config = {};
 
     ESP_UTILS_LOG_TRACE_EXIT_WITH_THIS();
 
     return true;
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

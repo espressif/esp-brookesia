@@ -8,9 +8,9 @@
 #include "lvgl.h"
 #include "esp_brookesia.hpp"
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
-class Calculator: public speaker::App {
+class Calculator: public systems::speaker::App {
 public:
     Calculator();
     ~Calculator();
@@ -54,4 +54,4 @@ private:
     std::atomic<bool> _is_stopping = false;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

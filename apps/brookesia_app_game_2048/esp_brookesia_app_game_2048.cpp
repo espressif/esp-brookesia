@@ -15,6 +15,10 @@
 #include "esp_lib_utils.h"
 #include "esp_brookesia_app_game_2048.hpp"
 
+using namespace esp_brookesia::systems::speaker;
+
+#define APP_NAME "2048"
+
 #define ENABLE_CELL_DEBUG       (1)
 
 #define BOARD_BG_COLOR          lv_color_white()
@@ -41,14 +45,12 @@
 #define randint_between(min, max)       (rand() % (max - min) + min)
 #define rand_1_2()                      (randint_between(1, 2))
 
-using namespace std;
-
 LV_IMG_DECLARE(img_app_2048);
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
-constexpr ESP_Brookesia_CoreAppData_t CORE_DATA = {
-    .name = "2048",
+constexpr systems::base::App::Config CORE_DATA = {
+    .name = APP_NAME,
     .launcher_icon = gui::StyleImage::IMAGE(&img_app_2048),
     .screen_size = gui::StyleSize::RECT_PERCENT(100, 100),
     .flags = {
@@ -57,17 +59,15 @@ constexpr ESP_Brookesia_CoreAppData_t CORE_DATA = {
         .enable_resize_visual_area = 1,
     },
 };
-constexpr speaker::AppData_t APP_DATA = {
+constexpr App::Config APP_DATA = {
     .app_launcher_page_index = 0,
     .flags = {
         .enable_navigation_gesture = 1,
     },
 };
 
-Game2048::Game2048(int width, int height)
+Game2048::Game2048()
     : App(CORE_DATA, APP_DATA)
-    , _width(width)
-    , _height(height)
 {
 }
 
@@ -80,6 +80,11 @@ bool Game2048::init()
 {
     ESP_UTILS_LOG_TRACE_GUARD_WITH_THIS();
 
+    gui::StyleSize size;
+    ESP_UTILS_CHECK_FALSE_RETURN(getSystemContext()->getDisplaySize(size), false, "Get display size failed");
+
+    _width = size.width / 3 * 2;
+    _height = _width;
     ESP_UTILS_CHECK_FALSE_RETURN(_width > 0, false, "Invalid width(%d)", _width);
     ESP_UTILS_CHECK_FALSE_RETURN(_height > 0, false, "Invalid height(%d)", _height);
 
@@ -235,7 +240,7 @@ bool Game2048::run()
     lv_obj_add_flag(_foreground_grid, LV_OBJ_FLAG_CLICKABLE);
 
     /* Add motion detect module */
-    auto gesture = getSystem()->manager.getGesture();
+    auto gesture = getSystem()->getManager().getGesture();
     lv_obj_add_event_cb(gesture->getEventObj(), motion_event_cb, gesture->getReleaseEventCode(), this);
 
     newGame();
@@ -274,7 +279,7 @@ bool Game2048::close()
         auto system = app->getSystem();
         ESP_UTILS_CHECK_NULL_EXIT(system, "Invalid system");
 
-        auto gesture = system->manager.getGesture();
+        auto gesture = system->getManager().getGesture();
         ESP_UTILS_CHECK_NULL_EXIT(gesture, "Invalid gesture");
 
         bool ret = lv_obj_remove_event_cb(gesture->getEventObj(), motion_event_cb);
@@ -950,7 +955,7 @@ void Game2048::new_game_event_cb(lv_event_t *e)
 void Game2048::motion_event_cb(lv_event_t *e)
 {
     int score;
-    speaker::GestureInfo *type = (speaker::GestureInfo *)lv_event_get_param(e);
+    systems::speaker::GestureInfo *type = (systems::speaker::GestureInfo *)lv_event_get_param(e);
     Game2048 *app = (Game2048 *)lv_event_get_user_data(e);
 
     // If the app is closing, return immediately
@@ -960,19 +965,19 @@ void Game2048::motion_event_cb(lv_event_t *e)
 
     if (!app->_anim_running_flag) {
         switch (type->direction) {
-        case speaker::GESTURE_DIR_UP:
+        case systems::speaker::GESTURE_DIR_UP:
             // printf(NULL, "up");
             score = app->moveUp();
             break;
-        case speaker::GESTURE_DIR_DOWN:
+        case systems::speaker::GESTURE_DIR_DOWN:
             // printf(NULL, "down");
             score = app->moveDown();
             break;
-        case speaker::GESTURE_DIR_LEFT:
+        case systems::speaker::GESTURE_DIR_LEFT:
             // printf(NULL, "left");
             score = app->moveLeft();
             break;
-        case speaker::GESTURE_DIR_RIGHT:
+        case systems::speaker::GESTURE_DIR_RIGHT:
             // printf(NULL, "right");
             score = app->moveRight();
             break;
@@ -1017,4 +1022,6 @@ void Game2048::anim_finish_cb(lv_anim_t *a)
     }
 }
 
-} // namespace esp_brookesia::speaker_apps
+ESP_UTILS_REGISTER_PLUGIN(systems::base::App, Game2048, APP_NAME)
+
+} // namespace esp_brookesia::apps

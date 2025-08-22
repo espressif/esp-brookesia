@@ -5,7 +5,9 @@ file(GLOB_RECURSE PROJ_SRCS_CPP ${PROJ_SRC}/*.cpp)
 
 idf_component_register(
     SRCS  ${PROJ_SRCS_C} ${PROJ_SRCS_CPP}
-    INCLUDE_DIRS ${PROJ_SRC})
+    INCLUDE_DIRS ${PROJ_SRC}
+    WHOLE_ARCHIVE
+)
 
 set_source_files_properties(
     ${PROJ_SRCS_CPP}

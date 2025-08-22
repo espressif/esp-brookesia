@@ -13,11 +13,11 @@
 using namespace std;
 using namespace esp_brookesia::gui;
 
-namespace esp_brookesia::speaker {
+namespace esp_brookesia::systems::speaker {
 
-AppLauncherIcon::AppLauncherIcon(ESP_Brookesia_Core &core, const AppLauncherIconInfo_t &info,
+AppLauncherIcon::AppLauncherIcon(base::Context &core, const AppLauncherIconInfo_t &info,
                                  const AppLauncherIconData &data):
-    _core(core),
+    _system_context(core),
     _info(info),
     _data(data),
     _flags{},
@@ -67,17 +67,17 @@ bool AppLauncherIcon::begin(lv_obj_t *parent)
 
     /* Setup objects style */
     // Main
-    lv_obj_add_style(main_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_set_flex_flow(main_obj.get(), LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(main_obj.get(), LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_clear_flag(main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
     // Icon
-    lv_obj_add_style(icon_main_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(icon_main_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_clear_flag(icon_main_obj.get(), LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(icon_main_obj.get(), LV_OBJ_FLAG_EVENT_BUBBLE);
     // Image
-    lv_obj_add_style(icon_image_obj.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(icon_image_obj.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_obj_center(icon_image_obj.get());
     lv_img_set_src(icon_image_obj.get(), _info.image.resource);
     lv_obj_set_style_img_recolor(icon_image_obj.get(), lv_color_hex(_info.image.recolor.color), 0);
@@ -91,7 +91,7 @@ bool AppLauncherIcon::begin(lv_obj_t *parent)
     lv_obj_add_event_cb(icon_image_obj.get(), onIconTouchEventCallback, LV_EVENT_RELEASED, this);
     lv_obj_add_event_cb(icon_image_obj.get(), onIconTouchEventCallback, LV_EVENT_CLICKED, this);
     // Name
-    lv_obj_add_style(name_label.get(), _core.getCoreDisplay().getCoreContainerStyle(), 0);
+    lv_obj_add_style(name_label.get(), _system_context.getDisplay().getCoreContainerStyle(), 0);
     lv_label_set_text_static(name_label.get(), _info.name);
 
     /* Save objects */
@@ -193,8 +193,8 @@ void AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
     AppLauncherIcon *icon = nullptr;
     lv_event_code_t event_code = _LV_EVENT_LAST;
     lv_obj_t *icon_image_obj = nullptr;
-    ESP_Brookesia_CoreAppEventData_t app_event_data = {
-        .type = ESP_BROOKESIA_CORE_APP_EVENT_TYPE_START,
+    base::Context::AppEventData app_event_data = {
+        .type = base::Context::AppEventType::START,
     };
 
     ESP_UTILS_LOGD("Icon touch event callback");
@@ -213,7 +213,7 @@ void AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
             break;
         }
         app_event_data.id = icon->_info.id;
-        ESP_UTILS_CHECK_FALSE_EXIT(icon->_core.sendAppEvent(&app_event_data), "Send app event failed");
+        ESP_UTILS_CHECK_FALSE_EXIT(icon->_system_context.sendAppEvent(&app_event_data), "Send app event failed");
         break;
     case LV_EVENT_PRESSED:
         ESP_UTILS_LOGD("Pressed");
@@ -243,4 +243,4 @@ void AppLauncherIcon::onIconTouchEventCallback(lv_event_t *event)
     }
 }
 
-} // namespace esp_brookesia::speaker
+} // namespace esp_brookesia::systems::speaker

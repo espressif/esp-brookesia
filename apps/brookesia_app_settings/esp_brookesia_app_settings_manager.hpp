@@ -33,7 +33,7 @@
 
 constexpr const char *SETTINGS_NVS_KEY_TOUCH_SENSOR_SWITCH = "touch_switch";
 
-namespace esp_brookesia::speaker_apps {
+namespace esp_brookesia::apps {
 
 struct SettingsManagerData {
     struct {
@@ -96,7 +96,7 @@ public:
         AppOperationPayloadType payload;
     };
 
-    SettingsManager(speaker::App &app_in, SettingsUI &ui_in, const SettingsManagerData &data_in);
+    SettingsManager(systems::speaker::App &app_in, SettingsUI &ui_in, const SettingsManagerData &data_in);
     ~SettingsManager();
 
     SettingsManager(const SettingsManager &) = delete;
@@ -114,7 +114,7 @@ public:
         return (_ui_screen_object_map.size() == 0);
     }
 
-    speaker::App &app;
+    systems::speaker::App &app;
     SettingsUI &ui;
     const SettingsManagerData &data;
 
@@ -154,6 +154,7 @@ private:
         SCAN_START,
         SCAN_STOP,
     };
+    using WlanEvent = std::variant<wifi_event_t, ip_event_t>;
 
     // // Data
     // friend WlanGeneraState operator|(WlanGeneraState lhs, WlanGeneraState rhs);
@@ -174,23 +175,23 @@ private:
     bool processUI_ScreenChange(const UI_Screen &ui_screen, lv_obj_t *ui_screen_object);
     SettingsUI_ScreenBase *getUI_Screen(const UI_Screen &ui_screen);
     std::pair<UI_Screen, lv_obj_t *> getUI_BackScreenObject(const UI_Screen &ui_screen);
-    static bool onScreenNavigationClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    static bool onScreenNavigationClickEventHandler(const systems::base::Event::HandlerData &data);
 
     // Screen: Settings
     bool processRunUI_ScreenSettings();
     bool processCloseUI_ScreenSettings();
-    static bool onScreenSettingsCellClickEventHandler(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    static bool onScreenSettingsCellClickEventHandler(const systems::base::Event::HandlerData &data);
 
     // Screen: WLAN
     bool processRunUI_ScreenWlan();
     bool processCloseUI_ScreenWlan();
     bool processOnUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e);
-    bool processOnUI_ScreenWlanAvailableCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    bool processOnUI_ScreenWlanAvailableCellClickEvent(const systems::base::Event::HandlerData &data);
     bool processOnUI_ScreenWlanGestureEvent(lv_event_t *e);
     bool updateUI_ScreenWlanConnected(bool use_target, WlanGeneraState target_state = WlanGeneraState::DEINIT);
     bool updateUI_ScreenWlanAvailable(bool use_target, WlanGeneraState target_state = WlanGeneraState::DEINIT);
     static void onUI_ScreenWlanControlSwitchChangeEvent(lv_event_t *e);
-    static bool onUI_ScreenWlanAvailableCellClickEventHander(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    static bool onUI_ScreenWlanAvailableCellClickEventHander(const systems::base::Event::HandlerData &data);
     static void onUI_ScreenWlanGestureEvent(lv_event_t *e);
 
     // Screen: WLAN verification
@@ -201,8 +202,8 @@ private:
     // Screen: WLAN softap
     bool processRunUI_ScreenWlanSoftAP();
     bool processCloseUI_ScreenWlanSoftAP();
-    bool processOnUI_ScreenWlanSoftAPCellClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
-    bool processOnUI_ScreenWlanSoftAPNavigationClickEvent(const ESP_Brookesia_CoreEvent::HandlerData &data);
+    bool processOnUI_ScreenWlanSoftAPCellClickEvent(const systems::base::Event::HandlerData &data);
+    bool processOnUI_ScreenWlanSoftAPNavigationClickEvent(const systems::base::Event::HandlerData &data);
 
     // Screen: Sound
     bool processCloseUI_ScreenSound();
@@ -242,7 +243,7 @@ private:
     bool waitForWlanScanState(const std::vector<WlanScanState> &state, int timeout_ms);
     bool processOnWlanOperationThread();
     bool processOnWlanUI_Thread();
-    bool processOnWlanEventHandler(int event_id, void *event_data);
+    bool processOnWlanEventHandler(WlanEvent event, void *event_data);
     bool saveWlanConfig(std::string ssid, std::string pwd);
     bool checkIsWlanGeneralState(WlanGeneraState state)
     {
@@ -259,10 +260,9 @@ private:
     static void onWlanOperationThread(SettingsManager *manager);
     static void onWlanUI_Thread(SettingsManager *manager);
 
-    static const char *getWlanEventStr(wifi_event_t event);
+    static const char *getWlanEventStr(WlanEvent event);
     static void onWlanEventHandler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data);
     SettingsUI_ScreenWlan::WlanData getWlanDataFromApInfo(wifi_ap_record_t &ap_info);
-    static bool isTimeSync();
 
     UI_Screen _ui_current_screen;
     std::atomic<bool> _is_ui_initialized = false;
@@ -283,8 +283,7 @@ private:
     std::atomic<bool> _is_wlan_sw_flag = false;
     WlanGeneraState _wlan_general_state = WlanGeneraState::DEINIT;
     WlanScanState _wlan_scan_state = WlanScanState::SCAN_STOPPED;
-    std::atomic<int> _wlan_event_id;
-    std::atomic<int> _wlan_event_id_prev;
+    WlanEvent _wlan_event;
     boost::thread _wlan_operation_thread;
     boost::thread _wlan_ui_thread;
     boost::thread _wlan_time_sync_thread;
@@ -319,7 +318,9 @@ private:
         },
     };
     esp_event_handler_instance_t _wlan_event_handler_instance;
+    esp_event_handler_instance_t _ip_event_handler_instance;
     static const std::unordered_map<wifi_event_t, std::string> _wlan_event_str;
+    static const std::unordered_map<ip_event_t, std::string> _ip_event_str;
 };
 
-} // namespace esp_brookesia::speaker_apps
+} // namespace esp_brookesia::apps

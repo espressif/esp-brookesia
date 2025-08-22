@@ -7,39 +7,40 @@
 
 #include <string>
 #include "esp_brookesia_systems_internal.h"
-#include "systems/core/esp_brookesia_core_app.hpp"
+#include "systems/base/esp_brookesia_base_app.hpp"
 #include "widgets/gesture/esp_brookesia_gesture.hpp"
 
-namespace esp_brookesia::speaker {
-
-struct AppData_t {
-    uint8_t app_launcher_page_index;                    /*!< The index of the app launcher page where the icon is shown */
-    struct {
-        uint8_t enable_navigation_gesture: 1;           /*!< If set and the gesture is enabled, the navigation gesture
-                                                             will be enabled. */
-    } flags;                                            /*!< The flags for the speaker app data */
-};
-
-#define ESP_BROOKESIA_SPEAKER_APP_DATA_DEFAULT(use_navigation_gesture)                 \
-    {                                                                                                  \
-        .app_launcher_page_index = 0,                                                        \
-        .flags = {                                                                                     \
-            .enable_navigation_gesture = use_navigation_gesture,                                        \
-        },                                                                                             \
-    }
+namespace esp_brookesia::systems::speaker {
 
 class Speaker;
 
-// *INDENT-OFF*
 /**
  * @brief The speaker app class. This serves as the base class for all speaker app classes. User-defined speaker app classes
  *        should inherit from this class.
  *
  */
-class App: public ESP_Brookesia_CoreApp {
+class App: public base::App {
 public:
     friend class Display;
     friend class Manager;
+
+    struct Config {
+        static constexpr Config SIMPLE_CONSTRUCTOR(bool enable_navigation_gesture)
+        {
+            return {
+                .app_launcher_page_index = 0,
+                .flags = {
+                    .enable_navigation_gesture = enable_navigation_gesture,
+                },
+            };
+        }
+
+        uint8_t app_launcher_page_index;                    /*!< The index of the app launcher page where the icon is shown */
+        struct {
+            uint8_t enable_navigation_gesture: 1;           /*!< If set and the gesture is enabled, the navigation gesture
+                                                                will be enabled. */
+        } flags;                                            /*!< The flags for the speaker app data */
+    };
 
     App(const App &) = delete;
     App(App &&) = delete;
@@ -53,7 +54,7 @@ public:
      * @param speaker_data The configuration data for the speaker
      *
      */
-    App(const ESP_Brookesia_CoreAppData_t &core_data, const AppData_t &speaker_data);
+    App(const base::App::Config &core_data, const Config &speaker_data);
 
     /**
      * @brief Construct a speaker app with basic configuration
@@ -88,25 +89,25 @@ public:
     ~App() override;
 
     /**
-     * @brief Get the initial data of the speaker app
+     * @brief Get the initial config of the speaker app
      *
-     * @return data: speaker app data which is set during initialization
+     * @return config: speaker app config which is set during initialization
      *
      */
-    const AppData_t &getInitData(void) const
+    const Config &getInitConfig(void) const
     {
-        return _init_data;
+        return _init_config;
     }
 
     /**
-     * @brief Get the active data of the speaker app
+     * @brief Get the active config of the speaker app
      *
-     * @return data: speaker app data which is calibrated during runtime
+     * @return config: speaker app config which is calibrated during runtime
      *
      */
-    const AppData_t &getActiveData(void) const
+    const Config &getActiveConfig(void) const
     {
-        return _active_data;
+        return _active_config;
     }
 
     /**
@@ -117,13 +118,30 @@ public:
      */
     Speaker *getSystem(void);
 
+    [[deprecated("Use `getInitConfig()` instead")]]
+    const Config &getInitData(void) const
+    {
+        return getInitConfig();
+    }
+
+    [[deprecated("Use `getActiveConfig()` instead")]]
+    const Config &getActiveData(void) const
+    {
+        return getActiveConfig();
+    }
+
 private:
     bool beginExtra(void) override;
     bool delExtra(void) override;
 
-    AppData_t _init_data;
-    AppData_t _active_data;
+    Config _init_config;
+    Config _active_config;
 };
-// *INDENT-OFF*
 
-} // namespace esp_brookesia::speaker
+/* Keep compatibility with old code */
+using AppData_t [[deprecated("Use `esp_brookesia::systems::speaker::App::Config` instead")]] =
+    App::Config;
+#define ESP_BROOKESIA_SPEAKER_APP_DATA_DEFAULT(use_navigation_gesture) \
+    AppData_t::SIMPLE_CONSTRUCTOR(use_navigation_gesture)
+
+} // namespace esp_brookesia::systems::speaker

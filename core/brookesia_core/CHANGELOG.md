@@ -145,7 +145,7 @@
 
 ### Enhancements:
 
-* feat(examples): 'ESP_Brookesia_Phone' add partition requirement
+* feat(examples): 'systems::phone::Phone' add partition requirement
 * feat(examples): 'esp-idf' update stylesheet
 * feat(examples): 'esp-idf' add esp_brookesia_phone_s3_box
 * feat(examples): 'esp-idf' add esp_brookesia_phone_s3_box_3
@@ -170,7 +170,7 @@
 
 * fix(core & recents_app): fix build missing LV_USE_SNAPSHOT error
 * fix(examples): correct 'esp_brookesia_phone_s3_lcd_ev_board' README resolution
-* fix(examples): disable 'ESP_Brookesia_Phone' external stylesheet by default
+* fix(examples): disable 'systems::phone::Phone' external stylesheet by default
 * fix(examples): fix 'esp-idf' CMakeLists.txt to use custom memory functions
 * fix(app_examples): modify 'squareline' ui to use LV_FONT_DEFAULT
 

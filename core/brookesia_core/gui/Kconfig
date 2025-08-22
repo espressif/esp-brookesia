@@ -41,6 +41,11 @@ menu "LVGL"
             depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
             default y
 
+        config ESP_BROOKESIA_LVGL_LOCK_ENABLE_DEBUG_LOG
+            bool "Lock"
+            depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
+            default y
+
         config ESP_BROOKESIA_LVGL_OBJECT_ENABLE_DEBUG_LOG
             bool "Object"
             depends on ESP_UTILS_CONF_LOG_LEVEL_DEBUG
