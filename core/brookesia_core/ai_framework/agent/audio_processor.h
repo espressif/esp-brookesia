@@ -53,6 +53,17 @@ esp_err_t audio_manager_init(esp_gmf_setup_periph_hardware_info *info, void **pl
 esp_err_t audio_manager_deinit();
 
 /**
+ * @brief  Suspend or resume the audio manager
+ *
+ * @param[in]  suspend  `true` to suspend, `false` to resume
+ *
+ * @return
+ *       - ESP_OK  On success
+ *       - Other   Appropriate esp_err_t error code on failure
+ */
+esp_err_t audio_manager_suspend(bool suspend);
+
+/**
  * @brief Trigger the AFE to wakeup manually
  *
  * @return

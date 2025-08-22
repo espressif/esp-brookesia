@@ -426,6 +426,10 @@ bool AI_Buddy::resume()
         );
     }
 
+    if (_agent->hasChatState(Agent::ChatStateInited)) {
+        ESP_UTILS_CHECK_ERROR_RETURN(audio_manager_suspend(false), false, "Audio manager suspend failed");
+    }
+
     return true;
 }
 
@@ -445,6 +449,8 @@ bool AI_Buddy::pause()
     if (_agent->hasChatState(Agent::ChatStateStarted)) {
         stopAudio(AudioType::MicOn);
         sendAudioEvent({AudioType::MicOff});
+    } else if (_agent->hasChatState(Agent::ChatStateInited)) {
+        ESP_UTILS_CHECK_ERROR_RETURN(audio_manager_suspend(true), false, "Audio manager suspend failed");
     }
 
     ESP_UTILS_CHECK_FALSE_RETURN(expression.pause(), false, "Expression pause failed");
