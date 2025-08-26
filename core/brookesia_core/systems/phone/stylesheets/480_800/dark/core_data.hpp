@@ -62,7 +62,7 @@ constexpr base::Manager::Data STYLESHEET_480_800_DARK_CORE_MANAGER_DATA = {
     },
 };
 
-constexpr const char *STYLESHEET_480_800_DARK_CORE_INFO_DATA_NAME = "480x480 Dark";
+constexpr const char *STYLESHEET_480_800_DARK_CORE_INFO_DATA_NAME = "480x800 Dark";
 
 constexpr base::Context::Data STYLESHEET_480_800_DARK_CORE_DATA = {
     .name = STYLESHEET_480_800_DARK_CORE_INFO_DATA_NAME,
