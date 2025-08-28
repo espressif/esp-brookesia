@@ -11,12 +11,12 @@ namespace esp_brookesia::systems::phone {
 
 constexpr AppLauncherIcon::Data STYLESHEET_480_800_DARK_APP_LAUNCHER_ICON_DATA = {
     .main = {
-        .size = gui::StyleSize::SQUARE(164),
+        .size = gui::StyleSize::SQUARE(200),
         .layout_row_pad = 10,
     },
     .image = {
-        .default_size = gui::StyleSize::SQUARE(112),
-        .press_size = gui::StyleSize::SQUARE(100),
+        .default_size = gui::StyleSize::SQUARE_PERCENT(56),
+        .press_size = gui::StyleSize::SQUARE_PERCENT(50),
     },
     .label = {
         .text_font = gui::StyleFont::SIZE(22),
@@ -34,9 +34,9 @@ constexpr AppLauncherData STYLESHEET_480_800_DARK_APP_LAUNCHER_DATA = {
         .size = gui::StyleSize::RECT_W_PERCENT(100, 678),
     },
     .indicator = {
-        .main_size = gui::StyleSize::RECT_W_PERCENT(100, 40),
+        .main_size = gui::StyleSize::RECT_W_PERCENT(100, 16),
         .main_layout_column_pad = 10,
-        .main_layout_bottom_offset = 20,
+        .main_layout_bottom_offset = 40,
         .spot_inactive_size = gui::StyleSize::SQUARE(12),
         .spot_active_size = gui::StyleSize::RECT(30, 12),
         .spot_inactive_background_color = gui::StyleColor::COLOR(0xC6C6C6),

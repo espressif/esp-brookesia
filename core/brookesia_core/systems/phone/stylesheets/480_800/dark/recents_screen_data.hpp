@@ -11,16 +11,16 @@
 namespace esp_brookesia::systems::phone {
 
 constexpr RecentsScreenSnapshot::Data STYLESHEET_480_800_DARK_RECENTS_SCREEN_SNAPSHOT_DATA = {
-    .main_size = gui::StyleSize::RECT(300, 660),
+    .main_size = gui::StyleSize::RECT(300, 560),
     .title = {
-        .main_size = gui::StyleSize::RECT(300, 52),
+        .main_size = gui::StyleSize::RECT(300, 60),
         .main_layout_column_pad = 10,
         .icon_size = gui::StyleSize::SQUARE(36),
         .text_font = gui::StyleFont::SIZE(22),
         .text_color = gui::StyleColor::COLOR(0xFFFFFF),
     },
     .image = {
-        .main_size = gui::StyleSize::RECT(300, 600),
+        .main_size = gui::StyleSize::RECT(300, 500),
         .radius = 20,
     },
 };
@@ -28,7 +28,7 @@ constexpr RecentsScreenSnapshot::Data STYLESHEET_480_800_DARK_RECENTS_SCREEN_SNA
 constexpr RecentsScreen::Data STYLESHEET_480_800_DARK_RECENTS_SCREEN_DATA = {
     .main = {
         .size = gui::StyleSize::RECT_PERCENT(100, 100),
-        .layout_row_pad = 10,
+        .layout_row_pad = 20,
         .layout_top_pad = 0,
         .layout_bottom_pad = 20,
         .background_color = gui::StyleColor::COLOR(0x1A1A1A),
@@ -36,7 +36,7 @@ constexpr RecentsScreen::Data STYLESHEET_480_800_DARK_RECENTS_SCREEN_DATA = {
     .memory = {
         .main_size = gui::StyleSize::RECT_W_PERCENT(100, 20),
         .main_layout_x_right_offset = 10,
-        .label_text_font = gui::StyleFont::SIZE(16),
+        .label_text_font = gui::StyleFont::HEIGHT_PERCENT(100),
         .label_text_color = gui::StyleColor::COLOR(0xFFFFFF),
         .label_unit_text = "KB",
     },
