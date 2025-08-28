@@ -293,11 +293,14 @@ bool Display::getAppVisualArea(base::App *app, lv_area_t &app_visual_area) const
 
     ESP_UTILS_CHECK_NULL_RETURN(phone_app, false, "Invalid phone app");
 
+    gui::StyleSize display_size = {};
+    ESP_UTILS_CHECK_FALSE_RETURN(_system_context.getDisplaySize(display_size), false, "Get display size failed");
+
     lv_area_t visual_area = {
         .x1 = 0,
         .y1 = 0,
-        .x2 = (lv_coord_t)(_system_context.getData().screen_size.width - 1),
-        .y2 = (lv_coord_t)(_system_context.getData().screen_size.height - 1),
+        .x2 = (lv_coord_t)(display_size.width - 1),
+        .y2 = (lv_coord_t)(display_size.height - 1),
     };
     const App::Config &app_data = phone_app->getActiveConfig();
 
