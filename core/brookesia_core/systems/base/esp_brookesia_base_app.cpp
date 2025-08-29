@@ -80,10 +80,16 @@ bool App::startRecordResource(void)
     if (_active_config.flags.enable_resize_visual_area) {
         ESP_UTILS_LOGD("Resieze screen to visual area[(%d,%d)-(%d,%d)]", visual_area.x1, visual_area.y1, visual_area.x2,
                        visual_area.y2);
+
+        auto rotation = lv_display_get_rotation(disp);
+
         _display_style.w = disp->hor_res;
         _display_style.h = disp->ver_res;
         disp->hor_res = visual_area.x2 - visual_area.x1 + 1;
         disp->ver_res = visual_area.y2 - visual_area.y1 + 1;
+        if (rotation == LV_DISP_ROTATION_90 || rotation == LV_DISP_ROTATION_270) {
+            swap(disp->hor_res, disp->ver_res);
+        }
     }
     _resource_head_screen_index = disp->screen_cnt - 1;
     _resource_head_timer = lv_timer_get_next(nullptr);
@@ -547,7 +553,8 @@ bool App::calibrateVisualArea(void)
     int visual_area_w = 0;
     int visual_area_h = 0;
     lv_area_t visual_area = _app_style.origin_visual_area;
-    const gui::StyleSize &screen_size = _system_context->getData().screen_size;
+    gui::StyleSize screen_size = {};
+    ESP_UTILS_CHECK_FALSE_RETURN(_system_context->getDisplaySize(screen_size), false, "Get screen size failed");
     const gui::StyleSize &app_size = getCoreActiveData().screen_size;
 
     ESP_UTILS_CHECK_FALSE_RETURN(checkInitialized(), false, "Not initialized");

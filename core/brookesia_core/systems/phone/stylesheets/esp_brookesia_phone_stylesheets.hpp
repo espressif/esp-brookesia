@@ -10,6 +10,7 @@
 #include "320_240/dark/stylesheet.hpp"
 #include "320_480/dark/stylesheet.hpp"
 #include "480_480/dark/stylesheet.hpp"
+#include "480_800/dark/stylesheet.hpp"
 #include "720_1280/dark/stylesheet.hpp"
 #include "800_480/dark/stylesheet.hpp"
 #include "800_1280/dark/stylesheet.hpp"
