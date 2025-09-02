@@ -1,6 +1,6 @@
 # Check if python patch package is available
 execute_process(
-    COMMAND python3 -c "import patch; print('patch package is available')"
+    COMMAND python -c "import patch; print('patch package is available')"
     RESULT_VARIABLE PATCH_CHECK_RESULT
     OUTPUT_QUIET
     ERROR_QUIET
@@ -8,7 +8,7 @@ execute_process(
 if(NOT PATCH_CHECK_RESULT EQUAL 0)
     message(WARNING "Python patch package not found. Installing via pip...")
     execute_process(
-        COMMAND python3 -m pip install patch
+        COMMAND python -m pip install patch
         RESULT_VARIABLE PATCH_INSTALL_RESULT
     )
     if(NOT PATCH_INSTALL_RESULT EQUAL 0)
@@ -39,7 +39,7 @@ function(apply_patch_for_component COMPONENT_NAME PATCH_NAME)
 
     if(EXISTS ${COMPONENT_DIR})
         execute_process(
-            COMMAND python3 "${PATCH_SCRIPT}" --patch "${PATCH_PATH}/${PATCH_NAME}" --target "${COMPONENT_DIR}"
+            COMMAND python "${PATCH_SCRIPT}" --patch "${PATCH_PATH}/${PATCH_NAME}" --target "${COMPONENT_DIR}"
             RESULT_VARIABLE RESULT
             ERROR_VARIABLE ERROR
         )
