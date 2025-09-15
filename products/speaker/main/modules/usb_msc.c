@@ -5,274 +5,115 @@
  */
 #include "diskio.h"
 #include "tinyusb.h"
+#include "tinyusb_msc.h"
+#include "tinyusb_default_config.h"
 #include "esp_check.h"
 #include "usb_msc.h"
+#include "bsp/echoear.h"
+
+#define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_MSC_DESC_LEN)
+
+enum {
+    ITF_NUM_MSC = 0,
+    ITF_NUM_TOTAL
+};
+
+enum {
+    EDPT_CTRL_OUT = 0x00,
+    EDPT_CTRL_IN  = 0x80,
+    EDPT_MSC_OUT  = 0x01,
+    EDPT_MSC_IN   = 0x81,
+};
 
 static const char *TAG = "usb_msc";
-static uint8_t s_pdrv = 0;
-static int s_disk_block_size = 0;
-#define LOGICAL_DISK_NUM 1
-static bool ejected[LOGICAL_DISK_NUM] = {true};
+
+static tusb_desc_device_t msc_device_descriptor = {
+    .bLength = sizeof(msc_device_descriptor),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB = 0x0200,
+    .bDeviceClass = TUSB_CLASS_MISC,
+    .bDeviceSubClass = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol = MISC_PROTOCOL_IAD,
+    .bMaxPacketSize0 = CFG_TUD_ENDPOINT0_SIZE,
+    .idVendor = 0x303A,             // This is Espressif VID. This needs to be changed according to Users / Customers
+    .idProduct = 0x4002,
+    .bcdDevice = 0x100,
+    .iManufacturer = 0x01,
+    .iProduct = 0x02,
+    .iSerialNumber = 0x03,
+    .bNumConfigurations = 0x01
+};
+
+static char const *string_desc_arr[] = {
+    (const char[]) { 0x09, 0x04 },  // 0: is supported language is English (0x0409)
+    "TinyUSB",                      // 1: Manufacturer
+    "TinyUSB Device",               // 2: Product
+    "123456",                       // 3: Serials
+    "MSC",                          // 4. MSC
+};
+
+static uint8_t const msc_fs_configuration_desc[] = {
+    // Config number, interface count, string index, total length, attribute, power in mA
+    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, TUSB_DESC_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
+
+    // Interface number, string index, EP Out & EP In address, EP size
+    TUD_MSC_DESCRIPTOR(ITF_NUM_MSC, 0, EDPT_MSC_OUT, EDPT_MSC_IN, 64),
+};
+
+static tinyusb_msc_storage_handle_t msc_handle = NULL;
+
+static void storage_event_cb(tinyusb_msc_storage_handle_t handle, tinyusb_msc_event_t *event, void *arg)
+{
+    switch (event->id) {
+    case TINYUSB_MSC_EVENT_MOUNT_START:
+        f_setlabel("SPEAKER");
+        ESP_LOGI(TAG, "Storage mount start");
+        break;
+    case TINYUSB_MSC_EVENT_MOUNT_COMPLETE:
+        ESP_LOGI(TAG, "Storage mount complete");
+        break;
+    case TINYUSB_MSC_EVENT_MOUNT_FAILED:
+        ESP_LOGI(TAG, "Storage mount failed");
+        break;
+    case TINYUSB_MSC_EVENT_FORMAT_REQUIRED:
+        ESP_LOGI(TAG, "Storage format required");
+        break;
+    default:
+        ESP_LOGI(TAG, "Storage event unknown: %d", event->id);
+        break;
+    }
+}
+
 
 esp_err_t usb_msc_mount(void)
 {
     ESP_LOGI(TAG, "USB MSC initialization");
 
-    const tinyusb_config_t tusb_cfg = {0};
+    tinyusb_msc_driver_config_t driver_cfg = {
+        .callback = storage_event_cb,                  // Register the callback for mount changed events
+        .callback_arg = NULL,                          // No additional argument for the callback
+    };
 
+    ESP_RETURN_ON_ERROR(tinyusb_msc_install_driver(&driver_cfg), TAG, "tinyusb_msc_driver_install failed");
+
+    tinyusb_msc_storage_config_t config = {
+        .medium.card = bsp_sdcard_get_handle(),        // Set the context to the SDMMC card handle
+        .mount_point = TINYUSB_MSC_STORAGE_MOUNT_APP,  // Initial mount point to APP
+        .fat_fs = {
+            .base_path = "/data",                      // Use default base path
+            .config.max_files = 5,                     // Maximum number of files that can be opened simultaneously
+            .format_flags = 0,                         // No special format flags
+        },
+    };
+    ESP_RETURN_ON_ERROR(tinyusb_msc_new_storage_sdmmc(&config, &msc_handle), TAG, "tinyusb_msc_storage_init failed");
+
+    tinyusb_config_t tusb_cfg = TINYUSB_DEFAULT_CONFIG();
+    tusb_cfg.descriptor.device = &msc_device_descriptor;
+    tusb_cfg.descriptor.full_speed_config = msc_fs_configuration_desc;
+    tusb_cfg.descriptor.string = string_desc_arr;
+    tusb_cfg.descriptor.string_count = sizeof(string_desc_arr) / sizeof(string_desc_arr[0]);
     ESP_RETURN_ON_ERROR(tinyusb_driver_install(&tusb_cfg), TAG, "tinyusb_driver_install failed");
+    ESP_LOGI(TAG, "USB MSC initialization DONE");
 
     return ESP_OK;
 }
-
-//--------------------------------------------------------------------+
-// tinyusb callbacks
-//--------------------------------------------------------------------+
-
-// Invoked when device is mounted
-void tud_mount_cb(void)
-{
-    // Reset the ejection tracking every time we're plugged into USB. This allows for us to battery
-    // power the device, eject, unplug and plug it back in to get the drive.
-    for (uint8_t i = 0; i < LOGICAL_DISK_NUM; i++) {
-        ejected[i] = false;
-    }
-
-    ESP_LOGI(__func__, "");
-}
-
-// Invoked when device is unmounted
-void tud_umount_cb(void)
-{
-    ESP_LOGW(__func__, "");
-}
-
-// Invoked when usb bus is suspended
-// remote_wakeup_en : if host allows us to perform remote wakeup
-// USB Specs: Within 7ms, device must draw an average current less than 2.5 mA from bus
-void tud_suspend_cb(bool remote_wakeup_en)
-{
-    ESP_LOGW(__func__, "");
-}
-
-// Invoked when usb bus is resumed
-void tud_resume_cb(void)
-{
-    ESP_LOGW(__func__, "");
-}
-
-// Callback invoked when WRITE10 command is completed (status received and accepted by host).
-// used to flush any pending cache.
-void tud_msc_write10_complete_cb(uint8_t lun)
-{
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return;
-    }
-
-    // This write is complete, start the auto reload clock.
-    ESP_LOGD(__func__, "");
-}
-
-static bool _logical_disk_ejected(void)
-{
-    bool all_ejected = true;
-
-    for (uint8_t i = 0; i < LOGICAL_DISK_NUM; i++) {
-        all_ejected &= ejected[i];
-    }
-
-    return all_ejected;
-}
-
-// Invoked when received SCSI_CMD_INQUIRY
-// Application fill vendor id, product id and revision with string up to 8, 16, 4 characters respectively
-void tud_msc_inquiry_cb(uint8_t lun, uint8_t vendor_id[8], uint8_t product_id[16], uint8_t product_rev[4])
-{
-    ESP_LOGD(__func__, "");
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return;
-    }
-
-    const char vid[] = "ESP";
-    const char pid[] = "Mass Storage";
-    const char rev[] = "1.0";
-
-    memcpy(vendor_id, vid, strlen(vid));
-    memcpy(product_id, pid, strlen(pid));
-    memcpy(product_rev, rev, strlen(rev));
-}
-
-// Invoked when received Test Unit Ready command.
-// return true allowing host to read/write this LUN e.g SD card inserted
-bool tud_msc_test_unit_ready_cb(uint8_t lun)
-{
-    ESP_LOGD(__func__, "");
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return false;
-    }
-
-    if (_logical_disk_ejected()) {
-        // Set 0x3a for media not present.
-        tud_msc_set_sense(lun, SCSI_SENSE_NOT_READY, 0x3A, 0x00);
-        return false;
-    }
-
-    return true;
-}
-
-// Invoked when received SCSI_CMD_READ_CAPACITY_10 and SCSI_CMD_READ_FORMAT_CAPACITY to determine the disk size
-// Application update block count and block size
-void tud_msc_capacity_cb(uint8_t lun, uint32_t *block_count, uint16_t *block_size)
-{
-    ESP_LOGD(__func__, "");
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return;
-    }
-
-    disk_ioctl(s_pdrv, GET_SECTOR_COUNT, block_count);
-    disk_ioctl(s_pdrv, GET_SECTOR_SIZE, block_size);
-    s_disk_block_size = *block_size;
-    ESP_LOGD(__func__, "GET_SECTOR_COUNT = %"PRIu32"，GET_SECTOR_SIZE = %d", *block_count, *block_size);
-}
-
-bool tud_msc_is_writable_cb(uint8_t lun)
-{
-    ESP_LOGD(__func__, "");
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return false;
-    }
-
-    return true;
-}
-
-// Invoked when received Start Stop Unit command
-// - Start = 0 : stopped power mode, if load_eject = 1 : unload disk storage
-// - Start = 1 : active mode, if load_eject = 1 : load disk storage
-bool tud_msc_start_stop_cb(uint8_t lun, uint8_t power_condition, bool start, bool load_eject)
-{
-    ESP_LOGI(__func__, "");
-    (void) power_condition;
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return false;
-    }
-
-    if (load_eject) {
-        if (!start) {
-            // Eject but first flush.
-            if (disk_ioctl(s_pdrv, CTRL_SYNC, NULL) != RES_OK) {
-                return false;
-            } else {
-                ejected[lun] = true;
-            }
-        } else {
-            // We can only load if it hasn't been ejected.
-            return !ejected[lun];
-        }
-    } else {
-        if (!start) {
-            // Stop the unit but don't eject.
-            if (disk_ioctl(s_pdrv, CTRL_SYNC, NULL) != RES_OK) {
-                return false;
-            }
-        }
-
-        // Always start the unit, even if ejected. Whether media is present is a separate check.
-    }
-
-    return true;
-}
-
-// Callback invoked when received READ10 command.
-// Copy disk's data to buffer (up to bufsize) and return number of copied bytes.
-int32_t tud_msc_read10_cb(uint8_t lun, uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize)
-{
-    ESP_LOGD(__func__, "");
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return 0;
-    }
-
-    const uint32_t block_count = bufsize / s_disk_block_size;
-    disk_read(s_pdrv, buffer, lba, block_count);
-    return block_count * s_disk_block_size;
-}
-
-// Callback invoked when received WRITE10 command.
-// Process data in buffer to disk's storage and return number of written bytes
-int32_t tud_msc_write10_cb(uint8_t lun, uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t bufsize)
-{
-    ESP_LOGD(__func__, "");
-    (void) offset;
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return 0;
-    }
-
-    const uint32_t block_count = bufsize / s_disk_block_size;
-    disk_write(s_pdrv, buffer, lba, block_count);
-    return block_count * s_disk_block_size;
-}
-
-// Callback invoked when received an SCSI command not in built-in list below
-// - READ_CAPACITY10, READ_FORMAT_CAPACITY, INQUIRY, MODE_SENSE6, REQUEST_SENSE
-// - READ10 and WRITE10 has their own callbacks
-int32_t tud_msc_scsi_cb(uint8_t lun, uint8_t const scsi_cmd[16], void *buffer, uint16_t bufsize)
-{
-    // read10 & write10 has their own callback and MUST not be handled here
-    ESP_LOGD(__func__, "");
-
-    if (lun >= LOGICAL_DISK_NUM) {
-        ESP_LOGE(__func__, "invalid lun number %u", lun);
-        return 0;
-    }
-
-    void const *response = NULL;
-    uint16_t resplen = 0;
-
-    // most scsi handled is input
-    bool in_xfer = true;
-
-    switch (scsi_cmd[0]) {
-    case SCSI_CMD_PREVENT_ALLOW_MEDIUM_REMOVAL:
-        // Host is about to read/write etc ... better not to disconnect disk
-        resplen = 0;
-        break;
-
-    default:
-        // Set Sense = Invalid Command Operation
-        tud_msc_set_sense(lun, SCSI_SENSE_ILLEGAL_REQUEST, 0x20, 0x00);
-
-        // negative means error -> tinyusb could stall and/or response with failed status
-        resplen = -1;
-        break;
-    }
-
-    // return resplen must not larger than bufsize
-    if (resplen > bufsize) {
-        resplen = bufsize;
-    }
-
-    if (response && (resplen > 0)) {
-        if (in_xfer) {
-            memcpy(buffer, response, resplen);
-        } else {
-            // SCSI output
-        }
-    }
-
-    return resplen;
-}
-/*********************************************************************** TinyUSB MSC callbacks*/
