@@ -1,7 +1,7 @@
 ## IDF Component Manager Manifest File
 dependencies:
   idf: ">=5.5.0"
-  espressif/esp_tinyusb: "^1.2"
+  espressif/esp_tinyusb: "^2.0.0"
   touch_button: "*"
   touch_slider_sensor: "*"
   espressif2022/bmi270: "^1.1.0~2"

@@ -388,10 +388,10 @@ bool QuickSettings::setVolume(int percent)
 
     VolumeLevel level = VolumeLevel::MUTE;
     if (percent > 0) {
-        percent = std::clamp(percent, QUICK_SETTINGS_VOLUME_PERCENT_MIN, QUICK_SETTINGS_VOLUME_PERCENT_MAX);
+        percent = std::clamp(percent, QUICK_SETTINGS_VOLUME_PERCENT_MIN + 1, QUICK_SETTINGS_VOLUME_PERCENT_MAX);
         auto level_interval =
             ((QUICK_SETTINGS_VOLUME_PERCENT_MAX - QUICK_SETTINGS_VOLUME_PERCENT_MIN) / static_cast<int>(VolumeLevel::MAX));
-        level = static_cast<VolumeLevel>((percent - QUICK_SETTINGS_VOLUME_PERCENT_MIN) / level_interval);
+        level = static_cast<VolumeLevel>((percent - QUICK_SETTINGS_VOLUME_PERCENT_MIN + level_interval - 1) / level_interval - 1);
         if (level >= VolumeLevel::MAX) {
             level = VolumeLevel::LEVEL_3;
         }
