@@ -73,6 +73,10 @@
 #define BSP_SD_CMD            (GPIO_NUM_38)
 #define BSP_SD_CLK            (GPIO_NUM_16)
 
+/* USB */
+#define BSP_USB_DM            (GPIO_NUM_19)
+#define BSP_USB_DP            (GPIO_NUM_20)
+
 /* Others */
 #if CONFIG_BSP_PCB_VERSION_V1_2
 #   define BSP_UART1_TX       (GPIO_NUM_5)

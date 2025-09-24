@@ -756,3 +756,17 @@ static void update_battery_info(Speaker *speaker, const Settings *app_settings)
         _cell->updateRightMainLabel(battery_info_str);
     }
 }
+
+void restart_usb_serial_jtag()
+{
+    gpio_config_t io_usb_power_conf = {
+        .pin_bit_mask = (1ULL << BSP_USB_DP),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    gpio_config(&io_usb_power_conf);
+    gpio_set_level(BSP_USB_DP, 0);
+    _usb_serial_jtag_phy_init();
+}

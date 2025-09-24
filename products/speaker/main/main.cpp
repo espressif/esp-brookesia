@@ -23,6 +23,7 @@ constexpr bool EXAMPLE_SHOW_MEM_INFO = false;
 
 extern "C" void app_main()
 {
+    restart_usb_serial_jtag();
     printf("Project version: %s\n", CONFIG_APP_PROJECT_VER);
 
     assert(services_init()                      && "Initialize services failed");
