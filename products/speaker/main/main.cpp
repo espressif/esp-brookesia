@@ -19,7 +19,7 @@
 #include "modules/file_system.hpp"
 #include "modules/led_indicator.h"
 
-constexpr bool EXAMPLE_SHOW_MEM_INFO = true;
+constexpr bool EXAMPLE_SHOW_MEM_INFO = false;
 
 extern "C" void app_main()
 {

@@ -29,7 +29,7 @@ git clone https://github.com/espressif/esp-brookesia.git
 
 Run `idf.py menuconfig` > `Example Configuration` to configure COZE related parameters.
 
-Please refer to the [EchoEar (Meow Companion) User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8) for relevant configuration parameters.
+Please refer to the [EchoEar User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8) for relevant configuration parameters.
 
 ## How to Use the Example
 
@@ -53,7 +53,7 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 
 You can also use ESP Launchpad to flash pre-built firmware directly. Please choose one of the following methods:
 
-1. **Latest open-source firmware (without built-in Key)**: This firmware is automatically compiled from the current example code and contains the latest features. However, it does not include a built-in Key, so you need to configure the Key yourself after flashing (refer to [EchoEar (Meow Companion) User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8)).
+1. **Latest open-source firmware (without built-in Key)**: This firmware is automatically compiled from the current example code and contains the latest features. However, it does not include a built-in Key, so you need to configure the Key yourself after flashing (refer to [EchoEar User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8)).
 
 <a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia/launchpad.toml">
     <img alt="Try it with ESP Launchpad" src="https://espressif.github.io/esp-launchpad/assets/try_with_launchpad.png" width="200" height="56">

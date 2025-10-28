@@ -28,9 +28,9 @@ constexpr Display::Data STYLESHEET_360_360_DARK_DISPLAY_DATA = {
             },
             .source = gui::AnimPlayerPartitionConfig{
                 .partition_label = "anim_boot",
-                .max_files = MMAP_BOOT_FILES,
+                .max_files = MMAP_ANIM_BOOT_FILES,
                 .fps = (const int []) { 18 },
-                .checksum = MMAP_BOOT_CHECKSUM,
+                .checksum = MMAP_ANIM_BOOT_CHECKSUM,
             },
             // .source = gui::AnimPlayerResourcesConfig{
             //     .num = 1,
@@ -100,9 +100,9 @@ constexpr AI_Buddy::Data STYLESHEET_360_360_DARK_AI_BUDDY_DATA = {
                     },
                     .source = gui::AnimPlayerPartitionConfig{
                         .partition_label = "anim_emotion",
-                        .max_files = MMAP_EMOTION_FILES,
+                        .max_files = MMAP_ANIM_EMOTION_FILES,
                         .fps = (const int []) { 30, 30, 30, 30, 30, 30, 30, 30},
-                        .checksum = MMAP_EMOTION_CHECKSUM,
+                        .checksum = MMAP_ANIM_EMOTION_CHECKSUM,
                     },
                     // .source = gui::AnimPlayerResourcesConfig{
                     //     .num = 6,
@@ -150,9 +150,9 @@ constexpr AI_Buddy::Data STYLESHEET_360_360_DARK_AI_BUDDY_DATA = {
                     },
                     .source = gui::AnimPlayerPartitionConfig{
                         .partition_label = "anim_icon",
-                        .max_files = MMAP_ICON_FILES,
+                        .max_files = MMAP_ANIM_ICON_FILES,
                         .fps = (const int []) { 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15 },
-                        .checksum = MMAP_ICON_CHECKSUM,
+                        .checksum = MMAP_ANIM_ICON_CHECKSUM,
                     },
                     // .source = gui::AnimPlayerResourcesConfig{
                     //     .num = 11,
