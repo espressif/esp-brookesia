@@ -49,6 +49,8 @@
 #define DEFAULT_FETCH_TASK_STACK_SIZE   (5 * 1024)
 #define DEFAULT_GMF_TASK_PRIO           (6)
 #define DEFAULT_GMF_TASK_STACK_SIZE     (5 * 1024)
+#define DEFAULT_PLAYBACK_TASK_PRIO      (7)
+#define DEFAULT_PLAYBACK_TASK_SIZE      (12 * 1024)
 
 #define AFE_WAKEUP_END_MS       (30000)
 
@@ -462,8 +464,8 @@ esp_err_t audio_playback_open(void)
         player_cfg.in.user_ctx = audio_playback.fifo;
         player_cfg.out.cb = playback_write_callback;
         player_cfg.out.user_ctx = audio_manager.play_dev;
-        player_cfg.task_prio = 5;
-        player_cfg.task_stack = 12 * 1024;
+        player_cfg.task_prio = DEFAULT_PLAYBACK_TASK_PRIO;
+        player_cfg.task_stack = DEFAULT_PLAYBACK_TASK_SIZE;
         player_cfg.task_core = 1;
 
         err = esp_audio_simple_player_new(&player_cfg, &audio_playback.player);

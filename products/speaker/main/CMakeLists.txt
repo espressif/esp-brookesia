@@ -57,6 +57,13 @@ if(CONFIG_LV_ATTRIBUTE_FAST_MEM_USE_IRAM)
             "-Wno-attributes"
     )
 endif()
+if(CONFIG_LV_OS_FREERTOS)
+    target_compile_options(
+        ${LVGL_LIB}
+        PUBLIC
+            "-Wno-unused-function"
+    )
+endif()
 
 get_component_library("gmf_core" GMF_CORE_LIB)
 target_compile_options(
