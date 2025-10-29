@@ -405,8 +405,15 @@ bool AI_Buddy::resume()
     _flags.is_pause = false;
     bool is_chat_started = _agent->hasChatState(Agent::ChatStateStarted);
 
+    ESP_UTILS_CHECK_FALSE_RETURN(expression.resume(!is_chat_started, !is_chat_started), false, "Expression resume failed");
     if (is_chat_started) {
-        ESP_UTILS_CHECK_FALSE_RETURN(_agent->resume(), false, "Agent resume failed");
+        ESP_UTILS_CHECK_FALSE_RETURN(
+            expression.setEmoji("sleepy", {.repeat = false, .keep_when_stop = true}, {.repeat = true}),
+            false, "Set emoji failed"
+        );
+    }
+
+    if (is_chat_started) {
         stopAudio(AudioType::MicOff);
         sendAudioEvent({AudioType::MicOn});
         if (!_agent->hasChatState(Agent::_ChatStateSleep)) {
@@ -416,18 +423,16 @@ bool AI_Buddy::resume()
         } else {
             sendAudioEvent({AudioType::WakeUp});
         }
-    }
-
-    ESP_UTILS_CHECK_FALSE_RETURN(expression.resume(!is_chat_started, !is_chat_started), false, "Expression resume failed");
-    if (is_chat_started) {
-        ESP_UTILS_CHECK_FALSE_RETURN(
-            expression.setEmoji("sleepy", {.repeat = false, .keep_when_stop = true}, {.repeat = true}),
-            false, "Set emoji failed"
-        );
+        ESP_UTILS_CHECK_FALSE_RETURN(_agent->resume(), false, "Agent resume failed");
     }
 
     if (_agent->hasChatState(Agent::ChatStateInited)) {
-        ESP_UTILS_CHECK_ERROR_RETURN(audio_manager_suspend(false), false, "Audio manager suspend failed");
+        boost::thread([this]() {
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(2000));
+            if (!_flags.is_pause) {
+                ESP_UTILS_CHECK_ERROR_EXIT(audio_manager_suspend(false), "Audio manager suspend failed");
+            }
+        }).detach();
     }
 
     return true;
@@ -449,7 +454,8 @@ bool AI_Buddy::pause()
     if (_agent->hasChatState(Agent::ChatStateStarted)) {
         stopAudio(AudioType::MicOn);
         sendAudioEvent({AudioType::MicOff});
-    } else if (_agent->hasChatState(Agent::ChatStateInited)) {
+    }
+    if (_agent->hasChatState(Agent::ChatStateInited)) {
         ESP_UTILS_CHECK_ERROR_RETURN(audio_manager_suspend(true), false, "Audio manager suspend failed");
     }
 

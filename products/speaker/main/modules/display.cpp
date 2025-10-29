@@ -48,7 +48,7 @@ bool display_init(bool default_dummy_draw)
             .task_stack_caps = MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT,
             .timer_period_ms = LVGL_TASK_TIMER_PERIOD_MS,
         },
-        .buffer_size = BSP_LCD_H_RES * 50,
+        .buffer_size = BSP_LCD_H_RES * BSP_LCD_V_RES,
         .double_buffer = true,
         .flags = {
             .buff_spiram = false,

@@ -2,9 +2,9 @@
 
 #include "lvgl.h"
 #include "base/assets/esp_brookesia_base_assets.h"
-#include "animations/mmap_generate_boot.h"
-#include "animations/mmap_generate_emotion.h"
-#include "animations/mmap_generate_icon.h"
+#include "animations/mmap_generate_anim_boot.h"
+#include "animations/mmap_generate_anim_emotion.h"
+#include "animations/mmap_generate_anim_icon.h"
 
 #ifdef __cplusplus
 extern "C" {
