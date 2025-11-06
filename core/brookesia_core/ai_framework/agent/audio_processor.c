@@ -27,6 +27,8 @@
 #include "esp_codec_dev.h"
 #include "esp_gmf_fifo.h"
 
+#include "audio_doa.h"
+
 #include "esp_gmf_ringbuffer.h"
 
 #ifndef CONFIG_KEY_PRESS_DIALOG_MODE
@@ -36,6 +38,9 @@
 #include "esp_gmf_afe.h"
 #endif  /* CONFIG_KEY_PRESS_DIALOG_MODE */
 #include "audio_processor.h"
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+#include "audio_doa_tracker.h"
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
 
 #define VAD_ENABLE       (true)
 #define VCMD_ENABLE      (false)
@@ -72,6 +77,8 @@ typedef struct {
     afe_config_t                 *afe_cfg;
     esp_gmf_task_handle_t         task;
 #endif  /* CONFIG_KEY_PRESS_DIALOG_MODE */
+    audio_data_callback_t       data_cb;
+    void                        *data_ctx;
 } audio_recordert_t;
 
 typedef struct {
@@ -86,15 +93,38 @@ typedef struct {
     esp_gmf_pool_handle_t  pool;
 } audio_manager_t;
 
+
+
 #define AUDIO_BUFFER_SIZE   1024 * sizeof(int16_t)
 #define GAUSSIAN_SIGMA      1.0  // Gaussian filter standard deviation
 static esp_gmf_rb_handle_t out_rb = NULL;
-float *gaussian_weights;
-
 static audio_manager_t   audio_manager;
 static audio_recordert_t audio_recorder;
 static audio_playback_t  audio_playback;
 static audio_prompt_t    audio_prompt;
+
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+
+static doa_tracker_t *doa_tracker = NULL;
+static audio_doa_handle_t doa_handle = NULL;
+static doa_result_callback_t doa_result_cb = NULL;
+static void *doa_result_ctx = NULL;
+
+static void doa_result_callback(float angle, void *ctx)
+{
+    ESP_LOGD(TAG, "DOA result: %.2f", angle);
+    doa_tracker_feed(doa_tracker, angle);
+}
+
+static void doa_tracker_result_callback(float angle, void *ctx)
+{
+    ESP_LOGI(TAG, "DOA tracker result: %.2f", angle);
+    if (doa_result_cb) {
+        doa_result_cb((int)angle, doa_result_ctx);
+    }
+}
+
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
 
 esp_err_t audio_manager_init(esp_gmf_setup_periph_hardware_info *info, void **play_dev, void **rec_dev)
 {
@@ -115,6 +145,22 @@ esp_err_t audio_manager_init(esp_gmf_setup_periph_hardware_info *info, void **pl
         *rec_dev = audio_manager.rec_dev;
     }
 
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+
+    audio_doa_config_t doa_cfg = {0};
+    audio_doa_new(&doa_handle, &doa_cfg);
+    if (doa_handle == NULL) {
+        return ESP_FAIL;
+    }
+    doa_tracker = doa_tracker_create(doa_tracker_result_callback, NULL);
+    if (doa_tracker == NULL) {
+        ESP_LOGE(TAG, "Failed to create doa tracker");
+        return ESP_FAIL;
+    }
+    doa_tracker_start(doa_tracker);
+    audio_doa_set_doa_result_callback(doa_handle, doa_result_callback, NULL);
+    audio_doa_start(doa_handle);
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
     return ESP_OK;
 }
 
@@ -190,6 +236,11 @@ static int recorder_inport_acquire_read(void *handle, esp_gmf_payload_t *load, i
 {
     load->valid_size = wanted_size;
     esp_codec_dev_read(audio_manager.rec_dev, load->buf, wanted_size);
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+    if (doa_handle != NULL) {
+        audio_doa_data_write(doa_handle, load->buf, wanted_size);
+    }
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
     return wanted_size;
 }
 
@@ -220,6 +271,9 @@ static void esp_gmf_afe_event_cb(esp_gmf_obj_handle_t obj, esp_gmf_afe_evt_t *ev
         break;
     }
     case ESP_GMF_AFE_EVT_VAD_START: {
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+        doa_tracker_set_vad_state(doa_tracker, true);
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
 #ifndef CONFIG_LANGUAGE_WAKEUP_MODE
         esp_gmf_afe_vcmd_detection_cancel(obj);
         esp_gmf_afe_vcmd_detection_begin(obj);
@@ -228,6 +282,9 @@ static void esp_gmf_afe_event_cb(esp_gmf_obj_handle_t obj, esp_gmf_afe_evt_t *ev
         break;
     }
     case ESP_GMF_AFE_EVT_VAD_END: {
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+        doa_tracker_set_vad_state(doa_tracker, false);
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
 #ifndef CONFIG_LANGUAGE_WAKEUP_MODE
         esp_gmf_afe_vcmd_detection_cancel(obj);
 #endif  /* CONFIG_LANGUAGE_WAKEUP_MODE */
@@ -386,6 +443,13 @@ esp_err_t audio_recorder_read_data(uint8_t *data, int data_size)
     free(blk.buf);
     return blk.valid_size;
 #endif  /* CONFIG_KEY_PRESS_DIALOG_MODE */
+}
+
+esp_err_t audio_recorder_set_data_callback(audio_data_callback_t cb, void *ctx)
+{
+    audio_recorder.data_cb = cb;
+    audio_recorder.data_ctx = ctx;
+    return ESP_OK;
 }
 
 esp_err_t audio_playback_feed_data(uint8_t *data, int data_size)
@@ -634,4 +698,16 @@ esp_err_t audio_prompt_play_mute(bool enable_mute)
 
     esp_codec_dev_set_out_mute(audio_manager.play_dev, enable_mute);
     return ESP_OK;
+}
+
+esp_err_t audio_doa_set_result_callback(doa_result_callback_t cb, void *ctx)
+{
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+    doa_result_cb = cb;
+    doa_result_ctx = ctx;
+    return ESP_OK;
+#else  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
+    ESP_LOGE(TAG, "DOA is not enabled");
+    return ESP_FAIL;
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
 }

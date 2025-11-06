@@ -20,7 +20,7 @@ enum audio_player_state_e {
     AUDIO_PLAYER_STATE_CLOSED,
 };
 
-typedef void (*audio_doa_callback_t)(float angle, void *ctx);
+typedef void (*audio_data_callback_t)(uint8_t *data, int data_size, void *ctx);
 
 /**
  * @brief  Type definition for the audio recorder event callback function
@@ -29,6 +29,8 @@ typedef void (*audio_doa_callback_t)(float angle, void *ctx);
  * @param[in]  ctx    User-defined context pointer, passed when registering the callback
  */
 typedef void (*recorder_event_callback_t)(void *event, void *ctx);
+
+typedef void (*doa_result_callback_t)(int angle, void *ctx);
 
 /**
  * @brief  Initializes the audio manager module.
@@ -104,6 +106,19 @@ esp_err_t audio_recorder_close(void);
  *       - Other   Appropriate esp_err_t error code on failure
  */
 esp_err_t audio_recorder_read_data(uint8_t *data, int data_size);
+
+
+/**
+ * @brief  Reads audio data from the recorder and calls the callback function
+ *
+ * @param[in]  cb   Pointer to the callback function
+ * @param[in]  ctx  User-defined context pointer passed to the callback function
+ *
+ * @return
+ *       - ESP_OK  On success
+ *       - Other   Appropriate esp_err_t error code on failure
+ */
+esp_err_t audio_recorder_set_data_callback(audio_data_callback_t cb, void *ctx);
 
 /**
  * @brief  Opens the audio playback system
@@ -196,6 +211,8 @@ esp_err_t audio_prompt_play_with_block(const char *url, int timeout_ms);
 esp_gmf_element_handle_t audio_processor_get_afe_handle(void);
 
 esp_err_t audio_prompt_play_mute(bool enable_mute);
+
+esp_err_t audio_doa_set_result_callback(doa_result_callback_t cb, void *ctx);
 
 #ifdef __cplusplus
 }

@@ -28,6 +28,10 @@
 #include "touch_sensor.h"
 #include "led_indicator.h"
 
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+#include "doa_angle_control.h"
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
+
 constexpr const char *FUNCTION_OPEN_APP_THREAD_NAME               = "open_app";
 constexpr int         FUNCTION_OPEN_APP_THREAD_STACK_SIZE         = 20 * 1024;
 constexpr int         FUNCTION_OPEN_APP_WAIT_SPEAKING_PRE_MS      = 2000;
@@ -76,6 +80,9 @@ static void touch_sensor_switch();
 static void show_low_power(Speaker *speaker);
 static void update_battery_info(Speaker *speaker, const Settings *app_settings);
 
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+static bool setup_doa_control();
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
 bool system_init()
 {
     ESP_UTILS_LOG_TRACE_GUARD();
@@ -448,6 +455,11 @@ bool system_init()
 
     ESP_UTILS_CHECK_FALSE_RETURN(led_indicator_register_wifi_event(), false, "Failed to register wifi event");
 
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+    /* Setup DOA control */
+    ESP_UTILS_CHECK_FALSE_RETURN(setup_doa_control(), false, "Setup DOA control failed");
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */
+
     return true;
 }
 
@@ -771,3 +783,13 @@ void restart_usb_serial_jtag()
     gpio_set_level(BSP_USB_DP, 0);
     _usb_serial_jtag_phy_init();
 }
+
+#if CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
+static bool setup_doa_control()
+{
+    ESP_UTILS_CHECK_ERROR_RETURN(doa_angle_control_init(), false, "Init DOA angle control failed");
+    ESP_UTILS_CHECK_ERROR_RETURN(audio_doa_set_result_callback(doa_angle_control_set_angle, NULL), false, "Set DOA result callback failed");
+
+    return true;
+}
+#endif  /* CONFIG_ESP_BROOKESIA_SYSTEMS_ENABLE_DOA */

@@ -289,7 +289,7 @@ static void audio_event_callback(esp_coze_chat_event_t event, char *data, void *
             emoji_str = emoji_str.substr(0, emoji_str.length() - 3);
             if (emoji_str.front() == ':' && emoji_str.back() == ':') {
                 emoji_str = emoji_str.substr(1, emoji_str.length() - 2);
-                ESP_UTILS_LOGI("Emoji: %s\n", emoji_str.c_str());
+                // ESP_UTILS_LOGI("Emoji: %s\n", emoji_str.c_str());
                 coze_chat_emoji_signal(emoji_str);
             }
         }
