@@ -27,10 +27,6 @@ menu "Base"
     endif
 endmenu
 
-menuconfig ESP_BROOKESIA_SYSTEMS_ENABLE_DOA
-    bool "DOA"
-    default n
-
 menuconfig ESP_BROOKESIA_SYSTEMS_ENABLE_PHONE
     bool "Phone"
     default y
