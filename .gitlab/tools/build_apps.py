@@ -35,6 +35,7 @@ IGNORE_WARNINGS = [
     r'warning: #warning HPM-DC',
     r'warning: #warning To enable this feature',
     r'warning: #warning If your bootloader does not support it',
+    r'esp_gmf_afe_manager.c:167:26: warning:',
 ]
 
 def _get_idf_version():
@@ -59,13 +60,14 @@ def get_cmake_apps(
     idf_ver = _get_idf_version()
     apps = find_apps(
         paths,
-        recursive=False,
+        recursive=True,
         target=target,
         build_dir=f'{idf_ver}/build_@t_@w',
         config_rules_str=config_rules_str,
         build_log_filename='build_log.txt',
         size_json_filename='size.json',
         check_warnings=True,
+        no_preserve=False,
         default_build_targets=default_build_targets,
         manifest_files=[
             str(Path(PROJECT_ROOT)/'.build-rules.yml'),
@@ -77,6 +79,7 @@ def get_cmake_apps(
 def main(args):  # type: (argparse.Namespace) -> None
     default_build_targets = args.default_build_targets.split(',') if args.default_build_targets else None
     apps = get_cmake_apps(args.paths, args.target, args.config, default_build_targets)
+
     if args.find:
         if args.output:
             os.makedirs(os.path.dirname(os.path.realpath(args.output)), exist_ok=True)
@@ -128,7 +131,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--config',
-        default=['sdkconfig.ci=default', 'sdkconfig.ci.*=', '=default'],
+        default=['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults'],
         action='append',
         help='Adds configurations (sdkconfig file names) to build. This can either be '
         'FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '

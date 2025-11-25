@@ -1,0 +1,250 @@
+variables:
+  DOCKER_TARGET_TEST_v5_5_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/target-test-env-v5.5:2"
+
+.test_template: &test_template
+  image: ${DOCKER_TARGET_TEST_v5_5_ENV_IMAGE}
+  stage: target_test
+  timeout: 4 hour
+  variables:
+    GIT_DEPTH: 1
+    SUBMODULES_TO_FETCH: "none"
+  cache:
+    # Usually do not need submodule-cache in target_test
+    - key: pip-cache
+      paths:
+        - .cache/pip
+      policy: pull
+
+.pytest_template:
+  <<: *test_template
+  artifacts:
+    when: always
+    paths:
+      - XUNIT_RESULT.xml
+      - pytest_embedded_log/
+    reports:
+      junit: XUNIT_RESULT.xml
+    expire_in: 4 days
+  variables:
+    TEST_TARGET: 'esp32s3'
+    TEST_FOLDER: '.'
+    TEST_ENV: 'generic'
+  script:
+    - pip install -r .gitlab/requirements/requirement.pytest.txt
+    - pytest ${TEST_FOLDER} --target ${TEST_TARGET} --env ${TEST_ENV} --junitxml=XUNIT_RESULT.xml
+
+.idf_target_version_matrix: &idf_target_version_matrix
+  - IDF_TARGET: esp32s3
+    IDF_VERSION: "5.5"
+    ENV_TAG: "generic"
+  # - IDF_TARGET: esp32s3
+  #   IDF_VERSION: "6.0"
+  #   ENV_TAG: "generic"
+  - IDF_TARGET: esp32p4
+    IDF_VERSION: "5.5"
+    ENV_TAG: "generic"
+  # - IDF_TARGET: esp32p4
+  #   IDF_VERSION: "6.0"
+  #   ENV_TAG: "generic"
+
+#
+# Test apps: brookesia_lib_utils
+#
+# check
+components_test_brookesia_lib_utils_check:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_check
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_check"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/check
+    TEST_ENV: ${ENV_TAG}
+# function_guard
+components_test_brookesia_lib_utils_function_guard:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_function_guard
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_function_guard"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/function_guard
+    TEST_ENV: ${ENV_TAG}
+# describe_helpers
+components_test_brookesia_lib_utils_describe_helpers:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_describe_helpers
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_describe_helpers"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/describe_helpers
+    TEST_ENV: ${ENV_TAG}
+# log
+components_test_brookesia_lib_utils_log:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_log
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_log"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/log
+    TEST_ENV: ${ENV_TAG}
+# memory_profiler
+components_test_brookesia_lib_utils_memory_profiler:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_memory_profiler
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_memory_profiler"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/memory_profiler
+    TEST_ENV: ${ENV_TAG}
+# plugin
+components_test_brookesia_lib_utils_plugin:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_plugin
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_plugin"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/plugin
+    TEST_ENV: ${ENV_TAG}
+# state_machine
+components_test_brookesia_lib_utils_state_machine:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_state_machine
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_state_machine"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/state_machine
+    TEST_ENV: ${ENV_TAG}
+# task_scheduler
+components_test_brookesia_lib_utils_task_scheduler:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_task_scheduler
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_task_scheduler"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/task_scheduler
+    TEST_ENV: ${ENV_TAG}
+# thread_config
+components_test_brookesia_lib_utils_thread_config:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_thread_config
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_thread_config"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/thread_config
+    TEST_ENV: ${ENV_TAG}
+# thread_profiler
+components_test_brookesia_lib_utils_thread_profiler:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_thread_profiler
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_thread_profiler"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/thread_profiler
+    TEST_ENV: ${ENV_TAG}
+# time_profiler
+components_test_brookesia_lib_utils_time_profiler:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_lib_utils_time_profiler
+  needs:
+    - job: "build_test_apps_brookesia_lib_utils_time_profiler"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: utils/brookesia_lib_utils/test_apps/time_profiler
+    TEST_ENV: ${ENV_TAG}

@@ -1,0 +1,167 @@
+menu "ESP-Brookesia: Library Utils Configurations"
+    config BROOKESIA_UTILS_USE_BOOST
+        bool
+        select BOOST_ASIO_ENABLED
+        select BOOST_THREAD_ENABLED
+        select BOOST_JSON_ENABLED
+        default y
+        help
+            Enable Boost libraries.
+
+    menuconfig BROOKESIA_UTILS_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_UTILS_ENABLE_DEBUG_LOG
+        config BROOKESIA_UTILS_MEMORY_PROFILER_ENABLE_DEBUG_LOG
+            bool "Memory profiler"
+            default n
+
+        config BROOKESIA_UTILS_STATIC_MACHINE_ENABLE_DEBUG_LOG
+            bool "State machine"
+            default n
+
+        config BROOKESIA_UTILS_TASK_SCHEDULER_ENABLE_DEBUG_LOG
+            bool "Task scheduler"
+            default n
+
+        config BROOKESIA_UTILS_THREAD_CONFIG_ENABLE_DEBUG_LOG
+            bool "Thread config"
+            default n
+
+        config BROOKESIA_UTILS_THREAD_PROFILER_ENABLE_DEBUG_LOG
+            bool "Thread profiler"
+            default n
+
+        config BROOKESIA_UTILS_TIME_PROFILER_ENABLE_DEBUG_LOG
+            bool "Time profiler"
+            default n
+    endif
+
+    menu "Check"
+        choice BROOKESIA_UTILS_CHECK_HANDLE_METHOD_CHOICE
+            prompt "Select handle method when check failed"
+            default BROOKESIA_UTILS_CHECK_HANDLE_WITH_ERROR_LOG
+
+            config BROOKESIA_UTILS_CHECK_HANDLE_WITH_NONE
+                bool "Do nothing"
+
+            config BROOKESIA_UTILS_CHECK_HANDLE_WITH_ERROR_LOG
+                bool "Print error message"
+
+            config BROOKESIA_UTILS_CHECK_HANDLE_WITH_ASSERT
+                bool "Assert"
+        endchoice
+
+        config BROOKESIA_UTILS_CHECK_HANDLE_METHOD
+            int
+            default 0 if BROOKESIA_UTILS_CHECK_HANDLE_WITH_NONE
+            default 1 if BROOKESIA_UTILS_CHECK_HANDLE_WITH_ERROR_LOG
+            default 2 if BROOKESIA_UTILS_CHECK_HANDLE_WITH_ASSERT
+    endmenu
+
+    menu "Log"
+        choice BROOKESIA_UTILS_LOG_IMPL_TYPE_CHOICE
+            prompt "Select log implementation"
+            default BROOKESIA_UTILS_LOG_IMPL_TYPE_ESP
+
+            config BROOKESIA_UTILS_LOG_IMPL_TYPE_STDLIB
+                bool "Standard (printf)"
+
+            config BROOKESIA_UTILS_LOG_IMPL_TYPE_ESP
+                bool "ESP (ESP_LOG)"
+        endchoice
+
+        config BROOKESIA_UTILS_LOG_IMPL_TYPE
+            int
+            default 0 if BROOKESIA_UTILS_LOG_IMPL_TYPE_STDLIB
+            default 1 if BROOKESIA_UTILS_LOG_IMPL_TYPE_ESP
+
+        choice BROOKESIA_UTILS_LOG_LEVEL_CHOICE
+            prompt "Select global log level"
+            default BROOKESIA_UTILS_LOG_LEVEL_INFO
+
+            config BROOKESIA_UTILS_LOG_LEVEL_TRACE
+                bool "Trace"
+                help
+                    Trace information that is used for tracing the execution flow of the program
+
+            config BROOKESIA_UTILS_LOG_LEVEL_DEBUG
+                bool "Debug"
+                help
+                    Extra information which is not necessary for normal use (values, pointers, sizes, etc)
+
+            config BROOKESIA_UTILS_LOG_LEVEL_INFO
+                bool "Info"
+                help
+                    Information messages which describe the normal flow of events
+
+            config BROOKESIA_UTILS_LOG_LEVEL_WARNING
+                bool "Warning"
+                help
+                    Error conditions from which recovery measures have been taken
+
+            config BROOKESIA_UTILS_LOG_LEVEL_ERROR
+                bool "Error"
+                help
+                    Critical errors, software module cannot recover on its own
+
+            config BROOKESIA_UTILS_LOG_LEVEL_NONE
+                bool "None"
+                help
+                    No log output
+        endchoice
+
+        config BROOKESIA_UTILS_LOG_LEVEL
+            int
+            default 0 if BROOKESIA_UTILS_LOG_LEVEL_TRACE
+            default 1 if BROOKESIA_UTILS_LOG_LEVEL_DEBUG
+            default 2 if BROOKESIA_UTILS_LOG_LEVEL_INFO
+            default 3 if BROOKESIA_UTILS_LOG_LEVEL_WARNING
+            default 4 if BROOKESIA_UTILS_LOG_LEVEL_ERROR
+            default 5 if BROOKESIA_UTILS_LOG_LEVEL_NONE
+    endmenu
+
+    menu "Thread Config"
+        config BROOKESIA_UTILS_THREAD_CONFIG_NAME
+            string "Name"
+            default "bthread"
+            help
+                The default name of the thread.
+
+        config BROOKESIA_UTILS_THREAD_CONFIG_CORE_ID
+            int "Core ID"
+            default -1
+            help
+                The default core ID of the thread. `-1` means the core ID is not specified.
+
+        config BROOKESIA_UTILS_THREAD_CONFIG_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The default priority of the thread.
+
+        config BROOKESIA_UTILS_THREAD_CONFIG_STACK_SIZE
+            int "Stack size"
+            default 4096
+            help
+                The default stack size of the thread.
+
+        config BROOKESIA_UTILS_THREAD_CONFIG_STACK_IN_EXT
+            bool "Stack in external memory"
+            default y if SPIRAM
+            default n if !SPIRAM
+            help
+                Whether the stack of the thread is in external memory. If enabled, the stack will be allocated in external memory. If disabled, the stack will be allocated in internal memory.
+    endmenu
+
+    menu "Thread Profiler"
+        config BROOKESIA_UTILS_THREAD_PROFILER_ENABLE_FREERTOS_CONFIG
+            bool "Enable FreeRTOS configurations"
+            default n
+            select FREERTOS_VTASKLIST_INCLUDE_COREID
+            select FREERTOS_GENERATE_RUN_TIME_STATS
+            help
+                Whether to enable the FreeRTOS configurations for the thread profiler. If enabled, the thread profiler will use the FreeRTOS configurations to get the thread information.
+    endmenu
+endmenu

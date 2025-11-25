@@ -5,9 +5,10 @@
 # build system, if changed, build all apps
 .patterns-build_system: &patterns-build_system
   # For test
-  - ".gitlab/**/*"
-  - "conftest.py"
-  - "pytest.ini"
+  - ""
+  # - ".gitlab/**/*"
+  # - "conftest.py"
+  # - "pytest.ini"
 
 # apps folder
 # brookesia_app_ai_profile
@@ -38,11 +39,41 @@
   - "core/brookesia_core/CMakeLists.txt"
   - "core/brookesia_core/idf_component.yml"
   - "core/brookesia_core/Kconfig"
+# brookesia_lib_utils
+.patterns-component_brookesia_lib_utils: &patterns-component_brookesia_lib_utils
+  - "utils/brookesia_lib_utils/include/**/*"
+  - "utils/brookesia_lib_utils/src/**/*"
+  - "utils/brookesia_lib_utils/CMakeLists.txt"
+  - "utils/brookesia_lib_utils/idf_component.yml"
+  - "utils/brookesia_lib_utils/Kconfig"
 
 # test_apps folder
 # brookesia_core
 .patterns-test_apps_brookesia_core: &patterns-test_apps_brookesia_core
   - "core/brookesia_core/test_apps/**/*"
+# brookesia_lib_utils
+.patterns-test_apps_brookesia_lib_utils_check: &patterns-test_apps_brookesia_lib_utils_check
+  - "utils/brookesia_lib_utils/test_apps/check/**/*"
+.patterns-test_apps_brookesia_lib_utils_describe_helpers: &patterns-test_apps_brookesia_lib_utils_describe_helpers
+  - "utils/brookesia_lib_utils/test_apps/describe_helpers/**/*"
+.patterns-test_apps_brookesia_lib_utils_function_guard: &patterns-test_apps_brookesia_lib_utils_function_guard
+  - "utils/brookesia_lib_utils/test_apps/function_guard/**/*"
+.patterns-test_apps_brookesia_lib_utils_log: &patterns-test_apps_brookesia_lib_utils_log
+  - "utils/brookesia_lib_utils/test_apps/log/**/*"
+.patterns-test_apps_brookesia_lib_utils_memory_profiler: &patterns-test_apps_brookesia_lib_utils_memory_profiler
+  - "utils/brookesia_lib_utils/test_apps/memory_profiler/**/*"
+.patterns-test_apps_brookesia_lib_utils_plugin: &patterns-test_apps_brookesia_lib_utils_plugin
+  - "utils/brookesia_lib_utils/test_apps/plugin/**/*"
+.patterns-test_apps_brookesia_lib_utils_state_machine: &patterns-test_apps_brookesia_lib_utils_state_machine
+  - "utils/brookesia_lib_utils/test_apps/state_machine/**/*"
+.patterns-test_apps_brookesia_lib_utils_task_scheduler: &patterns-test_apps_brookesia_lib_utils_task_scheduler
+  - "utils/brookesia_lib_utils/test_apps/task_scheduler/**/*"
+.patterns-test_apps_brookesia_lib_utils_thread_config: &patterns-test_apps_brookesia_lib_utils_thread_config
+  - "utils/brookesia_lib_utils/test_apps/thread_config/**/*"
+.patterns-test_apps_brookesia_lib_utils_thread_profiler: &patterns-test_apps_brookesia_lib_utils_thread_profiler
+  - "utils/brookesia_lib_utils/test_apps/thread_profiler/**/*"
+.patterns-test_apps_brookesia_lib_utils_time_profiler: &patterns-test_apps_brookesia_lib_utils_time_profiler
+  - "utils/brookesia_lib_utils/test_apps/time_profiler/**/*"
 
 # docs folder
 .patterns-docs_md: &patterns-docs_md
@@ -107,19 +138,140 @@
 .if_label-deploy: &if-label-deploy
   if: '$BOT_LABEL_DEPLOY || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*deploy(?:,[^,\n\r]+)*$/i'
 
-# # rules for component test_apps
-# .rules:build:component_test_apps:
-#   rules:
-#     - <<: *if-protected
-#     - <<: *if-label-build
-#     - <<: *if-label-target_test
-#     - <<: *if-trigger-job
-#     - <<: *if-dev-push
-#       changes: *patterns-build_system
-#     - <<: *if-dev-push
-#       changes: *patterns-component_brookesia_core
-#     - <<: *if-dev-push
-#       changes: *patterns-test_apps_brookesia_core
+# rules for test_apps
+# brookesia_lib_utils
+.rules:build:test_apps_brookesia_lib_utils_check:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_check
+.rules:build:test_apps_brookesia_lib_utils_describe_helpers:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_describe_helpers
+.rules:build:test_apps_brookesia_lib_utils_function_guard:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_function_guard
+.rules:build:test_apps_brookesia_lib_utils_log:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_log
+.rules:build:test_apps_brookesia_lib_utils_memory_profiler:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_memory_profiler
+.rules:build:test_apps_brookesia_lib_utils_plugin:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_plugin
+.rules:build:test_apps_brookesia_lib_utils_state_machine:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_state_machine
+.rules:build:test_apps_brookesia_lib_utils_task_scheduler:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_task_scheduler
+.rules:build:test_apps_brookesia_lib_utils_thread_config:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_thread_config
+.rules:build:test_apps_brookesia_lib_utils_thread_profiler:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_thread_profiler
+.rules:build:test_apps_brookesia_lib_utils_time_profiler:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_lib_utils_time_profiler
 
 # rules for products
 .rules:build:products_phone_m5stack_core_s3:
