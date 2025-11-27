@@ -5,3 +5,5 @@
 .github/tools/get_example_version.sh
 .github/tools/generate_launchpad_config.sh
 .github/tools/get_boards_name.sh
+
+.gitlab/tools/run_test_apps.py

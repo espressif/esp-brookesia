@@ -1,9 +1,9 @@
 name: Push components to Espressif Component Service
 
 on:
-  workflow_dispatch:
-  release:
-    types: [published]
+  push:
+    branches:
+      - master
 
 jobs:
   upload_components:
@@ -15,6 +15,7 @@ jobs:
       - name: Upload components to component service
         uses: espressif/upload-components-ci-action@v1
         with:
-          name: "esp-brookesia"
+          directories: >
+            utils/brookesia_lib_utils;
           namespace: "espressif"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}
