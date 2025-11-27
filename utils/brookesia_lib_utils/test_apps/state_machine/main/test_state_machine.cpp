@@ -34,22 +34,22 @@ class IdleState : public esp_brookesia::lib_utils::StateBase {
 public:
     IdleState(StateMachine *sm) : sm_(sm) {}
 
-    bool on_enter(const std::string &from_state) override
+    bool on_enter(const std::string &from_state, const std::string &action) override
     {
         // Verify state machine is unlocked
         sm_->is_running();
 
-        BROOKESIA_LOGI("IdleState::on_enter from %1%", from_state.empty() ? "initial" : from_state);
+        BROOKESIA_LOGI("IdleState::on_enter from %1% action %2%", from_state.empty() ? "initial" : from_state, action);
         enter_count_++;
         return true;
     }
 
-    bool on_exit(const std::string &to_state) override
+    bool on_exit(const std::string &to_state, const std::string &action) override
     {
         // Verify state machine is unlocked
         sm_->is_running();
 
-        BROOKESIA_LOGI("IdleState::on_exit to %1%", to_state);
+        BROOKESIA_LOGI("IdleState::on_exit to %1% action %2%", to_state, action);
         exit_count_++;
         return true;
     }
@@ -73,16 +73,16 @@ class RunningState : public esp_brookesia::lib_utils::StateBase {
 public:
     RunningState() = default;
 
-    bool on_enter(const std::string &from_state) override
+    bool on_enter(const std::string &from_state, const std::string &action) override
     {
-        BROOKESIA_LOGI("RunningState::on_enter from %1%", from_state.empty() ? "initial" : from_state);
+        BROOKESIA_LOGI("RunningState::on_enter from %1% action %2%", from_state.empty() ? "initial" : from_state, action);
         enter_count_++;
         return true;
     }
 
-    bool on_exit(const std::string &to_state) override
+    bool on_exit(const std::string &to_state, const std::string &action) override
     {
-        BROOKESIA_LOGI("RunningState::on_exit to %1%", to_state);
+        BROOKESIA_LOGI("RunningState::on_exit to %1% action %2%", to_state, action);
         exit_count_++;
         return true;
     }
@@ -102,16 +102,16 @@ class ErrorState : public esp_brookesia::lib_utils::StateBase {
 public:
     ErrorState() = default;
 
-    bool on_enter(const std::string &from_state) override
+    bool on_enter(const std::string &from_state, const std::string &action) override
     {
-        BROOKESIA_LOGI("ErrorState::on_enter from %1%", from_state.empty() ? "initial" : from_state);
+        BROOKESIA_LOGI("ErrorState::on_enter from %1% action %2%", from_state.empty() ? "initial" : from_state, action);
         enter_count_++;
         return true;
     }
 
-    bool on_exit(const std::string &to_state) override
+    bool on_exit(const std::string &to_state, const std::string &action) override
     {
-        BROOKESIA_LOGI("ErrorState::on_exit to %1%", to_state);
+        BROOKESIA_LOGI("ErrorState::on_exit to %1% action %2%", to_state, action);
         exit_count_++;
         return true;
     }
@@ -125,10 +125,10 @@ public:
     GuardedState(bool allow_enter = true, bool allow_exit = true)
         : allow_enter_(allow_enter), allow_exit_(allow_exit) {}
 
-    bool on_enter(const std::string &from_state) override
+    bool on_enter(const std::string &from_state, const std::string &action) override
     {
-        BROOKESIA_LOGI("GuardedState::on_enter from %1% (allowed: %2%)",
-                       from_state.empty() ? "initial" : from_state, allow_enter_);
+        BROOKESIA_LOGI("GuardedState::on_enter from %1% action %2% (allowed: %3%)",
+                       from_state.empty() ? "initial" : from_state, action, allow_enter_);
         enter_attempt_count_++;
         if (allow_enter_) {
             enter_count_++;
@@ -136,9 +136,9 @@ public:
         return allow_enter_;
     }
 
-    bool on_exit(const std::string &to_state) override
+    bool on_exit(const std::string &to_state, const std::string &action) override
     {
-        BROOKESIA_LOGI("GuardedState::on_exit to %1% (allowed: %2%)", to_state, allow_exit_);
+        BROOKESIA_LOGI("GuardedState::on_exit to %1% action %2% (allowed: %3%)", to_state, action, allow_exit_);
         exit_attempt_count_++;
         if (allow_exit_) {
             exit_count_++;
@@ -192,14 +192,14 @@ TEST_CASE("Test state machine basic transition", "[utils][state_machine][basic]"
     TEST_ASSERT_EQUAL(0, idle->exit_count_.load());
 
     // Trigger state transition
-    sm.trigger_event("start");
+    sm.trigger_action("start");
     vTaskDelay(pdMS_TO_TICKS(100));
 
     TEST_ASSERT_EQUAL(1, idle->exit_count_.load());
     TEST_ASSERT_EQUAL(1, running->enter_count_.load());
 
     // Trigger state transition again
-    sm.trigger_event("stop");
+    sm.trigger_action("stop");
     vTaskDelay(pdMS_TO_TICKS(100));
 
     TEST_ASSERT_EQUAL(1, running->exit_count_.load());
@@ -241,7 +241,7 @@ TEST_CASE("Test state machine with timeout", "[utils][state_machine][timeout]")
     auto idle = std::make_shared<IdleState>(&sm);
     auto running = std::make_shared<RunningState>();
 
-    idle->set_timeout(200, "timeout"); // 200ms after trigger timeout event
+    idle->set_timeout(200, "timeout"); // 200ms after trigger timeout action
 
     sm.add_state("idle", idle);
     sm.add_state("running", running);
@@ -283,7 +283,7 @@ TEST_CASE("Test state machine with entry guard", "[utils][state_machine][guard]"
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Try to enter the guarded state
-    sm.trigger_event("enter_guarded");
+    sm.trigger_action("enter_guarded");
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Entry rejected, should roll back to idle state
@@ -312,7 +312,7 @@ TEST_CASE("Test state machine with exit guard", "[utils][state_machine][guard]")
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Try to exit the guarded state
-    sm.trigger_event("exit");
+    sm.trigger_action("exit");
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Exit rejected, should stay in guarded state
@@ -349,17 +349,17 @@ TEST_CASE("Test state machine multiple states", "[utils][state_machine][complex]
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // idle -> running
-    sm.trigger_event("start");
+    sm.trigger_action("start");
     vTaskDelay(pdMS_TO_TICKS(50));
     TEST_ASSERT_EQUAL(1, running->enter_count_.load());
 
     // running -> error
-    sm.trigger_event("error");
+    sm.trigger_action("error");
     vTaskDelay(pdMS_TO_TICKS(50));
     TEST_ASSERT_EQUAL(1, error->enter_count_.load());
 
     // error -> idle
-    sm.trigger_event("reset");
+    sm.trigger_action("reset");
     vTaskDelay(pdMS_TO_TICKS(50));
     TEST_ASSERT_EQUAL(2, idle->enter_count_.load());
 }
@@ -383,8 +383,8 @@ TEST_CASE("Test state machine invalid transitions", "[utils][state_machine][inva
     sm.start(scheduler, "idle");
     vTaskDelay(pdMS_TO_TICKS(50));
 
-    // Trigger non-existent event
-    sm.trigger_event("invalid_event");
+    // Trigger non-existent action
+    sm.trigger_action("invalid_action");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // State should not change
@@ -413,7 +413,7 @@ TEST_CASE("Test state machine self transition", "[utils][state_machine][self]")
     TEST_ASSERT_EQUAL(1, idle->enter_count_.load());
 
     // Trigger self transition (should be ignored, because target state is the same as current state)
-    sm.trigger_event("refresh");
+    sm.trigger_action("refresh");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Self transition ignored, count remains the same
@@ -450,7 +450,7 @@ TEST_CASE("Test state machine task cancellation on transition", "[utils][state_m
     TEST_ASSERT_GREATER_THAN(0, idle_updates);
 
     // Transition to running state
-    sm.trigger_event("start");
+    sm.trigger_action("start");
     vTaskDelay(pdMS_TO_TICKS(200));
 
     // idle's update should stop, running's update should start
@@ -488,7 +488,7 @@ TEST_CASE("Test state machine timeout cancellation on transition", "[utils][stat
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Transition to running state before timeout
-    sm.trigger_event("start");
+    sm.trigger_action("start");
     vTaskDelay(pdMS_TO_TICKS(100));
 
     TEST_ASSERT_EQUAL(1, running->enter_count_.load());
@@ -544,9 +544,9 @@ TEST_CASE("Test state machine rapid transitions", "[utils][state_machine][rapid]
 
     // Trigger multiple transitions quickly
     for (int i = 0; i < 10; i++) {
-        sm.trigger_event("start");
+        sm.trigger_action("start");
         vTaskDelay(pdMS_TO_TICKS(20));
-        sm.trigger_event("stop");
+        sm.trigger_action("stop");
         vTaskDelay(pdMS_TO_TICKS(20));
     }
 
@@ -560,9 +560,9 @@ TEST_CASE("Test state machine rapid transitions", "[utils][state_machine][rapid]
     TEST_ASSERT_GREATER_THAN(5, running->enter_count_.load());
 }
 
-TEST_CASE("Test state machine concurrent trigger events", "[utils][state_machine][concurrent]")
+TEST_CASE("Test state machine concurrent trigger actions", "[utils][state_machine][concurrent]")
 {
-    BROOKESIA_LOGI("=== State Machine Concurrent Trigger Events Test ===");
+    BROOKESIA_LOGI("=== State Machine Concurrent Trigger Actions Test ===");
 
     auto scheduler = std::make_shared<TaskScheduler>();
     scheduler->start(TEST_SCHEDULER_CONFIG_FOUR_THREADS);
@@ -575,22 +575,22 @@ TEST_CASE("Test state machine concurrent trigger events", "[utils][state_machine
         TrackingState(const std::string &name)
             : name_(name) {}
 
-        bool on_enter(const std::string &from_state) override
+        bool on_enter(const std::string &from_state, const std::string &action) override
         {
             boost::lock_guard<boost::mutex> lock(mutex_);
             enter_count_++;
             enter_from_.push_back(from_state.empty() ? "initial" : from_state);
-            BROOKESIA_LOGI("%1%::on_enter from %2% (count: %3%)",
-                           name_, from_state.empty() ? "initial" : from_state, enter_count_.load());
+            BROOKESIA_LOGI("%1%::on_enter from %2% action %3% (count: %4%)",
+                           name_, from_state.empty() ? "initial" : from_state, action, enter_count_.load());
             return true;
         }
 
-        bool on_exit(const std::string &to_state) override
+        bool on_exit(const std::string &to_state, const std::string &action) override
         {
             boost::lock_guard<boost::mutex> lock(mutex_);
             exit_count_++;
             exit_to_.push_back(to_state);
-            BROOKESIA_LOGI("%1%::on_exit to %2% (count: %3%)", name_, to_state, exit_count_.load());
+            BROOKESIA_LOGI("%1%::on_exit to %2% action %3% (count: %4%)", name_, to_state, action, exit_count_.load());
             // Add a small delay to increase the chance of race condition
             vTaskDelay(pdMS_TO_TICKS(10));
             return true;
@@ -621,26 +621,26 @@ TEST_CASE("Test state machine concurrent trigger events", "[utils][state_machine
     TEST_ASSERT_EQUAL(1, state_a->enter_count_.load());
     BROOKESIA_LOGI("Current state: %1%", sm.get_current_state().c_str());
 
-    // Concurrent trigger two events: almost simultaneously trigger to_b and to_c
-    // 预期行为：只有第一个事件应该成功触发转换
-    // Expected behavior: only the first event should successfully trigger the transition
-    // Problem behavior: both events may be based on state A
-    BROOKESIA_LOGI("Triggering concurrent events...");
+    // Concurrent trigger two actions: almost simultaneously trigger to_b and to_c
+    // 预期行为：只有第一个动作应该成功触发转换
+    // Expected behavior: only the first action should successfully trigger the transition
+    // Problem behavior: both actions may be based on state A
+    BROOKESIA_LOGI("Triggering concurrent actions...");
 
     // Use multiple threads to trigger concurrently
-    std::atomic<bool> event1_result{false};
-    std::atomic<bool> event2_result{false};
+    std::atomic<bool> action1_result{false};
+    std::atomic<bool> action2_result{false};
 
-    std::thread t1([&sm, &event1_result]() {
+    std::thread t1([&sm, &action1_result]() {
         BROOKESIA_LOGI("Thread 1: trigger to_b");
-        event1_result = sm.trigger_event("to_b");
-        BROOKESIA_LOGI("Thread 1: result = %1%", event1_result.load());
+        action1_result = sm.trigger_action("to_b");
+        BROOKESIA_LOGI("Thread 1: result = %1%", action1_result.load());
     });
 
-    std::thread t2([&sm, &event2_result]() {
+    std::thread t2([&sm, &action2_result]() {
         BROOKESIA_LOGI("Thread 2: trigger to_c");
-        event2_result = sm.trigger_event("to_c");
-        BROOKESIA_LOGI("Thread 2: result = %1%", event2_result.load());
+        action2_result = sm.trigger_action("to_c");
+        BROOKESIA_LOGI("Thread 2: result = %1%", action2_result.load());
     });
 
     t1.join();
@@ -703,11 +703,11 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
         std::vector<std::tuple<std::string, std::string, std::string>> invocations;
         boost::mutex mutex_;
 
-        void record(const std::string &from, const std::string &event, const std::string &to)
+        void record(const std::string &from, const std::string &action, const std::string &to)
         {
             boost::lock_guard<boost::mutex> lock(mutex_);
-            invocations.push_back(std::make_tuple(from, event, to));
-            BROOKESIA_LOGI("Callback: from='%1%', event='%2%', to='%3%'", from, event, to);
+            invocations.push_back(std::make_tuple(from, action, to));
+            BROOKESIA_LOGI("Callback: from='%1%', action='%2%', to='%3%'", from, action, to);
         }
 
         size_t count()
@@ -727,8 +727,8 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
 
     // Set callback
     sm.register_transition_finish_callback(
-    [&sm, &tracker](const std::string & from, const std::string & event, const std::string & to) {
-        tracker.record(from, event, to);
+    [&sm, &tracker](const std::string & from, const std::string & action, const std::string & to) {
+        tracker.record(from, action, to);
         // Verify state machine is unlocked
         sm.is_running();
     });
@@ -741,7 +741,7 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
     TEST_ASSERT_EQUAL(0, tracker.count());
 
     // Trigger transition: idle -> running
-    sm.trigger_event("start");
+    sm.trigger_action("start");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Callback should be called once
@@ -756,7 +756,7 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
     }
 
     // Trigger transition: running -> idle
-    sm.trigger_event("stop");
+    sm.trigger_action("stop");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Callback should be called again
@@ -771,11 +771,11 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
     }
 
     // Trigger transition: idle -> running again
-    sm.trigger_event("start");
+    sm.trigger_action("start");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Trigger transition: running -> error
-    sm.trigger_event("error");
+    sm.trigger_action("error");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Should have 4 callbacks total
@@ -807,7 +807,7 @@ TEST_CASE("Test state machine transition finish callback with self transition", 
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Trigger self transition
-    sm.trigger_event("refresh");
+    sm.trigger_action("refresh");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Self transition shouldn't be ignored, callback should be called
@@ -841,7 +841,7 @@ TEST_CASE("Test state machine transition finish callback with guard rejection", 
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Try to enter guarded state (should fail)
-    sm.trigger_event("enter_guarded");
+    sm.trigger_action("enter_guarded");
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Transition failed, callback should not be called
@@ -865,14 +865,14 @@ TEST_CASE("Test state machine transition finish callback multiple transitions", 
     sm.add_transition("idle", "start", "running");
     sm.add_transition("running", "stop", "idle");
 
-    std::vector<std::string> transition_events;
-    boost::mutex events_mutex;
+    std::vector<std::string> transition_actions;
+    boost::mutex actions_mutex;
 
     sm.register_transition_finish_callback(
-    [&sm, &transition_events, &events_mutex](const std::string & from, const std::string & event, const std::string & to) {
-        boost::lock_guard<boost::mutex> lock(events_mutex);
-        std::string transition = from + " -> " + event + " -> " + to;
-        transition_events.push_back(transition);
+    [&sm, &transition_actions, &actions_mutex](const std::string & from, const std::string & action, const std::string & to) {
+        boost::lock_guard<boost::mutex> lock(actions_mutex);
+        std::string transition = from + " -> " + action + " -> " + to;
+        transition_actions.push_back(transition);
         BROOKESIA_LOGI("Transition: %1%", transition.c_str());
 
         // Verify state machine is unlocked
@@ -884,9 +884,9 @@ TEST_CASE("Test state machine transition finish callback multiple transitions", 
 
     // Perform multiple transitions
     for (int i = 0; i < 5; i++) {
-        sm.trigger_event("start");
+        sm.trigger_action("start");
         vTaskDelay(pdMS_TO_TICKS(50));
-        sm.trigger_event("stop");
+        sm.trigger_action("stop");
         vTaskDelay(pdMS_TO_TICKS(50));
     }
 
@@ -894,8 +894,8 @@ TEST_CASE("Test state machine transition finish callback multiple transitions", 
 
     // Should have 10 callbacks (5 start + 5 stop transitions)
     {
-        boost::lock_guard<boost::mutex> lock(events_mutex);
-        TEST_ASSERT_EQUAL(10, transition_events.size());
+        boost::lock_guard<boost::mutex> lock(actions_mutex);
+        TEST_ASSERT_EQUAL(10, transition_actions.size());
     }
 }
 

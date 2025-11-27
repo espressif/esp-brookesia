@@ -753,7 +753,7 @@ std::string describe_enum_to_string(T value)
  * @brief Convert enum to number
  */
 template <typename T>
-std::underlying_type_t<T> describe_enum_to_number(T value)
+constexpr std::underlying_type_t<T> describe_enum_to_number(T value) noexcept
 {
     static_assert(std::is_enum_v<T>, "T must be an enum type");
     return static_cast<std::underlying_type_t<T>>(value);
@@ -870,7 +870,7 @@ std::string describe_to_string(const T &value, const detail::DescribeOutputForma
 #define BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(value, fmt) esp_brookesia::lib_utils::describe_to_string(value, fmt) ///< Convert with custom format
 
 // Enum conversion macros
-#define BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(value) \
+#define BROOKESIA_DESCRIBE_ENUM_TO_NUM(value) \
     esp_brookesia::lib_utils::describe_enum_to_number(value)        ///< Convert enum to underlying number
 #define BROOKESIA_DESCRIBE_NUM_TO_ENUM(number, ret_value) \
     esp_brookesia::lib_utils::describe_number_to_enum(number, ret_value)  ///< Convert number to enum
@@ -890,3 +890,17 @@ std::string describe_to_string(const T &value, const detail::DescribeOutputForma
     esp_brookesia::lib_utils::describe_get_global_format()  ///< Get global format
 #define BROOKESIA_DESCRIBE_RESET_GLOBAL_FORMAT() \
     esp_brookesia::lib_utils::describe_reset_global_format()  ///< Reset global format
+
+// Predefined format macros for convenient access
+#define BROOKESIA_DESCRIBE_FORMAT_DEFAULT \
+    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_DEFAULT  ///< Default format: { key: value, ... }
+#define BROOKESIA_DESCRIBE_FORMAT_COMPACT \
+    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_COMPACT  ///< Compact format: {key=value,...}
+#define BROOKESIA_DESCRIBE_FORMAT_VERBOSE \
+    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_VERBOSE  ///< Verbose format with newlines and type info
+#define BROOKESIA_DESCRIBE_FORMAT_JSON \
+    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_JSON     ///< JSON-like format with quotes
+#define BROOKESIA_DESCRIBE_FORMAT_PYTHON \
+    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_PYTHON   ///< Python dict-like format
+#define BROOKESIA_DESCRIBE_FORMAT_CPP \
+    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_CPP      ///< C++ initializer list format

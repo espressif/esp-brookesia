@@ -236,16 +236,16 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR_WITH_FMT - formats", "[macro][to_str_f
     BROOKESIA_LOGI("✓ Formats test passed");
 }
 
-// ==================== Test BROOKESIA_DESCRIBE_ENUM_TO_NUMBER ====================
+// ==================== Test BROOKESIA_DESCRIBE_ENUM_TO_NUM ====================
 
-TEST_CASE("Test BROOKESIA_DESCRIBE_ENUM_TO_NUMBER", "[macro][enum_to_number]")
+TEST_CASE("Test BROOKESIA_DESCRIBE_ENUM_TO_NUM", "[macro][enum_to_number]")
 {
     BROOKESIA_LOGI("=== DESCRIBE_ENUM_TO_NUMBER ===");
 
-    TEST_ASSERT_EQUAL(0, BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(Status::Idle));
-    TEST_ASSERT_EQUAL(1, BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(Status::Running));
-    TEST_ASSERT_EQUAL(2, BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(Status::Stopped));
-    TEST_ASSERT_EQUAL(100, BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(Status::Error));
+    TEST_ASSERT_EQUAL(0, BROOKESIA_DESCRIBE_ENUM_TO_NUM(Status::Idle));
+    TEST_ASSERT_EQUAL(1, BROOKESIA_DESCRIBE_ENUM_TO_NUM(Status::Running));
+    TEST_ASSERT_EQUAL(2, BROOKESIA_DESCRIBE_ENUM_TO_NUM(Status::Stopped));
+    TEST_ASSERT_EQUAL(100, BROOKESIA_DESCRIBE_ENUM_TO_NUM(Status::Error));
 
     BROOKESIA_LOGI("✓ Enum to number test passed");
 }
@@ -536,7 +536,7 @@ TEST_CASE("Test combined macro usage", "[macro][combined]")
     BROOKESIA_LOGI("Converted: %1%", BROOKESIA_DESCRIBE_TO_STR(task2));
 
     // Enum conversions
-    auto status_num = BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(task2.status);
+    auto status_num = BROOKESIA_DESCRIBE_ENUM_TO_NUM(task2.status);
     BROOKESIA_LOGI("Status number: %1%", status_num);
     TEST_ASSERT_EQUAL(1, status_num);
 

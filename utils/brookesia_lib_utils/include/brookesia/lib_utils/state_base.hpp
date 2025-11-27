@@ -25,11 +25,13 @@ public:
      * @brief Called when entering this state
      *
      * @param from_state Name of the previous state (empty for initial state)
+     * @param action Name of the action that triggered the transition (empty if not specified)
      * @return true if entry is allowed, false to deny entry
      */
-    virtual bool on_enter(const std::string &from_state = "")
+    virtual bool on_enter(const std::string &from_state = "", const std::string &action = "")
     {
         (void)from_state;
+        (void)action;
         return true;
     }
 
@@ -37,11 +39,13 @@ public:
      * @brief Called when exiting this state
      *
      * @param to_state Name of the next state
+     * @param action Name of the action that triggered the transition (empty if not specified)
      * @return true if exit is allowed, false to deny exit
      */
-    virtual bool on_exit(const std::string &to_state = "")
+    virtual bool on_exit(const std::string &to_state = "", const std::string &action = "")
     {
         (void)to_state;
+        (void)action;
         return true;
     }
 
@@ -54,12 +58,12 @@ public:
      * @brief Set timeout for this state
      *
      * @param ms Timeout in milliseconds
-     * @param event Event to trigger when timeout occurs
+     * @param action Action to trigger when timeout occurs
      */
-    void set_timeout(uint32_t ms, const std::string &event)
+    void set_timeout(uint32_t ms, const std::string &action)
     {
         timeout_ms_ = ms;
-        timeout_event_ = event;
+        timeout_action_ = action;
     }
 
     /**
@@ -77,9 +81,9 @@ public:
         return timeout_ms_;
     }
 
-    const std::string &get_timeout_event() const
+    const std::string &get_timeout_action() const
     {
-        return timeout_event_;
+        return timeout_action_;
     }
 
     uint32_t get_update_interval() const
@@ -89,7 +93,7 @@ public:
 
 private:
     uint32_t timeout_ms_ = 0;
-    std::string timeout_event_;
+    std::string timeout_action_;
     uint32_t update_interval_ms_ = 0;
 };
 

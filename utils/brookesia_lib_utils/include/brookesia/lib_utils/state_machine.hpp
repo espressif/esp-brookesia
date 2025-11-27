@@ -21,21 +21,21 @@ namespace esp_brookesia::lib_utils {
  * Manages states, transitions, and state lifecycle with support for:
  * - State entry/exit guards (on_enter/on_exit)
  * - Periodic state updates (on_update)
- * - State timeouts with automatic event triggering
- * - Asynchronous state transitions via event queue
+ * - State timeouts with automatic action triggering
+ * - Asynchronous state transitions via action queue
  * - Serial execution guarantee (no concurrent state transitions)
  * - Transition rollback on entry failure
  *
  * @note All state transitions are executed serially through the task scheduler's group mechanism,
- *       ensuring thread-safe operations even when events are triggered from multiple threads.
+ *       ensuring thread-safe operations even when actions are triggered from multiple threads.
  *       State callbacks (on_enter, on_exit, on_update) are executed without holding internal locks,
- *       allowing them to safely trigger new events or perform blocking operations.
+ *       allowing them to safely trigger new actions or perform blocking operations.
  */
 class StateMachine {
 public:
     using StatePtr = std::shared_ptr<StateBase>;
     using TransitionFinishCallback = std::function <
-                                     void(const std::string &from, const std::string &event, const std::string &to)
+                                     void(const std::string &from, const std::string &action, const std::string &to)
                                      >;
 
     static constexpr const char *DEFAULT_TASK_GROUP_NAME = "state_machine";
@@ -59,11 +59,11 @@ public:
      * @brief Add a transition between states
      *
      * @param from Source state name
-     * @param event Event that triggers the transition
+     * @param action Action that triggers the transition
      * @param to Target state name
      * @return true if added successfully, false if transition already exists
      */
-    bool add_transition(const std::string &from, const std::string &event, const std::string &to);
+    bool add_transition(const std::string &from, const std::string &action, const std::string &to);
 
     /**
      * @brief Start the state machine with an initial state
@@ -87,24 +87,24 @@ public:
     void stop();
 
     /**
-     * @brief Trigger an event to cause a state transition
+     * @brief Trigger an action to cause a state transition
      *
-     * @param event Event name
-     * @return true if event was queued successfully, false otherwise
+     * @param action Action name
+     * @return true if action was queued successfully, false otherwise
      *
      * @note The actual transition happens asynchronously in the task scheduler's serial queue.
      *       This ensures thread-safe state transitions even when called from multiple threads.
      */
-    bool trigger_event(const std::string &event);
+    bool trigger_action(const std::string &action);
 
     /**
      * @brief Set the callback function to be called when a transition finishes
      *
      * @param callback Callback function to be called when a transition finishes
      *
-     * @note The callback is invoked with (from_state, event, to_state) parameters.
+     * @note The callback is invoked with (from_state, action, to_state) parameters.
      *       The callback will be executed without holding internal locks, so it's safe
-     *       to perform any operations including triggering new events.
+     *       to perform any operations including triggering new actions.
      */
     void register_transition_finish_callback(TransitionFinishCallback callback)
     {
@@ -138,6 +138,21 @@ public:
         return current_state_;
     }
 
+    /**
+     * @brief Get the state pointer by name
+     *
+     * @param name State name
+     * @return State pointer (nullptr if not found)
+     *
+     * @note This method is thread-safe.
+     */
+    StatePtr get_state_ptr(const std::string &name) const
+    {
+        boost::lock_guard lock(mutex_);
+        auto it = states_.find(name);
+        return it != states_.end() ? it->second : nullptr;
+    }
+
 private:
     /**
      * @brief Setup periodic and timeout tasks for a state
@@ -156,12 +171,13 @@ private:
     bool enter_initial_state(const std::string &name);
 
     /**
-     * @brief Perform state transition (called from trigger_event)
+     * @brief Perform state transition (called from trigger_action)
      *
      * @param next Next state name
+     * @param action Action name that triggered the transition
      * @return true on success, false on failure (with rollback)
      */
-    bool transition_to(const std::string &next);
+    bool transition_to(const std::string &next, const std::string &action = "");
 
     /**
      * @brief Cancel current state's periodic and timeout tasks
@@ -175,7 +191,7 @@ private:
 
     // State management
     std::map<std::string, StatePtr> states_;                                // name -> state object
-    std::map<std::string, std::map<std::string, std::string>> transitions_; // from_state -> (event -> to_state)
+    std::map<std::string, std::map<std::string, std::string>> transitions_; // from_state -> (action -> to_state)
     std::string current_state_;                                             // Current active state name
 
     // Callbacks
