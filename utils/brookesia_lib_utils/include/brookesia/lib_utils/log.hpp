@@ -148,16 +148,29 @@ private:
 #endif
 
 /**
+ * Per-file control of trace level logging and trace guard
+ * Users can define this macro before including this header to override the default behavior
+ * Example usage in source file:
+ *   #define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1  // Disable all debug & trace features for this file
+ *   #include "brookesia/lib_utils/log.hpp"
+ */
+#ifndef BROOKESIA_LOG_DISABLE_DEBUG_TRACE
+#   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 0
+#endif
+
+/**
  * Compile-time log level filtering macros
  * These macros will be completely optimized out if the log level is below the global level
  */
-#if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_TRACE)
+#if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_TRACE) && \
+    (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE)
 #   define BROOKESIA_LOGT(format, ...) BROOKESIA_LOGT_IMPL(BROOKESIA_LOG_TAG_TO_USE, format, ##__VA_ARGS__)
 #else
 #   define BROOKESIA_LOGT(format, ...) ((void)0)
 #endif
 
-#if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG)
+#if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG) && \
+    (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE)
 #   define BROOKESIA_LOGD(format, ...) BROOKESIA_LOGD_IMPL(BROOKESIA_LOG_TAG_TO_USE, format, ##__VA_ARGS__)
 #else
 #   define BROOKESIA_LOGD(format, ...) ((void)0)
@@ -182,43 +195,53 @@ private:
 #endif
 
 // Log trace RAII class
+template<bool Enabled>
 class LogTraceGuard {
 public:
     LogTraceGuard(
         const void *this_ptr = nullptr, const std::source_location &loc = std::source_location::current(),
         const char *tag = BROOKESIA_LOG_TAG_TO_USE
     )
-        : _tag(tag)
-        , _line(static_cast<size_t>(loc.line()))
-        , _func_name(Log::extract_function_name(loc.function_name()))
-        , _file_name(Log::extract_file_name(loc.file_name()))
-        , _this_ptr(this_ptr)
     {
-        if (_this_ptr) {
-            BROOKESIA_LOGT_IMPL_FUNC(
-                _tag, "[%.*s:%04d](%.*s): (@%p) Enter", (int)_file_name.size(), _file_name.data(),
-                _line, (int)_func_name.size(), _func_name.data(), _this_ptr
-            );
+        if constexpr (Enabled) {
+            _tag = tag;
+            _line = static_cast<size_t>(loc.line());
+            _func_name = Log::extract_function_name(loc.function_name());
+            _file_name = Log::extract_file_name(loc.file_name());
+            _this_ptr = this_ptr;
+
+            if (_this_ptr) {
+                BROOKESIA_LOGT_IMPL_FUNC(
+                    _tag, "[%.*s:%04d](%.*s): (@%p) Enter", (int)_file_name.size(), _file_name.data(),
+                    _line, (int)_func_name.size(), _func_name.data(), _this_ptr
+                );
+            } else {
+                BROOKESIA_LOGT_IMPL_FUNC(
+                    _tag, "[%.*s:%04d](%.*s): Enter", (int)_file_name.size(), _file_name.data(),
+                    _line, (int)_func_name.size(), _func_name.data()
+                );
+            }
         } else {
-            BROOKESIA_LOGT_IMPL_FUNC(
-                _tag, "[%.*s:%04d](%.*s): Enter", (int)_file_name.size(), _file_name.data(),
-                _line, (int)_func_name.size(), _func_name.data()
-            );
+            (void)this_ptr;
+            (void)loc;
+            (void)tag;
         }
     }
 
     ~LogTraceGuard()
     {
-        if (_this_ptr) {
-            BROOKESIA_LOGT_IMPL_FUNC(
-                _tag, "[%.*s:%04d](%.*s): (@%p) Exit", (int)_file_name.size(), _file_name.data(),
-                _line, (int)_func_name.size(), _func_name.data(), _this_ptr
-            );
-        } else {
-            BROOKESIA_LOGT_IMPL_FUNC(
-                _tag, "[%.*s:%04d](%.*s): Exit", (int)_file_name.size(), _file_name.data(), _line,
-                (int)_func_name.size(), _func_name.data()
-            );
+        if constexpr (Enabled) {
+            if (_this_ptr) {
+                BROOKESIA_LOGT_IMPL_FUNC(
+                    _tag, "[%.*s:%04d](%.*s): (@%p) Exit", (int)_file_name.size(), _file_name.data(),
+                    _line, (int)_func_name.size(), _func_name.data(), _this_ptr
+                );
+            } else {
+                BROOKESIA_LOGT_IMPL_FUNC(
+                    _tag, "[%.*s:%04d](%.*s): Exit", (int)_file_name.size(), _file_name.data(), _line,
+                    (int)_func_name.size(), _func_name.data()
+                );
+            }
         }
     }
 
@@ -228,21 +251,26 @@ public:
     LogTraceGuard &operator=(LogTraceGuard &&) = delete;
 
 private:
-    const char *_tag;
-    size_t _line;
-    std::string_view _func_name;
-    std::string_view _file_name;
-    const void *_this_ptr;
+    [[no_unique_address]] const char *_tag;
+    [[no_unique_address]] size_t _line;
+    [[no_unique_address]] std::string_view _func_name;
+    [[no_unique_address]] std::string_view _file_name;
+    [[no_unique_address]] const void *_this_ptr;
 };
 
 } // namespace esp_brookesia::lib_utils
 
-#if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_TRACE)
-#   define _BROOKESIA_LOG_CONCAT(a, b) a##b
-#   define BROOKESIA_LOG_CONCAT(a, b) _BROOKESIA_LOG_CONCAT(a, b)
-#   define BROOKESIA_LOG_TRACE_GUARD()           esp_brookesia::lib_utils::LogTraceGuard BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){};
-#   define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() esp_brookesia::lib_utils::LogTraceGuard BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){this};
+// Log trace guard macros - controlled by BROOKESIA_LOG_DISABLE_DEBUG_TRACE
+#define _BROOKESIA_LOG_CONCAT(a, b) a##b
+#define BROOKESIA_LOG_CONCAT(a, b) _BROOKESIA_LOG_CONCAT(a, b)
+#if (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE)
+#   define BROOKESIA_LOG_TRACE_GUARD() \
+        esp_brookesia::lib_utils::LogTraceGuard<true> BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){}
+#   define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() \
+        esp_brookesia::lib_utils::LogTraceGuard<true> BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){this}
 #else
-#   define BROOKESIA_LOG_TRACE_GUARD()           ((void)0)
-#   define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() ((void)0)
+#   define BROOKESIA_LOG_TRACE_GUARD() \
+        esp_brookesia::lib_utils::LogTraceGuard<false> BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){}
+#   define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() \
+        esp_brookesia::lib_utils::LogTraceGuard<false> BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){this}
 #endif

@@ -890,17 +890,3 @@ std::string describe_to_string(const T &value, const detail::DescribeOutputForma
     esp_brookesia::lib_utils::describe_get_global_format()  ///< Get global format
 #define BROOKESIA_DESCRIBE_RESET_GLOBAL_FORMAT() \
     esp_brookesia::lib_utils::describe_reset_global_format()  ///< Reset global format
-
-// Predefined format macros for convenient access
-#define BROOKESIA_DESCRIBE_FORMAT_DEFAULT \
-    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_DEFAULT  ///< Default format: { key: value, ... }
-#define BROOKESIA_DESCRIBE_FORMAT_COMPACT \
-    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_COMPACT  ///< Compact format: {key=value,...}
-#define BROOKESIA_DESCRIBE_FORMAT_VERBOSE \
-    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_VERBOSE  ///< Verbose format with newlines and type info
-#define BROOKESIA_DESCRIBE_FORMAT_JSON \
-    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_JSON     ///< JSON-like format with quotes
-#define BROOKESIA_DESCRIBE_FORMAT_PYTHON \
-    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_PYTHON   ///< Python dict-like format
-#define BROOKESIA_DESCRIBE_FORMAT_CPP \
-    esp_brookesia::lib_utils::detail::DESCRIBE_FORMAT_CPP      ///< C++ initializer list format
