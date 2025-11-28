@@ -10,7 +10,7 @@
 #include "esp_heap_caps.h"
 #include "brookesia/lib_utils/macro_configs.h"
 #if !BROOKESIA_UTILS_MEMORY_PROFILER_ENABLE_DEBUG_LOG
-#   define UTILS_DISABLE_DEBUG_LOG
+#   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include "private/utils.hpp"
 #include "brookesia/lib_utils/log.hpp"

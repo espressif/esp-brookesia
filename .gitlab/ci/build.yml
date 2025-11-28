@@ -155,43 +155,43 @@ build_test_apps_brookesia_lib_utils_time_profiler:
   variables:
     EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/time_profiler
 
-# Products
-build_product_phone_m5stack_core_s3:
-  extends:
-    - .build_examples_template
-    - .build_esp32_s3_idf_release_version
-    - .rules:build:products_phone_m5stack_core_s3
-  variables:
-    EXAMPLE_DIR: products/phone/phone_m5stack_core_s3
+# # Products
+# build_product_phone_m5stack_core_s3:
+#   extends:
+#     - .build_examples_template
+#     - .build_esp32_s3_idf_release_version
+#     - .rules:build:products_phone_m5stack_core_s3
+#   variables:
+#     EXAMPLE_DIR: products/phone/phone_m5stack_core_s3
 
-build_product_phone_p4_function_ev_board:
-  extends:
-    - .build_examples_template
-    - .build_esp32_p4_idf_release_version
-    - .rules:build:products_phone_p4_function_ev_board
-  variables:
-    EXAMPLE_DIR: products/phone/phone_p4_function_ev_board
+# build_product_phone_p4_function_ev_board:
+#   extends:
+#     - .build_examples_template
+#     - .build_esp32_p4_idf_release_version
+#     - .rules:build:products_phone_p4_function_ev_board
+#   variables:
+#     EXAMPLE_DIR: products/phone/phone_p4_function_ev_board
 
-build_product_phone_s3_box_3:
-  extends:
-    - .build_examples_template
-    - .build_esp32_s3_idf_release_version
-    - .rules:build:products_phone_s3_box_3
-  variables:
-    EXAMPLE_DIR: products/phone/phone_s3_box_3
+# build_product_phone_s3_box_3:
+#   extends:
+#     - .build_examples_template
+#     - .build_esp32_s3_idf_release_version
+#     - .rules:build:products_phone_s3_box_3
+#   variables:
+#     EXAMPLE_DIR: products/phone/phone_s3_box_3
 
-build_product_phone_s3_lcd_ev_board:
-  extends:
-    - .build_examples_template
-    - .build_esp32_s3_idf_release_version
-    - .rules:build:products_phone_s3_lcd_ev_board
-  variables:
-    EXAMPLE_DIR: products/phone/phone_s3_lcd_ev_board
+# build_product_phone_s3_lcd_ev_board:
+#   extends:
+#     - .build_examples_template
+#     - .build_esp32_s3_idf_release_version
+#     - .rules:build:products_phone_s3_lcd_ev_board
+#   variables:
+#     EXAMPLE_DIR: products/phone/phone_s3_lcd_ev_board
 
-build_product_speaker:
-  extends:
-    - .build_examples_template
-    - .build_speaker_idf_release_version
-    - .rules:build:products_speaker
-  variables:
-    EXAMPLE_DIR: products/speaker
+# build_product_speaker:
+#   extends:
+#     - .build_examples_template
+#     - .build_speaker_idf_release_version
+#     - .rules:build:products_speaker
+#   variables:
+#     EXAMPLE_DIR: products/speaker

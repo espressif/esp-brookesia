@@ -753,7 +753,7 @@ std::string describe_enum_to_string(T value)
  * @brief Convert enum to number
  */
 template <typename T>
-std::underlying_type_t<T> describe_enum_to_number(T value)
+constexpr std::underlying_type_t<T> describe_enum_to_number(T value) noexcept
 {
     static_assert(std::is_enum_v<T>, "T must be an enum type");
     return static_cast<std::underlying_type_t<T>>(value);
@@ -870,7 +870,7 @@ std::string describe_to_string(const T &value, const detail::DescribeOutputForma
 #define BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(value, fmt) esp_brookesia::lib_utils::describe_to_string(value, fmt) ///< Convert with custom format
 
 // Enum conversion macros
-#define BROOKESIA_DESCRIBE_ENUM_TO_NUMBER(value) \
+#define BROOKESIA_DESCRIBE_ENUM_TO_NUM(value) \
     esp_brookesia::lib_utils::describe_enum_to_number(value)        ///< Convert enum to underlying number
 #define BROOKESIA_DESCRIBE_NUM_TO_ENUM(number, ret_value) \
     esp_brookesia::lib_utils::describe_number_to_enum(number, ret_value)  ///< Convert number to enum

@@ -5,7 +5,7 @@
  */
 #include "brookesia/lib_utils/macro_configs.h"
 #if !BROOKESIA_UTILS_STATIC_MACHINE_ENABLE_DEBUG_LOG
-#   define UTILS_DISABLE_DEBUG_LOG
+#   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include "private/utils.hpp"
 #include "brookesia/lib_utils/check.hpp"
@@ -44,19 +44,19 @@ bool StateMachine::add_state(const std::string &name, StatePtr state)
     return true;
 }
 
-bool StateMachine::add_transition(const std::string &from, const std::string &event, const std::string &to)
+bool StateMachine::add_transition(const std::string &from, const std::string &action, const std::string &to)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: from(%1%), event(%2%), to(%3%)", from, event, to);
+    BROOKESIA_LOGD("Params: from(%1%), action(%2%), to(%3%)", from, action, to);
 
     boost::lock_guard lock(mutex_);
     BROOKESIA_CHECK_FALSE_RETURN(
-        transitions_[from].find(event) == transitions_[from].end(), false,
-        "Transition from '%1%' on event '%2%' already exists", from, event
+        transitions_[from].find(action) == transitions_[from].end(), false,
+        "Transition from '%1%' on action '%2%' already exists", from, action
     );
 
-    transitions_[from][event] = to;
+    transitions_[from][action] = to;
 
     return true;
 }
@@ -145,11 +145,11 @@ void StateMachine::stop()
     });
 }
 
-bool StateMachine::trigger_event(const std::string &event)
+bool StateMachine::trigger_action(const std::string &action)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: event(%1%)", event);
+    BROOKESIA_LOGD("Params: action(%1%)", action);
 
     // Get scheduler reference under lock
     std::shared_ptr<TaskScheduler> scheduler;
@@ -159,8 +159,8 @@ bool StateMachine::trigger_event(const std::string &event)
         scheduler = task_scheduler_;
     }
 
-    // Put event trigger logic into serial queue to avoid concurrency issues
-    auto task = [this, event]() {
+    // Put action trigger logic into serial queue to avoid concurrency issues
+    auto task = [this, action]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
         std::string last_state;
@@ -175,17 +175,17 @@ bool StateMachine::trigger_event(const std::string &event)
                 it != transitions_.end(), "No transitions defined for state '%1%'", current_state_
             );
 
-            auto trans_it = it->second.find(event);
+            auto trans_it = it->second.find(action);
             BROOKESIA_CHECK_FALSE_EXIT(
-                trans_it != it->second.end(), "No transition for event '%1%' in state '%2%'", event, current_state_
+                trans_it != it->second.end(), "No transition for action '%1%' in state '%2%'", action, current_state_
             );
 
             last_state = current_state_;
             next_state = trans_it->second;
         }
 
-        // Call transition_to without holding the lock
-        BROOKESIA_CHECK_FALSE_EXIT(transition_to(next_state), "Failed to transition to state '%1%'", next_state);
+        // Call transition_to without holding the lock, passing action as action
+        BROOKESIA_CHECK_FALSE_EXIT(transition_to(next_state, action), "Failed to transition to state '%1%'", next_state);
 
         // Get current state and callback without holding lock during callback execution
         std::string final_state;
@@ -198,11 +198,11 @@ bool StateMachine::trigger_event(const std::string &event)
 
         // Call callback without holding the lock
         if (callback) {
-            callback(last_state, event, final_state);
+            callback(last_state, action, final_state);
         }
     };
     BROOKESIA_CHECK_FALSE_RETURN(
-        scheduler->post(std::move(task), nullptr, task_group_name_), false, "Failed to post trigger event task"
+        scheduler->post(std::move(task), nullptr, task_group_name_), false, "Failed to post trigger action task"
     );
 
     return true;
@@ -245,11 +245,11 @@ bool StateMachine::setup_state_tasks(const std::string &name)
     }
 
     // Timeout task (without holding lock, as scheduler operations may be slow)
-    if (state->get_timeout_ms() > 0 && !state->get_timeout_event().empty()) {
+    if (state->get_timeout_ms() > 0 && !state->get_timeout_action().empty()) {
         TaskScheduler::TaskId task_id = 0;
-        scheduler->post_delayed([this, ev = state->get_timeout_event()] {
+        scheduler->post_delayed([this, ev = state->get_timeout_action()] {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            BROOKESIA_CHECK_FALSE_EXIT(this->trigger_event(ev), "Cannot trigger event '%1%'", ev);
+            BROOKESIA_CHECK_FALSE_EXIT(this->trigger_action(ev), "Cannot trigger action '%1%'", ev);
         }, state->get_timeout_ms(), &task_id, task_group_name_);
 
         // Update task_id requires lock protection
@@ -299,11 +299,11 @@ bool StateMachine::enter_initial_state(const std::string &name)
     return true;
 }
 
-bool StateMachine::transition_to(const std::string &next)
+bool StateMachine::transition_to(const std::string &next, const std::string &action)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: next(%1%)", next);
+    BROOKESIA_LOGD("Params: next(%1%), action(%2%)", next, action);
 
     std::string previous_state;
     StatePtr current_state_obj;
@@ -337,17 +337,17 @@ bool StateMachine::transition_to(const std::string &next)
     }
 
     // Step 2: Exit current state (without holding lock to allow state logic to run freely)
-    BROOKESIA_LOGD("Exiting state '%1%' to '%2%'", previous_state, next);
+    BROOKESIA_LOGD("Exiting state '%1%' to '%2%' by action '%3%'", previous_state, next, action);
     BROOKESIA_CHECK_FALSE_RETURN(
-        current_state_obj->on_exit(next), false, "Exit denied: cannot exit '%1%' to '%2%'", previous_state, next
+        current_state_obj->on_exit(next, action), false, "Exit denied: cannot exit '%1%' to '%2%'", previous_state, next
     );
 
     // Step 3: Cancel current state's tasks (without holding lock to avoid deadlock)
     cancel_current_tasks();
 
     // Step 4: Enter new state (without holding lock to allow state logic to run freely)
-    BROOKESIA_LOGD("Entering state '%1%' from '%2%'", next, previous_state);
-    if (!next_state_obj->on_enter(previous_state)) {
+    BROOKESIA_LOGD("Entering state '%1%' from '%2%' by action '%3%'", next, previous_state, action);
+    if (!next_state_obj->on_enter(previous_state, action)) {
         // Entry failed, rollback to original state
         BROOKESIA_LOGE("Entry denied: cannot enter '%1%' from '%2%'", next, previous_state);
         BROOKESIA_LOGW("Rolling back to state '%1%'", previous_state);
