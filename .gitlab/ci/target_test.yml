@@ -33,19 +33,18 @@ variables:
     - pip install -r .gitlab/requirements/requirement.pytest.txt
     - pytest ${TEST_FOLDER} --target ${TEST_TARGET} --env ${TEST_ENV} --junitxml=XUNIT_RESULT.xml
 
+.idf_esp32s3_version_matrix: &idf_esp32s3_version_matrix
+  - IDF_TARGET: esp32s3
+    IDF_VERSION: "5.5"
+    ENV_TAG: "generic"
+
 .idf_target_version_matrix: &idf_target_version_matrix
   - IDF_TARGET: esp32s3
     IDF_VERSION: "5.5"
     ENV_TAG: "generic"
-  # - IDF_TARGET: esp32s3
-  #   IDF_VERSION: "6.0"
-  #   ENV_TAG: "generic"
   - IDF_TARGET: esp32p4
     IDF_VERSION: "5.5"
     ENV_TAG: "generic"
-  # - IDF_TARGET: esp32p4
-  #   IDF_VERSION: "6.0"
-  #   ENV_TAG: "generic"
 
 #
 # Test apps: brookesia_lib_utils
@@ -247,4 +246,75 @@ components_test_brookesia_lib_utils_time_profiler:
   variables:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: utils/brookesia_lib_utils/test_apps/time_profiler
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_manager
+components_test_brookesia_service_manager:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_service_manager
+  needs:
+    - job: "build_test_apps_brookesia_service_manager"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/brookesia_service_manager/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_nvs
+components_test_brookesia_service_nvs:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_service_nvs
+  needs:
+    - job: "build_test_apps_brookesia_service_nvs"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/brookesia_service_nvs/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_wifi
+components_test_brookesia_service_wifi_general:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_service_wifi_general
+  needs:
+    - job: "build_test_apps_brookesia_service_wifi_general"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/brookesia_service_wifi/test_apps/general
+    TEST_ENV: ${ENV_TAG}
+components_test_brookesia_service_wifi_with_nvs:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_service_wifi_with_nvs
+  needs:
+    - job: "build_test_apps_brookesia_service_wifi_with_nvs"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/brookesia_service_wifi/test_apps/with_nvs
     TEST_ENV: ${ENV_TAG}

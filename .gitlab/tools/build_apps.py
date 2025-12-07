@@ -21,21 +21,6 @@ logger = logging.getLogger('idf_build_apps')
 PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
 APPS_BUILD_PER_JOB = 30
 IGNORE_WARNINGS = [
-    r'1/2 app partitions are too small',
-    r'cc1plus: warning: command-line option \'-Wno-incompatible-pointer-types\' is valid for C/ObjC but not for C\+\+',
-    r'DeprecationWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html',
-    r'The smallest app partition is nearly full',
-    r'managed_components/lvgl__lvgl/src/extra/libs/png/lv_png.c',
-    r'managed_components/lvgl__lvgl/src/extra/libs/png/lv_png.c',
-    r'warning: \'ADC_ATTEN_DB_11\' is deprecated',
-    r'warning: unused variable \'ret\'',
-    r'WARNING  warning: unknown kconfig symbol',
-    r'espressif__i2c_bus/Kconfig:6: warning:',
-    r'warning: #warning High Performance Mode',
-    r'warning: #warning HPM-DC',
-    r'warning: #warning To enable this feature',
-    r'warning: #warning If your bootloader does not support it',
-    r'esp_gmf_afe_manager.c:167:26: warning:',
 ]
 
 def _get_idf_version():

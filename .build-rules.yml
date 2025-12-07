@@ -86,3 +86,23 @@ utils/brookesia_lib_utils/test_apps/thread_profiler:
 utils/brookesia_lib_utils/test_apps/time_profiler:
   enable:
     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+
+# brookesia_service_manager
+service/brookesia_service_manager/test_apps:
+  enable:
+    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+
+# brookesia_service_nvs
+service/brookesia_service_nvs/test_apps:
+  enable:
+    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+
+# brookesia_service_wifi: general
+service/brookesia_service_wifi/test_apps/general:
+  enable:
+    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+
+# brookesia_service_wifi: with_nvs
+service/brookesia_service_wifi/test_apps/with_nvs:
+  enable:
+    - if: IDF_TARGET in ["esp32s3", "esp32p4"]

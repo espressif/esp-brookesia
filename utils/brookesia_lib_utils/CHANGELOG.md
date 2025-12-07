@@ -1,6 +1,6 @@
 # ChangeLog
 
-### v0.7.1 - 2025-12-05
+## v0.7.1 - 2025-12-07
 
 #### Enhancements:
 
@@ -13,7 +13,9 @@
 
 * fix(log): Fix garbled display issue for 'int8_t'
 
-### v0.7.0 - 2025-11-28
+## v0.7.0 - 2025-11-28
+
+### Initial Release
 
 - feat(repo): Add task scheduler (based on Boost.Asio) supporting multi-threaded task management, including immediate, delayed, and periodic tasks
 - feat(repo): Support thread configuration (name, priority, stack size, stack location, CPU binding configuration)

@@ -1,0 +1,17 @@
+version: "0.7.0"
+description: ESP-Brookesia NVS (Non-Volatile Storage) service which provides namespace-based key-value storage management.
+url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_nvs
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  idf: ">=5.5,<6"
+
+  espressif/brookesia_service_manager:
+    version: "0.7.*"
+    override_path: "../brookesia_service_manager"
+    public: true
+
+  espressif/brookesia_service_helper:
+    version: "0.7.*"
+    override_path: "../brookesia_service_helper"
+    public: true

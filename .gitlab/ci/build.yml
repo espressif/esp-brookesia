@@ -37,10 +37,12 @@
     # By configuring this macro, you can append the compiled configuration file.
     # For example, using "sdkconf.etc=default" specifies the default sdkconfig file.
     EXAMPLE_CONFIG: "="
+    EXAMPLE_TARGET: "all"
   script:
     - pip install "idf-component-manager"
     - pip install idf_build_apps
-    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t all -vv
+    - rm -rf ${EXAMPLE_DIR}/dependencies.lock ${EXAMPLE_DIR}/managed_components ${EXAMPLE_DIR}/sdkconfig
+    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
 # Target ESP-IDF versions
 .build_esp32_s3_idf_release_version:
@@ -64,6 +66,14 @@
   parallel:
     matrix:
       - IMAGE: espressif/idf:release-v5.5
+
+.build_brookesia_components_idf_split_targets:
+  parallel:
+    matrix:
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32s3"
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32p4"
 
 # Test Apps
 # brookesia_lib_utils: check
@@ -154,6 +164,37 @@ build_test_apps_brookesia_lib_utils_time_profiler:
     - .rules:build:test_apps_brookesia_lib_utils_time_profiler
   variables:
     EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/time_profiler
+# brookesia_service_manager
+build_test_apps_brookesia_service_manager:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_release_version
+    - .rules:build:test_apps_brookesia_service_manager
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_manager/test_apps
+# brookesia_service_nvs
+build_test_apps_brookesia_service_nvs:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_release_version
+    - .rules:build:test_apps_brookesia_service_nvs
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_nvs/test_apps
+# brookesia_service_wifi
+build_test_apps_brookesia_service_wifi_general:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_split_targets
+    - .rules:build:test_apps_brookesia_service_wifi_general
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps/general
+build_test_apps_brookesia_service_wifi_with_nvs:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_split_targets
+    - .rules:build:test_apps_brookesia_service_wifi_with_nvs
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps/with_nvs
 
 # # Products
 # build_product_phone_m5stack_core_s3:

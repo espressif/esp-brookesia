@@ -1,0 +1,9 @@
+set(COMPONENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(COMPONENT_INCLUDE_DIRS ${COMPONENT_DIR}/include)
+
+#
+# Register Component
+#
+idf_component_register(
+    INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
+)
