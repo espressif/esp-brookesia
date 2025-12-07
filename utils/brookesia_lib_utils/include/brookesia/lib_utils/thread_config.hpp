@@ -104,14 +104,14 @@ private:
  *
  * @example
  * {
- *     BROOKESIA_THREAD_CONFIG_GUARD((ThreadConfig{
+ *     BROOKESIA_THREAD_CONFIG_GUARD({
  *          .stack_size = 10 * 1024,
- *     }));
+ *     });
  *     boost::thread([&]() {
  *         // Thread will be created with 10KB stack size
  *     });
  * }  // Original configuration is restored here
  */
-#define BROOKESIA_THREAD_CONFIG_GUARD(config) \
+#define BROOKESIA_THREAD_CONFIG_GUARD(...) \
     esp_brookesia::lib_utils::ThreadConfigGuard \
-    BROOKESIA_THREAD_CONFIG_CONCAT(thread_config_guard_, __LINE__)(config);
+    BROOKESIA_THREAD_CONFIG_CONCAT(thread_config_guard_, __LINE__)(__VA_ARGS__);

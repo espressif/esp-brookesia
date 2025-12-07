@@ -53,7 +53,7 @@ TEST_CASE("Test ThreadConfig default values", "[utils][thread_config][struct]")
     TEST_ASSERT_GREATER_THAN(0, config.priority);
     TEST_ASSERT_GREATER_THAN(0, config.stack_size);
 
-    BROOKESIA_LOGI("Default config: %s", describe_struct_to_string(config).c_str());
+    BROOKESIA_LOGI("Default config: %s", BROOKESIA_DESCRIBE_TO_STR(config).c_str());
 }
 
 TEST_CASE("Test ThreadConfig custom values", "[utils][thread_config][struct]")
@@ -74,12 +74,12 @@ TEST_CASE("Test ThreadConfig custom values", "[utils][thread_config][struct]")
     TEST_ASSERT_EQUAL(4096, config.stack_size);
     TEST_ASSERT_TRUE(config.stack_in_ext);
 
-    BROOKESIA_LOGI("Custom config: %s", describe_struct_to_string(config).c_str());
+    BROOKESIA_LOGI("Custom config: %s", BROOKESIA_DESCRIBE_TO_STR(config).c_str());
 }
 
-TEST_CASE("Test ThreadConfig describe_struct_to_string", "[utils][thread_config][describe]")
+TEST_CASE("Test ThreadConfig BROOKESIA_DESCRIBE_TO_STR", "[utils][thread_config][describe]")
 {
-    BROOKESIA_LOGI("=== ThreadConfig describe_struct_to_string Test ===");
+    BROOKESIA_LOGI("=== ThreadConfig BROOKESIA_DESCRIBE_TO_STR Test ===");
 
     ThreadConfig config = {
         .name = "test_thread",
@@ -89,7 +89,7 @@ TEST_CASE("Test ThreadConfig describe_struct_to_string", "[utils][thread_config]
         .stack_in_ext = false
     };
 
-    std::string desc = describe_struct_to_string(config);
+    std::string desc = BROOKESIA_DESCRIBE_TO_STR(config);
 
     TEST_ASSERT_TRUE(desc.find("name") != std::string::npos);
     TEST_ASSERT_TRUE(desc.find("core_id") != std::string::npos);
@@ -112,7 +112,7 @@ TEST_CASE("Test ThreadConfig with JSON format", "[utils][thread_config][describe
         .stack_in_ext = true
     };
 
-    std::string json = describe_struct_to_string(config, detail::DESCRIBE_FORMAT_JSON);
+    std::string json = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, BROOKESIA_DESCRIBE_FORMAT_JSON);
 
     TEST_ASSERT_TRUE(json.find("\"name\"") != std::string::npos);
     TEST_ASSERT_TRUE(json.find("\"core_id\"") != std::string::npos);
@@ -131,7 +131,7 @@ TEST_CASE("Test ThreadConfig apply and get", "[utils][thread_config][apply]")
 
     // Get current config
     ThreadConfig original = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Original config: %s", describe_struct_to_string(original).c_str());
+    BROOKESIA_LOGI("Original config: %s", BROOKESIA_DESCRIBE_TO_STR(original).c_str());
 
     // Apply new config
     ThreadConfig new_config = {
@@ -145,7 +145,7 @@ TEST_CASE("Test ThreadConfig apply and get", "[utils][thread_config][apply]")
 
     // Get applied config
     ThreadConfig applied = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Applied config: %s", describe_struct_to_string(applied).c_str());
+    BROOKESIA_LOGI("Applied config: %s", BROOKESIA_DESCRIBE_TO_STR(applied).c_str());
 
     // Verify config is applied
     TEST_ASSERT_EQUAL(new_config.core_id, applied.core_id);
@@ -163,7 +163,7 @@ TEST_CASE("Test ThreadConfigGuard basic usage", "[utils][thread_config][guard][b
     BROOKESIA_LOGI("=== ThreadConfigGuard Basic Usage Test ===");
 
     ThreadConfig original = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Original config: %s", describe_struct_to_string(original).c_str());
+    BROOKESIA_LOGI("Original config: %s", BROOKESIA_DESCRIBE_TO_STR(original).c_str());
 
     {
         ThreadConfig config = {
@@ -187,7 +187,7 @@ TEST_CASE("Test ThreadConfigGuard basic usage", "[utils][thread_config][guard][b
 
     // Verify config is restored
     ThreadConfig restored = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Restored config: %s", describe_struct_to_string(restored).c_str());
+    BROOKESIA_LOGI("Restored config: %s", BROOKESIA_DESCRIBE_TO_STR(restored).c_str());
     TEST_ASSERT_EQUAL(original.priority, restored.priority);
     TEST_ASSERT_EQUAL(original.stack_size, restored.stack_size);
 }

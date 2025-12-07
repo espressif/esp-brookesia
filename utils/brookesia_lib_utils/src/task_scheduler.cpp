@@ -16,12 +16,6 @@
 
 namespace esp_brookesia::lib_utils {
 
-TaskScheduler::TaskScheduler()
-    : io_context_()
-    , work_guard_(boost::asio::make_work_guard(io_context_))
-{
-}
-
 TaskScheduler::~TaskScheduler()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -39,13 +33,27 @@ bool TaskScheduler::start(const StartConfig &config)
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
-    if (running_) {
+    if (is_running()) {
         BROOKESIA_LOGD("Already running");
         return true;
     }
 
     BROOKESIA_LOGI(
-        "Starting with config:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, detail::DESCRIBE_FORMAT_VERBOSE)
+        "Starting with config:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, DESCRIBE_FORMAT_VERBOSE)
+    );
+
+    lib_utils::FunctionGuard stop_guard([this]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        stop();
+    });
+
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        io_context_ = std::make_unique<boost::asio::io_context>(), false, "Failed to create io_context"
+    );
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        io_work_guard_ = std::make_unique<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>>(
+                             boost::asio::make_work_guard(*io_context_)
+                         ), false, "Failed to create work guard"
     );
 
     reset_statistics();
@@ -54,28 +62,25 @@ bool TaskScheduler::start(const StartConfig &config)
     pre_execute_callback_ = config.pre_execute_callback;
     post_execute_callback_ = config.post_execute_callback;
 
-    // Counter to track how many worker threads have started
-    std::atomic<int> threads_started{0};
-    const int expected_thread_count = config.worker_configs.size();
-
     for (const auto &thread_config : config.worker_configs) {
-        auto thread_func = [this, name = thread_config.name, poll_interval_ms = config.worker_poll_interval_ms,
-              &threads_started] {
+        auto thread_func =
+        [this, name = thread_config.name, poll_interval_ms = config.worker_poll_interval_ms] {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
             BROOKESIA_LOGI("Worker thread (%1%) started", name);
 
-            // Signal that this thread has started
-            threads_started++;
-
-            while (!io_context_.stopped())
+            while (!boost::this_thread::interruption_requested() && !io_context_->stopped())
             {
-                size_t executed = 0;
-                BROOKESIA_CHECK_EXCEPTION_EXECUTE(
-                executed = io_context_.poll(), {}, {BROOKESIA_LOGE("Worker thread (%1%) poll error", name);}
-                );
-                if (executed == 0) {
-                    boost::this_thread::sleep_for(boost::chrono::milliseconds(poll_interval_ms));
+                try {
+                    size_t executed = io_context_->poll();
+                    if (executed == 0) {
+                        boost::this_thread::sleep_for(boost::chrono::milliseconds(poll_interval_ms));
+                    }
+                } catch (const boost::thread_interrupted &) {
+                    BROOKESIA_LOGI("Worker thread (%1%) interrupted", name);
+                    break;
+                } catch (const std::exception &e) {
+                    BROOKESIA_LOGE("Worker thread (%1%) poll error: %2%", name, e.what());
                 }
             }
 
@@ -88,15 +93,7 @@ bool TaskScheduler::start(const StartConfig &config)
         );
     }
 
-    // Wait for all worker threads to start (important for TLS initialization in RISC-V/ESP32-P4)
-    // This ensures the thread pool is fully ready before we start dispatching tasks
-    BROOKESIA_LOGD("Waiting for %1% worker threads to start...", expected_thread_count);
-    while (threads_started.load() < expected_thread_count) {
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
-    }
-    BROOKESIA_LOGI("All worker threads started");
-
-    running_ = true;
+    stop_guard.release();
 
     return true;
 }
@@ -105,12 +102,14 @@ void TaskScheduler::stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!running_) {
+    if (!is_running()) {
         BROOKESIA_LOGD("Already stopped");
         return;
     }
 
     size_t task_count = 0;
+    // Avoid compiler warning about unused variable
+    (void)task_count;
     // Cancel all pending tasks
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
@@ -122,20 +121,23 @@ void TaskScheduler::stop()
                 handle->timer.reset(); // Immediately release timer
             }
             // Set promise value for canceled task
-            if (handle->promise) {
+            bool expected = false;
+            if (handle->promise && handle->promise_fulfilled.compare_exchange_strong(expected, true)) {
                 BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(false), {}, {
                     BROOKESIA_LOGW("Promise already set for task %1%", id);
                 });
+                handle->promise.reset();
             }
             canceled_tasks_++;
         }
     }
 
-    // Stop io_context (wait for running tasks to complete)
-    io_context_.stop();
+    // Stop io_context
+    io_context_->stop();
 
-    // Wait for all threads to finish and clean up
-    BROOKESIA_LOGI("Waiting for %1% worker threads to finish", threads_.size());
+    // Wait for all threads to finish
+    BROOKESIA_LOGI("Interrupting %1% worker threads and waiting for them to finish", threads_.size());
+    threads_.interrupt_all();
     threads_.join_all();
 
     // Clean up resources
@@ -145,28 +147,25 @@ void TaskScheduler::stop()
         groups_.clear();
         strands_.clear();
         group_configs_.clear();
+        io_work_guard_.reset();
+        io_context_.reset();
     }
-
-    // Reset io_context for next use
-    io_context_.restart();
-
-    running_ = false;
 
     BROOKESIA_LOGI(
         "Stopped, canceled %1% tasks, statistics: %2%", task_count, BROOKESIA_DESCRIBE_TO_STR(get_statistics())
     );
 }
 
-bool TaskScheduler::post(OnceTask task, TaskId *id, const Group &group)
+bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group, bool enable_immediate)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: group(%1%), id(%2%)", group, id);
+    BROOKESIA_LOGD("Params: group(%1%), id(%2%), enable_immediate(%3%)", group, id, enable_immediate);
 
     auto handle = create_handle(TaskType::Immediate, false, 0, group);
     BROOKESIA_CHECK_NULL_RETURN(handle, false, "Failed to create task handle");
 
-    auto task_wrapper = [this, handle, task = std::move(task)]() {
+    auto task_wrapper = [this, handle, task = std::move(task), enable_immediate]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
         // Invoke pre-execute callback when task is about to execute
@@ -206,9 +205,17 @@ bool TaskScheduler::post(OnceTask task, TaskId *id, const Group &group)
     }
 
     if (strand) {
-        boost::asio::dispatch(*strand, std::move(task_wrapper));
+        if (enable_immediate) {
+            boost::asio::dispatch(*strand, std::move(task_wrapper));
+        } else {
+            boost::asio::post(*strand, std::move(task_wrapper));
+        }
     } else {
-        boost::asio::dispatch(io_context_, std::move(task_wrapper));
+        if (enable_immediate) {
+            boost::asio::dispatch(*io_context_, std::move(task_wrapper));
+        } else {
+            boost::asio::post(*io_context_, std::move(task_wrapper));
+        }
     }
 
     if (id) {
@@ -216,6 +223,16 @@ bool TaskScheduler::post(OnceTask task, TaskId *id, const Group &group)
     }
 
     return true;
+}
+
+bool TaskScheduler::dispatch(OnceTask task, TaskId *id, const Group &group)
+{
+    return post_internal(std::move(task), id, group, true);
+}
+
+bool TaskScheduler::post(OnceTask task, TaskId *id, const Group &group)
+{
+    return post_internal(std::move(task), id, group, false);
 }
 
 bool TaskScheduler::post_delayed(OnceTask task, int delay_ms, TaskId *id, const Group &group)
@@ -630,6 +647,7 @@ bool TaskScheduler::configure_group(const Group &group, const GroupConfig &confi
 
     BROOKESIA_LOGD("Params: group(%1%), enable_post_execute_in_order(%2%)", group, config.enable_post_execute_in_order);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
     BROOKESIA_CHECK_FALSE_RETURN(!group.empty(), false, "Group name cannot be empty");
 
     boost::lock_guard<boost::mutex> lock(mutex_);
@@ -639,7 +657,7 @@ bool TaskScheduler::configure_group(const Group &group, const GroupConfig &confi
     // Create strand for group if configured
     if (config.enable_post_execute_in_order && strands_.find(group) == strands_.end()) {
         strands_[group] = std::make_shared<boost::asio::strand<boost::asio::io_context::executor_type>>(
-                              io_context_.get_executor()
+                              io_context_->get_executor()
                           );
         BROOKESIA_LOGD("Created strand for group '%1%'", group);
     }
@@ -702,7 +720,7 @@ std::shared_ptr<TaskScheduler::TaskHandle> TaskScheduler::create_handle(
     handle->repeat = repeat;
     handle->interval_ms = interval_ms;
     handle->group = group;
-    handle->timer = std::make_shared<boost::asio::steady_timer>(io_context_);
+    handle->timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
     handle->promise = std::make_shared<std::promise<bool>>();
     handle->future = handle->promise->get_future().share();
 
@@ -844,11 +862,11 @@ void TaskScheduler::cancel_internal(TaskId task_id)
     }
     canceled_tasks_++;
 
-    // Set promise value for canceled task
-    if (handle->promise) {
-        BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(false), {}, {
-            BROOKESIA_LOGW("Promise already set for task %1%", task_id);
-        });
+    // Set promise value for canceled task (atomically check and set flag to prevent race condition)
+    bool expected = false;
+    if (handle->promise && handle->promise_fulfilled.compare_exchange_strong(expected, true)) {
+        handle->promise->set_value(false);
+        handle->promise.reset();
     }
 
     remove_task_internal(task_id, handle->group);
@@ -1061,8 +1079,6 @@ void TaskScheduler::mark_finished(std::shared_ptr<TaskHandle> handle, bool succe
 
     BROOKESIA_LOGD("Params: success(%1%)", success);
 
-    bool is_canceled = handle->state == TaskState::Canceled;
-
     handle->state = TaskState::Finished;
 
     if (success) {
@@ -1071,11 +1087,11 @@ void TaskScheduler::mark_finished(std::shared_ptr<TaskHandle> handle, bool succe
         failed_tasks_++;
     }
 
-    // Set promise value
-    if (handle->promise && !is_canceled) {
-        BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(success), {}, {
-            BROOKESIA_LOGW("Promise already set for task %1%", handle->id);
-        });
+    // Set promise value (atomically check and set flag to prevent race condition with cancel)
+    bool expected = false;
+    if (handle->promise && handle->promise_fulfilled.compare_exchange_strong(expected, true)) {
+        handle->promise->set_value(success);
+        handle->promise.reset();
     }
 
     boost::lock_guard<boost::mutex> lock(mutex_);

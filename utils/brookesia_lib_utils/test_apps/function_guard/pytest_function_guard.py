@@ -2,12 +2,13 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # '''
-# Steps to run these cases (Take `esp32s3` and `ESP-IDF 5.5` as an example):
+# Steps to run these cases (Take `esp32s3` as an example):
 #
 # - Build
 #   - . ${IDF_PATH}/export.sh
+#   - export IDF_CI_BUILD=y
 #   - pip install idf_build_apps
-#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./utils/brookesia_lib_utils/test_apps/function_guard' --recursive --build-dir="5.5/build_@t_@w"
+#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./utils/brookesia_lib_utils/test_apps/function_guard' --recursive --build-dir="@v/build_@t_@w"
 #
 # - Test
 #   - ${IDF_PATH}/install.sh --enable-pytest

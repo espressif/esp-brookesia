@@ -90,12 +90,31 @@ public:
      * @brief Trigger an action to cause a state transition
      *
      * @param action Action name
+     * @param use_dispatch Whether to use 'dispatch' to trigger the action, default is false
+     *                     if true, use 'dispatch' to trigger the action, otherwise use 'post'
      * @return true if action was queued successfully, false otherwise
      *
      * @note The actual transition happens asynchronously in the task scheduler's serial queue.
      *       This ensures thread-safe state transitions even when called from multiple threads.
      */
-    bool trigger_action(const std::string &action);
+    bool trigger_action(const std::string &action, bool use_dispatch = false);
+
+    /**
+     * @brief Wait for all transitions to finish within a timeout
+     *
+     * @param timeout_ms Timeout in milliseconds (-1 for infinite)
+     * @return true if all transitions finished within timeout, false otherwise
+     */
+    bool wait_all_transitions(uint32_t timeout_ms);
+
+    /**
+     * @brief Force all transitions to be cancelled immediately and then transition to a specific state immediately
+     * @note This does not trigger any callback or state update, it just immediately switches to the target state.
+     *
+     * @param target_state Target state name
+     * @return true if transition to target state successfully, false otherwise
+     */
+    bool force_transition_to(const std::string &target_state);
 
     /**
      * @brief Set the callback function to be called when a transition finishes

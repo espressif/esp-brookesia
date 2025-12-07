@@ -2317,9 +2317,9 @@ TEST_CASE("Test callbacks mutex with delayed and periodic tasks", "[utils][task_
 // Nested task tests - post inside task executes immediately
 // ============================================================================
 
-TEST_CASE("Test post inside task executes immediately", "[utils][task_scheduler][nested][immediate]")
+TEST_CASE("Test dispatch inside task executes immediately", "[utils][task_scheduler][dispatch][immediate]")
 {
-    BROOKESIA_LOGI("=== TaskScheduler Post Inside Task Immediate Execution Test ===");
+    BROOKESIA_LOGI("=== TaskScheduler Dispatch Inside Task Immediate Execution Test ===");
     BROOKESIA_TIME_PROFILER_CLEAR();
 
     reset_counters();
@@ -2343,7 +2343,7 @@ TEST_CASE("Test post inside task executes immediately", "[utils][task_scheduler]
 
         // Post inner task while outer task is still running
         TaskScheduler::TaskId inner_task_id = 0;
-        scheduler.post([&]() {
+        scheduler.dispatch([&]() {
             inner_task_started = true;
             inner_start_time = esp_timer_get_time();
             BROOKESIA_LOGI("Inner task started (posted from outer task)");
@@ -2390,9 +2390,9 @@ TEST_CASE("Test post inside task executes immediately", "[utils][task_scheduler]
     scheduler.stop();
 }
 
-TEST_CASE("Test multiple posts inside task execute immediately", "[utils][task_scheduler][nested][multiple]")
+TEST_CASE("Test multiple dispatch inside task execute immediately", "[utils][task_scheduler][dispatch][multiple]")
 {
-    BROOKESIA_LOGI("=== TaskScheduler Multiple Posts Inside Task Test ===");
+    BROOKESIA_LOGI("=== TaskScheduler Multiple Dispatch Inside Task Test ===");
 
     reset_counters();
     TaskScheduler scheduler;
@@ -2410,7 +2410,7 @@ TEST_CASE("Test multiple posts inside task execute immediately", "[utils][task_s
 
         // Post 5 tasks from within this task
         for (int i = 0; i < 5; i++) {
-            scheduler.post([ &, i]() {
+            scheduler.dispatch([ &, i]() {
                 {
                     boost::lock_guard<boost::mutex> lock(times_mutex);
                     start_times[i] = esp_timer_get_time();
@@ -2445,9 +2445,9 @@ TEST_CASE("Test multiple posts inside task execute immediately", "[utils][task_s
     scheduler.stop();
 }
 
-TEST_CASE("Test post inside delayed task executes immediately", "[utils][task_scheduler][nested][delayed]")
+TEST_CASE("Test dispatch inside delayed task executes immediately", "[utils][task_scheduler][dispatch][delayed]")
 {
-    BROOKESIA_LOGI("=== TaskScheduler Post Inside Delayed Task Test ===");
+    BROOKESIA_LOGI("=== TaskScheduler Dispatch Inside Delayed Task Test ===");
 
     reset_counters();
     TaskScheduler scheduler;
@@ -2463,7 +2463,7 @@ TEST_CASE("Test post inside delayed task executes immediately", "[utils][task_sc
         delayed_task_time = esp_timer_get_time();
         BROOKESIA_LOGI("Delayed task executing, now posting immediate task");
 
-        scheduler.post([&]() {
+        scheduler.dispatch([&]() {
             nested_task_time = esp_timer_get_time();
             BROOKESIA_LOGI("Nested immediate task executing");
             g_counter++;

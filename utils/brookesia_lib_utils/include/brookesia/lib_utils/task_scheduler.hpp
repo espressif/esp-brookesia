@@ -93,14 +93,7 @@ public:
         PostExecuteCallback post_execute_callback = nullptr;
     };
 
-    /**
-     * @brief Constructor for TaskScheduler
-     */
-    TaskScheduler();
-
-    /**
-     * @brief Destructor for TaskScheduler
-     */
+    TaskScheduler() = default;
     ~TaskScheduler();
 
     // Disable copy and move operations
@@ -141,7 +134,7 @@ public:
      */
     bool is_running() const
     {
-        return running_;
+        return io_context_ != nullptr;
     }
 
     /**
@@ -154,13 +147,24 @@ public:
     bool configure_group(const Group &group, const GroupConfig &config);
 
     /**
-     * @brief Post an immediate task for execution
-     *
-     * @note If `post()` is called within a task, the new task will not be enqueued but will execute immediately.
+     * @brief Dispatch a enqueued task for execution. When the task is posted within a task, the new task will be
+     *        executed immediately instead of being enqueued.
      *
      * @param[in] task Task to execute
      * @param[out] id Optional pointer to receive the task ID
      * @param[in] group Optional group name for the task
+     *
+     * @return true if dispatched successfully, false otherwise
+     */
+    bool dispatch(OnceTask task, TaskId *id = nullptr, const Group &group = "");
+
+    /**
+     * @brief Post an enqueued task for execution
+     *
+     * @param[in] task Task to execute
+     * @param[out] id Optional pointer to receive the task ID
+     * @param[in] group Optional group name for the task
+     *
      * @return true if posted successfully, false otherwise
      */
     bool post(OnceTask task, TaskId *id = nullptr, const Group &group = "");
@@ -347,6 +351,7 @@ private:
         Group group; // Group that this task belongs to
         std::shared_ptr<std::promise<bool>> promise; // Promise for task completion
         std::shared_future<bool> future; // Shared future for task completion
+        std::atomic<bool> promise_fulfilled{false}; // Flag to prevent double-setting promise
 
         // For suspend/resume support
         std::chrono::steady_clock::time_point suspend_time;
@@ -385,6 +390,9 @@ private:
     // Internal method: remove task and maintain group relationships (caller must have already acquired lock)
     void remove_task_internal(TaskId task_id, const Group &group);
 
+    // Internal method: post or dispatch task based on enable_immediate flag
+    bool post_internal(OnceTask task, TaskId *id, const Group &group, bool enable_immediate);
+
     // Mark task as finished
     void mark_finished(std::shared_ptr<TaskHandle> handle, bool success);
 
@@ -398,15 +406,14 @@ private:
     void invoke_post_execute_callback(TaskId task_id, TaskType task_type, bool success);
 
 private:
-    boost::asio::io_context io_context_;
-    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> work_guard_;
+    std::unique_ptr<boost::asio::io_context> io_context_;
+    std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> io_work_guard_;
     boost::thread_group threads_;
     std::map<TaskId, std::shared_ptr<TaskHandle>> tasks_;
     std::map<Group, std::unordered_set<TaskId>> groups_; // Mapping between groups and task IDs
     std::map<Group, std::shared_ptr<boost::asio::strand<boost::asio::io_context::executor_type>>> strands_; // Strand for each group
     std::map<Group, GroupConfig> group_configs_; // Group configurations
     mutable boost::mutex mutex_;
-    std::atomic<bool> running_{false};
     std::atomic<TaskId> task_id_counter_{1};
     std::atomic<TaskId> total_tasks_{0};
     std::atomic<TaskId> completed_tasks_{0};

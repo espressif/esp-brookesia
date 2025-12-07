@@ -6,10 +6,14 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
+#include <functional>
+#include <limits>
 #include <map>
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <variant>
 #include <vector>
 #include <optional>
 #include "boost/describe.hpp"
@@ -17,18 +21,6 @@
 #include "boost/json.hpp"
 
 namespace esp_brookesia::lib_utils {
-
-// ============================================================================
-// Forward declarations for mutual recursion
-// ============================================================================
-template <typename T>
-std::string describe_enum_to_string(T value);
-
-template <typename T>
-bool describe_string_to_enum(const std::string &name, T &ret_value);
-
-template <typename T>
-bool describe_number_to_enum(std::underlying_type_t<T> number, T &ret_value);
 
 namespace detail {
 
@@ -99,631 +91,27 @@ struct is_map<std::map<Key, Value, Compare, Alloc>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_map_v = is_map<T>::value;
 
-// ============================================================================
-// Format Configuration
-// ============================================================================
-
-/**
- * @brief Output format configuration
- */
-struct DescribeOutputFormat {
-    const char *struct_begin = "{ ";      // Struct begin symbol
-    const char *struct_end = " }";        // Struct end symbol
-    const char *field_separator = ", ";   // Field separator
-    const char *field_prefix = "";        // Field name prefix (e.g., "." for C++ style)
-    const char *name_value_separator = ": "; // Name-value separator
-    const char *address_prefix = "@";     // Address prefix
-    bool hex_address = false;             // Whether address uses hexadecimal
-    bool quote_field_names = false;       // Whether to add quotes to field names
-    bool quote_string_values = false;     // Whether to add quotes to string values
-    bool enum_as_string = true;           // Whether enum outputs as string (false outputs numeric value)
-    bool show_type_name = false;          // Whether to show type name
-};
-
-// Predefined formats
-inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_DEFAULT = {
-    .struct_begin = "{ ", .struct_end = " }", .field_separator = ", ",
-    .name_value_separator = ": ", .address_prefix = "@"
-};
-
-inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_COMPACT = {
-    .struct_begin = "{", .struct_end = "}", .field_separator = ",",
-    .name_value_separator = "=", .address_prefix = "@0x", .hex_address = true
-};
-
-inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_VERBOSE = {
-    .struct_begin = "{\n  ", .struct_end = "\n}", .field_separator = ",\n  ",
-    .field_prefix = ".", .name_value_separator = " = ", .address_prefix = "0x", .hex_address = true,
-    .show_type_name = true  // Enable multiline format for arrays/objects
-};
-
-inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_JSON = {
-    .struct_begin = "{ ", .struct_end = " }", .field_separator = ", ",
-    .name_value_separator = ": ", .address_prefix = "\"@", .hex_address = true,
-    .quote_field_names = true, .quote_string_values = true
-};
-
-inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_PYTHON = {
-    .struct_begin = "{'", .struct_end = "'}", .field_separator = "', '",
-    .name_value_separator = "': ", .address_prefix = "<@0x", .hex_address = true
-};
-
-inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_CPP = {
-    .struct_begin = "{", .struct_end = "}", .field_separator = ", ",
-    .field_prefix = ".", .name_value_separator = " = ", .address_prefix = "@0x", .hex_address = true
-};
-
-/**
- * @brief Global format manager (Singleton)
- */
-class DescribeFormatManager {
-public:
-    static DescribeFormatManager &instance()
-    {
-        static DescribeFormatManager mgr;
-        return mgr;
-    }
-
-    void set_format(const DescribeOutputFormat &fmt)
-    {
-        format_ = fmt;
-    }
-    const DescribeOutputFormat &get_format() const
-    {
-        return format_;
-    }
-    void reset_to_default()
-    {
-        format_ = DESCRIBE_FORMAT_DEFAULT;
-    }
-
-private:
-    DescribeFormatManager() : format_(DESCRIBE_FORMAT_DEFAULT) {}
-    DescribeOutputFormat format_;
-};
-
-// ============================================================================
-// JSON Conversion Functions
-// ============================================================================
-
-// Forward declarations
+// Detect if type is std::variant
 template <typename T>
-boost::json::value describe_member_to_json(const T &value);
+struct is_variant : std::false_type {};
+
+template <typename... Types>
+struct is_variant<std::variant<Types...>> : std::true_type {};
 
 template <typename T>
-bool describe_json_to_member(const boost::json::value &j, T &value);
+inline constexpr bool is_variant_v = is_variant<T>::value;
 
-/**
- * @brief Convert boost::json::value to formatted string
- */
-inline std::string describe_json_value_to_string(const boost::json::value &j, const DescribeOutputFormat *fmt = nullptr, int indent_level = 0)
-{
-    // Helper to create indentation
-    auto make_indent = [&](int level) -> std::string {
-        if (!fmt || !fmt->show_type_name)    // Use show_type_name as indicator for verbose/multiline mode
-        {
-            return "";
-        }
-        return std::string(level * 2, ' ');  // 2 spaces per indent level
-    };
-
-    if (j.is_null()) {
-        return "null";
-    } else if (j.is_bool()) {
-        return j.as_bool() ? "true" : "false";
-    } else if (j.is_int64()) {
-        return std::to_string(j.as_int64());
-    } else if (j.is_uint64()) {
-        return std::to_string(j.as_uint64());
-    } else if (j.is_double()) {
-        return std::to_string(j.as_double());
-    } else if (j.is_string()) {
-        return std::string(j.as_string());
-    } else if (j.is_array()) {
-        const auto &arr = j.as_array();
-        if (arr.empty()) {
-            return "[]";
-        }
-
-        if (fmt && fmt->show_type_name) {
-            // Multiline format for verbose mode
-            std::string result = "[\n";
-            bool first = true;
-            for (const auto &item : arr) {
-                if (!first) {
-                    result += ",\n";
-                }
-                first = false;
-                result += make_indent(indent_level + 1);
-                result += describe_json_value_to_string(item, fmt, indent_level + 1);
-            }
-            result += "\n" + make_indent(indent_level) + "]";
-            return result;
-        } else {
-            // Compact format
-            std::string result = "[";
-            bool first = true;
-            for (const auto &item : arr) {
-                if (!first) {
-                    result += ", ";
-                }
-                first = false;
-                result += describe_json_value_to_string(item, fmt, indent_level);
-            }
-            result += "]";
-            return result;
-        }
-    } else if (j.is_object()) {
-        const auto &obj = j.as_object();
-        if (obj.empty()) {
-            return "{}";
-        }
-
-        if (fmt && fmt->show_type_name) {
-            // Multiline format for verbose mode
-            std::string result = "{\n";
-            bool first = true;
-            for (const auto &[key, val] : obj) {
-                if (!first) {
-                    result += ",\n";
-                }
-                first = false;
-                result += make_indent(indent_level + 1);
-                result += fmt->field_prefix + std::string(key) + fmt->name_value_separator + describe_json_value_to_string(val, fmt, indent_level + 1);
-            }
-            result += "\n" + make_indent(indent_level) + "}";
-            return result;
-        } else {
-            // Compact format
-            std::string result = "{ ";
-            bool first = true;
-            for (const auto &[key, val] : obj) {
-                if (!first) {
-                    result += ", ";
-                }
-                first = false;
-                result += std::string(key) + ": " + describe_json_value_to_string(val, fmt, indent_level);
-            }
-            result += " }";
-            return result;
-        }
-    }
-    return "";
-}
-
-/**
- * @brief Convert value to JSON (supports all common types)
- */
+// Detect if type is std::function
 template <typename T>
-boost::json::value describe_member_to_json(const T &value)
-{
-    // Described enum
-    if constexpr (is_described_enum_v<T>) {
-        const char *enum_name = nullptr;
-        boost::mp11::mp_for_each<boost::describe::describe_enumerators<T>>([&](auto D) {
-            if (D.value == value) {
-                enum_name = D.name;
-            }
-        });
-        return enum_name ? boost::json::value(boost::json::string(enum_name))
-               : boost::json::value(static_cast<std::underlying_type_t<T>>(value));
-    }
-    // Described struct
-    else if constexpr (is_described_v<T>) {
-        boost::json::object j;
-        boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
-        [&](auto D) {
-            j[D.name] = describe_member_to_json(value.*D.pointer);
-        });
-        return j;
-    }
-    // std::optional
-    else if constexpr (is_optional_v<T>) {
-        return value.has_value() ? describe_member_to_json(*value) : nullptr;
-    }
-    // std::vector
-    else if constexpr (is_vector_v<T>) {
-        boost::json::array arr;
-        for (const auto &item : value) {
-            arr.push_back(describe_member_to_json(item));
-        }
-        return arr;
-    }
-    // std::map
-    else if constexpr (is_map_v<T>) {
-        boost::json::object obj;
-        for (const auto &[key, val] : value) {
-            std::string key_str;
-            if constexpr (std::is_same_v<typename T::key_type, std::string>) {
-                key_str = key;
-            } else if constexpr (std::is_integral_v<typename T::key_type>) {
-                key_str = std::to_string(key);
-            } else if constexpr (is_described_enum_v<typename T::key_type>) {
-                key_str = describe_enum_to_string(key);
-            } else {
-                // Fallback: convert key to JSON first, then to string
-                auto key_json = describe_member_to_json(key);
-                key_str = describe_json_value_to_string(key_json);
-            }
-            obj[key_str] = describe_member_to_json(val);
-        }
-        return obj;
-    }
-    // Basic types
-    else if constexpr (std::is_same_v<T, bool>) {
-        return value;
-    } else if constexpr ((std::is_integral_v<T>) && (!std::is_same_v<T, bool>)) {
-        // Handle integer types - ensure correct signed/unsigned conversion
-        // Explicitly check for signed types first
-        if constexpr (std::is_same_v<T, signed char> || std::is_same_v<T, short> ||
-                      std::is_same_v<T, int> || std::is_same_v<T, long> ||
-                      std::is_same_v<T, long long> || std::is_same_v<T, std::int8_t> ||
-                      std::is_same_v<T, std::int16_t> || std::is_same_v<T, std::int32_t> ||
-                      std::is_same_v<T, std::int64_t>) {
-            return static_cast<std::int64_t>(value);
-        } else {
-            // unsigned types
-            return static_cast<std::uint64_t>(value);
-        }
-    } else if constexpr (std::is_floating_point_v<T>) {
-        return static_cast<double>(value);
-    } else if constexpr (std::is_same_v<T, std::string>) {
-        return boost::json::value(value);
-    } else if constexpr (std::is_same_v<T, const char *>) {
-        return boost::json::value(std::string(value));
-    }
-    // Types with ostream operator
-    else if constexpr (has_ostream_operator_v<T>) {
-        std::ostringstream oss;
-        oss << value;
-        return boost::json::value(oss.str());
-    }
-    // Fallback
-    else {
-        return boost::json::value("");
-    }
-}
+struct is_function : std::false_type {};
 
-/**
- * @brief Convert JSON to value (supports all common types)
- */
+template <typename Ret, typename... Args>
+struct is_function<std::function<Ret(Args...)>> : std::true_type {};
+
 template <typename T>
-bool describe_json_to_member(const boost::json::value &j, T &value)
-{
-    // Described enum
-    if constexpr (is_described_enum_v<T>) {
-        if (j.is_string()) {
-            return describe_string_to_enum(boost::json::value_to<std::string>(j), value);
-        } else if (j.is_number()) {
-            auto num = std::is_signed_v<std::underlying_type_t<T>>
-                       ? static_cast<std::underlying_type_t<T>>(boost::json::value_to<std::int64_t>(j))
-                       : static_cast<std::underlying_type_t<T>>(boost::json::value_to<std::uint64_t>(j));
-            return describe_number_to_enum(num, value);
-        }
-        return false;
-    }
-    // Described struct
-    else if constexpr (is_described_v<T>) {
-        if (!j.is_object()) {
-            value = T{};
-            return false;
-        }
-        value = T{};
-        const auto &json_obj = j.as_object();
-        bool success = true;
-        boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
-        [&](auto D) {
-            auto it = json_obj.find(D.name);
-            if (it != json_obj.end()) {
-                if (!describe_json_to_member(it->value(), value.*D.pointer)) {
-                    success = false;
-                }
-            }
-        });
-        return success;
-    }
-    // std::optional
-    else if constexpr (is_optional_v<T>) {
-        if (j.is_null()) {
-            value = std::nullopt;
-            return true;
-        } else {
-            typename T::value_type temp;
-            if (describe_json_to_member(j, temp)) {
-                value = temp;
-                return true;
-            }
-            return false;
-        }
-    }
-    // std::vector
-    else if constexpr (is_vector_v<T>) {
-        if (!j.is_array()) {
-            return false;
-        }
-        const auto &arr = j.as_array();
-        value.clear();
-        value.reserve(arr.size());
-        for (const auto &item : arr) {
-            typename T::value_type temp;
-            if (!describe_json_to_member(item, temp)) {
-                return false;
-            }
-            value.push_back(std::move(temp));
-        }
-        return true;
-    }
-    // std::map
-    else if constexpr (is_map_v<T>) {
-        if (!j.is_object()) {
-            return false;
-        }
-        const auto &obj = j.as_object();
-        value.clear();
-        for (const auto &[key_str, val_json] : obj) {
-            typename T::key_type key;
-            typename T::mapped_type val;
-
-            if constexpr (std::is_same_v<typename T::key_type, std::string>) {
-                key = std::string(key_str);
-            } else if constexpr (std::is_integral_v<typename T::key_type>) {
-                key = std::is_signed_v<typename T::key_type>
-                      ? static_cast<typename T::key_type>(std::stoll(std::string(key_str)))
-                      : static_cast<typename T::key_type>(std::stoull(std::string(key_str)));
-            } else if constexpr (is_described_enum_v<typename T::key_type>) {
-                if (!describe_string_to_enum(std::string(key_str), key)) {
-                    return false;
-                }
-            } else {
-                return false;  // Unsupported key type
-            }
-
-            if (!describe_json_to_member(val_json, val)) {
-                return false;
-            }
-            value[std::move(key)] = std::move(val);
-        }
-        return true;
-    }
-    // Basic types
-    else if constexpr (std::is_same_v<T, bool>) {
-        if (j.is_bool()) {
-            value = j.as_bool();
-            return true;
-        }
-        return false;
-    } else if constexpr (std::is_integral_v<T>) {
-        if (j.is_number()) {
-            // Handle different JSON number types
-            if (j.is_int64()) {
-                value = static_cast<T>(j.as_int64());
-            } else if (j.is_uint64()) {
-                value = static_cast<T>(j.as_uint64());
-            } else {
-                // Fallback for other numeric types
-                value = static_cast<T>(j.as_double());
-            }
-            return true;
-        }
-        return false;
-    } else if constexpr (std::is_floating_point_v<T>) {
-        if (j.is_number()) {
-            value = static_cast<T>(boost::json::value_to<double>(j));
-            return true;
-        }
-        return false;
-    } else if constexpr (std::is_same_v<T, std::string>) {
-        if (j.is_string()) {
-            value = boost::json::value_to<std::string>(j);
-            return true;
-        }
-        return false;
-    }
-    return false;
-}
-
-// ============================================================================
-// String Format Conversion Functions
-// ============================================================================
-
-// Forward declaration
-template <typename T>
-std::string describe_struct_to_string_impl(const T &obj, const DescribeOutputFormat &fmt);
-
-/**
- * @brief Output single member to string stream
- */
-template <typename T>
-void describe_output_member(std::ostringstream &oss, const char *name, const T &value, const DescribeOutputFormat &fmt)
-{
-    // Output field name
-    if (fmt.quote_field_names) {
-        oss << "\"" << fmt.field_prefix << name << "\"";
-    } else {
-        oss << fmt.field_prefix << name;
-    }
-    oss << fmt.name_value_separator;
-
-    // Output value based on type
-    if constexpr (is_described_enum_v<T>) {
-        if (fmt.enum_as_string) {
-            const char *enum_name = nullptr;
-            boost::mp11::mp_for_each<boost::describe::describe_enumerators<T>>([&](auto D) {
-                if (D.value == value) {
-                    enum_name = D.name;
-                }
-            });
-            if (fmt.quote_string_values) {
-                oss << "\"";
-            }
-            oss << (enum_name ? enum_name : std::to_string(static_cast<std::underlying_type_t<T>>(value)).c_str());
-            if (fmt.quote_string_values) {
-                oss << "\"";
-            }
-        } else {
-            if (fmt.quote_string_values) {
-                oss << "\"";
-            }
-            oss << static_cast<std::underlying_type_t<T>>(value);
-            if (fmt.quote_string_values) {
-                oss << "\"";
-            }
-        }
-    } else if constexpr (is_described_v<T>) {
-        oss << describe_struct_to_string_impl(value, fmt);
-    } else if constexpr (std::is_same_v<T, bool>) {
-        // Handle bool explicitly
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-        oss << (value ? "true" : "false");
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-    } else if constexpr (std::is_integral_v<T>) {
-        // Handle all integral types explicitly to ensure correct signed/unsigned handling
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-        // Special handling for char types to print as numbers
-        if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, signed char>) {
-            oss << static_cast<int>(value);
-        } else if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, unsigned char>) {
-            oss << static_cast<unsigned int>(value);
-        } else {
-            // For all other integer types, use std::to_string which handles signedness correctly
-            oss << std::to_string(value);
-        }
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-    } else if constexpr (std::is_floating_point_v<T>) {
-        // Handle floating point types
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-        oss << value;
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-    } else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, const char *>) {
-        if (fmt.quote_string_values) {
-            oss << "\"" << value << "\"";
-        } else {
-            oss << value;
-        }
-    } else if constexpr (is_optional_v<T> || is_vector_v<T> || is_map_v<T>) {
-        // Handle containers (vector, map, optional) - convert via JSON
-        auto json_value = describe_member_to_json(value);
-        oss << describe_json_value_to_string(json_value, &fmt);
-    } else if constexpr (has_ostream_operator_v<T>) {
-        if (fmt.quote_string_values) {
-            oss << "\"" << value << "\"";
-        } else {
-            oss << value;
-        }
-    } else {
-        // Output address
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-        oss << fmt.address_prefix;
-        if (fmt.hex_address) {
-            auto flags = oss.flags();
-            oss << "0x" << std::hex << reinterpret_cast<uintptr_t>(&value);
-            oss.flags(flags);
-        } else {
-            oss << static_cast<const void *>(&value);
-        }
-        if (fmt.quote_string_values) {
-            oss << "\"";
-        }
-    }
-}
-
-/**
- * @brief Convert struct to string with custom format
- */
-template <typename T>
-std::string describe_struct_to_string_impl(const T &obj, const DescribeOutputFormat &fmt)
-{
-    std::ostringstream oss;
-    oss << fmt.struct_begin;
-
-    bool first = true;
-    boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
-    [&](auto D) {
-        if (!first) {
-            oss << fmt.field_separator;
-        }
-        first = false;
-        describe_output_member(oss, D.name, obj.*D.pointer, fmt);
-    });
-
-    oss << fmt.struct_end;
-    return oss.str();
-}
+inline constexpr bool is_function_v = is_function<T>::value;
 
 } // namespace detail
-
-// ============================================================================
-// Public API - Struct Conversion Functions
-// ============================================================================
-
-/**
- * @brief Convert struct to string (using global format)
- */
-template <typename T>
-std::string describe_struct_to_string(const T &obj)
-{
-    return detail::describe_struct_to_string_impl(obj, detail::DescribeFormatManager::instance().get_format());
-}
-
-/**
- * @brief Convert struct to string (with custom format)
- */
-template <typename T>
-std::string describe_struct_to_string(const T &obj, const detail::DescribeOutputFormat &fmt)
-{
-    return detail::describe_struct_to_string_impl(obj, fmt);
-}
-
-/**
- * @brief Convert struct to JSON
- */
-template <typename T>
-boost::json::value describe_struct_to_json(const T &obj)
-{
-    return detail::describe_member_to_json(obj);
-}
-
-/**
- * @brief Convert JSON to struct
- */
-template <typename T>
-bool describe_json_to_struct(const boost::json::value &j, T &ret_value)
-{
-    return detail::describe_json_to_member(j, ret_value);
-}
-
-// ============================================================================
-// Public API - Format Management Functions
-// ============================================================================
-
-inline void describe_set_global_format(const detail::DescribeOutputFormat &fmt)
-{
-    detail::DescribeFormatManager::instance().set_format(fmt);
-}
-
-inline const detail::DescribeOutputFormat &describe_get_global_format()
-{
-    return detail::DescribeFormatManager::instance().get_format();
-}
-
-inline void describe_reset_global_format()
-{
-    detail::DescribeFormatManager::instance().reset_to_default();
-}
 
 // ============================================================================
 // Public API - Enum Conversion Functions
@@ -798,8 +186,811 @@ bool describe_number_to_enum(std::underlying_type_t<T> number, T &ret_value)
 }
 
 // ============================================================================
-// Public API - Universal Conversion Function
+// Public API - JSON Conversion Functions
 // ============================================================================
+
+/**
+ * @brief Convert value to JSON (supports all common types)
+ */
+template <typename T>
+boost::json::value describe_to_json(const T &value)
+{
+    // Basic types
+    if constexpr (std::is_same_v<T, bool>) {
+        return value;
+    } else if constexpr (std::is_integral_v<T>) {
+        // Handle integer types - use std::is_signed_v for cleaner code
+        if constexpr (std::is_signed_v<T>) {
+            return static_cast<std::int64_t>(value);
+        } else {
+            return static_cast<std::uint64_t>(value);
+        }
+    } else if constexpr (std::is_floating_point_v<T>) {
+        return static_cast<double>(value);
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        return boost::json::value(value);
+    } else if constexpr (std::is_same_v<T, const char *> || std::is_same_v<T, char *>) {
+        // Handle null pointers safely
+        return value ? boost::json::value(std::string(value)) : boost::json::value("");
+    }
+    // char arrays (string literals like "hello")
+    else if constexpr (std::is_array_v<T> &&(std::is_same_v<std::remove_extent_t<T>, char> ||
+                       std::is_same_v<std::remove_extent_t<T>, const char>)) {
+        return boost::json::value(std::string(value));
+    }
+    // std::optional
+    else if constexpr (detail::is_optional_v<T>) {
+        return value.has_value() ? describe_to_json(*value) : nullptr;
+    }
+    // std::vector
+    else if constexpr (detail::is_vector_v<T>) {
+        boost::json::array arr;
+        arr.reserve(value.size());  // Performance optimization
+        for (const auto &item : value) {
+            arr.push_back(describe_to_json(item));
+        }
+        return arr;
+    }
+    // std::map
+    else if constexpr (detail::is_map_v<T>) {
+        boost::json::object obj;
+        for (const auto &[key, val] : value) {
+            std::string key_str;
+            if constexpr (std::is_same_v<typename T::key_type, std::string>) {
+                key_str = key;
+            } else if constexpr (std::is_integral_v<typename T::key_type>) {
+                key_str = std::to_string(key);
+            } else if constexpr (detail::is_described_enum_v<typename T::key_type>) {
+                key_str = describe_enum_to_string(key);
+            } else {
+                // Fallback: convert key to JSON first, then to string
+                key_str = boost::json::value_to<std::string>(describe_to_json(key));
+            }
+            obj[key_str] = describe_to_json(val);
+        }
+        return obj;
+    }
+    // std::variant - serialize the currently held value
+    else if constexpr (detail::is_variant_v<T>) {
+        return std::visit([](const auto & v) -> boost::json::value {
+            return describe_to_json(v);
+        }, value);
+    }
+    // std::function - output status and address
+    else if constexpr (detail::is_function_v<T>) {
+        if (value) {
+            // Function is not empty, return a descriptive string with address
+            std::ostringstream oss;
+            oss << "<function@0x" << std::hex << reinterpret_cast<uintptr_t>(&value) << ">";
+            return boost::json::value(oss.str());
+        } else {
+            // Function is empty/null
+            return boost::json::value("<function:empty>");
+        }
+    }
+    // boost::json::value - return directly without conversion
+    else if constexpr (std::is_same_v<T, boost::json::value>) {
+        return value;
+    }
+    // boost::json::object - convert to boost::json::value
+    else if constexpr (std::is_same_v<T, boost::json::object>) {
+        return boost::json::value(value);
+    }
+    // boost::json::array - convert to boost::json::value
+    else if constexpr (std::is_same_v<T, boost::json::array>) {
+        return boost::json::value(value);
+    }
+    // Described enum
+    else if constexpr (detail::is_described_enum_v<T>) {
+        const char *enum_name = nullptr;
+        boost::mp11::mp_for_each<boost::describe::describe_enumerators<T>>([&](auto D) {
+            if (D.value == value) {
+                enum_name = D.name;
+            }
+        });
+        return enum_name ? boost::json::value(boost::json::string(enum_name))
+               : boost::json::value(static_cast<std::underlying_type_t<T>>(value));
+    }
+    // Described struct
+    else if constexpr (detail::is_described_v<T>) {
+        boost::json::object j;
+        boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
+        [&](auto D) {
+            // Serialize all fields, including null optionals (for symmetry)
+            j[D.name] = describe_to_json(value.*D.pointer);
+        });
+        return j;
+    }
+    // Types with ostream operator
+    else if constexpr (detail::has_ostream_operator_v<T>) {
+        std::ostringstream oss;
+        oss << value;
+        return boost::json::value(oss.str());
+    }
+    // Fallback
+    else {
+        return boost::json::value("");
+    }
+}
+
+/**
+ * @brief Convert JSON to value (supports all common types)
+ */
+template <typename T>
+bool describe_from_json(const boost::json::value &j, T &value)
+{
+    // Basic types
+    if constexpr (std::is_same_v<T, bool>) {
+        if (j.is_bool()) {
+            value = j.as_bool();
+            return true;
+        }
+        return false;
+    } else if constexpr (std::is_integral_v<T>) {
+        if (j.is_number()) {
+            // Handle different JSON number types with range checking
+            if (j.is_int64()) {
+                std::int64_t temp = j.as_int64();
+                // Check for overflow
+                if constexpr (sizeof(T) < sizeof(std::int64_t)) {
+                    if (temp < std::numeric_limits<T>::min() || temp > std::numeric_limits<T>::max()) {
+                        return false;  // Overflow detected
+                    }
+                }
+                value = static_cast<T>(temp);
+            } else if (j.is_uint64()) {
+                std::uint64_t temp = j.as_uint64();
+                // Check for overflow
+                if constexpr (sizeof(T) < sizeof(std::uint64_t)) {
+                    if (temp > static_cast<std::uint64_t>(std::numeric_limits<T>::max())) {
+                        return false;  // Overflow detected
+                    }
+                }
+                value = static_cast<T>(temp);
+            } else {
+                // Fallback for other numeric types (e.g., double)
+                double temp = j.as_double();
+                if (temp < std::numeric_limits<T>::min() || temp > std::numeric_limits<T>::max()) {
+                    return false;  // Overflow detected
+                }
+                value = static_cast<T>(temp);
+            }
+            return true;
+        }
+        return false;
+    } else if constexpr (std::is_floating_point_v<T>) {
+        if (j.is_number()) {
+            value = static_cast<T>(boost::json::value_to<double>(j));
+            return true;
+        }
+        return false;
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        if (j.is_string()) {
+            value = boost::json::value_to<std::string>(j);
+            return true;
+        }
+        return false;
+    } else if constexpr (std::is_same_v<T, const char *> || std::is_same_v<T, char *>) {
+        // WARNING: Cannot safely deserialize to const char* due to lifetime issues
+        // Use std::string instead for safe deserialization
+        // This branch is disabled to prevent undefined behavior
+        static_assert(
+            (!std::is_same_v<T, const char *>) && (!std::is_same_v<T, char *>),
+            "Cannot deserialize JSON to const char* or char* (use std::string instead)"
+        );
+        return false;
+    }
+    // std::optional
+    else if constexpr (detail::is_optional_v<T>) {
+        if (j.is_null()) {
+            value = std::nullopt;
+            return true;
+        } else {
+            typename T::value_type temp;
+            if (describe_from_json(j, temp)) {
+                value = temp;
+                return true;
+            }
+            return false;
+        }
+    }
+    // std::vector
+    else if constexpr (detail::is_vector_v<T>) {
+        if (!j.is_array()) {
+            return false;
+        }
+        const auto &arr = j.as_array();
+        value.clear();
+        value.reserve(arr.size());
+        for (const auto &item : arr) {
+            typename T::value_type temp;
+            if (!describe_from_json(item, temp)) {
+                return false;
+            }
+            value.push_back(std::move(temp));
+        }
+        return true;
+    }
+    // std::map
+    else if constexpr (detail::is_map_v<T>) {
+        if (!j.is_object()) {
+            return false;
+        }
+        const auto &obj = j.as_object();
+        value.clear();
+        for (const auto &[key_str, val_json] : obj) {
+            typename T::key_type key;
+            typename T::mapped_type val;
+
+            if constexpr (std::is_same_v<typename T::key_type, std::string>) {
+                key = std::string(key_str);
+            } else if constexpr (std::is_integral_v<typename T::key_type>) {
+                // Optimize: avoid temporary string construction
+                std::string key_string(key_str);
+                try {
+                    if constexpr (std::is_signed_v<typename T::key_type>) {
+                        key = static_cast<typename T::key_type>(std::stoll(key_string));
+                    } else {
+                        key = static_cast<typename T::key_type>(std::stoull(key_string));
+                    }
+                } catch (const std::exception &) {
+                    return false;  // Invalid key format
+                }
+            } else if constexpr (detail::is_described_enum_v<typename T::key_type>) {
+                if (!describe_string_to_enum(std::string(key_str), key)) {
+                    return false;
+                }
+            } else {
+                return false;  // Unsupported key type
+            }
+
+            if (!describe_from_json(val_json, val)) {
+                return false;
+            }
+            value[std::move(key)] = std::move(val);
+        }
+        return true;
+    }
+    // std::variant - try to convert to each alternative type
+    else if constexpr (detail::is_variant_v<T>) {
+        bool success = false;
+        // Try each alternative type in order
+        boost::mp11::mp_for_each<boost::mp11::mp_iota_c<std::variant_size_v<T>>>([&](auto I) {
+            if (!success) {
+                using AlternativeType = std::variant_alternative_t<I, T>;
+                AlternativeType temp;
+                if (describe_from_json(j, temp)) {
+                    value = std::move(temp);
+                    success = true;
+                }
+            }
+        });
+        return success;
+    }
+    // std::function - cannot convert from JSON (functions are not serializable)
+    else if constexpr (detail::is_function_v<T>) {
+        // Functions cannot be deserialized from JSON
+        return false;
+    }
+    // boost::json::value - return directly
+    else if constexpr (std::is_same_v<T, boost::json::value>) {
+        value = j;
+        return true;
+    }
+    // boost::json::object - convert from JSON object
+    else if constexpr (std::is_same_v<T, boost::json::object>) {
+        if (j.is_object()) {
+            value = j.as_object();
+            return true;
+        }
+        return false;
+    }
+    // boost::json::array - convert from JSON array
+    else if constexpr (std::is_same_v<T, boost::json::array>) {
+        if (j.is_array()) {
+            value = j.as_array();
+            return true;
+        }
+        return false;
+    }
+    // Described enum
+    else if constexpr (detail::is_described_enum_v<T>) {
+        if (j.is_string()) {
+            return describe_string_to_enum(boost::json::value_to<std::string>(j), value);
+        } else if (j.is_number()) {
+            auto num = std::is_signed_v<std::underlying_type_t<T>>
+                       ? static_cast<std::underlying_type_t<T>>(boost::json::value_to<std::int64_t>(j))
+                       : static_cast<std::underlying_type_t<T>>(boost::json::value_to<std::uint64_t>(j));
+            return describe_number_to_enum(num, value);
+        }
+        return false;
+    }
+    // Described struct
+    else if constexpr (detail::is_described_v<T>) {
+        if (!j.is_object()) {
+            value = T{};
+            return false;
+        }
+        value = T{};
+        const auto &json_obj = j.as_object();
+        bool success = true;
+        boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
+        [&](auto D) {
+            auto it = json_obj.find(D.name);
+            if (it != json_obj.end()) {
+                if (!describe_from_json(it->value(), value.*D.pointer)) {
+                    success = false;
+                }
+            }
+        });
+        return success;
+    }
+    return false;
+}
+
+// ============================================================================
+// JSON Serialization/Deserialization Functions
+// ============================================================================
+
+template <typename T>
+std::string describe_json_serialize(const T &value)
+{
+    boost::json::value json_value = describe_to_json(value);
+    return boost::json::serialize(json_value);
+}
+
+template <typename T>
+bool describe_json_deserialize(const std::string &str, T &value)
+{
+    boost::system::error_code error_code;
+    boost::json::value json_value = boost::json::parse(str, error_code);
+    if (error_code) {
+        return false;
+    }
+    return describe_from_json(json_value, value);
+}
+
+// ============================================================================
+// Format Configuration
+// ============================================================================
+
+/**
+ * @brief Output format configuration
+ */
+struct DescribeOutputFormat {
+    const char *struct_begin = "{ ";      // Struct begin symbol
+    const char *struct_end = " }";        // Struct end symbol
+    const char *field_separator = ", ";   // Field separator
+    const char *field_prefix = "";        // Field name prefix (e.g., "." for C++ style)
+    const char *name_value_separator = ": "; // Name-value separator
+    const char *address_prefix = "@";     // Address prefix
+    bool hex_address = false;             // Whether address uses hexadecimal
+    bool quote_field_names = false;       // Whether to add quotes to field names
+    bool quote_string_values = false;     // Whether to add quotes to string values
+    bool enum_as_string = true;           // Whether enum outputs as string (false outputs numeric value)
+    bool show_type_name = false;          // Whether to show type name
+};
+
+// Predefined formats
+inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_DEFAULT = {
+    .struct_begin = "{ ", .struct_end = " }", .field_separator = ", ",
+    .name_value_separator = ": ", .address_prefix = "@"
+};
+
+inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_COMPACT = {
+    .struct_begin = "{", .struct_end = "}", .field_separator = ",",
+    .name_value_separator = "=", .address_prefix = "@0x", .hex_address = true
+};
+
+inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_VERBOSE = {
+    .struct_begin = "{\n  ", .struct_end = "\n}", .field_separator = ",\n  ",
+    .field_prefix = ".", .name_value_separator = " = ", .address_prefix = "0x", .hex_address = true,
+    .show_type_name = true  // Enable multiline format for arrays/objects
+};
+
+inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_JSON = {
+    .struct_begin = "{", .struct_end = "}", .field_separator = ",",
+    .name_value_separator = ": ", .address_prefix = "\"@", .hex_address = true,
+    .quote_field_names = true, .quote_string_values = true
+};
+
+inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_PYTHON = {
+    .struct_begin = "{'", .struct_end = "'}", .field_separator = "', '",
+    .name_value_separator = "': ", .address_prefix = "<@0x", .hex_address = true
+};
+
+inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_CPP = {
+    .struct_begin = "{", .struct_end = "}", .field_separator = ", ",
+    .field_prefix = ".", .name_value_separator = " = ", .address_prefix = "@0x", .hex_address = true
+};
+
+// ============================================================================
+// Public API - Format Management Functions
+// ============================================================================
+
+/**
+ * @brief Global format manager (Singleton)
+ */
+class DescribeFormatManager {
+public:
+    static DescribeFormatManager &instance()
+    {
+        static DescribeFormatManager mgr;
+        return mgr;
+    }
+
+    void set_format(const DescribeOutputFormat &fmt)
+    {
+        format_ = fmt;
+    }
+    const DescribeOutputFormat &get_format() const
+    {
+        return format_;
+    }
+    void reset_to_default()
+    {
+        format_ = DESCRIBE_FORMAT_DEFAULT;
+    }
+
+private:
+    DescribeFormatManager() : format_(DESCRIBE_FORMAT_DEFAULT) {}
+    DescribeOutputFormat format_;
+};
+
+inline void describe_set_global_format(const DescribeOutputFormat &fmt)
+{
+    DescribeFormatManager::instance().set_format(fmt);
+}
+
+inline const DescribeOutputFormat &describe_get_global_format()
+{
+    return DescribeFormatManager::instance().get_format();
+}
+
+inline void describe_reset_global_format()
+{
+    DescribeFormatManager::instance().reset_to_default();
+}
+
+// ============================================================================
+// String Format Conversion Functions
+// ============================================================================
+
+/**
+ * @brief Convert boost::json::value to formatted string
+ *
+ * @note When fmt is nullptr or using default format, uses boost::json::serialize for better performance.
+ *       Custom formatting is only used when fmt.show_type_name is true (multiline mode) or
+ *       custom field_prefix/name_value_separator are specified.
+ */
+inline std::string describe_json_value_to_string(const boost::json::value &j, const DescribeOutputFormat &fmt, int indent_level = 0)
+{
+    // Custom formatting path
+    // Helper to create indentation
+    auto make_indent = [&](int level) -> std::string {
+        if (!fmt.show_type_name)
+        {
+            return "";
+        }
+        return std::string(level * 2, ' ');  // 2 spaces per indent level
+    };
+
+    // Basic types
+    if (j.is_null()) {
+        return "null";
+    } else if (j.is_bool()) {
+        return j.as_bool() ? "true" : "false";
+    } else if (j.is_int64()) {
+        return std::to_string(j.as_int64());
+    } else if (j.is_uint64()) {
+        return std::to_string(j.as_uint64());
+    } else if (j.is_double()) {
+        return std::to_string(j.as_double());
+    } else if (j.is_string()) {
+        std::string str = std::string(j.as_string());
+        if (fmt.quote_string_values) {
+            return "\"" + str + "\"";
+        }
+        return str;
+    }
+    // boost::json::array
+    else if (j.is_array()) {
+        const auto &arr = j.as_array();
+        if (arr.empty()) {
+            return "[]";
+        }
+
+        if (fmt.show_type_name) {
+            // Multiline format for verbose mode
+            std::string result = "[\n";
+            bool first = true;
+            for (const auto &item : arr) {
+                if (!first) {
+                    result += ",\n";
+                }
+                first = false;
+                result += make_indent(indent_level + 1);
+                result += describe_json_value_to_string(item, fmt, indent_level + 1);
+            }
+            result += "\n" + make_indent(indent_level) + "]";
+            return result;
+        } else {
+            // Compact format with custom separators
+            std::string result = "[";
+            bool first = true;
+            for (const auto &item : arr) {
+                if (!first) {
+                    result += ", ";
+                }
+                first = false;
+                result += describe_json_value_to_string(item, fmt, indent_level);
+            }
+            result += "]";
+            return result;
+        }
+    }
+    // boost::json::object
+    else if (j.is_object()) {
+        const auto &obj = j.as_object();
+        if (obj.empty()) {
+            return "{}";
+        }
+
+        if (fmt.show_type_name) {
+            // Multiline format for verbose mode
+            std::string result = "{\n";
+            bool first = true;
+            for (const auto &[key, val] : obj) {
+                if (!first) {
+                    result += ",\n";
+                }
+                first = false;
+                result += make_indent(indent_level + 1);
+                std::string key_str = fmt.field_prefix;
+                if (fmt.quote_field_names) {
+                    key_str += "\"" + std::string(key) + "\"";
+                } else {
+                    key_str += std::string(key);
+                }
+                result += key_str + fmt.name_value_separator + describe_json_value_to_string(val, fmt, indent_level + 1);
+            }
+            result += "\n" + make_indent(indent_level) + "}";
+            return result;
+        } else {
+            // Compact format with custom separators
+            std::string result = "{ ";
+            bool first = true;
+            for (const auto &[key, val] : obj) {
+                if (!first) {
+                    result += ", ";
+                }
+                first = false;
+                std::string key_str;
+                if (fmt.quote_field_names) {
+                    key_str = "\"" + std::string(key) + "\"";
+                } else {
+                    key_str = std::string(key);
+                }
+                result += key_str + fmt.name_value_separator + describe_json_value_to_string(val, fmt, indent_level);
+            }
+            result += " }";
+            return result;
+        }
+    }
+    return "";
+}
+
+// Forward declaration
+template <typename T>
+std::string describe_to_string_with_fmt(const T &obj, const DescribeOutputFormat &fmt);
+
+/**
+ * @brief Output single member to string stream
+ */
+template <typename T>
+void describe_output_member(std::ostringstream &oss, const char *name, const T &value, const DescribeOutputFormat &fmt)
+{
+    // std::optional - always output (consistent with describe_to_json)
+    if constexpr (detail::is_optional_v<T>) {
+        // Handle optional - convert via JSON
+        auto json_value = describe_to_json(value);
+        // Output field name and value (including null)
+        if (fmt.quote_field_names) {
+            oss << "\"" << fmt.field_prefix << name << "\"";
+        } else {
+            oss << fmt.field_prefix << name;
+        }
+        oss << fmt.name_value_separator;
+        oss << describe_json_value_to_string(json_value, fmt);
+        return;
+    }
+
+    // Output field name
+    if (fmt.quote_field_names) {
+        oss << "\"" << fmt.field_prefix << name << "\"";
+    } else {
+        oss << fmt.field_prefix << name;
+    }
+    oss << fmt.name_value_separator;
+
+    // Output value based on type
+    // Basic types
+    if constexpr (std::is_same_v<T, bool>) {
+        // Handle bool explicitly
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        oss << (value ? "true" : "false");
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+    } else if constexpr (std::is_integral_v<T>) {
+        // Handle all integral types explicitly to ensure correct signed/unsigned handling
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        // Special handling for char types to print as numbers
+        if constexpr (std::is_same_v<T, int8_t> || std::is_same_v<T, signed char>) {
+            oss << static_cast<int>(value);
+        } else if constexpr (std::is_same_v<T, uint8_t> || std::is_same_v<T, unsigned char>) {
+            oss << static_cast<unsigned int>(value);
+        } else {
+            // For all other integer types, use std::to_string which handles signedness correctly
+            oss << std::to_string(value);
+        }
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+    } else if constexpr (std::is_floating_point_v<T>) {
+        // Handle floating point types
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        oss << value;
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+    } else if constexpr (std::is_same_v<T, std::string>) {
+        if (fmt.quote_string_values) {
+            oss << "\"" << value << "\"";
+        } else {
+            oss << value;
+        }
+    } else if constexpr (std::is_same_v<T, const char *> || std::is_same_v<T, char *>) {
+        const char *str_value = value ? value : "";
+        if (fmt.quote_string_values) {
+            oss << "\"" << str_value << "\"";
+        } else {
+            oss << str_value;
+        }
+    }
+    // char arrays (string literals)
+    else if constexpr (std::is_array_v<T> &&(std::is_same_v<std::remove_extent_t<T>, char> ||
+                       std::is_same_v<std::remove_extent_t<T>, const char>)) {
+        if (fmt.quote_string_values) {
+            oss << "\"" << value << "\"";
+        } else {
+            oss << value;
+        }
+    }
+    // std::vector, std::map, std::variant
+    else if constexpr (detail::is_vector_v<T> || detail::is_map_v<T> || detail::is_variant_v<T>) {
+        // Handle containers (vector, map, variant) - convert via JSON
+        auto json_value = describe_to_json(value);
+        oss << describe_json_value_to_string(json_value, fmt);
+    }
+    // std::function - output status and address
+    else if constexpr (detail::is_function_v<T>) {
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        if (value) {
+            oss << "<function@0x" << std::hex << reinterpret_cast<uintptr_t>(&value) << ">";
+        } else {
+            oss << "<function:empty>";
+        }
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+    }
+    // boost::json::value - output as JSON without quotes
+    else if constexpr (std::is_same_v<T, boost::json::value>) {
+        oss << describe_json_value_to_string(value, fmt);
+    }
+    // boost::json::object - output as JSON without quotes
+    else if constexpr (std::is_same_v<T, boost::json::object>) {
+        oss << describe_json_value_to_string(boost::json::value(value), fmt);
+    }
+    // boost::json::array - output as JSON without quotes
+    else if constexpr (std::is_same_v<T, boost::json::array>) {
+        oss << describe_json_value_to_string(boost::json::value(value), fmt);
+    }
+    // Described enum
+    else if constexpr (detail::is_described_enum_v<T>) {
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        if (fmt.enum_as_string) {
+            const char *enum_name = nullptr;
+            boost::mp11::mp_for_each<boost::describe::describe_enumerators<T>>([&](auto D) {
+                if (D.value == value) {
+                    enum_name = D.name;
+                }
+            });
+            if (enum_name) {
+                oss << enum_name;
+            } else {
+                oss << static_cast<std::underlying_type_t<T>>(value);
+            }
+        } else {
+            oss << static_cast<std::underlying_type_t<T>>(value);
+        }
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+    }
+    // Described struct
+    else if constexpr (detail::is_described_v<T>) {
+        oss << describe_to_string_with_fmt(value, fmt);
+    }
+    // Types with ostream operator
+    else if constexpr (detail::has_ostream_operator_v<T>) {
+        if (fmt.quote_string_values) {
+            oss << "\"" << value << "\"";
+        } else {
+            oss << value;
+        }
+    }
+    // Fallback - output address
+    else {
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        oss << fmt.address_prefix;
+        if (fmt.hex_address) {
+            auto flags = oss.flags();
+            oss << "0x" << std::hex << reinterpret_cast<uintptr_t>(&value);
+            oss.flags(flags);
+        } else {
+            oss << static_cast<const void *>(&value);
+        }
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+    }
+}
+
+/**
+ * @brief Convert struct to string with custom format
+ */
+template <typename T>
+std::string describe_to_string_with_fmt(const T &obj, const DescribeOutputFormat &fmt)
+{
+    // Only use describe_members for described structs
+    if constexpr (detail::is_described_v<T>) {
+        std::ostringstream oss;
+        oss << fmt.struct_begin;
+
+        bool first = true;
+        boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
+        [&](auto D) {
+            // Add separator before outputting field
+            if (!first) {
+                oss << fmt.field_separator;
+            }
+            // Output all fields uniformly (including optional fields)
+            describe_output_member(oss, D.name, obj.*D.pointer, fmt);
+            first = false;
+        });
+
+        oss << fmt.struct_end;
+        return oss.str();
+    } else {
+        // For non-described types (vector, map, variant, etc.), convert via JSON
+        auto json_value = describe_to_json(obj);
+        return describe_json_value_to_string(json_value, fmt);
+    }
+}
 
 /**
  * @brief Auto-detect type and convert to string
@@ -812,10 +1003,6 @@ std::string describe_to_string(const T &value)
     // Fast path for enum - direct conversion
     if constexpr (detail::is_described_enum_v<T>) {
         return describe_enum_to_string(value);
-    }
-    // Fast path for struct - use global format
-    else if constexpr (detail::is_described_v<T>) {
-        return describe_struct_to_string(value);
     }
     // Fast path for bool
     else if constexpr (std::is_same_v<T, bool>) {
@@ -832,26 +1019,17 @@ std::string describe_to_string(const T &value)
     // Fast path for string types
     else if constexpr (std::is_same_v<T, std::string>) {
         return value;
-    } else if constexpr (std::is_same_v<T, const char *>) {
+    } else if constexpr (std::is_same_v<T, const char *> || std::is_same_v<T, char *>) {
+        return value ? std::string(value) : std::string("");
+    }
+    // Fast path for char arrays (string literals like "hello")
+    else if constexpr (std::is_array_v<T> &&(std::is_same_v<std::remove_extent_t<T>, char> ||
+                       std::is_same_v<std::remove_extent_t<T>, const char>)) {
         return std::string(value);
     }
-    // Complex types (vector, map, optional) - use JSON intermediate representation
+    // Complex types (struct, vector, map, optional) - use JSON intermediate representation
     else {
-        auto json_value = detail::describe_member_to_json(value);
-        return detail::describe_json_value_to_string(json_value);
-    }
-}
-
-/**
- * @brief Auto-detect type and convert to string (with custom format for structs)
- */
-template <typename T>
-std::string describe_to_string(const T &value, const detail::DescribeOutputFormat &fmt)
-{
-    if constexpr (detail::is_described_v<T>) {
-        return describe_struct_to_string(value, fmt);
-    } else {
-        return describe_to_string(value);
+        return describe_to_string_with_fmt(value, describe_get_global_format());
     }
 }
 
@@ -865,11 +1043,9 @@ std::string describe_to_string(const T &value, const detail::DescribeOutputForma
 #define BROOKESIA_DESCRIBE_STRUCT(C, Bases, Members) BOOST_DESCRIBE_STRUCT(C, Bases, Members)  ///< Register struct for reflection
 #define BROOKESIA_DESCRIBE_ENUM(C, ...) BOOST_DESCRIBE_ENUM(C, __VA_ARGS__)                    ///< Register enum for reflection
 
-// Universal string conversion macros (auto-detect type)
-#define BROOKESIA_DESCRIBE_TO_STR(value) esp_brookesia::lib_utils::describe_to_string(value)                   ///< Convert any type to string
-#define BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(value, fmt) esp_brookesia::lib_utils::describe_to_string(value, fmt) ///< Convert with custom format
-
 // Enum conversion macros
+#define BROOKESIA_DESCRIBE_ENUM_TO_STR(value) \
+    esp_brookesia::lib_utils::describe_enum_to_string(value)     ///< Convert enum to string
 #define BROOKESIA_DESCRIBE_ENUM_TO_NUM(value) \
     esp_brookesia::lib_utils::describe_enum_to_number(value)        ///< Convert enum to underlying number
 #define BROOKESIA_DESCRIBE_NUM_TO_ENUM(number, ret_value) \
@@ -878,15 +1054,33 @@ std::string describe_to_string(const T &value, const detail::DescribeOutputForma
     esp_brookesia::lib_utils::describe_string_to_enum(str, ret_value)     ///< Convert string to enum
 
 // JSON conversion macros
-#define BROOKESIA_DESCRIBE_STRUCT_TO_JSON(ret_value) \
-    esp_brookesia::lib_utils::describe_struct_to_json(ret_value)               ///< Convert struct to JSON
-#define BROOKESIA_DESCRIBE_JSON_TO_STRUCT(json_value, ret_value) \
-    esp_brookesia::lib_utils::describe_json_to_struct(json_value, ret_value)  ///< Convert JSON to struct
+#define BROOKESIA_DESCRIBE_TO_JSON(value) \
+    esp_brookesia::lib_utils::describe_to_json(value)               ///< Convert any type to JSON
+#define BROOKESIA_DESCRIBE_FROM_JSON(json_value, ret_value) \
+    esp_brookesia::lib_utils::describe_from_json(json_value, ret_value)  ///< Convert JSON to any type
+
+// String serialization/deserialization macros
+#define BROOKESIA_DESCRIBE_JSON_SERIALIZE(value) \
+    esp_brookesia::lib_utils::describe_json_serialize(value)  ///< Convert any type to JSON string
+#define BROOKESIA_DESCRIBE_JSON_DESERIALIZE(str, ret_value) \
+    esp_brookesia::lib_utils::describe_json_deserialize(str, ret_value)  ///< Convert JSON string to any type
 
 // Format management macros
+#define BROOKESIA_DESCRIBE_FORMAT_VERBOSE esp_brookesia::lib_utils::DESCRIBE_FORMAT_VERBOSE  ///< Verbose format
+#define BROOKESIA_DESCRIBE_FORMAT_JSON esp_brookesia::lib_utils::DESCRIBE_FORMAT_JSON  ///< JSON format
+#define BROOKESIA_DESCRIBE_FORMAT_COMPACT esp_brookesia::lib_utils::DESCRIBE_FORMAT_COMPACT  ///< Compact format
+#define BROOKESIA_DESCRIBE_FORMAT_DEFAULT esp_brookesia::lib_utils::DESCRIBE_FORMAT_DEFAULT  ///< Default format
+#define BROOKESIA_DESCRIBE_FORMAT_PYTHON esp_brookesia::lib_utils::DESCRIBE_FORMAT_PYTHON  ///< Python format
+#define BROOKESIA_DESCRIBE_FORMAT_CPP esp_brookesia::lib_utils::DESCRIBE_FORMAT_CPP  ///< C++ format
 #define BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(fmt) \
     esp_brookesia::lib_utils::describe_set_global_format(fmt)  ///< Set global format
 #define BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT() \
     esp_brookesia::lib_utils::describe_get_global_format()  ///< Get global format
 #define BROOKESIA_DESCRIBE_RESET_GLOBAL_FORMAT() \
     esp_brookesia::lib_utils::describe_reset_global_format()  ///< Reset global format
+
+// Universal string conversion macros (auto-detect type)
+#define BROOKESIA_DESCRIBE_TO_STR(value) \
+    esp_brookesia::lib_utils::describe_to_string(value) ///< Convert with default format
+#define BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(value, fmt) \
+    esp_brookesia::lib_utils::describe_to_string_with_fmt(value, fmt) ///< Convert with custom format
