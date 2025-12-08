@@ -1,0 +1,42 @@
+menu "ESP-Brookesia: Service NVS Configurations"
+    menuconfig BROOKESIA_SERVICE_NVS_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    menuconfig BROOKESIA_SERVICE_NVS_ENABLE_TASK_SCHEDULER
+        bool "Task Scheduler"
+        default y
+
+    if BROOKESIA_SERVICE_NVS_ENABLE_TASK_SCHEDULER
+        config BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_NAME
+            string "Name"
+            default "nvs_tsc_worker"
+            help
+                The name of the worker thread.
+
+        config BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_CORE_ID
+            int "Core ID"
+            default -1
+            help
+                The core ID of the worker thread. `-1` means the core ID is not specified.
+
+        config BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The priority of the worker thread.
+
+        config BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_STACK_SIZE
+            int "Stack size"
+            default 5120
+            help
+                The stack size of the worker thread.
+
+        config BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_POLL_INTERVAL_MS
+            int "Worker poll interval (ms)"
+            default 5
+            range 1 10
+            help
+                The interval of the worker poll.
+    endif
+endmenu

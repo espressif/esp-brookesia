@@ -23,7 +23,7 @@ public:
     FunctionGuard &operator=(const FunctionGuard &) = delete;
 
     // Move constructor
-    FunctionGuard(FunctionGuard &&other) noexcept
+    FunctionGuard(FunctionGuard &&other)
         : func_(std::move(other.func_))
         , args_(std::move(other.args_))
         , is_release_(other.is_release_)
@@ -33,7 +33,7 @@ public:
     }
 
     // Move assignment operator
-    FunctionGuard &operator=(FunctionGuard &&other) noexcept
+    FunctionGuard &operator=(FunctionGuard &&other)
     {
         if (this != &other) {
             // If current object has not been released, execute cleanup first

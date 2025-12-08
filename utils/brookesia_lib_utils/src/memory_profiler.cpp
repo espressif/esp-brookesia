@@ -82,7 +82,7 @@ bool MemoryProfiler::configure_profiling(const ProfilingConfig &config)
 
     config_ = config;
 
-    BROOKESIA_LOGI("Configured:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config_, detail::DESCRIBE_FORMAT_VERBOSE));
+    BROOKESIA_LOGI("Configured:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config_, DESCRIBE_FORMAT_VERBOSE));
 
     return true;
 }
@@ -147,7 +147,7 @@ bool MemoryProfiler::start_profiling(std::shared_ptr<TaskScheduler> scheduler, u
 
     BROOKESIA_LOGI(
         "Started profiling with config:\n%1%",
-        BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config_, detail::DESCRIBE_FORMAT_VERBOSE)
+        BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config_, DESCRIBE_FORMAT_VERBOSE)
     );
 
     return true;

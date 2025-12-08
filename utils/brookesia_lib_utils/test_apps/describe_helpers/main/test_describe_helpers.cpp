@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <optional>
+#include <variant>
 
 using namespace esp_brookesia::lib_utils;
 
@@ -157,7 +158,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR - containers", "[macro][to_str][contai
     BROOKESIA_LOGI("Optional (with value): %1%", result);
     TEST_ASSERT_TRUE(result.find("42") != std::string::npos);
 
-    // Optional without value
+    // Optional without value (now serialized as null)
     std::optional<int> opt2 = std::nullopt;
     result = BROOKESIA_DESCRIBE_TO_STR(opt2);
     BROOKESIA_LOGI("Optional (null): %1%", result);
@@ -186,43 +187,43 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR_WITH_FMT - formats", "[macro][to_str_f
     Point p{100, 200};
 
     // DEFAULT format
-    std::string str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, detail::DESCRIBE_FORMAT_DEFAULT);
+    std::string str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, BROOKESIA_DESCRIBE_FORMAT_DEFAULT);
     BROOKESIA_LOGI("DEFAULT: %1%", str);
     TEST_ASSERT_TRUE(str.find("{ ") != std::string::npos);
     TEST_ASSERT_TRUE(str.find(": ") != std::string::npos);
 
     // JSON format
-    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, detail::DESCRIBE_FORMAT_JSON);
+    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, BROOKESIA_DESCRIBE_FORMAT_JSON);
     BROOKESIA_LOGI("JSON: %1%", str);
     TEST_ASSERT_TRUE(str.find("\"x\"") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("\"y\"") != std::string::npos);
 
     // COMPACT format
-    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, detail::DESCRIBE_FORMAT_COMPACT);
+    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, BROOKESIA_DESCRIBE_FORMAT_COMPACT);
     BROOKESIA_LOGI("COMPACT: %1%", str);
     TEST_ASSERT_TRUE(str.find("=") != std::string::npos);
     TEST_ASSERT_FALSE(str.find(", ") != std::string::npos); // No space after comma
 
     // VERBOSE format
-    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, detail::DESCRIBE_FORMAT_VERBOSE);
+    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, BROOKESIA_DESCRIBE_FORMAT_VERBOSE);
     BROOKESIA_LOGI("VERBOSE:\n%1%", str);
     TEST_ASSERT_TRUE(str.find("\n") != std::string::npos);
     TEST_ASSERT_TRUE(str.find(" = ") != std::string::npos);
 
     // PYTHON format
-    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, detail::DESCRIBE_FORMAT_PYTHON);
+    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, BROOKESIA_DESCRIBE_FORMAT_PYTHON);
     BROOKESIA_LOGI("PYTHON: %1%", str);
     TEST_ASSERT_TRUE(str.find("{'") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("'}") != std::string::npos);
 
     // CPP format
-    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, detail::DESCRIBE_FORMAT_CPP);
+    str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(p, BROOKESIA_DESCRIBE_FORMAT_CPP);
     BROOKESIA_LOGI("CPP: %1%", str);
     TEST_ASSERT_TRUE(str.find(".x = ") != std::string::npos);
     TEST_ASSERT_TRUE(str.find(".y = ") != std::string::npos);
 
     // Custom format
-    detail::DescribeOutputFormat custom;
+    DescribeOutputFormat custom;
     custom.struct_begin = "[";
     custom.struct_end = "]";
     custom.field_separator = " | ";
@@ -298,15 +299,164 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_STR_TO_ENUM", "[macro][str_to_enum]")
     BROOKESIA_LOGI("✓ String to enum test passed");
 }
 
-// ==================== Test BROOKESIA_DESCRIBE_STRUCT_TO_JSON ====================
+// ==================== Test BROOKESIA_DESCRIBE_JSON_SERIALIZE / DESERIALIZE ====================
 
-TEST_CASE("Test BROOKESIA_DESCRIBE_STRUCT_TO_JSON", "[macro][struct_to_json]")
+TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_SERIALIZE - basic types", "[macro][serialize][basic]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_SERIALIZE: Basic Types ===");
+
+    // Bool
+    TEST_ASSERT_EQUAL_STRING("true", BROOKESIA_DESCRIBE_JSON_SERIALIZE(true).c_str());
+    TEST_ASSERT_EQUAL_STRING("false", BROOKESIA_DESCRIBE_JSON_SERIALIZE(false).c_str());
+
+    // Integer
+    TEST_ASSERT_EQUAL_STRING("42", BROOKESIA_DESCRIBE_JSON_SERIALIZE(42).c_str());
+    TEST_ASSERT_EQUAL_STRING("-99", BROOKESIA_DESCRIBE_JSON_SERIALIZE(-99).c_str());
+
+    // String
+    TEST_ASSERT_EQUAL_STRING("\"hello\"", BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::string("hello")).c_str());
+
+    BROOKESIA_LOGI("✓ SERIALIZE basic types test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_SERIALIZE - struct", "[macro][serialize][struct]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_SERIALIZE: Struct ===");
+
+    // Simple struct
+    Point p{10, 20};
+    std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(p);
+    BROOKESIA_LOGI("Point serialized: %1%", json_str);
+    TEST_ASSERT_TRUE(json_str.find("\"x\"") != std::string::npos);
+    TEST_ASSERT_TRUE(json_str.find("10") != std::string::npos);
+    TEST_ASSERT_TRUE(json_str.find("\"y\"") != std::string::npos);
+    TEST_ASSERT_TRUE(json_str.find("20") != std::string::npos);
+
+    // Nested struct
+    Company company{"TechCorp", {"Beijing", 100000}};
+    json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(company);
+    BROOKESIA_LOGI("Company serialized: %1%", json_str);
+    TEST_ASSERT_TRUE(json_str.find("TechCorp") != std::string::npos);
+    TEST_ASSERT_TRUE(json_str.find("Beijing") != std::string::npos);
+
+    // Struct with enum
+    Task task{"Process", Status::Running};
+    json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(task);
+    BROOKESIA_LOGI("Task serialized: %1%", json_str);
+    TEST_ASSERT_TRUE(json_str.find("Process") != std::string::npos);
+    TEST_ASSERT_TRUE(json_str.find("Running") != std::string::npos);
+
+    BROOKESIA_LOGI("✓ SERIALIZE struct test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_DESERIALIZE - basic types", "[macro][deserialize][basic]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_DESERIALIZE: Basic Types ===");
+
+    // Bool
+    bool b;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("true", b));
+    TEST_ASSERT_TRUE(b);
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("false", b));
+    TEST_ASSERT_FALSE(b);
+
+    // Integer
+    int i;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("42", i));
+    TEST_ASSERT_EQUAL(42, i);
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("-99", i));
+    TEST_ASSERT_EQUAL(-99, i);
+
+    // String
+    std::string s;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("\"hello\"", s));
+    TEST_ASSERT_EQUAL_STRING("hello", s.c_str());
+
+    BROOKESIA_LOGI("✓ DESERIALIZE basic types test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_DESERIALIZE - struct", "[macro][deserialize][struct]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_DESERIALIZE: Struct ===");
+
+    // Simple struct
+    Point p;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("{\"x\": 30, \"y\": 40}", p));
+    TEST_ASSERT_EQUAL(30, p.x);
+    TEST_ASSERT_EQUAL(40, p.y);
+    BROOKESIA_LOGI("Point: x=%1%, y=%2%", p.x, p.y);
+
+    // Nested struct
+    Company company;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE(
+                         "{\"name\": \"TechCorp\", \"address\": {\"city\": \"Shanghai\", \"zip\": 200000}}",
+                         company));
+    TEST_ASSERT_EQUAL_STRING("TechCorp", company.name.c_str());
+    TEST_ASSERT_EQUAL_STRING("Shanghai", company.address.city.c_str());
+    TEST_ASSERT_EQUAL(200000, company.address.zip);
+
+    // Struct with enum
+    Task task;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("{\"name\": \"Task1\", \"status\": \"Running\"}", task));
+    TEST_ASSERT_EQUAL_STRING("Task1", task.name.c_str());
+    TEST_ASSERT_EQUAL(static_cast<int>(Status::Running), static_cast<int>(task.status));
+
+    // Invalid JSON
+    TEST_ASSERT_FALSE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE("invalid json", p));
+
+    BROOKESIA_LOGI("✓ DESERIALIZE struct test passed");
+}
+
+TEST_CASE("Test SERIALIZE/DESERIALIZE round trip", "[macro][serialize][round_trip]")
+{
+    BROOKESIA_LOGI("=== SERIALIZE/DESERIALIZE Round Trip ===");
+
+    // Simple struct
+    Point original1{42, 84};
+    std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original1);
+    BROOKESIA_LOGI("Serialized: %1%", json_str);
+    Point converted1;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, converted1));
+    TEST_ASSERT_EQUAL(original1.x, converted1.x);
+    TEST_ASSERT_EQUAL(original1.y, converted1.y);
+
+    // Nested struct
+    Company original2{"GlobalCorp", {"Tokyo", 150000}};
+    json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original2);
+    BROOKESIA_LOGI("Serialized: %1%", json_str);
+    Company converted2;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, converted2));
+    TEST_ASSERT_EQUAL_STRING(original2.name.c_str(), converted2.name.c_str());
+    TEST_ASSERT_EQUAL_STRING(original2.address.city.c_str(), converted2.address.city.c_str());
+    TEST_ASSERT_EQUAL(original2.address.zip, converted2.address.zip);
+
+    // Struct with containers
+    Container original3;
+    original3.numbers = {1, 2, 3};
+    original3.settings["max"] = 100;
+    original3.description = "test";
+    json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original3);
+    BROOKESIA_LOGI("Serialized: %1%", json_str);
+    Container converted3;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, converted3));
+    TEST_ASSERT_EQUAL(3, converted3.numbers.size());
+    TEST_ASSERT_EQUAL(1, converted3.numbers[0]);
+    TEST_ASSERT_EQUAL(100, converted3.settings["max"]);
+    TEST_ASSERT_TRUE(converted3.description.has_value());
+    TEST_ASSERT_EQUAL_STRING("test", converted3.description.value().c_str());
+
+    BROOKESIA_LOGI("✓ SERIALIZE/DESERIALIZE round trip test passed");
+}
+
+// ==================== Test BROOKESIA_DESCRIBE_TO_JSON ====================
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_JSON", "[macro][struct_to_json]")
 {
     BROOKESIA_LOGI("=== DESCRIBE_STRUCT_TO_JSON ===");
 
     // Simple struct
     Point p{10, 20};
-    auto json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(p);
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(p);
     BROOKESIA_LOGI("Point JSON: %1%", boost::json::serialize(json));
 
     TEST_ASSERT_TRUE(json.is_object());
@@ -318,7 +468,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_STRUCT_TO_JSON", "[macro][struct_to_json]")
 
     // Nested struct
     Company company{"TechCorp", {"Beijing", 100000}};
-    json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(company);
+    json = BROOKESIA_DESCRIBE_TO_JSON(company);
     BROOKESIA_LOGI("Company JSON: %1%", boost::json::serialize(json));
 
     TEST_ASSERT_TRUE(json.is_object());
@@ -331,7 +481,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_STRUCT_TO_JSON", "[macro][struct_to_json]")
 
     // Struct with enum
     Task task{"Process", Status::Running};
-    json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(task);
+    json = BROOKESIA_DESCRIBE_TO_JSON(task);
     BROOKESIA_LOGI("Task JSON: %1%", boost::json::serialize(json));
 
     TEST_ASSERT_TRUE(json.is_object());
@@ -344,7 +494,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_STRUCT_TO_JSON", "[macro][struct_to_json]")
     container.numbers = {1, 2, 3};
     container.settings["key"] = 42;
     container.description = "test";
-    json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(container);
+    json = BROOKESIA_DESCRIBE_TO_JSON(container);
     BROOKESIA_LOGI("Container JSON: %1%", boost::json::serialize(json));
 
     TEST_ASSERT_TRUE(json.is_object());
@@ -356,16 +506,16 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_STRUCT_TO_JSON", "[macro][struct_to_json]")
     BROOKESIA_LOGI("✓ Struct to JSON test passed");
 }
 
-// ==================== Test BROOKESIA_DESCRIBE_JSON_TO_STRUCT ====================
+// ==================== Test BROOKESIA_DESCRIBE_FROM_JSON ====================
 
-TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_TO_STRUCT", "[macro][json_to_struct]")
+TEST_CASE("Test BROOKESIA_DESCRIBE_FROM_JSON", "[macro][json_to_struct]")
 {
     BROOKESIA_LOGI("=== DESCRIBE_JSON_TO_STRUCT ===");
 
     // Simple struct
     boost::json::value j = boost::json::parse("{\"x\": 30, \"y\": 40}");
     Point p;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(j, p));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(j, p));
     TEST_ASSERT_EQUAL(30, p.x);
     TEST_ASSERT_EQUAL(40, p.y);
     BROOKESIA_LOGI("Point: x=%1%, y=%2%", p.x, p.y);
@@ -375,7 +525,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_TO_STRUCT", "[macro][json_to_struct]")
             "{\"name\": \"TechCorp\", \"address\": {\"city\": \"Shanghai\", \"zip\": 200000}}"
         );
     Company company;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(j, company));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(j, company));
     TEST_ASSERT_EQUAL_STRING("TechCorp", company.name.c_str());
     TEST_ASSERT_EQUAL_STRING("Shanghai", company.address.city.c_str());
     TEST_ASSERT_EQUAL(200000, company.address.zip);
@@ -384,14 +534,14 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_TO_STRUCT", "[macro][json_to_struct]")
     // Struct with enum (string)
     j = boost::json::parse("{\"name\": \"Task1\", \"status\": \"Running\"}");
     Task task;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(j, task));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(j, task));
     TEST_ASSERT_EQUAL_STRING("Task1", task.name.c_str());
     TEST_ASSERT_EQUAL(static_cast<int>(Status::Running), static_cast<int>(task.status));
     BROOKESIA_LOGI("Task: %1%, status=%2%", task.name, BROOKESIA_DESCRIBE_TO_STR(task.status));
 
     // Struct with enum (number)
     j = boost::json::parse("{\"name\": \"Task2\", \"status\": 2}");
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(j, task));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(j, task));
     TEST_ASSERT_EQUAL(static_cast<int>(Status::Stopped), static_cast<int>(task.status));
 
     // Struct with containers
@@ -399,7 +549,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_TO_STRUCT", "[macro][json_to_struct]")
             "{\"numbers\": [5, 6, 7], \"settings\": {\"max\": 99}, \"description\": \"desc\"}"
         );
     Container container;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(j, container));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(j, container));
     TEST_ASSERT_EQUAL(3, container.numbers.size());
     TEST_ASSERT_EQUAL(5, container.numbers[0]);
     TEST_ASSERT_EQUAL(99, container.settings["max"]);
@@ -408,7 +558,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_TO_STRUCT", "[macro][json_to_struct]")
 
     // Invalid JSON
     j = boost::json::parse("\"not an object\"");
-    TEST_ASSERT_FALSE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(j, p));
+    TEST_ASSERT_FALSE(BROOKESIA_DESCRIBE_FROM_JSON(j, p));
 
     BROOKESIA_LOGI("✓ JSON to struct test passed");
 }
@@ -421,26 +571,26 @@ TEST_CASE("Test JSON round trip", "[macro][round_trip]")
 
     // Simple struct
     Point original1{42, 84};
-    auto json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(original1);
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(original1);
     Point converted1;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(json, converted1));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted1));
     TEST_ASSERT_EQUAL(original1.x, converted1.x);
     TEST_ASSERT_EQUAL(original1.y, converted1.y);
 
     // Nested struct
     Company original2{"GlobalCorp", {"Tokyo", 150000}};
-    json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(original2);
+    json = BROOKESIA_DESCRIBE_TO_JSON(original2);
     Company converted2;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(json, converted2));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted2));
     TEST_ASSERT_EQUAL_STRING(original2.name.c_str(), converted2.name.c_str());
     TEST_ASSERT_EQUAL_STRING(original2.address.city.c_str(), converted2.address.city.c_str());
     TEST_ASSERT_EQUAL(original2.address.zip, converted2.address.zip);
 
     // Struct with enum
     Task original3{"BatchJob", Status::Error};
-    json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(original3);
+    json = BROOKESIA_DESCRIBE_TO_JSON(original3);
     Task converted3;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(json, converted3));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted3));
     TEST_ASSERT_EQUAL_STRING(original3.name.c_str(), converted3.name.c_str());
     TEST_ASSERT_EQUAL(static_cast<int>(original3.status), static_cast<int>(converted3.status));
 
@@ -457,7 +607,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT", "[macro][format_mgmt]")
     auto original = BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT();
 
     // Set to COMPACT
-    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(detail::DESCRIBE_FORMAT_COMPACT);
+    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(BROOKESIA_DESCRIBE_FORMAT_COMPACT);
     Point p{10, 20};
     std::string result = BROOKESIA_DESCRIBE_TO_STR(p);
     BROOKESIA_LOGI("COMPACT format: %1%", result);
@@ -465,7 +615,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT", "[macro][format_mgmt]")
     TEST_ASSERT_FALSE(result.find(": ") != std::string::npos);
 
     // Set to JSON
-    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(detail::DESCRIBE_FORMAT_JSON);
+    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(BROOKESIA_DESCRIBE_FORMAT_JSON);
     result = BROOKESIA_DESCRIBE_TO_STR(p);
     BROOKESIA_LOGI("JSON format: %1%", result);
     TEST_ASSERT_TRUE(result.find("\"x\"") != std::string::npos);
@@ -481,7 +631,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT", "[macro][format_mgmt]")
     BROOKESIA_LOGI("=== DESCRIBE_GET_GLOBAL_FORMAT ===");
 
     auto fmt1 = BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT();
-    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(detail::DESCRIBE_FORMAT_COMPACT);
+    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(BROOKESIA_DESCRIBE_FORMAT_COMPACT);
     auto fmt2 = BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT();
 
     // Verify format changed
@@ -499,7 +649,7 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_RESET_GLOBAL_FORMAT", "[macro][format_mgmt]")
     BROOKESIA_LOGI("=== DESCRIBE_RESET_GLOBAL_FORMAT ===");
 
     // Change format
-    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(detail::DESCRIBE_FORMAT_COMPACT);
+    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(BROOKESIA_DESCRIBE_FORMAT_COMPACT);
     Point p{10, 20};
     std::string result1 = BROOKESIA_DESCRIBE_TO_STR(p);
     BROOKESIA_LOGI("Before reset: %1%", result1);
@@ -524,15 +674,15 @@ TEST_CASE("Test combined macro usage", "[macro][combined]")
     // Create and display struct
     Task task{"DataProcessing", Status::Running};
     BROOKESIA_LOGI("Task (default): %1%", BROOKESIA_DESCRIBE_TO_STR(task));
-    BROOKESIA_LOGI("Task (JSON): %1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(task, detail::DESCRIBE_FORMAT_JSON));
+    BROOKESIA_LOGI("Task (JSON): %1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(task, BROOKESIA_DESCRIBE_FORMAT_JSON));
 
     // Convert to JSON
-    auto json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(task);
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(task);
     BROOKESIA_LOGI("JSON: %1%", boost::json::serialize(json));
 
     // Convert back from JSON
     Task task2;
-    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_TO_STRUCT(json, task2));
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, task2));
     BROOKESIA_LOGI("Converted: %1%", BROOKESIA_DESCRIBE_TO_STR(task2));
 
     // Enum conversions
@@ -547,7 +697,7 @@ TEST_CASE("Test combined macro usage", "[macro][combined]")
 
     // Format management
     auto old_fmt = BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT();
-    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(detail::DESCRIBE_FORMAT_VERBOSE);
+    BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(BROOKESIA_DESCRIBE_FORMAT_VERBOSE);
     BROOKESIA_LOGI("Verbose format:\n%1%", BROOKESIA_DESCRIBE_TO_STR(task));
     BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(old_fmt);
 
@@ -568,7 +718,7 @@ TEST_CASE("Test negative integer in struct", "[macro][negative_int]")
 
     // Test direct int value conversion
     int test_val = -1;
-    auto json_test = detail::describe_member_to_json(test_val);
+    auto json_test = BROOKESIA_DESCRIBE_TO_JSON(test_val);
     BROOKESIA_LOGI("Direct int(-1) to JSON: %1%", boost::json::serialize(json_test));
     BROOKESIA_LOGI("Type: int64=%d, uint64=%d", json_test.is_int64(), json_test.is_uint64());
 
@@ -577,7 +727,7 @@ TEST_CASE("Test negative integer in struct", "[macro][negative_int]")
 
     // Test manual member access
     BROOKESIA_LOGI("Manual p.x value: %d", p.x);
-    auto json_x = detail::describe_member_to_json(p.x);
+    auto json_x = BROOKESIA_DESCRIBE_TO_JSON(p.x);
     BROOKESIA_LOGI("Manual p.x to JSON: %1%", boost::json::serialize(json_x));
 
     std::string result = BROOKESIA_DESCRIBE_TO_STR(p);
@@ -588,7 +738,7 @@ TEST_CASE("Test negative integer in struct", "[macro][negative_int]")
     TEST_ASSERT_TRUE(result.find("18446744073709551615") == std::string::npos);
 
     // Test with JSON format
-    auto json = BROOKESIA_DESCRIBE_STRUCT_TO_JSON(p);
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(p);
     BROOKESIA_LOGI("JSON: %1%", boost::json::serialize(json));
 
     // Verify JSON values
@@ -612,4 +762,547 @@ TEST_CASE("Test negative integer in struct", "[macro][negative_int]")
     }
 
     BROOKESIA_LOGI("✓ Negative integer test passed");
+}
+
+// ==================== Test std::variant Support ====================
+
+// Define test variant types
+using SimpleVariant = std::variant<bool, int, std::string>;
+using ComplexVariant = std::variant<int, double, std::string, std::vector<int>, std::map<std::string, int>>;
+
+struct DataWithVariant {
+    std::string name;
+    SimpleVariant value;
+};
+BROOKESIA_DESCRIBE_STRUCT(DataWithVariant, (), (name, value))
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_JSON - variant basic types", "[macro][variant][to_json]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_JSON: Variant Basic Types ===");
+
+    // Test bool
+    {
+        SimpleVariant v = true;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Variant(bool): %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_bool());
+        TEST_ASSERT_TRUE(json.as_bool());
+    }
+
+    // Test int
+    {
+        SimpleVariant v = 42;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Variant(int): %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_number());
+        TEST_ASSERT_EQUAL(42, json.as_int64());
+    }
+
+    // Test string
+    {
+        SimpleVariant v = std::string("hello");
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Variant(string): %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        TEST_ASSERT_EQUAL_STRING("hello", json.as_string().c_str());
+    }
+
+    BROOKESIA_LOGI("✓ Variant basic types to JSON test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_JSON - variant complex types", "[macro][variant][to_json]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_JSON: Variant Complex Types ===");
+
+    // Test vector
+    {
+        ComplexVariant v = std::vector<int> {1, 2, 3, 4};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Variant(vector): %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_array());
+        const auto &arr = json.as_array();
+        TEST_ASSERT_EQUAL(4, arr.size());
+        TEST_ASSERT_EQUAL(1, arr[0].as_int64());
+        TEST_ASSERT_EQUAL(4, arr[3].as_int64());
+    }
+
+    // Test map
+    {
+        ComplexVariant v = std::map<std::string, int> {{"timeout", 30}, {"retry", 3}};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Variant(map): %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_object());
+        const auto &obj = json.as_object();
+        TEST_ASSERT_EQUAL(30, obj.at("timeout").as_int64());
+        TEST_ASSERT_EQUAL(3, obj.at("retry").as_int64());
+    }
+
+    BROOKESIA_LOGI("✓ Variant complex types to JSON test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_FROM_JSON - variant basic types", "[macro][variant][from_json]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_FROM_JSON: Variant Basic Types ===");
+
+    // Test bool
+    {
+        auto json = boost::json::parse("true");
+        SimpleVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        TEST_ASSERT_TRUE((std::holds_alternative<bool>(v)));
+        TEST_ASSERT_TRUE((std::get<bool>(v)));
+        BROOKESIA_LOGI("Parsed bool variant: %1%", std::get<bool>(v));
+    }
+
+    // Test int
+    {
+        auto json = boost::json::parse("42");
+        SimpleVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        // Note: int might be parsed as bool first if bool is before int in variant
+        // For SimpleVariant = std::variant<bool, int, std::string>
+        // The number 42 should fail bool conversion and succeed with int
+        if (std::holds_alternative<bool>(v)) {
+            BROOKESIA_LOGI("Parsed as bool (1 or 0): %1%", std::get<bool>(v));
+            TEST_ASSERT_TRUE((std::get<bool>(v))); // 42 is truthy
+        } else {
+            TEST_ASSERT_TRUE((std::holds_alternative<int>(v)));
+            TEST_ASSERT_EQUAL(42, std::get<int>(v));
+            BROOKESIA_LOGI("Parsed int variant: %1%", std::get<int>(v));
+        }
+    }
+
+    // Test string
+    {
+        auto json = boost::json::parse("\"hello world\"");
+        SimpleVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::string>(v)));
+        TEST_ASSERT_EQUAL_STRING("hello world", std::get<std::string>(v).c_str());
+        BROOKESIA_LOGI("Parsed string variant: %1%", std::get<std::string>(v).c_str());
+    }
+
+    BROOKESIA_LOGI("✓ Variant basic types from JSON test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_FROM_JSON - variant complex types", "[macro][variant][from_json]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_FROM_JSON: Variant Complex Types ===");
+
+    // Test vector
+    {
+        auto json = boost::json::parse("[10, 20, 30]");
+        ComplexVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::vector<int>>(v)));
+        const auto &vec = std::get<std::vector<int>>(v);
+        TEST_ASSERT_EQUAL(3, vec.size());
+        TEST_ASSERT_EQUAL(10, vec[0]);
+        TEST_ASSERT_EQUAL(30, vec[2]);
+        BROOKESIA_LOGI("Parsed vector variant: size=%1%", vec.size());
+    }
+
+    // Test map
+    {
+        auto json = boost::json::parse("{\"count\": 100, \"limit\": 50}");
+        ComplexVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::map<std::string, int>>(v)));
+        const auto &map = std::get<std::map<std::string, int>>(v);
+        TEST_ASSERT_EQUAL(100, map.at("count"));
+        TEST_ASSERT_EQUAL(50, map.at("limit"));
+        BROOKESIA_LOGI("Parsed map variant: size=%1%", map.size());
+    }
+
+    BROOKESIA_LOGI("✓ Variant complex types from JSON test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR - variant", "[macro][variant][to_str]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_STR: Variant ===");
+
+    // Test bool
+    {
+        SimpleVariant v = false;
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(v);
+        BROOKESIA_LOGI("Variant(bool) to string: %1%", str);
+        TEST_ASSERT_TRUE(str.find("false") != std::string::npos);
+    }
+
+    // Test int
+    {
+        SimpleVariant v = 123;
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(v);
+        BROOKESIA_LOGI("Variant(int) to string: %1%", str);
+        TEST_ASSERT_TRUE(str.find("123") != std::string::npos);
+    }
+
+    // Test string
+    {
+        SimpleVariant v = std::string("test");
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(v);
+        BROOKESIA_LOGI("Variant(string) to string: %1%", str);
+        TEST_ASSERT_TRUE(str.find("test") != std::string::npos);
+    }
+
+    // Test vector
+    {
+        ComplexVariant v = std::vector<int> {1, 2, 3};
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(v);
+        BROOKESIA_LOGI("Variant(vector) to string: %1%", str);
+        TEST_ASSERT_TRUE(str.find("[") != std::string::npos);
+        TEST_ASSERT_TRUE(str.find("1") != std::string::npos);
+    }
+
+    BROOKESIA_LOGI("✓ Variant to string test passed");
+}
+
+TEST_CASE("Test variant in struct", "[macro][variant][struct]")
+{
+    BROOKESIA_LOGI("=== Variant in Struct ===");
+
+    // Test with int value
+    {
+        DataWithVariant data{"counter", 42};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(data);
+        BROOKESIA_LOGI("Struct with variant(int): %1%", boost::json::serialize(json));
+
+        TEST_ASSERT_TRUE(json.is_object());
+        const auto &obj = json.as_object();
+        TEST_ASSERT_EQUAL_STRING("counter", obj.at("name").as_string().c_str());
+        // Value might be bool or int depending on variant order
+        TEST_ASSERT_TRUE(obj.at("value").is_number() || obj.at("value").is_bool());
+    }
+
+    // Test with string value
+    {
+        DataWithVariant data{"message", std::string("hello")};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(data);
+        BROOKESIA_LOGI("Struct with variant(string): %1%", boost::json::serialize(json));
+
+        TEST_ASSERT_TRUE(json.is_object());
+        const auto &obj = json.as_object();
+        TEST_ASSERT_EQUAL_STRING("message", obj.at("name").as_string().c_str());
+        TEST_ASSERT_EQUAL_STRING("hello", obj.at("value").as_string().c_str());
+    }
+
+    // Test from JSON
+    {
+        auto json = boost::json::parse("{\"name\": \"status\", \"value\": \"active\"}");
+        DataWithVariant data;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, data));
+        TEST_ASSERT_EQUAL_STRING("status", data.name.c_str());
+        TEST_ASSERT_TRUE((std::holds_alternative<std::string>(data.value)));
+        TEST_ASSERT_EQUAL_STRING("active", std::get<std::string>(data.value).c_str());
+        BROOKESIA_LOGI("Parsed struct with variant: name=%1%, value=%2%",
+                       data.name, std::get<std::string>(data.value));
+    }
+
+    BROOKESIA_LOGI("✓ Variant in struct test passed");
+}
+
+TEST_CASE("Test variant round trip", "[macro][variant][round_trip]")
+{
+    BROOKESIA_LOGI("=== Variant Round Trip ===");
+
+    // Test bool round trip
+    {
+        SimpleVariant original = true;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original);
+        SimpleVariant converted;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+        TEST_ASSERT_TRUE((std::holds_alternative<bool>(converted)));
+        bool orig_val = std::get<bool>(original);
+        bool conv_val = std::get<bool>(converted);
+        TEST_ASSERT_EQUAL(orig_val, conv_val);
+        BROOKESIA_LOGI("Bool round trip: %1% -> %2%", orig_val, conv_val);
+    }
+
+    // Test string round trip
+    {
+        SimpleVariant original = std::string("round trip test");
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original);
+        SimpleVariant converted;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::string>(converted)));
+        TEST_ASSERT_EQUAL_STRING(std::get<std::string>(original).c_str(),
+                                 std::get<std::string>(converted).c_str());
+        BROOKESIA_LOGI("String round trip: %1% -> %2%",
+                       std::get<std::string>(original), std::get<std::string>(converted));
+    }
+
+    // Test vector round trip
+    {
+        ComplexVariant original = std::vector<int> {5, 10, 15};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original);
+        ComplexVariant converted;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::vector<int>>(converted)));
+        const auto &orig_vec = std::get<std::vector<int>>(original);
+        const auto &conv_vec = std::get<std::vector<int>>(converted);
+        TEST_ASSERT_EQUAL(orig_vec.size(), conv_vec.size());
+        TEST_ASSERT_EQUAL(orig_vec[0], conv_vec[0]);
+        TEST_ASSERT_EQUAL(orig_vec[2], conv_vec[2]);
+        BROOKESIA_LOGI("Vector round trip: size=%1%", conv_vec.size());
+    }
+
+    // Test struct with variant round trip
+    {
+        DataWithVariant original{"config", std::string("enabled")};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original);
+        DataWithVariant converted;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+        TEST_ASSERT_EQUAL_STRING(original.name.c_str(), converted.name.c_str());
+        TEST_ASSERT_TRUE((std::holds_alternative<std::string>(converted.value)));
+        TEST_ASSERT_EQUAL_STRING(std::get<std::string>(original.value).c_str(),
+                                 std::get<std::string>(converted.value).c_str());
+        BROOKESIA_LOGI("Struct with variant round trip: name=%1%", converted.name);
+    }
+
+    BROOKESIA_LOGI("✓ Variant round trip test passed");
+}
+
+TEST_CASE("Test variant type order priority", "[macro][variant][type_order]")
+{
+    BROOKESIA_LOGI("=== Variant Type Order Priority ===");
+
+    // For variant<bool, int, string>, bool is checked first
+    // JSON value `1` could be bool (true) or int (1)
+    // Due to type order, it will try bool first
+    using OrderedVariant = std::variant<bool, int, std::string>;
+
+    // Test number 1 (could be bool or int)
+    {
+        auto json = boost::json::parse("1");
+        OrderedVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        // Should be parsed as bool (first in variant) if bool conversion succeeds
+        // Or as int if bool conversion fails
+        BROOKESIA_LOGI("Number 1 parsed as: bool=%1%, int=%2%, string=%3%",
+                       std::holds_alternative<bool>(v),
+                       std::holds_alternative<int>(v),
+                       std::holds_alternative<std::string>(v));
+    }
+
+    // Test string "true" (could be string or bool)
+    {
+        auto json = boost::json::parse("\"true\"");
+        OrderedVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        // JSON string should be parsed as std::string
+        TEST_ASSERT_TRUE((std::holds_alternative<std::string>(v)));
+        if (std::holds_alternative<std::string>(v)) {
+            TEST_ASSERT_EQUAL_STRING("true", std::get<std::string>(v).c_str());
+        }
+        BROOKESIA_LOGI("String \"true\" correctly parsed as string");
+    }
+
+    // Test actual JSON bool
+    {
+        auto json = boost::json::parse("true");
+        OrderedVariant v;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, v));
+        TEST_ASSERT_TRUE((std::holds_alternative<bool>(v)));
+        TEST_ASSERT_TRUE((std::get<bool>(v)));
+        BROOKESIA_LOGI("JSON bool `true` correctly parsed as bool");
+    }
+
+    BROOKESIA_LOGI("✓ Variant type order priority test passed");
+}
+
+TEST_CASE("Test variant with empty alternatives", "[macro][variant][edge_cases]")
+{
+    BROOKESIA_LOGI("=== Variant Edge Cases ===");
+
+    // Test empty string
+    {
+        SimpleVariant v = std::string("");
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Empty string variant: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        TEST_ASSERT_EQUAL_STRING("", json.as_string().c_str());
+
+        SimpleVariant converted;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::string>(converted)));
+        TEST_ASSERT_EQUAL_STRING("", std::get<std::string>(converted).c_str());
+    }
+
+    // Test zero value
+    {
+        SimpleVariant v = 0;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Zero int variant: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_number());
+        TEST_ASSERT_EQUAL(0, json.as_int64());
+    }
+
+    // Test empty vector
+    {
+        ComplexVariant v = std::vector<int> {};
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(v);
+        BROOKESIA_LOGI("Empty vector variant: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_array());
+        TEST_ASSERT_EQUAL(0, json.as_array().size());
+
+        ComplexVariant converted;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+        TEST_ASSERT_TRUE((std::holds_alternative<std::vector<int>>(converted)));
+        const auto &conv_vec = std::get<std::vector<int>>(converted);
+        TEST_ASSERT_EQUAL(0, conv_vec.size());
+    }
+
+    BROOKESIA_LOGI("✓ Variant edge cases test passed");
+}
+
+// ==================== std::function Tests ====================
+
+struct CallbackHolder {
+    std::function<int(int, int)> callback;
+    std::string name;
+};
+BROOKESIA_DESCRIBE_STRUCT(CallbackHolder, (), (callback, name))
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR - std::function", "[macro][function][to_str]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_STR: std::function ===");
+
+    // Test non-empty function
+    {
+        std::function<int(int, int)> add = [](int a, int b) {
+            return a + b;
+        };
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(add);
+        BROOKESIA_LOGI("Non-empty function: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function@") != std::string::npos);
+        TEST_ASSERT_TRUE(str.find(">") != std::string::npos);
+    }
+
+    // Test empty function
+    {
+        std::function<int(int, int)> empty_func;
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(empty_func);
+        BROOKESIA_LOGI("Empty function: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function:empty>") != std::string::npos);
+    }
+
+    // Test function with different signature
+    {
+        std::function<void()> void_func = []() { /* do nothing */ };
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(void_func);
+        BROOKESIA_LOGI("Void function: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function@") != std::string::npos);
+    }
+
+    BROOKESIA_LOGI("✓ std::function to_str test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_JSON - std::function", "[macro][function][to_json]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_JSON: std::function ===");
+
+    // Test non-empty function
+    {
+        std::function<int(int, int)> add = [](int a, int b) {
+            return a + b;
+        };
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(add);
+        BROOKESIA_LOGI("Non-empty function JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("<function@") != std::string::npos);
+    }
+
+    // Test empty function
+    {
+        std::function<int(int, int)> empty_func;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(empty_func);
+        BROOKESIA_LOGI("Empty function JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        TEST_ASSERT_EQUAL_STRING("<function:empty>", boost::json::value_to<std::string>(json).c_str());
+    }
+
+    BROOKESIA_LOGI("✓ std::function to_json test passed");
+}
+
+TEST_CASE("Test std::function in struct", "[macro][function][struct]")
+{
+    BROOKESIA_LOGI("=== std::function in Struct ===");
+
+    // Test with non-empty function
+    {
+        CallbackHolder holder;
+        holder.callback = [](int a, int b) {
+            return a * b;
+        };
+        holder.name = "multiplier";
+
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(holder);
+        BROOKESIA_LOGI("CallbackHolder with function: %1%", str);
+        TEST_ASSERT_TRUE(str.find("callback") != std::string::npos);
+        TEST_ASSERT_TRUE(str.find("<function@") != std::string::npos);
+        TEST_ASSERT_TRUE(str.find("name") != std::string::npos);
+        TEST_ASSERT_TRUE(str.find("multiplier") != std::string::npos);
+
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(holder);
+        BROOKESIA_LOGI("CallbackHolder JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_object());
+        TEST_ASSERT_TRUE(json.as_object().contains("callback"));
+        TEST_ASSERT_TRUE(json.as_object().contains("name"));
+    }
+
+    // Test with empty function
+    {
+        CallbackHolder holder;
+        holder.name = "no-callback";
+
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(holder);
+        BROOKESIA_LOGI("CallbackHolder with empty function: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function:empty>") != std::string::npos);
+
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(holder);
+        BROOKESIA_LOGI("CallbackHolder empty JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_EQUAL_STRING("<function:empty>",
+                                 boost::json::value_to<std::string>(json.as_object().at("callback")).c_str());
+    }
+
+    BROOKESIA_LOGI("✓ std::function in struct test passed");
+}
+
+TEST_CASE("Test std::function with different formats", "[macro][function][format]")
+{
+    BROOKESIA_LOGI("=== std::function with Different Formats ===");
+
+    std::function<int(int, int)> add_func = [](int a, int b) {
+        return a + b;
+    };
+
+    // Test with default format
+    {
+        std::string str = BROOKESIA_DESCRIBE_TO_STR(add_func);
+        BROOKESIA_LOGI("Default format: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function@") != std::string::npos);
+    }
+
+    // Test with compact format
+    {
+        CallbackHolder holder;
+        holder.callback = add_func;
+        holder.name = "add";
+        std::string str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(holder, BROOKESIA_DESCRIBE_FORMAT_COMPACT);
+        BROOKESIA_LOGI("Compact format: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function@") != std::string::npos);
+    }
+
+    // Test with verbose format
+    {
+        CallbackHolder holder;
+        holder.callback = add_func;
+        holder.name = "add";
+        std::string str = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(holder, BROOKESIA_DESCRIBE_FORMAT_VERBOSE);
+        BROOKESIA_LOGI("Verbose format: %1%", str);
+        TEST_ASSERT_TRUE(str.find("<function@") != std::string::npos);
+    }
+
+    BROOKESIA_LOGI("✓ std::function format test passed");
 }

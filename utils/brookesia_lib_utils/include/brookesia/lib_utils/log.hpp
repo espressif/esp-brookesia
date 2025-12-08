@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 #include <string>
@@ -22,6 +23,22 @@
 #endif
 
 namespace esp_brookesia::lib_utils {
+
+/**
+ * Helper function to convert int8_t/uint8_t to int for proper formatting
+ * This prevents boost::format from treating them as characters
+ */
+template<typename T>
+constexpr auto format_arg(T &&arg)
+{
+    if constexpr (std::is_same_v<std::remove_cvref_t<T>, int8_t>) {
+        return static_cast<int>(arg);
+    } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, uint8_t>) {
+        return static_cast<unsigned int>(arg);
+    } else {
+        return std::forward<T>(arg);
+    }
+}
 
 /**
  * Class to handle logging
@@ -47,8 +64,8 @@ public:
             try {
                 // 1. Create boost::format object, disable exceptions
                 auto fmt = boost::format(format);
-                // 2. Apply parameters one by one using fold expression
-                ((fmt % std::forward<Args>(args)), ...);
+                // 2. Apply parameters one by one using fold expression, converting int8_t/uint8_t to int
+                ((fmt % format_arg(std::forward<Args>(args))), ...);
                 // 3. Get formatted string
                 format_str = fmt.str();
             } catch (const std::exception &e) {

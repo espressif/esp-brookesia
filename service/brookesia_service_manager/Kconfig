@@ -1,0 +1,109 @@
+menu "ESP-Brookesia: Service Manager Configurations"
+    config BROOKESIA_SERVICE_MANAGER_BOOST_ENABLED
+        bool
+        select BOOST_ASIO_ENABLED
+        select BOOST_JSON_ENABLED
+        default y
+        help
+            Enable Boost libraries.
+
+    menuconfig BROOKESIA_SERVICE_MANAGER_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_SERVICE_MANAGER_ENABLE_DEBUG_LOG
+        config BROOKESIA_SERVICE_MANAGER_RPC_DATA_LINK_ENABLE_DEBUG_LOG
+            bool "RPC Data Link"
+            default y
+
+        config BROOKESIA_SERVICE_MANAGER_RPC_SERVER_ENABLE_DEBUG_LOG
+            bool "RPC Server"
+            default y
+
+        config BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_ENABLE_DEBUG_LOG
+            bool "RPC Client"
+            default y
+
+        config BROOKESIA_SERVICE_MANAGER_EVENT_ENABLE_DEBUG_LOG
+            bool "Event"
+            default y
+
+        config BROOKESIA_SERVICE_MANAGER_FUNCTION_ENABLE_DEBUG_LOG
+            bool "Function"
+            default y
+
+        config BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG
+            bool "Service"
+            default y
+    endif
+
+    menu "RPC"
+        config BROOKESIA_SERVICE_MANAGER_RPC_GLOBAL_MAX_SOCKETS
+            int "Global: maximum sockets"
+            default LWIP_MAX_SOCKETS if LWIP_MAX_SOCKETS < LWIP_MAX_ACTIVE_TCP
+            default LWIP_MAX_ACTIVE_TCP if LWIP_MAX_SOCKETS >= LWIP_MAX_ACTIVE_TCP
+            help
+                The maximum sockets can be consumed by the RPC.
+                The default value is calculated based on the maximum number of sockets and the maximum number of active TCP connections.
+
+        config BROOKESIA_SERVICE_MANAGER_RPC_SERVER_LISTEN_PORT
+            int "Server: default listen port"
+            default 65500
+            help
+                The default listen port of the server.
+
+        config BROOKESIA_SERVICE_MANAGER_RPC_SERVER_MAX_CONNECTIONS
+            int "Server: default maximum connections"
+            default 2
+            help
+                The default maximum connections of the server.
+
+        config BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_CALL_FUNCTION_TIMEOUT_MS
+            int "Client: default call function timeout (ms)"
+            default 2000
+            help
+                The default timeout of the client call function. If the timeout is not specified when calling the function, this value will be used.
+    endmenu
+
+    menu "Service"
+        menu "IO Thread"
+            config BROOKESIA_SERVICE_MANAGER_IO_THREAD_NAME
+                string "Name"
+                default "server_io"
+                help
+                    The name of the IO thread.
+
+            config BROOKESIA_SERVICE_MANAGER_IO_THREAD_CORE_ID
+                int "Core ID"
+                default 0
+                help
+                    The core ID of the IO thread. `-1` means the core ID is not specified.
+
+            config BROOKESIA_SERVICE_MANAGER_IO_THREAD_PRIORITY
+                int "Priority"
+                default 10
+                help
+                    The priority of the IO thread.
+
+            config BROOKESIA_SERVICE_MANAGER_IO_THREAD_STACK_SIZE
+                int "Stack size"
+                default 10240
+                help
+                    The stack size of the IO thread.
+
+            config BROOKESIA_SERVICE_MANAGER_IO_THREAD_STACK_IN_EXT
+                bool "Stack in external memory"
+                depends on SPIRAM
+                default y
+                help
+                    Whether the stack of the IO thread is in external memory. If enabled, the stack will be allocated in external memory.
+
+            config BROOKESIA_SERVICE_MANAGER_IO_POLL_INTERVAL_MS
+                int "IO poll interval (ms)"
+                default 5
+                range 1 10
+                help
+                    The interval of the IO poll.
+        endmenu
+    endmenu
+endmenu

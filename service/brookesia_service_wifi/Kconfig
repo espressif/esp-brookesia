@@ -1,0 +1,95 @@
+menu "ESP-Brookesia: Service WiFi Configurations"
+    menuconfig BROOKESIA_SERVICE_WIFI_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_SERVICE_WIFI_ENABLE_DEBUG_LOG
+        config BROOKESIA_SERVICE_WIFI_SERVICE_ENABLE_DEBUG_LOG
+            bool "Service"
+            default y
+
+        config BROOKESIA_SERVICE_WIFI_HAL_ENABLE_DEBUG_LOG
+            bool "Hal"
+            default y
+
+        config BROOKESIA_SERVICE_WIFI_STATE_MACHINE_ENABLE_DEBUG_LOG
+            bool "State Machine"
+            default y
+    endif
+
+    menu "Task Scheduler"
+        menu "Worker 1"
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_NAME
+                string "Name"
+                default "wifi_tsc_worker1"
+                help
+                    The name of the worker thread.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_CORE_ID
+                int "Core ID"
+                default 0
+                help
+                    The core ID of the worker thread. `-1` means the core ID is not specified.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_PRIORITY
+                int "Priority"
+                default 5
+                help
+                    The priority of the worker thread.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_STACK_SIZE
+                int "Stack size"
+                default 10240
+                help
+                    The stack size of the worker thread.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_STACK_IN_EXT
+                bool "Stack in external memory"
+                depends on SPIRAM
+                default y
+                help
+                    Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
+
+        endmenu
+
+        menu "Worker 2"
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_NAME
+                string "Name"
+                default "wifi_tsc_worker2"
+                help
+                    The name of the worker thread.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_CORE_ID
+                int "Core ID"
+                default 1
+                help
+                    The core ID of the worker thread. `-1` means the core ID is not specified.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_PRIORITY
+                int "Priority"
+                default 5
+                help
+                    The priority of the worker thread.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_STACK_SIZE
+                int "Stack size"
+                default 10240
+                help
+                    The stack size of the worker thread.
+
+            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_STACK_IN_EXT
+                bool "Stack in external memory"
+                depends on SPIRAM
+                default y
+                help
+                    Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
+        endmenu
+
+        config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER_POLL_INTERVAL_MS
+            int "Worker poll interval (ms)"
+            default 5
+            range 1 10
+            help
+                The interval of the worker poll.
+    endmenu
+endmenu
