@@ -1,8 +1,21 @@
 # ESP-Brookesia Library Utils
 
+* [English Version](./README.md)
+
 ## 概述
 
 `brookesia_lib_utils` 是 ESP-Brookesia 框架的核心工具库，提供了一套完整的实用工具集，包括 `任务调度器`、`线程配置`、`性能分析工具`、`日志系统`、`状态机`、`插件系统`以及各种`辅助工具`。
+
+## 目录
+
+- [ESP-Brookesia Library Utils](#esp-brookesia-library-utils)
+  - [概述](#概述)
+  - [目录](#目录)
+  - [特性](#特性)
+  - [如何使用](#如何使用)
+    - [开发环境要求](#开发环境要求)
+    - [添加到工程](#添加到工程)
+  - [工具类介绍](#工具类介绍)
 
 ## 特性
 
@@ -18,7 +31,7 @@
 - **辅助工具 (Helpers)**：
   - 检查宏：提供包含 false、nullptr、异常以及数据范围检查的宏，支持自定义错误处理代码块
   - 函数守卫：RAII 风格的函数调用守卫，辅助管理函数调用顺序和资源释放
-  - 对象描述工具：通过静态反射机制提供对象描述信息，支持枚举、结构体、JSON 以及部分标准类型（字符串、整数、浮点数、布尔值、指针、数组、容器等）的序列化和反序列化
+  - 对象描述工具：通过静态反射机制提供对象描述信息，支持枚举、结构体、JSON 以及部分标准类型（字符串、整数、浮点数、布尔值、指针、容器等）的序列化和反序列化
 
 ## 如何使用
 
@@ -30,13 +43,6 @@
 
 > [!NOTE]
 > SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_lib_utils` 具有以下依赖组件：
-
-|                                       **依赖组件**                                       | **版本要求** |
-| ---------------------------------------------------------------------------------------- | ------------ |
-| [cmake_utilities](https://components.espressif.com/components/espressif/cmake_utilities) | 0.*          |
-| [esp-boost](https://components.espressif.com/components/espressif/esp-boost)             | 0.4.*        |
 
 ### 添加到工程
 

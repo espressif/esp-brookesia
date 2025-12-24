@@ -48,15 +48,6 @@ def get_index_and_name_list(response: bytes):
     return result
 
 
-@pytest.mark.target('esp32s3')
-@pytest.mark.target('esp32p4')
-@pytest.mark.env('generic')
-@pytest.mark.parametrize(
-    'config',
-    [
-        'defaults',
-    ],
-)
 def test(dut: Dut)-> None:
     dut.expect(ENTER_RESPONSE_LIST, timeout=5)
 
@@ -107,3 +98,29 @@ def test(dut: Dut)-> None:
 
     if len(failed_name_and_numbers) > 0:
         pytest.fail(f"The following numbers failed or timed out: {failed_name_and_numbers}")
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('generic')
+@pytest.mark.parametrize(
+    'config',
+    [
+        'defaults',
+    ],
+)
+@pytest.mark.timeout(30 * 60)  # 30 minutes
+def test_esp32s3(dut: Dut)-> None:
+    test(dut)
+
+
+@pytest.mark.target('esp32p4')
+@pytest.mark.env('generic,eco4')
+@pytest.mark.parametrize(
+    'config',
+    [
+        'defaults',
+    ],
+)
+@pytest.mark.timeout(30 * 60)  # 30 minutes
+def test_esp32p4(dut: Dut)-> None:
+    test(dut)

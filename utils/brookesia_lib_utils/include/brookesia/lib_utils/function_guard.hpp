@@ -5,8 +5,11 @@
  */
 #pragma once
 
+#include <stdio.h>
 #include <tuple>
 #include <utility>
+#include <exception>
+#include "boost/thread/thread.hpp"
 
 namespace esp_brookesia::lib_utils {
 
@@ -36,13 +39,6 @@ public:
     FunctionGuard &operator=(FunctionGuard &&other)
     {
         if (this != &other) {
-            // If current object has not been released, execute cleanup first
-            if (!is_release_) {
-                std::apply([this](auto &&... args) {
-                    func_(std::forward<decltype(args)>(args)...);
-                }, args_);
-            }
-
             // Move resources
             func_ = std::move(other.func_);
             args_ = std::move(other.args_);
@@ -54,12 +50,18 @@ public:
         return *this;
     }
 
-    ~FunctionGuard()
+    ~FunctionGuard() noexcept
     {
         if (!is_release_) {
-            std::apply([this](auto &&... args) {
-                func_(std::forward<decltype(args)>(args)...);
-            }, args_);
+            try {
+                std::apply([this](auto &&... args) {
+                    func_(std::forward<decltype(args)>(args)...);
+                }, args_);
+            } catch (const boost::thread_interrupted &e) {
+                // Ignore
+            } catch (const std::exception &e) {
+                printf("Exception in destructor: %s\n", e.what());
+            }
         }
     }
 

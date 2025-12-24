@@ -90,6 +90,19 @@ ThreadConfig ThreadConfig::get_applied_config()
 #endif
 }
 
+ThreadConfig ThreadConfig::get_current_config()
+{
+#if defined(ESP_PLATFORM)
+    return {
+        .name = pcTaskGetName(nullptr),
+        .core_id = xPortGetCoreID(),
+        .priority = uxTaskPriorityGet(nullptr),
+    };
+#else
+    return ThreadConfig();
+#endif
+}
+
 ThreadConfigGuard::ThreadConfigGuard(const ThreadConfig &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

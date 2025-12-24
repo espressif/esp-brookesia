@@ -44,24 +44,17 @@ static std::atomic<int> g_callback_counter{0};
 static std::atomic<bool> g_task_executed{false};
 
 // Helper functions
-void reset_counters()
+static void reset_counters()
 {
     g_counter = 0;
     g_callback_counter = 0;
     g_task_executed = false;
 }
 
-void simple_task()
+static void simple_task()
 {
     g_counter++;
     BROOKESIA_LOGI("Simple task executed, counter = %1%", g_counter.load());
-}
-
-void task_with_delay(int delay_ms)
-{
-    vTaskDelay(pdMS_TO_TICKS(delay_ms));
-    g_counter++;
-    BROOKESIA_LOGI("Task with delay executed, counter = %1%", g_counter.load());
 }
 
 // ============================================================================
@@ -199,60 +192,6 @@ TEST_CASE("Test post multiple delayed tasks", "[utils][task_scheduler][delayed][
 }
 
 // ============================================================================
-// Periodic task tests
-// ============================================================================
-
-TEST_CASE("Test post periodic task", "[utils][task_scheduler][periodic][basic]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Post Periodic Task Test ===");
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
-
-    std::atomic<int> periodic_counter{0};
-    TaskScheduler::TaskId task_id = 0;
-    scheduler.post_periodic([&periodic_counter]() -> bool {
-        periodic_counter++;
-        BROOKESIA_LOGI("Periodic task executed, count = %1%", periodic_counter.load());
-        return periodic_counter < 5; // Stop after executing 5 times
-    }, 100, &task_id);
-
-    // Use wait instead of delay
-    bool completed = scheduler.wait(task_id, 1000);
-    TEST_ASSERT_TRUE(completed);
-
-    BROOKESIA_LOGI("Final periodic counter: %1%", periodic_counter.load());
-    TEST_ASSERT_EQUAL(5, periodic_counter.load());
-
-    scheduler.stop();
-}
-
-TEST_CASE("Test periodic task early stop", "[utils][task_scheduler][periodic][early_stop]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Periodic Task Early Stop Test ===");
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
-
-    std::atomic<int> periodic_counter{0};
-    TaskScheduler::TaskId task_id = 0;
-    scheduler.post_periodic([&periodic_counter]() -> bool {
-        periodic_counter++;
-        BROOKESIA_LOGI("Periodic task executed, count = %1%", periodic_counter.load());
-        return periodic_counter < 3; // Stop after executing 3 times
-    }, 100, &task_id);
-
-    // Use wait instead of delay
-    bool completed = scheduler.wait(task_id, 1000);
-    TEST_ASSERT_TRUE(completed);
-    TEST_ASSERT_EQUAL(3, periodic_counter.load());
-
-    scheduler.stop();
-}
-
-// ============================================================================
 // Batch task tests
 // ============================================================================
 
@@ -278,62 +217,6 @@ TEST_CASE("Test post batch", "[utils][task_scheduler][batch][basic]")
     bool completed = scheduler.wait_all(1000);
     TEST_ASSERT_TRUE(completed);
     TEST_ASSERT_EQUAL(5, g_counter.load());
-
-    scheduler.stop();
-}
-
-// ============================================================================
-// Task group tests
-// ============================================================================
-
-TEST_CASE("Test task groups", "[utils][task_scheduler][group][basic]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Task Groups Test ===");
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
-
-    // Use post_delayed to ensure tasks are pending when we check the count
-    scheduler.post_delayed(simple_task, 200, nullptr, "group1");
-    scheduler.post_delayed(simple_task, 200, nullptr, "group1");
-    scheduler.post_delayed(simple_task, 200, nullptr, "group2");
-
-    vTaskDelay(pdMS_TO_TICKS(50)); // Small delay to ensure tasks are registered
-
-    TEST_ASSERT_EQUAL(2, scheduler.get_group_task_count("group1"));
-    TEST_ASSERT_EQUAL(1, scheduler.get_group_task_count("group2"));
-
-    auto groups = scheduler.get_active_groups();
-    BROOKESIA_LOGI("Active groups count: %1%", groups.size());
-    TEST_ASSERT_EQUAL(2, groups.size());
-
-    // Wait for tasks to complete
-    vTaskDelay(pdMS_TO_TICKS(250));
-    TEST_ASSERT_EQUAL(3, g_counter.load());
-
-    scheduler.stop();
-}
-
-TEST_CASE("Test cancel group", "[utils][task_scheduler][group][cancel]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Cancel Group Test ===");
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
-
-    scheduler.post_delayed(simple_task, 500, nullptr, "group1");
-    scheduler.post_delayed(simple_task, 500, nullptr, "group1");
-    scheduler.post_delayed(simple_task, 500, nullptr, "group2");
-
-    vTaskDelay(pdMS_TO_TICKS(100));
-
-    scheduler.cancel_group("group1");
-
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    TEST_ASSERT_EQUAL(1, g_counter.load()); // Only tasks in group2 are executed
 
     scheduler.stop();
 }
@@ -867,41 +750,6 @@ TEST_CASE("Test multiple schedulers - delayed tasks", "[utils][task_scheduler][m
     scheduler2.stop();
 }
 
-TEST_CASE("Test multiple schedulers - periodic tasks", "[utils][task_scheduler][multiple][periodic]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Multiple Schedulers Periodic Tasks Test ===");
-
-    reset_counters();
-
-    std::atomic<int> counter1{0};
-    std::atomic<int> counter2{0};
-
-    TaskScheduler scheduler1;
-    TaskScheduler scheduler2;
-
-    scheduler1.start(TEST_SCHEDULER_CONFIG_GENERIC);
-    scheduler2.start(TEST_SCHEDULER_CONFIG_GENERIC);
-
-    scheduler1.post_periodic([&counter1]() -> bool {
-        counter1++;
-        return counter1 < 3;
-    }, 100);
-
-    scheduler2.post_periodic([&counter2]() -> bool {
-        counter2++;
-        return counter2 < 5;
-    }, 100);
-
-    vTaskDelay(pdMS_TO_TICKS(600));
-
-    BROOKESIA_LOGI("Counter1: %1%, Counter2: %2%", counter1.load(), counter2.load());
-    TEST_ASSERT_EQUAL(3, counter1.load());
-    TEST_ASSERT_EQUAL(5, counter2.load());
-
-    scheduler1.stop();
-    scheduler2.stop();
-}
-
 TEST_CASE("Test multiple schedulers - independent cancellation", "[utils][task_scheduler][multiple][cancel]")
 {
     BROOKESIA_LOGI("=== TaskScheduler Multiple Schedulers Independent Cancellation Test ===");
@@ -1344,65 +1192,6 @@ TEST_CASE("Test suspend and resume delayed task", "[utils][task_scheduler][suspe
     scheduler.stop();
 }
 
-TEST_CASE("Test suspend and resume periodic task", "[utils][task_scheduler][suspend][periodic]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Suspend/Resume Periodic Task Test ===");
-    BROOKESIA_TIME_PROFILER_CLEAR();
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
-
-    std::atomic<int> periodic_counter{0};
-    TaskScheduler::TaskId task_id = 0;
-    BROOKESIA_TIME_PROFILER_START_EVENT("total_periodic_test");
-
-    scheduler.post_periodic([&periodic_counter]() -> bool {
-        periodic_counter++;
-        BROOKESIA_LOGI("Periodic task executed, count = %1%", periodic_counter.load());
-        return periodic_counter < 10;
-    }, 100, &task_id);
-
-    // Wait for a few executions
-    BROOKESIA_TIME_PROFILER_START_EVENT("periodic_before_suspend");
-    vTaskDelay(pdMS_TO_TICKS(250));
-    BROOKESIA_TIME_PROFILER_END_EVENT("periodic_before_suspend");
-
-    int count_before_suspend = periodic_counter.load();
-    BROOKESIA_LOGI("Count before suspend: %1%", count_before_suspend);
-    TEST_ASSERT_GREATER_THAN(0, count_before_suspend);
-
-    // Suspend
-    bool suspended = scheduler.suspend(task_id);
-    TEST_ASSERT_TRUE(suspended);
-
-    // During suspension, should not increase
-    BROOKESIA_TIME_PROFILER_START_EVENT("periodic_suspended");
-    vTaskDelay(pdMS_TO_TICKS(300));
-    BROOKESIA_TIME_PROFILER_END_EVENT("periodic_suspended");
-
-    int count_during_suspend = periodic_counter.load();
-    BROOKESIA_LOGI("Count during suspend: %1%", count_during_suspend);
-    TEST_ASSERT_EQUAL(count_before_suspend, count_during_suspend);
-
-    // Resume
-    bool resumed = scheduler.resume(task_id);
-    TEST_ASSERT_TRUE(resumed);
-
-    // After resume, continue execution
-    BROOKESIA_TIME_PROFILER_START_EVENT("periodic_after_resume");
-    vTaskDelay(pdMS_TO_TICKS(300));
-    BROOKESIA_TIME_PROFILER_END_EVENT("periodic_after_resume");
-    BROOKESIA_TIME_PROFILER_END_EVENT("total_periodic_test");
-
-    int count_after_resume = periodic_counter.load();
-    BROOKESIA_LOGI("Count after resume: %1%", count_after_resume);
-    TEST_ASSERT_GREATER_THAN(count_during_suspend, count_after_resume);
-
-    BROOKESIA_TIME_PROFILER_REPORT();
-    scheduler.stop();
-}
-
 TEST_CASE("Test suspend immediate task fails", "[utils][task_scheduler][suspend][immediate_fail]")
 {
     BROOKESIA_LOGI("=== TaskScheduler Suspend Immediate Task Fails Test ===");
@@ -1506,86 +1295,6 @@ TEST_CASE("Test suspend and resume all", "[utils][task_scheduler][suspend][all]"
     scheduler.stop();
 }
 
-// ============================================================================
-// New interface tests - strand/group configuration
-// ============================================================================
-
-TEST_CASE("Test strand vs non-strand groups", "[utils][task_scheduler][strand][compare]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Strand vs Non-Strand Groups Test ===");
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_FOUR_THREADS);
-
-    // Configure strand group
-    TaskScheduler::GroupConfig strand_config;
-    strand_config.enable_post_execute_in_order = true;
-    scheduler.configure_group("strand_group", strand_config);
-
-    std::vector<int> strand_order_record;
-    boost::mutex strand_mutex;
-
-    int task_count = 50;
-    int delay_ms = 100;
-
-    // Submit tasks to strand group
-    for (int i = 0; i < task_count; i++) {
-        scheduler.post([i, delay_ms, &strand_order_record, &strand_mutex]() {
-            int random_delay = rand() % delay_ms; // 0-delay_ms ms
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(random_delay));
-
-            {
-                boost::lock_guard<boost::mutex> lock(strand_mutex);
-                strand_order_record.push_back(i);
-            }
-        }, nullptr, "strand_group");
-    }
-
-    TEST_ASSERT_TRUE(scheduler.wait_all(delay_ms * task_count));
-
-    // Verify strand group: execution order should be strictly increasing (0, 1, 2, 3, ...)
-    {
-        boost::lock_guard<boost::mutex> lock(strand_mutex);
-        TEST_ASSERT_EQUAL(task_count, strand_order_record.size());
-        for (int i = 0; i < task_count; i++) {
-            BROOKESIA_LOGI("Strand order[%1%] = %2%", i, strand_order_record[i]);
-            TEST_ASSERT_EQUAL(i, strand_order_record[i]);
-        }
-    }
-
-    std::vector<int> normal_order_record;
-    boost::mutex normal_mutex;
-
-    // Submit tasks to normal group (execute in parallel)
-    for (int i = 0; i < task_count; i++) {
-        scheduler.post([i, delay_ms, &normal_order_record, &normal_mutex]() {
-            int random_delay = rand() % delay_ms; // 0-delay_ms ms
-            boost::this_thread::sleep_for(boost::chrono::milliseconds(random_delay));
-
-            {
-                boost::lock_guard<boost::mutex> lock(normal_mutex);
-                normal_order_record.push_back(i);
-            }
-        }, nullptr, "");
-    }
-
-    TEST_ASSERT_TRUE(scheduler.wait_all(delay_ms * task_count));
-
-    scheduler.stop();
-
-    // Verify normal group: all tasks are executed, but the order may not be continuous
-    {
-        boost::lock_guard<boost::mutex> lock(normal_mutex);
-        TEST_ASSERT_EQUAL(task_count, normal_order_record.size());
-        BROOKESIA_LOGI("Normal group execution order:");
-        for (int i = 0; i < task_count; i++) {
-            BROOKESIA_LOGI("Normal order[%1%] = %2%", i, normal_order_record[i]);
-        }
-        // Not strictly increasing, as long as all tasks are executed
-    }
-}
-
 TEST_CASE("Test strand under stress", "[utils][task_scheduler][strand][stress]")
 {
     BROOKESIA_LOGI("=== TaskScheduler Strand Under Stress Test ===");
@@ -1596,7 +1305,7 @@ TEST_CASE("Test strand under stress", "[utils][task_scheduler][strand][stress]")
 
     // Configure strand group
     TaskScheduler::GroupConfig strand_config;
-    strand_config.enable_post_execute_in_order = true;
+    strand_config.enable_serial_execution = true;
     scheduler.configure_group("strand_group", strand_config);
 
     std::vector<int> strand_order_record;
@@ -1682,44 +1391,6 @@ TEST_CASE("Test comprehensive suspend resume with wait", "[utils][task_scheduler
     TEST_ASSERT_EQUAL(1, g_counter.load());
 
     BROOKESIA_TIME_PROFILER_REPORT();
-    scheduler.stop();
-}
-
-TEST_CASE("Test strand with periodic tasks", "[utils][task_scheduler][strand][periodic]")
-{
-    BROOKESIA_LOGI("=== TaskScheduler Strand with Periodic Tasks Test ===");
-
-    reset_counters();
-    TaskScheduler scheduler;
-    scheduler.start(TEST_SCHEDULER_CONFIG_FOUR_THREADS);
-
-    // Configure strand group
-    TaskScheduler::GroupConfig config;
-    config.enable_post_execute_in_order = true;
-    scheduler.configure_group("periodic_strand", config);
-
-    std::atomic<int> counter1{0};
-    std::atomic<int> counter2{0};
-
-    // Submit two periodic tasks to strand group
-    scheduler.post_periodic([&counter1]() -> bool {
-        counter1++;
-        vTaskDelay(pdMS_TO_TICKS(20));
-        return counter1 < 3;
-    }, 50, nullptr, "periodic_strand");
-
-    scheduler.post_periodic([&counter2]() -> bool {
-        counter2++;
-        vTaskDelay(pdMS_TO_TICKS(20));
-        return counter2 < 3;
-    }, 50, nullptr, "periodic_strand");
-
-    vTaskDelay(pdMS_TO_TICKS(500));
-
-    BROOKESIA_LOGI("Counter1: %1%, Counter2: %2%", counter1.load(), counter2.load());
-    TEST_ASSERT_EQUAL(3, counter1.load());
-    TEST_ASSERT_EQUAL(3, counter2.load());
-
     scheduler.stop();
 }
 

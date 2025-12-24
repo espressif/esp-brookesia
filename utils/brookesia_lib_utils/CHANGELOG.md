@@ -1,5 +1,24 @@
 # ChangeLog
 
+## v0.7.2 - 2025-12-24
+
+#### Enhancements:
+
+* feat(task_scheduler): add 'get_executor()' and 'get_task_count()' methods
+* fix(task_scheduler): rename 'enable_post_execute_in_order' to 'enable_serial_execution' in 'GroupConfig'
+* fix(task_scheduler): avoid any type of task from being executed in parallel when the group is structured with 'enable_serial_execution'
+* feat(state_machine): add 'is_updating()' method
+* feat(describe_helpers): optimize pointer serialization and deserialization support
+* feat(describe_helpers): add support for 'std::monostate'
+* feat(repo): update 'esp-boost' dependency to '>=0.4.2,<0.5.0'
+* feat(repo): add README
+
+#### Bug Fixes:
+
+* fix(task_scheduler): avoid periodic task from being executed repeatedly
+* fix(function_guard): add exception handling in destructor
+* fix(log): fix garbled display issue for 'uint8_t/int8_t *'
+
 ## v0.7.1 - 2025-12-07
 
 #### Enhancements:

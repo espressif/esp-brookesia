@@ -148,10 +148,18 @@ TEST_CASE("Test with pointer types", "[utils][log][pointer]")
     int value = 42;
     int *ptr = &value;
     void *void_ptr = ptr;
+    uint8_t *uint8_ptr = reinterpret_cast<uint8_t *>(&value);
+    int8_t *int8_ptr = reinterpret_cast<int8_t *>(&value);
+    const uint8_t *const_uint8_ptr = reinterpret_cast<const uint8_t *>(&value);
+    const int8_t *const_int8_ptr = reinterpret_cast<const int8_t *>(&value);
 
     BROOKESIA_LOGI("Pointer: %1%", ptr);
     BROOKESIA_LOGI("Void pointer: %1%", void_ptr);
     BROOKESIA_LOGI("Nullptr: %1%", nullptr);
+    BROOKESIA_LOGI("uint8_ptr: %1%", uint8_ptr);
+    BROOKESIA_LOGI("int8_ptr: %1%", int8_ptr);
+    BROOKESIA_LOGI("const_uint8_ptr: %1%", const_uint8_ptr);
+    BROOKESIA_LOGI("const_int8_ptr: %1%", const_int8_ptr);
 
     // Value at pointer
     BROOKESIA_LOGI("Value at pointer: %1%", *ptr);

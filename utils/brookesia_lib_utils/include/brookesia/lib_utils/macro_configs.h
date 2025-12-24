@@ -17,7 +17,7 @@
 #   define BROOKESIA_UTILS_VER_MINOR  (7)
 #endif
 #if !defined(BROOKESIA_UTILS_VER_PATCH)
-#   define BROOKESIA_UTILS_VER_PATCH  (0)
+#   define BROOKESIA_UTILS_VER_PATCH  (2)
 #endif
 
 /* Debug log */
@@ -136,6 +136,27 @@
 #   endif
 #endif
 
+#if !defined(BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME)
+#   if defined(CONFIG_BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME)
+#       define BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME CONFIG_BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   else
+#       define BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME (0)
+#   endif
+#endif
+#if !defined(BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE)
+#   if defined(CONFIG_BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE)
+#       define BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE CONFIG_BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   else
+#       define BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE (0)
+#   endif
+#endif
+#if !defined(BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME)
+#   if defined(CONFIG_BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME)
+#       define BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME CONFIG_BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   else
+#       define BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME (0)
+#   endif
+#endif
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////// Thread Config /////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

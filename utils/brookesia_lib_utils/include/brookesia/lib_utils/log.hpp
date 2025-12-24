@@ -21,12 +21,109 @@
 #else
 #   include "log_impl_std.h"
 #endif
+#include "brookesia/lib_utils/thread_config.hpp"
 
 namespace esp_brookesia::lib_utils {
 
 /**
+ * Helper macros to assemble format string and arguments based on enabled macros
+ * These macros use string literal concatenation (adjacent string literals are automatically concatenated)
+ */
+
+// Format string components
+#define _BROOKESIA_LOG_FORMAT_THREAD_NAME "<%s>"
+#define _BROOKESIA_LOG_FORMAT_FILE_LINE "[%.*s:%04d]"
+#define _BROOKESIA_LOG_FORMAT_FUNCTION "(%.*s)"
+#define _BROOKESIA_LOG_FORMAT_MESSAGE ": %s"
+
+// Assemble format string using string literal concatenation
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#else
+#   define _BROOKESIA_LOG_FORMAT_STRING \
+        _BROOKESIA_LOG_FORMAT_MESSAGE
+#endif
+
+// Helper macro to expand arguments based on enabled macros
+#define _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) thread_name
+#define _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) (int)(file_name).size(), (file_name).data(), line
+#define _BROOKESIA_LOG_ARGS_FUNCTION(func_name) (int)(func_name).size(), (func_name).data()
+#define _BROOKESIA_LOG_ARGS_MESSAGE(format_str) (format_str).data()
+
+// Assemble arguments
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#else
+#   define _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str) \
+        _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
+#endif
+
+/**
  * Helper function to convert int8_t/uint8_t to int for proper formatting
  * This prevents boost::format from treating them as characters
+ * Also converts pointers (except char*) to @0x... format
  */
 template<typename T>
 constexpr auto format_arg(T &&arg)
@@ -35,6 +132,10 @@ constexpr auto format_arg(T &&arg)
         return static_cast<int>(arg);
     } else if constexpr (std::is_same_v<std::remove_cvref_t<T>, uint8_t>) {
         return static_cast<unsigned int>(arg);
+    } else if constexpr (std::is_pointer_v<std::remove_cvref_t<T>> &&
+                         !std::is_same_v<std::remove_cvref_t<T>, const char *> &&
+                         !std::is_same_v<std::remove_cvref_t<T>, char *>) {
+        return reinterpret_cast<const void *>(arg);
     } else {
         return std::forward<T>(arg);
     }
@@ -56,9 +157,16 @@ public:
     {
         // Logs below the global level will not be compiled
         if constexpr (level >= BROOKESIA_UTILS_LOG_LEVEL) {
-            auto line = static_cast<int>(loc.line());
-            auto func_name = extract_function_name(loc.function_name());
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+            auto thread_name = ThreadConfig::get_current_config().name;
+#endif
+#if BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
             auto file_name = extract_file_name(loc.file_name());
+            auto line = static_cast<int>(loc.line());
+#endif
+#if BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+            auto func_name = extract_function_name(loc.function_name());
+#endif
             std::string format_str;
 
             try {
@@ -72,46 +180,36 @@ public:
                 format_str = std::string(e.what());
             }
 
-            // Direct perfect forwarding to underlying implementation
+            // Direct perfect forwarding to underlying implementation using macros
             if constexpr (level == BROOKESIA_UTILS_LOG_LEVEL_TRACE) {
                 BROOKESIA_LOGT_IMPL_FUNC(
-                    tag, "[%.*s:%04d](%.*s): %s",
-                    (int)file_name.size(), file_name.data(),
-                    line,
-                    (int)func_name.size(), func_name.data(),
-                    format_str.data()
+                    tag,
+                    _BROOKESIA_LOG_FORMAT_STRING,
+                    _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
                 );
             } else if constexpr (level == BROOKESIA_UTILS_LOG_LEVEL_DEBUG) {
                 BROOKESIA_LOGD_IMPL_FUNC(
-                    tag, "[%.*s:%04d](%.*s): %s",
-                    (int)file_name.size(), file_name.data(),
-                    line,
-                    (int)func_name.size(), func_name.data(),
-                    format_str.data()
+                    tag,
+                    _BROOKESIA_LOG_FORMAT_STRING,
+                    _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
                 );
             } else if constexpr (level == BROOKESIA_UTILS_LOG_LEVEL_INFO) {
                 BROOKESIA_LOGI_IMPL_FUNC(
-                    tag, "[%.*s:%04d](%.*s): %s",
-                    (int)file_name.size(), file_name.data(),
-                    line,
-                    (int)func_name.size(), func_name.data(),
-                    format_str.data()
+                    tag,
+                    _BROOKESIA_LOG_FORMAT_STRING,
+                    _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
                 );
             } else if constexpr (level == BROOKESIA_UTILS_LOG_LEVEL_WARNING) {
                 BROOKESIA_LOGW_IMPL_FUNC(
-                    tag, "[%.*s:%04d](%.*s): %s",
-                    (int)file_name.size(), file_name.data(),
-                    line,
-                    (int)func_name.size(), func_name.data(),
-                    format_str.data()
+                    tag,
+                    _BROOKESIA_LOG_FORMAT_STRING,
+                    _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
                 );
             } else if constexpr (level == BROOKESIA_UTILS_LOG_LEVEL_ERROR) {
                 BROOKESIA_LOGE_IMPL_FUNC(
-                    tag, "[%.*s:%04d](%.*s): %s",
-                    (int)file_name.size(), file_name.data(),
-                    line,
-                    (int)func_name.size(), func_name.data(),
-                    format_str.data()
+                    tag,
+                    _BROOKESIA_LOG_FORMAT_STRING,
+                    _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
                 );
             }
         }
@@ -211,6 +309,236 @@ private:
 #   define BROOKESIA_LOGE(format, ...) ((void)0)
 #endif
 
+// Macros for LogTraceGuard (with Enter/Exit messages and optional this pointer)
+#define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR ": (@%p) Enter"
+#define _BROOKESIA_LOG_TRACE_FORMAT_ENTER ": Enter"
+#define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR ": (@%p) Exit"
+#define _BROOKESIA_LOG_TRACE_FORMAT_EXIT ": Exit"
+
+// Assemble format string for trace guard Enter (with this pointer)
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#else
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR
+#endif
+
+// Assemble format string for trace guard Enter (without this pointer)
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#else
+#   define _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING \
+        _BROOKESIA_LOG_TRACE_FORMAT_ENTER
+#endif
+
+// Assemble format string for trace guard Exit (with this pointer)
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#else
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR
+#endif
+
+// Assemble format string for trace guard Exit (without this pointer)
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_THREAD_NAME \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_FILE_LINE \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_FORMAT_FUNCTION \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#else
+#   define _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING \
+        _BROOKESIA_LOG_TRACE_FORMAT_EXIT
+#endif
+
+// Helper macro for trace guard arguments (with this pointer)
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        this_ptr
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        this_ptr
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        this_ptr
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        this_ptr
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        this_ptr
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        this_ptr
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name) , \
+        this_ptr
+#else
+#   define _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, file_name, line, func_name, this_ptr) \
+        this_ptr
+#endif
+
+// Helper macro for trace guard arguments (without this pointer)
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name)
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line)
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name)
+#elif BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_THREAD_NAME(thread_name)
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line) , \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name)
+#elif BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_FILE_LINE(file_name, line),
+#elif BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+#   define _BROOKESIA_LOG_TRACE_ARGS(thread_name, file_name, line, func_name) \
+        _BROOKESIA_LOG_ARGS_FUNCTION(func_name)
+#endif
+
 // Log trace RAII class
 template<bool Enabled>
 class LogTraceGuard {
@@ -222,21 +550,37 @@ public:
     {
         if constexpr (Enabled) {
             _tag = tag;
-            _line = static_cast<size_t>(loc.line());
-            _func_name = Log::extract_function_name(loc.function_name());
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+            auto thread_name = ThreadConfig::get_current_config().name;
+#endif
+#if BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
             _file_name = Log::extract_file_name(loc.file_name());
+            _line = static_cast<size_t>(loc.line());
+#endif
+#if BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+            _func_name = Log::extract_function_name(loc.function_name());
+#endif
             _this_ptr = this_ptr;
 
             if (_this_ptr) {
                 BROOKESIA_LOGT_IMPL_FUNC(
-                    _tag, "[%.*s:%04d](%.*s): (@%p) Enter", (int)_file_name.size(), _file_name.data(),
-                    _line, (int)_func_name.size(), _func_name.data(), _this_ptr
+                    _tag,
+                    _BROOKESIA_LOG_TRACE_FORMAT_ENTER_WITH_PTR_STRING,
+                    _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, _file_name, _line, _func_name, _this_ptr)
                 );
             } else {
+#if defined(_BROOKESIA_LOG_TRACE_ARGS)
                 BROOKESIA_LOGT_IMPL_FUNC(
-                    _tag, "[%.*s:%04d](%.*s): Enter", (int)_file_name.size(), _file_name.data(),
-                    _line, (int)_func_name.size(), _func_name.data()
+                    _tag,
+                    _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING,
+                    _BROOKESIA_LOG_TRACE_ARGS(thread_name, _file_name, _line, _func_name)
                 );
+#else
+                BROOKESIA_LOGT_IMPL_FUNC(
+                    _tag,
+                    _BROOKESIA_LOG_TRACE_FORMAT_ENTER_STRING
+                );
+#endif
             }
         } else {
             (void)this_ptr;
@@ -247,17 +591,29 @@ public:
 
     ~LogTraceGuard()
     {
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+        auto thread_name = ThreadConfig::get_current_config().name;
+#endif
         if constexpr (Enabled) {
             if (_this_ptr) {
                 BROOKESIA_LOGT_IMPL_FUNC(
-                    _tag, "[%.*s:%04d](%.*s): (@%p) Exit", (int)_file_name.size(), _file_name.data(),
-                    _line, (int)_func_name.size(), _func_name.data(), _this_ptr
+                    _tag,
+                    _BROOKESIA_LOG_TRACE_FORMAT_EXIT_WITH_PTR_STRING,
+                    _BROOKESIA_LOG_TRACE_ARGS_WITH_PTR(thread_name, _file_name, _line, _func_name, _this_ptr)
                 );
             } else {
+#if defined(_BROOKESIA_LOG_TRACE_ARGS)
                 BROOKESIA_LOGT_IMPL_FUNC(
-                    _tag, "[%.*s:%04d](%.*s): Exit", (int)_file_name.size(), _file_name.data(), _line,
-                    (int)_func_name.size(), _func_name.data()
+                    _tag,
+                    _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING,
+                    _BROOKESIA_LOG_TRACE_ARGS(thread_name, _file_name, _line, _func_name)
                 );
+#else
+                BROOKESIA_LOGT_IMPL_FUNC(
+                    _tag,
+                    _BROOKESIA_LOG_TRACE_FORMAT_EXIT_STRING
+                );
+#endif
             }
         }
     }

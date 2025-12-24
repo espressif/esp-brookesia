@@ -29,6 +29,7 @@ public:
     using OnceTask = std::function<void()>;
     using PeriodicTask = std::function<bool()>; // Return false to stop periodic task early
     using Group = std::string; // Task group name
+    using Executor = boost::asio::io_context::executor_type;
 
     enum class TaskType {
         Immediate,      // post() - immediate execution
@@ -52,10 +53,12 @@ public:
     };
 
     struct GroupConfig {
-        // If true, all tasks posted via `post()` and `post_batch()` to this group are executed in sequence even if
-        // there are multiple threads running.
-        // Note: Tasks posted using `post_delayed()` and `post_periodic()` are NOT affected by this setting.
-        bool enable_post_execute_in_order = false;
+        // If true, all tasks (Periodic, Delayed, and Once) in this group will not run in parallel.
+        // Uses boost::asio::strand to ensure serialized execution of all tasks in the group.
+        // When a task is executing, other tasks in the same group will be queued and executed sequentially.
+        // For Periodic tasks: if the same task instance is already executing, skip this execution but continue scheduling next execution.
+        // For Delayed and Once tasks: tasks are executed sequentially through the strand, no skipping.
+        bool enable_serial_execution = false;
     };
 
     /**
@@ -134,7 +137,7 @@ public:
      */
     bool is_running() const
     {
-        return io_context_ != nullptr;
+        return is_running_.load();
     }
 
     /**
@@ -314,6 +317,14 @@ public:
     TaskState get_state(TaskId id) const;
 
     /**
+     * @brief Query the group of a task
+     *
+     * @param[in] id Task ID
+     * @return Group name (empty string if not found)
+     */
+    Group get_group(TaskId id) const;
+
+    /**
      * @brief Query the number of tasks in a group
      *
      * @param[in] group Group name
@@ -336,6 +347,28 @@ public:
     Statistics get_statistics() const;
 
     /**
+     * @brief Get the executor
+     *
+     * @return Shared pointer to the executor (nullptr if not running)
+     */
+    std::shared_ptr<Executor> get_executor()
+    {
+        boost::lock_guard lock(mutex_);
+        return io_context_ ? std::make_shared<Executor>(io_context_->get_executor()) : nullptr;
+    }
+
+    /**
+     * @brief Get the number of worker threads
+     *
+     * @return Number of worker threads
+     */
+    size_t get_worker_count() const
+    {
+        boost::lock_guard lock(mutex_);
+        return threads_.size();
+    }
+
+    /**
      * @brief Reset all statistics counters to zero
      */
     void reset_statistics();
@@ -352,6 +385,7 @@ private:
         std::shared_ptr<std::promise<bool>> promise; // Promise for task completion
         std::shared_future<bool> future; // Shared future for task completion
         std::atomic<bool> promise_fulfilled{false}; // Flag to prevent double-setting promise
+        std::atomic<bool> is_executing{false}; // Flag to prevent parallel execution of periodic tasks
 
         // For suspend/resume support
         std::chrono::steady_clock::time_point suspend_time;
@@ -406,6 +440,7 @@ private:
     void invoke_post_execute_callback(TaskId task_id, TaskType task_type, bool success);
 
 private:
+    std::atomic<bool> is_running_{false};
     std::unique_ptr<boost::asio::io_context> io_context_;
     std::unique_ptr<boost::asio::executor_work_guard<boost::asio::io_context::executor_type>> io_work_guard_;
     boost::thread_group threads_;
@@ -428,7 +463,7 @@ private:
 BROOKESIA_DESCRIBE_ENUM(TaskScheduler::TaskType, Immediate, Delayed, Periodic)
 BROOKESIA_DESCRIBE_ENUM(TaskScheduler::TaskState, Running, Suspended, Canceled, Finished)
 BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::Statistics, (), (total_tasks, completed_tasks, failed_tasks, canceled_tasks, suspended_tasks))
-BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::GroupConfig, (), (enable_post_execute_in_order))
+BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::GroupConfig, (), (enable_serial_execution))
 BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::StartConfig, (), (worker_configs, worker_poll_interval_ms, pre_execute_callback, post_execute_callback))
 
 } // namespace esp_brookesia::lib_utils

@@ -144,6 +144,12 @@ public:
         return (task_scheduler_ != nullptr);
     }
 
+    bool is_updating() const
+    {
+        boost::lock_guard lock(mutex_);
+        return (update_task_id_ != 0);
+    }
+
     /**
      * @brief Get the current state name
      *
@@ -205,7 +211,6 @@ private:
      */
     void cancel_current_tasks();
 
-private:
     mutable boost::mutex mutex_;  // Protects all member variables below
 
     // State management

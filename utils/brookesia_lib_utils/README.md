@@ -1,8 +1,21 @@
 # ESP-Brookesia Library Utils
 
+* [中文版本](./README_CN.md)
+
 ## Overview
 
 `brookesia_lib_utils` is the core utility library of the ESP-Brookesia framework, providing a comprehensive set of practical tools including `task scheduler`, `thread configuration`, `performance profilers`, `logging system`, `state machine`, `plugin system`, and various `helper utilities`.
+
+## Table of Contents
+
+- [ESP-Brookesia Library Utils](#esp-brookesia-library-utils)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [How to Use](#how-to-use)
+    - [Development Environment Requirements](#development-environment-requirements)
+    - [Adding to Project](#adding-to-project)
+  - [Overview of Utility Classes](#overview-of-utility-classes)
 
 ## Features
 
@@ -30,13 +43,6 @@ Before using this library, please ensure the following SDK development environme
 
 > [!NOTE]
 > * For SDK installation, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_lib_utils` has the following component dependencies:
-
-|                                       **Dependency Component**                                       | **Version Requirement** |
-| ---------------------------------------------------------------------------------------------------- | ----------------------- |
-| [cmake_utilities](https://components.espressif.com/components/espressif/cmake_utilities)             | 0.*                     |
-| [esp-boost](https://components.espressif.com/components/espressif/esp-boost)                         | 0.4.*                   |
 
 ### Adding to Project
 

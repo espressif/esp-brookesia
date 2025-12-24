@@ -101,7 +101,7 @@ bool StateMachine::start(std::shared_ptr<TaskScheduler> task_scheduler, const st
 
     // Configure group for serial execution (ensures thread-safe state transitions)
     TaskScheduler::GroupConfig config;
-    config.enable_post_execute_in_order = true;
+    config.enable_serial_execution = true;
     BROOKESIA_CHECK_FALSE_RETURN(
         task_scheduler->configure_group(task_group_name_, config), false,
         "Failed to configure group '%1%' for state machine", task_group_name_
@@ -253,9 +253,6 @@ bool StateMachine::force_transition_to(const std::string &target_state)
     std::shared_ptr<TaskScheduler> scheduler;
     {
         boost::lock_guard lock(mutex_);
-        BROOKESIA_CHECK_FALSE_RETURN(
-            states_.find(target_state) != states_.end(), false, "Target state '%1%' does not exist", target_state
-        );
         scheduler = task_scheduler_;
     }
 
@@ -267,8 +264,7 @@ bool StateMachine::force_transition_to(const std::string &target_state)
         BROOKESIA_LOGE(
             "Wait for all transitions to be cancelled within timeout %1% ms timeout", STATE_MACHINE_STOP_TIMEOUT_MS
         );
-    }
-    );
+    });
 
     // Transition to target state immediately
     {
@@ -355,7 +351,7 @@ bool StateMachine::enter_initial_state(const std::string &name)
 
     // Step 3: Call on_enter guard (without holding lock to allow state logic to run freely)
     BROOKESIA_CHECK_FALSE_RETURN(
-        state->on_enter(""), false, "Entry denied: cannot enter initial state '%1%'", name
+        state->on_enter(), false, "Entry denied: cannot enter initial state '%1%'", name
     );
 
     // Step 4: Update current state under lock
@@ -426,7 +422,7 @@ bool StateMachine::transition_to(const std::string &next, const std::string &act
         BROOKESIA_LOGW("Rolling back to state '%1%'", previous_state);
 
         // Re-enter previous state (best effort rollback)
-        current_state_obj->on_enter("");
+        current_state_obj->on_enter();
 
         // Restore previous state under lock
         {

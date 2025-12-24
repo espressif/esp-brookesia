@@ -55,6 +55,13 @@ struct ThreadConfig {
      * @return Currently active ThreadConfig
      */
     static ThreadConfig get_applied_config();
+
+    /**
+     * @brief Get the current thread configuration
+     *
+     * @return Current ThreadConfig
+     */
+    static ThreadConfig get_current_config();
 };
 
 BROOKESIA_DESCRIBE_STRUCT(ThreadConfig, (), (name, core_id, priority, stack_size, stack_in_ext))

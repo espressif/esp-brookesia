@@ -120,6 +120,26 @@ menu "ESP-Brookesia: Library Utils Configurations"
             default 3 if BROOKESIA_UTILS_LOG_LEVEL_WARNING
             default 4 if BROOKESIA_UTILS_LOG_LEVEL_ERROR
             default 5 if BROOKESIA_UTILS_LOG_LEVEL_NONE
+
+        menu "Log format"
+            config BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+                bool "Enable thread name in log"
+                default n
+                help
+                    Whether to enable the thread name in the log. If enabled, the thread name will be included in the log.
+
+            config BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+                bool "Enable file name and line number in log"
+                default y
+                help
+                    Whether to enable the file name and line number in the log. If enabled, the file name and line number will be included in the log.
+
+            config BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+                bool "Enable function name in log"
+                default y
+                help
+                    Whether to enable the function name in the log. If enabled, the function name will be included in the log.
+        endmenu
     endmenu
 
     menu "Thread Config"

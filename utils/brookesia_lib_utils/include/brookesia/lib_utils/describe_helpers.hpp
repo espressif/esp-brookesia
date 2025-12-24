@@ -218,6 +218,16 @@ boost::json::value describe_to_json(const T &value)
                        std::is_same_v<std::remove_extent_t<T>, const char>)) {
         return boost::json::value(std::string(value));
     }
+    // Non-char* pointers - format as @0x...
+    else if constexpr (std::is_pointer_v<T>) {
+        std::ostringstream oss;
+        oss << "@0x" << std::hex << reinterpret_cast<uintptr_t>(value);
+        return boost::json::value(oss.str());
+    }
+    // std::monostate - serialize as null
+    else if constexpr (std::is_same_v<T, std::monostate>) {
+        return nullptr;
+    }
     // std::optional
     else if constexpr (detail::is_optional_v<T>) {
         return value.has_value() ? describe_to_json(*value) : nullptr;
@@ -380,6 +390,42 @@ bool describe_from_json(const boost::json::value &j, T &value)
         );
         return false;
     }
+    // Non-char* pointers - deserialize from @0x... format
+    else if constexpr (std::is_pointer_v<T> &&
+                       !std::is_same_v<T, const char *> &&
+                       !std::is_same_v<T, char *>) {
+        if (!j.is_string()) {
+            return false;
+        }
+        std::string str = boost::json::value_to<std::string>(j);
+        // Check if string starts with @0x
+        if (str.length() < 3 || str.substr(0, 3) != "@0x") {
+            return false;
+        }
+        // Extract hex part after @0x
+        std::string hex_str = str.substr(3);
+        if (hex_str.empty()) {
+            return false;
+        }
+        try {
+            // Parse hex string to uintptr_t
+            uintptr_t addr = std::stoull(hex_str, nullptr, 16);
+            // Convert to pointer: first to void*, then to target pointer type
+            void *void_ptr = reinterpret_cast<void *>(addr);
+            value = reinterpret_cast<T>(void_ptr);
+            return true;
+        } catch (const std::exception &) {
+            return false; // Invalid hex format
+        }
+    }
+    // std::monostate - deserialize from null
+    else if constexpr (std::is_same_v<T, std::monostate>) {
+        if (j.is_null()) {
+            value = std::monostate{};
+            return true;
+        }
+        return false;
+    }
     // std::optional
     else if constexpr (detail::is_optional_v<T>) {
         if (j.is_null()) {
@@ -468,8 +514,15 @@ bool describe_from_json(const boost::json::value &j, T &value)
         return success;
     }
     // std::function - cannot convert from JSON (functions are not serializable)
+    // But we accept the serialized string format and set function to empty
     else if constexpr (detail::is_function_v<T>) {
-        // Functions cannot be deserialized from JSON
+        if (j.is_string()) {
+            std::string str = boost::json::value_to<std::string>(j);
+            // Accept serialized function format (e.g., "<function@0x...>" or "<function:empty>")
+            // but set to empty since we cannot restore the actual function
+            value = T{}; // Set to empty function
+            return true;
+        }
         return false;
     }
     // boost::json::value - return directly

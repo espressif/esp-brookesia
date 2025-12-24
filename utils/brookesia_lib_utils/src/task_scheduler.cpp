@@ -42,6 +42,8 @@ bool TaskScheduler::start(const StartConfig &config)
         "Starting with config:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, DESCRIBE_FORMAT_VERBOSE)
     );
 
+    is_running_.store(true);
+
     lib_utils::FunctionGuard stop_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
         stop();
@@ -151,6 +153,8 @@ void TaskScheduler::stop()
         io_context_.reset();
     }
 
+    is_running_.store(false);
+
     BROOKESIA_LOGI(
         "Stopped, canceled %1% tasks, statistics: %2%", task_count, BROOKESIA_DESCRIBE_TO_STR(get_statistics())
     );
@@ -165,8 +169,10 @@ bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group,
     auto handle = create_handle(TaskType::Immediate, false, 0, group);
     BROOKESIA_CHECK_NULL_RETURN(handle, false, "Failed to create task handle");
 
-    auto task_wrapper = [this, handle, task = std::move(task), enable_immediate]() {
+    auto task_wrapper = [this, handle, task = std::move(task)]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        BROOKESIA_LOGD("Executing task %1%", handle->id);
 
         // Invoke pre-execute callback when task is about to execute
         invoke_pre_execute_callback(handle->id, handle->type);
@@ -600,6 +606,16 @@ TaskScheduler::TaskState TaskScheduler::get_state(TaskId id) const
     return it->second->state.load();
 }
 
+TaskScheduler::Group TaskScheduler::get_group(TaskId id) const
+{
+    boost::lock_guard<boost::mutex> lock(mutex_);
+    auto it = tasks_.find(id);
+    if (it == tasks_.end()) {
+        return "";
+    }
+    return it->second->group;
+}
+
 size_t TaskScheduler::get_group_task_count(const Group &group) const
 {
     boost::lock_guard<boost::mutex> lock(mutex_);
@@ -645,7 +661,7 @@ bool TaskScheduler::configure_group(const Group &group, const GroupConfig &confi
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: group(%1%), enable_post_execute_in_order(%2%)", group, config.enable_post_execute_in_order);
+    BROOKESIA_LOGD("Params: group(%1%), enable_serial_execution(%2%)", group, config.enable_serial_execution);
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
     BROOKESIA_CHECK_FALSE_RETURN(!group.empty(), false, "Group name cannot be empty");
@@ -655,7 +671,7 @@ bool TaskScheduler::configure_group(const Group &group, const GroupConfig &confi
     group_configs_[group] = config;
 
     // Create strand for group if configured
-    if (config.enable_post_execute_in_order && strands_.find(group) == strands_.end()) {
+    if (config.enable_serial_execution && strands_.find(group) == strands_.end()) {
         strands_[group] = std::make_shared<boost::asio::strand<boost::asio::io_context::executor_type>>(
                               io_context_->get_executor()
                           );
@@ -720,19 +736,32 @@ std::shared_ptr<TaskScheduler::TaskHandle> TaskScheduler::create_handle(
     handle->repeat = repeat;
     handle->interval_ms = interval_ms;
     handle->group = group;
-    handle->timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
-    handle->promise = std::make_shared<std::promise<bool>>();
-    handle->future = handle->promise->get_future().share();
 
+    // Get strand for group if configured, and create timer with strand executor
+    std::shared_ptr<boost::asio::strand<boost::asio::io_context::executor_type>> strand;
     {
-        boost::lock_guard<boost::mutex> lock(mutex_);
+        boost::lock_guard lock(mutex_);
         tasks_[handle->id] = handle;
         // If group is specified, add to group mapping
         if (!group.empty()) {
             groups_[group].insert(handle->id);
+            // Check if group has strand configured
+            auto strand_it = strands_.find(group);
+            if (strand_it != strands_.end()) {
+                strand = strand_it->second;
+            }
         }
         total_tasks_++;
     }
+
+    // Create timer with strand executor if available, otherwise use io_context executor
+    if (strand) {
+        handle->timer = std::make_shared<boost::asio::steady_timer>(*strand);
+    } else {
+        handle->timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
+    }
+    handle->promise = std::make_shared<std::promise<bool>>();
+    handle->future = handle->promise->get_future().share();
 
     BROOKESIA_LOGD("Created task %1% (group: %2%)", handle->id, group);
 
@@ -811,6 +840,19 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
             return;
         }
 
+        // Check if task is already executing to prevent parallel execution
+        bool expected = false;
+        if (!handle->is_executing.compare_exchange_strong(expected, true)) {
+            BROOKESIA_LOGD(
+                "Periodic task %1% is already executing, skipping this execution", handle->id
+            );
+            // Schedule next execution even if we skip this one
+            if (handle->repeat && handle->state == TaskState::Running) {
+                schedule_periodic(handle, task);
+            }
+            return;
+        }
+
         // Invoke pre-execute callback when task is about to execute
         invoke_pre_execute_callback(handle->id, handle->type);
 
@@ -831,12 +873,15 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         // Will be executed when the function exits
         lib_utils::FunctionGuard exit_guard(
         [this, handle, &success]() {
+            // Clear execution flag when task completes
+            handle->is_executing.store(false);
             invoke_post_execute_callback(handle->id, handle->type, success);
         }
         );
 
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(do_task(), {
             success = false;
+            handle->is_executing.store(false);
             mark_finished(handle, false);
             return;
         }, {BROOKESIA_LOGE("Periodic task(%1%) execution failed", handle->id);});
@@ -1005,6 +1050,20 @@ bool TaskScheduler::resume_internal(TaskId task_id)
                 return;
             }
 
+            // Check if task is already executing to prevent parallel execution
+            bool expected = false;
+            if (!handle->is_executing.compare_exchange_strong(expected, true)) {
+                BROOKESIA_LOGD(
+                    "Resumed periodic task %1% is already executing, skipping this execution", handle->id
+                );
+                // Schedule next execution even if we skip this one
+                if (handle->repeat && handle->state == TaskState::Running) {
+                    handle->interval_ms = original_interval;
+                    schedule_periodic(handle, handle->saved_periodic_task);
+                }
+                return;
+            }
+
             // Invoke pre-execute callback when task is about to execute
             invoke_pre_execute_callback(handle->id, handle->type);
 
@@ -1027,12 +1086,15 @@ bool TaskScheduler::resume_internal(TaskId task_id)
             // Will be executed when the function exits
             lib_utils::FunctionGuard exit_guard(
             [this, handle, &success]() {
+                // Clear execution flag when task completes
+                handle->is_executing.store(false);
                 invoke_post_execute_callback(handle->id, handle->type, success);
             }
             );
 
             BROOKESIA_CHECK_EXCEPTION_EXECUTE(do_task(), {
                 success = false;
+                handle->is_executing.store(false);
                 mark_finished(handle, false);
                 return;
             }, {BROOKESIA_LOGE("Resumed periodic task(%1%) execution failed", handle->id);});

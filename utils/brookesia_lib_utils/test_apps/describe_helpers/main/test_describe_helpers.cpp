@@ -12,6 +12,7 @@
 #include <map>
 #include <optional>
 #include <variant>
+#include <cmath>
 
 using namespace esp_brookesia::lib_utils;
 
@@ -176,6 +177,88 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR - containers", "[macro][to_str][contai
     TEST_ASSERT_TRUE(result.find("test container") != std::string::npos);
 
     BROOKESIA_LOGI("✓ Containers test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_STR - pointers", "[macro][to_str][pointers]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_STR: Pointers ===");
+
+    // Test int pointer
+    {
+        int value = 42;
+        int *int_ptr = &value;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(int_ptr);
+        BROOKESIA_LOGI("int*: %1%", result);
+        TEST_ASSERT_TRUE(result.find("@0x") == 0); // Should start with @0x
+        TEST_ASSERT_TRUE(result.length() > 3); // Should have hex digits after @0x
+    }
+
+    // Test void pointer
+    {
+        int value = 100;
+        void *void_ptr = &value;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(void_ptr);
+        BROOKESIA_LOGI("void*: %1%", result);
+        TEST_ASSERT_TRUE(result.find("@0x") == 0);
+    }
+
+    // Test struct pointer
+    {
+        Point p{10, 20};
+        Point *point_ptr = &p;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(point_ptr);
+        BROOKESIA_LOGI("Point*: %1%", result);
+        TEST_ASSERT_TRUE(result.find("@0x") == 0);
+    }
+
+    // Test const pointer
+    {
+        int value = 200;
+        const int *const_int_ptr = &value;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(const_int_ptr);
+        BROOKESIA_LOGI("const int*: %1%", result);
+        TEST_ASSERT_TRUE(result.find("@0x") == 0);
+    }
+
+    // Test pointer to pointer
+    {
+        int value = 300;
+        int *ptr = &value;
+        int **ptr_to_ptr = &ptr;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(ptr_to_ptr);
+        BROOKESIA_LOGI("int**: %1%", result);
+        TEST_ASSERT_TRUE(result.find("@0x") == 0);
+    }
+
+    // Test null pointer
+    {
+        int *null_ptr = nullptr;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(null_ptr);
+        BROOKESIA_LOGI("null int*: %1%", result);
+        TEST_ASSERT_TRUE(result.find("@0x") == 0);
+        // Null pointer should be @0x0 or @0x0000... depending on implementation
+        TEST_ASSERT_TRUE(result.find("0") != std::string::npos);
+    }
+
+    // Verify char* and const char* are NOT formatted as pointers (they are strings)
+    {
+        const char *str_ptr = "hello";
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(str_ptr);
+        BROOKESIA_LOGI("const char*: %1%", result);
+        TEST_ASSERT_EQUAL_STRING("hello", result.c_str()); // Should be treated as string, not pointer
+        TEST_ASSERT_FALSE(result.find("@0x") == 0); // Should NOT start with @0x
+    }
+
+    {
+        char str[] = "world";
+        char *char_ptr = str;
+        std::string result = BROOKESIA_DESCRIBE_TO_STR(char_ptr);
+        BROOKESIA_LOGI("char*: %1%", result);
+        TEST_ASSERT_EQUAL_STRING("world", result.c_str()); // Should be treated as string, not pointer
+        TEST_ASSERT_FALSE(result.find("@0x") == 0); // Should NOT start with @0x
+    }
+
+    BROOKESIA_LOGI("✓ Pointers test passed");
 }
 
 // ==================== Test BROOKESIA_DESCRIBE_TO_STR_WITH_FMT ====================
@@ -349,6 +432,80 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_SERIALIZE - struct", "[macro][serialize]
     BROOKESIA_LOGI("✓ SERIALIZE struct test passed");
 }
 
+TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_SERIALIZE - pointers", "[macro][serialize][pointers]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_JSON_SERIALIZE: Pointers ===");
+
+    // Test int pointer
+    {
+        int value = 42;
+        int *int_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(int_ptr);
+        BROOKESIA_LOGI("int* serialized: %1%", json_str);
+        TEST_ASSERT_TRUE(json_str.find("@0x") != std::string::npos);
+        TEST_ASSERT_TRUE(json_str.find("\"") == 0); // Should be JSON string
+    }
+
+    // Test void pointer
+    {
+        int value = 100;
+        void *void_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(void_ptr);
+        BROOKESIA_LOGI("void* serialized: %1%", json_str);
+        TEST_ASSERT_TRUE(json_str.find("@0x") != std::string::npos);
+        TEST_ASSERT_TRUE(json_str.find("\"") == 0); // Should be JSON string
+    }
+
+    // Test struct pointer
+    {
+        Point p{10, 20};
+        Point *point_ptr = &p;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(point_ptr);
+        BROOKESIA_LOGI("Point* serialized: %1%", json_str);
+        TEST_ASSERT_TRUE(json_str.find("@0x") != std::string::npos);
+        TEST_ASSERT_TRUE(json_str.find("\"") == 0); // Should be JSON string
+    }
+
+    // Test const pointer
+    {
+        int value = 200;
+        const int *const_int_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(const_int_ptr);
+        BROOKESIA_LOGI("const int* serialized: %1%", json_str);
+        TEST_ASSERT_TRUE(json_str.find("@0x") != std::string::npos);
+        TEST_ASSERT_TRUE(json_str.find("\"") == 0); // Should be JSON string
+    }
+
+    // Test null pointer
+    {
+        int *null_ptr = nullptr;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(null_ptr);
+        BROOKESIA_LOGI("null int* serialized: %1%", json_str);
+        TEST_ASSERT_TRUE(json_str.find("@0x") != std::string::npos);
+        TEST_ASSERT_TRUE(json_str.find("\"") == 0); // Should be JSON string
+    }
+
+    // Verify char* and const char* are NOT formatted as pointers (they are strings)
+    {
+        const char *str_ptr = "hello";
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(str_ptr);
+        BROOKESIA_LOGI("const char* serialized: %1%", json_str);
+        TEST_ASSERT_EQUAL_STRING("\"hello\"", json_str.c_str()); // Should be treated as string, not pointer
+        TEST_ASSERT_FALSE(json_str.find("@0x") != std::string::npos); // Should NOT contain @0x
+    }
+
+    {
+        char str[] = "world";
+        char *char_ptr = str;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(char_ptr);
+        BROOKESIA_LOGI("char* serialized: %1%", json_str);
+        TEST_ASSERT_EQUAL_STRING("\"world\"", json_str.c_str()); // Should be treated as string, not pointer
+        TEST_ASSERT_FALSE(json_str.find("@0x") != std::string::npos); // Should NOT contain @0x
+    }
+
+    BROOKESIA_LOGI("✓ SERIALIZE pointers test passed");
+}
+
 TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_DESERIALIZE - basic types", "[macro][deserialize][basic]")
 {
     BROOKESIA_LOGI("=== DESCRIBE_DESERIALIZE: Basic Types ===");
@@ -407,6 +564,106 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_DESERIALIZE - struct", "[macro][deserial
     BROOKESIA_LOGI("✓ DESERIALIZE struct test passed");
 }
 
+TEST_CASE("Test BROOKESIA_DESCRIBE_JSON_DESERIALIZE - pointers", "[macro][deserialize][pointers]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_JSON_DESERIALIZE: Pointers ===");
+
+    // Test int pointer - round trip
+    {
+        int value = 42;
+        int *original_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original_ptr);
+        BROOKESIA_LOGI("Serialized int*: %1%", json_str);
+
+        int *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, deserialized_ptr);
+        BROOKESIA_LOGI("int* deserialized result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test void pointer - round trip
+    {
+        int value = 100;
+        void *original_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original_ptr);
+        BROOKESIA_LOGI("Serialized void*: %1%", json_str);
+
+        void *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, deserialized_ptr);
+        BROOKESIA_LOGI("void* deserialized result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test struct pointer - round trip
+    {
+        Point p{10, 20};
+        Point *original_ptr = &p;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original_ptr);
+        BROOKESIA_LOGI("Serialized Point*: %1%", json_str);
+
+        Point *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, deserialized_ptr);
+        BROOKESIA_LOGI("Point* deserialized result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test const pointer - round trip
+    {
+        int value = 200;
+        const int *original_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original_ptr);
+        BROOKESIA_LOGI("Serialized const int*: %1%", json_str);
+
+        const int *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, deserialized_ptr);
+        BROOKESIA_LOGI("const int* deserialized result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test null pointer
+    {
+        int *null_ptr = nullptr;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(null_ptr);
+        BROOKESIA_LOGI("Serialized null int*: %1%", json_str);
+
+        int *deserialized_ptr = reinterpret_cast<int *>(0x12345678); // Set to non-null first
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, deserialized_ptr);
+        BROOKESIA_LOGI("null int* deserialized result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(nullptr == deserialized_ptr); // Should be null
+    }
+
+    // Test with invalid JSON format (not a string) - should fail
+    {
+        int *int_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE("12345", int_ptr);
+        BROOKESIA_LOGI("int* from number JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_FALSE(result); // Should fail - not a valid pointer format
+    }
+
+    // Test with invalid string format (not @0x...) - should fail
+    {
+        int *int_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE("\"invalid_format\"", int_ptr);
+        BROOKESIA_LOGI("int* from invalid string JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_FALSE(result); // Should fail - not a valid pointer format
+    }
+
+    // Test with invalid JSON - should fail
+    {
+        int *int_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE("invalid json", int_ptr);
+        BROOKESIA_LOGI("int* from invalid JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_FALSE(result); // Should fail - invalid JSON
+    }
+
+    BROOKESIA_LOGI("✓ DESERIALIZE pointers test passed");
+}
+
 TEST_CASE("Test SERIALIZE/DESERIALIZE round trip", "[macro][serialize][round_trip]")
 {
     BROOKESIA_LOGI("=== SERIALIZE/DESERIALIZE Round Trip ===");
@@ -444,6 +701,17 @@ TEST_CASE("Test SERIALIZE/DESERIALIZE round trip", "[macro][serialize][round_tri
     TEST_ASSERT_EQUAL(100, converted3.settings["max"]);
     TEST_ASSERT_TRUE(converted3.description.has_value());
     TEST_ASSERT_EQUAL_STRING("test", converted3.description.value().c_str());
+
+    // Pointer round trip
+    {
+        int value = 999;
+        int *original_ptr = &value;
+        std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original_ptr);
+        BROOKESIA_LOGI("Pointer serialized: %1%", json_str);
+        int *converted_ptr = nullptr;
+        TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, converted_ptr));
+        TEST_ASSERT_TRUE(original_ptr == converted_ptr); // Addresses should match
+    }
 
     BROOKESIA_LOGI("✓ SERIALIZE/DESERIALIZE round trip test passed");
 }
@@ -506,6 +774,104 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_TO_JSON", "[macro][struct_to_json]")
     BROOKESIA_LOGI("✓ Struct to JSON test passed");
 }
 
+TEST_CASE("Test BROOKESIA_DESCRIBE_TO_JSON - pointers", "[macro][to_json][pointers]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_TO_JSON: Pointers ===");
+
+    // Test int pointer
+    {
+        int value = 42;
+        int *int_ptr = &value;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(int_ptr);
+        BROOKESIA_LOGI("int* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("@0x") == 0); // Should start with @0x
+        TEST_ASSERT_TRUE(json_str.length() > 3); // Should have hex digits after @0x
+    }
+
+    // Test void pointer
+    {
+        int value = 100;
+        void *void_ptr = &value;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(void_ptr);
+        BROOKESIA_LOGI("void* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("@0x") == 0);
+    }
+
+    // Test struct pointer
+    {
+        Point p{10, 20};
+        Point *point_ptr = &p;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(point_ptr);
+        BROOKESIA_LOGI("Point* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("@0x") == 0);
+    }
+
+    // Test const pointer
+    {
+        int value = 200;
+        const int *const_int_ptr = &value;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(const_int_ptr);
+        BROOKESIA_LOGI("const int* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("@0x") == 0);
+    }
+
+    // Test pointer to pointer
+    {
+        int value = 300;
+        int *ptr = &value;
+        int **ptr_to_ptr = &ptr;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(ptr_to_ptr);
+        BROOKESIA_LOGI("int** JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("@0x") == 0);
+    }
+
+    // Test null pointer
+    {
+        int *null_ptr = nullptr;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(null_ptr);
+        BROOKESIA_LOGI("null int* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_TRUE(json_str.find("@0x") == 0);
+        // Null pointer should be @0x0 or @0x0000... depending on implementation
+        TEST_ASSERT_TRUE(json_str.find("0") != std::string::npos);
+    }
+
+    // Verify char* and const char* are NOT formatted as pointers (they are strings)
+    {
+        const char *str_ptr = "hello";
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(str_ptr);
+        BROOKESIA_LOGI("const char* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        TEST_ASSERT_EQUAL_STRING("hello", boost::json::value_to<std::string>(json).c_str()); // Should be treated as string, not pointer
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_FALSE(json_str.find("@0x") == 0); // Should NOT start with @0x
+    }
+
+    {
+        char str[] = "world";
+        char *char_ptr = str;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(char_ptr);
+        BROOKESIA_LOGI("char* JSON: %1%", boost::json::serialize(json));
+        TEST_ASSERT_TRUE(json.is_string());
+        TEST_ASSERT_EQUAL_STRING("world", boost::json::value_to<std::string>(json).c_str()); // Should be treated as string, not pointer
+        std::string json_str = boost::json::value_to<std::string>(json);
+        TEST_ASSERT_FALSE(json_str.find("@0x") == 0); // Should NOT start with @0x
+    }
+
+    BROOKESIA_LOGI("✓ Pointers to JSON test passed");
+}
+
 // ==================== Test BROOKESIA_DESCRIBE_FROM_JSON ====================
 
 TEST_CASE("Test BROOKESIA_DESCRIBE_FROM_JSON", "[macro][json_to_struct]")
@@ -561,6 +927,118 @@ TEST_CASE("Test BROOKESIA_DESCRIBE_FROM_JSON", "[macro][json_to_struct]")
     TEST_ASSERT_FALSE(BROOKESIA_DESCRIBE_FROM_JSON(j, p));
 
     BROOKESIA_LOGI("✓ JSON to struct test passed");
+}
+
+TEST_CASE("Test BROOKESIA_DESCRIBE_FROM_JSON - pointers", "[macro][from_json][pointers]")
+{
+    BROOKESIA_LOGI("=== DESCRIBE_FROM_JSON: Pointers ===");
+
+    // Test int pointer - round trip
+    {
+        int value = 42;
+        int *original_ptr = &value;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original_ptr);
+        BROOKESIA_LOGI("Serialized int*: %1%", boost::json::serialize(json));
+
+        int *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized_ptr);
+        BROOKESIA_LOGI("int* from JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test void pointer - round trip
+    {
+        int value = 100;
+        void *original_ptr = &value;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original_ptr);
+        BROOKESIA_LOGI("Serialized void*: %1%", boost::json::serialize(json));
+
+        void *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized_ptr);
+        BROOKESIA_LOGI("void* from JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test struct pointer - round trip
+    {
+        Point p{10, 20};
+        Point *original_ptr = &p;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original_ptr);
+        BROOKESIA_LOGI("Serialized Point*: %1%", boost::json::serialize(json));
+
+        Point *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized_ptr);
+        BROOKESIA_LOGI("Point* from JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test const pointer - round trip
+    {
+        int value = 200;
+        const int *original_ptr = &value;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original_ptr);
+        BROOKESIA_LOGI("Serialized const int*: %1%", boost::json::serialize(json));
+
+        const int *deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized_ptr);
+        BROOKESIA_LOGI("const int* from JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test pointer to pointer - round trip
+    {
+        int value = 300;
+        int *ptr = &value;
+        int **original_ptr = &ptr;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(original_ptr);
+        BROOKESIA_LOGI("Serialized int**: %1%", boost::json::serialize(json));
+
+        int **deserialized_ptr = nullptr;
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized_ptr);
+        BROOKESIA_LOGI("int** from JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(original_ptr == deserialized_ptr); // Addresses should match
+    }
+
+    // Test null pointer
+    {
+        int *null_ptr = nullptr;
+        auto json = BROOKESIA_DESCRIBE_TO_JSON(null_ptr);
+        BROOKESIA_LOGI("Serialized null int*: %1%", boost::json::serialize(json));
+
+        int *deserialized_ptr = reinterpret_cast<int *>(0x12345678); // Set to non-null first
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized_ptr);
+        BROOKESIA_LOGI("null int* from JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_TRUE(result); // Should succeed
+        TEST_ASSERT_TRUE(nullptr == deserialized_ptr); // Should be null
+    }
+
+    // Test with invalid JSON format (not a string) - should fail
+    {
+        int *int_ptr = nullptr;
+        auto json = boost::json::parse("12345");
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, int_ptr);
+        BROOKESIA_LOGI("int* from number JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_FALSE(result); // Should fail - not a valid pointer format
+    }
+
+    // Test with invalid string format (not @0x...) - should fail
+    {
+        int *int_ptr = nullptr;
+        auto json = boost::json::parse("\"invalid_format\"");
+        bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, int_ptr);
+        BROOKESIA_LOGI("int* from invalid string JSON result: %1%", static_cast<int>(result));
+        TEST_ASSERT_FALSE(result); // Should fail - not a valid pointer format
+    }
+
+    // Note: char* and const char* have static_assert that prevents compilation,
+    // so we cannot test them here (they would cause compile errors)
+
+    BROOKESIA_LOGI("✓ Pointers from JSON test passed");
 }
 
 // ==================== Test Round Trip Conversion ====================
@@ -1305,4 +1783,375 @@ TEST_CASE("Test std::function with different formats", "[macro][function][format
     }
 
     BROOKESIA_LOGI("✓ std::function format test passed");
+}
+
+// ==================== Test Complex Struct with All Supported Types ====================
+
+// Complex struct containing all supported types
+struct ComplexStruct {
+    // Basic types
+    bool flag;
+    int number;
+    float float_value;
+    double double_value;
+    std::string text;
+
+    // Pointers (non-char*)
+    int *int_ptr;
+    void *void_ptr;
+    Point *point_ptr;
+
+    // Enum
+    Status status;
+
+    // Containers
+    std::vector<int> numbers;
+    std::map<std::string, int> settings;
+    std::optional<std::string> description;
+
+    // Variant
+    SimpleVariant variant_value;
+
+    // Function
+    std::function<int(int, int)> callback;
+
+    // Nested structs
+    Point position;
+    Address location;
+
+    // JSON value
+    boost::json::value json_data;
+};
+BROOKESIA_DESCRIBE_STRUCT(ComplexStruct, (),
+                          (flag, number, float_value, double_value, text,
+                           int_ptr, void_ptr, point_ptr,
+                           status,
+                           numbers, settings, description,
+                           variant_value,
+                           callback,
+                           position, location,
+                           json_data))
+
+TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_STR", "[macro][complex_struct][to_str]")
+{
+    BROOKESIA_LOGI("=== ComplexStruct: DESCRIBE_TO_STR ===");
+
+    // Create a complex struct with all supported types
+    int int_value = 42;
+    Point point_value{10, 20};
+
+    ComplexStruct complex;
+    complex.flag = true;
+    complex.number = 100;
+    complex.float_value = 3.14f;
+    complex.double_value = 2.71828;
+    complex.text = "complex test";
+    complex.int_ptr = &int_value;
+    complex.void_ptr = &int_value;
+    complex.point_ptr = &point_value;
+    complex.status = Status::Running;
+    complex.numbers = {1, 2, 3, 4, 5};
+    complex.settings["timeout"] = 30;
+    complex.settings["retry"] = 3;
+    complex.description = "test description";
+    complex.variant_value = std::string("variant string");
+    complex.callback = [](int a, int b) {
+        return a + b;
+    };
+    complex.position = Point{100, 200};
+    complex.location = Address{"Beijing", 100000};
+    complex.json_data = boost::json::parse("{\"key\": \"value\"}");
+
+    // Test to_str
+    std::string str = BROOKESIA_DESCRIBE_TO_STR(complex);
+    BROOKESIA_LOGI("ComplexStruct to_str: %1%", str);
+
+    // Verify all fields are present
+    TEST_ASSERT_TRUE(str.find("flag") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("number") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("text") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("int_ptr") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("@0x") != std::string::npos); // Pointer format
+    TEST_ASSERT_TRUE(str.find("status") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("Running") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("numbers") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("settings") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("description") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("variant_value") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("callback") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("position") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("location") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("json_data") != std::string::npos);
+
+    BROOKESIA_LOGI("✓ ComplexStruct to_str test passed");
+}
+
+TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_JSON", "[macro][complex_struct][to_json]")
+{
+    BROOKESIA_LOGI("=== ComplexStruct: DESCRIBE_TO_JSON ===");
+
+    // Create a complex struct with all supported types
+    int int_value = 42;
+    Point point_value{10, 20};
+
+    ComplexStruct complex;
+    complex.flag = true;
+    complex.number = 100;
+    complex.float_value = 3.14f;
+    complex.double_value = 2.71828;
+    complex.text = "complex test";
+    complex.int_ptr = &int_value;
+    complex.void_ptr = &int_value;
+    complex.point_ptr = &point_value;
+    complex.status = Status::Running;
+    complex.numbers = {1, 2, 3, 4, 5};
+    complex.settings["timeout"] = 30;
+    complex.settings["retry"] = 3;
+    complex.description = "test description";
+    complex.variant_value = std::string("variant string");
+    complex.callback = [](int a, int b) {
+        return a + b;
+    };
+    complex.position = Point{100, 200};
+    complex.location = Address{"Beijing", 100000};
+    complex.json_data = boost::json::parse("{\"key\": \"value\"}");
+
+    // Test to_json
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(complex);
+    BROOKESIA_LOGI("ComplexStruct JSON: %1%", boost::json::serialize(json));
+
+    TEST_ASSERT_TRUE(json.is_object());
+    const auto &obj = json.as_object();
+
+    // Verify all fields are present
+    TEST_ASSERT_TRUE(obj.contains("flag"));
+    TEST_ASSERT_TRUE(obj.contains("number"));
+    TEST_ASSERT_TRUE(obj.contains("float_value"));
+    TEST_ASSERT_TRUE(obj.contains("double_value"));
+    TEST_ASSERT_TRUE(obj.contains("text"));
+    TEST_ASSERT_TRUE(obj.contains("int_ptr"));
+    TEST_ASSERT_TRUE(obj.contains("void_ptr"));
+    TEST_ASSERT_TRUE(obj.contains("point_ptr"));
+    TEST_ASSERT_TRUE(obj.contains("status"));
+    TEST_ASSERT_TRUE(obj.contains("numbers"));
+    TEST_ASSERT_TRUE(obj.contains("settings"));
+    TEST_ASSERT_TRUE(obj.contains("description"));
+    TEST_ASSERT_TRUE(obj.contains("variant_value"));
+    TEST_ASSERT_TRUE(obj.contains("callback"));
+    TEST_ASSERT_TRUE(obj.contains("position"));
+    TEST_ASSERT_TRUE(obj.contains("location"));
+    TEST_ASSERT_TRUE(obj.contains("json_data"));
+
+    // Verify values
+    TEST_ASSERT_TRUE(obj.at("flag").as_bool());
+    TEST_ASSERT_EQUAL(100, obj.at("number").as_int64());
+    TEST_ASSERT_EQUAL_STRING("complex test", obj.at("text").as_string().c_str());
+    TEST_ASSERT_EQUAL_STRING("Running", obj.at("status").as_string().c_str());
+    TEST_ASSERT_TRUE(obj.at("numbers").is_array());
+    TEST_ASSERT_TRUE(obj.at("settings").is_object());
+    TEST_ASSERT_EQUAL_STRING("test description", obj.at("description").as_string().c_str());
+    TEST_ASSERT_TRUE(obj.at("int_ptr").is_string());
+    TEST_ASSERT_TRUE(obj.at("int_ptr").as_string().find("@0x") == 0);
+    TEST_ASSERT_TRUE(obj.at("position").is_object());
+    TEST_ASSERT_TRUE(obj.at("location").is_object());
+
+    BROOKESIA_LOGI("✓ ComplexStruct to_json test passed");
+}
+
+TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_JSON_SERIALIZE/DESERIALIZE", "[macro][complex_struct][serialize]")
+{
+    BROOKESIA_LOGI("=== ComplexStruct: JSON_SERIALIZE/DESERIALIZE ===");
+
+    // Create a complex struct with all supported types
+    int int_value = 42;
+    Point point_value{10, 20};
+
+    ComplexStruct original;
+    original.flag = true;
+    original.number = 100;
+    original.float_value = 3.14f;
+    original.double_value = 2.71828;
+    original.text = "complex test";
+    original.int_ptr = &int_value;
+    original.void_ptr = &int_value;
+    original.point_ptr = &point_value;
+    original.status = Status::Running;
+    original.numbers = {1, 2, 3, 4, 5};
+    original.settings["timeout"] = 30;
+    original.settings["retry"] = 3;
+    original.description = "test description";
+    original.variant_value = std::string("variant string");
+    original.callback = [](int a, int b) {
+        return a + b;
+    };
+    original.position = Point{100, 200};
+    original.location = Address{"Beijing", 100000};
+    original.json_data = boost::json::parse("{\"key\": \"value\"}");
+
+    // Serialize
+    std::string json_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(original);
+    BROOKESIA_LOGI("Serialized ComplexStruct: %1%", json_str);
+
+    // Deserialize
+    ComplexStruct deserialized;
+    bool result = BROOKESIA_DESCRIBE_JSON_DESERIALIZE(json_str, deserialized);
+    TEST_ASSERT_TRUE(result);
+
+    // Verify all fields match (except pointers which are runtime addresses)
+    TEST_ASSERT_EQUAL(original.flag, deserialized.flag);
+    TEST_ASSERT_EQUAL(original.number, deserialized.number);
+    TEST_ASSERT_TRUE(std::abs(original.float_value - deserialized.float_value) < 0.001f);
+    TEST_ASSERT_TRUE(std::abs(original.double_value - deserialized.double_value) < 0.000001);
+    TEST_ASSERT_EQUAL_STRING(original.text.c_str(), deserialized.text.c_str());
+    TEST_ASSERT_EQUAL(static_cast<int>(original.status), static_cast<int>(deserialized.status));
+    TEST_ASSERT_EQUAL(original.numbers.size(), deserialized.numbers.size());
+    TEST_ASSERT_EQUAL(original.numbers[0], deserialized.numbers[0]);
+    TEST_ASSERT_EQUAL(original.settings["timeout"], deserialized.settings["timeout"]);
+    TEST_ASSERT_TRUE(deserialized.description.has_value());
+    TEST_ASSERT_EQUAL_STRING(original.description.value().c_str(), deserialized.description.value().c_str());
+    TEST_ASSERT_EQUAL(original.position.x, deserialized.position.x);
+    TEST_ASSERT_EQUAL(original.position.y, deserialized.position.y);
+    TEST_ASSERT_EQUAL_STRING(original.location.city.c_str(), deserialized.location.city.c_str());
+    TEST_ASSERT_EQUAL(original.location.zip, deserialized.location.zip);
+
+    // Verify pointers are deserialized correctly
+    TEST_ASSERT_TRUE(original.int_ptr == deserialized.int_ptr);
+    TEST_ASSERT_TRUE(original.void_ptr == deserialized.void_ptr);
+    TEST_ASSERT_TRUE(original.point_ptr == deserialized.point_ptr);
+
+    // Verify variant
+    TEST_ASSERT_TRUE(std::holds_alternative<std::string>(deserialized.variant_value));
+    TEST_ASSERT_EQUAL_STRING(std::get<std::string>(original.variant_value).c_str(),
+                             std::get<std::string>(deserialized.variant_value).c_str());
+
+    // Verify function - deserialized function should be empty (functions cannot be restored from JSON)
+    TEST_ASSERT_FALSE(deserialized.callback); // Function should be empty after deserialization
+
+    BROOKESIA_LOGI("✓ ComplexStruct serialize/deserialize test passed");
+}
+
+TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_FROM_JSON", "[macro][complex_struct][from_json]")
+{
+    BROOKESIA_LOGI("=== ComplexStruct: DESCRIBE_FROM_JSON ===");
+
+    // Create JSON with all supported types
+    int int_value = 42;
+    Point point_value{10, 20};
+
+    ComplexStruct original;
+    original.flag = true;
+    original.number = 100;
+    original.float_value = 3.14f;
+    original.double_value = 2.71828;
+    original.text = "complex test";
+    original.int_ptr = &int_value;
+    original.void_ptr = &int_value;
+    original.point_ptr = &point_value;
+    original.status = Status::Running;
+    original.numbers = {1, 2, 3, 4, 5};
+    original.settings["timeout"] = 30;
+    original.settings["retry"] = 3;
+    original.description = "test description";
+    original.variant_value = std::string("variant string");
+    original.callback = [](int a, int b) {
+        return a + b;
+    };
+    original.position = Point{100, 200};
+    original.location = Address{"Beijing", 100000};
+    original.json_data = boost::json::parse("{\"key\": \"value\"}");
+
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(original);
+
+    // Deserialize from JSON
+    ComplexStruct deserialized;
+    bool result = BROOKESIA_DESCRIBE_FROM_JSON(json, deserialized);
+    TEST_ASSERT_TRUE(result);
+
+    // Verify all fields match
+    TEST_ASSERT_EQUAL(original.flag, deserialized.flag);
+    TEST_ASSERT_EQUAL(original.number, deserialized.number);
+    TEST_ASSERT_TRUE(std::abs(original.float_value - deserialized.float_value) < 0.001f);
+    TEST_ASSERT_TRUE(std::abs(original.double_value - deserialized.double_value) < 0.000001);
+    TEST_ASSERT_EQUAL_STRING(original.text.c_str(), deserialized.text.c_str());
+    TEST_ASSERT_EQUAL(static_cast<int>(original.status), static_cast<int>(deserialized.status));
+    TEST_ASSERT_EQUAL(original.numbers.size(), deserialized.numbers.size());
+    TEST_ASSERT_EQUAL(original.settings["timeout"], deserialized.settings["timeout"]);
+    TEST_ASSERT_TRUE(deserialized.description.has_value());
+    TEST_ASSERT_EQUAL_STRING(original.description.value().c_str(), deserialized.description.value().c_str());
+    TEST_ASSERT_EQUAL(original.position.x, deserialized.position.x);
+    TEST_ASSERT_EQUAL(original.position.y, deserialized.position.y);
+    TEST_ASSERT_EQUAL_STRING(original.location.city.c_str(), deserialized.location.city.c_str());
+    TEST_ASSERT_EQUAL(original.location.zip, deserialized.location.zip);
+    TEST_ASSERT_TRUE(original.int_ptr == deserialized.int_ptr);
+    TEST_ASSERT_TRUE(original.void_ptr == deserialized.void_ptr);
+    TEST_ASSERT_TRUE(original.point_ptr == deserialized.point_ptr);
+
+    // Verify function - deserialized function should be empty (functions cannot be restored from JSON)
+    TEST_ASSERT_FALSE(deserialized.callback); // Function should be empty after deserialization
+
+    BROOKESIA_LOGI("✓ ComplexStruct from_json test passed");
+}
+
+TEST_CASE("Test ComplexStruct - Round Trip", "[macro][complex_struct][round_trip]")
+{
+    BROOKESIA_LOGI("=== ComplexStruct: Round Trip ===");
+
+    // Create original complex struct
+    int int_value = 42;
+    Point point_value{10, 20};
+
+    ComplexStruct original;
+    original.flag = true;
+    original.number = 100;
+    original.float_value = 3.14f;
+    original.double_value = 2.71828;
+    original.text = "round trip test";
+    original.int_ptr = &int_value;
+    original.void_ptr = &int_value;
+    original.point_ptr = &point_value;
+    original.status = Status::Error;
+    original.numbers = {10, 20, 30};
+    original.settings["max"] = 100;
+    original.settings["min"] = 0;
+    original.description = "round trip description";
+    original.variant_value = 123; // int variant
+    original.callback = [](int a, int b) {
+        return a * b;
+    };
+    original.position = Point{50, 60};
+    original.location = Address{"Shanghai", 200000};
+    original.json_data = boost::json::parse("{\"round\": \"trip\"}");
+
+    // Round trip: to_json -> from_json
+    auto json = BROOKESIA_DESCRIBE_TO_JSON(original);
+    ComplexStruct converted;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(json, converted));
+
+    // Verify all fields match
+    TEST_ASSERT_EQUAL(original.flag, converted.flag);
+    TEST_ASSERT_EQUAL(original.number, converted.number);
+    TEST_ASSERT_TRUE(std::abs(original.float_value - converted.float_value) < 0.001f);
+    TEST_ASSERT_TRUE(std::abs(original.double_value - converted.double_value) < 0.000001);
+    TEST_ASSERT_EQUAL_STRING(original.text.c_str(), converted.text.c_str());
+    TEST_ASSERT_EQUAL(static_cast<int>(original.status), static_cast<int>(converted.status));
+    TEST_ASSERT_EQUAL(original.numbers.size(), converted.numbers.size());
+    TEST_ASSERT_EQUAL(original.numbers[0], converted.numbers[0]);
+    TEST_ASSERT_EQUAL(original.settings["max"], converted.settings["max"]);
+    TEST_ASSERT_EQUAL(original.settings["min"], converted.settings["min"]);
+    TEST_ASSERT_TRUE(converted.description.has_value());
+    TEST_ASSERT_EQUAL_STRING(original.description.value().c_str(), converted.description.value().c_str());
+    TEST_ASSERT_EQUAL(original.position.x, converted.position.x);
+    TEST_ASSERT_EQUAL(original.position.y, converted.position.y);
+    TEST_ASSERT_EQUAL_STRING(original.location.city.c_str(), converted.location.city.c_str());
+    TEST_ASSERT_EQUAL(original.location.zip, converted.location.zip);
+    TEST_ASSERT_TRUE(original.int_ptr == converted.int_ptr);
+    TEST_ASSERT_TRUE(original.void_ptr == converted.void_ptr);
+    TEST_ASSERT_TRUE(original.point_ptr == converted.point_ptr);
+    TEST_ASSERT_TRUE(std::holds_alternative<int>(converted.variant_value));
+    TEST_ASSERT_EQUAL(std::get<int>(original.variant_value), std::get<int>(converted.variant_value));
+
+    // Verify function - deserialized function should be empty (functions cannot be restored from JSON)
+    TEST_ASSERT_FALSE(converted.callback); // Function should be empty after deserialization
+
+    BROOKESIA_LOGI("✓ ComplexStruct round trip test passed");
 }
