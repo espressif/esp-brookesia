@@ -1,0 +1,47 @@
+menu "ESP-Brookesia: Service SNTP Configurations"
+    menuconfig BROOKESIA_SERVICE_SNTP_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    menu "Server & Timezone"
+        config BROOKESIA_SERVICE_SNTP_DEFAULT_NTP_SERVER
+            string "Default NTP server"
+            default "pool.ntp.org"
+            help
+                The default NTP server.
+
+        config BROOKESIA_SERVICE_SNTP_DEFAULT_TIMEZONE
+            string "Default timezone"
+            default "CST-8"
+            help
+                The default timezone.
+    endmenu
+
+    menu "Timing"
+        config BROOKESIA_SERVICE_SNTP_WAIT_FOR_NETWORK_INTERVAL_MS
+            int "Wait for network interval (ms)"
+            default 1000
+            help
+                The interval of the wait for network. If the network is not connected, the SNTP will wait for the network to be connected and then start.
+
+        config BROOKESIA_SERVICE_SNTP_SYNC_TIME_INTERVAL_MS
+            int "Sync time interval (ms)"
+            default 1000
+            help
+                The interval of the sync time.
+
+        config BROOKESIA_SERVICE_SNTP_SYNC_TIME_TIMEOUT_MS
+            int "Sync time timeout (ms)"
+            default 30000
+            help
+                The timeout of the sync time.
+                If the sync time is not successful after the timeout, the sync will stop.
+
+        config BROOKESIA_SERVICE_SNTP_SYNC_TIME_RETRY_DELAY_MS
+            int "Sync time retry delay (ms)"
+            default 1000
+            help
+                The delay of the sync time retry.
+                The retry will continue until the sync time is successful or the timeout is reached.
+    endmenu
+endmenu

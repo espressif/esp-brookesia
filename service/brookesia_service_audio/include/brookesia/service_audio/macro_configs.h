@@ -1,0 +1,87 @@
+/*
+ * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#if defined(ESP_PLATFORM)
+#   include "sdkconfig.h"
+#endif
+
+/* Version */
+#if !defined(BROOKESIA_SERVICE_AUDIO_VER_MAJOR)
+#   define BROOKESIA_SERVICE_AUDIO_VER_MAJOR  (0)
+#endif
+#if !defined(BROOKESIA_SERVICE_AUDIO_VER_MINOR)
+#   define BROOKESIA_SERVICE_AUDIO_VER_MINOR  (7)
+#endif
+#if !defined(BROOKESIA_SERVICE_AUDIO_VER_PATCH)
+#   define BROOKESIA_SERVICE_AUDIO_VER_PATCH  (0)
+#endif
+
+/* Debug log */
+#define BROOKESIA_SERVICE_AUDIO_LOG_TAG "SrvAudio"
+
+#if !defined(BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG)
+#   if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG)
+#       define BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG  CONFIG_BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG
+#   else
+#       define BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG  (0)
+#   endif
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////// Worker /////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+#if !defined(BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER)
+#   if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER)
+#       define BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER  CONFIG_BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
+#   else
+#       define BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER  (0)
+#   endif
+#endif // BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
+#if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
+#   if !defined(BROOKESIA_SERVICE_AUDIO_WORKER_NAME)
+#      if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_NAME)
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_NAME  CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_NAME
+#      else
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_NAME  "SrvAudioWorker"
+#      endif
+#   endif
+#   if !defined(BROOKESIA_SERVICE_AUDIO_WORKER_CORE_ID)
+#      if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_CORE_ID)
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_CORE_ID  CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_CORE_ID
+#      else
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_CORE_ID  (-1)
+#      endif
+#   endif
+#   if !defined(BROOKESIA_SERVICE_AUDIO_WORKER_PRIORITY)
+#      if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_PRIORITY)
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_PRIORITY  CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_PRIORITY
+#      else
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_PRIORITY  (5)
+#      endif
+#   endif
+#   if !defined(BROOKESIA_SERVICE_AUDIO_WORKER_STACK_SIZE)
+#      if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_STACK_SIZE)
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_STACK_SIZE  CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_STACK_SIZE
+#      else
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_STACK_SIZE  (5120)
+#      endif
+#   endif
+#   if !defined(BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT)
+#      if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT)
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT  CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT
+#      else
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT  (0)
+#      endif
+#   endif
+#   if !defined(BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS)
+#      if defined(CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS)
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS  CONFIG_BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS
+#      else
+#          define BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS  (5)
+#      endif
+#   endif
+#endif // BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
