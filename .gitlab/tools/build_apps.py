@@ -21,6 +21,9 @@ logger = logging.getLogger('idf_build_apps')
 PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
 APPS_BUILD_PER_JOB = 30
 IGNORE_WARNINGS = [
+    r"warning: unused variable 'head'",
+    r"WARNING: The following Kconfig variables were used in",
+    r"unknown kconfig symbol",
 ]
 
 def _get_idf_version():

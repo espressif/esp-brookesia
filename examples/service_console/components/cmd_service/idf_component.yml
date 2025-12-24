@@ -1,0 +1,6 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/brookesia_service_manager:
+    version: "0.7.*"
+    override_path: "../../../../service/brookesia_service_manager"
+    require: public

@@ -44,7 +44,15 @@ variables:
     ENV_TAG: "generic"
   - IDF_TARGET: esp32p4
     IDF_VERSION: "5.5"
+    ENV_TAG: "generic,eco4"
+
+.idf_target_version_matrix_p4_eco4_function_ev_board: &idf_target_version_matrix_p4_eco4_function_ev_board
+  - IDF_TARGET: esp32s3
+    IDF_VERSION: "5.5"
     ENV_TAG: "generic"
+  - IDF_TARGET: esp32p4
+    IDF_VERSION: "5.5"
+    ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
 
 #
 # Test apps: brookesia_lib_utils
@@ -283,13 +291,13 @@ components_test_brookesia_service_nvs:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: service/brookesia_service_nvs/test_apps
     TEST_ENV: ${ENV_TAG}
-# brookesia_service_wifi
-components_test_brookesia_service_wifi_general:
+# brookesia_service_sntp
+components_test_brookesia_service_sntp:
   extends:
     - .pytest_template
-    - .rules:build:test_apps_brookesia_service_wifi_general
+    - .rules:build:test_apps_brookesia_service_sntp
   needs:
-    - job: "build_test_apps_brookesia_service_wifi_general"
+    - job: "build_test_apps_brookesia_service_sntp"
       artifacts: true
       optional: true
   parallel:
@@ -299,22 +307,45 @@ components_test_brookesia_service_wifi_general:
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_wifi/test_apps/general
+    TEST_FOLDER: service/brookesia_service_sntp/test_apps
     TEST_ENV: ${ENV_TAG}
-components_test_brookesia_service_wifi_with_nvs:
+# brookesia_service_wifi
+components_test_brookesia_service_wifi:
   extends:
     - .pytest_template
-    - .rules:build:test_apps_brookesia_service_wifi_with_nvs
+    - .rules:build:test_apps_brookesia_service_wifi
   needs:
-    - job: "build_test_apps_brookesia_service_wifi_with_nvs"
+    - job: "build_test_apps_brookesia_service_wifi"
       artifacts: true
       optional: true
   parallel:
-    matrix: *idf_target_version_matrix
+    matrix: *idf_target_version_matrix_p4_eco4_function_ev_board
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_wifi/test_apps/with_nvs
+    TEST_FOLDER: service/brookesia_service_wifi/test_apps
+    TEST_ENV: ${ENV_TAG}
+
+#
+# Examples
+#
+# service_console
+examples_test_service_console:
+  extends:
+    - .pytest_template
+    - .rules:build:examples_service_console
+  needs:
+    - job: "build_examples_service_console"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix_p4_eco4_function_ev_board
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/service_console
     TEST_ENV: ${ENV_TAG}

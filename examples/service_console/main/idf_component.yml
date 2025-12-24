@@ -1,0 +1,41 @@
+## IDF Component Manager Manifest File
+dependencies:
+  # Board Manager
+  espressif/esp_board_manager:
+    matches:
+    - if: $CONFIG{EXAMPLE_ENABLE_BOARD_MANAGER} == True
+    version: ">0.5.0,<0.6"
+
+  # Services
+  espressif/brookesia_service_audio:
+    version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_SERVICES_ENABLE_AUDIO} == True
+    override_path: "../../../service/brookesia_service_audio"
+  espressif/brookesia_service_wifi:
+    version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_SERVICES_ENABLE_WIFI} == True
+    override_path: "../../../service/brookesia_service_wifi"
+  espressif/brookesia_service_nvs:
+    version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_SERVICES_ENABLE_NVS} == True
+    override_path: "../../../service/brookesia_service_nvs"
+  espressif/brookesia_service_sntp:
+    version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_SERVICES_ENABLE_SNTP} == True
+    override_path: "../../../service/brookesia_service_sntp"
+
+  # Agents
+  espressif/brookesia_agent_coze:
+    version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_AGENTS_ENABLE_COZE} == True
+    override_path: "../../../agent/brookesia_agent_coze"
+  espressif/brookesia_agent_openai:
+    version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_AGENTS_ENABLE_OPENAI} == True
+    override_path: "../../../agent/brookesia_agent_openai"

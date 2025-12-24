@@ -27,7 +27,6 @@
 .patterns-app_brookesia_app_squareline_demo: &patterns-app_brookesia_app_squareline_demo
   - "apps/brookesia_app_squareline_demo/**/*"
 
-# components folder
 # brookesia_core
 .patterns-component_brookesia_core: &patterns-component_brookesia_core
   - "core/brookesia_core/ai_framework/**/*"
@@ -39,13 +38,43 @@
   - "core/brookesia_core/CMakeLists.txt"
   - "core/brookesia_core/idf_component.yml"
   - "core/brookesia_core/Kconfig"
-# brookesia_lib_utils
-.patterns-component_brookesia_lib_utils: &patterns-component_brookesia_lib_utils
-  - "utils/brookesia_lib_utils/include/**/*"
-  - "utils/brookesia_lib_utils/src/**/*"
-  - "utils/brookesia_lib_utils/CMakeLists.txt"
-  - "utils/brookesia_lib_utils/idf_component.yml"
-  - "utils/brookesia_lib_utils/Kconfig"
+
+#
+# Components Folder
+#
+# Agent
+#
+# brookesia_agent_coze
+.patterns-component_brookesia_agent_coze: &patterns-component_brookesia_agent_coze
+  - "agent/brookesia_agent_coze/include/**/*"
+  - "agent/brookesia_agent_coze/src/**/*"
+  - "agent/brookesia_agent_coze/CMakeLists.txt"
+  - "agent/brookesia_agent_coze/idf_component.yml"
+  - "agent/brookesia_agent_coze/Kconfig"
+# brookesia_agent_manager
+.patterns-component_brookesia_agent_manager: &patterns-component_brookesia_agent_manager
+  - "agent/brookesia_agent_manager/include/**/*"
+  - "agent/brookesia_agent_manager/src/**/*"
+  - "agent/brookesia_agent_manager/CMakeLists.txt"
+  - "agent/brookesia_agent_manager/idf_component.yml"
+  - "agent/brookesia_agent_manager/Kconfig"
+# brookesia_agent_openai
+.patterns-component_brookesia_agent_openai: &patterns-component_brookesia_agent_openai
+  - "agent/brookesia_agent_openai/include/**/*"
+  - "agent/brookesia_agent_openai/src/**/*"
+  - "agent/brookesia_agent_openai/CMakeLists.txt"
+  - "agent/brookesia_agent_openai/idf_component.yml"
+  - "agent/brookesia_agent_openai/Kconfig"
+#
+# Service
+#
+# brookesia_service_audio
+.patterns-component_brookesia_service_audio: &patterns-component_brookesia_service_audio
+  - "service/brookesia_service_audio/include/**/*"
+  - "service/brookesia_service_audio/src/**/*"
+  - "service/brookesia_service_audio/CMakeLists.txt"
+  - "service/brookesia_service_audio/idf_component.yml"
+  - "service/brookesia_service_audio/Kconfig"
 # brookesia_service_helper
 .patterns-component_brookesia_service_helper: &patterns-component_brookesia_service_helper
   - "service/brookesia_service_helper/include/**/*"
@@ -65,6 +94,13 @@
   - "service/brookesia_service_nvs/CMakeLists.txt"
   - "service/brookesia_service_nvs/idf_component.yml"
   - "service/brookesia_service_nvs/Kconfig"
+# brookesia_service_sntp
+.patterns-component_brookesia_service_sntp: &patterns-component_brookesia_service_sntp
+  - "service/brookesia_service_sntp/include/**/*"
+  - "service/brookesia_service_sntp/src/**/*"
+  - "service/brookesia_service_sntp/CMakeLists.txt"
+  - "service/brookesia_service_sntp/idf_component.yml"
+  - "service/brookesia_service_sntp/Kconfig"
 # brookesia_service_wifi
 .patterns-component_brookesia_service_wifi: &patterns-component_brookesia_service_wifi
   - "service/brookesia_service_wifi/include/**/*"
@@ -72,11 +108,40 @@
   - "service/brookesia_service_wifi/CMakeLists.txt"
   - "service/brookesia_service_wifi/idf_component.yml"
   - "service/brookesia_service_wifi/Kconfig"
+#
+# Utils
+#
+# brookesia_lib_utils
+.patterns-component_brookesia_lib_utils: &patterns-component_brookesia_lib_utils
+  - "utils/brookesia_lib_utils/include/**/*"
+  - "utils/brookesia_lib_utils/src/**/*"
+  - "utils/brookesia_lib_utils/CMakeLists.txt"
+  - "utils/brookesia_lib_utils/idf_component.yml"
+  - "utils/brookesia_lib_utils/Kconfig"
 
-# test_apps folder
 # brookesia_core
 .patterns-test_apps_brookesia_core: &patterns-test_apps_brookesia_core
   - "core/brookesia_core/test_apps/**/*"
+
+# test_apps folder
+#
+# Service
+#
+# brookesia_service_manager
+.patterns-test_apps_brookesia_service_manager: &patterns-test_apps_brookesia_service_manager
+  - "service/brookesia_service_manager/test_apps/**/*"
+# brookesia_service_nvs
+.patterns-test_apps_brookesia_service_nvs: &patterns-test_apps_brookesia_service_nvs
+  - "service/brookesia_service_nvs/test_apps/**/*"
+# brookesia_service_sntp
+.patterns-test_apps_brookesia_service_sntp: &patterns-test_apps_brookesia_service_sntp
+  - "service/brookesia_service_sntp/test_apps/**/*"
+# brookesia_service_wifi
+.patterns-test_apps_brookesia_service_wifi: &patterns-test_apps_brookesia_service_wifi
+  - "service/brookesia_service_wifi/test_apps/**/*"
+#
+# Utils
+#
 # brookesia_lib_utils
 .patterns-test_apps_brookesia_lib_utils_check: &patterns-test_apps_brookesia_lib_utils_check
   - "utils/brookesia_lib_utils/test_apps/check/**/*"
@@ -100,17 +165,10 @@
   - "utils/brookesia_lib_utils/test_apps/thread_profiler/**/*"
 .patterns-test_apps_brookesia_lib_utils_time_profiler: &patterns-test_apps_brookesia_lib_utils_time_profiler
   - "utils/brookesia_lib_utils/test_apps/time_profiler/**/*"
-# brookesia_service_manager
-.patterns-test_apps_brookesia_service_manager: &patterns-test_apps_brookesia_service_manager
-  - "service/brookesia_service_manager/test_apps/**/*"
-# brookesia_service_nvs
-.patterns-test_apps_brookesia_service_nvs: &patterns-test_apps_brookesia_service_nvs
-  - "service/brookesia_service_nvs/test_apps/**/*"
-# brookesia_service_wifi
-.patterns-test_apps_brookesia_service_wifi_general: &patterns-test_apps_brookesia_service_wifi_general
-  - "service/brookesia_service_wifi/test_apps/general/**/*"
-.patterns-test_apps_brookesia_service_wifi_with_nvs: &patterns-test_apps_brookesia_service_wifi_with_nvs
-  - "service/brookesia_service_wifi/test_apps/with_nvs/**/*"
+
+# examples folder
+.patterns-examples_service_console: &patterns-examples_service_console
+  - "examples/service_console/**/*"
 
 # docs folder
 .patterns-docs_md: &patterns-docs_md
@@ -176,6 +234,76 @@
   if: '$BOT_LABEL_DEPLOY || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*deploy(?:,[^,\n\r]+)*$/i'
 
 # rules for test_apps
+#
+# Service
+#
+# brookesia_service_manager
+.rules:build:test_apps_brookesia_service_manager:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_manager
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_service_manager
+# brookesia_service_nvs
+.rules:build:test_apps_brookesia_service_nvs:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_helper
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_manager
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_nvs
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_service_nvs
+# brookesia_service_sntp
+.rules:build:test_apps_brookesia_service_sntp:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_helper
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_manager
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_sntp
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_service_sntp
+# brookesia_service_wifi
+.rules:build:test_apps_brookesia_service_wifi:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_helper
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_manager
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_wifi
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_service_wifi
+#
+# Utils
+#
 # brookesia_lib_utils
 .rules:build:test_apps_brookesia_lib_utils_check:
   rules:
@@ -309,8 +437,9 @@
       changes: *patterns-component_brookesia_lib_utils
     - <<: *if-dev-push
       changes: *patterns-test_apps_brookesia_lib_utils_time_profiler
-# brookesia_service_manager
-.rules:build:test_apps_brookesia_service_manager:
+
+# rules for examples
+.rules:build:examples_service_console:
   rules:
     - <<: *if-protected
     - <<: *if-label-build
@@ -319,18 +448,15 @@
     - <<: *if-dev-push
       changes: *patterns-build_system
     - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_manager
+      changes: *patterns-examples_service_console
     - <<: *if-dev-push
-      changes: *patterns-test_apps_brookesia_service_manager
-# brookesia_service_nvs
-.rules:build:test_apps_brookesia_service_nvs:
-  rules:
-    - <<: *if-protected
-    - <<: *if-label-build
-    - <<: *if-label-target_test
-    - <<: *if-trigger-job
+      changes: *patterns-component_brookesia_agent_coze
     - <<: *if-dev-push
-      changes: *patterns-build_system
+      changes: *patterns-component_brookesia_agent_manager
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_agent_openai
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_audio
     - <<: *if-dev-push
       changes: *patterns-component_brookesia_service_helper
     - <<: *if-dev-push
@@ -338,42 +464,11 @@
     - <<: *if-dev-push
       changes: *patterns-component_brookesia_service_nvs
     - <<: *if-dev-push
-      changes: *patterns-test_apps_brookesia_service_nvs
-# brookesia_service_wifi
-.rules:build:test_apps_brookesia_service_wifi_general:
-  rules:
-    - <<: *if-protected
-    - <<: *if-label-build
-    - <<: *if-label-target_test
-    - <<: *if-trigger-job
-    - <<: *if-dev-push
-      changes: *patterns-build_system
-    - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_helper
-    - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_manager
+      changes: *patterns-component_brookesia_service_sntp
     - <<: *if-dev-push
       changes: *patterns-component_brookesia_service_wifi
     - <<: *if-dev-push
-      changes: *patterns-test_apps_brookesia_service_wifi_general
-.rules:build:test_apps_brookesia_service_wifi_with_nvs:
-  rules:
-    - <<: *if-protected
-    - <<: *if-label-build
-    - <<: *if-label-target_test
-    - <<: *if-trigger-job
-    - <<: *if-dev-push
-      changes: *patterns-build_system
-    - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_helper
-    - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_manager
-    - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_wifi
-    - <<: *if-dev-push
-      changes: *patterns-component_brookesia_service_nvs
-    - <<: *if-dev-push
-      changes: *patterns-test_apps_brookesia_service_wifi_with_nvs
+      changes: *patterns-component_brookesia_lib_utils
 
 # rules for products
 .rules:build:products_phone_m5stack_core_s3:

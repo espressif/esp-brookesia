@@ -1,0 +1,129 @@
+menu "Example Configuration"
+    menu "Console"
+        config CONSOLE_STORE_HISTORY
+            bool "Store command history in flash"
+            default y
+            help
+                Linenoise line editing library provides functions to save and load
+                command history. If this option is enabled, initializes a FAT filesystem
+                and uses it to store command history.
+
+        config CONSOLE_MAX_COMMAND_LINE_LENGTH
+            int "Maximum command line length"
+            default 1024
+            help
+                This value marks the maximum length of a single command line. Once it is
+                reached, no more characters will be accepted by the console.
+    endmenu
+
+    menuconfig EXAMPLE_ENABLE_BOARD_MANAGER
+        bool "Enable board manager"
+        default n
+
+    menu "Services"
+        config EXAMPLE_SERVICES_ENABLE_NVS
+            bool "Enable NVS service"
+            default y
+
+        config EXAMPLE_SERVICES_ENABLE_SNTP
+            bool "Enable SNTP service"
+            default y
+
+        config EXAMPLE_SERVICES_ENABLE_WIFI
+            bool "Enable WiFi service"
+            default y
+
+        config EXAMPLE_SERVICES_ENABLE_AUDIO
+            bool "Enable audio service"
+            default y if EXAMPLE_ENABLE_BOARD_MANAGER
+            default n
+    endmenu
+
+    menu "Agents"
+        menuconfig EXAMPLE_AGENTS_ENABLE_COZE
+            bool "Enable Coze agent"
+            select EXAMPLE_SERVICES_ENABLE_WIFI
+            select EXAMPLE_SERVICES_ENABLE_SNTP
+            select EXAMPLE_SERVICES_ENABLE_AUDIO
+            default n
+
+        if EXAMPLE_AGENTS_ENABLE_COZE
+            config EXAMPLE_AGENTS_COZE_APP_ID
+                string "App ID"
+                default "110049xxxxxxx"
+
+            config EXAMPLE_AGENTS_COZE_PUBLIC_KEY
+                string "Public key"
+                default "lsKjtB67xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+            config EXAMPLE_AGENTS_COZE_PRIVATE_KEY_FILE_PATH
+                string "Private key"
+                default "./private_key.pem"
+
+            config EXAMPLE_AGENTS_COZE_CUSTOM_CONSUMER
+                string "Custom consumer (Optional)"
+                default ""
+
+            menuconfig EXAMPLE_AGENTS_COZE_BOT1_ENABLE
+                bool "Bot 1"
+                default y
+
+            if EXAMPLE_AGENTS_COZE_BOT1_ENABLE
+                config EXAMPLE_AGENTS_BOT1_NAME
+                    string "Bot name"
+                    default "Lin Jia Nv Hai"
+
+                config EXAMPLE_AGENTS_COZE_BOT1_ID
+                    string "Bot ID"
+                    default "7516538xxxxxxxxxxxx"
+
+                config EXAMPLE_AGENTS_COZE_BOT1_DESCRIPTION
+                    string "Bot description"
+                    default "A warm-voiced female AI character who listens to the user's thoughts and offers comforting responses."
+
+                config EXAMPLE_AGENTS_COZE_BOT1_VOICE_ID
+                    string "Bot voice ID"
+                    default "7426720361733144585"
+            endif
+
+            menuconfig EXAMPLE_AGENTS_COZE_BOT2_ENABLE
+                bool "Bot 2"
+                default n
+
+            if EXAMPLE_AGENTS_COZE_BOT2_ENABLE
+                config EXAMPLE_AGENTS_BOT2_NAME
+                    string "Bot name"
+                    default "Wan Qu Da Shu"
+
+                config EXAMPLE_AGENTS_COZE_BOT2_ID
+                    string "Bot ID"
+                    default "7516538xxxxxxxxxxxx"
+
+                config EXAMPLE_AGENTS_COZE_BOT2_DESCRIPTION
+                    string "Bot description"
+                    default "A male AI character with a regional accent. He responds quickly and concisely, but does not perform actions on behalf of the user."
+
+                config EXAMPLE_AGENTS_COZE_BOT2_VOICE_ID
+                    string "Bot voice ID"
+                    default "7426720361732915209"
+            endif
+        endif
+
+        menuconfig EXAMPLE_AGENTS_ENABLE_OPENAI
+            bool "Enable OpenAI agent"
+            select EXAMPLE_SERVICES_ENABLE_WIFI
+            select EXAMPLE_SERVICES_ENABLE_SNTP
+            select EXAMPLE_SERVICES_ENABLE_AUDIO
+            default n
+
+        if EXAMPLE_AGENTS_ENABLE_OPENAI
+            config EXAMPLE_AGENTS_OPENAI_API_KEY
+                string "API key"
+                default "sk-proj-xxx"
+
+            config EXAMPLE_AGENTS_OPENAI_MODEL
+                string "Model"
+                default "gpt-4o-realtime-preview"
+        endif
+    endmenu
+endmenu

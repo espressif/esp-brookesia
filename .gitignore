@@ -71,3 +71,6 @@ pytest_log/
 XUNIT_RESULT.xml
 
 .cache/
+
+# esp_board_manager
+sdkconfig.bmgr_board.backup

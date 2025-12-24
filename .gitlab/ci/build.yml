@@ -180,21 +180,32 @@ build_test_apps_brookesia_service_nvs:
     - .rules:build:test_apps_brookesia_service_nvs
   variables:
     EXAMPLE_DIR: service/brookesia_service_nvs/test_apps
+# brookesia_service_sntp
+build_test_apps_brookesia_service_sntp:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_release_version
+    - .rules:build:test_apps_brookesia_service_sntp
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_sntp/test_apps
 # brookesia_service_wifi
-build_test_apps_brookesia_service_wifi_general:
+build_test_apps_brookesia_service_wifi:
   extends:
     - .build_examples_template
     - .build_brookesia_components_idf_split_targets
-    - .rules:build:test_apps_brookesia_service_wifi_general
+    - .rules:build:test_apps_brookesia_service_wifi
   variables:
-    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps/general
-build_test_apps_brookesia_service_wifi_with_nvs:
+    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps
+
+# Examples
+# service_console
+build_examples_service_console:
   extends:
     - .build_examples_template
     - .build_brookesia_components_idf_split_targets
-    - .rules:build:test_apps_brookesia_service_wifi_with_nvs
+    - .rules:build:examples_service_console
   variables:
-    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps/with_nvs
+    EXAMPLE_DIR: examples/service_console
 
 # # Products
 # build_product_phone_m5stack_core_s3:

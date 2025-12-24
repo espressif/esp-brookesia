@@ -97,12 +97,17 @@ service/brookesia_service_nvs/test_apps:
   enable:
     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
 
-# brookesia_service_wifi: general
-service/brookesia_service_wifi/test_apps/general:
+# brookesia_service_sntp
+service/brookesia_service_sntp/test_apps:
   enable:
     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
 
-# brookesia_service_wifi: with_nvs
-service/brookesia_service_wifi/test_apps/with_nvs:
+# brookesia_service_wifi
+service/brookesia_service_wifi/test_apps:
+  enable:
+    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+
+# Examples
+examples/service_console:
   enable:
     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
