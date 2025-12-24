@@ -17,79 +17,55 @@ menu "ESP-Brookesia: Service WiFi Configurations"
             default y
     endif
 
-    menu "Task Scheduler"
-        menu "Worker 1"
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_NAME
+    menuconfig BROOKESIA_SERVICE_WIFI_ENABLE_WORKER
+        bool "Enable worker"
+        default n
+
+    if BROOKESIA_SERVICE_WIFI_ENABLE_WORKER
+        menu "General"
+            config BROOKESIA_SERVICE_WIFI_WORKER_NAME
                 string "Name"
-                default "wifi_tsc_worker1"
+                default "SrvWifiWorker"
                 help
                     The name of the worker thread.
 
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_CORE_ID
-                int "Core ID"
-                default 0
-                help
-                    The core ID of the worker thread. `-1` means the core ID is not specified.
-
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_PRIORITY
+            config BROOKESIA_SERVICE_WIFI_WORKER_PRIORITY
                 int "Priority"
                 default 5
                 help
                     The priority of the worker thread.
 
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_STACK_SIZE
+            config BROOKESIA_SERVICE_WIFI_WORKER_STACK_SIZE
                 int "Stack size"
-                default 10240
+                default 8192
                 help
                     The stack size of the worker thread.
 
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER1_STACK_IN_EXT
+            config BROOKESIA_SERVICE_WIFI_WORKER_STACK_IN_EXT
                 bool "Stack in external memory"
                 depends on SPIRAM
                 default y
                 help
                     Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
 
-        endmenu
-
-        menu "Worker 2"
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_NAME
-                string "Name"
-                default "wifi_tsc_worker2"
-                help
-                    The name of the worker thread.
-
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_CORE_ID
-                int "Core ID"
-                default 1
-                help
-                    The core ID of the worker thread. `-1` means the core ID is not specified.
-
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_PRIORITY
-                int "Priority"
+            config BROOKESIA_SERVICE_WIFI_WORKER_POLL_INTERVAL_MS
+                int "Poll interval (ms)"
                 default 5
+                range 1 10
                 help
-                    The priority of the worker thread.
-
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_STACK_SIZE
-                int "Stack size"
-                default 10240
-                help
-                    The stack size of the worker thread.
-
-            config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER2_STACK_IN_EXT
-                bool "Stack in external memory"
-                depends on SPIRAM
-                default y
-                help
-                    Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
+                    The interval of the worker poll.
         endmenu
 
-        config BROOKESIA_SERVICE_WIFI_TASK_SCHEDULER_WORKER_POLL_INTERVAL_MS
-            int "Worker poll interval (ms)"
-            default 5
-            range 1 10
+        config BROOKESIA_SERVICE_WIFI_WORKER_0_CORE_ID
+            int "Core ID of Worker 0"
+            default 0
             help
-                The interval of the worker poll.
-    endmenu
+                The core ID of Worker 0. `-1` means the core ID is not specified.
+
+        config BROOKESIA_SERVICE_WIFI_WORKER_1_CORE_ID
+            int "Core ID of Worker 1"
+            default 1
+            help
+                The core ID of Worker 1. `-1` means the core ID is not specified.
+    endif
 endmenu

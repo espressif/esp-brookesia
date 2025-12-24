@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.7.1 - 2025-12-24
+
+#### Enhancements:
+
+- feat(service_base): Add `use_dispatch` parameter to `publish_event()` methods
+- feat(service_base): Change `register_functions()` and `register_events()` methods to be protected
+- feat(event&function): Support `RawBuffer` type
+- feat(Kconfig): Set default value of `BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT` to `n`
+- feat(repo): update `brookesia_lib_utils` dependency to `>=0.7.2,<0.8.0`
+- feat(docs): update README and Usage documentation
+
+### Bug Fixes
+
+- fix(service_manager): Return invalid binding on dependency failure
+- fix(service_base): Skip event notify if no subscriptions found
+
 ## v0.7.0 - 2025-12-07
 
 ### Initial Release

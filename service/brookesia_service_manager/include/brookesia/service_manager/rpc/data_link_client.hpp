@@ -13,8 +13,8 @@ namespace esp_brookesia::service::rpc {
 // Client data link class
 class DataLinkClient : public DataLinkBase {
 public:
-    DataLinkClient(boost::asio::io_context &io_context)
-        : DataLinkBase(io_context)
+    DataLinkClient(boost::asio::io_context::executor_type executor)
+        : DataLinkBase(executor)
     {}
     ~DataLinkClient() override;
 

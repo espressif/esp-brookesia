@@ -1,16 +1,32 @@
 # ESP-Brookesia Service Helper
 
+* [中文版本](./README_CN.md)
+
 ## Overview
 
-`brookesia_service_helper` is an ESP-Brookesia service development helper library that provides type-safe definitions, schemas, and utilities for service developers and users to build and use services that comply with the ESP-Brookesia service framework specifications.
+`brookesia_service_helper` is an ESP-Brookesia service development helper library based on C++20 Concepts and CRTP (Curiously Recurring Template Pattern) that provides type-safe definitions, schemas, and unified calling interfaces for service developers and users to build and use services that comply with the ESP-Brookesia service framework specifications.
 
 This library mainly provides:
 
-- **Type-Safe Definitions**: Provides type definitions such as enums and structs to ensure type safety
-- **Function Schema Definitions**: Provides standardized function definitions (FunctionSchema), including function names, parameters, descriptions, etc.
-- **Event Schema Definitions**: Provides standardized event definitions (EventSchema), including event names, data formats, etc.
-- **Constant Definitions**: Provides constants such as service names and default values
-- **Index Enumerations**: Provides enumerations such as function indices and event indices for easy use in service implementations
+- **Type-Safe Definitions**: Provides strongly-typed enums (`FunctionId`, `EventId`) and struct type definitions to ensure compile-time type checking
+- **Schema Definitions**: Provides standardized function schemas (`FunctionSchema`) and event schemas (`EventSchema`), including complete metadata such as function names, parameter types, parameter descriptions, return value types, etc.
+- **Unified Calling Interfaces**: Provides type-safe synchronous and asynchronous function calling interfaces (`call_function_sync()`, `call_function_async()`), automatically handling type conversion and error handling
+- **Event Subscription Interface**: Provides type-safe event subscription interface (`subscribe_event()`), supporting type-safe event handling callbacks
+- **Type-Safe Return Values**: Uses `std::expected<T, std::string>` to provide type-safe return values, automatically handling success and error cases
+
+## Table of Contents
+
+- [ESP-Brookesia Service Helper](#esp-brookesia-service-helper)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [Helper Classes](#helper-classes)
+      - [Service Helper Classes](#service-helper-classes)
+      - [Agent Helper Classes](#agent-helper-classes)
+    - [Type Safety](#type-safety)
+    - [Standardized Interfaces](#standardized-interfaces)
+  - [Development Environment Requirements](#development-environment-requirements)
+  - [Adding to Project](#adding-to-project)
 
 ## Features
 
@@ -18,24 +34,39 @@ This library mainly provides:
 
 `brookesia_service_helper` currently provides the following helper classes:
 
-- [NVS](./include/brookesia/service_helper/nvs.hpp)
-- [Wifi](./include/brookesia/service_helper/wifi.hpp)
+#### Service Helper Classes
+
+- [Audio](./include/brookesia/service_helper/audio.hpp) - Audio service helper class, providing function definitions for audio playback, codec, volume control, etc.
+- [NVS](./include/brookesia/service_helper/nvs.hpp) - NVS service helper class, providing function definitions for key-value storage, data management, etc.
+- [SNTP](./include/brookesia/service_helper/sntp.hpp) - SNTP service helper class, providing function definitions for time synchronization, timezone settings, etc.
+- [Wifi](./include/brookesia/service_helper/wifi.hpp) - WiFi service helper class, providing function definitions for WiFi connection, scanning, state management, etc.
+
+#### Agent Helper Classes
+
+- [Agent Manager](./include/brookesia/service_helper/agent/manager.hpp) - Agent management helper class, providing function definitions for agent lifecycle management, state machine control, etc.
+- [Agent Coze](./include/brookesia/service_helper/agent/coze.hpp) - Coze agent helper class, providing function definitions for Coze API integration
+- [Agent OpenAI](./include/brookesia/service_helper/agent/openai.hpp) - OpenAI agent helper class, providing function definitions for OpenAI API integration
 
 ### Type Safety
 
-All definitions use strongly-typed enums and structs to ensure:
+Based on C++20 Concepts and CRTP (Curiously Recurring Template Pattern), provides compile-time type safety guarantees:
 
-- **Compile-Time Type Checking**: Avoids string spelling errors
-- **IDE Auto-Completion**: Provides better development experience
-- **Code Maintainability**: Unified interface definitions for easier maintenance and extension
+- **Strongly-Typed Enums**: Uses enum types such as `FunctionId`, `EventId` instead of strings to avoid runtime errors
+- **Compile-Time Type Checking**: Ensures type correctness through `static_assert` and Concepts, catching type errors at compile time
+- **Type Deduction**: Template functions automatically deduce return types, supporting `std::expected<T, std::string>` type-safe return values
+- **IDE Intelligent Hints**: Strongly-typed definitions provide complete IDE auto-completion and type hints
+- **Code Maintainability**: Unified type definitions facilitate refactoring and maintenance, with type changes detected at compile time
 
 ### Standardized Interfaces
 
-By providing standardized function and event definitions, it ensures:
+Through the `Base` base class and standardized Schema definitions, provides unified interface specifications:
 
-- **Interface Consistency**: All services follow the same interface specifications
-- **Automatic Documentation Generation**: Function and event descriptions can be used for automatic documentation generation
-- **Parameter Validation**: Unified parameter types and validation rules
+- **Function Schema**: Each function has a complete `FunctionSchema` definition, including function name, parameter types, parameter descriptions, return value types, etc.
+- **Event Schema**: Each event has a complete `EventSchema` definition, including event name, event item types, and descriptions
+- **Synchronous/Asynchronous Calls**: Provides unified calling interfaces `call_function_sync()` and `call_function_async()`
+- **Event Subscription**: Provides unified event subscription interface `subscribe_event()`, supporting type-safe event handling
+- **Interface Consistency**: All helper classes inherit from `Base`, following the same interface specifications to ensure consistent usage
+- **Runtime Validation**: Automatically validates Schema when calling functions and events, ensuring correct parameter types and counts
 
 ## Development Environment Requirements
 
@@ -45,13 +76,6 @@ Before using this library, please ensure the following SDK development environme
 
 > [!NOTE]
 > For SDK installation instructions, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_service_helper` has the following dependencies:
-
-| **Dependency** | **Version Requirement** |
-|---------------|-------------------------|
-| [brookesia_service_manager](https://components.espressif.com/components/espressif/brookesia_service_manager) | 0.7.* |
-| [brookesia_lib_utils](https://components.espressif.com/components/espressif/brookesia_lib_utils) | 0.7.* |
 
 ## Adding to Project
 
@@ -75,4 +99,3 @@ Before using this library, please ensure the following SDK development environme
    ```
 
 For detailed instructions, please refer to [Espressif Documentation - IDF Component Manager](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/api-guides/tools/idf-component-manager.html).
-

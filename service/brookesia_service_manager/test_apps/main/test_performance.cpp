@@ -42,7 +42,7 @@ constexpr size_t TEST_CONCURRENT_THREAD_STACK_SIZE = 10 * 1024;
 constexpr size_t TEST_CONCURRENT_TOTAL_TIMEOUT_MS = TEST_CONCURRENT_NUM * TEST_CALL_FUNCTION_TIMEOUT_MS + 1000; // Extra time for concurrent overhead
 constexpr size_t TEST_CONCURRENT_SUCCESS_RATE = 90;
 static const TestItem TEST_CONCURRENT_TEST_ITEM = {
-    ServiceTest::FUNCTION_DEFINITIONS[ServiceTest::FunctionIndexAdd].name, service_test_build_add_params(),
+    ServiceTest::FUNCTION_SCHEMAS[ServiceTest::FunctionIndexAdd].name, service_test_build_add_params(),
     [](const FunctionValue & result) -> bool {
         auto double_result = std::get_if<double>(&result);
         BROOKESIA_CHECK_NULL_RETURN(double_result, false, "Result is not a double");
@@ -53,7 +53,7 @@ static const TestItem TEST_CONCURRENT_TEST_ITEM = {
     }
 };
 static const TestItem TEST_CONCURRENT_TEST_ITEM_WITH_SCHEDULER = {
-    ServiceTestWithScheduler::FUNCTION_DEFINITIONS[ServiceTestWithScheduler::FunctionIndexAdd].name, service_test_build_add_params(),
+    ServiceTestWithScheduler::FUNCTION_SCHEMAS[ServiceTestWithScheduler::FunctionIndexAdd].name, service_test_build_add_params(),
     [](const FunctionValue & result) -> bool {
         auto double_result = std::get_if<double>(&result);
         BROOKESIA_CHECK_NULL_RETURN(double_result, false, "Result is not a double");
@@ -78,7 +78,7 @@ static const TestMap TEST_SERVICE_FUNCTION_MAP = {
     {
         ServiceTest::SERVICE_NAME, {
             {
-                ServiceTest::FUNCTION_DEFINITIONS[ServiceTest::FunctionIndexAdd].name, service_test_build_add_params(),
+                ServiceTest::FUNCTION_SCHEMAS[ServiceTest::FunctionIndexAdd].name, service_test_build_add_params(),
                 [](const FunctionValue & result) -> bool {
                     auto double_result = std::get_if<double>(&result);
                     BROOKESIA_CHECK_NULL_RETURN(double_result, false, "Result is not a double");
@@ -89,7 +89,7 @@ static const TestMap TEST_SERVICE_FUNCTION_MAP = {
                 }
             },
             {
-                ServiceTest::FUNCTION_DEFINITIONS[ServiceTest::FunctionIndexTestAllTypes].name, service_test_build_test_all_types_params(),
+                ServiceTest::FUNCTION_SCHEMAS[ServiceTest::FunctionIndexTestAllTypes].name, service_test_build_test_all_types_params(),
                 [](const FunctionValue & result) -> bool {
                     auto result_obj = std::get_if<boost::json::object>(&result);
                     BROOKESIA_CHECK_NULL_RETURN(result_obj, false, "Result is not a object");
@@ -104,7 +104,7 @@ static const TestMap TEST_SERVICE_FUNCTION_MAP = {
     {
         ServiceTestWithScheduler::SERVICE_NAME, {
             {
-                ServiceTestWithScheduler::FUNCTION_DEFINITIONS[ServiceTestWithScheduler::FunctionIndexAdd].name, service_test_build_add_params(),
+                ServiceTestWithScheduler::FUNCTION_SCHEMAS[ServiceTestWithScheduler::FunctionIndexAdd].name, service_test_build_add_params(),
                 [](const FunctionValue & result) -> bool {
                     auto double_result = std::get_if<double>(&result);
                     BROOKESIA_CHECK_NULL_RETURN(double_result, false, "Result is not a double");
@@ -115,7 +115,7 @@ static const TestMap TEST_SERVICE_FUNCTION_MAP = {
                 }
             },
             {
-                ServiceTestWithScheduler::FUNCTION_DEFINITIONS[ServiceTestWithScheduler::FunctionIndexTestAllTypes].name, service_test_build_test_all_types_params(),
+                ServiceTestWithScheduler::FUNCTION_SCHEMAS[ServiceTestWithScheduler::FunctionIndexTestAllTypes].name, service_test_build_test_all_types_params(),
                 [](const FunctionValue & result) -> bool {
                     auto result_obj = std::get_if<boost::json::object>(&result);
                     BROOKESIA_CHECK_NULL_RETURN(result_obj, false, "Result is not a object");

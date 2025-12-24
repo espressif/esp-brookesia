@@ -73,13 +73,13 @@ std::expected<boost::json::object, std::string> ServiceTest::function_test_all_t
     BROOKESIA_LOGD("Params: args.size(%1%)", args.size());
 
     // Get parameters of all types
-    bool boolean_param = std::get<bool>(args.at(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[0].name));
-    double number_param = std::get<double>(args.at(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[1].name));
-    std::string string_param = std::get<std::string>(args.at(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[2].name));
+    bool boolean_param = std::get<bool>(args.at(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[0].name));
+    double number_param = std::get<double>(args.at(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[1].name));
+    std::string string_param = std::get<std::string>(args.at(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[2].name));
 
     // Check if optional parameters are present
-    bool has_object = args.find(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[3].name) != args.end();
-    bool has_array = args.find(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[4].name) != args.end();
+    bool has_object = args.find(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[3].name) != args.end();
+    bool has_array = args.find(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[4].name) != args.end();
 
     // Build return object
     boost::json::object result_obj;
@@ -91,12 +91,12 @@ std::expected<boost::json::object, std::string> ServiceTest::function_test_all_t
     types["string"] = string_param;
 
     if (has_object) {
-        boost::json::object obj_param = std::get<boost::json::object>(args.at(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[3].name));
+        boost::json::object obj_param = std::get<boost::json::object>(args.at(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[3].name));
         types["object"] = obj_param;
     }
 
     if (has_array) {
-        boost::json::array array_param = std::get<boost::json::array>(args.at(FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].parameters[4].name));
+        boost::json::array array_param = std::get<boost::json::array>(args.at(FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].parameters[4].name));
         types["array"] = array_param;
     }
 

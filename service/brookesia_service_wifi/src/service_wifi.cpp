@@ -9,25 +9,26 @@
 #endif
 #include "private/utils.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
+#include "brookesia/service_helper/nvs.hpp"
 #include "brookesia/service_wifi/service_wifi.hpp"
-#include "brookesia/service_manager.hpp"
 
 namespace esp_brookesia::service::wifi {
 
+using NVSHelper = service::helper::NVS;
+
 constexpr uint32_t RECONNECT_DELAY_MS = 1000;
 
-constexpr const char *NVS_NAMESPACE = helper::Wifi::SERVICE_NAME;
-constexpr const char *NVS_LAST_CONNECTED_AP_INFO_OBJECT_KEY = "last_ap";
-constexpr const char *NVS_CONNECTED_AP_INFO_LIST_ARRAY_KEY = "connected_aps";
-constexpr const char *NVS_SCAN_PARAMS_OBJECT_KEY = "scan_params";
-constexpr uint32_t NVS_CALL_TIMEOUT_MS = 100;
-
-static auto &service_manager = ServiceManager::get_instance();
-static const FunctionSchema *NVS_FUNCTION_DEFINITIONS = helper::NVS::get_function_definitions();
+constexpr uint32_t NVS_SAVE_DATA_TIMEOUT_MS = 20;
+constexpr uint32_t NVS_ERASE_DATA_TIMEOUT_MS = 20;
 
 bool Wifi::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_SERVICE_WIFI_VER_MAJOR, BROOKESIA_SERVICE_WIFI_VER_MINOR,
+        BROOKESIA_SERVICE_WIFI_VER_PATCH
+    );
 
     task_scheduler_ = get_task_scheduler();
 
@@ -93,14 +94,14 @@ bool Wifi::on_init()
             ConnectApInfo last_connected_ap_info = hal_->get_last_connected_ap_info();
             if (connecting_ap_info != last_connected_ap_info) {
                 hal_->set_last_connected_ap_info(connecting_ap_info);
-                try_save_last_connected_ap_info_to_nvs();
+                try_save_data(DataType::LastAp);
             } else {
                 BROOKESIA_LOGD("Connecting AP is the same as the last connected AP, skip");
             }
             // Update the connected AP info list
             if (!hal_->has_connected_ap_info(connecting_ap_info)) {
                 hal_->add_connected_ap_info(connecting_ap_info);
-                try_save_connected_ap_info_list_to_nvs();
+                try_save_data(DataType::ConnectedAps);
             } else {
                 BROOKESIA_LOGD("Connecting AP is already in the connected AP info list, skip");
             }
@@ -139,14 +140,14 @@ bool Wifi::on_init()
                 BROOKESIA_LOGD("Mark the last connected AP info as not connectable");
                 last_connected_ap_info.is_connectable = false;
                 hal_->set_last_connected_ap_info(last_connected_ap_info);
-                try_save_last_connected_ap_info_to_nvs();
+                try_save_data(DataType::LastAp);
             }
             ConnectApInfo connected_ap_info;
             if (hal_->get_connectable_ap_info_by_ssid(connecting_ap_info.ssid, connected_ap_info)) {
                 BROOKESIA_LOGD("Mark the connected AP info as not connectable");
                 connected_ap_info.is_connectable = false;
                 hal_->add_connected_ap_info(connected_ap_info);
-                try_save_connected_ap_info_list_to_nvs();
+                try_save_data(DataType::ConnectedAps);
             }
             // Trigger state machine reconnect action in a new task to avoid deadlock
             auto reconnect_task = [this]() {
@@ -203,7 +204,7 @@ bool Wifi::on_init()
 
         /* Publish general event happened event */
         if (hal_->is_general_event_changed(event, old_flags, new_flags)) {
-            BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(EVENT_DEFINITIONS[Helper::EventIndexGeneralEventHappened].name, {
+            BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::GeneralEventHappened), {
                 BROOKESIA_DESCRIBE_TO_STR(event)
             }), {}, {
                 BROOKESIA_LOGE("Failed to publish general event happened event");
@@ -220,7 +221,7 @@ bool Wifi::on_init()
         BROOKESIA_LOGD("Params: action(%1%)", BROOKESIA_DESCRIBE_TO_STR(action));
 
         /* Publish general action triggered event */
-        BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(EVENT_DEFINITIONS[Helper::EventIndexGeneralActionTriggered].name, {
+        BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::GeneralActionTriggered), {
             BROOKESIA_DESCRIBE_TO_STR(action)
         }), {}, {
             BROOKESIA_LOGE("Failed to publish general action triggered event");
@@ -234,7 +235,7 @@ bool Wifi::on_init()
         BROOKESIA_LOGD("Params: ap_infos(%1%)", boost::json::serialize(ap_infos));
 
         /* Publish scan infos updated event */
-        BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(EVENT_DEFINITIONS[Helper::EventIndexScanApInfosUpdated].name, {
+        BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::ScanApInfosUpdated), {
             {ap_infos}
         }), {}, {
             BROOKESIA_LOGE("Failed to publish scan infos updated event");
@@ -321,7 +322,7 @@ bool Wifi::on_start()
     BROOKESIA_CHECK_FALSE_RETURN(state_machine_->start(), false, "Failed to start state machine");
 
     // Try to load data from NVS, if NVS is not valid, skip
-    try_load_from_nvs();
+    try_load_data();
 
     return true;
 }
@@ -406,7 +407,7 @@ std::expected<void, std::string> Wifi::function_set_scan_params(double ap_count,
     if (!hal_->set_scan_params(new_params)) {
         return std::unexpected("Failed to set scan params: " + BROOKESIA_DESCRIBE_TO_STR(new_params));
     }
-    try_save_scan_params_to_nvs();
+    try_save_data(DataType::ScanParams);
 
     return {};
 }
@@ -458,6 +459,16 @@ std::expected<boost::json::array, std::string> Wifi::function_get_connected_aps(
     return array;
 }
 
+std::expected<void, std::string> Wifi::function_reset_data()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    hal_->reset_data();
+    try_erase_data();
+
+    return {};
+}
+
 std::string Wifi::get_target_event_state(GeneralEvent event)
 {
     switch (event) {
@@ -472,183 +483,116 @@ std::string Wifi::get_target_event_state(GeneralEvent event)
     }
 }
 
-bool Wifi::is_nvs_valid()
+void Wifi::try_load_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto nvs_service = ServiceManager::get_instance().get_service(helper::NVS::SERVICE_NAME);
+    if (is_data_loaded_) {
+        BROOKESIA_LOGD("Data is already loaded, skip");
+        return;
+    }
 
-    return (nvs_service != nullptr);
-}
-
-void Wifi::try_load_from_nvs()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_CHECK_FALSE_EXIT(is_initialized(), "Not initialized");
-
-    if (!is_nvs_valid()) {
+    if (!NVSHelper::is_available()) {
         BROOKESIA_LOGD("NVS is not valid, skip");
         return;
     }
 
-    auto binding = service_manager.bind(helper::NVS::SERVICE_NAME);
+    auto binding = ServiceManager::get_instance().bind(NVSHelper::get_name().data());
     BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
 
-    auto nvs = binding.get_service();
-    BROOKESIA_CHECK_NULL_EXIT(nvs, "Failed to get NVS service");
+    auto nvs_namespace = get_attributes().name;
 
-    auto result = nvs->call_function_sync(NVS_FUNCTION_DEFINITIONS[helper::NVS::FunctionIndexGet].name,
-    FunctionParameterMap{
-        {NVS_FUNCTION_DEFINITIONS[helper::NVS::FunctionIndexGet].parameters[0].name, NVS_NAMESPACE}
-    }, NVS_CALL_TIMEOUT_MS);
-    if (!result.success) {
-        BROOKESIA_LOGW("Failed to get NVS data: %1%", result.error_message);
-        return;
+    // Load last connected AP info
+    {
+        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::LastAp);
+        auto result = NVSHelper::get_key_value<ConnectApInfo>(nvs_namespace, key);
+        if (!result) {
+            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
+        } else {
+            set_data<DataType::LastAp>(result.value());
+            hal_->set_target_connect_ap_info(result.value());
+            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
+        }
     }
 
-    auto data_obj = std::get_if<boost::json::object>(&result.data.value());
-    BROOKESIA_CHECK_NULL_EXIT(data_obj, "Invalid NVS data");
-
-    auto load_last_connected_ap_info = [&]() {
-        if (!data_obj->contains(NVS_LAST_CONNECTED_AP_INFO_OBJECT_KEY)) {
-            return;
+    // Load connected AP infos
+    {
+        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::ConnectedAps);
+        auto result = NVSHelper::get_key_value<std::vector<ConnectApInfo>>(nvs_namespace, key);
+        if (!result) {
+            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
+        } else {
+            set_data<DataType::ConnectedAps>(result.value());
+            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
         }
+    }
 
-        auto value_json = data_obj->at(NVS_LAST_CONNECTED_AP_INFO_OBJECT_KEY);
-        BROOKESIA_CHECK_FALSE_EXIT(value_json.is_string(), "Invalid last connected AP info");
-
-        auto value_str = std::string(value_json.as_string());
-        ConnectApInfo ap_info;
-        BROOKESIA_CHECK_FALSE_EXIT(
-            BROOKESIA_DESCRIBE_JSON_DESERIALIZE(value_str, ap_info),
-            "Failed to deserialize last connected AP info from: %1%", value_str
-        );
-
-        hal_->set_target_connect_ap_info(ap_info);
-        hal_->set_last_connected_ap_info(ap_info);
-    };
-    auto load_connected_ap_info_list = [&]() {
-        if (!data_obj->contains(NVS_CONNECTED_AP_INFO_LIST_ARRAY_KEY)) {
-            return;
+    // Load scan params
+    {
+        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::ScanParams);
+        auto result = NVSHelper::get_key_value<ScanParams>(nvs_namespace, key);
+        if (!result) {
+            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
+        } else {
+            set_data<DataType::ScanParams>(result.value());
+            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
         }
+    }
 
-        auto value_json = data_obj->at(NVS_CONNECTED_AP_INFO_LIST_ARRAY_KEY);
-        BROOKESIA_CHECK_FALSE_EXIT(value_json.is_string(), "Invalid connected AP info list");
+    is_data_loaded_ = true;
 
-        auto value_str = std::string(value_json.as_string());
-        std::vector<ConnectApInfo> ap_infos;
-        BROOKESIA_CHECK_FALSE_EXIT(
-            BROOKESIA_DESCRIBE_JSON_DESERIALIZE(value_str, ap_infos),
-            "Failed to deserialize connected AP info list from: %1%", value_str
-        );
-
-        for (const auto &ap_info : ap_infos) {
-            hal_->add_connected_ap_info(ap_info);
-        }
-    };
-    auto load_scan_params = [&]() {
-        if (!data_obj->contains(NVS_SCAN_PARAMS_OBJECT_KEY)) {
-            return;
-        }
-
-        auto value_json = data_obj->at(NVS_SCAN_PARAMS_OBJECT_KEY);
-        BROOKESIA_CHECK_FALSE_EXIT(value_json.is_string(), "Invalid scan params");
-
-        auto value_str = std::string(value_json.as_string());
-        ScanParams params;
-        BROOKESIA_CHECK_FALSE_EXIT(
-            BROOKESIA_DESCRIBE_JSON_DESERIALIZE(value_str, params),
-            "Failed to deserialize scan params from: %1%", value_str
-        );
-
-        hal_->set_scan_params(params);
-    };
-
-    load_last_connected_ap_info();
-    load_connected_ap_info_list();
-    load_scan_params();
-
-    BROOKESIA_LOGI("Loaded data from NVS");
+    BROOKESIA_LOGI("Loaded all data from NVS");
 }
 
-template <typename T>
-static bool save_data_to_nvs(const T &data, const char *key)
-{
-    auto binding = service_manager.bind(helper::NVS::SERVICE_NAME);
-    BROOKESIA_CHECK_FALSE_RETURN(binding.is_valid(), false, "Failed to bind NVS service");
-
-    auto nvs = binding.get_service();
-    BROOKESIA_CHECK_NULL_RETURN(nvs, false, "Failed to get NVS service");
-
-    boost::json::object data_object{{key, std::move(BROOKESIA_DESCRIBE_JSON_SERIALIZE(data))}};
-    auto result = nvs->call_function_sync(NVS_FUNCTION_DEFINITIONS[helper::NVS::FunctionIndexSet].name,
-    FunctionParameterMap{
-        {NVS_FUNCTION_DEFINITIONS[helper::NVS::FunctionIndexSet].parameters[0].name, NVS_NAMESPACE},
-        {NVS_FUNCTION_DEFINITIONS[helper::NVS::FunctionIndexSet].parameters[1].name, std::move(data_object)}
-    }, NVS_CALL_TIMEOUT_MS);
-    BROOKESIA_CHECK_FALSE_RETURN(
-        result.success, false, "Failed to save %1% to NVS: %2%", key, result.error_message
-    );
-
-    return true;
-}
-
-void Wifi::try_save_last_connected_ap_info_to_nvs()
+void Wifi::try_save_data(DataType type)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_nvs_valid()) {
-        BROOKESIA_LOGD("NVS is not valid, skip");
+    if (!NVSHelper::is_available()) {
+        BROOKESIA_LOGD("NVS is not available, skip");
         return;
     }
 
-    ConnectApInfo ap_info = hal_->get_last_connected_ap_info();
-    task_scheduler_->post([this, ap_info = std::move(ap_info)]() {
+    auto key = BROOKESIA_DESCRIBE_TO_STR(type);
+    BROOKESIA_LOGD("Params: type(%1%)", key);
+
+    auto nvs_namespace = get_attributes().name;
+
+    auto save_function = [this, &nvs_namespace, &key](const auto & data_value) {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        BROOKESIA_CHECK_FALSE_EXIT(
-            save_data_to_nvs(ap_info, NVS_LAST_CONNECTED_AP_INFO_OBJECT_KEY),
-            "Failed to save last connected AP info to NVS"
-        );
-    });
+        auto result = NVSHelper::save_key_value(nvs_namespace, key, data_value, NVS_SAVE_DATA_TIMEOUT_MS);
+        if (!result) {
+            BROOKESIA_LOGE("Failed to save '%1%' to NVS: %2%", key, result.error());
+        } else {
+            BROOKESIA_LOGI("Saved '%1%' to NVS", key);
+        }
+    };
+    if (type == DataType::LastAp) {
+        save_function(get_data<DataType::LastAp>());
+    } else if (type == DataType::ConnectedAps) {
+        save_function(get_data<DataType::ConnectedAps>());
+    } else if (type == DataType::ScanParams) {
+        save_function(get_data<DataType::ScanParams>());
+    } else {
+        BROOKESIA_LOGE("Invalid data type for saving to NVS");
+    }
 }
 
-void Wifi::try_save_connected_ap_info_list_to_nvs()
+void Wifi::try_erase_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_nvs_valid()) {
-        BROOKESIA_LOGD("NVS is not valid, skip");
+    if (!NVSHelper::is_available()) {
+        BROOKESIA_LOGD("NVS is not available, skip");
         return;
     }
 
-    std::vector<ConnectApInfo> ap_infos;
-    hal_->get_connected_ap_infos(ap_infos);
-    task_scheduler_->post([this, ap_infos = std::move(ap_infos)]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        BROOKESIA_CHECK_FALSE_EXIT(
-            save_data_to_nvs(ap_infos, NVS_CONNECTED_AP_INFO_LIST_ARRAY_KEY),
-            "Failed to save connected AP info list to NVS"
-        );
-    });
-}
-
-void Wifi::try_save_scan_params_to_nvs()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (!is_nvs_valid()) {
-        BROOKESIA_LOGD("NVS is not valid, skip");
-        return;
+    auto result = NVSHelper::erase_keys(get_attributes().name, {}, NVS_ERASE_DATA_TIMEOUT_MS);
+    if (!result) {
+        BROOKESIA_LOGE("Failed to erase NVS data: %1%", result.error());
+    } else {
+        BROOKESIA_LOGI("Erased NVS data");
     }
-
-    ScanParams params = hal_->get_scan_params();
-    task_scheduler_->post([this, params = std::move(params)]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        BROOKESIA_CHECK_FALSE_EXIT(
-            save_data_to_nvs(params, NVS_SCAN_PARAMS_OBJECT_KEY), "Failed to save scan params to NVS"
-        );
-    });
 }
 
 BROOKESIA_PLUGIN_REGISTER_SINGLETON(ServiceBase, Wifi, Wifi::get_instance().get_attributes().name, Wifi::get_instance());

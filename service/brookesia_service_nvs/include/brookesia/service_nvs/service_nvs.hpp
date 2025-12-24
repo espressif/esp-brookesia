@@ -8,6 +8,7 @@
 #include <expected>
 #include <string>
 #include "brookesia/service_manager/service/base.hpp"
+#include "brookesia/service_manager/macro_configs.h"
 #include "brookesia/service_helper/nvs.hpp"
 
 namespace esp_brookesia::service {
@@ -15,6 +16,7 @@ namespace esp_brookesia::service {
 class NVS : public ServiceBase {
 public:
     using Helper = helper::NVS;
+    using KeyValueMap = Helper::KeyValueMap;
 
     static NVS &get_instance()
     {
@@ -23,25 +25,26 @@ public:
     }
 
 private:
-    inline static const FunctionSchema *FUNCTION_DEFINITIONS = Helper::get_function_definitions();
-
     NVS()
         : ServiceBase({
-        .name = Helper::SERVICE_NAME,
-#if BROOKESIA_SERVICE_NVS_ENABLE_TASK_SCHEDULER
+        .name = Helper::get_name().data(),
+        // NVS operations must be performed in a thread with an SRAM stack.
+        // If the Service Manager's task scheduler uses an external stack,
+        // we need to use a custom task scheduler to ensure NVS operations run in a thread with an SRAM stack.
+#if BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
             .worker_configs = {
                 lib_utils::ThreadConfig{
-                    .name = BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_NAME,
-                    .core_id = BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_CORE_ID,
-                    .priority = BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_PRIORITY,
-                    .stack_size = BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_STACK_SIZE,
+                    .name = BROOKESIA_SERVICE_NVS_WORKER_NAME,
+                    .core_id = BROOKESIA_SERVICE_NVS_WORKER_CORE_ID,
+                    .priority = BROOKESIA_SERVICE_NVS_WORKER_PRIORITY,
+                    .stack_size = BROOKESIA_SERVICE_NVS_WORKER_STACK_SIZE,
                     .stack_in_ext = false,
                 },
             },
-            .worker_poll_interval_ms = BROOKESIA_SERVICE_NVS_TASK_SCHEDULER_WORKER_POLL_INTERVAL_MS,
+            .worker_poll_interval_ms = BROOKESIA_SERVICE_NVS_WORKER_POLL_INTERVAL_MS,
         }
-#endif // BROOKESIA_SERVICE_NVS_ENABLE_TASK_SCHEDULER
+#endif // BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
     })
     {}
     ~NVS() = default;
@@ -50,42 +53,32 @@ private:
     void on_deinit() override;
 
     std::expected<boost::json::array, std::string> function_list(const std::string &nspace);
-    std::expected<void, std::string> function_set(const std::string &nspace, boost::json::array &&key_value_pairs);
-    std::expected<boost::json::object, std::string> function_get(
-        const std::string &nspace, boost::json::array &&keys
-    );
+    std::expected<void, std::string> function_set(const std::string &nspace, boost::json::object &&key_value_map);
+    std::expected<boost::json::object, std::string> function_get(const std::string &nspace, boost::json::array &&keys);
     std::expected<void, std::string> function_erase(const std::string &nspace, boost::json::array &&keys);
 
-    std::vector<FunctionSchema> get_function_definitions() override
+    std::vector<FunctionSchema> get_function_schemas() override
     {
-        return std::vector<FunctionSchema>(
-                   FUNCTION_DEFINITIONS, FUNCTION_DEFINITIONS + Helper::FunctionIndexMax
-               );
+        auto function_schemas = Helper::get_function_schemas();
+        return std::vector<FunctionSchema>(function_schemas.begin(), function_schemas.end());
     }
     ServiceBase::FunctionHandlerMap get_function_handlers() override
     {
         return {
-            BROOKESIA_SERVICE_FUNC_HANDLER_1(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexList].name,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexList].parameters[0].name, std::string,
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::List, std::string,
                 function_list(PARAM)
             ),
-            BROOKESIA_SERVICE_FUNC_HANDLER_2(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexSet].name,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexSet].parameters[0].name, std::string,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexSet].parameters[1].name, boost::json::array,
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
+                Helper, Helper::FunctionId::Set, std::string, boost::json::object,
                 function_set(PARAM1, std::move(PARAM2))
             ),
-            BROOKESIA_SERVICE_FUNC_HANDLER_2(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexGet].name,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexGet].parameters[0].name, std::string,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexGet].parameters[1].name, boost::json::array,
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
+                Helper, Helper::FunctionId::Get, std::string, boost::json::array,
                 function_get(PARAM1, std::move(PARAM2))
             ),
-            BROOKESIA_SERVICE_FUNC_HANDLER_2(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexErase].name,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexErase].parameters[0].name, std::string,
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexErase].parameters[1].name, boost::json::array,
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
+                Helper, Helper::FunctionId::Erase, std::string, boost::json::array,
                 function_erase(PARAM1, std::move(PARAM2))
             )
         };

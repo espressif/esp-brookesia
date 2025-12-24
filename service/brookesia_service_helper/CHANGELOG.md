@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.7.1 - 2025-12-24
+
+#### Enhancements:
+
+- feat(repo): add `Base` class
+- feat(wifi): add 'reset_data' function
+- feat(repo): add SNTP helper class
+- feat(nvs): add `is_available`, `save_key_value`, `get_key_value`, `erase_keys` functions
+- feat(repo): update `brookesia_service_manager` dependency to `>=0.7.1,<0.8.0`
+- feat(repo): update README
+
+### Bug Fixes
+
+- fix(nvs): use object instead of array for `set` function parameter
+- fix(repo): rename `definition/DEFINITION` to `schema/SCHEMA`
+
 ## v0.7.0 - 2025-12-07
 
 ### Initial Release

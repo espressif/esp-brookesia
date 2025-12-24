@@ -38,7 +38,7 @@ bool Server::init()
 
     // Initialize data link
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        data_link_ = std::make_unique<DataLinkServer>(io_context_, config_.max_connections), false,
+        data_link_ = std::make_unique<DataLinkServer>(executor_, config_.max_connections), false,
         "Failed to create DataLinkServer"
     );
     // Set data received callback

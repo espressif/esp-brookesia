@@ -19,7 +19,7 @@ ServiceBinding::ServiceBinding(ServiceBinding &&other) noexcept
     , service_(other.service_)
     , dependencies_(std::move(other.dependencies_))
 {
-    BROOKESIA_LOGI("Moving binding: %1%", service_ ? service_->get_attributes().name : "null");
+    BROOKESIA_LOGD("Moving binding: %1%", service_ ? service_->get_attributes().name : "null");
     other.unbind_callback_ = nullptr;
     other.service_ = nullptr;
 }
@@ -27,7 +27,8 @@ ServiceBinding::ServiceBinding(ServiceBinding &&other) noexcept
 ServiceBinding &ServiceBinding::operator=(ServiceBinding &&other) noexcept
 {
     if (this != &other) {
-        BROOKESIA_LOGI("Move assignment: %1%", other.service_ ? other.service_->get_attributes().name : "null");
+        BROOKESIA_LOGD("Move assignment: %1%", other.service_ ? other.service_->get_attributes().name : "null");
+        // Release current binding before moving new one to avoid resource leak
         release();
         unbind_callback_ = std::move(other.unbind_callback_);
         service_ = other.service_;
@@ -41,7 +42,7 @@ ServiceBinding &ServiceBinding::operator=(ServiceBinding &&other) noexcept
 void ServiceBinding::release()
 {
     if (unbind_callback_ && service_) {
-        BROOKESIA_LOGI("Releasing binding: %1%", service_->get_attributes().name);
+        BROOKESIA_LOGD("Releasing binding: %1%", service_->get_attributes().name);
         // First release itself
         unbind_callback_(service_->get_attributes().name);
         unbind_callback_ = nullptr;
@@ -82,6 +83,10 @@ bool ServiceManager::init_internal()
         BROOKESIA_SERVICE_MANAGER_VER_MAJOR, BROOKESIA_SERVICE_MANAGER_VER_MINOR, BROOKESIA_SERVICE_MANAGER_VER_PATCH
     );
 
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        task_scheduler_ = std::make_shared<lib_utils::TaskScheduler>(), false, "Failed to create task scheduler"
+    );
+
     // Initialize all registered services
     add_all_registered_services();
 
@@ -108,10 +113,12 @@ void ServiceManager::deinit()
     // Deinitialize all services
     remove_all_registered_services();
 
+    task_scheduler_.reset();
+
     is_initialized_.store(false);
 }
 
-bool ServiceManager::start(const StartConfig &config)
+bool ServiceManager::start(const lib_utils::TaskScheduler::StartConfig &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -121,6 +128,8 @@ bool ServiceManager::start(const StartConfig &config)
         BROOKESIA_LOGD("Already running");
         return true;
     }
+
+    BROOKESIA_LOGD("Params: config(%1%)", BROOKESIA_DESCRIBE_TO_STR(config));
 
     if (!is_initialized()) {
         BROOKESIA_LOGI("Not initialized, initializing...");
@@ -132,41 +141,7 @@ bool ServiceManager::start(const StartConfig &config)
         stop_internal();
     });
 
-    // Start IO thread (low priority to ensure timely network event processing)
-    if (io_context_.stopped()) {
-        io_context_.restart();
-    }
-    io_work_guard_.emplace(io_context_.get_executor());
-    {
-        auto io_thread_func = [this, config]() {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-            BROOKESIA_LOGI(
-                "IO thread started (%1%)",
-                BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config.io_thread_config, BROOKESIA_DESCRIBE_FORMAT_VERBOSE)
-            );
-
-            // Use polling mode to reduce latency
-            while (!io_context_.stopped() && !boost::this_thread::interruption_requested()) {
-                try {
-                    // poll() non-blocking check for ready operations
-                    size_t executed = io_context_.poll();
-                    if (executed == 0) {
-                        // No operations ready, briefly yield CPU
-                        boost::this_thread::sleep_for(boost::chrono::milliseconds(config.io_poll_interval_ms));
-                    }
-                } catch (const std::exception &e) {
-                    BROOKESIA_LOGE("IO thread error: %3%", e.what());
-                }
-            }
-
-            BROOKESIA_LOGI("IO thread stopped");
-        };
-        BROOKESIA_THREAD_CONFIG_GUARD(config.io_thread_config);
-        BROOKESIA_CHECK_EXCEPTION_RETURN(
-            io_thread_ = boost::thread(std::move(io_thread_func)), false, "Failed to create IO thread"
-        );
-    }
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->start(config), false, "Failed to start task scheduler");
 
     is_running_.store(true);
 
@@ -199,15 +174,8 @@ void ServiceManager::stop_internal()
         stop_rpc_server();
     }
 
-    // Wait for IO thread to finish
-    io_work_guard_.reset();
-    io_context_.stop();
-    if (io_thread_.joinable()) {
-        io_thread_.interrupt();
-        if (!io_thread_.try_join_for(boost::chrono::milliseconds(0))) {
-            io_thread_.join();
-        }
-    }
+    // Stop task scheduler
+    task_scheduler_->stop();
 
     is_running_.store(false);
 
@@ -233,13 +201,20 @@ bool ServiceManager::add_service(std::shared_ptr<ServiceBase> service)
 
     if (!service->is_initialized()) {
         BROOKESIA_LOGI("Initializing service: %1%", name);
-        BROOKESIA_CHECK_FALSE_RETURN(service->init(io_context_), false, "Failed to initialize service");
+        BROOKESIA_CHECK_FALSE_RETURN(service->init(task_scheduler_), false, "Failed to initialize service");
     }
 
     {
         boost::lock_guard lock(service_mutex_);
-        services_[name] = std::make_tuple(0, service);
-        service_init_order_.push_back(name);
+        // Use emplace to avoid copying/moving condition_variable_any
+        auto result = services_.emplace(std::piecewise_construct, std::forward_as_tuple(name), std::forward_as_tuple());
+        if (result.second) {
+            auto &info = result.first->second;
+            info.ref_count = 0;
+            info.service = service;
+            info.state = ServiceState::Idle;
+            service_init_order_.push_back(name);
+        }
     }
 
     BROOKESIA_LOGI("Service added: %1%", name);
@@ -263,7 +238,7 @@ bool ServiceManager::remove_service(const std::string &name)
             BROOKESIA_LOGD("Service not found: %1%", name);
             return true;
         }
-        service = std::get<1>(service_it->second);
+        service = service_it->second.service;
     }
     BROOKESIA_CHECK_NULL_RETURN(service, false, "Service instance is null: %1%", name);
 
@@ -291,76 +266,112 @@ ServiceBinding ServiceManager::bind(const std::string &name)
 
     BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), ServiceBinding(), "Not initialized");
 
-    boost::unique_lock lock(service_mutex_);
-
-    // Check if the service is in the initialization list
-    auto service_it = services_.find(name);
-    if (service_it == services_.end()) {
-        BROOKESIA_LOGW("Service not found: %1%", name);
-        return ServiceBinding();
+    // First collect dependencies without holding the lock
+    std::vector<std::string> dependencies;
+    {
+        boost::shared_lock lock(service_mutex_);
+        auto service_it = services_.find(name);
+        if (service_it == services_.end()) {
+            BROOKESIA_LOGW("Service not found: %1%", name);
+            return ServiceBinding();
+        }
+        auto &service_info = service_it->second;
+        BROOKESIA_CHECK_NULL_RETURN(service_info.service, ServiceBinding(), "Service instance is null: %1%", name);
+        dependencies = service_info.service->get_attributes().dependencies;
     }
 
-    auto & [ref_count, service] = service_it->second;
-    BROOKESIA_CHECK_NULL_RETURN(service, ServiceBinding(), "Service instance is null: %1%", name);
-
-    // First recursively bind all dependencies
+    // Bind all dependencies WITHOUT holding the lock to avoid deadlock
     std::vector<ServiceBinding> dependency_bindings;
-    const auto &dependencies = service->get_attributes().dependencies;
     for (const auto &dep_name : dependencies) {
         BROOKESIA_LOGD("ServiceBinding dependency: %1% for service: %2%", dep_name, name);
         auto dep_binding = bind(dep_name);
-        if (!dep_binding.is_valid()) {
-            BROOKESIA_LOGW("Failed to bind dependency: %1% for service: %2%", dep_name, name);
-            // If the dependency binding fails, break the loop and return an invalid ServiceBinding
-            break;
-        }
+        BROOKESIA_CHECK_FALSE_RETURN(
+            dep_binding.is_valid(), ServiceBinding(), "Failed to bind dependency: %1% for service: %2%",
+            dep_name, name
+        );
         dependency_bindings.push_back(std::move(dep_binding));
     }
 
-    // If the reference count is 0, start the service (without holding the lock)
-    bool need_start = (ref_count == 0);
+    // Now acquire exclusive lock for starting the service
+    boost::unique_lock lock(service_mutex_);
+
+    // Re-check if the service still exists
+    auto service_it = services_.find(name);
+    if (service_it == services_.end()) {
+        BROOKESIA_LOGW("Service not found after binding dependencies: %1%", name);
+        return ServiceBinding();
+    }
+
+    auto &service_info = service_it->second;
+    BROOKESIA_CHECK_NULL_RETURN(service_info.service, ServiceBinding(), "Service instance is null: %1%", name);
+
+    // Wait if another thread is starting the service
+    while (service_info.state == ServiceState::Starting) {
+        BROOKESIA_LOGD("Service %1% is being started by another thread, waiting...", name);
+        service_info.start_cv.wait(lock);
+    }
+
+    // Check if we need to start the service
+    bool need_start = (service_info.state == ServiceState::Idle);
+
     if (need_start) {
-        std::shared_ptr<ServiceBase> service_to_start = service;  // Save service pointer before releasing lock
+        // Mark service as starting and increment ref_count
+        service_info.state = ServiceState::Starting;
+        service_info.ref_count++;
+        std::shared_ptr<ServiceBase> service_to_start = service_info.service;
 
         // Release lock before calling start() to avoid blocking other operations
         lock.unlock();
 
         bool start_success = service_to_start->start();
 
-        // Re-acquire lock to update ref_count
+        // Re-acquire lock to update state
         lock.lock();
 
         // Re-find service in case the map was modified while unlocked
         service_it = services_.find(name);
         if (service_it == services_.end()) {
             BROOKESIA_LOGE("Service removed while starting: %1%", name);
+            // Service was removed, need to stop it if we started it
+            if (start_success) {
+                lock.unlock();
+                service_to_start->stop();
+                lock.lock();
+            }
             return ServiceBinding();
         }
 
-        // Re-get ref_count and service reference after re-acquiring lock
-        auto & [ref_count_after, service_after] = service_it->second;
+        // Re-get service info reference after re-acquiring lock
+        auto &service_info_after = service_it->second;
 
         if (!start_success) {
+            // Start failed, decrement ref_count and reset state
+            service_info_after.ref_count--;
+            service_info_after.state = ServiceState::Idle;
+            // Notify waiting threads that start failed
+            service_info_after.start_cv.notify_all();
             BROOKESIA_LOGE("Failed to start service: %1%", name);
             return ServiceBinding();
         }
 
-        // Double-check ref_count after re-acquiring lock
-        if (ref_count_after == 0) {
+        // Start succeeded, mark as running
+        service_info_after.state = ServiceState::Running;
+        // Notify all waiting threads that start completed
+        service_info_after.start_cv.notify_all();
+
+        if (service_info_after.ref_count == 1) {
             BROOKESIA_LOGI("Service started: %1%", name);
         } else {
-            // Another thread already started the service, just log
-            BROOKESIA_LOGD("Service already started by another thread: %1%", name);
+            // Other threads also bound while we were starting
+            BROOKESIA_LOGD("Service started and bound by multiple threads: %1% (ref_count: %2%)",
+                           name, service_info_after.ref_count);
         }
 
-        // Update ref_count and service pointer
-        ref_count_after++;
-        service = service_after;
-        BROOKESIA_LOGI("Service bound: %1% (ref_count: %2%)", name, ref_count_after);
+        BROOKESIA_LOGD("Service bound: %1% (ref_count: %2%)", name, service_info_after.ref_count);
     } else {
-        // Service already started, just increment ref_count
-        ref_count++;
-        BROOKESIA_LOGI("Service bound: %1% (ref_count: %2%)", name, ref_count);
+        // Service already running, just increment ref_count
+        service_info.ref_count++;
+        BROOKESIA_LOGD("Service bound: %1% (ref_count: %2%)", name, service_info.ref_count);
     }
 
     // Create the unbind callback
@@ -373,7 +384,7 @@ ServiceBinding ServiceManager::bind(const std::string &name)
     };
 
     // Return the valid binding object (including dependencies)
-    return ServiceBinding(unbind_callback, service, std::move(dependency_bindings));
+    return ServiceBinding(unbind_callback, service_info.service, std::move(dependency_bindings));
 }
 
 bool ServiceManager::start_rpc_server(const rpc::Server::Config &config, uint32_t timeout_ms)
@@ -404,7 +415,8 @@ bool ServiceManager::start_rpc_server(const rpc::Server::Config &config, uint32_
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_netif_init(), false, "Failed to initialize ESP-NETIF");
 
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        rpc_server_ = std::make_unique<rpc::Server>(io_context_, config), false, "Failed to create RPC server"
+        rpc_server_ = std::make_unique<rpc::Server>(*task_scheduler_->get_executor(), config), false,
+        "Failed to create RPC server"
     );
     BROOKESIA_CHECK_FALSE_RETURN(rpc_server_->start(timeout_ms), false, "Failed to start RPC server");
 
@@ -452,21 +464,22 @@ bool ServiceManager::connect_rpc_server_to_services(std::vector<std::string> &&n
             service_it != services_.end(), false, "Service not found: %1%", name
         );
 
-        auto & [ref_count, service] = service_it->second;
-        if (!service) {
+        auto &service_info = service_it->second;
+        if (!service_info.service) {
             BROOKESIA_LOGW("Service instance is null: %1%", name);
             continue;
         }
 
-        auto connection = service->connect_to_server();
+        auto connection = service_info.service->connect_to_server();
         if (!connection) {
             BROOKESIA_LOGW("Failed to connect to server: %1%", name);
             continue;
         }
 
-        lib_utils::FunctionGuard disconnect_guard([this, &service]() {
+        auto service_ptr = service_info.service;
+        lib_utils::FunctionGuard disconnect_guard([this, service_ptr]() {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            service->disconnect_from_server();
+            service_ptr->disconnect_from_server();
         });
 
         // Again acquire the read lock to access rpc_server_
@@ -514,8 +527,8 @@ bool ServiceManager::disconnect_rpc_server_from_services(std::vector<std::string
             service_it != services_.end(), false, "Service not found: %1%", name
         );
 
-        auto & [ref_count, service] = service_it->second;
-        if (!service) {
+        auto &service_info = service_it->second;
+        if (!service_info.service) {
             BROOKESIA_LOGW("Service instance is null: %1%", name);
             continue;
         }
@@ -529,7 +542,7 @@ bool ServiceManager::disconnect_rpc_server_from_services(std::vector<std::string
             }
             rpc_server_->remove_connection(name);
         }
-        service->disconnect_from_server();
+        service_info.service->disconnect_from_server();
 
         BROOKESIA_LOGI("Disconnected RPC server from service: %1%", name);
     }
@@ -541,6 +554,8 @@ std::shared_ptr<rpc::Client> ServiceManager::new_rpc_client(const RPC_ClientConf
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), nullptr, "Not running");
+
     std::shared_ptr<rpc::Client> client;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         client = std::make_shared<rpc::Client>(config.on_deinit_callback), nullptr,
@@ -548,7 +563,8 @@ std::shared_ptr<rpc::Client> ServiceManager::new_rpc_client(const RPC_ClientConf
     );
 
     BROOKESIA_CHECK_FALSE_RETURN(
-        client->init(io_context_, config.on_disconnect_callback), nullptr, "Failed to initialize RPC client"
+        client->init(*task_scheduler_->get_executor(), config.on_disconnect_callback), nullptr,
+        "Failed to initialize RPC client"
     );
 
     // Use write lock to add the client to the list (for tracking)
@@ -623,8 +639,8 @@ void ServiceManager::unbind(const std::string &name)
 
     BROOKESIA_CHECK_FALSE_EXIT(is_initialized(), "Not initialized");
 
-
     std::shared_ptr<ServiceBase> service_to_stop;
+    bool should_stop = false;
     {
         boost::unique_lock lock(service_mutex_);
 
@@ -635,23 +651,33 @@ void ServiceManager::unbind(const std::string &name)
             return;
         }
 
-        auto & [ref_count, service] = service_it->second;
-        if (ref_count <= 0) {
+        auto &service_info = service_it->second;
+        if (service_info.ref_count <= 0) {
             BROOKESIA_LOGW("Service ref_count is not greater than 0: %1%", name);
             return;
         }
 
-        // Decrease the reference count
-        ref_count--;
-        BROOKESIA_LOGI("Service unbound: %1% (ref_count: %2%)", name, ref_count);
+        // Check if we need to stop the service BEFORE decreasing ref_count
+        // This prevents race condition where bind() sees ref_count == 0 and starts the service
+        // while we're trying to stop it
+        if ((service_info.ref_count == 1) && service_info.service && service_info.service->is_running()) {
+            service_to_stop = service_info.service;
+            should_stop = true;
+        }
 
-        if ((ref_count == 0) && service && service->is_running()) {
-            service_to_stop = service;
+        // Decrease the reference count AFTER determining if we need to stop
+        service_info.ref_count--;
+        BROOKESIA_LOGD("Service unbound: %1% (ref_count: %2%)", name, service_info.ref_count);
+
+        // Update state if ref_count becomes 0
+        if (service_info.ref_count == 0) {
+            service_info.state = ServiceState::Idle;
         }
     }
 
-    // If the reference count becomes 0, stop the service (but not deinitialize)
-    if (service_to_stop) {
+    // Stop the service AFTER releasing the lock to avoid deadlock
+    // But we've already checked ref_count == 1 before decrementing, so bind() won't interfere
+    if (should_stop && service_to_stop) {
         service_to_stop->stop();
         // Remove RPC connection if needed (without holding service_mutex_)
         {
@@ -783,9 +809,9 @@ void ServiceManager::remove_all_registered_services()
             // Stop the service if it's still running
             auto service_it = services_.find(name);
             if (service_it != services_.end()) {
-                auto & [ref_count, service] = service_it->second;
-                if (service && service->is_running()) {
-                    service_to_stop = service;
+                auto &service_info = service_it->second;
+                if (service_info.service && service_info.service->is_running()) {
+                    service_to_stop = service_info.service;
                 }
             }
         }

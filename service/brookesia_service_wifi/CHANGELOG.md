@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.7.1 - 2025-12-09
+
+#### Enhancements:
+
+- feat(hal): add 'reset_data' function
+- feat(service): add 'reset_data' function
+- feat(test_apps): remove 'general` test_apps
+
 ## v0.7.0 - 2025-12-07
 
 ### Initial Release

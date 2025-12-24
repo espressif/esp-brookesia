@@ -12,19 +12,22 @@
 #include <variant>
 #include "boost/json.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
+#include "brookesia/service_manager/common.hpp"
 
 namespace esp_brookesia::service {
 
 enum class FunctionValueType {
-    Boolean,
-    Number,
-    String,
-    Object,
-    Array,
+    Boolean,        // bool
+    Number,         // double
+    String,         // std::string
+    Object,         // boost::json::object
+    Array,          // boost::json::array
+    RawBuffer,      // RawBuffer
 };
+BROOKESIA_DESCRIBE_ENUM(FunctionValueType, Boolean, Number, String, Object, Array, RawBuffer);
 
-using FunctionValue = std::variant <bool, double, std::string, boost::json::object, boost::json::array>;
-using FunctionParameterMap = std::map<std::string, FunctionValue>;
+using FunctionValue = std::variant <bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
+using FunctionParameterMap = std::map<std::string /* name */, FunctionValue /* value */>;
 
 struct FunctionParameterSchema {
     std::string name;
@@ -45,6 +48,8 @@ struct FunctionParameterSchema {
             return std::holds_alternative<boost::json::object>(value);
         case FunctionValueType::Array:
             return std::holds_alternative<boost::json::array>(value);
+        case FunctionValueType::RawBuffer:
+            return std::holds_alternative<RawBuffer>(value);
         default:
             return false;
         }
@@ -54,12 +59,25 @@ struct FunctionParameterSchema {
         return !default_value.has_value();
     }
 };
+BROOKESIA_DESCRIBE_STRUCT(FunctionParameterSchema, (), (name, description, type, default_value));
 
 struct FunctionSchema {
     std::string name;
     std::string description = "";
     std::vector<FunctionParameterSchema> parameters = {};
+    bool require_running = true;
+
+    bool has_raw_buffer() const
+    {
+        for (const auto &param : parameters) {
+            if (param.type == FunctionValueType::RawBuffer) {
+                return true;
+            }
+        }
+        return false;
+    }
 };
+BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_running));
 
 struct FunctionResult {
     bool success = false;
@@ -71,10 +89,6 @@ struct FunctionResult {
         return data.has_value();
     }
 };
-
-BROOKESIA_DESCRIBE_ENUM(FunctionValueType, Boolean, Number, String, Object, Array);
-BROOKESIA_DESCRIBE_STRUCT(FunctionParameterSchema, (), (name, description, type, default_value));
-BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters));
 BROOKESIA_DESCRIBE_STRUCT(FunctionResult, (), (success, error_message, data));
 
 } // namespace esp_brookesia::service

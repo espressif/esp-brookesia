@@ -30,9 +30,10 @@ bool ServerConnection::publish_event(const std::string &event_name, const EventI
     }
 
     auto subscriptions = event_registry_.get_subscriptions(event_name);
-    BROOKESIA_CHECK_FALSE_RETURN(
-        !subscriptions.empty(), false, "No subscriptions found for event: %1%", event_name
-    );
+    if (subscriptions.empty()) {
+        BROOKESIA_LOGD("No subscriptions found for event: %1%, skip notify", event_name);
+        return true;
+    }
 
     Notify notify{event_name, {}, boost::json::object()};
     notify.data = BROOKESIA_DESCRIBE_TO_JSON(event_items).as_object();

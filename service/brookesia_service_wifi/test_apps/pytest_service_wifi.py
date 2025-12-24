@@ -8,12 +8,12 @@
 #   - . ${IDF_PATH}/export.sh
 #   - export IDF_CI_BUILD=y
 #   - pip install idf_build_apps
-#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./service/brookesia_service_wifi/test_apps/with_nvs' --recursive --build-dir="@v/build_@t_@w"
+#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./service/brookesia_service_wifi/test_apps' --recursive --build-dir="@v/build_@t_@w"
 #
 # - Test
 #   - ${IDF_PATH}/install.sh --enable-pytest
 #   - ${IDF_PATH}/install.sh --enable-test-specific
-#   - pytest service/brookesia_service_wifi/test_apps/with_nvs --target esp32s3 --env generic
+#   - pytest service/brookesia_service_wifi/test_apps --target esp32s3 --env generic
 # '''
 
 import pytest
@@ -48,16 +48,6 @@ def get_index_and_name_list(response: bytes):
     return result
 
 
-@pytest.mark.target('esp32s3')
-@pytest.mark.target('esp32p4')
-@pytest.mark.env('generic')
-@pytest.mark.parametrize(
-    'config',
-    [
-        'defaults',
-    ],
-)
-@pytest.mark.timeout(30 * 60)  # 30 minutes
 def test(dut: Dut)-> None:
     dut.expect(ENTER_RESPONSE_LIST, timeout=TIMEOUT_S)
 
@@ -108,3 +98,29 @@ def test(dut: Dut)-> None:
 
     if len(failed_name_and_numbers) > 0:
         pytest.fail(f"The following numbers failed or timed out: {failed_name_and_numbers}")
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('generic')
+@pytest.mark.parametrize(
+    'config',
+    [
+        'defaults',
+    ],
+)
+@pytest.mark.timeout(30 * 60)  # 30 minutes
+def test_esp32s3(dut: Dut)-> None:
+    test(dut)
+
+
+@pytest.mark.target('esp32p4')
+@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
+@pytest.mark.parametrize(
+    'config',
+    [
+        'defaults',
+    ],
+)
+@pytest.mark.timeout(30 * 60)  # 30 minutes
+def test_esp32p4(dut: Dut)-> None:
+    test(dut)

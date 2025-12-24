@@ -102,6 +102,7 @@ public:
     bool start();
     void stop();
     void reset();
+    void reset_data();
 
     bool is_initialized()
     {
@@ -210,10 +211,91 @@ public:
         scan_ap_infos_updated_callback_ = std::move(callback);
     }
 
-    GeneralEvent get_general_action_target_event(GeneralAction action);
-    GeneralStateFlagBit get_general_action_state_flag_bit(GeneralAction action);
-    GeneralStateFlagBit get_general_event_state_flag_bit(GeneralEvent event);
-    bool is_general_action_running(GeneralAction action);
+    GeneralEvent get_general_action_target_event(GeneralAction action)
+    {
+        switch (action) {
+        case GeneralAction::Init:
+            return GeneralEvent::Inited;
+        case GeneralAction::Deinit:
+            return GeneralEvent::Deinited;
+        case GeneralAction::Start:
+            return GeneralEvent::Started;
+        case GeneralAction::Stop:
+            return GeneralEvent::Stopped;
+        case GeneralAction::Connect:
+            return GeneralEvent::Connected;
+        case GeneralAction::Disconnect:
+            return GeneralEvent::Disconnected;
+        default:
+            return GeneralEvent::Max;
+        }
+    }
+    GeneralStateFlagBit get_general_action_state_flag_bit(GeneralAction action)
+    {
+        switch (action) {
+        case GeneralAction::Init:
+            return GeneralStateFlagBit::Initing;
+        case GeneralAction::Deinit:
+            return GeneralStateFlagBit::Deiniting;
+        case GeneralAction::Start:
+            return GeneralStateFlagBit::Starting;
+        case GeneralAction::Stop:
+            return GeneralStateFlagBit::Stopping;
+        case GeneralAction::Connect:
+            return GeneralStateFlagBit::Connecting;
+        case GeneralAction::Disconnect:
+            return GeneralStateFlagBit::Disconnecting;
+        default:
+            return GeneralStateFlagBit::Max;
+        }
+    }
+    GeneralStateFlagBit get_general_event_state_flag_bit(GeneralEvent event)
+    {
+        switch (event) {
+        case GeneralEvent::Inited:
+            return GeneralStateFlagBit::Inited;
+        case GeneralEvent::Deinited:
+            return GeneralStateFlagBit::Inited;
+        case GeneralEvent::Started:
+            return GeneralStateFlagBit::Started;
+        case GeneralEvent::Stopped:
+            return GeneralStateFlagBit::Started;
+        case GeneralEvent::Connected:
+            return GeneralStateFlagBit::Connected;
+        case GeneralEvent::Disconnected:
+            return GeneralStateFlagBit::Connected;
+        default:
+            return GeneralStateFlagBit::Max;
+        }
+    }
+    bool is_general_action_running(GeneralAction action)
+    {
+        boost::lock_guard lock(state_mutex_);
+        GeneralStateFlagBit flag_bit = GeneralStateFlagBit::Max;
+        switch (action) {
+        case GeneralAction::Init:
+            flag_bit = GeneralStateFlagBit::Initing;
+            break;
+        case GeneralAction::Deinit:
+            flag_bit = GeneralStateFlagBit::Deiniting;
+            break;
+        case GeneralAction::Start:
+            flag_bit = GeneralStateFlagBit::Starting;
+            break;
+        case GeneralAction::Stop:
+            flag_bit = GeneralStateFlagBit::Stopping;
+            break;
+        case GeneralAction::Connect:
+            flag_bit = GeneralStateFlagBit::Connecting;
+            break;
+        case GeneralAction::Disconnect:
+            flag_bit = GeneralStateFlagBit::Disconnecting;
+            break;
+        default:
+            return false;
+        }
+        return state_flags_.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(flag_bit));
+    }
     bool is_general_event_ready(GeneralEvent event)
     {
         boost::lock_guard lock(state_mutex_);
@@ -224,12 +306,10 @@ public:
     );
 
 private:
-    inline static const FunctionSchema *FUNCTION_DEFINITIONS = Helper::get_function_definitions();
-    inline static const EventSchema *EVENT_DEFINITIONS = Helper::get_event_definitions();
-
     void stop_internal();
     void deinit_internal();
     void reset_internal();
+    void reset_data_internal();
 
     bool do_init();
     bool do_deinit();

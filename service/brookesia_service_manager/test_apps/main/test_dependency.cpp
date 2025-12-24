@@ -685,9 +685,9 @@ TEST_CASE("Test Dependency: diamond dependency", "[brookesia][service][dependenc
     ServiceRegistry::remove_plugin("ServiceDiaD");
 }
 
-TEST_CASE("Test Dependency: missing dependency warning", "[brookesia][service][dependency][missing]")
+TEST_CASE("Test Dependency: missing dependency error", "[brookesia][service][dependency][missing]")
 {
-    BROOKESIA_LOGI("=== Test missing dependency warning ===");
+    BROOKESIA_LOGI("=== Test missing dependency error ===");
 
     // Create service with missing dependency
     class ServiceMissing : public ServiceBase {
@@ -713,11 +713,9 @@ TEST_CASE("Test Dependency: missing dependency warning", "[brookesia][service][d
     TEST_ASSERT_TRUE(service_manager.init());
     TEST_ASSERT_TRUE(service_manager.start());
 
-    // Services should still be able to initialize and bind (framework will emit warning)
-    // And when binding, it will attempt to bind a non-existent dependency, which should fail
+    // Services should still be able to initialize and bind (framework will emit error)
     auto binding = service_manager.bind("ServiceMissing");
-    // Even if dependency does not exist, bind will not fail
-    TEST_ASSERT_TRUE(binding.is_valid());
+    TEST_ASSERT_FALSE(binding.is_valid());
 
     service_manager.stop();
     service_manager.deinit();

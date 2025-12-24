@@ -23,9 +23,9 @@ class GeneralStateClass : public lib_utils::StateBase {
 public:
     using Helper = helper::Wifi;
 
-    GeneralStateClass(std::shared_ptr<Hal> context, GeneralState state)
+    GeneralStateClass(std::shared_ptr<Hal> hal, GeneralState state)
         : lib_utils::StateBase()
-        , context_(context)
+        , hal_(hal)
         , state_(state)
     {}
     ~GeneralStateClass() = default;
@@ -45,7 +45,7 @@ public:
         BROOKESIA_CHECK_FALSE_RETURN(
             BROOKESIA_DESCRIBE_STR_TO_ENUM(action, action_enum), false, "Invalid action: %1%", action
         );
-        if (!context_->do_general_action(action_enum)) {
+        if (!hal_->do_general_action(action_enum)) {
             BROOKESIA_LOGE("Do general action %1% in %2% state failed", action, from_state);
             return false;
         }
@@ -63,7 +63,7 @@ public:
         BROOKESIA_CHECK_FALSE_RETURN(
             BROOKESIA_DESCRIBE_STR_TO_ENUM(action, action_enum), false, "Invalid action: %1%", action
         );
-        if (!context_->do_general_action(action_enum)) {
+        if (!hal_->do_general_action(action_enum)) {
             BROOKESIA_LOGE("Do general action %1% to %2% state failed", action, to_state);
             return false;
         }
@@ -72,7 +72,7 @@ public:
     }
 
 private:
-    std::shared_ptr<Hal> context_;
+    std::shared_ptr<Hal> hal_;
     GeneralState state_;
 };
 
@@ -98,7 +98,7 @@ bool StateMachine::init()
 
     /* Create state machine */
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        state_machine_ = std::make_unique<lib_utils::StateMachine>(), false,
+        state_machine_ = std::make_unique<lib_utils::StateMachine>(service::helper::Wifi::get_name().data()), false,
         "Failed to create state machine"
     );
 

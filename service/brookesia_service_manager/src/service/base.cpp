@@ -9,6 +9,7 @@
 #endif
 #include "private/utils.hpp"
 #include "brookesia/service_manager/service/base.hpp"
+#include "brookesia/service_manager/service/manager.hpp"
 
 namespace esp_brookesia::service {
 
@@ -39,58 +40,94 @@ std::future<FunctionResult> ServiceBase::call_function_async(
     auto result_promise = std::make_shared<std::promise<FunctionResult>>();
     auto result_future = result_promise->get_future();
 
-    // Helper lambda to set error result
-    auto set_error = [result_promise](const std::string & error_msg) {
+    // Atomic flag to ensure promise is only set once
+    auto promise_set = std::make_shared<std::atomic<bool>>(false);
+
+    // Helper lambda to set error result (thread-safe, only sets once)
+    auto set_error = [result_promise, promise_set](const std::string & error_msg) {
+        bool expected = false;
+        if (!promise_set->compare_exchange_strong(expected, true, std::memory_order_acq_rel)) {
+            // Promise already set, ignore
+            BROOKESIA_LOGW("Promise already satisfied, ignoring error: %1%", error_msg);
+            return;
+        }
         FunctionResult result{
             .success = false,
             .error_message = error_msg,
         };
         BROOKESIA_LOGE("%1%", error_msg);
+        if (error_msg == "Function not found: Set") {
+            assert(false);
+        }
         result_promise->set_value(std::move(result));
     };
 
-    if (!is_running()) {
-        set_error("Service is not running");
+    if (!is_initialized()) {
+        set_error("Service is not initialized");
         return result_future;
     }
 
     // Thread-safe get the copies of registry and scheduler
     std::shared_ptr<FunctionRegistry> registry;
     std::shared_ptr<lib_utils::TaskScheduler> scheduler;
-    boost::asio::io_context *io_ctx;
     {
-        boost::shared_lock lock(registry_mutex_);
+        boost::shared_lock lock(resources_mutex_);
         registry = function_registry_;
         scheduler = task_scheduler_;
-        io_ctx = io_context_;
     }
-
-    if (!registry) {
-        set_error("Function registry not initialized");
+    if (!registry || !scheduler) {
+        set_error("Invalid state");
         return result_future;
     }
 
-    if (!registry->has(name)) {
+    // Get the function schema
+    auto *func_schema = registry->get_schema(name);
+    if (!func_schema) {
         set_error("Function not found: " + name);
         return result_future;
     }
+    // Check if the function requires running and if the service is running
+    if (func_schema->require_running && !is_running()) {
+        set_error("Function requires running, but service is not running");
+        return result_future;
+    }
 
-    auto task = [registry, result_promise, name, parameters_map = std::move(parameters_map)]() mutable {
-        BROOKESIA_LOG_TRACE_GUARD();
-        auto result = registry->call(name, std::move(parameters_map));
+    // Create the call function task
+    auto call_function_task = [this, registry, result_promise, promise_set, name, parameters_map =
+          std::move(parameters_map)]() mutable {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        bool expected = false;
+        if (!promise_set->compare_exchange_strong(expected, true, std::memory_order_acq_rel))
+        {
+            // Promise already set, ignore
+            BROOKESIA_LOGW("Promise already satisfied, ignoring function call result for: %1%", name);
+            return;
+        }
+        FunctionResult result;
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(result = registry->call(name, std::move(parameters_map)), {
+            result.success = false;
+            result.error_message = "Failed to call function: " + name;
+        }, {
+            BROOKESIA_LOGE("Failed to call function: %1%", name);
+        });
         result_promise->set_value(std::move(result));
     };
 
-    if (scheduler) {
-        if (!scheduler->post(std::move(task), nullptr, SERVICE_REQUEST_TASK_GROUP)) {
-            set_error("Failed to post task");
-            return result_future;
-        }
-    } else if (io_ctx) {
-        boost::asio::post(*io_ctx, std::move(task));
-    } else {
-        set_error("Neither task scheduler nor io_context available");
+    // If the function has raw buffer or does not require running, use synchronous call instead
+    if (func_schema->has_raw_buffer()) {
+        BROOKESIA_LOGD("Function '%1%' has raw buffer, using synchronous call instead", name);
+        call_function_task();
         return result_future;
+    }
+    if (!func_schema->require_running && !is_running()) {
+        BROOKESIA_LOGD("Service is not running and function '%1%' does not require running", name);
+        call_function_task();
+        return result_future;
+    }
+
+    // Post the call function task to the task scheduler
+    if (!scheduler->post(std::move(call_function_task), nullptr, get_call_task_group())) {
+        set_error("Failed to post task");
     }
 
     return result_future;
@@ -103,22 +140,73 @@ FunctionResult ServiceBase::call_function_sync(
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD(
-        "Params: name(%1%), parameters_map(%2%), timeout_ms(%3%)", name,
-        BROOKESIA_DESCRIBE_TO_STR(parameters_map), timeout_ms
+        "Params: name(%1%), parameters_map(%2%), timeout_ms(%3%)", name, BROOKESIA_DESCRIBE_TO_STR(parameters_map),
+        timeout_ms
     );
 
-    auto result_future = call_function_async(name, std::move(parameters_map));
+    std::shared_ptr<FunctionResult> result = std::make_shared<FunctionResult>();
+    result->success = false;
+    // Helper lambda to set error result (thread-safe, only sets once)
+    auto set_error = [&result](const std::string & error_msg) {
+        result->error_message = error_msg;
+        BROOKESIA_LOGE("%1%", error_msg);
+    };
 
-    if (result_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
-        FunctionResult result{
-            .success = false,
-            .error_message = (boost::format("Timeout after %1%ms") % timeout_ms).str(),
-        };
-        BROOKESIA_LOGE("%1%", result.error_message);
-        return result;
+    // Thread-safe get the copies of registry and scheduler
+    std::shared_ptr<FunctionRegistry> registry;
+    std::shared_ptr<lib_utils::TaskScheduler> scheduler;
+    {
+        boost::shared_lock lock(resources_mutex_);
+        registry = function_registry_;
+        scheduler = task_scheduler_;
+    }
+    if (!registry || !scheduler) {
+        set_error("Invalid state");
+        return *result;
     }
 
-    return result_future.get();
+    // Get the function schema
+    auto *func_schema = registry->get_schema(name);
+    if (!func_schema) {
+        set_error("Function not found: " + name);
+        return *result;
+    }
+    // Check if the function requires running and if the service is running
+    if (func_schema->require_running && !is_running()) {
+        set_error("Function requires running, but service is not running");
+        return *result;
+    }
+
+    // Create the call function task
+    auto call_function_task = [this, registry, result, name, parameters_map = std::move(parameters_map)] () mutable {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        *result = registry->call(name, std::move(parameters_map));
+    };
+
+    // If the function has raw buffer or does not require running, use synchronous call instead
+    if (func_schema->has_raw_buffer()) {
+        BROOKESIA_LOGD("Function '%1%' has raw buffer, using synchronous call instead", name);
+        call_function_task();
+        return *result;
+    }
+    if (!func_schema->require_running) {
+        BROOKESIA_LOGD("Function '%1%' does not require running, using synchronous call instead", name);
+        call_function_task();
+        return *result;
+    }
+
+    // Post the call function task to the task scheduler
+    lib_utils::TaskScheduler::TaskId task_id;
+    if (!scheduler->post(std::move(call_function_task), &task_id, get_call_task_group())) {
+        set_error("Failed to post task");
+        return *result;
+    }
+    if (!scheduler->wait(task_id, timeout_ms)) {
+        set_error((boost::format("Timeout after %1%ms") % timeout_ms).str());
+        return *result;
+    }
+
+    return *result;
 }
 
 std::future<FunctionResult> ServiceBase::call_function_async(
@@ -143,34 +231,28 @@ std::future<FunctionResult> ServiceBase::call_function_async(
         result_promise->set_value(std::move(result));
     };
 
-    // Get the function definitions
-    auto function_definitions = get_function_definitions();
+    // Get the function schemas
+    auto function_schemas = get_function_schemas();
 
     // Find the corresponding function definition
-    const FunctionSchema *function_def = nullptr;
-    for (const auto &def : function_definitions) {
+    const FunctionSchema *function_schema = nullptr;
+    for (const auto &def : function_schemas) {
         if (def.name == name) {
-            function_def = &def;
+            function_schema = &def;
             break;
         }
     }
 
-    if (!function_def) {
+    if (!function_schema) {
         set_error("Function definition not found: " + name);
         return result_future;
     }
 
-    // Check if the parameter count matches
-    if (parameters_values.size() != function_def->parameters.size()) {
-        set_error((boost::format("Function parameter count mismatch: expected %1%, got %2%")
-                   % function_def->parameters.size() % parameters_values.size()).str());
-        return result_future;
-    }
-
     // Convert the vector to map according to the function definition parameter order
+    auto parameters_size = std::min(parameters_values.size(), function_schema->parameters.size());
     FunctionParameterMap parameters_map;
-    for (size_t i = 0; i < function_def->parameters.size(); i++) {
-        parameters_map[function_def->parameters[i].name] = std::move(parameters_values[i]);
+    for (size_t i = 0; i < parameters_size; i++) {
+        parameters_map[function_schema->parameters[i].name] = std::move(parameters_values[i]);
     }
 
     return call_function_async(name, std::move(parameters_map));
@@ -183,19 +265,16 @@ FunctionResult ServiceBase::call_function_sync(
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD(
-        "Params: name(%1%), parameters_values(%2%), timeout_ms(%3%)", name, BROOKESIA_DESCRIBE_TO_STR(parameters_values),
-        timeout_ms
+        "Params: name(%1%), parameters_values(%2%), timeout_ms(%3%)", name,
+        BROOKESIA_DESCRIBE_TO_STR(parameters_values), timeout_ms
     );
 
     auto result_future = call_function_async(name, std::move(parameters_values));
-
     if (result_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
-        FunctionResult result{
+        return FunctionResult{
             .success = false,
             .error_message = (boost::format("Timeout after %1%ms") % timeout_ms).str(),
         };
-        BROOKESIA_LOGE("%1%", result.error_message);
-        return result;
     }
 
     return result_future.get();
@@ -207,9 +286,7 @@ std::future<FunctionResult> ServiceBase::call_function_async(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD(
-        "Params: name(%1%), parameters_json(%2%)", name, boost::json::serialize(parameters_json)
-    );
+    BROOKESIA_LOGD("Params: name(%1%), parameters_json(%2%)", name, BROOKESIA_DESCRIBE_TO_STR(parameters_json));
 
     // Use shared_ptr to wrap the promise for error handling
     auto result_promise = std::make_shared<std::promise<FunctionResult>>();
@@ -241,19 +318,16 @@ FunctionResult ServiceBase::call_function_sync(
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD(
-        "Params: name(%1%), parameters_json(%2%), timeout_ms(%3%)", name, boost::json::serialize(parameters_json),
-        timeout_ms
+        "Params: name(%1%), parameters_json(%2%), timeout_ms(%3%)", name,
+        BROOKESIA_DESCRIBE_TO_STR(parameters_json), timeout_ms
     );
 
     auto result_future = call_function_async(name, std::move(parameters_json));
-
     if (result_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
-        FunctionResult result{
+        return FunctionResult{
             .success = false,
             .error_message = (boost::format("Timeout after %1%ms") % timeout_ms).str(),
         };
-        BROOKESIA_LOGE("%1%", result.error_message);
-        return result;
     }
 
     return result_future.get();
@@ -265,17 +339,18 @@ EventRegistry::SignalConnection ServiceBase::subscribe_event(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_CHECK_FALSE_RETURN(is_running(), EventRegistry::SignalConnection(), "Not running");
+    BROOKESIA_LOGD("Params: event_name(%1%), slot(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(slot));
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), EventRegistry::SignalConnection(), "Not initialized");
 
     // Thread-safe get the copy of event_registry
     std::shared_ptr<EventRegistry> registry;
     {
-        boost::shared_lock lock(registry_mutex_);
+        boost::shared_lock lock(resources_mutex_);
         registry = event_registry_;
     }
-
     if (!registry) {
-        BROOKESIA_LOGE("Event registry not initialized");
+        BROOKESIA_LOGE("Invalid state");
         return EventRegistry::SignalConnection();
     }
 
@@ -287,12 +362,128 @@ EventRegistry::SignalConnection ServiceBase::subscribe_event(
     return signal->connect(slot);
 }
 
-bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&event_items)
+bool ServiceBase::register_functions(std::vector<FunctionSchema> &&schemas, FunctionHandlerMap &&handlers)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD(
-        "Params: event_name(%1%), event_items(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(event_items)
+        "Params: schemas(%1%), handlers(%2%)", BROOKESIA_DESCRIBE_TO_STR(schemas),
+        BROOKESIA_DESCRIBE_TO_STR(handlers)
+    );
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Not initialized");
+
+    // Use write lock to protect the registry modifications
+    boost::lock_guard lock(resources_mutex_);
+
+    size_t registered_count = 0;
+    const size_t total_count = schemas.size();
+    // Avoid compiler warning about unused variable
+    (void)total_count;
+
+    for (auto &&schema : schemas) {
+        // Save name before moving (to avoid use-after-move in error logs)
+        const std::string func_name = schema.name;
+        BROOKESIA_LOGD("Registering function: %1%", func_name);
+
+        auto it = handlers.find(func_name);
+        if (it == handlers.end()) {
+            BROOKESIA_LOGE("Handler not found for function: %1%", func_name);
+            continue;
+        }
+
+        if (!function_registry_->add(std::move(schema), std::move(it->second))) {
+            BROOKESIA_LOGE("Failed to register function: %1%", func_name);
+            continue;
+        }
+
+        registered_count++;
+    }
+
+    BROOKESIA_LOGI("[%1%] Registered %2%/%3% functions", attributes_.name, registered_count, total_count);
+
+    return true;
+}
+
+bool ServiceBase::unregister_functions(const std::vector<std::string> &names)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: names(%1%)", BROOKESIA_DESCRIBE_TO_STR(names));
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Not initialized");
+
+    // Use write lock to protect the registry modifications
+    boost::lock_guard lock(resources_mutex_);
+    for (const auto &name : names) {
+        function_registry_->remove(name);
+    }
+
+    BROOKESIA_LOGI("[%1%] Unregistered %2% functions", attributes_.name, names.size());
+
+    return true;
+}
+
+bool ServiceBase::register_events(std::vector<EventSchema> &&schemas)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: schemas(%1%)", BROOKESIA_DESCRIBE_TO_STR(schemas));
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Not initialized");
+
+    // Use write lock to protect the registry modifications
+    boost::lock_guard lock(resources_mutex_);
+
+    size_t registered_count = 0;
+    const size_t total_count = schemas.size();
+    // Avoid compiler warning about unused variable
+    (void)total_count;
+
+    for (auto &&schema : schemas) {
+        // Save name before moving (to avoid use-after-move in error logs)
+        const std::string event_name = schema.name;
+        BROOKESIA_LOGD("Registering event: %1%", event_name);
+
+        if (!event_registry_->add(std::move(schema))) {
+            BROOKESIA_LOGE("Failed to register event: %1%", event_name);
+            continue;
+        }
+
+        registered_count++;
+    }
+
+    BROOKESIA_LOGI("[%1%] Registered %2%/%3% events", attributes_.name, registered_count, total_count);
+
+    return true;
+}
+
+bool ServiceBase::unregister_events(const std::vector<std::string> &names)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: names(%1%)", BROOKESIA_DESCRIBE_TO_STR(names));
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Not initialized");
+
+    // Use write lock to protect the registry modifications
+    boost::lock_guard lock(resources_mutex_);
+    for (const auto &name : names) {
+        event_registry_->remove(name);
+    }
+
+    BROOKESIA_LOGI("[%1%] Unregistered %2% events", attributes_.name, names.size());
+
+    return true;
+}
+
+bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&event_items, bool use_dispatch)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD(
+        "Params: event_name(%1%), event_items(%2%), use_dispatch(%3%)", event_name,
+        BROOKESIA_DESCRIBE_TO_STR(event_items), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
     );
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
@@ -300,16 +491,13 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
     // Thread-safe get the copies of event_registry and task_scheduler
     std::shared_ptr<EventRegistry> registry;
     std::shared_ptr<lib_utils::TaskScheduler> scheduler;
-    boost::asio::io_context *io_ctx;
     {
-        boost::shared_lock lock(registry_mutex_);
+        boost::shared_lock lock(resources_mutex_);
         registry = event_registry_;
         scheduler = task_scheduler_;
-        io_ctx = io_context_;
     }
-
-    if (!registry) {
-        BROOKESIA_LOGE("Event registry not initialized");
+    if (!scheduler || !registry) {
+        BROOKESIA_LOGE("Invalid state");
         return false;
     }
 
@@ -319,6 +507,7 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
     );
 
     // If connected to the server, publish to the server
+    // Should be before the task posted to avoid event_items being moved
     if (is_server_connected()) {
         BROOKESIA_LOGD("Connected to server, publishing event to it");
         BROOKESIA_CHECK_FALSE_EXECUTE(server_connection_->publish_event(event_name, event_items), {}, {
@@ -326,91 +515,107 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
         });
     }
 
-    // Emit the local signal
-    auto emit_signal_task = [registry, event_name, event_items = std::move(event_items)]() {
+    auto emit_signal_task = [this, registry, event_name, event_items = std::move(event_items)]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
         auto signal = registry->get_signal(event_name);
         if (signal) {
-            (*signal)(event_name, event_items);
+            BROOKESIA_CHECK_EXCEPTION_EXECUTE((*signal)(event_name, event_items), {}, {
+                BROOKESIA_LOGE("Failed to emit signal for event: %1%", event_name);
+            });
         } else {
             BROOKESIA_LOGW("Signal not found for event: %1%", event_name);
         }
     };
-    if (scheduler) {
-        BROOKESIA_CHECK_FALSE_EXECUTE(scheduler->post(emit_signal_task, nullptr, SERVICE_REQUEST_TASK_GROUP), {
-            BROOKESIA_LOGE("Failed to post emit signal task");
-            return false;
-        });
-    } else if (io_ctx) {
-        boost::asio::post(*io_ctx, emit_signal_task);
+
+    // If the event has raw buffer, use synchronous publish instead
+    auto has_raw_buffer = registry->has_raw_buffer(event_name);
+    if (has_raw_buffer) {
+        BROOKESIA_LOGD("Event '%1%' has raw buffer, using synchronous publish instead", event_name);
+        emit_signal_task();
+        return true;
+    }
+
+    // Emit the local signal
+    if (use_dispatch) {
+        BROOKESIA_CHECK_FALSE_RETURN(
+            scheduler->dispatch(emit_signal_task, nullptr, get_event_task_group()), false,
+            "Failed to dispatch emit signal task"
+        );
     } else {
-        BROOKESIA_LOGE("No task scheduler or io_context available");
-        return false;
+        BROOKESIA_CHECK_FALSE_RETURN(
+            scheduler->post(emit_signal_task, nullptr, get_event_task_group()), false,
+            "Failed to post emit signal task"
+        );
     }
 
     return true;
 }
 
-bool ServiceBase::publish_event(const std::string &event_name, std::vector<EventItem> &&data_values)
+bool ServiceBase::publish_event(const std::string &event_name, std::vector<EventItem> &&data_values, bool use_dispatch)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD(
-        "Params: event_name(%1%), data_values(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(data_values)
+        "Params: event_name(%1%), data_values(%2%), use_dispatch(%3%)", event_name,
+        BROOKESIA_DESCRIBE_TO_STR(data_values), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
     );
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
-    // Get the event definitions
-    auto event_definitions = get_event_definitions();
+    // Get the event schemas
+    auto event_schemas = get_event_schemas();
 
-    // Find the corresponding event definition
-    const EventSchema *event_def = nullptr;
-    for (const auto &def : event_definitions) {
+    // Find the corresponding event schema
+    const EventSchema *event_schema = nullptr;
+    for (const auto &def : event_schemas) {
         if (def.name == event_name) {
-            event_def = &def;
+            event_schema = &def;
             break;
         }
     }
-    BROOKESIA_CHECK_NULL_RETURN(event_def, false, "Event definition not found: %1%", event_name);
+    BROOKESIA_CHECK_NULL_RETURN(event_schema, false, "Event definition not found: %1%", event_name);
 
     // Check if the value count matches
     BROOKESIA_CHECK_FALSE_RETURN(
-        data_values.size() == event_def->items.size(), false,
-        "Event value count mismatch: expected %1%, got %2%", event_def->items.size(), data_values.size()
+        data_values.size() == event_schema->items.size(), false,
+        "Event value count mismatch: expected %1%, got %2%", event_schema->items.size(), data_values.size()
     );
 
-    // Convert the vector to map according to the event definition data order
+    // Convert the vector to map according to the event schema data order
     EventItemMap event_items;
-    for (size_t i = 0; i < event_def->items.size(); i++) {
-        event_items[event_def->items[i].name] = std::move(data_values[i]);
+    for (size_t i = 0; i < event_schema->items.size(); i++) {
+        event_items[event_schema->items[i].name] = std::move(data_values[i]);
     }
 
-    return publish_event(event_name, std::move(event_items));
+    return publish_event(event_name, std::move(event_items), use_dispatch);
 }
 
-bool ServiceBase::publish_event(const std::string &event_name, boost::json::object &&data_json)
+bool ServiceBase::publish_event(const std::string &event_name, boost::json::object &&data_json, bool use_dispatch)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: event_name(%1%), data_json(%2%)", event_name, boost::json::serialize(data_json));
+    BROOKESIA_LOGD(
+        "Params: event_name(%1%), data_json(%2%), use_dispatch(%3%)", event_name,
+        BROOKESIA_DESCRIBE_TO_STR(data_json), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
+    );
 
     EventItemMap event_items;
     BROOKESIA_CHECK_FALSE_RETURN(
         BROOKESIA_DESCRIBE_FROM_JSON(data_json, event_items), false, "Failed to parse data"
     );
 
-    return publish_event(event_name, std::move(event_items));
+    return publish_event(event_name, std::move(event_items), use_dispatch);
 }
 
-bool ServiceBase::init(boost::asio::io_context &io_context)
+bool ServiceBase::init(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     boost::lock_guard lock(state_mutex_);
-    return init_internal(io_context);
+    return init_internal(task_scheduler);
 }
 
-bool ServiceBase::init_internal(boost::asio::io_context &io_context)
+bool ServiceBase::init_internal(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -428,24 +633,43 @@ bool ServiceBase::init_internal(boost::asio::io_context &io_context)
 
     if (attributes_.task_scheduler_config.has_value()) {
         BROOKESIA_CHECK_EXCEPTION_RETURN(
-            task_scheduler_ = std::make_unique<lib_utils::TaskScheduler>(), false, "Failed to create task scheduler"
+            task_scheduler_ = std::make_shared<lib_utils::TaskScheduler>(), false, "Failed to create task scheduler"
         );
+    } else {
+        BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Invalid task scheduler");
+        task_scheduler_ = task_scheduler;
     }
 
     // Create function registry
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        function_registry_ = std::make_unique<FunctionRegistry>(), false, "Failed to create function registry"
+        function_registry_ = std::make_shared<FunctionRegistry>(), false, "Failed to create function registry"
     );
     // Create event registry
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        event_registry_ = std::make_unique<EventRegistry>(), false, "Failed to create event registry"
+        event_registry_ = std::make_shared<EventRegistry>(), false, "Failed to create event registry"
     );
-
-    io_context_ = &io_context;
 
     BROOKESIA_CHECK_FALSE_RETURN(on_init(), false, "Failed to initialize service");
 
+    // Auto-register functions
+    auto function_schemas = get_function_schemas();
+    auto function_handlers = get_function_handlers();
+    if (!function_schemas.empty()) {
+        BROOKESIA_CHECK_FALSE_RETURN(
+            register_functions(std::move(function_schemas), std::move(function_handlers)), false,
+            "Failed to register functions"
+        );
+    }
+
+    // Auto-register events
+    auto event_schemas = get_event_schemas();
+    if (!event_schemas.empty()) {
+        BROOKESIA_CHECK_FALSE_RETURN(register_events(std::move(event_schemas)), false, "Failed to register events");
+    }
+
     deinit_guard.release();
+
+    BROOKESIA_LOGI("Initialized service: %1%", attributes_.name);
 
     return true;
 }
@@ -475,15 +699,16 @@ void ServiceBase::deinit_internal()
 
     // Use write lock to protect the registry reset
     {
-        boost::lock_guard lock(registry_mutex_);
-        io_context_ = nullptr;
-        task_scheduler_.reset();
+        boost::lock_guard lock(resources_mutex_);
         server_connection_.reset();
+        task_scheduler_.reset();
         function_registry_.reset();
         event_registry_.reset();
     }
 
     is_initialized_.store(false);
+
+    BROOKESIA_LOGI("Deinitialized service: %1%", attributes_.name);
 }
 
 bool ServiceBase::start()
@@ -512,41 +737,33 @@ bool ServiceBase::start_internal()
         stop_internal();
     });
 
-    if (task_scheduler_) {
+    is_running_.store(true);
+
+    if (!task_scheduler_->is_running()) {
         BROOKESIA_CHECK_FALSE_RETURN(
             task_scheduler_->start(*attributes_.task_scheduler_config), false, "Failed to start task scheduler"
         );
-        BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(SERVICE_REQUEST_TASK_GROUP, {
-            .enable_post_execute_in_order = true,
-        }), false, "Failed to configure task scheduler group");
     }
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(get_call_task_group(), {
+        .enable_serial_execution = true,
+    }), false, "Failed to configure call task group");
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(get_event_task_group(), {
+        .enable_serial_execution = true,
+    }), false, "Failed to configure event task group");
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(get_request_task_group(), {
+        .enable_serial_execution = true,
+    }), false, "Failed to configure request task group");
 
     BROOKESIA_CHECK_FALSE_RETURN(on_start(), false, "Failed to start service");
-
-    // Auto-register functions
-    auto function_definitions = get_function_definitions();
-    auto function_handlers = get_function_handlers();
-    if (!function_definitions.empty()) {
-        BROOKESIA_CHECK_FALSE_RETURN(
-            register_functions(std::move(function_definitions), std::move(function_handlers)), false,
-            "Failed to register functions"
-        );
-    }
-
-    // Auto-register events
-    auto event_definitions = get_event_definitions();
-    if (!event_definitions.empty()) {
-        BROOKESIA_CHECK_FALSE_RETURN(register_events(std::move(event_definitions)), false, "Failed to register events");
-    }
 
     if (is_server_connected()) {
         server_connection_->activate(true);
         try_override_connection_request_handler();
     }
 
-    is_running_ = true;
-
     stop_guard.release();
+
+    BROOKESIA_LOGI("Started service: %1%", attributes_.name);
 
     return true;
 }
@@ -574,8 +791,8 @@ void ServiceBase::stop_internal()
         server_connection_->activate(false);
     }
 
-    if (task_scheduler_) {
-        BROOKESIA_LOGI("Waiting for task scheduler to finish");
+    if (task_scheduler_ && attributes_.task_scheduler_config.has_value()) {
+        BROOKESIA_LOGD("Waiting for task scheduler to finish");
         if (!task_scheduler_->wait_all(WAIT_TASK_SCHEDULER_FINISHED_TIMEOUT_MS)) {
             BROOKESIA_LOGW(
                 "Task scheduler wait timeout after %1%ms", WAIT_TASK_SCHEDULER_FINISHED_TIMEOUT_MS
@@ -584,18 +801,9 @@ void ServiceBase::stop_internal()
         task_scheduler_->stop();
     }
 
-    // Use write lock to protect the registry modifications
-    {
-        boost::lock_guard lock(registry_mutex_);
-        if (function_registry_) {
-            function_registry_->remove_all();
-        }
-        if (event_registry_) {
-            event_registry_->remove_all();
-        }
-    }
-
     is_running_ = false;
+
+    BROOKESIA_LOGI("Stopped service: %1%", attributes_.name);
 }
 
 std::shared_ptr<rpc::ServerConnection> ServiceBase::connect_to_server()
@@ -603,7 +811,7 @@ std::shared_ptr<rpc::ServerConnection> ServiceBase::connect_to_server()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     // Use write lock to protect the server_connection_ and registries access
-    boost::lock_guard lock(registry_mutex_);
+    boost::lock_guard lock(resources_mutex_);
 
     if (is_server_connected()) {
         BROOKESIA_LOGD("Already connected to server");
@@ -630,7 +838,7 @@ void ServiceBase::disconnect_from_server()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     // Use write lock to protect the server_connection_ access
-    boost::lock_guard lock(registry_mutex_);
+    boost::lock_guard lock(resources_mutex_);
     server_connection_.reset();
 }
 
@@ -679,82 +887,12 @@ void ServiceBase::try_override_connection_request_handler()
             );
         };
         BROOKESIA_CHECK_FALSE_RETURN(
-            task_scheduler_->post(std::move(task), nullptr, SERVICE_REQUEST_TASK_GROUP),
-            false, "Failed to post request"
+            task_scheduler_->post(std::move(task), nullptr, get_request_task_group()),
+            false, "Failed to post request task"
         );
         return true;
     };
     server_connection_->set_request_handler(request_handler);
-}
-
-bool ServiceBase::register_functions(std::vector<FunctionSchema> &&definitions, FunctionHandlerMap &&handlers)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Not initialized");
-
-    // Use write lock to protect the registry modifications
-    boost::lock_guard lock(registry_mutex_);
-
-    size_t registered_count = 0;
-    const size_t total_count = definitions.size();
-    // Avoid compiler warning about unused variable
-    (void)total_count;
-
-    for (auto &&def : definitions) {
-        // Save name before moving (to avoid use-after-move in error logs)
-        const std::string func_name = def.name;
-        BROOKESIA_LOGD("Registering function: %1%", func_name);
-
-        auto it = handlers.find(func_name);
-        if (it == handlers.end()) {
-            BROOKESIA_LOGE("Handler not found for function: %1%", func_name);
-            continue;
-        }
-
-        if (!function_registry_->add(std::move(def), std::move(it->second))) {
-            BROOKESIA_LOGE("Failed to register function: %1%", func_name);
-            continue;
-        }
-
-        registered_count++;
-    }
-
-    BROOKESIA_LOGI("[%1%] Registered %2%/%3% functions", attributes_.name, registered_count, total_count);
-
-    return true;
-}
-
-bool ServiceBase::register_events(std::vector<EventSchema> &&definitions)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Not initialized");
-
-    // Use write lock to protect the registry modifications
-    boost::lock_guard lock(registry_mutex_);
-
-    size_t registered_count = 0;
-    const size_t total_count = definitions.size();
-    // Avoid compiler warning about unused variable
-    (void)total_count;
-
-    for (auto &&def : definitions) {
-        // Save name before moving (to avoid use-after-move in error logs)
-        const std::string event_name = def.name;
-        BROOKESIA_LOGD("Registering event: %1%", event_name);
-
-        if (!event_registry_->add(std::move(def))) {
-            BROOKESIA_LOGE("Failed to register event: %1%", event_name);
-            continue;
-        }
-
-        registered_count++;
-    }
-
-    BROOKESIA_LOGI("[%1%] Registered %2%/%3% events", attributes_.name, registered_count, total_count);
-
-    return true;
 }
 
 } // namespace esp_brookesia::service

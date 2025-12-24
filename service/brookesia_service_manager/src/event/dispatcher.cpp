@@ -45,13 +45,20 @@ void EventDispatcher::on_notify(
         BROOKESIA_DESCRIBE_TO_STR(event_items)
     );
 
-    boost::lock_guard lock(callbacks_mutex_);
-    for (const auto &subscription_id : subscription_ids) {
-        auto it = callbacks_.find(subscription_id);
-        if (it != callbacks_.end()) {
-            it->second(event_items);
-            break;
+    NotifyCallback callback;
+
+    {
+        boost::lock_guard lock(callbacks_mutex_);
+        for (const auto &subscription_id : subscription_ids) {
+            auto it = callbacks_.find(subscription_id);
+            if (it != callbacks_.end()) {
+                it->second(event_items);
+                break;
+            }
         }
+    }
+    if (callback) {
+        callback(event_items);
     }
 }
 

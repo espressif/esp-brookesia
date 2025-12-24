@@ -1,5 +1,7 @@
 # ESP-Brookesia WiFi Service
 
+* [中文版本](./README_CN.md)
+
 ## Overview
 
 `brookesia_service_wifi` is a WiFi connection management service for the ESP-Brookesia ecosystem, providing:
@@ -8,9 +10,21 @@
 - **Auto Reconnection**: Supports automatic connection to historical APs and automatic reconnection attempts after disconnection
 - **WiFi Scanning**: Supports periodic scanning of surrounding APs and automatic discovery of connectable APs
 - **Connection Management**: Manages target AP and connected AP lists, supporting multiple AP history records
-- **Persistent Storage**: Optionally works with `brookesia_service_nvs` service to persistently save connection configurations and other parameters
 - **Event Notifications**: Provides rich event notification mechanisms for real-time feedback on WiFi state changes
-- **Thread Safety**: Implements asynchronous task scheduling based on `TaskScheduler` to ensure thread safety
+- **Persistent Storage**: Optionally works with `brookesia_service_nvs` service to persistently save connection configurations and other parameters
+
+## Table of Contents
+
+- [ESP-Brookesia WiFi Service](#esp-brookesia-wifi-service)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [State Machine Management](#state-machine-management)
+      - [State Transitions](#state-transitions)
+    - [Auto Reconnection Mechanism](#auto-reconnection-mechanism)
+    - [WiFi Scanning](#wifi-scanning)
+  - [Development Environment Requirements](#development-environment-requirements)
+  - [Adding to Project](#adding-to-project)
 
 ## Features
 
@@ -98,20 +112,6 @@ Before using this library, please ensure the following SDK development environme
 
 > [!NOTE]
 > For SDK installation instructions, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_service_wifi` has the following dependencies:
-
-| **Dependency** | **Version Requirement** |
-|---------------|-------------------------|
-| [cmake_utilities](https://components.espressif.com/components/espressif/cmake_utilities) | 0.* |
-| [brookesia_lib_utils](https://components.espressif.com/components/espressif/brookesia_lib_utils) | 0.7.* |
-| [brookesia_service_manager](https://components.espressif.com/components/espressif/brookesia_service_manager) | 0.7.* |
-| [brookesia_service_helper](https://components.espressif.com/components/espressif/brookesia_service_helper) | 0.7.* |
-
-> [!NOTE]
-> * If your target device is ESP32-P4, you also need the following dependencies:
->   * [esp_wifi_remote](https://components.espressif.com/components/espressif/esp_wifi_remote): `1.2.*`
->   * [esp_hosted](https://components.espressif.com/components/espressif/esp_hosted): `2.0.*`
 
 ## Adding to Project
 

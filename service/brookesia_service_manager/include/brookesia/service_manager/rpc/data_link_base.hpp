@@ -21,10 +21,9 @@ public:
     using OnConnectionEstablished = std::function<void(size_t connection_id)>;
     using OnConnectionClosed = std::function<void(size_t connection_id)>;
 
-    DataLinkBase(boost::asio::io_context &io_context)
-        : io_context_(io_context)
-        , io_work_guard_(io_context.get_executor())
-
+    DataLinkBase(boost::asio::io_context::executor_type executor)
+        : executor_(executor)
+        , executor_guard_(executor)
     {
     }
     virtual ~DataLinkBase() = default;
@@ -90,8 +89,8 @@ protected:
     static bool try_get_global_socket();
     static void release_global_sockets();
 
-    boost::asio::io_context &io_context_;
-    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> io_work_guard_;
+    boost::asio::io_context::executor_type executor_;
+    boost::asio::executor_work_guard<boost::asio::io_context::executor_type> executor_guard_;
 
     // Callback functions
     OnDataReceived on_data_received_;

@@ -6,6 +6,7 @@
 #pragma once
 
 #include "service_manager/macro_configs.h"
+#include "service_manager/common.hpp"
 /* Event */
 #include "service_manager/event/dispatcher.hpp"
 #include "service_manager/event/definition.hpp"

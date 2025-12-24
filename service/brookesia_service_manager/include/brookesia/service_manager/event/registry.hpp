@@ -27,7 +27,7 @@ public:
     EventRegistry() = default;
     ~EventRegistry() = default;
 
-    bool add(EventSchema &&event_def);
+    bool add(EventSchema &&event_schema);
     void remove(const std::string &event_name);
     void remove_all();
 
@@ -40,6 +40,19 @@ public:
     {
         boost::lock_guard lock(event_infos_mutex_);
         return event_infos_.find(event_name) != event_infos_.end();
+    }
+    bool has_raw_buffer(const std::string &event_name)
+    {
+        boost::lock_guard lock(event_infos_mutex_);
+        for (const auto& [event_name, event_info] : event_infos_) {
+            const auto &[subscriptions, event_schema, signal] = event_info;
+            for (const auto &item_schema : event_schema.items) {
+                if (item_schema.type == EventItemType::RawBuffer) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     size_t get_count()
     {

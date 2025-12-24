@@ -46,7 +46,7 @@ bool DataLinkServer::start(uint16_t port, size_t timeout_ms)
     });
 
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        acceptor_ = std::make_unique<boost::asio::ip::tcp::acceptor>(io_context_), false, "Failed to allocate acceptor"
+        acceptor_ = std::make_unique<boost::asio::ip::tcp::acceptor>(executor_), false, "Failed to allocate acceptor"
     );
     acceptor_->open(boost::asio::ip::tcp::v4());
     acceptor_->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
@@ -147,7 +147,7 @@ bool DataLinkServer::handle_accept()
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
         std::shared_ptr<boost::asio::steady_timer> timer;
         BROOKESIA_CHECK_EXCEPTION_EXIT(
-            timer = std::make_shared<boost::asio::steady_timer>(io_context_), "Failed to allocate timer"
+            timer = std::make_shared<boost::asio::steady_timer>(executor_), "Failed to allocate timer"
         );
         timer->expires_after(std::chrono::milliseconds(ACCEPT_FAIL_RETRY_DELAY));
         timer->async_wait([this, timer](const boost::system::error_code & ec) {
@@ -168,7 +168,7 @@ bool DataLinkServer::handle_accept()
 
     std::shared_ptr<boost::asio::ip::tcp::socket> socket;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        socket = std::make_shared<boost::asio::ip::tcp::socket>(io_context_), false, "Failed to allocate socket"
+        socket = std::make_shared<boost::asio::ip::tcp::socket>(executor_), false, "Failed to allocate socket"
     );
 
     acceptor_->async_accept(*socket,

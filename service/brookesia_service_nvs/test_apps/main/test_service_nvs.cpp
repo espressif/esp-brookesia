@@ -22,7 +22,6 @@ using nvs_helper = service::helper::NVS;
 
 static auto &service_manager = service::ServiceManager::get_instance();
 static auto &time_profiler = lib_utils::TimeProfiler::get_instance();
-static auto nvs_functions = nvs_helper::get_function_definitions();
 
 static bool startup();
 static void shutdown();
@@ -70,7 +69,7 @@ static bool validate_get_result(const service::FunctionValue &value, const std::
     }
 
     // Parse JSON object to KeyValue map
-    std::map<std::string, nvs_helper::Value> pairs;
+    nvs_helper::KeyValueMap pairs;
     if (!BROOKESIA_DESCRIBE_FROM_JSON(*object_ptr, pairs)) {
         BROOKESIA_LOGE("validate_get_result: failed to parse JSON object to KeyValue map");
         return false;
@@ -104,18 +103,17 @@ TEST_CASE("Test ServiceNvs - basic set and get", "[service][nvs][basic]")
     });
 
     const std::string test_namespace = "test_basic";
-
     // Define test sequence: set -> get -> erase
     std::vector<service::LocalTestItem> test_items = {
         // Set key-value pairs
         service::LocalTestItem(
             "Set key-value pairs",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"string_key", std::string("test_value")},
                     {"int_key", 42},
                     {"bool_key", true}
@@ -126,11 +124,11 @@ TEST_CASE("Test ServiceNvs - basic set and get", "[service][nvs][basic]")
         // Get key-value pairs
         service::LocalTestItem(
             "Get key-value pairs",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"string_key", "int_key", "bool_key"}))
             }
         }
@@ -138,11 +136,11 @@ TEST_CASE("Test ServiceNvs - basic set and get", "[service][nvs][basic]")
         // Erase key-value pairs
         service::LocalTestItem(
             "Erase key-value pairs",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"string_key", "int_key", "bool_key"}))
             }
         }
@@ -151,7 +149,7 @@ TEST_CASE("Test ServiceNvs - basic set and get", "[service][nvs][basic]")
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");
@@ -180,12 +178,12 @@ TEST_CASE("Test ServiceNvs - list functionality", "[service][nvs][list]")
         // Set some key-value pairs first
         service::LocalTestItem(
             "Set key-value pairs for list test",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"key1", std::string("value1")},
                     {"key2", 123},
                     {"key3", false}
@@ -196,9 +194,9 @@ TEST_CASE("Test ServiceNvs - list functionality", "[service][nvs][list]")
         // List entries
         service::LocalTestItem(
             "List entries in namespace",
-            nvs_functions[nvs_helper::FunctionIndexList].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::List),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexList].parameters[0].name, test_namespace}
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionListParam::Nspace), test_namespace}
         }
         , [](const service::FunctionValue & value)
         {
@@ -208,11 +206,11 @@ TEST_CASE("Test ServiceNvs - list functionality", "[service][nvs][list]")
         // Clean up
         service::LocalTestItem(
             "Erase all entries",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({}))
             }
         }
@@ -221,7 +219,7 @@ TEST_CASE("Test ServiceNvs - list functionality", "[service][nvs][list]")
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");
@@ -244,12 +242,12 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 1: Set multiple key-value pairs
         service::LocalTestItem(
             "Step 1: Set multiple key-value pairs",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"name", std::string("test_user")},
                     {"age", 30},
                     {"active", true},
@@ -261,11 +259,11 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 2: Get all keys
         service::LocalTestItem(
             "Step 2: Get all keys",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"name", "age", "active", "score"}))
             }
         }
@@ -273,9 +271,9 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 3: List entries
         service::LocalTestItem(
             "Step 3: List entries",
-            nvs_functions[nvs_helper::FunctionIndexList].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::List),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexList].parameters[0].name, test_namespace}
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionListParam::Nspace), test_namespace}
         }
         , [](const service::FunctionValue & value)
         {
@@ -285,12 +283,12 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 4: Update some values
         service::LocalTestItem(
             "Step 4: Update some values",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"age", 31},
                     {"score", 98}
                 }))
@@ -300,11 +298,11 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 5: Get updated values
         service::LocalTestItem(
             "Step 5: Get updated values",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"age", "score"}))
             }
         }
@@ -316,11 +314,11 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 6: Erase specific keys
         service::LocalTestItem(
             "Step 6: Erase specific keys",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"score"}))
             }
         }
@@ -328,11 +326,11 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 7: Verify erased key is gone
         service::LocalTestItem(
             "Step 7: Verify remaining keys",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"name", "age", "active"}))
             }
         }
@@ -344,11 +342,11 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
         // Step 8: Erase all remaining keys
         service::LocalTestItem(
             "Step 8: Erase all remaining keys",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({}))
             }
         }
@@ -357,7 +355,7 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");
@@ -384,11 +382,11 @@ TEST_CASE("Test ServiceNvs - default namespace", "[service][nvs][default]")
         // Set using default namespace
         service::LocalTestItem(
             "Set using default namespace",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"default_key", std::string("default_value")}
                 }))
             }
@@ -397,10 +395,10 @@ TEST_CASE("Test ServiceNvs - default namespace", "[service][nvs][default]")
         // Get using default namespace
         service::LocalTestItem(
             "Get using default namespace",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"default_key"}))
             }
         }
@@ -412,10 +410,10 @@ TEST_CASE("Test ServiceNvs - default namespace", "[service][nvs][default]")
         // Clean up
         service::LocalTestItem(
             "Erase using default namespace",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"default_key"}))
             }
         }
@@ -424,7 +422,7 @@ TEST_CASE("Test ServiceNvs - default namespace", "[service][nvs][default]")
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");
@@ -447,12 +445,12 @@ TEST_CASE("Test ServiceNvs - get all keys when keys array is empty", "[service][
         // Set multiple key-value pairs
         service::LocalTestItem(
             "Set multiple key-value pairs",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"key1", std::string("value1")},
                     {"key2", 42},
                     {"key3", true},
@@ -464,11 +462,11 @@ TEST_CASE("Test ServiceNvs - get all keys when keys array is empty", "[service][
         // Get all keys by providing empty keys array
         service::LocalTestItem(
             "Get all keys with empty keys array",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({}))
             }
         }
@@ -480,9 +478,9 @@ TEST_CASE("Test ServiceNvs - get all keys when keys array is empty", "[service][
         // Get all keys by omitting keys parameter (should use default empty array)
         service::LocalTestItem(
             "Get all keys without keys parameter",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace}
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace}
         }
         , [](const service::FunctionValue & value)
         {
@@ -492,11 +490,11 @@ TEST_CASE("Test ServiceNvs - get all keys when keys array is empty", "[service][
         // Clean up
         service::LocalTestItem(
             "Erase all entries",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({}))
             }
         }
@@ -505,7 +503,7 @@ TEST_CASE("Test ServiceNvs - get all keys when keys array is empty", "[service][
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");
@@ -528,12 +526,12 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
         // Set one key-value pair
         service::LocalTestItem(
             "Set one key-value pair",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"existing_key", std::string("existing_value")}
                 }))
             }
@@ -542,11 +540,11 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
         // Get mix of existing and non-existent keys (should skip non-existent)
         service::LocalTestItem(
             "Get mix of existing and non-existent keys",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"existing_key", "non_existent_key1", "non_existent_key2"}))
             }
         }
@@ -591,11 +589,11 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
         // Erase mix of existing and non-existent keys (should not fail)
         service::LocalTestItem(
             "Erase mix of existing and non-existent keys",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"existing_key", "non_existent_key"}))
             }
         }
@@ -603,11 +601,11 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
         // Verify existing_key is erased
         service::LocalTestItem(
             "Verify key is erased",
-            nvs_functions[nvs_helper::FunctionIndexGet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Get),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexGet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexGet].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionGetParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({"existing_key"}))
             }
         }
@@ -630,11 +628,11 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
         // Clean up
         service::LocalTestItem(
             "Erase all entries",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({}))
             }
         }
@@ -643,7 +641,7 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");
@@ -666,12 +664,12 @@ TEST_CASE("Test ServiceNvs - list result structure", "[service][nvs][list_struct
         // Set multiple key-value pairs with different types
         service::LocalTestItem(
             "Set multiple key-value pairs with different types",
-            nvs_functions[nvs_helper::FunctionIndexSet].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Set),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexSet].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexSet].parameters[1].name,
-                BROOKESIA_DESCRIBE_TO_JSON(std::vector<nvs_helper::KeyValuePair>({
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionSetParam::KeyValuePairs),
+                BROOKESIA_DESCRIBE_TO_JSON(nvs_helper::KeyValueMap({
                     {"string_key", std::string("string_value")},
                     {"int_key", 123},
                     {"bool_key", true}
@@ -682,9 +680,9 @@ TEST_CASE("Test ServiceNvs - list result structure", "[service][nvs][list_struct
         // List entries and verify structure
         service::LocalTestItem(
             "List entries and verify structure",
-            nvs_functions[nvs_helper::FunctionIndexList].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::List),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexList].parameters[0].name, test_namespace}
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionListParam::Nspace), test_namespace}
         }
         , [test_namespace](const service::FunctionValue & value)
         {
@@ -728,11 +726,11 @@ TEST_CASE("Test ServiceNvs - list result structure", "[service][nvs][list_struct
         // Clean up
         service::LocalTestItem(
             "Erase all entries",
-            nvs_functions[nvs_helper::FunctionIndexErase].name,
+            BROOKESIA_DESCRIBE_ENUM_TO_STR(nvs_helper::FunctionId::Erase),
         boost::json::object{
-            {nvs_functions[nvs_helper::FunctionIndexErase].parameters[0].name, test_namespace},
+            {BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Nspace), test_namespace},
             {
-                nvs_functions[nvs_helper::FunctionIndexErase].parameters[1].name,
+                BROOKESIA_DESCRIBE_TO_STR(nvs_helper::FunctionEraseParam::Keys),
                 BROOKESIA_DESCRIBE_TO_JSON(std::vector<std::string>({}))
             }
         }
@@ -741,7 +739,7 @@ TEST_CASE("Test ServiceNvs - list result structure", "[service][nvs][list_struct
 
     // Execute tests
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(nvs_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(std::string(nvs_helper::get_name()), test_items);
 
     // Verify results
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all tests passed");

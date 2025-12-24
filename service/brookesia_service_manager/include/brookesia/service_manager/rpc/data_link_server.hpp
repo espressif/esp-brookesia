@@ -16,8 +16,8 @@ namespace esp_brookesia::service::rpc {
 // Server data link class
 class DataLinkServer : public DataLinkBase {
 public:
-    explicit DataLinkServer(boost::asio::io_context &io_context, size_t max_connections)
-        : DataLinkBase(io_context)
+    explicit DataLinkServer(boost::asio::io_context::executor_type executor, size_t max_connections)
+        : DataLinkBase(executor)
         , max_connections_(max_connections)
     {
     }

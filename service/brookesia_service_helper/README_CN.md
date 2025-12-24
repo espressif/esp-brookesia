@@ -1,16 +1,32 @@
 # ESP-Brookesia Service Helper
 
+* [English Version](./README.md)
+
 ## 概述
 
-`brookesia_service_helper` 是 ESP-Brookesia 服务开发辅助库，为服务开发者和使用者提供类型安全的定义、模式和工具，用于构建和使用符合 ESP-Brookesia 服务框架规范的服务。
+`brookesia_service_helper` 是 ESP-Brookesia 服务开发辅助库，基于 C++20 Concepts 和 CRTP （Curiously Recurring Template Pattern）模式，为服务开发者和使用者提供类型安全的定义、Schema 和统一调用接口，用于构建和使用符合 ESP-Brookesia 服务框架规范的服务。
 
 本库主要提供：
 
-- **类型安全定义**：提供枚举、结构体等类型定义，确保类型安全
-- **函数模式定义**：提供标准化的函数定义（FunctionSchema），包括函数名、参数、描述等
-- **事件模式定义**：提供标准化的事件定义（EventSchema），包括事件名、数据格式等
-- **常量定义**：提供服务名称、默认值等常量
-- **索引枚举**：提供函数索引、事件索引等枚举，便于在服务实现中使用
+- **类型安全定义**：提供强类型枚举（`FunctionId`、`EventId`）和结构体类型定义，确保编译时类型检查
+- **Schema 定义**：提供标准化的函数 Schema（`FunctionSchema`）和事件 Schema（`EventSchema`），包括函数名、参数类型、参数描述、返回值类型等完整元数据
+- **统一调用接口**：提供类型安全的同步和异步函数调用接口（`call_function_sync()`、`call_function_async()`），自动处理类型转换和错误处理
+- **事件订阅接口**：提供类型安全的事件订阅接口（`subscribe_event()`），支持类型安全的事件处理回调
+- **类型安全返回值**：使用 `std::expected<T, std::string>` 提供类型安全的返回值，自动处理成功和错误情况
+
+## 目录
+
+- [ESP-Brookesia Service Helper](#esp-brookesia-service-helper)
+  - [概述](#概述)
+  - [目录](#目录)
+  - [功能特性](#功能特性)
+    - [辅助类](#辅助类)
+      - [服务辅助类](#服务辅助类)
+      - [智能体辅助类](#智能体辅助类)
+    - [类型安全](#类型安全)
+    - [标准化接口](#标准化接口)
+  - [开发环境要求](#开发环境要求)
+  - [添加到工程](#添加到工程)
 
 ## 功能特性
 
@@ -18,24 +34,39 @@
 
 `brookesia_service_helper` 目前提供以下辅助类：
 
-- [NVS](./include/brookesia/service_helper/nvs.hpp)
-- [Wifi](./include/brookesia/service_helper/wifi.hpp)
+#### 服务辅助类
+
+- [Audio](./include/brookesia/service_helper/audio.hpp) - 音频服务辅助类，提供音频播放、编解码、音量控制等功能定义
+- [NVS](./include/brookesia/service_helper/nvs.hpp) - NVS 服务辅助类，提供键值对存储、数据管理等功能定义
+- [SNTP](./include/brookesia/service_helper/sntp.hpp) - SNTP 服务辅助类，提供时间同步、时区设置等功能定义
+- [Wifi](./include/brookesia/service_helper/wifi.hpp) - WiFi 服务辅助类，提供 WiFi 连接、扫描、状态管理等功能定义
+
+#### 智能体辅助类
+
+- [Agent Manager](./include/brookesia/service_helper/agent/manager.hpp) - 智能体管理辅助类，提供智能体生命周期管理、状态机控制等功能定义
+- [Agent Coze](./include/brookesia/service_helper/agent/coze.hpp) - Coze 智能体辅助类，提供 Coze API 集成相关功能定义
+- [Agent OpenAI](./include/brookesia/service_helper/agent/openai.hpp) - OpenAI 智能体辅助类，提供 OpenAI API 集成相关功能定义
 
 ### 类型安全
 
-所有定义都使用强类型枚举和结构体，确保：
+基于 C++20 Concepts 和 CRTP（Curiously Recurring Template Pattern）模式，提供编译时类型安全保障：
 
-- **编译时类型检查**：避免字符串拼写错误
-- **IDE 自动补全**：提供更好的开发体验
-- **代码可维护性**：统一的接口定义，便于维护和扩展
+- **强类型枚举**：使用 `FunctionId`、`EventId` 等枚举类型替代字符串，避免运行时错误
+- **编译时类型检查**：通过 `static_assert` 和 Concepts 确保类型正确性，在编译期捕获类型错误
+- **类型推导**：模板函数自动推导返回类型，支持 `std::expected<T, std::string>` 类型安全返回值
+- **IDE 智能提示**：强类型定义提供完整的 IDE 自动补全和类型提示
+- **代码可维护性**：统一的类型定义便于重构和维护，类型变更会在编译期被检测
 
 ### 标准化接口
 
-通过提供标准化的函数和事件定义，确保：
+通过 `Base` 基类和标准化 Schema 定义，提供统一的接口规范：
 
-- **接口一致性**：所有服务遵循相同的接口规范
-- **文档自动生成**：函数和事件的描述信息可用于自动生成文档
-- **参数验证**：统一的参数类型和验证规则
+- **函数 Schema**：每个函数都有完整的 `FunctionSchema` 定义，包括函数名、参数类型、参数描述、返回值类型等
+- **事件 Schema**：每个事件都有完整的 `EventSchema` 定义，包括事件名、事件项类型和描述
+- **同步/异步调用**：提供 `call_function_sync()` 和 `call_function_async()` 统一调用接口
+- **事件订阅**：提供 `subscribe_event()` 统一事件订阅接口，支持类型安全的事件处理
+- **接口一致性**：所有辅助类继承自 `Base`，遵循相同的接口规范，确保使用方式一致
+- **运行时验证**：函数和事件调用时自动验证 Schema，确保参数类型和数量正确
 
 ## 开发环境要求
 
@@ -45,13 +76,6 @@
 
 > [!NOTE]
 > SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_service_helper` 具有以下依赖组件：
-
-| **依赖组件** | **版本要求** |
-| ------------ | ------------ |
-| [brookesia_service_manager](https://components.espressif.com/components/espressif/brookesia_service_manager) | 0.7.* |
-| [brookesia_lib_utils](https://components.espressif.com/components/espressif/brookesia_lib_utils) | 0.7.* |
 
 ## 添加到工程
 

@@ -30,8 +30,8 @@ public:
         {}
     };
 
-    Server(boost::asio::io_context &io_context, const Config &config = Config())
-        : io_context_(io_context)
+    Server(boost::asio::io_context::executor_type executor, const Config &config = Config())
+        : executor_(executor)
         , config_(config)
     {
     }
@@ -72,7 +72,7 @@ private:
     bool send_response(size_t connection_id, const Response &response);
     bool send_notify(size_t connection_id, const Notify &notify);
 
-    boost::asio::io_context &io_context_;
+    boost::asio::io_context::executor_type executor_;
     Config config_;
 
     std::atomic<bool> is_running_ = false;

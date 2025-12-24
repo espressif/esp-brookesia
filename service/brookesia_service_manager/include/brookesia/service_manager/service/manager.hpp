@@ -11,8 +11,9 @@
 #include <optional>
 #include <string>
 #include <map>
-#include "boost/thread.hpp"
+#include "boost/thread/shared_mutex.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
+#include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/service_manager/macro_configs.h"
 #include "brookesia/service_manager/rpc/server.hpp"
 #include "brookesia/service_manager/rpc/client.hpp"
@@ -124,20 +125,24 @@ private:
  */
 class ServiceManager {
 public:
-    struct StartConfig {
-        lib_utils::ThreadConfig io_thread_config;
-        uint32_t io_poll_interval_ms;
-
-        StartConfig()
-            : io_thread_config{
-            .name = BROOKESIA_SERVICE_MANAGER_IO_THREAD_NAME,
-            .core_id = BROOKESIA_SERVICE_MANAGER_IO_THREAD_CORE_ID,
-            .priority = BROOKESIA_SERVICE_MANAGER_IO_THREAD_PRIORITY,
-            .stack_size = BROOKESIA_SERVICE_MANAGER_IO_THREAD_STACK_SIZE,
-            .stack_in_ext = BROOKESIA_SERVICE_MANAGER_IO_THREAD_STACK_IN_EXT,
-        }
-        , io_poll_interval_ms(BROOKESIA_SERVICE_MANAGER_IO_POLL_INTERVAL_MS)
-        {}
+    inline static const lib_utils::TaskScheduler::StartConfig DEFAULT_TASK_SCHEDULER_START_CONFIG = {
+        .worker_configs = {
+            lib_utils::ThreadConfig{
+                .name = BROOKESIA_SERVICE_MANAGER_WORKER_NAME "0",
+                .core_id = BROOKESIA_SERVICE_MANAGER_WORKER_0_CORE_ID,
+                .priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY,
+                .stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE,
+                .stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT,
+            },
+            lib_utils::ThreadConfig{
+                .name = BROOKESIA_SERVICE_MANAGER_WORKER_NAME "1",
+                .core_id = BROOKESIA_SERVICE_MANAGER_WORKER_1_CORE_ID,
+                .priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY,
+                .stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE,
+                .stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT,
+            },
+        },
+        .worker_poll_interval_ms = BROOKESIA_SERVICE_MANAGER_WORKER_POLL_INTERVAL_MS,
     };
 
     struct RPC_ClientConfig {
@@ -165,10 +170,10 @@ public:
     /**
      * @brief Start the service manager
      *
-     * @param[in] config Start configuration
+     * @param[in] config Task scheduler start configuration
      * @return true if started successfully, false otherwise
      */
-    bool start(const StartConfig &config = StartConfig());
+    bool start(const lib_utils::TaskScheduler::StartConfig &config = DEFAULT_TASK_SCHEDULER_START_CONFIG);
 
     /**
      * @brief Stop the service manager
@@ -295,7 +300,7 @@ public:
     {
         boost::lock_guard lock(service_mutex_);
         auto it = services_.find(name);
-        return (it != services_.end()) ? std::get<1>(it->second) : nullptr;
+        return (it != services_.end()) ? it->second.service : nullptr;
     }
 
     /**
@@ -310,8 +315,17 @@ public:
     }
 
 private:
-    using ServiceInfo = std::tuple <int /*ref_count*/, std::shared_ptr<ServiceBase> /*service*/>;
-    using IoWorkGuard = boost::asio::executor_work_guard<boost::asio::io_context::executor_type>;
+    enum class ServiceState {
+        Idle,       // Service not started (ref_count == 0)
+        Starting,   // Service is being started by another thread
+        Running,    // Service is running (ref_count > 0)
+    };
+    struct ServiceInfo {
+        size_t ref_count;
+        std::shared_ptr<ServiceBase> service;
+        ServiceState state;
+        boost::condition_variable_any start_cv;  // Condition variable for waiting start completion
+    };
 
     ServiceManager() = default;
     ~ServiceManager();
@@ -330,11 +344,10 @@ private:
     std::atomic<bool> is_initialized_{false};
     std::atomic<bool> is_running_{false};
 
-    boost::asio::io_context io_context_;
-    std::optional<IoWorkGuard> io_work_guard_;
-    boost::thread io_thread_;
+    std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
 
-    boost::recursive_mutex service_mutex_;  // Use recursive mutex to support recursive bind calls
+    // Service management
+    boost::shared_mutex service_mutex_;  // Use recursive mutex to support recursive bind calls
     std::map<std::string, ServiceInfo> services_;
     std::list<std::string> service_init_order_;
 

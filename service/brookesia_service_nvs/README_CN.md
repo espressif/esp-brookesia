@@ -1,5 +1,7 @@
 # ESP-Brookesia NVS Service
 
+* [English Version](./README.md)
+
 ## 概述
 
 `brookesia_service_nvs` 是为 ESP-Brookesia 生态系统提供的 NVS（Non-Volatile Storage，非易失性存储）服务，提供：
@@ -9,6 +11,18 @@
 - **持久化存储**：数据存储在 NVS 分区中，断电后数据不丢失
 - **线程安全**：可选基于 `TaskScheduler` 实现异步任务调度，保证线程安全
 - **灵活查询**：支持列出命名空间中的所有键值对，或按需获取指定键的值
+
+## 目录
+
+- [ESP-Brookesia NVS Service](#esp-brookesia-nvs-service)
+  - [概述](#概述)
+  - [目录](#目录)
+  - [功能特性](#功能特性)
+    - [命名空间管理](#命名空间管理)
+    - [支持的数据类型](#支持的数据类型)
+    - [核心功能](#核心功能)
+  - [开发环境要求](#开发环境要求)
+  - [添加到工程](#添加到工程)
 
 ## 功能特性
 
@@ -28,9 +42,17 @@ NVS 服务支持以下三种数据类型：
 - **整数（Int）**：32 位有符号整数
 - **字符串（String）**：UTF-8 编码的字符串
 
+> [!NOTE]
+> 除了上述三种基本数据类型外，[brookesia_service_helper](https://components.espressif.com/components/espressif/brookesia_service_helper) 提供的 `save_key_value()` 和 `get_key_value()` 模板助手函数还支持存储和获取任意类型的数据：
+> - **基本类型**：`bool`、`int32_t` 以及所有 ≤32 位的整数类型（`int8_t`、`uint8_t`、`int16_t`、`uint16_t`、`char`、`short` 等）直接存储，性能最优
+> - **扩展整数类型**：>32 位的整数类型（`int64_t`、`uint64_t`、`long long` 等）通过 JSON 序列化存储
+> - **浮点数类型**：`float`、`double` 等浮点数类型通过 JSON 序列化存储
+> - **字符串类型**：`std::string`、`const char*` 等字符串类型通过 JSON 序列化存储
+> - **复杂类型**：`std::vector`、`std::map`、自定义结构体等复杂类型通过 JSON 序列化存储
+
 ### 核心功能
 
-- **列出键值对**：列出命名空间中所有键值对的信息（包括键名、类型等）
+- **列出键信息**：列出命名空间中所有键的信息（包括键名、类型等）
 - **设置键值对**：支持批量设置多个键值对
 - **获取键值对**：支持获取指定键的值，或获取命名空间中的所有键值对
 - **删除键值对**：支持删除指定键，或清空整个命名空间
@@ -43,14 +65,6 @@ NVS 服务支持以下三种数据类型：
 
 > [!NOTE]
 > SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_service_nvs` 具有以下依赖组件：
-
-| **依赖组件** | **版本要求** |
-| ------------ | ------------ |
-| [cmake_utilities](https://components.espressif.com/components/espressif/cmake_utilities) | 0.* |
-| [brookesia_service_manager](https://components.espressif.com/components/espressif/brookesia_service_manager) | 0.7.* |
-| [brookesia_service_helper](https://components.espressif.com/components/espressif/brookesia_service_helper) | 0.7.* |
 
 ## 添加到工程
 

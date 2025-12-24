@@ -29,6 +29,15 @@ public:
 
     FunctionResult call(const std::string &func_name, FunctionParameterMap &&parameters);
 
+    const FunctionSchema *get_schema(const std::string &func_name)
+    {
+        boost::lock_guard lock(functions_mutex_);
+        auto it = functions_.find(func_name);
+        if (it == functions_.end()) {
+            return nullptr;
+        }
+        return &it->second.first;
+    }
     std::vector<FunctionSchema> get_schemas();
     boost::json::array get_schemas_json();
     bool has(const std::string &func_name)

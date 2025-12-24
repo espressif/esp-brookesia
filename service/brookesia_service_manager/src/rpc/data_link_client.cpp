@@ -47,11 +47,11 @@ bool DataLinkClient::connect(const std::string &host, uint16_t port, size_t time
     // Allocate socket
     std::shared_ptr<boost::asio::ip::tcp::socket> socket;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        socket = std::make_shared<boost::asio::ip::tcp::socket>(io_context_), false, "Failed to allocate socket"
+        socket = std::make_shared<boost::asio::ip::tcp::socket>(executor_), false, "Failed to allocate socket"
     );
 
     // Resolve server address
-    boost::asio::ip::tcp::resolver resolver(io_context_);
+    boost::asio::ip::tcp::resolver resolver(executor_);
     auto endpoints = resolver.resolve(host, std::to_string(port));
     BROOKESIA_CHECK_FALSE_RETURN(
         endpoints.size() > 0, false, "Failed to resolve server address"

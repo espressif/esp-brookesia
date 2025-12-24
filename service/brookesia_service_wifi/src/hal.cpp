@@ -108,10 +108,10 @@ bool Hal::start()
 
     // Keep the execution order of WiFi events and general event callback
     BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(WIFI_EVENT_PROCESS_GROUP, {
-        .enable_post_execute_in_order = true
+        .enable_serial_execution = true
     }), false, "Failed to configure wifi event group");
     BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(GENERAL_CALLBACK_GROUP, {
-        .enable_post_execute_in_order = true
+        .enable_serial_execution = true
     }), false, "Failed to configure general callback group");
 
     /* Initialize NVS flash */
@@ -217,28 +217,40 @@ void Hal::reset_internal()
         },
     };
 #pragma GCC diagnostic pop
+    scan_ap_periodic_task = 0;
+    scan_ap_timeout_task = 0;
+
+    reset_data_internal();
+}
+
+void Hal::reset_data()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    boost::lock_guard lock(operation_mutex_);
+    reset_data_internal();
+}
+
+void Hal::reset_data_internal()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
     target_connect_ap_info_ = ConnectApInfo();
-    connecting_ap_info_ = ConnectApInfo();
     last_connected_ap_info_ = ConnectApInfo();
     connected_ap_info_list_.clear();
 
-    is_scanning_.store(false);
-    scan_params_ = ScanParams{
-        .ap_count = static_cast<size_t>(
-            std::get<double>(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexSetScanParams].parameters[0].default_value.value()
-            )),
-        .interval_ms = static_cast<uint32_t>(
-            std::get<double>(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexSetScanParams].parameters[1].default_value.value()
-            )),
-        .timeout_ms = static_cast<uint32_t>(
-            std::get<double>(
-                FUNCTION_DEFINITIONS[Helper::FunctionIndexSetScanParams].parameters[2].default_value.value()
-            ))
-    };
-    scan_ap_periodic_task = 0;
-    scan_ap_timeout_task = 0;
+    /* Load scan params from function schema */
+    auto scan_params_schema = Helper::get_function_schema(Helper::FunctionId::SetScanParams);
+    if (scan_params_schema) {
+        scan_params_ = ScanParams{
+            .ap_count = static_cast<size_t>(
+                std::get<double>(scan_params_schema->parameters[0].default_value.value())),
+            .interval_ms = static_cast<uint32_t>(
+                std::get<double>(scan_params_schema->parameters[1].default_value.value())),
+            .timeout_ms = static_cast<uint32_t>(
+                std::get<double>(scan_params_schema->parameters[2].default_value.value()))
+        };
+    }
 }
 
 bool Hal::do_init()
@@ -418,7 +430,18 @@ bool Hal::do_general_action(GeneralAction action)
         break;
     }
 
-    BROOKESIA_LOGI("WiFi %1%ing...", BROOKESIA_DESCRIBE_TO_STR(action));
+    BROOKESIA_LOGI("WiFi %1% running...", BROOKESIA_DESCRIBE_TO_STR(action));
+
+    if (general_action_callback_ != nullptr) {
+        auto task = [this, action]() {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            general_action_callback_(action);
+        };
+        BROOKESIA_CHECK_FALSE_EXECUTE(
+        task_scheduler_->post(std::move(task), nullptr, GENERAL_CALLBACK_GROUP), {}, {
+            BROOKESIA_LOGE("Post general callback task failed");
+        });
+    }
 
     GeneralStateFlagBit state_flag_bit = get_general_action_state_flag_bit(action);
     if (state_flag_bit != GeneralStateFlagBit::Max) {
@@ -470,17 +493,6 @@ bool Hal::do_general_action(GeneralAction action)
         result, false, "WiFi %1% failed", BROOKESIA_DESCRIBE_TO_STR(action)
     );
 
-    if (general_action_callback_ != nullptr) {
-        auto task = [this, action]() {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            general_action_callback_(action);
-        };
-        BROOKESIA_CHECK_FALSE_EXECUTE(
-        task_scheduler_->post(std::move(task), nullptr, GENERAL_CALLBACK_GROUP), {}, {
-            BROOKESIA_LOGE("Post general callback task failed");
-        });
-    }
-
     uint32_t timeout_ms = get_general_event_wait_timeout_ms(target_event);
     if ((target_event != GeneralEvent::Max) && (timeout_ms > 0)) {
         BROOKESIA_LOGI("WiFi waiting for event: %1%...", BROOKESIA_DESCRIBE_TO_STR(target_event));
@@ -494,7 +506,7 @@ bool Hal::do_general_action(GeneralAction action)
         trigger_general_event(target_event);
     }
 
-    BROOKESIA_LOGI("WiFi %1%ed", BROOKESIA_DESCRIBE_TO_STR(action));
+    BROOKESIA_LOGI("WiFi %1% finished", BROOKESIA_DESCRIBE_TO_STR(action));
 
     return true;
 }
@@ -795,97 +807,6 @@ void Hal::clear_connected_ap_infos()
 
     boost::lock_guard lock(operation_mutex_);
     connected_ap_info_list_.clear();
-}
-
-GeneralEvent Hal::get_general_action_target_event(GeneralAction action)
-{
-    switch (action) {
-    case GeneralAction::Init:
-        return GeneralEvent::Inited;
-    case GeneralAction::Deinit:
-        return GeneralEvent::Deinited;
-    case GeneralAction::Start:
-        return GeneralEvent::Started;
-    case GeneralAction::Stop:
-        return GeneralEvent::Stopped;
-    case GeneralAction::Connect:
-        return GeneralEvent::Connected;
-    case GeneralAction::Disconnect:
-        return GeneralEvent::Disconnected;
-    default:
-        return GeneralEvent::Max;
-    }
-}
-
-GeneralStateFlagBit Hal::get_general_action_state_flag_bit(GeneralAction action)
-{
-    switch (action) {
-    case GeneralAction::Init:
-        return GeneralStateFlagBit::Initing;
-    case GeneralAction::Deinit:
-        return GeneralStateFlagBit::Deiniting;
-    case GeneralAction::Start:
-        return GeneralStateFlagBit::Starting;
-    case GeneralAction::Stop:
-        return GeneralStateFlagBit::Stopping;
-    case GeneralAction::Connect:
-        return GeneralStateFlagBit::Connecting;
-    case GeneralAction::Disconnect:
-        return GeneralStateFlagBit::Disconnecting;
-    default:
-        return GeneralStateFlagBit::Max;
-    }
-}
-
-GeneralStateFlagBit Hal::get_general_event_state_flag_bit(GeneralEvent event)
-{
-    switch (event) {
-    case GeneralEvent::Inited:
-        return GeneralStateFlagBit::Inited;
-    case GeneralEvent::Deinited:
-        return GeneralStateFlagBit::Inited;
-    case GeneralEvent::Started:
-        return GeneralStateFlagBit::Started;
-    case GeneralEvent::Stopped:
-        return GeneralStateFlagBit::Started;
-    case GeneralEvent::Connected:
-        return GeneralStateFlagBit::Connected;
-    case GeneralEvent::Disconnected:
-        return GeneralStateFlagBit::Connected;
-    default:
-        return GeneralStateFlagBit::Max;
-    }
-}
-
-bool Hal::is_general_action_running(GeneralAction action)
-{
-    boost::lock_guard lock(state_mutex_);
-
-    GeneralStateFlagBit flag_bit = GeneralStateFlagBit::Max;
-    switch (action) {
-    case GeneralAction::Init:
-        flag_bit = GeneralStateFlagBit::Initing;
-        break;
-    case GeneralAction::Deinit:
-        flag_bit = GeneralStateFlagBit::Deiniting;
-        break;
-    case GeneralAction::Start:
-        flag_bit = GeneralStateFlagBit::Starting;
-        break;
-    case GeneralAction::Stop:
-        flag_bit = GeneralStateFlagBit::Stopping;
-        break;
-    case GeneralAction::Connect:
-        flag_bit = GeneralStateFlagBit::Connecting;
-        break;
-    case GeneralAction::Disconnect:
-        flag_bit = GeneralStateFlagBit::Disconnecting;
-        break;
-    default:
-        return false;
-    }
-
-    return state_flags_.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(flag_bit));
 }
 
 bool Hal::process_wifi_event(wifi_event_t event, void *data)

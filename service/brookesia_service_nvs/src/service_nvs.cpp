@@ -10,6 +10,7 @@
 #include "nvs.h"
 #include "nvs_handle.hpp"
 #include "boost/format.hpp"
+#include "brookesia/service_nvs/macro_configs.h"
 #if !BROOKESIA_SERVICE_NVS_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
@@ -23,6 +24,11 @@ namespace esp_brookesia::service {
 bool NVS::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_SERVICE_NVS_VER_MAJOR, BROOKESIA_SERVICE_NVS_VER_MINOR,
+        BROOKESIA_SERVICE_NVS_VER_PATCH
+    );
 
     /* Initialize NVS flash */
     esp_err_t ret = nvs_flash_init();
@@ -108,11 +114,19 @@ std::expected<boost::json::array, std::string> NVS::function_list(const std::str
     return BROOKESIA_DESCRIBE_TO_JSON(entries).as_array();
 }
 
-std::expected<void, std::string> NVS::function_set(const std::string &nspace, boost::json::array &&key_value_pairs)
+std::expected<void, std::string> NVS::function_set(const std::string &nspace, boost::json::object &&key_value_map)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: nspace(%1%), key_value_pairs(%2%)", nspace, BROOKESIA_DESCRIBE_TO_STR(key_value_pairs));
+    BROOKESIA_LOGD("Params: nspace(%1%), key_value_map(%2%)", nspace, BROOKESIA_DESCRIBE_TO_STR(key_value_map));
+
+    KeyValueMap parsed_key_value_map;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(key_value_map, parsed_key_value_map)) {
+        return std::unexpected((
+                                   boost::format("Failed to parse key-value map in namespace '%1%': %2%") %
+                                   nspace % BROOKESIA_DESCRIBE_TO_STR(key_value_map)
+                               ).str());
+    }
 
     // Open NVS namespace using C++ interface
     esp_err_t ret = ESP_OK;
@@ -124,10 +138,10 @@ std::expected<void, std::string> NVS::function_set(const std::string &nspace, bo
                                ).str());
     }
 
-    auto store_key_value_pair = [&handle, &nspace](const Helper::KeyValuePair & key_value_pair) ->
+    auto store_key_value_pair = [&handle, &nspace](const std::string & key, const Helper::Value & value) ->
     std::expected<void, std::string> {
-        const char *key_str = key_value_pair.key.c_str();
-        esp_err_t ret = ESP_OK;
+        const char *key_str = key.c_str();
+        esp_err_t ret = ESP_FAIL;
 
         std::visit([&](auto &&value)
         {
@@ -136,35 +150,28 @@ std::expected<void, std::string> NVS::function_set(const std::string &nspace, bo
                 // Store boolean as uint8_t (0 or 1)
                 uint8_t bool_value = value ? 1 : 0;
                 ret = handle->set_item(key_str, bool_value);
-            } else if constexpr (std::is_same_v<T, int>) {
+            } else if constexpr (std::is_same_v<T, int32_t>) {
                 // Store int as int32_t
-                ret = handle->set_item(key_str, static_cast<int32_t>(value));
+                ret = handle->set_item(key_str, value);
             } else if constexpr (std::is_same_v<T, std::string>) {
                 // Store string
                 ret = handle->set_string(key_str, value.c_str());
             }
-        }, key_value_pair.value);
+        }, value);
 
         if (ret != ESP_OK)
         {
             return std::unexpected((
                                        boost::format("Failed to set key '%1%' in namespace '%2%': %3%") %
-                                       key_value_pair.key % nspace % esp_err_to_name(ret)
+                                       key % nspace % esp_err_to_name(ret)
                                    ).str());
         }
         return {};
     };
 
-    // Parse JSON array to KeyValuePair vector
-    for (const auto &pair_json : key_value_pairs) {
-        Helper::KeyValuePair pair_struct;
-        if (!BROOKESIA_DESCRIBE_FROM_JSON(pair_json, pair_struct)) {
-            return std::unexpected((
-                                       boost::format("Failed to parse key-value pair in namespace '%1%': %2%") %
-                                       nspace % BROOKESIA_DESCRIBE_TO_STR(pair_json)
-                                   ).str());
-        }
-        auto result = store_key_value_pair(pair_struct);
+    // Store key-value pairs
+    for (const auto &[key, value] : parsed_key_value_map) {
+        auto result = store_key_value_pair(key, value);
         if (!result) {
             return std::unexpected(result.error());
         }
@@ -252,7 +259,7 @@ std::expected<boost::json::object, std::string> NVS::function_get(const std::str
                                ).str());
     };
 
-    boost::json::object key_value_pairs;
+    KeyValueMap key_value_map;
 
     if (keys.empty()) {
         BROOKESIA_LOGD("No keys provided, get all keys in namespace '%1%'", nspace);
@@ -274,13 +281,13 @@ std::expected<boost::json::object, std::string> NVS::function_get(const std::str
         for (const auto &entry : entries) {
             auto kv_result = get_key_value(entry.key);
             if (kv_result) {
-                key_value_pairs[entry.key] = BROOKESIA_DESCRIBE_TO_JSON(kv_result.value());
+                key_value_map[entry.key] = kv_result.value();
             } else {
                 BROOKESIA_LOGW("Failed to get key '%1%': %2%", entry.key, kv_result.error());
             }
         }
 
-        BROOKESIA_LOGD("Got %1% keys in namespace '%2%'", key_value_pairs.size(), nspace);
+        BROOKESIA_LOGD("Got %1% keys in namespace '%2%'", key_value_map.size(), nspace);
     } else {
         // Get each key
         for (const auto &key_json : keys) {
@@ -292,16 +299,16 @@ std::expected<boost::json::object, std::string> NVS::function_get(const std::str
             std::string key = std::string(key_json.as_string());
             auto kv_result = get_key_value(key);
             if (kv_result) {
-                key_value_pairs[key] = BROOKESIA_DESCRIBE_TO_JSON(kv_result.value());
+                key_value_map[key] = kv_result.value();
             } else {
                 BROOKESIA_LOGW("Skipping key '%1%': %2%", key, kv_result.error());
             }
         }
 
-        BROOKESIA_LOGD("Retrieved %1% key-value pairs from namespace '%2%'", key_value_pairs.size(), nspace);
+        BROOKESIA_LOGD("Retrieved %1% key-value pairs from namespace '%2%'", key_value_map.size(), nspace);
     }
 
-    return key_value_pairs;
+    return BROOKESIA_DESCRIBE_TO_JSON(key_value_map).as_object();
 }
 
 std::expected<void, std::string> NVS::function_erase(const std::string &nspace, boost::json::array &&keys)

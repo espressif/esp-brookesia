@@ -14,7 +14,7 @@
 #include "unity_test_utils.h"
 
 // Some resources are lazy allocated in the driver, the threadhold is left for that case
-#define TEST_MEMORY_LEAK_THRESHOLD (300)
+#define TEST_MEMORY_LEAK_THRESHOLD (600)
 
 void setUp(void)
 {

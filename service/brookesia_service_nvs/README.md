@@ -1,5 +1,7 @@
 # ESP-Brookesia NVS Service
 
+* [中文版本](./README_CN.md)
+
 ## Overview
 
 `brookesia_service_nvs` is an NVS (Non-Volatile Storage) service for the ESP-Brookesia ecosystem, providing:
@@ -9,6 +11,18 @@
 - **Persistent Storage**: Data is stored in NVS partition and persists after power loss
 - **Thread Safety**: Optionally implements asynchronous task scheduling based on `TaskScheduler` to ensure thread safety
 - **Flexible Querying**: Supports listing all key-value pairs in a namespace or fetching values of specified keys on demand
+
+## Table of Contents
+
+- [ESP-Brookesia NVS Service](#esp-brookesia-nvs-service)
+  - [Overview](#overview)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [Namespace Management](#namespace-management)
+    - [Supported Data Types](#supported-data-types)
+    - [Core Functions](#core-functions)
+  - [Development Environment Requirements](#development-environment-requirements)
+  - [Adding to Project](#adding-to-project)
 
 ## Features
 
@@ -28,9 +42,17 @@ The NVS service supports the following three data types:
 - **Integer (Int)**: 32-bit signed integer
 - **String**: UTF-8 encoded string
 
+> [!NOTE]
+> In addition to the three basic data types mentioned above, the template helper functions `save_key_value()` and `get_key_value()` provided by [brookesia_service_helper](https://components.espressif.com/components/espressif/brookesia_service_helper) also support storing and retrieving data of any type:
+> - **Basic Types**: `bool`, `int32_t`, and all integer types with ≤32 bits (`int8_t`, `uint8_t`, `int16_t`, `uint16_t`, `char`, `short`, etc.) are stored directly for optimal performance
+> - **Extended Integer Types**: Integer types with >32 bits (`int64_t`, `uint64_t`, `long long`, etc.) are stored via JSON serialization
+> - **Floating Point Types**: Floating point types such as `float`, `double` are stored via JSON serialization
+> - **String Types**: String types such as `std::string`, `const char*` are stored via JSON serialization
+> - **Complex Types**: Complex types such as `std::vector`, `std::map`, custom structs, etc. are stored via JSON serialization
+
 ### Core Functions
 
-- **List Key-Value Pairs**: List information of all key-value pairs in a namespace (including key names, types, etc.)
+- **List Key Information**: List information of all keys in a namespace (including key names, types, etc.)
 - **Set Key-Value Pairs**: Supports batch setting of multiple key-value pairs
 - **Get Key-Value Pairs**: Supports getting values of specified keys or getting all key-value pairs in a namespace
 - **Erase Key-Value Pairs**: Supports erasing specified keys or clearing an entire namespace
@@ -43,14 +65,6 @@ Before using this library, please ensure the following SDK development environme
 
 > [!NOTE]
 > For SDK installation instructions, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_service_nvs` has the following dependencies:
-
-| **Dependency** | **Version Requirement** |
-|---------------|-------------------------|
-| [cmake_utilities](https://components.espressif.com/components/espressif/cmake_utilities) | 0.* |
-| [brookesia_service_manager](https://components.espressif.com/components/espressif/brookesia_service_manager) | 0.7.* |
-| [brookesia_service_helper](https://components.espressif.com/components/espressif/brookesia_service_helper) | 0.7.* |
 
 ## Adding to Project
 

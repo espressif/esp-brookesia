@@ -76,7 +76,7 @@ FunctionResult FunctionRegistry::call(const std::string &func_name, FunctionPara
 
     BROOKESIA_LOGD("Params: func_name(%1%), parameters(%2%)", func_name, BROOKESIA_DESCRIBE_TO_STR(parameters));
 
-    boost::lock_guard lock(functions_mutex_);
+    boost::unique_lock lock(functions_mutex_);
 
     FunctionResult error_result{
         .success = false,
@@ -90,13 +90,16 @@ FunctionResult FunctionRegistry::call(const std::string &func_name, FunctionPara
     }
 
     auto &func_schema = func_it->second.first;
-    auto &func_handler = func_it->second.second;
+    auto func_handler = func_it->second.second;
 
     // Validate parameters and fill default values
     FunctionParameterMap validated_parameters = std::move(parameters);
     BROOKESIA_CHECK_FALSE_RETURN(
         validate_parameters(func_schema, validated_parameters, error_message), error_result, "%1%", error_message
     );
+
+    // Unlock the mutex to avoid deadlock
+    lock.unlock();
 
     // Call the function
     return func_handler(std::move(validated_parameters));

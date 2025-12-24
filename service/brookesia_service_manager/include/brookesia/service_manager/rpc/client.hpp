@@ -34,7 +34,7 @@ public:
     Client &operator=(const Client &) = delete;
     Client &operator=(Client &&) = delete;
 
-    bool init(boost::asio::io_context &io_context, DisconnectCallback on_disconnect_callback);
+    bool init(boost::asio::io_context::executor_type executor, DisconnectCallback on_disconnect_callback);
     void deinit();
 
     bool connect(const std::string &host, uint16_t port, uint32_t timeout_ms);

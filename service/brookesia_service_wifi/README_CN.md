@@ -1,5 +1,7 @@
 # ESP-Brookesia WiFi Service
 
+* [English Version](./README.md)
+
 ## 概述
 
 `brookesia_service_wifi` 是为 ESP-Brookesia 生态系统提供的 WiFi 连接管理服务，提供：
@@ -8,9 +10,21 @@
 - **自动重连**：支持自动连接历史 AP，并在断开后自动尝试重连
 - **WiFi 扫描**：支持周期性扫描周围 AP，并自动发现可连接的 AP
 - **连接管理**：管理目标 AP 和已连接 AP 列表，支持多 AP 历史记录
-- **持久化存储**：可选搭配 `brookesia_service_nvs` 服务持久化保存连接配置和其他参数
 - **事件通知**：提供丰富的事件通知机制，实时反馈 WiFi 状态变化
-- **线程安全**：基于 `TaskScheduler` 实现异步任务调度，保证线程安全
+- **持久化存储**：可选搭配 `brookesia_service_nvs` 服务持久化保存连接配置和其他参数
+
+## 目录
+
+- [ESP-Brookesia WiFi Service](#esp-brookesia-wifi-service)
+  - [概述](#概述)
+  - [目录](#目录)
+  - [功能特性](#功能特性)
+    - [状态机管理](#状态机管理)
+      - [状态转换](#状态转换)
+    - [自动重连机制](#自动重连机制)
+    - [WiFi 扫描](#wifi-扫描)
+  - [开发环境要求](#开发环境要求)
+  - [添加到工程](#添加到工程)
 
 ## 功能特性
 
@@ -98,20 +112,6 @@ stateDiagram-v2
 
 > [!NOTE]
 > SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
-
-`brookesia_service_wifi` 具有以下依赖组件：
-
-| **依赖组件** | **版本要求** |
-| ------------ | ------------ |
-| [cmake_utilities](https://components.espressif.com/components/espressif/cmake_utilities) | 0.* |
-| [brookesia_lib_utils](https://components.espressif.com/components/espressif/brookesia_lib_utils) | 0.7.* |
-| [brookesia_service_manager](https://components.espressif.com/components/espressif/brookesia_service_manager) | 0.7.* |
-| [brookesia_service_helper](https://components.espressif.com/components/espressif/brookesia_service_helper) | 0.7.* |
-
-> [!NOTE]
-> * 如果您的目标设备是 ESP32-P4，则还需要依赖以下组件：
->   * [esp_wifi_remote](https://components.espressif.com/components/espressif/esp_wifi_remote): `1.2.*`
->   * [esp_hosted](https://components.espressif.com/components/espressif/esp_hosted): `2.0.*`
 
 ## 添加到工程
 

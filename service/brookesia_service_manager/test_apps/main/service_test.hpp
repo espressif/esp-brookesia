@@ -25,7 +25,7 @@ public:
     };
 
     static constexpr const char *SERVICE_NAME = "service_test";
-    inline static const FunctionSchema FUNCTION_DEFINITIONS[FunctionIndexMax] = {
+    inline static const FunctionSchema FUNCTION_SCHEMAS[FunctionIndexMax] = {
         [FunctionIndexAdd] = {
             "add",
             "Add two numbers together",
@@ -59,7 +59,7 @@ public:
             {}
         },
     };
-    inline static const EventSchema EVENT_DEFINITIONS[EventIndexMax] = {
+    inline static const EventSchema EVENT_SCHEMAS[EventIndexMax] = {
         [EventIndexValueChange] = {
             "value_change",
             "Value change event",
@@ -77,14 +77,14 @@ public:
     {}
     ~ServiceTest() = default;
 
-    std::vector<FunctionSchema> get_function_definitions() override
+    std::vector<FunctionSchema> get_function_schemas() override
     {
-        return std::vector<FunctionSchema>(FUNCTION_DEFINITIONS, FUNCTION_DEFINITIONS + FunctionIndexMax);
+        return std::vector<FunctionSchema>(FUNCTION_SCHEMAS, FUNCTION_SCHEMAS + FunctionIndexMax);
     }
 
-    std::vector<EventSchema> get_event_definitions() override
+    std::vector<EventSchema> get_event_schemas() override
     {
-        return std::vector<EventSchema>(EVENT_DEFINITIONS, EVENT_DEFINITIONS + EventIndexMax);
+        return std::vector<EventSchema>(EVENT_SCHEMAS, EVENT_SCHEMAS + EventIndexMax);
     }
 
     bool trigger_event();
@@ -103,29 +103,29 @@ protected:
     {
         return {
             BROOKESIA_SERVICE_FUNC_HANDLER_2(
-                FUNCTION_DEFINITIONS[FunctionIndexAdd].name,
-                FUNCTION_DEFINITIONS[FunctionIndexAdd].parameters[0].name,
+                FUNCTION_SCHEMAS[FunctionIndexAdd].name,
+                FUNCTION_SCHEMAS[FunctionIndexAdd].parameters[0].name,
                 double,
-                FUNCTION_DEFINITIONS[FunctionIndexAdd].parameters[1].name,
+                FUNCTION_SCHEMAS[FunctionIndexAdd].parameters[1].name,
                 double,
                 function_add(PARAM1, PARAM2)
             ),
             BROOKESIA_SERVICE_FUNC_HANDLER_2(
-                FUNCTION_DEFINITIONS[FunctionIndexDivide].name,
-                FUNCTION_DEFINITIONS[FunctionIndexDivide].parameters[0].name,
+                FUNCTION_SCHEMAS[FunctionIndexDivide].name,
+                FUNCTION_SCHEMAS[FunctionIndexDivide].parameters[0].name,
                 double,
-                FUNCTION_DEFINITIONS[FunctionIndexDivide].parameters[1].name,
+                FUNCTION_SCHEMAS[FunctionIndexDivide].parameters[1].name,
                 double,
                 function_divide(PARAM1, PARAM2)
             ),
             {
-                FUNCTION_DEFINITIONS[FunctionIndexTestAllTypes].name,
+                FUNCTION_SCHEMAS[FunctionIndexTestAllTypes].name,
                 [this](const FunctionParameterMap & args) -> FunctionResult {
                     return to_function_result(function_test_all_types(args));
                 }
             },
             BROOKESIA_SERVICE_FUNC_HANDLER_0(
-                FUNCTION_DEFINITIONS[FunctionIndexSuspend].name,
+                FUNCTION_SCHEMAS[FunctionIndexSuspend].name,
                 function_suspend()
             )
         };

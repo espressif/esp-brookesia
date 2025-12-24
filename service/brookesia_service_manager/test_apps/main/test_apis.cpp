@@ -64,8 +64,8 @@ public:
         BROOKESIA_LOGI("TestService %1% on_stop called (count: %2%)", get_attributes().name, stop_count_.load());
     }
 
-    // Provide function definitions
-    std::vector<FunctionSchema> get_function_definitions() override
+    // Provide function schemas
+    std::vector<FunctionSchema> get_function_schemas() override
     {
         return {
             FunctionSchema{
@@ -86,8 +86,8 @@ public:
         };
     }
 
-    // Provide event definitions
-    std::vector<EventSchema> get_event_definitions() override
+    // Provide event schemas
+    std::vector<EventSchema> get_event_schemas() override
     {
         return {
             EventSchema{
@@ -905,7 +905,7 @@ TEST_CASE("Test APIs: publish event with json object - multiple fields", "[brook
     });
     TEST_ASSERT_TRUE(connection.connected());
 
-    // Publish event using boost::json::object (contains multiple fields, but event definition only needs value)
+    // Publish event using boost::json::object (contains multiple fields, but event schema only needs value)
     boost::json::object data_json;
     data_json["value"] = 123.45;
     data_json["extra_field"] = "should be ignored by validation";  // Extra field

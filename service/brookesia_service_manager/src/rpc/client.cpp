@@ -215,7 +215,7 @@ bool Client::unsubscribe_events(
     return true;
 }
 
-bool Client::init(boost::asio::io_context &io_context, DisconnectCallback on_disconnect_callback)
+bool Client::init(boost::asio::io_context::executor_type executor, DisconnectCallback on_disconnect_callback)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -232,7 +232,7 @@ bool Client::init(boost::asio::io_context &io_context, DisconnectCallback on_dis
     });
 
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        data_link_ = std::make_unique<DataLinkClient>(io_context), false, "Failed to create DataLinkClient"
+        data_link_ = std::make_unique<DataLinkClient>(executor), false, "Failed to create DataLinkClient"
     );
     data_link_->set_on_data_received([this](const std::string & data, size_t /* connection_id */) {
         on_data_received(data);

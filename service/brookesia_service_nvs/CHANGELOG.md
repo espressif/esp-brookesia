@@ -1,5 +1,18 @@
 # ChangeLog
 
+## v0.7.1 - 2025-12-10
+
+## Enhancements
+
+- feat(test_apps): add test cases for service helper NVS functions
+- feat(nvs): auto use custom task scheduler if Service Manager uses external stack
+- feat(docs): update README
+
+### Bug Fixes
+
+- fix(nvs): use `KeyValueMap` instead of `KeyValuePair`
+- fix(nvs): use object instead of array for `set` function parameter
+
 ## v0.7.0 - 2025-12-07
 
 ### Initial Release

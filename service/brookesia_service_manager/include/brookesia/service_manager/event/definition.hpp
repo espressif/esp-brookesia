@@ -10,20 +10,22 @@
 #include <variant>
 #include "boost/json.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
+#include "brookesia/service_manager/common.hpp"
 
 namespace esp_brookesia::service {
 
 enum class EventItemType {
-    Boolean,
-    Number,
-    String,
-    Object,
-    Array,
+    Boolean,        // bool
+    Number,         // double
+    String,         // std::string
+    Object,         // boost::json::object
+    Array,          // boost::json::array
+    RawBuffer,      // RawBuffer
 };
-BROOKESIA_DESCRIBE_ENUM(EventItemType, Boolean, Number, String, Object, Array)
+BROOKESIA_DESCRIBE_ENUM(EventItemType, Boolean, Number, String, Object, Array, RawBuffer);
 
-using EventItem = std::variant <bool, double, std::string, boost::json::object, boost::json::array>;
-using EventItemMap = std::map<std::string /* name */, EventItem /* value */>;
+using EventItem = std::variant <bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
+using EventItemMap = std::map<std::string /* name */, EventItem /* item */>;
 
 struct EventItemSchema {
     std::string name;
@@ -43,6 +45,8 @@ struct EventItemSchema {
             return std::holds_alternative<boost::json::object>(item);
         case EventItemType::Array:
             return std::holds_alternative<boost::json::array>(item);
+        case EventItemType::RawBuffer:
+            return std::holds_alternative<RawBuffer>(item);
         default:
             return false;
         }

@@ -23,7 +23,9 @@ class ServiceBase {
 public:
     friend class ServiceManager;
 
-    static constexpr const char *SERVICE_REQUEST_TASK_GROUP = "service_request";
+    using FunctionHandlerMap = std::map<std::string, FunctionHandler>;
+
+    static constexpr uint32_t DEFAULT_CALL_TIMEOUT_MS = 100;
 
     /**
      * @brief Service attributes configuration
@@ -31,7 +33,9 @@ public:
     struct Attributes {
         std::string name;  ///< Service name
         std::vector<std::string> dependencies = {};  ///< Optional: List of dependent service names, will be started in order
-        std::optional<lib_utils::TaskScheduler::StartConfig> task_scheduler_config = std::nullopt;  ///< Optional: Task scheduler configuration. If configured, service request tasks will be scheduled to this scheduler; otherwise, ServiceManager's scheduler will be used
+        std::optional<lib_utils::TaskScheduler::StartConfig> task_scheduler_config = std::nullopt;
+        ///< Optional: Task scheduler configuration. If configured, service request tasks will be scheduled to this scheduler;
+        ///< otherwise, ServiceManager's scheduler will be used
     };
 
     ServiceBase(const Attributes &attributes)
@@ -41,14 +45,14 @@ public:
     virtual ~ServiceBase();
 
     /**
-     * @brief Get the function definitions list
+     * @brief Get the function schemas list
      *
-     * Subclasses should override this method to return an array of function definitions
+     * Subclasses should override this method to return an array of function schemas
      *
-     * @return std::vector<FunctionSchema> List of function definitions
+     * @return std::vector<FunctionSchema> List of function schemas
      *
      * @example
-     * std::vector<FunctionSchema> get_function_definitions() override {
+     * std::vector<FunctionSchema> get_function_schemas() override {
      *     return {
      *         {
      *             "add", "Add numbers", {
@@ -65,20 +69,20 @@ public:
      *     };
      * }
      */
-    virtual std::vector<FunctionSchema> get_function_definitions()
+    virtual std::vector<FunctionSchema> get_function_schemas()
     {
         return {};
     }
 
     /**
-     * @brief Get the event definitions list
+     * @brief Get the event schemas list
      *
-     * Subclasses should override this method to return an array of event definitions
+     * Subclasses should override this method to return an array of event schemas
      *
-     * @return std::vector<EventSchema> List of event definitions
+     * @return std::vector<EventSchema> List of event schemas
      *
      * @example
-     * std::vector<EventSchema> get_event_definitions() override {
+     * std::vector<EventSchema> get_event_schemas() override {
      *     return {
      *         {
      *             "value_change", "Value changed", {
@@ -88,7 +92,7 @@ public:
      *     };
      * }
      */
-    virtual std::vector<EventSchema> get_event_definitions()
+    virtual std::vector<EventSchema> get_event_schemas()
     {
         return {};
     }
@@ -136,7 +140,8 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
-        const std::string &name, FunctionParameterMap &&parameters_map, uint32_t timeout_ms = 10
+        const std::string &name, FunctionParameterMap &&parameters_map,
+        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
     );
 
     /**
@@ -149,7 +154,8 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
-        const std::string &name, std::vector<FunctionValue> &&parameters_values, uint32_t timeout_ms = 10
+        const std::string &name, std::vector<FunctionValue> &&parameters_values,
+        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
     );
 
     /**
@@ -162,7 +168,8 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
-        const std::string &name, boost::json::object &&parameters_json, uint32_t timeout_ms = 10
+        const std::string &name, boost::json::object &&parameters_json,
+        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
     );
 
     /**
@@ -217,8 +224,35 @@ public:
         return attributes_;
     }
 
-protected:
-    using FunctionHandlerMap = std::map<std::string, FunctionHandler>;
+    /**
+     * @brief Get the call task group name
+     *
+     * @return std::string Call task group name
+     */
+    std::string get_call_task_group() const
+    {
+        return get_attributes().name + "_call";
+    }
+
+    /**
+     * @brief Get the event task group name
+     *
+     * @return std::string Event task group name
+     */
+    std::string get_event_task_group() const
+    {
+        return get_attributes().name + "_event";
+    }
+
+    /**
+     * @brief Get the request task group name
+     *
+     * @return std::string Request task group name
+     */
+    std::string get_request_task_group() const
+    {
+        return get_attributes().name + "_request";
+    }
 
     /**
      * @brief Helper function to convert std::expected to FunctionResult
@@ -247,6 +281,7 @@ protected:
         }
     }
 
+protected:
     /**
      * @brief Initialization callback
      *
@@ -322,35 +357,73 @@ protected:
     }
 
     /**
+     * @brief Register function list (internal use)
+     *
+     * @param[in] schemas Function schemas list
+     * @param[in] handlers Function handler map
+     * @return true if registered successfully, false otherwise
+     */
+    bool register_functions(std::vector<FunctionSchema> &&schemas, FunctionHandlerMap &&handlers);
+
+    /**
+     * @brief Unregister function list (internal use)
+     *
+     * @param[in] names Function names list
+     * @return true if unregistered successfully, false otherwise
+     */
+    bool unregister_functions(const std::vector<std::string> &names);
+
+    /**
+     * @brief Register event list (internal use)
+     *
+     * @param[in] schemas Event schemas list
+     * @return true if registered successfully, false otherwise
+     */
+    bool register_events(std::vector<EventSchema> &&schemas);
+
+    /**
+     * @brief Unregister event list (internal use)
+     *
+     * @param[in] names Event names list
+     * @return true if unregistered successfully, false otherwise
+     */
+    bool unregister_events(const std::vector<std::string> &names);
+
+    /**
      * @brief Publish an event with data map
      *
      * @param[in] event_name Event name
      * @param[in] event_items Event data map (key-value pairs)
+     * @param[in] use_dispatch Whether to use dispatch to publish the event
      * @return true if published successfully, false otherwise
      */
-    bool publish_event(const std::string &event_name, EventItemMap &&event_items);
+    bool publish_event(const std::string &event_name, EventItemMap &&event_items, bool use_dispatch = false);
 
     /**
      * @brief Publish an event with data values
      *
      * @param[in] event_name Event name
-     * @param[in] data_values Event data values (ordered array according to event definition)
+     * @param[in] data_values Event data values (ordered array according to event schema)
+     * @param[in] use_dispatch Whether to use dispatch to publish the event
      * @return true if published successfully, false otherwise
      *
      * @example
-     * // Assuming event definition: {"value_change", "...", {{"value", "...", Number}}}
+     * // Assuming event schema: {"value_change", "...", {{"value", "...", Number}}}
      * publish_event("value_change", {42.0});
      */
-    bool publish_event(const std::string &event_name, std::vector<EventItem> &&data_values);
+    bool publish_event(
+        const std::string &event_name, std::vector<EventItem> &&data_values, bool use_dispatch = false
+    );
 
     /**
      * @brief Publish an event with JSON data
      *
      * @param[in] event_name Event name
      * @param[in] data_json Event data in JSON object format
+     * @param[in] use_dispatch Whether to use dispatch to publish the event
      * @return true if published successfully, false otherwise
      */
-    bool publish_event(const std::string &event_name, boost::json::object &&data_json);
+    bool publish_event(const std::string &event_name, boost::json::object &&data_json, bool use_dispatch = false);
 
     /**
      * @brief Get the task scheduler
@@ -363,12 +436,12 @@ protected:
     }
 
 private:
-    bool init(boost::asio::io_context &io_context);
+    bool init(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler);
     void deinit();
     bool start();
     void stop();
 
-    bool init_internal(boost::asio::io_context &io_context);  // Internal init without lock
+    bool init_internal(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler);  // Internal init without lock
     void deinit_internal();  // Internal deinit without lock
     bool start_internal();  // Internal start without lock
     void stop_internal();  // Internal stop without lock
@@ -377,37 +450,18 @@ private:
     void disconnect_from_server();
     void try_override_connection_request_handler();
 
-    /**
-     * @brief Register function list (internal use)
-     *
-     * @param[in] definitions Function definitions list
-     * @param[in] handlers Function handler map
-     * @return true if registered successfully, false otherwise
-     */
-    bool register_functions(std::vector<FunctionSchema> &&definitions, FunctionHandlerMap &&handlers);
-
-    /**
-     * @brief Register event list (internal use)
-     *
-     * @param[in] definitions Event definitions list
-     * @return true if registered successfully, false otherwise
-     */
-    bool register_events(std::vector<EventSchema> &&definitions);
-
     Attributes attributes_;
-    boost::asio::io_context *io_context_ = nullptr;
 
     boost::mutex state_mutex_;  // Protect state transitions (init/deinit/start/stop)
     std::atomic<bool> is_initialized_{false};
     std::atomic<bool> is_running_{false};
 
     // Use shared_ptr instead of unique_ptr to support thread-safe access
+    mutable boost::shared_mutex resources_mutex_;  // Protect resources access
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
     std::shared_ptr<FunctionRegistry> function_registry_;
     std::shared_ptr<EventRegistry> event_registry_;
-
     std::shared_ptr<rpc::ServerConnection> server_connection_;
-    mutable boost::shared_mutex registry_mutex_;  // Protect registry and io_context access
 };
 
 BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task_scheduler_config))
@@ -429,7 +483,7 @@ BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task
     { \
         func_name, \
         [this](esp_brookesia::service::FunctionParameterMap &&) -> esp_brookesia::service::FunctionResult { \
-            return to_function_result(func_call); \
+            return esp_brookesia::service::ServiceBase::to_function_result(func_call); \
         } \
     }
 
@@ -451,7 +505,7 @@ BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task
         func_name, \
         [this](esp_brookesia::service::FunctionParameterMap &&args) -> esp_brookesia::service::FunctionResult { \
             auto &PARAM = std::get<param_type>(args.at(param_name)); \
-            return to_function_result(func_call); \
+            return esp_brookesia::service::ServiceBase::to_function_result(func_call); \
         } \
     }
 
@@ -475,7 +529,7 @@ BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task
         [this](esp_brookesia::service::FunctionParameterMap &&args) -> esp_brookesia::service::FunctionResult { \
             auto &PARAM1 = std::get<param1_type>(args.at(param1_name)); \
             auto &PARAM2 = std::get<param2_type>(args.at(param2_name)); \
-            return to_function_result(func_call); \
+            return esp_brookesia::service::ServiceBase::to_function_result(func_call); \
         } \
     }
 
@@ -491,7 +545,7 @@ BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task
             auto &PARAM1 = std::get<p1_type>(args.at(p1_name)); \
             auto &PARAM2 = std::get<p2_type>(args.at(p2_name)); \
             auto &PARAM3 = std::get<p3_type>(args.at(p3_name)); \
-            return to_function_result(func_call); \
+            return esp_brookesia::service::ServiceBase::to_function_result(func_call); \
         } \
     }
 

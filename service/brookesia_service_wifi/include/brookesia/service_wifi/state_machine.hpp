@@ -14,7 +14,13 @@
 
 namespace esp_brookesia::service::wifi {
 
-using GeneralState = helper::Wifi::GeneralState;
+enum class GeneralState {
+    Deinited,
+    Inited,
+    Started,
+    Connected,
+    Max,
+};
 
 class StateMachine  {
 public:
@@ -48,5 +54,7 @@ private:
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
     std::unique_ptr<lib_utils::StateMachine> state_machine_;
 };
+
+BROOKESIA_DESCRIBE_ENUM(GeneralState, Deinited, Inited, Started, Connected, Max);
 
 } // namespace esp_brookesia::service::wifi

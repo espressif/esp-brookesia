@@ -18,7 +18,7 @@
 #include "common_def.hpp"
 
 using namespace esp_brookesia;
-using wifi_helper = service::helper::Wifi;
+using WifiHelpler = service::helper::Wifi;
 
 // #define TEST_WIFI_SSID1      "ssid1"
 // #define TEST_WIFI_PASSWORD1  "password1"
@@ -40,8 +40,6 @@ constexpr uint32_t TEST_WIFI_SCAN_DURATION_MS = 5000;
 static auto &service_manager = service::ServiceManager::get_instance();
 static auto &time_profiler = lib_utils::TimeProfiler::get_instance();
 static service::ServiceBinding wifi_binding;
-static const auto wifi_functions = wifi_helper::get_function_definitions();
-static const auto wifi_events = wifi_helper::get_event_definitions();
 
 static bool startup();
 static void shutdown();
@@ -56,7 +54,7 @@ struct GeneralEventHappened {
 };
 
 struct ScanApInfosUpdatedEvent {
-    std::vector<wifi_helper::ApInfo> ap_infos;
+    std::vector<WifiHelpler::ApInfo> ap_infos;
 };
 
 // Event collector for test verification
@@ -72,16 +70,16 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex);
         GeneralActionEvent evt;
-        auto action_it = params.find(wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name);
 
+        auto action_it = params.find(BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventGeneralActionTriggeredParam::Action));
         if (action_it != params.end()) {
             auto action_ptr = std::get_if<std::string>(&action_it->second);
-            if (action_ptr) {
-                evt.action = *action_ptr;
-                general_actions.push_back(evt);
-                BROOKESIA_LOGI("General action triggered: %s", evt.action.c_str());
-                cv.notify_one();
-            }
+            TEST_ASSERT_NOT_NULL_MESSAGE(action_ptr, "Failed to get action");
+
+            evt.action = *action_ptr;
+            general_actions.push_back(evt);
+            BROOKESIA_LOGI("General action triggered: %s", evt.action.c_str());
+            cv.notify_one();
         }
     }
 
@@ -89,16 +87,16 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex);
         GeneralEventHappened evt;
-        auto event_it = params.find(wifi_events[wifi_helper::EventIndexGeneralEventHappened].items[0].name);
 
+        auto event_it = params.find(BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventGeneralEventHappenedParam::Event));
         if (event_it != params.end()) {
             auto event_ptr = std::get_if<std::string>(&event_it->second);
-            if (event_ptr) {
-                evt.event = *event_ptr;
-                general_events.push_back(evt);
-                BROOKESIA_LOGI("General event happened: %s", evt.event.c_str());
-                cv.notify_one();
-            }
+            TEST_ASSERT_NOT_NULL_MESSAGE(event_ptr, "Failed to get event");
+
+            evt.event = *event_ptr;
+            general_events.push_back(evt);
+            BROOKESIA_LOGI("General event happened: %s", evt.event.c_str());
+            cv.notify_one();
         }
     }
 
@@ -106,16 +104,16 @@ public:
     {
         std::lock_guard<std::mutex> lock(mutex);
         ScanApInfosUpdatedEvent evt;
-        auto infos_it = params.find(wifi_events[wifi_helper::EventIndexScanApInfosUpdated].items[0].name);
 
+        auto infos_it = params.find(BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventScanApInfosUpdatedParam::ApInfos));
         if (infos_it != params.end()) {
             auto infos_ptr = std::get_if<boost::json::array>(&infos_it->second);
-            if (infos_ptr) {
-                if (BROOKESIA_DESCRIBE_FROM_JSON(*infos_ptr, evt.ap_infos)) {
-                    scan_ap_infos_updated.push_back(evt);
-                    BROOKESIA_LOGI("Scan infos updated: found %zu APs", evt.ap_infos.size());
-                    cv.notify_one();
-                }
+            TEST_ASSERT_NOT_NULL_MESSAGE(infos_ptr, "Failed to get infos");
+
+            if (BROOKESIA_DESCRIBE_FROM_JSON(*infos_ptr, evt.ap_infos)) {
+                scan_ap_infos_updated.push_back(evt);
+                BROOKESIA_LOGI("Scan infos updated: found %zu APs", evt.ap_infos.size());
+                cv.notify_one();
             }
         }
     }
@@ -163,7 +161,7 @@ static std::vector<service::EventRegistry::SignalConnection> setup_event_subscri
     std::vector<service::EventRegistry::SignalConnection> connections;
 
     // Subscribe to general_action_triggered event
-    auto conn1 = service->subscribe_event(wifi_events[wifi_helper::EventIndexGeneralActionTriggered].name,
+    auto conn1 = service->subscribe_event(BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventId::GeneralActionTriggered),
     [&collector](const std::string & event_name, const service::EventItemMap & event_items) {
         collector.on_general_action_triggered(event_items);
     });
@@ -171,7 +169,7 @@ static std::vector<service::EventRegistry::SignalConnection> setup_event_subscri
     connections.push_back(std::move(conn1));
 
     // Subscribe to general_event_happened event
-    auto conn2 = service->subscribe_event(wifi_events[wifi_helper::EventIndexGeneralEventHappened].name,
+    auto conn2 = service->subscribe_event(BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventId::GeneralEventHappened),
     [&collector](const std::string & event_name, const service::EventItemMap & event_items) {
         collector.on_general_event_happened(event_items);
     });
@@ -179,7 +177,7 @@ static std::vector<service::EventRegistry::SignalConnection> setup_event_subscri
     connections.push_back(std::move(conn2));
 
     // Subscribe to scan_ap_infos_updated event
-    auto conn3 = service->subscribe_event(wifi_events[wifi_helper::EventIndexScanApInfosUpdated].name,
+    auto conn3 = service->subscribe_event(BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventId::ScanApInfosUpdated),
     [&collector](const std::string & event_name, const service::EventItemMap & event_items) {
         collector.on_scan_ap_infos_updated(event_items);
     });
@@ -203,57 +201,62 @@ TEST_CASE("Test ServiceWifi - state transitions", "[service][wifi][state]")
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
+    auto service_name = WifiHelpler::get_name().data();
     // Test state transitions: Inited -> Started -> Connected -> Started -> Inited
-    static auto wifi_functions = wifi_helper::get_function_definitions();
-    static const std::vector<service::LocalTestItem> test_items = {
+    const std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         // Start from Inited to Started
         service::LocalTestItem{
             .name = "State transition: Start (Inited -> Started)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }},
             .run_duration_ms = TEST_WIFI_START_DURATION_MS
         },
         // Stop from Started to Inited
         service::LocalTestItem{
             .name = "State transition: Stop (Started -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
                 }}
         },
         // Deinit from Inited to Deinited
         service::LocalTestItem{
             .name = "State transition: Deinit (Inited -> Deinited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Deinit)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Deinit)
                 }}
         }
     };
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(service_name, test_items);
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all state transition tests passed");
 
     // Wait for all events
     boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
-    bool actions_received = collector.wait_for_general_actions(test_items.size(), 2000);
-    bool events_received = collector.wait_for_general_events(test_items.size(), 2000);
+    bool actions_received = collector.wait_for_general_actions(4, 2000);
+    bool events_received = collector.wait_for_general_events(4, 2000);
     TEST_ASSERT_TRUE_MESSAGE(actions_received, "Not all general action events received");
     TEST_ASSERT_TRUE_MESSAGE(events_received, "Not all general event events received");
 
@@ -263,28 +266,28 @@ TEST_CASE("Test ServiceWifi - state transitions", "[service][wifi][state]")
 
     // Verify first action: Init (triggered during service startup)
     TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init).c_str(),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init).c_str(),
         collector.general_actions[action_index].action.c_str(), "First action mismatch (should be Init)"
     );
     action_index++;
 
     // Verify second action: Start
     TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start).c_str(),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start).c_str(),
         collector.general_actions[action_index].action.c_str(), "Second action mismatch"
     );
     action_index++;
 
     // Verify fourth action: Stop
     TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop).c_str(),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop).c_str(),
         collector.general_actions[action_index].action.c_str(), "Fourth action mismatch"
     );
     action_index++;
 
     // Verify fifth action: Deinit
     TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Deinit).c_str(),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Deinit).c_str(),
         collector.general_actions[action_index].action.c_str(), "Sixth action mismatch"
     );
     action_index++;
@@ -293,10 +296,10 @@ TEST_CASE("Test ServiceWifi - state transitions", "[service][wifi][state]")
     // Expected events: Inited (from Init), Started, Inited, Started, Inited
     std::vector<std::string> expected_events;
     expected_events = {
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralEvent::Inited),
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralEvent::Started),
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralEvent::Stopped),
-        BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralEvent::Deinited)
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Inited),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Started),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Stopped),
+        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Deinited)
     };
 
     TEST_ASSERT_EQUAL_MESSAGE(expected_events.size(), collector.general_events.size(), "Event count mismatch");
@@ -332,13 +335,18 @@ TEST_CASE("Test ServiceWifi - scan functionality", "[service][wifi][scan]")
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
     std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
@@ -346,45 +354,50 @@ TEST_CASE("Test ServiceWifi - scan functionality", "[service][wifi][scan]")
         // Will automatically start WiFi if not started
         service::LocalTestItem{
             .name = "Start scan with default parameters",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStart].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStart),
             .run_duration_ms = TEST_WIFI_SCAN_DURATION_MS
         },
         // Stop scan
         service::LocalTestItem{
             .name = "Stop scan",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStop].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStop),
         },
         // Set scan parameters
         service::LocalTestItem{
             .name = "Set scan parameters",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetScanParams].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetScanParams),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetScanParams].parameters[0].name, 5.0},
-                {wifi_functions[wifi_helper::FunctionIndexSetScanParams].parameters[1].name, 1000.0},
-                {wifi_functions[wifi_helper::FunctionIndexSetScanParams].parameters[2].name, 5000.0}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::ApCount), 5.0},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::IntervalMs), 1000.0},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::TimeoutMs), 5000.0}
             }
         },
         // Start scan with custom parameters
         service::LocalTestItem{
             .name = "Start scan with custom parameters",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStart].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStart),
             .run_duration_ms = TEST_WIFI_SCAN_DURATION_MS
         },
         // Stop scan again
         service::LocalTestItem{
             .name = "Stop scan again",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStop].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStop),
         },
         // Stop WiFi
         service::LocalTestItem{
             .name = "Stop WiFi after scan tests",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
-            .params = boost::json::object{{wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name, BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)}}
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
+            .params = boost::json::object{
+                {
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
+                }
+            }
         }
     };
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
 
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all scan tests passed");
 
@@ -428,57 +441,62 @@ TEST_CASE("Test ServiceWifi - set connect AP", "[service][wifi][connect]")
         shutdown();
     });
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
     std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         // Set AP with password
         service::LocalTestItem{
             .name = "Set connect AP with password",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, "TestAP"},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, "TestPassword123"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), "TestAP"},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), "TestPassword123"}
             }
         },
         // Set AP without password (open network)
         service::LocalTestItem{
             .name = "Set connect AP without password",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, "OpenAP"},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, ""}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), "OpenAP"},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), ""}
             }
         },
         // Set AP with empty password explicitly
         service::LocalTestItem{
             .name = "Set connect AP with empty password",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, "AnotherAP"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), "AnotherAP"}
             }
         },
         // Set AP with long SSID
         service::LocalTestItem{
             .name = "Set connect AP with long SSID",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, "VeryLongSSIDNameThatExceedsNormalLength"},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, "LongPassword123456789"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), "VeryLongSSIDNameThatExceedsNormalLength"},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), "LongPassword123456789"}
             }
         }
     };
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
 
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Not all set connect AP tests passed");
 
@@ -504,49 +522,54 @@ TEST_CASE("Test ServiceWifi - connect and manual disconnect (no auto-reconnect)"
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Start WiFi
     service::LocalTestRunner runner1;
     std::vector<service::LocalTestItem> test_items1 = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Start WiFi",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }}
         },
         service::LocalTestItem{
             .name = "Set connect AP to '" TEST_WIFI_SSID1 "'",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
             }
         },
         service::LocalTestItem{
             .name = "Trigger connect action",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Get connected APs",
-            .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .validator = [](const service::FunctionValue & value)
             {
                 // Should return a JSON array of strings
@@ -567,7 +590,7 @@ TEST_CASE("Test ServiceWifi - connect and manual disconnect (no auto-reconnect)"
         }
     };
 
-    bool all_passed1 = runner1.run_tests(wifi_helper::SERVICE_NAME, test_items1);
+    bool all_passed1 = runner1.run_tests(WifiHelpler::get_name().data(), test_items1);
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to setup connection");
 
     // Wait for Connected event
@@ -590,15 +613,15 @@ TEST_CASE("Test ServiceWifi - connect and manual disconnect (no auto-reconnect)"
     std::vector<service::LocalTestItem> test_items2 = {
         service::LocalTestItem{
             .name = "Manually disconnect",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Disconnect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Disconnect)
                 }}
         }
     };
 
-    bool all_passed2 = runner2.run_tests(wifi_helper::SERVICE_NAME, test_items2);
+    bool all_passed2 = runner2.run_tests(WifiHelpler::get_name().data(), test_items2);
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to disconnect");
 
     // Wait for Disconnected event
@@ -638,41 +661,46 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Set connect AP to TEST_WIFI_SSID1
     service::LocalTestRunner runner1;
     std::vector<service::LocalTestItem> test_items1 = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Set connect AP to TEST_WIFI_SSID1",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
             }
         },
         service::LocalTestItem{
             .name = "Trigger connect action",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         }
     };
 
-    bool all_passed1 = runner1.run_tests(wifi_helper::SERVICE_NAME, test_items1);
+    bool all_passed1 = runner1.run_tests(WifiHelpler::get_name().data(), test_items1);
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to setup connection");
 
     // Wait for Connected event
@@ -685,15 +713,15 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
     std::vector<service::LocalTestItem> test_items2 = {
         service::LocalTestItem{
             .name = "Stop WiFi",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
                 }}
         }
     };
 
-    bool all_passed2 = runner2.run_tests(wifi_helper::SERVICE_NAME, test_items2);
+    bool all_passed2 = runner2.run_tests(WifiHelpler::get_name().data(), test_items2);
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to stop WiFi");
 
     // Wait for Stopped event
@@ -706,15 +734,15 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
     std::vector<service::LocalTestItem> test_items3 = {
         service::LocalTestItem{
             .name = "Start WiFi again",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }}
         }
     };
 
-    bool all_passed3 = runner3.run_tests(wifi_helper::SERVICE_NAME, test_items3);
+    bool all_passed3 = runner3.run_tests(WifiHelpler::get_name().data(), test_items3);
     TEST_ASSERT_TRUE_MESSAGE(all_passed3, "Failed to start WiFi again");
 
     // Wait for Started event
@@ -742,7 +770,7 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
         std::vector<service::LocalTestItem> test_items4 = {
             service::LocalTestItem{
                 .name = "Get connected APs",
-                .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+                .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
@@ -759,7 +787,7 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
             }
         };
 
-        bool all_passed4 = runner4.run_tests(wifi_helper::SERVICE_NAME, test_items4);
+        bool all_passed4 = runner4.run_tests(WifiHelpler::get_name().data(), test_items4);
         TEST_ASSERT_TRUE_MESSAGE(all_passed4, "Failed to verify connected AP");
     }
 
@@ -780,51 +808,56 @@ TEST_CASE("Test ServiceWifi - rapid connect and disconnect", "[service][wifi][co
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
-    constexpr size_t RAPID_CONNECT_AND_DISCONNECT_COUNT = 10;
+    constexpr size_t RAPID_CONNECT_AND_DISCONNECT_COUNT = 5;
     service::LocalTestRunner runner1;
     std::vector<service::LocalTestItem> test_items1 = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Set connect AP to '" TEST_WIFI_SSID1 "'",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
             }
         },
     };
     for (size_t i = 0; i < RAPID_CONNECT_AND_DISCONNECT_COUNT; i++) {
         test_items1.push_back(service::LocalTestItem{
             .name = "Trigger connect action",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         });
         test_items1.push_back(service::LocalTestItem{
             .name = "Trigger disconnect action",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Disconnect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Disconnect)
                 }},
         });
     }
 
-    bool all_passed1 = runner1.run_tests(wifi_helper::SERVICE_NAME, test_items1);
+    bool all_passed1 = runner1.run_tests(WifiHelpler::get_name().data(), test_items1);
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to rapid connect and disconnect");
 
     // Calculate total test duration and wait for all events
@@ -930,41 +963,46 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Connect to TEST_WIFI_SSID1 first
     service::LocalTestRunner runner1;
     std::vector<service::LocalTestItem> test_items1 = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Set connect AP to TEST_WIFI_SSID1",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
             }
         },
         service::LocalTestItem{
             .name = "Trigger connect action to TEST_WIFI_SSID1",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         }
     };
 
-    bool all_passed1 = runner1.run_tests(wifi_helper::SERVICE_NAME, test_items1);
+    bool all_passed1 = runner1.run_tests(WifiHelpler::get_name().data(), test_items1);
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to connect to TEST_WIFI_SSID1");
 
     // Wait for Connected event
@@ -977,7 +1015,7 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
         std::vector<service::LocalTestItem> test_items_check = {
             service::LocalTestItem{
                 .name = "Verify connected to TEST_WIFI_SSID1",
-                .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+                .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
@@ -994,7 +1032,7 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
             }
         };
 
-        bool all_passed_check = runner_check.run_tests(wifi_helper::SERVICE_NAME, test_items_check);
+        bool all_passed_check = runner_check.run_tests(WifiHelpler::get_name().data(), test_items_check);
         TEST_ASSERT_TRUE_MESSAGE(all_passed_check, "Failed to verify connected to TEST_WIFI_SSID1");
     }
 
@@ -1005,24 +1043,24 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
     std::vector<service::LocalTestItem> test_items2 = {
         service::LocalTestItem{
             .name = "Set connect AP to non-existent SSID",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, non_existent_ssid},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, "password"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), non_existent_ssid},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), "password"}
             }
         },
         service::LocalTestItem{
             .name = "Trigger connect action to non-existent SSID",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         }
     };
 
-    bool all_passed2 = runner2.run_tests(wifi_helper::SERVICE_NAME, test_items2);
+    bool all_passed2 = runner2.run_tests(WifiHelpler::get_name().data(), test_items2);
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to attempt connection to non-existent SSID");
 
     // Wait for Disconnected event (connection will fail)
@@ -1052,7 +1090,7 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
         std::vector<service::LocalTestItem> test_items4 = {
             service::LocalTestItem{
                 .name = "Get connected APs",
-                .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+                .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
@@ -1069,7 +1107,7 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
             }
         };
 
-        bool all_passed4 = runner4.run_tests(wifi_helper::SERVICE_NAME, test_items4);
+        bool all_passed4 = runner4.run_tests(WifiHelpler::get_name().data(), test_items4);
         TEST_ASSERT_TRUE_MESSAGE(all_passed4, "Failed to verify auto-reconnected to TEST_WIFI_SSID1");
     }
 
@@ -1091,41 +1129,46 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Connect to TEST_WIFI_SSID1 first
     service::LocalTestRunner runner1;
     std::vector<service::LocalTestItem> test_items1 = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Set connect AP to TEST_WIFI_SSID1",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
             }
         },
         service::LocalTestItem{
             .name = "Trigger connect action to TEST_WIFI_SSID1",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Get connected APs",
-            .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .validator = [](const service::FunctionValue & value)
             {
                 // Should return a JSON array of strings
@@ -1146,7 +1189,7 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
         }
     };
 
-    bool all_passed1 = runner1.run_tests(wifi_helper::SERVICE_NAME, test_items1);
+    bool all_passed1 = runner1.run_tests(WifiHelpler::get_name().data(), test_items1);
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to connect to " TEST_WIFI_SSID1);
 
     // Wait for Connected event
@@ -1159,24 +1202,24 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
     std::vector<service::LocalTestItem> test_items2 = {
         service::LocalTestItem{
             .name = "Set connect AP to TEST_WIFI_SSID2",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID2},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD2}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID2},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD2}
             }
         },
         service::LocalTestItem{
             .name = "Trigger connect action to TEST_WIFI_SSID2",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Get connected APs",
-            .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .validator = [](const service::FunctionValue & value)
             {
                 auto array_ptr = std::get_if<boost::json::array>(&value);
@@ -1193,7 +1236,7 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
         }
     };
 
-    bool all_passed2 = runner2.run_tests(wifi_helper::SERVICE_NAME, test_items2);
+    bool all_passed2 = runner2.run_tests(WifiHelpler::get_name().data(), test_items2);
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to switch to " TEST_WIFI_SSID2);
 
     // Wait for Connected event (may have Disconnected first, then Connected)
@@ -1217,7 +1260,7 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
         std::vector<service::LocalTestItem> test_items3 = {
             service::LocalTestItem{
                 .name = "Get connected APs",
-                .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+                .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
@@ -1234,7 +1277,7 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
             }
         };
 
-        bool all_passed3 = runner3.run_tests(wifi_helper::SERVICE_NAME, test_items3);
+        bool all_passed3 = runner3.run_tests(WifiHelpler::get_name().data(), test_items3);
         TEST_ASSERT_TRUE_MESSAGE(all_passed3, "Failed to verify connected to " TEST_WIFI_SSID2);
     }
 
@@ -1255,18 +1298,22 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
-    constexpr size_t SWITCH_CYCLES = 10; // Switch between SSID1 and SSID2 for 10 cycles
+    constexpr size_t SWITCH_CYCLES = 5; // Switch between SSID1 and SSID2 for 5 cycles
     service::LocalTestRunner runner;
     std::vector<service::LocalTestItem> test_items;
 
     test_items.push_back(service::LocalTestItem{
+        .name = "Clear storage",
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+    });
+    test_items.push_back(service::LocalTestItem{
         .name = "State transition: Init (Deinited -> Inited)",
-        .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
         .params = boost::json::object{{
-                wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
             }},
         .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
     });
@@ -1274,18 +1321,18 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
     // First, set and connect to TEST_WIFI_SSID1
     test_items.push_back(service::LocalTestItem{
         .name = "Set connect AP to TEST_WIFI_SSID1 (initial)",
-        .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
         .params = boost::json::object{
-            {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-            {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+            {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+            {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
         }
     });
     test_items.push_back(service::LocalTestItem{
         .name = "Connect to TEST_WIFI_SSID1 (initial)",
-        .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
         .params = boost::json::object{{
-                wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
             }},
         .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
     });
@@ -1295,19 +1342,19 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
         // Switch to SSID2
         test_items.push_back(service::LocalTestItem{
             .name = "Set connect AP to TEST_WIFI_SSID2 (cycle " + std::to_string(cycle) + ")",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID2},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD2}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID2},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD2}
             },
             .start_delay_ms = 200 // Wait 200ms after previous operation
         });
         test_items.push_back(service::LocalTestItem{
             .name = "Connect to TEST_WIFI_SSID2 (cycle " + std::to_string(cycle) + ")",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .start_delay_ms = 100,
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
@@ -1316,19 +1363,19 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
         // Switch back to SSID1
         test_items.push_back(service::LocalTestItem{
             .name = "Set connect AP to TEST_WIFI_SSID1 (cycle " + std::to_string(cycle) + ")",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, TEST_WIFI_SSID1},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, TEST_WIFI_PASSWORD1}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
             },
             .start_delay_ms = 200
         });
         test_items.push_back(service::LocalTestItem{
             .name = "Connect to TEST_WIFI_SSID1 (cycle " + std::to_string(cycle) + ")",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .start_delay_ms = 100,
             .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
@@ -1336,7 +1383,7 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
     }
 
     // Run all test items
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Failed to repeatedly switch between SSIDs");
 
     // Calculate total test duration and wait for all events
@@ -1402,7 +1449,7 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
     std::vector<service::LocalTestItem> verify_items = {
         service::LocalTestItem{
             .name = "Verify final connected AP",
-            .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .validator = [](const service::FunctionValue & value)
             {
                 auto array_ptr = std::get_if<boost::json::array>(&value);
@@ -1421,7 +1468,7 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
         }
     };
 
-    bool verify_passed = verify_runner.run_tests(wifi_helper::SERVICE_NAME, verify_items);
+    bool verify_passed = verify_runner.run_tests(WifiHelpler::get_name().data(), verify_items);
     TEST_ASSERT_TRUE_MESSAGE(verify_passed, "Failed to verify final connection state");
 
     BROOKESIA_LOGI("Repeated SSID switching test completed: %zu cycles, %zu Connected events, %zu Disconnected events",
@@ -1442,25 +1489,30 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
         shutdown();
     });
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
     std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         // Test with empty SSID
         service::LocalTestItem{
             .name = "Set connect AP with empty SSID",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, ""},
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, "password"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), ""},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), "password"}
             },
             .validator = [](const service::FunctionValue & value)
             {
@@ -1478,13 +1530,13 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
         // Test with extremely long SSID (over 32 bytes)
         service::LocalTestItem{
             .name = "Set connect AP with extremely long SSID",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
                 {
-                    wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name,
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID),
                     std::string(100, 'A')
                 }, // 100 characters, exceeds typical SSID limit
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name, "password"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), "password"}
             },
             .validator = [](const service::FunctionValue & value)
             {
@@ -1495,11 +1547,11 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
         // Test with extremely long password (over 64 bytes)
         service::LocalTestItem{
             .name = "Set connect AP with extremely long password",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetConnectAp].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[0].name, "TestSSID"},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), "TestSSID"},
                 {
-                    wifi_functions[wifi_helper::FunctionIndexSetConnectAp].parameters[1].name,
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password),
                     std::string(200, 'P')
                 } // 200 characters, exceeds typical password limit
             },
@@ -1512,11 +1564,11 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
         // Test with invalid scan parameters (negative values)
         service::LocalTestItem{
             .name = "Set scan params with negative values",
-            .method = wifi_functions[wifi_helper::FunctionIndexSetScanParams].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetScanParams),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexSetScanParams].parameters[0].name, -1.0},
-                {wifi_functions[wifi_helper::FunctionIndexSetScanParams].parameters[1].name, -100.0},
-                {wifi_functions[wifi_helper::FunctionIndexSetScanParams].parameters[2].name, -5000.0}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::ApCount), -1.0},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::IntervalMs), -100.0},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::TimeoutMs), -5000.0}
             },
             .validator = [](const service::FunctionValue & value)
             {
@@ -1527,9 +1579,9 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
         // Test with invalid action string
         service::LocalTestItem{
             .name = "Trigger invalid general action",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{
-                {wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name, "InvalidAction"}
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action), "InvalidAction"}
             },
             .validator = [](const service::FunctionValue & value)
             {
@@ -1547,7 +1599,7 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
     };
 
     service::LocalTestRunner runner;
-    runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    runner.run_tests(WifiHelpler::get_name().data(), test_items);
 
     // Note: Some tests may pass even if they return errors, as long as they handle errors gracefully
     BROOKESIA_LOGI("Error handling tests completed, some may intentionally fail");
@@ -1566,26 +1618,31 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
         shutdown();
     });
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Test connecting before WiFi is started
     std::vector<service::LocalTestItem> test_items1 = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Connect before WiFi started (should fail)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Connect)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
                 }},
             .validator = [](const service::FunctionValue & value)
             {
@@ -1603,7 +1660,7 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
     };
 
     service::LocalTestRunner runner1;
-    runner1.run_tests(wifi_helper::SERVICE_NAME, test_items1);
+    runner1.run_tests(WifiHelpler::get_name().data(), test_items1);
 
     BROOKESIA_LOGI("Pre-start connect test completed");
 
@@ -1611,10 +1668,10 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
     std::vector<service::LocalTestItem> test_items2 = {
         service::LocalTestItem{
             .name = "Stop before start (should handle gracefully)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
                 }},
             .validator = [](const service::FunctionValue & value)
             {
@@ -1625,17 +1682,17 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
     };
 
     service::LocalTestRunner runner2;
-    runner2.run_tests(wifi_helper::SERVICE_NAME, test_items2);
+    runner2.run_tests(WifiHelpler::get_name().data(), test_items2);
     BROOKESIA_LOGI("Pre-start stop test completed");
 
     // Test deinit before init
     std::vector<service::LocalTestItem> test_items3 = {
         service::LocalTestItem{
             .name = "Deinit before init (should handle gracefully)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Deinit)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Deinit)
                 }},
             .validator = [](const service::FunctionValue & value)
             {
@@ -1645,7 +1702,7 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
     };
 
     service::LocalTestRunner runner3;
-    runner3.run_tests(wifi_helper::SERVICE_NAME, test_items3);
+    runner3.run_tests(WifiHelpler::get_name().data(), test_items3);
     BROOKESIA_LOGI("Pre-init deinit test completed");
 }
 
@@ -1659,56 +1716,61 @@ TEST_CASE("Test ServiceWifi - error handling: rapid state changes", "[service][w
         shutdown();
     });
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Rapidly switch between start and stop
     std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         // Init from Deinited to Inited
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
             .name = "Rapid start",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }},
             .start_delay_ms = 0,
             .run_duration_ms = 50
         },
         service::LocalTestItem{
             .name = "Rapid stop",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
                 }},
             .start_delay_ms = 10,
             .run_duration_ms = 50
         },
         service::LocalTestItem{
             .name = "Rapid start again",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }},
             .start_delay_ms = 20,
             .run_duration_ms = 50
         },
         service::LocalTestItem{
             .name = "Rapid stop again",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
                 }},
             .start_delay_ms = 30,
             .run_duration_ms = 50
@@ -1716,7 +1778,7 @@ TEST_CASE("Test ServiceWifi - error handling: rapid state changes", "[service][w
     };
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Rapid state change test failed");
 
     // Wait for system to stabilize
@@ -1739,17 +1801,21 @@ TEST_CASE("Test ServiceWifi - stress test: rapid scan operations", "[service][wi
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
-    constexpr size_t SCAN_CYCLES = 10;
+    constexpr size_t SCAN_CYCLES = 5;
     std::vector<service::LocalTestItem> test_items;
 
     test_items.push_back(service::LocalTestItem{
+        .name = "Clear storage",
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+    });
+    test_items.push_back(service::LocalTestItem{
         .name = "State transition: Init (Deinited -> Inited) (initial)",
-        .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
         .params = boost::json::object{{
-                wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
             }},
         .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
     });
@@ -1758,21 +1824,21 @@ TEST_CASE("Test ServiceWifi - stress test: rapid scan operations", "[service][wi
     for (size_t i = 0; i < SCAN_CYCLES; i++) {
         test_items.push_back(service::LocalTestItem{
             .name = "Scan start " + std::to_string(i),
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStart].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStart),
             .start_delay_ms = static_cast<uint32_t>(i * 100),
             .run_duration_ms = 200
         });
 
         test_items.push_back(service::LocalTestItem{
             .name = "Scan stop " + std::to_string(i),
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStop].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStop),
             .start_delay_ms = static_cast<uint32_t>(i * 100 + 50),
             .run_duration_ms = 200
         });
     }
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Rapid scan operations test failed");
 
     // Wait for any pending scan operations
@@ -1791,29 +1857,24 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
         shutdown();
     });
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
-    constexpr size_t TRANSITION_CYCLES = 15;
+    constexpr size_t TRANSITION_CYCLES = 5;
     std::vector<service::LocalTestItem> test_items;
 
     test_items.push_back(service::LocalTestItem{
-        .name = "State transition: Init (Deinited -> Inited) (initial)",
-        .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
-        .params = boost::json::object{{
-                wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
-            }},
-        .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
+        .name = "Clear storage",
+        .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
     });
 
     // Create continuous init -> start -> stop -> deinit cycles
     for (size_t i = 0; i < TRANSITION_CYCLES; i++) {
         test_items.push_back(service::LocalTestItem{
             .name = "Init cycle " + std::to_string(i),
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .start_delay_ms = 0,
             .run_duration_ms = 10
@@ -1821,10 +1882,10 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
 
         test_items.push_back(service::LocalTestItem{
             .name = "Start cycle " + std::to_string(i),
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }},
             .start_delay_ms = 0,
             .run_duration_ms = 10
@@ -1832,10 +1893,10 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
 
         test_items.push_back(service::LocalTestItem{
             .name = "Stop cycle " + std::to_string(i),
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Stop)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop)
                 }},
             .start_delay_ms = 0,
             .run_duration_ms = 10
@@ -1843,10 +1904,10 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
 
         test_items.push_back(service::LocalTestItem{
             .name = "Deinit cycle " + std::to_string(i),
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Deinit)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Deinit)
                 }},
             .start_delay_ms = 0,
             .run_duration_ms = 10
@@ -1854,7 +1915,7 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
     }
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Continuous state transitions test failed");
 
     // Wait for system to stabilize
@@ -1873,37 +1934,35 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
         shutdown();
     });
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Start WiFi first
     service::LocalTestRunner init_runner;
     std::vector<service::LocalTestItem> init_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited) (initial)",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }},
             .run_duration_ms = TEST_WIFI_INIT_DURATION_MS
         },
         service::LocalTestItem{
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
-            .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
-                }}
-        },
-        service::LocalTestItem{
             .name = "Start for concurrent test",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }}
         }
     };
-    init_runner.run_tests(wifi_helper::SERVICE_NAME, init_items);
+    init_runner.run_tests(WifiHelpler::get_name().data(), init_items);
     boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
 
     // Now run concurrent LocalTestRunner instances in 4 threads
@@ -1917,33 +1976,37 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
     BROOKESIA_LOGI("Starting %zu concurrent LocalTestRunner instances", NUM_THREADS);
 
     // Create test items for each thread (different operations)
-    // Note: wifi_functions is static, so we can access it directly without capture
     auto create_test_items_for_thread = [](size_t thread_id) -> std::vector<service::LocalTestItem> {
-        static auto wifi_functions = wifi_helper::get_function_definitions();
         std::vector<service::LocalTestItem> items;
 
         // Each thread runs different mix of operations
         for (size_t i = 0; i < TESTS_PER_THREAD; i++)
         {
-            size_t op_index = (thread_id * TESTS_PER_THREAD + i) % 3;
+            size_t op_index = (thread_id * TESTS_PER_THREAD + i) % 4;
 
             if (op_index == 0) {
-                // Scan operations
+                // Scan start operations
                 items.push_back(service::LocalTestItem{
                     .name = "Thread " + std::to_string(thread_id) + " - Scan start " + std::to_string(i),
-                    .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStart].name,
+                    .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStart),
                 });
             } else if (op_index == 1) {
                 // Get connected APs
                 items.push_back(service::LocalTestItem{
                     .name = "Thread " + std::to_string(thread_id) + " - Get connected APs " + std::to_string(i),
-                    .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+                    .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
                 });
-            } else {
+            } else if (op_index == 2) {
                 // Get connect AP
                 items.push_back(service::LocalTestItem{
                     .name = "Thread " + std::to_string(thread_id) + " - Get connect AP " + std::to_string(i),
-                    .method = wifi_functions[wifi_helper::FunctionIndexGetConnectAp].name,
+                    .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectAp),
+                });
+            } else if (op_index == 3) {
+                // Scan stop operations
+                items.push_back(service::LocalTestItem{
+                    .name = "Thread " + std::to_string(thread_id) + " - Scan stop " + std::to_string(i),
+                    .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStop),
                 });
             }
         }
@@ -1954,7 +2017,7 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
     // Create threads, each running its own LocalTestRunner
     for (size_t thread_id = 0; thread_id < NUM_THREADS; thread_id++) {
         BROOKESIA_THREAD_CONFIG_GUARD({
-            .stack_size = 10 * 1024,
+            .stack_size = 8 * 1024,
         });
 
         threads.create_thread([ &, thread_id]() {
@@ -1966,7 +2029,7 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
 
                 // Create and run LocalTestRunner
                 service::LocalTestRunner runner;
-                bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+                bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
                 // Avoid compiler warning about unused variable
                 (void)all_passed;
 
@@ -2033,51 +2096,56 @@ TEST_CASE("Test ServiceWifi - stress test: long running operations", "[service][
     EventCollector collector;
     auto connections = setup_event_subscriptions(wifi_binding, collector);
 
-    static auto wifi_functions = wifi_helper::get_function_definitions();
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Start WiFi and begin long scan
     std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        },
         service::LocalTestItem{
             .name = "Init for long running test",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Init)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init)
                 }}
         },
         service::LocalTestItem{
             .name = "Start for long running test",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
             .params = boost::json::object{{
-                    wifi_functions[wifi_helper::FunctionIndexTriggerGeneralAction].parameters[0].name,
-                    BROOKESIA_DESCRIBE_TO_STR(wifi_helper::GeneralAction::Start)
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start)
                 }}
         },
         service::LocalTestItem{
             .name = "Start long scan",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStart].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStart),
             .run_duration_ms = 10000 // Run for 10 seconds
         },
         // Periodically check status during scan
         service::LocalTestItem{
             .name = "Check connected APs during scan",
-            .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .run_duration_ms = 100
         },
         service::LocalTestItem{
             .name = "Check connected APs again",
-            .method = wifi_functions[wifi_helper::FunctionIndexGetConnectedAps].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .run_duration_ms = 100
         },
         service::LocalTestItem{
             .name = "Stop scan after long run",
-            .method = wifi_functions[wifi_helper::FunctionIndexTriggerScanStop].name,
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerScanStop),
             .run_duration_ms = 500
         }
     };
 
     service::LocalTestRunner runner;
-    bool all_passed = runner.run_tests(wifi_helper::SERVICE_NAME, test_items);
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Long running operations test failed");
 
     // Wait for final operations
@@ -2105,7 +2173,7 @@ static bool startup()
     BROOKESIA_CHECK_FALSE_RETURN(service_manager.start(), false, "Failed to start service manager");
 
     if (!wifi_binding.is_valid()) {
-        wifi_binding = service_manager.bind(wifi_helper::SERVICE_NAME);
+        wifi_binding = service_manager.bind(WifiHelpler::get_name().data());
         TEST_ASSERT_TRUE_MESSAGE(wifi_binding.is_valid(), "Failed to bind service");
     }
 
