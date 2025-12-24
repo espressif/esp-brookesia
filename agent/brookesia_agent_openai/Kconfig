@@ -1,0 +1,10 @@
+menu "ESP-Brookesia: Agent Openai Configurations"
+    config BROOKESIA_AGENT_OPENAI_ENABLE_CONFIGS
+        bool
+        default y
+        select MBEDTLS_SSL_PROTO_DTLS
+
+    config BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+endmenu

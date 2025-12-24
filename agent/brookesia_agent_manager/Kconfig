@@ -1,0 +1,63 @@
+menu "ESP-Brookesia: Agent Manager Configurations"
+    menuconfig BROOKESIA_AGENT_MANAGER_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_AGENT_MANAGER_ENABLE_DEBUG_LOG
+        config BROOKESIA_AGENT_MANAGER_BASE_ENABLE_DEBUG_LOG
+            bool "Base"
+            default y
+
+        config BROOKESIA_AGENT_MANAGER_MANAGER_ENABLE_DEBUG_LOG
+            bool "Manager"
+            default y
+
+        config BROOKESIA_AGENT_MANAGER_STATE_MACHINE_ENABLE_DEBUG_LOG
+            bool "State Machine"
+            default y
+    endif
+
+    menuconfig BROOKESIA_AGENT_MANAGER_ENABLE_WORKER
+        bool "Enable worker"
+        default n
+
+    if BROOKESIA_AGENT_MANAGER_ENABLE_WORKER
+        config BROOKESIA_AGENT_MANAGER_WORKER_NAME
+            string "Name"
+            default "SrvAmWorker"
+            help
+                The name of the worker thread.
+
+        config BROOKESIA_AGENT_MANAGER_WORKER_CORE_ID
+            int "Core ID"
+            default -1
+            help
+                The core ID of the worker thread. `-1` means the core ID is not specified.
+
+        config BROOKESIA_AGENT_MANAGER_WORKER_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The priority of the worker thread.
+
+        config BROOKESIA_AGENT_MANAGER_WORKER_STACK_SIZE
+            int "Stack size"
+            default 8192
+            help
+                The stack size of the worker thread.
+
+        config BROOKESIA_AGENT_MANAGER_WORKER_STACK_IN_EXT
+            bool "Stack in external memory"
+            depends on SPIRAM
+            default y
+            help
+                Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
+
+        config BROOKESIA_AGENT_MANAGER_WORKER_POLL_INTERVAL_MS
+            int "Poll interval (ms)"
+            default 5
+            range 1 10
+            help
+                The interval of the worker poll.
+    endif
+endmenu

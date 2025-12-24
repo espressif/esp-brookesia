@@ -1,0 +1,5 @@
+menu "ESP-Brookesia: Agent Coze Configurations"
+    config BROOKESIA_AGENT_COZE_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+endmenu
