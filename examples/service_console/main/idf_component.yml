@@ -4,7 +4,7 @@ dependencies:
   espressif/esp_board_manager:
     matches:
     - if: $CONFIG{EXAMPLE_ENABLE_BOARD_MANAGER} == True
-    version: ">0.5.0,<0.6"
+    version: "0.5.*"
 
   # Services
   espressif/brookesia_service_audio:
