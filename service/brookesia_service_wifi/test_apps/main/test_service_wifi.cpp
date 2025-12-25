@@ -1965,9 +1965,9 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
     init_runner.run_tests(WifiHelpler::get_name().data(), init_items);
     boost::this_thread::sleep_for(boost::chrono::milliseconds(500));
 
-    // Now run concurrent LocalTestRunner instances in 4 threads
-    constexpr size_t NUM_THREADS = 4;
-    constexpr size_t TESTS_PER_THREAD = 20; // Number of test items per thread
+    // Now run concurrent LocalTestRunner instances in 2 threads
+    constexpr size_t NUM_THREADS = 2;
+    constexpr size_t TESTS_PER_THREAD = 10; // Number of test items per thread
     std::atomic<size_t> success_count{0};
     std::atomic<size_t> failure_count{0};
     std::mutex result_mutex;

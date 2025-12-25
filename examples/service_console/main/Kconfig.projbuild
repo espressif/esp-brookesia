@@ -69,7 +69,7 @@ menu "Example Configuration"
                 default y
 
             if EXAMPLE_AGENTS_COZE_BOT1_ENABLE
-                config EXAMPLE_AGENTS_BOT1_NAME
+                config EXAMPLE_AGENTS_COZE_BOT1_NAME
                     string "Bot name"
                     default "Lin Jia Nv Hai"
 
@@ -91,7 +91,7 @@ menu "Example Configuration"
                 default n
 
             if EXAMPLE_AGENTS_COZE_BOT2_ENABLE
-                config EXAMPLE_AGENTS_BOT2_NAME
+                config EXAMPLE_AGENTS_COZE_BOT2_NAME
                     string "Bot name"
                     default "Wan Qu Da Shu"
 

@@ -52,7 +52,7 @@ void services_init()
     // Configure the peripheral before service start
     auto &audio_service = service::Audio::get_instance();
     service::Audio::PeripheralConfig periph_config{};
-    BROOKESIA_CHECK_ESP_ERR_EXIT(audio_peripheral_init(periph_config), "Failed to initialize audio peripheral");
+    BROOKESIA_CHECK_FALSE_EXIT(board_audio_peripheral_init(periph_config), "Failed to initialize audio peripheral");
     audio_service.configure_peripheral(periph_config);
     // Configure the recorder
     service::Audio::RecorderConfig recorder_config = DEFAULT_AUDIO_RECORDER_CONFIG();

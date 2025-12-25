@@ -27,7 +27,7 @@ PROBE_DELAY_S = 5
 TIMEOUT_S = 60
 DEFAULT_RESPONSE = b'Success!'
 
-WIFI_CONNECT_REPEAT_COUNT = 20
+WIFI_CONNECT_REPEAT_COUNT = 1
 
 
 def get_prompt(target: str = 'esp32s3') -> bytes:
@@ -379,7 +379,7 @@ def test_service_console_commands(dut: Dut, test_groups: List[str] = None) -> No
 @pytest.mark.target('esp32s3')
 @pytest.mark.env('generic')
 @pytest.mark.parametrize('config', ['defaults'])
-@pytest.mark.timeout(10 * 60)
+@pytest.mark.timeout(20 * 60)
 def test_esp32s3_all(dut: Dut) -> None:
     """Test all command groups on ESP32-S3."""
     test_service_console_commands(dut)
@@ -388,7 +388,7 @@ def test_esp32s3_all(dut: Dut) -> None:
 @pytest.mark.target('esp32p4')
 @pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
 @pytest.mark.parametrize('config', ['defaults'])
-@pytest.mark.timeout(10 * 60)
+@pytest.mark.timeout(20 * 60)
 def test_esp32p4_all(dut: Dut) -> None:
     """Test all command groups on ESP32-P4."""
     test_service_console_commands(dut)

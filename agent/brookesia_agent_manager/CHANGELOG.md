@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.1 - 2025-12-25
+
+### Bug Fixes
+
+- fix(yml): update `brookesia_service_audio` dependency version to `0.7.*`
+
 ## v0.7.0 - 2025-12-24
 
 ### Initial Release

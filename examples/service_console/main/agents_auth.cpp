@@ -17,8 +17,8 @@ using CozeHelper = service::helper::AgentCoze;
 using OpenaiHelper = service::helper::AgentOpenai;
 
 #if CONFIG_EXAMPLE_AGENTS_ENABLE_COZE
-extern const char private_key_txt_start[] asm("_binary_private_key_txt_start");
-extern const char private_key_txt_end[]   asm("_binary_private_key_txt_end");
+extern const char coze_private_key_pem_start[] asm("_binary_private_key_pem_start");
+extern const char coze_private_key_pem_end[]   asm("_binary_private_key_pem_end");
 #endif // CONFIG_EXAMPLE_AGENTS_ENABLE_COZE
 
 void agents_auth_init()
@@ -29,7 +29,7 @@ void agents_auth_init()
         .authorization = {
             .app_id = CONFIG_EXAMPLE_AGENTS_COZE_APP_ID,
             .public_key = CONFIG_EXAMPLE_AGENTS_COZE_PUBLIC_KEY,
-            .private_key = std::string(private_key_txt_start, private_key_txt_end - private_key_txt_start) + "\0",
+            .private_key = std::string(coze_private_key_pem_start, coze_private_key_pem_end - coze_private_key_pem_start) + "\0",
         },
         .robots = {
 #if CONFIG_EXAMPLE_AGENTS_COZE_BOT1_ENABLE

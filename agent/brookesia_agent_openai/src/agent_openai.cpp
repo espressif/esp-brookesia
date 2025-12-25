@@ -45,6 +45,8 @@ bool Openai::on_init()
         "Version: %1%.%2%.%3%", BROOKESIA_AGENT_OPENAI_VER_MAJOR, BROOKESIA_AGENT_OPENAI_VER_MINOR,
         BROOKESIA_AGENT_OPENAI_VER_PATCH
     );
+
+    return true;
 }
 
 bool Openai::on_start()
