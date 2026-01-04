@@ -189,6 +189,15 @@ build_test_apps_brookesia_lib_utils_time_profiler:
     - .rules:build:test_apps_brookesia_lib_utils_time_profiler
   variables:
     EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/time_profiler
+
+build_test_apps_brookesia_hal:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_release_version
+    - .rules:build:test_apps_brookesia_hal
+  variables:
+    EXAMPLE_DIR: utils/brookesia_hal/test_app
+
 # brookesia_service_manager
 build_test_apps_brookesia_service_manager:
   extends:

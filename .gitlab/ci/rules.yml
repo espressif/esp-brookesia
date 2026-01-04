@@ -201,6 +201,8 @@
   - "utils/brookesia_lib_utils/test_apps/thread_profiler/**/*"
 .patterns-test_apps_brookesia_lib_utils_time_profiler: &patterns-test_apps_brookesia_lib_utils_time_profiler
   - "utils/brookesia_lib_utils/test_apps/time_profiler/**/*"
+.patterns-test_apps_brookesia_hal: &patterns-test_apps_brookesia_hal
+  - "utils/brookesia_hal/**/*"
 
 # examples folder
 .patterns-examples_service_console: &patterns-examples_service_console
@@ -486,6 +488,16 @@
       changes: *patterns-component_brookesia_lib_utils
     - <<: *if-dev-push
       changes: *patterns-test_apps_brookesia_lib_utils_time_profiler
+.rules:build:test_apps_brookesia_hal:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_hal
 
 # rules for examples
 .rules:build:examples_service_console:

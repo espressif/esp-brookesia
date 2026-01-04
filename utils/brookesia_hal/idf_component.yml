@@ -1,0 +1,16 @@
+version: "0.1.0"
+description: ESP-Brookesia HAL library which provides hardware abstraction layer
+url: https://github.com/espressif/esp-brookesia/tree/master/utils/brookesia_hal
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  idf: ">=5.5,<6"
+
+  espressif/cmake_utilities:
+    version: "0.*"
+    require: public
+
+  espressif/brookesia_lib_utils:
+    version: "^0.7"
+    override_path: "../brookesia_lib_utils"
+    public: true
