@@ -13,10 +13,15 @@ import re
 import logging
 from pathlib import Path
 from typing import List
+import typing as t
+import subprocess
+import shutil
 
 from idf_build_apps import App, build_apps, find_apps, setup_logging
+from idf_build_apps.app import CMakeApp
 
 logger = logging.getLogger('idf_build_apps')
+IDF_PATH = os.getenv("IDF_PATH", "")
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
 APPS_BUILD_PER_JOB = 30
@@ -25,6 +30,55 @@ IGNORE_WARNINGS = [
     r"WARNING: The following Kconfig variables were used in",
     r"unknown kconfig symbol",
 ]
+
+class CustomApp(CMakeApp):
+    build_system: t.Literal['custom'] = 'custom'  # Must be unique to identify your custom app type
+
+    def _build(
+        self,
+        *,
+        manifest_rootpath: t.Optional[str] = None,
+        modified_components: t.Optional[t.List[str]] = None,
+        modified_files: t.Optional[t.List[str]] = None,
+        check_app_dependencies: bool = False,
+    ) -> None:
+        if self.is_board_manager_project():
+            self._pre_hook()
+        else:
+            print('== This is not a board manager project, running normal build')
+        super()._build(
+            manifest_rootpath=manifest_rootpath,
+            modified_components=modified_components,
+            modified_files=modified_files,
+            check_app_dependencies=check_app_dependencies,
+        )
+
+    def is_board_manager_project(self) -> bool:
+        main_yml_path = Path(self.work_dir)/"main"/"idf_component.yml"
+        with open(main_yml_path) as f:
+            return 'esp_board_manager' in f.read()
+
+    def get_board_name_from_sdkconfig(self, sdkconfig_path: str) -> str:
+        board_name = ''
+        sdkconfig_path = Path(sdkconfig_path).name
+        if sdkconfig_path.startswith('sdkconfig.ci.board.'):
+            board_name = sdkconfig_path[len('sdkconfig.ci.board.'):]
+        return board_name
+
+    def clear_project_generated_files(self):
+        proj_path = Path(self.work_dir).absolute()
+        shutil.rmtree(proj_path/"managed_components", ignore_errors=True)
+        shutil.rmtree(proj_path/"components"/"gen_bmgr_codes", ignore_errors=True)
+        (proj_path/'board_manager.defaults').unlink(missing_ok=True)
+
+    def _pre_hook(self):
+        board_name = self.get_board_name_from_sdkconfig(self.sdkconfig_files[1])
+        print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board: {board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
+        self.clear_project_generated_files()
+        if board_name == '':
+            print(f'== No board name found, skip the pre build hook')
+            return # no board name found, skip the pre build hook
+        subprocess.run([sys.executable, f"{IDF_PATH}/tools/idf.py", "gen-bmgr-config", "-c", str(Path(self.work_dir).absolute()/"boards"), "-b", board_name], cwd=self.work_dir)
 
 def _get_idf_version():
     if os.environ.get('IDF_VERSION'):
@@ -60,6 +114,7 @@ def get_cmake_apps(
         manifest_files=[
             str(Path(PROJECT_ROOT)/'.build-rules.yml'),
         ],
+        build_system=CustomApp,
     )
     return apps
 
