@@ -41,4 +41,6 @@ dependencies:
   # Expressions
   espressif/brookesia_expression_emote:
     version: "*"
+    matches:
+    - if: $CONFIG{EXAMPLE_EXPRESSIONS_ENABLE_EMOTE} == True
     override_path: "../../../expression/brookesia_expression_emote"

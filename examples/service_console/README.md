@@ -55,7 +55,10 @@ The example provides an interactive command-line interface through the serial co
 
 This example supports the following ESP-IDF versions:
 
-- ESP-IDF release/v5.5 latest version
+- ESP-IDF TAG `v5.5.2` or the latest version of `release/v5.5`
+
+> [!WARNING]
+> **Note**: It is not recommended to use the VSCode extension to install the ESP-IDF environment or compile this example, as this may cause build failures.
 
 Please refer to the [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html) to set up your development environment. **It is strongly recommended** to familiarize yourself with ESP-IDF by [building your first project](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#id8) and ensure your environment is configured correctly.
 
@@ -254,6 +257,7 @@ For detailed descriptions of RPC commands, please refer to the [RPC Commands](./
 
 ### Common Issues
 
+- **Build failure on Windows**: Please refer to the [ESP-IDF Requirements](#esp-idf-requirements) section to ensure your environment is configured correctly.
 - **Command not recognized**: Ensure that the example has been compiled and flashed correctly, and the serial connection is working properly.
 - **Service not found**: Use the `svc_list` command to view all available services and ensure the required service is enabled.
 - **RPC connection failed**: Ensure that devices are connected to the same WiFi network.

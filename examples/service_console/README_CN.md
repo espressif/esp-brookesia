@@ -55,7 +55,10 @@
 
 本示例支持以下 ESP-IDF 版本：
 
-- ESP-IDF release/v5.5 最新版本
+- ESP-IDF TAG `v5.5.2` 或 `release/v5.5` 最新版本
+
+> [!WARNING]
+> **请注意**：不推荐使用 VSCode 的扩展插件安装 ESP-IDF 环境和编译本示例，可能会导致编译失败。
 
 请参照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。**强烈推荐** 通过 [编译第一个工程](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#id8) 来熟悉 ESP-IDF，并确保环境配置正确。
 
@@ -254,6 +257,7 @@ debug_time_clear
 
 ### 常见问题
 
+- **Windows 系统下编译失败**：请参考 [ESP-IDF 要求](#esp-idf-要求) 章节确保环境配置正确。
 - **命令无法识别**：确保已正确编译和烧录示例，并且串口连接正常。
 - **服务未找到**：使用 `svc_list` 命令查看所有可用服务，确保所需服务已启用。
 - **RPC 连接失败**：确保设备已连接到同一 WiFi 网络。
