@@ -2,8 +2,6 @@
 dependencies:
   # Board Manager
   espressif/esp_board_manager:
-    matches:
-    - if: $CONFIG{EXAMPLE_ENABLE_BOARD_MANAGER} == True
     version: "0.5.*"
 
   # Services
@@ -39,3 +37,8 @@ dependencies:
     matches:
     - if: $CONFIG{EXAMPLE_AGENTS_ENABLE_OPENAI} == True
     override_path: "../../../agent/brookesia_agent_openai"
+
+  # Expressions
+  espressif/brookesia_expression_emote:
+    version: "*"
+    override_path: "../../../expression/brookesia_expression_emote"

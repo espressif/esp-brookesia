@@ -2,6 +2,7 @@
 nvs,          data, nvs,     ,        0x6000,
 phy_init,     data, phy,     ,        0x1000,
 model,        data, spiffs,  ,        600K,
-factory,      app,  factory, ,        6M,
+factory,      app,  factory, ,        7M,
 storage,      data, fat,     ,        500K,
 spiffs_data,  data, spiffs,  ,        500K,
+anim_icon,    data, spiffs,  ,        3000K,

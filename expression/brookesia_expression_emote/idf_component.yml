@@ -1,4 +1,4 @@
-version: "0.0.1"
+version: "0.7.0"
 description: ESP-Brookesia Expression Emote which provides expression emote management, including emoji set, animation set, and event message set.
 url: https://github.com/espressif/esp-boost
 repository: https://github.com/espressif/esp-boost.git

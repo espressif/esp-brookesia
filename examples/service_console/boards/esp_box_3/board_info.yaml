@@ -1,0 +1,5 @@
+board: esp_box_3
+chip: esp32s3
+version: 1.3.0
+description: "ESP-BOX-3 Development Board"
+manufacturer: "ESPRESSIF"

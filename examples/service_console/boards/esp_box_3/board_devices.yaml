@@ -1,0 +1,137 @@
+board: esp_box_3
+chip: esp32s3
+version: 1.0.0
+# Devices Configuration
+devices:
+  # SD Card Power
+  - name: sdcard_power
+    type: power_ctrl
+    sub_type: gpio
+    peripherals:
+    - name: gpio_sd_power
+      active_level: 0
+
+  - name: audio_dac
+    chip: es8311
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: false
+      dac_enabled: true
+      dac_max_channel: 1
+      # DAC channel mask, 1-enable, 0-disable, layout: left,right
+      dac_channel_mask: "1"     # Left enable
+      dac_init_gain: 0           # dB
+
+      # Audio processing settings
+      mclk_enabled: true
+
+    # Power amplifier configuration
+    peripherals:
+      - name: gpio_pa_control
+        gain: 6                    # dB
+        active_level: 1            # 0-low, 1-high
+      - name: i2s_audio_out
+      - name: i2c_master
+        address: 0x30
+        frequency: 400000          # Hz
+
+  - name: audio_adc
+    chip: es7210
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: true
+      adc_max_channel: 4
+      # The channel mask, 1-enable, 0-disable
+      # e.g."0111", bit0: Mic0 enable, bit1: Mic1 enable, bit2: Mic2 enable, bit3: Mic3 enable, bit4: Mic4 disable
+      adc_channel_mask: "0111"
+      adc_channel_labels: ['NA', 'RE', 'FR', 'FL'] # MSB ~ LSB
+      adc_init_gain: 0           # dB
+
+    # Power amplifier configuration
+    peripherals:
+      # I2S interface configuration
+      - name: i2s_audio_in
+      # I2C interface configuration
+      - name: i2c_master
+        address: 0x80
+        frequency: 400000          # Hz
+
+  - name: fs_sdcard
+    type: fs_fat
+    sub_type: sdmmc
+    power_ctrl_device: sdcard_power
+    version: default
+    config:
+      sub_config:
+        bus_width: 4
+        pins:
+          clk: 11
+          cmd: 14
+          d0: 9
+          d1: 13
+          d2: 42
+          d3: 12
+
+  - name: display_lcd
+    chip: ili9341
+    type: display_lcd
+    sub_type: spi
+    version: default
+    dependencies:
+      espressif/esp_lcd_ili9341: "*"
+    config:
+      mirror_x: true
+      mirror_y: true
+      x_max: 320
+      y_max: 240
+      # esp_lcd_panel_io_spi_config_t fields
+      io_spi_config:
+        cs_gpio_num: 5
+        dc_gpio_num: 4
+        spi_mode: 0
+        pclk_hz: 20000000
+        flags:
+          sio_mode: true                 # Single line mode
+
+      lcd_panel_config:
+        reset_gpio_num: 48
+        data_endian: "LCD_RGB_DATA_ENDIAN_LITTLE" # LCD_RGB_DATA_ENDIAN_LITTLE
+        flags:
+          reset_active_high: true
+        # ST77916 specific configuration
+        vendor_config: NULL
+
+    peripherals:
+    - name: spi_display            # SPI peripheral for LCD communication
+
+  # Touch Panel Configuration
+  - name: lcd_touch
+    chip: gt911
+    type: lcd_touch_i2c
+    version: default
+    dependencies:
+      esp_lcd_touch:
+        version: "*"
+        require: public
+      espressif/esp_lcd_touch_gt911: "*"
+    config:
+      # esp_lcd_panel_io_i2c_config_t fields for touch communication
+      io_i2c_config:
+        dev_addr: [0x5D, 0x14]            # GT911 I2C address (ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS)
+        lcd_cmd_bits: 16                  # Bit-width of LCD command
+        peripherals:
+          - name: i2c_master              # I2C peripheral for touch communication
+
+      # esp_lcd_touch_config_t fields for touch configuration
+      touch_config:
+        x_max: 320                        # Maximum X coordinate (BSP_LCD_H_RES)
+        y_max: 240                        # Maximum Y coordinate (BSP_LCD_V_RES)
+        int_gpio_num: 3                   # Interrupt GPIO (BSP_LCD_TOUCH_INT)
+
+  - name: lcd_brightness
+    type: ledc_ctrl
+    version: default
+    peripherals:
+      - name: ledc_backlight               # LEDC peripheral for GPIO 47

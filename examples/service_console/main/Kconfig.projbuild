@@ -1,4 +1,8 @@
 menu "Example Configuration"
+    config EXAMPLE_ENABLE_BOARD_MANAGER
+        bool "Enable board manager"
+        default n
+
     menu "Console"
         config CONSOLE_STORE_HISTORY
             bool "Store command history in flash"
@@ -16,10 +20,6 @@ menu "Example Configuration"
                 reached, no more characters will be accepted by the console.
     endmenu
 
-    menuconfig EXAMPLE_ENABLE_BOARD_MANAGER
-        bool "Enable board manager"
-        default n
-
     menu "Services"
         config EXAMPLE_SERVICES_ENABLE_NVS
             bool "Enable NVS service"
@@ -35,7 +35,6 @@ menu "Example Configuration"
 
         config EXAMPLE_SERVICES_ENABLE_AUDIO
             bool "Enable audio service"
-            default y if EXAMPLE_ENABLE_BOARD_MANAGER
             default n
     endmenu
 
@@ -125,5 +124,61 @@ menu "Example Configuration"
                 string "Model"
                 default "gpt-4o-realtime-preview"
         endif
+
+        menuconfig EXAMPLE_AGENTS_ENABLE_BAIDU
+            bool "Enable Baidu agent"
+            select EXAMPLE_SERVICES_ENABLE_WIFI
+            select EXAMPLE_SERVICES_ENABLE_SNTP
+            select EXAMPLE_SERVICES_ENABLE_AUDIO
+            default n
+
+        if EXAMPLE_AGENTS_ENABLE_BAIDU
+            config EXAMPLE_AGENTS_BAIDU_APP_ID
+                string "App ID"
+                default "appxxx"
+
+            config EXAMPLE_AGENTS_BAIDU_USER_ID
+                string "API key"
+                default "27xxxxxxx"
+
+            config EXAMPLE_AGENTS_BAIDU_WORKFLOW
+                string "Workflow"
+                default "VoiceChat"
+
+            config EXAMPLE_AGENTS_BAIDU_LICENSE_KEY
+                string "License key"
+                default ""
+
+            config EXAMPLE_AGENTS_BAIDU_INSTANCE_ID
+                int "Instance ID"
+                default 0
+
+            config EXAMPLE_AGENTS_BAIDU_SERVER_URL
+                string "Server URL"
+                default ""
+        endif
+
+        menuconfig EXAMPLE_AGENTS_ENABLE_RAINMAKER
+            bool "Enable Rainmaker agent"
+            select EXAMPLE_SERVICES_ENABLE_WIFI
+            select EXAMPLE_SERVICES_ENABLE_SNTP
+            select EXAMPLE_SERVICES_ENABLE_AUDIO
+            default n
+
+        if EXAMPLE_AGENTS_ENABLE_RAINMAKER
+            config EXAMPLE_AGENTS_RAINMAKER_AGENT_ID
+                string "Agent ID"
+                default "Friend"
+
+            config EXAMPLE_AGENTS_RAINMAKER_REFRESH_TOKEN
+                string "Refresh token"
+                default ""
+        endif
+    endmenu
+
+    menu "Expressions"
+        config EXAMPLE_EXPRESSIONS_ENABLE_EMOTE
+            bool "Enable Emote expression"
+            default n
     endmenu
 endmenu

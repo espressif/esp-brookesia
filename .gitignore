@@ -77,3 +77,6 @@ board_manager.defaults
 sdkconfig.bmgr_board.backup
 sdkconfig.bmgr_board.old
 **/gen_bmgr_codes/
+
+# private key files
+*.pem

@@ -90,6 +90,12 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
+      - id: check-forbidden-strings
+        name: Check for forbidden strings in files
+        entry: ./.gitlab/tools/check_forbidden_strings.py ./.gitlab/tools/forbiden_folders.txt ./.gitlab/tools/forbidden_strings.txt "(^sdkconfig.*$)"
+        language: python
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/espressif/conventional-precommit-linter
     rev: v1.8.0
     hooks:

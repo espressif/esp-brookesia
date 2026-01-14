@@ -17,15 +17,16 @@ jobs:
         uses: espressif/upload-components-ci-action@v1
         with:
           directories: >
+            agent/brookesia_agent_coze;
+            agent/brookesia_agent_manager;
+            agent/brookesia_agent_openai;
+            expression/brookesia_expression_emote;
             service/brookesia_service_audio;
             service/brookesia_service_helper;
             service/brookesia_service_manager;
             service/brookesia_service_nvs;
             service/brookesia_service_sntp;
             service/brookesia_service_wifi;
-            agent/brookesia_agent_manager;
-            agent/brookesia_agent_coze;
-            agent/brookesia_agent_openai;
             utils/brookesia_lib_utils;
           namespace: "espressif"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}

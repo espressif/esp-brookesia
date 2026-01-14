@@ -1,0 +1,98 @@
+board: echoear_core_board_v1_2
+chip: esp32s3
+version: 1.0.0
+# Peripherals Configuration for EchoEar Core Board V1.2
+peripherals:
+  # I2C Configuration
+  - name: i2c_master
+    type: i2c
+    role: master
+    config:
+      port: 0
+      pins:
+        sda: 2                          # GPIO2 - I2C SDA
+        scl: 1                          # GPIO1 - I2C SCL
+
+  # I2S Audio Configuration
+  - name: i2s_audio_out
+    type: i2s
+    role: master
+    format: std-out                     # std-out, std-in
+    config: &i2s_config
+      port: 0
+      # Clock configuration
+      sample_rate_hz: 48000             # Sample rate in Hz
+      mclk_multiple: 256                # Multiple of MCLK to sample rate (256 or 384 for 24-bit)
+      # Slot configuration
+      data_bit_width: 16                # Data bit width (valid data bits per sample)
+      slot_bit_width: I2S_SLOT_BIT_WIDTH_AUTO  # Total bits per slot (I2S_SLOT_BIT_WIDTH_AUTO or specific value)
+      slot_mode: I2S_SLOT_MODE_STEREO   # I2S_SLOT_MODE_MONO or I2S_SLOT_MODE_STEREO
+      slot_mask: I2S_STD_SLOT_BOTH      # I2S_STD_SLOT_LEFT, I2S_STD_SLOT_RIGHT, or I2S_STD_SLOT_BOTH slots
+      ws_width: 16                      # WS signal width in BCLK ticks
+
+      # GPIO configuration
+      pins:
+        mclk: 42                        # GPIO42 - I2S_MCLK (BSP_I2S_MCLK)
+        bclk: 40                        # GPIO40 - I2S_SCLK (BSP_I2S_SCLK)
+        ws: 39                          # GPIO39 - I2S_LCLK (BSP_I2S_LCLK)
+        dout: 41                        # GPIO41 - I2S_DOUT (BSP_I2S_DOUT)
+        din: 3                          # GPIO3 - I2S_DSIN (BSP_I2S_DSIN)
+
+  - name: i2s_audio_in
+    type: i2s
+    role: master
+    format: std-in
+    config: *i2s_config
+
+  # LCD SPI Configuration for ST77916 QSPI
+  - name: spi_display
+    type: spi
+    role: master
+    config:
+      # spi_bus_config_t fields
+      spi_bus_config:
+        spi_port: SPI2_HOST               # 0: SPI1_HOST, 1: SPI2_HOST, 2: SPI3_HOST
+        data0_io_num: 46                  # MOSI_IO_NUM
+        data1_io_num: 13                  # MISO_IO_NUM
+        data2_io_num: 11                  # QUADWP_IO_NUM
+        data3_io_num: 12                  # QUADHD_IO_NUM
+        sclk_io_num: 18                   # SPI Clock signal
+        max_transfer_sz: 7200             # Maximum transfer size in bytes : width * 2 * 20
+
+  - name: ledc_backlight
+    type: ledc
+    role: none
+    config:
+      gpio_num: 44                          # GPIO44 - LED control pin
+      freq_hz: 2000                         # PWM frequency 2kHz
+      duty: 0                               # Initial duty cycle (0%)
+      duty_resolution: LEDC_TIMER_10_BIT    # 10-bit duty resolution
+
+  ## CHIP POWER_ON_OFF LCD and SD card power control
+  - name: gpio_power_lcd_sdcard
+    type: gpio
+    config:
+      pin: 9                           # GPIO9 - LCD_RST (CHIP POWER_ON_OFF)
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1
+
+  - name: gpio_power_audio
+    type: gpio
+    config:
+      pin: 48                          # GPIO48 - POWER_AUDIO
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1
+
+  - name: gpio_pa_control
+    type: gpio
+    config:
+      pin: 15                          # GPIO15 - AMP Control
+      mode: GPIO_MODE_OUTPUT
+      default_level: 0
+
+  - name: gpio_led_g
+    type: gpio
+    config:
+      pin: 43                          # GPIO43 - LED GREEN
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1

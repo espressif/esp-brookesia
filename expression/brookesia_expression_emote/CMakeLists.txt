@@ -26,6 +26,7 @@ idf_component_register(
     PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
     REQUIRES ${COMPONENT_REQUIRES}
 )
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _ExpressionEmote_symbol_360")
 
 include(package_manager)
 cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
@@ -45,5 +46,3 @@ set_source_files_properties(${COMPONENT_SRCS_CPP}
     PROPERTIES
         COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
 )
-
-target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _ExpressionEmote_symbol_360")

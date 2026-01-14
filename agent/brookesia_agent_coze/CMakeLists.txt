@@ -25,8 +25,8 @@ idf_component_register(
     INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
     PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
     REQUIRES ${COMPONENT_REQUIRES}
-    WHOLE_ARCHIVE
 )
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _Coze_symbol_792")
 
 include(package_manager)
 cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})

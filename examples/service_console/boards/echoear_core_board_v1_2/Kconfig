@@ -1,0 +1,2 @@
+config BOARD_ECHOEAR_CORE_BOARD_V1_2
+    bool

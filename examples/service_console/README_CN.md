@@ -2,23 +2,26 @@
 
 [English Version](./README.md)
 
-本示例演示了如何通过控制台运行和测试 ESP Brookesia 的服务框架功能。
+本示例演示了如何通过控制台运行和测试 ESP-Brookesia 的服务框架功能。
 
-本示例提供了一个交互式命令行界面，允许您通过串口控制台与各种系统服务进行交互，包括 NVS（非易失性存储）、WiFi、音频、Agent（智能体）、SNTP（网络时间协议）等服务。
+本示例提供了一个交互式命令行界面，允许您通过串口控制台与各种系统服务进行交互。目前支持的服务列表请参考 [调用服务函数](#调用服务函数) 章节。
 
-本示例可以作为开发和调试 ESP Brookesia 服务的工具。
+本示例可作为开发和调试 ESP-Brookesia 服务的实用工具。
 
-## 目录
+## 📑 目录
 
 - [服务控制台示例](#服务控制台示例)
-  - [目录](#目录)
-  - [快速入门](#快速入门)
+  - [📑 目录](#-目录)
+  - [🚀 快速入门](#-快速入门)
     - [准备工作](#准备工作)
     - [ESP-IDF 要求](#esp-idf-要求)
+  - [🔨 如何使用示例](#-如何使用示例)
+    - [设置目标](#设置目标)
+      - [对于支持的开发板](#对于支持的开发板)
+      - [对于其他开发板](#对于其他开发板)
     - [配置](#配置)
-  - [如何使用示例](#如何使用示例)
     - [编译和烧录示例](#编译和烧录示例)
-  - [命令说明](#命令说明)
+  - [📖 命令说明](#-命令说明)
     - [基本命令](#基本命令)
       - [列出所有服务](#列出所有服务)
       - [列出服务函数和事件](#列出服务函数和事件)
@@ -30,53 +33,89 @@
       - [线程分析器](#线程分析器)
       - [时间分析器](#时间分析器)
     - [RPC 命令](#rpc-命令)
-  - [故障排除](#故障排除)
+  - [🔍 故障排除](#-故障排除)
     - [常见问题](#常见问题)
-  - [技术支持与反馈](#技术支持与反馈)
+  - [💬 技术支持与反馈](#-技术支持与反馈)
 
-## 快速入门
+## 🚀 快速入门
 
 ### 准备工作
 
-本示例支持 ESP32-S3/P4 开发板（如 ESP-BOX-3）。示例通过串口控制台提供交互式命令行界面。
+本示例的基础功能支持搭载 `ESP32-S3` 或 `ESP32-P4` 芯片且 `Flash >= 8MB` 的开发板。
+
+对于需要使用外部设备的功能（如 Audio、Emote、Agent 等），需要配合 `esp_board_manager` 组件使用。默认支持的开发板包括：
+
+- [EchoEar](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/echoear/index.html)
+- [ESP32-S3-BOX-3](https://github.com/espressif/esp-box)
+- [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html)
+
+示例通过串口控制台提供交互式命令行界面。
 
 ### ESP-IDF 要求
 
-此示例支持以下 ESP-IDF 版本：
+本示例支持以下 ESP-IDF 版本：
 
 - ESP-IDF release/v5.5 最新版本
 
-请参照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。**强烈推荐** 通过 [编译第一个工程](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#id8) 来熟悉 ESP-IDF，并确保环境设置正确。
+请参照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。**强烈推荐** 通过 [编译第一个工程](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#id8) 来熟悉 ESP-IDF，并确保环境配置正确。
+
+## 🔨 如何使用示例
+
+### 设置目标
+
+#### 对于支持的开发板
+
+如果使用 `esp_board_manager` 组件支持的开发板，请运行以下命令进行选择：
+
+```bash
+idf.py gen-bmgr-config -b <board> -c ./boards
+```
+
+其中：
+
+- `<board>` 为开发板名称
+- `./boards` 为开发板配置文件目录
+
+默认支持的开发板名称如下：
+
+- `echoear_core_board_v1_2`
+- `esp_box_3`
+- `esp32_p4_function_ev`
+
+> [!NOTE]
+> - 关于如何添加自定义开发板，请参考 [esp_board_manager 组件文档](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md) 了解更多信息。
+> - 本示例默认使用 [idf_ext.py](./idf_ext.py) 文件对 `idf.py gen-bmgr-config` 命令进行扩展，用户无需手动下载 `esp_board_manager` 组件和设置 `IDF_EXTRA_ACTIONS_PATH` 环境变量。
+
+#### 对于其他开发板
+
+如果使用其他开发板，请运行以下命令选择目标芯片：
+
+```bash
+idf.py set-target <target>
+```
 
 ### 配置
 
 运行 `idf.py menuconfig` 可以在 `Example Configuration` 菜单中配置以下选项：
 
 - **Console Configuration**：配置控制台相关选项，如是否在 Flash 中存储命令历史、最大命令行长度等
-- **Board Manager**：启用板级管理器（可选）
-- **Services**：启用或禁用特定服务（NVS、SNTP、WiFi、Audio）
-- **Agents**：配置 Agent 服务（Coze、OpenAI），包括 API 密钥、Bot 配置等
-
-> [!WARNING]
-> - 请注意，由于 `esp_board_manager` 组件 `v0.5.0` 版本存在依赖问题，请暂时不要启用板级管理器, 否则会导致编译失败，待新版本问题修复后，可启用板级管理器。
-> - `Audio` 和 `Agent` 服务需要启用板级管理器才能正常工作，因此暂不支持使用。
-
-## 如何使用示例
+- **Board Manager**：用于表示启用了 `esp_board_manager` 组件支持的开发板。该选项应在配置目标时自动启用，请勿手动配置
+- **Services**：启用或禁用特定服务
+- **Agents**：配置 Agent 信息，包括 API 密钥、Bot 配置等
 
 ### 编译和烧录示例
 
 编译项目并将其烧录到开发板上，运行监视工具可查看串行端口输出（将 `PORT` 替换为所用开发板的串行端口名）：
 
 ```bash
-idf.py set-target <target>
 idf.py -p PORT build flash monitor
 ```
 
 输入 `Ctrl-]` 可退出串口监视。
 
-有关配置和使用 ESP-IDF 来编译项目的完整步骤，请参阅 [ESP-IDF 快速入门指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 。
+有关配置和使用 ESP-IDF 编译项目的完整步骤，请参阅 [ESP-IDF 快速入门指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html)。
 
-## 命令说明
+## 📖 命令说明
 
 ### 基本命令
 
@@ -142,11 +181,15 @@ svc_call NVS Set {"KeyValuePairs":{"key1":"value1"}}
 
 有关各服务的详细函数说明，请参考对应的服务文档：
 
-- [NVS 服务](./docs/cmd_nvs_cn.md)： 非易失性存储服务
-- [WiFi 服务](./docs/cmd_wifi_cn.md)： WiFi 连接和管理服务
-- [音频服务](./docs/cmd_audio_cn.md)： 音频播放控制服务
-- [Agent 服务](./docs/cmd_agent_cn.md)： AI 代理服务（Coze、OpenAI）
-- [SNTP 服务](./docs/cmd_sntp_cn.md)： 网络时间同步服务
+- 💾 [NVS 服务](./docs/cmd_nvs_cn.md)：非易失性存储服务
+- 📶 [WiFi 服务](./docs/cmd_wifi_cn.md)：WiFi 连接和管理服务
+- 🕐 [SNTP 服务](./docs/cmd_sntp_cn.md)：网络时间同步服务
+- 🎵 [音频服务](./docs/cmd_audio_cn.md) (*)：音频播放控制服务
+- 🤖 [Agent 服务](./docs/cmd_agent_cn.md) (*)：AI 代理服务（Coze、OpenAI）
+- 😊 [Emote 服务](./docs/cmd_emote_cn.md) (*)：表情服务
+
+> [!NOTE]
+> (*) 标记的服务默认仅在支持的开发板上可以正常使用，请参考 [准备工作](#准备工作) 章节了解默认支持的开发板列表。
 
 ### 调试命令
 
@@ -199,30 +242,27 @@ debug_time_clear
 ```
 
 > [!NOTE]
-> 时间分析器数据需要代码中显式调用接口（如 `BROOKESIA_TIME_PROFILER_SCOPE()`、`BROOKESIA_TIME_PROFILER_START_EVENT()`、`BROOKESIA_TIME_PROFILER_END_EVENT()`）来采集。
+> 时间分析器数据需要在代码中显式调用接口（如 `BROOKESIA_TIME_PROFILER_SCOPE()`、`BROOKESIA_TIME_PROFILER_START_EVENT()`、`BROOKESIA_TIME_PROFILER_END_EVENT()`）来采集。
 
 ### RPC 命令
 
-除此之外，本示例还提供了 RPC 命令，允许您通过网络调用远程设备上的服务函数，并订阅远程服务事件。
+本示例还提供了 RPC 命令，允许您通过网络调用远程设备上的服务函数，并订阅远程服务事件。
 
 有关 RPC 命令的详细说明，请参考 [RPC 命令](./docs/cmd_rpc_cn.md) 文档。
 
-## 故障排除
+## 🔍 故障排除
 
 ### 常见问题
 
 - **命令无法识别**：确保已正确编译和烧录示例，并且串口连接正常。
 - **服务未找到**：使用 `svc_list` 命令查看所有可用服务，确保所需服务已启用。
 - **RPC 连接失败**：确保设备已连接到同一 WiFi 网络。
-- **开启板级管理器后编译失败**：由于 `esp_board_manager` 组件 `v0.5.0` 版本存在依赖问题，请暂时不要启用板级管理器, 待新版本问题修复后，可启用板级管理器。
-- **Audio 服务无法使用**：由于 Audio 服务需要通过 `esp_board_manager` 组件初始化硬件资源，因此暂不支持使用。
-- **Agent 无法使用**：由于 Agent 服务需要通过 `esp_board_manager` 组件初始化硬件资源，因此暂不支持使用。
 
-## 技术支持与反馈
+## 💬 技术支持与反馈
 
 请通过以下渠道进行反馈：
 
-- 有关技术问题，请访问 [esp32.com](https://esp32.com/viewforum.php?f=52&sid=86e7d3b29eae6d591c965ec885874da6) 论坛。
-- 有关功能请求或错误报告，请创建新的 [GitHub 问题](https://github.com/espressif/esp-brookesia/issues)。
+- 有关技术问题，请访问 [esp32.com](https://esp32.com/viewforum.php?f=52&sid=86e7d3b29eae6d591c965ec885874da6) 论坛
+- 有关功能请求或错误报告，请创建新的 [GitHub 问题](https://github.com/espressif/esp-brookesia/issues)
 
 我们会尽快回复。

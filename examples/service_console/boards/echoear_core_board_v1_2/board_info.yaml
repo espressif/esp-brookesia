@@ -1,0 +1,5 @@
+board: echoear_core_board_v1_2
+chip: esp32s3
+version: 1.2.0
+description: "EchoEar Core Board V1.2- AI Pet Companion Development Board"
+manufacturer: "ESPRESSIF"

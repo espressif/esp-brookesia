@@ -2,6 +2,10 @@
 
 ## v0.7.0~1 - 2026-01-14
 
+### Enhancements:
+
+- feat(CMake): use linker option `-u` to register plugin instead of `WHOLE_ARCHIVE`
+
 ### Bug Fixes
 
 - fix(base): correct debug log

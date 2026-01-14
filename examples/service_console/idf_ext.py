@@ -1,19 +1,11 @@
 from typing import Any
-import click
 import subprocess, sys
 import os
 from pathlib import Path
-import yaml
 import shutil
 import importlib.util
 
 IDF_PATH = os.getenv("IDF_PATH", "")
-
-def get_target_name(**kwargs) -> str:
-    yml_path = f"{kwargs['customer_path']}/{kwargs['board']}/board_info.yaml"
-    with open(yml_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f)
-    return data["chip"]
 
 def load_from_path(file_path, module_name=None):
     """file_path: 任意 .py 文件；返回模块对象"""
@@ -28,82 +20,45 @@ def load_from_path(file_path, module_name=None):
 
 def action_extensions(base_actions: dict, project_path: str) -> dict:
 
+    bmgr_path = Path(project_path) / "managed_components" / "espressif__esp_board_manager"
+    
+    # 检查是否正在执行 update-dependencies，避免递归
+    is_updating_deps = os.getenv("_IDF_EXT_UPDATING_DEPS") == "1" or \
+                       (len(sys.argv) > 1 and sys.argv[1] == "update-dependencies")
+
+    if not bmgr_path.exists() and not is_updating_deps:
+        # 设置环境变量标记，避免递归
+        os.environ["_IDF_EXT_UPDATING_DEPS"] = "1"
+        try:
+            # 使用 idf.py update-dependencies，但通过环境变量避免递归
+            result = subprocess.run(
+                [sys.executable, f"{IDF_PATH}/tools/idf.py", "update-dependencies"],
+                env={**os.environ, "_IDF_EXT_UPDATING_DEPS": "1"},
+                cwd=project_path
+            )
+            if result.returncode != 0:
+                print(f"Warning: Failed to update dependencies. Return code: {result.returncode}")
+        finally:
+            # 清除环境变量标记
+            os.environ.pop("_IDF_EXT_UPDATING_DEPS", None)
+
     def esp_gen_bmgr_config_callback(target_name: str, ctx, args, **kwargs) -> None:
+        raise Exception("should not be called")
 
-        shutil.rmtree("components/gen_bmgr_codes", ignore_errors=True)
-
-        bmgr = Path("managed_components/espressif__esp_board_manager")
-        if not bmgr.exists():
-            subprocess.run([sys.executable, f"{IDF_PATH}/tools/idf.py", "set-target", get_target_name(**kwargs)])
-
-        file_path = bmgr / "idf_ext.py"
-        bmgr_config = load_from_path(file_path)
-        act = bmgr_config.action_extensions(base_actions, project_path)
-        act["actions"]["gen-bmgr-config"]["callback"](target_name, ctx, args, **kwargs)
-
-    # Define command options
-    gen_bmgr_config_options = [
-        {
-            "names": ["-l", "--list-boards"],
-            "help": "List all available boards and exit",
-            "is_flag": True,
-        },
-        {
-            "names": ["-b", "--board"],
-            "help": "Specify board name directly (bypasses sdkconfig reading)",
-            "type": str,
-        },
-        {
-            "names": ["-c", "--customer-path", "--custom"],
-            "help": 'Path to customer boards directory (use "NONE" to skip)',
-            "type": str,
-        },
-        {
-            "names": ["--peripherals-only"],
-            "help": "Only process peripherals (skip devices)",
-            "is_flag": True,
-        },
-        {
-            "names": ["--devices-only"],
-            "help": "Only process devices (skip peripherals)",
-            "is_flag": True,
-        },
-        {
-            "names": ["--kconfig-only"],
-            "help": "Generate Kconfig menu system for board and component selection (default enabled)",
-            "is_flag": True,
-        },
-        {
-            "names": ["--sdkconfig-only"],
-            "help": "Only process sdkconfig features without generating Kconfig",
-            "is_flag": True,
-        },
-        {
-            "names": ["--disable-sdkconfig-auto-update"],
-            "help": "Disable automatic sdkconfig feature enabling (default is enabled)",
-            "is_flag": True,
-        },
-        {
-            "names": ["--log-level"],
-            "help": "Set the log level (DEBUG, INFO, WARNING, ERROR)",
-            "type": str,
-            "default": "INFO",
-        },
-    ]
-    # Define the actions
-    esp_actions = {
-        "actions": {
-            "gen-bmgr-config": {
-                "callback": esp_gen_bmgr_config_callback,
-                "options": gen_bmgr_config_options,
-                "short_help": "Generate ESP Board Manager configuration files",
-                "help": """Generate ESP Board Manager configuration files for board peripherals and devices.
-
-This command generates C configuration files based on YAML configuration files in the board directories. It can process peripherals, devices, generate Kconfig menus, and update SDK configuration automatically.
-
-For usage examples, see the README.md file.""",
-            },
+    if not bmgr_path.exists():
+        # Define a fake action to avoid error
+        esp_actions = {
+            "actions": {
+                "gen-bmgr-config": {
+                    "callback": esp_gen_bmgr_config_callback,
+                    "options": [],
+                    "short_help": "Generate ESP Board Manager configuration files",
+                },
+            }
         }
-    }
-
-    return esp_actions
+        return esp_actions
+    else:
+        # shutil.rmtree("components/gen_bmgr_codes", ignore_errors=True)
+        file_path = bmgr_path / "idf_ext.py"
+        bmgr_config = load_from_path(file_path)
+        return bmgr_config.action_extensions(base_actions, project_path)

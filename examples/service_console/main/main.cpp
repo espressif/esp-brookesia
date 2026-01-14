@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,19 +12,29 @@
 #include "esp_vfs_fat.h"
 #include "esp_netif.h"
 #include "esp_spiffs.h"
-#include "nvs.h"
-#include "nvs_flash.h"
-#define BROOKESIA_LOG_TAG "SrvConsole"
-#include "brookesia/lib_utils.hpp"
 #include "cmd_service.hpp"
 #include "cmd_debug.hpp"
+#include "brookesia/lib_utils.hpp"
+#include "private/utils.hpp"
 #if CONFIG_EXAMPLE_ENABLE_BOARD_MANAGER
-#include "board.hpp"
+#   include "board.hpp"
 #endif
-#include "services.hpp"
-#include "agents_auth.hpp"
+#include "general_services.hpp"
+#include "ai_agents.hpp"
+#include "audio_service.hpp"
+#include "expression.hpp"
 
 #define SPIFFS_PARTITION_LABEL "spiffs_data"
+
+constexpr size_t THREAD_IDLE_CPU_USAGE_THRESHOLD = 2;
+constexpr size_t THREAD_STACK_USAGE_THRESHOLD = 128;
+
+constexpr size_t MEM_INTERNAL_LARGEST_FREE_THRESHOLD = 10 * 1024;
+constexpr size_t MEM_INTERNAL_FREE_PERCENT_THRESHOLD = 15;
+constexpr size_t MEM_EXTERNAL_LARGEST_FREE_THRESHOLD = 1024 * 1024;
+constexpr size_t MEM_EXTERNAL_FREE_PERCENT_THRESHOLD = 20;
+
+using namespace esp_brookesia;
 
 /*
  * We warn if a secondary serial console is enabled. A secondary serial console is always output-only and
@@ -45,8 +55,6 @@
 
 #define MOUNT_PATH "/data"
 #define HISTORY_PATH MOUNT_PATH "/history.txt"
-
-using namespace esp_brookesia;
 
 static void initialize_filesystem(void)
 {
@@ -108,10 +116,13 @@ extern "C" void app_main(void)
 #if CONFIG_EXAMPLE_ENABLE_BOARD_MANAGER
     board_manager_init();
 #endif
-    /* Initialize services */
-    services_init();
-    /* Initialize agents */
-    agents_auth_init();
+
+    /* Initialize all services */
+    general_services_init();
+    audio_service_init();
+    expression_emote_init();
+    // Agent service should be initialized after expression service
+    ai_agents_init();
 
     /* Print welcome banner */
     printf("\n");
@@ -201,12 +212,14 @@ extern "C" void app_main(void)
             for (auto &name : idle_task_names) {
                 lib_utils::ThreadProfiler::TaskInfo task_info;
                 BROOKESIA_CHECK_FALSE_EXIT(
-                    lib_utils::ThreadProfiler::get_task_by_name(snapshot, name, task_info), "Failed to get idle task `%1%`",
-                    name
+                    lib_utils::ThreadProfiler::get_task_by_name(snapshot, name, task_info),
+                    "Failed to get idle task `%1%`", name
                 );
-                if (task_info.cpu_percent < 2) {
+                if (task_info.cpu_percent < THREAD_IDLE_CPU_USAGE_THRESHOLD) {
                     need_print_snapshot = true;
-                    BROOKESIA_LOGW("The CPU usage of the idle task `%1%` is less than 2%%:", name);
+                    BROOKESIA_LOGW(
+                        "The CPU usage of the idle task `%1%` is less than %2%%:", name, THREAD_IDLE_CPU_USAGE_THRESHOLD
+                    );
                 }
             }
             if (need_print_snapshot) {
@@ -224,7 +237,8 @@ extern "C" void app_main(void)
             lib_utils::ThreadProfiler::print_snapshot({.tasks = tasks});
         };
         auto connection = thread_profiler.connect_threshold_signal(
-                              lib_utils::ThreadProfiler::ThresholdType::StackUsage, 128, threshold_slot
+                              lib_utils::ThreadProfiler::ThresholdType::StackUsage, THREAD_STACK_USAGE_THRESHOLD,
+                              threshold_slot
                           );
         thread_profiler_connections.push_back(std::move(connection));
     }
@@ -247,7 +261,8 @@ extern "C" void app_main(void)
             );
         };
         auto connection = memory_profiler.connect_threshold_signal(
-                              lib_utils::MemoryProfiler::ThresholdType::InternalLargestFreeBlock, 10, threshold_slot
+                              lib_utils::MemoryProfiler::ThresholdType::InternalLargestFreeBlock,
+                              MEM_INTERNAL_LARGEST_FREE_THRESHOLD, threshold_slot
                           );
         memory_profiler_connections.push_back(std::move(connection));
     }
@@ -260,7 +275,8 @@ extern "C" void app_main(void)
             );
         };
         auto connection = memory_profiler.connect_threshold_signal(
-                              lib_utils::MemoryProfiler::ThresholdType::InternalFreePercent, 20, threshold_slot
+                              lib_utils::MemoryProfiler::ThresholdType::InternalFreePercent,
+                              MEM_INTERNAL_FREE_PERCENT_THRESHOLD, threshold_slot
                           );
         memory_profiler_connections.push_back(std::move(connection));
     }
@@ -275,7 +291,8 @@ extern "C" void app_main(void)
             );
         };
         auto connection = memory_profiler.connect_threshold_signal(
-                              lib_utils::MemoryProfiler::ThresholdType::ExternalLargestFreeBlock, 30, threshold_slot
+                              lib_utils::MemoryProfiler::ThresholdType::ExternalLargestFreeBlock,
+                              MEM_EXTERNAL_LARGEST_FREE_THRESHOLD, threshold_slot
                           );
         memory_profiler_connections.push_back(std::move(connection));
     }
@@ -288,7 +305,8 @@ extern "C" void app_main(void)
             );
         };
         auto connection = memory_profiler.connect_threshold_signal(
-                              lib_utils::MemoryProfiler::ThresholdType::ExternalFreePercent, 50, threshold_slot
+                              lib_utils::MemoryProfiler::ThresholdType::ExternalFreePercent,
+                              MEM_EXTERNAL_FREE_PERCENT_THRESHOLD, threshold_slot
                           );
         memory_profiler_connections.push_back(std::move(connection));
     }
