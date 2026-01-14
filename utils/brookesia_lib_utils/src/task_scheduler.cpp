@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -817,13 +817,13 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
 
 void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, PeriodicTask task)
 {
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     handle->timer->expires_after(std::chrono::milliseconds(handle->interval_ms));
     handle->timer->async_wait([this, handle, task](const boost::system::error_code & ec) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-        BROOKESIA_LOGD("Params: ec(%1%)", ec);
+        // BROOKESIA_LOGD("Params: ec(%1%)", ec);
 
         // If suspended, don't remove the task - it will be resumed later
         if (handle->state == TaskState::Suspended) {

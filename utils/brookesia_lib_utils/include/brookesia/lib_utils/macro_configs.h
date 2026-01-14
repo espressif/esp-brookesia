@@ -17,7 +17,7 @@
 #   define BROOKESIA_UTILS_VER_MINOR  (7)
 #endif
 #if !defined(BROOKESIA_UTILS_VER_PATCH)
-#   define BROOKESIA_UTILS_VER_PATCH  (2)
+#   define BROOKESIA_UTILS_VER_PATCH  (3)
 #endif
 
 /* Debug log */

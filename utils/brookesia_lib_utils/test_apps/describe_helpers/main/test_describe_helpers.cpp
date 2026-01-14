@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -1799,6 +1799,7 @@ struct ComplexStruct {
     // Pointers (non-char*)
     int *int_ptr;
     void *void_ptr;
+    const void *const_ptr;
     Point *point_ptr;
 
     // Enum
@@ -1824,7 +1825,7 @@ struct ComplexStruct {
 };
 BROOKESIA_DESCRIBE_STRUCT(ComplexStruct, (),
                           (flag, number, float_value, double_value, text,
-                           int_ptr, void_ptr, point_ptr,
+                           int_ptr, void_ptr, const_ptr, point_ptr,
                            status,
                            numbers, settings, description,
                            variant_value,
@@ -1848,6 +1849,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_STR", "[macro][complex_str
     complex.text = "complex test";
     complex.int_ptr = &int_value;
     complex.void_ptr = &int_value;
+    complex.const_ptr = reinterpret_cast<const void *>(&int_value);
     complex.point_ptr = &point_value;
     complex.status = Status::Running;
     complex.numbers = {1, 2, 3, 4, 5};
@@ -1871,6 +1873,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_STR", "[macro][complex_str
     TEST_ASSERT_TRUE(str.find("number") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("text") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("int_ptr") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("const_ptr") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("@0x") != std::string::npos); // Pointer format
     TEST_ASSERT_TRUE(str.find("status") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("Running") != std::string::npos);

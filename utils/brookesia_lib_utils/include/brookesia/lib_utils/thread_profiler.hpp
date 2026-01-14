@@ -113,9 +113,9 @@ public:
      * @brief Snapshot of all task information at a point in time
      */
     struct ProfileSnapshot {
-        std::chrono::system_clock::time_point timestamp;    // When snapshot was taken
+        std::chrono::system_clock::time_point timestamp{};    // When snapshot was taken
         std::vector<TaskInfo> tasks;                        // All task information
-        Statistics stats;                                    // Summary statistics
+        Statistics stats{};                                    // Summary statistics
         uint32_t total_runtime = 0;                         // Total runtime counter
     };
 

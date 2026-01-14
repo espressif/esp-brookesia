@@ -636,7 +636,7 @@ private:
 // Log trace guard macros - controlled by BROOKESIA_LOG_DISABLE_DEBUG_TRACE
 #define _BROOKESIA_LOG_CONCAT(a, b) a##b
 #define BROOKESIA_LOG_CONCAT(a, b) _BROOKESIA_LOG_CONCAT(a, b)
-#if (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE)
+#if (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE) && (BROOKESIA_UTILS_LOG_LEVEL == BROOKESIA_UTILS_LOG_LEVEL_TRACE)
 #   define BROOKESIA_LOG_TRACE_GUARD() \
         esp_brookesia::lib_utils::LogTraceGuard<true> BROOKESIA_LOG_CONCAT(_log_trace_guard_, __LINE__){}
 #   define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() \

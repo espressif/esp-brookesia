@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.3 - 2025-12-29
+
+#### Enhancements:
+
+* feat(plugin): add support for linker -u option for plugin registration
+
+#### Bug Fixes:
+
+* fix(log): fix 'BROOKESIA_LOG_TRACE_GUARD()' macro not working correctly
+
 ## v0.7.2 - 2025-12-24
 
 #### Enhancements:

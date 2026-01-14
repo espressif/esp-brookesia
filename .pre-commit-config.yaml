@@ -6,6 +6,7 @@ exclude: |
     .*/assets/.*
     | .*/brookesia_apps_squareline/ui/.*
     | .*/brookesia_apps_ai_profile/ui/.*
+    | .*/boards/.*
     | .*src/fonts/.*/.*
     | .*py
     | .*espressif__

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -924,6 +924,24 @@ void describe_output_member(std::ostringstream &oss, const char *name, const T &
             oss << "\"" << value << "\"";
         } else {
             oss << value;
+        }
+    }
+    // Non-char* pointers - format as @0x...
+    else if constexpr (std::is_pointer_v<T> &&
+                       !std::is_same_v<T, const char *> &&
+                       !std::is_same_v<T, char *>) {
+        if (fmt.quote_string_values) {
+            oss << "\"";
+        }
+        if (value) {
+            auto flags = oss.flags();
+            oss << "@0x" << std::hex << reinterpret_cast<uintptr_t>(value);
+            oss.flags(flags);
+        } else {
+            oss << "@0x0";
+        }
+        if (fmt.quote_string_values) {
+            oss << "\"";
         }
     }
     // std::vector, std::map, std::variant

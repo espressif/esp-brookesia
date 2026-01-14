@@ -73,5 +73,7 @@ XUNIT_RESULT.xml
 .cache/
 
 # esp_board_manager
+board_manager.defaults
 sdkconfig.bmgr_board.backup
+sdkconfig.bmgr_board.old
 **/gen_bmgr_codes/
