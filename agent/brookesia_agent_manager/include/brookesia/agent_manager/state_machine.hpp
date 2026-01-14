@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -60,11 +60,6 @@ public:
     std::shared_ptr<Base> get_agent() const
     {
         return agent_;
-    }
-
-    lib_utils::TaskScheduler::Group get_group() const
-    {
-        return std::string(service::helper::AgentManager::get_name().data()) + "_state_machine";
     }
 
     bool is_transient_state();

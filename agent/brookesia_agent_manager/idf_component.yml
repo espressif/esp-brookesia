@@ -1,4 +1,4 @@
-version: "0.7.1"
+version: "0.7.1~1"
 description: ESP-Brookesia Agent Manager which provides agent lifecycle management, state machine control, and agent operations.
 url: https://github.com/espressif/esp-brookesia/tree/master/agent/brookesia_agent_manager
 repository: https://github.com/espressif/esp-brookesia.git

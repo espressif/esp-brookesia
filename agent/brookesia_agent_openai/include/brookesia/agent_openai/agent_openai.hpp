@@ -24,7 +24,7 @@ public:
     };
 
     inline static const AgentAttributes DEFAULT_AGENT_ATTRIBUTES{
-        .name = "Openai",
+        .name = service::helper::AgentOpenai::NAME.data(),
         .general_event_wait_timeout_ms = {10000, 100, 100, 100},
     };
     static constexpr AudioConfig DEFAULT_AUDIO_CONFIG{

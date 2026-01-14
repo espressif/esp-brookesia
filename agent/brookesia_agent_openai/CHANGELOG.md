@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.1~1 - 2026-01-14
+
+### Bug Fixes
+
+- fix(agent): call `try_load_data()` in `set_info()`
+
 ## v0.7.1 - 2025-12-25
 
 ### Bug Fixes

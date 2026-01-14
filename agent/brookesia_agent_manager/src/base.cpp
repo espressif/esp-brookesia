@@ -34,6 +34,8 @@ void Base::trigger_general_event(GeneralEvent event)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    BROOKESIA_LOGD("Params: event(%1%)", BROOKESIA_DESCRIBE_TO_STR(event));
+
     auto [event_flag_bit, event_bit_value] = get_general_event_state_flag_bit(event);
 
 #if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG
@@ -341,7 +343,7 @@ bool Base::do_general_action(GeneralAction action, bool is_force)
     if (!is_force) {
         BROOKESIA_LOGD("Not force, check if the event is ready");
         GeneralEvent target_event = get_general_action_target_event(action);
-#if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG
+#if (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE) && (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG)
         BROOKESIA_LOGD(
             "running action(%1%)", BROOKESIA_DESCRIBE_TO_STR(get_running_general_action())
         );

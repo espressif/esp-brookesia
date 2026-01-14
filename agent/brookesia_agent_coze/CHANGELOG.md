@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.0~1 - 2026-01-14
+
+### Bug Fixes
+
+- fix(base): correct debug log
+
 ## v0.7.0 - 2025-12-24
 
 ### Initial Release

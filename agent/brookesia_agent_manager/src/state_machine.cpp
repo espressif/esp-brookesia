@@ -146,6 +146,8 @@ bool GeneralStateClass::on_exit(const std::string &to_state, const std::string &
 
 void GeneralStateClass::on_update()
 {
+    // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
     auto agent = context_.get_agent();
     BROOKESIA_CHECK_NULL_EXIT(agent, "Agent is not set");
 

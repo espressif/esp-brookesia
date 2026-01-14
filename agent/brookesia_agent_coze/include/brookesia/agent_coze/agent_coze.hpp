@@ -29,7 +29,7 @@ public:
     };
 
     inline static const AgentAttributes DEFAULT_AGENT_ATTRIBUTES{
-        .name = "Coze",
+        .name = service::helper::AgentCoze::NAME.data(),
         .general_event_wait_timeout_ms = {10000, 100, 100, 100},
         .support_emote = true,
     };

@@ -128,6 +128,8 @@ bool Openai::set_info(const boost::json::object &info)
 
     BROOKESIA_LOGD("Params: info(%1%)", BROOKESIA_DESCRIBE_TO_STR(info));
 
+    try_load_data();
+
     OpenaiInfo openai_info;
 
     auto success = BROOKESIA_DESCRIBE_FROM_JSON(info, openai_info);
@@ -138,7 +140,7 @@ bool Openai::set_info(const boost::json::object &info)
     auto current_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(get_data<DataType::Info>());
     auto new_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(openai_info);
     if (current_info_str == new_info_str) {
-        BROOKESIA_LOGD("Info is the same, skip");
+        BROOKESIA_LOGI("Info is the same, skip setting");
         return true;
     }
 
