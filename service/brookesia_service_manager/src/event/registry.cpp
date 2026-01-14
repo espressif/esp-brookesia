@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -105,7 +105,7 @@ bool EventRegistry::validate_items(const std::string &event_name, const EventIte
     return true;
 }
 
-bool EventRegistry::on_subscribe(const std::string &event_name, std::string &subscription_id, std::string &error_message)
+bool EventRegistry::on_rpc_subscribe(const std::string &event_name, std::string &subscription_id, std::string &error_message)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -129,7 +129,7 @@ bool EventRegistry::on_subscribe(const std::string &event_name, std::string &sub
     return true;
 }
 
-void EventRegistry::on_unsubscribe_by_name(const std::string &event_name)
+void EventRegistry::on_rpc_unsubscribe_by_name(const std::string &event_name)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -143,7 +143,7 @@ void EventRegistry::on_unsubscribe_by_name(const std::string &event_name)
     }
 }
 
-void EventRegistry::on_unsubscribe_by_subscriptions(const Subscriptions &subscriptions)
+void EventRegistry::on_rpc_unsubscribe_by_subscriptions(const Subscriptions &subscriptions)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -83,7 +83,7 @@ std::expected<std::shared_ptr<FunctionResult>, std::string> ServerConnection::on
         auto &event_name = std::get<std::string>(parameters.at(SUBSCRIBE_EVENT_FUNC_PARAM_NAME));
         // Trigger handler of the event registry to subscribe to the event
         std::string subscription_id;
-        if (!event_registry_.on_subscribe(event_name, subscription_id, result->error_message)) {
+        if (!event_registry_.on_rpc_subscribe(event_name, subscription_id, result->error_message)) {
             return std::unexpected(result->error_message);
         }
         // Add the subscription id to the connection subscriptions
@@ -101,7 +101,7 @@ std::expected<std::shared_ptr<FunctionResult>, std::string> ServerConnection::on
             subscription_ids.insert(boost::json::value_to<std::string>(subscription_id));
         }
         // Trigger handler of the event registry to unsubscribe from the events
-        event_registry_.on_unsubscribe_by_subscriptions(subscription_ids);
+        event_registry_.on_rpc_unsubscribe_by_subscriptions(subscription_ids);
         // Remove the subscription ids from the connection subscriptions
         for (const auto &subscription_id : subscription_ids) {
             connection_subscriptions_[connection_id].erase(subscription_id);
@@ -144,7 +144,7 @@ void ServerConnection::on_connection_closed(size_t connection_id)
 
     auto &subscriptions = it->second;
     if (!subscriptions.empty()) {
-        event_registry_.on_unsubscribe_by_subscriptions(subscriptions);
+        event_registry_.on_rpc_unsubscribe_by_subscriptions(subscriptions);
     }
 
     connection_subscriptions_.erase(it);

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -86,11 +86,6 @@ std::future<FunctionResult> ServiceBase::call_function_async(
         set_error("Function not found: " + name);
         return result_future;
     }
-    // Check if the function requires running and if the service is running
-    if (func_schema->require_running && !is_running()) {
-        set_error("Function requires running, but service is not running");
-        return result_future;
-    }
 
     // Create the call function task
     auto call_function_task = [this, registry, result_promise, promise_set, name, parameters_map =
@@ -113,15 +108,16 @@ std::future<FunctionResult> ServiceBase::call_function_async(
         result_promise->set_value(std::move(result));
     };
 
-    // If the function has raw buffer or does not require running, use synchronous call instead
-    if (func_schema->has_raw_buffer()) {
-        BROOKESIA_LOGD("Function '%1%' has raw buffer, using synchronous call instead", name);
+    // If the function does not require asynchronous, use synchronous call instead
+    if (!func_schema->require_async) {
+        BROOKESIA_LOGD("Function '%1%' does not require async, using sync call instead", name);
         call_function_task();
         return result_future;
     }
-    if (!func_schema->require_running && !is_running()) {
-        BROOKESIA_LOGD("Service is not running and function '%1%' does not require running", name);
-        call_function_task();
+
+    // Only allow asynchronous calls when the service is running
+    if (!is_running()) {
+        set_error("Service is not running");
         return result_future;
     }
 
@@ -171,11 +167,6 @@ FunctionResult ServiceBase::call_function_sync(
         set_error("Function not found: " + name);
         return *result;
     }
-    // Check if the function requires running and if the service is running
-    if (func_schema->require_running && !is_running()) {
-        set_error("Function requires running, but service is not running");
-        return *result;
-    }
 
     // Create the call function task
     auto call_function_task = [this, registry, result, name, parameters_map = std::move(parameters_map)] () mutable {
@@ -183,15 +174,16 @@ FunctionResult ServiceBase::call_function_sync(
         *result = registry->call(name, std::move(parameters_map));
     };
 
-    // If the function has raw buffer or does not require running, use synchronous call instead
-    if (func_schema->has_raw_buffer()) {
-        BROOKESIA_LOGD("Function '%1%' has raw buffer, using synchronous call instead", name);
+    // If the function does not require asynchronous, use synchronous call instead
+    if (!func_schema->require_async) {
+        BROOKESIA_LOGD("Function '%1%' does not require async, using sync call instead", name);
         call_function_task();
         return *result;
     }
-    if (!func_schema->require_running) {
-        BROOKESIA_LOGD("Function '%1%' does not require running, using synchronous call instead", name);
-        call_function_task();
+
+    // Only allow synchronous calls when the service is running
+    if (!is_running()) {
+        set_error("Service is not running");
         return *result;
     }
 
@@ -486,8 +478,6 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
         BROOKESIA_DESCRIBE_TO_STR(event_items), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
     );
 
-    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
-
     // Thread-safe get the copies of event_registry and task_scheduler
     std::shared_ptr<EventRegistry> registry;
     std::shared_ptr<lib_utils::TaskScheduler> scheduler;
@@ -500,6 +490,9 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
         BROOKESIA_LOGE("Invalid state");
         return false;
     }
+
+    auto *event_schema = registry->get_schema(event_name);
+    BROOKESIA_CHECK_NULL_RETURN(event_schema, false, "Event schema not found: %1%", event_name);
 
     // Validate the event data
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -527,13 +520,15 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
         }
     };
 
-    // If the event has raw buffer, use synchronous publish instead
-    auto has_raw_buffer = registry->has_raw_buffer(event_name);
-    if (has_raw_buffer) {
-        BROOKESIA_LOGD("Event '%1%' has raw buffer, using synchronous publish instead", event_name);
+    // If the event does not require asynchronous, use sync publish
+    if (!event_schema->require_async) {
+        BROOKESIA_LOGD("Event '%1%' does not require async, using sync publish", event_name);
         emit_signal_task();
         return true;
     }
+
+    // Check if the event requires asynchronous and if the service is running
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Service is not running");
 
     // Emit the local signal
     if (use_dispatch) {
@@ -560,20 +555,8 @@ bool ServiceBase::publish_event(const std::string &event_name, std::vector<Event
         BROOKESIA_DESCRIBE_TO_STR(data_values), BROOKESIA_DESCRIBE_TO_STR(use_dispatch)
     );
 
-    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
-
-    // Get the event schemas
-    auto event_schemas = get_event_schemas();
-
-    // Find the corresponding event schema
-    const EventSchema *event_schema = nullptr;
-    for (const auto &def : event_schemas) {
-        if (def.name == event_name) {
-            event_schema = &def;
-            break;
-        }
-    }
-    BROOKESIA_CHECK_NULL_RETURN(event_schema, false, "Event definition not found: %1%", event_name);
+    auto *event_schema = event_registry_->get_schema(event_name);
+    BROOKESIA_CHECK_NULL_RETURN(event_schema, false, "Event schema not found: %1%", event_name);
 
     // Check if the value count matches
     BROOKESIA_CHECK_FALSE_RETURN(

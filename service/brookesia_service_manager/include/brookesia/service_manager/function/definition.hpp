@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -65,19 +65,9 @@ struct FunctionSchema {
     std::string name;
     std::string description = "";
     std::vector<FunctionParameterSchema> parameters = {};
-    bool require_running = true;
-
-    bool has_raw_buffer() const
-    {
-        for (const auto &param : parameters) {
-            if (param.type == FunctionValueType::RawBuffer) {
-                return true;
-            }
-        }
-        return false;
-    }
+    bool require_async = true;
 };
-BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_running));
+BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_async));
 
 struct FunctionResult {
     bool success = false;

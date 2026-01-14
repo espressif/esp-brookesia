@@ -11,6 +11,7 @@
 #include <type_traits>
 #include <future>
 #include <memory>
+#include "boost/format.hpp"
 #include "brookesia/service_manager/function/definition.hpp"
 #include "brookesia/service_manager/event/definition.hpp"
 #include "brookesia/service_manager/service/manager.hpp"

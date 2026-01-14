@@ -1,14 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <array>
-#include <span>
-#include <type_traits>
-#include "boost/format.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_helper/base.hpp"
 
@@ -58,120 +54,80 @@ private:
     static FunctionSchema function_schema_set_servers()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::SetServers),
-            // description
-            "Set the NTP servers.",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::SetServers),
+            .description = "Set the NTP servers.",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetServersParam::Servers),
-                    // description
-                    "The JSON array of NTP servers to set.",
-                    // type
-                    FunctionValueType::Array
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetServersParam::Servers),
+                    .description = "The JSON array of NTP servers to set.",
+                    .type = FunctionValueType::Array
                 }
             },
-            // require running
-            false,
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_set_timezone()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::SetTimezone),
-            // description
-            "Set the timezone.",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::SetTimezone),
+            .description = "Set the timezone.",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetTimezoneParam::Timezone),
-                    // description
-                    "The timezone to set.",
-                    // type
-                    FunctionValueType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetTimezoneParam::Timezone),
+                    .description = "The timezone to set.",
+                    .type = FunctionValueType::String
                 }
             },
-            // require running
-            false,
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_start()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Start),
-            // description
-            "Start the SNTP service.",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Start),
+            .description = "Start the SNTP service.",
         };
     }
 
     static FunctionSchema function_schema_stop()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Stop),
-            // description
-            "Stop the SNTP service",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Stop),
+            .description = "Stop the SNTP service",
         };
     }
 
     static FunctionSchema function_schema_get_servers()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::GetServers),
-            // description
-            "Get the NTP servers, return a JSON array of NTP servers.",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::GetServers),
+            .description = "Get the NTP servers, return a JSON array of NTP servers.",
         };
     }
 
     static FunctionSchema function_schema_get_timezone()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::GetTimezone),
-            // description
-            "Get the timezone, return a string of timezone.",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::GetTimezone),
+            .description = "Get the timezone, return a string of timezone.",
         };
     }
 
     static FunctionSchema function_schema_is_time_synced()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::IsTimeSynced),
-            // description
-            "Check if the time is synced. Return a boolean value.",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::IsTimeSynced),
+            .description = "Check if the time is synced. Return a boolean value.",
         };
     }
 
     static FunctionSchema function_schema_reset_data()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::ResetData),
-            // description
-            "Reset the data of NTP servers, timezone and time sync status.",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::ResetData),
+            .description = "Reset the data of NTP servers, timezone and time sync status.",
         };
     }
 

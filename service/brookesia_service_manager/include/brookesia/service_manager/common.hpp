@@ -1,10 +1,11 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
+#include <type_traits>
 #include "brookesia/lib_utils/describe_helpers.hpp"
 
 namespace esp_brookesia::service {
@@ -13,37 +14,33 @@ struct RawBuffer {
     RawBuffer() = default;
 
     /**
-     * @brief Construct a new Raw Buffer object
+     * @brief Construct a new Raw Buffer object from a pointer
      *
-     * @param data_ptr Data pointer
-     * @param data_size Data size in bytes
-     */
-    explicit RawBuffer(const void *data_ptr, size_t data_size):
-        data_ptr(reinterpret_cast<const uint8_t *>(data_ptr)),
-        data_size(data_size),
-        is_const(true)
-    {}
-
-    /**
-     * @brief Construct a new Raw Buffer object
+     * @tparam T Pointer type (must be a pointer type)
+     * @param data Pointer to the data
      *
-     * @param data_ptr Data pointer
-     * @param data_size Data size in bytes
+     * The `is_const` flag is automatically set based on whether the pointee type is const.
+     * `data_size` is set to 0, indicating that the data is stored in the pointer itself.
+     * For example:
+     * - `const int*` -> `is_const = true`
+     * - `int*` -> `is_const = false`
      */
-    explicit RawBuffer(void *data_ptr, size_t data_size):
-        data_ptr(reinterpret_cast<uint8_t *>(data_ptr)),
-        data_size(data_size),
-        is_const(false)
-    {}
-
     template <typename T>
-    const T *to_const_ptr() const
+    requires std::is_pointer_v<T>
+    explicit RawBuffer(T pointer, size_t size = 0):
+        data_ptr(reinterpret_cast<const uint8_t *>(pointer)),
+        data_size(size),
+        is_const(std::is_const_v<std::remove_pointer_t<T>>)
+    {}
+
+    template <typename T = void>
+    const T * to_const_ptr() const
     {
         return reinterpret_cast<const T *>(data_ptr);
     }
 
-    template <typename T>
-    T *to_ptr()
+    template <typename T = void>
+    T * to_ptr() const
     {
         if (is_const) {
             return nullptr;

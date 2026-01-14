@@ -1,14 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <array>
-#include <span>
-#include <type_traits>
-#include "boost/format.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_helper/base.hpp"
 
@@ -144,195 +140,141 @@ private:
     static FunctionSchema function_schema_play_url()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayUrl),
-            // description
-            "Play an audio file from the specified URL",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayUrl),
+            .description = "Play an audio file from the specified URL",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlParam::Url),
-                    // description
-                    "URL of the audio file to play, eg:'file://spiffs/example.mp3'",
-                    // type
-                    FunctionValueType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlParam::Url),
+                    .description = "URL of the audio file to play, eg:'file://spiffs/example.mp3'",
+                    .type = FunctionValueType::String
                 }
-            }
+            },
         };
     }
 
     static FunctionSchema function_schema_play_control()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayControl),
-            // description
-            "Control the audio playback",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayControl),
+            .description = "Control the audio playback",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionPlayControlParam::Action),
-                    // description
-                    (boost::format("The action to control the audio playback, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<PlayControlAction>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayControlParam::Action),
+                    .description = (boost::format("The action to control the audio playback, "
+                                                  "should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<PlayControlAction>({
                         PlayControlAction::Pause, PlayControlAction::Resume, PlayControlAction::Stop
                     }))).str(),
-                    // type
-                    FunctionValueType::String
+                    .type = FunctionValueType::String
                 }
-            }
+            },
         };
     }
 
     static FunctionSchema function_schema_set_volume()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetVolume),
-            // description
-            "Set the volume of the audio playback",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetVolume),
+            .description = "Set the volume of the audio playback",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetVolumeParam::Volume),
-                    // description
-                    "Volume value, range from 0 to 100",
-                    // type
-                    FunctionValueType::Number
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetVolumeParam::Volume),
+                    .description = "Volume value, range from 0 to 100",
+                    .type = FunctionValueType::Number
                 }
-            }
+            },
         };
     }
 
     static FunctionSchema function_schema_get_volume()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetVolume),
-            // description
-            "Get the volume of the audio playback",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetVolume),
+            .description = "Get the volume of the audio playback",
+            .parameters = {},
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_start_encoder()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartEncoder),
-            // description
-            "Start the audio encoder",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartEncoder),
+            .description = "Start the audio encoder",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionStartEncoderParam::Config),
-                    // description
-                    "The configuration of the audio encoder",
-                    // type
-                    FunctionValueType::Object
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionStartEncoderParam::Config),
+                    .description = "The configuration of the audio encoder",
+                    .type = FunctionValueType::Object
                 }
-            }
+            },
         };
     }
 
     static FunctionSchema function_schema_stop_encoder()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopEncoder),
-            // description
-            "Stop the audio encoder",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopEncoder),
+            .description = "Stop the audio encoder",
+            .parameters = {},
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_set_encoder_read_data_size()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetEncoderReadDataSize),
-            // description
-            "Set the data size of the encoder read",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetEncoderReadDataSize),
+            .description = "Set the data size of the encoder read",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetEncoderReadDataSizeParam::Size),
-                    // description
-                    "The data size of the encoder read.",
-                    // type
-                    FunctionValueType::Number,
-                    // default value
-                    std::optional<FunctionValue>(4096.0)
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEncoderReadDataSizeParam::Size),
+                    .description = "The data size of the encoder read.",
+                    .type = FunctionValueType::Number,
+                    .default_value = std::optional<FunctionValue>(4096.0)
                 }
-            }
+            },
         };
     }
 
     static FunctionSchema function_schema_start_decoder()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartDecoder),
-            // description
-            "Start the audio decoder",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartDecoder),
+            .description = "Start the audio decoder",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionStartDecoderParam::Config),
-                    // description
-                    "The configuration of the audio decoder",
-                    // type
-                    FunctionValueType::Object
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionStartDecoderParam::Config),
+                    .description = "The configuration of the audio decoder",
+                    .type = FunctionValueType::Object
                 }
-            }
+            },
         };
     }
 
     static FunctionSchema function_schema_stop_decoder()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopDecoder),
-            // description
-            "Stop the audio decoder",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopDecoder),
+            .description = "Stop the audio decoder",
+            .parameters = {},
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_feed_decoder_data()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::FeedDecoderData),
-            // description
-            "Feed the audio data to the decoder",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::FeedDecoderData),
+            .description = "Feed the audio data to the decoder",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionFeedDecoderDataParam::Data),
-                    // description
-                    "The audio data to feed to the decoder",
-                    // type
-                    FunctionValueType::RawBuffer
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFeedDecoderDataParam::Data),
+                    .description = "The audio data to feed to the decoder",
+                    .type = FunctionValueType::RawBuffer
                 }
-            }
+            },
+            .require_async = false,
         };
     }
 
@@ -342,69 +284,50 @@ private:
     static EventSchema event_schema_play_state_changed()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::PlayStateChanged),
-            // description
-            "Play state changed event",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::PlayStateChanged),
+            .description = "Play state changed event",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventPlayStateChangedParam::State),
-                    // description
-                    (boost::format("Play state, should be one of the following: %1%") %
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventPlayStateChangedParam::State),
+                    .description = (boost::format("Play state, should be one of the following: %1%") %
                     BROOKESIA_DESCRIBE_TO_STR(std::vector<PlayState>({
                         PlayState::Idle, PlayState::Playing, PlayState::Paused
                     }))).str(),
-                    // type
-                    EventItemType::String
+                    .type = EventItemType::String
                 }
-            }
+            },
         };
     }
 
     static EventSchema event_schema_encoder_event_happened()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::EncoderEventHappened),
-            // description
-            "Encoder event happened event",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::EncoderEventHappened),
+            .description = "Encoder event happened event",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventEncoderEventHappenedParam::Event),
-                    // description
-                    "The event that happened",
-                    // type
-                    EventItemType::RawBuffer
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventEncoderEventHappenedParam::Event),
+                    .description = "The event that happened",
+                    .type = EventItemType::RawBuffer
                 }
-            }
+            },
+            .require_async = false,
         };
     }
 
     static EventSchema event_schema_encoder_data_ready()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::EncoderDataReady),
-            // description
-            "Encoder data ready event",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::EncoderDataReady),
+            .description = "Encoder data ready event",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventEncoderDataReadyParam::Data),
-                    // description
-                    "The audio data that is being encoded",
-                    // type
-                    EventItemType::RawBuffer
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventEncoderDataReadyParam::Data),
+                    .description = "The audio data that is being encoded",
+                    .type = EventItemType::RawBuffer
                 }
-            }
+            },
+            .require_async = false,
         };
     }
 

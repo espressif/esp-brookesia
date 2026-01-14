@@ -1,17 +1,13 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <array>
-#include <span>
-#include <type_traits>
-#include "boost/format.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
-#include "brookesia/service_helper/agent/manager.hpp"
 #include "brookesia/service_helper/base.hpp"
+#include "manager.hpp"
 
 namespace esp_brookesia::service::helper {
 
@@ -20,6 +16,8 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    static constexpr std::string_view NAME = "Coze";
+
     struct AuthInfo {
         std::string session_name;
         std::string device_id;
@@ -83,20 +81,13 @@ private:
     static FunctionSchema function_schema_set_active_robot_index()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetActiveRobotIndex),
-            // description
-            "Set the active robot index",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetActiveRobotIndex),
+            .description = "Set the active robot index",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetActiveRobotIndexParam::Index),
-                    // description
-                    "The index of the robot to set as active",
-                    // type
-                    FunctionValueType::Number
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetActiveRobotIndexParam::Index),
+                    .description = "The index of the robot to set as active",
+                    .type = FunctionValueType::Number
                 }
             }
         };
@@ -105,21 +96,17 @@ private:
     static FunctionSchema function_schema_get_active_robot_index()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveRobotIndex),
-            // description
-            "Get the active robot index",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveRobotIndex),
+            .description = "Get the active robot index",
         };
     }
 
     static FunctionSchema function_schema_get_robot_infos()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetRobotInfos),
-            // description
-            (boost::format("Get the robot infos. Return a JSON array of robot infos. "
-            "Example: %1%") % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<RobotInfo>({
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetRobotInfos),
+            .description = (boost::format("Get the robot infos. Return a JSON array of robot infos. Example: %1%")
+            % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<RobotInfo>({
                 RobotInfo{"robot1", "bot_id1", "voice_id1", "description1"},
                 RobotInfo{"robot2", "bot_id2", "voice_id2", "description2"}
             }))).str(),
@@ -132,23 +119,16 @@ private:
     static EventSchema event_schema_coze_event_happened()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::CozeEventHappened),
-            // description
-            "Coze event happened event, will be triggered when a coze event happens",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::CozeEventHappened),
+            .description = "Coze event happened event, will be triggered when a coze event happens",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventCozeEventHappenedParam::CozeEvent),
-                    // description
-                    (boost::format("The coze event, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<CozeEvent>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventCozeEventHappenedParam::CozeEvent),
+                    .description = (boost::format("The coze event, should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<CozeEvent>({
                         CozeEvent::InsufficientCreditsBalance
                     }))).str(),
-                    // type
-                    EventItemType::String
+                    .type = EventItemType::String
                 }
             }
         };

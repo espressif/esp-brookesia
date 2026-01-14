@@ -25,7 +25,6 @@ idf_component_register(
     INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
     PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
     REQUIRES ${COMPONENT_REQUIRES}
-    WHOLE_ARCHIVE
 )
 
 include(package_manager)
@@ -46,3 +45,5 @@ set_source_files_properties(${COMPONENT_SRCS_CPP}
     PROPERTIES
         COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
 )
+
+target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _Wifi_symbol_598")

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,6 +11,7 @@
 #endif
 #include "private/utils.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
+#include "brookesia/lib_utils/thread_config.hpp"
 #include "brookesia/service_wifi/hal.hpp"
 
 // Since it is necessary to call task_scheduler in wifi_event_handler, make sure the sys_event stack size is sufficient
@@ -49,6 +50,24 @@ bool Hal::init()
     });
 
     is_initialized_.store(true);
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        auto future = std::async(std::launch::async, []() {
+            esp_err_t ret = nvs_flash_init();
+            if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
+                BROOKESIA_LOGI("NVS partition was truncated and needs to be erased");
+                BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_erase(), false, "Erase NVS flash failed");
+                BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_init(), false, "Init NVS flash failed");
+            } else {
+                BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Initialize NVS flash failed");
+            }
+            return true;
+        });
+        BROOKESIA_CHECK_FALSE_RETURN(future.get(), false, "Initialize NVS flash failed");
+    }
 
     esp_netif_init();
 
@@ -113,16 +132,6 @@ bool Hal::start()
     BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(GENERAL_CALLBACK_GROUP, {
         .enable_serial_execution = true
     }), false, "Failed to configure general callback group");
-
-    /* Initialize NVS flash */
-    esp_err_t ret = nvs_flash_init();
-    if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
-        BROOKESIA_LOGI("NVS partition was truncated and needs to be erased");
-        BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_erase(), false, "Erase NVS flash failed");
-        BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_init(), false, "Init NVS flash failed");
-    } else {
-        BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Initialize NVS flash failed");
-    }
 
     BROOKESIA_CHECK_ESP_ERR_RETURN(
         esp_event_handler_instance_register(
@@ -263,8 +272,18 @@ bool Hal::do_init()
         return true;
     }
 
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_init(&cfg), false, "Initialize WiFi failed");
+    {
+        // Since esp_wifi_init() may operate on NVS, it is necessary to ensure execution in a thread with an SRAM stack
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        auto future = std::async(std::launch::async, []() {
+            wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+            BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_init(&cfg), false, "Initialize WiFi failed");
+            return true;
+        });
+        BROOKESIA_CHECK_FALSE_RETURN(future.get(), false, "Initialize WiFi failed");
+    }
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_set_mode(WIFI_MODE_STA), false, "Set WiFi mode failed");
 
     if (sta_netif_ == nullptr) {

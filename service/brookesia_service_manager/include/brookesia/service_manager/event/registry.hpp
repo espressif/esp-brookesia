@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -32,35 +32,32 @@ public:
     void remove_all();
 
     bool validate_items(const std::string &event_name, const EventItemMap &event_items);
-    bool on_subscribe(const std::string &event_name, std::string &subscription_id, std::string &error_message);
-    void on_unsubscribe_by_name(const std::string &event_name);
-    void on_unsubscribe_by_subscriptions(const Subscriptions &subscriptions);
+    bool on_rpc_subscribe(const std::string &event_name, std::string &subscription_id, std::string &error_message);
+    void on_rpc_unsubscribe_by_name(const std::string &event_name);
+    void on_rpc_unsubscribe_by_subscriptions(const Subscriptions &subscriptions);
 
+    const EventSchema *get_schema(const std::string &event_name)
+    {
+        boost::lock_guard lock(event_infos_mutex_);
+        auto it = event_infos_.find(event_name);
+        if (it == event_infos_.end()) {
+            return nullptr;
+        }
+        return &std::get<1>(it->second);
+    }
+    std::vector<EventSchema> get_schemas();
+    boost::json::array get_schemas_json();
     bool has(const std::string &event_name)
     {
         boost::lock_guard lock(event_infos_mutex_);
         return event_infos_.find(event_name) != event_infos_.end();
-    }
-    bool has_raw_buffer(const std::string &event_name)
-    {
-        boost::lock_guard lock(event_infos_mutex_);
-        for (const auto& [event_name, event_info] : event_infos_) {
-            const auto &[subscriptions, event_schema, signal] = event_info;
-            for (const auto &item_schema : event_schema.items) {
-                if (item_schema.type == EventItemType::RawBuffer) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
     size_t get_count()
     {
         boost::lock_guard lock(event_infos_mutex_);
         return event_infos_.size();
     }
-    std::vector<EventSchema> get_schemas();
-    boost::json::array get_schemas_json();
+
     Subscriptions get_subscriptions(const std::string &event_name);
     Signal *get_signal(const std::string &event_name);
 

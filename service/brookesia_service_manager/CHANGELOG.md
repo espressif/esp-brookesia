@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.7.2 - 2026-01-13
+
+#### Enhancements:
+
+- feat(event): support `RawBuffer` type in `EventItem`
+- feat(common): optimize `RawBuffer` for seamless conversion between const and non-const pointers
+- feat(Kconfig): increase default value of `BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE` from `10240` to `15360`
+
 ## v0.7.1 - 2025-12-24
 
 #### Enhancements:

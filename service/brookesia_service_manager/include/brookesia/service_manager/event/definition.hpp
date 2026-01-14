@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -58,7 +58,8 @@ struct EventSchema {
     std::string name;
     std::string description = "";
     std::vector<EventItemSchema> items = {};
+    bool require_async = true;
 };
-BROOKESIA_DESCRIBE_STRUCT(EventSchema, (), (name, description, items))
+BROOKESIA_DESCRIBE_STRUCT(EventSchema, (), (name, description, items, require_async))
 
 } // namespace esp_brookesia::service

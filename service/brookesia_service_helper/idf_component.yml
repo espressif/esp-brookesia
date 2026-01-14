@@ -1,4 +1,4 @@
-version: "0.7.1"
+version: "0.7.2"
 description: ESP-Brookesia service helper library which provides type-safe definitions, schemas, and unified calling interfaces for building and using services based on C++20 Concepts and CRTP pattern.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_helper
 repository: https://github.com/espressif/esp-brookesia.git
@@ -7,7 +7,7 @@ dependencies:
   idf: ">=5.5,<6"
 
   espressif/brookesia_service_manager:
-    version: ">=0.7.1,<0.8.0"
+    version: ">=0.7.2,<0.8.0"
     override_path: "../brookesia_service_manager"
     require: public
 

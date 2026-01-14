@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.2 - 2026-01-14
+
+#### Enhancements:
+
+- feat(repo): update function and event descriptions
+
 ## v0.7.1 - 2025-12-24
 
 #### Enhancements:

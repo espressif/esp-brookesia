@@ -1,14 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <array>
-#include <span>
-#include <type_traits>
-#include "boost/format.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_helper/base.hpp"
 
@@ -140,53 +136,34 @@ private:
     static FunctionSchema function_schema_set_agent_info()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetAgentInfo),
-            // description
-            "Set the info for an agent",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetAgentInfo),
+            .description = "Set the info for an agent",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetAgentInfoParam::Name),
-                    // description
-                    "The name of the agent to set the info for",
-                    // type
-                    FunctionValueType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAgentInfoParam::Name),
+                    .description = "The name of the agent to set the info for",
+                    .type = FunctionValueType::String
                 },
-                // parameters[1]
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetAgentInfoParam::Info),
-                    // description
-                    "The info for the agent.",
-                    // type
-                    FunctionValueType::Object
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAgentInfoParam::Info),
+                    .description = "The info for the agent.",
+                    .type = FunctionValueType::Object
                 }
             },
-            // require running
-            false
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_activate_agent()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::ActivateAgent),
-            // description
-            "Activate an agent",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ActivateAgent),
+            .description = "Activate an agent",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionActivateAgentParam::Name),
-                    // description
-                    "The name of the agent to activate",
-                    // type
-                    FunctionValueType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionActivateAgentParam::Name),
+                    .description = "The name of the agent to activate",
+                    .type = FunctionValueType::String
                 }
             }
         };
@@ -195,73 +172,54 @@ private:
     static FunctionSchema function_schema_deactivate_agent()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::DeactivateAgent),
-            // description
-            "Deactivate the active agent",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::DeactivateAgent),
+            .description = "Deactivate the active agent",
         };
     }
 
     static FunctionSchema function_schema_get_agent_attributes()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetAgentAttributes),
-            // description
-            (boost::format("Get the attributes of one or more agents, "
-                           "the result is a JSON array of agent attributes. Example: %1%") %
-            BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<AgentAttributes>({
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetAgentAttributes),
+            .description = (boost::format("Get the attributes of one or more agents, "
+                                          "the result is a JSON array of agent attributes. Example: %1%")
+            % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<AgentAttributes>({
                 AgentAttributes{"Agent", {}},
             }))).str(),
-            // parameters
-            {
-                // parameters[0]
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionGetAgentAttributesParam::Name),
-                    // description
-                    "The name of the agent to get the attributes for. Optional. If not provided, all agents will be returned.",
-                    // type
-                    FunctionValueType::String,
-                    // default value
-                    std::optional<FunctionValue>(std::string(""))
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionGetAgentAttributesParam::Name),
+                    .description = "The name of the agent to get the attributes for. Optional. If not provided, "
+                    "all agents will be returned.",
+                    .type = FunctionValueType::String,
+                    .default_value = std::optional<FunctionValue>(std::string(""))
                 }
             },
-            // require running
-            false
+            .require_async = false
         };
     }
 
     static FunctionSchema function_schema_get_active_agent()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveAgent),
-            // description
-            "Get the information of the active agent",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveAgent),
+            .description = "Get the information of the active agent",
         };
     }
 
     static FunctionSchema function_schema_trigger_general_action()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerGeneralAction),
-            // description
-            "Trigger a general action",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerGeneralAction),
+            .description = "Trigger a general action",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionTriggerGeneralActionParam::Action),
-                    // description
-                    (boost::format("The general action to trigger, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionTriggerGeneralActionParam::Action),
+                    .description = (boost::format("The general action to trigger, should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
                         GeneralAction::Start, GeneralAction::Stop, GeneralAction::Sleep, GeneralAction::WakeUp
                     }))).str(),
-                    // type
-                    FunctionValueType::String
+                    .type = FunctionValueType::String
                 }
             }
         };
@@ -270,41 +228,33 @@ private:
     static FunctionSchema function_schema_trigger_suspend()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerSuspend),
-            // description
-            "Trigger suspend the agent",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerSuspend),
+            .description = "Trigger suspend the agent",
         };
     }
 
     static FunctionSchema function_schema_trigger_resume()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerResume),
-            // description
-            "Trigger resume the agent",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerResume),
+            .description = "Trigger resume the agent",
         };
     }
 
     static FunctionSchema function_schema_trigger_interrupt_speaking()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerInterruptSpeaking),
-            // description
-            "Interrupt the agent speaking, the agent will stop speaking and keep listening",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerInterruptSpeaking),
+            .description = "Interrupt the agent speaking, the agent will stop speaking and keep listening",
         };
     }
 
     static FunctionSchema function_schema_get_general_state()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetGeneralState),
-            // description
-            (boost::format("Get the general state of the agent, should be one of the following: %1%") %
-            BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralState>({
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetGeneralState),
+            .description = (boost::format("Get the general state of the agent, should be one of the following: %1%")
+            % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralState>({
                 GeneralState::TimeSyncing, GeneralState::TimeSynced, GeneralState::Starting, GeneralState::Stopping,
                 GeneralState::Started, GeneralState::Sleeping, GeneralState::WakingUp, GeneralState::Slept
             }))).str(),
@@ -314,20 +264,17 @@ private:
     static FunctionSchema function_schema_get_suspend_status()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetSuspendStatus),
-            // description
-            "Get the suspend status of the agent, true if the agent is suspended, false if the agent is not suspended.",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetSuspendStatus),
+            .description = "Get the suspend status of the agent, true if the agent is suspended, false if the agent is "
+            "not suspended.",
         };
     }
 
     static FunctionSchema function_schema_reset_data()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
-            // description
-            "Reset the data of the manager and all agents.",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
+            .description = "Reset the data of the manager and all agents.",
         };
     }
 
@@ -337,23 +284,17 @@ private:
     static EventSchema event_schema_general_action_triggered()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralActionTriggered),
-            // description
-            "Triggered when a general action is triggered",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralActionTriggered),
+            .description = "Triggered when a general action is triggered",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventGeneralActionTriggeredParam::Action),
-                    // description
-                    (boost::format("The general action that was triggered, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralActionTriggeredParam::Action),
+                    .description = (boost::format("The general action that was triggered, "
+                                                  "should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
                         GeneralAction::Start, GeneralAction::Stop, GeneralAction::Sleep, GeneralAction::WakeUp
                     }))).str(),
-                    // type
-                    EventItemType::String
+                    .type = EventItemType::String
                 }
             }
         };
@@ -362,24 +303,18 @@ private:
     static EventSchema event_schema_general_event_happened()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralEventHappened),
-            // description
-            "Triggered when a general event is happened",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralEventHappened),
+            .description = "Triggered when a general event is happened",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::Event),
-                    // description
-                    (boost::format("The general event that was happened, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralEvent>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::Event),
+                    .description = (boost::format("The general event that was happened, "
+                                                  "should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralEvent>({
                         GeneralEvent::Started, GeneralEvent::Stopped, GeneralEvent::Slept, GeneralEvent::Awake
                     }))).str(),
-                    // type
-                    EventItemType::String
-                },
+                    .type = EventItemType::String
+                }
             }
         };
     }
@@ -387,20 +322,14 @@ private:
     static EventSchema event_schema_suspend_status_changed()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::SuspendStatusChanged),
-            // description
-            "Triggered when the suspend status of the agent changes",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::SuspendStatusChanged),
+            .description = "Triggered when the suspend status of the agent changes",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventSuspendStatusChangedParam::IsSuspended),
-                    // description
-                    "The suspend status of the agent, true if the agent is suspended, false if the agent is resumed.",
-                    // type
-                    EventItemType::Boolean
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventSuspendStatusChangedParam::IsSuspended),
+                    .description = "The suspend status of the agent, true if the agent is suspended, false if the agent "
+                    "is resumed.",
+                    .type = EventItemType::Boolean
                 }
             }
         };
@@ -409,20 +338,13 @@ private:
     static EventSchema event_schema_agent_speaking_text_got()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::AgentSpeakingTextGot),
-            // description
-            "Triggered when the agent speaks a text",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::AgentSpeakingTextGot),
+            .description = "Triggered when the agent speaks a text",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventAgentSpeakingTextGotParam::Text),
-                    // description
-                    "The text that the agent is speaking",
-                    // type
-                    EventItemType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventAgentSpeakingTextGotParam::Text),
+                    .description = "The text that the agent is speaking",
+                    .type = EventItemType::String
                 }
             }
         };
@@ -431,20 +353,13 @@ private:
     static EventSchema event_schema_user_speaking_text_got()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::UserSpeakingTextGot),
-            // description
-            "Triggered when the user speaks a text",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::UserSpeakingTextGot),
+            .description = "Triggered when the user speaks a text",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventUserSpeakingTextGotParam::Text),
-                    // description
-                    "The text that the user is speaking",
-                    // type
-                    EventItemType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventUserSpeakingTextGotParam::Text),
+                    .description = "The text that the user is speaking",
+                    .type = EventItemType::String
                 }
             }
         };
@@ -453,20 +368,13 @@ private:
     static EventSchema event_schema_emote_got()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::EmoteGot),
-            // description
-            "Triggered when the agent gets an emote",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::EmoteGot),
+            .description = "Triggered when the agent gets an emote",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventEmoteGotParam::Emote),
-                    // description
-                    "The emote that the agent is showing",
-                    // type
-                    EventItemType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventEmoteGotParam::Emote),
+                    .description = "The emote that the agent is showing",
+                    .type = EventItemType::String
                 }
             }
         };

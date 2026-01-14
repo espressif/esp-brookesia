@@ -81,7 +81,7 @@ menu "ESP-Brookesia: Service Manager Configurations"
 
             config BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE
                 int "Stack size"
-                default 10240
+                default 15360
                 help
                     The stack size of the worker thread.
 
@@ -102,12 +102,14 @@ menu "ESP-Brookesia: Service Manager Configurations"
 
         config BROOKESIA_SERVICE_MANAGER_WORKER_0_CORE_ID
             int "Core ID of Worker 0"
+            range -1 1
             default 0
             help
                 The core ID of Worker 0. `-1` means the core ID is not specified.
 
         config BROOKESIA_SERVICE_MANAGER_WORKER_1_CORE_ID
             int "Core ID of Worker 1"
+            range -1 1
             default 1
             help
                 The core ID of Worker 1. `-1` means the core ID is not specified.

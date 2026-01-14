@@ -1,8 +1,20 @@
 # ChangeLog
 
+## v0.7.2 - 2026-01-14
+
+### Enhancements:
+
+- feat(CMake): use linker option `-u` to register plugin instead of `WHOLE_ARCHIVE`
+- feat(repo): update `brookesia_service_helper` dependency to `>=0.7.2,<0.8.0`
+
+### Bug Fixes
+
+- fix(hal): initialize NVS flash in `Hal::init()` instead of `Hal::start()`
+- fix(hal): ensure execution in a thread with an SRAM stack for `esp_wifi_init()` and `nvs_flash_init()`
+
 ## v0.7.1 - 2025-12-09
 
-#### Enhancements:
+### Enhancements:
 
 - feat(hal): add 'reset_data' function
 - feat(service): add 'reset_data' function

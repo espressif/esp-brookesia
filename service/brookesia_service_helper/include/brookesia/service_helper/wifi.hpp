@@ -1,14 +1,10 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#include <array>
-#include <span>
-#include <type_traits>
-#include "boost/format.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_helper/base.hpp"
 
@@ -139,24 +135,17 @@ private:
     static FunctionSchema function_schema_trigger_general_action()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerGeneralAction),
-            // description
-            "Trigger a general action",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerGeneralAction),
+            .description = "Trigger a general action",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionTriggerGeneralActionParam::Action),
-                    // description
-                    (boost::format("The general action, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionTriggerGeneralActionParam::Action),
+                    .description = (boost::format("The general action, should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
                         GeneralAction::Init, GeneralAction::Deinit, GeneralAction::Start, GeneralAction::Stop,
                         GeneralAction::Connect, GeneralAction::Disconnect
                     }))).str(),
-                    // type
-                    FunctionValueType::String
+                    .type = FunctionValueType::String
                 }
             }
         };
@@ -165,68 +154,42 @@ private:
     static FunctionSchema function_schema_trigger_scan_start()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerScanStart),
-            // description
-            "Trigger WiFi scan start",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerScanStart),
+            .description = "Trigger WiFi scan start",
         };
     }
 
     static FunctionSchema function_schema_trigger_scan_stop()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerScanStop),
-            // description
-            "Trigger WiFi scan stop",
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerScanStop),
+            .description = "Trigger WiFi scan stop",
         };
     }
 
     static FunctionSchema function_schema_set_scan_params()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetScanParams),
-            // description
-            "Set the scan parameters",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetScanParams),
+            .description = "Set the scan parameters",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::ApCount),
-                    // description
-                    "The number of APs to scan, optional",
-                    // type
-                    FunctionValueType::Number,
-                    // default value
-                    std::optional<FunctionValue>(20.0)
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::ApCount),
+                    .description = "The number of APs to scan, optional",
+                    .type = FunctionValueType::Number,
+                    .default_value = std::optional<FunctionValue>(20.0)
                 },
-                // parameters[1]
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::IntervalMs),
-                    // description
-                    "The interval of the scan in milliseconds, optional",
-                    // type
-                    FunctionValueType::Number,
-                    // default value
-                    std::optional<FunctionValue>(10000.0)
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::IntervalMs),
+                    .description = "The interval of the scan in milliseconds, optional",
+                    .type = FunctionValueType::Number,
+                    .default_value = std::optional<FunctionValue>(10000.0)
                 },
-                // parameters[2]
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::TimeoutMs),
-                    // description
-                    "The timeout of the scan in milliseconds, optional",
-                    // type
-                    FunctionValueType::Number,
-                    // default value
-                    std::optional<FunctionValue>(60000.0)
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::TimeoutMs),
+                    .description = "The timeout of the scan in milliseconds, optional",
+                    .type = FunctionValueType::Number,
+                    .default_value = std::optional<FunctionValue>(60000.0)
                 }
             }
         };
@@ -235,31 +198,19 @@ private:
     static FunctionSchema function_schema_set_connect_ap()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetConnectAp),
-            // description
-            "Set the SSID and password of the AP to connect to",
-            // parameters
-            {
-                // parameters[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetConnectAp),
+            .description = "Set the SSID and password of the AP to connect to",
+            .parameters = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetConnectApParam::SSID),
-                    // description
-                    "The SSID of the AP, required",
-                    // type
-                    FunctionValueType::String
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetConnectApParam::SSID),
+                    .description = "The SSID of the AP, required",
+                    .type = FunctionValueType::String
                 },
-                // parameters[1]
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(FunctionSetConnectApParam::Password),
-                    // description
-                    "The password of the AP, optional",
-                    // type
-                    FunctionValueType::String,
-                    // default value
-                    std::optional<FunctionValue>(std::string(""))
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetConnectApParam::Password),
+                    .description = "The password of the AP, optional",
+                    .type = FunctionValueType::String,
+                    .default_value = std::optional<FunctionValue>(std::string(""))
                 }
             }
         };
@@ -268,39 +219,27 @@ private:
     static FunctionSchema function_schema_get_connect_ap()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetConnectAp),
-            // description
-            (boost::format("Get the connect AP SSID. Return a string. Example: %1%")
-             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::string("ssid1"))).str(),
-            // parameters
-            {}
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetConnectAp),
+            .description = (boost::format("Get the connect AP SSID. Return a string. Example: %1%")
+                            % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::string("ssid1"))).str(),
         };
     }
 
     static FunctionSchema function_schema_get_connected_aps()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetConnectedAps),
-            // description
-            (boost::format("Get the connected AP SSIDs. Return a JSON array of strings. Example: %1%")
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetConnectedAps),
+            .description = (boost::format("Get the connected AP SSIDs. Return a JSON array of strings. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({"ssid1", "ssid2", "ssid3"}))).str(),
-            // parameters
-            {}
         };
     }
 
     static FunctionSchema function_schema_reset_data()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
-            // description
-            "Reset the data of the WiFi service, including the target connect AP, scan parameters, "
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
+            .description = "Reset the data of the WiFi service, including the target connect AP, scan parameters, "
             "and connected APs. This function will clear the NVS data.",
-            // parameters
-            {}
         };
     }
 
@@ -310,25 +249,18 @@ private:
     static EventSchema event_schema_general_action_triggered()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralActionTriggered),
-            // description
-            "General action triggered event, will be triggered when a general action is triggered successfully",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralActionTriggered),
+            .description = "General action triggered event, will be triggered when a general action is triggered successfully",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventGeneralActionTriggeredParam::Action),
-                    // description
-                    (boost::format("The general action, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralActionTriggeredParam::Action),
+                    .description = (boost::format("The general action, should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
                         GeneralAction::Init, GeneralAction::Deinit, GeneralAction::Start, GeneralAction::Stop,
                         GeneralAction::Connect, GeneralAction::Disconnect
                     }))).str(),
-                    // type
-                    EventItemType::String
-                },
+                    .type = EventItemType::String
+                }
             }
         };
     }
@@ -336,25 +268,18 @@ private:
     static EventSchema event_schema_general_event_happened()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralEventHappened),
-            // description
-            "General event happened event, will be triggered when a general event happens",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralEventHappened),
+            .description = "General event happened event, will be triggered when a general event happens",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::Event),
-                    // description
-                    (boost::format("The general event happened, should be one of the following: %1%") %
-                    BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralEvent>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::Event),
+                    .description = (boost::format("The general event happened, should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralEvent>({
                         GeneralEvent::Deinited, GeneralEvent::Inited, GeneralEvent::Stopped, GeneralEvent::Started,
                         GeneralEvent::Disconnected, GeneralEvent::Connected
                     }))).str(),
-                    // type
-                    EventItemType::String
-                },
+                    .type = EventItemType::String
+                }
             }
         };
     }
@@ -362,24 +287,17 @@ private:
     static EventSchema event_schema_scan_ap_infos_updated()
     {
         return {
-            // name
-            BROOKESIA_DESCRIBE_TO_STR(EventId::ScanApInfosUpdated),
-            // description
-            "Scan AP infos updated event, will be triggered when the scan AP infos are updated",
-            // items
-            {
-                // items[0]
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::ScanApInfosUpdated),
+            .description = "Scan AP infos updated event, will be triggered when the scan AP infos are updated",
+            .items = {
                 {
-                    // name
-                    BROOKESIA_DESCRIBE_TO_STR(EventScanApInfosUpdatedParam::ApInfos),
-                    // description
-                    (boost::format("The scan AP infos, a JSON array of objects. Example: %1%") %
-                    BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<ApInfo>({
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventScanApInfosUpdatedParam::ApInfos),
+                    .description = (boost::format("The scan AP infos, a JSON array of objects. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<ApInfo>({
                         ApInfo("ssid1", false, -81), ApInfo("ssid2", true, -71), ApInfo("ssid3", false, -61),
                         ApInfo("ssid4", true, -51), ApInfo("ssid5", false, -41)
                     }))).str(),
-                    // type
-                    EventItemType::Array
+                    .type = EventItemType::Array
                 }
             }
         };
