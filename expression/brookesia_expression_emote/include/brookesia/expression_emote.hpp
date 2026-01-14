@@ -5,4 +5,5 @@
  */
 #pragma once
 
-void agents_auth_init();
+#include "expression_emote/macro_configs.h"
+#include "brookesia/expression_emote/emote.hpp"

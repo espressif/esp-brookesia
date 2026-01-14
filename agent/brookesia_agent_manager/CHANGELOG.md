@@ -2,6 +2,10 @@
 
 ## v0.7.1~1 - 2026-01-14
 
+### Enhancements:
+
+- feat(CMake): use linker option `-u` to register plugin instead of `WHOLE_ARCHIVE`
+
 ### Bug Fixes
 
 - fix(agent): call `try_load_data()` in `set_info()`
