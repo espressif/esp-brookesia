@@ -5,6 +5,7 @@
 #### Enhancements:
 
 * feat(plugin): add support for custom symbol name
+* feat(time_profiler): add support for statistics reporting
 
 ## v0.7.3 - 2025-12-29
 

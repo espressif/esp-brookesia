@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -718,4 +718,582 @@ TEST_CASE("Test TimeProfiler stress deep nesting", "[utils][time_profiler][stres
     BROOKESIA_TIME_PROFILER_CLEAR();
 
     TEST_ASSERT_TRUE(true);
+}
+
+// ==================== TimeProfiler Accuracy and Stability Test ====================
+
+/**
+ * @brief Helper function to find a node in statistics by name
+ */
+const TimeProfiler::NodeStatistics *find_statistics_node(const std::vector<TimeProfiler::NodeStatistics> &nodes, const std::string &name)
+{
+    for (const auto &node : nodes) {
+        if (node.name == name) {
+            return &node;
+        }
+        // Recursively search in children
+        const auto *found = find_statistics_node(node.children, name);
+        if (found) {
+            return found;
+        }
+    }
+    return nullptr;
+}
+
+TEST_CASE("Test TimeProfiler scope timing accuracy", "[utils][time_profiler][accuracy][scope]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Scope Timing Accuracy Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Test multiple different time durations
+    const std::vector<int> test_durations_ms = {10, 25, 50, 100, 200};
+    const double tolerance_ms = 10.0;  // Allow 10ms tolerance
+
+    for (size_t i = 0; i < test_durations_ms.size(); i++) {
+        int expected_ms = test_durations_ms[i];
+        std::string scope_name = "accuracy_test_scope_" + std::to_string(expected_ms) + "ms";
+
+        {
+            BROOKESIA_TIME_PROFILER_SCOPE(scope_name.c_str());
+            simulate_work(expected_ms);
+        }
+
+        const auto stats = TimeProfiler::get_instance().get_statistics();
+        const auto *node = find_statistics_node(stats.root_children, scope_name);
+
+        TEST_ASSERT_NOT_NULL(node);
+        if (node) {
+            // Convert to milliseconds if needed
+            double measured_ms = node->total;
+            if (stats.unit_name == "s") {
+                measured_ms = node->total * 1000.0;
+            } else if (stats.unit_name == "us") {
+                measured_ms = node->total / 1000.0;
+            }
+
+            BROOKESIA_LOGI("Duration %zu: Expected: %d ms, Measured: %.2f ms, Tolerance: %.2f ms",
+                           i + 1, expected_ms, measured_ms, tolerance_ms);
+            TEST_ASSERT_TRUE(measured_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(measured_ms <= (expected_ms + tolerance_ms));
+            TEST_ASSERT_EQUAL(1, node->count);
+        }
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler scope timing stability", "[utils][time_profiler][stability][scope]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Scope Timing Stability Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Test multiple different time durations
+    const std::vector<int> test_durations_ms = {15, 30, 60, 120};
+    const double tolerance_ms = 10.0;  // Allow 10ms tolerance
+    const int iterations = 10;
+
+    for (size_t duration_idx = 0; duration_idx < test_durations_ms.size(); duration_idx++) {
+        int expected_ms = test_durations_ms[duration_idx];
+        std::string scope_name = "stability_test_scope_" + std::to_string(expected_ms) + "ms";
+
+        for (int i = 0; i < iterations; i++) {
+            {
+                BROOKESIA_TIME_PROFILER_SCOPE(scope_name.c_str());
+                simulate_work(expected_ms);
+            }
+        }
+
+        const auto stats = TimeProfiler::get_instance().get_statistics();
+        const auto *node = find_statistics_node(stats.root_children, scope_name);
+
+        TEST_ASSERT_NOT_NULL(node);
+        if (node) {
+            // Convert to milliseconds if needed
+            double total_ms = node->total;
+            double avg_ms = node->avg;
+            double min_ms = node->min;
+            double max_ms = node->max;
+
+            if (stats.unit_name == "s") {
+                total_ms = node->total * 1000.0;
+                avg_ms = node->avg * 1000.0;
+                min_ms = node->min * 1000.0;
+                max_ms = node->max * 1000.0;
+            } else if (stats.unit_name == "us") {
+                total_ms = node->total / 1000.0;
+                avg_ms = node->avg / 1000.0;
+                min_ms = node->min / 1000.0;
+                max_ms = node->max / 1000.0;
+            }
+
+            BROOKESIA_LOGI("Duration %zu: Iterations: %d, Expected avg: %d ms", duration_idx + 1, iterations, expected_ms);
+            BROOKESIA_LOGI("Total: %.2f ms, Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms", total_ms, avg_ms, min_ms, max_ms);
+
+            TEST_ASSERT_EQUAL(iterations, node->count);
+            TEST_ASSERT_TRUE(avg_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(avg_ms <= (expected_ms + tolerance_ms));
+            TEST_ASSERT_TRUE(min_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(max_ms <= (expected_ms + tolerance_ms));
+        }
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler event timing accuracy", "[utils][time_profiler][accuracy][event]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Event Timing Accuracy Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Test multiple different time durations
+    const std::vector<int> test_durations_ms = {20, 40, 80, 150};
+    const double tolerance_ms = 10.0;  // Allow 10ms tolerance
+
+    for (size_t i = 0; i < test_durations_ms.size(); i++) {
+        int expected_ms = test_durations_ms[i];
+        std::string event_name = "accuracy_test_event_" + std::to_string(expected_ms) + "ms";
+
+        BROOKESIA_TIME_PROFILER_START_EVENT(event_name.c_str());
+        simulate_work(expected_ms);
+        BROOKESIA_TIME_PROFILER_END_EVENT(event_name.c_str());
+
+        const auto stats = TimeProfiler::get_instance().get_statistics();
+        const auto *node = find_statistics_node(stats.root_children, event_name);
+
+        TEST_ASSERT_NOT_NULL(node);
+        if (node) {
+            // Convert to milliseconds if needed
+            double measured_ms = node->total;
+            if (stats.unit_name == "s") {
+                measured_ms = node->total * 1000.0;
+            } else if (stats.unit_name == "us") {
+                measured_ms = node->total / 1000.0;
+            }
+
+            BROOKESIA_LOGI("Duration %zu: Expected: %d ms, Measured: %.2f ms, Tolerance: %.2f ms",
+                           i + 1, expected_ms, measured_ms, tolerance_ms);
+            TEST_ASSERT_TRUE(measured_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(measured_ms <= (expected_ms + tolerance_ms));
+            TEST_ASSERT_EQUAL(1, node->count);
+        }
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler event timing stability", "[utils][time_profiler][stability][event]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Event Timing Stability Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Test multiple different time durations
+    const std::vector<int> test_durations_ms = {20, 35, 70, 140};
+    const double tolerance_ms = 10.0;  // Allow 10ms tolerance
+    const int iterations = 10;
+
+    for (size_t duration_idx = 0; duration_idx < test_durations_ms.size(); duration_idx++) {
+        int expected_ms = test_durations_ms[duration_idx];
+        std::string event_name = "stability_test_event_" + std::to_string(expected_ms) + "ms";
+
+        for (int i = 0; i < iterations; i++) {
+            BROOKESIA_TIME_PROFILER_START_EVENT(event_name.c_str());
+            simulate_work(expected_ms);
+            BROOKESIA_TIME_PROFILER_END_EVENT(event_name.c_str());
+        }
+
+        const auto stats = TimeProfiler::get_instance().get_statistics();
+        const auto *node = find_statistics_node(stats.root_children, event_name);
+
+        TEST_ASSERT_NOT_NULL(node);
+        if (node) {
+            // Convert to milliseconds if needed
+            double total_ms = node->total;
+            double avg_ms = node->avg;
+            double min_ms = node->min;
+            double max_ms = node->max;
+
+            if (stats.unit_name == "s") {
+                total_ms = node->total * 1000.0;
+                avg_ms = node->avg * 1000.0;
+                min_ms = node->min * 1000.0;
+                max_ms = node->max * 1000.0;
+            } else if (stats.unit_name == "us") {
+                total_ms = node->total / 1000.0;
+                avg_ms = node->avg / 1000.0;
+                min_ms = node->min / 1000.0;
+                max_ms = node->max / 1000.0;
+            }
+
+            BROOKESIA_LOGI("Duration %zu: Iterations: %d, Expected avg: %d ms", duration_idx + 1, iterations, expected_ms);
+            BROOKESIA_LOGI("Total: %.2f ms, Avg: %.2f ms, Min: %.2f ms, Max: %.2f ms", total_ms, avg_ms, min_ms, max_ms);
+
+            TEST_ASSERT_EQUAL(iterations, node->count);
+            TEST_ASSERT_TRUE(avg_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(avg_ms <= (expected_ms + tolerance_ms));
+            TEST_ASSERT_TRUE(min_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(max_ms <= (expected_ms + tolerance_ms));
+        }
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler scope timing consistency multiple scopes", "[utils][time_profiler][consistency][scope]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Scope Timing Consistency Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Different scopes use different time durations
+    const std::vector<int> scope_durations_ms = {15, 30, 60};
+    const double tolerance_ms = 8.0;  // Allow 8ms tolerance
+    const int iterations = 5;
+
+    for (int i = 0; i < iterations; i++) {
+        {
+            BROOKESIA_TIME_PROFILER_SCOPE("consistency_scope_1");
+            simulate_work(scope_durations_ms[0]);
+        }
+        {
+            BROOKESIA_TIME_PROFILER_SCOPE("consistency_scope_2");
+            simulate_work(scope_durations_ms[1]);
+        }
+        {
+            BROOKESIA_TIME_PROFILER_SCOPE("consistency_scope_3");
+            simulate_work(scope_durations_ms[2]);
+        }
+    }
+
+    const auto stats = TimeProfiler::get_instance().get_statistics();
+
+    // Check all three scopes with their respective expected durations
+    for (int scope_num = 1; scope_num <= 3; scope_num++) {
+        std::string scope_name = "consistency_scope_" + std::to_string(scope_num);
+        int expected_ms = scope_durations_ms[scope_num - 1];
+        const auto *node = find_statistics_node(stats.root_children, scope_name);
+
+        TEST_ASSERT_NOT_NULL(node);
+        if (node) {
+            // Convert to milliseconds if needed
+            double avg_ms = node->avg;
+            if (stats.unit_name == "s") {
+                avg_ms = node->avg * 1000.0;
+            } else if (stats.unit_name == "us") {
+                avg_ms = node->avg / 1000.0;
+            }
+
+            BROOKESIA_LOGI("Scope: %s, Expected avg: %d ms, Measured avg: %.2f ms", scope_name.c_str(), expected_ms, avg_ms);
+
+            TEST_ASSERT_EQUAL(iterations, node->count);
+            TEST_ASSERT_TRUE(avg_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(avg_ms <= (expected_ms + tolerance_ms));
+        }
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler event timing consistency multiple events", "[utils][time_profiler][consistency][event]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Event Timing Consistency Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Different events use different time durations
+    const std::vector<int> event_durations_ms = {12, 25, 50};
+    const double tolerance_ms = 8.0;  // Allow 8ms tolerance
+    const int iterations = 5;
+
+    for (int i = 0; i < iterations; i++) {
+        BROOKESIA_TIME_PROFILER_START_EVENT("consistency_event_1");
+        simulate_work(event_durations_ms[0]);
+        BROOKESIA_TIME_PROFILER_END_EVENT("consistency_event_1");
+
+        BROOKESIA_TIME_PROFILER_START_EVENT("consistency_event_2");
+        simulate_work(event_durations_ms[1]);
+        BROOKESIA_TIME_PROFILER_END_EVENT("consistency_event_2");
+
+        BROOKESIA_TIME_PROFILER_START_EVENT("consistency_event_3");
+        simulate_work(event_durations_ms[2]);
+        BROOKESIA_TIME_PROFILER_END_EVENT("consistency_event_3");
+    }
+
+    const auto stats = TimeProfiler::get_instance().get_statistics();
+
+    // Check all three events with their respective expected durations
+    for (int event_num = 1; event_num <= 3; event_num++) {
+        std::string event_name = "consistency_event_" + std::to_string(event_num);
+        int expected_ms = event_durations_ms[event_num - 1];
+        const auto *node = find_statistics_node(stats.root_children, event_name);
+
+        TEST_ASSERT_NOT_NULL(node);
+        if (node) {
+            // Convert to milliseconds if needed
+            double avg_ms = node->avg;
+            if (stats.unit_name == "s") {
+                avg_ms = node->avg * 1000.0;
+            } else if (stats.unit_name == "us") {
+                avg_ms = node->avg / 1000.0;
+            }
+
+            BROOKESIA_LOGI("Event: %s, Expected avg: %d ms, Measured avg: %.2f ms", event_name.c_str(), expected_ms, avg_ms);
+
+            TEST_ASSERT_EQUAL(iterations, node->count);
+            TEST_ASSERT_TRUE(avg_ms >= (expected_ms - tolerance_ms));
+            TEST_ASSERT_TRUE(avg_ms <= (expected_ms + tolerance_ms));
+        }
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler same scope name statistics accumulation", "[utils][time_profiler][statistics][scope]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Same Scope Name Statistics Accumulation Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Use the same scope name multiple times with different durations
+    const std::vector<int> durations_ms = {20, 30, 40, 25, 35};
+    const std::string scope_name = "same_scope_name";
+    const double tolerance_ms = 10.0;
+
+    // Calculate expected values
+    int expected_total_ms = 0;
+    int expected_min_ms = durations_ms[0];
+    int expected_max_ms = durations_ms[0];
+    for (int duration : durations_ms) {
+        expected_total_ms += duration;
+        if (duration < expected_min_ms) {
+            expected_min_ms = duration;
+        }
+        if (duration > expected_max_ms) {
+            expected_max_ms = duration;
+        }
+    }
+    double expected_avg_ms = static_cast<double>(expected_total_ms) / durations_ms.size();
+
+    // Execute scopes with same name but different durations
+    for (int duration : durations_ms) {
+        {
+            BROOKESIA_TIME_PROFILER_SCOPE(scope_name.c_str());
+            simulate_work(duration);
+        }
+    }
+
+    const auto stats = TimeProfiler::get_instance().get_statistics();
+    const auto *node = find_statistics_node(stats.root_children, scope_name);
+
+    TEST_ASSERT_NOT_NULL(node);
+    if (node) {
+        // Convert to milliseconds if needed
+        double total_ms = node->total;
+        double avg_ms = node->avg;
+        double min_ms = node->min;
+        double max_ms = node->max;
+
+        if (stats.unit_name == "s") {
+            total_ms = node->total * 1000.0;
+            avg_ms = node->avg * 1000.0;
+            min_ms = node->min * 1000.0;
+            max_ms = node->max * 1000.0;
+        } else if (stats.unit_name == "us") {
+            total_ms = node->total / 1000.0;
+            avg_ms = node->avg / 1000.0;
+            min_ms = node->min / 1000.0;
+            max_ms = node->max / 1000.0;
+        }
+
+        BROOKESIA_LOGI("Scope: %s", scope_name.c_str());
+        BROOKESIA_LOGI("Expected: count=%zu, total=%d ms, avg=%.2f ms, min=%d ms, max=%d ms",
+                       durations_ms.size(), expected_total_ms, expected_avg_ms, expected_min_ms, expected_max_ms);
+        BROOKESIA_LOGI("Measured: count=%zu, total=%.2f ms, avg=%.2f ms, min=%.2f ms, max=%.2f ms",
+                       node->count, total_ms, avg_ms, min_ms, max_ms);
+
+        // Verify count
+        TEST_ASSERT_EQUAL(durations_ms.size(), node->count);
+
+        // Verify total (with tolerance)
+        TEST_ASSERT_TRUE(total_ms >= (expected_total_ms - tolerance_ms * durations_ms.size()));
+        TEST_ASSERT_TRUE(total_ms <= (expected_total_ms + tolerance_ms * durations_ms.size()));
+
+        // Verify average (with tolerance)
+        TEST_ASSERT_TRUE(avg_ms >= (expected_avg_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(avg_ms <= (expected_avg_ms + tolerance_ms));
+
+        // Verify min (should be close to expected_min, but may be slightly less due to timing variations)
+        TEST_ASSERT_TRUE(min_ms >= (expected_min_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(min_ms <= (expected_min_ms + tolerance_ms));
+
+        // Verify max (should be close to expected_max, but may be slightly more due to timing variations)
+        TEST_ASSERT_TRUE(max_ms >= (expected_max_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(max_ms <= (expected_max_ms + tolerance_ms));
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler same event name statistics accumulation", "[utils][time_profiler][statistics][event]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Same Event Name Statistics Accumulation Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Use the same event name multiple times with different durations
+    const std::vector<int> durations_ms = {15, 25, 35, 20, 30};
+    const std::string event_name = "same_event_name";
+    const double tolerance_ms = 10.0;
+
+    // Calculate expected values
+    int expected_total_ms = 0;
+    int expected_min_ms = durations_ms[0];
+    int expected_max_ms = durations_ms[0];
+    for (int duration : durations_ms) {
+        expected_total_ms += duration;
+        if (duration < expected_min_ms) {
+            expected_min_ms = duration;
+        }
+        if (duration > expected_max_ms) {
+            expected_max_ms = duration;
+        }
+    }
+    double expected_avg_ms = static_cast<double>(expected_total_ms) / durations_ms.size();
+
+    // Execute events with same name but different durations
+    for (int duration : durations_ms) {
+        BROOKESIA_TIME_PROFILER_START_EVENT(event_name.c_str());
+        simulate_work(duration);
+        BROOKESIA_TIME_PROFILER_END_EVENT(event_name.c_str());
+    }
+
+    const auto stats = TimeProfiler::get_instance().get_statistics();
+    const auto *node = find_statistics_node(stats.root_children, event_name);
+
+    TEST_ASSERT_NOT_NULL(node);
+    if (node) {
+        // Convert to milliseconds if needed
+        double total_ms = node->total;
+        double avg_ms = node->avg;
+        double min_ms = node->min;
+        double max_ms = node->max;
+
+        if (stats.unit_name == "s") {
+            total_ms = node->total * 1000.0;
+            avg_ms = node->avg * 1000.0;
+            min_ms = node->min * 1000.0;
+            max_ms = node->max * 1000.0;
+        } else if (stats.unit_name == "us") {
+            total_ms = node->total / 1000.0;
+            avg_ms = node->avg / 1000.0;
+            min_ms = node->min / 1000.0;
+            max_ms = node->max / 1000.0;
+        }
+
+        BROOKESIA_LOGI("Event: %s", event_name.c_str());
+        BROOKESIA_LOGI("Expected: count=%zu, total=%d ms, avg=%.2f ms, min=%d ms, max=%d ms",
+                       durations_ms.size(), expected_total_ms, expected_avg_ms, expected_min_ms, expected_max_ms);
+        BROOKESIA_LOGI("Measured: count=%zu, total=%.2f ms, avg=%.2f ms, min=%.2f ms, max=%.2f ms",
+                       node->count, total_ms, avg_ms, min_ms, max_ms);
+
+        // Verify count
+        TEST_ASSERT_EQUAL(durations_ms.size(), node->count);
+
+        // Verify total (with tolerance)
+        TEST_ASSERT_TRUE(total_ms >= (expected_total_ms - tolerance_ms * durations_ms.size()));
+        TEST_ASSERT_TRUE(total_ms <= (expected_total_ms + tolerance_ms * durations_ms.size()));
+
+        // Verify average (with tolerance)
+        TEST_ASSERT_TRUE(avg_ms >= (expected_avg_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(avg_ms <= (expected_avg_ms + tolerance_ms));
+
+        // Verify min (should be close to expected_min, but may be slightly less due to timing variations)
+        TEST_ASSERT_TRUE(min_ms >= (expected_min_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(min_ms <= (expected_min_ms + tolerance_ms));
+
+        // Verify max (should be close to expected_max, but may be slightly more due to timing variations)
+        TEST_ASSERT_TRUE(max_ms >= (expected_max_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(max_ms <= (expected_max_ms + tolerance_ms));
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+}
+
+TEST_CASE("Test TimeProfiler same scope name with same duration statistics", "[utils][time_profiler][statistics][scope]")
+{
+    BROOKESIA_LOGI("=== TimeProfiler Same Scope Name With Same Duration Statistics Test ===");
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
+
+    // Use the same scope name multiple times with the same duration
+    const int duration_ms = 30;
+    const int iterations = 8;
+    const std::string scope_name = "same_duration_scope";
+    const double tolerance_ms = 10.0;
+
+    // Calculate expected values
+    int expected_total_ms = duration_ms * iterations;
+    double expected_avg_ms = static_cast<double>(duration_ms);
+    int expected_min_ms = duration_ms;
+    int expected_max_ms = duration_ms;
+
+    // Execute scopes with same name and same duration
+    for (int i = 0; i < iterations; i++) {
+        {
+            BROOKESIA_TIME_PROFILER_SCOPE(scope_name.c_str());
+            simulate_work(duration_ms);
+        }
+    }
+
+    const auto stats = TimeProfiler::get_instance().get_statistics();
+    const auto *node = find_statistics_node(stats.root_children, scope_name);
+
+    TEST_ASSERT_NOT_NULL(node);
+    if (node) {
+        // Convert to milliseconds if needed
+        double total_ms = node->total;
+        double avg_ms = node->avg;
+        double min_ms = node->min;
+        double max_ms = node->max;
+
+        if (stats.unit_name == "s") {
+            total_ms = node->total * 1000.0;
+            avg_ms = node->avg * 1000.0;
+            min_ms = node->min * 1000.0;
+            max_ms = node->max * 1000.0;
+        } else if (stats.unit_name == "us") {
+            total_ms = node->total / 1000.0;
+            avg_ms = node->avg / 1000.0;
+            min_ms = node->min / 1000.0;
+            max_ms = node->max / 1000.0;
+        }
+
+        BROOKESIA_LOGI("Scope: %s", scope_name.c_str());
+        BROOKESIA_LOGI("Expected: count=%d, total=%d ms, avg=%.2f ms, min=%d ms, max=%d ms",
+                       iterations, expected_total_ms, expected_avg_ms, expected_min_ms, expected_max_ms);
+        BROOKESIA_LOGI("Measured: count=%zu, total=%.2f ms, avg=%.2f ms, min=%.2f ms, max=%.2f ms",
+                       node->count, total_ms, avg_ms, min_ms, max_ms);
+
+        // Verify count
+        TEST_ASSERT_EQUAL(iterations, node->count);
+
+        // Verify total (with tolerance)
+        TEST_ASSERT_TRUE(total_ms >= (expected_total_ms - tolerance_ms * iterations));
+        TEST_ASSERT_TRUE(total_ms <= (expected_total_ms + tolerance_ms * iterations));
+
+        // Verify average (with tolerance)
+        TEST_ASSERT_TRUE(avg_ms >= (expected_avg_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(avg_ms <= (expected_avg_ms + tolerance_ms));
+
+        // Verify min and max should be close to duration_ms
+        TEST_ASSERT_TRUE(min_ms >= (expected_min_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(min_ms <= (expected_min_ms + tolerance_ms));
+        TEST_ASSERT_TRUE(max_ms >= (expected_max_ms - tolerance_ms));
+        TEST_ASSERT_TRUE(max_ms <= (expected_max_ms + tolerance_ms));
+    }
+
+    BROOKESIA_TIME_PROFILER_CLEAR();
 }

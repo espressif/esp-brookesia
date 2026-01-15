@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -122,24 +122,40 @@ void TimeProfiler::end_event(const std::string &name)
     node->count++;
 }
 
-void TimeProfiler::report()
+TimeProfiler::Statistics TimeProfiler::get_statistics() const
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     std::lock_guard<std::mutex> lock(mutex_);
 
+    Statistics stats;
+    stats.unit_name = unit_name();
+    stats.overall_total = sum_children_total(&root_);
+
+    auto children = sorted_children(const_cast<Node *>(&root_));
+    stats.root_children.reserve(children.size());
+    for (const Node *child : children) {
+        stats.root_children.push_back(build_node_statistics(child, stats.overall_total, stats.overall_total));
+    }
+
+    return stats;
+}
+
+void TimeProfiler::report()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    const Statistics stats = get_statistics();
+
     std::ostringstream oss;
     oss << "\n=== Performance Tree Report ===\n";
-    oss << "(Unit: " << unit_name() << ")\n";
+    oss << "(Unit: " << stats.unit_name << ")\n";
 
-    const double overall_total = sum_children_total(&root_);
     print_header(oss);
 
-    auto children = sorted_children(&root_);
-    for (size_t i = 0; i < children.size(); ++i) {
-        Node *child = children[i];
-        const bool is_last = (i + 1 == children.size());
-        print_node(oss, child, "", is_last, /*parent_total=*/overall_total, /*overall_total=*/overall_total);
+    for (size_t i = 0; i < stats.root_children.size(); ++i) {
+        const bool is_last = (i + 1 == stats.root_children.size());
+        print_node_from_statistics(oss, stats.root_children[i], "", is_last);
     }
     oss << "===============================\n";
 
@@ -374,6 +390,114 @@ std::vector<TimeProfiler::Node *> TimeProfiler::sorted_children(Node *node) cons
         break;
     }
     return result;
+}
+
+TimeProfiler::NodeStatistics TimeProfiler::build_node_statistics(const Node *node, double parent_total, double overall_total) const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    NodeStatistics stats(node->name);
+    stats.count = node->count;
+    stats.total = node->total;
+
+    const double children_sum = sum_children_total(node);
+    stats.self_time = node->total - children_sum;
+    stats.avg = node->count > 0 ? node->total / static_cast<double>(node->count) : 0.0;
+    stats.min = node->count > 0 ? node->min : 0.0;
+    stats.max = node->count > 0 ? node->max : 0.0;
+    stats.pct_parent = parent_total > 0.0 ? (node->total * 100.0 / parent_total) : 0.0;
+    stats.pct_total = overall_total > 0.0 ? (node->total * 100.0 / overall_total) : 0.0;
+
+    // Build children statistics
+    auto children = sorted_children(const_cast<Node *>(node));
+    stats.children.reserve(children.size());
+    for (const Node *child : children) {
+        stats.children.push_back(build_node_statistics(child, node->total, overall_total));
+    }
+
+    return stats;
+}
+
+void TimeProfiler::print_node_from_statistics(std::ostringstream &oss,
+        const NodeStatistics &stats,
+        const std::string &prefix,
+        bool is_last) const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    // Use more generic ASCII characters to ensure consistent width
+    const char *branch_mid = "|- ";
+    const char *branch_end = "`- ";
+    const char *pad_mid = "|  ";
+    const char *pad_end = "   ";
+    const std::string connector = std::string(is_last ? branch_end : branch_mid);
+    // Calculate next_prefix BEFORE using prefix for display_prefix
+    // This ensures children get the correct prefix with padding
+    const std::string next_prefix = prefix + (is_last ? pad_end : pad_mid);
+
+    const std::string display_prefix = prefix + connector;
+
+    // Color codes
+    const char *color_reset = "\033[0m";
+    const char *color_start = "";
+    if (format_.use_color) {
+        if (stats.pct_total >= 50.0) {
+            color_start = "\033[31m";    // red
+        } else if (stats.pct_total >= 20.0) {
+            color_start = "\033[33m";    // yellow
+        } else if (stats.pct_total >= 5.0) {
+            color_start = "\033[36m";    // cyan
+        }
+    }
+    const bool colorize = format_.use_color && *color_start != '\0';
+
+    // Calculate actual display width (excluding color codes)
+    int occupy = static_cast<int>(display_prefix.size() + stats.name.size());
+    int pad = format_.name_width - occupy;
+    if (pad < 1) {
+        pad = 1;
+    }
+
+    // Build colored name (color codes do not occupy display width)
+    const std::string name_colored = colorize ? (std::string(color_start) + stats.name + color_reset) : stats.name;
+
+    // Use boost::format to build formatted string
+    std::string fmt_str = "%s%s%s | %";
+    fmt_str += std::to_string(format_.calls_width) + "d";
+    fmt_str += " | %";
+    fmt_str += std::to_string(format_.num_width) + "." + std::to_string(format_.precision) + "f";
+    fmt_str += " | %";
+    fmt_str += std::to_string(format_.num_width) + "." + std::to_string(format_.precision) + "f";
+    fmt_str += " | %";
+    fmt_str += std::to_string(format_.num_width) + "." + std::to_string(format_.precision) + "f";
+    fmt_str += " | %";
+    fmt_str += std::to_string(format_.num_width) + "." + std::to_string(format_.precision) + "f";
+    fmt_str += " | %";
+    fmt_str += std::to_string(format_.num_width) + "." + std::to_string(format_.precision) + "f";
+
+    boost::format fmt(fmt_str);
+    fmt % display_prefix % name_colored % std::string(pad, ' ') % stats.count % stats.total % stats.self_time % stats.avg % stats.min % stats.max;
+
+    oss << fmt.str();
+
+    if (format_.show_percentages) {
+        // Build percentage format string
+        std::string pct_fmt_str = " | %";
+        pct_fmt_str += std::to_string(format_.percent_width) + ".2f%%";
+        pct_fmt_str += " | %";
+        pct_fmt_str += std::to_string(format_.percent_width) + ".2f%%";
+
+        boost::format pct(pct_fmt_str);
+        pct % stats.pct_parent % stats.pct_total;
+        oss << pct.str();
+    }
+    oss << "\n";
+
+    // Print children
+    for (size_t i = 0; i < stats.children.size(); ++i) {
+        const bool child_is_last = (i + 1 == stats.children.size());
+        print_node_from_statistics(oss, stats.children[i], next_prefix, child_is_last);
+    }
 }
 
 TimeProfilerScope::TimeProfilerScope(const std::string &name)

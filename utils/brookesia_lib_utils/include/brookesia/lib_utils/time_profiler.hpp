@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -40,6 +40,36 @@ public:
         Node *parent = nullptr;  ///< Parent scope
 
         Node(const std::string &n, Node *p = nullptr) : name(n), parent(p) {}
+    };
+
+    /**
+     * @brief Statistics for a single profiling node
+     */
+    struct NodeStatistics {
+        std::string name;              ///< Name of the profiling scope
+        size_t count = 0;              ///< Number of times this scope was entered
+        double total = 0.0;            ///< Total time spent in this scope
+        double self_time = 0.0;       ///< Time spent in this scope excluding children
+        double avg = 0.0;              ///< Average time per call
+        double min = 0.0;              ///< Minimum time recorded
+        double max = 0.0;              ///< Maximum time recorded
+        double pct_parent = 0.0;       ///< Percentage of parent's total time
+        double pct_total = 0.0;        ///< Percentage of overall total time
+        std::vector<NodeStatistics> children;  ///< Child node statistics
+
+        NodeStatistics() = default;
+        NodeStatistics(const std::string &n) : name(n) {}
+    };
+
+    /**
+     * @brief Complete statistics report for the profiler
+     */
+    struct Statistics {
+        std::string unit_name;         ///< Time unit name (e.g., "ms", "us", "s")
+        double overall_total = 0.0;   ///< Overall total time
+        std::vector<NodeStatistics> root_children;  ///< Root level node statistics
+
+        Statistics() = default;
     };
 
     /**
@@ -142,9 +172,19 @@ public:
     // ========== Output and Management ==========
 
     /**
+     * @brief Get profiling statistics
+     *
+     * Returns a structured representation of all profiling data.
+     *
+     * @return Statistics structure containing all profiling information
+     */
+    Statistics get_statistics() const;
+
+    /**
      * @brief Generate and output profiling report
      *
      * Prints a hierarchical report of all recorded timings to the log.
+     * This method internally calls get_statistics() and formats the output.
      */
     void report();
 
@@ -188,6 +228,13 @@ private:
     double sum_children_total(const Node *node) const;
 
     std::vector<Node *> sorted_children(Node *node) const;
+
+    NodeStatistics build_node_statistics(const Node *node, double parent_total, double overall_total) const;
+
+    void print_node_from_statistics(std::ostringstream &oss,
+                                    const NodeStatistics &stats,
+                                    const std::string &prefix,
+                                    bool is_last) const;
 };
 
 /**
@@ -218,6 +265,12 @@ BROOKESIA_DESCRIBE_ENUM(TimeProfiler::FormatOptions::TimeUnit, Microseconds, Mil
 BROOKESIA_DESCRIBE_STRUCT(
     TimeProfiler::FormatOptions, (), (name_width, calls_width, num_width, percent_width, precision, use_unicode,
                                       show_percentages, use_color, sort_by, time_unit)
+)
+BROOKESIA_DESCRIBE_STRUCT(
+    TimeProfiler::NodeStatistics, (), (name, count, total, self_time, avg, min, max, pct_parent, pct_total, children)
+)
+BROOKESIA_DESCRIBE_STRUCT(
+    TimeProfiler::Statistics, (), (unit_name, overall_total, root_children)
 )
 
 } // namespace esp_brookesia::lib_utils
