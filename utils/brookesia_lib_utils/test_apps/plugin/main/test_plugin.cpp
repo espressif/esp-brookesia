@@ -14,136 +14,15 @@
 #include "brookesia/lib_utils/log.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/lib_utils/thread_config.hpp"
-
-#define FILE_SCOPE_PLUGIN_COUNT 2
+#include "test_class.hpp"
+#include "test_plugin_macro_a.hpp"
+#include "test_plugin_macro_a_custom.hpp"
+#include "test_plugin_macro_singleton_a.hpp"
+#include "test_plugin_macro_singleton_b_custom.hpp"
 
 using namespace esp_brookesia::lib_utils;
 
-// ==================== Test base class and plugin class definitions ====================
-
-// Base plugin interface
-class IPlugin {
-public:
-    virtual ~IPlugin() = default;
-    virtual std::string get_name() const = 0;
-    virtual int get_value() const = 0;
-};
-
-// Concrete plugin implementation
-class PluginA : public IPlugin {
-public:
-    PluginA() : value_(100)
-    {
-    }
-
-    explicit PluginA(int val) : value_(val)
-    {
-    }
-
-    ~PluginA() override
-    {
-    }
-
-    std::string get_name() const override
-    {
-        return "PluginA";
-    }
-    int get_value() const override
-    {
-        return value_;
-    }
-
-private:
-    int value_;
-};
-
-class PluginB : public IPlugin {
-public:
-    PluginB() : value_(200)
-    {
-    }
-
-    explicit PluginB(int val) : value_(val)
-    {
-    }
-
-    ~PluginB() override
-    {
-    }
-
-    std::string get_name() const override
-    {
-        return "PluginB";
-    }
-    int get_value() const override
-    {
-        return value_;
-    }
-
-private:
-    int value_;
-};
-
-class PluginC : public IPlugin {
-public:
-    PluginC(const std::string &name, int val) : name_(name), value_(val)
-    {
-    }
-
-    ~PluginC() override
-    {
-    }
-
-    std::string get_name() const override
-    {
-        return name_;
-    }
-    int get_value() const override
-    {
-        return value_;
-    }
-
-private:
-    std::string name_;
-    int value_;
-};
-
-// Singleton plugin implementation
-class PluginSingleton : public IPlugin {
-public:
-    static PluginSingleton &get_instance()
-    {
-        static PluginSingleton instance;
-        return instance;
-    }
-
-    std::string get_name() const override
-    {
-        return "PluginSingleton";
-    }
-
-    int get_value() const override
-    {
-        return value_;
-    }
-
-private:
-    PluginSingleton() : value_(999)
-    {
-        // Private constructor for singleton pattern
-    }
-
-    ~PluginSingleton() override = default;
-    PluginSingleton(const PluginSingleton &) = delete;
-    PluginSingleton &operator=(const PluginSingleton &) = delete;
-
-    int value_;
-};
-
-// ==================== Plugin registration at file scope ====================
-// Register plugins using macros at file scope for linker -u option support
-BROOKESIA_PLUGIN_REGISTER(IPlugin, PluginA, "macro_a", 888);
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(IPlugin, PluginSingleton, "macro_singleton", PluginSingleton::get_instance());
+constexpr int MACRO_PLUGIN_COUNT = 4;
 
 // ==================== Test cases ====================
 
@@ -151,38 +30,76 @@ TEST_CASE("Test macro registration", "[utils][plugin_registry][macro]")
 {
     BROOKESIA_LOGI("=== PluginRegistry Macro Registration Test ===");
 
-    // Plugin was registered at file scope (see above)
-    // Verify registration success
-    auto plugin = PluginRegistry<IPlugin>::get_instance("macro_a");
-    TEST_ASSERT_NOT_NULL(plugin);
-    TEST_ASSERT_EQUAL(888, plugin->get_value());
+    auto plugins = PluginRegistry<IPlugin>::get_all_instances();
+    for (const auto &[name, plugin] : plugins) {
+        BROOKESIA_LOGI("  - %1%: %2%", name, plugin->get_name());
+    }
+
+    // // Verify plugin count
+    TEST_ASSERT_EQUAL(MACRO_PLUGIN_COUNT, PluginRegistry<IPlugin>::get_plugin_count());
+
+    {
+        // Plugin was registered at file scope (see above)
+        // Verify registration success
+        auto plugin = PluginRegistry<IPlugin>::get_instance(PLUGIN_MACRO_A_NAME);
+        TEST_ASSERT_NOT_NULL(plugin);
+        TEST_ASSERT_EQUAL(MACRO_A_VALUE, plugin->get_value());
+    }
+    {
+        // Plugin was registered at file scope (see above)
+        // Verify registration success
+        auto plugin = PluginRegistry<IPlugin>::get_instance(PLUGIN_MACRO_A_CUSTOM_NAME);
+        TEST_ASSERT_NOT_NULL(plugin);
+        TEST_ASSERT_EQUAL(MACRO_A_CUSTOM_VALUE, plugin->get_value());
+    }
 
     // Clean up - release instance but keep registration (file scope registered)
-    PluginRegistry<IPlugin>::release_instance("macro_a");
+    PluginRegistry<IPlugin>::release_instance(PLUGIN_MACRO_A_NAME);
+    PluginRegistry<IPlugin>::release_instance(PLUGIN_MACRO_A_CUSTOM_NAME);
 }
 
 TEST_CASE("Test singleton macro registration", "[utils][plugin_registry][macro][singleton]")
 {
     BROOKESIA_LOGI("=== PluginRegistry Singleton Macro Registration Test ===");
 
-    // Singleton plugin was registered at file scope (see above)
-    // Verify registration success
-    auto plugin = PluginRegistry<IPlugin>::get_instance("macro_singleton");
-    TEST_ASSERT_NOT_NULL(plugin);
-    TEST_ASSERT_EQUAL_STRING("PluginSingleton", plugin->get_name().c_str());
-    TEST_ASSERT_EQUAL(999, plugin->get_value());
+    {
+        // Singleton plugin was registered at file scope (see above)
+        // Verify registration success
+        auto plugin = PluginRegistry<IPlugin>::get_instance(PLUGIN_MACRO_SINGLETON_A_NAME);
+        TEST_ASSERT_NOT_NULL(plugin);
+        TEST_ASSERT_EQUAL_STRING("PluginSingletonA", plugin->get_name().c_str());
+        TEST_ASSERT_EQUAL(MACRO_SINGLETON_A_DEFAULT_VALUE, plugin->get_value());
 
-    // Verify it's the same instance as the singleton
-    auto &singleton_ref = PluginSingleton::get_instance();
-    TEST_ASSERT_EQUAL(plugin.get(), &singleton_ref);
+        // Verify it's the same instance as the singleton
+        auto &singleton_ref = PluginSingletonA::get_instance();
+        TEST_ASSERT_EQUAL(plugin.get(), &singleton_ref);
 
-    // Get again, verify same cached instance
-    auto plugin_again = PluginRegistry<IPlugin>::get_instance("macro_singleton");
-    TEST_ASSERT_NOT_NULL(plugin_again);
-    TEST_ASSERT_EQUAL(plugin.get(), plugin_again.get());
+        // Get again, verify same cached instance
+        auto plugin_again = PluginRegistry<IPlugin>::get_instance(PLUGIN_MACRO_SINGLETON_A_NAME);
+        TEST_ASSERT_NOT_NULL(plugin_again);
+        TEST_ASSERT_EQUAL(plugin.get(), plugin_again.get());
+    }
+    {
+        // Singleton plugin was registered at file scope (see above)
+        // Verify registration success
+        auto plugin = PluginRegistry<IPlugin>::get_instance(PLUGIN_MACRO_SINGLETON_B_CUSTOM_NAME);
+        TEST_ASSERT_NOT_NULL(plugin);
+        TEST_ASSERT_EQUAL_STRING("PluginSingletonB", plugin->get_name().c_str());
+        TEST_ASSERT_EQUAL(MACRO_SINGLETON_B_DEFAULT_VALUE, plugin->get_value());
+
+        // Verify it's the same instance as the singleton
+        auto &singleton_ref = PluginSingletonB::get_instance();
+        TEST_ASSERT_EQUAL(plugin.get(), &singleton_ref);
+
+        // Get again, verify same cached instance
+        auto plugin_again = PluginRegistry<IPlugin>::get_instance(PLUGIN_MACRO_SINGLETON_B_CUSTOM_NAME);
+        TEST_ASSERT_NOT_NULL(plugin_again);
+        TEST_ASSERT_EQUAL(plugin.get(), plugin_again.get());
+    }
 
     // Clean up - release instance but keep registration (file scope registered)
-    PluginRegistry<IPlugin>::release_instance("macro_singleton");
+    PluginRegistry<IPlugin>::release_instance(PLUGIN_MACRO_SINGLETON_A_NAME);
+    PluginRegistry<IPlugin>::release_instance(PLUGIN_MACRO_SINGLETON_B_CUSTOM_NAME);
 }
 
 TEST_CASE("Test basic registration and retrieval", "[utils][plugin_registry][basic]")
@@ -198,7 +115,7 @@ TEST_CASE("Test basic registration and retrieval", "[utils][plugin_registry][bas
     auto plugin = PluginRegistry<IPlugin>::get_instance("plugin_a");
     TEST_ASSERT_NOT_NULL(plugin);
     TEST_ASSERT_EQUAL_STRING("PluginA", plugin->get_name().c_str());
-    TEST_ASSERT_EQUAL(100, plugin->get_value());
+    TEST_ASSERT_EQUAL(PLUGIN_A_DEFAULT_VALUE, plugin->get_value());
 
     // Get again, verify same cached instance (singleton pattern)
     auto plugin_again = PluginRegistry<IPlugin>::get_instance("plugin_a");
@@ -228,11 +145,11 @@ TEST_CASE("Test multiple plugins", "[utils][plugin_registry][multiple]")
 
     TEST_ASSERT_NOT_NULL(plugin_a);
     TEST_ASSERT_NOT_NULL(plugin_b);
-    TEST_ASSERT_EQUAL(100, plugin_a->get_value());
-    TEST_ASSERT_EQUAL(200, plugin_b->get_value());
+    TEST_ASSERT_EQUAL(PLUGIN_A_DEFAULT_VALUE, plugin_a->get_value());
+    TEST_ASSERT_EQUAL(PLUGIN_B_DEFAULT_VALUE, plugin_b->get_value());
 
     // Verify plugin count, including the two plugins registered at file scope
-    TEST_ASSERT_EQUAL(4, PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL(MACRO_PLUGIN_COUNT + 2, PluginRegistry<IPlugin>::get_plugin_count());
 
     // Clean up - remove only the plugins used in this test
     PluginRegistry<IPlugin>::remove_plugin("plugin_a");
@@ -346,7 +263,7 @@ TEST_CASE("Test thread safety", "[utils][plugin_registry][thread_safety]")
                     }
 
                     // Test 3: Concurrent query plugin count, including the two plugins registered at file scope
-                    if (PluginRegistry<IPlugin>::get_plugin_count() == (3 + FILE_SCOPE_PLUGIN_COUNT)) {
+                    if (PluginRegistry<IPlugin>::get_plugin_count() == (3 + MACRO_PLUGIN_COUNT)) {
                         success_count++;
                     } else {
                         error_count++;
@@ -381,7 +298,7 @@ TEST_CASE("Test thread safety", "[utils][plugin_registry][thread_safety]")
     TEST_ASSERT_EQUAL(0, error_count.load());
 
     // Verify plugin state is not corrupted, including the two plugins registered at file scope
-    TEST_ASSERT_EQUAL((3 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((3 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
     auto plugin_a = PluginRegistry<IPlugin>::get_instance("plugin_a");
     TEST_ASSERT_NOT_NULL(plugin_a);
     TEST_ASSERT_EQUAL(100, plugin_a->get_value());
@@ -514,7 +431,7 @@ TEST_CASE("Test edge cases", "[utils][plugin_registry][edge_cases]")
     PluginRegistry<IPlugin>::remove_plugin("non_existent");
 
     // Empty plugin count, including the two plugins registered at file scope
-    TEST_ASSERT_EQUAL((0 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((0 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
 
     // Clean up - no plugins were registered in this test
 }
@@ -543,7 +460,7 @@ TEST_CASE("Test complex scenario", "[utils][plugin_registry][complex]")
     TEST_ASSERT_EQUAL(100, service_a->get_value());
 
     // 3. Verify plugin count
-    TEST_ASSERT_EQUAL((3 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((3 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
 
     // 4. Get plugin again (will return cached instance)
     auto service_a2 = PluginRegistry<IPlugin>::get_instance("service_a");
@@ -553,11 +470,11 @@ TEST_CASE("Test complex scenario", "[utils][plugin_registry][complex]")
     PluginRegistry<IPlugin>::remove_plugin("service_b");
 
     // 6. Verify final state
-    TEST_ASSERT_EQUAL((2 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((2 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
 
     // 7. Get all instances
     auto all_instances = PluginRegistry<IPlugin>::get_all_instances();
-    TEST_ASSERT_EQUAL((2 + FILE_SCOPE_PLUGIN_COUNT), all_instances.size());
+    TEST_ASSERT_EQUAL((2 + MACRO_PLUGIN_COUNT), all_instances.size());
     BROOKESIA_LOGI("All instances:");
     for (const auto &[name, instance] : all_instances) {
         BROOKESIA_LOGI("  - %1%: %2%", name, instance->get_name());
@@ -586,21 +503,21 @@ TEST_CASE("Test remove operations", "[utils][plugin_registry][remove]")
 
     // Get all instances
     auto all_instances = PluginRegistry<IPlugin>::get_all_instances();
-    TEST_ASSERT_EQUAL((2 + FILE_SCOPE_PLUGIN_COUNT), all_instances.size());
+    TEST_ASSERT_EQUAL((2 + MACRO_PLUGIN_COUNT), all_instances.size());
     BROOKESIA_LOGI("All instances:");
     for (const auto &[name, instance] : all_instances) {
         BROOKESIA_LOGI("  - %1%: %2%", name, instance->get_name());
     }
 
-    TEST_ASSERT_EQUAL((2 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((2 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
 
     // Remove single plugin
     PluginRegistry<IPlugin>::remove_plugin("plugin_a");
-    TEST_ASSERT_EQUAL((1 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((1 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
 
     // Try to remove non-existent plugin (no error, but not affect count)
     PluginRegistry<IPlugin>::remove_plugin("non_existent");
-    TEST_ASSERT_EQUAL((1 + FILE_SCOPE_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
+    TEST_ASSERT_EQUAL((1 + MACRO_PLUGIN_COUNT), PluginRegistry<IPlugin>::get_plugin_count());
 
     // Clear all
     PluginRegistry<IPlugin>::remove_all_plugins();

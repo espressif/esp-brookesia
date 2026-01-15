@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.3~1 - 2026-01-15
+
+#### Enhancements:
+
+* feat(plugin): add support for custom symbol name
+
 ## v0.7.3 - 2025-12-29
 
 #### Enhancements:

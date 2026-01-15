@@ -202,12 +202,21 @@ public:
  * @brief Internal macro to create fixed symbol name for linker
  * Creates a C function with the specified name that can be referenced via -u option
  * The function references a static variable to ensure it's not optimized away
+ *
+ * @note The function is defined outside any namespace to ensure proper linking.
+ *       The static variable reference ensures the registrar instance is not optimized away.
  */
 #define BROOKESIA_PLUGIN_CREATE_SYMBOL(symbol_name, static_var_name) \
     extern "C" void symbol_name() __attribute__((used)); \
-    void symbol_name() { \
-        static volatile void* __attribute__((used)) _ref = (void*)&static_var_name; \
+    extern "C" void symbol_name() { \
+        /* Reference the static variable to prevent it from being optimized away */ \
+        /* The addressof operator ensures a real reference is created */ \
+        /* Using volatile and __attribute__((used)) to prevent optimization */ \
+        static volatile void* __attribute__((used)) _ref = (void*)&(static_var_name); \
         (void)_ref; \
+        /* Additional reference to ensure the variable is not optimized away */ \
+        volatile void* _ref2 = (void*)&(static_var_name); \
+        (void)_ref2; \
     }
 
 /**
@@ -217,18 +226,26 @@ public:
  * @param PluginType Plugin type to register
  * @param name Plugin name
  * @param creator Custom creator function that returns a shared pointer to the plugin instance
+ * @param symbol_name Symbol name for the plugin
  *
  * @note Automatically creates a fixed symbol name based on PluginType for linker -u option
  */
-#define BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, creator) \
+#define BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, creator, symbol_name) \
     namespace { \
         template<typename T> \
         static std::shared_ptr<BaseType> BROOKESIA_PLUGIN_CONCAT(_convert_ptr_, __LINE__)(T&& ptr) { \
-            if constexpr (std::is_same_v<std::decay_t<T>, std::shared_ptr<PluginType>> || \
-                          std::is_same_v<std::decay_t<T>, std::shared_ptr<BaseType>>) { \
+            using DecayedT = std::decay_t<T>; \
+            if constexpr (std::is_same_v<DecayedT, std::shared_ptr<PluginType>> || \
+                          std::is_same_v<DecayedT, std::shared_ptr<BaseType>>) { \
                 return std::forward<T>(ptr); \
-            } else { \
+            } else if constexpr (std::is_same_v<DecayedT, std::unique_ptr<PluginType>> || \
+                                 std::is_same_v<DecayedT, std::unique_ptr<BaseType>>) { \
                 return std::shared_ptr<BaseType>(ptr.release()); \
+            } else { \
+                static_assert(std::is_convertible_v<DecayedT, std::shared_ptr<BaseType>>, \
+                    "Creator function must return std::shared_ptr<PluginType>, std::shared_ptr<BaseType>, " \
+                    "std::unique_ptr<PluginType>, or std::unique_ptr<BaseType>"); \
+                return std::forward<T>(ptr); \
             } \
         } \
         struct BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_helper_, __LINE__) { \
@@ -245,7 +262,7 @@ public:
             BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_instance_, __LINE__); \
     } \
     BROOKESIA_PLUGIN_CREATE_SYMBOL( \
-        BROOKESIA_PLUGIN_CONCAT(_##PluginType##_symbol_, __LINE__), \
+        symbol_name, \
         BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_instance_, __LINE__) \
     )
 
@@ -266,7 +283,7 @@ public:
 #define BROOKESIA_PLUGIN_REGISTER(BaseType, PluginType, name, ...)                 \
     BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, []() {  \
         return std::make_shared<PluginType>(__VA_ARGS__); \
-    })
+    }, BROOKESIA_PLUGIN_CONCAT(_##PluginType##_symbol_, __LINE__))
 
 /**
  * @brief Registration macro for singleton pattern
@@ -294,8 +311,66 @@ public:
  */
 #define BROOKESIA_PLUGIN_REGISTER_SINGLETON(BaseType, PluginType, name, instance_expr) \
     BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, ([]() -> std::shared_ptr<BaseType> { \
+        static_assert(std::is_base_of_v<BaseType, PluginType>, "PluginType must inherit from BaseType"); \
+        auto& instance = (instance_expr); \
         return std::shared_ptr<BaseType>(                                                \
-            static_cast<BaseType*>(&(instance_expr)),                                    \
+            static_cast<BaseType*>(std::addressof(instance)),                             \
             [](BaseType*) { /* no-op deleter for singleton */ }                          \
         );                                                                                \
-    }))
+    }), BROOKESIA_PLUGIN_CONCAT(_##PluginType##_symbol_, __LINE__))
+
+/**
+ * @brief Registration macro with custom symbol name (supports specifying constructor arguments)
+ *
+ * @param BaseType Base type for the plugin registry
+ * @param PluginType Plugin type to register
+ * @param name Plugin name
+ * @param symbol_name Custom symbol name for the plugin
+ * @param ... Constructor arguments (optional)
+ *
+ * @code
+ * // Example usage:
+ * BROOKESIA_PLUGIN_REGISTER_WITH_SYMBOL(BaseService, MyPlugin, "my_plugin", "custom_symbol_name");
+ * BROOKESIA_PLUGIN_REGISTER_WITH_SYMBOL(BaseService, MyPlugin, "my_plugin", "custom_symbol_name", arg1, arg2);
+ * // Use: target_link_libraries(${COMPONENT_LIB} INTERFACE "-u custom_symbol_name")
+ * @endcode
+ */
+#define BROOKESIA_PLUGIN_REGISTER_WITH_SYMBOL(BaseType, PluginType, name, symbol_name, ...)                 \
+    BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, []() {  \
+        return std::make_shared<PluginType>(__VA_ARGS__); \
+    }, symbol_name)
+
+/**
+ * @brief Registration macro for singleton pattern with custom symbol name
+ *
+ * This macro allows registering a singleton instance to the plugin registry.
+ * It uses a custom no-op deleter to prevent the shared_ptr from destroying the singleton.
+ * Uses the provided custom symbol name for linker -u option.
+ *
+ * @param BaseType Base type for the plugin registry
+ * @param PluginType Singleton type to register (must inherit from BaseType)
+ * @param name Plugin name (must be unique)
+ * @param symbol_name Custom symbol name for the plugin
+ * @param instance_expr Expression to get singleton instance reference (e.g., SingletonType::get_instance())
+ *
+ * @code
+ * // Example usage:
+ * BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+ *     BaseService,
+ *     MySingleton,
+ *     "my_singleton",
+ *     "custom_symbol_name",
+ *     MySingleton::get_instance()
+ * );
+ * // Use: target_link_libraries(${COMPONENT_LIB} INTERFACE "-u custom_symbol_name")
+ * @endcode
+ */
+#define BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(BaseType, PluginType, name, symbol_name, instance_expr) \
+    BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, ([]() -> std::shared_ptr<BaseType> { \
+        static_assert(std::is_base_of_v<BaseType, PluginType>, "PluginType must inherit from BaseType"); \
+        auto& instance = (instance_expr); \
+        return std::shared_ptr<BaseType>(                                                \
+            static_cast<BaseType*>(std::addressof(instance)),                             \
+            [](BaseType*) { /* no-op deleter for singleton */ }                          \
+        );                                                                                \
+    }), symbol_name)

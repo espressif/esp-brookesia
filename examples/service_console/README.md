@@ -88,6 +88,7 @@ Default supported board names are as follows:
 > [!NOTE]
 > - For information on how to add custom boards, please refer to the [esp_board_manager component documentation](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README.md) for more information.
 > - This example uses the [idf_ext.py](./idf_ext.py) file by default to extend the `idf.py gen-bmgr-config` command, so users do not need to manually download the `esp_board_manager` component or set the `IDF_EXTRA_ACTIONS_PATH` environment variable.
+> - The first time you run the `idf.py gen-bmgr-config` command, the terminal will print `-- IDF_TARGET not set, using default target: esp32` and some warning information, which is normal and should be ignored.
 
 #### For Other Boards
 
@@ -257,7 +258,7 @@ For detailed descriptions of RPC commands, please refer to the [RPC Commands](./
 
 ### Common Issues
 
-- **Build failure on Windows**: Please refer to the [ESP-IDF Requirements](#esp-idf-requirements) section to ensure your environment is configured correctly.
+- **Using VSCode extension to compile fails**：Please refer to the [ESP-IDF Requirements](#esp-idf-requirements) section to ensure the environment is configured correctly.
 - **Command not recognized**: Ensure that the example has been compiled and flashed correctly, and the serial connection is working properly.
 - **Service not found**: Use the `svc_list` command to view all available services and ensure the required service is enabled.
 - **RPC connection failed**: Ensure that devices are connected to the same WiFi network.

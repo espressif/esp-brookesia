@@ -1,0 +1,5 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/brookesia_lib_utils:
+    version: "*"
+    override_path: "../../../../../brookesia_lib_utils"

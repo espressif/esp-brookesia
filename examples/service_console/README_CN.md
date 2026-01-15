@@ -88,6 +88,7 @@ idf.py gen-bmgr-config -b <board> -c ./boards
 > [!NOTE]
 > - 关于如何添加自定义开发板，请参考 [esp_board_manager 组件文档](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md) 了解更多信息。
 > - 本示例默认使用 [idf_ext.py](./idf_ext.py) 文件对 `idf.py gen-bmgr-config` 命令进行扩展，用户无需手动下载 `esp_board_manager` 组件和设置 `IDF_EXTRA_ACTIONS_PATH` 环境变量。
+> - 首次执行 `idf.py gen-bmgr-config` 命令时，终端出现 `-- IDF_TARGET not set, using default target: esp32` 及相关警告信息属正常现象，无需理会。
 
 #### 对于其他开发板
 
@@ -257,7 +258,7 @@ debug_time_clear
 
 ### 常见问题
 
-- **Windows 系统下编译失败**：请参考 [ESP-IDF 要求](#esp-idf-要求) 章节确保环境配置正确。
+- **使用 VSCode 扩展插件编译失败**：请参考 [ESP-IDF 要求](#esp-idf-要求) 章节确保环境配置正确。
 - **命令无法识别**：确保已正确编译和烧录示例，并且串口连接正常。
 - **服务未找到**：使用 `svc_list` 命令查看所有可用服务，确保所需服务已启用。
 - **RPC 连接失败**：确保设备已连接到同一 WiFi 网络。
