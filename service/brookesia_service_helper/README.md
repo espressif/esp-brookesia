@@ -21,11 +21,9 @@ This library mainly provides:
   - [Table of Contents](#table-of-contents)
   - [Features](#features)
     - [Helper Classes](#helper-classes)
-      - [Service Helper Classes](#service-helper-classes)
-      - [Agent Helper Classes](#agent-helper-classes)
     - [Type Safety](#type-safety)
     - [Standardized Interfaces](#standardized-interfaces)
-  - [Development Environment Requirements](#development-environment-requirements)
+    - [Advanced Features](#advanced-features)
   - [Adding to Project](#adding-to-project)
 
 ## Features
@@ -34,18 +32,13 @@ This library mainly provides:
 
 `brookesia_service_helper` currently provides the following helper classes:
 
-#### Service Helper Classes
-
-- [Audio](./include/brookesia/service_helper/audio.hpp) - Audio service helper class, providing function definitions for audio playback, codec, volume control, etc.
-- [NVS](./include/brookesia/service_helper/nvs.hpp) - NVS service helper class, providing function definitions for key-value storage, data management, etc.
-- [SNTP](./include/brookesia/service_helper/sntp.hpp) - SNTP service helper class, providing function definitions for time synchronization, timezone settings, etc.
-- [Wifi](./include/brookesia/service_helper/wifi.hpp) - WiFi service helper class, providing function definitions for WiFi connection, scanning, state management, etc.
-
-#### Agent Helper Classes
-
-- [Agent Manager](./include/brookesia/service_helper/agent/manager.hpp) - Agent management helper class, providing function definitions for agent lifecycle management, state machine control, etc.
-- [Agent Coze](./include/brookesia/service_helper/agent/coze.hpp) - Coze agent helper class, providing function definitions for Coze API integration
-- [Agent OpenAI](./include/brookesia/service_helper/agent/openai.hpp) - OpenAI agent helper class, providing function definitions for OpenAI API integration
+| Helper Class | Header File | Description |
+|--------------|-------------|-------------|
+| Audio | [audio.hpp](./include/brookesia/service_helper/audio.hpp) | Audio service helper class, providing function definitions for audio playback, codec, volume control, AFE events, etc. |
+| NVS | [nvs.hpp](./include/brookesia/service_helper/nvs.hpp) | NVS service helper class, providing function definitions for key-value storage, data management, etc. |
+| SNTP | [sntp.hpp](./include/brookesia/service_helper/sntp.hpp) | SNTP service helper class, providing function definitions for time synchronization, timezone settings, etc. |
+| Wifi | [wifi.hpp](./include/brookesia/service_helper/wifi.hpp) | WiFi service helper class, providing function definitions for WiFi connection, scanning, state management, etc. |
+| Emote | [emote.hpp](./include/brookesia/service_helper/expression/emote.hpp) | Emote service helper class, providing function definitions for emote display, animation control, QR code display, etc. |
 
 ### Type Safety
 
@@ -68,14 +61,11 @@ Through the `Base` base class and standardized Schema definitions, provides unif
 - **Interface Consistency**: All helper classes inherit from `Base`, following the same interface specifications to ensure consistent usage
 - **Runtime Validation**: Automatically validates Schema when calling functions and events, ensuring correct parameter types and counts
 
-## Development Environment Requirements
+### Advanced Features
 
-Before using this library, please ensure the following SDK development environment is installed:
-
-- [ESP-IDF](https://github.com/espressif/esp-idf): `>=5.5,<6`
-
-> [!NOTE]
-> For SDK installation instructions, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
+- **`ConvertibleToFunctionValue` Concept**: Provides type-safe parameter conversion, ensuring passed parameters can be correctly converted to the types required by functions
+- **`Timeout` Tag Type**: Supports specifying timeout in function calls, format: `call_function_sync<FunctionId>(..., Timeout{5000})`
+- **Event Callback Parameter Detection**: Provides Type Traits for detecting event callback function parameter types, ensuring correct callback signatures
 
 ## Adding to Project
 

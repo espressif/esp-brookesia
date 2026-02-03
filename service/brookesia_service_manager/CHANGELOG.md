@@ -6,15 +6,15 @@
 
 - break(event): `EventItem` changed from `std::variant` to a derived struct with implicit arithmetic-to-double conversion
 - break(function): `FunctionValue` changed from `std::variant` to a derived struct with implicit arithmetic-to-double conversion
-- break(event): add `require_async` field to `EventSchema`
 
 #### Enhancements:
 
 - feat(common): template-based `RawBuffer` constructor with automatic const detection
+- feat(event): add `require_scheduler` field to `EventSchema`
+- feat(function): add `require_scheduler` field to `FunctionSchema`
 - feat(service): add `set_task_scheduler()` method to `ServiceBase`
 - feat(service): add `bindable` attribute to `ServiceBase::Attributes`
 - feat(service): skip event publish if no subscribers found
-- feat(function): add `require_async` field to `FunctionSchema`
 - feat(Kconfig): reduce default worker priority from `10` to `5`
 - feat(Kconfig): add range validation for worker core ID
 - feat(Kconfig): change default worker name from `SrvMgrWorker` to `SvcMgrWorker`

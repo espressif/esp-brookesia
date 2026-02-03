@@ -88,7 +88,7 @@ private:
                     .type = service::FunctionValueType::Number
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -97,7 +97,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveRobotIndex),
             .description = "Get the active robot index",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -110,7 +110,7 @@ private:
                 RobotInfo{"robot1", "bot_id1", "voice_id1", "description1"},
                 RobotInfo{"robot2", "bot_id2", "voice_id2", "description2"}
             }))).str(),
-            .require_async = false
+            .require_scheduler = false
         };
     }
 

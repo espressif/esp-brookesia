@@ -299,7 +299,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -315,7 +315,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -331,7 +331,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -347,7 +347,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -363,7 +363,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -454,7 +454,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetVolume),
             .description = "Get the volume of the audio playback",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -516,7 +516,7 @@ private:
                     .type = FunctionValueType::RawBuffer
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -571,7 +571,7 @@ private:
                     .type = EventItemType::RawBuffer
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 
@@ -587,7 +587,7 @@ private:
                     .type = EventItemType::RawBuffer
                 }
             },
-            .require_async = false,
+            .require_scheduler = false,
         };
     }
 

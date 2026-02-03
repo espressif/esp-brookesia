@@ -13,6 +13,7 @@
 - feat(base): add type traits for event callback parameter detection
 - feat(audio): expand Audio helper with additional function and event schemas
 - feat(emote): update Expression Emote helper schemas
+- feat(repo): add `require_scheduler` field to `FunctionSchema` and `EventSchema`
 - feat(repo): update `brookesia_service_manager` dependency to `0.7.*`
 
 ## v0.7.2 - 2026-01-14

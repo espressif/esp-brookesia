@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -45,6 +45,7 @@ TEST_CASE("Test basic functions", "[utils][log][basic]")
     auto lambda_func = []() {
         BROOKESIA_LOG_TRACE_GUARD();
 
+        BROOKESIA_LOGT("This is a trace message");
         BROOKESIA_LOGD("This is a debug message");
         BROOKESIA_LOGI("This is an info message");
         BROOKESIA_LOGW("This is a warning message");
@@ -52,12 +53,28 @@ TEST_CASE("Test basic functions", "[utils][log][basic]")
     };
     lambda_func();
 
+    BROOKESIA_LOGT("This is a trace message");
     BROOKESIA_LOGD("This is a debug message");
     BROOKESIA_LOGI("This is an info message");
     BROOKESIA_LOGW("This is a warning message");
     BROOKESIA_LOGE("This is an error message");
 }
 
+TEST_CASE("Test log level filtering", "[utils][log][level]")
+{
+    // Print all log levels to verify filtering
+    // These messages will be filtered based on BROOKESIA_UTILS_LOG_LEVEL
+    BROOKESIA_LOGT("[LOG_LEVEL_VERIFY] Trace level message");
+    BROOKESIA_LOGD("[LOG_LEVEL_VERIFY] Debug level message");
+    BROOKESIA_LOGI("[LOG_LEVEL_VERIFY] Info level message");
+    BROOKESIA_LOGW("[LOG_LEVEL_VERIFY] Warning level message");
+    BROOKESIA_LOGE("[LOG_LEVEL_VERIFY] Error level message");
+
+    // Print current log level for verification
+    printf("[LOG_LEVEL_VERIFY] Current log level: %d\n", BROOKESIA_UTILS_LOG_LEVEL);
+}
+
+#if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_INFO
 TEST_CASE("Test with integer types", "[utils][log][integer]")
 {
     BROOKESIA_LOGI("=== Integer Types Test ===");
@@ -741,3 +758,4 @@ TEST_CASE("Test log macro edge cases", "[utils][log][macro_edge]")
     // Parameter out of order
     BROOKESIA_LOGI("Out of order: %3% %1% %2%", "A", "B", "C");
 }
+#endif // BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_INFO

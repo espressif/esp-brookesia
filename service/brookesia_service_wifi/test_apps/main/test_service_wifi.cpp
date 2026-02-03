@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -36,6 +36,8 @@ constexpr uint32_t TEST_WIFI_START_DURATION_MS = 200;
 constexpr uint32_t TEST_WIFI_CONNECT_DURATION_MS = 6000;
 #endif
 constexpr uint32_t TEST_WIFI_SCAN_DURATION_MS = 5000;
+constexpr uint32_t TEST_WIFI_RESET_DATA_TIMEOUT_MS = 1000;
+constexpr uint32_t TEST_WIFI_SET_SCAN_PARAMS_TIMEOUT_MS = 1000;
 
 static auto &service_manager = service::ServiceManager::get_instance();
 static auto &time_profiler = lib_utils::TimeProfiler::get_instance();
@@ -208,6 +210,7 @@ TEST_CASE("Test ServiceWifi - state transitions", "[service][wifi][state]")
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -339,6 +342,7 @@ TEST_CASE("Test ServiceWifi - scan functionality", "[service][wifi][scan]")
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -370,7 +374,8 @@ TEST_CASE("Test ServiceWifi - scan functionality", "[service][wifi][scan]")
                 {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::ApCount), 5.0},
                 {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::IntervalMs), 1000.0},
                 {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetScanParamsParam::TimeoutMs), 5000.0}
-            }
+            },
+            .call_timeout_ms = TEST_WIFI_SET_SCAN_PARAMS_TIMEOUT_MS,
         },
         // Start scan with custom parameters
         service::LocalTestItem{
@@ -447,6 +452,7 @@ TEST_CASE("Test ServiceWifi - set connect AP", "[service][wifi][connect]")
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -465,7 +471,7 @@ TEST_CASE("Test ServiceWifi - set connect AP", "[service][wifi][connect]")
             .params = boost::json::object{
                 {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), "TestAP"},
                 {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), "TestPassword123"}
-            }
+            },
         },
         // Set AP without password (open network)
         service::LocalTestItem{
@@ -531,6 +537,7 @@ TEST_CASE("Test ServiceWifi - connect and manual disconnect (no auto-reconnect)"
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -670,6 +677,7 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -817,6 +825,7 @@ TEST_CASE("Test ServiceWifi - rapid connect and disconnect", "[service][wifi][co
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -972,6 +981,7 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -1138,6 +1148,7 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -1307,6 +1318,7 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
     test_items.push_back(service::LocalTestItem{
         .name = "Clear storage",
         .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
     });
     test_items.push_back(service::LocalTestItem{
         .name = "State transition: Init (Deinited -> Inited)",
@@ -1495,6 +1507,7 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -1574,7 +1587,8 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
             {
                 // Should reject invalid parameters
                 return true;
-            }
+            },
+            .call_timeout_ms = TEST_WIFI_SET_SCAN_PARAMS_TIMEOUT_MS,
         },
         // Test with invalid action string
         service::LocalTestItem{
@@ -1626,6 +1640,7 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -1724,6 +1739,7 @@ TEST_CASE("Test ServiceWifi - error handling: rapid state changes", "[service][w
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         // Init from Deinited to Inited
         service::LocalTestItem{
@@ -1809,6 +1825,7 @@ TEST_CASE("Test ServiceWifi - stress test: rapid scan operations", "[service][wi
     test_items.push_back(service::LocalTestItem{
         .name = "Clear storage",
         .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
     });
     test_items.push_back(service::LocalTestItem{
         .name = "State transition: Init (Deinited -> Inited) (initial)",
@@ -1865,6 +1882,7 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
     test_items.push_back(service::LocalTestItem{
         .name = "Clear storage",
         .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+        .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
     });
 
     // Create continuous init -> start -> stop -> deinit cycles
@@ -1945,6 +1963,7 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         service::LocalTestItem{
             .name = "State transition: Init (Deinited -> Inited) (initial)",
@@ -2107,6 +2126,7 @@ TEST_CASE("Test ServiceWifi - stress test: long running operations", "[service][
         service::LocalTestItem{
             .name = "Clear storage",
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
         },
         service::LocalTestItem{
             .name = "Init for long running test",

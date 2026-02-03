@@ -146,7 +146,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -167,7 +167,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -183,7 +183,7 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -192,7 +192,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEmoji),
             .description = "Hide the current emoji",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -208,7 +208,7 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -230,7 +230,7 @@ private:
                     .type = FunctionValueType::Number
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -239,7 +239,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopAnimation),
             .description = "Stop the current animation. Animation will be hidden immediately",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -256,7 +256,7 @@ private:
                     .default_value = 0.0,
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -283,7 +283,7 @@ private:
                     .default_value = "",
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -292,7 +292,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEventMessage),
             .description = "Hide the current event message",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -308,7 +308,7 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -317,7 +317,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideQrcode),
             .description = "Hide the current QR code. Emoji will be shown immediately",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -326,7 +326,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::NotifyFlushFinished),
             .description = "Notify the flush finished event of the emote system",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -352,7 +352,7 @@ private:
                     .type = EventItemType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 

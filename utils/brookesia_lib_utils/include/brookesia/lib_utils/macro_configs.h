@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,17 +7,6 @@
 
 #if defined(ESP_PLATFORM)
 #   include "sdkconfig.h"
-#endif
-
-/* Version */
-#if !defined(BROOKESIA_UTILS_VER_MAJOR)
-#   define BROOKESIA_UTILS_VER_MAJOR  (0)
-#endif
-#if !defined(BROOKESIA_UTILS_VER_MINOR)
-#   define BROOKESIA_UTILS_VER_MINOR  (7)
-#endif
-#if !defined(BROOKESIA_UTILS_VER_PATCH)
-#   define BROOKESIA_UTILS_VER_PATCH  (3)
 #endif
 
 /* Debug log */

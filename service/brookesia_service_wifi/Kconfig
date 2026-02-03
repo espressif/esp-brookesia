@@ -92,6 +92,7 @@ menu "ESP-Brookesia: Service WiFi Configurations"
 
         config BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_CONNECTED_TIMEOUT_MS
             int "Wait event connected timeout (ms)"
+            default 15000 if ESP_HOSTED_ENABLED
             default 10000
             range 1000 30000
             help
@@ -106,8 +107,8 @@ menu "ESP-Brookesia: Service WiFi Configurations"
 
         config BROOKESIA_SERVICE_WIFI_STATE_MACHINE_WAIT_STATE_MACHINE_FINISHED_TIMEOUT_MS
             int "Wait state machine finished timeout (ms)"
-            default 5000 if CONFIG_ESP_HOSTED_ENABLED
-            default 1000 if !CONFIG_ESP_HOSTED_ENABLED
+            default 5000 if ESP_HOSTED_ENABLED
+            default 1000
             range 1000 30000
             help
                 Timeout in milliseconds to wait for state machine finished.

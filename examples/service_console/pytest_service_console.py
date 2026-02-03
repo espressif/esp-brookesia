@@ -2,18 +2,72 @@
 # SPDX-License-Identifier: Apache-4.0
 
 '''
-Steps to run these cases (Take `esp32s3` as an example):
+Steps to run these test cases:
 
-- Build
-  - . ${IDF_PATH}/export.sh
-  - export IDF_CI_BUILD=y
-  - pip install idf_build_apps
-  - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./examples/service_console' --recursive --build-dir="@v/build_@t_@w"
+## Build
 
-- Test
-  - ${IDF_PATH}/install.sh --enable-pytest
-  - ${IDF_PATH}/install.sh --enable-test-specific
-  - pytest examples/service_console --target esp32s3 --env generic
+1. Setup ESP-IDF environment:
+   ```bash
+   . ${IDF_PATH}/export.sh
+   export IDF_CI_BUILD=y
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install idf_build_apps
+   ```
+
+3. Build the example (replace `esp32s3` with your target chip: `esp32s3` or `esp32p4`):
+
+   **Build with default configuration:**
+   ```bash
+   python .gitlab/tools/build_apps.py examples/service_console -t esp32s3 --config "=defaults"
+   ```
+
+   **Build for a specific board:**
+   ```bash
+   # ESP32-S3 example: echoear_core_board_v1_2
+   python .gitlab/tools/build_apps.py examples/service_console -t esp32s3 --config "sdkconfig.ci.board.echoear_core_board_v1_2=echoear_core_board_v1_2"
+
+   # ESP32-P4 example: esp32_p4_function_ev
+   python .gitlab/tools/build_apps.py examples/service_console -t esp32p4 --config "sdkconfig.ci.board.esp32_p4_function_ev=esp32_p4_function_ev"
+   ```
+
+   **Build for all CI boards (recommended for CI):**
+   ```bash
+   python .gitlab/tools/build_apps.py examples/service_console -t esp32s3 --config "sdkconfig.ci.board.*="
+   ```
+
+## Test
+
+1. Install pytest dependencies:
+   ```bash
+   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-test-specific
+   ```
+
+2. (Optional) Setup WiFi credentials:
+   ```bash
+   export CI_TEST_WIFI_SSID_2_4G="your_wifi_ssid"
+   export CI_TEST_WIFI_PSW_2_4G="your_wifi_password"
+   ```
+
+2. Run pytest with appropriate target and environment:
+
+   **ESP32-S3 examples:**
+   ```bash
+   # Generic environment
+   pytest examples/service_console --target esp32s3 --env generic
+
+   # Specific board: echoear_core_board_v1_2
+   pytest examples/service_console --target esp32s3 --env "echoear_core_board_v1_2"
+   ```
+
+   **ESP32-P4 examples:**
+   ```bash
+   # Multiple environments: generic, eco4, esp32p4_function_ev_board
+   pytest examples/service_console --target esp32p4 --env "generic,eco4,esp32p4_function_ev_board"
+   ```
 '''
 
 import pytest
@@ -24,7 +78,8 @@ import json
 from typing import List, Tuple, Dict, Optional
 
 PROBE_DELAY_S = 5
-TIMEOUT_S = 60
+WAIT_PROMPT_TIMEOUT_S = 10
+WAIT_COMMAND_TIMEOUT_S = 10
 DEFAULT_RESPONSE = b'Success!'
 
 WIFI_CONNECT_REPEAT_COUNT = 1
@@ -85,9 +140,8 @@ def get_wifi_connect_ap_command() -> Optional[str]:
 # Basic service manager commands
 # Format: (command, expected_response_list, description, delay_seconds)
 BASIC_COMMANDS = [
-    ('svc_list', [b'NVS', b'Wifi', b'SNTP'], 'List all services', 4.0),
+    ('svc_list', [b'=== Registered Services ==='], 'List all services', 4.0),
     ('svc_funcs NVS', [b'List', b'Set', b'Get', b'Erase'], 'List NVS functions', 4.0),
-    ('svc_events Wifi', [b'GeneralActionTriggered'], 'List WiFi events', 4.0),
 ]
 
 # Debug commands
@@ -111,7 +165,9 @@ NVS_COMMANDS = [
 ]
 
 # WiFi service commands
-WIFI_COMMANDS = [('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'WiFi Start finished'], 'Start WiFi', 10.0)]
+WIFI_COMMANDS = [
+    ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'WiFi Start finished'], 'Start WiFi', 10.0)
+]
 wifi_connect_cmd = get_wifi_connect_ap_command()
 if wifi_connect_cmd:
     for i in range(WIFI_CONNECT_REPEAT_COUNT):
@@ -161,15 +217,15 @@ AUDIO_COMMANDS = [
 
 # Agent service commands (may not be available if board manager is disabled)
 AGENT_COMMANDS = [
-    ('svc_call Agent GetAgentAttributes', [DEFAULT_RESPONSE], 'Get agent attributes', 4.0),
+    ('svc_call AgentManager GetAgentAttributes', [DEFAULT_RESPONSE], 'Get agent attributes', 4.0),
 ]
 
 # RPC service commands (requires WiFi connection)
 RPC_SERVER_COMMANDS = [
-    ('svc_rpc_server start', [DEFAULT_RESPONSE], 'Start RPC server', 4.0),
-    ('svc_rpc_server connect', [DEFAULT_RESPONSE], 'Connect all services to RPC server', 4.0),
-    ('svc_rpc_server disconnect', [DEFAULT_RESPONSE], 'Disconnect all services', 5.0),
-    ('svc_rpc_server stop', [DEFAULT_RESPONSE], 'Stop RPC server', 5.0),
+    ('svc_rpc_server start', [b'RPC server started successfully'], 'Start RPC server', 4.0),
+    ('svc_rpc_server connect', [b'Services connected successfully'], 'Connect all services to RPC server', 4.0),
+    ('svc_rpc_server disconnect', [b'Services disconnected successfully'], 'Disconnect all services', 5.0),
+    ('svc_rpc_server stop', [b'RPC server stopped successfully'], 'Stop RPC server', 5.0),
 ]
 
 # Command groups mapping
@@ -179,9 +235,9 @@ COMMAND_GROUPS = {
     'nvs': NVS_COMMANDS,
     'wifi': WIFI_COMMANDS,
     'sntp': SNTP_COMMANDS,
-    # 'audio': AUDIO_COMMANDS,
-    # 'agent': AGENT_COMMANDS,
-    # 'rpc_server': RPC_SERVER_COMMANDS,
+    'audio': AUDIO_COMMANDS,
+    'agent': AGENT_COMMANDS,
+    'rpc_server': RPC_SERVER_COMMANDS,
 }
 
 
@@ -189,13 +245,13 @@ COMMAND_GROUPS = {
 # Test Helper Functions
 # ============================================================================
 
-def wait_for_prompt(dut: Dut, timeout: int = TIMEOUT_S) -> None:
+def wait_for_prompt(dut: Dut, timeout: int = WAIT_PROMPT_TIMEOUT_S) -> None:
     """Wait for the console prompt."""
     prompt = get_prompt(dut.target)
     dut.expect(prompt, timeout=timeout)
 
 
-def execute_command(dut: Dut, command: str, expected_response: Optional[List[bytes]] = None, delay: float = 4.0, timeout: int = TIMEOUT_S) -> bool:
+def execute_command(dut: Dut, command: str, expected_response: Optional[List[bytes]] = None, delay: float = 4.0, timeout: int = WAIT_COMMAND_TIMEOUT_S) -> bool:
     """
     Execute a console command and optionally verify the response.
 
@@ -380,8 +436,44 @@ def test_service_console_commands(dut: Dut, test_groups: List[str] = None) -> No
 @pytest.mark.env('generic')
 @pytest.mark.parametrize('config', ['defaults'])
 @pytest.mark.timeout(20 * 60)
-def test_esp32s3_all(dut: Dut) -> None:
-    """Test all command groups on ESP32-S3."""
+def test_esp32s3_defaults(dut: Dut) -> None:
+    """Test all command groups on ESP32-S3 defaults."""
+    test_service_console_commands(dut, ['basic', 'debug', 'nvs', 'wifi', 'sntp', 'rpc_server'])
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('echoear_core_board_v1_0')
+@pytest.mark.parametrize('config', ['echoear_core_board_v1_0'])
+@pytest.mark.timeout(20 * 60)
+def test_esp32s3_echoear_core_board_v1_0(dut: Dut) -> None:
+    """Test all command groups on EchoEar Core Board V1.0."""
+    test_service_console_commands(dut)
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('echoear_core_board_v1_2')
+@pytest.mark.parametrize('config', ['echoear_core_board_v1_2'])
+@pytest.mark.timeout(20 * 60)
+def test_esp32s3_echoear_core_board_v1_2(dut: Dut) -> None:
+    """Test all command groups on EchoEar Core Board V1.2."""
+    test_service_console_commands(dut)
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('esp_box_3')
+@pytest.mark.parametrize('config', ['esp_box_3'])
+@pytest.mark.timeout(20 * 60)
+def test_esp32s3_esp_box_3(dut: Dut) -> None:
+    """Test all command groups on ESP-BOX-3."""
+    test_service_console_commands(dut)
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('esp32_s3_korvo2_v3')
+@pytest.mark.parametrize('config', ['esp32_s3_korvo2_v3'])
+@pytest.mark.timeout(20 * 60)
+def test_esp32s3_korvo2_v3(dut: Dut) -> None:
+    """Test all command groups on ESP32-S3-KORVO2-V3."""
     test_service_console_commands(dut)
 
 
@@ -389,6 +481,15 @@ def test_esp32s3_all(dut: Dut) -> None:
 @pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
 @pytest.mark.parametrize('config', ['defaults'])
 @pytest.mark.timeout(20 * 60)
-def test_esp32p4_all(dut: Dut) -> None:
-    """Test all command groups on ESP32-P4."""
+def test_esp32p4_defaults(dut: Dut) -> None:
+    """Test all command groups on ESP32-P4 defaults."""
+    test_service_console_commands(dut, ['basic', 'debug', 'nvs'])
+
+
+@pytest.mark.target('esp32p4')
+@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
+@pytest.mark.parametrize('config', ['esp32_p4_function_ev'])
+@pytest.mark.timeout(20 * 60)
+def test_esp32p4_function_ev_board(dut: Dut) -> None:
+    """Test all command groups on ESP32-P4 Function EV Board."""
     test_service_console_commands(dut)

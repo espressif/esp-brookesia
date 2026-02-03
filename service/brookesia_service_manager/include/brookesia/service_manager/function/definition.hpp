@@ -81,9 +81,9 @@ struct FunctionSchema {
     std::string name;
     std::string description = "";
     std::vector<FunctionParameterSchema> parameters = {};
-    bool require_async = true;
+    bool require_scheduler = true;
 };
-BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_async));
+BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_scheduler));
 
 struct FunctionResult {
     bool success = false;

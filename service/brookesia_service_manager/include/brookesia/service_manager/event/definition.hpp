@@ -74,8 +74,8 @@ struct EventSchema {
     std::string name;
     std::string description = "";
     std::vector<EventItemSchema> items = {};
-    bool require_async = true;
+    bool require_scheduler = true;
 };
-BROOKESIA_DESCRIBE_STRUCT(EventSchema, (), (name, description, items, require_async))
+BROOKESIA_DESCRIBE_STRUCT(EventSchema, (), (name, description, items, require_scheduler))
 
 } // namespace esp_brookesia::service

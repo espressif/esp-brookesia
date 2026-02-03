@@ -97,7 +97,7 @@ devices:
 
       lcd_panel_config:
         reset_gpio_num: 48
-        data_endian: "LCD_RGB_DATA_ENDIAN_LITTLE" # LCD_RGB_DATA_ENDIAN_LITTLE
+        data_endian: "LCD_RGB_DATA_ENDIAN_BIG" # LCD_RGB_DATA_ENDIAN_LITTLE
         flags:
           reset_active_high: true
         # ST77916 specific configuration

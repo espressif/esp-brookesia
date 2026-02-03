@@ -986,7 +986,7 @@ bool Audio::start_encoder(const AudioEncoderDynamicConfig &config)
 
 #if (BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER && BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT) || \
     (!BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT)
-    BROOKESIA_CHECK_ESP_ERR_RETURN(audio_recorder_open(&recorder_config_), false, "Failed to open recorder");
+    BROOKESIA_CHECK_ESP_ERR_RETURN(audio_recorder_open(&recorder_config), false, "Failed to open recorder");
 #else
     {
         // Since initializing SR in `audio_recorder_open()` operates on flash,

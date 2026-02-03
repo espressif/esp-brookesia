@@ -17,6 +17,10 @@
 * feat(thread_config): modify default name to 'Thread'
 * feat(repo): update 'esp-boost' dependency to '0.4.*'
 
+### Bug Fixes:
+
+* fix(task_scheduler): check if the task scheduler is running before performing any operations
+
 ## v0.7.3~1 - 2026-01-15
 
 #### Enhancements:

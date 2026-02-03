@@ -220,7 +220,7 @@ private:
                     .type = service::FunctionValueType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -277,7 +277,7 @@ private:
                     .default_value = std::optional<service::FunctionValue>(std::string(""))
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 

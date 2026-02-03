@@ -1,267 +1,200 @@
+| 支持的芯片 | ESP32-S3 | ESP32-P4 |
+| :--------: | :------: | :------: |
+|            |    ✅    |    ✅    |
+
 # 服务控制台示例
 
 [English Version](./README.md)
 
-本示例演示了如何通过控制台运行和测试 ESP-Brookesia 的服务框架功能。
-
-本示例提供了一个交互式命令行界面，允许您通过串口控制台与各种系统服务进行交互。目前支持的服务列表请参考 [调用服务函数](#调用服务函数) 章节。
-
-本示例可作为开发和调试 ESP-Brookesia 服务的实用工具。
+本示例演示了如何通过控制台运行和测试 ESP-Brookesia 的服务框架功能，提供了一个交互式命令行界面，支持历史命令记录。
 
 ## 📑 目录
 
 - [服务控制台示例](#服务控制台示例)
   - [📑 目录](#-目录)
-  - [🚀 快速入门](#-快速入门)
-    - [准备工作](#准备工作)
-    - [ESP-IDF 要求](#esp-idf-要求)
-  - [🔨 如何使用示例](#-如何使用示例)
-    - [设置目标](#设置目标)
-      - [对于支持的开发板](#对于支持的开发板)
-      - [对于其他开发板](#对于其他开发板)
-    - [配置](#配置)
-    - [编译和烧录示例](#编译和烧录示例)
-  - [📖 命令说明](#-命令说明)
+  - [✨ 功能特性](#-功能特性)
+  - [🚩 快速入门](#-快速入门)
+    - [硬件要求](#硬件要求)
+    - [开发环境](#开发环境)
+  - [🔨 获取固件](#-获取固件)
+    - [方式一：在线烧录](#方式一在线烧录)
+    - [方式二：从源码编译](#方式二从源码编译)
+  - [🚀 快速体验](#-快速体验)
+  - [📖 命令参考](#-命令参考)
     - [基本命令](#基本命令)
-      - [列出所有服务](#列出所有服务)
-      - [列出服务函数和事件](#列出服务函数和事件)
-      - [订阅/取消订阅服务事件](#订阅取消订阅服务事件)
-      - [停止服务绑定](#停止服务绑定)
-    - [调用服务函数](#调用服务函数)
+    - [服务文档](#服务文档)
     - [调试命令](#调试命令)
-      - [内存分析器](#内存分析器)
-      - [线程分析器](#线程分析器)
-      - [时间分析器](#时间分析器)
     - [RPC 命令](#rpc-命令)
   - [🔍 故障排除](#-故障排除)
-    - [常见问题](#常见问题)
+    - [VSCode 编译失败](#vscode-编译失败)
+    - [命令无法识别](#命令无法识别)
+    - [服务未找到](#服务未找到)
+    - [RPC 连接失败](#rpc-连接失败)
   - [💬 技术支持与反馈](#-技术支持与反馈)
 
-## 🚀 快速入门
+## ✨ 功能特性
 
-### 准备工作
+- 🎯 **服务管理**：查看、调用、订阅各类系统服务
+- 🤖 **AI Agent**：支持 Xiaozhi、Coze、OpenAI 等多种 Agent 的共存以及运行时切换
+- 🎵 **音频播放**：播放本地和网络音频资源
+- 😊 **表情显示**：支持表情和动画显示
+- 🔧 **调试工具**：内存、线程、时间分析器
+- 🌐 **RPC 支持**：远程服务调用和事件订阅
 
-本示例的基础功能支持搭载 `ESP32-S3` 或 `ESP32-P4` 芯片且 `Flash >= 8MB` 的开发板。
+## 🚩 快速入门
 
-对于需要使用外部设备的功能（如 Audio、Emote、Agent 等），需要配合 `esp_board_manager` 组件使用。默认支持的开发板包括：
+### 硬件要求
 
-- [EchoEar](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/echoear/index.html)
-- [ESP32-S3-BOX-3](https://github.com/espressif/esp-box)
-- [ESP32-P4-Function-EV-Board](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html)
+**基础功能**：搭载 `ESP32-S3` 或 `ESP32-P4` 芯片且 `Flash >= 8MB` 的开发板
 
-示例通过串口控制台提供交互式命令行界面。
+**完整功能**（Audio、Emote、Agent）：需配合 `esp_board_manager` 组件，支持以下开发板：
 
-### ESP-IDF 要求
+| 开发板 | 链接 |
+|--------|------|
+| EchoEar V1.0/V1.2 | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/echoear/index.html) |
+| ESP32-S3-BOX-3 | [GitHub](https://github.com/espressif/esp-box) |
+| ESP32-S3-Korvo-2 | [文档](https://docs.espressif.com/projects/esp-adf/zh_CN/latest/design-guide/dev-boards/user-guide-esp32-s3-korvo-2.html) |
+| ESP32-P4-Function-EV-Board | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html) |
 
-本示例支持以下 ESP-IDF 版本：
+### 开发环境
 
-- ESP-IDF TAG `v5.5.2` 或 `release/v5.5` 最新版本
+- ESP-IDF `v5.5.2` TAG（推荐）或 `release/v5.5` 分支
 
 > [!WARNING]
-> **请注意**：不推荐使用 VSCode 的扩展插件安装 ESP-IDF 环境和编译本示例，可能会导致编译失败。
+> 不推荐使用 VSCode 扩展插件安装 ESP-IDF 环境，可能导致编译失败。请参照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。
 
-请参照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。**强烈推荐** 通过 [编译第一个工程](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#id8) 来熟悉 ESP-IDF，并确保环境配置正确。
+## 🔨 获取固件
 
-## 🔨 如何使用示例
+### 方式一：在线烧录
 
-### 设置目标
+使用 ESP Launchpad 可直接在浏览器中烧录预编译固件，无需搭建开发环境：
 
-#### 对于支持的开发板
+<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia">
+    <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
+</a>
 
-如果使用 `esp_board_manager` 组件支持的开发板，请运行以下命令进行选择：
+> [!NOTE]
+> 在线烧录仅支持 [预设开发板](#硬件要求)，其他开发板请使用 [方式二](#方式二从源码编译) 编译。
+
+### 方式二：从源码编译
+
+**1. 选择开发板**
+
+使用支持的开发板：
 
 ```bash
 idf.py gen-bmgr-config -b <board> -c ./boards
 ```
 
-其中：
+可选的 `<board>` 值包括：
 
-- `<board>` 为开发板名称
-- `./boards` 为开发板配置文件目录
-
-默认支持的开发板名称如下：
-
+- `echoear_core_board_v1_0`
 - `echoear_core_board_v1_2`
 - `esp_box_3`
 - `esp32_p4_function_ev`
+- `esp32_s3_korvo2_v3`
 
-> [!NOTE]
-> - 关于如何添加自定义开发板，请参考 [esp_board_manager 组件文档](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md) 了解更多信息。
-> - 本示例默认使用 [idf_ext.py](./idf_ext.py) 文件对 `idf.py gen-bmgr-config` 命令进行扩展，用户无需手动下载 `esp_board_manager` 组件和设置 `IDF_EXTRA_ACTIONS_PATH` 环境变量。
-> - 首次执行 `idf.py gen-bmgr-config` 命令时，终端出现 `-- IDF_TARGET not set, using default target: esp32` 及相关警告信息属正常现象，无需理会。
-
-#### 对于其他开发板
-
-如果使用其他开发板，请运行以下命令选择目标芯片：
+使用其他开发板：
 
 ```bash
 idf.py set-target <target>
 ```
 
-### 配置
+> [!NOTE]
+> 如需添加自定义开发板，请参考 [esp_board_manager 组件文档](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md)。
 
-运行 `idf.py menuconfig` 可以在 `Example Configuration` 菜单中配置以下选项：
+**2. 配置选项**
 
-- **Console Configuration**：配置控制台相关选项，如是否在 Flash 中存储命令历史、最大命令行长度等
-- **Board Manager**：用于表示启用了 `esp_board_manager` 组件支持的开发板。该选项应在配置目标时自动启用，请勿手动配置
-- **Services**：启用或禁用特定服务
-- **Agents**：配置 Agent 信息，包括 API 密钥、Bot 配置等
+运行 `idf.py menuconfig`，在 `Example Configuration` 菜单中配置：
 
-### 编译和烧录示例
+| 选项 | 说明 |
+|------|------|
+| **Console** | 控制台选项（历史记录存储、命令行长度等） |
+| **Services** | 启用/禁用服务（NVS、SNTP、WiFi、Audio） |
+| **Agents** | AI Agent 配置（Xiaozhi、Coze、OpenAI、唤醒词） |
+| **Expressions** | 表情显示功能配置 |
 
-编译项目并将其烧录到开发板上，运行监视工具可查看串行端口输出（将 `PORT` 替换为所用开发板的串行端口名）：
+**3. 编译烧录**
 
 ```bash
 idf.py -p PORT build flash monitor
 ```
 
-输入 `Ctrl-]` 可退出串口监视。
+按 `Ctrl-]` 退出串口监视。
 
-有关配置和使用 ESP-IDF 编译项目的完整步骤，请参阅 [ESP-IDF 快速入门指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html)。
+## 🚀 快速体验
 
-## 📖 命令说明
+固件烧录成功后，您可以参考 [快速入门教程](./docs/tutorial_cn.md) 开始体验服务控制台示例。
+
+## 📖 命令参考
 
 ### 基本命令
 
-本示例提供了管理所有注册服务的基础命令。通过这些命令，您可以查看可用服务、调用服务函数、订阅服务事件等。
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `svc_list` | 列出所有服务 | `svc_list` |
+| `svc_funcs <服务>` | 列出服务函数 | `svc_funcs Wifi` |
+| `svc_events <服务>` | 列出服务事件 | `svc_events Wifi` |
+| `svc_call <服务> <函数> [参数]` | 调用服务函数 | `svc_call Wifi GetConnectedAps` |
+| `svc_subscribe <服务> <事件>` | 订阅事件 | `svc_subscribe Wifi GeneralEventHappened` |
+| `svc_unsubscribe <服务> <事件>` | 取消订阅 | `svc_unsubscribe Wifi GeneralEventHappened` |
+| `svc_stop <服务>` | 停止服务绑定 | `svc_stop Wifi` |
 
-#### 列出所有服务
+### 服务文档
 
-查看所有已注册的服务：
-
-```bash
-svc_list
-```
-
-#### 列出服务函数和事件
-
-查看指定服务的所有函数：
-
-```bash
-svc_funcs <服务名>
-```
-
-查看指定服务的所有事件：
-
-```bash
-svc_events <服务名>
-```
-
-#### 订阅/取消订阅服务事件
-
-订阅服务事件（例如 WiFi 扫描结果更新）：
-
-```bash
-svc_subscribe <服务名> <事件名>
-```
-
-取消订阅服务事件：
-
-```bash
-svc_unsubscribe <服务名> <事件名>
-```
-
-#### 停止服务绑定
-
-停止指定服务的绑定：
-
-```bash
-svc_stop <服务名>
-```
-
-### 调用服务函数
-
-使用 `svc_call` 命令调用服务函数：
-
-```bash
-svc_call <服务名> <函数名> [JSON 参数]
-```
-
-JSON 参数为 JSON 格式。例如：
-
-```bash
-svc_call NVS Set {"KeyValuePairs":{"key1":"value1"}}
-```
-
-有关各服务的详细函数说明，请参考对应的服务文档：
-
-- 💾 [NVS 服务](./docs/cmd_nvs_cn.md)：非易失性存储服务
-- 📶 [WiFi 服务](./docs/cmd_wifi_cn.md)：WiFi 连接和管理服务
-- 🕐 [SNTP 服务](./docs/cmd_sntp_cn.md)：网络时间同步服务
-- 🎵 [音频服务](./docs/cmd_audio_cn.md) (*)：音频播放控制服务
-- 🤖 [Agent 服务](./docs/cmd_agent_cn.md) (*)：AI 代理服务（Coze、OpenAI）
-- 😊 [Emote 服务](./docs/cmd_emote_cn.md) (*)：表情服务
+| 服务 | 文档 | 说明 |
+|------|------|------|
+| 💾 NVS | [cmd_nvs_cn.md](./docs/cmd_nvs_cn.md) | 非易失性存储 |
+| 📶 WiFi | [cmd_wifi_cn.md](./docs/cmd_wifi_cn.md) | WiFi 连接管理 |
+| 🕐 SNTP | [cmd_sntp_cn.md](./docs/cmd_sntp_cn.md) | 网络时间同步 |
+| 🎵 Audio (*) | [cmd_audio_cn.md](./docs/cmd_audio_cn.md) | 音频播放控制 |
+| 🤖 Agent (*) | [cmd_agent_cn.md](./docs/cmd_agent_cn.md) | AI 代理服务 |
+| 😊 Emote (*) | [cmd_emote_cn.md](./docs/cmd_emote_cn.md) | 表情显示 |
 
 > [!NOTE]
-> (*) 标记的服务默认仅在支持的开发板上可以正常使用，请参考 [准备工作](#准备工作) 章节了解默认支持的开发板列表。
+> (*) 标记的服务需要支持的开发板才能正常使用。
 
 ### 调试命令
 
-本示例提供了调试命令，用于分析和监控系统性能：
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `debug_mem` | 打印内存分析器信息 | `debug_mem` |
+| `debug_thread [-p <sort>] [-s <sort>] [-d <ms>]` | 打印线程分析器信息 | `debug_thread -p core -s cpu -d 1000` |
+| `debug_time_report` | 打印时间分析器报告 | `debug_time_report` |
+| `debug_time_clear` | 清除时间分析器数据 | `debug_time_clear` |
 
-#### 内存分析器
-
-打印内存分析器信息：
-
-```bash
-debug_mem
-```
-
-#### 线程分析器
-
-打印线程分析器信息：
-
-```bash
-debug_thread
-```
-
-使用自定义排序和采样持续时间：
-
-```bash
-# 设置主排序方式（none|core，默认：core）
-debug_thread -p core
-
-# 设置次排序方式（cpu|priority|stack|name，默认：cpu）
-debug_thread -s cpu
-
-# 设置采样持续时间（毫秒，默认：1000）
-debug_thread -d 2000
-
-# 组合使用
-debug_thread -p core -s cpu -d 2000
-```
-
-#### 时间分析器
-
-打印时间分析器报告：
-
-```bash
-debug_time_report
-```
-
-清除所有时间分析器数据：
-
-```bash
-debug_time_clear
-```
-
-> [!NOTE]
-> 时间分析器数据需要在代码中显式调用接口（如 `BROOKESIA_TIME_PROFILER_SCOPE()`、`BROOKESIA_TIME_PROFILER_START_EVENT()`、`BROOKESIA_TIME_PROFILER_END_EVENT()`）来采集。
+> [!TIP]
+> 详细的调试命令说明请参考 [调试命令](./docs/cmd_debug_cn.md)。
 
 ### RPC 命令
 
-本示例还提供了 RPC 命令，允许您通过网络调用远程设备上的服务函数，并订阅远程服务事件。
+| 命令 | 说明 | 示例 |
+|------|------|------|
+| `svc_rpc_server <action> [-p <port>] [-s <services>]` | 管理 RPC 服务器 | `svc_rpc_server start` |
+| `svc_rpc_call <host> <srv> <func> [params] [-p <port>] [-t <timeout>]` | 调用远程服务函数 | `svc_rpc_call 192.168.1.100 Wifi TriggerScanStart` |
+| `svc_rpc_subscribe <host> <srv> <event> [-p <port>] [-t <timeout>]` | 订阅远程服务事件 | `svc_rpc_subscribe 192.168.1.100 Wifi ScanApInfosUpdated` |
+| `svc_rpc_unsubscribe <host> <srv> <event> [-p <port>] [-t <timeout>]` | 取消订阅远程服务事件 | `svc_rpc_unsubscribe 192.168.1.100 Wifi ScanApInfosUpdated` |
 
-有关 RPC 命令的详细说明，请参考 [RPC 命令](./docs/cmd_rpc_cn.md) 文档。
+> [!TIP]
+> 详细的 RPC 命令说明请参考 [RPC 命令](./docs/cmd_rpc_cn.md)。
 
 ## 🔍 故障排除
 
-### 常见问题
+### VSCode 编译失败
 
-- **使用 VSCode 扩展插件编译失败**：请参考 [ESP-IDF 要求](#esp-idf-要求) 章节确保环境配置正确。
-- **命令无法识别**：确保已正确编译和烧录示例，并且串口连接正常。
-- **服务未找到**：使用 `svc_list` 命令查看所有可用服务，确保所需服务已启用。
-- **RPC 连接失败**：确保设备已连接到同一 WiFi 网络。
+使用命令行安装 ESP-IDF，参考 [开发环境](#开发环境)。
+
+### 命令无法识别
+
+确保已正确编译烧录示例，并检查串口连接是否正常。
+
+### 服务未找到
+
+运行 `svc_list` 命令查看所有可用服务，确保所需服务已在 menuconfig 中启用。
+
+### RPC 连接失败
+
+确保设备已连接到同一 WiFi 网络。
 
 ## 💬 技术支持与反馈
 

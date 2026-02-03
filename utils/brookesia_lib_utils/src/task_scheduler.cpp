@@ -166,6 +166,8 @@ bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group,
 
     BROOKESIA_LOGD("Params: group(%1%), id(%2%), enable_immediate(%3%)", group, id, enable_immediate);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
+
     auto handle = create_handle(TaskType::Immediate, false, 0, group);
     BROOKESIA_CHECK_NULL_RETURN(handle, false, "Failed to create task handle");
 
@@ -247,6 +249,8 @@ bool TaskScheduler::post_delayed(OnceTask task, int delay_ms, TaskId *id, const 
 
     BROOKESIA_LOGD("Params: delay_ms(%1%), group(%2%), id(%3%)", delay_ms, group, id);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
+
     auto handle = create_handle(TaskType::Delayed, false, delay_ms, group);
     BROOKESIA_CHECK_NULL_RETURN(handle, false, "Failed to create task handle");
 
@@ -267,6 +271,8 @@ bool TaskScheduler::post_periodic(PeriodicTask task, int interval_ms, TaskId *id
 
     BROOKESIA_LOGD("Params: interval_ms(%1%), group(%2%), id(%3%)", interval_ms, group, id);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
+
     auto handle = create_handle(TaskType::Periodic, true, interval_ms, group);
     BROOKESIA_CHECK_NULL_RETURN(handle, false, "Failed to create task handle");
 
@@ -286,6 +292,8 @@ bool TaskScheduler::post_batch(std::vector<OnceTask> tasks, std::vector<TaskId> 
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: group(%1%)", group);
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
     if (ids) {
         ids->clear();
@@ -313,6 +321,11 @@ void TaskScheduler::cancel(TaskId id)
 
     BROOKESIA_LOGD("Params: id(%1%)", id);
 
+    if (!is_running()) {
+        BROOKESIA_LOGD("Not running, skip");
+        return;
+    }
+
     boost::lock_guard<boost::mutex> lock(mutex_);
     cancel_internal(id);
 }
@@ -322,6 +335,11 @@ void TaskScheduler::cancel_group(const Group &group)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: group(%1%)", group);
+
+    if (!is_running()) {
+        BROOKESIA_LOGD("Not running, skip");
+        return;
+    }
 
     boost::lock_guard<boost::mutex> lock(mutex_);
     auto group_it = groups_.find(group);
@@ -349,6 +367,11 @@ void TaskScheduler::cancel_all()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (!is_running()) {
+        BROOKESIA_LOGD("Not running, skip");
+        return;
+    }
+
     boost::lock_guard<boost::mutex> lock(mutex_);
 
     // Copy task IDs to avoid iterator invalidation
@@ -372,6 +395,8 @@ bool TaskScheduler::suspend(TaskId id)
 
     BROOKESIA_LOGD("Params: id(%1%)", id);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
+
     boost::lock_guard<boost::mutex> lock(mutex_);
     return suspend_internal(id);
 }
@@ -381,6 +406,8 @@ size_t TaskScheduler::suspend_group(const Group &group)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: group(%1%)", group);
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), 0, "Not running");
 
     boost::lock_guard<boost::mutex> lock(mutex_);
     auto group_it = groups_.find(group);
@@ -408,6 +435,8 @@ size_t TaskScheduler::suspend_group(const Group &group)
 size_t TaskScheduler::suspend_all()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), 0, "Not running");
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
@@ -437,6 +466,8 @@ bool TaskScheduler::resume(TaskId id)
 
     BROOKESIA_LOGD("Params: id(%1%)", id);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
+
     boost::lock_guard<boost::mutex> lock(mutex_);
     return resume_internal(id);
 }
@@ -446,6 +477,8 @@ size_t TaskScheduler::resume_group(const Group &group)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: group(%1%)", group);
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), 0, "Not running");
 
     boost::lock_guard<boost::mutex> lock(mutex_);
     auto group_it = groups_.find(group);
@@ -474,6 +507,8 @@ size_t TaskScheduler::resume_all()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), 0, "Not running");
+
     boost::lock_guard<boost::mutex> lock(mutex_);
 
     // Copy task IDs to avoid iterator invalidation
@@ -501,6 +536,8 @@ bool TaskScheduler::wait(TaskId id, int timeout_ms)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: id(%1%), timeout_ms(%2%)", id, timeout_ms);
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
     std::shared_future<bool> future;
     {
@@ -533,6 +570,8 @@ bool TaskScheduler::wait_group(const Group &group, int timeout_ms)
 
     BROOKESIA_LOGD("Params: group(%1%), timeout_ms(%2%)", group, timeout_ms);
 
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
+
     std::vector<TaskId> task_ids;
 
     // Get all task IDs in the group
@@ -560,6 +599,8 @@ bool TaskScheduler::wait_all(int timeout_ms)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: timeout_ms(%1%)", timeout_ms);
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
     std::vector<TaskId> task_ids;
 
@@ -590,6 +631,8 @@ bool TaskScheduler::restart_timer(TaskId id)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: id(%1%)", id);
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 

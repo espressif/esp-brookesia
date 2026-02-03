@@ -116,7 +116,7 @@ std::future<FunctionResult> ServiceBase::call_function_async(
     };
 
     // If the function does not require asynchronous, use synchronous call instead
-    if (!func_schema->require_async) {
+    if (!func_schema->require_scheduler) {
         BROOKESIA_LOGD("Function '%1%' does not require async, using sync call instead", name);
         call_function_task();
         return result_future;
@@ -182,7 +182,7 @@ FunctionResult ServiceBase::call_function_sync(
     };
 
     // If the function does not require asynchronous, use synchronous call instead
-    if (!func_schema->require_async) {
+    if (!func_schema->require_scheduler) {
         BROOKESIA_LOGD("Function '%1%' does not require async, using sync call instead", name);
         call_function_task();
         return *result;
@@ -554,7 +554,7 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
     };
 
     // If the event does not require asynchronous, use sync publish
-    if (!event_schema->require_async) {
+    if (!event_schema->require_scheduler) {
         BROOKESIA_LOGD("Event '%1%' does not require async, using sync publish", event_name);
         emit_signal_task();
         return true;
