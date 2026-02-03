@@ -12,6 +12,7 @@
 #include <map>
 #include <optional>
 #include <variant>
+#include <span>
 #include <cmath>
 
 using namespace esp_brookesia::lib_utils;
@@ -1807,6 +1808,7 @@ struct ComplexStruct {
 
     // Containers
     std::vector<int> numbers;
+    std::span<const int> span_values;
     std::map<std::string, int> settings;
     std::optional<std::string> description;
 
@@ -1827,7 +1829,7 @@ BROOKESIA_DESCRIBE_STRUCT(ComplexStruct, (),
                           (flag, number, float_value, double_value, text,
                            int_ptr, void_ptr, const_ptr, point_ptr,
                            status,
-                           numbers, settings, description,
+                           numbers, span_values, settings, description,
                            variant_value,
                            callback,
                            position, location,
@@ -1840,6 +1842,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_STR", "[macro][complex_str
     // Create a complex struct with all supported types
     int int_value = 42;
     Point point_value{10, 20};
+    static constexpr int span_data[] = {10, 20, 30};
 
     ComplexStruct complex;
     complex.flag = true;
@@ -1853,6 +1856,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_STR", "[macro][complex_str
     complex.point_ptr = &point_value;
     complex.status = Status::Running;
     complex.numbers = {1, 2, 3, 4, 5};
+    complex.span_values = std::span{span_data};
     complex.settings["timeout"] = 30;
     complex.settings["retry"] = 3;
     complex.description = "test description";
@@ -1878,6 +1882,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_STR", "[macro][complex_str
     TEST_ASSERT_TRUE(str.find("status") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("Running") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("numbers") != std::string::npos);
+    TEST_ASSERT_TRUE(str.find("span_values") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("settings") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("description") != std::string::npos);
     TEST_ASSERT_TRUE(str.find("variant_value") != std::string::npos);
@@ -1896,6 +1901,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_JSON", "[macro][complex_st
     // Create a complex struct with all supported types
     int int_value = 42;
     Point point_value{10, 20};
+    static constexpr int span_data[] = {10, 20, 30};
 
     ComplexStruct complex;
     complex.flag = true;
@@ -1908,6 +1914,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_JSON", "[macro][complex_st
     complex.point_ptr = &point_value;
     complex.status = Status::Running;
     complex.numbers = {1, 2, 3, 4, 5};
+    complex.span_values = std::span{span_data};
     complex.settings["timeout"] = 30;
     complex.settings["retry"] = 3;
     complex.description = "test description";
@@ -1937,6 +1944,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_JSON", "[macro][complex_st
     TEST_ASSERT_TRUE(obj.contains("point_ptr"));
     TEST_ASSERT_TRUE(obj.contains("status"));
     TEST_ASSERT_TRUE(obj.contains("numbers"));
+    TEST_ASSERT_TRUE(obj.contains("span_values"));
     TEST_ASSERT_TRUE(obj.contains("settings"));
     TEST_ASSERT_TRUE(obj.contains("description"));
     TEST_ASSERT_TRUE(obj.contains("variant_value"));
@@ -1951,6 +1959,11 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_TO_JSON", "[macro][complex_st
     TEST_ASSERT_EQUAL_STRING("complex test", obj.at("text").as_string().c_str());
     TEST_ASSERT_EQUAL_STRING("Running", obj.at("status").as_string().c_str());
     TEST_ASSERT_TRUE(obj.at("numbers").is_array());
+    TEST_ASSERT_TRUE(obj.at("span_values").is_array());
+    TEST_ASSERT_EQUAL(3, obj.at("span_values").as_array().size());
+    TEST_ASSERT_EQUAL(10, obj.at("span_values").as_array()[0].as_int64());
+    TEST_ASSERT_EQUAL(20, obj.at("span_values").as_array()[1].as_int64());
+    TEST_ASSERT_EQUAL(30, obj.at("span_values").as_array()[2].as_int64());
     TEST_ASSERT_TRUE(obj.at("settings").is_object());
     TEST_ASSERT_EQUAL_STRING("test description", obj.at("description").as_string().c_str());
     TEST_ASSERT_TRUE(obj.at("int_ptr").is_string());
@@ -1968,6 +1981,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_JSON_SERIALIZE/DESERIALIZE", 
     // Create a complex struct with all supported types
     int int_value = 42;
     Point point_value{10, 20};
+    static constexpr int span_data[] = {10, 20, 30};
 
     ComplexStruct original;
     original.flag = true;
@@ -1980,6 +1994,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_JSON_SERIALIZE/DESERIALIZE", 
     original.point_ptr = &point_value;
     original.status = Status::Running;
     original.numbers = {1, 2, 3, 4, 5};
+    original.span_values = std::span{span_data};
     original.settings["timeout"] = 30;
     original.settings["retry"] = 3;
     original.description = "test description";
@@ -2040,6 +2055,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_FROM_JSON", "[macro][complex_
     // Create JSON with all supported types
     int int_value = 42;
     Point point_value{10, 20};
+    static constexpr int span_data[] = {10, 20, 30};
 
     ComplexStruct original;
     original.flag = true;
@@ -2052,6 +2068,7 @@ TEST_CASE("Test ComplexStruct - BROOKESIA_DESCRIBE_FROM_JSON", "[macro][complex_
     original.point_ptr = &point_value;
     original.status = Status::Running;
     original.numbers = {1, 2, 3, 4, 5};
+    original.span_values = std::span{span_data};  // Note: span cannot be deserialized
     original.settings["timeout"] = 30;
     original.settings["retry"] = 3;
     original.description = "test description";
@@ -2102,6 +2119,7 @@ TEST_CASE("Test ComplexStruct - Round Trip", "[macro][complex_struct][round_trip
     // Create original complex struct
     int int_value = 42;
     Point point_value{10, 20};
+    static constexpr int span_data[] = {100, 200, 300};
 
     ComplexStruct original;
     original.flag = true;
@@ -2114,6 +2132,7 @@ TEST_CASE("Test ComplexStruct - Round Trip", "[macro][complex_struct][round_trip
     original.point_ptr = &point_value;
     original.status = Status::Error;
     original.numbers = {10, 20, 30};
+    original.span_values = std::span{span_data};  // Note: span cannot be deserialized
     original.settings["max"] = 100;
     original.settings["min"] = 0;
     original.description = "round trip description";

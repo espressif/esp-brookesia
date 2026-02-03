@@ -350,8 +350,8 @@ public:
  * @param BaseType Base type for the plugin registry
  * @param PluginType Singleton type to register (must inherit from BaseType)
  * @param name Plugin name (must be unique)
- * @param symbol_name Custom symbol name for the plugin
  * @param instance_expr Expression to get singleton instance reference (e.g., SingletonType::get_instance())
+ * @param symbol_name Custom symbol name for the plugin
  *
  * @code
  * // Example usage:
@@ -359,13 +359,13 @@ public:
  *     BaseService,
  *     MySingleton,
  *     "my_singleton",
- *     "custom_symbol_name",
- *     MySingleton::get_instance()
+ *     MySingleton::get_instance(),
+ *     "custom_symbol_name"
  * );
  * // Use: target_link_libraries(${COMPONENT_LIB} INTERFACE "-u custom_symbol_name")
  * @endcode
  */
-#define BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(BaseType, PluginType, name, symbol_name, instance_expr) \
+#define BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(BaseType, PluginType, name, instance_expr, symbol_name) \
     BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, ([]() -> std::shared_ptr<BaseType> { \
         static_assert(std::is_base_of_v<BaseType, PluginType>, "PluginType must inherit from BaseType"); \
         auto& instance = (instance_expr); \

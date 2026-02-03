@@ -39,7 +39,7 @@ void ThreadConfig::to_pthread_cfg(void *cfg) const
     BROOKESIA_CHECK_NULL_EXIT(cfg, "Invalid argument");
 
     esp_pthread_cfg_t *pthread_cfg = static_cast<esp_pthread_cfg_t *>(cfg);
-    pthread_cfg->thread_name = (name != nullptr) ? name : CONFIG_PTHREAD_TASK_NAME_DEFAULT;
+    pthread_cfg->thread_name = (name.empty()) ? CONFIG_PTHREAD_TASK_NAME_DEFAULT : name.c_str();
     pthread_cfg->pin_to_core = (core_id < 0) ? tskNO_AFFINITY : core_id;
     pthread_cfg->prio = static_cast<int>(priority);
     pthread_cfg->stack_size = static_cast<size_t>(stack_size);

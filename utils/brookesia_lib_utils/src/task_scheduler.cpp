@@ -585,6 +585,67 @@ bool TaskScheduler::wait_all(int timeout_ms)
     return result;
 }
 
+bool TaskScheduler::restart_timer(TaskId id)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: id(%1%)", id);
+
+    boost::lock_guard<boost::mutex> lock(mutex_);
+
+    auto it = tasks_.find(id);
+    if (it == tasks_.end()) {
+        BROOKESIA_LOGW("Task %1% not found", id);
+        return false;
+    }
+
+    auto &handle = it->second;
+
+    // Check if task type supports timer restart
+    if (handle->type != TaskType::Delayed && handle->type != TaskType::Periodic) {
+        BROOKESIA_LOGE(
+            "Task %1% cannot restart timer: only Delayed and Periodic tasks support this (current type: %2%)",
+            id, BROOKESIA_DESCRIBE_TO_STR(handle->type)
+        );
+        return false;
+    }
+
+    // Check if task is in running state
+    if (handle->state != TaskState::Running) {
+        BROOKESIA_LOGW(
+            "Task %1% is not in running state (current: %2%)", id,
+            BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
+        );
+        return false;
+    }
+
+    // Cancel current timer and reschedule with original interval
+    if (handle->timer) {
+        handle->timer->cancel();
+        // Note: schedule_once/schedule_periodic will call expires_after internally
+
+        if (handle->type == TaskType::Delayed) {
+            // For Delayed task, reschedule with saved task
+            if (!handle->saved_task) {
+                BROOKESIA_LOGE("Task %1% has no saved task closure", id);
+                return false;
+            }
+            schedule_once(handle, handle->saved_task);
+        } else {
+            // For Periodic task, reschedule with saved periodic task
+            if (!handle->saved_periodic_task) {
+                BROOKESIA_LOGE("Task %1% has no saved periodic task closure", id);
+                return false;
+            }
+            schedule_periodic(handle, handle->saved_periodic_task);
+        }
+    }
+
+    BROOKESIA_LOGD("Task %1% timer restarted (interval: %2% ms)", id, handle->interval_ms);
+
+    return true;
+}
+
 TaskScheduler::TaskType TaskScheduler::get_type(TaskId id) const
 {
     boost::lock_guard<boost::mutex> lock(mutex_);
@@ -789,6 +850,12 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
         }
 
         if (ec || handle->state == TaskState::Canceled) {
+            // If operation_aborted but task is still Running, it means restart_timer was called
+            // Don't remove the task in this case - a new timer has been scheduled
+            if (ec == boost::asio::error::operation_aborted && handle->state == TaskState::Running) {
+                BROOKESIA_LOGD("Task %1% timer was restarted, not removing", handle->id);
+                return;
+            }
             boost::lock_guard<boost::mutex> lock(mutex_);
             remove_task_internal(handle->id, handle->group);
             return;
@@ -835,6 +902,12 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         }
 
         if (ec || handle->state == TaskState::Canceled) {
+            // If operation_aborted but task is still Running, it means restart_timer was called
+            // Don't remove the task in this case - a new timer has been scheduled
+            if (ec == boost::asio::error::operation_aborted && handle->state == TaskState::Running) {
+                BROOKESIA_LOGD("Periodic task %1% timer was restarted, not removing", handle->id);
+                return;
+            }
             boost::lock_guard<boost::mutex> lock(mutex_);
             remove_task_internal(handle->id, handle->group);
             return;

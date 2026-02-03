@@ -78,11 +78,11 @@ bool MemoryProfiler::configure_profiling(const ProfilingConfig &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    BROOKESIA_LOGD("Params: config(%1%)", BROOKESIA_DESCRIBE_TO_STR(config));
+
     boost::lock_guard lock(mutex_);
 
     config_ = config;
-
-    BROOKESIA_LOGI("Configured:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config_, DESCRIBE_FORMAT_VERBOSE));
 
     return true;
 }

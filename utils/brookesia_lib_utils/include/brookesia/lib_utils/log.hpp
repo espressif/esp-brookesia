@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -158,7 +158,8 @@ public:
         // Logs below the global level will not be compiled
         if constexpr (level >= BROOKESIA_UTILS_LOG_LEVEL) {
 #if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
-            auto thread_name = ThreadConfig::get_current_config().name;
+            auto thread_config = ThreadConfig::get_current_config();
+            auto thread_name = thread_config.name.c_str();
 #endif
 #if BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
             auto file_name = extract_file_name(loc.file_name());
@@ -551,7 +552,8 @@ public:
         if constexpr (Enabled) {
             _tag = tag;
 #if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
-            auto thread_name = ThreadConfig::get_current_config().name;
+            auto thread_config = ThreadConfig::get_current_config();
+            auto thread_name = thread_config.name.c_str();
 #endif
 #if BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
             _file_name = Log::extract_file_name(loc.file_name());
@@ -592,7 +594,8 @@ public:
     ~LogTraceGuard()
     {
 #if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
-        auto thread_name = ThreadConfig::get_current_config().name;
+        auto thread_config = ThreadConfig::get_current_config();
+        auto thread_name = thread_config.name.c_str();
 #endif
         if constexpr (Enabled) {
             if (_this_ptr) {

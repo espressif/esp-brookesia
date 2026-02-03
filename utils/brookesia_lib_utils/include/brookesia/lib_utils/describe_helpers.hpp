@@ -5,11 +5,13 @@
  */
 #pragma once
 
+#include <cctype>
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <limits>
 #include <map>
+#include <span>
 #include <sstream>
 #include <string>
 #include <type_traits>
@@ -81,6 +83,16 @@ struct is_vector<std::vector<T, Alloc>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_vector_v = is_vector<T>::value;
 
+// Detect if type is std::span
+template <typename T>
+struct is_span : std::false_type {};
+
+template <typename T, std::size_t Extent>
+struct is_span<std::span<T, Extent>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_span_v = is_span<T>::value;
+
 // Detect if type is std::map
 template <typename T>
 struct is_map : std::false_type {};
@@ -91,15 +103,37 @@ struct is_map<std::map<Key, Value, Compare, Alloc>> : std::true_type {};
 template <typename T>
 inline constexpr bool is_map_v = is_map<T>::value;
 
-// Detect if type is std::variant
+// Detect if type is std::variant or inherits from std::variant
 template <typename T>
 struct is_variant : std::false_type {};
 
 template <typename... Types>
 struct is_variant<std::variant<Types...>> : std::true_type {};
 
+// Helper to detect if T is derived from std::variant<Args...>
+template <typename T, typename = void>
+struct is_variant_derived : std::false_type {};
+
 template <typename T>
-inline constexpr bool is_variant_v = is_variant<T>::value;
+struct is_variant_derived<T, std::void_t<typename T::Base>>
+            : is_variant<typename T::Base> {};
+
+template <typename T>
+inline constexpr bool is_variant_v = is_variant<std::decay_t<T>>::value || is_variant_derived<std::decay_t<T>>::value;
+
+// Helper to get the actual variant type (either T itself or T::Base)
+template <typename T, typename = void>
+struct get_variant_type {
+    using type = T;  // For direct std::variant
+};
+
+template <typename T>
+struct get_variant_type<T, std::enable_if_t<is_variant_derived<T>::value>> {
+    using type = typename T::Base;  // For types derived from std::variant
+};
+
+template <typename T>
+using get_variant_type_t = typename get_variant_type<std::decay_t<T>>::type;
 
 // Detect if type is std::function
 template <typename T>
@@ -110,6 +144,56 @@ struct is_function<std::function<Ret(Args...)>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_function_v = is_function<T>::value;
+
+/**
+ * @brief Convert PascalCase/camelCase to snake_case
+ * Examples: "IntervalMs" -> "interval_ms", "Count" -> "count"
+ */
+inline std::string to_snake_case(const std::string &input)
+{
+    std::string result;
+    result.reserve(input.size() + 4); // Reserve extra space for underscores
+
+    for (size_t i = 0; i < input.size(); ++i) {
+        char c = input[i];
+        if (std::isupper(c)) {
+            // Add underscore before uppercase letters (except at the start)
+            if (i > 0) {
+                result += '_';
+            }
+            result += static_cast<char>(std::tolower(c));
+        } else {
+            result += c;
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief Find JSON object key with flexible matching (supports PascalCase/camelCase to snake_case conversion)
+ * @param obj The JSON object to search in
+ * @param target_key The target key in snake_case format
+ * @return Iterator to the found key-value pair, or obj.end() if not found
+ */
+inline boost::json::object::const_iterator find_json_key_flexible(
+    const boost::json::object &obj, const std::string &target_key)
+{
+    // First, try exact match
+    auto it = obj.find(target_key);
+    if (it != obj.end()) {
+        return it;
+    }
+
+    // Try to find by converting each key to snake_case
+    for (auto iter = obj.begin(); iter != obj.end(); ++iter) {
+        std::string key_snake = to_snake_case(std::string(iter->key()));
+        if (key_snake == target_key) {
+            return iter;
+        }
+    }
+
+    return obj.end();
+}
 
 } // namespace detail
 
@@ -232,8 +316,8 @@ boost::json::value describe_to_json(const T &value)
     else if constexpr (detail::is_optional_v<T>) {
         return value.has_value() ? describe_to_json(*value) : nullptr;
     }
-    // std::vector
-    else if constexpr (detail::is_vector_v<T>) {
+    // std::vector, std::span (sequence containers)
+    else if constexpr (detail::is_vector_v<T> || detail::is_span_v<T>) {
         boost::json::array arr;
         arr.reserve(value.size());  // Performance optimization
         for (const auto &item : value) {
@@ -262,9 +346,19 @@ boost::json::value describe_to_json(const T &value)
     }
     // std::variant - serialize the currently held value
     else if constexpr (detail::is_variant_v<T>) {
-        return std::visit([](const auto & v) -> boost::json::value {
-            return describe_to_json(v);
-        }, value);
+        // Handle both std::variant and types derived from std::variant
+        if constexpr (detail::is_variant<std::decay_t<T>>::value) {
+            // Direct std::variant
+            return std::visit([](const auto & v) -> boost::json::value {
+                return describe_to_json(v);
+            }, value);
+        } else {
+            // Type derived from std::variant - cast to base
+            const detail::get_variant_type_t<T> &base = value;
+            return std::visit([](const auto & v) -> boost::json::value {
+                return describe_to_json(v);
+            }, base);
+        }
     }
     // std::function - output status and address
     else if constexpr (detail::is_function_v<T>) {
@@ -457,6 +551,14 @@ bool describe_from_json(const boost::json::value &j, T &value)
         }
         return true;
     }
+    // std::span - skip deserialization (non-owning view type)
+    else if constexpr (detail::is_span_v<T>) {
+        // std::span is a non-owning view, cannot be deserialized from JSON
+        // Skip this field silently - the span will remain unchanged
+        (void)j;
+        (void)value;
+        return true;  // Return true to not fail the overall deserialization
+    }
     // std::map
     else if constexpr (detail::is_map_v<T>) {
         if (!j.is_object()) {
@@ -500,10 +602,12 @@ bool describe_from_json(const boost::json::value &j, T &value)
     // std::variant - try to convert to each alternative type
     else if constexpr (detail::is_variant_v<T>) {
         bool success = false;
+        // Get the actual variant type (either T or T::Base)
+        using VariantType = detail::get_variant_type_t<T>;
         // Try each alternative type in order
-        boost::mp11::mp_for_each<boost::mp11::mp_iota_c<std::variant_size_v<T>>>([&](auto I) {
+        boost::mp11::mp_for_each<boost::mp11::mp_iota_c<std::variant_size_v<VariantType>>>([&](auto I) {
             if (!success) {
-                using AlternativeType = std::variant_alternative_t<I, T>;
+                using AlternativeType = std::variant_alternative_t<I, VariantType>;
                 AlternativeType temp;
                 if (describe_from_json(j, temp)) {
                     value = std::move(temp);
@@ -569,7 +673,8 @@ bool describe_from_json(const boost::json::value &j, T &value)
         bool success = true;
         boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
         [&](auto D) {
-            auto it = json_obj.find(D.name);
+            // Use flexible key matching (supports PascalCase/camelCase to snake_case conversion)
+            auto it = detail::find_json_key_flexible(json_obj, D.name);
             if (it != json_obj.end()) {
                 if (!describe_from_json(it->value(), value.*D.pointer)) {
                     success = false;
@@ -944,9 +1049,9 @@ void describe_output_member(std::ostringstream &oss, const char *name, const T &
             oss << "\"";
         }
     }
-    // std::vector, std::map, std::variant
-    else if constexpr (detail::is_vector_v<T> || detail::is_map_v<T> || detail::is_variant_v<T>) {
-        // Handle containers (vector, map, variant) - convert via JSON
+    // std::vector, std::span, std::map, std::variant
+    else if constexpr (detail::is_vector_v<T> || detail::is_span_v<T> || detail::is_map_v<T> || detail::is_variant_v<T>) {
+        // Handle containers (vector, span, map, variant) - convert via JSON
         auto json_value = describe_to_json(value);
         oss << describe_json_value_to_string(json_value, fmt);
     }

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 #include <cstdint>
-#include <boost/thread/mutex.hpp>
+#include <boost/thread/shared_mutex.hpp>
 
 namespace esp_brookesia::lib_utils {
 
@@ -140,13 +140,33 @@ public:
      */
     bool is_running() const
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
         return (task_scheduler_ != nullptr);
     }
 
-    bool is_updating() const
+    /**
+     * @brief Check if any transition is currently pending or being processed
+     *
+     * @return true if one or more transitions are queued or in progress, false otherwise
+     *
+     * @note This method is thread-safe.
+     */
+    bool has_transition_running() const
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
+        return (transition_count_ > 0);
+    }
+
+    /**
+     * @brief Check if any state is currently updating
+     *
+     * @return true if any state is updating, false otherwise
+     *
+     * @note This method is thread-safe.
+     */
+    bool has_state_updating() const
+    {
+        boost::shared_lock lock(mutex_);
         return (update_task_id_ != 0);
     }
 
@@ -159,7 +179,7 @@ public:
      */
     std::string get_current_state() const
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
         return current_state_;
     }
 
@@ -173,7 +193,7 @@ public:
      */
     StatePtr get_state_ptr(const std::string &name) const
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
         auto it = states_.find(name);
         return it != states_.end() ? it->second : nullptr;
     }
@@ -211,7 +231,7 @@ private:
      */
     void cancel_current_tasks();
 
-    mutable boost::mutex mutex_;  // Protects all member variables below
+    mutable boost::shared_mutex mutex_;  // Protects all member variables below
 
     // State management
     std::map<std::string, StatePtr> states_;                                // name -> state object
@@ -226,6 +246,7 @@ private:
     TaskScheduler::TaskId timeout_task_id_ = 0;      // Current state's timeout task ID
     TaskScheduler::TaskId update_task_id_ = 0;       // Current state's periodic update task ID
     std::string task_group_name_;                    // Task group name for serial execution
+    uint32_t transition_count_ = 0;                  // Counter for pending/running transitions
 };
 
 } // namespace esp_brookesia::lib_utils
