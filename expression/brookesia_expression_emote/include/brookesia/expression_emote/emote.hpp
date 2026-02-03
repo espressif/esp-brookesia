@@ -18,6 +18,14 @@ public:
     using AssetSource = service::helper::ExpressionEmote::AssetSource;
     using Config = service::helper::ExpressionEmote::Config;
 
+    enum class GFX_ObjectType {
+        Emoji,
+        Animation,
+        EventMessage,
+        Qrcode,
+        Max,
+    };
+
     Emote(const Emote &) = delete;
     Emote(Emote &&) = delete;
     Emote &operator=(const Emote &) = delete;
@@ -48,11 +56,15 @@ private:
     std::expected<void, std::string> function_set_config(const boost::json::object &config);
     std::expected<void, std::string> function_load_assets_source(const boost::json::object &source);
     std::expected<void, std::string> function_set_emoji(const std::string &emoji);
+    std::expected<void, std::string> function_hide_emoji();
     std::expected<void, std::string> function_set_animation(const std::string &animation);
     std::expected<void, std::string> function_insert_animation(const std::string &animation, double duration_ms);
     std::expected<void, std::string> function_stop_animation();
     std::expected<void, std::string> function_wait_animation_frame_done(double timeout_ms);
     std::expected<void, std::string> function_set_event_msg(const std::string &event, const std::string &message);
+    std::expected<void, std::string> function_hide_event_message();
+    std::expected<void, std::string> function_set_qrcode(const std::string &qrcode);
+    std::expected<void, std::string> function_hide_qrcode();
     std::expected<void, std::string> function_notify_flush_finished();
 
     std::vector<service::FunctionSchema> get_function_schemas() override
@@ -82,6 +94,10 @@ private:
                 Helper, Helper::FunctionId::SetEmoji, std::string,
                 function_set_emoji(PARAM)
             ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::HideEmoji,
+                function_hide_emoji()
+            ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::SetAnimation, std::string,
                 function_set_animation(PARAM)
@@ -103,21 +119,38 @@ private:
                 function_set_event_msg(PARAM1, PARAM2)
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::HideEventMessage,
+                function_hide_event_message()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetQrcode, std::string,
+                function_set_qrcode(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::HideQrcode,
+                function_hide_qrcode()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::NotifyFlushFinished,
                 function_notify_flush_finished()
             ),
         };
     }
 
+    bool set_obj_visible(GFX_ObjectType type, bool visible);
+
     bool is_configured() const
     {
         return is_configured_;
     }
 
-    bool is_configured_ = false;
     Config config_{};
+
+    bool is_configured_ = false;
 
     void *native_handle_ = nullptr;
 };
+
+BROOKESIA_DESCRIBE_ENUM(Emote::GFX_ObjectType, Emoji, Animation, EventMessage, Qrcode, Max);
 
 } // namespace esp_brookesia::expression

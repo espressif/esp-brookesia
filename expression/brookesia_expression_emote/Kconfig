@@ -1,0 +1,16 @@
+menu "ESP-Brookesia: Expression Emote Configurations"
+    config BROOKESIA_EXPRESSION_EMOTE_ENABLE_CONFIGS
+        bool
+        select LV_FONT_FMT_TXT_LARGE
+        default y
+
+    config BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the expression as a plugin on startup.
+
+    menuconfig BROOKESIA_EXPRESSION_EMOTE_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+endmenu

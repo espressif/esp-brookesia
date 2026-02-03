@@ -10,6 +10,8 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include "private/utils.hpp"
+#include "../priv_include/emote_defs.h"
+#include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/expression_emote/emote.hpp"
 
@@ -19,6 +21,7 @@ using EmoteHelper = service::helper::ExpressionEmote;
 
 static bool get_native_source_data(const Emote::AssetSource &source, emote_data_t &native_data);
 static bool get_native_message_event(const std::string &event, std::string &native_event);
+static std::vector<gfx_obj_t *> get_native_objs(void *handle, Emote::GFX_ObjectType type);
 
 inline static emote_handle_t get_native_handle(void *handle)
 {
@@ -148,6 +151,8 @@ std::expected<void, std::string> Emote::function_load_assets_source(const boost:
         return std::unexpected("Emote is not started");
     }
 
+    BROOKESIA_LOGD("Params: source(%1%)", BROOKESIA_DESCRIBE_TO_STR(source));
+
     AssetSource source_data;
     emote_data_t native_data;
     auto result = BROOKESIA_DESCRIBE_FROM_JSON(source, source_data);
@@ -173,12 +178,34 @@ std::expected<void, std::string> Emote::function_set_emoji(const std::string &em
         return std::unexpected("Emote is not started");
     }
 
+    BROOKESIA_LOGD("Params: emoji(%1%)", emoji);
+
     auto set_result = emote_set_anim_emoji(get_native_handle(native_handle_), emoji.c_str());
     if (set_result != ESP_OK) {
         return std::unexpected(
                    "Failed to set emoji: " + BROOKESIA_DESCRIBE_TO_STR(emoji) + ", error: " +
                    std::string(esp_err_to_name(set_result))
                );
+    }
+
+    if (!set_obj_visible(GFX_ObjectType::Emoji, true)) {
+        return std::unexpected("Failed to show emoji: " + BROOKESIA_DESCRIBE_TO_STR(emoji));
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> Emote::function_hide_emoji()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!is_running()) {
+        return std::unexpected("Emote is not started");
+    }
+
+    auto hide_result = set_obj_visible(GFX_ObjectType::Emoji, false);
+    if (!hide_result) {
+        return std::unexpected("Failed to hide emoji");
     }
 
     return {};
@@ -192,12 +219,18 @@ std::expected<void, std::string> Emote::function_set_animation(const std::string
         return std::unexpected("Emote is not started");
     }
 
+    BROOKESIA_LOGD("Params: animation(%1%)", animation);
+
     auto set_result = emote_set_dialog_anim(get_native_handle(native_handle_), animation.c_str());
     if (set_result != ESP_OK) {
         return std::unexpected(
                    "Failed to set animation: " + BROOKESIA_DESCRIBE_TO_STR(animation) + ", error: " +
                    std::string(esp_err_to_name(set_result))
                );
+    }
+
+    if (!set_obj_visible(GFX_ObjectType::Animation, true)) {
+        return std::unexpected("Failed to show animation: " + BROOKESIA_DESCRIBE_TO_STR(animation));
     }
 
     return {};
@@ -211,6 +244,8 @@ std::expected<void, std::string> Emote::function_insert_animation(const std::str
         return std::unexpected("Emote is not started");
     }
 
+    BROOKESIA_LOGD("Params: animation(%1%), duration_ms(%2%)", animation, duration_ms);
+
     auto insert_result = emote_insert_anim_dialog(
                              get_native_handle(native_handle_), animation.c_str(), static_cast<uint32_t>(duration_ms)
                          );
@@ -219,6 +254,10 @@ std::expected<void, std::string> Emote::function_insert_animation(const std::str
                    "Failed to insert animation: " + BROOKESIA_DESCRIBE_TO_STR(animation) + ", error: " +
                    std::string(esp_err_to_name(insert_result))
                );
+    }
+
+    if (!set_obj_visible(GFX_ObjectType::Animation, true)) {
+        return std::unexpected("Failed to show animation: " + BROOKESIA_DESCRIBE_TO_STR(animation));
     }
 
     return {};
@@ -250,6 +289,8 @@ std::expected<void, std::string> Emote::function_wait_animation_frame_done(doubl
         return std::unexpected("Emote is not started");
     }
 
+    BROOKESIA_LOGD("Params: timeout_ms(%1%)", timeout_ms);
+
     auto wait_result = emote_wait_emerg_dlg_done(get_native_handle(native_handle_), static_cast<uint32_t>(timeout_ms));
     if (wait_result != ESP_OK) {
         return std::unexpected(
@@ -268,6 +309,8 @@ std::expected<void, std::string> Emote::function_set_event_msg(const std::string
         return std::unexpected("Emote is not started");
     }
 
+    BROOKESIA_LOGD("Params: event(%1%), message(%2%)", event, message);
+
     std::string native_event;
     if (!get_native_message_event(event, native_event)) {
         return std::unexpected("Invalid event: " + BROOKESIA_DESCRIBE_TO_STR(event));
@@ -279,6 +322,67 @@ std::expected<void, std::string> Emote::function_set_event_msg(const std::string
                    "Failed to set event message: " + BROOKESIA_DESCRIBE_TO_STR(event) + ", error: " +
                    std::string(esp_err_to_name(set_result))
                );
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> Emote::function_hide_event_message()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!is_running()) {
+        return std::unexpected("Emote is not started");
+    }
+
+    auto hide_result = set_obj_visible(GFX_ObjectType::EventMessage, false);
+    if (!hide_result) {
+        return std::unexpected("Failed to hide event message");
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> Emote::function_set_qrcode(const std::string &qrcode)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!is_running()) {
+        return std::unexpected("Emote is not started");
+    }
+
+    BROOKESIA_LOGD("Params: qrcode(%1%)", qrcode);
+
+    auto set_result = emote_set_qrcode_data(get_native_handle(native_handle_), qrcode.c_str());
+    if (set_result != ESP_OK) {
+        return std::unexpected(
+                   "Failed to set qrcode: " + BROOKESIA_DESCRIBE_TO_STR(qrcode) + ", error: " +
+                   std::string(esp_err_to_name(set_result))
+               );
+    }
+
+    if (!set_obj_visible(GFX_ObjectType::Qrcode, true)) {
+        return std::unexpected("Failed to show qrcode: " + BROOKESIA_DESCRIBE_TO_STR(qrcode));
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> Emote::function_hide_qrcode()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!is_running()) {
+        return std::unexpected("Emote is not started");
+    }
+
+    auto hide_result = set_obj_visible(GFX_ObjectType::Qrcode, false);
+    if (!hide_result) {
+        return std::unexpected("Failed to hide qrcode");
+    }
+
+    if (!set_obj_visible(GFX_ObjectType::Emoji, true)) {
+        BROOKESIA_LOGE("Failed to show emoji");
     }
 
     return {};
@@ -300,6 +404,69 @@ std::expected<void, std::string> Emote::function_notify_flush_finished()
     }
 
     return {};
+}
+
+bool Emote::set_obj_visible(GFX_ObjectType type, bool visible)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD(
+        "Params: type(%1%), visible(%2%)", BROOKESIA_DESCRIBE_TO_STR(type), BROOKESIA_DESCRIBE_TO_STR(visible)
+    );
+
+    auto gfx_handle = get_native_handle(native_handle_)->gfx_emote_handle;
+    BROOKESIA_CHECK_NULL_RETURN(gfx_handle, false, "Invalid gfx handle");
+
+    gfx_emote_lock(gfx_handle);
+    lib_utils::FunctionGuard unlock_guard([&]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        gfx_emote_unlock(gfx_handle);
+    });
+
+    auto set_objs_visible_func = [&](GFX_ObjectType type, bool visible) {
+        auto objs = get_native_objs(native_handle_, type);
+        for (auto obj : objs) {
+            if (gfx_obj_set_visible(obj, visible) != ESP_OK) {
+                BROOKESIA_LOGE(
+                    "Failed to set object %1% visible: %2%", BROOKESIA_DESCRIBE_TO_STR(type),
+                    BROOKESIA_DESCRIBE_TO_STR(visible)
+                );
+            };
+        }
+        if ((type == Emote::GFX_ObjectType::EventMessage) && !visible) {
+            BROOKESIA_LOGD("Pause event message timer");
+            auto &def_objects = get_native_handle(native_handle_)->def_objects;
+            auto obj_timer = static_cast<gfx_timer_handle_t>(def_objects[EMOTE_DEF_OBJ_TIMER_STATUS].obj);
+            if (obj_timer) {
+                gfx_timer_pause(obj_timer);
+            }
+        }
+    };
+
+    // Hide other objects when setting one object visible
+    std::vector<GFX_ObjectType> hide_types;
+    switch (type) {
+    case Emote::GFX_ObjectType::Emoji:
+        hide_types.push_back(Emote::GFX_ObjectType::Qrcode);
+        break;
+    case Emote::GFX_ObjectType::Animation:
+        hide_types.push_back(Emote::GFX_ObjectType::Qrcode);
+        break;
+    case Emote::GFX_ObjectType::Qrcode:
+        hide_types.push_back(Emote::GFX_ObjectType::Emoji);
+        hide_types.push_back(Emote::GFX_ObjectType::Animation);
+        break;
+    default:
+        break;
+    }
+    for (auto hide_type : hide_types) {
+        set_objs_visible_func(hide_type, false);
+    }
+
+    // Set the target object visible
+    set_objs_visible_func(type, visible);
+
+    return true;
 }
 
 static bool get_native_source_data(const Emote::AssetSource &source, emote_data_t &native_data)
@@ -357,8 +524,37 @@ static bool get_native_message_event(const std::string &event, std::string &nati
     return true;
 }
 
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(
-    service::ServiceBase, Emote, Emote::get_instance().get_attributes().name, Emote::get_instance()
+static std::vector<gfx_obj_t *> get_native_objs(void *handle, Emote::GFX_ObjectType type)
+{
+    auto def_objects = get_native_handle(handle)->def_objects;
+    switch (type) {
+    case Emote::GFX_ObjectType::Emoji:
+        return {def_objects[EMOTE_DEF_OBJ_ANIM_EYE].obj};
+    case Emote::GFX_ObjectType::Animation:
+        return {def_objects[EMOTE_DEF_OBJ_ANIM_EMERG_DLG].obj};
+    case Emote::GFX_ObjectType::EventMessage:
+        return {
+            def_objects[EMOTE_DEF_OBJ_LEBAL_DEFAULT].obj,
+            def_objects[EMOTE_DEF_OBJ_ANIM_LISTEN].obj,
+            def_objects[EMOTE_DEF_OBJ_ICON_STATUS].obj,
+            def_objects[EMOTE_DEF_OBJ_LABEL_TOAST].obj,
+            def_objects[EMOTE_DEF_OBJ_LABEL_CLOCK].obj,
+            def_objects[EMOTE_DEF_OBJ_TIMER_STATUS].obj,
+            def_objects[EMOTE_DEF_OBJ_LABEL_BATTERY].obj,
+            def_objects[EMOTE_DEF_OBJ_ICON_CHARGE].obj,
+        };
+    case Emote::GFX_ObjectType::Qrcode:
+        return {def_objects[EMOTE_DEF_OBJ_QRCODE].obj};
+    default:
+        return {};
+    }
+}
+
+#if BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER
+BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+    service::ServiceBase, Emote, Emote::get_instance().get_attributes().name, Emote::get_instance(),
+    BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL
 );
+#endif
 
 } // namespace esp_brookesia::expression

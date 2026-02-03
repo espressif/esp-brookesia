@@ -26,7 +26,13 @@ idf_component_register(
     PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
     REQUIRES ${COMPONENT_REQUIRES}
 )
-target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _ExpressionEmote_symbol_360")
+if(CONFIG_BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER)
+    set(BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL expression_emote_symbol)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL=${BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL}
+    )
+    target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL}")
+endif()
 
 include(package_manager)
 cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
