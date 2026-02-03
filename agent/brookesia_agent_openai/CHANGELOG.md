@@ -1,5 +1,22 @@
 # ChangeLog
 
+## v0.7.2 - 2026-02-02
+
+### Breaking Changes:
+
+- break(repo): migrate agent helper from `service::helper::AgentOpenai` to `agent::helper::Openai`
+- break(repo): change `esp_peer` dependency to private
+- break(base): rename lifecycle methods: `on_start` -> `on_startup`, `on_stop` -> `on_shutdown`
+- break(base): change `on_wakeup()` return type to `bool`
+- break(base): move `encoder_feed_data_size` to `encoder.fetch_data_size` in `AudioConfig`
+- break(base): replace `general_event_wait_timeout_ms` with `operation_timeout` in `AgentAttributes`
+
+### Enhancements:
+
+- feat(Kconfig): add `BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER` option for automatic plugin registration
+- feat(Kconfig): select `ESP_WS_CLIENT_SEPARATE_TX_LOCK` for WebSocket client
+- feat(base): inherit from `service::ServiceBase` with `get_function_schemas()`, `get_event_schemas()`, `get_function_handlers()` implementations
+
 ## v0.7.1~1 - 2026-01-14
 
 ### Enhancements:

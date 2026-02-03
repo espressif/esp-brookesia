@@ -1,5 +1,23 @@
 # ChangeLog
 
+## v0.7.1 - 2026-02-02
+
+### Breaking Changes:
+
+- break(repo): move `esp_coze` dependency to local private component
+- break(repo): change `esp_websocket_client` dependency to private
+- break(repo): migrate agent helper from `service::helper::AgentCoze` to `agent::helper::Coze`
+- break(repo): refactor lifecycle methods (`on_activate`, `on_startup`, `on_shutdown`, etc.)
+
+### Enhancements:
+
+- feat(Kconfig): add `BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER` option for automatic plugin registration
+- feat(repo): add `on_interrupt_speaking()` method for interrupting agent speech
+- feat(repo): add `support_general_functions` and `support_general_events` in agent attributes
+- feat(repo): add `require_time_sync` attribute for time synchronization requirement
+- feat(repo): move `fetch_data_size` into encoder configuration
+- feat(repo): update `brookesia_agent_manager` dependency to `0.7.*`
+
 ## v0.7.0~1 - 2026-01-14
 
 ### Enhancements:

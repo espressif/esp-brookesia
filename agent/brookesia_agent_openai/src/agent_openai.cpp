@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -28,15 +28,6 @@ using NVSHelper = service::helper::NVS;
 constexpr uint32_t NVS_SAVE_DATA_TIMEOUT_MS = 20;
 constexpr uint32_t NVS_ERASE_DATA_TIMEOUT_MS = 20;
 
-bool Openai::on_activate()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    try_load_data();
-
-    return true;
-}
-
 bool Openai::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -49,16 +40,30 @@ bool Openai::on_init()
     return true;
 }
 
-bool Openai::on_start()
+bool Openai::on_activate()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    try_load_data();
 
     auto &info = get_data<DataType::Info>();
     BROOKESIA_LOGD("Start with info: %1%", BROOKESIA_DESCRIBE_TO_STR(info));
 
+    BROOKESIA_CHECK_FALSE_RETURN(validate_info(info), false, "Invalid info");
+
     openai_config_t config = {
-        .audio_data_handler = audio_data_callback,
-        .audio_event_handler = audio_event_callback,
+        .audio_data_handler = +[](uint8_t *data, int len, void *ctx)
+        {
+            auto self = static_cast<Openai *>(ctx);
+            BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
+            BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_data(data, len), "Failed to on audio data");
+        },
+        .audio_event_handler = +[](int event, uint8_t *data, void *ctx)
+        {
+            auto self = static_cast<Openai *>(ctx);
+            BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
+            BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_event(event, data), "Failed to on audio event");
+        },
         .model = info.model.c_str(),
         .api_key = info.api_key.c_str(),
         .connect_timeout_ms = OPENAI_DEFAULT_CONNECT_TIMEOUT_MS,
@@ -67,13 +72,22 @@ bool Openai::on_start()
     BROOKESIA_CHECK_ESP_ERR_RETURN(openai_init(&config), false, "Failed to init openai");
     is_openai_initialized_ = true;
 
+    trigger_general_event(GeneralEvent::Activated);
+
+    return true;
+}
+
+bool Openai::on_startup()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
     BROOKESIA_CHECK_ESP_ERR_RETURN(openai_start(), false, "Failed to start openai");
     is_openai_started_ = true;
 
     return true;
 }
 
-void Openai::on_stop()
+void Openai::on_shutdown()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -81,7 +95,7 @@ void Openai::on_stop()
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(openai_stop(), {}, {
             BROOKESIA_LOGE("Failed to stop openai");
         });
-        is_openai_initialized_ = false;
+        is_openai_started_ = false;
     }
     if (is_openai_initialized()) {
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(openai_deinit(), {}, {
@@ -100,10 +114,13 @@ bool Openai::on_sleep()
     return true;
 }
 
-void Openai::on_wakeup()
+bool Openai::on_wakeup()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
     trigger_general_event(GeneralEvent::Awake);
+
+    return true;
 }
 
 bool Openai::on_encoder_data_ready(const uint8_t *data, size_t data_size)
@@ -144,6 +161,8 @@ bool Openai::set_info(const boost::json::object &info)
         return true;
     }
 
+    BROOKESIA_CHECK_FALSE_RETURN(validate_info(openai_info), false, "Invalid info");
+
     set_data<DataType::Info>(std::move(openai_info));
 
     try_save_data(DataType::Info);
@@ -179,9 +198,14 @@ void Openai::try_load_data()
         return;
     }
 
+    auto binding = service::ServiceManager::get_instance().bind(NVSHelper::get_name().data());
+    BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
+
+    auto nvs_namespace = get_attributes().get_name();
+
     {
         auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::Info);
-        auto result = NVSHelper::get_key_value<OpenaiInfo>(get_attributes().name, key);
+        auto result = NVSHelper::get_key_value<OpenaiInfo>(nvs_namespace, key);
         if (!result) {
             BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
         } else {
@@ -209,7 +233,7 @@ void Openai::try_save_data(DataType type)
 
     auto save_function = [this, key](const auto & data_value) {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        auto result = NVSHelper::save_key_value(get_attributes().name, key, data_value, NVS_SAVE_DATA_TIMEOUT_MS);
+        auto result = NVSHelper::save_key_value(get_attributes().get_name(), key, data_value, NVS_SAVE_DATA_TIMEOUT_MS);
         if (!result) {
             BROOKESIA_LOGE("Failed to save '%1%' to NVS: %2%", key, result.error());
         } else {
@@ -233,12 +257,22 @@ void Openai::try_erase_data()
         return;
     }
 
-    auto result = NVSHelper::erase_keys(get_attributes().name, {}, NVS_ERASE_DATA_TIMEOUT_MS);
+    auto result = NVSHelper::erase_keys(get_attributes().get_name(), {}, NVS_ERASE_DATA_TIMEOUT_MS);
     if (!result) {
         BROOKESIA_LOGE("Failed to erase NVS data: %1%", result.error());
     } else {
         BROOKESIA_LOGI("Erased NVS data");
     }
+}
+
+bool Openai::validate_info(OpenaiInfo &info)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_CHECK_FALSE_RETURN(!info.model.empty(), false, "Model is empty");
+    BROOKESIA_CHECK_FALSE_RETURN(!info.api_key.empty(), false, "API key is empty");
+
+    return true;
 }
 
 bool Openai::on_audio_data(uint8_t *data, int len)
@@ -303,8 +337,8 @@ bool Openai::on_audio_event(int event, uint8_t *data)
     }
 
     if (task_func) {
-        auto group = Manager::get_instance().get_state_task_group();
-        auto scheduler = get_service_scheduler();
+        auto group = get_state_task_group();
+        auto scheduler = get_task_scheduler();
         BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not available");
         auto result = scheduler->post(std::move(task_func), nullptr, group);
         BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post task function");
@@ -313,30 +347,13 @@ bool Openai::on_audio_event(int event, uint8_t *data)
     return true;
 }
 
-void Openai::audio_data_callback(uint8_t *data, int len, void *ctx)
-{
-    // BROOKESIA_LOG_TRACE_GUARD();
-
-    auto self = static_cast<Openai *>(ctx);
-    BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
-
-    BROOKESIA_CHECK_FALSE_EXIT(
-        self->on_audio_data(data, len), "Failed to on audio data"
-    );
-}
-
-void Openai::audio_event_callback(int event, uint8_t *data, void *ctx)
-{
-    // BROOKESIA_LOG_TRACE_GUARD();
-
-    auto self = static_cast<Openai *>(ctx);
-    BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
-
-    BROOKESIA_CHECK_FALSE_EXIT(
-        self->on_audio_event(event, data), "Failed to on audio event"
-    );
-}
-
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(Base, Openai, Openai::DEFAULT_AGENT_ATTRIBUTES.name, Openai::get_instance());
+#if BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER
+BROOKESIA_PLUGIN_REGISTER_SINGLETON(
+    Base, Openai, Openai::get_instance().get_attributes().get_name(), Openai::get_instance()
+);
+BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+    service::ServiceBase, Openai, Openai::get_instance().get_attributes().get_name(), Openai::get_instance(), BROOKESIA_AGENT_OPENAI_PLUGIN_SYMBOL
+);
+#endif
 
 } // namespace esp_brookesia::agent

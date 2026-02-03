@@ -1,9 +1,8 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "esp_gmf_afe.h"
 #include "brookesia/agent_manager/macro_configs.h"
 #if !BROOKESIA_AGENT_MANAGER_BASE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -17,91 +16,243 @@
 namespace esp_brookesia::agent {
 
 using AudioHelper = service::helper::Audio;
+using ManagerHelper = helper::Manager;
 
-// constexpr uint32_t AUDIO_CALL_START_ENCORDER_TIMEOUT_MS = 1000;
-// constexpr uint32_t AUDIO_CALL_STOP_ENCORDER_TIMEOUT_MS = 100;
-// constexpr uint32_t AUDIO_CALL_START_DECORDER_TIMEOUT_MS = 100;
-// constexpr uint32_t AUDIO_CALL_STOP_DECORDER_TIMEOUT_MS = 100;
-// constexpr uint32_t AUDIO_CALL_SET_ENCODER_READ_DATA_SIZE_TIMEOUT_MS = 100;
-constexpr uint32_t AUDIO_CALL_START_ENCORDER_TIMEOUT_MS = 0;
-constexpr uint32_t AUDIO_CALL_STOP_ENCORDER_TIMEOUT_MS = 0;
-constexpr uint32_t AUDIO_CALL_START_DECORDER_TIMEOUT_MS = 0;
-constexpr uint32_t AUDIO_CALL_STOP_DECORDER_TIMEOUT_MS = 0;
-constexpr uint32_t AUDIO_CALL_SET_ENCODER_READ_DATA_SIZE_TIMEOUT_MS = 0;
-constexpr size_t   AUDIO_ENCODER_FEED_DATA_SIZE_MORE = 100;
+std::string Base::get_call_task_group() const
+{
+    return Manager::get_instance().get_call_task_group();
+}
+
+std::string Base::get_event_task_group() const
+{
+    return Manager::get_instance().get_event_task_group();
+}
+
+std::string Base::get_request_task_group() const
+{
+    return Manager::get_instance().get_request_task_group();
+}
+
+std::string Base::get_state_task_group() const
+{
+    return Manager::get_instance().get_state_task_group();
+}
+
+ChatMode Base::get_chat_mode() const
+{
+    return Manager::get_instance().get_chat_mode();
+}
+
+void Base::reset_interrupted_speaking()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    is_interrupted_speaking_ = false;
+}
+
+bool Base::set_speaking(bool speaking)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: speaking(%1%)", BROOKESIA_DESCRIBE_TO_STR(speaking));
+
+    if (is_speaking() == speaking) {
+        BROOKESIA_LOGD("Speaking status is already %1%, skip", speaking ? "true" : "false");
+        return true;
+    }
+
+    if (speaking && is_speaking_disabled()) {
+        BROOKESIA_LOGD("Speaking is disabled, skip");
+        return true;
+    }
+
+    is_speaking_ = speaking;
+
+    if (!get_attributes().is_general_events_supported(ManagerHelper::AgentGeneralEvent::SpeakingStatusChanged)) {
+        BROOKESIA_LOGD(
+            "General event '%1%' is not supported, skip",
+            BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::AgentGeneralEvent::SpeakingStatusChanged)
+        );
+        return true;
+    }
+
+    auto result = Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::SpeakingStatusChanged), service::EventItemMap{
+        {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventSpeakingStatusChangedParam::IsSpeaking), speaking}
+    });
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish speaking status changed event");
+
+    return true;
+}
+
+bool Base::set_listening(bool listening)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: listening(%1%)", BROOKESIA_DESCRIBE_TO_STR(listening));
+
+    if (is_listening() == listening) {
+        BROOKESIA_LOGD("Listening status is already %1%, skip", listening ? "true" : "false");
+        return true;
+    }
+
+    if (listening && is_listening_disabled()) {
+        BROOKESIA_LOGD("Listening is disabled, skip");
+        return true;
+    }
+
+    is_listening_ = listening;
+
+    if (!get_attributes().is_general_events_supported(ManagerHelper::AgentGeneralEvent::ListeningStatusChanged)) {
+        BROOKESIA_LOGD(
+            "General event '%1%' is not supported, skip",
+            BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::AgentGeneralEvent::ListeningStatusChanged)
+        );
+        return true;
+    }
+
+    auto result = Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::ListeningStatusChanged), service::EventItemMap{
+        {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventListeningStatusChangedParam::IsListening), listening}
+    });
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish listening status changed event");
+
+    return true;
+}
+
+bool Base::set_emote(const std::string emote)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: emote(%1%)", emote);
+
+    if (!get_attributes().is_general_events_supported(ManagerHelper::AgentGeneralEvent::EmoteGot)) {
+        BROOKESIA_LOGD(
+            "General event '%1%' is not supported, skip",
+            BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::AgentGeneralEvent::EmoteGot)
+        );
+        return true;
+    }
+
+    auto result = Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::EmoteGot), service::EventItemMap{
+        {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventEmoteGotParam::Emote), emote}
+    });
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish emote got event");
+
+    return true;
+}
+
+bool Base::set_agent_speaking_text(const std::string text)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: text(%1%)", text);
+
+    if (!get_attributes().is_general_events_supported(ManagerHelper::AgentGeneralEvent::AgentSpeakingTextGot)) {
+        BROOKESIA_LOGD(
+            "General event '%1%' is not supported, skip",
+            BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::AgentGeneralEvent::AgentSpeakingTextGot)
+        );
+        return true;
+    }
+
+    auto result = Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::AgentSpeakingTextGot), service::EventItemMap{
+        {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventAgentSpeakingTextGotParam::Text), text}
+    });
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish agent speaking text event");
+
+    return true;
+}
+
+bool Base::set_user_speaking_text(const std::string text)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: text(%1%)", text);
+
+    if (!get_attributes().is_general_events_supported(ManagerHelper::AgentGeneralEvent::UserSpeakingTextGot)) {
+        BROOKESIA_LOGD(
+            "General event '%1%' is not supported, skip",
+            BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::AgentGeneralEvent::UserSpeakingTextGot)
+        );
+        return true;
+    }
+
+    auto result = Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::UserSpeakingTextGot), service::EventItemMap{
+        {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventUserSpeakingTextGotParam::Text), text}
+    });
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish user speaking text event");
+
+    return true;
+}
 
 void Base::trigger_general_event(GeneralEvent event)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: event(%1%)", BROOKESIA_DESCRIBE_TO_STR(event));
+    auto event_str = BROOKESIA_DESCRIBE_TO_STR(event);
+    BROOKESIA_LOGD("Params: event(%1%)", event_str);
 
-    auto [event_flag_bit, event_bit_value] = get_general_event_state_flag_bit(event);
+    if (is_unexpected_event_processing_) {
+        BROOKESIA_LOGD("Unexpected event processing, skip");
+        return;
+    }
 
-#if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG
-    BROOKESIA_LOGD(
-        "running action(%1%)", BROOKESIA_DESCRIBE_TO_STR(get_running_general_action())
-    );
-    BROOKESIA_LOGD(
-        "state_flags(%1%), flag bit(%2%), bit value(%3%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_),
-        BROOKESIA_DESCRIBE_TO_STR(event_flag_bit), BROOKESIA_DESCRIBE_TO_STR(event_bit_value)
-    );
-#endif
     if (is_general_event_ready(event)) {
-        BROOKESIA_LOGD("Event(%1%) is already matched, skip", BROOKESIA_DESCRIBE_TO_STR(event));
+        BROOKESIA_LOGD("Event(%1%) is already matched, skip", event_str);
         return;
     }
 
     auto event_action = get_general_action_from_target_event(event);
-    BROOKESIA_CHECK_FALSE_EXIT(
-        event_action != GeneralAction::Max, "No corresponding action for event: %1%", BROOKESIA_DESCRIBE_TO_STR(event)
-    );
-    auto action_flag_bit = get_general_action_state_flag_bit(event_action);
-    BROOKESIA_CHECK_FALSE_EXIT(
-        action_flag_bit != GeneralStateFlagBit::Max, "No corresponding flag bit for action: %1%",
-        BROOKESIA_DESCRIBE_TO_STR(event_action)
-    );
+    BROOKESIA_CHECK_FALSE_EXIT(event_action != GeneralAction::Max, "No corresponding action for event: %1%", event_str);
 
-    bool is_event_action_running = is_general_action_running(event_action);
-    bool is_unexpected_event = false;
-    if (is_event_action_running) {
-        BROOKESIA_LOGD("Event action(%1%) is already running, clear bit(%2%)", BROOKESIA_DESCRIBE_TO_STR(event_action), BROOKESIA_DESCRIBE_TO_STR(action_flag_bit));
-        // Clear action running bit
-        state_flags_.reset(BROOKESIA_DESCRIBE_ENUM_TO_NUM(action_flag_bit));
-    } else if (is_general_event_unexpected(event)) {
-        is_unexpected_event = true;
-        BROOKESIA_LOGW(
-            "Event action(%1%) is not running, unexpected event: %2%", BROOKESIA_DESCRIBE_TO_STR(event_action),
-            BROOKESIA_DESCRIBE_TO_STR(event)
-        );
+    auto is_unexpected_event = is_general_event_unexpected(event);
+    if (is_unexpected_event) {
+        BROOKESIA_LOGW("Detected unexpected event: %1%", event_str);
+
+        // Clear the current action running bit
         auto running_action = get_running_general_action();
-        if (running_action != GeneralAction::Max) {
-            auto running_action_flag_bit = get_general_action_state_flag_bit(running_action);
-            BROOKESIA_LOGD(
-                "Clear running action(%1%) bit(%2%)", BROOKESIA_DESCRIBE_TO_STR(running_action),
-                BROOKESIA_DESCRIBE_TO_STR(running_action_flag_bit)
-            );
-            state_flags_.reset(BROOKESIA_DESCRIBE_ENUM_TO_NUM(running_action_flag_bit));
-        } else {
-            BROOKESIA_LOGD("No running action, skip");
-        }
+        update_general_action_state_bit(running_action, false);
 
         // Force do the event action to clear the unexpected event
         BROOKESIA_LOGW("Force to do the event action: %1%", BROOKESIA_DESCRIBE_TO_STR(event_action));
+        is_unexpected_event_processing_ = true;
         BROOKESIA_CHECK_FALSE_EXECUTE(do_general_action(event_action, true), {}, {
             BROOKESIA_LOGE("Failed to do general action: %1%", BROOKESIA_DESCRIBE_TO_STR(event_action));
         });
-    } else {
-        BROOKESIA_LOGW("Invalid event: %1%, skip", BROOKESIA_DESCRIBE_TO_STR(event));
-        return;
+        is_unexpected_event_processing_ = false;
     }
 
-    // Set event matched bit
-    BROOKESIA_LOGD("Set event bit(%1%), value(%2%)", BROOKESIA_DESCRIBE_TO_STR(event_flag_bit), event_bit_value);
-    state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(event_flag_bit), event_bit_value);
+    // Since any state can trigger the Stopped event, all state flag bits need to be reset
+    if (event == GeneralEvent::Stopped) {
+        reset_general_state_flag_bits();
+    } else {
+        // Only clear target event action running bit
+        update_general_action_state_bit(event_action, false);
+    }
+    // Set target event stable bit
+    update_general_event_state_bit(event, true);
 
-    if (callbacks_.general_event_happened_callback) {
-        callbacks_.general_event_happened_callback(event, is_unexpected_event);
+    if (is_unexpected_event && callbacks_.unexpected_general_event_happened) {
+        callbacks_.unexpected_general_event_happened(event);
+    }
+
+    if (!Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::GeneralEventHappened), service::EventItemMap{
+    {
+        BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventGeneralEventHappenedParam::Event),
+            event_str
+        },
+        {
+            BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventGeneralEventHappenedParam::IsUnexpected),
+            is_unexpected_event
+        }
+    }
+            )) {
+        BROOKESIA_LOGE("Failed to publish general event: %1%", event_str);
     }
 }
 
@@ -113,16 +264,13 @@ bool Base::feed_audio_decoder_data(const uint8_t *data, size_t data_size)
 
     // Skip if the agent is speaking disabled
     if (is_speaking_disabled()) {
+        // BROOKESIA_LOGD("Speaking is disabled, skip");
         return true;
     }
 
-    auto result = AudioHelper::call_function_sync<void>(AudioHelper::FunctionId::FeedDecoderData,
-    service::FunctionParameterMap{
-        {
-            BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionFeedDecoderDataParam::Data),
-            service::RawBuffer(data, data_size)
-        }
-    }, 0);
+    auto result = AudioHelper::call_function_sync(
+                      AudioHelper::FunctionId::FeedDecoderData, service::RawBuffer(data, data_size)
+                  );
     if (!result) {
         BROOKESIA_LOGE("Failed to feed audio data: %1%", result.error());
         return false;
@@ -131,131 +279,28 @@ bool Base::feed_audio_decoder_data(const uint8_t *data, size_t data_size)
     return true;
 }
 
-bool Base::publish_service_event(const std::string &event, service::EventItemMap &&items, bool use_dispatch)
+void Base::on_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    return Manager::get_instance().publish_event(event, std::move(items), use_dispatch);
-}
-
-std::shared_ptr<lib_utils::TaskScheduler> Base::get_service_scheduler()
-{
-    return Manager::get_instance().get_task_scheduler();
-}
-
-bool Base::init()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (is_initialized()) {
-        BROOKESIA_LOGD("Already initialized");
-        return true;
+    if (!do_general_action(GeneralAction::Stop)) {
+        BROOKESIA_LOGE("Failed to stop");
     }
 
-    lib_utils::FunctionGuard deinit_guard([this]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        deinit();
-    });
+    trigger_general_event(GeneralEvent::Stopped);
 
-    is_initialized_ = true;
+    clear_general_state_flag_bits();
 
-    BROOKESIA_CHECK_FALSE_RETURN(on_init(), false, "Failed to initialize agent '%1%'", get_attributes().name);
+    is_unexpected_event_processing_ = false;
+}
 
-    deinit_guard.release();
+bool Base::do_activate()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGI("Initialized agent: %1%", get_attributes().name);
+    BROOKESIA_CHECK_FALSE_RETURN(on_activate(), false, "Failed to activate");
 
     return true;
-}
-
-void Base::deinit()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (!is_initialized()) {
-        BROOKESIA_LOGD("Not initialized");
-        return;
-    }
-
-    on_deinit();
-
-    is_initialized_ = false;
-
-    BROOKESIA_LOGI("Deinitialized agent: %1%", get_attributes().name);
-}
-
-bool Base::activate()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (is_active()) {
-        BROOKESIA_LOGD("Already active, skip");
-        return true;
-    }
-
-    is_active_ = true;
-
-    lib_utils::FunctionGuard deactivate_guard([this]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        deactivate();
-    });
-
-    BROOKESIA_CHECK_FALSE_RETURN(on_activate(), false, "Failed to activate agent");
-
-    auto function_schemas = get_function_schemas();
-    auto function_handlers = get_function_handlers();
-    if (!function_schemas.empty()) {
-        if (!Manager::get_instance().register_functions(std::move(function_schemas), std::move(function_handlers))) {
-            BROOKESIA_LOGE("Failed to register functions");
-        }
-    }
-
-    auto event_schemas = get_event_schemas();
-    if (!event_schemas.empty()) {
-        if (!Manager::get_instance().register_events(std::move(event_schemas))) {
-            BROOKESIA_LOGE("Failed to register events");
-        }
-    }
-
-    deactivate_guard.release();
-
-    return true;
-}
-
-void Base::deactivate()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (!is_active()) {
-        BROOKESIA_LOGD("Not active, skip");
-        return;
-    }
-
-    on_deactivate();
-
-    // Stop the agent
-    do_general_action(GeneralAction::Stop);
-
-    is_active_ = false;
-    state_flags_.reset();
-
-    auto function_schemas = get_function_schemas();
-    auto function_names = std::vector<std::string>();
-    for (const auto &schema : function_schemas) {
-        function_names.push_back(schema.name);
-    }
-    if (!function_names.empty()) {
-        Manager::get_instance().unregister_functions(function_names);
-    }
-
-    auto event_schemas = get_event_schemas();
-    auto event_names = std::vector<std::string>();
-    for (const auto &schema : event_schemas) {
-        event_names.push_back(schema.name);
-    }
-    if (!event_names.empty()) {
-        Manager::get_instance().unregister_events(event_names);
-    }
 }
 
 bool Base::do_start()
@@ -281,10 +326,10 @@ bool Base::do_start()
     });
 
     // Start the agent
-    BROOKESIA_CHECK_FALSE_RETURN(on_start(), false, "Failed to start");
+    BROOKESIA_CHECK_FALSE_RETURN(on_startup(), false, "Failed to start");
     lib_utils::FunctionGuard stop_agent_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        on_stop();
+        stop();
     });
 
     stop_decoder_guard.release();
@@ -298,12 +343,20 @@ void Base::do_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    on_stop();
+    on_shutdown();
     stop_audio_encoder();
     stop_audio_decoder();
 
+    if (!set_speaking(false)) {
+        BROOKESIA_LOGW("Failed to set speaking to false");
+    }
+    if (!set_listening(false)) {
+        BROOKESIA_LOGW("Failed to set listening to false");
+    }
+    reset_interrupted_speaking();
+
     is_suspended_ = false;
-    is_interrupted_speaking_ = false;
+    is_manual_listening_ = false;
 }
 
 bool Base::do_sleep()
@@ -319,24 +372,38 @@ bool Base::do_sleep()
 
     wakeup_guard.release();
 
+    is_manual_listening_ = false;
+
+    if (!set_listening(false)) {
+        BROOKESIA_LOGW("Failed to set listening to false");
+    }
+    if (!set_speaking(false)) {
+        BROOKESIA_LOGW("Failed to set speaking to false");
+    }
+
     return true;
 }
 
-void Base::do_wakeup()
+bool Base::do_wakeup()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    on_wakeup();
+    BROOKESIA_CHECK_FALSE_RETURN(!is_suspended(), false, "Suspended, should resume first");
+
+    BROOKESIA_CHECK_FALSE_RETURN(on_wakeup(), false, "Failed to wakeup");
+
+    return true;
 }
 
 bool Base::do_general_action(GeneralAction action, bool is_force)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: action(%1%), is_force(%2%)", BROOKESIA_DESCRIBE_TO_STR(action), is_force);
+    auto action_str = BROOKESIA_DESCRIBE_TO_STR(action);
+    BROOKESIA_LOGD("Params: action(%1%), is_force(%2%)", action_str, is_force);
 
     if (is_general_action_running(action)) {
-        BROOKESIA_LOGD("Action(%1%) is already running, skip", BROOKESIA_DESCRIBE_TO_STR(action));
+        BROOKESIA_LOGD("Action(%1%) is already running, skip", action_str);
         return true;
     }
 
@@ -361,34 +428,32 @@ bool Base::do_general_action(GeneralAction action, bool is_force)
         BROOKESIA_LOGD("Force, skip checking event ready");
     }
 
-    BROOKESIA_LOGI("Agent '%1%' running", BROOKESIA_DESCRIBE_TO_STR(action));
-
-    if (callbacks_.general_action_triggered_callback) {
-        callbacks_.general_action_triggered_callback(action);
-    }
-
-    auto state_flag_bit = get_general_action_state_flag_bit(action);
-    if (state_flag_bit != GeneralStateFlagBit::Max) {
-        BROOKESIA_LOGD("Set action bit(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flag_bit));
-        state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(state_flag_bit));
-    }
-
-    lib_utils::FunctionGuard restore_state_flag_guard([this, state_flag_bit]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        if (state_flag_bit != GeneralStateFlagBit::Max) {
-            BROOKESIA_LOGD("Reset action bit(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flag_bit));
-            state_flags_.reset(BROOKESIA_DESCRIBE_ENUM_TO_NUM(state_flag_bit));
+    // Publish "General Action Triggered" event before executing `do_xxxx()`, since `do_xxxx()` may call
+    // trigger_general_event() directly, which publishes "General Event Happened" event.
+    // This ensures correct event ordering: "General Action Triggered" -> "General Event Happened"
+    if (!Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::GeneralActionTriggered), service::EventItemMap{
+    {
+        BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventGeneralActionTriggeredParam::Action), action_str
         }
-    });
+    }
+            )) {
+        BROOKESIA_LOGE("Failed to publish general action triggered event");
+    }
+
+    BROOKESIA_LOGI("Agent do '%1%' running", action_str);
+
+    // Action running bit should be cleared by call `trigger_general_event()` when the action is done or failed
+    update_general_action_state_bit(action, true);
 
     bool result = true;
     switch (action) {
-    case GeneralAction::Start: {
-        result = do_start();
+    case GeneralAction::Activate: {
+        result = do_activate();
         break;
     }
-    case GeneralAction::Stop: {
-        do_stop();
+    case GeneralAction::Start: {
+        result = do_start();
         break;
     }
     case GeneralAction::Sleep: {
@@ -396,19 +461,25 @@ bool Base::do_general_action(GeneralAction action, bool is_force)
         break;
     }
     case GeneralAction::WakeUp: {
-        do_wakeup();
+        result = do_wakeup();
+        break;
+    }
+    case GeneralAction::Stop: {
+        do_stop();
         break;
     }
     default:
-        BROOKESIA_LOGE("Invalid action: %1%", BROOKESIA_DESCRIBE_TO_STR(action));
+        BROOKESIA_LOGE("Invalid action: %1%", action_str);
         result = false;
         break;
     }
-    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to do general action: %1%", BROOKESIA_DESCRIBE_TO_STR(action));
 
-    restore_state_flag_guard.release();
+    if (!result) {
+        update_general_state_error(true);
+        BROOKESIA_CHECK_FALSE_RETURN(false, false, "Failed to do general action: %1%", action_str);
+    }
 
-    BROOKESIA_LOGI("Agent '%1%' finished", BROOKESIA_DESCRIBE_TO_STR(action));
+    BROOKESIA_LOGI("Agent do '%1%' finished", action_str);
 
     return true;
 }
@@ -422,6 +493,11 @@ bool Base::do_suspend()
         return true;
     }
 
+    if (!is_general_event_ready(GeneralEvent::Started) || is_general_action_running(GeneralAction::Stop)) {
+        BROOKESIA_LOGD("Started event is not ready or stop action is running, skip suspend");
+        return true;
+    }
+
     is_suspended_ = true;
 
     lib_utils::FunctionGuard resume_guard([this]() {
@@ -430,32 +506,65 @@ bool Base::do_suspend()
     });
 
     BROOKESIA_CHECK_FALSE_RETURN(on_suspend(), false, "Failed to suspend");
-
-    if (callbacks_.suspend_status_changed_callback) {
-        callbacks_.suspend_status_changed_callback(true);
-    }
+    stop_audio_encoder();
+    stop_audio_decoder();
 
     resume_guard.release();
+
+    if (!Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::SuspendStatusChanged), service::EventItemMap{
+    {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventSuspendStatusChangedParam::IsSuspended), true}
+    }
+            )) {
+        BROOKESIA_LOGE("Failed to publish suspend status changed event");
+    }
 
     return true;
 }
 
-void Base::do_resume()
+bool Base::do_resume()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     if (!is_suspended()) {
         BROOKESIA_LOGD("Not suspended, skip");
-        return;
+        return true;
     }
 
-    on_resume();
+    // Start the audio decoder
+    BROOKESIA_CHECK_FALSE_RETURN(
+        start_audio_decoder(), false, "Failed to start audio decoder"
+    );
+    lib_utils::FunctionGuard stop_decoder_guard([this]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        stop_audio_decoder();
+    });
 
-    if (callbacks_.suspend_status_changed_callback) {
-        callbacks_.suspend_status_changed_callback(false);
-    }
+    // Start the encoder
+    BROOKESIA_CHECK_FALSE_RETURN(
+        start_audio_encoder(), false, "Failed to start encoder"
+    );
+    lib_utils::FunctionGuard stop_encoder_guard([this]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        stop_audio_encoder();
+    });
+
+    BROOKESIA_CHECK_FALSE_RETURN(on_resume(), false, "Failed to resume");
 
     is_suspended_ = false;
+
+    stop_decoder_guard.release();
+    stop_encoder_guard.release();
+
+    if (!Manager::get_instance().publish_event(
+    BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::SuspendStatusChanged), service::EventItemMap{
+    {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventSuspendStatusChangedParam::IsSuspended), false}
+    }
+            )) {
+        BROOKESIA_LOGE("Failed to publish suspend status changed event");
+    }
+
+    return true;
 }
 
 bool Base::do_interrupt_speaking()
@@ -463,8 +572,15 @@ bool Base::do_interrupt_speaking()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_CHECK_FALSE_RETURN(
-        get_attributes().support_interrupt_speaking, false, "Agent does not support interrupt speaking"
+        get_attributes().is_general_functions_supported(ManagerHelper::AgentGeneralFunction::InterruptSpeaking), false,
+        "Agent does not support general function '%1%'",
+        BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::AgentGeneralFunction::InterruptSpeaking)
     );
+
+    if (!is_speaking()) {
+        BROOKESIA_LOGD("Not speaking, skip");
+        return true;
+    }
 
     is_interrupted_speaking_ = true;
 
@@ -480,32 +596,76 @@ bool Base::do_interrupt_speaking()
     return true;
 }
 
+bool Base::do_manual_start_listening()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_CHECK_FALSE_RETURN(!is_suspended(), false, "Suspended, should resume first");
+
+    if (is_manual_listening()) {
+        BROOKESIA_LOGD("Already listening, skip");
+        return true;
+    }
+
+    if (!is_general_event_ready(GeneralEvent::Started) || is_general_action_running(GeneralAction::Stop)) {
+        BROOKESIA_LOGE("Not started or stop action is running, failed");
+        return false;
+    }
+
+    if (get_attributes().is_general_functions_supported(ManagerHelper::AgentGeneralFunction::InterruptSpeaking)) {
+        if (!do_interrupt_speaking()) {
+            BROOKESIA_LOGW("Failed to interrupt speaking");
+        }
+    }
+
+    BROOKESIA_CHECK_FALSE_RETURN(on_manual_start_listening(), false, "Failed to manually start listening");
+
+    is_manual_listening_ = true;
+
+    // Must be called after `is_manual_listening_` is changed
+    if (!set_listening(true)) {
+        BROOKESIA_LOGW("Failed to set listening to true");
+    }
+
+    return true;
+}
+
+bool Base::do_manual_stop_listening()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!is_manual_listening()) {
+        BROOKESIA_LOGD("Not listening, skip");
+        return true;
+    }
+
+    BROOKESIA_CHECK_FALSE_RETURN(on_manual_stop_listening(), false, "Failed to manually stop listening");
+
+    is_manual_listening_ = false;
+
+    // Must be called after `is_manual_listening_` is changed
+    if (!set_listening(false)) {
+        BROOKESIA_LOGW("Failed to set listening to false");
+    }
+
+    return true;
+}
+
 bool Base::start_audio_decoder()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto &decoder_config = get_audio_config().decoder;
-    if constexpr (AUDIO_CALL_START_DECORDER_TIMEOUT_MS > 0) {
-        auto result = AudioHelper::call_function_sync<void>(AudioHelper::FunctionId::StartDecoder,
-        service::FunctionParameterMap{
-            {
-                BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionStartDecoderParam::Config),
-                BROOKESIA_DESCRIBE_TO_JSON(decoder_config).as_object()
-            }
-        }, AUDIO_CALL_START_DECORDER_TIMEOUT_MS);
-        if (!result) {
-            BROOKESIA_LOGE("Failed to start audio decoder: %1%", result.error());
-            return false;
-        }
-    } else {
-        AudioHelper::call_function_async(AudioHelper::FunctionId::StartDecoder,
-        service::FunctionParameterMap{
-            {
-                BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionStartDecoderParam::Config),
-                BROOKESIA_DESCRIBE_TO_JSON(decoder_config).as_object()
-            }
-        });
+    if (is_decoder_started()) {
+        BROOKESIA_LOGD("Already started, skip");
+        return true;
     }
+
+    auto &decoder_config = get_audio_config().decoder;
+    AudioHelper::call_function_async(
+        AudioHelper::FunctionId::StartDecoder, BROOKESIA_DESCRIBE_TO_JSON(decoder_config).as_object()
+    );
+
+    is_decoder_started_ = true;
 
     return true;
 }
@@ -514,141 +674,114 @@ void Base::stop_audio_decoder()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if constexpr (AUDIO_CALL_STOP_DECORDER_TIMEOUT_MS > 0) {
-        auto result = AudioHelper::call_function_sync<void>(
-                          AudioHelper::FunctionId::StopDecoder, {}, AUDIO_CALL_STOP_DECORDER_TIMEOUT_MS
-                      );
-        if (!result) {
-            BROOKESIA_LOGE("Failed to stop audio decoder: %1%", result.error());
-        }
-    } else {
-        AudioHelper::call_function_async(AudioHelper::FunctionId::StopDecoder, {});
+    if (!is_decoder_started()) {
+        BROOKESIA_LOGD("Not started, skip");
+        return;
     }
+
+    AudioHelper::call_function_async(AudioHelper::FunctionId::StopDecoder);
+    is_decoder_started_ = false;
 }
 
 bool Base::start_audio_encoder()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto &audio_config = get_audio_config();
-
-    // Get the agent audio data size
-    size_t audio_data_size = audio_config.encoder_feed_data_size;
-    if (audio_config.encoder.type == AudioHelper::CodecFormat::PCM) {
-        auto &general = audio_config.encoder.general;
-        audio_data_size = general.frame_duration * general.sample_rate * general.channels *
-                          general.sample_bits / 8 / 1000 + AUDIO_ENCODER_FEED_DATA_SIZE_MORE;
-        audio_data_size = audio_data_size > 0 ? audio_data_size : audio_config.encoder_feed_data_size;
-    }
-    if constexpr (AUDIO_CALL_SET_ENCODER_READ_DATA_SIZE_TIMEOUT_MS > 0) {
-        auto result = AudioHelper::call_function_sync<void>(AudioHelper::FunctionId::SetEncoderReadDataSize,
-        service::FunctionParameterMap{
-            {
-                BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionSetEncoderReadDataSizeParam::Size),
-                static_cast<double>(audio_data_size)
-            }
-        }, AUDIO_CALL_SET_ENCODER_READ_DATA_SIZE_TIMEOUT_MS);
-        if (!result) {
-            BROOKESIA_LOGE("Failed to set encoder read data size: %1%", result.error());
-            return false;
-        }
-    } else {
-        AudioHelper::call_function_async(AudioHelper::FunctionId::SetEncoderReadDataSize,
-        service::FunctionParameterMap{
-            {
-                BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionSetEncoderReadDataSizeParam::Size),
-                static_cast<double>(audio_data_size)
-            }
-        });
+    if (is_encoder_started()) {
+        BROOKESIA_LOGD("Already started, skip");
+        return true;
     }
 
     // Subscribe to the recorder data ready event
-    auto encoder_data_ready_slot = [this](const std::string & event_name, const service::EventItemMap & event_items) {
+    auto encoder_data_ready_slot = [this](const std::string & event_name, const service::RawBuffer & item) {
         // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-        // BROOKESIA_LOGD("Params: event_name(%1%), event_items(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(event_items));
+        // BROOKESIA_LOGD("Params: event_name(%1%), item(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(item));
 
         // Skip if the agent is speaking disabled
         if (is_listening_disabled()) {
             return;
         }
 
-        auto item = std::get<service::RawBuffer>(
-                        event_items.at(BROOKESIA_DESCRIBE_TO_STR(AudioHelper::EventEncoderDataReadyParam::Data))
-                    );
         BROOKESIA_CHECK_FALSE_EXIT(
-            on_encoder_data_ready(item.data_ptr, item.data_size), "Failed to handle recorder data ready"
+            on_encoder_data_ready(item.to_const_ptr<uint8_t>(), item.data_size), "Failed to handle encoder data ready"
         );
     };
     encoder_data_ready_connection_ = AudioHelper::subscribe_event(
                                          AudioHelper::EventId::EncoderDataReady, encoder_data_ready_slot
                                      );
     BROOKESIA_CHECK_FALSE_RETURN(
-        encoder_data_ready_connection_.connected(), false, "Failed to subscribe to recorder data ready event"
+        encoder_data_ready_connection_.connected(), false, "Failed to subscribe to encoder data ready event"
     );
 
-    // Subscribe to the encoder event
-    auto encoder_event_happened_slot = [this](const std::string & event_name, const service::EventItemMap & event_items) {
-        // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+#if BROOKESIA_AGENT_MANAGER_ENABLE_AFE_EVENT_PROCESSING
+    // Subscribe to the afe event
+    auto afe_event_happened_slot = [this](const std::string & event_name, const std::string & event) {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-        // BROOKESIA_LOGD("Params: event_name(%1%), event_items(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(event_items));
+        BROOKESIA_LOGD("Params: event_name(%1%), event(%2%)", event_name, event);
 
-        auto item = std::get<service::RawBuffer>(
-                        event_items.at(BROOKESIA_DESCRIBE_TO_STR(AudioHelper::EventEncoderEventHappenedParam::Event))
-                    );
-        auto afe_evt = item.to_const_ptr<esp_gmf_afe_evt_t>();
-        BROOKESIA_CHECK_NULL_EXIT(afe_evt, "AFE event is null");
+        AudioHelper::AFE_Event afe_event;
+        BROOKESIA_CHECK_FALSE_EXIT(
+            BROOKESIA_DESCRIBE_STR_TO_ENUM(event, afe_event), "Failed to convert afe event: %1%", event
+        );
 
-        switch (afe_evt->type) {
-        case ESP_GMF_AFE_EVT_WAKEUP_START: {
-            BROOKESIA_LOGI("wakeup start");
+        switch (afe_event) {
+        case AudioHelper::AFE_Event::WakeStart:
+            if (is_suspended()) {
+                BROOKESIA_LOGD("Suspended, skip");
+                return;
+            }
+            if (is_listening()) {
+                BROOKESIA_LOGD("Already listening, skip");
+                return;
+            }
+            if (is_speaking() &&
+                    get_attributes().is_general_functions_supported(ManagerHelper::AgentGeneralFunction::InterruptSpeaking)) {
+                do_interrupt_speaking();
+            }
+            if (is_general_event_ready(GeneralEvent::Slept) || is_general_action_running(GeneralAction::Sleep)) {
+                if (callbacks_.afe_event_happened) {
+                    callbacks_.afe_event_happened(AudioHelper::AFE_Event::WakeStart);
+                }
+            }
             break;
-        }
-        case ESP_GMF_AFE_EVT_WAKEUP_END:
-            BROOKESIA_LOGI("wakeup end");
+        case AudioHelper::AFE_Event::WakeEnd:
+            if (is_suspended()) {
+                BROOKESIA_LOGD("Suspended, skip");
+                return;
+            }
+            if (!is_general_event_ready(GeneralEvent::Awake) && !is_general_action_running(GeneralAction::WakeUp)) {
+                BROOKESIA_LOGD("Not awake or wake up action is running, skip");
+                return;
+            }
+            if (callbacks_.afe_event_happened) {
+                callbacks_.afe_event_happened(AudioHelper::AFE_Event::WakeEnd);
+            }
             break;
-        case ESP_GMF_AFE_EVT_VAD_START:
-            BROOKESIA_LOGI("vad start");
+        case AudioHelper::AFE_Event::VAD_Start:
             break;
-        case ESP_GMF_AFE_EVT_VAD_END:
-            BROOKESIA_LOGI("vad end");
-            break;
-        case ESP_GMF_AFE_EVT_VCMD_DECT_TIMEOUT:
-            BROOKESIA_LOGI("vcmd detect timeout");
+        case AudioHelper::AFE_Event::VAD_End:
             break;
         default:
             break;
         }
     };
-    encoder_event_happened_connection_ = AudioHelper::subscribe_event(
-            AudioHelper::EventId::EncoderEventHappened, encoder_event_happened_slot
-                                         );
+    afe_event_happened_connection_ = AudioHelper::subscribe_event(
+                                         AudioHelper::EventId::AFE_EventHappened, afe_event_happened_slot
+                                     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        encoder_event_happened_connection_.connected(), false, "Failed to subscribe to encoder event"
+        afe_event_happened_connection_.connected(), false, "Failed to subscribe to afe event"
     );
+#endif
 
     // Start the encoder
-    if constexpr (AUDIO_CALL_START_ENCORDER_TIMEOUT_MS > 0) {
-        auto result = AudioHelper::call_function_sync<void>(AudioHelper::FunctionId::StartEncoder,
-        service::FunctionParameterMap{
-            {
-                BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionStartEncoderParam::Config),
-                BROOKESIA_DESCRIBE_TO_JSON(audio_config.encoder).as_object()
-            }
-        }, AUDIO_CALL_START_ENCORDER_TIMEOUT_MS);
-        if (!result) {
-            BROOKESIA_LOGE("Failed to start audio encoder: %1%", result.error());
-            return false;
-        }
-    } else {
-        AudioHelper::call_function_async(AudioHelper::FunctionId::StartEncoder,
-        service::FunctionParameterMap{
-            {
-                BROOKESIA_DESCRIBE_TO_STR(AudioHelper::FunctionStartEncoderParam::Config),
-                BROOKESIA_DESCRIBE_TO_JSON(audio_config.encoder).as_object()
-            }
-        });
-    }
+    auto &encoder_config = get_audio_config().encoder;
+    AudioHelper::call_function_async(
+        AudioHelper::FunctionId::StartEncoder, BROOKESIA_DESCRIBE_TO_JSON(encoder_config).as_object()
+    );
+
+    is_encoder_started_ = true;
 
     return true;
 }
@@ -657,19 +790,16 @@ void Base::stop_audio_encoder()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    encoder_event_happened_connection_.disconnect();
-    encoder_data_ready_connection_.disconnect();
-
-    if constexpr (AUDIO_CALL_STOP_ENCORDER_TIMEOUT_MS > 0) {
-        auto result = AudioHelper::call_function_sync<void>(
-                          AudioHelper::FunctionId::StopEncoder, {}, AUDIO_CALL_STOP_ENCORDER_TIMEOUT_MS
-                      );
-        if (!result) {
-            BROOKESIA_LOGE("Failed to stop audio encoder: %1%", result.error());
-        }
-    } else {
-        AudioHelper::call_function_async(AudioHelper::FunctionId::StopEncoder, {});
+    if (!is_encoder_started()) {
+        BROOKESIA_LOGD("Not started, skip");
+        return;
     }
+
+    afe_event_happened_connection_.disconnect();
+    encoder_data_ready_connection_.disconnect();
+    AudioHelper::call_function_async(AudioHelper::FunctionId::StopEncoder);
+
+    is_encoder_started_ = false;
 }
 
 bool Base::is_general_action_running(GeneralAction action)
@@ -692,7 +822,7 @@ bool Base::is_general_event_ready(GeneralEvent event)
         flag_bit != GeneralStateFlagBit::Max, false, "Invalid event: %1%", BROOKESIA_DESCRIBE_TO_STR(event)
     );
 
-    if ((event == GeneralEvent::Stopped) && is_general_action_running(GeneralAction::Start)) {
+    if ((event == GeneralEvent::Stopped) && is_general_action_running(GeneralAction::Activate)) {
         // BROOKESIA_LOGD("Allow for failed action");
         return false;
     }
@@ -702,9 +832,13 @@ bool Base::is_general_event_ready(GeneralEvent event)
 
 bool Base::is_general_event_unexpected(GeneralEvent event)
 {
+    if (get_running_general_action() == get_general_action_from_target_event(event)) {
+        return false;
+    }
+
     switch (event) {
     case GeneralEvent::Stopped:
-        return is_general_action_running(GeneralAction::Start) || is_general_event_ready(GeneralEvent::Started);
+        return is_general_action_running(GeneralAction::Activate) || is_general_event_ready(GeneralEvent::Activated);
     case GeneralEvent::Slept:
         return is_general_action_running(GeneralAction::WakeUp) || is_general_event_ready(GeneralEvent::Awake);
     default:
@@ -714,7 +848,7 @@ bool Base::is_general_event_unexpected(GeneralEvent event)
 
 GeneralAction Base::get_running_general_action()
 {
-    for (auto action = GeneralAction::Start; action < GeneralAction::Max;
+    for (auto action = static_cast<GeneralAction>(0); action < GeneralAction::Max;
             action = static_cast<GeneralAction>(static_cast<int>(action) + 1)) {
         auto flag_bit = get_general_action_state_flag_bit(action);
         // Only handle transient state flag bits
@@ -729,21 +863,107 @@ GeneralAction Base::get_running_general_action()
     return GeneralAction::Max;
 }
 
-GeneralEvent Base::get_general_action_failed_event(GeneralAction action)
+void Base::update_general_action_state_bit(GeneralAction action, bool enable)
 {
-    switch (action) {
-    case GeneralAction::Start:
-        return GeneralEvent::Stopped;
-    case GeneralAction::Sleep:
-        return GeneralEvent::Awake;
-    default:
-        return GeneralEvent::Max;
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD(
+        "Params: action(%1%), enable(%2%)", BROOKESIA_DESCRIBE_TO_STR(action), BROOKESIA_DESCRIBE_TO_STR(enable)
+    );
+
+    if (action == GeneralAction::Max) {
+        BROOKESIA_LOGD("Invalid action, skip");
+        return;
     }
+
+    auto flag_bit = get_general_action_state_flag_bit(action);
+    if (flag_bit == GeneralStateFlagBit::Max) {
+        BROOKESIA_LOGD("Invalid action, skip");
+        return;
+    }
+
+    BROOKESIA_LOGD(
+        "Target bit(%1%), original state flags(%2%)", BROOKESIA_DESCRIBE_TO_STR(flag_bit),
+        BROOKESIA_DESCRIBE_TO_STR(state_flags_)
+    );
+
+    state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(flag_bit), enable);
+
+    BROOKESIA_LOGD(
+        "New state flags(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_)
+    );
+}
+
+void Base::update_general_event_state_bit(GeneralEvent event, bool enable)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD(
+        "Params: event(%1%), enable(%2%)", BROOKESIA_DESCRIBE_TO_STR(event), BROOKESIA_DESCRIBE_TO_STR(enable)
+    );
+
+    if (event == GeneralEvent::Max) {
+        BROOKESIA_LOGD("Invalid event, skip");
+        return;
+    }
+
+    auto [flag_bit, bit_value] = get_general_event_state_flag_bit(event);
+    if (flag_bit == GeneralStateFlagBit::Max) {
+        BROOKESIA_LOGD("Invalid event, skip");
+        return;
+    }
+
+    BROOKESIA_LOGD(
+        "Target bit(%1%), original state flags(%2%)", BROOKESIA_DESCRIBE_TO_STR(flag_bit),
+        BROOKESIA_DESCRIBE_TO_STR(state_flags_)
+    );
+
+    state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(flag_bit), enable ? bit_value : !bit_value);
+
+    BROOKESIA_LOGD(
+        "New state flags(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_)
+    );
+}
+
+void Base::reset_general_state_flag_bits()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Original state flags(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_));
+
+    state_flags_.reset();
+    state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Ready), true);
+
+    BROOKESIA_LOGD("New state flags(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_));
+}
+
+void Base::clear_general_state_flag_bits()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Original state flags(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_));
+
+    state_flags_.reset();
+
+    BROOKESIA_LOGD("New state flags(%1%)", BROOKESIA_DESCRIBE_TO_STR(state_flags_));
+}
+
+void Base::update_general_state_error(bool enable)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: enable(%1%)", BROOKESIA_DESCRIBE_TO_STR(enable));
+
+    state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Error), enable);
 }
 
 GeneralEvent Base::get_general_action_target_event(GeneralAction action)
 {
     switch (action) {
+    case GeneralAction::TimeSync:
+        return GeneralEvent::TimeSynced;
+    case GeneralAction::Activate:
+        return GeneralEvent::Activated;
     case GeneralAction::Start:
         return GeneralEvent::Started;
     case GeneralAction::Stop:
@@ -760,6 +980,10 @@ GeneralEvent Base::get_general_action_target_event(GeneralAction action)
 GeneralAction Base::get_general_action_from_target_event(GeneralEvent event)
 {
     switch (event) {
+    case GeneralEvent::TimeSynced:
+        return GeneralAction::TimeSync;
+    case GeneralEvent::Activated:
+        return GeneralAction::Activate;
     case GeneralEvent::Started:
         return GeneralAction::Start;
     case GeneralEvent::Stopped:
@@ -776,6 +1000,10 @@ GeneralAction Base::get_general_action_from_target_event(GeneralEvent event)
 GeneralStateFlagBit Base::get_general_action_state_flag_bit(GeneralAction action)
 {
     switch (action) {
+    case GeneralAction::TimeSync:
+        return GeneralStateFlagBit::TimeSyncing;
+    case GeneralAction::Activate:
+        return GeneralStateFlagBit::Activating;
     case GeneralAction::Start:
         return GeneralStateFlagBit::Starting;
     case GeneralAction::Stop:
@@ -794,11 +1022,17 @@ std::pair<GeneralStateFlagBit, bool> Base::get_general_event_state_flag_bit(Gene
     bool bit_value = true;
     GeneralStateFlagBit flag_bit = GeneralStateFlagBit::Max;
     switch (event) {
+    case GeneralEvent::TimeSynced:
+        flag_bit = GeneralStateFlagBit::TimeSyncing;
+        break;
+    case GeneralEvent::Activated:
+        flag_bit = GeneralStateFlagBit::Activated;
+        break;
     case GeneralEvent::Started:
         flag_bit = GeneralStateFlagBit::Started;
         break;
     case GeneralEvent::Stopped:
-        flag_bit = GeneralStateFlagBit::Started;
+        flag_bit = GeneralStateFlagBit::Activated;
         bit_value = false;
         break;
     case GeneralEvent::Slept:

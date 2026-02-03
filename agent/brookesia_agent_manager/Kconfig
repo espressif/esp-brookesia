@@ -1,4 +1,10 @@
 menu "ESP-Brookesia: Agent Manager Configurations"
+    config BROOKESIA_AGENT_MANAGER_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the manager as a plugin on startup.
+
     menuconfig BROOKESIA_AGENT_MANAGER_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
@@ -17,6 +23,15 @@ menu "ESP-Brookesia: Agent Manager Configurations"
             default y
     endif
 
+    config BROOKESIA_AGENT_MANAGER_ENABLE_AFE_EVENT_PROCESSING
+        bool "Enable AFE event processing"
+        default y
+        help
+            Enable AFE event processing.
+            If enabled, the following AFE events will be processed by the agent manager:
+            - WakeStart: Trigger the wake up action.
+            - WakeEnd: Trigger the sleep action.
+
     menuconfig BROOKESIA_AGENT_MANAGER_ENABLE_WORKER
         bool "Enable worker"
         default n
@@ -24,7 +39,7 @@ menu "ESP-Brookesia: Agent Manager Configurations"
     if BROOKESIA_AGENT_MANAGER_ENABLE_WORKER
         config BROOKESIA_AGENT_MANAGER_WORKER_NAME
             string "Name"
-            default "SrvAmWorker"
+            default "AgentMgrWorker"
             help
                 The name of the worker thread.
 
@@ -55,7 +70,7 @@ menu "ESP-Brookesia: Agent Manager Configurations"
 
         config BROOKESIA_AGENT_MANAGER_WORKER_POLL_INTERVAL_MS
             int "Poll interval (ms)"
-            default 5
+            default 10
             range 1 10
             help
                 The interval of the worker poll.

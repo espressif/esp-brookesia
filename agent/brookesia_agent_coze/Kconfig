@@ -1,4 +1,15 @@
 menu "ESP-Brookesia: Agent Coze Configurations"
+    config BROOKESIA_AGENT_COZE_ENABLE_CONFIGS
+        bool
+        select ESP_WS_CLIENT_SEPARATE_TX_LOCK
+        default y
+
+    config BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the agent as a plugin on startup.
+
     config BROOKESIA_AGENT_COZE_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
