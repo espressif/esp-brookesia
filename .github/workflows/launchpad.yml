@@ -15,7 +15,7 @@
 # This workflow build examples, store the artifacts and deploy them to github pages.
 # Generates the launchpad configuration file that can be used with the url.
 
-name: "Build products and deploy launchpad"
+name: "Build binaries and deploy to GitHub Pages"
 
 on:
   workflow_dispatch:
@@ -35,24 +35,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # delete-old-artifacts:
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Delete old artifacts
-  #       uses: geekyeggo/delete-artifact@v2
-  #       with:
-  #         name: build-images-* # Delete all artifacts with name starting with build-images-
-
-  job1:
+  build-speaker:
     name: "Build Speaker"
-    # needs: [delete-old-artifacts]
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
-      - run: mkdir -p images
+      - run: mkdir -p images/speaker
       - name: Get product version
         shell: bash
         run: |
@@ -73,7 +64,7 @@ jobs:
           for board in $BOARDS_NAME; do
             idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.ci.board.${board}" set-target esp32s3 && idf.py build
             pushd build
-            esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/speaker_${PRODUCT_VERSION}_${board}.bin" @flash_args
+            esptool.py --chip esp32s3 merge_bin -o "$GITHUB_WORKSPACE/images/speaker/speaker_${PRODUCT_VERSION}_${board}.bin" @flash_args
             popd
             rm -rf sdkconfig build managed_components dependencies.lock
           done
@@ -82,11 +73,52 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-images-speaker
-          path: images/
+          path: images/speaker/
+          overwrite: true
+
+  build-service-console:
+    name: "Build Service Console"
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.5
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - echoear_core_board_v1_0
+          - echoear_core_board_v1_2
+          - esp_box_3
+          - esp32_p4_function_ev
+          - esp32_s3_korvo2_v3
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      - run: mkdir -p images/service_console
+      - name: Get board chip type
+        shell: bash
+        run: |
+          CHIP=$(grep "^chip:" examples/service_console/boards/${{ matrix.board }}/board_info.yaml | awk '{print $2}')
+          echo "CHIP=$CHIP" >> $GITHUB_ENV
+          echo "Board chip: $CHIP"
+      - name: Build service_console for ${{ matrix.board }}
+        shell: bash
+        run: |
+          . ${IDF_PATH}/export.sh
+          $GITHUB_WORKSPACE/.github/tools/build_with_board_manager.sh \
+            -p examples/service_console \
+            -b ${{ matrix.board }} \
+            -c $CHIP \
+            -o $GITHUB_WORKSPACE/images/service_console \
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-images-service-console-${{ matrix.board }}
+          path: images/service_console/
           overwrite: true
 
   deploy:
-    needs: [job1]
+    needs: [build-speaker, build-service-console]
 
     environment:
       name: github-pages
@@ -98,18 +130,39 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Download builds
+      - name: Create directory structure
+        run: |
+          mkdir -p images/speaker
+          mkdir -p images/service_console
+
+      - name: Download speaker builds
         uses: actions/download-artifact@v4
         with:
-          pattern: build-images-*
-          path: images/
+          name: build-images-speaker
+          path: images/speaker/
+
+      - name: Download service_console builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-images-service-console-*
+          path: images/service_console/
           merge-multiple: true
 
-      - name: generate launchpad config
+      - name: Generate launchpad configs
         run: |
-          cd images/
-          ls *
-          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY
+          # Generate speaker launchpad
+          cd $GITHUB_WORKSPACE/images/speaker/
+          ls -la
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY speaker
+
+          # Generate service_console launchpad
+          cd $GITHUB_WORKSPACE/images/service_console/
+          ls -la
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY service_console
+
+      - name: Generate index page
+        run: |
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_index.sh $GITHUB_REPOSITORY $GITHUB_WORKSPACE/images
 
       - name: Setup Pages
         uses: actions/configure-pages@v2

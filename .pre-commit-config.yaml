@@ -6,11 +6,12 @@ exclude: |
     .*/assets/.*
     | .*/brookesia_apps_squareline/ui/.*
     | .*/brookesia_apps_ai_profile/ui/.*
-    | .*/boards/.*
     | .*src/fonts/.*/.*
     | .*py
     | .*espressif__
     | .*private_key.pem
+    | .*/boards/(?!.*sdkconfig\.defaults\.board$).*
+    | agent/brookesia_agent_coze/esp_coze/.*
     | apps/brookesia_app_ai_profile/ui/.*
     | apps/brookesia_app_squareline/ui/.*
     | apps/brookesia_app_timer/ui/.*
@@ -91,11 +92,10 @@ repos:
         pass_filenames: false
         always_run: true
       - id: check-forbidden-strings
-        name: Check for forbidden strings in files
-        entry: ./.gitlab/tools/check_forbidden_strings.py ./.gitlab/tools/forbiden_folders.txt ./.gitlab/tools/forbidden_strings.txt "(^sdkconfig.*$)"
+        name: Check for forbidden strings in sdkconfig files
+        entry: ./.gitlab/tools/check_forbidden_strings.py -s ./.gitlab/tools/forbidden_strings.txt -f
         language: python
-        pass_filenames: false
-        always_run: true
+        files: '(^|/)sdkconfig[^/]*$'
   - repo: https://github.com/espressif/conventional-precommit-linter
     rev: v1.8.0
     hooks:
