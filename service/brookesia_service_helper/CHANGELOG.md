@@ -1,14 +1,29 @@
 # ChangeLog
 
+## v0.7.3 - 2026-02-02
+
+### Breaking Changes:
+
+- break(repo): move agent helpers (coze, manager, openai) to `brookesia_agent_helper` component
+
+### Enhancements:
+
+- feat(base): add `ConvertibleToFunctionValue` concept for type-safe parameter conversion
+- feat(base): add `Timeout` tag type for specifying timeout in function calls
+- feat(base): add type traits for event callback parameter detection
+- feat(audio): expand Audio helper with additional function and event schemas
+- feat(emote): update Expression Emote helper schemas
+- feat(repo): update `brookesia_service_manager` dependency to `0.7.*`
+
 ## v0.7.2 - 2026-01-14
 
-#### Enhancements:
+### Enhancements:
 
 - feat(repo): update function and event descriptions
 
 ## v0.7.1 - 2025-12-24
 
-#### Enhancements:
+### Enhancements:
 
 - feat(repo): add `Base` class
 - feat(wifi): add 'reset_data' function

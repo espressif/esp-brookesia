@@ -127,7 +127,7 @@ bool ServiceTest::trigger_event()
 
     // Publish event using automatic EventItemMap assembly
     BROOKESIA_CHECK_FALSE_RETURN(
-        publish_event("value_change", std::vector<FunctionValue>({event_value_})),
+        publish_event("value_change", std::vector<EventItem>({event_value_})),
         false, "Failed to publish event"
     );
 

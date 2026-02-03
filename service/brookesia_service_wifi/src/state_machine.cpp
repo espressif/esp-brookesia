@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -13,11 +13,8 @@
 
 namespace esp_brookesia::service::wifi {
 
-#if defined(CONFIG_ESP_HOSTED_ENABLED)
-constexpr uint32_t WAIT_STATE_MACHINE_FINISHED_TIMEOUT_MS = 5000;
-#else
-constexpr uint32_t WAIT_STATE_MACHINE_FINISHED_TIMEOUT_MS = 1000;
-#endif
+constexpr uint32_t WAIT_STATE_MACHINE_FINISHED_TIMEOUT_MS =
+    BROOKESIA_SERVICE_WIFI_STATE_MACHINE_WAIT_STATE_MACHINE_FINISHED_TIMEOUT_MS;
 
 class GeneralStateClass : public lib_utils::StateBase {
 public:

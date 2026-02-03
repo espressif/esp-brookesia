@@ -1,17 +1,31 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#if defined(ESP_PLATFORM)
-#   include "sdkconfig.h"
-#endif
+#include "sdkconfig.h"
 #include "brookesia/service_manager/macro_configs.h"
 
 /* Debug log */
-#define BROOKESIA_SERVICE_NVS_LOG_TAG "SrvNVS"
+#define BROOKESIA_SERVICE_NVS_LOG_TAG "SvcNVS"
+
+/* Auto register */
+#if !defined(BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER)
+#   if defined(CONFIG_BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER)
+#       define BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
+#   else
+#       define BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER  (0)
+#   endif
+#endif
+
+/* Plugin symbol */
+#if BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
+#   if !defined(BROOKESIA_SERVICE_NVS_PLUGIN_SYMBOL)
+#       define BROOKESIA_SERVICE_NVS_PLUGIN_SYMBOL  service_nvs_symbol
+#   endif
+#endif
 
 #if !defined(BROOKESIA_SERVICE_NVS_ENABLE_DEBUG_LOG)
 #   if defined(CONFIG_BROOKESIA_SERVICE_NVS_ENABLE_DEBUG_LOG)
@@ -29,7 +43,7 @@
 #      if defined(CONFIG_BROOKESIA_SERVICE_NVS_WORKER_NAME)
 #          define BROOKESIA_SERVICE_NVS_WORKER_NAME  CONFIG_BROOKESIA_SERVICE_NVS_WORKER_NAME
 #      else
-#          define BROOKESIA_SERVICE_NVS_WORKER_NAME  "SrvNvsWorker"
+#          define BROOKESIA_SERVICE_NVS_WORKER_NAME  "SvcNvsWorker"
 #      endif
 #   endif
 #   if !defined(BROOKESIA_SERVICE_NVS_WORKER_CORE_ID)

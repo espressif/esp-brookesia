@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -301,6 +301,18 @@ public:
         boost::lock_guard lock(service_mutex_);
         auto it = services_.find(name);
         return (it != services_.end()) ? it->second.service : nullptr;
+    }
+
+    /**
+     * @brief Get the task scheduler
+     *
+     * @note  Exposes the task scheduler for external code that needs to execute tasks in the service's context.
+     *
+     * @return std::shared_ptr<lib_utils::TaskScheduler> Shared pointer to the task scheduler
+     */
+    std::shared_ptr<lib_utils::TaskScheduler> get_task_scheduler() const
+    {
+        return task_scheduler_;
     }
 
     /**

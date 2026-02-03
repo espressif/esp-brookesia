@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.3 - 2026-02-02
+
+### Enhancements:
+
+- feat(Kconfig): add `BROOKESIA_SERVICE_WIFI_ENABLE_AUTO_REGISTER` option for automatic plugin registration
+- feat(Kconfig): add HAL event timeout configurations (started, stopped, connected, disconnected)
+- feat(Kconfig): add state machine finished timeout configuration
+- feat(Kconfig): rename default worker name from `SrvWifiWorker` to `SvcWifiWorker`
+- feat(repo): update `brookesia_service_helper` dependency to `0.7.*`
+
 ## v0.7.2 - 2026-01-14
 
 ### Enhancements:

@@ -1,5 +1,14 @@
 # ChangeLog
 
+## v0.7.2 - 2026-02-02
+
+### Enhancements:
+
+- feat(Kconfig): add `BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER` option for automatic plugin registration
+- feat(Kconfig): rename default worker name from `SrvNVSWorker` to `SvcNVSWorker`
+- feat(Kconfig): change default worker poll interval from 5ms to 10ms
+- feat(repo): update `brookesia_service_helper` dependency to `0.7.*`
+
 ## v0.7.1 - 2025-12-10
 
 ## Enhancements

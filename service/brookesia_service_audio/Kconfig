@@ -1,4 +1,10 @@
 menu "ESP-Brookesia: Service Audio Configurations"
+    config BROOKESIA_SERVICE_AUDIO_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
     menuconfig BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
@@ -10,7 +16,7 @@ menu "ESP-Brookesia: Service Audio Configurations"
     if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
         config BROOKESIA_SERVICE_AUDIO_WORKER_NAME
             string "Name"
-            default "SrvAudioWorker"
+            default "SvcAudioWorker"
             help
                 The name of the worker thread.
 
@@ -41,7 +47,7 @@ menu "ESP-Brookesia: Service Audio Configurations"
 
         config BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS
             int "Poll interval (ms)"
-            default 5
+            default 10
             range 1 10
             help
                 The interval of the worker poll.

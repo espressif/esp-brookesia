@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,9 +7,10 @@
 
 #include <string>
 #include <map>
+#include <queue>
+#include <mutex>
 #include "boost/format.hpp"
 #include "boost/thread/thread.hpp"
-#include "audio_processor.h"
 #include "brookesia/service_helper/audio.hpp"
 #include "brookesia/service_manager/service/base.hpp"
 #include "brookesia/service_manager/macro_configs.h"
@@ -17,11 +18,22 @@
 
 namespace esp_brookesia::service {
 
+using AudioPeripheralConfig = helper::Audio::PeripheralConfig;
+using AudioPlaybackConfig = helper::Audio::PlaybackConfig;
+using AudioMixerGainConfig = helper::Audio::MixerGainConfig;
 using AudioCodecFormat = helper::Audio::CodecFormat;
-using AudioEncoderConfig = helper::Audio::EncoderConfig;
-using AudioDecoderConfig = helper::Audio::DecoderConfig;
+using AudioCodecGeneralConfig = helper::Audio::CodecGeneralConfig;
+using AudioEncoderStaticConfig = helper::Audio::EncoderStaticConfig;
+using AudioEncoderExtraConfigOpus = helper::Audio::EncoderExtraConfigOpus;
+using AudioEncoderDynamicConfig = helper::Audio::EncoderDynamicConfig;
+using AudioDecoderStaticConfig = helper::Audio::DecoderStaticConfig;
+using AudioDecoderDynamicConfig = helper::Audio::DecoderDynamicConfig;
+using AudioAFE_VAD_Config = helper::Audio::AFE_VAD_Config;
+using AudioAFE_WakeNetConfig = helper::Audio::AFE_WakeNetConfig;
+using AudioAFE_Config = helper::Audio::AFE_Config;
 using AudioPlayControlAction = helper::Audio::PlayControlAction;
 using AudioPlayState = helper::Audio::PlayState;
+using AudioPlayUrlConfig = helper::Audio::PlayUrlConfig;
 
 class Audio : public ServiceBase {
 public:
@@ -29,24 +41,6 @@ public:
         PlayerVolume,
         Max,
     };
-
-    struct PeripheralConfig {
-        audio_manager_config_t manager_config;
-        int player_volume_default;
-        int player_volume_min;
-        int player_volume_max;
-        float recorder_gain;
-        std::map<uint8_t, float> recorder_channel_gains;
-    };
-
-    using PlayerConfig = audio_playback_config_t;
-    using RecorderConfig = audio_recorder_config_t;
-    using FeederConfig = audio_feeder_config_t;
-
-    bool configure_peripheral(const PeripheralConfig &config);
-    bool configure_player(const PlayerConfig &config);
-    bool configure_recorder(const RecorderConfig &config);
-    bool configure_feeder(const FeederConfig &config);
 
     static Audio &get_instance()
     {
@@ -83,13 +77,20 @@ private:
     bool on_start() override;
     void on_stop() override;
 
-    std::expected<void, std::string> function_play_url(const std::string &url);
+    std::expected<void, std::string> function_set_peripheral(const boost::json::object &config);
+    std::expected<void, std::string> function_set_playback_config(const boost::json::object &config);
+    std::expected<void, std::string> function_set_encoder_static_config(const boost::json::object &config);
+    std::expected<void, std::string> function_set_decoder_static_config(const boost::json::object &config);
+    std::expected<void, std::string> function_set_afe_config(const boost::json::object &config);
+    std::expected<void, std::string> function_play_url(const std::string &url, const boost::json::object &config);
+    std::expected<void, std::string> function_play_urls(
+        const boost::json::array &urls, const boost::json::object &config
+    );
     std::expected<void, std::string> function_play_control(const std::string &action);
     std::expected<void, std::string> function_set_volume(double volume);
     std::expected<double, std::string> function_get_volume();
     std::expected<void, std::string> function_start_encoder(const boost::json::object &config);
     std::expected<void, std::string> function_stop_encoder();
-    std::expected<void, std::string> function_set_encoder_read_data_size(double size);
     std::expected<void, std::string> function_start_decoder(const boost::json::object &config);
     std::expected<void, std::string> function_stop_decoder();
     std::expected<void, std::string> function_feed_decoder_data(const RawBuffer &data);
@@ -109,8 +110,32 @@ private:
     {
         return {
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
-                Helper, Helper::FunctionId::PlayUrl, std::string,
-                function_play_url(PARAM)
+                Helper, Helper::FunctionId::SetPeripheralConfig, boost::json::object,
+                function_set_peripheral(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetPlaybackConfig, boost::json::object,
+                function_set_playback_config(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetEncoderStaticConfig, boost::json::object,
+                function_set_encoder_static_config(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetDecoderStaticConfig, boost::json::object,
+                function_set_decoder_static_config(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetAFE_Config, boost::json::object,
+                function_set_afe_config(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
+                Helper, Helper::FunctionId::PlayUrl, std::string, boost::json::object,
+                function_play_url(PARAM1, PARAM2)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
+                Helper, Helper::FunctionId::PlayUrls, boost::json::array, boost::json::object,
+                function_play_urls(PARAM1, PARAM2)
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::PlayControl, std::string,
@@ -133,10 +158,6 @@ private:
                 function_stop_encoder()
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
-                Helper, Helper::FunctionId::SetEncoderReadDataSize, double,
-                function_set_encoder_read_data_size(PARAM)
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::StartDecoder, boost::json::object,
                 function_start_decoder(PARAM)
             ),
@@ -147,7 +168,11 @@ private:
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::FeedDecoderData, RawBuffer,
                 function_feed_decoder_data(PARAM)
-            )
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetAFE_Config, boost::json::object,
+                function_set_afe_config(PARAM)
+            ),
         };
     }
 
@@ -173,58 +198,74 @@ private:
     void try_save_data(DataType type);
     void try_erase_data();
 
-    bool parse_encoder_config(const boost::json::object &json_data, av_processor_encoder_config_t &config);
-    bool parse_decoder_config(const boost::json::object &json_data, av_processor_decoder_config_t &config);
-
-    bool start_encoder(const av_processor_encoder_config_t &config);
+    bool start_encoder(const AudioEncoderDynamicConfig &config);
     void stop_encoder();
-    bool start_decoder(const av_processor_decoder_config_t &config);
+    bool is_encoder_started() const
+    {
+        return is_encoder_started_;
+    }
+    bool start_decoder(const AudioDecoderDynamicConfig &config);
     void stop_decoder();
-
-    void on_playback_event(audio_player_state_t state);
+    bool is_decoder_started() const
+    {
+        return is_decoder_started_;
+    }
     void on_recorder_event(void *event);
+    void on_recorder_input_data(const uint8_t *data, size_t size);
 
-    static void playback_event_callback(audio_player_state_t state, void *ctx);
-    static void recorder_event_callback(void *event, void *ctx);
+    void on_playback_event(uint8_t state);
+    void process_play_url_queue();
+    bool play_url_internal(const std::string &url, const AudioPlayUrlConfig &config);
+    void handle_loop_playback_complete();
+    void schedule_next_loop_iteration();
 
-    PeripheralConfig peripheral_config_{
-        .manager_config = DEFAULT_AUDIO_MANAGER_CONFIG(),
-        .player_volume_default = 70,
-        .player_volume_min = 0,
-        .player_volume_max = 100,
-        .recorder_gain = 32.0,
-        .recorder_channel_gains = {{2, 20.0}}
-    };
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-    PlayerConfig player_config_ = DEFAULT_AUDIO_PLAYBACK_CONFIG();
-    RecorderConfig recorder_config_ = DEFAULT_AUDIO_RECORDER_CONFIG();
-    FeederConfig feeder_config_ = DEFAULT_AUDIO_FEEDER_CONFIG();
-#pragma GCC diagnostic pop
+    void cancel_loop_scheduled_task();
+    void suspend_loop_scheduled_task();
+    void resume_loop_scheduled_task();
 
     bool is_data_loaded_ = false;
-    int data_player_volume_ = 0;
+    int data_player_volume_ = -1;
 
+    /* Codec related */
     bool is_encoder_started_ = false;
     bool is_decoder_started_ = false;
+    AudioPeripheralConfig peripheral_config_{};
+    AudioPlaybackConfig playback_config_{};
+    AudioEncoderStaticConfig encoder_static_config_{};
+    AudioDecoderStaticConfig decoder_static_config_{};
+    AudioAFE_Config afe_config_{};
+    std::string afe_model_partition_label_;
+    std::string afe_mn_language_;
+    boost::thread recorder_fetcher_thread_;
 
+    /* Playback related */
     AudioPlayState play_state_ = AudioPlayState::Idle;
-
-    size_t encoder_read_data_size_ = 0;
-    boost::thread recorder_fetch_thread_;
+    // Play URL queue for non-interrupt playback
+    struct PlayUrlRequest {
+        std::string url;
+        AudioPlayUrlConfig config;
+    };
+    std::queue<PlayUrlRequest> play_url_queue_;
+    std::mutex play_url_queue_mutex_;
+    bool is_processing_queue_ = false;
+    // Loop playback state for async loop handling
+    struct LoopPlaybackState {
+        std::string url;
+        AudioPlayUrlConfig config;
+        uint32_t current_iteration = 0;
+        uint32_t total_iterations = 0;
+        int64_t start_time_ms = 0;
+        bool is_active = false;
+        lib_utils::TaskScheduler::TaskId scheduled_task_id = 0;
+        uint32_t session_id = 0;  // Used to distinguish different loop sessions
+        int64_t pause_start_ms = 0;      // Time when pause started (0 if not paused)
+        int64_t paused_duration_ms = 0;  // Total accumulated pause duration
+    };
+    LoopPlaybackState loop_state_;
+    std::mutex loop_state_mutex_;
+    uint32_t loop_session_counter_ = 0;  // Monotonically increasing session counter
 };
 
 BROOKESIA_DESCRIBE_ENUM(Audio::DataType, PlayerVolume, Max)
-BROOKESIA_DESCRIBE_STRUCT(
-    audio_manager_config_t, (), (
-        play_dev, rec_dev, mic_layout, board_sample_rate, board_bits, board_channels
-    )
-)
-BROOKESIA_DESCRIBE_STRUCT(
-    Audio::PeripheralConfig, (), (
-        manager_config, player_volume_default, player_volume_min, player_volume_max, recorder_gain,
-        recorder_channel_gains
-    )
-)
 
 } // namespace esp_brookesia::service

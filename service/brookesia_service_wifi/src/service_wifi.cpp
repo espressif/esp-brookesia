@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -595,6 +595,11 @@ void Wifi::try_erase_data()
     }
 }
 
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(ServiceBase, Wifi, Wifi::get_instance().get_attributes().name, Wifi::get_instance());
+#if BROOKESIA_SERVICE_WIFI_ENABLE_AUTO_REGISTER
+BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+    ServiceBase, Wifi, Wifi::get_instance().get_attributes().name, Wifi::get_instance(),
+    BROOKESIA_SERVICE_WIFI_PLUGIN_SYMBOL
+);
+#endif
 
 } // namespace esp_brookesia::service::wifi

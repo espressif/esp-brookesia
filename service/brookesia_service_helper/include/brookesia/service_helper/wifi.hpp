@@ -177,19 +177,19 @@ private:
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::ApCount),
                     .description = "The number of APs to scan, optional",
                     .type = FunctionValueType::Number,
-                    .default_value = std::optional<FunctionValue>(20.0)
+                    .default_value = FunctionValue(20)
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::IntervalMs),
                     .description = "The interval of the scan in milliseconds, optional",
                     .type = FunctionValueType::Number,
-                    .default_value = std::optional<FunctionValue>(10000.0)
+                    .default_value = FunctionValue(10000)
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::TimeoutMs),
                     .description = "The timeout of the scan in milliseconds, optional",
                     .type = FunctionValueType::Number,
-                    .default_value = std::optional<FunctionValue>(60000.0)
+                    .default_value = FunctionValue(60000)
                 }
             }
         };
@@ -210,7 +210,7 @@ private:
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetConnectApParam::Password),
                     .description = "The password of the AP, optional",
                     .type = FunctionValueType::String,
-                    .default_value = std::optional<FunctionValue>(std::string(""))
+                    .default_value = FunctionValue(std::string(""))
                 }
             }
         };

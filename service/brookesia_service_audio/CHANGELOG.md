@@ -1,5 +1,27 @@
 # ChangeLog
 
+## v0.7.1 - 2026-02-02
+
+### Breaking Changes:
+
+- break(repo): remove `SetEncoderReadDataSize` function
+- break(repo): change `av_processor` dependency to private (no longer publicly exposed)
+- break(repo): refactor peripheral configuration methods to JSON-based config functions
+
+### Enhancements:
+
+- feat(repo): add `SetPeripheralConfig` function for peripheral configuration
+- feat(repo): add `SetPlaybackConfig` function for playback configuration
+- feat(repo): add `SetEncoderStaticConfig` function for encoder static configuration
+- feat(repo): add `SetDecoderStaticConfig` function for decoder static configuration
+- feat(repo): add `SetAFE_Config` function for AFE (Audio Front-End) configuration with VAD and WakeNet support
+- feat(repo): add `PlayUrls` function for multiple URL playback
+- feat(repo): add config parameter to `PlayUrl` function for playback configuration
+- feat(repo): add loop playback support
+- feat(repo): add type_converter module for internal type conversion
+- feat(Kconfig): add `BROOKESIA_SERVICE_AUDIO_ENABLE_AUTO_REGISTER` option for automatic plugin registration
+- feat(repo): update `brookesia_service_helper` dependency to `0.7.*`
+
 ## v0.7.0 - 2025-12-24
 
 ### Initial Release

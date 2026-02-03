@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -565,7 +565,11 @@ void SNTP::try_erase_data()
     }
 }
 
-
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(ServiceBase, SNTP, SNTP::get_instance().get_attributes().name, SNTP::get_instance());
+#if BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
+BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+    ServiceBase, SNTP, SNTP::get_instance().get_attributes().name, SNTP::get_instance(),
+    BROOKESIA_SERVICE_SNTP_PLUGIN_SYMBOL
+);
+#endif
 
 } // namespace esp_brookesia::service

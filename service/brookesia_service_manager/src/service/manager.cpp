@@ -277,6 +277,9 @@ ServiceBinding ServiceManager::bind(const std::string &name)
         }
         auto &service_info = service_it->second;
         BROOKESIA_CHECK_NULL_RETURN(service_info.service, ServiceBinding(), "Service instance is null: %1%", name);
+        BROOKESIA_CHECK_FALSE_RETURN(
+            service_info.service->get_attributes().bindable, ServiceBinding(), "Service is not bindable: %1%", name
+        );
         dependencies = service_info.service->get_attributes().dependencies;
     }
 
