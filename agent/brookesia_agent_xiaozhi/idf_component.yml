@@ -4,11 +4,6 @@ url: https://github.com/espressif/esp-brookesia/tree/master/agent/brookesia_agen
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
-  esp_xiaozhi:
-    version: "*"
-    path: ./esp_xiaozhi
-    require: private
-
   espressif/brookesia_agent_manager:
     version: "0.7.*"
     override_path: "../brookesia_agent_manager"

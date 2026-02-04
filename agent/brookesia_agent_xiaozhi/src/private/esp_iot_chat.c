@@ -482,7 +482,7 @@ esp_err_t esp_iot_chat_get_http_info(esp_iot_chat_handle_t chat_hd, esp_iot_chat
     ESP_RETURN_ON_ERROR(ret, TAG, "Failed to get full JSON, status: %s", esp_err_to_name(ret));
 
     esp_http_client_config_t http_client_cfg = {
-        .url = CONFIG_XIAOZHI_OTA_URL,
+        .url = CONFIG_BROOKESIA_AGENT_XIAOZHI_OTA_URL,
         .event_handler = esp_iot_chat_http_event,
         .user_data = info,
         .crt_bundle_attach = esp_crt_bundle_attach,

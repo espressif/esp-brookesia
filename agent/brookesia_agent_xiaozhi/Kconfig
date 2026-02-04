@@ -9,6 +9,12 @@ menu "ESP-Brookesia: Agent Xiaozhi Configurations"
         bool "Enable debug or lower level logs"
         default n
 
+    config BROOKESIA_AGENT_XIAOZHI_OTA_URL
+        string "Default OTA URL"
+        default "https://api.tenclass.net/xiaozhi/ota/"
+        help
+            The application will access this URL to check for new firmwares and server address.
+
     config BROOKESIA_AGENT_XIAOZHI_GET_HTTP_INFO_INTERVAL_MS
         int "Check activation interval in milliseconds"
         default 15000

@@ -5,7 +5,6 @@
 ### Initial Release
 
 - feat(repo): add XiaoZhi agent implementation for ESP-Brookesia ecosystem
-- feat(repo): integrate with `esp_xiaozhi` SDK for XiaoZhi AI platform communication
 - feat(repo): implement OPUS audio codec support at 16kHz sample rate and 24kbps bitrate
 - feat(repo): support agent general functions: `InterruptSpeaking`
 - feat(repo): support agent general events: `SpeakingStatusChanged`, `ListeningStatusChanged`, `AgentSpeakingTextGot`, `UserSpeakingTextGot`, `EmoteGot`
