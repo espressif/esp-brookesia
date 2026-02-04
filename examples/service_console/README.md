@@ -69,9 +69,11 @@ This example demonstrates how to run and test ESP-Brookesia service framework fe
 
 Use ESP Launchpad to flash pre-built firmware directly in your browser, no development environment required:
 
-<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia">
+<a href="https://espressif.github.io/esp-brookesia/index.html">
     <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
 </a>
+
+After flashing, you can connect to the device with a serial tool such as [MobaXterm](https://mobaxterm.mobatek.net/) (baud rate `115200`, Flow Control `None`), and interact with the command line.
 
 > [!NOTE]
 > Online flashing only supports [preset boards](#hardware-requirements). For other boards, please use [Option 2](#option-2-build-from-source).

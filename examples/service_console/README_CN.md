@@ -69,9 +69,11 @@
 
 使用 ESP Launchpad 可直接在浏览器中烧录预编译固件，无需搭建开发环境：
 
-<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia">
+<a href="https://espressif.github.io/esp-brookesia/index.html">
     <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
 </a>
+
+烧录后，您可以通过 [MobaXterm](https://mobaxterm.mobatek.net/) 等串口工具连接到设备（波特率为 `115200`，Flow Control 为 `None`），并使用命令行进行交互。
 
 > [!NOTE]
 > 在线烧录仅支持 [预设开发板](#硬件要求)，其他开发板请使用 [方式二](#方式二从源码编译) 编译。
