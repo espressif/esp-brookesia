@@ -4,10 +4,11 @@
 
 ### Breaking Changes:
 
-- break(repo): move `esp_coze` dependency to local private component
+- break(repo): integrate `esp_coze` subcomponent into main component as private implementation
 - break(repo): change `esp_websocket_client` dependency to private
 - break(repo): migrate agent helper from `service::helper::AgentCoze` to `agent::helper::Coze`
 - break(repo): refactor lifecycle methods (`on_activate`, `on_startup`, `on_shutdown`, etc.)
+- break(repo): move some dependencies from `REQUIRES` to `PRIV_REQUIRES`
 
 ### Enhancements:
 

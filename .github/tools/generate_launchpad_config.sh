@@ -38,44 +38,10 @@ firmware_images_url = "${firmware_url}"
 
 EOF
 
-# Get unique app names (first part before version)
-# Format: app_version_board.bin -> app
-get_app_name() {
-    echo "$1" | sed 's/^\([^_]*\)_.*/\1/'
-}
-
-# Get all unique app names
-declare -A APP_NAMES
-for bin in *.bin; do
-    [ -f "$bin" ] || continue
-    app=$(get_app_name "${bin%.bin}")
-    APP_NAMES[$app]=1
-done
-
-APPS=(${!APP_NAMES[@]})
-
-# Check if any bins found
-if [ ${#APPS[@]} -eq 0 ]; then
-    echo "Warning: No .bin files found in current directory"
-    exit 0
-fi
-
-# Build supported applications list
-SUPPORTED_APPS="supported_apps = ["
-for app in "${APPS[@]}"; do
-    SUPPORTED_APPS+="\"$app\","
-done
-SUPPORTED_APPS+="]"
-# Remove the last comma
-SUPPORTED_APPS=$(echo $SUPPORTED_APPS | sed 's/\(.*\),/\1/')
-
-echo "$SUPPORTED_APPS" >> $OUT_FILE
-echo "" >> $OUT_FILE
-
-# Chip type mapping based on board name
-get_chip_from_board() {
-    local board="$1"
-    case "$board" in
+# Chip type mapping based on bin name
+get_chip_from_bin() {
+    local bin_name="$1"
+    case "$bin_name" in
         *p4*|*esp32p4*)
             echo "esp32p4"
             ;;
@@ -94,48 +60,44 @@ get_chip_from_board() {
     esac
 }
 
-# Build config for each app
-for app in "${APPS[@]}"; do
-    echo "[$app]" >> $OUT_FILE
+# Collect all bin files
+BIN_FILES=()
+for bin in *.bin; do
+    [ -f "$bin" ] || continue
+    BIN_FILES+=("$bin")
+done
 
-    # Find all bins for this app and extract board names and chips
-    declare -A CHIP_BINS
-    for bin in ${app}_*.bin; do
-        [ -f "$bin" ] || continue
-        # Extract board name (everything after app_version_ and before .bin)
-        # Format: app_version_board.bin
-        board=$(echo "${bin%.bin}" | sed "s/^${app}_[^_]*_//")
-        chip=$(get_chip_from_board "$board")
+# Check if any bins found
+if [ ${#BIN_FILES[@]} -eq 0 ]; then
+    echo "Warning: No .bin files found in current directory"
+    exit 0
+fi
 
-        # Group by chip, store bin file
-        if [ -z "${CHIP_BINS[$chip]}" ]; then
-            CHIP_BINS[$chip]="$bin"
-        else
-            CHIP_BINS[$chip]="${CHIP_BINS[$chip]}|$bin"
-        fi
-    done
+# Build supported applications list (each bin is a separate app)
+SUPPORTED_APPS="supported_apps = ["
+for bin in "${BIN_FILES[@]}"; do
+    bin_name="${bin%.bin}"
+    SUPPORTED_APPS+="\"$bin_name\","
+done
+SUPPORTED_APPS+="]"
+# Remove the last comma
+SUPPORTED_APPS=$(echo $SUPPORTED_APPS | sed 's/\(.*\),/\1/')
 
-    # Build chipsets list
-    CHIPSETS="chipsets = ["
-    for chip in "${!CHIP_BINS[@]}"; do
-        chip_upper=$(echo "$chip" | tr 'a-z-' 'A-Z_')
-        CHIPSETS+="\"$chip_upper\","
-    done
-    CHIPSETS+="]"
-    CHIPSETS=$(echo $CHIPSETS | sed 's/\(.*\),/\1/')
-    echo "$CHIPSETS" >> $OUT_FILE
+echo "$SUPPORTED_APPS" >> $OUT_FILE
+echo "" >> $OUT_FILE
 
-    # Output image for each chip (use first bin for each chip)
-    for chip in "${!CHIP_BINS[@]}"; do
-        first_bin=$(echo "${CHIP_BINS[$chip]}" | cut -d'|' -f1)
-        echo "image.$chip = \"$first_bin\"" >> $OUT_FILE
-    done
+# Build config for each bin file (each bin gets its own section)
+for bin in "${BIN_FILES[@]}"; do
+    bin_name="${bin%.bin}"
+    chip=$(get_chip_from_bin "$bin_name")
+    chip_upper=$(echo "$chip" | tr 'a-z-' 'A-Z_')
 
+    echo "[$bin_name]" >> $OUT_FILE
+    echo "chipsets = [\"$chip_upper\"]" >> $OUT_FILE
+    echo "image.$chip = \"$bin\"" >> $OUT_FILE
     echo "ios_app_url = \"\"" >> $OUT_FILE
     echo "android_app_url = \"\"" >> $OUT_FILE
     echo "" >> $OUT_FILE
-
-    unset CHIP_BINS
 done
 
 echo "Generated $OUT_FILE with firmware_url: $firmware_url"

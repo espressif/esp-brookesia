@@ -55,8 +55,8 @@ idf.py -p PORT flash monitor
 
 1. **最新开源固件（无内置 Key）**：此固件为当前示例代码自动编译生成的固件，具有最新功能，但是无法使用内置 Key，需要您在烧录后自行配置 Key（参考 [EchoEar（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/BBkCPR3ZaoLCV8)）。
 
-<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia/launchpad.toml">
-    <img alt="Try it with ESP Launchpad" src="https://espressif.github.io/esp-launchpad/assets/try_with_launchpad.png" width="200" height="56">
+<a href="https://espressif.github.io/esp-brookesia/index.html">
+    <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
 </a>
 
 2. **出厂固件（内置 Key）**：此固件为官方手动编译生成的固件，可以使用内置 Key，您可以直接烧录使用，但可能不具有最新功能。

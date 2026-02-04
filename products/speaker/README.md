@@ -55,8 +55,8 @@ You can also use ESP Launchpad to flash pre-built firmware directly. Please choo
 
 1. **Latest open-source firmware (without built-in Key)**: This firmware is automatically compiled from the current example code and contains the latest features. However, it does not include a built-in Key, so you need to configure the Key yourself after flashing (refer to [EchoEar User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8)).
 
-<a href="https://espressif.github.io/esp-launchpad/?flashConfigURL=https://espressif.github.io/esp-brookesia/launchpad.toml">
-    <img alt="Try it with ESP Launchpad" src="https://espressif.github.io/esp-launchpad/assets/try_with_launchpad.png" width="200" height="56">
+<a href="https://espressif.github.io/esp-brookesia/index.html">
+    <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
 </a>
 
 2. **Factory firmware (with built-in Key)**: This firmware is officially compiled and includes a built-in Key. You can flash and use it directly, but it may not have the latest features.
