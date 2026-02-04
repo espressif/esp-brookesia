@@ -103,7 +103,7 @@ private:
                     .description = "The namespace of the NVS namespace to list, optional. "
                     "If not provided, the default namespace will be used.",
                     .type = FunctionValueType::String,
-                    .default_value = std::optional<FunctionValue>(std::string(DEFAULT_NAMESPACE))
+                    .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 }
             }
         };
@@ -121,7 +121,7 @@ private:
                     "Optional. If not provided, the default namespace will be used. "
                     "If provided empty, the default namespace will be used",
                     .type = FunctionValueType::String,
-                    .default_value = std::optional<FunctionValue>(std::string(DEFAULT_NAMESPACE))
+                    .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetParam::KeyValuePairs),
@@ -153,7 +153,7 @@ private:
                     .description = "The namespace of the key-value pairs to get, optional. "
                     "If not provided, the default namespace will be used.",
                     .type = FunctionValueType::String,
-                    .default_value = std::optional<FunctionValue>(std::string(DEFAULT_NAMESPACE))
+                    .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionGetParam::Keys),
@@ -162,7 +162,7 @@ private:
                                                   "returned. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({"key1", "key2", "key3"}))).str(),
                     .type = FunctionValueType::Array,
-                    .default_value = std::optional<FunctionValue>(boost::json::array())
+                    .default_value = FunctionValue(boost::json::array())
                 }
             }
         };
@@ -179,7 +179,7 @@ private:
                     .description = "The namespace of the key-value pairs to erase, optional. "
                     "If not provided, the default namespace will be used.",
                     .type = FunctionValueType::String,
-                    .default_value = std::optional<FunctionValue>(std::string(DEFAULT_NAMESPACE))
+                    .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionEraseParam::Keys),
@@ -188,7 +188,7 @@ private:
                                                   "be erased. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({"key1", "key2", "key3"}))).str(),
                     .type = FunctionValueType::Array,
-                    .default_value = std::optional<FunctionValue>(boost::json::array())
+                    .default_value = FunctionValue(boost::json::array())
                 }
             }
         };

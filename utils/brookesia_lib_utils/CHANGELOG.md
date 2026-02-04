@@ -1,5 +1,26 @@
 # ChangeLog
 
+## v0.7.4 - 2026-01-18
+
+#### Breaking Changes:
+
+* break(plugin): change the order of parameters in `BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL()`
+* break(state_machine): rename `is_updating()` to `has_transition_running()` and `has_state_updating()`
+
+#### Enhancements:
+
+* feat(describe_helpers): add support for types derived from 'std::variant'
+* feat(describe_helpers): add support for 'std::span'
+* feat(describe_helpers): add flexible JSON key matching (PascalCase/camelCase to snake_case)
+* feat(state_machine): optimize locking using `shared_mutex` for read operations
+* feat(task_scheduler): add `restart_timer()` method for resetting delayed/periodic task timers
+* feat(thread_config): modify default name to 'Thread'
+* feat(repo): update 'esp-boost' dependency to '0.4.*'
+
+### Bug Fixes:
+
+* fix(task_scheduler): check if the task scheduler is running before performing any operations
+
 ## v0.7.3~1 - 2026-01-15
 
 #### Enhancements:

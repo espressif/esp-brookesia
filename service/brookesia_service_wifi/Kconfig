@@ -1,4 +1,10 @@
 menu "ESP-Brookesia: Service WiFi Configurations"
+    config BROOKESIA_SERVICE_WIFI_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
     menuconfig BROOKESIA_SERVICE_WIFI_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
@@ -25,7 +31,7 @@ menu "ESP-Brookesia: Service WiFi Configurations"
         menu "General"
             config BROOKESIA_SERVICE_WIFI_WORKER_NAME
                 string "Name"
-                default "SrvWifiWorker"
+                default "SvcWifiWorker"
                 help
                     The name of the worker thread.
 
@@ -50,7 +56,7 @@ menu "ESP-Brookesia: Service WiFi Configurations"
 
             config BROOKESIA_SERVICE_WIFI_WORKER_POLL_INTERVAL_MS
                 int "Poll interval (ms)"
-                default 5
+                default 10
                 range 1 10
                 help
                     The interval of the worker poll.
@@ -68,4 +74,43 @@ menu "ESP-Brookesia: Service WiFi Configurations"
             help
                 The core ID of Worker 1. `-1` means the core ID is not specified.
     endif
+
+    menu "Timeout"
+        config BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_STARTED_TIMEOUT_MS
+            int "Wait event started timeout (ms)"
+            default 1000
+            range 100 30000
+            help
+                Timeout in milliseconds to wait for WiFi started event.
+
+        config BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_STOPPED_TIMEOUT_MS
+            int "Wait event stopped timeout (ms)"
+            default 1000
+            range 100 30000
+            help
+                Timeout in milliseconds to wait for WiFi stopped event.
+
+        config BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_CONNECTED_TIMEOUT_MS
+            int "Wait event connected timeout (ms)"
+            default 15000 if ESP_HOSTED_ENABLED
+            default 10000
+            range 1000 30000
+            help
+                Timeout in milliseconds to wait for WiFi connected event.
+
+        config BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_DISCONNECTED_TIMEOUT_MS
+            int "Wait event disconnected timeout (ms)"
+            default 1000
+            range 100 30000
+            help
+                Timeout in milliseconds to wait for WiFi disconnected event.
+
+        config BROOKESIA_SERVICE_WIFI_STATE_MACHINE_WAIT_STATE_MACHINE_FINISHED_TIMEOUT_MS
+            int "Wait state machine finished timeout (ms)"
+            default 5000 if ESP_HOSTED_ENABLED
+            default 1000
+            range 1000 30000
+            help
+                Timeout in milliseconds to wait for state machine finished.
+    endmenu
 endmenu

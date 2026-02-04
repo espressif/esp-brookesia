@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,7 +12,7 @@
 #include <cstring>
 #include "esp_mac.h"
 #include "esp_coze_utils.h"
-#include "http_client_request.h"
+#include "esp_coze_chat.h"
 #include "boost/json.hpp"
 #include "boost/system/error_code.hpp"
 #include "brookesia/agent_coze/macro_configs.h"
@@ -29,26 +29,45 @@
 namespace esp_brookesia::agent {
 
 using AudioHelper = service::helper::Audio;
-using AgentManagerHelper = service::helper::AgentManager;
-using AgentCozeHelper = service::helper::AgentCoze;
+using ManagerHelper = helper::Manager;
+using CozeHelper = helper::Coze;
 using NVSHelper = service::helper::NVS;
 
 constexpr std::string_view AUTHORIZATION_URL = "https://api.coze.cn/api/permission/oauth2/token";
-static const std::map<int, AgentCozeHelper::CozeEvent> ERROR_CODE_TYPE_MAP = {
-    {4027, AgentCozeHelper::CozeEvent::InsufficientCreditsBalance},
-    {4028, AgentCozeHelper::CozeEvent::InsufficientCreditsBalance},
+static const std::map<int, CozeHelper::CozeEvent> ERROR_CODE_TYPE_MAP = {
+    {4027, CozeHelper::CozeEvent::InsufficientCreditsBalance},
+    {4028, CozeHelper::CozeEvent::InsufficientCreditsBalance},
 };
 
 constexpr uint32_t NVS_SAVE_DATA_TIMEOUT_MS = 20;
 constexpr uint32_t NVS_ERASE_DATA_TIMEOUT_MS = 20;
 
-bool Coze::on_activate()
+constexpr uint32_t SPEAKING_TEXT_TASK_TIMEOUT_MS = 1000;
+
+namespace {
+esp_coze_chat_audio_type_t get_uplink_audio_type(AudioHelper::CodecFormat codec_format)
 {
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    switch (codec_format) {
+    case AudioHelper::CodecFormat::OPUS:
+        return ESP_COZE_CHAT_AUDIO_TYPE_OPUS;
+    case AudioHelper::CodecFormat::G711A:
+        return ESP_COZE_CHAT_AUDIO_TYPE_G711A;
+    default:
+        return ESP_COZE_CHAT_AUDIO_TYPE_PCM;
+    }
+}
 
-    try_load_data();
-
-    return true;
+esp_coze_chat_audio_type_t get_downlink_audio_type(AudioHelper::CodecFormat codec_format)
+{
+    switch (codec_format) {
+    case AudioHelper::CodecFormat::OPUS:
+        return ESP_COZE_CHAT_AUDIO_TYPE_OPUS;
+    case AudioHelper::CodecFormat::G711A:
+        return ESP_COZE_CHAT_AUDIO_TYPE_G711A;
+    default:
+        return ESP_COZE_CHAT_AUDIO_TYPE_PCM;
+    }
+}
 }
 
 bool Coze::on_init()
@@ -63,12 +82,17 @@ bool Coze::on_init()
     return true;
 }
 
-bool Coze::on_start()
+bool Coze::on_activate()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    try_load_data();
+
     auto &info = get_data<DataType::Info>();
-    BROOKESIA_LOGD("Start with info: %1%", BROOKESIA_DESCRIBE_TO_STR(info));
+    BROOKESIA_LOGD("Start with authorization info: %1%", BROOKESIA_DESCRIBE_TO_STR(info.authorization));
+    BROOKESIA_LOGD("Start with robots: %1%", BROOKESIA_DESCRIBE_TO_STR(info.robots));
+
+    BROOKESIA_CHECK_FALSE_RETURN(validate_info(info), false, "Invalid info");
 
     auto &auth_info = info.authorization;
     std::string access_token = get_access_token(auth_info);
@@ -85,8 +109,6 @@ bool Coze::on_start()
         "conversation.chat.requires_action", NULL
     };
     esp_coze_chat_config_t chat_config = ESP_COZE_CHAT_DEFAULT_CONFIG();
-    chat_config.pull_task_stack_size = 5 * 1024;
-    chat_config.push_task_core = 1;
     chat_config.enable_subtitle = true;
     chat_config.subscribe_event = subscribe_events;
     chat_config.user_id = const_cast<char *>(auth_info.user_id.c_str());
@@ -95,30 +117,64 @@ bool Coze::on_start()
     chat_config.access_token = const_cast<char *>(access_token.c_str());
     chat_config.uplink_audio_type = get_uplink_audio_type(get_audio_config().encoder.type);
     chat_config.downlink_audio_type = get_downlink_audio_type(get_audio_config().decoder.type);
-    chat_config.audio_callback = audio_data_callback;
+    chat_config.audio_callback = +[](char *data, int len, void *ctx) {
+        // BROOKESIA_LOG_TRACE_GUARD();
+        auto self = static_cast<Coze *>(ctx);
+        BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
+        BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_data(data, len), "Failed to on audio data");
+    };
     chat_config.audio_callback_ctx = this;
-    chat_config.event_callback = audio_event_callback;
+    chat_config.event_callback = +[](esp_coze_chat_event_t event, char *data, void *ctx) {
+        // BROOKESIA_LOG_TRACE_GUARD();
+        auto self = static_cast<Coze *>(ctx);
+        BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
+        BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_event(event, data), "Failed to on audio event");
+    };
     chat_config.event_callback_ctx = this;
-    chat_config.ws_event_callback = websocket_event_callback;
+    chat_config.ws_event_callback = +[](esp_coze_ws_event_t *event) {
+        // BROOKESIA_LOG_TRACE_GUARD();
+        BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
+        auto scheduler = get_instance().get_task_scheduler();
+        BROOKESIA_CHECK_NULL_EXIT(scheduler, "Scheduler is not available");
+        auto task = [event = *event]() mutable {
+            // BROOKESIA_LOG_TRACE_GUARD();
+            void *event_ptr = &event;
+            BROOKESIA_CHECK_FALSE_EXIT(get_instance().on_websocket_event(event_ptr), "Failed to on websocket event");
+        };
+        auto result = scheduler->post(task, nullptr, Coze::get_instance().get_state_task_group());
+        BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to post websocket event task");
+    };
 #pragma GCC diagnostic pop
 
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_coze_chat_init(&chat_config, &chat_handle_), false, "Failed to init chat");
+
+    trigger_general_event(GeneralEvent::Activated);
+
+    return true;
+}
+
+bool Coze::on_startup()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_coze_chat_start(chat_handle_), false, "Failed to start chat");
     is_chat_started_ = true;
 
     return true;
 }
 
-void Coze::on_stop()
+void Coze::on_shutdown()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_chat_initialized()) {
-        BROOKESIA_LOGD("Chat is not initialized, skip");
-        return;
-    }
-
     is_chat_connected_ = false;
+
+    if (speaking_text_task_id_ != 0) {
+        auto scheduler = get_task_scheduler();
+        BROOKESIA_CHECK_NULL_EXIT(scheduler, "Scheduler is not available");
+        scheduler->cancel(speaking_text_task_id_);
+        speaking_text_task_id_ = 0;
+    }
 
     if (is_chat_started()) {
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(esp_coze_chat_stop(chat_handle_), {}, {
@@ -126,10 +182,12 @@ void Coze::on_stop()
         });
         is_chat_started_ = false;
     }
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(esp_coze_chat_deinit(chat_handle_), {}, {
-        BROOKESIA_LOGE("Failed to deinit chat");
-    });
-    chat_handle_ = nullptr;
+    if (is_chat_initialized()) {
+        BROOKESIA_CHECK_ESP_ERR_EXECUTE(esp_coze_chat_deinit(chat_handle_), {}, {
+            BROOKESIA_LOGE("Failed to deinit chat");
+        });
+        chat_handle_ = nullptr;
+    }
 
     trigger_general_event(GeneralEvent::Stopped);
 }
@@ -138,16 +196,36 @@ bool Coze::on_sleep()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (speaking_text_task_id_ != 0) {
+        auto scheduler = get_task_scheduler();
+        BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not available");
+        scheduler->cancel(speaking_text_task_id_);
+        speaking_text_task_id_ = 0;
+    }
+
     trigger_general_event(GeneralEvent::Slept);
 
     return true;
 }
 
-void Coze::on_wakeup()
+bool Coze::on_wakeup()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     trigger_general_event(GeneralEvent::Awake);
+
+    return true;
+}
+
+bool Coze::on_interrupt_speaking()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_chat_started() && is_chat_connected(), false, "Chat is not started or connected");
+
+    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_coze_chat_send_audio_cancel(chat_handle_), false, "Failed to cancel speaking");
+
+    return true;
 }
 
 bool Coze::on_encoder_data_ready(const uint8_t *data, size_t data_size)
@@ -270,9 +348,11 @@ void Coze::try_load_data()
     auto binding = service::ServiceManager::get_instance().bind(NVSHelper::get_name().data());
     BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
 
+    auto nvs_namespace = get_attributes().get_name();
+
     {
         auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::Info);
-        auto result = NVSHelper::get_key_value<CozeInfo>(get_attributes().name, key);
+        auto result = NVSHelper::get_key_value<CozeInfo>(nvs_namespace, key);
         if (!result) {
             BROOKESIA_LOGD("Failed to load '%1%' from NVS: %2%", key, result.error());
         } else {
@@ -283,7 +363,7 @@ void Coze::try_load_data()
 
     {
         auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::BotIndex);
-        auto result = NVSHelper::get_key_value<uint8_t>(get_attributes().name, key);
+        auto result = NVSHelper::get_key_value<uint8_t>(nvs_namespace, key);
         if (!result) {
             BROOKESIA_LOGD("Failed to load '%1%' from NVS: %2%", key, result.error());
         } else {
@@ -311,7 +391,7 @@ void Coze::try_save_data(DataType type)
 
     auto save_function = [this, key](const auto & data_value) {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        auto result = NVSHelper::save_key_value(get_attributes().name, key, data_value, NVS_SAVE_DATA_TIMEOUT_MS);
+        auto result = NVSHelper::save_key_value(get_attributes().get_name(), key, data_value, NVS_SAVE_DATA_TIMEOUT_MS);
         if (!result) {
             BROOKESIA_LOGE("Failed to save '%1%' to NVS: %2%", key, result.error());
         } else {
@@ -337,7 +417,7 @@ void Coze::try_erase_data()
         return;
     }
 
-    auto result = NVSHelper::erase_keys(get_attributes().name, {}, NVS_ERASE_DATA_TIMEOUT_MS);
+    auto result = NVSHelper::erase_keys(get_attributes().get_name(), {}, NVS_ERASE_DATA_TIMEOUT_MS);
     if (!result) {
         BROOKESIA_LOGE("Failed to erase NVS data: %1%", result.error());
     } else {
@@ -413,12 +493,16 @@ bool Coze::on_audio_data(char *data, int len)
     return true;
 }
 
-bool Coze::on_audio_event(esp_coze_chat_event_t event, char *data)
+bool Coze::on_audio_event(uint8_t event_id, char *data)
 {
     // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    auto scheduler = get_task_scheduler();
+    BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not available");
+
     std::function<void(void)> task_func;
 
+    esp_coze_chat_event_t event = static_cast<esp_coze_chat_event_t>(event_id);
     if (event == ESP_COZE_CHAT_EVENT_CHAT_ERROR) {
         BROOKESIA_LOGE("chat error: %s", data);
 
@@ -431,65 +515,101 @@ bool Coze::on_audio_event(esp_coze_chat_event_t event, char *data)
             return true;
         }
 
-        auto result = publish_service_event(BROOKESIA_DESCRIBE_TO_STR(AgentCozeHelper::EventId::CozeEventHappened),
-        service::EventItemMap{
-            {
-                BROOKESIA_DESCRIBE_ENUM_TO_STR(AgentCozeHelper::EventCozeEventHappenedParam::CozeEvent),
-                BROOKESIA_DESCRIBE_ENUM_TO_STR(error_it->second)
-            }
-        }, true);
-        BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish error occurred event");
-
         // Set task function to stop agent
-        task_func = [this]() {
+        task_func = [this, event_type = error_it->second]() {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
             trigger_general_event(GeneralEvent::Stopped);
+
+            auto result = publish_event(BROOKESIA_DESCRIBE_TO_STR(CozeHelper::EventId::CozeEventHappened),
+            service::EventItemMap{
+                {
+                    BROOKESIA_DESCRIBE_ENUM_TO_STR(CozeHelper::EventCozeEventHappenedParam::CozeEvent),
+                    BROOKESIA_DESCRIBE_ENUM_TO_STR(event_type)
+                }
+            });
+            BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to publish error occurred event");
         };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STARTED) {
-        BROOKESIA_LOGI("chat start");
+        BROOKESIA_LOGI("char listening start");
+        task_func = [this]() {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            BROOKESIA_CHECK_FALSE_EXIT(set_speaking(false), "Failed to set speaking");
+            BROOKESIA_CHECK_FALSE_EXIT(set_listening(true), "Failed to set listening");
+        };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STOPED) {
-        BROOKESIA_LOGI("chat stop");
+        BROOKESIA_LOGI("char listening stop");
+        task_func = [this]() {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            BROOKESIA_CHECK_FALSE_EXIT(set_listening(false), "Failed to set listening");
+            BROOKESIA_CHECK_FALSE_EXIT(set_speaking(true), "Failed to set speaking");
+        };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_COMPLETED) {
-        BROOKESIA_LOGI("chat complete");
+        BROOKESIA_LOGI("char speaking complete");
+        task_func = [this]() {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            BROOKESIA_CHECK_FALSE_EXIT(set_speaking(false), "Failed to set speaking");
+            BROOKESIA_CHECK_FALSE_EXIT(set_listening(true), "Failed to set listening");
+        };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_CUSTOMER_DATA) {
         BROOKESIA_LOGD("Customer data: %s", data);
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SUBTITLE_EVENT) {
-        // BROOKESIA_LOGD("chat subtitle event: %s", data);
+        BROOKESIA_LOGI("chat subtitle event: %s", data);
         BROOKESIA_CHECK_NULL_RETURN(data, false, "Invalid data");
+
+        // Create a new task to set agent speaking text if the task is not running
+        if ((speaking_text_task_id_ == 0) ||
+                scheduler->get_state(speaking_text_task_id_) != lib_utils::TaskScheduler::TaskState::Running) {
+            speaking_text_.clear();
+            auto task_func = [this]() {
+                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+                BROOKESIA_CHECK_FALSE_EXIT(
+                    set_agent_speaking_text(speaking_text_), "Failed to set agent speaking text"
+                );
+                speaking_text_task_id_ = 0;
+            };
+            auto result = scheduler->post_delayed(
+                              std::move(task_func), SPEAKING_TEXT_TASK_TIMEOUT_MS, &speaking_text_task_id_, get_state_task_group()
+                          );
+            BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post task function");
+        } else {
+            auto result = scheduler->restart_timer(speaking_text_task_id_);
+            BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to restart timer");
+        }
 
         auto emote = get_emote(std::string_view(data));
         if (emote.empty()) {
             // BROOKESIA_LOGD("No emoji found, skip");
+            // Add subtitle to speaking text
+            speaking_text_ += std::string(data);
             return true;
         }
 
         BROOKESIA_LOGI("Got emote: %1%", emote);
-        auto result = publish_service_event(BROOKESIA_DESCRIBE_TO_STR(AgentManagerHelper::EventId::EmoteGot),
-        service::EventItemMap{
-            {
-                BROOKESIA_DESCRIBE_ENUM_TO_STR(AgentManagerHelper::EventEmoteGotParam::Emote), emote
-            }
-        });
-        BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish emote got event");
+
+        // Set task function to stop agent
+        task_func = [this, emote]() {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            BROOKESIA_CHECK_FALSE_EXIT(set_emote(emote), "Failed to set emote");
+        };
     }
 
     if (task_func) {
-        auto group = Manager::get_instance().get_state_task_group();
-        auto scheduler = get_service_scheduler();
-        BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not available");
-        auto result = scheduler->post(std::move(task_func), nullptr, group);
+        auto result = scheduler->post(std::move(task_func), nullptr, get_state_task_group());
         BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post task function");
     }
 
     return true;
 }
 
-bool Coze::on_websocket_event(esp_coze_ws_event_t event)
+bool Coze::on_websocket_event(void *event_ptr)
 {
     // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto event_id = event.event_id;
-    // BROOKESIA_LOGD("Params: event_id(%1%)", static_cast<int>(event_id));
+    // BROOKESIA_LOGD("Params: event_ptr(%1%)", event_ptr);
+
+    auto event = static_cast<esp_coze_ws_event_t *>(event_ptr);
+    auto event_id = event->event_id;
 
     if (!is_chat_started()) {
         BROOKESIA_LOGD("Chat is not started, ignore websocket event");
@@ -500,23 +620,25 @@ bool Coze::on_websocket_event(esp_coze_ws_event_t event)
 
     switch (event_id) {
     case WEBSOCKET_EVENT_CONNECTED:
-        BROOKESIA_LOGI("Websocket connected");
         is_chat_connected_ = true;
+        BROOKESIA_LOGI("Websocket connected");
         target_event = GeneralEvent::Started;
         break;
     case WEBSOCKET_EVENT_CLOSED:
-        BROOKESIA_LOGI("Websocket closed");
         is_chat_connected_ = false;
+        BROOKESIA_LOGI("Websocket closed");
         // Stop agent
         target_event = GeneralEvent::Stopped;
         break;
     case WEBSOCKET_EVENT_DISCONNECTED: {
+        is_chat_connected_ = false;
         BROOKESIA_LOGE("Websocket disconnected");
         // Stop agent
         target_event = GeneralEvent::Stopped;
         break;
     }
     case WEBSOCKET_EVENT_ERROR: {
+        is_chat_connected_ = false;
         BROOKESIA_LOGE("Websocket error");
         // Stop agent
         target_event = GeneralEvent::Stopped;
@@ -533,67 +655,6 @@ bool Coze::on_websocket_event(esp_coze_ws_event_t event)
     return true;
 }
 
-esp_coze_chat_audio_type_t Coze::get_uplink_audio_type(service::helper::Audio::CodecFormat codec_format)
-{
-    switch (codec_format) {
-    case AudioHelper::CodecFormat::OPUS:
-        return ESP_COZE_CHAT_AUDIO_TYPE_OPUS;
-    case AudioHelper::CodecFormat::G711A:
-        return ESP_COZE_CHAT_AUDIO_TYPE_G711A;
-    default:
-        return ESP_COZE_CHAT_AUDIO_TYPE_PCM;
-    }
-}
-
-esp_coze_chat_audio_type_t Coze::get_downlink_audio_type(service::helper::Audio::CodecFormat codec_format)
-{
-    switch (codec_format) {
-    case AudioHelper::CodecFormat::OPUS:
-        return ESP_COZE_CHAT_AUDIO_TYPE_OPUS;
-    case AudioHelper::CodecFormat::G711A:
-        return ESP_COZE_CHAT_AUDIO_TYPE_G711A;
-    default:
-        return ESP_COZE_CHAT_AUDIO_TYPE_PCM;
-    }
-}
-
-void Coze::audio_data_callback(char *data, int len, void *ctx)
-{
-    // BROOKESIA_LOG_TRACE_GUARD();
-
-    auto self = static_cast<Coze *>(ctx);
-    BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
-
-    BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_data(data, len), "Failed to on audio data");
-}
-
-void Coze::audio_event_callback(esp_coze_chat_event_t event, char *data, void *ctx)
-{
-    // BROOKESIA_LOG_TRACE_GUARD();
-
-    auto self = static_cast<Coze *>(ctx);
-    BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
-
-    BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_event(event, data), "Failed to on audio event");
-}
-
-void Coze::websocket_event_callback(esp_coze_ws_event_t *event)
-{
-    // BROOKESIA_LOG_TRACE_GUARD();
-
-    BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
-
-    auto scheduler = get_instance().get_service_scheduler();
-    BROOKESIA_CHECK_NULL_EXIT(scheduler, "Scheduler is not available");
-
-    auto task = [event = *event]() {
-        // BROOKESIA_LOG_TRACE_GUARD();
-        BROOKESIA_CHECK_FALSE_EXIT(get_instance().on_websocket_event(event), "Failed to on websocket event");
-    };
-    auto result = scheduler->post(task, nullptr, Manager::get_instance().get_state_task_group());
-    BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to post websocket event task");
-}
-
 int Coze::parse_error_code(std::string_view data)
 {
     BROOKESIA_LOG_TRACE_GUARD();
@@ -601,7 +662,7 @@ int Coze::parse_error_code(std::string_view data)
     boost::system::error_code ec;
     boost::json::value json_root = boost::json::parse(data.data(), ec);
     BROOKESIA_CHECK_FALSE_RETURN(!ec, -1, "Failed to parse JSON data: %1%", ec.message());
-    BROOKESIA_CHECK_FALSE_RETURN(!json_root.is_object(), -1, "JSON root is not an object");
+    BROOKESIA_CHECK_FALSE_RETURN(json_root.is_object(), -1, "JSON root is not an object");
 
     const auto &json_obj = json_root.as_object();
     auto data_it = json_obj.find("data");
@@ -789,6 +850,13 @@ std::string Coze::get_emote(std::string_view data)
     return std::string();
 }
 
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(Base, Coze, Coze::DEFAULT_AGENT_ATTRIBUTES.name, Coze::get_instance());
+#if BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER
+BROOKESIA_PLUGIN_REGISTER_SINGLETON(
+    Base, Coze, Coze::get_instance().get_attributes().get_name(), Coze::get_instance()
+);
+BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+    service::ServiceBase, Coze, Coze::get_instance().get_attributes().get_name(), Coze::get_instance(), BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL
+);
+#endif
 
 } // namespace esp_brookesia::agent

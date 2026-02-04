@@ -36,6 +36,7 @@ public:
         std::optional<lib_utils::TaskScheduler::StartConfig> task_scheduler_config = std::nullopt;
         ///< Optional: Task scheduler configuration. If configured, service request tasks will be scheduled to this scheduler;
         ///< otherwise, ServiceManager's scheduler will be used
+        bool bindable = true;  ///< Optional: Whether the service can be bound
     };
 
     ServiceBase(const Attributes &attributes)
@@ -133,10 +134,9 @@ public:
     /**
      * @brief Call a function synchronously with parameters map (blocking with timeout)
      *
-     * @note This is a blocking wrapper around call_function_async()
      * @param[in] name Function name to call
      * @param[in] parameters_map FunctionParameterMap map (key-value pairs)
-     * @param[in] timeout_ms Timeout in milliseconds (default: 10ms)
+     * @param[in] timeout_ms Timeout in milliseconds (default: 100ms)
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
@@ -147,10 +147,9 @@ public:
     /**
      * @brief Call a function synchronously with parameters values (blocking with timeout)
      *
-     * @note This is a blocking wrapper around call_function_async()
      * @param[in] name Function name to call
      * @param[in] parameters_values FunctionParameterMap values (ordered array)
-     * @param[in] timeout_ms Timeout in milliseconds (default: 10ms)
+     * @param[in] timeout_ms Timeout in milliseconds (default: 100ms)
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
@@ -161,10 +160,9 @@ public:
     /**
      * @brief Call a function synchronously with JSON parameters (blocking with timeout)
      *
-     * @note This is a blocking wrapper around call_function_async()
      * @param[in] name Function name to call
      * @param[in] parameters_json FunctionParameterMap in JSON object format
-     * @param[in] timeout_ms Timeout in milliseconds (default: 10ms)
+     * @param[in] timeout_ms Timeout in milliseconds (default: 100ms)
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
@@ -229,7 +227,7 @@ public:
      *
      * @return std::string Call task group name
      */
-    std::string get_call_task_group() const
+    virtual std::string get_call_task_group() const
     {
         return get_attributes().name + "_call";
     }
@@ -239,7 +237,7 @@ public:
      *
      * @return std::string Event task group name
      */
-    std::string get_event_task_group() const
+    virtual std::string get_event_task_group() const
     {
         return get_attributes().name + "_event";
     }
@@ -249,7 +247,7 @@ public:
      *
      * @return std::string Request task group name
      */
-    std::string get_request_task_group() const
+    virtual std::string get_request_task_group() const
     {
         return get_attributes().name + "_request";
     }
@@ -440,11 +438,14 @@ protected:
      */
     bool publish_event(const std::string &event_name, boost::json::object &&data_json, bool use_dispatch = false);
 
+    bool set_task_scheduler(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler);
+
+    bool start();
+    void stop();
+
 private:
     bool init(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler);
     void deinit();
-    bool start();
-    void stop();
 
     bool init_internal(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler);  // Internal init without lock
     void deinit_internal();  // Internal deinit without lock

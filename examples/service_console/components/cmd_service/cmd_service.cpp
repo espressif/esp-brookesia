@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -213,11 +213,16 @@ static std::shared_ptr<ServiceBase> get_or_bind_service(const char *service_name
     }
 
     // Create new binding
-    ESP_LOGD(TAG, "Creating new binding for '%s'", service_name);
+    ESP_LOGD(TAG, "Trying to create new binding for '%s'", service_name);
     auto binding = service_manager.bind(service_name);
     if (!binding.is_valid()) {
-        ESP_LOGE(TAG, "Failed to bind service '%s'", service_name);
-        return nullptr;
+        ESP_LOGW(TAG, "Failed to bind service '%s', trying to get from service manager", service_name);
+        auto service = ServiceManager::get_instance().get_service(service_name);
+        if (!service) {
+            ESP_LOGE(TAG, "Failed to get service '%s'", service_name);
+            return nullptr;
+        }
+        return service;
     }
 
     auto service = binding.get_service();
@@ -286,7 +291,7 @@ static int do_list_functions_cmd(int argc, char **argv)
 
     const char *service_name = list_functions_args.service->sval[0];
 
-    // Get or create binding for the service
+    // Try to get service instance
     auto service = get_or_bind_service(service_name);
     if (!service) {
         printf("Error: Service '%s' not found\n", service_name);
@@ -340,7 +345,7 @@ static int do_list_events_cmd(int argc, char **argv)
 
     const char *service_name = list_events_args.service->sval[0];
 
-    // Get or create binding for the service
+    // Try to get service instance
     auto service = get_or_bind_service(service_name);
     if (!service) {
         printf("Error: Service '%s' not found\n", service_name);
@@ -434,7 +439,7 @@ static int do_subscribe_cmd(int argc, char **argv)
     std::string service_name = std::string(subscribe_args.service->sval[0]);
     std::string event_name = std::string(subscribe_args.event->sval[0]);
 
-    // Ensure service is bound
+    // Try to get service instance
     auto service = get_or_bind_service(service_name.c_str());
     if (!service) {
         printf("Error: Service '%s' not found\n", service_name.c_str());
@@ -949,7 +954,7 @@ static int do_call_cmd(int argc, char **argv)
     const char *params_str = call_args.params->count > 0 ?
                              call_args.params->sval[0] : "{}";
 
-    // Ensure service is bound
+    // Try to get service instance
     auto service = get_or_bind_service(service_name);
     if (!service) {
         printf("Error: Service '%s' not found\n", service_name);

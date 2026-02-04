@@ -17,7 +17,7 @@ namespace esp_brookesia::lib_utils {
  * including name, core affinity, priority, stack size, and stack location.
  */
 struct ThreadConfig {
-    const char  *name = BROOKESIA_UTILS_THREAD_CONFIG_NAME;  ///< Thread name
+    std::string  name = BROOKESIA_UTILS_THREAD_CONFIG_NAME;  ///< Thread name
     int       core_id = BROOKESIA_UTILS_THREAD_CONFIG_CORE_ID;  ///< CPU core ID for affinity (-1 for no affinity)
     size_t   priority = BROOKESIA_UTILS_THREAD_CONFIG_PRIORITY;  ///< Thread priority
     size_t stack_size = BROOKESIA_UTILS_THREAD_CONFIG_STACK_SIZE;  ///< Stack size in bytes

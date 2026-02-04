@@ -35,7 +35,7 @@ def idf_version() -> str:
             m = regex.match(line)
             if m:
                 ver[m.group(1)] = m.group(2)
-    return '{}_{}_{}'.format(int(ver['MAJOR']), int(ver['MINOR']), int(ver['PATCH']))
+    return '{}.{}'.format(int(ver['MAJOR']), int(ver['MINOR']))
 
 
 @pytest.fixture(scope='session', autouse=True)

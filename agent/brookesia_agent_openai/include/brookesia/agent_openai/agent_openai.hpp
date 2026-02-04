@@ -1,17 +1,17 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
 #include "brookesia/service_helper/audio.hpp"
-#include "brookesia/service_helper/agent/openai.hpp"
+#include "brookesia/agent_helper/openai.hpp"
 #include "brookesia/agent_manager/base.hpp"
 
 namespace esp_brookesia::agent {
 
-using OpenaiInfo = service::helper::AgentOpenai::Info;
+using OpenaiInfo = helper::Openai::Info;
 
 class Openai: public Base {
 public:
@@ -24,11 +24,12 @@ public:
     };
 
     inline static const AgentAttributes DEFAULT_AGENT_ATTRIBUTES{
-        .name = service::helper::AgentOpenai::NAME.data(),
-        .general_event_wait_timeout_ms = {10000, 100, 100, 100},
+        .name = helper::Openai::get_name().data(),
+        .operation_timeout = {
+            .start = 10000,
+        },
     };
     static constexpr AudioConfig DEFAULT_AUDIO_CONFIG{
-        .encoder_feed_data_size = 2048,
         .encoder = {
             .type = service::helper::Audio::CodecFormat::OPUS,
             .general = {
@@ -40,7 +41,8 @@ public:
             .extra = service::helper::Audio::EncoderExtraConfigOpus{
                 .enable_vbr = false,
                 .bitrate = 24000,
-            }
+            },
+            .fetch_data_size = 2048,
         },
         .decoder = {
             .type = service::helper::Audio::CodecFormat::OPUS,
@@ -67,19 +69,37 @@ private:
     ~Openai() = default;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////// The following are the general interfaces which are inherited from the service::ServiceBase class /////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    bool on_init() override;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////// The following are the general interfaces which are inherited from the Base class ////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     bool on_activate() override;
-
-    bool on_init() override;
-    bool on_start() override;
-    void on_stop() override;
+    bool on_startup() override;
     bool on_sleep() override;
-    void on_wakeup() override;
+    bool on_wakeup() override;
+    void on_shutdown() override;
 
     bool on_encoder_data_ready(const uint8_t *data, size_t data_size) override;
     bool set_info(const boost::json::object &info) override;
     bool reset_data() override;
+
+    std::vector<service::FunctionSchema> get_function_schemas() override
+    {
+        auto helper_schemas = helper::Openai::get_function_schemas();
+        return std::vector<service::FunctionSchema>(helper_schemas.begin(), helper_schemas.end());
+    }
+    std::vector<service::EventSchema> get_event_schemas() override
+    {
+        auto helper_schemas = helper::Openai::get_event_schemas();
+        return std::vector<service::EventSchema>(helper_schemas.begin(), helper_schemas.end());
+    }
+    service::ServiceBase::FunctionHandlerMap get_function_handlers() override
+    {
+        return {};
+    }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////// The following are the agent specific interfaces ////////////////////////////////////////////////
@@ -106,6 +126,8 @@ private:
     void try_save_data(DataType type);
     void try_erase_data();
 
+    bool validate_info(OpenaiInfo &info);
+
     bool is_openai_initialized() const
     {
         return is_openai_initialized_;
@@ -117,9 +139,6 @@ private:
 
     bool on_audio_data(uint8_t *data, int len);
     bool on_audio_event(int event, uint8_t *data);
-
-    static void audio_data_callback(uint8_t *data, int len, void *ctx);
-    static void audio_event_callback(int event, uint8_t *data, void *ctx);
 
     bool is_data_loaded_ = false;
     OpenaiInfo data_info_{};

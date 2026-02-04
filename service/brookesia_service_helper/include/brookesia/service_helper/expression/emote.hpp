@@ -68,11 +68,15 @@ public:
         SetConfig,
         LoadAssetsSource,
         SetEmoji,
+        HideEmoji,
         SetAnimation,
         InsertAnimation,
         StopAnimation,
         WaitAnimationFrameDone,
         SetEventMessage,
+        HideEventMessage,
+        SetQrcode,
+        HideQrcode,
         NotifyFlushFinished,
         Max,
     };
@@ -104,6 +108,10 @@ public:
     enum class FunctionInsertAnimationParam {
         Animation,
         DurationMs,
+    };
+
+    enum class FunctionSetQrcodeParam {
+        Qrcode,
     };
 
     enum class FunctionWaitAnimationFrameDoneParam {
@@ -138,7 +146,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -159,7 +167,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -167,7 +175,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetEmoji),
-            .description = "Set the emoji",
+            .description = "Set the emoji. Animation will be hidden immediately",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEmojiParam::Emoji),
@@ -175,7 +183,16 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_async = false
+            .require_scheduler = false
+        };
+    }
+
+    static FunctionSchema function_schema_hide_emoji()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEmoji),
+            .description = "Hide the current emoji",
+            .require_scheduler = false
         };
     }
 
@@ -183,7 +200,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetAnimation),
-            .description = "Set the animation",
+            .description = "Set the animation. Emoji will be hidden immediately",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAnimationParam::Animation),
@@ -191,7 +208,7 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -199,7 +216,8 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::InsertAnimation),
-            .description = "Insert the animation",
+            .description = "Insert the animation. Animation will be hidden immediately and will "
+            "be shown after the duration",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionInsertAnimationParam::Animation),
@@ -212,7 +230,7 @@ private:
                     .type = FunctionValueType::Number
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -220,8 +238,8 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopAnimation),
-            .description = "Stop the current animation",
-            .require_async = false
+            .description = "Stop the current animation. Animation will be hidden immediately",
+            .require_scheduler = false
         };
     }
 
@@ -238,7 +256,7 @@ private:
                     .default_value = 0.0,
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -265,7 +283,41 @@ private:
                     .default_value = "",
                 }
             },
-            .require_async = false
+            .require_scheduler = false
+        };
+    }
+
+    static FunctionSchema function_schema_hide_event_message()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEventMessage),
+            .description = "Hide the current event message",
+            .require_scheduler = false
+        };
+    }
+
+    static FunctionSchema function_schema_set_qrcode()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetQrcode),
+            .description = "Set the QR code. Emoji and animation will be hidden immediately",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetQrcodeParam::Qrcode),
+                    .description = "QR code to set",
+                    .type = FunctionValueType::String
+                }
+            },
+            .require_scheduler = false
+        };
+    }
+
+    static FunctionSchema function_schema_hide_qrcode()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideQrcode),
+            .description = "Hide the current QR code. Emoji will be shown immediately",
+            .require_scheduler = false
         };
     }
 
@@ -274,7 +326,7 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::NotifyFlushFinished),
             .description = "Notify the flush finished event of the emote system",
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -300,7 +352,7 @@ private:
                     .type = EventItemType::Object
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -319,11 +371,15 @@ public:
                 function_schema_set_configs(),
                 function_schema_load_assets(),
                 function_schema_set_emoji(),
+                function_schema_hide_emoji(),
                 function_schema_set_animation(),
                 function_schema_insert_animation(),
                 function_schema_stop_animation(),
                 function_schema_wait_animation_frame_done(),
                 function_schema_set_event_message(),
+                function_schema_hide_event_message(),
+                function_schema_set_qrcode(),
+                function_schema_hide_qrcode(),
                 function_schema_notify_flush_finished(),
             }
         };
@@ -348,14 +404,15 @@ BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::AssetSourceType, Path, PartitionLabel, 
 BROOKESIA_DESCRIBE_STRUCT(ExpressionEmote::AssetSource, (), (source, type, flag_enable_mmap));
 BROOKESIA_DESCRIBE_STRUCT(
     ExpressionEmote::Config, (), (
-        h_res, v_res, buf_pixels, fps, task_priority, task_stack, task_affinity, task_stack_in_ext, flag_swap_color_bytes,
-        flag_double_buffer, flag_buff_dma, flag_buff_spiram
+        h_res, v_res, buf_pixels, fps, task_priority, task_stack, task_affinity, task_stack_in_ext,
+        flag_swap_color_bytes, flag_double_buffer, flag_buff_dma, flag_buff_spiram
     )
 );
 BROOKESIA_DESCRIBE_STRUCT(ExpressionEmote::FlushReadyEventParam, (), (x_start, y_start, x_end, y_end, data));
 BROOKESIA_DESCRIBE_ENUM(
-    ExpressionEmote::FunctionId, SetConfig, LoadAssetsSource, SetEmoji, SetAnimation, InsertAnimation, StopAnimation,
-    WaitAnimationFrameDone, SetEventMessage, NotifyFlushFinished, Max
+    ExpressionEmote::FunctionId, SetConfig, LoadAssetsSource, SetEmoji, HideEmoji, SetAnimation, InsertAnimation,
+    StopAnimation, WaitAnimationFrameDone, SetEventMessage, HideEventMessage, SetQrcode, HideQrcode,
+    NotifyFlushFinished, Max
 );
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::EventId, FlushReady, Max);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionSetConfigParam, Config);
@@ -365,6 +422,7 @@ BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionSetAnimationParam, Animation);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionInsertAnimationParam, Animation, DurationMs);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionWaitAnimationFrameDoneParam, TimeoutMs);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionSetEventMessageParam, Event, Message);
+BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionSetQrcodeParam, Qrcode);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::EventFlushReadyParam, Param);
 
 } // namespace esp_brookesia::service::helper

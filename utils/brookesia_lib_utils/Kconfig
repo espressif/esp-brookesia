@@ -145,7 +145,7 @@ menu "ESP-Brookesia: Library Utils Configurations"
     menu "Thread Config"
         config BROOKESIA_UTILS_THREAD_CONFIG_NAME
             string "Name"
-            default "bthread"
+            default "Thread"
             help
                 The default name of the thread.
 

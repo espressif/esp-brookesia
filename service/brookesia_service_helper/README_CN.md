@@ -4,7 +4,7 @@
 
 ## 概述
 
-`brookesia_service_helper` 是 ESP-Brookesia 服务开发辅助库，基于 C++20 Concepts 和 CRTP （Curiously Recurring Template Pattern）模式，为服务开发者和使用者提供类型安全的定义、Schema 和统一调用接口，用于构建和使用符合 ESP-Brookesia 服务框架规范的服务。
+`brookesia_service_helper` 是 ESP-Brookesia 服务开发辅助库，基于 C++20 Concepts 和 CRTP（Curiously Recurring Template Pattern）模式，为服务开发者和使用者提供类型安全的定义、Schema 和统一调用接口，用于构建和使用符合 ESP-Brookesia 服务框架规范的服务。
 
 本库主要提供：
 
@@ -21,11 +21,9 @@
   - [目录](#目录)
   - [功能特性](#功能特性)
     - [辅助类](#辅助类)
-      - [服务辅助类](#服务辅助类)
-      - [智能体辅助类](#智能体辅助类)
     - [类型安全](#类型安全)
     - [标准化接口](#标准化接口)
-  - [开发环境要求](#开发环境要求)
+    - [高级特性](#高级特性)
   - [添加到工程](#添加到工程)
 
 ## 功能特性
@@ -34,18 +32,13 @@
 
 `brookesia_service_helper` 目前提供以下辅助类：
 
-#### 服务辅助类
-
-- [Audio](./include/brookesia/service_helper/audio.hpp) - 音频服务辅助类，提供音频播放、编解码、音量控制等功能定义
-- [NVS](./include/brookesia/service_helper/nvs.hpp) - NVS 服务辅助类，提供键值对存储、数据管理等功能定义
-- [SNTP](./include/brookesia/service_helper/sntp.hpp) - SNTP 服务辅助类，提供时间同步、时区设置等功能定义
-- [Wifi](./include/brookesia/service_helper/wifi.hpp) - WiFi 服务辅助类，提供 WiFi 连接、扫描、状态管理等功能定义
-
-#### 智能体辅助类
-
-- [Agent Manager](./include/brookesia/service_helper/agent/manager.hpp) - 智能体管理辅助类，提供智能体生命周期管理、状态机控制等功能定义
-- [Agent Coze](./include/brookesia/service_helper/agent/coze.hpp) - Coze 智能体辅助类，提供 Coze API 集成相关功能定义
-- [Agent OpenAI](./include/brookesia/service_helper/agent/openai.hpp) - OpenAI 智能体辅助类，提供 OpenAI API 集成相关功能定义
+| 辅助类 | 头文件 | 说明 |
+|--------|--------|------|
+| Audio | [audio.hpp](./include/brookesia/service_helper/audio.hpp) | 音频服务辅助类，提供音频播放、编解码、音量控制、AFE 事件等功能定义 |
+| NVS | [nvs.hpp](./include/brookesia/service_helper/nvs.hpp) | NVS 服务辅助类，提供键值对存储、数据管理等功能定义 |
+| SNTP | [sntp.hpp](./include/brookesia/service_helper/sntp.hpp) | SNTP 服务辅助类，提供时间同步、时区设置等功能定义 |
+| Wifi | [wifi.hpp](./include/brookesia/service_helper/wifi.hpp) | WiFi 服务辅助类，提供 WiFi 连接、扫描、状态管理等功能定义 |
+| Emote | [emote.hpp](./include/brookesia/service_helper/expression/emote.hpp) | 表情服务辅助类，提供表情显示、动画控制、二维码显示等功能定义 |
 
 ### 类型安全
 
@@ -68,14 +61,11 @@
 - **接口一致性**：所有辅助类继承自 `Base`，遵循相同的接口规范，确保使用方式一致
 - **运行时验证**：函数和事件调用时自动验证 Schema，确保参数类型和数量正确
 
-## 开发环境要求
+### 高级特性
 
-使用本库前，请确保已安装以下 SDK 开发环境：
-
-- [ESP-IDF](https://github.com/espressif/esp-idf): `>=5.5,<6`
-
-> [!NOTE]
-> SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
+- **`ConvertibleToFunctionValue` Concept**：提供类型安全的参数转换，确保传入参数可正确转换为函数所需类型
+- **`Timeout` Tag 类型**：支持在函数调用中指定超时时间，格式为 `call_function_sync<FunctionId>(..., Timeout{5000})`
+- **事件回调参数检测**：提供 Type Traits 用于检测事件回调函数的参数类型，确保回调签名正确
 
 ## 添加到工程
 

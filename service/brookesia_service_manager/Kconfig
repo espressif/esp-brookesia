@@ -69,13 +69,13 @@ menu "ESP-Brookesia: Service Manager Configurations"
         menu "General"
             config BROOKESIA_SERVICE_MANAGER_WORKER_NAME
                 string "Name"
-                default "SrvMgrWorker"
+                default "SvcMgrWorker"
                 help
                     The name of the worker thread.
 
             config BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY
                 int "Priority"
-                default 10
+                default 5
                 help
                     The priority of the worker thread.
 

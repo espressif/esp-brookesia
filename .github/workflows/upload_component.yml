@@ -18,8 +18,10 @@ jobs:
         with:
           directories: >
             agent/brookesia_agent_coze;
+            agent/brookesia_agent_helper;
             agent/brookesia_agent_manager;
             agent/brookesia_agent_openai;
+            agent/brookesia_agent_xiaozhi;
             expression/brookesia_expression_emote;
             service/brookesia_service_audio;
             service/brookesia_service_helper;

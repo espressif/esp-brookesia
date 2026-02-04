@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -17,12 +17,13 @@
 
 namespace esp_brookesia::agent {
 
-using AgentManagerHelper = service::helper::AgentManager;
+using ManagerHelper = helper::Manager;
 using SNTPHelper = service::helper::SNTP;
 
 constexpr uint32_t TIME_SYNC_UPDATE_INTERVAL_MS = 1000;
 
-constexpr uint32_t GENERAL_STATE_UPDATE_INTERVAL_MS = 10;
+constexpr uint32_t GENERAL_ACTION_QUEUE_DISPATCH_INTERVAL_MS = 100;
+constexpr uint32_t GENERAL_STATE_UPDATE_INTERVAL_MS = 100;
 
 class GeneralStateClass : public lib_utils::StateBase {
 public:
@@ -39,14 +40,16 @@ public:
 
     bool is_transient() const
     {
-        return ((state_ == GeneralState::TimeSyncing) || (state_ == GeneralState::Starting) ||
-                (state_ == GeneralState::Sleeping) || (state_ == GeneralState::WakingUp) ||
-                (state_ == GeneralState::Stopping));
+        return ((state_ == GeneralState::TimeSyncing) || (state_ == GeneralState::Activating) ||
+                (state_ == GeneralState::Starting) || (state_ == GeneralState::Sleeping) ||
+                (state_ == GeneralState::WakingUp) || (state_ == GeneralState::Stopping));
     }
 
     GeneralEvent get_transient_state_target_event();
 
 private:
+    void process_error_state();
+
     StateMachine &context_;
     GeneralState state_ = GeneralState::TimeSyncing;
 };
@@ -67,11 +70,11 @@ bool GeneralStateClass::on_enter(const std::string &from_state, const std::strin
         return true;
     }
 
-    // Only handle GeneralAction for transient states (Initing, Starting, Sleeping, WakingUp, Stopping)
-    // ExtraAction (EventGot, Timeout) should not trigger do_general_action
+    // Only handle GeneralAction for transient states (Activating, Starting, Sleeping, WakingUp, Stopping)
+    // ExtraAction (Success, Failed) should not trigger do_general_action
     GeneralAction action_enum;
     if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(action, action_enum)) {
-        // Not a GeneralAction, skip (likely EventGot or Timeout)
+        // Not a GeneralAction, skip (likely Success or Failed)
         BROOKESIA_LOGD("Not a GeneralAction, skip");
         return true;
     }
@@ -80,7 +83,7 @@ bool GeneralStateClass::on_enter(const std::string &from_state, const std::strin
     BROOKESIA_CHECK_NULL_RETURN(agent, false, "Agent is not set");
     if (!agent->do_general_action(action_enum)) {
         BROOKESIA_LOGE("Do general action '%1%' in '%2%' state failed", action, from_state);
-        return false;
+        // Here we need to enter the transient state and wait for `Failed` event to trigger the Stopped event
     }
 
     return true;
@@ -97,49 +100,21 @@ bool GeneralStateClass::on_exit(const std::string &to_state, const std::string &
         return true;
     }
 
-    // Only handle ExtraAction (EventGot, Timeout) for transient states
+    // Only handle ExtraAction (Success, Failed) for transient states
     ExtraAction action_enum;
     if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(action, action_enum)) {
         BROOKESIA_LOGD("Not a ExtraAction, skip");
         return true;
     }
 
-    if (action_enum == ExtraAction::EventGot) {
-        BROOKESIA_LOGD("State '%1%' exited with EventGot", BROOKESIA_DESCRIBE_TO_STR(state_));
-    } else if (action_enum == ExtraAction::Timeout) {
-        BROOKESIA_LOGE("State '%1%' exited with Timeout", BROOKESIA_DESCRIBE_TO_STR(state_));
-
-        auto agent = context_.get_agent();
-        BROOKESIA_CHECK_NULL_RETURN(agent, false, "Agent is not set");
-
-        auto running_action = agent->get_running_general_action();
-        BROOKESIA_LOGD("Get running action: %1%", BROOKESIA_DESCRIBE_TO_STR(running_action));
-
-        auto failed_event = agent->get_general_action_failed_event(running_action);
-        if (failed_event != GeneralEvent::Max) {
-            BROOKESIA_LOGD("Trigger failed event: %1%", BROOKESIA_DESCRIBE_TO_STR(failed_event));
-            agent->trigger_general_event(failed_event);
-        } else {
-            BROOKESIA_LOGD("No failed event found, skip");
-        }
-    } else if (action_enum == ExtraAction::Failed) {
-        BROOKESIA_LOGE("State '%1%' exited with Failed", BROOKESIA_DESCRIBE_TO_STR(state_));
-    }
-
-    auto front_action = context_.pop_general_action_queue_front();
-    if (front_action == GeneralAction::Max) {
-        BROOKESIA_LOGD("No action in the queue, skip");
-        return true;
-    }
-
-    // Since the current state of context_ is still a transient state,
-    // it is necessary to directly trigger the action through context_'s state_machine_
-    auto front_action_str = BROOKESIA_DESCRIBE_TO_STR(front_action);
-    BROOKESIA_CHECK_FALSE_RETURN(
-        context_.state_machine_->trigger_action(front_action_str, false), false, "Failed to trigger front action: %1%",
-        front_action_str
+    BROOKESIA_LOGD(
+        "State '%1%' exited with '%2%'", BROOKESIA_DESCRIBE_TO_STR(state_), BROOKESIA_DESCRIBE_TO_STR(action_enum)
     );
-    BROOKESIA_LOGD("Triggered action '%1%' from the queue", front_action_str);
+
+    if ((action_enum == ExtraAction::Timeout) || (action_enum == ExtraAction::Failed)) {
+        BROOKESIA_LOGW("Timeout or Failed, trigger agent stopped event");
+        process_error_state();
+    }
 
     return true;
 }
@@ -158,13 +133,13 @@ void GeneralStateClass::on_update()
         } else {
             BROOKESIA_LOGI("Time is synced");
             BROOKESIA_CHECK_FALSE_EXIT(
-                context_.trigger_extra_action(ExtraAction::EventGot), "Failed to trigger TimeSynced event"
+                context_.trigger_extra_action(ExtraAction::Success), "Failed to trigger TimeSynced event"
             );
         }
         return;
     }
 
-    // Check if the target event is ready for other transient states (Starting, Sleeping, WakingUp, Stopping)
+    // Check if the target event is ready for other transient states (Activating, Starting, Sleeping, WakingUp, Stopping)
     auto target_event = get_transient_state_target_event();
     BROOKESIA_CHECK_FALSE_EXIT(target_event != GeneralEvent::Max, "Not a transient state");
 
@@ -172,12 +147,12 @@ void GeneralStateClass::on_update()
     BROOKESIA_CHECK_FALSE_EXIT(target_action != GeneralAction::Max, "Invalid target action");
 
     if (agent->is_general_event_ready(target_event)) {
-        BROOKESIA_LOGD("Event %1% is ready, triggering EventGot", BROOKESIA_DESCRIBE_TO_STR(target_event));
+        BROOKESIA_LOGD("Event %1% is ready, triggering Success", BROOKESIA_DESCRIBE_TO_STR(target_event));
         BROOKESIA_CHECK_FALSE_EXIT(
-            context_.trigger_extra_action(ExtraAction::EventGot), "Failed to trigger extra action"
+            context_.trigger_extra_action(ExtraAction::Success), "Failed to trigger extra action"
         );
-    } else if (!agent->is_general_action_running(target_action)) {
-        BROOKESIA_LOGD("Action %1% is not running, triggering Failed", BROOKESIA_DESCRIBE_TO_STR(target_action));
+    } else if (agent->is_general_state_error()) {
+        BROOKESIA_LOGD("Error state, triggering Failed");
         BROOKESIA_CHECK_FALSE_EXIT(
             context_.trigger_extra_action(ExtraAction::Failed), "Failed to trigger extra action"
         );
@@ -187,6 +162,8 @@ void GeneralStateClass::on_update()
 GeneralEvent GeneralStateClass::get_transient_state_target_event()
 {
     switch (state_) {
+    case GeneralState::Activating:
+        return GeneralEvent::Activated;
     case GeneralState::Starting:
         return GeneralEvent::Started;
     case GeneralState::Sleeping:
@@ -198,6 +175,20 @@ GeneralEvent GeneralStateClass::get_transient_state_target_event()
     default:
         return GeneralEvent::Max;
     }
+}
+
+void GeneralStateClass::process_error_state()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    // Stop the general action queue task to avoid triggering other actions
+    context_.stop_general_action_queue_task();
+
+    // Trigger the Stopped event
+    auto agent = context_.get_agent();
+    BROOKESIA_CHECK_NULL_EXIT(agent, "Agent is not set");
+
+    agent->trigger_general_event(GeneralEvent::Stopped);
 }
 
 StateMachine::~StateMachine()
@@ -251,31 +242,34 @@ bool StateMachine::init()
     }
 
     /* Get action strings */
+    auto action_activate = BROOKESIA_DESCRIBE_TO_STR(GeneralAction::Activate);
     auto action_start = BROOKESIA_DESCRIBE_TO_STR(GeneralAction::Start);
     auto action_stop = BROOKESIA_DESCRIBE_TO_STR(GeneralAction::Stop);
     auto action_sleep = BROOKESIA_DESCRIBE_TO_STR(GeneralAction::Sleep);
     auto action_wakeup = BROOKESIA_DESCRIBE_TO_STR(GeneralAction::WakeUp);
-    auto action_event_got = BROOKESIA_DESCRIBE_TO_STR(ExtraAction::EventGot);
+    auto action_event_got = BROOKESIA_DESCRIBE_TO_STR(ExtraAction::Success);
     auto action_timeout = BROOKESIA_DESCRIBE_TO_STR(ExtraAction::Timeout);
     auto action_failed = BROOKESIA_DESCRIBE_TO_STR(ExtraAction::Failed);
     /* Get state strings */
     auto state_time_syncing = BROOKESIA_DESCRIBE_TO_STR(GeneralState::TimeSyncing);
-    auto state_time_synced = BROOKESIA_DESCRIBE_TO_STR(GeneralState::TimeSynced);
+    auto state_idle = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Ready);
+    auto state_activating = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Activating);
+    auto state_activated = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Activated);
     auto state_starting = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Starting);
-    auto state_stopping = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Stopping);
     auto state_started = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Started);
-    auto state_pausing = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Sleeping);
-    auto state_resuming = BROOKESIA_DESCRIBE_TO_STR(GeneralState::WakingUp);
-    auto state_sleepd = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Slept);
+    auto state_sleeping = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Sleeping);
+    auto state_slept = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Slept);
+    auto state_wakingup = BROOKESIA_DESCRIBE_TO_STR(GeneralState::WakingUp);
+    auto state_stopping = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Stopping);
 
     /* Set update interval for transient states */
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::TimeSyncing)]->set_update_interval(
         TIME_SYNC_UPDATE_INTERVAL_MS
     );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Starting)]->set_update_interval(
+    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Activating)]->set_update_interval(
         GENERAL_STATE_UPDATE_INTERVAL_MS
     );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Stopping)]->set_update_interval(
+    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Starting)]->set_update_interval(
         GENERAL_STATE_UPDATE_INTERVAL_MS
     );
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Sleeping)]->set_update_interval(
@@ -284,23 +278,36 @@ bool StateMachine::init()
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::WakingUp)]->set_update_interval(
         GENERAL_STATE_UPDATE_INTERVAL_MS
     );
+    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Stopping)]->set_update_interval(
+        GENERAL_STATE_UPDATE_INTERVAL_MS
+    );
 
     /* Add transitions */
     /* From stable states to transient states */
-    // TimeSynced --> Starting: Start
+    // Ready --> Activating: Activate
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_time_synced, action_start, state_starting), false,
-        "Failed to add transition: TimeSynced -> Start -> Starting"
+        state_machine_->add_transition(state_idle, action_activate, state_activating), false,
+        "Failed to add transition: Ready -> Activate -> Activating"
+    );
+    // Activated --> Starting: Start
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_activated, action_start, state_starting), false,
+        "Failed to add transition: Activated -> Start -> Starting"
     );
     // Started --> Sleeping: Sleep
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_started, action_sleep, state_pausing), false,
+        state_machine_->add_transition(state_started, action_sleep, state_sleeping), false,
         "Failed to add transition: Started -> Sleep -> Sleeping"
     );
     // Slept --> WakingUp: WakeUp
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_sleepd, action_wakeup, state_resuming), false,
+        state_machine_->add_transition(state_slept, action_wakeup, state_wakingup), false,
         "Failed to add transition: Slept -> WakeUp -> WakingUp"
+    );
+    // Activated --> Stopping: Stop
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_activated, action_stop, state_stopping), false,
+        "Failed to add transition: Activated -> Stop -> Stopping"
     );
     // Started --> Stopping: Stop
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -309,85 +316,112 @@ bool StateMachine::init()
     );
     // Slept --> Stopping: Stop
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_sleepd, action_stop, state_stopping), false,
+        state_machine_->add_transition(state_slept, action_stop, state_stopping), false,
         "Failed to add transition: Slept -> Stop -> Stopping"
     );
 
-    /* From transient states to stable states (EventGot) */
-    // TimeSyncing --> TimeSynced: EventGot
+    /* From transient states to stable states (Success) */
+    // TimeSyncing --> Ready: Success
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_time_syncing, action_event_got, state_time_synced), false,
-        "Failed to add transition: TimeSyncing -> EventGot -> TimeSynced"
+        state_machine_->add_transition(state_time_syncing, action_event_got, state_idle), false,
+        "Failed to add transition: TimeSyncing -> Success -> Ready"
     );
-    // Starting --> Started: EventGot
+    // Activating --> Activated: Success
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_activating, action_event_got, state_activated), false,
+        "Failed to add transition: Activating -> Success -> Activated"
+    );
+    // Starting --> Started: Success
     BROOKESIA_CHECK_FALSE_RETURN(
         state_machine_->add_transition(state_starting, action_event_got, state_started), false,
-        "Failed to add transition: Starting -> EventGot -> Started"
+        "Failed to add transition: Starting -> Success -> Started"
     );
-    // Sleeping --> Slept: EventGot
+    // Sleeping --> Slept: Success
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_pausing, action_event_got, state_sleepd), false,
-        "Failed to add transition: Sleeping -> EventGot -> Slept"
+        state_machine_->add_transition(state_sleeping, action_event_got, state_slept), false,
+        "Failed to add transition: Sleeping -> Success -> Slept"
     );
-    // WakingUp --> Started: EventGot
+    // WakingUp --> Started: Success
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_resuming, action_event_got, state_started), false,
-        "Failed to add transition: WakingUp -> EventGot -> Started"
+        state_machine_->add_transition(state_wakingup, action_event_got, state_started), false,
+        "Failed to add transition: WakingUp -> Success -> Started"
     );
-    // Stopping --> TimeSynced: EventGot
+    // Stopping --> Ready: Success
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_stopping, action_event_got, state_time_synced), false,
-        "Failed to add transition: Stopping -> EventGot -> TimeSynced"
+        state_machine_->add_transition(state_stopping, action_event_got, state_idle), false,
+        "Failed to add transition: Stopping -> Success -> Ready"
     );
 
-    /* From transient states to stable states (Timeout/Failed) */
-    // Starting --> TimeSynced: Timeout/Failed
+    /* From transient states to Stopping (Stop) */
+    // Activating --> Stopping: Stop
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_starting, action_timeout, state_time_synced), false,
-        "Failed to add transition: Starting -> Timeout -> TimeSynced"
+        state_machine_->add_transition(state_activating, action_stop, state_stopping), false,
+        "Failed to add transition: Activating -> Stop -> Stopping"
+    );
+    // Starting --> Stopping: Stop
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_starting, action_stop, state_stopping), false,
+        "Failed to add transition: Starting -> Stop -> Stopping"
+    );
+    // Sleeping --> Stopping: Stop
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_sleeping, action_stop, state_stopping), false,
+        "Failed to add transition: Sleeping -> Stop -> Stopping"
+    );
+    // WakingUp --> Stopping: Stop
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_wakingup, action_stop, state_stopping), false,
+        "Failed to add transition: WakingUp -> Stop -> Stopping"
+    );
+
+    /* From transient states to Ready (Timeout / Failed) */
+    // Activating --> Ready: Timeout / Failed
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_activating, action_timeout, state_idle), false,
+        "Failed to add transition: Activating -> Timeout -> Ready"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_starting, action_failed, state_time_synced), false,
-        "Failed to add transition: Starting -> Failed -> TimeSynced"
+        state_machine_->add_transition(state_activating, action_failed, state_idle), false,
+        "Failed to add transition: Activating -> Failed -> Ready"
     );
-    // Sleeping --> Started: Timeout/Failed
+    // Starting --> Ready: Timeout / Failed
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_pausing, action_timeout, state_started), false,
-        "Failed to add transition: Sleeping -> Timeout -> Started"
-    );
-    BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_pausing, action_failed, state_started), false,
-        "Failed to add transition: Sleeping -> Failed -> Started"
-    );
-    // WakingUp --> Slept: Timeout/Failed
-    BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_resuming, action_timeout, state_sleepd), false,
-        "Failed to add transition: WakingUp -> Timeout -> Slept"
+        state_machine_->add_transition(state_starting, action_timeout, state_idle), false,
+        "Failed to add transition: Starting -> Timeout -> Ready"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_resuming, action_failed, state_sleepd), false,
-        "Failed to add transition: WakingUp -> Failed -> Slept"
+        state_machine_->add_transition(state_starting, action_failed, state_idle), false,
+        "Failed to add transition: Starting -> Failed -> Ready"
     );
-    // Stopping --> TimeSynced: Timeout/Failed
+    // Sleeping --> Ready: Timeout / Failed
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_stopping, action_timeout, state_time_synced), false,
-        "Failed to add transition: Stopping -> Timeout -> TimeSynced"
+        state_machine_->add_transition(state_sleeping, action_timeout, state_idle), false,
+        "Failed to add transition: Sleeping -> Timeout -> Ready"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_stopping, action_failed, state_time_synced), false,
-        "Failed to add transition: Stopping -> Failed -> TimeSynced"
+        state_machine_->add_transition(state_sleeping, action_failed, state_idle), false,
+        "Failed to add transition: Sleeping -> Failed -> Ready"
+    );
+    // WakingUp --> Ready: Timeout / Failed
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_wakingup, action_timeout, state_idle), false,
+        "Failed to add transition: WakingUp -> Timeout -> Ready"
+    );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->add_transition(state_wakingup, action_failed, state_idle), false,
+        "Failed to add transition: WakingUp -> Failed -> Ready"
     );
 
     /* Self transitions */
-    // TimeSyncing --> TimeSyncing: Stop
+    // Activating --> Activating: Activate
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_time_syncing, action_stop, state_time_syncing), false,
-        "Failed to add transition: TimeSyncing -> Stop -> TimeSyncing"
+        state_machine_->add_transition(state_activating, action_activate, state_activating), false,
+        "Failed to add transition: Activating -> Activate -> Activating"
     );
-    // TimeSynced --> TimeSynced: Stop
+    // Activated --> Activated: Activate
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_time_synced, action_stop, state_time_synced), false,
-        "Failed to add transition: TimeSynced -> Stop -> TimeSynced"
+        state_machine_->add_transition(state_activated, action_activate, state_activated), false,
+        "Failed to add transition: Activated -> Activate -> Activated"
     );
     // Starting --> Starting: Start / WakeUp
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -407,31 +441,27 @@ bool StateMachine::init()
         state_machine_->add_transition(state_started, action_wakeup, state_started), false,
         "Failed to add transition: Started -> WakeUp -> Started"
     );
-    // Sleeping --> Sleeping: Sleep / Start
+    // Sleeping --> Sleeping: Sleep
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_pausing, action_sleep, state_pausing), false,
+        state_machine_->add_transition(state_sleeping, action_sleep, state_sleeping), false,
         "Failed to add transition: Sleeping -> Sleep -> Sleeping"
-    );
-    BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_pausing, action_start, state_pausing), false,
-        "Failed to add transition: Sleeping -> Start -> Sleeping"
     );
     // Slept --> Slept: Sleep / Start
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_sleepd, action_sleep, state_sleepd), false,
+        state_machine_->add_transition(state_slept, action_sleep, state_slept), false,
         "Failed to add transition: Slept -> Sleep -> Slept"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_sleepd, action_start, state_sleepd), false,
+        state_machine_->add_transition(state_slept, action_start, state_slept), false,
         "Failed to add transition: Slept -> Start -> Slept"
     );
     // WakingUp --> WakingUp: WakeUp / Start
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_resuming, action_wakeup, state_resuming), false,
+        state_machine_->add_transition(state_wakingup, action_wakeup, state_wakingup), false,
         "Failed to add transition: WakingUp -> WakeUp -> WakingUp"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->add_transition(state_resuming, action_start, state_resuming), false,
+        state_machine_->add_transition(state_wakingup, action_start, state_wakingup), false,
         "Failed to add transition: WakingUp -> Start -> WakingUp"
     );
     // Stopping --> Stopping: Stop
@@ -486,27 +516,33 @@ bool StateMachine::start()
 
     agent_ = Manager::get_instance().get_active_agent();
     BROOKESIA_CHECK_NULL_RETURN(agent_, false, "Agent is null");
+    auto &agent_attributes = agent_->get_attributes();
+    GeneralState agent_init_state = agent_attributes.require_time_sync ?
+                                    GeneralState::TimeSyncing : GeneralState::Ready;
 
-    /* Set timeout for transient states */
-    auto &timeout_array = agent_->get_attributes().general_event_wait_timeout_ms;
+    // Set timeout for transient states, use action 'Stop' to handle timeout
+    auto &operation_timeout = agent_attributes.operation_timeout;
     auto action_timeout = BROOKESIA_DESCRIBE_TO_STR(ExtraAction::Timeout);
+    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Activating)]->set_timeout(
+        operation_timeout.activate, action_timeout
+    );
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Starting)]->set_timeout(
-        timeout_array[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralEvent::Started)], action_timeout
+        operation_timeout.start, action_timeout
     );
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Stopping)]->set_timeout(
-        timeout_array[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralEvent::Stopped)], action_timeout
+        operation_timeout.stop, action_timeout
     );
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Sleeping)]->set_timeout(
-        timeout_array[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralEvent::Slept)], action_timeout
+        operation_timeout.sleep, action_timeout
     );
     state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::WakingUp)]->set_timeout(
-        timeout_array[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralEvent::Awake)], action_timeout
+        operation_timeout.wake_up, action_timeout
     );
 
     auto scheduler = Manager::get_instance().get_task_scheduler();
     BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not set");
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->start(scheduler, BROOKESIA_DESCRIBE_TO_STR(GeneralState::TimeSyncing)), false,
+        state_machine_->start(scheduler, BROOKESIA_DESCRIBE_TO_STR(agent_init_state)), false,
         "Failed to start state machine"
     );
 
@@ -526,9 +562,7 @@ void StateMachine::stop()
         return;
     }
 
-    while (!general_action_queue_.empty()) {
-        general_action_queue_.pop();
-    }
+    stop_general_action_queue_task();
     if (!state_machine_->force_transition_to(BROOKESIA_DESCRIBE_TO_STR(GeneralState::Max))) {
         BROOKESIA_LOGE("Failed to force transition to invalid state");
     }
@@ -581,17 +615,44 @@ bool StateMachine::trigger_general_action(GeneralAction action, bool use_dispatc
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
-    // If the general action queue is not empty or any action is running, add the action to the queue
-    if (!general_action_queue_.empty() || state_machine_->is_updating()) {
+    /* Handle special cases */
+    GeneralAction pre_action;
+    bool need_pre_action = false;
+    switch (action) {
+    case GeneralAction::Start:
+        if (!agent_->is_general_event_ready(GeneralEvent::Activated)) {
+            pre_action = GeneralAction::Activate;
+            need_pre_action = true;
+        }
+        break;
+    default:
+        break;
+    }
+    if (need_pre_action) {
+        BROOKESIA_LOGD("Recursive trigger pre action: %1%", BROOKESIA_DESCRIBE_TO_STR(pre_action));
+        BROOKESIA_CHECK_FALSE_RETURN(
+            trigger_general_action(pre_action, use_dispatch), false, "Failed to trigger pre action: %1%",
+            BROOKESIA_DESCRIBE_TO_STR(pre_action)
+        );
+    }
+
+    // If any action is running or the general action queue task is running, add the action to the queue
+    if (is_action_running() || is_general_action_queue_task_running() || !general_action_queue_.empty()) {
         auto front_action = general_action_queue_.front();
-        if (front_action == action) {
-            BROOKESIA_LOGD("Action %1% is already in the queue front, skip", action_str);
+        if ((action == front_action) || (action == agent_->get_running_general_action())) {
+            BROOKESIA_LOGD("Action %1% is already in the queue front or running, skip", action_str);
             return true;
         }
+
         BROOKESIA_LOGD("Added action %1% to the queue", action_str);
         general_action_queue_.push(action);
+
+        // If the general action queue task is not running, post it
+        BROOKESIA_CHECK_FALSE_RETURN(
+            start_general_action_queue_task(), false, "Failed to start general action queue task"
+        );
     } else {
-        BROOKESIA_LOGD("No action in the queue or is running, trigger the action directly");
+        BROOKESIA_LOGD("Trigger action directly");
         // Otherwise, trigger the action directly
         BROOKESIA_CHECK_FALSE_RETURN(
             state_machine_->trigger_action(action_str, use_dispatch), false, "Failed to trigger general action: %1%",
@@ -610,7 +671,7 @@ bool StateMachine::trigger_extra_action(ExtraAction action)
     BROOKESIA_LOGD("Params: action(%1%)", action_str);
 
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->trigger_action(action_str), false, "Failed to trigger extra action: %1%", action_str
+        state_machine_->trigger_action(action_str), false, "Failed to trigger action: %1%", action_str
     );
 
     return true;
@@ -662,6 +723,160 @@ bool StateMachine::is_transient_state()
     return (((current_state == GeneralState::TimeSyncing) || (current_state == GeneralState::Starting) ||
              (current_state == GeneralState::Sleeping) || (current_state == GeneralState::WakingUp) ||
              (current_state == GeneralState::Stopping)));
+}
+
+bool StateMachine::is_general_action_queue_task_running()
+{
+    if (general_action_queue_task_ == 0) {
+        return false;
+    }
+
+    auto scheduler = Manager::get_instance().get_task_scheduler();
+    if (!scheduler ||
+            (scheduler->get_state(general_action_queue_task_) != lib_utils::TaskScheduler::TaskState::Running)) {
+        return false;
+    }
+
+    return true;
+}
+
+GeneralState StateMachine::get_general_action_target_transient_state(GeneralAction action)
+{
+    switch (action) {
+    case GeneralAction::Activate:
+        return GeneralState::Activating;
+    case GeneralAction::Start:
+        return GeneralState::Starting;
+    case GeneralAction::Stop:
+        return GeneralState::Stopping;
+    case GeneralAction::Sleep:
+        return GeneralState::Sleeping;
+    case GeneralAction::WakeUp:
+        return GeneralState::WakingUp;
+    default:
+        return GeneralState::Max;
+    }
+}
+
+GeneralState StateMachine::get_general_action_target_stable_state(GeneralAction action)
+{
+    switch (action) {
+    case GeneralAction::Activate:
+        return GeneralState::Activated;
+    case GeneralAction::Start:
+        return GeneralState::Started;
+    case GeneralAction::Stop:
+        return GeneralState::Ready;
+    case GeneralAction::Sleep:
+        return GeneralState::Slept;
+    case GeneralAction::WakeUp:
+        return GeneralState::Started;
+    default:
+        return GeneralState::Max;
+    }
+}
+
+GeneralState StateMachine::get_general_event_target_state(GeneralEvent event)
+{
+    switch (event) {
+    case GeneralEvent::Activated:
+        return GeneralState::Activated;
+    case GeneralEvent::Started:
+        return GeneralState::Started;
+    case GeneralEvent::Stopped:
+        return GeneralState::Ready;
+    case GeneralEvent::Slept:
+        return GeneralState::Slept;
+    case GeneralEvent::Awake:
+        return GeneralState::Started;
+    default:
+        return GeneralState::Max;
+    }
+}
+
+std::shared_ptr<lib_utils::TaskScheduler> StateMachine::get_task_scheduler()
+{
+    return Manager::get_instance().get_task_scheduler();
+}
+
+bool StateMachine::is_action_running()
+{
+    auto running_action = agent_->get_running_general_action();
+    // BROOKESIA_LOGD("Running action: %1%", BROOKESIA_DESCRIBE_TO_STR(running_action));
+
+    auto has_transition_running = state_machine_->has_transition_running();
+    // BROOKESIA_LOGD("State machine has transition running: %1%", has_transition_running);
+
+    auto has_state_updating = state_machine_->has_state_updating();
+    // BROOKESIA_LOGD("State machine has state updating: %1%", has_state_updating);
+
+    return (running_action != GeneralAction::Max) || has_transition_running || has_state_updating;
+}
+
+bool StateMachine::start_general_action_queue_task()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (is_general_action_queue_task_running()) {
+        BROOKESIA_LOGD("Already running, skip");
+        return true;
+    }
+
+    auto scheduler = Manager::get_instance().get_task_scheduler();
+    BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not set");
+    auto task = [this]() {
+        // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        if (is_action_running()) {
+            // BROOKESIA_LOGD("Action is running, skip");
+            return true;
+        }
+
+        auto front_action = pop_general_action_queue_front();
+        if (front_action == GeneralAction::Max) {
+            BROOKESIA_LOGD("No action in the queue, stop task");
+            return false;
+        }
+
+        auto front_action_str = BROOKESIA_DESCRIBE_TO_STR(front_action);
+        BROOKESIA_CHECK_FALSE_RETURN(
+            state_machine_->trigger_action(front_action_str, false), true,
+            "Failed to trigger front action: %1%", front_action_str
+        );
+        BROOKESIA_LOGD(
+            "Triggered action '%1%' from the queue, remaining actions: %2%", front_action_str,
+            general_action_queue_.size()
+        );
+
+        if (general_action_queue_.empty()) {
+            BROOKESIA_LOGD("No action in the queue, stop task");
+            general_action_queue_task_ = 0;
+            return false;
+        }
+
+        return true;
+    };
+    auto group = Manager::get_instance().get_state_task_group();
+    auto result = scheduler->post_periodic(
+                      task, GENERAL_ACTION_QUEUE_DISPATCH_INTERVAL_MS, &general_action_queue_task_, group
+                  );
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post general action queue task to group");
+
+    return true;
+}
+
+void StateMachine::stop_general_action_queue_task()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (general_action_queue_task_ != 0) {
+        auto scheduler = Manager::get_instance().get_task_scheduler();
+        if (scheduler) {
+            scheduler->cancel(general_action_queue_task_);
+        }
+        general_action_queue_task_ = 0;
+    }
+    general_action_queue_ = std::queue<GeneralAction>();
 }
 
 } // namespace esp_brookesia::agent

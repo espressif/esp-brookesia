@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -48,7 +48,7 @@ TEST_CASE("Test ThreadConfig default values", "[utils][thread_config][struct]")
 
     ThreadConfig config;
 
-    TEST_ASSERT_NOT_NULL(config.name);
+    TEST_ASSERT_TRUE(!config.name.empty());
     TEST_ASSERT_GREATER_OR_EQUAL(-1, config.core_id);
     TEST_ASSERT_GREATER_THAN(0, config.priority);
     TEST_ASSERT_GREATER_THAN(0, config.stack_size);
@@ -68,7 +68,7 @@ TEST_CASE("Test ThreadConfig custom values", "[utils][thread_config][struct]")
         .stack_in_ext = true
     };
 
-    TEST_ASSERT_EQUAL_STRING("custom_thread", config.name);
+    TEST_ASSERT_TRUE(config.name == "custom_thread");
     TEST_ASSERT_EQUAL(1, config.core_id);
     TEST_ASSERT_EQUAL(10, config.priority);
     TEST_ASSERT_EQUAL(4096, config.stack_size);
@@ -554,7 +554,7 @@ TEST_CASE("Test ThreadConfigGuard with null name", "[utils][thread_config][guard
     BROOKESIA_LOGI("=== ThreadConfigGuard Null Name Test ===");
 
     ThreadConfig config = {
-        .name = nullptr,
+        .name = "",
         .core_id = 0,
         .priority = 5,
         .stack_size = 4096,

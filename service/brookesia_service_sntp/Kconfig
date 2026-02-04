@@ -1,4 +1,10 @@
 menu "ESP-Brookesia: Service SNTP Configurations"
+    config BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
     menuconfig BROOKESIA_SERVICE_SNTP_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n

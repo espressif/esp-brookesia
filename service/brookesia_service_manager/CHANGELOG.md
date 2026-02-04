@@ -1,5 +1,29 @@
 # ChangeLog
 
+## v0.7.3 - 2026-02-02
+
+#### Breaking Changes:
+
+- break(event): `EventItem` changed from `std::variant` to a derived struct with implicit arithmetic-to-double conversion
+- break(function): `FunctionValue` changed from `std::variant` to a derived struct with implicit arithmetic-to-double conversion
+
+#### Enhancements:
+
+- feat(common): template-based `RawBuffer` constructor with automatic const detection
+- feat(event): add `require_scheduler` field to `EventSchema`
+- feat(function): add `require_scheduler` field to `FunctionSchema`
+- feat(service): add `set_task_scheduler()` method to `ServiceBase`
+- feat(service): add `bindable` attribute to `ServiceBase::Attributes`
+- feat(service): skip event publish if no subscribers found
+- feat(Kconfig): reduce default worker priority from `10` to `5`
+- feat(Kconfig): add range validation for worker core ID
+- feat(Kconfig): change default worker name from `SrvMgrWorker` to `SvcMgrWorker`
+
+#### Bug Fixes:
+
+- fix(service): add exception handling for promise `set_value`
+- fix(service): optimize sync call to avoid unnecessary async overhead
+
 ## v0.7.2 - 2026-01-13
 
 #### Enhancements:

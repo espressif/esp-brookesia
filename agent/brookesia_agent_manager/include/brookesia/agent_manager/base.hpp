@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,42 +9,52 @@
 #include <functional>
 #include <string>
 #include "boost/thread/shared_mutex.hpp"
-#include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_manager/service/base.hpp"
-#include "brookesia/service_helper/agent/manager.hpp"
+#include "brookesia/agent_helper/manager.hpp"
 #include "brookesia/service_helper/audio.hpp"
 
 namespace esp_brookesia::agent {
 
-struct AudioConfig {
-    size_t encoder_feed_data_size;
-    service::helper::Audio::EncoderConfig encoder;
-    service::helper::Audio::DecoderConfig decoder;
+struct ServiceConfig {
+    std::vector<std::string> dependencies{};
 };
 
-using GeneralAction = service::helper::AgentManager::GeneralAction;
-using GeneralEvent = service::helper::AgentManager::GeneralEvent;
-using AgentAttributes = service::helper::AgentManager::AgentAttributes;
+struct AudioConfig {
+    service::helper::Audio::EncoderDynamicConfig encoder;
+    service::helper::Audio::DecoderDynamicConfig decoder;
+};
+
+using GeneralAction = helper::Manager::GeneralAction;
+using GeneralEvent = helper::Manager::GeneralEvent;
+using AgentAttributes = helper::Manager::AgentAttributes;
+using ChatMode = helper::Manager::ChatMode;
 
 enum class GeneralStateFlagBit {
+    TimeSyncing,
+    Ready,
+    Activating,
+    Activated,
     Starting,
     Stopping,
     Started,
     Sleeping,
     WakingUp,
     Slept,
+    Error,
     Max,
 };
 BROOKESIA_DESCRIBE_ENUM(
-    GeneralStateFlagBit, Starting, Stopping, Started, Sleeping, WakingUp, Slept, Max
+    GeneralStateFlagBit, TimeSyncing, Ready, Activating, Activated, Starting, Stopping, Started, Sleeping, WakingUp,
+    Slept, Error, Max
 );
 
 using GeneralStateFlags = std::bitset<BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Max)>;
 
-class Base {
+class Base: public service::ServiceBase {
 public:
     friend class Manager;
+    friend class StateMachine;
     friend class GeneralStateClass;
 
     Base(Base &&) = delete;
@@ -63,36 +73,51 @@ public:
     }
 
 protected:
-    Base(const AgentAttributes &attributes, const AudioConfig &audio_config)
-        : attributes_(attributes)
-        , audio_config_(audio_config)
+    Base(const AgentAttributes &attributes, const AudioConfig &audio_config, const ServiceConfig &service_config = {})
+        : ServiceBase(Attributes{
+        .name = attributes.name.data(),
+        .dependencies = [ & ]()
+        {
+            std::vector<std::string> deps = {service::helper::Audio::get_name().data()};
+            if (!service_config.dependencies.empty()) {
+                deps.insert(deps.end(), service_config.dependencies.begin(), service_config.dependencies.end());
+            }
+            return deps;
+        }(),
+        .bindable = false,
+    })
+    , attributes_(attributes)
+    , audio_config_(audio_config)
     {}
     virtual ~Base() = default;
 
-    virtual bool on_init()
-    {
-        return true;
-    }
-    virtual void on_deinit()
-    {}
-    virtual bool on_activate()
-    {
-        return true;
-    }
-    virtual void on_deactivate()
-    {}
+    std::string get_call_task_group() const override;
+    std::string get_event_task_group() const override;
+    std::string get_request_task_group() const override;
+    std::string get_state_task_group() const;
 
-    virtual bool on_start() = 0;
-    virtual void on_stop() = 0;
+    virtual bool on_activate() = 0;
+    virtual bool on_startup() = 0;
+    virtual void on_shutdown() = 0;
     virtual bool on_sleep() = 0;
-    virtual void on_wakeup() = 0;
+    virtual bool on_wakeup() = 0;
 
+    virtual bool on_manual_start_listening()
+    {
+        return true;
+    }
+    virtual bool on_manual_stop_listening()
+    {
+        return true;
+    }
     virtual bool on_suspend()
     {
         return true;
     }
-    virtual void on_resume()
-    {}
+    virtual bool on_resume()
+    {
+        return true;
+    }
     virtual bool on_interrupt_speaking()
     {
         return false;
@@ -116,70 +141,68 @@ protected:
         return true;
     }
 
-    /* Allow subclasses to provide the additional function schemas, event schemas, and function handlers */
-    virtual std::vector<service::FunctionSchema> get_function_schemas()
+    ChatMode get_chat_mode() const;
+
+    void reset_interrupted_speaking();
+
+    bool set_speaking(bool speaking);
+    bool is_speaking() const
     {
-        return {};
+        return is_speaking_;
     }
-    virtual std::vector<service::EventSchema> get_event_schemas()
+    bool set_listening(bool listening);
+    bool is_listening() const
     {
-        return {};
+        return is_listening_;
     }
-    virtual service::ServiceBase::FunctionHandlerMap get_function_handlers()
-    {
-        return {};
-    }
+    bool set_emote(const std::string emote);
+    bool set_agent_speaking_text(const std::string text);
+    bool set_user_speaking_text(const std::string text);
 
     void trigger_general_event(GeneralEvent event);
+
     bool feed_audio_decoder_data(const uint8_t *data, size_t data_size);
 
-    bool publish_service_event(const std::string &event, service::EventItemMap &&items, bool use_dispatch = false);
-    std::shared_ptr<lib_utils::TaskScheduler> get_service_scheduler();
-
-    void reset_interrupted_speaking()
-    {
-        is_interrupted_speaking_ = false;
-    }
-
 private:
-    using GeneralActionTriggeredCallback = std::function<void(GeneralAction action)>;
-    using GeneralEventHappenedCallback = std::function<void(GeneralEvent event, bool is_unexpected_event)>;
-    using SuspendStatusChangedCallback = std::function<void(bool is_suspended)>;
+    using service::ServiceBase::start;
+    using service::ServiceBase::stop;
+
+    using UnexpectedGeneralEventHappenedCallback = std::function<void(GeneralEvent event)>;
+    using AFE_EventHappenedCallback = std::function<void(service::helper::Audio::AFE_Event event)>;
 
     struct Callbacks {
-        GeneralActionTriggeredCallback general_action_triggered_callback = nullptr;
-        GeneralEventHappenedCallback general_event_happened_callback = nullptr;
-        SuspendStatusChangedCallback suspend_status_changed_callback = nullptr;
+        UnexpectedGeneralEventHappenedCallback unexpected_general_event_happened;
+        AFE_EventHappenedCallback afe_event_happened;
     };
 
-    bool init();
-    void deinit();
-    bool activate();
-    void deactivate();
+    // Inherited from service::ServiceBase
+    void on_stop() override;
 
+    bool do_activate();
     bool do_start();
     void do_stop();
     bool do_sleep();
-    void do_wakeup();
+    bool do_wakeup();
     bool do_general_action(GeneralAction action, bool is_force = false);
 
     bool do_suspend();
-    void do_resume();
+    bool do_resume();
     bool do_interrupt_speaking();
+    bool do_manual_start_listening();
+    bool do_manual_stop_listening();
 
     bool start_audio_decoder();
     void stop_audio_decoder();
-    bool start_audio_encoder();
-    void stop_audio_encoder();
-
-    bool is_initialized() const
+    bool is_decoder_started() const
     {
-        return is_initialized_;
+        return is_decoder_started_;
     }
 
-    bool is_active() const
+    bool start_audio_encoder();
+    void stop_audio_encoder();
+    bool is_encoder_started() const
     {
-        return is_active_;
+        return is_encoder_started_;
     }
 
     bool is_suspended() const
@@ -192,25 +215,42 @@ private:
         return is_interrupted_speaking_;
     }
 
+    bool is_manual_listening()
+    {
+        return is_manual_listening_;
+    }
+
     bool is_listening_disabled()
     {
         return (is_general_event_ready(GeneralEvent::Stopped) || is_general_action_running(GeneralAction::Stop) ||
                 is_general_event_ready(GeneralEvent::Slept) || is_general_action_running(GeneralAction::Sleep) ||
-                is_suspended());
+                is_suspended() ||
+                ((get_chat_mode() == ChatMode::Manual) && !is_manual_listening()));
     }
 
     bool is_speaking_disabled()
     {
         return (is_general_event_ready(GeneralEvent::Stopped) || is_general_action_running(GeneralAction::Stop) ||
                 is_general_event_ready(GeneralEvent::Slept) || is_general_action_running(GeneralAction::Sleep) ||
-                is_suspended() || is_interrupted_speaking());
+                is_suspended() ||
+                is_interrupted_speaking() ||
+                ((get_chat_mode() == ChatMode::Manual) && is_manual_listening()));
     }
 
     bool is_general_action_running(GeneralAction action);
     bool is_general_event_ready(GeneralEvent event);
     bool is_general_event_unexpected(GeneralEvent event);
     GeneralAction get_running_general_action();
-    GeneralEvent get_general_action_failed_event(GeneralAction action);
+
+    void update_general_action_state_bit(GeneralAction action, bool enable);
+    void update_general_event_state_bit(GeneralEvent event, bool enable);
+    void reset_general_state_flag_bits();
+    void clear_general_state_flag_bits();
+    void update_general_state_error(bool enable);
+    bool is_general_state_error()
+    {
+        return state_flags_.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Error));
+    }
 
     static GeneralEvent get_general_action_target_event(GeneralAction action);
     static GeneralAction get_general_action_from_target_event(GeneralEvent event);
@@ -225,17 +265,21 @@ private:
     AgentAttributes attributes_;
     AudioConfig audio_config_;
 
-    bool is_initialized_ = false;
-    bool is_active_ = false;
     bool is_suspended_ = false;
+    bool is_speaking_ = false;
+    bool is_listening_ = false;
     bool is_interrupted_speaking_ = false;
+    bool is_encoder_started_ = false;
+    bool is_decoder_started_ = false;
+    bool is_unexpected_event_processing_ = false;
+    bool is_manual_listening_ = false;
 
     GeneralStateFlags state_flags_;
 
-    service::EventRegistry::SignalConnection encoder_event_happened_connection_;
+    service::EventRegistry::SignalConnection afe_event_happened_connection_;
     service::EventRegistry::SignalConnection encoder_data_ready_connection_;
 
-    inline static Callbacks callbacks_{nullptr, nullptr, nullptr};
+    inline static Callbacks callbacks_{};
 };
 
 } // namespace esp_brookesia::agent

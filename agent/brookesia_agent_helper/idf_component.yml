@@ -1,0 +1,10 @@
+version: "0.7.0"
+description: ESP-Brookesia agent helper library which provides type-safe definitions, schemas, and unified calling interfaces for agent management.
+url: https://github.com/espressif/esp-brookesia/tree/master/agent/brookesia_agent_helper
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_service_helper:
+    version: "0.7.*"
+    override_path: "../../service/brookesia_service_helper"
+    require: public

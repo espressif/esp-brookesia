@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -91,7 +91,7 @@ public:
                 .stack_size = 6 * 1024,
             }
         };
-        size_t worker_poll_interval_ms = 5;
+        size_t worker_poll_interval_ms = 10;
         PreExecuteCallback pre_execute_callback = nullptr;
         PostExecuteCallback post_execute_callback = nullptr;
     };
@@ -299,6 +299,17 @@ public:
      * @return true if all tasks completed within timeout, false otherwise
      */
     bool wait_all(int timeout_ms = -1);
+
+    /**
+     * @brief Restart the timer for a delayed or periodic task
+     *
+     * This resets the timer countdown to its original interval. Useful for implementing
+     * debounce or watchdog-like behavior where you want to postpone execution.
+     *
+     * @param[in] id Task ID to restart timer for
+     * @return true if timer restarted successfully, false otherwise (task not found, wrong type, or not running)
+     */
+    bool restart_timer(TaskId id);
 
     /**
      * @brief Query the type of a task

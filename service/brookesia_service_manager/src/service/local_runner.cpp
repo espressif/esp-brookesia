@@ -80,8 +80,9 @@ bool LocalTestRunner::run_tests(const RunTestsConfig &config, const std::vector<
         elapsed += poll_interval;
     }
 
-    scheduler->stop();
     BROOKESIA_CHECK_FALSE_RETURN(scheduler->wait_all(2000), false, "Wait for all tests to complete timeout");
+
+    scheduler->stop();
 
     // Count the results
     bool all_passed = (failed_count_ == 0) && (completed_count_ == test_items.size());

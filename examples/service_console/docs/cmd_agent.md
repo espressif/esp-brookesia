@@ -1,223 +1,295 @@
 # Agent Service
 
-The Agent service provides AI agent management functionality, supporting agent services such as Coze and OpenAI.
+The Agent service provides AI agent management functionality, supporting agent services such as Coze, OpenAI, and Xiaozhi.
 
-Detailed interface descriptions please refer to [Agent service helper header file](https://github.com/espressif/esp-brookesia/blob/master/service/brookesia_service_helper/include/brookesia/service_helper/agent).
+For detailed interface documentation, please refer to [Agent Manager](https://github.com/espressif/esp-brookesia/blob/master/agent/brookesia_agent_manager) and [Agent Helper](https://github.com/espressif/esp-brookesia/blob/master/agent/brookesia_agent_helper).
+
+> [!NOTE]
+> - Some Agents (such as Coze, OpenAI) require API key configuration in menuconfig
+> - Ensure the device is connected to the internet before enabling Agent functionality
 
 ## Table of Contents
 
 - [Agent Service](#agent-service)
   - [Table of Contents](#table-of-contents)
-  - [Manager Functions](#manager-functions)
-    - [Get Agent Attributes](#get-agent-attributes)
-    - [Get Active Agent](#get-active-agent)
-    - [Get Status](#get-status)
-    - [Set Agent Info](#set-agent-info)
-    - [Activate/Deactivate Agent](#activatedeactivate-agent)
-    - [Trigger General Actions](#trigger-general-actions)
-    - [Suspend/Resume](#suspendresume)
-    - [Interrupt Agent Speaking](#interrupt-agent-speaking)
-    - [Reset Data](#reset-data)
-    - [Subscribe to Agent Events](#subscribe-to-agent-events)
-  - [Coze Agent](#coze-agent)
-    - [Functions](#functions)
-    - [Events](#events)
-  - [Notes](#notes)
+  - [General Agent Functions](#general-agent-functions)
+    - [Function Call Interface](#function-call-interface)
+      - [Activate Agent](#activate-agent)
+      - [Trigger General Actions](#trigger-general-actions)
+      - [Suspend/Resume](#suspendresume)
+      - [Interrupt Agent Speaking](#interrupt-agent-speaking)
+      - [Set Chat Mode](#set-chat-mode)
+      - [Get Chat Mode](#get-chat-mode)
+      - [Manual Start/Stop Listening](#manual-startstop-listening)
+      - [Reset Data](#reset-data)
+      - [Get Agent Attributes](#get-agent-attributes)
+      - [Get Active Agent](#get-active-agent)
+      - [Get Status](#get-status)
+      - [Set Agent Info](#set-agent-info)
+    - [Event Subscription Interface](#event-subscription-interface)
+      - [General Action Event](#general-action-event)
+      - [General Happened Event](#general-happened-event)
+      - [Suspend Status Changed Event](#suspend-status-changed-event)
+      - [Speaking Status Changed Event](#speaking-status-changed-event)
+      - [Listening Status Changed Event](#listening-status-changed-event)
+      - [Agent Speaking Text Event](#agent-speaking-text-event)
+      - [User Speaking Text Event](#user-speaking-text-event)
+      - [Emote Event](#emote-event)
+  - [Special Agent Functions](#special-agent-functions)
+    - [Xiaozhi](#xiaozhi)
+      - [Event Subscription Interface](#event-subscription-interface-1)
+    - [Coze](#coze)
+      - [Function Call Interface](#function-call-interface-1)
+      - [Event Subscription Interface](#event-subscription-interface-2)
 
-## Manager Functions
+## General Agent Functions
 
-### Get Agent Attributes
+### Function Call Interface
 
-Get attributes of all Agents:
-
-```bash
-svc_call Agent GetAgentAttributes
-```
-
-Get attributes of a specific Agent:
-
-```bash
-svc_call Agent GetAgentAttributes {"Name":"Coze"}
-```
-
-### Get Active Agent
-
-View the currently active Agent:
-
-```bash
-svc_call Agent GetActiveAgent
-```
-
-### Get Status
-
-Get general state:
-
-```bash
-svc_call Agent GetGeneralState
-```
-
-Get suspend status:
-
-```bash
-svc_call Agent GetSuspendStatus
-```
-
-### Set Agent Info
-
-Set Agent information:
-
-```bash
-svc_call Agent SetAgentInfo {...}
-```
-
-> [!NOTE]
-> Before running `svc_call Agent TriggerGeneralAction {"Action":"Start"}`, you need to run this command first to set Agent authentication information.
-
-### Activate/Deactivate Agent
+#### Activate Agent
 
 Activate a specific Agent:
 
 ```bash
-svc_call Agent ActivateAgent {"Name":"Coze"}
-svc_call Agent ActivateAgent {"Name":"Openai"}
+svc_call AgentManager ActivateAgent {"Name":"AgentXiaoZhi"}
 ```
 
-Deactivate the currently active Agent:
+Parameter description:
 
-```bash
-svc_call Agent DeactivateAgent
-```
+- `Name`: Agent name, valid values are
+  - `AgentXiaoZhi`
+  - `AgentCoze` (requires API key configuration)
+  - `AgentOpenai` (requires API key configuration)
 
-### Trigger General Actions
+#### Trigger General Actions
 
 Start Agent:
 
 ```bash
-svc_call Agent TriggerGeneralAction {"Action":"Start"}
+svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
 ```
-
-> [!NOTE]
-> Before running this command, you need to run `svc_call Agent SetAgentInfo {...}` first to set Agent authentication information.
 
 Stop Agent:
 
 ```bash
-svc_call Agent TriggerGeneralAction {"Action":"Stop"}
+svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}
 ```
 
 Put Agent to sleep:
 
 ```bash
-svc_call Agent TriggerGeneralAction {"Action":"Sleep"}
+svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}
 ```
 
 Wake up Agent:
 
 ```bash
-svc_call Agent TriggerGeneralAction {"Action":"WakeUp"}
+svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}
 ```
 
-### Suspend/Resume
+#### Suspend/Resume
 
 Trigger suspend:
 
 ```bash
-svc_call Agent TriggerSuspend
+svc_call AgentManager Suspend
 ```
 
 Trigger resume:
 
 ```bash
-svc_call Agent TriggerResume
+svc_call AgentManager Resume
 ```
 
-### Interrupt Agent Speaking
-
-Interrupt Agent while speaking:
+#### Interrupt Agent Speaking
 
 ```bash
-svc_call Agent TriggerInterruptSpeaking
+svc_call AgentManager InterruptSpeaking
 ```
 
-### Reset Data
+#### Set Chat Mode
+
+```bash
+svc_call AgentManager SetChatMode {"Mode":"Manual"}
+```
+
+Parameter description:
+
+- `Mode`: Chat mode, valid values are
+  - `Manual`: Manual mode, Agent requires manual start and stop listening
+  - `RealTime`: Real-time mode, Agent listens while speaking
+
+#### Get Chat Mode
+
+```bash
+svc_call AgentManager GetChatMode
+```
+
+#### Manual Start/Stop Listening
+
+```bash
+svc_call AgentManager ManualStartListening
+svc_call AgentManager ManualStopListening
+```
+
+#### Reset Data
 
 Reset Agent service data:
 
 ```bash
-svc_call Agent ResetData
+svc_call AgentManager ResetData
 ```
 
-### Subscribe to Agent Events
+#### Get Agent Attributes
 
-Subscribe to general action triggered event:
+Get attributes of all Agents:
 
 ```bash
-svc_subscribe Agent GeneralActionTriggered
+svc_call AgentManager GetAgentAttributes
 ```
 
-Subscribe to general event:
+Get attributes of a specific Agent:
 
 ```bash
-svc_subscribe Agent GeneralEventHappened
+svc_call AgentManager GetAgentAttributes {"Name":"AgentCoze"}
 ```
 
-Subscribe to suspend status changed event:
+#### Get Active Agent
+
+View the currently active Agent:
 
 ```bash
-svc_subscribe Agent SuspendStatusChanged
+svc_call AgentManager GetActiveAgent
 ```
 
-Subscribe to Agent speaking text event:
+#### Get Status
+
+Get general state:
 
 ```bash
-svc_subscribe Agent AgentSpeakingTextGot
+svc_call AgentManager GetGeneralState
 ```
 
-Subscribe to user speaking text event:
+Get suspend status:
 
 ```bash
-svc_subscribe Agent UserSpeakingTextGot
+svc_call AgentManager GetSuspendStatus
 ```
 
-Subscribe to emote event:
+Get speaking status:
 
 ```bash
-svc_subscribe Agent EmoteGot
+svc_call AgentManager GetSpeakingStatus
 ```
 
-## Coze Agent
-
-### Functions
-
-Set active robot index:
+Get listening status:
 
 ```bash
-svc_call Agent SetActiveRobotIndex {"Index":0}
+svc_call AgentManager GetListeningStatus
 ```
 
-Get active robot index:
+#### Set Agent Info
+
+Set Agent information:
 
 ```bash
-svc_call Agent GetActiveRobotIndex
+svc_call AgentManager SetAgentInfo {...}
 ```
 
-Get robot information:
+> [!NOTE]
+> For Agents that require authentication (such as `Coze` and `OpenAI`), you need to run this command to set Agent authentication information before running `svc_call AgentManager TriggerGeneralAction {"Action":"Start"}`.
+
+
+### Event Subscription Interface
+
+#### General Action Event
 
 ```bash
-svc_call Agent GetRobotInfos
+svc_subscribe AgentManager GeneralActionTriggered
 ```
 
-### Events
-
-Subscribe to Coze event:
+#### General Happened Event
 
 ```bash
-svc_subscribe Agent CozeEventHappened
+svc_subscribe AgentManager GeneralEventHappened
 ```
 
-## Notes
+#### Suspend Status Changed Event
 
-- Agent service requires WiFi and SNTP service support
-- Agents (such as Coze, OpenAI) require API key configuration
-- Ensure the device is connected to the internet
-- Agent configuration needs to be completed in menuconfig
+```bash
+svc_subscribe AgentManager SuspendStatusChanged
+```
+
+#### Speaking Status Changed Event
+
+```bash
+svc_subscribe AgentManager SpeakingStatusChanged
+```
+
+#### Listening Status Changed Event
+
+```bash
+svc_subscribe AgentManager ListeningStatusChanged
+```
+
+#### Agent Speaking Text Event
+
+```bash
+svc_subscribe AgentManager AgentSpeakingTextGot
+```
+
+#### User Speaking Text Event
+
+```bash
+svc_subscribe AgentManager UserSpeakingTextGot
+```
+
+#### Emote Event
+
+```bash
+svc_subscribe AgentManager EmoteGot
+```
+
+## Special Agent Functions
+
+### Xiaozhi
+
+Xiaozhi Agent is the XiaoZhi AI platform agent implementation, no API key configuration required, ready to use out of the box.
+
+#### Event Subscription Interface
+
+Subscribe to activation code received event (for device activation binding):
+
+```bash
+svc_subscribe AgentXiaoZhi ActivationCodeReceived
+```
+
+### Coze
+
+#### Function Call Interface
+
+- Set active robot index
+
+```bash
+svc_call AgentCoze SetActiveRobotIndex {"Index":0}
+```
+
+- Get active robot index
+
+```bash
+svc_call AgentCoze GetActiveRobotIndex
+```
+
+- Get robot information
+
+```bash
+svc_call AgentCoze GetRobotInfos
+```
+
+#### Event Subscription Interface
+
+- Coze event
+
+```bash
+svc_subscribe AgentCoze CozeEventHappened
+```

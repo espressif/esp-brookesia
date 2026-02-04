@@ -63,7 +63,7 @@ private:
                     .type = FunctionValueType::Array
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 
@@ -79,7 +79,7 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_async = false
+            .require_scheduler = false
         };
     }
 

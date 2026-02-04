@@ -26,7 +26,13 @@ idf_component_register(
     PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
     REQUIRES ${COMPONENT_REQUIRES}
 )
-target_link_libraries(${COMPONENT_LIB} INTERFACE "-u _Coze_symbol_792")
+if(CONFIG_BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER)
+    set(BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL agent_coze_symbol)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL=${BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL}
+    )
+    target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL}")
+endif()
 
 include(package_manager)
 cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})

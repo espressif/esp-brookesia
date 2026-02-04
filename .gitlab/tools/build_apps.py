@@ -42,10 +42,7 @@ class CustomApp(CMakeApp):
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
-        if self.is_board_manager_project():
-            self._pre_hook()
-        else:
-            print('== This is not a board manager project, running normal build')
+        self._pre_hook()
         super()._build(
             manifest_rootpath=manifest_rootpath,
             modified_components=modified_components,
@@ -67,18 +64,26 @@ class CustomApp(CMakeApp):
 
     def clear_project_generated_files(self):
         proj_path = Path(self.work_dir).absolute()
+        # Remove directories
         shutil.rmtree(proj_path/"managed_components", ignore_errors=True)
         shutil.rmtree(proj_path/"components"/"gen_bmgr_codes", ignore_errors=True)
-        (proj_path/'board_manager.defaults').unlink(missing_ok=True)
+        shutil.rmtree(proj_path/"build", ignore_errors=True)
+        # Remove files
+        (proj_path/"dependencies.lock").unlink(missing_ok=True)
+        (proj_path/"sdkconfig").unlink(missing_ok=True)
+        (proj_path/"board_manager.defaults").unlink(missing_ok=True)
 
     def _pre_hook(self):
-        board_name = self.get_board_name_from_sdkconfig(self.sdkconfig_files[1])
+        board_name = ''
+        if self.is_board_manager_project() and len(self.sdkconfig_files) > 1:
+            board_name = self.get_board_name_from_sdkconfig(self.sdkconfig_files[1])
         print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board: {board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
         self.clear_project_generated_files()
         if board_name == '':
-            print(f'== No board name found, skip the pre build hook')
+            print(f'== No board name found, skip setting board manager config')
             return # no board name found, skip the pre build hook
         subprocess.run([sys.executable, f"{IDF_PATH}/tools/idf.py", "gen-bmgr-config", "-c", str(Path(self.work_dir).absolute()/"boards"), "-b", board_name], cwd=self.work_dir)
+        subprocess.run([sys.executable, f"{IDF_PATH}/tools/idf.py", "set-target", self.target], cwd=self.work_dir)
 
 def _get_idf_version():
     if os.environ.get('IDF_VERSION'):
@@ -121,7 +126,19 @@ def get_cmake_apps(
 
 def main(args):  # type: (argparse.Namespace) -> None
     default_build_targets = args.default_build_targets.split(',') if args.default_build_targets else None
-    apps = get_cmake_apps(args.paths, args.target, args.config, default_build_targets)
+    # Handle default config values if not provided
+    if args.config:
+        # Support both semicolon-separated strings and multiple --config arguments
+        config_list = []
+        for config_item in args.config:
+            # Split by semicolon if present, otherwise use as-is
+            if ';' in config_item:
+                config_list.extend([item.strip() for item in config_item.split(';') if item.strip()])
+            else:
+                config_list.append(config_item)
+    else:
+        config_list = ['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults']
+    apps = get_cmake_apps(args.paths, args.target, config_list, default_build_targets)
 
     if args.find:
         if args.output:
@@ -174,14 +191,17 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--config',
-        default=['sdkconfig.defaults=defaults', 'sdkconfig.ci.*=', '=defaults'],
+        default=None,
         action='append',
         help='Adds configurations (sdkconfig file names) to build. This can either be '
         'FILENAME[=NAME] or FILEPATTERN. FILENAME is the name of the sdkconfig file, '
         'relative to the project directory, to be used. Optional NAME can be specified, '
         'which can be used as a name of this configuration. FILEPATTERN is the name of '
         'the sdkconfig file, relative to the project directory, with at most one wildcard. '
-        'The part captured by the wildcard is used as the name of the configuration.',
+        'The part captured by the wildcard is used as the name of the configuration. '
+        'Can be specified multiple times to add multiple configurations, or use semicolon '
+        'to separate multiple configs in a single argument: --config="config1;config2;config3". '
+        'If not specified, defaults to: sdkconfig.defaults=defaults, sdkconfig.ci.*=, =defaults. '
     )
     parser.add_argument(
         '--parallel-count', default=1, type=int, help='Number of parallel build jobs.'

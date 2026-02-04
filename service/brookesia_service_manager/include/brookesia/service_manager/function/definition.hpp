@@ -10,6 +10,7 @@
 #include <map>
 #include <vector>
 #include <variant>
+#include <type_traits>
 #include "boost/json.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_manager/common.hpp"
@@ -26,7 +27,22 @@ enum class FunctionValueType {
 };
 BROOKESIA_DESCRIBE_ENUM(FunctionValueType, Boolean, Number, String, Object, Array, RawBuffer);
 
-using FunctionValue = std::variant <bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
+// FunctionValue: A variant that can hold different types of function parameter values
+// Supports implicit conversion from any arithmetic type (except bool and double) to double
+struct FunctionValue : std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer> {
+    using Base = std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
+
+    // Inherit all constructors from base variant
+    using Base::Base;
+
+    // Template constructor for any arithmetic type (except bool and double) - converts to double
+    template<typename T>
+    requires (std::is_arithmetic_v<std::decay_t<T>> &&
+              !std::is_same_v<std::decay_t<T>, bool> &&
+              !std::is_same_v<std::decay_t<T>, double>)
+    FunctionValue(T num) : Base(static_cast<double>(num)) {}
+};
+
 using FunctionParameterMap = std::map<std::string /* name */, FunctionValue /* value */>;
 
 struct FunctionParameterSchema {
@@ -65,9 +81,9 @@ struct FunctionSchema {
     std::string name;
     std::string description = "";
     std::vector<FunctionParameterSchema> parameters = {};
-    bool require_async = true;
+    bool require_scheduler = true;
 };
-BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_async));
+BROOKESIA_DESCRIBE_STRUCT(FunctionSchema, (), (name, description, parameters, require_scheduler));
 
 struct FunctionResult {
     bool success = false;

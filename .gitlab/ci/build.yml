@@ -18,9 +18,9 @@
       - "**/build*/size.json"
       - "**/build*/build_log.txt"
       - "**/build*/*.bin"
-      # upload to s3 server to save the artifacts size
-      - "**/build*/*.map"
-      - "**/build*/*.elf"
+      # Too large, temporarily not uploaded
+      # - "**/build*/*.map"
+      # - "**/build*/*.elf"
       - "**/build*/flasher_args.json"
       - "**/build*/flash_args"
       - "**/build*/flash_project_args"
@@ -36,7 +36,7 @@
     IDF_CI_BUILD: "1"
     # By configuring this macro, you can append the compiled configuration file.
     # For example, using "sdkconf.etc=default" specifies the default sdkconfig file.
-    EXAMPLE_CONFIG: "="
+    EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.*=;=defaults"
     EXAMPLE_TARGET: "all"
   script:
     - pip install "idf-component-manager"
@@ -65,14 +65,6 @@
   parallel:
     matrix:
       - IMAGE: espressif/idf:release-v5.5
-
-.build_brookesia_components_idf_split_targets:
-  parallel:
-    matrix:
-      - IMAGE: espressif/idf:release-v5.5
-        EXAMPLE_TARGET: "esp32s3"
-      - IMAGE: espressif/idf:release-v5.5
-        EXAMPLE_TARGET: "esp32p4"
 
 # Test Apps
 # brookesia_lib_utils: check
@@ -191,7 +183,7 @@ build_test_apps_brookesia_service_sntp:
 build_test_apps_brookesia_service_wifi:
   extends:
     - .build_examples_template
-    - .build_brookesia_components_idf_split_targets
+    - .build_brookesia_components_idf_release_version
     - .rules:build:test_apps_brookesia_service_wifi
   variables:
     EXAMPLE_DIR: service/brookesia_service_wifi/test_apps
@@ -201,8 +193,16 @@ build_test_apps_brookesia_service_wifi:
 build_examples_service_console:
   extends:
     - .build_examples_template
-    - .build_brookesia_components_idf_split_targets
     - .rules:build:examples_service_console
+# Using `-t all` directly will cause configuration failures for S3-related boards, so it is necessary to build them separately
+  parallel:
+    matrix:
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32s3"
+        EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.board.*=;=defaults"
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.board.*=;=defaults"
   variables:
     EXAMPLE_DIR: examples/service_console
 

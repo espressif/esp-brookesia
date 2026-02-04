@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -9,19 +9,8 @@
 #   include "sdkconfig.h"
 #endif
 
-/* Version */
-#if !defined(BROOKESIA_SERVICE_MANAGER_VER_MAJOR)
-#   define BROOKESIA_SERVICE_MANAGER_VER_MAJOR  (0)
-#endif
-#if !defined(BROOKESIA_SERVICE_MANAGER_VER_MINOR)
-#   define BROOKESIA_SERVICE_MANAGER_VER_MINOR  (7)
-#endif
-#if !defined(BROOKESIA_SERVICE_MANAGER_VER_PATCH)
-#   define BROOKESIA_SERVICE_MANAGER_VER_PATCH  (2)
-#endif
-
 /* Debug log */
-#define BROOKESIA_SERVICE_MANAGER_LOG_TAG "SrvMgr"
+#define BROOKESIA_SERVICE_MANAGER_LOG_TAG "SvcMgr"
 
 #if !defined(BROOKESIA_SERVICE_MANAGER_ENABLE_DEBUG_LOG)
 #   if defined(CONFIG_BROOKESIA_SERVICE_MANAGER_ENABLE_DEBUG_LOG)
@@ -120,7 +109,7 @@
 #   if defined(CONFIG_BROOKESIA_SERVICE_MANAGER_WORKER_NAME)
 #       define BROOKESIA_SERVICE_MANAGER_WORKER_NAME  CONFIG_BROOKESIA_SERVICE_MANAGER_WORKER_NAME
 #   else
-#       define BROOKESIA_SERVICE_MANAGER_WORKER_NAME  ("SrvMgrWorker")
+#       define BROOKESIA_SERVICE_MANAGER_WORKER_NAME  ("SvcMgrWorker")
 #   endif
 #endif
 #if !defined(BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY)

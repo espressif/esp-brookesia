@@ -1,16 +1,30 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #pragma once
 
-#if defined(ESP_PLATFORM)
-#   include "sdkconfig.h"
-#endif
+#include "sdkconfig.h"
 
 /* Debug log */
-#define BROOKESIA_SERVICE_SNTP_LOG_TAG "SrvSNTP"
+#define BROOKESIA_SERVICE_SNTP_LOG_TAG "SvcSNTP"
+
+/* Auto register */
+#if !defined(BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER)
+#   if defined(CONFIG_BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER)
+#       define BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
+#   else
+#       define BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER  (0)
+#   endif
+#endif
+
+/* Plugin symbol */
+#if BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
+#   if !defined(BROOKESIA_SERVICE_SNTP_PLUGIN_SYMBOL)
+#       define BROOKESIA_SERVICE_SNTP_PLUGIN_SYMBOL  service_sntp_symbol
+#   endif
+#endif
 
 #if !defined(BROOKESIA_SERVICE_SNTP_ENABLE_DEBUG_LOG)
 #   if defined(CONFIG_BROOKESIA_SERVICE_SNTP_ENABLE_DEBUG_LOG)

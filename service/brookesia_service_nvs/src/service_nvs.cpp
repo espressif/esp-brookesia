@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -378,6 +378,11 @@ std::expected<void, std::string> NVS::function_erase(const std::string &nspace, 
     return {};
 }
 
-BROOKESIA_PLUGIN_REGISTER_SINGLETON(ServiceBase, NVS, NVS::get_instance().get_attributes().name, NVS::get_instance());
+#if BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
+BROOKESIA_PLUGIN_REGISTER_SINGLETON_WITH_SYMBOL(
+    ServiceBase, NVS, NVS::get_instance().get_attributes().name, NVS::get_instance(),
+    BROOKESIA_SERVICE_NVS_PLUGIN_SYMBOL
+);
+#endif // BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
 
 } // namespace esp_brookesia::service

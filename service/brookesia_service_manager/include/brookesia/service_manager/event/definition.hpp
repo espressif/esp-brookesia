@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <type_traits>
 #include "boost/json.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_manager/common.hpp"
@@ -24,7 +25,22 @@ enum class EventItemType {
 };
 BROOKESIA_DESCRIBE_ENUM(EventItemType, Boolean, Number, String, Object, Array, RawBuffer);
 
-using EventItem = std::variant <bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
+// EventItem: A variant that can hold different types of event item values
+// Supports implicit conversion from any arithmetic type (except bool and double) to double
+struct EventItem : std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer> {
+    using Base = std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
+
+    // Inherit all constructors from base variant
+    using Base::Base;
+
+    // Template constructor for any arithmetic type (except bool and double) - converts to double
+    template<typename T>
+    requires (std::is_arithmetic_v<std::decay_t<T>> &&
+              !std::is_same_v<std::decay_t<T>, bool> &&
+              !std::is_same_v<std::decay_t<T>, double>)
+    EventItem(T num) : Base(static_cast<double>(num)) {}
+};
+
 using EventItemMap = std::map<std::string /* name */, EventItem /* item */>;
 
 struct EventItemSchema {
@@ -58,8 +74,8 @@ struct EventSchema {
     std::string name;
     std::string description = "";
     std::vector<EventItemSchema> items = {};
-    bool require_async = true;
+    bool require_scheduler = true;
 };
-BROOKESIA_DESCRIBE_STRUCT(EventSchema, (), (name, description, items, require_async))
+BROOKESIA_DESCRIBE_STRUCT(EventSchema, (), (name, description, items, require_scheduler))
 
 } // namespace esp_brookesia::service

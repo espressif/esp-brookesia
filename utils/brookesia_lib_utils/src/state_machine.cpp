@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,6 +12,8 @@
 #include "brookesia/lib_utils/state_machine.hpp"
 #include "brookesia/lib_utils/log.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
+#include <thread>
+#include <chrono>
 
 namespace esp_brookesia::lib_utils {
 
@@ -122,27 +124,19 @@ void StateMachine::stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    // Save scheduler reference and clear state under lock
-    std::shared_ptr<TaskScheduler> scheduler;
-    {
-        boost::lock_guard lock(mutex_);
-        if (!task_scheduler_) {
-            BROOKESIA_LOGD("Not running");
-            return;
-        }
-        scheduler = task_scheduler_;  // Keep alive during cleanup
-        task_scheduler_.reset();      // Clear member to mark as stopped
-        current_state_ = "";
+    if (!is_running()) {
+        BROOKESIA_LOGD("Not running");
+        return;
     }
 
-    // Cancel tasks without holding lock
+    // Cancel tasks without holding lock (only cancel tasks created by this state machine)
     cancel_current_tasks();
 
-    // Cleanup scheduler operations without holding lock
-    scheduler->cancel_group(task_group_name_);
-    BROOKESIA_CHECK_FALSE_EXECUTE(scheduler->wait_group(task_group_name_, STATE_MACHINE_STOP_TIMEOUT_MS), {}, {
-        BROOKESIA_LOGE("Wait for group '%1%' timeout after %2% ms", task_group_name_, STATE_MACHINE_STOP_TIMEOUT_MS);
-    });
+    // Clear internal data under lock
+    boost::lock_guard lock(mutex_);
+    task_scheduler_.reset();      // Clear member to mark as stopped
+    current_state_ = "";
+    transition_count_ = 0;
 }
 
 bool StateMachine::trigger_action(const std::string &action, bool use_dispatch)
@@ -151,22 +145,32 @@ bool StateMachine::trigger_action(const std::string &action, bool use_dispatch)
 
     BROOKESIA_LOGD("Params: action(%1%), use_dispatch(%2%)", action, use_dispatch);
 
-    // Get scheduler reference under lock
+    // Get scheduler reference and increment transition count under lock
     std::shared_ptr<TaskScheduler> scheduler;
     {
         boost::lock_guard lock(mutex_);
         BROOKESIA_CHECK_NULL_RETURN(task_scheduler_, false, "State machine is not running");
         scheduler = task_scheduler_;
+        // Mark transition as pending immediately when trigger_action is called
+        transition_count_++;
     }
 
     // Put action trigger logic into serial queue to avoid concurrency issues
     auto task = [this, action]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+        // Ensure transition_count_ is decremented when task completes
+        lib_utils::FunctionGuard transition_guard([this]() {
+            boost::lock_guard lock(mutex_);
+            if (transition_count_ > 0) {
+                transition_count_--;
+            }
+        });
+
         std::string last_state;
         std::string next_state;
         {
-            boost::lock_guard lock(mutex_);
+            boost::shared_lock lock(mutex_);
 
             BROOKESIA_CHECK_FALSE_EXIT(!current_state_.empty(), "State machine not started");
 
@@ -195,7 +199,7 @@ bool StateMachine::trigger_action(const std::string &action, bool use_dispatch)
         std::string final_state;
         TransitionFinishCallback callback;
         {
-            boost::lock_guard lock(mutex_);
+            boost::shared_lock lock(mutex_);
             final_state = current_state_;
             callback = transition_finish_callback_;
         }
@@ -228,16 +232,17 @@ bool StateMachine::wait_all_transitions(uint32_t timeout_ms)
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
-    std::shared_ptr<TaskScheduler> scheduler;
-    {
-        boost::lock_guard lock(mutex_);
-        scheduler = task_scheduler_;
-    }
+    constexpr uint32_t POLL_INTERVAL_MS = 10;
+    uint32_t elapsed_ms = 0;
 
-    BROOKESIA_CHECK_FALSE_RETURN(
-        scheduler->wait_group(task_group_name_, timeout_ms), false,
-        "Failed to wait for all actions finished within timeout %1% ms", timeout_ms
-    );
+    while (has_transition_running()) {
+        if (elapsed_ms >= timeout_ms) {
+            BROOKESIA_LOGE("Wait for all transitions finished within timeout %1% ms", timeout_ms);
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(POLL_INTERVAL_MS));
+        elapsed_ms += POLL_INTERVAL_MS;
+    }
 
     return true;
 }
@@ -252,19 +257,12 @@ bool StateMachine::force_transition_to(const std::string &target_state)
 
     std::shared_ptr<TaskScheduler> scheduler;
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
         scheduler = task_scheduler_;
     }
 
-    // Cancel all transitions immediately
-    scheduler->cancel_group(task_group_name_);
-    // Wait for all transitions to be cancelled
-    BROOKESIA_CHECK_FALSE_EXECUTE(
-    scheduler->wait_group(task_group_name_, STATE_MACHINE_STOP_TIMEOUT_MS), {}, {
-        BROOKESIA_LOGE(
-            "Wait for all transitions to be cancelled within timeout %1% ms timeout", STATE_MACHINE_STOP_TIMEOUT_MS
-        );
-    });
+    // Cancel current tasks immediately
+    cancel_current_tasks();
 
     // Transition to target state immediately
     {
@@ -284,7 +282,7 @@ bool StateMachine::setup_state_tasks(const std::string &name)
     std::shared_ptr<TaskScheduler> scheduler;
     StatePtr state;
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
         BROOKESIA_CHECK_NULL_RETURN(task_scheduler_, false, "Task scheduler is not available");
         scheduler = task_scheduler_;
 
@@ -341,7 +339,7 @@ bool StateMachine::enter_initial_state(const std::string &name)
     // Step 2: Get state object under lock
     StatePtr state;
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
         auto it = states_.find(name);
         BROOKESIA_CHECK_FALSE_RETURN(
             it != states_.end(), false, "Initial state '%1%' does not exist", name
@@ -378,7 +376,7 @@ bool StateMachine::transition_to(const std::string &next, const std::string &act
 
     // Step 1: Validate transition and get state objects under lock
     {
-        boost::lock_guard lock(mutex_);
+        boost::shared_lock lock(mutex_);
 
         // Ignore self-transition
         if (current_state_ == next) {

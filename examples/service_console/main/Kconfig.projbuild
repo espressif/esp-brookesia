@@ -3,6 +3,14 @@ menu "Example Configuration"
         bool "Enable board manager"
         default n
 
+    config EXAMPLE_BOARD_MANAGER_INIT_CORE_ID
+        int "The core ID to initialize the board manager"
+        depends on EXAMPLE_ENABLE_BOARD_MANAGER
+        range 0 1
+        default 1
+        help
+            The core ID to initialize the board manager.
+
     menu "Console"
         config CONSOLE_STORE_HISTORY
             bool "Store command history in flash"
@@ -23,27 +31,45 @@ menu "Example Configuration"
     menu "Services"
         config EXAMPLE_SERVICES_ENABLE_NVS
             bool "Enable NVS service"
+            select BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
             default y
 
         config EXAMPLE_SERVICES_ENABLE_SNTP
             bool "Enable SNTP service"
+            select BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
+            default n if IDF_TARGET_ESP32P4
             default y
 
         config EXAMPLE_SERVICES_ENABLE_WIFI
             bool "Enable WiFi service"
+            select BROOKESIA_SERVICE_WIFI_ENABLE_AUTO_REGISTER
+            default n if IDF_TARGET_ESP32P4
             default y
 
         config EXAMPLE_SERVICES_ENABLE_AUDIO
             bool "Enable audio service"
+            depends on EXAMPLE_ENABLE_BOARD_MANAGER
+            select BROOKESIA_SERVICE_AUDIO_ENABLE_AUTO_REGISTER
             default n
     endmenu
 
-    menu "Agents"
+    menuconfig EXAMPLE_ENABLE_AGENTS
+        bool "Agents"
+        depends on EXAMPLE_ENABLE_BOARD_MANAGER
+        select EXAMPLE_SERVICES_ENABLE_WIFI
+        select EXAMPLE_SERVICES_ENABLE_SNTP
+        select EXAMPLE_SERVICES_ENABLE_AUDIO
+        select BROOKESIA_AGENT_MANAGER_ENABLE_AUTO_REGISTER
+        default n
+
+    if EXAMPLE_ENABLE_AGENTS
+        config EXAMPLE_AGENTS_ENABLE_WAKEUP_WORD
+            bool "Enable wakeup word"
+            default y
+
         menuconfig EXAMPLE_AGENTS_ENABLE_COZE
             bool "Enable Coze agent"
-            select EXAMPLE_SERVICES_ENABLE_WIFI
-            select EXAMPLE_SERVICES_ENABLE_SNTP
-            select EXAMPLE_SERVICES_ENABLE_AUDIO
+            select BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER
             default n
 
         if EXAMPLE_AGENTS_ENABLE_COZE
@@ -110,9 +136,7 @@ menu "Example Configuration"
 
         menuconfig EXAMPLE_AGENTS_ENABLE_OPENAI
             bool "Enable OpenAI agent"
-            select EXAMPLE_SERVICES_ENABLE_WIFI
-            select EXAMPLE_SERVICES_ENABLE_SNTP
-            select EXAMPLE_SERVICES_ENABLE_AUDIO
+            select BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER
             default n
 
         if EXAMPLE_AGENTS_ENABLE_OPENAI
@@ -125,60 +149,16 @@ menu "Example Configuration"
                 default "gpt-4o-realtime-preview"
         endif
 
-        menuconfig EXAMPLE_AGENTS_ENABLE_BAIDU
-            bool "Enable Baidu agent"
-            select EXAMPLE_SERVICES_ENABLE_WIFI
-            select EXAMPLE_SERVICES_ENABLE_SNTP
-            select EXAMPLE_SERVICES_ENABLE_AUDIO
+        menuconfig EXAMPLE_AGENTS_ENABLE_XIAOZHI
+            bool "Enable Xiaozhi agent"
+            select BROOKESIA_AGENT_XIAOZHI_ENABLE_AUTO_REGISTER
             default n
-
-        if EXAMPLE_AGENTS_ENABLE_BAIDU
-            config EXAMPLE_AGENTS_BAIDU_APP_ID
-                string "App ID"
-                default "appxxx"
-
-            config EXAMPLE_AGENTS_BAIDU_USER_ID
-                string "API key"
-                default "27xxxxxxx"
-
-            config EXAMPLE_AGENTS_BAIDU_WORKFLOW
-                string "Workflow"
-                default "VoiceChat"
-
-            config EXAMPLE_AGENTS_BAIDU_LICENSE_KEY
-                string "License key"
-                default ""
-
-            config EXAMPLE_AGENTS_BAIDU_INSTANCE_ID
-                int "Instance ID"
-                default 0
-
-            config EXAMPLE_AGENTS_BAIDU_SERVER_URL
-                string "Server URL"
-                default ""
-        endif
-
-        menuconfig EXAMPLE_AGENTS_ENABLE_RAINMAKER
-            bool "Enable Rainmaker agent"
-            select EXAMPLE_SERVICES_ENABLE_WIFI
-            select EXAMPLE_SERVICES_ENABLE_SNTP
-            select EXAMPLE_SERVICES_ENABLE_AUDIO
-            default n
-
-        if EXAMPLE_AGENTS_ENABLE_RAINMAKER
-            config EXAMPLE_AGENTS_RAINMAKER_AGENT_ID
-                string "Agent ID"
-                default "Friend"
-
-            config EXAMPLE_AGENTS_RAINMAKER_REFRESH_TOKEN
-                string "Refresh token"
-                default ""
-        endif
-    endmenu
+    endif
 
     menu "Expressions"
         config EXAMPLE_EXPRESSIONS_ENABLE_EMOTE
             bool "Enable Emote expression"
+            select BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER
             default n
     endmenu
 endmenu

@@ -1,4 +1,10 @@
 menu "ESP-Brookesia: Service NVS Configurations"
+    config BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
     menuconfig BROOKESIA_SERVICE_NVS_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
@@ -8,7 +14,7 @@ menu "ESP-Brookesia: Service NVS Configurations"
 
         config BROOKESIA_SERVICE_NVS_WORKER_NAME
             string "Name"
-            default "SrvNVSWorker"
+            default "SvcNVSWorker"
             help
                 The name of the worker thread.
 
@@ -32,7 +38,7 @@ menu "ESP-Brookesia: Service NVS Configurations"
 
         config BROOKESIA_SERVICE_NVS_WORKER_POLL_INTERVAL_MS
             int "Poll interval (ms)"
-            default 5
+            default 10
             range 1 10
             help
                 The interval of the worker poll.

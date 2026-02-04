@@ -56,10 +56,11 @@ std::future<FunctionResult> ServiceBase::call_function_async(
             .error_message = error_msg,
         };
         BROOKESIA_LOGE("%1%", error_msg);
-        if (error_msg == "Function not found: Set") {
-            assert(false);
+        try {
+            result_promise->set_value(std::move(result));
+        } catch (const std::future_error &e) {
+            BROOKESIA_LOGW("Failed to set promise value: %1%", e.what());
         }
-        result_promise->set_value(std::move(result));
     };
 
     if (!is_initialized()) {
@@ -105,11 +106,17 @@ std::future<FunctionResult> ServiceBase::call_function_async(
         }, {
             BROOKESIA_LOGE("Failed to call function: %1%", name);
         });
-        result_promise->set_value(std::move(result));
+        try
+        {
+            result_promise->set_value(std::move(result));
+        } catch (const std::future_error &e)
+        {
+            BROOKESIA_LOGW("Failed to set promise value for '%1%': %2%", name, e.what());
+        }
     };
 
     // If the function does not require asynchronous, use synchronous call instead
-    if (!func_schema->require_async) {
+    if (!func_schema->require_scheduler) {
         BROOKESIA_LOGD("Function '%1%' does not require async, using sync call instead", name);
         call_function_task();
         return result_future;
@@ -175,7 +182,7 @@ FunctionResult ServiceBase::call_function_sync(
     };
 
     // If the function does not require asynchronous, use synchronous call instead
-    if (!func_schema->require_async) {
+    if (!func_schema->require_scheduler) {
         BROOKESIA_LOGD("Function '%1%' does not require async, using sync call instead", name);
         call_function_task();
         return *result;
@@ -261,15 +268,33 @@ FunctionResult ServiceBase::call_function_sync(
         BROOKESIA_DESCRIBE_TO_STR(parameters_values), timeout_ms
     );
 
-    auto result_future = call_function_async(name, std::move(parameters_values));
-    if (result_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
+    // Get the function schemas
+    auto function_schemas = get_function_schemas();
+
+    // Find the corresponding function definition
+    const FunctionSchema *function_schema = nullptr;
+    for (const auto &def : function_schemas) {
+        if (def.name == name) {
+            function_schema = &def;
+            break;
+        }
+    }
+
+    if (!function_schema) {
         return FunctionResult{
             .success = false,
-            .error_message = (boost::format("Timeout after %1%ms") % timeout_ms).str(),
+            .error_message = "Function definition not found: " + name,
         };
     }
 
-    return result_future.get();
+    // Convert the vector to map according to the function definition parameter order
+    auto parameters_size = std::min(parameters_values.size(), function_schema->parameters.size());
+    FunctionParameterMap parameters_map;
+    for (size_t i = 0; i < parameters_size; i++) {
+        parameters_map[function_schema->parameters[i].name] = std::move(parameters_values[i]);
+    }
+
+    return call_function_sync(name, std::move(parameters_map), timeout_ms);
 }
 
 std::future<FunctionResult> ServiceBase::call_function_async(
@@ -314,15 +339,15 @@ FunctionResult ServiceBase::call_function_sync(
         BROOKESIA_DESCRIBE_TO_STR(parameters_json), timeout_ms
     );
 
-    auto result_future = call_function_async(name, std::move(parameters_json));
-    if (result_future.wait_for(std::chrono::milliseconds(timeout_ms)) == std::future_status::timeout) {
+    FunctionParameterMap parameters_map;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(parameters_json, parameters_map)) {
         return FunctionResult{
             .success = false,
-            .error_message = (boost::format("Timeout after %1%ms") % timeout_ms).str(),
+            .error_message = (boost::format("Invalid parameters: %1%") % boost::json::serialize(parameters_json)).str(),
         };
     }
 
-    return result_future.get();
+    return call_function_sync(name, std::move(parameters_map), timeout_ms);
 }
 
 EventRegistry::SignalConnection ServiceBase::subscribe_event(
@@ -483,6 +508,14 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
     std::shared_ptr<lib_utils::TaskScheduler> scheduler;
     {
         boost::shared_lock lock(resources_mutex_);
+
+        auto signal = event_registry_->get_signal(event_name);
+        BROOKESIA_CHECK_NULL_RETURN(signal, false, "Event signal not found: %1%", event_name);
+        if (signal->num_slots() == 0) {
+            BROOKESIA_LOGD("Event has no subscribers, skip publish");
+            return true;
+        }
+
         registry = event_registry_;
         scheduler = task_scheduler_;
     }
@@ -521,7 +554,7 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap &&ev
     };
 
     // If the event does not require asynchronous, use sync publish
-    if (!event_schema->require_async) {
+    if (!event_schema->require_scheduler) {
         BROOKESIA_LOGD("Event '%1%' does not require async, using sync publish", event_name);
         emit_signal_task();
         return true;
@@ -588,6 +621,18 @@ bool ServiceBase::publish_event(const std::string &event_name, boost::json::obje
     );
 
     return publish_event(event_name, std::move(event_items), use_dispatch);
+}
+
+bool ServiceBase::set_task_scheduler(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_CHECK_FALSE_RETURN(!is_running(), false, "Should not be called when service is running");
+
+    boost::lock_guard lock(resources_mutex_);
+    task_scheduler_ = task_scheduler;
+
+    return true;
 }
 
 bool ServiceBase::init(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler)

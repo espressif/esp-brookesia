@@ -23,9 +23,7 @@ void TimeProfiler::set_format_options(const FormatOptions &options)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGI(
-        "Set format options: %1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(options, DESCRIBE_FORMAT_VERBOSE)
-    );
+    BROOKESIA_LOGD("Params: options(%1%)", BROOKESIA_DESCRIBE_TO_STR(options));
 
     std::lock_guard<std::mutex> lock(mutex_);
     format_ = options;

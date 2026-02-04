@@ -10,7 +10,4 @@
 #include "service_helper/nvs.hpp"
 #include "service_helper/sntp.hpp"
 #include "service_helper/wifi.hpp"
-#include "service_helper/agent/coze.hpp"
-#include "service_helper/agent/manager.hpp"
-#include "service_helper/agent/openai.hpp"
 #include "service_helper/expression/emote.hpp"

@@ -1,5 +1,29 @@
 # ChangeLog
 
+## v0.7.2 - 2026-02-02
+
+### Breaking Changes:
+
+- break(base): `Base` class now inherits from `service::ServiceBase`
+- break(repo): migrate agent helper from `service::helper::AgentManager` to `agent::helper::Manager`
+- break(repo): remove `gmf_ai_audio` dependency
+- break(repo): change `brookesia_service_sntp` and `brookesia_service_audio` dependencies to private
+- break(base): rename lifecycle methods: `on_start` -> `on_startup`, `on_stop` -> `on_shutdown`
+- break(base): refactor `AudioConfig` to use `EncoderDynamicConfig` and `DecoderDynamicConfig`
+- break(state_machine): add new states to `GeneralStateFlagBit`: `TimeSyncing`, `Ready`, `Activating`, `Activated`, `Error`
+
+### Enhancements:
+
+- feat(Kconfig): add `BROOKESIA_AGENT_MANAGER_ENABLE_AUTO_REGISTER` option for automatic plugin registration
+- feat(Kconfig): add `BROOKESIA_AGENT_MANAGER_ENABLE_AFE_EVENT_PROCESSING` option for AFE event processing
+- feat(base): add `ServiceConfig` struct for configuring service dependencies
+- feat(base): add `ChatMode` type support
+- feat(base): add `on_manual_start_listening()` and `on_manual_stop_listening()` methods
+- feat(base): add task group methods: `get_call_task_group()`, `get_event_task_group()`, `get_request_task_group()`, `get_state_task_group()`
+- feat(repo): add `brookesia_agent_helper` dependency
+- feat(Kconfig): rename default worker name from `SrvAmWorker` to `AgentMgrWorker`
+- feat(Kconfig): change default worker poll interval from 5ms to 10ms
+
 ## v0.7.1~1 - 2026-01-14
 
 ### Enhancements:
