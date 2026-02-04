@@ -688,7 +688,11 @@ boost::json::object AI_Agents::get_agent_coze_info()
 #if CONFIG_EXAMPLE_AGENTS_ENABLE_COZE
     CozeHelper::Info coze_info {
         .authorization = {
+            .session_name = "",
+            .device_id = "",
+            .custom_consumer = "",
             .app_id = CONFIG_EXAMPLE_AGENTS_COZE_APP_ID,
+            .user_id = "",
             .public_key = CONFIG_EXAMPLE_AGENTS_COZE_PUBLIC_KEY,
             .private_key = std::string(
                 coze_private_key_pem_start, coze_private_key_pem_end - coze_private_key_pem_start

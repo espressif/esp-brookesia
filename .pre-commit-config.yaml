@@ -11,7 +11,7 @@ exclude: |
     | .*espressif__
     | .*private_key.pem
     | .*/boards/(?!.*sdkconfig\.defaults\.board$).*
-    | agent/brookesia_agent_coze/esp_coze/.*
+    | agent/brookesia_agent_coze/.*esp_coze.*
     | apps/brookesia_app_ai_profile/ui/.*
     | apps/brookesia_app_squareline/ui/.*
     | apps/brookesia_app_timer/ui/.*

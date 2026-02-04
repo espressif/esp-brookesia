@@ -4,11 +4,6 @@ url: https://github.com/espressif/esp-brookesia/tree/master/agent/brookesia_agen
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
-  esp_coze:
-    version: "*"
-    path: "./esp_coze"
-    require: private
-
   espressif/esp_websocket_client:
     version: "^1.4"
     require: private
