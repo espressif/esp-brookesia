@@ -18,8 +18,6 @@ For detailed interface documentation, please refer to [Audio Service Helper Head
     - [Playback Control](#playback-control)
     - [Set Volume](#set-volume)
     - [Get Volume](#get-volume)
-    - [Encoder Control](#encoder-control)
-    - [Decoder Control](#decoder-control)
   - [Event Subscription Interface](#event-subscription-interface)
     - [Playback State Changed Event](#playback-state-changed-event)
     - [AFE Event](#afe-event)
@@ -48,11 +46,13 @@ svc_call Audio PlayUrl {"Url":"file://spiffs/example.mp3","Config":{"interrupt":
 
 Configuration description:
 
-- `interrupt`: Whether to interrupt current playback. If `false`, the audio file will be added to the playback queue and played automatically after the current playback completes
-- `delay_ms`: Delay time before playback in milliseconds
-- `loop_count`: Number of loop iterations. If `0`, no loop playback
-- `loop_interval_ms`: Interval between loops in milliseconds
-- `timeout_ms`: Playback timeout in milliseconds. Calculated from playback start (excluding delay and pause time), playback stops after this time
+- `Url`: Audio file URL, supports local files and network URLs
+- `Config`: Playback configuration, optional parameters:
+  - `interrupt`: Whether to interrupt current playback. If `false`, the audio file will be added to the playback queue and played automatically after the current playback completes
+  - `delay_ms`: Delay time before playback in milliseconds
+  - `loop_count`: Number of loop iterations. If `0`, no loop playback
+  - `loop_interval_ms`: Interval between loops in milliseconds
+  - `timeout_ms`: Playback timeout in milliseconds. Calculated from playback start (excluding delay and pause time), playback stops after this time
 
 ### Play Multiple Audio Files
 
@@ -70,23 +70,16 @@ svc_call Audio PlayUrls {"Urls":["file://spiffs/1.mp3","file://spiffs/2.mp3"],"C
 
 ### Playback Control
 
-Pause playback:
-
 ```bash
 svc_call Audio PlayControl {"Action":"Pause"}
 ```
 
-Resume playback:
+Parameter description:
 
-```bash
-svc_call Audio PlayControl {"Action":"Resume"}
-```
-
-Stop playback:
-
-```bash
-svc_call Audio PlayControl {"Action":"Stop"}
-```
+- `Action`：播放控制动作，可选值为
+  - `Pause`：暂停播放
+  - `Resume`：恢复播放
+  - `Stop`：停止播放
 
 ### Set Volume
 
@@ -96,49 +89,15 @@ Set volume (0-100):
 svc_call Audio SetVolume {"Volume":90}
 ```
 
+> [!NOTE]
+> Parameters will be saved to NVS, so only need to set once, subsequent calls do not need to specify manually.
+
 ### Get Volume
 
 Get current volume:
 
 ```bash
 svc_call Audio GetVolume
-```
-
-### Encoder Control
-
-Start encoder:
-
-```bash
-svc_call Audio StartEncoder {"Config":{"type":"OPUS","general":{"channels":1,"sample_bits":16,"sample_rate":16000,"frame_duration":60}}}
-```
-
-Configuration description:
-
-- `type`: Encoding format, valid values are `PCM`, `OPUS`, `G711A`
-- `general`: General configuration
-  - `channels`: Number of channels (1-4)
-  - `sample_bits`: Sample bit depth (e.g., 8, 16, 24, 32)
-  - `sample_rate`: Sample rate (e.g., 8000, 16000, 24000, 32000, 44100, 48000)
-  - `frame_duration`: Frame duration in milliseconds
-
-Stop encoder:
-
-```bash
-svc_call Audio StopEncoder
-```
-
-### Decoder Control
-
-Start decoder:
-
-```bash
-svc_call Audio StartDecoder {"Config":{"type":"OPUS","general":{"channels":1,"sample_bits":16,"sample_rate":16000,"frame_duration":60}}}
-```
-
-Stop decoder:
-
-```bash
-svc_call Audio StopDecoder
 ```
 
 ## Event Subscription Interface

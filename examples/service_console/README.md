@@ -1,6 +1,6 @@
-| Supported Chips | ESP32-S3 | ESP32-P4 |
-| :-------------: | :------: | :------: |
-|                 |    ✅    |    ✅    |
+| Supported Chips | ESP32-S3 | ESP32-P4 | ESP32-C5 |
+| :-------------: | :------: | :------: | :------: |
+|                 |    ✅    |    ✅    |    ✅    |
 
 # Service Console Example
 
@@ -45,7 +45,7 @@ This example demonstrates how to run and test ESP-Brookesia service framework fe
 
 ### Hardware Requirements
 
-**Basic Features**: Development boards with `ESP32-S3` or `ESP32-P4` chip and `Flash >= 8MB`
+**Basic Features**: Development boards with `ESP32-S3`, `ESP32-P4` or `ESP32-C5` chip and `Flash >= 8MB`
 
 **Full Features** (Audio, Emote, Agent): Requires `esp_board_manager` component, supporting the following boards:
 
@@ -55,6 +55,7 @@ This example demonstrates how to run and test ESP-Brookesia service framework fe
 | ESP32-S3-BOX-3 | [GitHub](https://github.com/espressif/esp-box) |
 | ESP32-S3-Korvo-2 | [Documentation](https://docs.espressif.com/projects/esp-adf/en/latest/design-guide/dev-boards/user-guide-esp32-s3-korvo-2.html) |
 | ESP32-P4-Function-EV-Board | [Documentation](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32p4/esp32-p4-function-ev-board/index.html) |
+| ESP32-C5-Sensair-Shuttle | [Documentation](https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32c5/esp-sensairshuttle/index.html) |
 
 ### Development Environment
 
@@ -95,6 +96,7 @@ Available `<board>` values:
 - `esp_box_3`
 - `esp32_p4_function_ev`
 - `esp32_s3_korvo2_v3`
+- `esp_sensair_shuttle`
 
 For other boards:
 

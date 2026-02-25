@@ -64,6 +64,7 @@ bool Console::start(const Config &config)
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
     repl_config.task_stack_size = config_.task_stack_size;
+    repl_config.task_priority = config_.task_priority;
     repl_config.prompt = PROMPT_STR ">";
     repl_config.max_cmdline_length = config_.max_cmdline_length;
 

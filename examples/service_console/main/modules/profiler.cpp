@@ -21,24 +21,9 @@ bool Profiler::init(const Config &config)
 
     config_ = config;
 
-    // Create and start task scheduler
-    scheduler_ = std::make_shared<lib_utils::TaskScheduler>();
-    auto start_config = lib_utils::TaskScheduler::StartConfig{
-        .worker_configs = {
-            {
-                .name = WORKER_NAME,
-                .core_id = config_.worker_core_id,
-                .priority = config_.worker_priority,
-                .stack_size = config_.worker_stack_size,
-            },
-        },
-        .worker_poll_interval_ms = WORKER_POLL_INTERVAL_MS,
-    };
-    BROOKESIA_CHECK_FALSE_RETURN(scheduler_->start(start_config), false, "Failed to start profiler task scheduler");
-
     is_initialized_.store(true);
 
-    BROOKESIA_LOGI("Profiler started");
+    BROOKESIA_LOGI("Profiler initialized");
 
     return true;
 }
@@ -51,13 +36,17 @@ void Profiler::start_thread_profiler(bool enable_auto_logging)
     thread_profiler.configure_profiling({
         .enable_auto_logging = enable_auto_logging,
     });
-    BROOKESIA_CHECK_FALSE_EXIT(thread_profiler.start_profiling(scheduler_), "Failed to start thread profiler");
+    BROOKESIA_CHECK_FALSE_EXIT(
+        thread_profiler.start_profiling(config_.task_scheduler), "Failed to start thread profiler"
+    );
 
     // Monitor idle tasks CPU usage
     auto profiling_slot = [this](const lib_utils::ThreadProfiler::ProfileSnapshot & snapshot) {
         std::vector<std::string> idle_task_names = {
+#if CONFIG_SOC_CPU_CORES_NUM == 1
+            "IDLE",
+#elif CONFIG_SOC_CPU_CORES_NUM == 2
             "IDLE0",
-#if CONFIG_SOC_CPU_CORES_NUM > 1
             "IDLE1",
 #endif
         };
@@ -111,7 +100,9 @@ void Profiler::start_memory_profiler(bool enable_auto_logging)
     memory_profiler.configure_profiling({
         .enable_auto_logging = enable_auto_logging,
     });
-    BROOKESIA_CHECK_FALSE_EXIT(memory_profiler.start_profiling(scheduler_), "Failed to start memory profiler");
+    BROOKESIA_CHECK_FALSE_EXIT(
+        memory_profiler.start_profiling(config_.task_scheduler), "Failed to start memory profiler"
+    );
 
     // Monitor largest free internal memory
     auto largest_free_internal_memory_threshold_slot = [](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
@@ -149,23 +140,23 @@ void Profiler::start_memory_profiler(bool enable_auto_logging)
     }
 
 #if CONFIG_SPIRAM
-    // // Monitor largest free external memory
-    // auto largest_free_external_memory_threshold_slot = [](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
-    //     BROOKESIA_LOGW(
-    //         "Largest free external memory is too low: %1% KB (total: %2% KB, free: %3% KB)",
-    //         snapshot.memory.external.largest_free_block / 1024,
-    //         snapshot.memory.external.total_size / 1024, snapshot.memory.external.free_size / 1024
-    //     );
-    // };
-    // auto largest_free_external_memory_connection = memory_profiler.connect_threshold_signal(
-    //             lib_utils::MemoryProfiler::ThresholdType::ExternalLargestFreeBlock,
-    //             config_.mem_external_largest_free_threshold, largest_free_external_memory_threshold_slot
-    //         );
-    // if (largest_free_external_memory_connection.connected()) {
-    //     memory_profiler_connections_.push_back(std::move(largest_free_external_memory_connection));
-    // } else {
-    //     BROOKESIA_LOGE("Failed to connect to memory profiler largest free external memory threshold signal");
-    // }
+    // Monitor largest free external memory
+    auto largest_free_external_memory_threshold_slot = [](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
+        BROOKESIA_LOGW(
+            "Largest free external memory is too low: %1% KB (total: %2% KB, free: %3% KB)",
+            snapshot.memory.external.largest_free_block / 1024,
+            snapshot.memory.external.total_size / 1024, snapshot.memory.external.free_size / 1024
+        );
+    };
+    auto largest_free_external_memory_connection = memory_profiler.connect_threshold_signal(
+                lib_utils::MemoryProfiler::ThresholdType::ExternalLargestFreeBlock,
+                config_.mem_external_largest_free_threshold, largest_free_external_memory_threshold_slot
+            );
+    if (largest_free_external_memory_connection.connected()) {
+        memory_profiler_connections_.push_back(std::move(largest_free_external_memory_connection));
+    } else {
+        BROOKESIA_LOGE("Failed to connect to memory profiler largest free external memory threshold signal");
+    }
 
     // Monitor free external memory
     auto free_external_memory_threshold_slot = [](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {

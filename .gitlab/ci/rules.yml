@@ -51,6 +51,13 @@
   - "agent/brookesia_agent_coze/CMakeLists.txt"
   - "agent/brookesia_agent_coze/idf_component.yml"
   - "agent/brookesia_agent_coze/Kconfig"
+# brookesia_agent_helper
+.patterns-component_brookesia_agent_helper: &patterns-component_brookesia_agent_helper
+  - "agent/brookesia_agent_helper/include/**/*"
+  - "agent/brookesia_agent_helper/src/**/*"
+  - "agent/brookesia_agent_helper/CMakeLists.txt"
+  - "agent/brookesia_agent_helper/idf_component.yml"
+  - "agent/brookesia_agent_helper/Kconfig"
 # brookesia_agent_manager
 .patterns-component_brookesia_agent_manager: &patterns-component_brookesia_agent_manager
   - "agent/brookesia_agent_manager/include/**/*"
@@ -65,6 +72,23 @@
   - "agent/brookesia_agent_openai/CMakeLists.txt"
   - "agent/brookesia_agent_openai/idf_component.yml"
   - "agent/brookesia_agent_openai/Kconfig"
+# brookesia_agent_xiaozhi
+.patterns-component_brookesia_agent_xiaozhi: &patterns-component_brookesia_agent_xiaozhi
+  - "agent/brookesia_agent_xiaozhi/include/**/*"
+  - "agent/brookesia_agent_xiaozhi/src/**/*"
+  - "agent/brookesia_agent_xiaozhi/CMakeLists.txt"
+  - "agent/brookesia_agent_xiaozhi/idf_component.yml"
+  - "agent/brookesia_agent_xiaozhi/Kconfig"
+#
+# Expression
+#
+# brookesia_expression_emote
+.patterns-component_brookesia_expression_emote: &patterns-component_brookesia_expression_emote
+  - "expression/brookesia_expression_emote/include/**/*"
+  - "expression/brookesia_expression_emote/src/**/*"
+  - "expression/brookesia_expression_emote/CMakeLists.txt"
+  - "expression/brookesia_expression_emote/idf_component.yml"
+  - "expression/brookesia_expression_emote/Kconfig"
 #
 # Service
 #
@@ -78,8 +102,10 @@
 # brookesia_service_helper
 .patterns-component_brookesia_service_helper: &patterns-component_brookesia_service_helper
   - "service/brookesia_service_helper/include/**/*"
+  - "service/brookesia_service_helper/src/**/*"
   - "service/brookesia_service_helper/CMakeLists.txt"
   - "service/brookesia_service_helper/idf_component.yml"
+  - "service/brookesia_service_helper/Kconfig"
 # brookesia_service_manager
 .patterns-component_brookesia_service_manager: &patterns-component_brookesia_service_manager
   - "service/brookesia_service_manager/include/**/*"
@@ -448,13 +474,17 @@
     - <<: *if-dev-push
       changes: *patterns-build_system
     - <<: *if-dev-push
-      changes: *patterns-examples_service_console
-    - <<: *if-dev-push
       changes: *patterns-component_brookesia_agent_coze
     - <<: *if-dev-push
       changes: *patterns-component_brookesia_agent_manager
     - <<: *if-dev-push
+      changes: *patterns-component_brookesia_agent_helper
+    - <<: *if-dev-push
       changes: *patterns-component_brookesia_agent_openai
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_agent_xiaozhi
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_expression_emote
     - <<: *if-dev-push
       changes: *patterns-component_brookesia_service_audio
     - <<: *if-dev-push
@@ -469,6 +499,8 @@
       changes: *patterns-component_brookesia_service_wifi
     - <<: *if-dev-push
       changes: *patterns-component_brookesia_lib_utils
+    - <<: *if-dev-push
+      changes: *patterns-examples_service_console
 
 # rules for products
 .rules:build:products_phone_m5stack_core_s3:

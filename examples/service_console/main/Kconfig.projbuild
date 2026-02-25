@@ -7,7 +7,8 @@ menu "Example Configuration"
         int "The core ID to initialize the board manager"
         depends on EXAMPLE_ENABLE_BOARD_MANAGER
         range 0 1
-        default 1
+        default 1 if IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32P4
+        default 0
         help
             The core ID to initialize the board manager.
 
@@ -63,9 +64,10 @@ menu "Example Configuration"
         default n
 
     if EXAMPLE_ENABLE_AGENTS
-        config EXAMPLE_AGENTS_ENABLE_WAKEUP_WORD
-            bool "Enable wakeup word"
-            default y
+        config EXAMPLE_AGENTS_ENABLE_AUDIO_WAKEUP_WORD
+            bool "Enable wakeup word for audio service"
+            default y if IDF_TARGET_ESP32S3 || IDF_TARGET_ESP32P4
+            default n
 
         menuconfig EXAMPLE_AGENTS_ENABLE_COZE
             bool "Enable Coze agent"

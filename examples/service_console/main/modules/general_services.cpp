@@ -16,14 +16,18 @@ using namespace esp_brookesia;
 
 using SNTPHelper = esp_brookesia::service::helper::SNTP;
 using AudioHelper = esp_brookesia::service::helper::Audio;
+using NVSHelper = esp_brookesia::service::helper::NVS;
+using WifiHelper = esp_brookesia::service::helper::Wifi;
 
-constexpr const char *WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
-constexpr const char *WAKEUP_WORD_MN_LANGUAGE = "cn";
-constexpr uint32_t WAKEUP_WORD_START_TIMEOUT_MS = 10000;
-constexpr uint32_t WAKEUP_WORD_END_TIMEOUT_MS = 30000;
+constexpr const char *AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
+constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
+constexpr uint32_t AUDIO_WAKEUP_WORD_START_TIMEOUT_MS = 10000;
+constexpr uint32_t AUDIO_WAKEUP_WORD_END_TIMEOUT_MS = 30000;
 
-bool GeneralServices::init()
+bool GeneralServices::init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler)
 {
+    BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Task scheduler is not available");
+
     if (is_initialized()) {
         BROOKESIA_LOGW("General services is already initialized");
         return true;
@@ -36,6 +40,7 @@ bool GeneralServices::init()
     BROOKESIA_CHECK_FALSE_RETURN(service_manager.start(), false, "Failed to start service manager");
 
     is_initialized_.store(true);
+    task_scheduler_ = task_scheduler;
 
     BROOKESIA_LOGI("Service manager started successfully");
 
@@ -74,12 +79,12 @@ void GeneralServices::init_audio()
     // Configure the AFE
     AudioHelper::AFE_Config afe_config{
         .vad = AudioHelper::AFE_VAD_Config{},
-#if CONFIG_EXAMPLE_AGENTS_ENABLE_WAKEUP_WORD
+#if CONFIG_EXAMPLE_AGENTS_ENABLE_AUDIO_WAKEUP_WORD
         .wakenet = AudioHelper::AFE_WakeNetConfig{
-            .model_partition_label = WAKEUP_WORD_MODEL_PARTITION_LABEL,
-            .mn_language = WAKEUP_WORD_MN_LANGUAGE,
-            .start_timeout_ms = WAKEUP_WORD_START_TIMEOUT_MS,
-            .end_timeout_ms = WAKEUP_WORD_END_TIMEOUT_MS,
+            .model_partition_label = AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL,
+            .mn_language = AUDIO_WAKEUP_WORD_MN_LANGUAGE,
+            .start_timeout_ms = AUDIO_WAKEUP_WORD_START_TIMEOUT_MS,
+            .end_timeout_ms = AUDIO_WAKEUP_WORD_END_TIMEOUT_MS,
         },
 #endif
     };
@@ -109,6 +114,24 @@ void GeneralServices::start_sntp()
     auto binding = service_manager.bind(SNTPHelper::get_name().data());
     if (!binding.is_valid()) {
         BROOKESIA_LOGE("Failed to bind SNTP service");
+    } else {
+        service_bindings_.push_back(std::move(binding));
+    }
+}
+
+void GeneralServices::start_nvs()
+{
+    BROOKESIA_CHECK_FALSE_EXIT(is_initialized(), "General services is not initialized");
+
+    if (!NVSHelper::is_available()) {
+        BROOKESIA_LOGW("NVS service is not available");
+        return;
+    }
+
+    auto &service_manager = service::ServiceManager::get_instance();
+    auto binding = service_manager.bind(NVSHelper::get_name().data());
+    if (!binding.is_valid()) {
+        BROOKESIA_LOGE("Failed to bind NVS service");
     } else {
         service_bindings_.push_back(std::move(binding));
     }

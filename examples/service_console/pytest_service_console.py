@@ -48,8 +48,8 @@ Steps to run these test cases:
 
 2. (Optional) Setup WiFi credentials:
    ```bash
-   export CI_TEST_WIFI_SSID_2_4G="your_wifi_ssid"
-   export CI_TEST_WIFI_PSW_2_4G="your_wifi_password"
+   export CI_TEST_WIFI_2_4G_AP1_SSID="your_wifi_ssid"
+   export CI_TEST_WIFI_2_4G_AP1_PSW="your_wifi_password"
    ```
 
 2. Run pytest with appropriate target and environment:
@@ -98,14 +98,14 @@ def get_prompt(target: str = 'esp32s3') -> bytes:
     return f'{target}>'.encode()
 
 # Get WiFi credentials from environment variables
-CI_TEST_WIFI_SSID_2_4G = os.getenv('CI_TEST_WIFI_SSID_2_4G', '')
-CI_TEST_WIFI_PSW_2_4G = os.getenv('CI_TEST_WIFI_PSW_2_4G', '')
+CI_TEST_WIFI_2_4G_AP1_SSID = os.getenv('CI_TEST_WIFI_2_4G_AP1_SSID', '')
+CI_TEST_WIFI_2_4G_AP1_PSW = os.getenv('CI_TEST_WIFI_2_4G_AP1_PSW', '')
 
 # Log WiFi credentials status (without exposing password)
-if CI_TEST_WIFI_SSID_2_4G and CI_TEST_WIFI_PSW_2_4G:
-    print(f"✓ WiFi credentials loaded from environment: SSID='{CI_TEST_WIFI_SSID_2_4G}'")
+if CI_TEST_WIFI_2_4G_AP1_SSID and CI_TEST_WIFI_2_4G_AP1_PSW:
+    print(f"✓ WiFi credentials loaded from environment: SSID='{CI_TEST_WIFI_2_4G_AP1_SSID}'")
 else:
-    print("⚠ WiFi credentials not found in environment variables (CI_TEST_WIFI_SSID_2_4G, CI_TEST_WIFI_PSW_2_4G)")
+    print("⚠ WiFi credentials not found in environment variables (CI_TEST_WIFI_2_4G_AP1_SSID, CI_TEST_WIFI_2_4G_AP1_PSW)")
     print("  WiFi connect tests will be skipped")
 
 
@@ -120,12 +120,12 @@ def get_wifi_connect_ap_command() -> Optional[str]:
     Returns:
         Command string if credentials are available, None otherwise
     """
-    if CI_TEST_WIFI_SSID_2_4G and CI_TEST_WIFI_PSW_2_4G:
+    if CI_TEST_WIFI_2_4G_AP1_SSID and CI_TEST_WIFI_2_4G_AP1_PSW:
         # Build JSON object with proper escaping and compact format (no spaces)
         # to avoid command line parsing issues
         wifi_config = {
-            "SSID": CI_TEST_WIFI_SSID_2_4G,
-            "Password": CI_TEST_WIFI_PSW_2_4G
+            "SSID": CI_TEST_WIFI_2_4G_AP1_SSID,
+            "Password": CI_TEST_WIFI_2_4G_AP1_PSW
         }
         # Use separators=(',', ':') to ensure compact JSON without spaces
         wifi_config_json = json.dumps(wifi_config, separators=(',', ':'))
@@ -166,7 +166,7 @@ NVS_COMMANDS = [
 
 # WiFi service commands
 WIFI_COMMANDS = [
-    ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'WiFi Start finished'], 'Start WiFi', 10.0)
+    ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'Detected expected event: Started'], 'Start WiFi', 10.0)
 ]
 wifi_connect_cmd = get_wifi_connect_ap_command()
 if wifi_connect_cmd:
@@ -174,16 +174,16 @@ if wifi_connect_cmd:
         WIFI_COMMANDS.extend([
 # Test connect to AP
             (wifi_connect_cmd, [DEFAULT_RESPONSE], 'Set WiFi connect AP (from env vars)', 4.0),
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Connect"}', [b'WiFi Connect finished'], 'Connect to WiFi', 10.0),
-            ('svc_call Wifi GetConnectedAps', [CI_TEST_WIFI_SSID_2_4G.encode()], 'Get connected APs', 4.0),
+            ('svc_call Wifi TriggerGeneralAction {"Action":"Connect"}', [b'Detected expected event: Connected'], 'Connect to WiFi', 10.0),
+            ('svc_call Wifi GetConnectedAps', [CI_TEST_WIFI_2_4G_AP1_SSID.encode()], 'Get connected APs', 4.0),
 # Test automatically reconnect to AP when start again
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Stop"}', [b'WiFi Stop finished'], 'Stop WiFi', 5.0),
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'WiFi Connect finished'], 'Start WiFi and automatically connect to AP', 20.0),
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Disconnect"}', [b'WiFi Disconnect finished'], 'Disconnect from WiFi', 5.0),
+            ('svc_call Wifi TriggerGeneralAction {"Action":"Stop"}', [b'Detected expected event: Stopped'], 'Stop WiFi', 5.0),
+            ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'Detected expected event: Connected'], 'Start WiFi and automatically connect to AP', 20.0),
+            ('svc_call Wifi TriggerGeneralAction {"Action":"Disconnect"}', [b'Detected expected event: Disconnected'], 'Disconnect from WiFi', 5.0),
         ])
 # Test scan
 WIFI_COMMANDS.extend([
-    ('svc_call Wifi SetScanParams {"ApCount":30,"IntervalMs":1000,"TimeoutMs":20000}', [DEFAULT_RESPONSE], 'Set WiFi scan parameters', 4.0),
+    ('svc_call Wifi SetScanParams {"Param":{"ap_count":30,"interval_ms":1000,"timeout_ms":20000}}', [DEFAULT_RESPONSE], 'Set WiFi scan parameters', 4.0),
     ('svc_call Wifi TriggerScanStart {}', [b'Scanned AP count'], 'Start WiFi scan', 30.0),
     ('svc_call Wifi TriggerScanStop {}', [DEFAULT_RESPONSE], 'Stop WiFi scan', 4.0),
 ])
@@ -192,11 +192,11 @@ if wifi_connect_cmd:
     WIFI_COMMANDS.extend([
         # Set WiFi connect AP again to valid AP which is disconnected before
         (wifi_connect_cmd, [DEFAULT_RESPONSE], 'Set WiFi connect AP to valid AP which is disconnected before', 4.0),
-        ('svc_call Wifi TriggerScanStart {}', [b'WiFi Connect finished'], 'Start WiFi scan and automatically connect to AP', 30.0),
+        ('svc_call Wifi TriggerScanStart {}', [b'Detected expected event: Connected'], 'Start WiFi scan and automatically connect to AP', 30.0),
         ('svc_call Wifi TriggerScanStop {}', [DEFAULT_RESPONSE], 'Stop WiFi scan', 4.0),
     ])
 WIFI_COMMANDS.extend([
-    ('svc_call Wifi TriggerGeneralAction {"Action":"Stop"}', [b'WiFi Stop finished'], 'Stop WiFi', 5.0),
+    ('svc_call Wifi TriggerGeneralAction {"Action":"Stop"}', [b'Detected expected event: Stopped'], 'Stop WiFi', 5.0),
     ('svc_call Wifi ResetData', [DEFAULT_RESPONSE], 'Reset WiFi data', 4.0),
 ])
 

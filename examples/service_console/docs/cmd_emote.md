@@ -167,12 +167,6 @@ svc_call Emote SetEventMessage {"Event":"Battery","Message":"1,75"}
 svc_call Emote SetEventMessage {"Event":"Battery","Message":"0,30"}
 ```
 
-Set QR code message:
-
-```bash
-svc_call Emote SetEventMessage {"Event":"QRCode","Message":"https://www.espressif.com"}
-```
-
 Parameter description:
 
 - `Event`: Event type, valid values are
@@ -182,7 +176,6 @@ Parameter description:
   - `System`: System message
   - `User`: User message
   - `Battery`: Battery status (format: `"charging_state,battery_percentage"`)
-  - `QRCode`: QR code
 - `Message`: Message content (optional, defaults to empty string)
 
 > [!NOTE]

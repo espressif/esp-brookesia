@@ -89,6 +89,7 @@ jobs:
           - esp_box_3
           - esp32_p4_function_ev
           - esp32_s3_korvo2_v3
+          - esp_sensair_shuttle
     steps:
       - uses: actions/checkout@v3
         with:

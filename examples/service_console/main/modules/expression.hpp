@@ -24,7 +24,7 @@ public:
      * @brief Init expression service
      * @return true if initialized successfully, false otherwise
      */
-    bool init();
+    bool init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler);
 
     /**
      * @brief Check if expression service is initialized
@@ -45,6 +45,7 @@ private:
 
     std::atomic<bool> is_initialized_{false};
     DisplayPeripheralConfig display_config_ {};
+    std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler_;
     // Keep service bindings to avoid frequent start and stop of services
     std::vector<esp_brookesia::service::ServiceBinding> service_bindings_;
     // Keep event connections

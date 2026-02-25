@@ -21,7 +21,7 @@ public:
      * @brief Init general services
      * @return true if initialized successfully, false otherwise
      */
-    bool init();
+    bool init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler);
 
     /**
      * @brief Check if general services is initialized
@@ -34,6 +34,7 @@ public:
 
     void init_audio();
     void start_sntp();
+    void start_nvs();
 
 private:
     GeneralServices() = default;
@@ -42,6 +43,7 @@ private:
     GeneralServices &operator=(const GeneralServices &) = delete;
 
     std::atomic<bool> is_initialized_{false};
+    std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler_;
     // Keep service bindings to avoid frequent start and stop of services
     std::vector<esp_brookesia::service::ServiceBinding> service_bindings_;
 };

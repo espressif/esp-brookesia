@@ -70,23 +70,16 @@ svc_call Audio PlayUrls {"Urls":["file://spiffs/1.mp3","file://spiffs/2.mp3"],"C
 
 ### 播放控制
 
-暂停播放：
-
 ```bash
 svc_call Audio PlayControl {"Action":"Pause"}
 ```
 
-恢复播放：
+参数说明：
 
-```bash
-svc_call Audio PlayControl {"Action":"Resume"}
-```
-
-停止播放：
-
-```bash
-svc_call Audio PlayControl {"Action":"Stop"}
-```
+- `Action`：播放控制动作，可选值为
+  - `Pause`：暂停播放
+  - `Resume`：恢复播放
+  - `Stop`：停止播放
 
 ### 设置音量
 
