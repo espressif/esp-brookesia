@@ -29,7 +29,7 @@ bool TaskScheduler::start(const StartConfig &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: config(%1%)", BROOKESIA_DESCRIBE_TO_STR(config));
+    BROOKESIA_LOGD("Params: config(%1%)", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, DESCRIBE_FORMAT_VERBOSE));
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
@@ -37,10 +37,6 @@ bool TaskScheduler::start(const StartConfig &config)
         BROOKESIA_LOGD("Already running");
         return true;
     }
-
-    BROOKESIA_LOGI(
-        "Starting with config:\n%1%", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, DESCRIBE_FORMAT_VERBOSE)
-    );
 
     is_running_.store(true);
 
@@ -69,7 +65,7 @@ bool TaskScheduler::start(const StartConfig &config)
         [this, name = thread_config.name, poll_interval_ms = config.worker_poll_interval_ms] {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-            BROOKESIA_LOGI("Worker thread (%1%) started", name);
+            BROOKESIA_LOGD("Worker thread (%1%) started", name);
 
             while (!boost::this_thread::interruption_requested() && !io_context_->stopped())
             {
@@ -79,14 +75,14 @@ bool TaskScheduler::start(const StartConfig &config)
                         boost::this_thread::sleep_for(boost::chrono::milliseconds(poll_interval_ms));
                     }
                 } catch (const boost::thread_interrupted &) {
-                    BROOKESIA_LOGI("Worker thread (%1%) interrupted", name);
+                    BROOKESIA_LOGD("Worker thread (%1%) interrupted", name);
                     break;
                 } catch (const std::exception &e) {
                     BROOKESIA_LOGE("Worker thread (%1%) poll error: %2%", name, e.what());
                 }
             }
 
-            BROOKESIA_LOGI("Worker thread (%1%) stopped", name);
+            BROOKESIA_LOGD("Worker thread (%1%) stopped", name);
         };
         BROOKESIA_THREAD_CONFIG_GUARD(thread_config);
         BROOKESIA_CHECK_EXCEPTION_RETURN(
@@ -122,11 +118,9 @@ void TaskScheduler::stop()
                 handle->timer->cancel();
                 handle->timer.reset(); // Immediately release timer
             }
-            // Set promise value for canceled task
-            bool expected = false;
-            if (handle->promise && handle->promise_fulfilled.compare_exchange_strong(expected, true)) {
+            if (handle->promise) {
                 BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(false), {}, {
-                    BROOKESIA_LOGW("Promise already set for task %1%", id);
+                    BROOKESIA_LOGE("Failed to set promise value for canceled Task[%1%]", id);
                 });
                 handle->promise.reset();
             }
@@ -138,7 +132,7 @@ void TaskScheduler::stop()
     io_context_->stop();
 
     // Wait for all threads to finish
-    BROOKESIA_LOGI("Interrupting %1% worker threads and waiting for them to finish", threads_.size());
+    BROOKESIA_LOGD("Interrupting %1% worker threads and waiting for them to finish", threads_.size());
     threads_.interrupt_all();
     threads_.join_all();
 
@@ -148,14 +142,13 @@ void TaskScheduler::stop()
         tasks_.clear();
         groups_.clear();
         strands_.clear();
-        group_configs_.clear();
         io_work_guard_.reset();
         io_context_.reset();
     }
 
     is_running_.store(false);
 
-    BROOKESIA_LOGI(
+    BROOKESIA_LOGD(
         "Stopped, canceled %1% tasks, statistics: %2%", task_count, BROOKESIA_DESCRIBE_TO_STR(get_statistics())
     );
 }
@@ -164,7 +157,7 @@ bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group,
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: group(%1%), id(%2%), enable_immediate(%3%)", group, id, enable_immediate);
+    BROOKESIA_LOGD("Params: group(%1%), id(Task[%2%]), enable_immediate(%3%)", group, id, enable_immediate);
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
@@ -174,16 +167,10 @@ bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group,
     auto task_wrapper = [this, handle, task = std::move(task)]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-        BROOKESIA_LOGD("Executing task %1%", handle->id);
+        BROOKESIA_LOGD("Executing Task[%1%]", handle->id);
 
         // Invoke pre-execute callback when task is about to execute
         invoke_pre_execute_callback(handle->id, handle->type);
-
-        if (handle->state == TaskState::Canceled) {
-            boost::lock_guard<boost::mutex> lock(mutex_);
-            remove_task_internal(handle->id, handle->group);
-            return;
-        }
 
         bool success = false;
         // Will be executed when the function exits
@@ -194,10 +181,16 @@ bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group,
         }
         );
 
+        if (handle->state == TaskState::Canceled) {
+            boost::lock_guard<boost::mutex> lock(mutex_);
+            remove_task_internal(handle->id, handle->group);
+            return;
+        }
+
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(task(), {
             success = false;
             return;
-        }, {BROOKESIA_LOGE("Task %1% execution failed", handle->id);});
+        }, {BROOKESIA_LOGE("Task[%1%] execution failed", handle->id);});
 
         success = true;
     };
@@ -544,24 +537,29 @@ bool TaskScheduler::wait(TaskId id, int timeout_ms)
         boost::lock_guard<boost::mutex> lock(mutex_);
         auto it = tasks_.find(id);
         if (it == tasks_.end()) {
-            BROOKESIA_LOGD("Task %1% not found (already finished)", id);
+            BROOKESIA_LOGD("Task[%1%] not found (already finished)", id);
             return true; // Task already finished
         }
         future = it->second->future;
     }
 
-    if (timeout_ms < 0) {
-        // Wait indefinitely
-        return future.get();
-    } else {
+    if (timeout_ms >= 0) {
         // Wait with timeout
         auto status = future.wait_for(std::chrono::milliseconds(timeout_ms));
-        if (status == std::future_status::ready) {
-            return future.get();
-        }
-        BROOKESIA_LOGW("Wait timeout for task %1% after %2% ms", id, timeout_ms);
-        return false;
+        BROOKESIA_CHECK_FALSE_RETURN(
+            status == std::future_status::ready, false, "Wait timeout for Task[%1%] after %2% ms", id, timeout_ms
+        );
     }
+
+    // Get result
+    auto result = future.get();
+    if (!result) {
+        BROOKESIA_LOGW("Task[%1%] exited without completing, may be canceled or failed", id);
+    }
+
+    BROOKESIA_LOGD("Task[%1%] wait completed", id);
+
+    return true;
 }
 
 bool TaskScheduler::wait_group(const Group &group, int timeout_ms)
@@ -638,7 +636,7 @@ bool TaskScheduler::restart_timer(TaskId id)
 
     auto it = tasks_.find(id);
     if (it == tasks_.end()) {
-        BROOKESIA_LOGW("Task %1% not found", id);
+        BROOKESIA_LOGW("Task[%1%] not found", id);
         return false;
     }
 
@@ -647,7 +645,7 @@ bool TaskScheduler::restart_timer(TaskId id)
     // Check if task type supports timer restart
     if (handle->type != TaskType::Delayed && handle->type != TaskType::Periodic) {
         BROOKESIA_LOGE(
-            "Task %1% cannot restart timer: only Delayed and Periodic tasks support this (current type: %2%)",
+            "Task[%1%] cannot restart timer: only Delayed and Periodic tasks support this (current type: %2%)",
             id, BROOKESIA_DESCRIBE_TO_STR(handle->type)
         );
         return false;
@@ -656,7 +654,7 @@ bool TaskScheduler::restart_timer(TaskId id)
     // Check if task is in running state
     if (handle->state != TaskState::Running) {
         BROOKESIA_LOGW(
-            "Task %1% is not in running state (current: %2%)", id,
+            "Task[%1%] is not in running state (current: %2%)", id,
             BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
         );
         return false;
@@ -670,21 +668,21 @@ bool TaskScheduler::restart_timer(TaskId id)
         if (handle->type == TaskType::Delayed) {
             // For Delayed task, reschedule with saved task
             if (!handle->saved_task) {
-                BROOKESIA_LOGE("Task %1% has no saved task closure", id);
+                BROOKESIA_LOGE("Task[%1%] has no saved task closure", id);
                 return false;
             }
             schedule_once(handle, handle->saved_task);
         } else {
             // For Periodic task, reschedule with saved periodic task
             if (!handle->saved_periodic_task) {
-                BROOKESIA_LOGE("Task %1% has no saved periodic task closure", id);
+                BROOKESIA_LOGE("Task[%1%] has no saved periodic task closure", id);
                 return false;
             }
             schedule_periodic(handle, handle->saved_periodic_task);
         }
     }
 
-    BROOKESIA_LOGD("Task %1% timer restarted (interval: %2% ms)", id, handle->interval_ms);
+    BROOKESIA_LOGD("Task[%1%] timer restarted (interval: %2% ms)", id, handle->interval_ms);
 
     return true;
 }
@@ -765,17 +763,22 @@ bool TaskScheduler::configure_group(const Group &group, const GroupConfig &confi
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: group(%1%), enable_serial_execution(%2%)", group, config.enable_serial_execution);
+    BROOKESIA_LOGD("Params: group(%1%), config(%2%)", group, BROOKESIA_DESCRIBE_TO_STR(config));
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
     BROOKESIA_CHECK_FALSE_RETURN(!group.empty(), false, "Group name cannot be empty");
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
-    group_configs_[group] = config;
-
-    // Create strand for group if configured
-    if (config.enable_serial_execution && strands_.find(group) == strands_.end()) {
+    if (!config.parent_group.empty()) {
+        // Use parent group's strand
+        auto parent_it = strands_.find(config.parent_group);
+        BROOKESIA_CHECK_FALSE_RETURN(
+            parent_it != strands_.end(), false, "Parent group '%1%' not found", config.parent_group
+        );
+        strands_[group] = parent_it->second;
+    } else if (config.enable_serial_execution && strands_.find(group) == strands_.end()) {
+        // Create strand for group if configured
         strands_[group] = std::make_shared<boost::asio::strand<boost::asio::io_context::executor_type>>(
                               io_context_->get_executor()
                           );
@@ -812,7 +815,7 @@ bool TaskScheduler::wait_tasks_internal(const std::vector<TaskId> &task_ids, int
         }
 
         if (!wait(task_id, remaining_timeout)) {
-            BROOKESIA_LOGW("Wait timeout for task %1%", task_id);
+            BROOKESIA_LOGW("Wait timeout for Task[%1%]", task_id);
             return false;
         }
     }
@@ -867,7 +870,7 @@ std::shared_ptr<TaskScheduler::TaskHandle> TaskScheduler::create_handle(
     handle->promise = std::make_shared<std::promise<bool>>();
     handle->future = handle->promise->get_future().share();
 
-    BROOKESIA_LOGD("Created task %1% (group: %2%)", handle->id, group);
+    BROOKESIA_LOGD("Created Task[%1%] (group: %2%)", handle->id, group);
 
     return handle;
 }
@@ -876,7 +879,7 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: handle(%1%)", handle->id);
+    BROOKESIA_LOGD("Params: handle(Task[%1%])", handle->id);
 
     handle->timer->expires_after(std::chrono::milliseconds(handle->interval_ms));
     handle->timer->async_wait([this, handle, task = std::move(task)](const boost::system::error_code & ec) {
@@ -887,7 +890,7 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
         // If suspended, don't remove the task - it will be resumed later
         if (handle->state == TaskState::Suspended) {
             BROOKESIA_LOGD(
-                "Task %1% is %2%, keeping it alive", handle->id, BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
+                "Task[%1%] is %2%, keeping it alive", handle->id, BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
             );
             return;
         }
@@ -896,7 +899,7 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
             // If operation_aborted but task is still Running, it means restart_timer was called
             // Don't remove the task in this case - a new timer has been scheduled
             if (ec == boost::asio::error::operation_aborted && handle->state == TaskState::Running) {
-                BROOKESIA_LOGD("Task %1% timer was restarted, not removing", handle->id);
+                BROOKESIA_LOGD("Task[%1%] timer was restarted, not removing", handle->id);
                 return;
             }
             boost::lock_guard<boost::mutex> lock(mutex_);
@@ -919,7 +922,7 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(task(), {
             success = false;
             return;
-        }, {BROOKESIA_LOGE("Delayed task %1% execution failed", handle->id);});
+        }, {BROOKESIA_LOGE("Delayed Task[%1%] execution failed", handle->id);});
 
         success = true;
     });
@@ -938,7 +941,7 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         // If suspended, don't remove the task - it will be resumed later
         if (handle->state == TaskState::Suspended) {
             BROOKESIA_LOGD(
-                "Periodic task %1% is %2%, keeping it alive", handle->id,
+                "Periodic Task[%1%] is %2%, keeping it alive", handle->id,
                 BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
             );
             return;
@@ -948,7 +951,7 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
             // If operation_aborted but task is still Running, it means restart_timer was called
             // Don't remove the task in this case - a new timer has been scheduled
             if (ec == boost::asio::error::operation_aborted && handle->state == TaskState::Running) {
-                BROOKESIA_LOGD("Periodic task %1% timer was restarted, not removing", handle->id);
+                BROOKESIA_LOGD("Periodic Task[%1%] timer was restarted, not removing", handle->id);
                 return;
             }
             boost::lock_guard<boost::mutex> lock(mutex_);
@@ -960,7 +963,7 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         bool expected = false;
         if (!handle->is_executing.compare_exchange_strong(expected, true)) {
             BROOKESIA_LOGD(
-                "Periodic task %1% is already executing, skipping this execution", handle->id
+                "Periodic Task[%1%] is already executing, skipping this execution", handle->id
             );
             // Schedule next execution even if we skip this one
             if (handle->repeat && handle->state == TaskState::Running) {
@@ -973,19 +976,6 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         invoke_pre_execute_callback(handle->id, handle->type);
 
         bool success = false;
-        auto do_task = [this, handle, task, &success]() {
-            bool should_continue = task();
-            success = true;
-
-            if (should_continue && handle->repeat && handle->state == TaskState::Running) {
-                // Task will continue, not finished yet
-                schedule_periodic(handle, task);
-            } else {
-                // Task is finished
-                mark_finished(handle, true);
-            }
-        };
-
         // Will be executed when the function exits
         lib_utils::FunctionGuard exit_guard(
         [this, handle, &success]() {
@@ -995,12 +985,23 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         }
         );
 
+        auto do_task = [this, handle, task, &success]() {
+            bool should_continue = task();
+            success = true;
+            if (should_continue && handle->repeat && handle->state == TaskState::Running) {
+                // Task will continue, not finished yet
+                schedule_periodic(handle, task);
+            } else {
+                // Task is finished
+                mark_finished(handle, true);
+            }
+        };
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(do_task(), {
             success = false;
             handle->is_executing.store(false);
             mark_finished(handle, false);
             return;
-        }, {BROOKESIA_LOGE("Periodic task(%1%) execution failed", handle->id);});
+        }, {BROOKESIA_LOGE("Periodic Task[%1%] execution failed", handle->id);});
     });
 }
 
@@ -1008,11 +1009,11 @@ void TaskScheduler::cancel_internal(TaskId task_id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: task_id(%1%)", task_id);
+    BROOKESIA_LOGD("Params: task_id(Task[%1%])", task_id);
 
     auto it = tasks_.find(task_id);
     if (it == tasks_.end()) {
-        BROOKESIA_LOGD("Task %1% not found", task_id);
+        BROOKESIA_LOGD("Task[%1%] not found", task_id);
         return;
     }
 
@@ -1023,27 +1024,27 @@ void TaskScheduler::cancel_internal(TaskId task_id)
     }
     canceled_tasks_++;
 
-    // Set promise value for canceled task (atomically check and set flag to prevent race condition)
-    bool expected = false;
-    if (handle->promise && handle->promise_fulfilled.compare_exchange_strong(expected, true)) {
-        handle->promise->set_value(false);
+    if (handle->promise) {
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(false), {}, {
+            BROOKESIA_LOGE("Failed to set promise value for canceled Task[%1%]", task_id);
+        });
         handle->promise.reset();
     }
 
     remove_task_internal(task_id, handle->group);
 
-    BROOKESIA_LOGD("Task %1% canceled", task_id);
+    BROOKESIA_LOGD("Task[%1%] canceled", task_id);
 }
 
 bool TaskScheduler::suspend_internal(TaskId task_id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: task_id(%1%)", task_id);
+    BROOKESIA_LOGD("Params: task_id(Task[%1%])", task_id);
 
     auto it = tasks_.find(task_id);
     if (it == tasks_.end()) {
-        BROOKESIA_LOGW("Task %1% not found", task_id);
+        BROOKESIA_LOGW("Task[%1%] not found", task_id);
         return false;
     }
 
@@ -1052,14 +1053,14 @@ bool TaskScheduler::suspend_internal(TaskId task_id)
     // Check if task type supports suspend
     if (handle->type != TaskType::Delayed && handle->type != TaskType::Periodic) {
         BROOKESIA_LOGE(
-            "Task %1% cannot be suspended: only Delayed and Periodic tasks support suspend (current type: %2%)",
+            "Task[%1%] cannot be suspended: only Delayed and Periodic tasks support suspend (current type: %2%)",
             task_id, BROOKESIA_DESCRIBE_TO_STR(handle->type)
         );
         return false;
     }
 
     if (handle->state != TaskState::Running) {
-        BROOKESIA_LOGW("Task %1% is not in running state (current: %2%)", task_id, static_cast<int>(handle->state.load()));
+        BROOKESIA_LOGW("Task[%1%] is not in running state (current: %2%)", task_id, static_cast<int>(handle->state.load()));
         return false;
     }
 
@@ -1075,7 +1076,7 @@ bool TaskScheduler::suspend_internal(TaskId task_id)
     handle->state = TaskState::Suspended;
     suspended_tasks_++;
 
-    BROOKESIA_LOGD("Task %1% suspended (remaining: %2% ms)", task_id, handle->remaining_time.count());
+    BROOKESIA_LOGD("Task[%1%] suspended (remaining: %2% ms)", task_id, handle->remaining_time.count());
 
     return true;
 }
@@ -1084,11 +1085,11 @@ bool TaskScheduler::resume_internal(TaskId task_id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: task_id(%1%)", task_id);
+    BROOKESIA_LOGD("Params: task_id(Task[%1%])", task_id);
 
     auto it = tasks_.find(task_id);
     if (it == tasks_.end()) {
-        BROOKESIA_LOGW("Task %1% not found", task_id);
+        BROOKESIA_LOGW("Task[%1%] not found", task_id);
         return false;
     }
 
@@ -1097,7 +1098,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
     // Check if task type supports resume
     if (handle->type != TaskType::Delayed && handle->type != TaskType::Periodic) {
         BROOKESIA_LOGE(
-            "Task %1% cannot be resumed: only Delayed and Periodic tasks support resume (current type: %2%)",
+            "Task[%1%] cannot be resumed: only Delayed and Periodic tasks support resume (current type: %2%)",
             task_id, BROOKESIA_DESCRIBE_TO_STR(handle->type)
         );
         return false;
@@ -1105,7 +1106,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
 
     if (handle->state != TaskState::Suspended) {
         BROOKESIA_LOGW(
-            "Task %1% is not in suspended state (current: %2%)", task_id,
+            "Task[%1%] is not in suspended state (current: %2%)", task_id,
             BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
         );
         return false;
@@ -1118,14 +1119,14 @@ bool TaskScheduler::resume_internal(TaskId task_id)
     if (handle->type == TaskType::Delayed) {
         // For Delayed task, reschedule with remaining time
         if (!handle->saved_task) {
-            BROOKESIA_LOGE("Task %1% has no saved task closure", task_id);
+            BROOKESIA_LOGE("Task[%1%] has no saved task closure", task_id);
             return false;
         }
 
         // Use remaining time if positive, otherwise execute immediately
         int delay_ms = std::max(0LL, handle->remaining_time.count());
 
-        BROOKESIA_LOGD("Rescheduling delayed task %1% with remaining time: %2% ms", task_id, delay_ms);
+        BROOKESIA_LOGD("Rescheduling delayed Task[%1%] with remaining time: %2% ms", task_id, delay_ms);
 
         // Update interval_ms to remaining time for proper rescheduling
         handle->interval_ms = delay_ms;
@@ -1134,14 +1135,14 @@ bool TaskScheduler::resume_internal(TaskId task_id)
     } else if (handle->type == TaskType::Periodic) {
         // For Periodic task, reschedule with remaining time for first execution, then use original interval
         if (!handle->saved_periodic_task) {
-            BROOKESIA_LOGE("Task %1% has no saved periodic task closure", task_id);
+            BROOKESIA_LOGE("Task[%1%] has no saved periodic task closure", task_id);
             return false;
         }
 
         // Use remaining time if positive, otherwise execute immediately
         int delay_ms = std::max(0LL, handle->remaining_time.count());
 
-        BROOKESIA_LOGD("Rescheduling periodic task %1% with remaining time: %2% ms, then interval: %3% ms",
+        BROOKESIA_LOGD("Rescheduling periodic Task[%1%] with remaining time: %2% ms, then interval: %3% ms",
                        task_id, delay_ms, handle->interval_ms);
 
         // First execution with remaining time
@@ -1154,7 +1155,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
             // If suspended again, don't remove the task
             if (handle->state == TaskState::Suspended) {
                 BROOKESIA_LOGD(
-                    "Resumed periodic task %1% is %2%, keeping it alive", handle->id,
+                    "Resumed periodic Task[%1%] is %2%, keeping it alive", handle->id,
                     BROOKESIA_DESCRIBE_TO_STR(handle->state.load())
                 );
                 return;
@@ -1170,7 +1171,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
             bool expected = false;
             if (!handle->is_executing.compare_exchange_strong(expected, true)) {
                 BROOKESIA_LOGD(
-                    "Resumed periodic task %1% is already executing, skipping this execution", handle->id
+                    "Resumed periodic Task[%1%] is already executing, skipping this execution", handle->id
                 );
                 // Schedule next execution even if we skip this one
                 if (handle->repeat && handle->state == TaskState::Running) {
@@ -1184,6 +1185,15 @@ bool TaskScheduler::resume_internal(TaskId task_id)
             invoke_pre_execute_callback(handle->id, handle->type);
 
             bool success = false;
+            // Will be executed when the function exits
+            lib_utils::FunctionGuard exit_guard(
+            [this, handle, &success]() {
+                // Clear execution flag when task completes
+                handle->is_executing.store(false);
+                invoke_post_execute_callback(handle->id, handle->type, success);
+            }
+            );
+
             auto do_task = [this, handle, original_interval, &success]() {
                 bool should_continue = handle->saved_periodic_task();
                 success = true;
@@ -1199,25 +1209,16 @@ bool TaskScheduler::resume_internal(TaskId task_id)
                 }
             };
 
-            // Will be executed when the function exits
-            lib_utils::FunctionGuard exit_guard(
-            [this, handle, &success]() {
-                // Clear execution flag when task completes
-                handle->is_executing.store(false);
-                invoke_post_execute_callback(handle->id, handle->type, success);
-            }
-            );
-
             BROOKESIA_CHECK_EXCEPTION_EXECUTE(do_task(), {
                 success = false;
                 handle->is_executing.store(false);
                 mark_finished(handle, false);
                 return;
-            }, {BROOKESIA_LOGE("Resumed periodic task(%1%) execution failed", handle->id);});
+            }, {BROOKESIA_LOGE("Resumed periodic Task[%1%] execution failed", handle->id);});
         });
     }
 
-    BROOKESIA_LOGD("Task %1% resumed and rescheduled", task_id);
+    BROOKESIA_LOGD("Task[%1%] resumed and rescheduled", task_id);
 
     return true;
 }
@@ -1226,7 +1227,7 @@ void TaskScheduler::remove_task_internal(TaskId task_id, const Group &group)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: task_id(%1%), group(%2%)", task_id, group);
+    BROOKESIA_LOGD("Params: task_id(Task[%1%]), group(%2%)", task_id, group);
 
     // Remove from group
     if (!group.empty()) {
@@ -1265,28 +1266,29 @@ void TaskScheduler::mark_finished(std::shared_ptr<TaskHandle> handle, bool succe
         failed_tasks_++;
     }
 
-    // Set promise value (atomically check and set flag to prevent race condition with cancel)
-    bool expected = false;
-    if (handle->promise && handle->promise_fulfilled.compare_exchange_strong(expected, true)) {
-        handle->promise->set_value(success);
+    boost::lock_guard<boost::mutex> lock(mutex_);
+
+    if (handle->promise) {
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(success), {}, {
+            BROOKESIA_LOGE("Failed to set promise value for finished Task[%1%]", handle->id);
+        });
         handle->promise.reset();
     }
 
-    boost::lock_guard<boost::mutex> lock(mutex_);
     remove_task_internal(handle->id, handle->group);
 
-    BROOKESIA_LOGD("Task %1% finished (success: %2%)", handle->id, success);
+    BROOKESIA_LOGD("Task[%1%] finished (success: %2%)", handle->id, success);
 }
 
 std::shared_future<bool> TaskScheduler::get_future(TaskId id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: id(%1%)", id);
+    BROOKESIA_LOGD("Params: id(Task[%1%])", id);
 
     boost::lock_guard<boost::mutex> lock(mutex_);
     auto it = tasks_.find(id);
-    BROOKESIA_CHECK_FALSE_RETURN(it != tasks_.end(), std::shared_future<bool>(), "Task %1% not found", id);
+    BROOKESIA_CHECK_FALSE_RETURN(it != tasks_.end(), std::shared_future<bool>(), "Task[%1%] not found", id);
 
     return it->second->future;
 }
@@ -1302,7 +1304,7 @@ void TaskScheduler::invoke_pre_execute_callback(TaskId task_id, TaskType task_ty
     if (callback) {
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(
         callback(task_id, task_type), {},
-        {BROOKESIA_LOGE("Pre-execute callback error for task %1%", task_id);}
+        {BROOKESIA_LOGE("Pre-execute callback error for Task[%1%]", task_id);}
         );
     }
 }
@@ -1318,7 +1320,7 @@ void TaskScheduler::invoke_post_execute_callback(TaskId task_id, TaskType task_t
     if (callback) {
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(
         callback(task_id, task_type, success), {},
-        {BROOKESIA_LOGE("Post-execute callback error for task %1%", task_id);}
+        {BROOKESIA_LOGE("Post-execute callback error for Task[%1%]", task_id);}
         );
     }
 }

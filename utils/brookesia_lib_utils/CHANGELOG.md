@@ -1,5 +1,18 @@
 # ChangeLog
 
+## v0.7.5 - 2026-02-25
+
+#### Enhancements:
+
+* feat(describe_helpers): add support for 'std::queue' and 'std::list' serialization/deserialization
+* feat(task_scheduler): add 'parent_group' support in 'GroupConfig' to allow child groups to use parent group's strand
+* feat(task_scheduler): improve log format consistency (use 'Task[%1%]' format) and adjust log levels
+
+#### Bug Fixes:
+
+* fix(task_scheduler): fix race condition in promise fulfillment by removing 'promise_fulfilled' atomic flag and protecting promise operations under mutex
+* fix(state_machine): remove unnecessary 'is_running()' check in 'force_transition_to()' method
+
 ## v0.7.4 - 2026-01-18
 
 #### Breaking Changes:
