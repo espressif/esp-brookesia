@@ -189,6 +189,8 @@ void Coze::on_shutdown()
         chat_handle_ = nullptr;
     }
 
+    set_chat_listening(false);
+
     trigger_general_event(GeneralEvent::Stopped);
 }
 
@@ -217,6 +219,15 @@ bool Coze::on_wakeup()
     return true;
 }
 
+bool Coze::on_manual_stop_listening()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    // Here to avoid the listening being stopped by the manager
+    // The listening should be stopped when `ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STOPED` is received
+    return !is_chat_listening();
+}
+
 bool Coze::on_interrupt_speaking()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -224,6 +235,8 @@ bool Coze::on_interrupt_speaking()
     BROOKESIA_CHECK_FALSE_RETURN(is_chat_started() && is_chat_connected(), false, "Chat is not started or connected");
 
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_coze_chat_send_audio_cancel(chat_handle_), false, "Failed to cancel speaking");
+
+    reset_interrupted_speaking();
 
     return true;
 }
@@ -329,6 +342,15 @@ std::expected<boost::json::array, std::string> Coze::function_get_robot_infos()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     return BROOKESIA_DESCRIBE_TO_JSON(get_data<DataType::Info>().robots).as_array();
+}
+
+void Coze::set_chat_listening(bool listening)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: listening(%1%)", BROOKESIA_DESCRIBE_TO_STR(listening));
+
+    is_chat_listening_ = listening;
 }
 
 void Coze::try_load_data()
@@ -531,21 +553,28 @@ bool Coze::on_audio_event(uint8_t event_id, char *data)
             BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to publish error occurred event");
         };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STARTED) {
-        BROOKESIA_LOGI("char listening start");
+        BROOKESIA_LOGI("chat listening start");
+        set_chat_listening(true);
         task_func = [this]() {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
             BROOKESIA_CHECK_FALSE_EXIT(set_speaking(false), "Failed to set speaking");
             BROOKESIA_CHECK_FALSE_EXIT(set_listening(true), "Failed to set listening");
         };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STOPED) {
-        BROOKESIA_LOGI("char listening stop");
+        BROOKESIA_LOGI("chat listening stop");
+        set_chat_listening(false);
         task_func = [this]() {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            if (get_chat_mode() == ChatMode::Manual && is_manual_listening()) {
+                // Manual listening should be stopped when event is received
+                set_encoder_paused(true);
+                set_manual_listening(false);
+            }
             BROOKESIA_CHECK_FALSE_EXIT(set_listening(false), "Failed to set listening");
             BROOKESIA_CHECK_FALSE_EXIT(set_speaking(true), "Failed to set speaking");
         };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_COMPLETED) {
-        BROOKESIA_LOGI("char speaking complete");
+        BROOKESIA_LOGI("chat speaking complete");
         task_func = [this]() {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
             BROOKESIA_CHECK_FALSE_EXIT(set_speaking(false), "Failed to set speaking");

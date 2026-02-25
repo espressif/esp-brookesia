@@ -91,9 +91,6 @@ protected:
     {}
     virtual ~Base() = default;
 
-    std::string get_call_task_group() const override;
-    std::string get_event_task_group() const override;
-    std::string get_request_task_group() const override;
     std::string get_state_task_group() const;
 
     virtual bool on_activate() = 0;
@@ -155,6 +152,12 @@ protected:
     {
         return is_listening_;
     }
+    void set_manual_listening(bool listening);
+    bool is_manual_listening()
+    {
+        return is_manual_listening_;
+    }
+    void set_encoder_paused(bool paused);
     bool set_emote(const std::string emote);
     bool set_agent_speaking_text(const std::string text);
     bool set_user_speaking_text(const std::string text);
@@ -176,6 +179,7 @@ private:
     };
 
     // Inherited from service::ServiceBase
+    bool on_start() override;
     void on_stop() override;
 
     bool do_activate();
@@ -213,11 +217,6 @@ private:
     bool is_interrupted_speaking()
     {
         return is_interrupted_speaking_;
-    }
-
-    bool is_manual_listening()
-    {
-        return is_manual_listening_;
     }
 
     bool is_listening_disabled()

@@ -24,6 +24,24 @@ typedef struct {
     bool dirty;
 } settings_handle_t;
 
+typedef struct {
+    esp_err_t (*on_init)(settings_handle_t *handle);
+    esp_err_t (*on_deinit)(settings_handle_t *handle);
+    esp_err_t (*on_get_string)(settings_handle_t *handle, const char *key, const char *default_value, char *out_value, size_t max_len);
+    esp_err_t (*on_set_string)(settings_handle_t *handle, const char *key, const char *value);
+    esp_err_t (*on_get_int)(settings_handle_t *handle, const char *key, int32_t default_value, int32_t *out_value);
+    esp_err_t (*on_set_int)(settings_handle_t *handle, const char *key, int32_t value);
+    esp_err_t (*on_erase_key)(settings_handle_t *handle, const char *key);
+    esp_err_t (*on_erase_all)(settings_handle_t *handle);
+    esp_err_t (*on_commit)(settings_handle_t *handle);
+} settings_global_callbacks_t;
+
+/**
+ * @brief Set global callbacks for settings operations
+ * @param callbacks Pointer to callbacks structure,
+ */
+void settings_set_global_callbacks(const settings_global_callbacks_t *callbacks);
+
 /**
  * @brief Initialize settings handle
  * @param handle Pointer to settings handle

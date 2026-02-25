@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.7.2 - 2026-02-25
+
+### Enhancements:
+
+- feat(agent): implement `on_manual_stop_listening()` override to handle manual listening stop in Coze agent
+- feat(agent): add logic to stop manual listening when `ESP_COZE_CHAT_EVENT_CHAT_SPEECH_STOPED` event is received in Manual chat mode
+- feat(agent): call `reset_interrupted_speaking()` in `on_interrupt_speaking()` to properly reset interrupted speaking state
+
+### Bug Fixes:
+
+- fix(log): fix typo in log messages ("char" -> "chat") for chat listening start/stop and speaking complete events
+
 ## v0.7.1 - 2026-02-02
 
 ### Breaking Changes:

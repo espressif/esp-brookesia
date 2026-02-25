@@ -1,4 +1,4 @@
-version: "0.7.0"
+version: "0.7.1"
 description: ESP-Brookesia Xiaozhi Agent which provides Xiaozhi API integration
 url: https://github.com/espressif/esp-brookesia/tree/master/agent/brookesia_agent_xiaozhi
 repository: https://github.com/espressif/esp-brookesia.git

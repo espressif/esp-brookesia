@@ -129,7 +129,7 @@ void GeneralStateClass::on_update()
     // Check if the time is synced for TimeSyncing state
     if (state_ == GeneralState::TimeSyncing) {
         if (!context_.check_if_time_synced()) {
-            BROOKESIA_LOGW("Time is not synced, check again after %1%ms...", TIME_SYNC_UPDATE_INTERVAL_MS);
+            BROOKESIA_LOGD("Time is not synced, check again after %1%ms...", TIME_SYNC_UPDATE_INTERVAL_MS);
         } else {
             BROOKESIA_LOGI("Time is synced");
             BROOKESIA_CHECK_FALSE_EXIT(
@@ -472,8 +472,6 @@ bool StateMachine::init()
 
     deinit_guard.release();
 
-    BROOKESIA_LOGI("State machine initialized");
-
     return true;
 }
 
@@ -494,8 +492,6 @@ void StateMachine::deinit()
     state_machine_.reset();
 
     is_initialized_ = false;
-
-    BROOKESIA_LOGI("State machine deinitialized");
 }
 
 bool StateMachine::start()
@@ -548,8 +544,6 @@ bool StateMachine::start()
 
     stop_guard.release();
 
-    BROOKESIA_LOGI("State machine started");
-
     return true;
 }
 
@@ -569,8 +563,6 @@ void StateMachine::stop()
     state_machine_->stop();
 
     is_running_ = false;
-
-    BROOKESIA_LOGI("State machine stopped");
 }
 
 bool StateMachine::do_time_sync()
@@ -597,7 +589,7 @@ bool StateMachine::check_if_time_synced()
     }
 
     if (!result.value()) {
-        BROOKESIA_LOGW("Time is not synced, check again after %1%ms...", TIME_SYNC_UPDATE_INTERVAL_MS);
+        BROOKESIA_LOGD("Time is not synced, check again after %1%ms...", TIME_SYNC_UPDATE_INTERVAL_MS);
         return false;
     }
 

@@ -14,11 +14,14 @@
 #include "brookesia/agent_manager/manager.hpp"
 #include "esp_iot_board.h"
 #include "esp_iot_chat.h"
+#include "esp_iot_settings.h"
+#include "brookesia/service_helper/nvs.hpp"
 #include "brookesia/agent_xiaozhi/agent_xiaozhi.hpp"
 
 namespace esp_brookesia::agent {
 
 using XiaoZhiHelper = helper::XiaoZhi;
+using NVS_Helper = service::helper::NVS;
 
 constexpr uint32_t INTERRUPTED_SPEAKING_RESET_DELAY_MS = 1000;
 
@@ -30,6 +33,87 @@ bool XiaoZhi::on_init()
         "Version: %1%.%2%.%3%", BROOKESIA_AGENT_XIAOZHI_VER_MAJOR, BROOKESIA_AGENT_XIAOZHI_VER_MINOR,
         BROOKESIA_AGENT_XIAOZHI_VER_PATCH
     );
+
+    auto on_settings_get_string =
+    [](settings_handle_t *handle, const char *key, const char *default_value, char *out_value, size_t max_len) -> esp_err_t {
+        BROOKESIA_LOG_TRACE_GUARD();
+        auto result = NVS_Helper::get_key_value<std::string>(handle->namespace_name, key);
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to get (key: %1%) string from NVS: %2%", key, result.error());
+            strncpy(out_value, default_value, max_len - 1);
+            out_value[max_len - 1] = '\0';
+        } else
+        {
+            strncpy(out_value, result.value().c_str(), max_len - 1);
+        }
+        return ESP_OK;
+    };
+    auto on_settings_set_string =
+    [](settings_handle_t *handle, const char *key, const char *value) -> esp_err_t {
+        BROOKESIA_LOG_TRACE_GUARD();
+        auto result = NVS_Helper::save_key_value(handle->namespace_name, key, value);
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to set (key: %1%) string to NVS: %2%", key, result.error());
+            return ESP_FAIL;
+        }
+        return ESP_OK;
+    };
+    auto on_settings_get_int =
+    [](settings_handle_t *handle, const char *key, int32_t default_value, int32_t *out_value) -> esp_err_t {
+        BROOKESIA_LOG_TRACE_GUARD();
+        auto result = NVS_Helper::get_key_value<int32_t>(handle->namespace_name, key);
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to get (key: %1%) int from NVS: %2%", key, result.error());
+            *out_value = default_value;
+            return ESP_OK;
+        } else
+        {
+            *out_value = result.value();
+        }
+        return ESP_OK;
+    };
+    auto on_settings_set_int = [](settings_handle_t *handle, const char *key, int32_t value) -> esp_err_t {
+        BROOKESIA_LOG_TRACE_GUARD();
+        auto result = NVS_Helper::save_key_value(handle->namespace_name, key, value);
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to set (key: %1%) int to NVS: %2%", key, result.error());
+            return ESP_FAIL;
+        }
+        return ESP_OK;
+    };
+    auto on_settings_erase_key = [](settings_handle_t *handle, const char *key) -> esp_err_t {
+        BROOKESIA_LOG_TRACE_GUARD();
+        auto result = NVS_Helper::erase_keys(handle->namespace_name, {key});
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to erase (key: %1%) from NVS: %2%", key, result.error());
+            return ESP_FAIL;
+        }
+        return ESP_OK;
+    };
+    auto on_settings_erase_all = [](settings_handle_t *handle) -> esp_err_t {
+        BROOKESIA_LOG_TRACE_GUARD();
+        auto result = NVS_Helper::erase_keys(handle->namespace_name, {});
+        if (!result)
+        {
+            BROOKESIA_LOGW("Failed to erase all keys from NVS: %2%", result.error());
+            return ESP_FAIL;
+        }
+        return ESP_OK;
+    };
+    auto settings_callbacks = settings_global_callbacks_t{
+        .on_get_string = on_settings_get_string,
+        .on_set_string = on_settings_set_string,
+        .on_get_int = on_settings_get_int,
+        .on_set_int = on_settings_set_int,
+        .on_erase_key = on_settings_erase_key,
+        .on_erase_all = on_settings_erase_all,
+    };
+    settings_set_global_callbacks(&settings_callbacks);
 
     return true;
 }
@@ -175,17 +259,7 @@ bool XiaoZhi::on_interrupt_speaking()
     auto ret = esp_iot_chat_send_abort_speaking(chat_handle_, ESP_IOT_CHAT_ABORT_SPEAKING_REASON_WAKE_WORD_DETECTED);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to abort speaking");
 
-    auto scheduler = get_task_scheduler();
-    BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not available");
-
-    auto task_func = [this]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        reset_interrupted_speaking();
-    };
-    auto result = scheduler->post_delayed(
-                      std::move(task_func), INTERRUPTED_SPEAKING_RESET_DELAY_MS, nullptr, get_call_task_group()
-                  );
-    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post task function");
+    reset_interrupted_speaking();
 
     return true;
 }

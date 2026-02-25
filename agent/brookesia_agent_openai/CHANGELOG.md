@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.3 - 2026-02-25
+
+### Bug Fixes:
+
+- fix(task): change OpenAI task core affinity from core 1 to `tskNO_AFFINITY` to avoid error on ESP32-C5
+
 ## v0.7.2 - 2026-02-02
 
 ### Breaking Changes:

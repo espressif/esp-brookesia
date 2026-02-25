@@ -24,7 +24,7 @@
 #define OPENAI_REALTIME_URL     "https://api.openai.com/v1/realtime?model="
 
 #define OPENAI_TASK_PRIORITY    10
-#define OPENAI_TASK_CORE        1
+#define OPENAI_TASK_CORE        tskNO_AFFINITY
 
 typedef struct {
     esp_peer_handle_t  peer;

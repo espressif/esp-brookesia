@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.7.3 - 2026-02-25
+
+### Breaking Changes:
+
+- break(base): remove `get_call_task_group()`, `get_event_task_group()`, and `get_request_task_group()` override methods - now inherited from `ServiceBase`
+
+### Enhancements:
+
+- feat(base): add `set_manual_listening()` method and public `is_manual_listening()` accessor
+- feat(base): implement `on_start()` override to configure task group parent relationships
+- feat(base): use `set_manual_listening()` method instead of direct member access in `do_stop()` and `do_sleep()`
+- feat(base): improve `do_manual_start_listening()` and `do_manual_stop_listening()` - change callback to non-blocking and adjust call order
+- feat(base): change `get_state_task_group()` to return `get_call_task_group()` instead of separate state task group
+- feat(state_machine): reduce log verbosity - remove INFO logs for init/deinit/start/stop operations
+- feat(state_machine): change time sync check warnings to debug level logs
+
 ## v0.7.2 - 2026-02-02
 
 ### Breaking Changes:
