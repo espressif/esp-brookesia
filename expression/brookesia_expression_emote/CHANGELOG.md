@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.7.2 - 2026-02-25
+
+### Breaking Changes:
+
+- break(repo): update `esp_emote_expression` dependency from `0.1.*` to `1.0.*`
+
+### Enhancements:
+
+- feat(emote): improve task affinity validation - set to `-1` (no affinity) if affinity exceeds available CPU cores
+- feat(emote): update `function_hide_event_message()` to use `emote_set_event_msg()` API directly
+- feat(emote): update native handle access from `gfx_emote_handle` to `gfx_handle` to match new API
+
 ## v0.7.1 - 2026-02-02
 
 ### Enhancements:

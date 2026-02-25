@@ -21,7 +21,6 @@ public:
     enum class GFX_ObjectType {
         Emoji,
         Animation,
-        EventMessage,
         Qrcode,
         Max,
     };
@@ -151,6 +150,6 @@ private:
     void *native_handle_ = nullptr;
 };
 
-BROOKESIA_DESCRIBE_ENUM(Emote::GFX_ObjectType, Emoji, Animation, EventMessage, Qrcode, Max);
+BROOKESIA_DESCRIBE_ENUM(Emote::GFX_ObjectType, Emoji, Animation, Qrcode, Max);
 
 } // namespace esp_brookesia::expression
