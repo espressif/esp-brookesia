@@ -1,5 +1,25 @@
 # ChangeLog
 
+## v0.7.4 - 2026-02-25
+
+### Breaking Changes:
+
+- break(emote): remove `QRCode` object type from `EventMessageType` enum
+
+### Enhancements:
+
+* feat(wifi): add `GeneralState` enum with stable and transient states for WiFi state machine
+* feat(wifi): add `ScanParams` struct for scan configuration
+* feat(wifi): add `SoftApParams` struct and `SoftApEvent` enum for SoftAP functionality
+* feat(wifi): add SoftAP-related functions: `TriggerSoftApStart`, `TriggerSoftApStop`, `TriggerSoftApProvisionStart`, `TriggerSoftApProvisionStop`, `SetSoftApParams`, `GetSoftApParams`
+* feat(wifi): add `GetGeneralState` function to get current WiFi state
+* feat(wifi): update `SetScanParams` function to use object parameter instead of multiple separate parameters
+* feat(wifi): add `channel` field to `ApInfo` struct
+* feat(wifi): change `get_signal_level()` to static method in `ApInfo`
+* feat(wifi): add `SoftApEventHappened` event
+* feat(wifi): add `IsUnexpected` parameter to `GeneralEventHappened` event
+* feat(audio): add `PauseEncoder` and `ResumeEncoder` functions
+
 ## v0.7.3 - 2026-02-02
 
 ### Breaking Changes:

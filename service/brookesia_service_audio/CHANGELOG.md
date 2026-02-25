@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.2 - 2026-02-25
+
+### Enhancements:
+
+- feat(repo): add `PauseEncoder` and `ResumeEncoder` functions
+
 ## v0.7.1 - 2026-02-02
 
 ### Breaking Changes:

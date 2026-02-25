@@ -23,6 +23,7 @@
       - [State Transitions](#state-transitions)
     - [Auto Reconnection Mechanism](#auto-reconnection-mechanism)
     - [WiFi Scanning](#wifi-scanning)
+    - [SoftAP Functionality](#softap-functionality)
   - [Development Environment Requirements](#development-environment-requirements)
   - [Adding to Project](#adding-to-project)
 
@@ -34,7 +35,7 @@ The WiFi service uses a state machine to uniformly manage WiFi lifecycle states,
 
 | State | Description |
 |-------|-------------|
-| `Deinited` | WiFi not initialized, initial system state |
+| `Idle` | WiFi not initialized, initial system state |
 | `Inited` | WiFi initialized but not started, parameters can be configured |
 | `Started` | WiFi started, scanning or waiting for connection |
 | `Connected` | WiFi successfully connected to AP, normal communication available |
@@ -43,10 +44,10 @@ The WiFi service uses a state machine to uniformly manage WiFi lifecycle states,
 
 State transitions are achieved by triggering corresponding actions:
 
-- **Forward Flow**: `Deinited` → `Inited` (Init) → `Started` (Start) → `Connected` (Connect)
+- **Forward Flow**: `Idle` → `Inited` (Init) → `Started` (Start) → `Connected` (Connect)
 - **Disconnect**: `Connected` → `Started` (Disconnect)
 - **Stop Process**: `Started` / `Connected` → `Inited` (Stop)
-- **Deinitialize**: `Inited` → `Deinited` (Deinit)
+- **Deinitialize**: `Inited` → `Idle` (Deinit)
 
 The state transition diagram is as follows:
 
@@ -58,38 +59,98 @@ config:
 stateDiagram-v2
   direction TB
 
-  %% State styles
-  classDef Aqua fill:#DEFFF8,stroke:#46EDC8,color:#378E7A,font-weight:bold;
-  classDef Sky fill:#E2EBFF,stroke:#374D7C,color:#374D7C,font-weight:bold;
-  classDef Rose fill:#FFDFE5,stroke:#FF5978,color:#8E2236,font-weight:bold;
-  classDef Peach fill:#FFEFDB,stroke:#FBB35A,color:#8F632D,font-weight:bold;
-  classDef choiceState fill:#F7E6E9,stroke:#C73B32,stroke-width:2px,color:#C73B32,font-style:italic;
-  classDef noteStyle fill:#FFFCF5,color:#B88200,stroke:#F4DD4C,font-weight:bold;
+  %% State Styles
+  classDef Stable fill:#DEFFF8,stroke:#46EDC8,color:#378E7A,font-weight:bold;
+  classDef Transient fill:#FFEFDB,stroke:#FBB35A,color:#8F632D,font-weight:bold;
 
-  %% Node definitions
-  state "Deinited" as Deinited
-  state "Inited" as Inited
-  state "Started" as Started
-  state "Connected" as Connected
+  %% Initial State
+  [*] --> Idle
 
-  %% Main flow
-  [*] --> Deinited
-  Deinited --> Inited: Init
-  Inited --> Started: Start
-  Started --> Connected: Connect
-  Connected --> Started: Disconnect
+  %% =====================
+  %% Idle
+  %% =====================
+  Idle --> Initing: Init
 
-  %% Stop/rollback/terminate (unified branch sinking)
-  Started --> Inited: Stop
-  Connected --> Inited: Stop
-  Inited --> Deinited: Deinit
+  %% =====================
+  %% Initing
+  %% =====================
+  state Initing {
+    do_init() --> poll_until_inited()
+  }
 
-  %% Node styles
-  class Deinited Aqua
-  class Inited noteStyle
-  class Started Peach
-  class Connected Sky
+  Initing --> Inited: Success
+  Initing --> Idle: Failure
+  Initing --> Deiniting: Timeout
 
+  %% =====================
+  %% Inited
+  %% =====================
+  Inited --> Starting: Start
+  Inited --> Deiniting: Deinit
+
+  %% =====================
+  %% Deiniting
+  %% =====================
+  state Deiniting {
+    do_deinit() --> poll_until_deinited()
+  }
+
+  Deiniting --> Idle: Success / Failure / Timeout
+
+  %% =====================
+  %% Starting
+  %% =====================
+  state Starting {
+    do_start() --> poll_until_started()
+  }
+
+  Starting --> Started: Success
+  Starting --> Inited: Failure
+  Starting --> Stopping: Timeout
+
+  %% =====================
+  %% Started
+  %% =====================
+  Started --> Connecting: Connect
+  Started --> Stopping: Stop
+
+  %% =====================
+  %% Connecting
+  %% =====================
+  state Connecting {
+    do_connect() --> poll_until_connected()
+  }
+
+  Connecting --> Connected: Success
+  Connecting --> Started: Failure
+  Connecting --> Disconnecting: Timeout
+
+  %% =====================
+  %% Connected
+  %% =====================
+  Connected --> Disconnecting: Disconnect
+  Connected --> Stopping: Stop
+
+  %% =====================
+  %% Disconnecting
+  %% =====================
+  state Disconnecting {
+    do_disconnect() --> poll_until_disconnected()
+  }
+
+  Disconnecting --> Started: Success / Failure / Timeout
+
+  %% =====================
+  %% Stopping
+  %% =====================
+  state Stopping {
+    do_stop() --> poll_until_stopped()
+  }
+
+  Stopping --> Inited: Success / Failure / Timeout
+
+  class Idle,Inited,Started,Connected Stable
+  class Initing,Starting,Connecting,Disconnecting,Stopping,Deiniting Transient
 ```
 
 ### Auto Reconnection Mechanism
@@ -103,6 +164,12 @@ stateDiagram-v2
 - **Periodic Scanning**: Supports configuring scan interval and timeout
 - **Scan Result Notifications**: Real-time notification of scanned AP information through events
 - **AP Information**: Includes SSID, signal strength level, encryption status, and other information
+
+### SoftAP Functionality
+
+- **Parameter Configuration**: Supports setting SoftAP SSID, password, maximum connections, and channel
+- **Optimal Channel Selection**: If channel is not set, automatically scans nearby APs and selects the best channel
+- **Provisioning Function**: Supports starting SoftAP provisioning functionality
 
 ## Development Environment Requirements
 

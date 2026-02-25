@@ -23,6 +23,7 @@
       - [状态转换](#状态转换)
     - [自动重连机制](#自动重连机制)
     - [WiFi 扫描](#wifi-扫描)
+    - [SoftAP 功能](#softap-功能)
   - [开发环境要求](#开发环境要求)
   - [添加到工程](#添加到工程)
 
@@ -34,7 +35,7 @@ WiFi 服务通过状态机统一管理 WiFi 的生命周期状态，确保状态
 
 | 状态 | 说明 |
 |------|------|
-| `Deinited` | WiFi 未初始化，系统初始状态 |
+| `Idle` | WiFi 未初始化，系统初始状态 |
 | `Inited` | WiFi 已初始化，但未启动，可以配置参数 |
 | `Started` | WiFi 已启动，正在扫描或等待连接 |
 | `Connected` | WiFi 已成功连接到 AP，可以正常通信 |
@@ -43,10 +44,10 @@ WiFi 服务通过状态机统一管理 WiFi 的生命周期状态，确保状态
 
 状态转换通过触发相应的动作（Action）来实现：
 
-- **正向流程**：`Deinited` → `Inited`（Init）→ `Started`（Start）→ `Connected`（Connect）
+- **正向流程**：`Idle` → `Inited`（Init）→ `Started`（Start）→ `Connected`（Connect）
 - **断开连接**：`Connected` → `Started`（Disconnect）
 - **停止流程**：`Started` / `Connected` → `Inited`（Stop）
-- **反初始化**：`Inited` → `Deinited`（Deinit）
+- **反初始化**：`Inited` → `Idle`（Deinit）
 
 状态转换图如下：
 
@@ -58,38 +59,98 @@ config:
 stateDiagram-v2
   direction TB
 
-  %% State styles
-  classDef Aqua fill:#DEFFF8,stroke:#46EDC8,color:#378E7A,font-weight:bold;
-  classDef Sky fill:#E2EBFF,stroke:#374D7C,color:#374D7C,font-weight:bold;
-  classDef Rose fill:#FFDFE5,stroke:#FF5978,color:#8E2236,font-weight:bold;
-  classDef Peach fill:#FFEFDB,stroke:#FBB35A,color:#8F632D,font-weight:bold;
-  classDef choiceState fill:#F7E6E9,stroke:#C73B32,stroke-width:2px,color:#C73B32,font-style:italic;
-  classDef noteStyle fill:#FFFCF5,color:#B88200,stroke:#F4DD4C,font-weight:bold;
+  %% State Styles
+  classDef Stable fill:#DEFFF8,stroke:#46EDC8,color:#378E7A,font-weight:bold;
+  classDef Transient fill:#FFEFDB,stroke:#FBB35A,color:#8F632D,font-weight:bold;
 
-  %% Node definitions
-  state "Deinited" as Deinited
-  state "Inited" as Inited
-  state "Started" as Started
-  state "Connected" as Connected
+  %% Initial State
+  [*] --> Idle
 
-  %% Main flow
-  [*] --> Deinited
-  Deinited --> Inited: Init
-  Inited --> Started: Start
-  Started --> Connected: Connect
-  Connected --> Started: Disconnect
+  %% =====================
+  %% Idle
+  %% =====================
+  Idle --> Initing: Init
 
-  %% Stop/rollback/terminate (unified branch sinking)
-  Started --> Inited: Stop
-  Connected --> Inited: Stop
-  Inited --> Deinited: Deinit
+  %% =====================
+  %% Initing
+  %% =====================
+  state Initing {
+    do_init() --> poll_until_inited()
+  }
 
-  %% Node styles
-  class Deinited Aqua
-  class Inited noteStyle
-  class Started Peach
-  class Connected Sky
+  Initing --> Inited: Success
+  Initing --> Idle: Failure
+  Initing --> Deiniting: Timeout
 
+  %% =====================
+  %% Inited
+  %% =====================
+  Inited --> Starting: Start
+  Inited --> Deiniting: Deinit
+
+  %% =====================
+  %% Deiniting
+  %% =====================
+  state Deiniting {
+    do_deinit() --> poll_until_deinited()
+  }
+
+  Deiniting --> Idle: Success / Failure / Timeout
+
+  %% =====================
+  %% Starting
+  %% =====================
+  state Starting {
+    do_start() --> poll_until_started()
+  }
+
+  Starting --> Started: Success
+  Starting --> Inited: Failure
+  Starting --> Stopping: Timeout
+
+  %% =====================
+  %% Started
+  %% =====================
+  Started --> Connecting: Connect
+  Started --> Stopping: Stop
+
+  %% =====================
+  %% Connecting
+  %% =====================
+  state Connecting {
+    do_connect() --> poll_until_connected()
+  }
+
+  Connecting --> Connected: Success
+  Connecting --> Started: Failure
+  Connecting --> Disconnecting: Timeout
+
+  %% =====================
+  %% Connected
+  %% =====================
+  Connected --> Disconnecting: Disconnect
+  Connected --> Stopping: Stop
+
+  %% =====================
+  %% Disconnecting
+  %% =====================
+  state Disconnecting {
+    do_disconnect() --> poll_until_disconnected()
+  }
+
+  Disconnecting --> Started: Success / Failure / Timeout
+
+  %% =====================
+  %% Stopping
+  %% =====================
+  state Stopping {
+    do_stop() --> poll_until_stopped()
+  }
+
+  Stopping --> Inited: Success / Failure / Timeout
+
+  class Idle,Inited,Started,Connected Stable
+  class Initing,Starting,Connecting,Disconnecting,Stopping,Deiniting Transient
 ```
 
 ### 自动重连机制
@@ -103,6 +164,12 @@ stateDiagram-v2
 - **周期性扫描**：支持配置扫描间隔和超时时间
 - **扫描结果通知**：通过事件实时通知扫描到的 AP 信息
 - **AP 信息**：包含 SSID、信号强度等级、是否加密等信息
+
+### SoftAP 功能
+
+- **参数设置**：支持设置 SoftAP 的 SSID、密码、最大连接数和通道
+- **最优通道选择**：如果未设置通道，则会自动扫描附近 AP 并选择最佳通道
+- **配网功能**：支持启动 SoftAP 配网功能
 
 ## 开发环境要求
 

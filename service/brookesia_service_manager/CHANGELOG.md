@@ -1,5 +1,20 @@
 # ChangeLog
 
+## v0.7.4 - 2026-02-25
+
+#### Enhancements:
+
+* feat(service): add `has_scheduler()` and `get_scheduler_config()` helper methods to `ServiceBase::Attributes`
+* feat(service): improve resource access protection with mutex in `start_internal()` and `stop_internal()`
+* feat(service): optimize task scheduler lifecycle management - distinguish between services with own scheduler and shared scheduler
+
+#### Bug Fixes:
+
+* fix(service): fix race condition in `call_function_async()` by adding mutex protection to prevent concurrent execution with `on_stop()`
+* fix(service): improve error handling in `call_function_sync()` with better error messages and logging
+* fix(service): move `get_task_scheduler()` from public to protected access in `ServiceBase`
+* fix(service): remove `get_task_scheduler()` from `ServiceManager` public interface
+
 ## v0.7.3 - 2026-02-02
 
 #### Breaking Changes:

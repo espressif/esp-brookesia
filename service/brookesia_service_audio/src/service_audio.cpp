@@ -822,6 +822,24 @@ std::expected<void, std::string> Audio::function_stop_encoder()
     return {};
 }
 
+std::expected<void, std::string> Audio::function_pause_encoder()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    set_encoder_paused(true);
+
+    return {};
+}
+
+std::expected<void, std::string> Audio::function_resume_encoder()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    set_encoder_paused(false);
+
+    return {};
+}
+
 std::expected<void, std::string> Audio::function_start_decoder(const boost::json::object &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -1022,7 +1040,9 @@ bool Audio::start_encoder(const AudioEncoderDynamicConfig &config)
         int ret_size = 0;
         try {
             while (!boost::this_thread::interruption_requested()) {
-                ret_size = audio_recorder_read_data(data.get(), fetch_data_size);
+                if (!is_encoder_paused()) {
+                    ret_size = audio_recorder_read_data(data.get(), fetch_data_size);
+                }
                 // BROOKESIA_LOGD("Reading data from recorder (%1%)", ret_size);
                 if (ret_size > 0) {
                     BROOKESIA_CHECK_FALSE_EXIT(
@@ -1030,6 +1050,7 @@ bool Audio::start_encoder(const AudioEncoderDynamicConfig &config)
                         RawBuffer(static_cast<const uint8_t *>(data.get()), ret_size)
                     }), "Failed to publish recorder data ready event"
                     );
+                    ret_size = 0;
                 } else {
                     boost::this_thread::sleep_for(boost::chrono::milliseconds(fetch_interval_ms));
                 }
@@ -1076,7 +1097,18 @@ void Audio::stop_encoder()
     });
     is_encoder_started_ = false;
 
+    set_encoder_paused(false);
+
     BROOKESIA_LOGI("Encoder stopped");
+}
+
+void Audio::set_encoder_paused(bool paused)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: paused(%1%)", BROOKESIA_DESCRIBE_TO_STR(paused));
+
+    is_encoder_paused_ = paused;
 }
 
 bool Audio::start_decoder(const AudioDecoderDynamicConfig &config)

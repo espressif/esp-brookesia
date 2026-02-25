@@ -1,5 +1,29 @@
 # ChangeLog
 
+## v0.7.4 - 2026-02-25
+
+### Breaking Changes:
+
+* break(state_machine): rename initial state from `Deinited` to `Idle`
+* break(hal): restructure HAL header files - `hal.hpp` is now split into multiple files in `hal/` subdirectory
+
+### Enhancements:
+
+* feat(hal): add SoftAP functionality with parameter configuration, optimal channel selection, and provisioning support
+* feat(hal): add SoftAP provisioning functionality with HTTP server and HTML configuration page
+* feat(state_machine): add transient states (Initing, Deiniting, Starting, Stopping, Connecting, Disconnecting) to state machine
+* feat(Kconfig): reorganize configuration structure with hierarchical menus (Hal/General, Hal/Station, Hal/SoftAP, State Machine, Service)
+* feat(Kconfig): add SoftAP configuration options (channel range, setup interval/timeout, event delay)
+* feat(Kconfig): add SoftAP Provision configuration options (scan interval/timeout, success close delay, DNS thread settings)
+* feat(Kconfig): add Station configuration options (connect retries max, auto connect delay)
+* feat(Kconfig): add State Machine configuration options (general state update interval, wait finished timeout)
+* feat(Kconfig): add Service configuration options (deinit finished timeout, general action queue dispatch interval, NVS save/erase data timeout)
+* feat(Kconfig): add HAL event timeout configurations for Inited and Deinited events
+* feat(CMake): move dependencies to PRIV_REQUIRES and add `esp_event` and `esp_http_server` dependencies
+* feat(CMake): use `GLOB_RECURSE` to recursively find source files for better subdirectory support
+* feat(CMake): embed HTML provisioning page as text file resource
+* feat(repo): update description to include SoftAP functionality
+
 ## v0.7.3 - 2026-02-02
 
 ### Enhancements:

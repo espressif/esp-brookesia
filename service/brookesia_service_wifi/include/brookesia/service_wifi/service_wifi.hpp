@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,17 +12,22 @@
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/service_helper/wifi.hpp"
-#include "brookesia/service_wifi/hal.hpp"
-#include "brookesia/service_wifi/state_machine.hpp"
+#include "hal/hal.hpp"
+#include "state_machine.hpp"
 
 namespace esp_brookesia::service::wifi {
 
 class Wifi : public ServiceBase {
+    friend class StateMachine;
+    friend class Hal;
+    friend class SoftAp;
+
 public:
-    enum class DataType {
+    enum class DataType : uint8_t {
         LastAp,
         ConnectedAps,
         ScanParams,
+        SoftApParams,
         Max,
     };
 
@@ -71,10 +76,17 @@ private:
     std::expected<void, std::string> function_trigger_general_action(const std::string &action);
     std::expected<void, std::string> function_trigger_scan_start();
     std::expected<void, std::string> function_trigger_scan_stop();
-    std::expected<void, std::string> function_set_scan_params(double ap_count, double interval_ms, double timeout_ms);
+    std::expected<void, std::string> function_trigger_softap_start();
+    std::expected<void, std::string> function_trigger_softap_stop();
+    std::expected<void, std::string> function_trigger_softap_provision_start();
+    std::expected<void, std::string> function_trigger_softap_provision_stop();
+    std::expected<void, std::string> function_set_scan_params(const boost::json::object &params);
+    std::expected<void, std::string> function_set_softap_params(const boost::json::object &params);
     std::expected<void, std::string> function_set_connect_ap(const std::string &ssid, const std::string &password);
+    std::expected<std::string, std::string> function_get_general_state();
     std::expected<std::string, std::string> function_get_connect_ap();
     std::expected<boost::json::array, std::string> function_get_connected_aps();
+    std::expected<boost::json::object, std::string> function_get_softap_params();
     std::expected<void, std::string> function_reset_data();
 
     std::vector<FunctionSchema> get_function_schemas() override
@@ -103,13 +115,37 @@ private:
                 Helper, Helper::FunctionId::TriggerScanStop,
                 function_trigger_scan_stop()
             ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_3(
-                Helper, Helper::FunctionId::SetScanParams, double, double, double,
-                function_set_scan_params(PARAM1, PARAM2, PARAM3)
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::TriggerSoftApStart,
+                function_trigger_softap_start()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::TriggerSoftApStop,
+                function_trigger_softap_stop()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::TriggerSoftApProvisionStart,
+                function_trigger_softap_provision_start()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::TriggerSoftApProvisionStop,
+                function_trigger_softap_provision_stop()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetScanParams, boost::json::object,
+                function_set_scan_params(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetSoftApParams, boost::json::object,
+                function_set_softap_params(PARAM)
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
                 Helper, Helper::FunctionId::SetConnectAp, std::string, std::string,
                 function_set_connect_ap(PARAM1, PARAM2)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetGeneralState,
+                function_get_general_state()
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::GetConnectAp,
@@ -120,56 +156,93 @@ private:
                 function_get_connected_aps()
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetSoftApParams,
+                function_get_softap_params()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::ResetData,
                 function_reset_data()
             ),
         };
     }
 
-    std::string get_target_event_state(GeneralEvent event);
+    lib_utils::TaskScheduler::Group get_state_task_group() const
+    {
+        return get_call_task_group();
+    }
 
-    template<DataType type>
-    constexpr auto get_data()
-    {
-        if constexpr (type == DataType::LastAp) {
-            return hal_->get_last_connected_ap_info();
-        } else if constexpr (type == DataType::ConnectedAps) {
-            std::vector<ConnectApInfo> ap_infos;
-            hal_->get_connected_ap_infos(ap_infos);
-            return ap_infos;
-        } else if constexpr (type == DataType::ScanParams) {
-            return hal_->get_scan_params();
-        } else {
-            static_assert(false, "Invalid data type");
-        }
-    }
-    template<DataType type>
-    constexpr auto set_data(const auto &data)
-    {
-        if constexpr (type == DataType::LastAp) {
-            hal_->set_last_connected_ap_info(data);
-        } else if constexpr (type == DataType::ConnectedAps) {
-            hal_->clear_connected_ap_infos();
-            for (const auto &ap_info : data) {
-                hal_->add_connected_ap_info(ap_info);
-            }
-        } else if constexpr (type == DataType::ScanParams) {
-            hal_->set_scan_params(data);
-        } else {
-            static_assert(false, "Invalid data type");
-        }
-    }
+    bool publish_general_event(GeneralEvent event, bool is_unexpected);
+    bool publish_general_action(GeneralAction action);
+    bool publish_scan_ap_infos(std::span<const ApInfo> &ap_infos);
+    bool publish_softap_event(SoftApEvent event);
+
+    bool on_hal_unexpected_general_event(GeneralEvent event);
+
     void try_load_data();
     void try_save_data(DataType type);
     void try_erase_data();
 
+    template<DataType type>
+    constexpr auto &get_data()
+    {
+        if constexpr (type == DataType::LastAp) {
+            return hal_->get_last_connected_ap_info();
+        } else if constexpr (type == DataType::ConnectedAps) {
+            return hal_->get_connected_ap_infos();
+        } else if constexpr (type == DataType::ScanParams) {
+            return hal_->get_scan_params();
+        } else if constexpr (type == DataType::SoftApParams) {
+            return hal_->get_softap_params();
+        } else {
+            static_assert(false, "Invalid data type");
+        }
+    }
+    template<DataType type>
+    bool set_data(const auto &data, bool is_force = false, bool is_skip_save = false)
+    {
+        // If the data is the same, skip
+        if (!is_force && (get_data<type>() == data)) {
+            return true;
+        }
+        // Otherwise, set the data and save to NVS
+        bool result = false;
+        if constexpr (type == DataType::LastAp) {
+            result = hal_->set_last_connected_ap_info(data);
+        } else if constexpr (type == DataType::ConnectedAps) {
+            result = hal_->set_connected_ap_infos(data);
+        } else if constexpr (type == DataType::ScanParams) {
+            result = hal_->set_scan_params(data);
+        } else if constexpr (type == DataType::SoftApParams) {
+            result = hal_->set_softap_params(data);
+        } else {
+            static_assert(false, "Invalid data type");
+        }
+        if (result && !is_skip_save) {
+            try_save_data(type);
+        }
+
+        return result;
+    }
+    void reset_data();
+
+    bool is_general_action_queue_task_running();
+    GeneralAction pop_general_action_pending_queue_front();
+    GeneralAction pop_general_action_ready_queue_front();
+    bool start_general_action_queue_task();
+    void stop_general_action_queue_task();
+    void make_general_action_ready_queue(GeneralAction action);
+    bool trigger_general_action(const GeneralAction &action);
+
     bool is_data_loaded_ = false;
 
-    std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
     std::shared_ptr<Hal> hal_;
     std::unique_ptr<StateMachine> state_machine_;
+
+    std::queue<GeneralAction> general_action_pending_queue_;
+    std::queue<GeneralAction> general_action_ready_queue_;
+    lib_utils::TaskScheduler::TaskId general_action_queue_processing_task_ = 0;
 };
 
-BROOKESIA_DESCRIBE_ENUM(Wifi::DataType, LastAp, ConnectedAps, ScanParams, Max);
+BROOKESIA_DESCRIBE_ENUM(Wifi::DataType, LastAp, ConnectedAps, ScanParams, SoftApParams, Max);
 
 } // namespace esp_brookesia::service::wifi

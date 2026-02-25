@@ -39,6 +39,42 @@ public:
         Max,
     };
 
+    /**
+     * @brief General state for WiFi state machine
+     *
+     * Stable states: Idle, Inited, Started, Connected
+     * Transient states: Initing, Deiniting, Starting, Stopping, Connecting, Disconnecting
+     */
+    enum class GeneralState {
+        Idle,           // Stable state: WiFi is not initialized
+        Initing,        // Transient state: WiFi is initializing
+        Inited,         // Stable state: WiFi is initialized but not started
+        Deiniting,      // Transient state: WiFi is deinitializing
+        Starting,       // Transient state: WiFi is starting
+        Started,        // Stable state: WiFi is started but not connected
+        Stopping,       // Transient state: WiFi is stopping
+        Connecting,     // Transient state: WiFi is connecting
+        Connected,      // Stable state: WiFi is connected
+        Disconnecting,  // Transient state: WiFi is disconnecting
+        Max,
+    };
+
+    struct ScanParams {
+        bool operator==(const ScanParams &other) const
+        {
+            return (ap_count == other.ap_count) && (interval_ms == other.interval_ms) && (timeout_ms == other.timeout_ms);
+        }
+
+        bool operator!=(const ScanParams &other) const
+        {
+            return !(*this == other);
+        }
+
+        size_t ap_count = 20;
+        uint32_t interval_ms = 10000;
+        uint32_t timeout_ms = 60000;
+    };
+
     enum class ApSignalLevel {
         LEVEL_0, // <= -81
         LEVEL_1, // -80 ~ -71
@@ -48,12 +84,9 @@ public:
     };
 
     struct ApInfo {
-        ApInfo() = default;
-        ApInfo(const std::string &ssid, bool is_locked, int rssi)
-            : ssid(ssid)
-            , is_locked(is_locked)
-            , rssi(rssi)
+        static ApSignalLevel get_signal_level(int rssi)
         {
+            ApSignalLevel signal_level = ApSignalLevel::LEVEL_0;
             if (rssi <= -81) {
                 signal_level = ApSignalLevel::LEVEL_0;
             } else if (rssi <= -71) {
@@ -65,12 +98,54 @@ public:
             } else {
                 signal_level = ApSignalLevel::LEVEL_4;
             }
+            return signal_level;
         }
 
         std::string ssid;
         bool is_locked;
         int rssi;
         ApSignalLevel signal_level;
+        uint8_t channel;
+    };
+
+    struct SoftApParams {
+        bool operator==(const SoftApParams &other) const
+        {
+            if ((ssid != other.ssid) || (password != other.password) ||
+                    (channel.has_value() != other.channel.has_value())) {
+                return false;
+            }
+            if (channel.has_value() && (get_channel() != other.get_channel())) {
+                return false;
+            }
+            return true;
+        }
+
+        bool operator!=(const SoftApParams &other) const
+        {
+            return !(*this == other);
+        }
+
+        bool has_channel() const
+        {
+            return channel.has_value();
+        }
+
+        uint8_t get_channel() const
+        {
+            return channel.value();
+        }
+
+        std::string ssid = "";
+        std::string password = "";
+        uint8_t max_connection = 4;
+        std::optional<uint8_t> channel = std::nullopt;  // If not set, will try to find the best channel from scan AP infos
+    };
+
+    enum class SoftApEvent {
+        Started,
+        Stopped,
+        Max,
     };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -80,10 +155,17 @@ public:
         TriggerGeneralAction,
         TriggerScanStart,
         TriggerScanStop,
+        TriggerSoftApStart,
+        TriggerSoftApStop,
+        TriggerSoftApProvisionStart,
+        TriggerSoftApProvisionStop,
         SetScanParams,
+        SetSoftApParams,
         SetConnectAp,
+        GetGeneralState,
         GetConnectAp,
         GetConnectedAps,
+        GetSoftApParams,
         ResetData,
         Max,
     };
@@ -92,6 +174,7 @@ public:
         GeneralActionTriggered,
         GeneralEventHappened,
         ScanApInfosUpdated,
+        SoftApEventHappened,
         Max,
     };
 
@@ -103,9 +186,11 @@ public:
     };
 
     enum class FunctionSetScanParamsParam {
-        ApCount,
-        IntervalMs,
-        TimeoutMs,
+        Param,
+    };
+
+    enum class FunctionSetSoftApParamsParam {
+        Param,
     };
 
     enum class FunctionSetConnectApParam {
@@ -122,10 +207,15 @@ public:
 
     enum class EventGeneralEventHappenedParam {
         Event,
+        IsUnexpected,
     };
 
     enum class EventScanApInfosUpdatedParam {
         ApInfos,
+    };
+
+    enum class EventSoftApEventHappenedParam {
+        Event,
     };
 
 private:
@@ -167,6 +257,38 @@ private:
         };
     }
 
+    static FunctionSchema function_schema_trigger_softap_start()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerSoftApStart),
+            .description = "Trigger SoftAP start",
+        };
+    }
+
+    static FunctionSchema function_schema_trigger_softap_stop()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerSoftApStop),
+            .description = "Trigger SoftAP stop",
+        };
+    }
+
+    static FunctionSchema function_schema_trigger_softap_provision_start()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerSoftApProvisionStart),
+            .description = "Trigger SoftAP provision start",
+        };
+    }
+
+    static FunctionSchema function_schema_trigger_softap_provision_stop()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerSoftApProvisionStop),
+            .description = "Trigger SoftAP provision stop",
+        };
+    }
+
     static FunctionSchema function_schema_set_scan_params()
     {
         return {
@@ -174,22 +296,30 @@ private:
             .description = "Set the scan parameters",
             .parameters = {
                 {
-                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::ApCount),
-                    .description = "The number of APs to scan, optional",
-                    .type = FunctionValueType::Number,
-                    .default_value = FunctionValue(20)
-                },
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::Param),
+                    .description = (boost::format("The scan parameters, a JSON object. Example: %1%")
+                                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(ScanParams())).str(),
+                    .type = FunctionValueType::Object
+                }
+            },
+        };
+    }
+
+    static FunctionSchema function_schema_set_ap_params()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetSoftApParams),
+            .description = "Set the SoftAP parameters",
+            .parameters = {
                 {
-                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::IntervalMs),
-                    .description = "The interval of the scan in milliseconds, optional",
-                    .type = FunctionValueType::Number,
-                    .default_value = FunctionValue(10000)
-                },
-                {
-                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetScanParamsParam::TimeoutMs),
-                    .description = "The timeout of the scan in milliseconds, optional",
-                    .type = FunctionValueType::Number,
-                    .default_value = FunctionValue(60000)
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetSoftApParamsParam::Param),
+                    .description = (boost::format("The SoftAP parameters, a JSON object. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(SoftApParams({
+                        .ssid = "ssid",
+                        .password = "password",
+                        .channel = 1
+                    }))).str(),
+                    .type = FunctionValueType::Object
                 }
             }
         };
@@ -216,6 +346,19 @@ private:
         };
     }
 
+    static FunctionSchema function_schema_get_general_state()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetGeneralState),
+            .description = (boost::format("Get the current general state, should be one of the following: %1%")
+            % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralState>({
+                GeneralState::Idle, GeneralState::Initing, GeneralState::Inited, GeneralState::Deiniting,
+                GeneralState::Starting, GeneralState::Started, GeneralState::Stopping, GeneralState::Connecting,
+                GeneralState::Connected, GeneralState::Disconnecting
+            }))).str(),
+        };
+    }
+
     static FunctionSchema function_schema_get_connect_ap()
     {
         return {
@@ -231,6 +374,15 @@ private:
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetConnectedAps),
             .description = (boost::format("Get the connected AP SSIDs. Return a JSON array of strings. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({"ssid1", "ssid2", "ssid3"}))).str(),
+        };
+    }
+
+    static FunctionSchema function_schema_get_softap_params()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetSoftApParams),
+            .description = (boost::format("Get the parameters of the SoftAP, a JSON object. Example: %1%")
+                            % BROOKESIA_DESCRIBE_JSON_SERIALIZE(SoftApParams())).str(),
         };
     }
 
@@ -279,6 +431,13 @@ private:
                         GeneralEvent::Disconnected, GeneralEvent::Connected
                     }))).str(),
                     .type = EventItemType::String
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::IsUnexpected),
+                    .description = "Indicates whether the event occurred unexpectedly. "
+                    "False: triggered by user action or intentional behavior. "
+                    "True: occurred due to an unexpected state.",
+                    .type = EventItemType::Boolean
                 }
             }
         };
@@ -292,12 +451,26 @@ private:
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventScanApInfosUpdatedParam::ApInfos),
-                    .description = (boost::format("The scan AP infos, a JSON array of objects. Example: %1%")
-                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<ApInfo>({
-                        ApInfo("ssid1", false, -81), ApInfo("ssid2", true, -71), ApInfo("ssid3", false, -61),
-                        ApInfo("ssid4", true, -51), ApInfo("ssid5", false, -41)
-                    }))).str(),
+                    .description = "The scan AP infos, a JSON array of objects",
                     .type = EventItemType::Array
+                }
+            }
+        };
+    }
+
+    static EventSchema event_schema_softap_event_happened()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(EventId::SoftApEventHappened),
+            .description = "SoftAP event happened event, will be triggered when a SoftAP event happens",
+            .items = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(EventSoftApEventHappenedParam::Event),
+                    .description = (boost::format("The SoftAP event happened, should be one of the following: %1%")
+                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<SoftApEvent>({
+                        SoftApEvent::Started, SoftApEvent::Stopped
+                    }))).str(),
+                    .type = EventItemType::String
                 }
             }
         };
@@ -318,10 +491,17 @@ public:
                 function_schema_trigger_general_action(),
                 function_schema_trigger_scan_start(),
                 function_schema_trigger_scan_stop(),
+                function_schema_trigger_softap_start(),
+                function_schema_trigger_softap_stop(),
+                function_schema_trigger_softap_provision_start(),
+                function_schema_trigger_softap_provision_stop(),
                 function_schema_set_scan_params(),
+                function_schema_set_ap_params(),
                 function_schema_set_connect_ap(),
+                function_schema_get_general_state(),
                 function_schema_get_connect_ap(),
                 function_schema_get_connected_aps(),
+                function_schema_get_softap_params(),
                 function_schema_reset_data(),
             }
         };
@@ -334,6 +514,7 @@ public:
                 event_schema_general_action_triggered(),
                 event_schema_general_event_happened(),
                 event_schema_scan_ap_infos_updated(),
+                event_schema_softap_event_happened(),
             }
         };
         return std::span<const EventSchema>(EVENT_SCHEMAS);
@@ -343,20 +524,50 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the describe macros //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BROOKESIA_DESCRIBE_ENUM(
-    Wifi::FunctionId, TriggerGeneralAction, TriggerScanStart, TriggerScanStop, SetScanParams, SetConnectAp,
-    GetConnectAp, GetConnectedAps, ResetData, Max
-);
-BROOKESIA_DESCRIBE_ENUM(Wifi::EventId, GeneralActionTriggered, GeneralEventHappened, ScanApInfosUpdated, Max);
-BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionTriggerGeneralActionParam, Action);
-BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionSetScanParamsParam, ApCount, IntervalMs, TimeoutMs);
-BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionSetConnectApParam, SSID, Password);
-BROOKESIA_DESCRIBE_ENUM(Wifi::EventGeneralActionTriggeredParam, Action);
-BROOKESIA_DESCRIBE_ENUM(Wifi::EventGeneralEventHappenedParam, Event);
-BROOKESIA_DESCRIBE_ENUM(Wifi::EventScanApInfosUpdatedParam, ApInfos);
+/**
+ * @brief  General related
+ */
 BROOKESIA_DESCRIBE_ENUM(Wifi::GeneralAction, Init, Deinit, Start, Stop, Connect, Disconnect);
 BROOKESIA_DESCRIBE_ENUM(Wifi::GeneralEvent, Deinited, Inited, Stopped, Started, Disconnected, Connected);
-BROOKESIA_DESCRIBE_ENUM(Wifi::ApSignalLevel, LEVEL_0, LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4);
-BROOKESIA_DESCRIBE_STRUCT(Wifi::ApInfo, (), (ssid, is_locked, rssi, signal_level));
+BROOKESIA_DESCRIBE_ENUM(
+    Wifi::GeneralState, Idle, Initing, Inited, Deiniting, Starting, Started, Stopping, Connecting, Connected,
+    Disconnecting, Max
+);
 
+/**
+ * @brief  Scan related
+ */
+BROOKESIA_DESCRIBE_ENUM(Wifi::ApSignalLevel, LEVEL_0, LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4);
+BROOKESIA_DESCRIBE_STRUCT(Wifi::ApInfo, (), (ssid, is_locked, rssi, signal_level, channel));
+BROOKESIA_DESCRIBE_STRUCT(Wifi::ScanParams, (), (ap_count, interval_ms, timeout_ms));
+
+/**
+ * @brief SoftAP related
+ */
+BROOKESIA_DESCRIBE_STRUCT(Wifi::SoftApParams, (), (ssid, password, max_connection, channel));
+BROOKESIA_DESCRIBE_ENUM(Wifi::SoftApEvent, Started, Stopped);
+
+/**
+ * @brief  Function related
+ */
+BROOKESIA_DESCRIBE_ENUM(
+    Wifi::FunctionId, TriggerGeneralAction, TriggerScanStart, TriggerScanStop, TriggerSoftApStart, TriggerSoftApStop,
+    TriggerSoftApProvisionStart, TriggerSoftApProvisionStop, SetScanParams, SetSoftApParams, SetConnectAp,
+    GetGeneralState, GetConnectAp, GetConnectedAps, GetSoftApParams, ResetData, Max
+);
+BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionTriggerGeneralActionParam, Action);
+BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionSetScanParamsParam, Param);
+BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionSetSoftApParamsParam, Param);
+BROOKESIA_DESCRIBE_ENUM(Wifi::FunctionSetConnectApParam, SSID, Password);
+
+/**
+ * @brief  Event related
+ */
+BROOKESIA_DESCRIBE_ENUM(
+    Wifi::EventId, GeneralActionTriggered, GeneralEventHappened, ScanApInfosUpdated, SoftApEventHappened, Max
+);
+BROOKESIA_DESCRIBE_ENUM(Wifi::EventGeneralActionTriggeredParam, Action);
+BROOKESIA_DESCRIBE_ENUM(Wifi::EventGeneralEventHappenedParam, Event, IsUnexpected);
+BROOKESIA_DESCRIBE_ENUM(Wifi::EventScanApInfosUpdatedParam, ApInfos);
+BROOKESIA_DESCRIBE_ENUM(Wifi::EventSoftApEventHappenedParam, Event);
 } // namespace esp_brookesia::service::helper

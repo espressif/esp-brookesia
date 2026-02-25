@@ -197,6 +197,8 @@ public:
         GetVolume,
         StartEncoder,
         StopEncoder,
+        PauseEncoder,
+        ResumeEncoder,
         StartDecoder,
         StopDecoder,
         FeedDecoderData,
@@ -481,6 +483,22 @@ private:
         };
     }
 
+    static FunctionSchema function_schema_pause_encoder()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PauseEncoder),
+            .description = "Pause the audio encoder",
+        };
+    }
+
+    static FunctionSchema function_schema_resume_encoder()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResumeEncoder),
+            .description = "Resume the audio encoder",
+        };
+    }
+
     static FunctionSchema function_schema_start_decoder()
     {
         return {
@@ -615,6 +633,8 @@ public:
                 function_schema_get_volume(),
                 function_schema_start_encoder(),
                 function_schema_stop_encoder(),
+                function_schema_pause_encoder(),
+                function_schema_resume_encoder(),
                 function_schema_start_decoder(),
                 function_schema_stop_decoder(),
                 function_schema_feed_decoder_data(),
@@ -694,8 +714,8 @@ BROOKESIA_DESCRIBE_ENUM(Audio::AFE_Event, VAD_Start, VAD_End, WakeStart, WakeEnd
  */
 BROOKESIA_DESCRIBE_ENUM(
     Audio::FunctionId, SetPeripheralConfig, SetPlaybackConfig, SetEncoderStaticConfig, SetDecoderStaticConfig,
-    SetAFE_Config, PlayUrl, PlayUrls, PlayControl, SetVolume, GetVolume, StartEncoder, StopEncoder,
-    StartDecoder, StopDecoder, FeedDecoderData, Max
+    SetAFE_Config, PlayUrl, PlayUrls, PlayControl, SetVolume, GetVolume, StartEncoder, StopEncoder, PauseEncoder,
+    ResumeEncoder, StartDecoder, StopDecoder, FeedDecoderData, Max
 );
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetPeripheralConfigParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetPlaybackConfigParam, Config);

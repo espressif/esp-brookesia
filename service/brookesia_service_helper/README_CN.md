@@ -4,7 +4,7 @@
 
 ## 概述
 
-`brookesia_service_helper` 是 ESP-Brookesia 服务开发辅助库，基于 C++20 Concepts 和 CRTP（Curiously Recurring Template Pattern）模式，为服务开发者和使用者提供类型安全的定义、Schema 和统一调用接口，用于构建和使用符合 ESP-Brookesia 服务框架规范的服务。
+`brookesia_service_helper` 是 ESP-Brookesia 服务开发辅助库，基于 CRTP（Curiously Recurring Template Pattern）模式，为服务开发者和使用者提供类型安全的定义、Schema 和统一调用接口，用于构建和使用符合 ESP-Brookesia 服务框架规范的服务。
 
 本库主要提供：
 
