@@ -42,17 +42,23 @@ EOF
 get_chip_from_bin() {
     local bin_name="$1"
     case "$bin_name" in
-        *p4*|*esp32p4*)
-            echo "esp32p4"
-            ;;
         *c3*|*esp32c3*)
             echo "esp32c3"
+            ;;
+        *c5*|*esp32c5*)
+            echo "esp32c5"
             ;;
         *c6*|*esp32c6*)
             echo "esp32c6"
             ;;
         *s2*|*esp32s2*)
             echo "esp32s2"
+            ;;
+        *s3*|*esp32s3*)
+            echo "esp32s3"
+            ;;
+        *p4*|*esp32p4*)
+            echo "esp32p4"
             ;;
         *)
             echo "esp32s3"
