@@ -304,18 +304,6 @@ public:
     }
 
     /**
-     * @brief Get the task scheduler
-     *
-     * @note  Exposes the task scheduler for external code that needs to execute tasks in the service's context.
-     *
-     * @return std::shared_ptr<lib_utils::TaskScheduler> Shared pointer to the task scheduler
-     */
-    std::shared_ptr<lib_utils::TaskScheduler> get_task_scheduler() const
-    {
-        return task_scheduler_;
-    }
-
-    /**
      * @brief Get the singleton instance
      *
      * @return ServiceManager& Reference to the singleton instance

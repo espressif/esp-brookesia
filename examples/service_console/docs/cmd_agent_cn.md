@@ -5,7 +5,7 @@ Agent 服务提供了 AI 代理管理功能，支持 Coze、OpenAI、Xiaozhi 等
 详细的接口说明请参考 [Agent 服务帮助头文件](https://github.com/espressif/esp-brookesia/blob/master/agent/brookesia_agent_helper/include/brookesia/agent_helper)。
 
 > [!NOTE]
-> - Agent 服务需要在支持的开发板上使用，请参考 [准备工作](../README_CN.md#准备工作) 章节了解默认支持的开发板列表
+> - Agent 服务需要在支持的开发板上使用，请参考 [硬件要求](../README_CN.md#硬件要求) 章节了解默认支持的开发板列表
 > - 部分 Agent（如 Coze、OpenAI）需要在 menuconfig 中配置 API 密钥
 > - 开启 Agent 功能前需要确保已通过 WiFi 连接到互联网
 
@@ -67,29 +67,17 @@ svc_call AgentManager ActivateAgent {"Name":"AgentXiaoZhi"}
 
 #### 触发通用操作
 
-启动 Agent：
-
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
 ```
 
-停止 Agent：
+参数说明：
 
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}
-```
-
-让 Agent 进入睡眠状态：
-
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}
-```
-
-唤醒 Agent：
-
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}
-```
+- `Action`：通用操作，可选值为
+  - `Start`：启动 Agent
+  - `Stop`：停止 Agent
+  - `Sleep`：让 Agent 进入睡眠状态
+  - `WakeUp`：唤醒 Agent
 
 #### 挂起/恢复
 
@@ -210,7 +198,6 @@ svc_call AgentManager SetAgentInfo {...}
 > 对于需要鉴权的 Agent（如 `Coze` 和 `OpenAI`），在运行 `svc_call AgentManager TriggerGeneralAction {"Action":"Start"}` 前，需要先运行此命令设置 Agent 鉴权信息。
 > 示例中可以通过 menuconfig 配置 Coze 和 OpenAI 的 API 密钥，因此设置无需手动执行。
 > 参数会被保存到 NVS 中，因此只需设置一次即可，后续调用时无需手动指定。
-
 
 ### 事件订阅接口
 

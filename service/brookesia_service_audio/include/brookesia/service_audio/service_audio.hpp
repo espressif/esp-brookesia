@@ -91,6 +91,8 @@ private:
     std::expected<double, std::string> function_get_volume();
     std::expected<void, std::string> function_start_encoder(const boost::json::object &config);
     std::expected<void, std::string> function_stop_encoder();
+    std::expected<void, std::string> function_pause_encoder();
+    std::expected<void, std::string> function_resume_encoder();
     std::expected<void, std::string> function_start_decoder(const boost::json::object &config);
     std::expected<void, std::string> function_stop_decoder();
     std::expected<void, std::string> function_feed_decoder_data(const RawBuffer &data);
@@ -157,6 +159,14 @@ private:
                 Helper, Helper::FunctionId::StopEncoder,
                 function_stop_encoder()
             ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::PauseEncoder,
+                function_pause_encoder()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::ResumeEncoder,
+                function_resume_encoder()
+            ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::StartDecoder, boost::json::object,
                 function_start_decoder(PARAM)
@@ -204,6 +214,11 @@ private:
     {
         return is_encoder_started_;
     }
+    void set_encoder_paused(bool paused);
+    bool is_encoder_paused() const
+    {
+        return is_encoder_paused_;
+    }
     bool start_decoder(const AudioDecoderDynamicConfig &config);
     void stop_decoder();
     bool is_decoder_started() const
@@ -228,6 +243,7 @@ private:
 
     /* Codec related */
     bool is_encoder_started_ = false;
+    bool is_encoder_paused_ = false;
     bool is_decoder_started_ = false;
     AudioPeripheralConfig peripheral_config_{};
     AudioPlaybackConfig playback_config_{};

@@ -14,10 +14,7 @@
 class Profiler {
 public:
     struct Config {
-        // Worker configuration
-        int worker_core_id = 0;
-        size_t worker_priority = 1;
-        size_t worker_stack_size = 6 * 1024;
+        std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler;
 
         // Thread profiler thresholds
         size_t thread_idle_cpu_usage_threshold = 1;
@@ -46,9 +43,11 @@ public:
     /**
      * @brief Init profiler with default configuration
      */
-    bool init()
+    bool init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler)
     {
-        return init({});
+        return init({
+            .task_scheduler = task_scheduler,
+        });
     }
 
     /**

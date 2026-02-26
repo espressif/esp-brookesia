@@ -13,12 +13,6 @@
 
 namespace esp_brookesia::service {
 
-#if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG
-constexpr uint32_t WAIT_TASK_SCHEDULER_FINISHED_TIMEOUT_MS = 1000;
-#else
-constexpr uint32_t WAIT_TASK_SCHEDULER_FINISHED_TIMEOUT_MS = 500;
-#endif
-
 ServiceBase::~ServiceBase()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -92,6 +86,10 @@ std::future<FunctionResult> ServiceBase::call_function_async(
     auto call_function_task = [this, registry, result_promise, promise_set, name, parameters_map =
           std::move(parameters_map)]() mutable {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        // This is to ensure on_stop() is not executed in the same thread as the call function task
+        boost::lock_guard lock(state_mutex_);
+
         bool expected = false;
         if (!promise_set->compare_exchange_strong(expected, true, std::memory_order_acq_rel))
         {
@@ -149,6 +147,7 @@ FunctionResult ServiceBase::call_function_sync(
 
     std::shared_ptr<FunctionResult> result = std::make_shared<FunctionResult>();
     result->success = false;
+    result->error_message = "Task exited without completing, may be canceled or failed";
     // Helper lambda to set error result (thread-safe, only sets once)
     auto set_error = [&result](const std::string & error_msg) {
         result->error_message = error_msg;
@@ -200,10 +199,15 @@ FunctionResult ServiceBase::call_function_sync(
         set_error("Failed to post task");
         return *result;
     }
+    BROOKESIA_LOGD("Task[%1%] posted, waiting for completion", task_id);
+
+    // Check if the task exited within the timeout
     if (!scheduler->wait(task_id, timeout_ms)) {
         set_error((boost::format("Timeout after %1%ms") % timeout_ms).str());
         return *result;
     }
+
+    BROOKESIA_LOGD("Task[%1%] exited", task_id);
 
     return *result;
 }
@@ -767,26 +771,47 @@ bool ServiceBase::start_internal()
 
     is_running_.store(true);
 
-    if (!task_scheduler_->is_running()) {
+    // Acquire write lock to protect resource access and prevent concurrent execution with call_function_task
+    std::shared_ptr<lib_utils::TaskScheduler> task_scheduler;
+    std::shared_ptr<rpc::ServerConnection> server_connection;
+    {
+        boost::lock_guard lock(resources_mutex_);
+
+        // Get copies of resources under lock
+        task_scheduler = task_scheduler_;
+        server_connection = server_connection_;
+    }
+
+    // Start and configure task scheduler outside lock to avoid holding lock during potentially long operations
+    BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Task scheduler is not available");
+    if (!task_scheduler->is_running()) {
         BROOKESIA_CHECK_FALSE_RETURN(
-            task_scheduler_->start(*attributes_.task_scheduler_config), false, "Failed to start task scheduler"
+            get_attributes().has_scheduler(), false,
+            "Service does not have own scheduler and also no one provided"
+        );
+        BROOKESIA_CHECK_FALSE_RETURN(
+            task_scheduler->start(get_attributes().get_scheduler_config()), false, "Failed to start task scheduler"
         );
     }
-    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(get_call_task_group(), {
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_call_task_group(), {
         .enable_serial_execution = true,
     }), false, "Failed to configure call task group");
-    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(get_event_task_group(), {
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_event_task_group(), {
         .enable_serial_execution = true,
     }), false, "Failed to configure event task group");
-    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->configure_group(get_request_task_group(), {
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_request_task_group(), {
         .enable_serial_execution = true,
     }), false, "Failed to configure request task group");
 
     BROOKESIA_CHECK_FALSE_RETURN(on_start(), false, "Failed to start service");
 
-    if (is_server_connected()) {
-        server_connection_->activate(true);
-        try_override_connection_request_handler();
+    if (server_connection) {
+        server_connection->activate(true);
+        // Re-acquire lock for try_override_connection_request_handler() if it needs to access resources
+        {
+            boost::lock_guard lock(resources_mutex_);
+            try_override_connection_request_handler();
+        }
     }
 
     stop_guard.release();
@@ -815,18 +840,34 @@ void ServiceBase::stop_internal()
 
     on_stop();
 
-    if (is_server_connected()) {
-        server_connection_->activate(false);
+    // Acquire write lock to prevent concurrent execution with call_function_task
+    // This ensures on_stop() can safely clean up resources without race conditions
+    std::shared_ptr<rpc::ServerConnection> server_connection;
+    std::shared_ptr<lib_utils::TaskScheduler> task_scheduler;
+    {
+        boost::lock_guard lock(resources_mutex_);
+
+        // Get copies of resources under lock
+        server_connection = server_connection_;
+        task_scheduler = task_scheduler_;
     }
 
-    if (task_scheduler_ && attributes_.task_scheduler_config.has_value()) {
-        BROOKESIA_LOGD("Waiting for task scheduler to finish");
-        if (!task_scheduler_->wait_all(WAIT_TASK_SCHEDULER_FINISHED_TIMEOUT_MS)) {
-            BROOKESIA_LOGW(
-                "Task scheduler wait timeout after %1%ms", WAIT_TASK_SCHEDULER_FINISHED_TIMEOUT_MS
-            );
+    // Deactivate server connection outside lock to avoid holding lock during potentially long operations
+    if (server_connection) {
+        server_connection->activate(false);
+    }
+
+    // Stop task scheduler outside lock to avoid holding lock during potentially long operations
+    if (task_scheduler) {
+        if (get_attributes().has_scheduler()) {
+            BROOKESIA_LOGD("Has own task scheduler, stop it");
+            task_scheduler->stop();
+        } else {
+            BROOKESIA_LOGD("No own task scheduler, cancel task groups");
+            task_scheduler->cancel_group(get_call_task_group());
+            task_scheduler->cancel_group(get_event_task_group());
+            task_scheduler->cancel_group(get_request_task_group());
         }
-        task_scheduler_->stop();
     }
 
     is_running_ = false;

@@ -253,14 +253,6 @@ bool StateMachine::force_transition_to(const std::string &target_state)
 
     BROOKESIA_LOGD("Params: target_state(%1%)", target_state);
 
-    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
-
-    std::shared_ptr<TaskScheduler> scheduler;
-    {
-        boost::shared_lock lock(mutex_);
-        scheduler = task_scheduler_;
-    }
-
     // Cancel current tasks immediately
     cancel_current_tasks();
 

@@ -13,6 +13,7 @@
 class AI_Agents {
 public:
     struct Config {
+        std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler;
         uint32_t emote_animation_duration_ms = 5000;
         uint32_t agent_restart_delay_s = 30;
         uint32_t coze_error_show_emote_delay_s = 2;
@@ -25,17 +26,22 @@ public:
     }
 
     /**
-     * @brief Initialize AI agents with default configuration
-     * @return true if initialized successfully, false otherwise
-     */
-    bool init();
-
-    /**
      * @brief Initialize AI agents with the given configuration
      * @param config AI agents configuration
      * @return true if initialized successfully, false otherwise
      */
     bool init(const Config &config);
+
+    /**
+     * @brief Initialize AI agents with default configuration
+     * @return true if initialized successfully, false otherwise
+     */
+    bool init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler)
+    {
+        return init({
+            .task_scheduler = task_scheduler,
+        });
+    }
 
     /**
      * @brief Check if AI agents is initialized

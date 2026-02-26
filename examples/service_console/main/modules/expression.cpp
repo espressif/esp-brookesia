@@ -7,7 +7,9 @@
 #include "private/utils.hpp"
 #include "brookesia/service_manager.hpp"
 #include "brookesia/service_helper.hpp"
-#include "brookesia/expression_emote.hpp"
+#if CONFIG_EXAMPLE_EXPRESSIONS_ENABLE_EMOTE
+#   include "brookesia/expression_emote.hpp"
+#endif
 #include "expression.hpp"
 
 using namespace esp_brookesia;
@@ -21,8 +23,10 @@ expression::Emote &emote_instance = expression::Emote::get_instance();
 }
 #endif
 
-bool Expression::init()
+bool Expression::init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler)
 {
+    BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Task scheduler is not available");
+
     if (is_initialized()) {
         BROOKESIA_LOGW("Expression is already initialized");
         return true;
@@ -53,6 +57,7 @@ bool Expression::init()
     board.set_display_backlight(100);
 
     is_initialized_.store(true);
+    task_scheduler_ = task_scheduler;
 
     BROOKESIA_LOGI("Expression initialized successfully");
 #endif

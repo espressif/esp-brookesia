@@ -18,24 +18,9 @@ namespace esp_brookesia::agent {
 using AudioHelper = service::helper::Audio;
 using ManagerHelper = helper::Manager;
 
-std::string Base::get_call_task_group() const
-{
-    return Manager::get_instance().get_call_task_group();
-}
-
-std::string Base::get_event_task_group() const
-{
-    return Manager::get_instance().get_event_task_group();
-}
-
-std::string Base::get_request_task_group() const
-{
-    return Manager::get_instance().get_request_task_group();
-}
-
 std::string Base::get_state_task_group() const
 {
-    return Manager::get_instance().get_state_task_group();
+    return Manager::get_instance().get_call_task_group();
 }
 
 ChatMode Base::get_chat_mode() const
@@ -118,6 +103,25 @@ bool Base::set_listening(bool listening)
     BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to publish listening status changed event");
 
     return true;
+}
+
+void Base::set_manual_listening(bool listening)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: listening(%1%)", BROOKESIA_DESCRIBE_TO_STR(listening));
+
+    is_manual_listening_ = listening;
+}
+
+void Base::set_encoder_paused(bool paused)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: paused(%1%)", paused);
+
+    auto function_id = paused ? AudioHelper::FunctionId::PauseEncoder : AudioHelper::FunctionId::ResumeEncoder;
+    AudioHelper::call_function_async(function_id);
 }
 
 bool Base::set_emote(const std::string emote)
@@ -279,6 +283,27 @@ bool Base::feed_audio_decoder_data(const uint8_t *data, size_t data_size)
     return true;
 }
 
+bool Base::on_start()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto task_scheduler = get_task_scheduler();
+    BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Task scheduler is not available");
+
+    // Make sure the agent manager's task groups are the parent of the agent's task groups
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_call_task_group(), {
+        .parent_group = Manager::get_instance().get_call_task_group(),
+    }), false, "Failed to configure state task group");
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_event_task_group(), {
+        .parent_group = Manager::get_instance().get_event_task_group(),
+    }), false, "Failed to configure event task group");
+    BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_request_task_group(), {
+        .parent_group = Manager::get_instance().get_request_task_group(),
+    }), false, "Failed to configure request task group");
+
+    return true;
+}
+
 void Base::on_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -317,6 +342,10 @@ bool Base::do_start()
     });
 
     // Start the encoder
+    if (get_chat_mode() == ChatMode::Manual) {
+        // Pause the encoder first in manual mode
+        set_encoder_paused(true);
+    }
     BROOKESIA_CHECK_FALSE_RETURN(
         start_audio_encoder(), false, "Failed to start encoder"
     );
@@ -355,8 +384,9 @@ void Base::do_stop()
     }
     reset_interrupted_speaking();
 
+    set_manual_listening(false);
+
     is_suspended_ = false;
-    is_manual_listening_ = false;
 }
 
 bool Base::do_sleep()
@@ -372,7 +402,7 @@ bool Base::do_sleep()
 
     wakeup_guard.release();
 
-    is_manual_listening_ = false;
+    set_manual_listening(false);
 
     if (!set_listening(false)) {
         BROOKESIA_LOGW("Failed to set listening to false");
@@ -612,17 +642,21 @@ bool Base::do_manual_start_listening()
         return false;
     }
 
+    if (!on_manual_start_listening()) {
+        BROOKESIA_LOGW("Skip start listening");
+        return true;
+    }
+
     if (get_attributes().is_general_functions_supported(ManagerHelper::AgentGeneralFunction::InterruptSpeaking)) {
         if (!do_interrupt_speaking()) {
             BROOKESIA_LOGW("Failed to interrupt speaking");
         }
     }
 
-    BROOKESIA_CHECK_FALSE_RETURN(on_manual_start_listening(), false, "Failed to manually start listening");
+    set_encoder_paused(false);
+    set_manual_listening(true);
 
-    is_manual_listening_ = true;
-
-    // Must be called after `is_manual_listening_` is changed
+    // Must be called after `set_manual_listening()`
     if (!set_listening(true)) {
         BROOKESIA_LOGW("Failed to set listening to true");
     }
@@ -639,11 +673,15 @@ bool Base::do_manual_stop_listening()
         return true;
     }
 
-    BROOKESIA_CHECK_FALSE_RETURN(on_manual_stop_listening(), false, "Failed to manually stop listening");
+    if (!on_manual_stop_listening()) {
+        BROOKESIA_LOGW("Skip stop listening");
+        return true;
+    };
 
-    is_manual_listening_ = false;
+    set_encoder_paused(true);
+    set_manual_listening(false);
 
-    // Must be called after `is_manual_listening_` is changed
+    // Must be called after `set_manual_listening()`
     if (!set_listening(false)) {
         BROOKESIA_LOGW("Failed to set listening to false");
     }

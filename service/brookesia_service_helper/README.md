@@ -4,7 +4,7 @@
 
 ## Overview
 
-`brookesia_service_helper` is an ESP-Brookesia service development helper library based on C++20 Concepts and CRTP (Curiously Recurring Template Pattern) that provides type-safe definitions, schemas, and unified calling interfaces for service developers and users to build and use services that comply with the ESP-Brookesia service framework specifications.
+`brookesia_service_helper` is an ESP-Brookesia service development helper library based on CRTP (Curiously Recurring Template Pattern) that provides type-safe definitions, schemas, and unified calling interfaces for service developers and users to build and use services that comply with the ESP-Brookesia service framework specifications.
 
 This library mainly provides:
 

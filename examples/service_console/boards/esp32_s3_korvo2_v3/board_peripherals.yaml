@@ -68,7 +68,7 @@ peripherals:
         spi_port: SPI2_HOST              # 0: SPI1_HOST, 1: SPI2_HOST, 2: SPI3_HOST
         mosi_io_num: 0                   # MOSI_IO_NUM
         sclk_io_num: 1                   # SPI Clock signal
-        max_transfer_sz: 6400            # Maximum transfer size in bytes : width * 2 * 10
+        max_transfer_sz: 5680            # Maximum transfer size in bytes : width * 2 * 10
 
   # ADC for Button
   - name: adc_oneshot

@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.7.1 - 2026-02-25
+
+### Enhancements:
+
+- feat(settings): add `settings_set_global_callbacks()` function to allow custom settings backend implementation
+- feat(settings): implement settings callbacks using NVS helper service (`get_key_value`, `save_key_value`, `erase_keys`)
+- feat(agent): simplify `on_interrupt_speaking()` - remove delayed task and directly call `reset_interrupted_speaking()`
+
 ## v0.7.0 - 2026-01-16
 
 ### Initial Release

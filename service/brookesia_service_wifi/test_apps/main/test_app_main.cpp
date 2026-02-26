@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2024-2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2024-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -12,9 +12,14 @@
 #include "esp_check.h"
 #include "unity.h"
 #include "unity_test_utils.h"
+#include "general.hpp"
 
 // Some resources are lazy allocated in the driver, the threadhold is left for that case
-#define TEST_MEMORY_LEAK_THRESHOLD (600)
+#if CONFIG_ESP_HOSTED_ENABLED
+#   define TEST_MEMORY_LEAK_THRESHOLD (1024)
+#else
+#   define TEST_MEMORY_LEAK_THRESHOLD (600)
+#endif
 
 void setUp(void)
 {
@@ -51,5 +56,14 @@ extern "C" void app_main(void)
     printf(" \\$$    $$| $$     \\| $$  | $$    \\$$$   |   $$ \\ \\$$    $$| $$     \\ ______| $$$    \\$$$|   $$ \\| $$      |   $$ \\\r\n");
     printf("  \\$$$$$$  \\$$$$$$$$ \\$$   \\$$     \\$     \\$$$$$$  \\$$$$$$  \\$$$$$$$$|      \\\\$$      \\$$ \\$$$$$$ \\$$       \\$$$$$$\r\n");
     printf("                                                                      \\$$$$$$\r\n");
-    unity_run_menu();
+
+    auto unity_run_menu_thread = []() {
+        unity_run_menu();
+    };
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = 20 * 1024,
+        });
+        boost::thread(unity_run_menu_thread).detach();
+    }
 }

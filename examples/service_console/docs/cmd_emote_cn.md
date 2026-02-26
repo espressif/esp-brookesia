@@ -167,12 +167,6 @@ svc_call Emote SetEventMessage {"Event":"Battery","Message":"1,75"}
 svc_call Emote SetEventMessage {"Event":"Battery","Message":"0,30"}
 ```
 
-设置二维码消息：
-
-```bash
-svc_call Emote SetEventMessage {"Event":"QRCode","Message":"https://www.espressif.com"}
-```
-
 参数说明：
 
 - `Event`：事件类型，可选值为
@@ -182,7 +176,6 @@ svc_call Emote SetEventMessage {"Event":"QRCode","Message":"https://www.espressi
   - `System`：系统消息
   - `User`：用户消息
   - `Battery`：电池状态（格式：`"充电状态,电量百分比"`）
-  - `QRCode`：二维码
 - `Message`：消息内容（可选，默认为空字符串）
 
 > [!NOTE]

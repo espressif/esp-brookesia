@@ -1,6 +1,6 @@
-| 支持的芯片 | ESP32-S3 | ESP32-P4 |
-| :--------: | :------: | :------: |
-|            |    ✅    |    ✅    |
+| 支持的芯片 | ESP32-S3 | ESP32-P4 | ESP32-C5 |
+| :--------: | :------: | :------: | :------: |
+|            |    ✅     |    ✅     |    ✅     |
 
 # 服务控制台示例
 
@@ -45,7 +45,7 @@
 
 ### 硬件要求
 
-**基础功能**：搭载 `ESP32-S3` 或 `ESP32-P4` 芯片且 `Flash >= 8MB` 的开发板
+**基础功能**：搭载 `ESP32-S3`、`ESP32-P4` 或 `ESP32-C5` 芯片且 `Flash >= 8MB` 的开发板
 
 **完整功能**（Audio、Emote、Agent）：需配合 `esp_board_manager` 组件，支持以下开发板：
 
@@ -55,6 +55,7 @@
 | ESP32-S3-BOX-3 | [GitHub](https://github.com/espressif/esp-box) |
 | ESP32-S3-Korvo-2 | [文档](https://docs.espressif.com/projects/esp-adf/zh_CN/latest/design-guide/dev-boards/user-guide-esp32-s3-korvo-2.html) |
 | ESP32-P4-Function-EV-Board | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html) |
+| ESP32-C5-Sensair-Shuttle | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32c5/esp-sensairshuttle/index.html) |
 
 ### 开发环境
 
@@ -95,6 +96,7 @@ idf.py gen-bmgr-config -b <board> -c ./boards
 - `esp_box_3`
 - `esp32_p4_function_ev`
 - `esp32_s3_korvo2_v3`
+- `esp_sensair_shuttle`
 
 使用其他开发板：
 

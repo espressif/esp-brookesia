@@ -11,6 +11,18 @@
 #include <stdlib.h>
 
 static const char *TAG = "esp_iot_settings";
+static bool global_callbacks_set = false;
+static settings_global_callbacks_t global_callbacks = {};
+
+void settings_set_global_callbacks(const settings_global_callbacks_t *callbacks)
+{
+    if (callbacks == NULL) {
+        return;
+    }
+
+    global_callbacks = *callbacks;
+    global_callbacks_set = true;
+}
 
 esp_err_t settings_init(settings_handle_t *handle, const char *namespace_name, bool read_write)
 {
@@ -32,6 +44,13 @@ esp_err_t settings_init(settings_handle_t *handle, const char *namespace_name, b
     handle->read_write = read_write;
     handle->dirty = false;
 
+    if (global_callbacks_set) {
+        if (global_callbacks.on_init != NULL) {
+            return global_callbacks.on_init(handle);
+        }
+        return ESP_OK;
+    }
+
     // Open NVS handle
     esp_err_t ret = nvs_open(namespace_name, read_write ? NVS_READWRITE : NVS_READONLY, &handle->nvs_handle);
     if (ret != ESP_OK) {
@@ -49,6 +68,21 @@ void settings_deinit(settings_handle_t *handle)
         return;
     }
 
+    if (handle->namespace_name != NULL) {
+        free(handle->namespace_name);
+        handle->namespace_name = NULL;
+    }
+
+    handle->read_write = false;
+    handle->dirty = false;
+
+    if (global_callbacks_set) {
+        if (global_callbacks.on_deinit != NULL) {
+            global_callbacks.on_deinit(handle);
+        }
+        return;
+    }
+
     if (handle->nvs_handle != 0) {
         if (handle->read_write && handle->dirty) {
             esp_err_t ret = nvs_commit(handle->nvs_handle);
@@ -59,14 +93,6 @@ void settings_deinit(settings_handle_t *handle)
         nvs_close(handle->nvs_handle);
         handle->nvs_handle = 0;
     }
-
-    if (handle->namespace_name != NULL) {
-        free(handle->namespace_name);
-        handle->namespace_name = NULL;
-    }
-
-    handle->read_write = false;
-    handle->dirty = false;
 }
 
 esp_err_t settings_get_string(settings_handle_t *handle, const char *key,
@@ -76,12 +102,9 @@ esp_err_t settings_get_string(settings_handle_t *handle, const char *key,
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (handle->nvs_handle == 0) {
-        if (default_value != NULL) {
-            strncpy(out_value, default_value, max_len - 1);
-            out_value[max_len - 1] = '\0';
-        } else {
-            out_value[0] = '\0';
+    if (global_callbacks_set) {
+        if (global_callbacks.on_get_string != NULL) {
+            return global_callbacks.on_get_string(handle, key, default_value, out_value, max_len);
         }
         return ESP_OK;
     }
@@ -112,8 +135,11 @@ esp_err_t settings_set_string(settings_handle_t *handle, const char *key, const 
         return ESP_ERR_NOT_ALLOWED;
     }
 
-    if (handle->nvs_handle == 0) {
-        return ESP_ERR_INVALID_STATE;
+    if (global_callbacks_set) {
+        if (global_callbacks.on_set_string != NULL) {
+            return global_callbacks.on_set_string(handle, key, value);
+        }
+        return ESP_OK;
     }
 
     esp_err_t ret = nvs_set_str(handle->nvs_handle, key, value);
@@ -131,8 +157,10 @@ esp_err_t settings_get_int(settings_handle_t *handle, const char *key,
         return ESP_ERR_INVALID_ARG;
     }
 
-    if (handle->nvs_handle == 0) {
-        *out_value = default_value;
+    if (global_callbacks_set) {
+        if (global_callbacks.on_get_int != NULL) {
+            return global_callbacks.on_get_int(handle, key, default_value, out_value);
+        }
         return ESP_OK;
     }
 
@@ -156,8 +184,11 @@ esp_err_t settings_set_int(settings_handle_t *handle, const char *key, int32_t v
         return ESP_ERR_NOT_ALLOWED;
     }
 
-    if (handle->nvs_handle == 0) {
-        return ESP_ERR_INVALID_STATE;
+    if (global_callbacks_set) {
+        if (global_callbacks.on_set_int != NULL) {
+            return global_callbacks.on_set_int(handle, key, value);
+        }
+        return ESP_OK;
     }
 
     esp_err_t ret = nvs_set_i32(handle->nvs_handle, key, value);
@@ -179,8 +210,11 @@ esp_err_t settings_erase_key(settings_handle_t *handle, const char *key)
         return ESP_ERR_NOT_ALLOWED;
     }
 
-    if (handle->nvs_handle == 0) {
-        return ESP_ERR_INVALID_STATE;
+    if (global_callbacks_set) {
+        if (global_callbacks.on_erase_key != NULL) {
+            return global_callbacks.on_erase_key(handle, key);
+        }
+        return ESP_OK;
     }
 
     esp_err_t ret = nvs_erase_key(handle->nvs_handle, key);
@@ -205,8 +239,11 @@ esp_err_t settings_erase_all(settings_handle_t *handle)
         return ESP_ERR_NOT_ALLOWED;
     }
 
-    if (handle->nvs_handle == 0) {
-        return ESP_ERR_INVALID_STATE;
+    if (global_callbacks_set) {
+        if (global_callbacks.on_erase_all != NULL) {
+            return global_callbacks.on_erase_all(handle);
+        }
+        return ESP_OK;
     }
 
     esp_err_t ret = nvs_erase_all(handle->nvs_handle);
@@ -228,8 +265,11 @@ esp_err_t settings_commit(settings_handle_t *handle)
         return ESP_ERR_NOT_ALLOWED;
     }
 
-    if (handle->nvs_handle == 0) {
-        return ESP_ERR_INVALID_STATE;
+    if (global_callbacks_set) {
+        if (global_callbacks.on_commit != NULL) {
+            return global_callbacks.on_commit(handle);
+        }
+        return ESP_OK;
     }
 
     esp_err_t ret = nvs_commit(handle->nvs_handle);

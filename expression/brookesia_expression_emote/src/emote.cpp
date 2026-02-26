@@ -99,7 +99,7 @@ bool Emote::on_start()
         .task = {
             .task_priority = config_.task_priority,
             .task_stack = config_.task_stack,
-            .task_affinity = config_.task_affinity,
+            .task_affinity = (config_.task_affinity >= CONFIG_SOC_CPU_CORES_NUM) ? -1 : config_.task_affinity,
             .task_stack_in_ext = config_.task_stack_in_ext,
         },
         .flush_cb = flush_cb,
@@ -335,9 +335,11 @@ std::expected<void, std::string> Emote::function_hide_event_message()
         return std::unexpected("Emote is not started");
     }
 
-    auto hide_result = set_obj_visible(GFX_ObjectType::EventMessage, false);
-    if (!hide_result) {
-        return std::unexpected("Failed to hide event message");
+    auto hide_result = emote_set_event_msg(get_native_handle(native_handle_), EMOTE_MGR_EVT_OFF, "");
+    if (hide_result != ESP_OK) {
+        return std::unexpected(
+                   "Failed to hide event message, error: " + std::string(esp_err_to_name(hide_result))
+               );
     }
 
     return {};
@@ -414,7 +416,7 @@ bool Emote::set_obj_visible(GFX_ObjectType type, bool visible)
         "Params: type(%1%), visible(%2%)", BROOKESIA_DESCRIBE_TO_STR(type), BROOKESIA_DESCRIBE_TO_STR(visible)
     );
 
-    auto gfx_handle = get_native_handle(native_handle_)->gfx_emote_handle;
+    auto gfx_handle = get_native_handle(native_handle_)->gfx_handle;
     BROOKESIA_CHECK_NULL_RETURN(gfx_handle, false, "Invalid gfx handle");
 
     gfx_emote_lock(gfx_handle);
@@ -432,14 +434,6 @@ bool Emote::set_obj_visible(GFX_ObjectType type, bool visible)
                     BROOKESIA_DESCRIBE_TO_STR(visible)
                 );
             };
-        }
-        if ((type == Emote::GFX_ObjectType::EventMessage) && !visible) {
-            BROOKESIA_LOGD("Pause event message timer");
-            auto &def_objects = get_native_handle(native_handle_)->def_objects;
-            auto obj_timer = static_cast<gfx_timer_handle_t>(def_objects[EMOTE_DEF_OBJ_TIMER_STATUS].obj);
-            if (obj_timer) {
-                gfx_timer_pause(obj_timer);
-            }
         }
     };
 
@@ -515,9 +509,6 @@ static bool get_native_message_event(const std::string &event, std::string &nati
     case Emote::AssetMessageType::Battery:
         native_event = EMOTE_MGR_EVT_BAT;
         break;
-    case Emote::AssetMessageType::QRCode:
-        native_event = EMOTE_MGR_EVT_QRCODE;
-        break;
     default:
         return false;
     }
@@ -532,17 +523,6 @@ static std::vector<gfx_obj_t *> get_native_objs(void *handle, Emote::GFX_ObjectT
         return {def_objects[EMOTE_DEF_OBJ_ANIM_EYE].obj};
     case Emote::GFX_ObjectType::Animation:
         return {def_objects[EMOTE_DEF_OBJ_ANIM_EMERG_DLG].obj};
-    case Emote::GFX_ObjectType::EventMessage:
-        return {
-            def_objects[EMOTE_DEF_OBJ_LEBAL_DEFAULT].obj,
-            def_objects[EMOTE_DEF_OBJ_ANIM_LISTEN].obj,
-            def_objects[EMOTE_DEF_OBJ_ICON_STATUS].obj,
-            def_objects[EMOTE_DEF_OBJ_LABEL_TOAST].obj,
-            def_objects[EMOTE_DEF_OBJ_LABEL_CLOCK].obj,
-            def_objects[EMOTE_DEF_OBJ_TIMER_STATUS].obj,
-            def_objects[EMOTE_DEF_OBJ_LABEL_BATTERY].obj,
-            def_objects[EMOTE_DEF_OBJ_ICON_CHARGE].obj,
-        };
     case Emote::GFX_ObjectType::Qrcode:
         return {def_objects[EMOTE_DEF_OBJ_QRCODE].obj};
     default:

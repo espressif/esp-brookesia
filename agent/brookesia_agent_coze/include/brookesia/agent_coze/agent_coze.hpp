@@ -92,6 +92,7 @@ private:
     bool on_sleep() override;
     bool on_wakeup() override;
     void on_shutdown() override;
+    bool on_manual_stop_listening() override;
     bool on_interrupt_speaking() override;
 
     bool on_encoder_data_ready(const uint8_t *data, size_t data_size) override;
@@ -148,6 +149,12 @@ private:
         return is_chat_connected_;
     }
 
+    bool is_chat_listening()
+    {
+        return is_chat_listening_;
+    }
+    void set_chat_listening(bool listening);
+
     template<DataType type>
     constexpr auto &get_data()
     {
@@ -192,6 +199,7 @@ private:
 
     bool is_chat_started_ = false;
     bool is_chat_connected_ = false;
+    bool is_chat_listening_ = false;
     void *chat_handle_ = nullptr;
     std::string speaking_text_{};
     lib_utils::TaskScheduler::TaskId speaking_text_task_id_ = 0;

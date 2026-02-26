@@ -59,6 +59,9 @@ public:
         // For Periodic tasks: if the same task instance is already executing, skip this execution but continue scheduling next execution.
         // For Delayed and Once tasks: tasks are executed sequentially through the strand, no skipping.
         bool enable_serial_execution = false;
+        // If set, all tasks in this group will be executed in the parent group.
+        // If parent group has serial execution enabled, this group will also be executed in serial.
+        Group parent_group = "";
     };
 
     /**
@@ -395,7 +398,6 @@ private:
         Group group; // Group that this task belongs to
         std::shared_ptr<std::promise<bool>> promise; // Promise for task completion
         std::shared_future<bool> future; // Shared future for task completion
-        std::atomic<bool> promise_fulfilled{false}; // Flag to prevent double-setting promise
         std::atomic<bool> is_executing{false}; // Flag to prevent parallel execution of periodic tasks
 
         // For suspend/resume support
@@ -458,7 +460,6 @@ private:
     std::map<TaskId, std::shared_ptr<TaskHandle>> tasks_;
     std::map<Group, std::unordered_set<TaskId>> groups_; // Mapping between groups and task IDs
     std::map<Group, std::shared_ptr<boost::asio::strand<boost::asio::io_context::executor_type>>> strands_; // Strand for each group
-    std::map<Group, GroupConfig> group_configs_; // Group configurations
     mutable boost::mutex mutex_;
     std::atomic<TaskId> task_id_counter_{1};
     std::atomic<TaskId> total_tasks_{0};
@@ -474,7 +475,7 @@ private:
 BROOKESIA_DESCRIBE_ENUM(TaskScheduler::TaskType, Immediate, Delayed, Periodic)
 BROOKESIA_DESCRIBE_ENUM(TaskScheduler::TaskState, Running, Suspended, Canceled, Finished)
 BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::Statistics, (), (total_tasks, completed_tasks, failed_tasks, canceled_tasks, suspended_tasks))
-BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::GroupConfig, (), (enable_serial_execution))
+BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::GroupConfig, (), (enable_serial_execution, parent_group))
 BROOKESIA_DESCRIBE_STRUCT(TaskScheduler::StartConfig, (), (worker_configs, worker_poll_interval_ms, pre_execute_callback, post_execute_callback))
 
 } // namespace esp_brookesia::lib_utils

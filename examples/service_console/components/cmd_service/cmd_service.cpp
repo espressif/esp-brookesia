@@ -9,17 +9,21 @@
 #include <ctype.h>
 #include <algorithm>
 #include <map>
+#include <string>
 #include "esp_log.h"
 #include "esp_console.h"
 #include "argtable3/argtable3.h"
 #include "cmd_service.hpp"
+#include "brookesia/lib_utils.hpp"
 #include "brookesia/service_manager.hpp"
 
 using namespace esp_brookesia::service;
+using namespace esp_brookesia;
 
 static const char *TAG = "cmd_service";
 static auto &service_manager = ServiceManager::get_instance();
 static std::vector<ServiceBinding> g_bindings;
+static lib_utils::TaskScheduler g_task_scheduler;
 
 // Subscription information structure
 struct SubscriptionInfo {
@@ -59,6 +63,27 @@ static std::vector<std::unique_ptr<RpcSubscriptionInfo>> g_rpc_subscriptions;
 
 // RPC Client cache: map from "host:port" to shared_ptr<rpc::Client>
 static std::map<std::string, std::shared_ptr<rpc::Client>> g_rpc_clients;
+
+// Scheduled call task information structure
+struct ScheduledCallInfo {
+    lib_utils::TaskScheduler::TaskId task_id;
+    std::string service;
+    std::string function;
+    std::string params;
+    bool is_periodic;
+    int delay_or_interval_ms;
+
+    ScheduledCallInfo(lib_utils::TaskScheduler::TaskId id, std::string svc, std::string func, std::string p, bool periodic, int ms)
+        : task_id(id)
+        , service(std::move(svc))
+        , function(std::move(func))
+        , params(std::move(p))
+        , is_periodic(periodic)
+        , delay_or_interval_ms(ms)
+    {}
+};
+
+static std::map<lib_utils::TaskScheduler::TaskId, std::unique_ptr<ScheduledCallInfo>> g_scheduled_calls;
 
 /**
  * @brief Get or create an RPC client for the given host and port
@@ -132,6 +157,8 @@ static struct {
     struct arg_str *service;
     struct arg_str *function;
     struct arg_str *params;
+    struct arg_int *delay;
+    struct arg_int *interval;
     struct arg_end *end;
 } call_args;
 
@@ -188,6 +215,15 @@ static struct {
     struct arg_int *timeout;
     struct arg_end *end;
 } rpc_unsubscribe_args;
+
+static struct {
+    struct arg_str *task_id;
+    struct arg_end *end;
+} call_cancel_args;
+
+static struct {
+    struct arg_end *end;
+} call_list_args;
 
 // ============================================================================
 // Helper functions
@@ -953,6 +989,20 @@ static int do_call_cmd(int argc, char **argv)
     const char *function_name = call_args.function->sval[0];
     const char *params_str = call_args.params->count > 0 ?
                              call_args.params->sval[0] : "{}";
+    int delay_ms = call_args.delay->count > 0 ? call_args.delay->ival[0] : -1;
+    int interval_ms = call_args.interval->count > 0 ? call_args.interval->ival[0] : -1;
+
+    // Validate parameters
+    if (delay_ms >= 0 && interval_ms >= 0) {
+        printf("Error: Cannot specify both delay and interval. Use either --delay or --interval\n");
+        return 1;
+    }
+
+    if (delay_ms < 0 && interval_ms < 0) {
+        // Immediate execution (original behavior)
+        delay_ms = -1;
+        interval_ms = -1;
+    }
 
     // Try to get service instance
     auto service = get_or_bind_service(service_name);
@@ -1008,33 +1058,229 @@ static int do_call_cmd(int argc, char **argv)
         }
     }
 
-    // Call service function
-    printf("\nCalling: %s.%s(%s)\n", service_name, function_name, params_str);
+    // Create call function closure
+    // Copy function_name and parameters to ensure they remain valid for delayed/periodic execution
+    std::string function_name_str(function_name);
+    std::string service_name_str(service_name);
+    std::string params_str_copy(params_str);
 
-    try {
-        auto result = service->call_function_sync(
-                          function_name,
-                          std::move(parameters),
-                          5000  // 5 seconds timeout
-                      );
+    // Common call function (used by both delayed and periodic)
+    // Copy parameters to ensure they remain valid for delayed/periodic execution
+    auto call_function_common = [service, function_name_str, parameters]() mutable {
+        try
+        {
+            auto result = service->call_function_sync(
+                function_name_str.c_str(),
+                std::move(parameters),  // Move parameters (mutable lambda allows this)
+                5000  // 5 seconds timeout
+            );
 
-        printf("\nResult:\n");
-        if (result.success) {
-            printf("  - Success!\n");
-            if (result.has_data()) {
-                printf("  - Value: %s\n",
-                       BROOKESIA_DESCRIBE_TO_STR(result.data.value()).c_str());
+            printf("\n[%s.%s] Result:\n", service->get_attributes().name.c_str(), function_name_str.c_str());
+            if (result.success) {
+                printf("  - Success!\n");
+                if (result.has_data()) {
+                    printf("  - Value: %s\n",
+                           BROOKESIA_DESCRIBE_TO_STR(result.data.value()).c_str());
+                }
+            } else {
+                printf("  - Error: %s\n", result.error_message.c_str());
             }
-        } else {
-            printf("  - Error: %s\n", result.error_message.c_str());
+            printf("\n");
+        } catch (const std::exception &e)
+        {
+            printf("\n[%s.%s] Error: %s\n\n", service->get_attributes().name.c_str(), function_name_str.c_str(), e.what());
         }
-        printf("\n");
+    };
 
+    // Execute based on mode
+    if (interval_ms >= 0) {
+        // Periodic execution
+        printf("\nScheduling periodic call: %s.%s(%s) every %d ms\n",
+               service_name, function_name, params_str, interval_ms);
+
+        lib_utils::TaskScheduler::TaskId task_id = 0;
+        bool success = g_task_scheduler.post_periodic(
+        [call_function_common]() mutable -> bool {
+            call_function_common();
+            return true;  // Continue periodic execution
+        },
+        interval_ms,
+        &task_id,
+        "svc_call_periodic"
+                       );
+
+        if (!success) {
+            printf("Error: Failed to schedule periodic task\n");
+            return 1;
+        }
+
+        // Save task information
+        g_scheduled_calls[task_id] = std::make_unique<ScheduledCallInfo>(
+                                         task_id, std::string(service_name), std::string(function_name),
+                                         std::string(params_str), true, interval_ms
+                                     );
+
+        printf("Periodic task scheduled successfully (Task ID: %llu)\n",
+               static_cast<unsigned long long>(task_id));
+        printf("Use 'svc_call_cancel %llu' to cancel\n\n",
+               static_cast<unsigned long long>(task_id));
         return 0;
-    } catch (const std::exception &e) {
-        printf("\nError: %s\n\n", e.what());
+
+    } else if (delay_ms >= 0) {
+        // Delayed execution
+        printf("\nScheduling delayed call: %s.%s(%s) after %d ms\n",
+               service_name, function_name, params_str, delay_ms);
+
+        lib_utils::TaskScheduler::TaskId task_id = 0;
+
+        // Create wrapper that removes task from records after execution
+        // We capture task_id by creating a shared_ptr that will be updated after scheduling
+        auto task_id_ptr = std::make_shared<lib_utils::TaskScheduler::TaskId>(0);
+        auto call_function_with_cleanup = [call_function_common, task_id_ptr]() mutable {
+            call_function_common();
+            // Remove delayed task from records after execution
+            if (*task_id_ptr != 0)
+            {
+                auto it = g_scheduled_calls.find(*task_id_ptr);
+                if (it != g_scheduled_calls.end() && !it->second->is_periodic) {
+                    g_scheduled_calls.erase(it);
+                }
+            }
+        };
+
+        bool success = g_task_scheduler.post_delayed(
+                           call_function_with_cleanup,
+                           delay_ms,
+                           &task_id,
+                           "svc_call_delayed"
+                       );
+
+        if (!success) {
+            printf("Error: Failed to schedule delayed task\n");
+            return 1;
+        }
+
+        // Update the shared_ptr with the actual task_id
+        *task_id_ptr = task_id;
+
+        // Save task information
+        g_scheduled_calls[task_id] = std::make_unique<ScheduledCallInfo>(
+                                         task_id, service_name_str, function_name_str,
+                                         params_str_copy, false, delay_ms
+                                     );
+
+        printf("Delayed task scheduled successfully (Task ID: %llu)\n",
+               static_cast<unsigned long long>(task_id));
+        printf("Use 'svc_call_cancel %llu' to cancel\n\n",
+               static_cast<unsigned long long>(task_id));
+        return 0;
+
+    } else {
+        // Immediate execution (original behavior)
+        printf("\nCalling: %s.%s(%s)\n", service_name, function_name, params_str);
+
+        try {
+            auto result = service->call_function_sync(
+                              function_name,
+                              std::move(parameters),
+                              5000  // 5 seconds timeout
+                          );
+
+            printf("\nResult:\n");
+            if (result.success) {
+                printf("  - Success!\n");
+                if (result.has_data()) {
+                    printf("  - Value: %s\n",
+                           BROOKESIA_DESCRIBE_TO_STR(result.data.value()).c_str());
+                }
+            } else {
+                printf("  - Error: %s\n", result.error_message.c_str());
+            }
+            printf("\n");
+
+            return result.success ? 0 : 1;
+        } catch (const std::exception &e) {
+            printf("\nError: %s\n\n", e.what());
+            return 1;
+        }
+    }
+}
+
+/**
+ * @brief Cancel a scheduled service function call
+ */
+static int do_call_cancel_cmd(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **)&call_cancel_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, call_cancel_args.end, argv[0]);
         return 1;
     }
+
+    // Parse task_id from string (since arg_int64 has issues, we use arg_str and parse it)
+    const char *task_id_str = call_cancel_args.task_id->sval[0];
+    lib_utils::TaskScheduler::TaskId task_id = 0;
+    try {
+        task_id = static_cast<lib_utils::TaskScheduler::TaskId>(std::stoull(task_id_str));
+    } catch (const std::exception &e) {
+        printf("Error: Invalid task ID format: %s\n", task_id_str);
+        return 1;
+    }
+
+    // Find task in our records
+    auto it = g_scheduled_calls.find(task_id);
+    if (it == g_scheduled_calls.end()) {
+        printf("Error: Task ID %llu not found\n", static_cast<unsigned long long>(task_id));
+        printf("Use 'svc_call_list' to see all scheduled tasks\n\n");
+        return 1;
+    }
+
+    auto &task_info = it->second;
+    printf("\nCanceling task: %llu (%s.%s)\n",
+           static_cast<unsigned long long>(task_id),
+           task_info->service.c_str(), task_info->function.c_str());
+
+    // Get task scheduler and cancel the task
+    g_task_scheduler.cancel(task_id);
+
+    // Remove from our records
+    g_scheduled_calls.erase(it);
+
+    printf("Task canceled successfully\n\n");
+    return 0;
+}
+
+/**
+ * @brief List all scheduled service function calls
+ */
+static int do_call_list_cmd(int argc, char **argv)
+{
+    int nerrors = arg_parse(argc, argv, (void **)&call_list_args);
+    if (nerrors != 0) {
+        arg_print_errors(stderr, call_list_args.end, argv[0]);
+        return 1;
+    }
+
+    printf("\n=== Scheduled Service Calls ===\n");
+
+    if (g_scheduled_calls.empty()) {
+        printf("No scheduled calls\n\n");
+        return 0;
+    }
+
+    for (const auto &[task_id, task_info] : g_scheduled_calls) {
+        printf("\n  Task ID: %llu\n", static_cast<unsigned long long>(task_id));
+        printf("    Service: %s\n", task_info->service.c_str());
+        printf("    Function: %s\n", task_info->function.c_str());
+        printf("    Parameters: %s\n", task_info->params.c_str());
+        printf("    Type: %s\n", task_info->is_periodic ? "Periodic" : "Delayed");
+        printf("    %s: %d ms\n",
+               task_info->is_periodic ? "Interval" : "Delay",
+               task_info->delay_or_interval_ms);
+    }
+
+    printf("\nTotal: %zu scheduled call(s)\n\n", g_scheduled_calls.size());
+    return 0;
 }
 
 // ============================================================================
@@ -1108,11 +1354,13 @@ void register_service_commands(void)
     call_args.service = arg_str1(NULL, NULL, "<service>", "Service name");
     call_args.function = arg_str1(NULL, NULL, "<function>", "Function name");
     call_args.params = arg_str0(NULL, NULL, "<json>", "JSON parameters (optional, default: {})");
-    call_args.end = arg_end(4);
+    call_args.delay = arg_int0("d", "delay", "<ms>", "Delay execution by milliseconds (mutually exclusive with --interval)");
+    call_args.interval = arg_int0("i", "interval", "<ms>", "Execute periodically every milliseconds (mutually exclusive with --delay)");
+    call_args.end = arg_end(6);
 
     const esp_console_cmd_t call_cmd = {
         .command = "svc_call",
-        .help = "Call a service function with JSON parameters",
+        .help = "Call a service function with JSON parameters. Use --delay for delayed execution or --interval for periodic execution",
         .hint = NULL,
         .func = &do_call_cmd,
         .argtable = &call_args,
@@ -1120,6 +1368,35 @@ void register_service_commands(void)
         .context = NULL
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&call_cmd));
+
+    // Command: svc_call_cancel
+    call_cancel_args.task_id = arg_str1(NULL, NULL, "<task_id>", "Task ID to cancel");
+    call_cancel_args.end = arg_end(2);
+
+    const esp_console_cmd_t call_cancel_cmd = {
+        .command = "svc_call_cancel",
+        .help = "Cancel a scheduled service function call by task ID",
+        .hint = NULL,
+        .func = &do_call_cancel_cmd,
+        .argtable = &call_cancel_args,
+        .func_w_context = NULL,
+        .context = NULL
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&call_cancel_cmd));
+
+    // Command: svc_call_list
+    call_list_args.end = arg_end(1);
+
+    const esp_console_cmd_t call_list_cmd = {
+        .command = "svc_call_list",
+        .help = "List all scheduled service function calls",
+        .hint = NULL,
+        .func = &do_call_list_cmd,
+        .argtable = &call_list_args,
+        .func_w_context = NULL,
+        .context = NULL
+    };
+    ESP_ERROR_CHECK(esp_console_cmd_register(&call_list_cmd));
 
     // Command: svc_stop
     stop_args.service = arg_str1(NULL, NULL, "<service>", "Service name");
@@ -1244,6 +1521,20 @@ void register_service_commands(void)
         .context = NULL
     };
     ESP_ERROR_CHECK(esp_console_cmd_register(&rpc_unsubscribe_cmd));
+
+    // Start task scheduler
+    auto start_config = lib_utils::TaskScheduler::StartConfig{
+        .worker_configs = {
+            {
+                .name = "CmdWroker",
+                .stack_size = 6 * 1024,
+            }
+        }
+    };
+    if (!g_task_scheduler.start(start_config)) {
+        ESP_LOGE(TAG, "Failed to start task scheduler");
+        return;
+    }
 
     ESP_LOGI(TAG, "Service commands registered successfully");
 }

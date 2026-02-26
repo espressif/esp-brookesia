@@ -2,11 +2,12 @@
 
 The Agent service provides AI agent management functionality, supporting agent services such as Coze, OpenAI, and Xiaozhi.
 
-For detailed interface documentation, please refer to [Agent Manager](https://github.com/espressif/esp-brookesia/blob/master/agent/brookesia_agent_manager) and [Agent Helper](https://github.com/espressif/esp-brookesia/blob/master/agent/brookesia_agent_helper).
+For detailed interface documentation, please refer to [Agent Helper](https://github.com/espressif/esp-brookesia/blob/master/agent/brookesia_agent_helper/include/brookesia/agent_helper).
 
 > [!NOTE]
+> - Agent service requires supported boards, please refer to [Hardware Requirements](../README.md#hardware-requirements) section for the list of default supported boards
 > - Some Agents (such as Coze, OpenAI) require API key configuration in menuconfig
-> - Ensure the device is connected to the internet before enabling Agent functionality
+> - Ensure WiFi is connected to the internet before enabling Agent functionality
 
 ## Table of Contents
 
@@ -61,31 +62,22 @@ Parameter description:
   - `AgentCoze` (requires API key configuration)
   - `AgentOpenai` (requires API key configuration)
 
-#### Trigger General Actions
+> [!NOTE]
+> Parameters will be saved to NVS, so you only need to set them once. Subsequent calls do not require manual specification.
 
-Start Agent:
+#### Trigger General Actions
 
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
 ```
 
-Stop Agent:
+Parameter description:
 
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}
-```
-
-Put Agent to sleep:
-
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}
-```
-
-Wake up Agent:
-
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}
-```
+- `Action`: General action, valid values are
+  - `Start`: Start Agent
+  - `Stop`: Stop Agent
+  - `Sleep`: Put Agent to sleep
+  - `WakeUp`: Wake up Agent
 
 #### Suspend/Resume
 
@@ -119,6 +111,9 @@ Parameter description:
   - `Manual`: Manual mode, Agent requires manual start and stop listening
   - `RealTime`: Real-time mode, Agent listens while speaking
 
+> [!NOTE]
+> Parameters will be saved to NVS, so you only need to set them once. Subsequent calls do not require manual specification.
+
 #### Get Chat Mode
 
 ```bash
@@ -139,6 +134,9 @@ Reset Agent service data:
 ```bash
 svc_call AgentManager ResetData
 ```
+
+> [!WARNING]
+> Resetting data will clear all Agent configuration information, including API keys, chat mode, etc.
 
 #### Get Agent Attributes
 
@@ -198,7 +196,8 @@ svc_call AgentManager SetAgentInfo {...}
 
 > [!NOTE]
 > For Agents that require authentication (such as `Coze` and `OpenAI`), you need to run this command to set Agent authentication information before running `svc_call AgentManager TriggerGeneralAction {"Action":"Start"}`.
-
+> In the example, API keys for Coze and OpenAI can be configured via menuconfig, so manual setup is not required.
+> Parameters will be saved to NVS, so you only need to set them once. Subsequent calls do not require manual specification.
 
 ### Event Subscription Interface
 

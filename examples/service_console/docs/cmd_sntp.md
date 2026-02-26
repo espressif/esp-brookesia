@@ -26,6 +26,9 @@ svc_call SNTP SetServers {"Servers":["pool.ntp.org","time.apple.com"]}
 
 You can set multiple NTP servers, and the system will try to connect to them in order. However, the number of servers cannot exceed the configured value of `CONFIG_LWIP_SNTP_MAX_SERVERS`.
 
+> [!NOTE]
+> Parameters will be saved to NVS, so only need to set once, subsequent calls do not need to specify manually.
+
 ## Set Timezone
 
 Set timezone:
@@ -39,6 +42,9 @@ Timezone format examples:
 - `CST-8`: China Standard Time (UTC+8)
 - `EST-5`: Eastern Standard Time (UTC-5)
 - `PST-8`: Pacific Standard Time (UTC-8)
+
+> [!NOTE]
+> Parameters will be saved to NVS, so only need to set once, subsequent calls do not need to specify manually.
 
 ## Start/Stop SNTP
 
@@ -83,6 +89,9 @@ Reset SNTP service data:
 ```bash
 svc_call SNTP ResetData
 ```
+
+> [!WARNING]
+> Resetting data will clear all SNTP configuration information, including NTP servers and timezones.
 
 ## Notes
 

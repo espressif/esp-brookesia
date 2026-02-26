@@ -11,7 +11,8 @@
 class Console {
 public:
     struct Config {
-        size_t task_stack_size = 10 * 1024;
+        size_t task_stack_size = 7 * 1024;
+        size_t task_priority = 20;
         size_t max_cmdline_length = 1024;
     };
 

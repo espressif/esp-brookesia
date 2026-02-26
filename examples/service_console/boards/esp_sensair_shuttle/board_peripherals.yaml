@@ -1,0 +1,32 @@
+version: 1.0.0
+# Peripherals Configuration
+peripherals:
+  - name: i2c_master
+    type: i2c
+    role: master
+    config:
+      port: 0
+      pins:
+        sda: 2
+        scl: 3
+
+  # LCD SPI Configuration for ST77916 QSPI
+  - name: spi_display
+    type: spi
+    role: master
+    config:
+      # spi_bus_config_t fields
+      spi_bus_config:
+        spi_port: SPI2_HOST               # 0: SPI1_HOST, 1: SPI2_HOST, 2: SPI3_HOST
+        data0_io_num: 23                  # MOSI_IO_NUM
+        sclk_io_num: 24                   # SPI Clock signal
+        max_transfer_sz: 3600             # Maximum transfer size in bytes
+
+  # PA CONTROL
+  - name: gpio_pa_control
+    type: gpio
+    role: io
+    config:
+      pin: 1                      # GPIO pin number
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1

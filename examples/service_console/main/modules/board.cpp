@@ -85,6 +85,12 @@ bool Board::init_audio(service::helper::Audio::PeripheralConfig &config)
         config.board_sample_rate = 16000;
         config.board_bits = 16;
         config.board_channels = 2;
+    } else if (is_board_name(g_esp_board_info.name, "esp_sensair_shuttle")) {
+        config.recorder_gain = 48.0;
+        config.mic_layout = "M";
+        config.board_sample_rate = 16000;
+        config.board_bits = 16;
+        config.board_channels = 1;
     } else {
         BROOKESIA_LOGE("Unsupported board: %s", g_esp_board_info.name);
         return false;
@@ -137,6 +143,7 @@ bool Board::set_display_backlight(int percent)
     return true;
 }
 
+#if CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
 esp_lcd_panel_handle_t board_get_panel_handle(void *display_lcd_handles)
 {
     return static_cast<dev_display_lcd_handles_t *>(display_lcd_handles)->panel_handle;
@@ -146,6 +153,7 @@ esp_lcd_panel_io_handle_t board_get_io_handle(void *display_lcd_handles)
 {
     return static_cast<dev_display_lcd_handles_t *>(display_lcd_handles)->io_handle;
 }
+#endif
 
 bool Board::init_display(DisplayPeripheralConfig &config)
 {
@@ -161,6 +169,7 @@ bool Board::init_display(DisplayPeripheralConfig &config)
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get LCD device config");
     BROOKESIA_CHECK_NULL_RETURN(display_lcd_cfg_, false, "Failed to get LCD device config");
 
+#if CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
     dev_display_lcd_config_t *lcd_cfg = static_cast<dev_display_lcd_config_t *>(display_lcd_cfg_);
     config.h_res = lcd_cfg->lcd_width;
     config.v_res = lcd_cfg->lcd_height;
@@ -169,10 +178,7 @@ bool Board::init_display(DisplayPeripheralConfig &config)
 #elif CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUB_DSI_SUPPORT
     config.flag_swap_color_bytes = false;
 #endif
-
-    auto panel_handle = board_get_panel_handle(display_lcd_handles_);
-    esp_lcd_panel_mirror(panel_handle, lcd_cfg->mirror_x, lcd_cfg->mirror_y);
-    esp_lcd_panel_swap_xy(panel_handle, lcd_cfg->swap_xy);
+#endif
 
     return true;
 }
@@ -181,11 +187,13 @@ bool Board::draw_display_bitmap(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t 
 {
     BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "Board is not initialized");
 
+#if CONFIG_ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
     auto panel_handle = board_get_panel_handle(display_lcd_handles_);
     BROOKESIA_CHECK_NULL_RETURN(panel_handle, false, "Failed to get panel handle");
 
     auto ret = esp_lcd_panel_draw_bitmap(panel_handle, x1, y1, x2, y2, data);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to draw bitmap");
+#endif
 
     return true;
 }

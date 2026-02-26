@@ -46,14 +46,6 @@ variables:
     IDF_VERSION: "5.5"
     ENV_TAG: "generic,eco4"
 
-.idf_target_version_matrix_p4_eco4_function_ev_board: &idf_target_version_matrix_p4_eco4_function_ev_board
-  - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
-    ENV_TAG: "generic"
-  - IDF_TARGET: esp32p4
-    IDF_VERSION: "5.5"
-    ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
-
 #
 # Test apps: brookesia_lib_utils
 #
@@ -319,7 +311,16 @@ components_test_brookesia_service_wifi:
       artifacts: true
       optional: true
   parallel:
-    matrix: *idf_target_version_matrix_p4_eco4_function_ev_board
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic"
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,octal-psram"
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -341,7 +342,13 @@ examples_test_service_console:
       artifacts: true
       optional: true
   parallel:
-    matrix: *idf_target_version_matrix_p4_eco4_function_ev_board
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic"
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}

@@ -1,20 +1,50 @@
 # SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-# '''
-# Steps to run these cases (Take `esp32s3` as an example):
-#
-# - Build
-#   - . ${IDF_PATH}/export.sh
-#   - export IDF_CI_BUILD=y
-#   - pip install idf_build_apps
-#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./utils/brookesia_lib_utils/test_apps/task_scheduler' --recursive --build-dir="@v/build_@t_@w"
-#
-# - Test
-#   - ${IDF_PATH}/install.sh --enable-pytest
-#   - ${IDF_PATH}/install.sh --enable-test-specific
-#   - pytest utils/brookesia_lib_utils/test_apps/task_scheduler --target esp32s3 --env generic
-# '''
+'''
+Steps to run these test cases:
+
+## Build
+
+1. Setup ESP-IDF environment:
+   ```bash
+   . ${IDF_PATH}/export.sh
+   export IDF_CI_BUILD=y
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install idf_build_apps
+   ```
+
+3. Build the test app:
+
+   **Build for a specific target (replace `esp32s3` with your target chip):**
+   ```bash
+   python .gitlab/tools/build_apps.py utils/brookesia_lib_utils/test_apps/task_scheduler -t esp32s3
+   ```
+
+   **Build for all CI targets (recommended for CI):**
+   ```bash
+   python .gitlab/tools/build_apps.py utils/brookesia_lib_utils/test_apps/task_scheduler -t all
+   ```
+
+## Test
+
+1. Install pytest dependencies:
+   ```bash
+   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-test-specific
+   ```
+
+2. Run pytest with appropriate target and environment:
+
+   **ESP32-S3 examples:**
+   ```bash
+   # Generic environment
+   pytest utils/brookesia_lib_utils/test_apps/task_scheduler --target esp32s3 --env generic
+   ```
+'''
 
 import pytest
 from pytest_embedded import Dut

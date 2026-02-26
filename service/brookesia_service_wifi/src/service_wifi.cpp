@@ -16,11 +16,6 @@ namespace esp_brookesia::service::wifi {
 
 using NVSHelper = service::helper::NVS;
 
-constexpr uint32_t RECONNECT_DELAY_MS = 1000;
-
-constexpr uint32_t NVS_SAVE_DATA_TIMEOUT_MS = 20;
-constexpr uint32_t NVS_ERASE_DATA_TIMEOUT_MS = 20;
-
 bool Wifi::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -30,274 +25,13 @@ bool Wifi::on_init()
         BROOKESIA_SERVICE_WIFI_VER_PATCH
     );
 
-    task_scheduler_ = get_task_scheduler();
-
     /* Create and initialize wifi context */
-    BROOKESIA_CHECK_EXCEPTION_RETURN(
-        hal_ = std::make_shared<Hal>(task_scheduler_), false, "Failed to create Hal"
-    );
+    BROOKESIA_CHECK_EXCEPTION_RETURN(hal_ = std::make_shared<Hal>(), false, "Failed to create Hal");
     BROOKESIA_CHECK_FALSE_RETURN(hal_->init(), false, "Failed to initialize wifi context");
-    /* Register wifi general event callback */
-    auto general_event_callback =
-    [this](GeneralEvent event, const GeneralStateFlags & old_flags, const GeneralStateFlags & new_flags) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-        BROOKESIA_LOGD(
-            "Params: event(%1%), old_flags(%2%), new_flags(%3%)",
-            BROOKESIA_DESCRIBE_TO_STR(event), BROOKESIA_DESCRIBE_TO_STR(old_flags),
-            BROOKESIA_DESCRIBE_TO_STR(new_flags)
-        );
-
-        GeneralStateFlagBit running_state = GeneralStateFlagBit::Max;
-        switch (event) {
-        case GeneralEvent::Started: {
-            running_state = GeneralStateFlagBit::Starting;
-            BROOKESIA_LOGD("WiFi is started, try to connect to last connectable AP");
-            // Get connectable AP info
-            ConnectApInfo connectable_ap_info = hal_->get_target_connect_ap_info();
-            if (!connectable_ap_info.is_connectable) {
-                BROOKESIA_LOGD("Target connect AP is not connectable, try to get historical one");
-                ConnectApInfo connected_ap_info;
-                if (hal_->get_last_connectable_ap_info(connected_ap_info)) {
-                    connectable_ap_info = connected_ap_info;
-                    hal_->set_target_connect_ap_info(connectable_ap_info);
-                } else {
-                    BROOKESIA_LOGW("No connectable AP found, skip auto connect");
-                    break;
-                }
-            }
-            // Check if the connectable AP info is empty
-            if (connectable_ap_info.ssid.empty() || !connectable_ap_info.is_connectable) {
-                BROOKESIA_LOGD("No connectable AP info, skip connect");
-                break;
-            } else {
-                BROOKESIA_LOGD("Connectable AP is found: %1%", BROOKESIA_DESCRIBE_TO_STR(connectable_ap_info));
-            }
-            // Trigger state machine connect action in a new task to avoid deadlock
-            auto connect_task = [this]() {
-                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-                BROOKESIA_CHECK_FALSE_EXIT(
-                    state_machine_->trigger_general_action(GeneralAction::Connect),
-                    "Failed to trigger connect general action"
-                );
-            };
-            BROOKESIA_CHECK_FALSE_EXECUTE(
-            task_scheduler_->post(std::move(connect_task), nullptr, Hal::GENERAL_CALLBACK_GROUP), {}, {
-                BROOKESIA_LOGE("Failed to post connect task");
-            });
-            break;
-        }
-        case GeneralEvent::Connected: {
-            running_state = GeneralStateFlagBit::Connecting;
-            // Update the last connected AP info
-            ConnectApInfo connecting_ap_info = hal_->get_connecting_ap_info();
-            ConnectApInfo last_connected_ap_info = hal_->get_last_connected_ap_info();
-            if (connecting_ap_info != last_connected_ap_info) {
-                hal_->set_last_connected_ap_info(connecting_ap_info);
-                try_save_data(DataType::LastAp);
-            } else {
-                BROOKESIA_LOGD("Connecting AP is the same as the last connected AP, skip");
-            }
-            // Update the connected AP info list
-            if (!hal_->has_connected_ap_info(connecting_ap_info)) {
-                hal_->add_connected_ap_info(connecting_ap_info);
-                try_save_data(DataType::ConnectedAps);
-            } else {
-                BROOKESIA_LOGD("Connecting AP is already in the connected AP info list, skip");
-            }
-            break;
-        }
-        case GeneralEvent::Disconnected: {
-            // If the WiFi is deinitializing or stopping, skip to avoid duplicate triggering
-            if (new_flags.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Deiniting)) ||
-                    new_flags.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Stopping))) {
-                BROOKESIA_LOGD("WiFi is deinitializing or stopping, skip");
-                break;
-            }
-            if (!new_flags.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Connecting))) {
-                BROOKESIA_LOGD("WiFi is not connecting, take it as a unexpected event");
-                running_state = GeneralStateFlagBit::Disconnecting;
-            }
-            // Get connecting AP info
-            ConnectApInfo connecting_ap_info = hal_->get_connecting_ap_info();
-            // Mark the target AP info as not connectable if it is the same as the connecting AP info
-            ConnectApInfo target_ap_info = hal_->get_target_connect_ap_info();
-            if (target_ap_info == connecting_ap_info) {
-                BROOKESIA_LOGD("Mark the target AP info as not connectable");
-                target_ap_info.is_connectable = false;
-                hal_->set_target_connect_ap_info(target_ap_info);
-            }
-            // If the disconnecting action is in progress, skip to avoid duplicate triggering
-            if (new_flags.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Disconnecting))) {
-                BROOKESIA_LOGD("Disconnecting action is in progress, skip");
-                break;
-            }
-            // Mark the connected AP info as not connectable
-            ConnectApInfo last_connected_ap_info = hal_->get_last_connected_ap_info();
-            if ((last_connected_ap_info.ssid == connecting_ap_info.ssid) &&
-                    (last_connected_ap_info.password == connecting_ap_info.password) &&
-                    (last_connected_ap_info.is_connectable)) {
-                BROOKESIA_LOGD("Mark the last connected AP info as not connectable");
-                last_connected_ap_info.is_connectable = false;
-                hal_->set_last_connected_ap_info(last_connected_ap_info);
-                try_save_data(DataType::LastAp);
-            }
-            ConnectApInfo connected_ap_info;
-            if (hal_->get_connectable_ap_info_by_ssid(connecting_ap_info.ssid, connected_ap_info)) {
-                BROOKESIA_LOGD("Mark the connected AP info as not connectable");
-                connected_ap_info.is_connectable = false;
-                hal_->add_connected_ap_info(connected_ap_info);
-                try_save_data(DataType::ConnectedAps);
-            }
-            // Trigger state machine reconnect action in a new task to avoid deadlock
-            auto reconnect_task = [this]() {
-                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-                // Try to connect a history connectable AP
-                ConnectApInfo history_connectable_ap_info;
-                if (hal_->get_last_connectable_ap_info(history_connectable_ap_info)) {
-                    BROOKESIA_LOGD(
-                        "History connectable AP is found: %1%", BROOKESIA_DESCRIBE_TO_STR(history_connectable_ap_info)
-                    );
-                    hal_->set_target_connect_ap_info(history_connectable_ap_info);
-                    BROOKESIA_CHECK_FALSE_EXIT(
-                        state_machine_->trigger_general_action(GeneralAction::Connect),
-                        "Failed to trigger connect history connectable AP general action"
-                    );
-                } else {
-                    BROOKESIA_LOGD("No history connectable AP found, skip auto reconnect");
-                }
-            };
-            // Post a task to avoid deadlock
-            BROOKESIA_CHECK_FALSE_EXECUTE(
-            task_scheduler_->post_delayed(std::move(reconnect_task), RECONNECT_DELAY_MS), {}, {
-                BROOKESIA_LOGE("Failed to post reconnect task");
-            }
-            );
-            break;
-        }
-        default:
-            BROOKESIA_LOGD("Ignored");
-            break;
-        }
-
-        /* When unexpected event happens, synchronize the state machine to the current state of HAL */
-        if ((running_state != GeneralStateFlagBit::Max) &&
-                !new_flags.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(running_state))) {
-            auto target_state = get_target_event_state(event);
-            BROOKESIA_LOGW(
-                "Detected unexpected '%1%' event, force transition to '%2%' state immediately",
-                BROOKESIA_DESCRIBE_TO_STR(event), target_state
-            );
-            // Trigger state machine force transition to target state action in a new task to avoid deadlock
-            auto force_transition_task = [this, target_state]() {
-                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-                BROOKESIA_CHECK_FALSE_EXIT(
-                    state_machine_->force_transition_to(target_state),
-                    "Failed to force transition to '%1%' state", target_state
-                );
-            };
-            BROOKESIA_CHECK_FALSE_EXECUTE(
-            task_scheduler_->post(std::move(force_transition_task), nullptr, Hal::GENERAL_CALLBACK_GROUP), {}, {
-                BROOKESIA_LOGE("Failed to post force transition task");
-            });
-        }
-
-        /* Publish general event happened event */
-        if (hal_->is_general_event_changed(event, old_flags, new_flags)) {
-            BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::GeneralEventHappened), {
-                BROOKESIA_DESCRIBE_TO_STR(event)
-            }), {}, {
-                BROOKESIA_LOGE("Failed to publish general event happened event");
-            });
-        } else {
-            BROOKESIA_LOGD("Event is not updated, skip publish");
-        }
-    };
-    hal_->register_general_event_callback(std::move(general_event_callback));
-    /* Register general action callback */
-    auto general_action_callback = [this](GeneralAction action) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-        BROOKESIA_LOGD("Params: action(%1%)", BROOKESIA_DESCRIBE_TO_STR(action));
-
-        /* Publish general action triggered event */
-        BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::GeneralActionTriggered), {
-            BROOKESIA_DESCRIBE_TO_STR(action)
-        }), {}, {
-            BROOKESIA_LOGE("Failed to publish general action triggered event");
-        });
-    };
-    hal_->register_general_action_callback(std::move(general_action_callback));
-    /* Register scan AP infos updated callback */
-    auto scan_ap_infos_updated_callback = [this](const boost::json::array & ap_infos) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-        BROOKESIA_LOGD("Params: ap_infos(%1%)", boost::json::serialize(ap_infos));
-
-        /* Publish scan infos updated event */
-        BROOKESIA_CHECK_FALSE_EXECUTE(publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::ScanApInfosUpdated), {
-            {ap_infos}
-        }), {}, {
-            BROOKESIA_LOGE("Failed to publish scan infos updated event");
-        });
-
-        /* Check if connected AP appeared in the scan infos */
-        // If already connecting or connected, skip
-        if (hal_->is_general_action_running(GeneralAction::Connect) ||
-                hal_->is_general_event_ready(GeneralEvent::Connected)) {
-            return;
-        }
-        // Find first connectable AP in scan infos
-        bool is_connectable = false;
-        for (const auto &record : ap_infos) {
-            if (!record.is_object()) {
-                continue;
-            }
-            const auto &obj = record.as_object();
-            auto ssid_it = obj.find("ssid");
-            if (ssid_it == obj.end() || !ssid_it->value().is_string()) {
-                continue;
-            }
-            std::string ssid = std::string(ssid_it->value().as_string());
-
-            // Get connectable AP info
-            ConnectApInfo ap_info;
-            ap_info = hal_->get_target_connect_ap_info();
-            if (ap_info.ssid == ssid) {
-                if (ap_info.is_connectable) {
-                    BROOKESIA_LOGD("Target AP is connectable, connect to it");
-                    is_connectable = true;
-                    break;
-                } else {
-                    BROOKESIA_LOGD("Target AP is not connectable, skip");
-                }
-            } else if (hal_->get_connectable_ap_info_by_ssid(ssid, ap_info)) {
-                BROOKESIA_LOGD("Connect to the history connectable AP");
-                hal_->set_target_connect_ap_info(ap_info);
-                is_connectable = true;
-                break;
-            }
-        }
-        if (is_connectable) {
-            BROOKESIA_LOGD("Detected connectable AP, trigger connect action");
-            // Trigger action in a new task to avoid deadlock
-            auto connect_task = [this]() {
-                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-                BROOKESIA_CHECK_FALSE_EXIT(
-                    state_machine_->trigger_general_action(GeneralAction::Connect),
-                    "Failed to trigger connect general action"
-                );
-            };
-            BROOKESIA_CHECK_FALSE_EXECUTE(task_scheduler_->post(std::move(connect_task)), {}, {
-                BROOKESIA_LOGE("Failed to post connect task");
-            });
-        }
-    };
-    hal_->register_scan_ap_infos_updated_callback(std::move(scan_ap_infos_updated_callback));
 
     /* Create and initialize state machine */
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        state_machine_ = std::make_unique<StateMachine>(task_scheduler_, hal_), false,
+        state_machine_ = std::make_unique<StateMachine>(hal_), false,
         "Failed to create StateMachine"
     );
     BROOKESIA_CHECK_FALSE_RETURN(state_machine_->init(), false, "Failed to initialize state machine");
@@ -311,7 +45,6 @@ void Wifi::on_deinit()
 
     state_machine_.reset();
     hal_.reset();
-    task_scheduler_.reset();
 }
 
 bool Wifi::on_start()
@@ -331,13 +64,53 @@ void Wifi::on_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    /* Stop the state machine first, because the state machine is waiting for the wifi_event signal */
+    /* Stop the general action queue task */
+    stop_general_action_queue_task();
+
+    /* If the WiFi is already deinited, skip */
+    if (!hal_->is_general_event_ready(GeneralEvent::Deinited)) {
+        /* First, monitor the deinited event */
+        auto deinit_finished_promise = std::make_shared<std::promise<void>>();
+        auto deinit_finished_future = deinit_finished_promise->get_future();
+        auto wait_for_deinit_finished =
+        [this, deinit_finished_promise](const std::string & event_name, const std::string & event, bool is_unexpected) {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+            BROOKESIA_LOGD("Params: event_name(%1%), event(%2%)", event_name, event);
+
+            if (event != BROOKESIA_DESCRIBE_TO_STR(Helper::GeneralEvent::Deinited)) {
+                BROOKESIA_LOGD("Not deinited, skip");
+                return;
+            }
+
+            BROOKESIA_LOGI("Deinited, notify deinit finished");
+
+            deinit_finished_promise->set_value();
+        };
+        auto wait_for_deinit_event_connection = Helper::subscribe_event(
+                Helper::EventId::GeneralEventHappened, wait_for_deinit_finished
+                                                );
+
+        /* Then, trigger deinit action */
+        BROOKESIA_CHECK_FALSE_EXECUTE(trigger_general_action(GeneralAction::Deinit), {}, {
+            BROOKESIA_LOGE("Failed to trigger deinit action when stopping service");
+        });
+
+        /* Wait for deinit finished or timeout */
+        if (deinit_finished_future.wait_for(
+                    std::chrono::milliseconds(BROOKESIA_SERVICE_WIFI_SERVICE_WAIT_DEINIT_FINISHED_TIMEOUT_MS)
+                ) != std::future_status::ready) {
+            BROOKESIA_LOGW(
+                "Wait for deinit finished timeout in %1% ms, force stop state machine",
+                BROOKESIA_SERVICE_WIFI_SERVICE_WAIT_DEINIT_FINISHED_TIMEOUT_MS
+            );
+        }
+    }
+
+    /* Stop the state machine first */
     state_machine_->stop();
     /* Reset the wifi context */
     hal_->stop();
-    /* Stop the task scheduler last, because wifi_event signals are processed in the task scheduler,
-     * and hal and wifi_state_machine may be waiting for wifi_event signals */
-    // task_scheduler_ will be stopped automatically
 }
 
 std::expected<void, std::string> Wifi::function_trigger_general_action(const std::string &action)
@@ -347,14 +120,13 @@ std::expected<void, std::string> Wifi::function_trigger_general_action(const std
     BROOKESIA_LOGD("Params: action(%1%)", action);
 
     // Parse enum string
-    GeneralAction target_action;
-    if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(action, target_action)) {
+    GeneralAction action_enum;
+    if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(action, action_enum)) {
         return std::unexpected("Invalid action: " + action);
     }
 
-    // Trigger target action
-    if (!state_machine_->trigger_general_action(target_action)) {
-        return std::unexpected("Failed to trigger target action: " + BROOKESIA_DESCRIBE_TO_STR(action));
+    if (!trigger_general_action(action_enum)) {
+        return std::unexpected("Failed to trigger general action: " + action);
     }
 
     return {};
@@ -364,14 +136,12 @@ std::expected<void, std::string> Wifi::function_trigger_scan_start()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (hal_->is_general_event_ready(GeneralEvent::Stopped)) {
-        BROOKESIA_LOGD("WiFi is stopped, trigger start first");
-        if (!state_machine_->trigger_general_action(GeneralAction::Start)) {
-            return std::unexpected("Failed to trigger start general action");
-        }
+    /* Trigger start action first */
+    if (!trigger_general_action(GeneralAction::Start)) {
+        return std::unexpected("Failed to trigger start action");
     }
 
-    if (!hal_->start_ap_scan()) {
+    if (!hal_->start_scan()) {
         return std::unexpected("Failed to start AP scan");
     }
 
@@ -382,32 +152,96 @@ std::expected<void, std::string> Wifi::function_trigger_scan_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    hal_->stop_ap_scan();
+    hal_->stop_scan();
 
     return {};
 }
 
-std::expected<void, std::string> Wifi::function_set_scan_params(double ap_count, double interval_ms, double timeout_ms)
+std::expected<void, std::string> Wifi::function_trigger_softap_start()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: ap_count(%1%), interval_ms(%2%), timeout_ms(%3%)", ap_count, interval_ms, timeout_ms);
-
-    ScanParams old_params = hal_->get_scan_params();
-    auto new_params = ScanParams{
-        .ap_count = static_cast<size_t>(ap_count),
-        .interval_ms = static_cast<uint32_t>(interval_ms),
-        .timeout_ms = static_cast<uint32_t>(timeout_ms)
-    };
-    if (old_params == new_params) {
-        BROOKESIA_LOGD("Scan params are the same, skip");
-        return {};
+    /* Trigger start action first */
+    if (!trigger_general_action(GeneralAction::Start)) {
+        return std::unexpected("Failed to trigger start action");
     }
 
-    if (!hal_->set_scan_params(new_params)) {
-        return std::unexpected("Failed to set scan params: " + BROOKESIA_DESCRIBE_TO_STR(new_params));
+    if (!hal_->start_softap()) {
+        return std::unexpected("Failed to start AP");
     }
-    try_save_data(DataType::ScanParams);
+
+    return {};
+}
+
+std::expected<void, std::string> Wifi::function_trigger_softap_stop()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    hal_->stop_softap();
+
+    return {};
+}
+
+std::expected<void, std::string> Wifi::function_trigger_softap_provision_start()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    /* Trigger start action first */
+    if (!trigger_general_action(GeneralAction::Start)) {
+        return std::unexpected("Failed to trigger start action");
+    }
+
+    /* Stop AP scan to avoid conflict with SoftAP scan */
+    hal_->stop_scan();
+
+    if (!hal_->start_softap_provision()) {
+        return std::unexpected("Failed to start AP provision");
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> Wifi::function_trigger_softap_provision_stop()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    hal_->stop_softap_provision();
+
+    return {};
+}
+
+std::expected<void, std::string> Wifi::function_set_scan_params(const boost::json::object &params)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: params(%1%)", BROOKESIA_DESCRIBE_TO_STR(params));
+
+    ScanParams scan_params;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(params, scan_params)) {
+        return std::unexpected("Failed to deserialize scan params: " + BROOKESIA_DESCRIBE_TO_STR(params));
+    }
+
+    if (!set_data<DataType::ScanParams>(scan_params)) {
+        return std::unexpected("Failed to set scan params");
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> Wifi::function_set_softap_params(const boost::json::object &params)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: params(%1%)", BROOKESIA_DESCRIBE_TO_STR(params));
+
+    SoftApParams ap_params;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(params, ap_params)) {
+        return std::unexpected("Failed to deserialize AP params: " + BROOKESIA_DESCRIBE_TO_STR(params));
+    }
+
+    if (!set_data<DataType::SoftApParams>(ap_params)) {
+        return std::unexpected("Failed to set AP params");
+    }
 
     return {};
 }
@@ -418,20 +252,28 @@ std::expected<void, std::string> Wifi::function_set_connect_ap(const std::string
 
     BROOKESIA_LOGD("Params: ssid(%1%), password(%2%)", ssid, password);
 
-    ConnectApInfo old_info;
-    old_info = hal_->get_target_connect_ap_info();
-    ConnectApInfo new_info(ssid, password);
-
-    if (old_info == new_info) {
-        BROOKESIA_LOGD("Connect AP info is the same, skip");
-        return {};
+    ConnectApInfo ap_info(ssid, password);
+    if (!ap_info.is_valid()) {
+        return std::unexpected("Invalid AP info: " + BROOKESIA_DESCRIBE_TO_STR(ap_info));
     }
 
-    if (!hal_->set_target_connect_ap_info(new_info)) {
-        return std::unexpected("Failed to set connect AP info: " + BROOKESIA_DESCRIBE_TO_STR(new_info));
+    if (!hal_->set_target_connect_ap_info(ap_info)) {
+        return std::unexpected("Failed to set connect AP info: " + BROOKESIA_DESCRIBE_TO_STR(ap_info));
     }
 
     return {};
+}
+
+std::expected<std::string, std::string> Wifi::function_get_general_state()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto general_state = state_machine_->get_current_state();
+    if (general_state == GeneralState::Max) {
+        return std::unexpected("Invalid general state");
+    }
+
+    return BROOKESIA_DESCRIBE_TO_STR(general_state);
 }
 
 std::expected<std::string, std::string> Wifi::function_get_connect_ap()
@@ -448,39 +290,29 @@ std::expected<boost::json::array, std::string> Wifi::function_get_connected_aps(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    std::vector<ConnectApInfo> ap_infos;
-    hal_->get_connected_ap_infos(ap_infos);
-
-    boost::json::array array;
-    for (const auto &ap_info : ap_infos) {
-        array.push_back(boost::json::string(ap_info.ssid));
+    auto &connected_aps = get_data<DataType::ConnectedAps>();
+    boost::json::array ap_ssids;
+    for (const auto &ap : connected_aps) {
+        ap_ssids.push_back(boost::json::string(ap.ssid));
     }
 
-    return array;
+    return ap_ssids;
+}
+
+std::expected<boost::json::object, std::string> Wifi::function_get_softap_params()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    return BROOKESIA_DESCRIBE_TO_JSON(get_data<DataType::SoftApParams>()).as_object();
 }
 
 std::expected<void, std::string> Wifi::function_reset_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    hal_->reset_data();
-    try_erase_data();
+    reset_data();
 
     return {};
-}
-
-std::string Wifi::get_target_event_state(GeneralEvent event)
-{
-    switch (event) {
-    case GeneralEvent::Started:
-        return BROOKESIA_DESCRIBE_TO_STR(GeneralState::Started);
-    case GeneralEvent::Connected:
-        return BROOKESIA_DESCRIBE_TO_STR(GeneralState::Connected);
-    case GeneralEvent::Disconnected:
-        return BROOKESIA_DESCRIBE_TO_STR(GeneralState::Started);
-    default:
-        return BROOKESIA_DESCRIBE_TO_STR(GeneralState::Max);
-    }
 }
 
 void Wifi::try_load_data()
@@ -501,43 +333,29 @@ void Wifi::try_load_data()
     BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
 
     auto nvs_namespace = get_attributes().name;
-
-    // Load last connected AP info
-    {
-        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::LastAp);
-        auto result = NVSHelper::get_key_value<ConnectApInfo>(nvs_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
-        } else {
-            set_data<DataType::LastAp>(result.value());
-            hal_->set_target_connect_ap_info(result.value());
-            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
+    auto load_data_from_nvs = [this, &nvs_namespace]<DataType type>() {
+        auto key = BROOKESIA_DESCRIBE_TO_STR(type);
+        // Remove reference and const/volatile to get value type, as std::expected cannot store reference types
+        // and describe_from_json needs non-const reference to modify the value
+        using ValueType = std::remove_cvref_t<decltype(get_data<type>())>;
+        auto nvs_result = NVSHelper::get_key_value<ValueType>(nvs_namespace, key);
+        if (!nvs_result) {
+            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, nvs_result.error());
+            return;
         }
-    }
+        // Skip saving to NVS, because the data is already loaded from NVS
+        set_data<type>(nvs_result.value(), false, true);
+        BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
+        BROOKESIA_LOGD("\t Value: %1%", BROOKESIA_DESCRIBE_TO_STR(nvs_result.value()));
+    };
 
-    // Load connected AP infos
-    {
-        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::ConnectedAps);
-        auto result = NVSHelper::get_key_value<std::vector<ConnectApInfo>>(nvs_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
-        } else {
-            set_data<DataType::ConnectedAps>(result.value());
-            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
-        }
-    }
+    load_data_from_nvs.template operator()<DataType::LastAp>();
+    load_data_from_nvs.template operator()<DataType::ConnectedAps>();
+    load_data_from_nvs.template operator()<DataType::ScanParams>();
+    load_data_from_nvs.template operator()<DataType::SoftApParams>();
 
-    // Load scan params
-    {
-        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::ScanParams);
-        auto result = NVSHelper::get_key_value<ScanParams>(nvs_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
-        } else {
-            set_data<DataType::ScanParams>(result.value());
-            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
-        }
-    }
+    // Set the target connect AP info to the last connected AP info
+    hal_->set_target_connect_ap_info(get_data<DataType::LastAp>());
 
     is_data_loaded_ = true;
 
@@ -553,26 +371,27 @@ void Wifi::try_save_data(DataType type)
         return;
     }
 
-    auto key = BROOKESIA_DESCRIBE_TO_STR(type);
-    BROOKESIA_LOGD("Params: type(%1%)", key);
-
     auto nvs_namespace = get_attributes().name;
-
-    auto save_function = [this, &nvs_namespace, &key](const auto & data_value) {
+    auto save_data_to_nvs_function = [this, &nvs_namespace]<DataType type>() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        auto result = NVSHelper::save_key_value(nvs_namespace, key, data_value, NVS_SAVE_DATA_TIMEOUT_MS);
+        auto key = BROOKESIA_DESCRIBE_TO_STR(type);
+        auto result = NVSHelper::save_key_value(nvs_namespace, key, get_data<type>(), BROOKESIA_SERVICE_WIFI_SERVICE_NVS_SAVE_DATA_TIMEOUT_MS);
         if (!result) {
             BROOKESIA_LOGE("Failed to save '%1%' to NVS: %2%", key, result.error());
         } else {
             BROOKESIA_LOGI("Saved '%1%' to NVS", key);
+            BROOKESIA_LOGD("\t Value: %1%", BROOKESIA_DESCRIBE_TO_STR(get_data<type>()));
         }
     };
+
     if (type == DataType::LastAp) {
-        save_function(get_data<DataType::LastAp>());
+        save_data_to_nvs_function.template operator()<DataType::LastAp>();
     } else if (type == DataType::ConnectedAps) {
-        save_function(get_data<DataType::ConnectedAps>());
+        save_data_to_nvs_function.template operator()<DataType::ConnectedAps>();
     } else if (type == DataType::ScanParams) {
-        save_function(get_data<DataType::ScanParams>());
+        save_data_to_nvs_function.template operator()<DataType::ScanParams>();
+    } else if (type == DataType::SoftApParams) {
+        save_data_to_nvs_function.template operator()<DataType::SoftApParams>();
     } else {
         BROOKESIA_LOGE("Invalid data type for saving to NVS");
     }
@@ -587,12 +406,307 @@ void Wifi::try_erase_data()
         return;
     }
 
-    auto result = NVSHelper::erase_keys(get_attributes().name, {}, NVS_ERASE_DATA_TIMEOUT_MS);
+    auto result = NVSHelper::erase_keys(
+                      get_attributes().name, {}, BROOKESIA_SERVICE_WIFI_SERVICE_NVS_ERASE_DATA_TIMEOUT_MS
+                  );
     if (!result) {
         BROOKESIA_LOGE("Failed to erase NVS data: %1%", result.error());
     } else {
         BROOKESIA_LOGI("Erased NVS data");
     }
+}
+
+void Wifi::reset_data()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    hal_->reset_data();
+
+    try_erase_data();
+}
+
+bool Wifi::publish_general_event(GeneralEvent event, bool is_unexpected)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: event(%1%)", BROOKESIA_DESCRIBE_TO_STR(event));
+
+    auto result = publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::GeneralEventHappened), {
+        BROOKESIA_DESCRIBE_TO_STR(event), is_unexpected
+    });
+    if (!result) {
+        BROOKESIA_LOGE("Failed to publish general event happened event");
+        return false;
+    }
+
+    return true;
+}
+
+bool Wifi::publish_general_action(GeneralAction action)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: action(%1%)", BROOKESIA_DESCRIBE_TO_STR(action));
+
+    auto result = publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::GeneralActionTriggered), {
+        BROOKESIA_DESCRIBE_TO_STR(action)
+    });
+    if (!result) {
+        BROOKESIA_LOGE("Failed to publish general action triggered event");
+        return false;
+    }
+
+    return true;
+}
+
+bool Wifi::publish_scan_ap_infos(std::span<const ApInfo> &ap_infos)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    // BROOKESIA_LOGD("Params: ap_infos(%1%)", boost::json::serialize(ap_infos));
+
+    /* Publish scan infos updated event */
+    auto result = publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::ScanApInfosUpdated), {
+        BROOKESIA_DESCRIBE_TO_JSON(ap_infos).as_array()
+    });
+    if (!result) {
+        BROOKESIA_LOGE("Failed to publish scan infos updated event");
+        return false;
+    }
+
+    return true;
+}
+
+bool Wifi::publish_softap_event(SoftApEvent event)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: event(%1%)", BROOKESIA_DESCRIBE_TO_STR(event));
+
+    auto result = publish_event(BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::SoftApEventHappened), {
+        BROOKESIA_DESCRIBE_TO_STR(event)
+    });
+    if (!result) {
+        BROOKESIA_LOGE("Failed to publish softap event happened event");
+        return false;
+    }
+
+    return true;
+}
+
+bool Wifi::on_hal_unexpected_general_event(GeneralEvent event)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto target_state = StateMachine::get_general_event_target_state(event);
+    BROOKESIA_LOGW("Force state machine to transition to target state: %1%", BROOKESIA_DESCRIBE_TO_STR(target_state));
+
+    // Trigger state machine force transition to target state
+    BROOKESIA_CHECK_FALSE_RETURN(
+        state_machine_->force_transition_to(target_state),
+        false, "Failed to force transition to '%1%' state", BROOKESIA_DESCRIBE_TO_STR(target_state)
+    );
+
+    return true;
+}
+
+bool Wifi::is_general_action_queue_task_running()
+{
+    auto task_scheduler = get_task_scheduler();
+    if (!task_scheduler) {
+        return false;
+    }
+
+    if (general_action_queue_processing_task_ == 0) {
+        return false;
+    }
+
+    if (task_scheduler->get_state(general_action_queue_processing_task_) !=
+            lib_utils::TaskScheduler::TaskState::Running) {
+        return false;
+    }
+
+    return true;
+}
+
+GeneralAction Wifi::pop_general_action_pending_queue_front()
+{
+    auto action = GeneralAction::Max;
+    if (general_action_pending_queue_.empty()) {
+        return action;
+    }
+
+    action = general_action_pending_queue_.front();
+    general_action_pending_queue_.pop();
+
+    return action;
+}
+
+GeneralAction Wifi::pop_general_action_ready_queue_front()
+{
+    auto action = GeneralAction::Max;
+    if (general_action_ready_queue_.empty()) {
+        return action;
+    }
+
+    action = general_action_ready_queue_.front();
+    general_action_ready_queue_.pop();
+
+    return action;
+}
+
+
+bool Wifi::start_general_action_queue_task()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (is_general_action_queue_task_running()) {
+        BROOKESIA_LOGD("Already running, skip");
+        return true;
+    }
+
+    auto task = [this]() {
+        // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        if (state_machine_->is_action_running()) {
+            // BROOKESIA_LOGD("Action is running, skip");
+            return true;
+        }
+
+        // If the ready queue is empty, pop the pending queue and make the action ready
+        if (general_action_ready_queue_.empty()) {
+            BROOKESIA_LOGD("Checking pending queue: %1%", BROOKESIA_DESCRIBE_TO_STR(general_action_pending_queue_));
+
+            auto pending_action = pop_general_action_pending_queue_front();
+            if (pending_action == GeneralAction::Max) {
+                BROOKESIA_LOGD("No action in the pending queue, stop task");
+                return false;
+            }
+
+            BROOKESIA_LOGD("Pop the pending action '%1%'", BROOKESIA_DESCRIBE_TO_STR(pending_action));
+
+            if (pending_action == GeneralAction::Disconnect) {
+                BROOKESIA_LOGD("Disconnect action detected, mark the target connectable AP as not connectable");
+                hal_->mark_target_connect_ap_info_connectable(false);
+            }
+            make_general_action_ready_queue(pending_action);
+        }
+
+        BROOKESIA_LOGD("Checking ready queue: %1%", BROOKESIA_DESCRIBE_TO_STR(general_action_ready_queue_));
+
+        auto ready_action = pop_general_action_ready_queue_front();
+        if (ready_action == GeneralAction::Max) {
+            BROOKESIA_LOGD("No action in the ready queue, stop task");
+            return false;
+        }
+
+        BROOKESIA_CHECK_FALSE_RETURN(
+            state_machine_->trigger_general_action(ready_action), true,
+            "Failed to trigger ready action: %1%", BROOKESIA_DESCRIBE_TO_STR(ready_action)
+        );
+
+        if (general_action_pending_queue_.empty() && general_action_ready_queue_.empty()) {
+            BROOKESIA_LOGD("No action in the pending or ready queue, stop task");
+            return false;
+        }
+
+        return true;
+    };
+    auto task_scheduler = get_task_scheduler();
+    BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Invalid task scheduler");
+
+    auto result = task_scheduler->post_periodic(
+                      task, BROOKESIA_SERVICE_WIFI_SERVICE_GENERAL_ACTION_QUEUE_DISPATCH_INTERVAL_MS,
+                      &general_action_queue_processing_task_, Wifi::get_instance().get_state_task_group()
+                  );
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post general action queue processing task");
+
+    return true;
+}
+
+void Wifi::stop_general_action_queue_task()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (general_action_queue_processing_task_ != 0) {
+        auto task_scheduler = get_task_scheduler();
+        if (task_scheduler) {
+            task_scheduler->cancel(general_action_queue_processing_task_);
+        }
+        general_action_queue_processing_task_ = 0;
+    }
+    std::queue<GeneralAction>().swap(general_action_pending_queue_);
+    std::queue<GeneralAction>().swap(general_action_ready_queue_);
+}
+
+void Wifi::make_general_action_ready_queue(GeneralAction action)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: action(%1%)", BROOKESIA_DESCRIBE_TO_STR(action));
+
+    GeneralAction pre_action = GeneralAction::Max;
+    switch (action) {
+    case GeneralAction::Deinit:
+        if (hal_->is_general_event_ready(GeneralEvent::Started) ||
+                hal_->is_general_event_ready(GeneralEvent::Connected)) {
+            BROOKESIA_LOGD("WiFi is started or connected");
+            pre_action = GeneralAction::Stop;
+        }
+        break;
+    case GeneralAction::Start:
+        if (hal_->is_general_event_ready(GeneralEvent::Deinited)) {
+            BROOKESIA_LOGD("WiFi is deinited");
+            pre_action = GeneralAction::Init;
+        }
+        break;
+    case GeneralAction::Stop:
+        if (hal_->is_general_event_ready(GeneralEvent::Connected)) {
+            BROOKESIA_LOGD("WiFi is connected");
+            pre_action = GeneralAction::Disconnect;
+        }
+        break;
+    case GeneralAction::Connect:
+        if (hal_->is_general_event_ready(GeneralEvent::Stopped) ||
+                hal_->is_general_event_ready(GeneralEvent::Deinited)) {
+            pre_action = GeneralAction::Start;
+        } else if (hal_->is_general_event_ready(GeneralEvent::Connected)) {
+            BROOKESIA_LOGD("WiFi is already connected");
+            pre_action = GeneralAction::Disconnect;
+        }
+        break;
+    default:
+        break;
+    }
+
+    if (pre_action != GeneralAction::Max) {
+        BROOKESIA_LOGD("Add pre action '%1%' to the queue", BROOKESIA_DESCRIBE_TO_STR(pre_action));
+        make_general_action_ready_queue(pre_action);
+    } else {
+        BROOKESIA_LOGD("No pre action, skip");
+    }
+
+    BROOKESIA_LOGD("Add the target action '%1%' to the queue", BROOKESIA_DESCRIBE_TO_STR(action));
+    general_action_ready_queue_.push(action);
+}
+
+bool Wifi::trigger_general_action(const GeneralAction &action)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: action(%1%)", BROOKESIA_DESCRIBE_TO_STR(action));
+
+    if (!general_action_pending_queue_.empty() && (action == general_action_pending_queue_.front())) {
+        BROOKESIA_LOGD("Action '%1%' is already in the pending queue front, skip", BROOKESIA_DESCRIBE_TO_STR(action));
+        return true;
+    }
+
+    BROOKESIA_LOGD("Added action '%1%' to the pending queue", BROOKESIA_DESCRIBE_TO_STR(action));
+    general_action_pending_queue_.push(action);
+
+    BROOKESIA_CHECK_FALSE_RETURN(start_general_action_queue_task(), false, "Failed to start general action queue task");
+
+    return true;
 }
 
 #if BROOKESIA_SERVICE_WIFI_ENABLE_AUTO_REGISTER

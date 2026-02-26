@@ -18,6 +18,8 @@
 #include <variant>
 #include <vector>
 #include <optional>
+#include <queue>
+#include <list>
 #include "boost/describe.hpp"
 #include "boost/mp11.hpp"
 #include "boost/json.hpp"
@@ -102,6 +104,26 @@ struct is_map<std::map<Key, Value, Compare, Alloc>> : std::true_type {};
 
 template <typename T>
 inline constexpr bool is_map_v = is_map<T>::value;
+
+// Detect if type is std::queue
+template <typename T>
+struct is_queue : std::false_type {};
+
+template <typename T, typename Container>
+struct is_queue<std::queue<T, Container>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_queue_v = is_queue<T>::value;
+
+// Detect if type is std::list
+template <typename T>
+struct is_list : std::false_type {};
+
+template <typename T, typename Alloc>
+struct is_list<std::list<T, Alloc>> : std::true_type {};
+
+template <typename T>
+inline constexpr bool is_list_v = is_list<T>::value;
 
 // Detect if type is std::variant or inherits from std::variant
 template <typename T>
@@ -316,12 +338,24 @@ boost::json::value describe_to_json(const T &value)
     else if constexpr (detail::is_optional_v<T>) {
         return value.has_value() ? describe_to_json(*value) : nullptr;
     }
-    // std::vector, std::span (sequence containers)
-    else if constexpr (detail::is_vector_v<T> || detail::is_span_v<T>) {
+    // std::vector, std::span, std::list (sequence containers)
+    else if constexpr (detail::is_vector_v<T> || detail::is_span_v<T> || detail::is_list_v<T>) {
         boost::json::array arr;
         arr.reserve(value.size());  // Performance optimization
         for (const auto &item : value) {
             arr.push_back(describe_to_json(item));
+        }
+        return arr;
+    }
+    // std::queue - serialize by copying and popping elements
+    else if constexpr (detail::is_queue_v<T>) {
+        boost::json::array arr;
+        // Create a copy to avoid modifying the original queue
+        T queue_copy = value;
+        arr.reserve(queue_copy.size());  // Performance optimization
+        while (!queue_copy.empty()) {
+            arr.push_back(describe_to_json(queue_copy.front()));
+            queue_copy.pop();
         }
         return arr;
     }
@@ -551,6 +585,22 @@ bool describe_from_json(const boost::json::value &j, T &value)
         }
         return true;
     }
+    // std::list
+    else if constexpr (detail::is_list_v<T>) {
+        if (!j.is_array()) {
+            return false;
+        }
+        const auto &arr = j.as_array();
+        value.clear();
+        for (const auto &item : arr) {
+            typename T::value_type temp;
+            if (!describe_from_json(item, temp)) {
+                return false;
+            }
+            value.push_back(std::move(temp));
+        }
+        return true;
+    }
     // std::span - skip deserialization (non-owning view type)
     else if constexpr (detail::is_span_v<T>) {
         // std::span is a non-owning view, cannot be deserialized from JSON
@@ -558,6 +608,25 @@ bool describe_from_json(const boost::json::value &j, T &value)
         (void)j;
         (void)value;
         return true;  // Return true to not fail the overall deserialization
+    }
+    // std::queue
+    else if constexpr (detail::is_queue_v<T>) {
+        if (!j.is_array()) {
+            return false;
+        }
+        const auto &arr = j.as_array();
+        // Clear the queue and rebuild from JSON array
+        while (!value.empty()) {
+            value.pop();
+        }
+        for (const auto &item : arr) {
+            typename T::value_type temp;
+            if (!describe_from_json(item, temp)) {
+                return false;
+            }
+            value.push(std::move(temp));
+        }
+        return true;
     }
     // std::map
     else if constexpr (detail::is_map_v<T>) {
@@ -1049,9 +1118,10 @@ void describe_output_member(std::ostringstream &oss, const char *name, const T &
             oss << "\"";
         }
     }
-    // std::vector, std::span, std::map, std::variant
-    else if constexpr (detail::is_vector_v<T> || detail::is_span_v<T> || detail::is_map_v<T> || detail::is_variant_v<T>) {
-        // Handle containers (vector, span, map, variant) - convert via JSON
+    // std::vector, std::span, std::list, std::map, std::queue, std::variant
+    else if constexpr (detail::is_vector_v<T> || detail::is_span_v<T> || detail::is_list_v<T> ||
+                       detail::is_map_v<T> || detail::is_queue_v<T> || detail::is_variant_v<T>) {
+        // Handle containers (vector, span, list, map, queue, variant) - convert via JSON
         auto json_value = describe_to_json(value);
         oss << describe_json_value_to_string(json_value, fmt);
     }

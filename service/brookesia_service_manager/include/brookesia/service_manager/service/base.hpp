@@ -31,6 +31,16 @@ public:
      * @brief Service attributes configuration
      */
     struct Attributes {
+        bool has_scheduler() const
+        {
+            return task_scheduler_config.has_value();
+        }
+
+        const lib_utils::TaskScheduler::StartConfig &get_scheduler_config() const
+        {
+            return task_scheduler_config.value();
+        }
+
         std::string name;  ///< Service name
         std::vector<std::string> dependencies = {};  ///< Optional: List of dependent service names, will be started in order
         std::optional<lib_utils::TaskScheduler::StartConfig> task_scheduler_config = std::nullopt;
@@ -253,21 +263,6 @@ public:
     }
 
     /**
-     * @brief Get the task scheduler
-     *
-     * @note  Sometimes external code needs to use the specified service's task scheduler to execute tasks.
-     *        For example, in ISR (Interrupt Service Routine) context, we may need to send events to a specific service.
-     *        In these cases, we can use it in combination with `atomic + post_periodic()`.
-     *        Therefore, we expose the task scheduler here.
-     *
-     * @return std::shared_ptr<lib_utils::TaskScheduler> Shared pointer to the task scheduler
-     */
-    std::shared_ptr<lib_utils::TaskScheduler> get_task_scheduler() const
-    {
-        return task_scheduler_;
-    }
-
-    /**
      * @brief Helper function to convert std::expected to FunctionResult
      *
      * @tparam T Return value type, can be void or any type convertible to FunctionValue
@@ -438,7 +433,23 @@ protected:
      */
     bool publish_event(const std::string &event_name, boost::json::object &&data_json, bool use_dispatch = false);
 
+    /**
+     * @brief Set the task scheduler
+     *
+     * @param[in] task_scheduler Task scheduler
+     * @return true if set successfully, false otherwise
+     */
     bool set_task_scheduler(std::shared_ptr<lib_utils::TaskScheduler> task_scheduler);
+
+    /**
+     * @brief Get the task scheduler
+     *
+     * @return std::shared_ptr<lib_utils::TaskScheduler> Shared pointer to the task scheduler
+     */
+    std::shared_ptr<lib_utils::TaskScheduler> get_task_scheduler() const
+    {
+        return task_scheduler_;
+    }
 
     bool start();
     void stop();

@@ -26,13 +26,10 @@ extern const char coze_private_key_pem_start[] asm("_binary_private_key_pem_star
 extern const char coze_private_key_pem_end[]   asm("_binary_private_key_pem_end");
 #endif // CONFIG_EXAMPLE_AGENTS_ENABLE_COZE
 
-bool AI_Agents::init()
-{
-    return init(Config{});
-}
-
 bool AI_Agents::init(const Config &config)
 {
+    BROOKESIA_CHECK_NULL_RETURN(config.task_scheduler, false, "Task scheduler is not available");
+
     if (is_initialized()) {
         BROOKESIA_LOGW("AI agents are already initialized");
         return true;
@@ -99,7 +96,7 @@ void AI_Agents::init_coze()
             BROOKESIA_LOGE("Insufficient credits balance");
             BROOKESIA_LOGW("Try to restart agent in %1% seconds...", config_.agent_restart_delay_s);
 
-            auto task_scheduler = service::ServiceManager::get_instance().get_task_scheduler();
+            auto &task_scheduler = config_.task_scheduler;
             BROOKESIA_CHECK_NULL_EXIT(task_scheduler, "Task scheduler is not available");
 
             auto task_func = []() {
@@ -231,7 +228,7 @@ void AI_Agents::process_agent_general_unexpected_events()
         case ManagerHelper::GeneralEvent::Stopped: {
             BROOKESIA_LOGW("Try to restart agent in %1% seconds...", config_.agent_restart_delay_s);
 
-            auto task_scheduler = service::ServiceManager::get_instance().get_task_scheduler();
+            auto &task_scheduler = config_.task_scheduler;
             BROOKESIA_CHECK_NULL_EXIT(task_scheduler, "Task scheduler is not available");
 
             auto task_func = []() {
@@ -600,7 +597,7 @@ void AI_Agents::process_emote_when_coze_event_happened()
 
         switch (coze_event_enum) {
         case CozeHelper::CozeEvent::InsufficientCreditsBalance: {
-            auto task_scheduler = service::ServiceManager::get_instance().get_task_scheduler();
+            auto &task_scheduler = config_.task_scheduler;
             BROOKESIA_CHECK_NULL_EXIT(task_scheduler, "Task scheduler is not available");
 
             auto task_func = [this]() {

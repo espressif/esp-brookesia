@@ -22,7 +22,6 @@ public:
         System,
         User,
         Battery,
-        QRCode,
         Max,
     };
 
@@ -271,8 +270,7 @@ private:
                     .description = (boost::format("Event to set, should be one of the following types: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<EventMessageType>({
                         EventMessageType::Idle, EventMessageType::Speak, EventMessageType::Listen,
-                        EventMessageType::System, EventMessageType::User, EventMessageType::Battery,
-                        EventMessageType::QRCode
+                        EventMessageType::System, EventMessageType::User, EventMessageType::Battery
                     }))).str(),
                     .type = FunctionValueType::String
                 },
@@ -399,7 +397,7 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the describe macros //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::EventMessageType, Idle, Speak, Listen, System, User, Battery, QRCode, Max);
+BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::EventMessageType, Idle, Speak, Listen, System, User, Battery, Max);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::AssetSourceType, Path, PartitionLabel, Max);
 BROOKESIA_DESCRIBE_STRUCT(ExpressionEmote::AssetSource, (), (source, type, flag_enable_mmap));
 BROOKESIA_DESCRIBE_STRUCT(
