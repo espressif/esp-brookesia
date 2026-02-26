@@ -113,9 +113,9 @@ fi
 
 # Build output filename
 if [ -n "$VERSION" ]; then
-    OUTPUT_FILENAME="${NAME}_${VERSION}_${BOARD_NAME}.bin"
+    OUTPUT_FILENAME="${NAME}_${VERSION}_${CHIP_NAME}_${BOARD_NAME}.bin"
 else
-    OUTPUT_FILENAME="${NAME}_${BOARD_NAME}.bin"
+    OUTPUT_FILENAME="${NAME}_${CHIP_NAME}_${BOARD_NAME}.bin"
 fi
 
 echo "============================================"
