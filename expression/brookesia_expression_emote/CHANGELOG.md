@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.3 - 2026-03-04
+
+### Enhancements:
+
+* feat(emote): add `RefreshAll` function call for expression service
+
 ## v0.7.2 - 2026-02-25
 
 ### Breaking Changes:

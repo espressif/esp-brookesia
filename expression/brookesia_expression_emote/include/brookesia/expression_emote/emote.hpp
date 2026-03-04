@@ -65,6 +65,7 @@ private:
     std::expected<void, std::string> function_set_qrcode(const std::string &qrcode);
     std::expected<void, std::string> function_hide_qrcode();
     std::expected<void, std::string> function_notify_flush_finished();
+    std::expected<void, std::string> function_refresh_all();
 
     std::vector<service::FunctionSchema> get_function_schemas() override
     {
@@ -132,6 +133,10 @@ private:
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::NotifyFlushFinished,
                 function_notify_flush_finished()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::RefreshAll,
+                function_refresh_all()
             ),
         };
     }

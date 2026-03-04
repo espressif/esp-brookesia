@@ -77,6 +77,7 @@ public:
         SetQrcode,
         HideQrcode,
         NotifyFlushFinished,
+        RefreshAll,
         Max,
     };
 
@@ -328,6 +329,15 @@ private:
         };
     }
 
+    static FunctionSchema function_schema_refresh_all()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::RefreshAll),
+            .description = "Refresh the whole screen",
+            .require_scheduler = false
+        };
+    }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the event schemas /////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -379,6 +389,7 @@ public:
                 function_schema_set_qrcode(),
                 function_schema_hide_qrcode(),
                 function_schema_notify_flush_finished(),
+                function_schema_refresh_all(),
             }
         };
         return std::span<const FunctionSchema>(FUNCTION_SCHEMAS);
@@ -410,7 +421,7 @@ BROOKESIA_DESCRIBE_STRUCT(ExpressionEmote::FlushReadyEventParam, (), (x_start, y
 BROOKESIA_DESCRIBE_ENUM(
     ExpressionEmote::FunctionId, SetConfig, LoadAssetsSource, SetEmoji, HideEmoji, SetAnimation, InsertAnimation,
     StopAnimation, WaitAnimationFrameDone, SetEventMessage, HideEventMessage, SetQrcode, HideQrcode,
-    NotifyFlushFinished, Max
+    NotifyFlushFinished, RefreshAll, Max
 );
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::EventId, FlushReady, Max);
 BROOKESIA_DESCRIBE_ENUM(ExpressionEmote::FunctionSetConfigParam, Config);
