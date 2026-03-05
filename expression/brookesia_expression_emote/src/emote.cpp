@@ -211,6 +211,26 @@ std::expected<void, std::string> Emote::function_hide_emoji()
     return {};
 }
 
+std::expected<void, std::string> Emote::function_refresh_all()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!is_running()) {
+        return std::unexpected("Emote is not started");
+    }
+
+    BROOKESIA_LOGD("Refresh all the screen");
+
+    auto refresh_result = emote_notify_all_refresh(get_native_handle(native_handle_));
+    if (refresh_result != ESP_OK) {
+        return std::unexpected(
+                   "Failed to refresh all, error: " + std::string(esp_err_to_name(refresh_result))
+               );
+    }
+
+    return {};
+}
+
 std::expected<void, std::string> Emote::function_set_animation(const std::string &animation)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
