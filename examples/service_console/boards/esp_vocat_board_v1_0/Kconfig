@@ -1,0 +1,2 @@
+config BOARD_ESP_VOCAT_BOARD_V1_0
+    bool

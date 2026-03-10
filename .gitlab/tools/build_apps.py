@@ -29,6 +29,8 @@ IGNORE_WARNINGS = [
     r"warning: unused variable 'head'",
     r"WARNING: The following Kconfig variables were used in",
     r"unknown kconfig symbol",
+    r"warning: assignment discards 'const' qualifier from pointer target type", # For Speaker
+    r"'esp_lcd_touch_get_coordinates' is deprecated: This API will be removed in version 2.0.0. Use esp_lcd_touch_get_data instead!", # For Speaker
 ]
 
 class CustomApp(CMakeApp):

@@ -72,8 +72,8 @@ bool Board::init_audio(service::helper::Audio::PeripheralConfig &config)
     config.recorder_channel_gains[2] = 20.0;
 
     if (is_board_name(g_esp_board_info.name, "esp32_s3_korvo2_v3") ||
-            is_board_name(g_esp_board_info.name, "echoear_core_board_v1_0") ||
-            is_board_name(g_esp_board_info.name, "echoear_core_board_v1_2") ||
+            is_board_name(g_esp_board_info.name, "esp_vocat_board_v1_0") ||
+            is_board_name(g_esp_board_info.name, "esp_vocat_board_v1_2") ||
             is_board_name(g_esp_board_info.name, "esp_box_3")) {
         config.mic_layout = "RMNN";
         config.board_sample_rate = 16000;

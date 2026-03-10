@@ -51,7 +51,7 @@
 
 | 开发板 | 链接 |
 |--------|------|
-| EchoEar V1.0/V1.2 | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/echoear/index.html) |
+| ESP-VoCat V1.0/V1.2 | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32s3/esp-vocat/index.html) |
 | ESP32-S3-BOX-3 | [GitHub](https://github.com/espressif/esp-box) |
 | ESP32-S3-Korvo-2 | [文档](https://docs.espressif.com/projects/esp-adf/zh_CN/latest/design-guide/dev-boards/user-guide-esp32-s3-korvo-2.html) |
 | ESP32-P4-Function-EV-Board | [文档](https://docs.espressif.com/projects/esp-dev-kits/zh_CN/latest/esp32p4/esp32-p4-function-ev-board/index.html) |
@@ -91,8 +91,8 @@ idf.py gen-bmgr-config -b <board> -c ./boards
 
 可选的 `<board>` 值包括：
 
-- `echoear_core_board_v1_0`
-- `echoear_core_board_v1_2`
+- `esp_vocat_board_v1_0`
+- `esp_vocat_board_v1_2`
 - `esp_box_3`
 - `esp32_p4_function_ev`
 - `esp32_s3_korvo2_v3`

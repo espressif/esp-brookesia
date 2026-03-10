@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-#define ECHOEAR_BSP_HEAD_LED          (GPIO_NUM_43) // GREEN LED, need to keep same with echoear BSP
+#define ESP_VOCAT_BSP_HEAD_LED          (GPIO_NUM_43) // GREEN LED, need to keep same with esp_vocat BSP
 
 
 #ifdef __cplusplus

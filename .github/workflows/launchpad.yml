@@ -84,8 +84,8 @@ jobs:
       fail-fast: false
       matrix:
         board:
-          - echoear_core_board_v1_0
-          - echoear_core_board_v1_2
+          - esp_vocat_board_v1_0
+          - esp_vocat_board_v1_2
           - esp_box_3
           - esp32_p4_function_ev
           - esp32_s3_korvo2_v3

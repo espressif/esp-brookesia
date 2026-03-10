@@ -1,4 +1,4 @@
-menu "Board Support Package(EchoEar)"
+menu "Board Support Package(ESP-VoCat)"
     choice BSP_PCB_VERSION
         prompt "PCB version"
         default BSP_PCB_VERSION_V1_2
