@@ -1,16 +1,16 @@
-# EchoEar（喵伴）出厂示例
+# ESP-VoCat（喵伴）出厂示例
 
 [English Version](./README.md)
 
-这个示例演示了如何在 EchoEar 开发板上运行 ESP-Brookesia Speaker，并支持通过语音唤醒与 Coze 智能体进行语音交互。
+这个示例演示了如何在 ESP-VoCat 开发板上运行 ESP-Brookesia Speaker，并支持通过语音唤醒与 Coze 智能体进行语音交互。
 
-请参阅 [EchoEar（喵伴）用户指南](https://espressif.craft.me/BBkCPR3ZaoLCV8) 了解产品信息和固件使用方法。
+请参阅 [ESP-VoCat（喵伴）用户指南](https://espressif.craft.me/BBkCPR3ZaoLCV8) 了解产品信息和固件使用方法。
 
 ## 入门指南
 
 ### 硬件要求
 
-* 一个 EchoEar 开发板（已插入 SD 卡）。
+* 一个 ESP-VoCat 开发板（已插入 SD 卡）。
 
 ### ESP-IDF 要求
 
@@ -29,7 +29,7 @@ git clone https://github.com/espressif/esp-brookesia.git
 
 运行 `idf.py menuconfig` > `Example Configuration` 配置 COZE 相关参数。
 
-请参阅 [EchoEar（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/BBkCPR3ZaoLCV8) 了解相关配置参数。
+请参阅 [ESP-VoCat（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/BBkCPR3ZaoLCV8) 了解相关配置参数。
 
 ## 如何使用示例
 
@@ -53,7 +53,7 @@ idf.py -p PORT flash monitor
 
 您也可以直接使用 ESP Launchpad 烧录已有固件，请选择以下任一方式进行烧录：
 
-1. **最新开源固件（无内置 Key）**：此固件为当前示例代码自动编译生成的固件，具有最新功能，但是无法使用内置 Key，需要您在烧录后自行配置 Key（参考 [EchoEar（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/BBkCPR3ZaoLCV8)）。
+1. **最新开源固件（无内置 Key）**：此固件为当前示例代码自动编译生成的固件，具有最新功能，但是无法使用内置 Key，需要您在烧录后自行配置 Key（参考 [ESP-VoCat（喵伴）用户指南 - 开始使用 - 开发者模式](https://espressif.craft.me/BBkCPR3ZaoLCV8)）。
 
 <a href="https://espressif.github.io/esp-brookesia/index.html">
     <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
@@ -66,7 +66,7 @@ idf.py -p PORT flash monitor
 </a>
 
 > [!NOTE]
-> 以固件名 `speaker_0_i2_1_dev_echoear_1_2` 为例，其中，`speaker_0_i2_1_dev` 为 `工程名 + 工程版本号`，`echoear_1_2` 为 `开发板名 + 开发板版本号`。
+> 以固件名 `speaker_0_12_1_dev_esp_vocat_1_2` 为例，其中，`speaker_0_12_1_dev` 为 `工程名 + 工程版本号`，`esp_vocat_1_2` 为 `开发板名 + 开发板版本号`。
 
 ## 技术支持和反馈
 

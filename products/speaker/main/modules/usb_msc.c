@@ -9,7 +9,7 @@
 #include "tinyusb_default_config.h"
 #include "esp_check.h"
 #include "usb_msc.h"
-#include "bsp/echoear.h"
+#include "bsp/esp_vocat.h"
 
 #define TUSB_DESC_TOTAL_LEN (TUD_CONFIG_DESC_LEN + TUD_MSC_DESC_LEN)
 

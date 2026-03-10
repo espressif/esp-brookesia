@@ -1,16 +1,16 @@
-# EchoEar Factory Example
+# ESP-VoCat Factory Example
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to run the ESP-Brookesia Speaker on the EchoEar development board, and supports voice wake-up and voice interaction with the Coze agent.
+This example demonstrates how to run the ESP-Brookesia Speaker on the ESP-VoCat development board, and supports voice wake-up and voice interaction with the Coze agent.
 
-Please refer to the [EchoEar User Guide](https://espressif.craft.me/BBkCPR3ZaoLCV8) for product information and firmware usage instructions.
+Please refer to the [ESP-VoCat User Guide](https://espressif.craft.me/BBkCPR3ZaoLCV8) for product information and firmware usage instructions.
 
 ## Getting Started Guide
 
 ### Hardware Requirements
 
-* An EchoEar development board (with SD card inserted).
+* An ESP-VoCat development board (with SD card inserted).
 
 ### ESP-IDF Requirements
 
@@ -29,7 +29,7 @@ git clone https://github.com/espressif/esp-brookesia.git
 
 Run `idf.py menuconfig` > `Example Configuration` to configure COZE related parameters.
 
-Please refer to the [EchoEar User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8) for relevant configuration parameters.
+Please refer to the [ESP-VoCat User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8) for relevant configuration parameters.
 
 ## How to Use the Example
 
@@ -53,7 +53,7 @@ See the [ESP-IDF Getting Started Guide](https://docs.espressif.com/projects/esp-
 
 You can also use ESP Launchpad to flash pre-built firmware directly. Please choose one of the following methods:
 
-1. **Latest open-source firmware (without built-in Key)**: This firmware is automatically compiled from the current example code and contains the latest features. However, it does not include a built-in Key, so you need to configure the Key yourself after flashing (refer to [EchoEar User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8)).
+1. **Latest open-source firmware (without built-in Key)**: This firmware is automatically compiled from the current example code and contains the latest features. However, it does not include a built-in Key, so you need to configure the Key yourself after flashing (refer to [ESP-VoCat User Guide - Getting Started - Developer Mode](https://espressif.craft.me/BBkCPR3ZaoLCV8)).
 
 <a href="https://espressif.github.io/esp-brookesia/index.html">
     <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
@@ -66,7 +66,7 @@ You can also use ESP Launchpad to flash pre-built firmware directly. Please choo
 </a>
 
 > [!NOTE]
-> For example, in the firmware name `speaker_0_i2_1_dev_echoear_1_2`, `speaker_0_i2_1_dev` stands for `project name + project version`, and `echoear_1_2` stands for `board name + board version`.
+> For example, in the firmware name `speaker_0_i2_1_dev_esp_vocat_1_2`, `speaker_0_i2_1_dev` stands for `project name + project version`, and `esp_vocat_1_2` stands for `board name + board version`.
 
 ## Technical Support and Feedback
 

@@ -26,8 +26,8 @@ Steps to run these test cases:
 
    **Build for a specific board:**
    ```bash
-   # ESP32-S3 example: echoear_core_board_v1_2
-   python .gitlab/tools/build_apps.py examples/service_console -t esp32s3 --config "sdkconfig.ci.board.echoear_core_board_v1_2=echoear_core_board_v1_2"
+   # ESP32-S3 example: esp_vocat_board_v1_2
+   python .gitlab/tools/build_apps.py examples/service_console -t esp32s3 --config "sdkconfig.ci.board.esp_vocat_board_v1_2=esp_vocat_board_v1_2"
 
    # ESP32-P4 example: esp32_p4_function_ev
    python .gitlab/tools/build_apps.py examples/service_console -t esp32p4 --config "sdkconfig.ci.board.esp32_p4_function_ev=esp32_p4_function_ev"
@@ -59,8 +59,8 @@ Steps to run these test cases:
    # Generic environment
    pytest examples/service_console --target esp32s3 --env generic
 
-   # Specific board: echoear_core_board_v1_2
-   pytest examples/service_console --target esp32s3 --env "echoear_core_board_v1_2"
+   # Specific board: esp_vocat_board_v1_2
+   pytest examples/service_console --target esp32s3 --env "esp_vocat_board_v1_2"
    ```
 
    **ESP32-P4 examples:**
@@ -442,20 +442,20 @@ def test_esp32s3_defaults(dut: Dut) -> None:
 
 
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('echoear_core_board_v1_0')
-@pytest.mark.parametrize('config', ['echoear_core_board_v1_0'])
+@pytest.mark.env('esp_vocat_board_v1_0')
+@pytest.mark.parametrize('config', ['esp_vocat_board_v1_0'])
 @pytest.mark.timeout(20 * 60)
-def test_esp32s3_echoear_core_board_v1_0(dut: Dut) -> None:
-    """Test all command groups on EchoEar Core Board V1.0."""
+def test_esp32s3_esp_vocat_board_v1_0(dut: Dut) -> None:
+    """Test all command groups on ESP-VoCat Board V1.0."""
     test_service_console_commands(dut)
 
 
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('echoear_core_board_v1_2')
-@pytest.mark.parametrize('config', ['echoear_core_board_v1_2'])
+@pytest.mark.env('esp_vocat_board_v1_2')
+@pytest.mark.parametrize('config', ['esp_vocat_board_v1_2'])
 @pytest.mark.timeout(20 * 60)
-def test_esp32s3_echoear_core_board_v1_2(dut: Dut) -> None:
-    """Test all command groups on EchoEar Core Board V1.2."""
+def test_esp32s3_esp_vocat_board_v1_2(dut: Dut) -> None:
+    """Test all command groups on ESP-VoCat Board V1.2."""
     test_service_console_commands(dut)
 
 

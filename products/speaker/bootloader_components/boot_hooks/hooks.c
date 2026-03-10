@@ -22,7 +22,7 @@ void bootloader_before_init(void)
 
 void bootloader_after_init(void)
 {
-    esp_rom_gpio_pad_select_gpio(ECHOEAR_BSP_HEAD_LED);
-    gpio_ll_output_enable(GPIO_HAL_GET_HW(GPIO_PORT_0), ECHOEAR_BSP_HEAD_LED);
-    gpio_ll_set_level(GPIO_HAL_GET_HW(GPIO_PORT_0), ECHOEAR_BSP_HEAD_LED, 0);
+    esp_rom_gpio_pad_select_gpio(ESP_VOCAT_BSP_HEAD_LED);
+    gpio_ll_output_enable(GPIO_HAL_GET_HW(GPIO_PORT_0), ESP_VOCAT_BSP_HEAD_LED);
+    gpio_ll_set_level(GPIO_HAL_GET_HW(GPIO_PORT_0), ESP_VOCAT_BSP_HEAD_LED, 0);
 }

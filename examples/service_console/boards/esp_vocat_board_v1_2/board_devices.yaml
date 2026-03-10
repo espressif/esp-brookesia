@@ -1,7 +1,7 @@
-board: echoear_core_board_v1_2
+board: esp_vocat_board_v1_2
 chip: esp32s3
 version: 1.0.0
-# Devices Configuration for EchoEar Core Board V1.0
+# Devices Configuration for ESP-VoCat Board V1.0
 devices:
   # Audio Power Control after Audio init
   - name: audio_power

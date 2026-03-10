@@ -139,11 +139,11 @@ bool system_init()
         app_settings_stylesheet->manager.wlan.scan_ap_count_max = 30;
         app_settings_stylesheet->manager.wlan.scan_interval_ms = 10000;
 #if CONFIG_BSP_PCB_VERSION_V1_0
-        app_settings_stylesheet->manager.about.device_board_name = "EchoEar V1.0";
+        app_settings_stylesheet->manager.about.device_board_name = "ESP-VoCat V1.0";
 #elif CONFIG_BSP_PCB_VERSION_V1_2
-        app_settings_stylesheet->manager.about.device_board_name = "EchoEar V1.2";
+        app_settings_stylesheet->manager.about.device_board_name = "ESP-VoCat V1.2";
 #else
-        app_settings_stylesheet->manager.about.device_board_name = "EchoEar";
+        app_settings_stylesheet->manager.about.device_board_name = "ESP-VoCat";
 #endif
         app_settings_stylesheet->manager.about.device_ram_main = "512KB";
         app_settings_stylesheet->manager.about.device_ram_minor = "16MB";

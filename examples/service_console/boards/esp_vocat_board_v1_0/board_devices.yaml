@@ -1,7 +1,7 @@
-board: echoear_core_board_v1_0
+board: esp_vocat_board_v1_0
 chip: esp32s3
 version: 1.0.0
-# Devices Configuration for EchoEar Core Board V1.0
+# Devices Configuration for ESP-VoCat Board V1.0
 devices:
   # Power Control before LCD init and SDcard init
   - name: lcd_sdcard_power
