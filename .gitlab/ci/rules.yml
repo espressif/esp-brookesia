@@ -99,6 +99,13 @@
   - "service/brookesia_service_audio/CMakeLists.txt"
   - "service/brookesia_service_audio/idf_component.yml"
   - "service/brookesia_service_audio/Kconfig"
+# brookesia_service_custom
+.patterns-component_brookesia_service_custom: &patterns-component_brookesia_service_custom
+  - "service/brookesia_service_custom/include/**/*"
+  - "service/brookesia_service_custom/src/**/*"
+  - "service/brookesia_service_custom/CMakeLists.txt"
+  - "service/brookesia_service_custom/idf_component.yml"
+  - "service/brookesia_service_custom/Kconfig"
 # brookesia_service_helper
 .patterns-component_brookesia_service_helper: &patterns-component_brookesia_service_helper
   - "service/brookesia_service_helper/include/**/*"
@@ -156,6 +163,9 @@
 # brookesia_service_manager
 .patterns-test_apps_brookesia_service_manager: &patterns-test_apps_brookesia_service_manager
   - "service/brookesia_service_manager/test_apps/**/*"
+# brookesia_service_custom
+.patterns-test_apps_brookesia_service_custom: &patterns-test_apps_brookesia_service_custom
+  - "service/brookesia_service_custom/test_apps/**/*"
 # brookesia_service_nvs
 .patterns-test_apps_brookesia_service_nvs: &patterns-test_apps_brookesia_service_nvs
   - "service/brookesia_service_nvs/test_apps/**/*"
@@ -276,6 +286,19 @@
       changes: *patterns-component_brookesia_service_manager
     - <<: *if-dev-push
       changes: *patterns-test_apps_brookesia_service_manager
+# brookesia_service_custom
+.rules:build:test_apps_brookesia_service_custom:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-component_brookesia_service_custom
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_service_custom
 # brookesia_service_nvs
 .rules:build:test_apps_brookesia_service_nvs:
   rules:

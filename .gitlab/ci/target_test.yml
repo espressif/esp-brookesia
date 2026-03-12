@@ -265,6 +265,24 @@ components_test_brookesia_service_manager:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: service/brookesia_service_manager/test_apps
     TEST_ENV: ${ENV_TAG}
+# brookesia_service_custom
+components_test_brookesia_service_custom:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_service_custom
+  needs:
+    - job: "build_test_apps_brookesia_service_custom"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/brookesia_service_custom/test_apps
+    TEST_ENV: ${ENV_TAG}
 # brookesia_service_nvs
 components_test_brookesia_service_nvs:
   extends:

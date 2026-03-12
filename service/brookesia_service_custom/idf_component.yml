@@ -1,0 +1,10 @@
+version: "0.7.0"
+description: ESP-Brookesia Custom service which provides custom service development.
+url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_custom
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_service_manager:
+    version: "0.7.*"
+    override_path: "../brookesia_service_manager"
+    require: public
