@@ -29,6 +29,7 @@ jobs:
             service/brookesia_service_nvs;
             service/brookesia_service_sntp;
             service/brookesia_service_wifi;
+            service/brookesia_service_custom;
             utils/brookesia_lib_utils;
           namespace: "espressif"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}

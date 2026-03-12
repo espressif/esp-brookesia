@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.5 - 2026-03-12
+
+#### Enhancements:
+
+* feat(service): add `get_event_registry` and `get_function_registry` service method in `ServiceBase`
+
 ## v0.7.4 - 2026-02-25
 
 #### Enhancements:

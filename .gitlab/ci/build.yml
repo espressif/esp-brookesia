@@ -38,7 +38,8 @@
     EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.*=;=defaults"
     EXAMPLE_TARGET: "all"
   script:
-    - pip install "idf-component-manager"
+    - pip list | grep idf-component-manager
+    - pip install --upgrade "idf-component-manager"
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
@@ -71,7 +72,8 @@
     EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.*=;=defaults"
     EXAMPLE_TARGET: "all"
   script:
-    - pip install "idf-component-manager"
+    - pip list | grep idf-component-manager
+    - pip install --upgrade "idf-component-manager"
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
@@ -195,6 +197,14 @@ build_test_apps_brookesia_service_manager:
     - .rules:build:test_apps_brookesia_service_manager
   variables:
     EXAMPLE_DIR: service/brookesia_service_manager/test_apps
+# brookesia_service_custom
+build_test_apps_brookesia_service_custom:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_release_version
+    - .rules:build:test_apps_brookesia_service_custom
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_custom/test_apps
 # brookesia_service_nvs
 build_test_apps_brookesia_service_nvs:
   extends:

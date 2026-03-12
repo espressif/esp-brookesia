@@ -34,7 +34,7 @@ products/speaker:
 # Common enable condition: IDF_TARGET in ["esp32s3", "esp32p4"]
 #
 # Define common enable condition as anchor
-_general_test_apps_enable: &general_test_apps_enable
+.general_test_apps_enable: &general_test_apps_enable
   enable:
     - if: IDF_TARGET in ["esp32s3", "esp32p4", "esp32c5"]
 
@@ -84,6 +84,10 @@ utils/brookesia_lib_utils/test_apps/time_profiler:
 
 # brookesia_service_manager
 service/brookesia_service_manager/test_apps:
+  <<: *general_test_apps_enable
+
+# brookesia_service_custom
+service/brookesia_service_custom/test_apps:
   <<: *general_test_apps_enable
 
 # brookesia_service_nvs

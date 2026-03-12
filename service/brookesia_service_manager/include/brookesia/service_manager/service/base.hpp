@@ -448,7 +448,30 @@ protected:
      */
     std::shared_ptr<lib_utils::TaskScheduler> get_task_scheduler() const
     {
+        boost::shared_lock lock(resources_mutex_);
         return task_scheduler_;
+    }
+
+    /**
+    * @brief Get the function registry
+    *
+    * @return std::shared_ptr<FunctionRegistry> Shared pointer to the function registry
+    */
+    std::shared_ptr<const FunctionRegistry> get_function_registry() const
+    {
+        boost::shared_lock lock(resources_mutex_);
+        return function_registry_;
+    }
+
+    /**
+    * @brief Get the event registry
+    *
+    * @return std::shared_ptr<EventRegistry> Shared pointer to the event registry
+    */
+    std::shared_ptr<const EventRegistry> get_event_registry() const
+    {
+        boost::shared_lock lock(resources_mutex_);
+        return event_registry_;
     }
 
     bool start();

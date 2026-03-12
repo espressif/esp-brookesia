@@ -162,7 +162,7 @@ void EventRegistry::on_rpc_unsubscribe_by_subscriptions(const Subscriptions &sub
     }
 }
 
-std::vector<EventSchema> EventRegistry::get_schemas()
+std::vector<EventSchema> EventRegistry::get_schemas() const
 {
     boost::lock_guard lock(event_infos_mutex_);
 

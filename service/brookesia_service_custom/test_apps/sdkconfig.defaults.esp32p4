@@ -1,0 +1,3 @@
+# When running CI, CONFIG_IDF_CI_BUILD is automatically enabled, which causes CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n
+# so we manually enable it here
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
