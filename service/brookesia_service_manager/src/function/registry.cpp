@@ -105,7 +105,7 @@ FunctionResult FunctionRegistry::call(const std::string &func_name, FunctionPara
     return func_handler(std::move(validated_parameters));
 }
 
-std::vector<FunctionSchema> FunctionRegistry::get_schemas()
+std::vector<FunctionSchema> FunctionRegistry::get_schemas() const
 {
     std::vector<FunctionSchema> definitions;
     boost::lock_guard lock(functions_mutex_);

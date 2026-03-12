@@ -45,7 +45,7 @@ public:
         }
         return &std::get<1>(it->second);
     }
-    std::vector<EventSchema> get_schemas();
+    std::vector<EventSchema> get_schemas() const;
     boost::json::array get_schemas_json();
     bool has(const std::string &event_name)
     {
@@ -64,7 +64,7 @@ public:
 private:
     using EventInfo = std::tuple<Subscriptions, EventSchema, std::unique_ptr<Signal>>;
 
-    boost::mutex event_infos_mutex_;
+    mutable boost::mutex event_infos_mutex_;
     std::map<std::string /*name*/, EventInfo> event_infos_;
 };
 

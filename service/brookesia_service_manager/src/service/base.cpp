@@ -7,6 +7,7 @@
 #if !BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include <memory>
 #include "private/utils.hpp"
 #include "brookesia/service_manager/service/base.hpp"
 #include "brookesia/service_manager/service/manager.hpp"

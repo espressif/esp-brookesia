@@ -38,7 +38,7 @@ public:
         }
         return &it->second.first;
     }
-    std::vector<FunctionSchema> get_schemas();
+    std::vector<FunctionSchema> get_schemas() const;
     boost::json::array get_schemas_json();
     bool has(const std::string &func_name)
     {
@@ -56,7 +56,7 @@ private:
         const FunctionSchema &func_schema, FunctionParameterMap &parameters, std::string &error_msg
     );
 
-    boost::mutex functions_mutex_;
+    mutable boost::mutex functions_mutex_;
     std::map<std::string, std::pair<FunctionSchema, FunctionHandler>> functions_;
 };
 
