@@ -29,7 +29,8 @@ idf_component_register(
 set_source_files_properties(
     ${SRCS_CPP}
     PROPERTIES
-        COMPILE_FLAGS "-Wno-missing-field-initializers -Wno-deprecated-enum-enum-conversion"
+        COMPILE_FLAGS
+        "-Wno-missing-field-initializers -Wno-deprecated-enum-enum-conversion -Wno-error=stringop-truncation -Wno-stringop-truncation"
 )
 
 target_compile_definitions(${COMPONENT_LIB} PRIVATE -DLV_LVGL_H_INCLUDE_SIMPLE)
