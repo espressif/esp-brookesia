@@ -32,7 +32,7 @@
 
 ### Enhancements:
 
-* feat(examples): add echoear_factory_demo
+* feat(examples): add factory_demo
 
 ## v0.5.1 - 2025-06-17
 
