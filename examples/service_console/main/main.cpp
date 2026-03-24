@@ -6,11 +6,11 @@
 #include "esp_spiffs.h"
 #include "private/utils.hpp"
 #include "modules/ai_agents.hpp"
-#include "modules/board.hpp"
 #include "modules/console.hpp"
 #include "modules/expression.hpp"
 #include "modules/general_services.hpp"
 #include "modules/profiler.hpp"
+#include "brookesia/hal_interface/device.hpp"
 
 using namespace esp_brookesia;
 
@@ -25,7 +25,9 @@ extern "C" void app_main(void)
     init_spiffs();
 
     /* Initialize board */
-    Board::get_instance().init();
+    // Board::get_instance().init();
+    BROOKESIA_CHECK_FALSE_EXIT(
+        esp_brookesia::hal::Device::init_device_from_registry(), "Failed to initialize the devices");
 
     /* Create a task scheduler for general usage */
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler;

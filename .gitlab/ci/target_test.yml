@@ -247,6 +247,49 @@ components_test_brookesia_lib_utils_time_profiler:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: utils/brookesia_lib_utils/test_apps/time_profiler
     TEST_ENV: ${ENV_TAG}
+# brookesia_hal_interface
+components_test_brookesia_hal_interface:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_hal_interface
+  needs:
+    - job: "build_test_apps_brookesia_hal_interface"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: *idf_target_version_matrix
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: hal/brookesia_hal_interface/test_apps
+    TEST_ENV: ${ENV_TAG}
+
+# brookesia_hal_adaptor
+components_test_brookesia_hal_adaptor:
+  extends:
+    - .pytest_template
+    - .rules:build:test_apps_brookesia_hal_adaptor
+  needs:
+    - job: "build_test_apps_brookesia_hal_adaptor"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "esp_vocat"
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: hal/brookesia_hal_adaptor/test_apps
+    TEST_ENV: ${ENV_TAG}
 # brookesia_service_manager
 components_test_brookesia_service_manager:
   extends:
@@ -363,7 +406,7 @@ examples_test_service_console:
     matrix:
       - IDF_TARGET: esp32s3
         IDF_VERSION: "5.5"
-        ENV_TAG: "generic"
+        ENV_TAG: "esp_vocat"
       - IDF_TARGET: esp32p4
         IDF_VERSION: "5.5"
         ENV_TAG: "generic,eco4,esp32p4_function_ev_board"

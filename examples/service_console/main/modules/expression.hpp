@@ -8,7 +8,6 @@
 #include <atomic>
 #include <vector>
 #include "sdkconfig.h"
-#include "board.hpp"
 #include "brookesia/service_manager/event/registry.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
 
@@ -44,7 +43,6 @@ private:
     Expression &operator=(const Expression &) = delete;
 
     std::atomic<bool> is_initialized_{false};
-    DisplayPeripheralConfig display_config_ {};
     std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler_;
     // Keep service bindings to avoid frequent start and stop of services
     std::vector<esp_brookesia::service::ServiceBinding> service_bindings_;

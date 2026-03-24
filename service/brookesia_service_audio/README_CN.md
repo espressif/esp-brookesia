@@ -12,6 +12,7 @@
 - **播放状态管理**：实时跟踪播放状态（空闲、播放中、暂停），并通过事件通知状态变化。
 - **编码器管理**：支持编码器的启动、停止和配置，可设置编码器读取数据大小。
 - **解码器管理**：支持解码器的启动、停止和数据输入，支持流式解码。
+- **HAL 音频集成**：通过 `brookesia_hal_interface` 的 `AudioPlayerIface` 和 `AudioRecorderIface` 获取播放器、录音器句柄、音量控制和板级音频默认配置。
 - **持久化存储**：可选搭配 `brookesia_service_nvs` 服务持久化保存音量等信息
 
 ## 目录
@@ -22,6 +23,7 @@
   - [功能特性](#功能特性)
     - [音频编解码格式](#音频编解码格式)
     - [播放控制](#播放控制)
+    - [HAL 音频集成](#hal-音频集成)
     - [编码器配置](#编码器配置)
     - [解码器配置](#解码器配置)
     - [事件通知](#事件通知)
@@ -48,6 +50,12 @@ Audio Service 支持以下音频编解码格式：
 - **暂停**：暂停当前播放
 - **恢复**：从暂停状态恢复播放
 - **停止**：停止当前播放
+
+### HAL 音频集成
+
+- **类型化 HAL 访问**：在服务启动阶段通过 `get_first_interface<T>()` 获取 `AudioPlayerIface` 和 `AudioRecorderIface`。
+- **减少 Codec 耦合**：播放器音量、打开、关闭以及录音增益设置都通过 HAL 接口完成，而不是在服务层直接调用 `esp_codec`。
+- **板级默认配置**：录音采样率、采样位宽、通道数、麦克风布局和增益等参数都来自 HAL 提供的板级配置。
 
 ### 编码器配置
 
@@ -83,6 +91,8 @@ Audio Service 提供以下事件通知：
 使用本库前，请确保已安装以下 SDK 开发环境：
 
 - [ESP-IDF](https://github.com/espressif/esp-idf): `>=5.5,<6`
+- `espressif/brookesia_hal_interface`: `0.7.*`
+- `espressif/brookesia_hal_adaptor`: `0.7.*`
 
 > [!NOTE]
 > SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.6 - 2026-03-24
+
+### Breaking Changes:
+
+- break(helper): update the struct `PlaybackConfig`
+
 ## v0.7.5 - 2026-03-04
 
 ### Enhancements:

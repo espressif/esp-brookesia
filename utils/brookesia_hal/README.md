@@ -1,4 +1,0 @@
-# ESP-Brookesia HAL
-
-## Overview
-

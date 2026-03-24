@@ -1,0 +1,104 @@
+board: esp_box_3
+chip: esp32s3
+version: 1.0.0
+# Peripherals Configuration
+peripherals:
+  - name: i2c_master
+    type: i2c
+    role: master
+    config:
+      port: 0
+      pins:
+        sda: 8
+        scl: 18
+
+  # I2S Standard Configuration
+  - name: i2s_audio_out
+    type: i2s
+    role: master
+    format: std-out # std-out, std-in
+    config: &i2s0_config
+      port: 0  # Explicitly specify I2S port number
+      # Clock configuration
+      sample_rate_hz: 48000           # Sample rate in Hz
+      mclk_multiple: 256              # Multiple of MCLK to sample rate (256 or 384 for 24-bit)
+
+      # Slot configuration
+      data_bit_width: 16              # Data bit width (valid data bits per sample)
+      slot_bit_width: I2S_SLOT_BIT_WIDTH_AUTO       # Total bits per slot (AUTO or specific value)
+      slot_mode: I2S_SLOT_MODE_STEREO               # MONO or STEREO,I2S_SLOT_MODE_STEREO
+      slot_mask: I2S_STD_SLOT_BOTH                  # LEFT, RIGHT, or BOTH slots
+      ws_width: 16                    # WS signal width in BCLK ticks
+
+      # GPIO configuration
+      pins:
+        mclk: 2                       # GPIO number for MCLK
+        bclk: 17                      # GPIO number for BCLK
+        ws: 45                        # GPIO number for WS
+        dout: 15                      # GPIO number for DATA out
+        din: 16                       # GPIO number for DATA in
+
+  - name: i2s_audio_in
+    type: i2s
+    role: master
+    format: std-in
+    # i2s0 work on duplex mode, so reuse i2s_audio_out configuration
+    config: *i2s0_config
+
+  # LCD SPI Configuration for ST77916 QSPI
+  - name: spi_display
+    type: spi
+    role: master
+    config:
+      # spi_bus_config_t fields
+      spi_bus_config:
+        spi_port: SPI2_HOST               # 0: SPI1_HOST, 1: SPI2_HOST, 2: SPI3_HOST
+        data0_io_num: 6                   # MOSI_IO_NUM
+        sclk_io_num: 7                    # SPI Clock signal
+        max_transfer_sz: 6400             # Maximum transfer size in bytes : width * 2 * 10
+
+  # PA CONTROL
+  - name: gpio_pa_control
+    type: gpio
+    role: io
+    config:
+      pin: 46                      # GPIO pin number
+      mode: GPIO_MODE_OUTPUT       # GPIO mode
+      pull_up: true                # Enable pull-up resistor
+
+  # CHIP BLACKLIGHT POWER CONTROL
+  - name: gpio_backlight_control
+    type: gpio
+    role: io
+    config:
+      pin: 47                      # GPIO47 - BL_EN (CHIP BLACKLIGHT POWER CONTROL)
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1
+
+  # SD POWER CONTROL
+  - name: gpio_sd_power
+    type: gpio
+    role: io
+    config:
+      pin: 43                          # GPIO43 - SD power control
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1
+
+  # Mute
+  - name: gpio_mute
+    type: gpio
+    role: io
+    config:
+      pin: 1                           # GPIO1 - Mute control
+      mode: GPIO_MODE_OUTPUT
+      default_level: 1
+
+  # LCD BACKLIGHT CONTROL
+  - name: ledc_backlight
+    type: ledc
+    role: none
+    config:
+      gpio_num: 47                      # GPIO47 - LED control pin
+      freq_hz: 2000                     # PWM frequency 2kHz
+      duty: 0                           # Initial duty cycle (0%)
+      duty_resolution: LEDC_TIMER_10_BIT               # 10-bit duty resolution

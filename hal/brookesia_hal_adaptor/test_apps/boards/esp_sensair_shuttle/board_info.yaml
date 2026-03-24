@@ -1,0 +1,5 @@
+board: esp_sensair_shuttle
+chip: esp32c5
+version: 1.3.0
+description: "ESP-SensairShuttle Development Board"
+manufacturer: "ESPRESSIF"

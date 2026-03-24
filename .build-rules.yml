@@ -82,9 +82,11 @@ utils/brookesia_lib_utils/test_apps/thread_profiler:
 utils/brookesia_lib_utils/test_apps/time_profiler:
   <<: *general_test_apps_enable
 
-utils/brookesia_hal/test_app:
-  enable:
-    - if: IDF_TARGET in ["esp32s3", "esp32p4"]
+hal/brookesia_hal_adaptor/test_apps:
+  <<: *general_test_apps_enable
+
+hal/brookesia_hal_interface/test_apps:
+  <<: *general_test_apps_enable
 
 # brookesia_service_manager
 service/brookesia_service_manager/test_apps:

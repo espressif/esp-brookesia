@@ -9,7 +9,6 @@
 #include "boost/format.hpp"
 #include "boost/thread.hpp"
 #include "esp_bit_defs.h"
-#include "esp_codec_dev.h"
 #include "esp_gmf_afe.h"
 #include "brookesia/service_audio/macro_configs.h"
 #if !BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG
@@ -23,6 +22,8 @@
 #include "brookesia/service_helper/nvs.hpp"
 #include "brookesia/service_audio/service_audio.hpp"
 #include "audio_processor.h"
+#include "brookesia/hal_interface/interface.hpp"
+#include "brookesia/hal_interface/device.hpp"
 
 constexpr size_t ENCODER_FETCH_DATA_SIZE_MORE = 100;
 
@@ -68,26 +69,45 @@ bool Audio::on_start()
     // Try to load data from NVS
     try_load_data();
 
+    hal::AudioPlayerIface::PlayerConfig player_config = {};
+    auto *audio_player_iface = hal::get_first_interface<hal::AudioPlayerIface>();
+    BROOKESIA_CHECK_NULL_RETURN(audio_player_iface, false, "Failed to get audio player interface");
+
+    auto *audio_recorder_iface = hal::get_first_interface<hal::AudioRecorderIface>();
+    BROOKESIA_CHECK_NULL_RETURN(audio_recorder_iface, false, "Failed to get audio recorder interface");
+
+    auto &cfg = audio_player_iface->get_config();
+    player_config = cfg;
+
+    const bool use_legacy_peripheral =
+        (peripheral_config_.play_dev != nullptr) && (peripheral_config_.rec_dev != nullptr);
+    if (use_legacy_peripheral) {
+        BROOKESIA_LOGW("Use legacy peripheral config from SetPeripheralConfig");
+    } else {
+        // get the audio config and handle from the hal
+        auto &recorder_config = audio_recorder_iface->get_config();
+
+        peripheral_config_.play_dev = const_cast<void *>(audio_player_iface->get_handle());
+        peripheral_config_.rec_dev = const_cast<void *>(audio_recorder_iface->get_handle());
+        peripheral_config_.board_bits = recorder_config.bits;
+        peripheral_config_.board_channels = recorder_config.channels;
+        peripheral_config_.board_sample_rate = recorder_config.sample_rate;
+        peripheral_config_.mic_layout = recorder_config.mic_layout;
+        peripheral_config_.recorder_gain = recorder_config.general_gain;
+        peripheral_config_.recorder_channel_gains = recorder_config.channel_gains;
+    }
+
+    BROOKESIA_CHECK_NULL_RETURN(peripheral_config_.play_dev, false, "Failed to get playback device");
+    BROOKESIA_CHECK_NULL_RETURN(peripheral_config_.rec_dev, false, "Failed to get recorder device");
+
     BROOKESIA_LOGI(
         "Start peripheral with config:\n%1%",
         BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(peripheral_config_, BROOKESIA_DESCRIBE_FORMAT_VERBOSE)
     );
 
     // Open audio dac and audio_adc
-    esp_codec_dev_sample_info_t fs = {
-        .bits_per_sample = static_cast<uint8_t>(peripheral_config_.board_bits),
-        .channel = static_cast<uint8_t>(peripheral_config_.board_channels),
-        .sample_rate = static_cast<uint32_t>(peripheral_config_.board_sample_rate),
-    };
-    BROOKESIA_LOGI(
-        "Board sample info: sample_rate(%1%) channel(%2%) bits_per_sample(%3%)", fs.sample_rate, fs.channel,
-        fs.bits_per_sample
-    );
-
-    esp_codec_dev_handle_t play_dev = static_cast<esp_codec_dev_handle_t>(peripheral_config_.play_dev);
-    esp_codec_dev_handle_t rec_dev = static_cast<esp_codec_dev_handle_t>(peripheral_config_.rec_dev);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_codec_dev_open(play_dev, &fs), false, "Failed to open audio dac");
-    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_codec_dev_open(rec_dev, &fs), false, "Failed to open audio_adc");
+    BROOKESIA_CHECK_FALSE_RETURN(audio_player_iface->open_player(), false, "Failed to open audio dac");
+    BROOKESIA_CHECK_FALSE_RETURN(audio_recorder_iface->open_recorder(), false, "Failed to open audio adc");
 
     // Initialize audio manager
     auto manager_config = TypeConverter::convert(peripheral_config_);
@@ -112,11 +132,11 @@ bool Audio::on_start()
     play_state_ = AudioPlayState::Idle;
 
     // Set player volume
-    auto init_volume = playback_config_.volume_default;
+    auto init_volume = player_config.volume_default;
     if (is_data_loaded_ && data_player_volume_ > 0) {
         init_volume = std::clamp(
-                          static_cast<uint8_t>(data_player_volume_), playback_config_.volume_min,
-                          playback_config_.volume_max
+                          static_cast<uint8_t>(data_player_volume_), player_config.volume_min,
+                          player_config.volume_max
                       );
         if (init_volume != data_player_volume_) {
             set_data<DataType::PlayerVolume>(init_volume);
@@ -125,18 +145,13 @@ bool Audio::on_start()
     }
     set_data<DataType::PlayerVolume>(init_volume);
     BROOKESIA_CHECK_FALSE_RETURN(
-        esp_codec_dev_set_out_vol(play_dev, init_volume) == ESP_CODEC_DEV_OK,
+        audio_player_iface->set_volume(init_volume),
         false, "Failed to set play volume"
     );
 
     // Set recorder gain
     BROOKESIA_CHECK_FALSE_RETURN(
-        esp_codec_dev_set_in_gain(rec_dev, peripheral_config_.recorder_gain) == ESP_CODEC_DEV_OK,
-        false, "Failed to set recorder gain"
-    );
-    for (const auto &[channel, gain] : peripheral_config_.recorder_channel_gains) {
-        esp_codec_dev_set_in_channel_gain(rec_dev, BIT(channel), gain);
-    }
+        audio_recorder_iface->set_recorder_gain(), false, "Failed to set recorder gain");
 
     return true;
 }
@@ -168,16 +183,14 @@ void Audio::on_stop()
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(audio_manager_deinit(), {}, {
         BROOKESIA_LOGE("Failed to deinitialize audio manager");
     });
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(esp_codec_dev_close(
-                                        static_cast<esp_codec_dev_handle_t>(peripheral_config_.play_dev)
-    ), {}, {
-        BROOKESIA_LOGE("Failed to close playback device");
-    });
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(esp_codec_dev_close(
-                                        static_cast<esp_codec_dev_handle_t>(peripheral_config_.rec_dev)
-    ), {}, {
-        BROOKESIA_LOGE("Failed to close recorder device");
-    });
+
+    auto *audio_player_iface = hal::get_first_interface<hal::AudioPlayerIface>();
+    BROOKESIA_CHECK_NULL_EXIT(audio_player_iface, "Failed to get audio player interface");
+    auto *audio_recorder_iface = hal::get_first_interface<hal::AudioRecorderIface>();
+    BROOKESIA_CHECK_NULL_EXIT(audio_recorder_iface, "Failed to get audio recorder interface");
+
+    BROOKESIA_CHECK_FALSE_EXIT(audio_player_iface->close_player(), "Failed to close audio dac");
+    BROOKESIA_CHECK_FALSE_EXIT(audio_recorder_iface->close_recorder(), "Failed to close audio adc");
 }
 
 std::expected<void, std::string> Audio::function_set_peripheral(const boost::json::object &config)
@@ -755,17 +768,19 @@ std::expected<void, std::string> Audio::function_set_volume(double volume)
 
     BROOKESIA_LOGD("Params: volume(%1%)", volume);
 
+    auto *audio_player_iface = hal::get_first_interface<hal::AudioPlayerIface>();
+    BROOKESIA_CHECK_NULL_RETURN(audio_player_iface, std::unexpected("Failed to get audio player interface"), "Failed to get audio player interface");
+
+    const auto &player_config = audio_player_iface->get_config();
+
     int volume_int = static_cast<int>(volume);
     volume_int = std::clamp(
-                     volume_int, static_cast<int>(playback_config_.volume_min),
-                     static_cast<int>(playback_config_.volume_max)
+                     volume_int, static_cast<int>(player_config.volume_min),
+                     static_cast<int>(player_config.volume_max)
                  );
     if (data_player_volume_ != volume_int) {
-        auto result = esp_codec_dev_set_out_vol(
-                          static_cast<esp_codec_dev_handle_t>(peripheral_config_.play_dev), volume_int
-                      );
-        if (result != ESP_CODEC_DEV_OK) {
-            return std::unexpected("Failed to set codec dev out volume");
+        if (!audio_player_iface->set_volume(static_cast<uint8_t>(volume_int))) {
+            return std::unexpected("Failed to set player volume");
         }
         set_data<DataType::PlayerVolume>(volume_int);
         try_save_data(DataType::PlayerVolume);

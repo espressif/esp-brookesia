@@ -1,0 +1,8 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp_board_manager:
+    version: "0.5.*"
+
+  espressif/brookesia_hal_adaptor:
+    version: "*"
+    override_path: "../.."

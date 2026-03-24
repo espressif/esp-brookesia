@@ -1,0 +1,2 @@
+config BOARD_ESP32_S3_KORVO2_V3
+    bool

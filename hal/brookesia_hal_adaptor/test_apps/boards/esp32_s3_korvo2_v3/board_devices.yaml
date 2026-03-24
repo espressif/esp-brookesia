@@ -1,0 +1,188 @@
+board: esp32_s3_korvo2_v3
+chip: esp32s3
+version: 1.0.0
+# Devices Configuration
+devices:
+  - name: audio_dac
+    chip: es8311
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: false
+
+      dac_enabled: true
+      dac_max_channel: 1
+      # DAC channel mask, 1-enable, 0-disable, layout: left,right
+      dac_channel_mask: "1"        # Left enable
+
+    # Power amplifier configuration
+    peripherals:
+      - name: gpio_power_amp
+        gain: 6                    # dB
+        active_level: 1            # 0-low, 1-high
+      - name: i2s_audio_out
+      - name: i2c_master
+        address: 0x30
+        frequency: 400000          # Hz
+
+  - name: audio_adc
+    chip: es7210
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: true
+      adc_max_channel: 4
+      adc_channel_mask: "0111"
+      adc_channel_labels: ['NA', 'RE', 'FR', 'FL'] # MSB ~ LSB
+      adc_init_gain: 0           # dB
+
+    # Power amplifier configuration
+    peripherals:
+      # I2S interface configuration
+      - name: i2s_audio_in
+      # I2C interface configuration
+      - name: i2c_master
+        address: 0x80
+        frequency: 400000          # Hz
+
+  - name: fs_sdcard
+    type: fs_fat
+    sub_type: sdmmc
+    version: default
+    config:
+      sub_config:
+        bus_width: 1            # 1, 4, 8, not used on SPI type
+        pins:
+          clk: 15  # GPIO_NUM_15
+          cmd: 7   # GPIO_NUM_7
+          d0: 4    # GPIO_NUM_4
+
+  - name: gpio_expander
+    chip: tca9554
+    type: gpio_expander
+    version: default
+    dependencies:
+      espressif/esp_io_expander_tca9554: "^2"
+    config:
+      max_pins: 8                      # Maximum number of GPIO pins supported
+      output_io_mask: [1, 2, 3]        # List of pins configured as output
+      output_io_level_mask: [1, 1, 1]  # List of pins with initial output level
+      input_io_mask: NULL
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0x70, 0x40]         # I2C address of the IO expander
+
+  - name: display_lcd
+    chip: ili9341
+    type: display_lcd
+    version: default
+    sub_type: spi
+    dependencies:
+      espressif/esp_lcd_ili9341: "*"
+    config:
+      mirror_x: true
+      mirror_y: true
+      x_max: 320
+      y_max: 240
+      need_reset: false
+      # esp_lcd_panel_io_spi_config_t fields
+      io_spi_config:
+        cs_gpio_num: -1                   # GPIO14 - LCD_CS (BSP_LCD_CS)
+        dc_gpio_num: 2                    # GPIO45 - LCD_DC (BSP_LCD_DC)
+        spi_mode: 0                       # Traditional SPI mode (0~3)
+        pclk_hz: 60000000                 # Frequency of pixel clock
+        trans_queue_depth: 1
+        flags:
+          sio_mode: false                 # Single line mode
+
+      lcd_panel_config:
+        reset_gpio_num: -1
+        rgb_ele_order: "LCD_RGB_ELEMENT_ORDER_BGR"
+        data_endian: "LCD_RGB_DATA_ENDIAN_BIG" # LCD_RGB_DATA_ENDIAN_LITTLE
+        # ST77916 specific configuration
+        vendor_config: NULL
+
+    peripherals:
+      - name: spi_display             # SPI peripheral for LCD communication
+
+  # Touch Panel Configuration
+  - name: lcd_touch
+    chip: tt21100
+    type: lcd_touch_i2c
+    version: default
+    dependencies:
+      esp_lcd_touch:
+        version: "*"
+        require: public
+      espressif/esp_lcd_touch_tt21100: ">=1.0.0"
+    config:
+      # esp_lcd_panel_io_i2c_config_t fields for touch communication
+      io_i2c_config:
+        dev_addr: 0x24
+        lcd_cmd_bits: 16                  # Bit-width of LCD command
+        peripherals:
+          - name: i2c_master              # I2C peripheral for touch communication
+
+      # esp_lcd_touch_config_t fields for touch configuration
+      touch_config:
+        x_max: 320                        # Maximum X coordinate (BSP_LCD_H_RES)
+        y_max: 240                        # Maximum Y coordinate (BSP_LCD_V_RES)
+        flags:
+          swap_xy: false
+          mirror_x: true
+          mirror_y: false
+
+  - name: camera
+    type: camera
+    version: default
+    sub_type: "dvp"        # The bus type: dvp
+    dependencies:
+      espressif/esp_video: "^1.2.0"
+    config:
+      dvp_config:
+        reset_io: -1
+        pwdn_io: -1
+        vsync_io: 21
+        data_width: CAM_CTLR_DATA_WIDTH_8
+        de_io: 38
+        pclk_io: 11
+        xclk_io: 40
+        xclk_freq: 10000000
+        data_io:
+          data_io_0: 13
+          data_io_1: 47
+          data_io_2: 14
+          data_io_3: 3
+          data_io_4: 12
+          data_io_5: 42
+          data_io_6: 41
+          data_io_7: 39
+    peripherals:
+      - name: "i2c_master"
+        frequency: 100000
+
+  # ADC Button Devices Configuration for multiple buttons
+  - name: adc_button_group
+    type: button
+    sub_type: adc_multi
+    config:
+      long_press_time: 2000
+      short_press_time: 100
+      events:
+        press_down: true
+        press_up: true
+        single_click: true
+        double_click: true
+        multi_click: false
+        long_press_start: true
+        long_press_up: true
+        long_press_hold: false
+        press_repeat: false
+        press_repeat_done: false
+        press_end: false
+      button_num: 6
+      max_voltage: 3000
+      voltage_range: [380, 820, 1110, 1650, 1980, 2410]
+      button_labels: ["VOLUME_UP", "VOLUME_DOWN", "SET", "PLAY", "MUTE", "REC"]
+    peripherals:
+    - name: adc_oneshot

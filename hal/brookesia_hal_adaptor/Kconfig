@@ -1,0 +1,17 @@
+menu "ESP-Brookesia: Hal Adaptor Configurations"
+    config BROOKESIA_HAL_ADAPTOR_AUDIO_DEVICE_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the audio device as a plugin on startup.
+
+    config BROOKESIA_HAL_ADAPTOR_DISPLAY_DEVICE_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the display device as a plugin on startup.
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+endmenu
