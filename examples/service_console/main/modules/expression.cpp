@@ -11,6 +11,8 @@
 #   include "brookesia/expression_emote.hpp"
 #endif
 #include "expression.hpp"
+#include "brookesia/hal_interface/device.hpp"
+#include "brookesia/hal_interface/interface.hpp"
 
 using namespace esp_brookesia;
 
@@ -36,13 +38,12 @@ bool Expression::init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> t
     BROOKESIA_LOGW("Board manager is not enabled, initializing display peripheral");
     return true;
 #else
-    auto &board = Board::get_instance();
-    BROOKESIA_CHECK_FALSE_RETURN(
-        board.init_display(display_config_), false, "Failed to initialize display peripheral"
-    );
+    auto *lcd_display_iface = hal::get_first_interface<hal::DisplayPanelIface>();
+    BROOKESIA_CHECK_NULL_RETURN(lcd_display_iface, false, "Failed to get LCD display interface");
+    BROOKESIA_LOGI("LCD display interface: %p", lcd_display_iface);
 
-    DisplayCallbacks display_callbacks{
-        .bitmap_flush_done = [&]()
+    hal::DisplayPanelIface::DisplayCallbacks display_callbacks{
+        .bitmap_flush_done = []()
         {
 #if CONFIG_EXAMPLE_EXPRESSIONS_ENABLE_EMOTE
             emote_instance.native_notify_flush_finished();
@@ -51,10 +52,14 @@ bool Expression::init(std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> t
         },
     };
     BROOKESIA_CHECK_FALSE_RETURN(
-        board.register_display_callbacks(display_callbacks), false, "Failed to register display callbacks"
+        lcd_display_iface->register_callbacks(display_callbacks),
+        false, "Failed to register display callbacks");
+
+    BROOKESIA_CHECK_FALSE_RETURN(
+        lcd_display_iface->set_backlight(100), false, "Failed to set display backlight"
     );
 
-    board.set_display_backlight(100);
+    BROOKESIA_LOGI("LCD display interface initialized successfully");
 
     is_initialized_.store(true);
     task_scheduler_ = task_scheduler;
@@ -80,17 +85,22 @@ void Expression::init_emote()
 #else
     BROOKESIA_LOGI("Initializing emote...");
 
+    auto *lcd_display_iface = hal::get_first_interface<hal::DisplayPanelIface>();
+    BROOKESIA_CHECK_NULL_EXIT(lcd_display_iface, "Failed to get LCD display interface");
+    BROOKESIA_LOGI("LCD display interface: %p", lcd_display_iface);
+
+    auto &cfg = lcd_display_iface->get_config();
     // Set emote config
     EmoteHelper::Config config{
-        .h_res = display_config_.h_res,
-        .v_res = display_config_.v_res,
-        .buf_pixels = display_config_.h_res * 16,
+        .h_res = static_cast<uint32_t>(cfg.h_res),
+        .v_res = static_cast<uint32_t>(cfg.v_res),
+        .buf_pixels = static_cast<uint32_t>(cfg.h_res) * 16,
         .fps = 30,
         .task_priority = 5,
         .task_stack = 10 * 1024,
         .task_affinity = CONFIG_EXAMPLE_BOARD_MANAGER_INIT_CORE_ID,
         .task_stack_in_ext = true,
-        .flag_swap_color_bytes = display_config_.flag_swap_color_bytes,
+        .flag_swap_color_bytes = static_cast<bool>(cfg.flag_swap_color_bytes),
         .flag_double_buffer = true,
         .flag_buff_dma = true,
     };
@@ -104,12 +114,13 @@ void Expression::init_emote()
     BROOKESIA_LOGI("Emote config initialized successfully");
 
     // Subscribe to flush ready event
-    auto flush_ready_event_slot = [&](const std::string & event_name, const boost::json::object & param_json) {
+    auto flush_ready_event_slot = [lcd_display_iface](
+    const std::string & event_name, const boost::json::object & param_json) {
         EmoteHelper::FlushReadyEventParam param;
         auto success = BROOKESIA_DESCRIBE_FROM_JSON(param_json, param);
         BROOKESIA_CHECK_FALSE_EXIT(success, "Failed to parse flush ready event param: %1%");
 
-        auto result = Board::get_instance().draw_display_bitmap(
+        auto result = lcd_display_iface->draw_bitmap(
                           param.x_start, param.y_start, param.x_end, param.y_end, param.data
                       );
         if (!result) {

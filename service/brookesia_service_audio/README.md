@@ -12,7 +12,8 @@
 - **Playback State Management**: Tracks playback state in real-time (Idle, Playing, Paused) and notifies state changes through events.
 - **Encoder Management**: Supports encoder start, stop, and configuration, with configurable encoder read data size.
 - **Decoder Management**: Supports decoder start, stop, and data input, with streaming decoding support.
-- **Persistent Storage**: Optionally work with the `brookesia_service_nvs` service to persistently save volume and other information.
+- **HAL Audio Integration**: Uses `AudioPlayerIface` and `AudioRecorderIface` from `brookesia_hal_interface` to obtain player and recorder handles, volume control, and board audio defaults.
+- **Persistent Storage**: Optionally works with the `brookesia_service_nvs` service to persistently save volume and other information.
 
 ## Table of Contents
 
@@ -22,6 +23,7 @@
   - [Features](#features)
     - [Audio Codec Formats](#audio-codec-formats)
     - [Playback Control](#playback-control)
+    - [HAL Audio Integration](#hal-audio-integration)
     - [Encoder Configuration](#encoder-configuration)
     - [Decoder Configuration](#decoder-configuration)
     - [Event Notifications](#event-notifications)
@@ -48,6 +50,12 @@ The following playback control operations are supported:
 - **Pause**: Pause current playback
 - **Resume**: Resume playback from paused state
 - **Stop**: Stop current playback
+
+### HAL Audio Integration
+
+- **Typed HAL Access**: Retrieves `AudioPlayerIface` and `AudioRecorderIface` through `get_first_interface<T>()` during service startup.
+- **Less Codec Coupling**: Player volume, open, close, and recorder gain setup are routed through HAL interfaces instead of direct service-layer `esp_codec` calls.
+- **Board Defaults**: Recorder sample rate, sample bits, channel count, mic layout, and gain settings are taken from HAL-provided board configuration.
 
 ### Encoder Configuration
 
@@ -83,6 +91,8 @@ Audio Service provides the following event notifications:
 Before using this library, please ensure the following SDK development environment is installed:
 
 - [ESP-IDF](https://github.com/espressif/esp-idf): `>=5.5,<6`
+- `espressif/brookesia_hal_interface`: `0.7.*`
+- `espressif/brookesia_hal_adaptor`: `0.7.*`
 
 > [!NOTE]
 > For SDK installation instructions, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)

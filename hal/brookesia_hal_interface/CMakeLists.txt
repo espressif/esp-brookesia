@@ -1,0 +1,64 @@
+set(COMPONENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(COMPONENT_SRC_DIR ${COMPONENT_DIR}/src)
+set(COMPONENT_INCLUDE_DIRS ${COMPONENT_DIR}/include)
+set(COMPONENT_PRIVATE_INCLUDE_DIRS ${COMPONENT_SRC_DIR})
+set(COMPONENT_REQUIRES "")
+set(COMPONENT_SRCS_C "")
+set(COMPONENT_SRCS_CPP "")
+set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
+set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
+set(COMPONENT_SRCS_COMPILE_OPTIONS "")
+
+#
+# Lib Utils
+#
+file(GLOB_RECURSE LIB_UTILS_SRCS_C ${COMPONENT_SRC_DIR}/*.c)
+file(GLOB_RECURSE LIB_UTILS_SRCS_CPP ${COMPONENT_SRC_DIR}/*.cpp)
+list(APPEND COMPONENT_SRCS_C ${LIB_UTILS_SRCS_C})
+list(APPEND COMPONENT_SRCS_CPP ${LIB_UTILS_SRCS_CPP})
+
+if(ESP_PLATFORM)
+    #
+    # ESP Platform
+    #
+    idf_component_register(
+        SRCS ${COMPONENT_SRCS_C} ${COMPONENT_SRCS_CPP}
+        INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
+        PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
+        REQUIRES ${COMPONENT_REQUIRES}
+    )
+
+    include(package_manager)
+    cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
+else()
+    #
+    # PC Platform
+    #
+    add_library(${PROJECT_NAME} STATIC
+        ${COMPONENT_SRCS_C}
+        ${COMPONENT_SRCS_CPP}
+    )
+
+    target_include_directories(${PROJECT_NAME}
+        PUBLIC
+            ${COMPONENT_INCLUDE_DIRS}
+        PRIVATE
+            ${COMPONENT_PRIVATE_INCLUDE_DIRS}
+    )
+endif()
+
+#
+# Compile Options
+#
+target_compile_options(${COMPONENT_LIB}
+    PUBLIC
+        ${COMPONENT_SRCS_COMPILE_OPTIONS}
+)
+set_source_files_properties(${COMPONENT_SRCS_C}
+    PROPERTIES
+        COMPILE_FLAGS "${COMPONENT_SRCS_C_COMPILE_FLAGS}"
+)
+set_source_files_properties(${COMPONENT_SRCS_CPP}
+    PROPERTIES
+        COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
+)

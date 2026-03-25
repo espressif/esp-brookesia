@@ -1,0 +1,5 @@
+board: esp32_p4_function_ev
+chip: esp32p4
+version: 1.4.0
+description: "ESP32-P4 Function-EV Board"
+manufacturer: "ESPRESSIF"

@@ -8,9 +8,6 @@
 #include "brookesia/service_helper.hpp"
 #include "private/utils.hpp"
 #include "general_services.hpp"
-#if CONFIG_EXAMPLE_ENABLE_BOARD_MANAGER
-#   include "board.hpp"
-#endif
 
 using namespace esp_brookesia;
 
@@ -62,20 +59,6 @@ void GeneralServices::init_audio()
 #if !CONFIG_EXAMPLE_ENABLE_BOARD_MANAGER
     BROOKESIA_LOGE("Audio service only supported when board manager is enabled, skip initialization");
 #else
-    // Configure the peripheral
-    AudioHelper::PeripheralConfig periph_config {};
-    BROOKESIA_CHECK_FALSE_EXIT(
-        Board::get_instance().init_audio(periph_config), "Failed to initialize audio peripheral: %1%"
-    );
-    auto set_peripheral_result = AudioHelper::call_function_sync(
-                                     AudioHelper::FunctionId::SetPeripheralConfig,
-                                     BROOKESIA_DESCRIBE_TO_JSON(periph_config).as_object()
-                                 );
-    if (!set_peripheral_result) {
-        BROOKESIA_LOGE("Failed to set audio peripheral config: %1%", set_peripheral_result.error());
-        return;
-    }
-
     // Configure the AFE
     AudioHelper::AFE_Config afe_config{
         .vad = AudioHelper::AFE_VAD_Config{},

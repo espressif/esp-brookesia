@@ -54,9 +54,6 @@ public:
             .target_gain = 1.0,
             .transition_time = 1500,
         };
-        uint8_t volume_default = 70;
-        uint8_t volume_min = 0;
-        uint8_t volume_max = 100;
     };
     enum class PlayControlAction : uint8_t {
         Pause,
@@ -675,7 +672,7 @@ BROOKESIA_DESCRIBE_STRUCT(Audio::MixerGainConfig, (), (initial_gain, target_gain
 /**
  * @brief  Playback related configurations
  */
-BROOKESIA_DESCRIBE_STRUCT(Audio::PlaybackConfig, (), (player_task, mixer_gain, volume_default, volume_min, volume_max));
+BROOKESIA_DESCRIBE_STRUCT(Audio::PlaybackConfig, (), (player_task, mixer_gain));
 BROOKESIA_DESCRIBE_ENUM(Audio::PlayControlAction, Pause, Resume, Stop);
 BROOKESIA_DESCRIBE_ENUM(Audio::PlayState, Idle, Playing, Paused);
 

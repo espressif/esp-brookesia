@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.7.3 - 2026-03-24
+
+### Enhancements:
+
+- feat(hal): use `AudioPlayerIface` and `AudioRecorderIface` for player and recorder access during service startup and shutdown
+- feat(hal): route player volume control through `AudioPlayerIface` and remove direct `esp_codec` calls from the service layer
+- feat(repo): keep audio peripheral configuration aligned with HAL-provided recorder defaults and handles
+
 ## v0.7.2 - 2026-02-25
 
 ### Enhancements:

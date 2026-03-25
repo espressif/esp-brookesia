@@ -39,3 +39,8 @@ dependencies:
   espressif/brookesia_expression_emote:
     version: "*"
     override_path: "../../../expression/brookesia_expression_emote"
+
+  # HAL
+  espressif/brookesia_hal_adaptor:
+    version: "*"
+    override_path: "../../../hal/brookesia_hal_adaptor"

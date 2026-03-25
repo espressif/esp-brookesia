@@ -39,7 +39,6 @@
     EXAMPLE_TARGET: "all"
   script:
     - pip list | grep idf-component-manager
-    - pip install --upgrade "idf-component-manager"
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
@@ -73,7 +72,7 @@
     EXAMPLE_TARGET: "all"
   script:
     - pip list | grep idf-component-manager
-    - pip install --upgrade "idf-component-manager"
+    - pip install --upgrade "idf-component-manager~=2.2"
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
@@ -99,6 +98,19 @@
   parallel:
     matrix:
       - IMAGE: espressif/idf:release-v5.5
+
+.build_brookesia_idf_release_version_with_board:
+  parallel:
+    matrix:
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32s3"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32c5"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
 
 # Test Apps
 # brookesia_lib_utils: check
@@ -189,6 +201,23 @@ build_test_apps_brookesia_lib_utils_time_profiler:
     - .rules:build:test_apps_brookesia_lib_utils_time_profiler
   variables:
     EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/time_profiler
+
+build_test_apps_brookesia_hal_interface:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_components_idf_release_version
+    - .rules:build:test_apps_brookesia_hal_interface
+  variables:
+    EXAMPLE_DIR: hal/brookesia_hal_interface/test_apps
+
+build_test_apps_brookesia_hal_adaptor:
+  extends:
+    - .build_examples_template
+    - .build_brookesia_idf_release_version_with_board
+    - .rules:build:test_apps_brookesia_hal_adaptor
+  variables:
+    EXAMPLE_DIR: hal/brookesia_hal_adaptor/test_apps
+
 # brookesia_service_manager
 build_test_apps_brookesia_service_manager:
   extends:
@@ -236,18 +265,19 @@ build_examples_service_console:
   extends:
     - .build_examples_template_without_large_artifacts
     - .rules:build:examples_service_console
-# Using `-t all` directly will cause configuration failures for S3-related boards, so it is necessary to build them separately
+# This example relies on board-manager generated sources, so only build
+# board-specific configs and avoid standalone `defaults` builds.
   parallel:
     matrix:
       - IMAGE: espressif/idf:release-v5.5
         EXAMPLE_TARGET: "esp32s3"
-        EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.board.*=;=defaults"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
       - IMAGE: espressif/idf:release-v5.5
         EXAMPLE_TARGET: "esp32p4"
-        EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.board.*=;=defaults"
-      - IMAGE: espressif/idf:release-v5.5
-        EXAMPLE_TARGET: "esp32c5"
-        EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.board.*=;=defaults"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      # - IMAGE: espressif/idf:release-v5.5
+      #   EXAMPLE_TARGET: "esp32c5"
+      #   EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
   variables:
     EXAMPLE_DIR: examples/service_console
 

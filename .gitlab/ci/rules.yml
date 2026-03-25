@@ -201,6 +201,10 @@
   - "utils/brookesia_lib_utils/test_apps/thread_profiler/**/*"
 .patterns-test_apps_brookesia_lib_utils_time_profiler: &patterns-test_apps_brookesia_lib_utils_time_profiler
   - "utils/brookesia_lib_utils/test_apps/time_profiler/**/*"
+.patterns-test_apps_brookesia_hal_interface: &patterns-test_apps_brookesia_hal_interface
+  - "hal/brookesia_hal_interface/test_apps/**/*"
+.patterns-test_apps_brookesia_hal_adaptor: &patterns-test_apps_brookesia_hal_adaptor
+  - "hal/brookesia_hal_adaptor/test_apps/**/*"
 
 # examples folder
 .patterns-examples_service_console: &patterns-examples_service_console
@@ -486,6 +490,26 @@
       changes: *patterns-component_brookesia_lib_utils
     - <<: *if-dev-push
       changes: *patterns-test_apps_brookesia_lib_utils_time_profiler
+.rules:build:test_apps_brookesia_hal_interface:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_hal_interface
+.rules:build:test_apps_brookesia_hal_adaptor:
+  rules:
+    - <<: *if-protected
+    - <<: *if-label-build
+    - <<: *if-label-target_test
+    - <<: *if-trigger-job
+    - <<: *if-dev-push
+      changes: *patterns-build_system
+    - <<: *if-dev-push
+      changes: *patterns-test_apps_brookesia_hal_adaptor
 
 # rules for examples
 .rules:build:examples_service_console:

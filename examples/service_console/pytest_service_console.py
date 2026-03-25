@@ -442,16 +442,7 @@ def test_esp32s3_defaults(dut: Dut) -> None:
 
 
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('esp_vocat_board_v1_0')
-@pytest.mark.parametrize('config', ['esp_vocat_board_v1_0'])
-@pytest.mark.timeout(20 * 60)
-def test_esp32s3_esp_vocat_board_v1_0(dut: Dut) -> None:
-    """Test all command groups on ESP-VoCat Board V1.0."""
-    test_service_console_commands(dut)
-
-
-@pytest.mark.target('esp32s3')
-@pytest.mark.env('esp_vocat_board_v1_2')
+@pytest.mark.env('esp_vocat')
 @pytest.mark.parametrize('config', ['esp_vocat_board_v1_2'])
 @pytest.mark.timeout(20 * 60)
 def test_esp32s3_esp_vocat_board_v1_2(dut: Dut) -> None:
@@ -475,15 +466,6 @@ def test_esp32s3_esp_box_3(dut: Dut) -> None:
 def test_esp32s3_korvo2_v3(dut: Dut) -> None:
     """Test all command groups on ESP32-S3-KORVO2-V3."""
     test_service_console_commands(dut)
-
-
-@pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
-@pytest.mark.parametrize('config', ['defaults'])
-@pytest.mark.timeout(20 * 60)
-def test_esp32p4_defaults(dut: Dut) -> None:
-    """Test all command groups on ESP32-P4 defaults."""
-    test_service_console_commands(dut, ['basic', 'debug', 'nvs'])
 
 
 @pytest.mark.target('esp32p4')
