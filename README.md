@@ -4,6 +4,9 @@
 
 * [中文版本](./README_CN.md)
 
+> [!WARNING]
+> This branch is an experimental branch and is currently **paused maintenance**, and related features have been partially or being migrated to the latest version branch.
+
 ## Overview
 
 ESP-Brookesia is a human-machine interaction development framework designed for AIoT devices. It aims to simplify the processes of user UI design and application development by supporting efficient development tools and platforms, thereby accelerating the development and market release of customers' HMI application products.

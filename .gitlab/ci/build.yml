@@ -42,40 +42,6 @@
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
-.build_examples_template_without_large_artifacts: &build_examples_template_without_large_artifacts
-  <<: *build_template
-  artifacts:
-    when: always
-    paths:
-      - "**/build*/size.json"
-      - "**/build*/build_log.txt"
-      - "**/build*/*.bin"
-      # Too large, temporarily not uploaded
-      # - "**/build*/*.map"
-      # - "**/build*/*.elf"
-      - "**/build*/flasher_args.json"
-      - "**/build*/flash_args"
-      - "**/build*/flash_project_args"
-      - "**/build*/config/sdkconfig.json"
-      - "**/build*/bootloader/*.bin"
-      - "**/build*/bootloader/*.elf"
-      - "**/build*/partition_table/*.bin"
-      - "**/build*/mmap_build/*.bin"
-      - "**/build*/**/*.bin"
-      - size_info.txt
-    expire_in: 1 week
-  variables:
-    IDF_CI_BUILD: "1"
-    # By configuring this macro, you can append the compiled configuration file.
-    # For example, using "sdkconf.etc=default" specifies the default sdkconfig file.
-    EXAMPLE_CONFIG: "sdkconfig.defaults=defaults;sdkconfig.ci.*=;=defaults"
-    EXAMPLE_TARGET: "all"
-  script:
-    - pip list | grep idf-component-manager
-    - pip install --upgrade "idf-component-manager~=2.2"
-    - pip install idf_build_apps
-    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
-
 # Target ESP-IDF versions
 .build_esp32_s3_idf_release_version:
   parallel:
@@ -94,11 +60,6 @@
     matrix:
       - IMAGE: espressif/idf:release-v5.5
 
-.build_brookesia_components_idf_release_version:
-  parallel:
-    matrix:
-      - IMAGE: espressif/idf:release-v5.5
-
 .build_brookesia_idf_release_version_with_board:
   parallel:
     matrix:
@@ -112,207 +73,38 @@
         EXAMPLE_TARGET: "esp32c5"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
 
-# Test Apps
-# brookesia_lib_utils: check
-build_test_apps_brookesia_lib_utils_check:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_check
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/check
-# brookesia_lib_utils: function_guard
-build_test_apps_brookesia_lib_utils_function_guard:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_function_guard
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/function_guard
-# brookesia_lib_utils: describe_helpers
-build_test_apps_brookesia_lib_utils_describe_helpers:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_describe_helpers
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/describe_helpers
-# brookesia_lib_utils: log
-build_test_apps_brookesia_lib_utils_log:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_log
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/log
-# brookesia_lib_utils: memory_profiler
-build_test_apps_brookesia_lib_utils_memory_profiler:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_memory_profiler
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/memory_profiler
-# brookesia_lib_utils: plugin
-build_test_apps_brookesia_lib_utils_plugin:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_plugin
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/plugin
-# brookesia_lib_utils: state_machine
-build_test_apps_brookesia_lib_utils_state_machine:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_state_machine
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/state_machine
-# brookesia_lib_utils: task_scheduler
-build_test_apps_brookesia_lib_utils_task_scheduler:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_task_scheduler
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/task_scheduler
-# brookesia_lib_utils: thread_config
-build_test_apps_brookesia_lib_utils_thread_config:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_thread_config
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/thread_config
-# brookesia_lib_utils: thread_profiler
-build_test_apps_brookesia_lib_utils_thread_profiler:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_thread_profiler
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/thread_profiler
-# brookesia_lib_utils: time_profiler
-build_test_apps_brookesia_lib_utils_time_profiler:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_lib_utils_time_profiler
-  variables:
-    EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/time_profiler
-
-build_test_apps_brookesia_hal_interface:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_hal_interface
-  variables:
-    EXAMPLE_DIR: hal/brookesia_hal_interface/test_apps
-
-build_test_apps_brookesia_hal_adaptor:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_idf_release_version_with_board
-    - .rules:build:test_apps_brookesia_hal_adaptor
-  variables:
-    EXAMPLE_DIR: hal/brookesia_hal_adaptor/test_apps
-
-# brookesia_service_manager
-build_test_apps_brookesia_service_manager:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_service_manager
-  variables:
-    EXAMPLE_DIR: service/brookesia_service_manager/test_apps
-# brookesia_service_custom
-build_test_apps_brookesia_service_custom:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_service_custom
-  variables:
-    EXAMPLE_DIR: service/brookesia_service_custom/test_apps
-# brookesia_service_nvs
-build_test_apps_brookesia_service_nvs:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_service_nvs
-  variables:
-    EXAMPLE_DIR: service/brookesia_service_nvs/test_apps
-# brookesia_service_sntp
-build_test_apps_brookesia_service_sntp:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_service_sntp
-  variables:
-    EXAMPLE_DIR: service/brookesia_service_sntp/test_apps
-# brookesia_service_wifi
-build_test_apps_brookesia_service_wifi:
-  extends:
-    - .build_examples_template
-    - .build_brookesia_components_idf_release_version
-    - .rules:build:test_apps_brookesia_service_wifi
-  variables:
-    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps
-
-# Examples
-# service_console
-build_examples_service_console:
-  extends:
-    - .build_examples_template_without_large_artifacts
-    - .rules:build:examples_service_console
-# This example relies on board-manager generated sources, so only build
-# board-specific configs and avoid standalone `defaults` builds.
-  parallel:
-    matrix:
-      - IMAGE: espressif/idf:release-v5.5
-        EXAMPLE_TARGET: "esp32s3"
-        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: espressif/idf:release-v5.5
-        EXAMPLE_TARGET: "esp32p4"
-        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      # - IMAGE: espressif/idf:release-v5.5
-      #   EXAMPLE_TARGET: "esp32c5"
-      #   EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-  variables:
-    EXAMPLE_DIR: examples/service_console
-
 # Products
-# build_product_phone_m5stack_core_s3:
-#   extends:
-#     - .build_examples_template
-#     - .build_esp32_s3_idf_release_version
-#     - .rules:build:products_phone_m5stack_core_s3
-#   variables:
-#     EXAMPLE_DIR: products/phone/phone_m5stack_core_s3
+build_product_phone_m5stack_core_s3:
+  extends:
+    - .build_examples_template
+    - .build_esp32_s3_idf_release_version
+    - .rules:build:products_phone_m5stack_core_s3
+  variables:
+    EXAMPLE_DIR: products/phone/phone_m5stack_core_s3
 
-# build_product_phone_p4_function_ev_board:
-#   extends:
-#     - .build_examples_template
-#     - .build_esp32_p4_idf_release_version
-#     - .rules:build:products_phone_p4_function_ev_board
-#   variables:
-#     EXAMPLE_DIR: products/phone/phone_p4_function_ev_board
+build_product_phone_p4_function_ev_board:
+  extends:
+    - .build_examples_template
+    - .build_esp32_p4_idf_release_version
+    - .rules:build:products_phone_p4_function_ev_board
+  variables:
+    EXAMPLE_DIR: products/phone/phone_p4_function_ev_board
 
-# build_product_phone_s3_box_3:
-#   extends:
-#     - .build_examples_template
-#     - .build_esp32_s3_idf_release_version
-#     - .rules:build:products_phone_s3_box_3
-#   variables:
-#     EXAMPLE_DIR: products/phone/phone_s3_box_3
+build_product_phone_s3_box_3:
+  extends:
+    - .build_examples_template
+    - .build_esp32_s3_idf_release_version
+    - .rules:build:products_phone_s3_box_3
+  variables:
+    EXAMPLE_DIR: products/phone/phone_s3_box_3
 
-# build_product_phone_s3_lcd_ev_board:
-#   extends:
-#     - .build_examples_template
-#     - .build_esp32_s3_idf_release_version
-#     - .rules:build:products_phone_s3_lcd_ev_board
-#   variables:
-#     EXAMPLE_DIR: products/phone/phone_s3_lcd_ev_board
+build_product_phone_s3_lcd_ev_board:
+  extends:
+    - .build_examples_template
+    - .build_esp32_s3_idf_release_version
+    - .rules:build:products_phone_s3_lcd_ev_board
+  variables:
+    EXAMPLE_DIR: products/phone/phone_s3_lcd_ev_board
 
 build_product_speaker:
   extends:
