@@ -313,11 +313,3 @@ build_examples_service_console:
 #     - .rules:build:products_phone_s3_lcd_ev_board
 #   variables:
 #     EXAMPLE_DIR: products/phone/phone_s3_lcd_ev_board
-
-build_product_speaker:
-  extends:
-    - .build_examples_template
-    - .build_speaker_idf_release_version
-    - .rules:build:products_speaker
-  variables:
-    EXAMPLE_DIR: products/speaker
