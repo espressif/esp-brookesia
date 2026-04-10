@@ -52,7 +52,7 @@ extern "C" void app_main(void)
             .hdmi_resolution = BSP_HDMI_RES_NONE,
 #endif
             .dsi_bus = {
-                .phy_clk_src = MIPI_DSI_PHY_CLK_SRC_DEFAULT,
+                .phy_clk_src = static_cast<mipi_dsi_phy_clock_source_t>(0),
                 .lane_bit_rate_mbps = BSP_LCD_MIPI_DSI_LANE_BITRATE_MBPS,
             }
         },
