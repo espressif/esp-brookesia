@@ -9,12 +9,6 @@ menu "ESP-Brookesia: Agent Xiaozhi Configurations"
         bool "Enable debug or lower level logs"
         default n
 
-    config BROOKESIA_AGENT_XIAOZHI_OTA_URL
-        string "Default OTA URL"
-        default "https://api.tenclass.net/xiaozhi/ota/"
-        help
-            The application will access this URL to check for new firmwares and server address.
-
     config BROOKESIA_AGENT_XIAOZHI_GET_HTTP_INFO_INTERVAL_MS
         int "Check activation interval in milliseconds"
         default 15000
@@ -23,7 +17,30 @@ menu "ESP-Brookesia: Agent Xiaozhi Configurations"
 
     config BROOKESIA_AGENT_XIAOZHI_WAKE_WORD
         string "Wake word"
-        default "Hi,ESP"
+        default ""
         help
-            The wake word to trigger the agent.
+            The wake word to trigger the agent. If empty, the agent will try to get the wake word.
+
+    menu "Image Explain"
+        config BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_URL
+            string "URL"
+            default "http://api.xiaozhi.me/vision/explain"
+            help
+                The URL to explain the image.
+
+        config BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_TOKEN
+            string "Token"
+            default "test-token"
+            help
+                The token to authenticate the request.
+
+        config BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_RESPONSE_BUFFER_SIZE
+            int "Response buffer size"
+            default 4096
+            help
+                The size of the response buffer for the image explain.
+    endmenu
+
+    orsource "xiaozhi/Kconfig"
+
 endmenu

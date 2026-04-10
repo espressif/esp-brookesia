@@ -7,7 +7,9 @@
 
 #include "sdkconfig.h"
 
-/* Auto register */
+/**
+ * @brief Enable automatic plugin registration for the XiaoZhi agent component.
+ */
 #if !defined(BROOKESIA_AGENT_XIAOZHI_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_AGENT_XIAOZHI_ENABLE_AUTO_REGISTER)
 #       define BROOKESIA_AGENT_XIAOZHI_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_AGENT_XIAOZHI_ENABLE_AUTO_REGISTER
@@ -16,14 +18,18 @@
 #   endif
 #endif
 
-/* Plugin symbol */
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
 #if BROOKESIA_AGENT_XIAOZHI_ENABLE_AUTO_REGISTER
 #   if !defined(BROOKESIA_AGENT_XIAOZHI_PLUGIN_SYMBOL)
 #       define BROOKESIA_AGENT_XIAOZHI_PLUGIN_SYMBOL  agent_xiaozhi_symbol
 #   endif
 #endif
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the XiaoZhi agent component.
+ */
 #define BROOKESIA_AGENT_XIAOZHI_LOG_TAG "AgentXiaoZhi"
 
 #if !defined(BROOKESIA_AGENT_XIAOZHI_ENABLE_DEBUG_LOG)
@@ -46,6 +52,28 @@
 #   if defined(CONFIG_BROOKESIA_AGENT_XIAOZHI_WAKE_WORD)
 #       define BROOKESIA_AGENT_XIAOZHI_WAKE_WORD  CONFIG_BROOKESIA_AGENT_XIAOZHI_WAKE_WORD
 #   else
-#       define BROOKESIA_AGENT_XIAOZHI_WAKE_WORD  ("Hi,ESP")
+#       define BROOKESIA_AGENT_XIAOZHI_WAKE_WORD  ("")
+#   endif
+#endif
+
+#if !defined(BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_URL)
+#   if defined(CONFIG_BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_URL)
+#       define BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_URL  CONFIG_BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_URL
+#   else
+#       define BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_URL  ("http://api.xiaozhi.me/vision/explain")
+#   endif
+#endif
+#if !defined(BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_TOKEN)
+#   if defined(CONFIG_BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_TOKEN)
+#       define BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_TOKEN  CONFIG_BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_TOKEN
+#   else
+#       define BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_TOKEN  ("test-token")
+#   endif
+#endif
+#if !defined(BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_RESPONSE_BUFFER_SIZE)
+#   if defined(CONFIG_BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_RESPONSE_BUFFER_SIZE)
+#       define BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_RESPONSE_BUFFER_SIZE  CONFIG_BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_RESPONSE_BUFFER_SIZE
+#   else
+#       define BROOKESIA_AGENT_XIAOZHI_IMAGE_EXPLAIN_RESPONSE_BUFFER_SIZE  (4096)
 #   endif
 #endif

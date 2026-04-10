@@ -210,7 +210,7 @@ void Openai::try_load_data()
             BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
         } else {
             set_data<DataType::Info>(std::move(result.value()));
-            BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
+            BROOKESIA_LOGD("Loaded '%1%' from NVS", key);
         }
     }
 
@@ -256,6 +256,9 @@ void Openai::try_erase_data()
         BROOKESIA_LOGD("NVS is not available, skip");
         return;
     }
+
+    auto binding = service::ServiceManager::get_instance().bind(NVSHelper::get_name().data());
+    BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
 
     auto result = NVSHelper::erase_keys(get_attributes().get_name(), {}, NVS_ERASE_DATA_TIMEOUT_MS);
     if (!result) {

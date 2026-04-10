@@ -8,27 +8,43 @@
 #include "brookesia/service_helper/audio.hpp"
 #include "brookesia/agent_helper/openai.hpp"
 #include "brookesia/agent_manager/base.hpp"
+#include "brookesia/agent_openai/macro_configs.h"
 
 namespace esp_brookesia::agent {
 
+/**
+ * @brief Re-exported persistent configuration type for the OpenAI agent.
+ */
 using OpenaiInfo = helper::Openai::Info;
 
+/**
+ * @brief Concrete agent implementation backed by the OpenAI service.
+ */
 class Openai: public Base {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the agent specific attributes /////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Persisted OpenAI data items managed by the agent.
+     */
     enum class DataType {
         Info,
         Max,
     };
 
+    /**
+     * @brief Default metadata advertised by the OpenAI agent.
+     */
     inline static const AgentAttributes DEFAULT_AGENT_ATTRIBUTES{
         .name = helper::Openai::get_name().data(),
         .operation_timeout = {
             .start = 10000,
         },
     };
+    /**
+     * @brief Default audio pipeline configuration used by the OpenAI agent.
+     */
     static constexpr AudioConfig DEFAULT_AUDIO_CONFIG{
         .encoder = {
             .type = service::helper::Audio::CodecFormat::OPUS,
@@ -55,6 +71,11 @@ public:
         }
     };
 
+    /**
+     * @brief Get the singleton OpenAI agent instance.
+     *
+     * @return Openai& Singleton instance.
+     */
     static Openai &get_instance()
     {
         static Openai instance;

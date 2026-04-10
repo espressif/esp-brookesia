@@ -7,7 +7,7 @@ set(COMPONENT_PRIV_REQUIRES "esp_common nvs_flash app_update spi_flash json mbed
 set(COMPONENT_SRCS_C "")
 set(COMPONENT_SRCS_CPP "")
 set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
-set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "-Wno-missing-field-initializers")
+set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
 set(COMPONENT_SRCS_COMPILE_OPTIONS "")
 
 #
@@ -17,6 +17,14 @@ file(GLOB_RECURSE AGENT_SRCS_C ${COMPONENT_SRC_DIR}/*.c)
 file(GLOB_RECURSE AGENT_SRCS_CPP ${COMPONENT_SRC_DIR}/*.cpp)
 list(APPEND COMPONENT_SRCS_C ${AGENT_SRCS_C})
 list(APPEND COMPONENT_SRCS_CPP ${AGENT_SRCS_CPP})
+
+#
+# Xiaozhi
+#
+file(GLOB_RECURSE XIAOZHI_SRCS_C ${COMPONENT_DIR}/xiaozhi/*.c)
+list(APPEND COMPONENT_SRCS_C ${XIAOZHI_SRCS_C})
+list(APPEND COMPONENT_PRIVATE_INCLUDE_DIRS ${COMPONENT_DIR}/xiaozhi/include)
+list(APPEND COMPONENT_PRIVATE_INCLUDE_DIRS ${COMPONENT_DIR}/xiaozhi/src/priv_include)
 
 #
 # Register Component
@@ -53,4 +61,8 @@ set_source_files_properties(${COMPONENT_SRCS_C}
 set_source_files_properties(${COMPONENT_SRCS_CPP}
     PROPERTIES
         COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
+)
+set_source_files_properties(${XIAOZHI_SRCS_C}
+    PROPERTIES
+        COMPILE_FLAGS -Wno-stringop-truncation
 )

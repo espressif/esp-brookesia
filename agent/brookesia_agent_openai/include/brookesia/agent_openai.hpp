@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public OpenAI agent API.
+ */
+
 #include "agent_openai/macro_configs.h"
 #include "agent_openai/agent_openai.hpp"

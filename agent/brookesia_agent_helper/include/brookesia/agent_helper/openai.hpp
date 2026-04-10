@@ -11,24 +11,30 @@
 
 namespace esp_brookesia::agent::helper {
 
+/**
+ * @brief Helper schema definitions for the OpenAI agent service.
+ */
 class Openai: public service::helper::Base<Openai> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Persistent configuration for the OpenAI agent backend.
+     */
     struct Info {
-        std::string model;
-        std::string api_key;
+        std::string model; ///< Model identifier used for requests.
+        std::string api_key; ///< API key used for authentication.
     };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the types required by the Base class /////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    enum class FunctionId {
+    enum class FunctionId : uint8_t {
         Max,
     };
 
-    enum class EventId {
+    enum class EventId : uint8_t {
         Max,
     };
 
@@ -49,11 +55,21 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the functions required by the Base class /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Name of the OpenAI agent service.
+     *
+     * @return std::string_view Stable service name.
+     */
     static constexpr std::string_view get_name()
     {
         return "AgentOpenai";
     }
 
+    /**
+     * @brief Get the function schemas exported by the OpenAI agent.
+     *
+     * @return std::span<const service::FunctionSchema> Static schema span.
+     */
     static std::span<const service::FunctionSchema> get_function_schemas()
     {
         static const std::array < service::FunctionSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(FunctionId::Max) >
@@ -64,6 +80,11 @@ public:
         return std::span<const service::FunctionSchema>(FUNCTION_SCHEMAS);
     }
 
+    /**
+     * @brief Get the event schemas exported by the OpenAI agent.
+     *
+     * @return std::span<const service::EventSchema> Static schema span.
+     */
     static std::span<const service::EventSchema> get_event_schemas()
     {
         static const std::array < service::EventSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(EventId::Max) > EVENT_SCHEMAS = {

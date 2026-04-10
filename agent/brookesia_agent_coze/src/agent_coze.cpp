@@ -104,6 +104,7 @@ bool Coze::on_activate()
     auto &robot = info.robots[get_data<DataType::BotIndex>()];
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     // Use a static array to ensure lifetime and prevent temporary array from being overwritten
     static const char *subscribe_events[] = {
         "conversation.chat.requires_action", NULL
@@ -438,6 +439,9 @@ void Coze::try_erase_data()
         BROOKESIA_LOGD("NVS is not available, skip");
         return;
     }
+
+    auto binding = service::ServiceManager::get_instance().bind(NVSHelper::get_name().data());
+    BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
 
     auto result = NVSHelper::erase_keys(get_attributes().get_name(), {}, NVS_ERASE_DATA_TIMEOUT_MS);
     if (!result) {
@@ -792,8 +796,11 @@ std::string Coze::get_access_token(const CozeAuthInfo &auth_info)
     };
 
     // Send HTTP POST request
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     http_response_t response = {0};
     esp_err_t ret = http_client_post(AUTHORIZATION_URL.data(), header, http_req_json_buf.data(), &response);
+#pragma GCC diagnostic pop
 
     if (ret != ESP_OK) {
         BROOKESIA_LOGE("HTTP POST failed");

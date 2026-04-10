@@ -16,24 +16,39 @@
 #include "brookesia/service_helper/sntp.hpp"
 #include "brookesia/agent_helper/manager.hpp"
 #include "brookesia/service_manager/macro_configs.h"
+#include "brookesia/agent_manager/macro_configs.h"
 #include "brookesia/agent_manager/state_machine.hpp"
 #include "brookesia/agent_manager/base.hpp"
 
 namespace esp_brookesia::agent {
 
+/**
+ * @brief Registry of statically registered agent plugins.
+ */
 using Registry = lib_utils::PluginRegistry<Base>;
 
+/**
+ * @brief Service responsible for managing agent selection and shared agent state.
+ */
 class Manager: public service::ServiceBase {
 public:
     friend class Base;
     friend class StateMachine;
 
+    /**
+     * @brief Persistent keys managed by the agent manager.
+     */
     enum class DataType {
-        ActiveAgent,
+        TargetAgent,
         ChatMode,
         Max,
     };
 
+    /**
+     * @brief Get the global agent-manager singleton.
+     *
+     * @return Manager& Singleton instance.
+     */
     static Manager &get_instance()
     {
         static Manager instance;
@@ -43,8 +58,7 @@ public:
 private:
     using Helper = helper::Manager;
 
-    const std::string DEFAULT_ACTIVE_AGENT = "";
-    const Helper::ChatMode DEFAULT_CHAT_MODE = Helper::ChatMode::RealTime;
+    const Helper::ChatMode DEFAULT_CHAT_MODE = Helper::ChatMode::RealTime; ///< Default persisted chat mode.
 
     Manager():
         service::ServiceBase(service::ServiceBase::Attributes{
@@ -79,8 +93,10 @@ private:
 
     std::expected<void, std::string> function_set_agent_info(const std::string &name, const boost::json::object &info);
     std::expected<void, std::string> function_set_chat_mode(const std::string &mode);
-    std::expected<void, std::string> function_activate_agent(const std::string &name);
-    std::expected<boost::json::array, std::string> function_get_attributes(const std::string &name);
+    std::expected<void, std::string> function_set_target_agent(const std::string &name);
+    std::expected<std::string, std::string> function_get_target_agent();
+    std::expected<boost::json::array, std::string> function_get_agent_names();
+    std::expected<boost::json::array, std::string> function_get_agent_attributes(const std::string &name);
     std::expected<std::string, std::string> function_get_chat_mode();
     std::expected<std::string, std::string> function_get_active_agent();
     std::expected<void, std::string> function_trigger_general_action(const std::string &action);
@@ -119,12 +135,20 @@ private:
                 function_set_chat_mode(PARAM)
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
-                Helper, Helper::FunctionId::ActivateAgent, std::string,
-                function_activate_agent(PARAM)
+                Helper, Helper::FunctionId::SetTargetAgent, std::string,
+                function_set_target_agent(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetTargetAgent,
+                function_get_target_agent()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetAgentNames,
+                function_get_agent_names()
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::GetAgentAttributes, std::string,
-                function_get_attributes(PARAM)
+                function_get_agent_attributes(PARAM)
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::GetChatMode,
@@ -182,6 +206,7 @@ private:
     }
 
     std::expected<void, std::string> activate_agent(const std::string &name);
+    std::vector<std::string> get_agent_names();
 
     void reset_data();
     void try_load_data();
@@ -190,8 +215,8 @@ private:
     template<DataType type>
     constexpr auto get_data()
     {
-        if constexpr (type == DataType::ActiveAgent) {
-            return target_active_agent_;
+        if constexpr (type == DataType::TargetAgent) {
+            return target_agent_;
         } else if constexpr (type == DataType::ChatMode) {
             return chat_mode_;
         } else {
@@ -201,19 +226,13 @@ private:
     template<DataType type>
     void set_data(const auto &data)
     {
-        // If the data is the same, skip
-        if (get_data<type>() == data) {
-            return;
-        }
-        // Otherwise, set the data and save to NVS
-        if constexpr (type == DataType::ActiveAgent) {
-            target_active_agent_ = data;
+        if constexpr (type == DataType::TargetAgent) {
+            target_agent_ = data;
         } else if constexpr (type == DataType::ChatMode) {
             chat_mode_ = data;
         } else {
             static_assert(false, "Invalid data type");
         }
-        try_save_data(type);
     }
 
     lib_utils::TaskScheduler::Group get_state_task_group() const
@@ -235,10 +254,10 @@ private:
     std::shared_ptr<Base> active_agent_;
 
     bool is_data_loaded_ = false;
-    std::string target_active_agent_ = DEFAULT_ACTIVE_AGENT;
+    std::string target_agent_ = "";
     Helper::ChatMode chat_mode_ = DEFAULT_CHAT_MODE;
 };
 
-BROOKESIA_DESCRIBE_ENUM(Manager::DataType, ActiveAgent, ChatMode, Max);
+BROOKESIA_DESCRIBE_ENUM(Manager::DataType, TargetAgent, ChatMode, Max);
 
 } // namespace esp_brookesia::agent

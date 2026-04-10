@@ -1,5 +1,39 @@
 # ChangeLog
 
+## v0.7.4 - 2026-04-10
+
+### Breaking Changes:
+
+- break(manager): rename `DataType::ActiveAgent` to `DataType::TargetAgent`; update `BROOKESIA_DESCRIBE_ENUM`, NVS load/save, and all internal accessor paths accordingly
+- break(manager): rename `function_activate_agent()` to `function_set_target_agent()`; decouple target selection from activation — `SetTargetAgent` now only stores the target, while `TriggerGeneralAction::Activate` triggers the actual activation
+- break(manager): rename `function_get_attributes()` to `function_get_agent_attributes()`
+- break(state_machine): `lib_utils::StateMachine` constructor no longer accepts a group name; group is now passed via `StartConfig` in `start()`
+- break(state_machine): `state_machine_->start(scheduler, initial_state)` replaced by `state_machine_->start({.task_scheduler, .task_group_name, .initial_state})`
+- break(state_machine): `state_machine_->add_state(name, ptr)` replaced by `state_machine_->add_state(ptr)`; state name is now set in the `StateBase` constructor
+- break(manager): `set_data()` no longer calls `try_save_data()` automatically; callers are now responsible for explicit persistence
+
+### Enhancements:
+
+- feat(manager): add `function_set_target_agent()` to set the target agent without triggering activation
+- feat(manager): add `function_get_target_agent()` to query the currently targeted agent name
+- feat(manager): add `function_get_agent_names()` to retrieve all registered agent names
+- feat(manager): add `get_agent_names()` internal helper method based on `Registry::get_all_instances()`
+- feat(manager): initialize `TargetAgent` from the first registered agent in `on_init()`; reset to first registered agent (or empty) in `reset_data()`
+- feat(base): add `wake_words_` member and `get_wake_words()` protected accessor
+- feat(base): fetch AFE wake words from Audio service in `on_start()` and store in `wake_words_`
+- feat(base): in `set_speaking()`, pause/resume AFE wakeup-end task when agent starts/stops speaking and wake words are configured
+- feat(base): expose `is_general_action_running()` as protected method (moved from private)
+- feat(manager/state_machine): include `macro_configs.h` in `manager.hpp` and `state_machine.hpp`
+- feat(docs): add Doxygen documentation to all public types and methods across `base.hpp`, `manager.hpp`, `state_machine.hpp`, and `macro_configs.h`
+
+### Bug Fixes:
+
+- fix(manager): `function_get_active_agent()` now returns an error when no agent is active instead of an empty string
+- fix(manager): `function_trigger_general_action()` with `Activate` action now activates the target agent on demand if none is active or the active agent differs from the target
+- fix(manager): `function_reset_data()` no longer calls `try_erase_data()` directly; erase is now performed inside `reset_data()` for consistent cleanup
+- fix(manager): `on_deinit()` no longer calls `reset_data()` to avoid side effects during teardown
+- fix(manager): `try_load_data()` NVS log level reduced from INFO to DEBUG to reduce log noise
+
 ## v0.7.3 - 2026-02-25
 
 ### Breaking Changes:

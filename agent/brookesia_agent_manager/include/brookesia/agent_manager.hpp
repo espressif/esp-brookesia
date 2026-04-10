@@ -5,6 +5,10 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public agent-manager API.
+ */
+
 #include "agent_manager/macro_configs.h"
 #include "agent_manager/base.hpp"
 #include "agent_manager/manager.hpp"

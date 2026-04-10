@@ -497,6 +497,7 @@ static void websocket_event_handler(void *handler_args, esp_event_base_t base, i
             }
             memcpy(chat_obj->data_ptr + data->payload_offset, data->data_ptr, data->data_len);
             if (data->payload_len == data->payload_offset + data->data_len) {
+                chat_obj->data_ptr[data->payload_len] = '\0';
                 on_message(handler_args, (char *)chat_obj->data_ptr);
                 free(chat_obj->data_ptr);
                 chat_obj->data_ptr = NULL;

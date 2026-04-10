@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public XiaoZhi agent API.
+ */
+
 #include "agent_xiaozhi/macro_configs.h"
 #include "agent_xiaozhi/agent_xiaozhi.hpp"
