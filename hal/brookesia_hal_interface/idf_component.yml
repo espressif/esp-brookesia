@@ -1,5 +1,5 @@
-version: "0.7.0"
-description: ESP-Brookesia HAL interface which provides the Device/Interface model, typed lookup helpers, and reusable hardware interface definitions.
+version: "0.7.1"
+description: ESP-Brookesia HAL foundation component that defines a unified Device/Interface model, lifecycle helpers, typed lookup utilities, and reusable hardware interface definitions.
 url: https://github.com/espressif/esp-brookesia/tree/master/hal/brookesia_hal_interface
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
@@ -8,3 +8,8 @@ dependencies:
     version: "0.7.*"
     override_path: "../../utils/brookesia_lib_utils"
     require: public
+
+examples:
+  - path: ../../examples/agent/chatbot
+  - path: ../../examples/service/audio
+  - path: ../../examples/service/console
