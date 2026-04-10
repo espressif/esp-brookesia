@@ -1,0 +1,2 @@
+# Local CMake output if someone runs cmake from this directory; must not be globbed as component sources.
+/build/

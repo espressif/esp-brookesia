@@ -1,0 +1,19 @@
+# CMake / local build trees
+build*/
+build_*/
+
+# Visual regression (rainmaker_ui_visual_test, run_visual_tests.sh, visual_test_compare.py)
+# Note: visual_test_baseline/ is not ignored so golden baselines can be committed if desired.
+visual_test_output/
+visual_test_diff/
+visual_test_baseline/
+visual_test_report.html
+test_output/
+diffs/
+
+# Python (running compare script from pc/)
+__pycache__/
+*.py[cod]
+
+# CTest output if generated outside build/
+Testing/

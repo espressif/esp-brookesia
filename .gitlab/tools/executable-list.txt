@@ -9,3 +9,6 @@
 .github/tools/get_example_version.sh
 
 .gitlab/tools/run_test_apps.py
+
+apps/brookesia_app_rainmaker/pc/run_visual_tests.sh
+apps/brookesia_app_rainmaker/ui/fonts/gen_ui_zh_font.sh
