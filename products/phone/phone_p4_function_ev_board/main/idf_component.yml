@@ -3,7 +3,7 @@ dependencies:
   ## Required IDF version
   idf: ">=5.3"
 
-  espressif/esp32_p4_function_ev_board: "5.0.*"
+  espressif/esp32_p4_function_ev_board: "5.*"
 
   brookesia_core:
     version: "*"

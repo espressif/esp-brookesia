@@ -31,6 +31,9 @@ IGNORE_WARNINGS = [
     r"unknown kconfig symbol",
     r"warning: assignment discards 'const' qualifier from pointer target type", # For Speaker
     r"'esp_lcd_touch_get_coordinates' is deprecated: This API will be removed in version 2.0.0. Use esp_lcd_touch_get_data instead!", # For Speaker
+    r"warning: 'ISP_AWB_SAMPLE_POINT_BEFORE_CCM' is deprecated: Use ISP_AWB_SAMPLE_POINT_0 instead",
+    r"warning: 'ISP_AE_SAMPLE_POINT_AFTER_DEMOSAIC' is deprecated: Use ISP_AE_SAMPLE_POINT_0 instead",
+    r"Warning: esp_board_manager dependency not found",
 ]
 
 class CustomApp(CMakeApp):
