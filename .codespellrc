@@ -1,3 +1,2 @@
 [codespell]
-skip = products/speaker/main/modules/audio_sys.c
 ignore-words-list = rsource,dout,afe,AFE

@@ -1,0 +1,278 @@
+############
+# Patterns #
+############
+
+# build system, if changed, build all apps
+.patterns-build_system:
+  - ""
+  # - ".gitlab-ci.yml"
+  # - ".gitlab/**/*"
+  # - "conftest.py"
+  # - "pytest.ini"
+
+##############
+# if anchors #
+##############
+.patterns-if-protected:
+  if: '($CI_COMMIT_REF_NAME == "master" || $CI_COMMIT_BRANCH =~ /^release\/v/ || $CI_COMMIT_TAG =~ /^v\d+\.\d+(\.\d+)?($|-)/)'
+
+.patterns-if-dev-push:
+  if: '$CI_COMMIT_REF_NAME != "master" && $CI_COMMIT_BRANCH !~ /^release\/v/ && $CI_COMMIT_TAG !~ /^v\d+\.\d+(\.\d+)?($|-)/ && ($CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "merge_request_event")'
+
+.patterns-if-trigger-job:
+  if: '$BOT_DYNAMIC_TEST_JOBS && $BOT_DYNAMIC_TEST_JOBS =~ $CI_JOB_NAME'
+
+.patterns-if-label-build:
+  if: '$BOT_LABEL_BUILD || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*build(?:,[^,\n\r]+)*$/i'
+
+.patterns-if-label-build_docs:
+  if: '$BOT_LABEL_BUILD_DOCS || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*build_docs(?:,[^,\n\r]+)*$/i'
+
+.patterns-if-label-target_test:
+  if: '$BOT_LABEL_TARGET_TEST || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*target_test(?:,[^,\n\r]+)*$/i'
+
+.patterns-if-label-pre_check:
+  if: '$BOT_LABEL_PRE_CHECK || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*pre_check(?:,[^,\n\r]+)*$/i'
+
+.if_label-deploy:
+  if: '$BOT_LABEL_DEPLOY || $CI_MERGE_REQUEST_LABELS =~ /^(?:[^,\n\r]+,)*deploy(?:,[^,\n\r]+)*$/i'
+
+#
+# Docs
+#
+# README Files
+.patterns-docs_md:
+  - "**/*.md"
+# RST Files
+.patterns-docs_rst:
+  - "docs/**/*"
+# RST Include Files
+.patterns-docs_inc:
+  - "docs/**/*"
+
+#
+# Components Folder
+#
+# Agent
+#
+# brookesia_agent_coze
+.patterns-component_brookesia_agent_coze:
+  - "agent/brookesia_agent_coze/include/**/*"
+  - "agent/brookesia_agent_coze/src/**/*"
+  - "agent/brookesia_agent_coze/CMakeLists.txt"
+  - "agent/brookesia_agent_coze/idf_component.yml"
+  - "agent/brookesia_agent_coze/Kconfig"
+# brookesia_agent_helper
+.patterns-component_brookesia_agent_helper:
+  - "agent/brookesia_agent_helper/include/**/*"
+  - "agent/brookesia_agent_helper/src/**/*"
+  - "agent/brookesia_agent_helper/CMakeLists.txt"
+  - "agent/brookesia_agent_helper/idf_component.yml"
+  - "agent/brookesia_agent_helper/Kconfig"
+# brookesia_agent_manager
+.patterns-component_brookesia_agent_manager:
+  - "agent/brookesia_agent_manager/include/**/*"
+  - "agent/brookesia_agent_manager/src/**/*"
+  - "agent/brookesia_agent_manager/CMakeLists.txt"
+  - "agent/brookesia_agent_manager/idf_component.yml"
+  - "agent/brookesia_agent_manager/Kconfig"
+# brookesia_agent_openai
+.patterns-component_brookesia_agent_openai:
+  - "agent/brookesia_agent_openai/include/**/*"
+  - "agent/brookesia_agent_openai/src/**/*"
+  - "agent/brookesia_agent_openai/CMakeLists.txt"
+  - "agent/brookesia_agent_openai/idf_component.yml"
+  - "agent/brookesia_agent_openai/Kconfig"
+# brookesia_agent_xiaozhi
+.patterns-component_brookesia_agent_xiaozhi:
+  - "agent/brookesia_agent_xiaozhi/include/**/*"
+  - "agent/brookesia_agent_xiaozhi/src/**/*"
+  - "agent/brookesia_agent_xiaozhi/CMakeLists.txt"
+  - "agent/brookesia_agent_xiaozhi/idf_component.yml"
+  - "agent/brookesia_agent_xiaozhi/Kconfig"
+#
+# Expression
+#
+# brookesia_expression_emote
+.patterns-component_brookesia_expression_emote:
+  - "expression/brookesia_expression_emote/include/**/*"
+  - "expression/brookesia_expression_emote/src/**/*"
+  - "expression/brookesia_expression_emote/CMakeLists.txt"
+  - "expression/brookesia_expression_emote/idf_component.yml"
+  - "expression/brookesia_expression_emote/Kconfig"
+#
+# Hal
+#
+# brookesia_hal_adaptor
+.patterns-component_brookesia_hal_adaptor:
+  - "hal/brookesia_hal_adaptor/include/**/*"
+  - "hal/brookesia_hal_adaptor/src/**/*"
+  - "hal/brookesia_hal_adaptor/CMakeLists.txt"
+  - "hal/brookesia_hal_adaptor/idf_component.yml"
+  - "hal/brookesia_hal_adaptor/Kconfig"
+# brookesia_hal_boards
+.patterns-component_brookesia_hal_boards:
+  - "hal/brookesia_hal_boards/boards/**/*"
+  - "hal/brookesia_hal_boards/CMakeLists.txt"
+  - "hal/brookesia_hal_boards/idf_component.yml"
+# brookesia_hal_interface
+.patterns-component_brookesia_hal_interface:
+  - "hal/brookesia_hal_interface/include/**/*"
+  - "hal/brookesia_hal_interface/src/**/*"
+  - "hal/brookesia_hal_interface/CMakeLists.txt"
+  - "hal/brookesia_hal_interface/idf_component.yml"
+  - "hal/brookesia_hal_interface/Kconfig"
+#
+# Service
+#
+# brookesia_service_audio
+.patterns-component_brookesia_service_audio:
+  - "service/brookesia_service_audio/include/**/*"
+  - "service/brookesia_service_audio/src/**/*"
+  - "service/brookesia_service_audio/CMakeLists.txt"
+  - "service/brookesia_service_audio/idf_component.yml"
+  - "service/brookesia_service_audio/Kconfig"
+# brookesia_service_custom
+.patterns-component_brookesia_service_custom:
+  - "service/brookesia_service_custom/include/**/*"
+  - "service/brookesia_service_custom/src/**/*"
+  - "service/brookesia_service_custom/CMakeLists.txt"
+  - "service/brookesia_service_custom/idf_component.yml"
+  - "service/brookesia_service_custom/Kconfig"
+# brookesia_service_helper
+.patterns-component_brookesia_service_helper:
+  - "service/brookesia_service_helper/include/**/*"
+  - "service/brookesia_service_helper/src/**/*"
+  - "service/brookesia_service_helper/CMakeLists.txt"
+  - "service/brookesia_service_helper/idf_component.yml"
+  - "service/brookesia_service_helper/Kconfig"
+# brookesia_service_manager
+.patterns-component_brookesia_service_manager:
+  - "service/brookesia_service_manager/include/**/*"
+  - "service/brookesia_service_manager/src/**/*"
+  - "service/brookesia_service_manager/CMakeLists.txt"
+  - "service/brookesia_service_manager/idf_component.yml"
+  - "service/brookesia_service_manager/Kconfig"
+# brookesia_service_nvs
+.patterns-component_brookesia_service_nvs:
+  - "service/brookesia_service_nvs/include/**/*"
+  - "service/brookesia_service_nvs/src/**/*"
+  - "service/brookesia_service_nvs/CMakeLists.txt"
+  - "service/brookesia_service_nvs/idf_component.yml"
+  - "service/brookesia_service_nvs/Kconfig"
+# brookesia_service_sntp
+.patterns-component_brookesia_service_sntp:
+  - "service/brookesia_service_sntp/include/**/*"
+  - "service/brookesia_service_sntp/src/**/*"
+  - "service/brookesia_service_sntp/CMakeLists.txt"
+  - "service/brookesia_service_sntp/idf_component.yml"
+  - "service/brookesia_service_sntp/Kconfig"
+# brookesia_service_wifi
+.patterns-component_brookesia_service_wifi:
+  - "service/brookesia_service_wifi/include/**/*"
+  - "service/brookesia_service_wifi/src/**/*"
+  - "service/brookesia_service_wifi/CMakeLists.txt"
+  - "service/brookesia_service_wifi/idf_component.yml"
+  - "service/brookesia_service_wifi/Kconfig"
+# brookesia_service_video
+.patterns-component_brookesia_service_video:
+  - "service/brookesia_service_video/include/**/*"
+  - "service/brookesia_service_video/src/**/*"
+  - "service/brookesia_service_video/CMakeLists.txt"
+  - "service/brookesia_service_video/idf_component.yml"
+  - "service/brookesia_service_video/Kconfig"
+#
+# Utils
+#
+# brookesia_lib_utils
+.patterns-component_brookesia_lib_utils:
+  - "utils/brookesia_lib_utils/include/**/*"
+  - "utils/brookesia_lib_utils/src/**/*"
+  - "utils/brookesia_lib_utils/CMakeLists.txt"
+  - "utils/brookesia_lib_utils/idf_component.yml"
+  - "utils/brookesia_lib_utils/Kconfig"
+# brookesia_mcp_utils
+.patterns-component_brookesia_mcp_utils:
+  - "utils/brookesia_mcp_utils/include/**/*"
+  - "utils/brookesia_mcp_utils/src/**/*"
+  - "utils/brookesia_mcp_utils/CMakeLists.txt"
+  - "utils/brookesia_mcp_utils/idf_component.yml"
+  - "utils/brookesia_mcp_utils/Kconfig"
+
+#
+# Test_apps folder
+#
+#
+# Hal
+#
+# brookesia_hal_adaptor
+.patterns-test_apps_brookesia_hal_adaptor:
+  - "hal/brookesia_hal_adaptor/test_apps/**/*"
+# brookesia_hal_interface
+.patterns-test_apps_brookesia_hal_interface:
+  - "hal/brookesia_hal_interface/test_apps/**/*"
+# Service
+#
+# brookesia_service_audio
+.patterns-test_apps_brookesia_service_audio:
+  - "service/brookesia_service_audio/test_apps/**/*"
+# brookesia_service_manager
+.patterns-test_apps_brookesia_service_manager:
+  - "service/brookesia_service_manager/test_apps/**/*"
+# brookesia_service_custom
+.patterns-test_apps_brookesia_service_custom:
+  - "service/brookesia_service_custom/test_apps/**/*"
+# brookesia_service_nvs
+.patterns-test_apps_brookesia_service_nvs:
+  - "service/brookesia_service_nvs/test_apps/**/*"
+# brookesia_service_sntp
+.patterns-test_apps_brookesia_service_sntp:
+  - "service/brookesia_service_sntp/test_apps/**/*"
+# brookesia_service_wifi
+.patterns-test_apps_brookesia_service_wifi:
+  - "service/brookesia_service_wifi/test_apps/**/*"
+#
+# Utils
+#
+# brookesia_lib_utils
+.patterns-test_apps_brookesia_lib_utils_check:
+  - "utils/brookesia_lib_utils/test_apps/check/**/*"
+.patterns-test_apps_brookesia_lib_utils_describe_helpers:
+  - "utils/brookesia_lib_utils/test_apps/describe_helpers/**/*"
+.patterns-test_apps_brookesia_lib_utils_function_guard:
+  - "utils/brookesia_lib_utils/test_apps/function_guard/**/*"
+.patterns-test_apps_brookesia_lib_utils_log:
+  - "utils/brookesia_lib_utils/test_apps/log/**/*"
+.patterns-test_apps_brookesia_lib_utils_memory_profiler:
+  - "utils/brookesia_lib_utils/test_apps/memory_profiler/**/*"
+.patterns-test_apps_brookesia_lib_utils_plugin:
+  - "utils/brookesia_lib_utils/test_apps/plugin/**/*"
+.patterns-test_apps_brookesia_lib_utils_state_machine:
+  - "utils/brookesia_lib_utils/test_apps/state_machine/**/*"
+.patterns-test_apps_brookesia_lib_utils_task_scheduler:
+  - "utils/brookesia_lib_utils/test_apps/task_scheduler/**/*"
+.patterns-test_apps_brookesia_lib_utils_thread_config:
+  - "utils/brookesia_lib_utils/test_apps/thread_config/**/*"
+.patterns-test_apps_brookesia_lib_utils_thread_profiler:
+  - "utils/brookesia_lib_utils/test_apps/thread_profiler/**/*"
+.patterns-test_apps_brookesia_lib_utils_time_profiler:
+  - "utils/brookesia_lib_utils/test_apps/time_profiler/**/*"
+
+#
+# Examples
+#
+# agent/chatbot
+.patterns-examples_agent_chatbot:
+  - "examples/agent/chatbot/**/*"
+# service/audio
+.patterns-examples_service_audio:
+  - "examples/service/audio/**/*"
+# service/console
+.patterns-examples_service_console:
+  - "examples/service/console/**/*"
+# service/nvs
+.patterns-examples_service_nvs:
+  - "examples/service/nvs/**/*"
+# service/wifi
+.patterns-examples_service_wifi:
+  - "examples/service/wifi/**/*"

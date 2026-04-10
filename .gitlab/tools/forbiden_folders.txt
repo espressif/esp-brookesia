@@ -1,2 +1,2 @@
-./examples/service_console
+./examples/service/console
 ./

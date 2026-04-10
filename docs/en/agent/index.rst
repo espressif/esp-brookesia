@@ -23,7 +23,7 @@ This section documents ESP-Brookesia agent framework components. The framework c
 
 .. only:: latex
 
-   .. image:: ../../_static/agent/index_diagram_en.svg
+   .. image:: ../../_static/agent/index_diagram_en.png
       :width: 100%
 
 - ``brookesia_agent_manager``: The agent framework core, responsible for plugin registration, state machine lifecycle control, and integration of audio and time-sync services.

@@ -3,6 +3,8 @@
 接口基类
 ========
 
+:link_to_translation:`en:[English]`
+
 公共头文件： ``#include "brookesia/hal_interface/interface.hpp"``
 
 .. _hal-interface-interface-sec-01:

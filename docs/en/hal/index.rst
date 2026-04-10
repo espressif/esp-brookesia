@@ -3,6 +3,8 @@
 HAL Components
 ==============
 
+:link_to_translation:`zh_CN:[中文]`
+
 ESP-Brookesia HAL consists of three components that work together in layers, bridging the gap between board-level hardware and upper-layer business logic:
 
 .. only:: html
@@ -21,7 +23,7 @@ ESP-Brookesia HAL consists of three components that work together in layers, bri
 
 .. only:: latex
 
-   .. image:: ../../_static/hal/index_diagram_en.svg
+   .. image:: ../../_static/hal/index_diagram_en.png
       :width: 100%
 
 - ``brookesia_hal_interface``: **Defines abstract interfaces**; upper-layer code depends only on this layer and remains decoupled from hardware details.

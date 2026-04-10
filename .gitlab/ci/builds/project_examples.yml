@@ -1,0 +1,68 @@
+#
+# Agent
+#
+# agent/chatbot
+build_examples_agent_chatbot:
+  extends:
+    - .build_template_without_large_artifacts
+    - .rules:build:examples_agent_chatbot
+# This example relies on board-manager generated sources, so only build
+# board-specific configs and avoid standalone `defaults` builds.
+  parallel:
+    matrix:
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32s3"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+  variables:
+    EXAMPLE_DIR: examples/agent/chatbot
+
+#
+# Service
+#
+# service/audio
+build_examples_service_audio:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_with_board
+    - .rules:build:examples_service_audio
+  variables:
+    EXAMPLE_DIR: examples/service/audio
+# service/console
+build_examples_service_console:
+  extends:
+    - .build_template_without_large_artifacts
+    - .rules:build:examples_service_console
+# This example relies on board-manager generated sources, so only build
+# board-specific configs and avoid standalone `defaults` builds.
+  parallel:
+    matrix:
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32s3"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: espressif/idf:release-v5.5
+        EXAMPLE_TARGET: "esp32c5"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+  variables:
+    EXAMPLE_DIR: examples/service/console
+# service/nvs
+build_examples_service_nvs:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:examples_service_nvs
+  variables:
+    EXAMPLE_DIR: examples/service/nvs
+# service/wifi
+build_examples_service_wifi:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:examples_service_wifi
+  variables:
+    EXAMPLE_DIR: examples/service/wifi

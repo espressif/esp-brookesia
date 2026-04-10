@@ -23,7 +23,7 @@ This section documents the ESP-Brookesia service framework components. The frame
 
 .. only:: latex
 
-   .. image:: ../../_static/service/index_diagram_en.svg
+   .. image:: ../../_static/service/index_diagram_en.png
       :width: 100%
 
 - ``brookesia_service_manager``: The service framework core, responsible for plugin registration, function routing, and event dispatching in both local and RPC communication modes.

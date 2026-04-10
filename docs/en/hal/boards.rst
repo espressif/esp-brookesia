@@ -3,6 +3,8 @@
 HAL Boards
 ==========
 
+:link_to_translation:`zh_CN:[中文]`
+
 - Component Registry: `espressif/brookesia_hal_boards <https://components.espressif.com/components/espressif/brookesia_hal_boards>`_
 
 .. _hal-boards-sec-01:

@@ -3,6 +3,8 @@
 HAL Interface
 =============
 
+:link_to_translation:`zh_CN:[中文]`
+
 - Component registry: `espressif/brookesia_hal_interface <https://components.espressif.com/components/espressif/brookesia_hal_interface>`_
 - Public header: ``#include "brookesia/hal_interface.hpp"``
 

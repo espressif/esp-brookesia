@@ -65,7 +65,7 @@
 
 .. only:: latex
 
-   .. image:: ../../../_static/service/manager_local_diagram.svg
+   .. image:: ../../../_static/service/manager_local_diagram.png
       :width: 100%
 
 .. _service-manager-index-sec-05:
@@ -116,7 +116,7 @@
 
 .. only:: latex
 
-   .. image:: ../../../_static/service/manager_rpc_diagram.svg
+   .. image:: ../../../_static/service/manager_rpc_diagram.png
       :width: 100%
 
 .. _service-manager-index-sec-06:

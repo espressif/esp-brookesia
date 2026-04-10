@@ -4,6 +4,8 @@
 # - Same relative file paths in 'en' and 'zh_CN'
 # - Same line count for each paired file
 # - For .rst pairs with matching line count: same explicit .. _anchor: names in order
+# - Every 'en' .rst has :link_to_translation:`zh_CN:[中文]`
+# - Every 'zh_CN' .rst has :link_to_translation:`en:[English]`
 #
 
 set -e
@@ -35,6 +37,7 @@ fi
 
 LINE_MISMATCHES=""
 ANCHOR_MISMATCHES=""
+TRANSLATION_LINK_MISMATCHES=""
 while IFS= read -r rel; do
     [ -z "$rel" ] && continue
     en_lines=$(wc -l < "en/$rel" | tr -d '[:space:]')
@@ -56,6 +59,15 @@ while IFS= read -r rel; do
             ANCHOR_MISMATCHES="${ANCHOR_MISMATCHES}${anchor_diff}"$'\n'
             RESULT=1
         fi
+
+        if ! grep -q "link_to_translation.*zh_CN" "en/$rel" 2>/dev/null; then
+            TRANSLATION_LINK_MISMATCHES="${TRANSLATION_LINK_MISMATCHES}  [en] missing :link_to_translation:\`zh_CN:[中文]\`: ${rel}"$'\n'
+            RESULT=1
+        fi
+        if ! grep -q "link_to_translation.*en:" "zh_CN/$rel" 2>/dev/null; then
+            TRANSLATION_LINK_MISMATCHES="${TRANSLATION_LINK_MISMATCHES}  [zh_CN] missing :link_to_translation:\`en:[English]\`: ${rel}"$'\n'
+            RESULT=1
+        fi
         ;;
     esac
 done < <(comm -12 file_list_en file_list_zh_CN)
@@ -74,6 +86,16 @@ if ! [ -z "$ANCHOR_MISMATCHES" ]; then
     echo "$STARS"
     echo "Build failed: explicit '.. _anchor:' labels differ between 'en' and 'zh_CN' (same line count)."
     echo "Keep the same anchor names and order in paired .rst files."
+    RESULT=1
+fi
+
+if ! [ -z "$TRANSLATION_LINK_MISMATCHES" ]; then
+    echo "$STARS"
+    echo "Build failed: missing :link_to_translation: directives in the following .rst files:"
+    echo -n "$TRANSLATION_LINK_MISMATCHES"
+    echo "$STARS"
+    echo "Each 'en' .rst must contain :link_to_translation:\`zh_CN:[中文]\`"
+    echo "Each 'zh_CN' .rst must contain :link_to_translation:\`en:[English]\`"
     RESULT=1
 fi
 

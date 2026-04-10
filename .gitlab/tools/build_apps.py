@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-2024 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2022-2026 Espressif Systems (Shanghai) CO LTD
 #
 # SPDX-License-Identifier: Apache-2.0
 
@@ -21,7 +21,7 @@ from idf_build_apps import App, build_apps, find_apps, setup_logging
 from idf_build_apps.app import CMakeApp
 
 logger = logging.getLogger('idf_build_apps')
-IDF_PATH = os.getenv("IDF_PATH", "")
+IDF_PATH = os.getenv('IDF_PATH', '')
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
 APPS_BUILD_PER_JOB = 30
@@ -29,9 +29,11 @@ IGNORE_WARNINGS = [
     r"warning: unused variable 'head'",
     r"WARNING: The following Kconfig variables were used in",
     r"unknown kconfig symbol",
-    r"warning: assignment discards 'const' qualifier from pointer target type", # For Speaker
-    r"'esp_lcd_touch_get_coordinates' is deprecated: This API will be removed in version 2.0.0. Use esp_lcd_touch_get_data instead!", # For Speaker
+    r"warning: 'ISP_AWB_SAMPLE_POINT_BEFORE_CCM' is deprecated: Use ISP_AWB_SAMPLE_POINT_0 instead",
+    r"warning: 'ISP_AE_SAMPLE_POINT_AFTER_DEMOSAIC' is deprecated: Use ISP_AE_SAMPLE_POINT_0 instead",
+    r"Warning: esp_board_manager dependency not found",
 ]
+
 
 class CustomApp(CMakeApp):
     build_system: t.Literal['custom'] = 'custom'  # Must be unique to identify your custom app type
@@ -53,9 +55,10 @@ class CustomApp(CMakeApp):
         )
 
     def is_board_manager_project(self) -> bool:
-        main_yml_path = Path(self.work_dir)/"main"/"idf_component.yml"
+        main_yml_path = Path(self.work_dir) / 'main' / 'idf_component.yml'
         with open(main_yml_path) as f:
-            return 'esp_board_manager' in f.read()
+            content = f.read()
+        return 'esp_board_manager' in content or 'brookesia_hal_boards' in content
 
     def get_board_name_from_sdkconfig(self, sdkconfig_path: str) -> str:
         board_name = ''
@@ -67,25 +70,29 @@ class CustomApp(CMakeApp):
     def clear_project_generated_files(self):
         proj_path = Path(self.work_dir).absolute()
         # Remove directories
-        shutil.rmtree(proj_path/"managed_components", ignore_errors=True)
-        shutil.rmtree(proj_path/"components"/"gen_bmgr_codes", ignore_errors=True)
-        shutil.rmtree(proj_path/"build", ignore_errors=True)
+        shutil.rmtree(proj_path / 'managed_components', ignore_errors=True)
+        shutil.rmtree(proj_path / 'components' / 'gen_bmgr_codes', ignore_errors=True)
+        shutil.rmtree(proj_path / 'build', ignore_errors=True)
         # Remove files
-        (proj_path/"dependencies.lock").unlink(missing_ok=True)
-        (proj_path/"sdkconfig").unlink(missing_ok=True)
-        (proj_path/"board_manager.defaults").unlink(missing_ok=True)
+        (proj_path / 'dependencies.lock').unlink(missing_ok=True)
+        (proj_path / 'sdkconfig').unlink(missing_ok=True)
+        (proj_path / 'board_manager.defaults').unlink(missing_ok=True)
 
     def _pre_hook(self):
         board_name = ''
         if self.is_board_manager_project() and len(self.sdkconfig_files) > 1:
             board_name = self.get_board_name_from_sdkconfig(self.sdkconfig_files[1])
-        print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board: {board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
+        print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board:'
+              f'{board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
         self.clear_project_generated_files()
         if board_name == '':
             print(f'== No board name found, skip setting board manager config')
-            return # no board name found, skip the pre build hook
-        subprocess.run([sys.executable, f"{IDF_PATH}/tools/idf.py", "gen-bmgr-config", "-c", str(Path(self.work_dir).absolute()/"boards"), "-b", board_name], cwd=self.work_dir)
-        subprocess.run([sys.executable, f"{IDF_PATH}/tools/idf.py", "set-target", self.target], cwd=self.work_dir)
+            return  # no board name found, skip the pre build hook
+        subprocess.run(
+            [sys.executable, f'{IDF_PATH}/tools/idf.py', 'gen-bmgr-config', '-b', board_name], cwd=self.work_dir
+        )
+        subprocess.run([sys.executable, f'{IDF_PATH}/tools/idf.py', 'set-target', self.target], cwd=self.work_dir)
+
 
 def _get_idf_version():
     if os.environ.get('IDF_VERSION'):
@@ -99,6 +106,7 @@ def _get_idf_version():
             if m:
                 ver[m.group(1)] = m.group(2)
     return '{}.{}'.format(int(ver['MAJOR']), int(ver['MINOR']))
+
 
 def get_cmake_apps(
     paths,
@@ -119,7 +127,7 @@ def get_cmake_apps(
         no_preserve=False,
         default_build_targets=default_build_targets,
         manifest_files=[
-            str(Path(PROJECT_ROOT)/'.build-rules.yml'),
+            str(Path(PROJECT_ROOT) / '.build-rules.yml'),
         ],
         build_system=CustomApp,
     )

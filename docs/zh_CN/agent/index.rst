@@ -23,7 +23,7 @@ AI 智能体组件
 
 .. only:: latex
 
-   .. image:: ../../_static/agent/index_diagram_cn.svg
+   .. image:: ../../_static/agent/index_diagram_cn.png
       :width: 100%
 
 - ``brookesia_agent_manager``：智能体框架核心，负责智能体插件注册、状态机生命周期控制，并集成音频与时间同步服务

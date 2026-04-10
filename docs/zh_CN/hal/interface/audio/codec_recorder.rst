@@ -3,6 +3,8 @@
 编解码器录音接口
 ====================
 
+:link_to_translation:`en:[English]`
+
 公共头文件： ``#include "brookesia/hal_interface/audio/codec_recorder.hpp"``
 
 类名： ``AudioCodecRecorderIface``

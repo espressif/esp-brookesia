@@ -1,0 +1,213 @@
+# Copyright 2022 Espressif Systems (Shanghai) PTE LTD
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# This workflow build examples, store the artifacts and deploy them to github pages.
+# Generates the launchpad configuration file that can be used with the url.
+
+name: "Build binaries and deploy to GitHub Pages"
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Allow one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  build-examples-agent-chatbot:
+    name: "Build Agent Chatbot"
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.5
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - esp_vocat_board_v1_0
+          - esp_vocat_board_v1_2
+          - esp_box_3
+          - esp32_p4_function_ev
+          - esp32_s3_korvo2_v3
+          # - esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      - run: mkdir -p images/agent/chatbot
+      - name: Get board chip type
+        shell: bash
+        run: |
+          CHIP=$(grep "^chip:" hal/brookesia_hal_boards/boards/${{ matrix.board }}/board_info.yaml | awk '{print $2}')
+          echo "CHIP=$CHIP" >> $GITHUB_ENV
+          echo "Board chip: $CHIP"
+      - name: Build agent/chatbot for ${{ matrix.board }}
+        shell: bash
+        run: |
+          . ${IDF_PATH}/export.sh
+          $GITHUB_WORKSPACE/.github/tools/build_with_board_manager.sh \
+            -p examples/agent/chatbot \
+            -b ${{ matrix.board }} \
+            -c $CHIP \
+            -o $GITHUB_WORKSPACE/images/agent/chatbot \
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-images-agent-chatbot-${{ matrix.board }}
+          path: images/agent/chatbot/
+          overwrite: true
+
+  build-examples-service-console:
+    name: "Build Service Console"
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.5
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          - esp_vocat_board_v1_0
+          - esp_vocat_board_v1_2
+          - esp_box_3
+          - esp32_p4_function_ev
+          - esp32_s3_korvo2_v3
+          # - esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      - run: mkdir -p images/service/console
+      - name: Get board chip type
+        shell: bash
+        run: |
+          CHIP=$(grep "^chip:" hal/brookesia_hal_boards/boards/${{ matrix.board }}/board_info.yaml | awk '{print $2}')
+          echo "CHIP=$CHIP" >> $GITHUB_ENV
+          echo "Board chip: $CHIP"
+      - name: Build service/console for ${{ matrix.board }}
+        shell: bash
+        run: |
+          . ${IDF_PATH}/export.sh
+          $GITHUB_WORKSPACE/.github/tools/build_with_board_manager.sh \
+            -p examples/service/console \
+            -b ${{ matrix.board }} \
+            -c $CHIP \
+            -o $GITHUB_WORKSPACE/images/service/console \
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-images-service-console-${{ matrix.board }}
+          path: images/service/console/
+          overwrite: true
+
+  deploy:
+    needs: [build-examples-agent-chatbot, build-examples-service-console]
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Restore previous images from cache branch
+        run: |
+          git fetch origin gh-pages-cache 2>/dev/null || true
+          if git show-ref --verify refs/remotes/origin/gh-pages-cache >/dev/null 2>&1; then
+            git checkout origin/gh-pages-cache -- images 2>/dev/null || true
+            echo "Restored previous images:"
+            find images -type f | sort
+          else
+            echo "No previous images cache found, starting fresh"
+          fi
+          mkdir -p images/agent/chatbot
+          mkdir -p images/service/console
+
+      - name: Download agent/chatbot builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-images-agent-chatbot-*
+          path: images/agent/chatbot/
+          merge-multiple: true
+
+      - name: Download service/console builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-images-service-console-*
+          path: images/service/console/
+          merge-multiple: true
+
+      - name: Generate launchpad configs
+        run: |
+          # Generate agent/chatbot launchpad
+          cd $GITHUB_WORKSPACE/images/agent/chatbot/
+          ls -la
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY agent/chatbot
+          # Generate service/console launchpad
+          cd $GITHUB_WORKSPACE/images/service/console/
+          ls -la
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY service/console
+
+      - name: Generate index page
+        run: |
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_index.sh $GITHUB_REPOSITORY $GITHUB_WORKSPACE/images
+
+      - name: Save images to cache branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git show-ref --verify refs/remotes/origin/gh-pages-cache >/dev/null 2>&1; then
+            git worktree add /tmp/pages-cache origin/gh-pages-cache
+          else
+            git worktree add --detach /tmp/pages-cache
+            (cd /tmp/pages-cache && git checkout --orphan gh-pages-cache && git rm -rf . 2>/dev/null || true)
+          fi
+
+          mkdir -p /tmp/pages-cache/images
+          rsync -a --delete images/ /tmp/pages-cache/images/
+
+          (
+            cd /tmp/pages-cache
+            git add -A
+            if git diff --staged --quiet; then
+              echo "No changes to images cache"
+            else
+              git commit -m "chore: sync images cache [run #${{ github.run_number }}]"
+              git push origin HEAD:gh-pages-cache
+            fi
+          )
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v2
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: images/
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

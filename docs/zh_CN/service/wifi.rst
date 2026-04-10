@@ -162,7 +162,7 @@ WiFi 服务通过状态机统一管理 WiFi 的生命周期状态，确保状态
 
 .. only:: latex
 
-   .. image:: ../../_static/service/wifi_diagram.svg
+   .. image:: ../../_static/service/wifi_diagram.png
       :width: 100%
 
 .. _service-wifi-sec-04:

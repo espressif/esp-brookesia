@@ -3,6 +3,8 @@
 HAL 适配
 ===========
 
+:link_to_translation:`en:[English]`
+
 - 组件注册表： `espressif/brookesia_hal_adaptor <https://components.espressif.com/components/espressif/brookesia_hal_adaptor>`_
 - 公共头文件： ``#include "brookesia/hal_adaptor.hpp"``
 

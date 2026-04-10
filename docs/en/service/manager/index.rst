@@ -65,7 +65,7 @@ After `ServiceManager` binds a service, the app uses `ServiceBase` to access fun
 
 .. only:: latex
 
-   .. image:: ../../../_static/service/manager_local_diagram.svg
+   .. image:: ../../../_static/service/manager_local_diagram.png
       :width: 100%
 
 .. _service-manager-index-sec-05:
@@ -116,7 +116,7 @@ Clients use TCP sockets and JSON to reach remote services—suitable for cross-d
 
 .. only:: latex
 
-   .. image:: ../../../_static/service/manager_rpc_diagram.svg
+   .. image:: ../../../_static/service/manager_rpc_diagram.png
       :width: 100%
 
 .. _service-manager-index-sec-06:

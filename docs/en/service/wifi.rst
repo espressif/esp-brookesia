@@ -163,7 +163,7 @@ State transition diagram:
 
 .. only:: latex
 
-   .. image:: ../../_static/service/wifi_diagram.svg
+   .. image:: ../../_static/service/wifi_diagram.png
       :width: 100%
 
 .. _service-wifi-sec-04:

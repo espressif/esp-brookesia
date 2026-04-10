@@ -3,6 +3,8 @@
 Wi-Fi Helper
 ============
 
+:link_to_translation:`en:[English]`
+
 - 公共头文件： ``#include "brookesia/service_helper/wifi.hpp"``
 
 .. _service-helper-wifi-sec-01:

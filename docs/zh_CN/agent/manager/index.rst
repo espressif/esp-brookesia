@@ -152,7 +152,7 @@ AI 智能体管理器
 
 .. only:: latex
 
-   .. image:: ../../../_static/agent/manager_diagram.svg
+   .. image:: ../../../_static/agent/manager_diagram.png
       :width: 100%
 
 .. _agent-manager-index-sec-04:

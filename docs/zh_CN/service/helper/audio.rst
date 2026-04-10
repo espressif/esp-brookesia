@@ -3,6 +3,8 @@
 音频 Helper
 ===========
 
+:link_to_translation:`en:[English]`
+
 - 公共头文件： ``#include "brookesia/service_helper/audio.hpp"``
 
 .. _service-helper-audio-sec-01:

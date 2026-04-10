@@ -3,6 +3,8 @@
 Interface Base
 ==============
 
+:link_to_translation:`zh_CN:[中文]`
+
 Public header: ``#include "brookesia/hal_interface/interface.hpp"``
 
 .. _hal-interface-interface-sec-01:

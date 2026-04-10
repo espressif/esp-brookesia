@@ -3,6 +3,8 @@
 NVS Helper
 ==========
 
+:link_to_translation:`en:[English]`
+
 - 公共头文件： ``#include "brookesia/service_helper/nvs.hpp"``
 
 .. _service-helper-nvs-sec-01:

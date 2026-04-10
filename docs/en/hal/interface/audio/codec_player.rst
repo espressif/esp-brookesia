@@ -3,6 +3,8 @@
 Codec Player Interface
 ======================
 
+:link_to_translation:`zh_CN:[中文]`
+
 Public header: ``#include "brookesia/hal_interface/audio/codec_player.hpp"``
 
 Class: ``AudioCodecPlayerIface``

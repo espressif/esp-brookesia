@@ -3,6 +3,8 @@
 Device
 ======
 
+:link_to_translation:`zh_CN:[中文]`
+
 Public header: ``#include "brookesia/hal_interface/device.hpp"``
 
 .. _hal-interface-device-sec-01:

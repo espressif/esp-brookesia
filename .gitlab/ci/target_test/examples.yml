@@ -1,0 +1,105 @@
+#
+# Examples
+#
+# agent/chatbot
+target_test_examples_agent_chatbot:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_agent_chatbot
+  needs:
+    - job: "build_examples_agent_chatbot"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "esp_vocat"
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/agent/chatbot
+    TEST_ENV: ${ENV_TAG}
+# service/audio
+target_test_examples_service_audio:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_service_audio
+  needs:
+    - job: "build_examples_service_audio"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_with_board_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/service/audio
+    TEST_ENV: ${ENV_TAG}
+# service/console
+target_test_examples_service_console:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_service_console
+  needs:
+    - job: "build_examples_service_console"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "esp_vocat"
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/service/console
+    TEST_ENV: ${ENV_TAG}
+# service/nvs
+target_test_examples_service_nvs:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_service_nvs
+  needs:
+    - job: "build_examples_service_nvs"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/service/nvs
+    TEST_ENV: ${ENV_TAG}
+# service/wifi
+target_test_examples_service_wifi:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_service_wifi
+  needs:
+    - job: "build_examples_service_wifi"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_with_wifi_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/service/wifi
+    TEST_ENV: ${ENV_TAG}

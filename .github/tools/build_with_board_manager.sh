@@ -29,7 +29,7 @@
 #   -h, --help                Show this help message
 #
 # Example:
-#   build_with_board_manager.sh -p examples/service_console -b esp_box_3 -c esp32s3 -o ./images -v 0.7.2
+#   build_with_board_manager.sh -p examples/service/console -b esp_box_3 -c esp32s3 -o ./images -v 0.7.2
 
 set -e
 
@@ -147,7 +147,7 @@ pip install pyyaml --quiet 2>/dev/null || true
 
 # Configure board using esp_board_manager
 echo "Configuring board: $BOARD_NAME"
-idf.py gen-bmgr-config -b "$BOARD_NAME" -c "$BOARDS_DIR"
+idf.py gen-bmgr-config -b "$BOARD_NAME"
 
 # Build project
 echo "Building project..."

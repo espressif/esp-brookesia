@@ -23,7 +23,7 @@
 
 .. only:: latex
 
-   .. image:: ../../_static/service/index_diagram_cn.svg
+   .. image:: ../../_static/service/index_diagram_cn.png
       :width: 100%
 
 - ``brookesia_service_manager``：服务框架核心，负责服务插件注册、本地/RPC 两种通信模式下的函数路由与事件分发

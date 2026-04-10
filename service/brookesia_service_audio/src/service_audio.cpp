@@ -306,7 +306,7 @@ std::expected<boost::json::array, std::string> Audio::function_get_afe_wake_word
     }
 
     std::vector<std::string> wake_words_array;
-    auto get_wake_words = [&]() {
+    auto get_wake_words = [&wake_words_array, partition_label]() {
         auto models = esp_srmodel_init(partition_label.c_str());
         BROOKESIA_CHECK_NULL_EXIT(models, "Failed to get models");
 
@@ -353,11 +353,7 @@ std::expected<boost::json::array, std::string> Audio::function_get_afe_wake_word
         BROOKESIA_THREAD_CONFIG_GUARD({
             .stack_in_ext = false,
         });
-        auto get_wake_words_func = [&]() {
-            get_wake_words();
-        };
-        auto future = std::async(std::launch::async, get_wake_words_func);
-        future.wait();
+        boost::thread(get_wake_words).join();
     }
 
     return BROOKESIA_DESCRIBE_TO_JSON(wake_words_array).as_array();

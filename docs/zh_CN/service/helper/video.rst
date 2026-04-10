@@ -3,6 +3,8 @@
 视频 Helper
 ===========
 
+:link_to_translation:`en:[English]`
+
 - 公共头文件： ``#include "brookesia/service_helper/video.hpp"``
 
 .. _service-helper-video-sec-01:

@@ -119,7 +119,7 @@ cat <<EOF > $OUT_FILE
     <div class="card">
       <h2>🎛️ Service Console</h2>
       <p>Interactive console for testing ESP-Brookesia services. Supports multiple development boards.</p>
-      <a class="button blue" href="${launchpad_base}${base_url}service_console/launchpad.toml">Flash Service Console</a>
+      <a class="button blue" href="${launchpad_base}${base_url}service/console/launchpad.toml">Flash Service Console</a>
     </div>
   </div>
 

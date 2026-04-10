@@ -3,6 +3,8 @@
 SNTP Helper
 ===========
 
+:link_to_translation:`zh_CN:[中文]`
+
 - Public header: ``#include "brookesia/service_helper/sntp.hpp"``
 
 .. _service-helper-sntp-sec-01:

@@ -21,7 +21,12 @@ from typing import List
 EXCLUDE_DOCS_LIST = []
 
 # The apple apps links are not accessible from the company network for some reason
-EXCLUDE_URL_LIST = ['https://squareline.io/']
+EXCLUDE_URL_LIST = [
+    'https://squareline.io/',
+    'https://zh.wikipedia.org/wiki/%E8%AE%8A%E8%89%B2%E9%BE%8D%E5%B1%AC',
+    'https://en.wikipedia.org/wiki/Brookesia',
+    'https://espressif.craft.me/BBkCPR3ZaoLCV8',
+]
 
 Link = namedtuple('Link', ['file', 'url'])
 
@@ -128,7 +133,7 @@ def check_readme_links(args: argparse.Namespace) -> int:
             file_links.append(link)
 
     for url in EXCLUDE_URL_LIST:
-        del web_links[url]
+        web_links.pop(url, None)
 
     errors.extend(check_file_links(file_links))
 

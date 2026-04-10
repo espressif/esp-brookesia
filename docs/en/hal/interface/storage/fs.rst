@@ -3,6 +3,8 @@
 Filesystem Interface
 ====================
 
+:link_to_translation:`zh_CN:[中文]`
+
 Public header: ``#include "brookesia/hal_interface/storage/fs.hpp"``
 
 Class: ``StorageFsIface``

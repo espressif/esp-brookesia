@@ -3,6 +3,8 @@
 Emote Helper
 ============
 
+:link_to_translation:`zh_CN:[中文]`
+
 - Public header: ``#include "brookesia/service_helper/expression/emote.hpp"``
 
 .. _service-helper-emote-sec-01:

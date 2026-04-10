@@ -3,6 +3,8 @@
 HAL 接口
 =============
 
+:link_to_translation:`en:[English]`
+
 - 组件注册表： `espressif/brookesia_hal_interface <https://components.espressif.com/components/espressif/brookesia_hal_interface>`_
 - 公共头文件： ``#include "brookesia/hal_interface.hpp"``
 
