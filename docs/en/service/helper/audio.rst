@@ -1,0 +1,20 @@
+.. _service-helper-audio-sec-00:
+
+Audio Helper
+============
+
+- Public header: ``#include "brookesia/service_helper/audio.hpp"``
+
+.. _service-helper-audio-sec-01:
+
+Overview
+--------
+
+This page documents the Audio helper Doxygen API: types, enums, methods, and macros.
+
+.. _service-helper-audio-sec-02:
+
+API reference
+-------------
+
+.. include-build-file:: inc/audio.inc

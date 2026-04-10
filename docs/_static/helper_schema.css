@@ -1,0 +1,76 @@
+.helper-schema-json {
+  margin: 0.4rem 0 1rem;
+  border: 1px solid #d7dee9;
+  border-radius: 6px;
+  background: #fafbfc;
+  overflow: hidden;
+}
+
+.helper-schema-json > summary {
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.helper-schema-json > summary:hover {
+  background: #f2f5f9;
+}
+
+.helper-schema-json > pre {
+  margin: 0;
+  padding: 0.75rem;
+  border-top: 1px solid #e6ebf1;
+  background: #f7f9fc;
+  white-space: pre;
+  line-height: 1.55;
+  overflow-x: auto;
+}
+
+.helper-schema-json > pre > code {
+  display: block;
+  font-size: 0.9rem;
+  white-space: normal !important;
+  word-break: normal;
+  overflow-wrap: normal;
+  line-height: 1.35;
+}
+
+.helper-schema-json > pre > code > .json-line {
+  display: block;
+  white-space: pre;
+  margin: 0;
+  padding: 0;
+  line-height: 1.35;
+}
+
+.helper-contract-group {
+  margin: 0.8rem 0 1rem;
+  border: 1px solid #d7dee9;
+  border-radius: 6px;
+  background: #fafbfc;
+  overflow: hidden;
+}
+
+.helper-contract-group > summary {
+  cursor: pointer;
+  padding: 0.5rem 0.75rem;
+  font-weight: 600;
+  user-select: none;
+}
+
+.helper-contract-group > summary:hover {
+  background: #f2f5f9;
+}
+
+.helper-contract-group__content {
+  padding: 0.75rem 0.75rem 0.25rem;
+  border-top: 1px solid #e6ebf1;
+  background: #ffffff;
+}
+
+/* Increase readability for deep API entries in the left navigation tree. */
+.wy-menu-vertical li.toctree-l6 > a {
+  font-size: 1.05em;
+  line-height: 1.4;
+}
