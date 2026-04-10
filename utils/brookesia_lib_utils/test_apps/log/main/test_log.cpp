@@ -10,6 +10,7 @@
 #include <functional>
 #include "unity.h"
 #include "brookesia/lib_utils/log.hpp"
+#include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/lib_utils/time_profiler.hpp"
 
 class LogTestClass {
@@ -757,5 +758,126 @@ TEST_CASE("Test log macro edge cases", "[utils][log][macro_edge]")
 
     // Parameter out of order
     BROOKESIA_LOGI("Out of order: %3% %1% %2%", "A", "B", "C");
+}
+
+TEST_CASE("Test with printf-style format specifiers", "[utils][log][printf_compat]")
+{
+    BROOKESIA_LOGI("=== Printf-Style Format Specifiers Compatibility Test ===");
+
+    // %d for integers
+    BROOKESIA_LOGI("Integer: %d", 42);
+    BROOKESIA_LOGI("Negative integer: %d", -42);
+    BROOKESIA_LOGI("Zero: %d", 0);
+
+    // %u for unsigned integers
+    BROOKESIA_LOGI("Unsigned: %u", 42u);
+    BROOKESIA_LOGI("Unsigned max 16-bit: %u", 65535u);
+
+    // %s for strings
+    BROOKESIA_LOGI("C string literal: %s", "hello world");
+    const char *c_str = "C string pointer";
+    BROOKESIA_LOGI("C string pointer: %s", c_str);
+    std::string cpp_str = "C++ std::string";
+    BROOKESIA_LOGI("C++ string: %s", cpp_str);
+    BROOKESIA_LOGI("Empty string: '%s'", "");
+
+    // %f for floating point
+    BROOKESIA_LOGI("Float default: %f", 3.14159);
+    BROOKESIA_LOGI("Float precision 2: %.2f", 3.14159);
+    BROOKESIA_LOGI("Float precision 0: %.0f", 3.14159);
+    BROOKESIA_LOGI("Negative float: %f", -2.718);
+
+    // %x / %X for hex
+    BROOKESIA_LOGI("Hex lowercase: %x", 255);
+    BROOKESIA_LOGI("Hex uppercase: %X", 255);
+    BROOKESIA_LOGI("Hex with prefix: 0x%x", 0xDEAD);
+
+    // %o for octal
+    BROOKESIA_LOGI("Octal: %o", 255);
+
+    // %e / %E for scientific notation
+    BROOKESIA_LOGI("Scientific lowercase: %e", 123456.789);
+    BROOKESIA_LOGI("Scientific uppercase: %E", 123456.789);
+
+    // %c for character
+    BROOKESIA_LOGI("Char: %c", 'A');
+    BROOKESIA_LOGI("Char digit: %c", '9');
+
+    // Width and padding
+    BROOKESIA_LOGI("Width right-align: '%10d'", 42);
+    BROOKESIA_LOGI("Width left-align:  '%-10d'", 42);
+    BROOKESIA_LOGI("Zero padding:      '%05d'", 42);
+    BROOKESIA_LOGI("String width:      '%10s'", "hello");
+    BROOKESIA_LOGI("String left-align: '%-10s'", "hello");
+
+    // Sign modifiers
+    BROOKESIA_LOGI("Positive with sign: %+d", 42);
+    BROOKESIA_LOGI("Negative with sign: %+d", -42);
+
+    // Multiple printf-style arguments
+    BROOKESIA_LOGI("Two args: %d and %d", 10, 20);
+    BROOKESIA_LOGI("Three args: %d, %s, %f", 42, "hello", 3.14);
+    BROOKESIA_LOGI("Mixed types: name=%s, id=%d, score=%.1f, pass=%s",
+                   "Alice", 100, 95.5, "true");
+
+    // Long types
+    BROOKESIA_LOGI("Long: %ld", 123456789L);
+    BROOKESIA_LOGI("Long long: %lld", 123456789LL);
+    BROOKESIA_LOGI("Unsigned long: %lu", 123456789UL);
+
+    // size_t
+    size_t sz = 1024;
+    BROOKESIA_LOGI("Size_t: %zu", sz);
+
+    // Combining printf-style and boost-style in separate calls
+    BROOKESIA_LOGI("Printf-style: %d", 42);
+    BROOKESIA_LOGI("Boost-style: %1%", 42);
+}
+
+enum class Color { Red, Green, Blue };
+BROOKESIA_DESCRIBE_ENUM(Color, Red, Green, Blue)
+
+struct Point {
+    int x;
+    int y;
+};
+BROOKESIA_DESCRIBE_STRUCT(Point, (), (x, y))
+
+struct DeviceInfo {
+    std::string name;
+    int id;
+    float temperature;
+    Color color;
+};
+BROOKESIA_DESCRIBE_STRUCT(DeviceInfo, (), (name, id, temperature, color))
+
+TEST_CASE("Test with described enum and struct", "[utils][log][describe]")
+{
+    BROOKESIA_LOGI("=== Described Enum and Struct Test ===");
+
+    // Described enum
+    Color c1 = Color::Red;
+    Color c2 = Color::Green;
+    Color c3 = Color::Blue;
+    BROOKESIA_LOGI("Color: %1%", c1);
+    BROOKESIA_LOGI("Color: %1%", c2);
+    BROOKESIA_LOGI("Color: %s", c3);
+
+    // Described struct
+    Point p{10, 20};
+    BROOKESIA_LOGI("Point: %1%", p);
+    BROOKESIA_LOGI("Point: %s", p);
+
+    // Nested described types
+    DeviceInfo dev{"Sensor-01", 42, 25.6f, Color::Green};
+    BROOKESIA_LOGI("DeviceInfo: %1%", dev);
+
+    // Mixed with other types
+    BROOKESIA_LOGI("Device %s has color %s at position (%d, %d)",
+                   dev.name, c1, p.x, p.y);
+
+    // Multiple described args
+    BROOKESIA_LOGI("From %1% to %2%", Color::Red, Color::Blue);
+    BROOKESIA_LOGI("Points: %1% and %2%", Point{1, 2}, Point{3, 4});
 }
 #endif // BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_INFO

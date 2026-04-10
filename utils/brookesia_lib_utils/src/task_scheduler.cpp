@@ -56,9 +56,15 @@ bool TaskScheduler::start(const StartConfig &config)
 
     reset_statistics();
 
-    // Save callbacks from config
-    pre_execute_callback_ = config.pre_execute_callback;
-    post_execute_callback_ = config.post_execute_callback;
+    // Save global callbacks from config (empty-string key = fires for every task)
+    pre_execute_callbacks_.clear();
+    post_execute_callbacks_.clear();
+    if (config.pre_execute_callback) {
+        pre_execute_callbacks_[""] = config.pre_execute_callback;
+    }
+    if (config.post_execute_callback) {
+        post_execute_callbacks_[""] = config.post_execute_callback;
+    }
 
     for (const auto &thread_config : config.worker_configs) {
         auto thread_func =
@@ -119,9 +125,11 @@ void TaskScheduler::stop()
                 handle->timer.reset(); // Immediately release timer
             }
             if (handle->promise) {
-                BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(false), {}, {
-                    BROOKESIA_LOGE("Failed to set promise value for canceled Task[%1%]", id);
-                });
+                try {
+                    handle->promise->set_value(false);
+                } catch (const std::exception &e) {
+                    BROOKESIA_LOGW("Failed to set promise value for Task[%1%]: %2%", id, e.what());
+                }
                 handle->promise.reset();
             }
             canceled_tasks_++;
@@ -142,6 +150,8 @@ void TaskScheduler::stop()
         tasks_.clear();
         groups_.clear();
         strands_.clear();
+        pre_execute_callbacks_.clear();
+        post_execute_callbacks_.clear();
         io_work_guard_.reset();
         io_context_.reset();
     }
@@ -167,25 +177,26 @@ bool TaskScheduler::post_internal(OnceTask task, TaskId *id, const Group &group,
     auto task_wrapper = [this, handle, task = std::move(task)]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+        if (handle->state == TaskState::Canceled) {
+            BROOKESIA_LOGD("Task[%1%] is canceled, skipping execution", handle->id);
+            boost::lock_guard<boost::mutex> lock(mutex_);
+            remove_task_internal(handle->id, handle->group);
+            return;
+        }
+
         BROOKESIA_LOGD("Executing Task[%1%]", handle->id);
 
         // Invoke pre-execute callback when task is about to execute
-        invoke_pre_execute_callback(handle->id, handle->type);
+        invoke_pre_execute_callback(handle->id, handle->type, handle->group);
 
         bool success = false;
         // Will be executed when the function exits
         lib_utils::FunctionGuard exit_guard(
         [this, handle, &success]() {
-            invoke_post_execute_callback(handle->id, handle->type, success);
+            invoke_post_execute_callback(handle->id, handle->type, success, handle->group);
             mark_finished(handle, success);
         }
         );
-
-        if (handle->state == TaskState::Canceled) {
-            boost::lock_guard<boost::mutex> lock(mutex_);
-            remove_task_internal(handle->id, handle->group);
-            return;
-        }
 
         BROOKESIA_CHECK_EXCEPTION_EXECUTE(task(), {
             success = false;
@@ -532,7 +543,7 @@ bool TaskScheduler::wait(TaskId id, int timeout_ms)
 
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
-    std::shared_future<bool> future;
+    boost::shared_future<bool> future;
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
         auto it = tasks_.find(id);
@@ -545,9 +556,9 @@ bool TaskScheduler::wait(TaskId id, int timeout_ms)
 
     if (timeout_ms >= 0) {
         // Wait with timeout
-        auto status = future.wait_for(std::chrono::milliseconds(timeout_ms));
+        auto status = future.wait_for(boost::chrono::milliseconds(timeout_ms));
         BROOKESIA_CHECK_FALSE_RETURN(
-            status == std::future_status::ready, false, "Wait timeout for Task[%1%] after %2% ms", id, timeout_ms
+            status == boost::future_status::ready, false, "Wait timeout for Task[%1%] after %2% ms", id, timeout_ms
         );
     }
 
@@ -785,6 +796,19 @@ bool TaskScheduler::configure_group(const Group &group, const GroupConfig &confi
         BROOKESIA_LOGD("Created strand for group '%1%'", group);
     }
 
+    // Register optional per-group callbacks supplied through the config
+    if (config.pre_execute_callback) {
+        pre_execute_callbacks_[group] = config.pre_execute_callback;
+    } else {
+        pre_execute_callbacks_.erase(group);
+    }
+
+    if (config.post_execute_callback) {
+        post_execute_callbacks_[group] = config.post_execute_callback;
+    } else {
+        post_execute_callbacks_.erase(group);
+    }
+
     return true;
 }
 
@@ -867,7 +891,7 @@ std::shared_ptr<TaskScheduler::TaskHandle> TaskScheduler::create_handle(
     } else {
         handle->timer = std::make_shared<boost::asio::steady_timer>(*io_context_);
     }
-    handle->promise = std::make_shared<std::promise<bool>>();
+    handle->promise = std::make_shared<boost::promise<bool>>();
     handle->future = handle->promise->get_future().share();
 
     BROOKESIA_LOGD("Created Task[%1%] (group: %2%)", handle->id, group);
@@ -908,13 +932,13 @@ void TaskScheduler::schedule_once(std::shared_ptr<TaskHandle> handle, OnceTask t
         }
 
         // Invoke pre-execute callback when task is about to execute
-        invoke_pre_execute_callback(handle->id, handle->type);
+        invoke_pre_execute_callback(handle->id, handle->type, handle->group);
 
         bool success = false;
         // Will be executed when the function exits
         lib_utils::FunctionGuard exit_guard(
         [this, handle, &success]() {
-            invoke_post_execute_callback(handle->id, handle->type, success);
+            invoke_post_execute_callback(handle->id, handle->type, success, handle->group);
             mark_finished(handle, success);
         }
         );
@@ -973,7 +997,7 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         }
 
         // Invoke pre-execute callback when task is about to execute
-        invoke_pre_execute_callback(handle->id, handle->type);
+        invoke_pre_execute_callback(handle->id, handle->type, handle->group);
 
         bool success = false;
         // Will be executed when the function exits
@@ -981,7 +1005,7 @@ void TaskScheduler::schedule_periodic(std::shared_ptr<TaskHandle> handle, Period
         [this, handle, &success]() {
             // Clear execution flag when task completes
             handle->is_executing.store(false);
-            invoke_post_execute_callback(handle->id, handle->type, success);
+            invoke_post_execute_callback(handle->id, handle->type, success, handle->group);
         }
         );
 
@@ -1025,9 +1049,11 @@ void TaskScheduler::cancel_internal(TaskId task_id)
     canceled_tasks_++;
 
     if (handle->promise) {
-        BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(false), {}, {
-            BROOKESIA_LOGE("Failed to set promise value for canceled Task[%1%]", task_id);
-        });
+        try {
+            handle->promise->set_value(false);
+        } catch (const std::exception &e) {
+            BROOKESIA_LOGW("Failed to set promise value for Task[%1%]: %2%", task_id, e.what());
+        }
         handle->promise.reset();
     }
 
@@ -1124,13 +1150,18 @@ bool TaskScheduler::resume_internal(TaskId task_id)
         }
 
         // Use remaining time if positive, otherwise execute immediately
-        int delay_ms = std::max(0LL, handle->remaining_time.count());
+        auto remaining_time = handle->remaining_time.count();
+        int delay_ms = std::max(static_cast<decltype(remaining_time)>(0), remaining_time);
 
         BROOKESIA_LOGD("Rescheduling delayed Task[%1%] with remaining time: %2% ms", task_id, delay_ms);
 
-        // Update interval_ms to remaining time for proper rescheduling
+        // Save original interval for subsequent executions
+        int original_interval = handle->interval_ms;
+        // Then set the interval to the remaining time for the first execution
         handle->interval_ms = delay_ms;
         schedule_once(handle, handle->saved_task);
+        // Restore original interval for subsequent executions
+        handle->interval_ms = original_interval;
 
     } else if (handle->type == TaskType::Periodic) {
         // For Periodic task, reschedule with remaining time for first execution, then use original interval
@@ -1140,7 +1171,8 @@ bool TaskScheduler::resume_internal(TaskId task_id)
         }
 
         // Use remaining time if positive, otherwise execute immediately
-        int delay_ms = std::max(0LL, handle->remaining_time.count());
+        auto remaining_time = handle->remaining_time.count();
+        int delay_ms = std::max(static_cast<decltype(remaining_time)>(0), remaining_time);
 
         BROOKESIA_LOGD("Rescheduling periodic Task[%1%] with remaining time: %2% ms, then interval: %3% ms",
                        task_id, delay_ms, handle->interval_ms);
@@ -1182,7 +1214,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
             }
 
             // Invoke pre-execute callback when task is about to execute
-            invoke_pre_execute_callback(handle->id, handle->type);
+            invoke_pre_execute_callback(handle->id, handle->type, handle->group);
 
             bool success = false;
             // Will be executed when the function exits
@@ -1190,7 +1222,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
             [this, handle, &success]() {
                 // Clear execution flag when task completes
                 handle->is_executing.store(false);
-                invoke_post_execute_callback(handle->id, handle->type, success);
+                invoke_post_execute_callback(handle->id, handle->type, success, handle->group);
             }
             );
 
@@ -1269,9 +1301,11 @@ void TaskScheduler::mark_finished(std::shared_ptr<TaskHandle> handle, bool succe
     boost::lock_guard<boost::mutex> lock(mutex_);
 
     if (handle->promise) {
-        BROOKESIA_CHECK_EXCEPTION_EXECUTE(handle->promise->set_value(success), {}, {
-            BROOKESIA_LOGE("Failed to set promise value for finished Task[%1%]", handle->id);
-        });
+        try {
+            handle->promise->set_value(success);
+        } catch (const std::exception &e) {
+            BROOKESIA_LOGW("Failed to set promise value for Task[%1%]: %2%", handle->id, e.what());
+        }
         handle->promise.reset();
     }
 
@@ -1280,7 +1314,7 @@ void TaskScheduler::mark_finished(std::shared_ptr<TaskHandle> handle, bool succe
     BROOKESIA_LOGD("Task[%1%] finished (success: %2%)", handle->id, success);
 }
 
-std::shared_future<bool> TaskScheduler::get_future(TaskId id)
+boost::shared_future<bool> TaskScheduler::get_future(TaskId id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -1288,40 +1322,69 @@ std::shared_future<bool> TaskScheduler::get_future(TaskId id)
 
     boost::lock_guard<boost::mutex> lock(mutex_);
     auto it = tasks_.find(id);
-    BROOKESIA_CHECK_FALSE_RETURN(it != tasks_.end(), std::shared_future<bool>(), "Task[%1%] not found", id);
+    BROOKESIA_CHECK_FALSE_RETURN(it != tasks_.end(), boost::shared_future<bool>(), "Task[%1%] not found", id);
 
     return it->second->future;
 }
 
-void TaskScheduler::invoke_pre_execute_callback(TaskId task_id, TaskType task_type)
+void TaskScheduler::invoke_pre_execute_callback(TaskId task_id, TaskType task_type, const Group &group)
 {
-    std::function<void(TaskId, TaskType)> callback;
+    PreExecuteCallback global_cb;
+    PreExecuteCallback group_cb;
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
-        callback = pre_execute_callback_;
+        auto it = pre_execute_callbacks_.find("");
+        if (it != pre_execute_callbacks_.end()) {
+            global_cb = it->second;
+        }
+        if (!group.empty()) {
+            auto git = pre_execute_callbacks_.find(group);
+            if (git != pre_execute_callbacks_.end()) {
+                group_cb = git->second;
+            }
+        }
     }
 
-    if (callback) {
-        BROOKESIA_CHECK_EXCEPTION_EXECUTE(
-        callback(task_id, task_type), {},
-        {BROOKESIA_LOGE("Pre-execute callback error for Task[%1%]", task_id);}
-        );
+    if (global_cb) {
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(global_cb(group, task_id, task_type), {}, {
+            BROOKESIA_LOGE("Global pre-execute callback error for Task[%1%]", task_id);
+        });
+    }
+    if (group_cb) {
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(group_cb(group, task_id, task_type), {}, {
+            BROOKESIA_LOGE("Group('%1%') pre-execute callback error for Task[%2%]", group, task_id);
+        });
     }
 }
 
-void TaskScheduler::invoke_post_execute_callback(TaskId task_id, TaskType task_type, bool success)
+void TaskScheduler::invoke_post_execute_callback(TaskId task_id, TaskType task_type, bool success,
+        const Group &group)
 {
-    std::function<void(TaskId, TaskType, bool)> callback;
+    PostExecuteCallback global_cb;
+    PostExecuteCallback group_cb;
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
-        callback = post_execute_callback_;
+        auto it = post_execute_callbacks_.find("");
+        if (it != post_execute_callbacks_.end()) {
+            global_cb = it->second;
+        }
+        if (!group.empty()) {
+            auto git = post_execute_callbacks_.find(group);
+            if (git != post_execute_callbacks_.end()) {
+                group_cb = git->second;
+            }
+        }
     }
 
-    if (callback) {
-        BROOKESIA_CHECK_EXCEPTION_EXECUTE(
-        callback(task_id, task_type, success), {},
-        {BROOKESIA_LOGE("Post-execute callback error for Task[%1%]", task_id);}
-        );
+    if (global_cb) {
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(global_cb(group, task_id, task_type, success), {}, {
+            BROOKESIA_LOGE("Global post-execute callback error for Task[%1%]", task_id);
+        });
+    }
+    if (group_cb) {
+        BROOKESIA_CHECK_EXCEPTION_EXECUTE(group_cb(group, task_id, task_type, success), {}, {
+            BROOKESIA_LOGE("Group('%1%') post-execute callback error for Task[%2%]", group, task_id);
+        });
     }
 }
 

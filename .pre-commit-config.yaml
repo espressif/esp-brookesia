@@ -4,23 +4,18 @@
 exclude: |
   (?x)(
     .*/assets/.*
-    | .*/brookesia_apps_squareline/ui/.*
-    | .*/brookesia_apps_ai_profile/ui/.*
     | .*src/fonts/.*/.*
     | .*py
     | .*espressif__
     | .*private_key.pem
     | .*/boards/(?!.*sdkconfig\.defaults\.board$).*
-    | agent/brookesia_agent_coze/.*esp_coze.*
-    | apps/brookesia_app_ai_profile/ui/.*
-    | apps/brookesia_app_squareline/ui/.*
-    | apps/brookesia_app_timer/ui/.*
-    | apps/brookesia_app_pos/ui/.*
-    | apps/brookesia_app_usbd_ncm/ui/.*
-    | core/brookesia_core/gui/squareline/.*
-    | core/brookesia_core/systems/speaker/widgets/quick_settings/ui/.*
-    | products/speaker/tools/patches/.*
+    | .*/squareline_project/.*
+    | .*/squareline_ui/.*
+    | agent/brookesia_agent_coze/coze/.*
+    | agent/brookesia_agent_openai/openai/.*
+    | agent/brookesia_agent_xiaozhi/xiaozhi/.*
     | docs/.*
+    | hal/brookesia_hal_boards/.*/.*
   )
 repos:
   - repo: https://github.com/igrr/astyle_py.git

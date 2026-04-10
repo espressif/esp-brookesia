@@ -33,6 +33,9 @@
   - Function Guard: Provides RAII-style function call guards to help manage function call order and resource releasing.
   - Object Description Tools: Uses static reflection to provide object description, supporting serialization and deserialization of enums, structs, JSON, and certain standard types (string, integer, float, boolean, pointer, array, containers, etc.).
 
+> [!WARNING]
+> When `ESP32-P4` is enabled with `CONFIG_SPIRAM_XIP_FROM_PSRAM=y`, the `time_profiler` feature may cause system crashes.
+
 ## How to Use
 
 ### Development Environment Requirements

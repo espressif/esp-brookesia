@@ -1,8 +1,12 @@
+if(POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+endif()
+
 set(COMPONENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(COMPONENT_SRC_DIR ${COMPONENT_DIR}/src)
 set(COMPONENT_INCLUDE_DIRS ${COMPONENT_DIR}/include)
 set(COMPONENT_PRIVATE_INCLUDE_DIRS ${COMPONENT_SRC_DIR})
-set(COMPONENT_REQUIRES "")
+set(COMPONENT_REQUIRES lwip)
 set(COMPONENT_SRCS_C "")
 set(COMPONENT_SRCS_CPP "")
 set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
@@ -34,16 +38,37 @@ else()
     #
     # PC Platform
     #
-    add_library(${PROJECT_NAME} STATIC
+    # Find Boost libraries
+    # Note: signals2 is header-only, no need to find it separately
+    find_package(Boost REQUIRED COMPONENTS thread system chrono json)
+
+    set(COMPONENT_LIB brookesia_lib_utils)
+    add_library(${COMPONENT_LIB} STATIC
         ${COMPONENT_SRCS_C}
         ${COMPONENT_SRCS_CPP}
     )
 
-    target_include_directories(${PROJECT_NAME}
+    # Set C++20 standard for this library (required for std::span)
+    set_target_properties(${COMPONENT_LIB} PROPERTIES
+        CXX_STANDARD 20
+        CXX_STANDARD_REQUIRED ON
+    )
+    target_include_directories(${COMPONENT_LIB}
         PUBLIC
             ${COMPONENT_INCLUDE_DIRS}
+            ${Boost_INCLUDE_DIRS}
         PRIVATE
             ${COMPONENT_PRIVATE_INCLUDE_DIRS}
+    )
+
+    # Link Boost libraries
+    # Note: signals2 is header-only, no need to link it
+    target_link_libraries(${COMPONENT_LIB}
+        PUBLIC
+            Boost::thread
+            Boost::system
+            Boost::chrono
+            Boost::json
     )
 endif()
 

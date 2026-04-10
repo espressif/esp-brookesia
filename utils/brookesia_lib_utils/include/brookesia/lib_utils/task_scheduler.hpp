@@ -8,7 +8,6 @@
 #include <atomic>
 #include <chrono>
 #include <functional>
-#include <future>
 #include <memory>
 #include <optional>
 #include <string>
@@ -16,57 +15,85 @@
 #include <map>
 #include <unordered_set>
 #include <vector>
-#include <boost/asio.hpp>
-#include <boost/thread.hpp>
+#include "boost/asio/io_context.hpp"
+#include "boost/asio/executor_work_guard.hpp"
+#include "boost/asio/steady_timer.hpp"
+#include "boost/asio/strand.hpp"
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/thread.hpp"
+#include "boost/thread/future.hpp"
+#include "brookesia/lib_utils/macro_configs.h"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/lib_utils/thread_config.hpp"
 
 namespace esp_brookesia::lib_utils {
 
+/**
+ * @brief Asynchronous task scheduler built on top of `boost::asio::io_context`.
+ *
+ * The scheduler supports immediate, delayed, and periodic tasks, optional task grouping,
+ * serial execution within groups, suspension and resumption of timer-driven tasks,
+ * and task lifecycle statistics.
+ */
 class TaskScheduler {
 public:
+    /**
+     * @brief Identifier type assigned to each scheduled task.
+     */
     using TaskId = uint64_t;
+    /**
+     * @brief Callable type for one-shot tasks.
+     */
     using OnceTask = std::function<void()>;
-    using PeriodicTask = std::function<bool()>; // Return false to stop periodic task early
-    using Group = std::string; // Task group name
+    /**
+     * @brief Callable type for periodic tasks.
+     *
+     * Returning `false` stops future executions.
+     */
+    using PeriodicTask = std::function<bool()>;
+    /**
+     * @brief Task group name type.
+     */
+    using Group = std::string;
+    /**
+     * @brief Executor type exposed by the underlying `boost::asio::io_context`.
+     */
     using Executor = boost::asio::io_context::executor_type;
 
+    /**
+     * @brief Kind of scheduled task.
+     */
     enum class TaskType {
-        Immediate,      // post() - immediate execution
-        Delayed,        // post_delayed() - can be suspended/resumed
-        Periodic,       // post_periodic() - can be suspended/resumed
+        Immediate, ///< Task scheduled with `post()` or `dispatch()`.
+        Delayed,   ///< One-shot timer task scheduled with `post_delayed()`.
+        Periodic,  ///< Repeating timer task scheduled with `post_periodic()`.
     };
 
+    /**
+     * @brief Runtime state reported for a scheduled task.
+     */
     enum class TaskState {
-        Running,
-        Suspended,
-        Canceled,
-        Finished
+        Running,   ///< Task is active and eligible to execute.
+        Suspended, ///< Task timer is suspended.
+        Canceled,  ///< Task was canceled before completion.
+        Finished   ///< Task finished execution or is no longer tracked.
     };
 
+    /**
+     * @brief Aggregate counters for task execution.
+     */
     struct Statistics {
-        size_t total_tasks{0};
-        size_t completed_tasks{0};
-        size_t failed_tasks{0};
-        size_t canceled_tasks{0};
-        size_t suspended_tasks{0};
-    };
-
-    struct GroupConfig {
-        // If true, all tasks (Periodic, Delayed, and Once) in this group will not run in parallel.
-        // Uses boost::asio::strand to ensure serialized execution of all tasks in the group.
-        // When a task is executing, other tasks in the same group will be queued and executed sequentially.
-        // For Periodic tasks: if the same task instance is already executing, skip this execution but continue scheduling next execution.
-        // For Delayed and Once tasks: tasks are executed sequentially through the strand, no skipping.
-        bool enable_serial_execution = false;
-        // If set, all tasks in this group will be executed in the parent group.
-        // If parent group has serial execution enabled, this group will also be executed in serial.
-        Group parent_group = "";
+        size_t total_tasks{0};      ///< Total number of tasks ever scheduled.
+        size_t completed_tasks{0};  ///< Number of tasks that completed successfully.
+        size_t failed_tasks{0};     ///< Number of tasks that finished unsuccessfully.
+        size_t canceled_tasks{0};   ///< Number of tasks canceled before completion.
+        size_t suspended_tasks{0};  ///< Number of tasks currently suspended.
     };
 
     /**
      * @brief Callback invoked when a task is selected by io_context and about to execute
      *
+     * @param group Group name of the task
      * @param task_id ID of the task about to execute
      * @param task_type Type of the task
      *
@@ -74,10 +101,12 @@ public:
      *       just before the actual task logic executes, guaranteeing that the task
      *       will execute (unless an exception occurs in the callback itself)
      */
-    using PreExecuteCallback = std::function<void(TaskId, TaskType)>;
+    using PreExecuteCallback = std::function<void(const Group &, TaskId, TaskType)>;
+
     /**
      * @brief Callback invoked after a task completes execution
      *
+     * @param group Group name of the completed task
      * @param task_id ID of the completed task
      * @param task_type Type of the task
      * @param success Whether the task executed successfully
@@ -85,41 +114,96 @@ public:
      * @note This callback is invoked after the task logic completes, regardless of
      *       success or failure, providing a hook for cleanup, logging, or statistics
      */
-    using PostExecuteCallback = std::function<void(TaskId, TaskType, bool success)>;
+    using PostExecuteCallback = std::function<void(const Group &, TaskId, TaskType, bool success)>;
 
+    /**
+     * @brief Startup configuration for the scheduler worker threads.
+     */
     struct StartConfig {
-        std::vector<ThreadConfig> worker_configs = {
-            {
-                .name = "tsc_worker",
+        /**
+         * @brief Worker thread configurations used when the scheduler starts.
+         *
+         * The default configuration creates a single worker named `Worker`
+         * with a 6 KiB stack.
+         */
+        std::vector<ThreadConfig> worker_configs{
+            ThreadConfig{
+                .name = "Worker",
                 .stack_size = 6 * 1024,
             }
         };
-        size_t worker_poll_interval_ms = 10;
+        size_t worker_poll_interval_ms = 10;             ///< Worker polling interval in milliseconds.
+        /**
+         * @brief Optional global pre-execute callback applied to every task.
+         *
+         * The callback fires just before any task executes, regardless of group membership.
+         */
         PreExecuteCallback pre_execute_callback = nullptr;
+        /**
+         * @brief Optional global post-execute callback applied to every task.
+         *
+         * The callback fires after any task completes, regardless of group membership.
+         */
         PostExecuteCallback post_execute_callback = nullptr;
     };
 
+    /**
+     * @brief Configuration for a task group.
+     */
+    struct GroupConfig {
+        /**
+         * @brief Serialize all tasks in this group through a strand when set to `true`.
+         *
+         * Periodic tasks skip overlapping executions for the same task instance,
+         * while one-shot tasks are queued and executed sequentially.
+         */
+        bool enable_serial_execution = false;
+        /**
+         * @brief Optional parent group name whose execution context should be reused.
+         *
+         * When the parent group is serial, this group also runs serially through the parent strand.
+         */
+        Group parent_group = "";
+        /**
+         * @brief Optional group pre-execute callback applied to all tasks in the group.
+         */
+        PreExecuteCallback pre_execute_callback = nullptr;
+        /**
+         * @brief Optional group post-execute callback applied to all tasks in the group.
+         */
+        PostExecuteCallback post_execute_callback = nullptr;
+    };
+
+    /**
+     * @brief Construct an idle task scheduler.
+     */
     TaskScheduler() = default;
+    /**
+     * @brief Stop the scheduler and release its resources.
+     */
     ~TaskScheduler();
 
-    // Disable copy and move operations
+    /// Copy construction is not supported.
     TaskScheduler(const TaskScheduler &) = delete;
+    /// Copy assignment is not supported.
     TaskScheduler &operator=(const TaskScheduler &) = delete;
+    /// Move construction is not supported.
     TaskScheduler(TaskScheduler &&) = delete;
+    /// Move assignment is not supported.
     TaskScheduler &operator=(TaskScheduler &&) = delete;
 
     /**
-     * @brief Start the task scheduler with custom configuration
+     * @brief Start the scheduler with a custom worker configuration.
      *
-     * @param[in] config Configuration for the scheduler
-     * @return true if started successfully, false otherwise
+     * @param[in] config Worker-thread and callback configuration.
+     * @return `true` on success, or `false` when startup fails.
      */
     bool start(const StartConfig &config);
 
     /**
-     * @brief Start the task scheduler with default configuration (single worker)
+     * @brief Start the scheduler with the default configuration.
      *
-     * @return true if started successfully, false otherwise
+     * @return `true` on success, or `false` when startup fails.
      */
     bool start()
     {
@@ -127,16 +211,16 @@ public:
     }
 
     /**
-     * @brief Stop the task scheduler
+     * @brief Stop the scheduler and cancel all pending tasks.
      *
-     * Stops all workers and cancels all pending tasks
+     * Running tasks are allowed to finish, worker threads are joined, and internal state is reset.
      */
     void stop();
 
     /**
-     * @brief Check if the scheduler is running
+     * @brief Check whether the scheduler is running.
      *
-     * @return true if running, false otherwise
+     * @return `true` when worker threads and the `io_context` are active, or `false` otherwise.
      */
     bool is_running() const
     {
@@ -144,226 +228,228 @@ public:
     }
 
     /**
-     * @brief Configure a task group
+     * @brief Configure execution behavior for a task group.
      *
-     * @param[in] group Group name
-     * @param[in] config Configuration for the group
-     * @return true if configured successfully, false otherwise
+     * @param[in] group Group name.
+     * @param[in] config Group behavior configuration.
+     * @return `true` if the group was configured successfully, or `false` otherwise.
      */
     bool configure_group(const Group &group, const GroupConfig &config);
 
     /**
-     * @brief Dispatch a enqueued task for execution. When the task is posted within a task, the new task will be
-     *        executed immediately instead of being enqueued.
+     * @brief Dispatch a task for immediate execution when possible.
      *
-     * @param[in] task Task to execute
-     * @param[out] id Optional pointer to receive the task ID
-     * @param[in] group Optional group name for the task
+     * When called from a scheduler worker thread, the task may run inline instead of being enqueued.
      *
-     * @return true if dispatched successfully, false otherwise
+     * @param[in] task Task to execute.
+     * @param[out] id Optional pointer that receives the assigned task ID.
+     * @param[in] group Optional task group name.
+     *
+     * @return `true` if the task was scheduled successfully, or `false` otherwise.
      */
     bool dispatch(OnceTask task, TaskId *id = nullptr, const Group &group = "");
 
     /**
-     * @brief Post an enqueued task for execution
+     * @brief Post a task to the scheduler queue.
      *
-     * @param[in] task Task to execute
-     * @param[out] id Optional pointer to receive the task ID
-     * @param[in] group Optional group name for the task
+     * @param[in] task Task to execute.
+     * @param[out] id Optional pointer that receives the assigned task ID.
+     * @param[in] group Optional task group name.
      *
-     * @return true if posted successfully, false otherwise
+     * @return `true` if the task was scheduled successfully, or `false` otherwise.
      */
     bool post(OnceTask task, TaskId *id = nullptr, const Group &group = "");
 
     /**
-     * @brief Post a delayed task for execution
+     * @brief Schedule a one-shot task to run after a delay.
      *
-     * @param[in] task Task to execute
-     * @param[in] delay_ms Delay in milliseconds before execution
-     * @param[out] id Optional pointer to receive the task ID
-     * @param[in] group Optional group name for the task
-     * @return true if posted successfully, false otherwise
+     * @param[in] task Task to execute.
+     * @param[in] delay_ms Delay before execution, in milliseconds.
+     * @param[out] id Optional pointer that receives the assigned task ID.
+     * @param[in] group Optional task group name.
+     * @return `true` if the task was scheduled successfully, or `false` otherwise.
      */
     bool post_delayed(OnceTask task, int delay_ms, TaskId *id = nullptr, const Group &group = "");
 
     /**
-     * @brief Post a periodic task for execution
+     * @brief Schedule a periodic task.
      *
      * The task will be executed repeatedly at the specified interval.
      * Return false from the task to stop the periodic execution.
      *
-     * @param[in] task Periodic task to execute (returns bool)
-     * @param[in] interval_ms Interval in milliseconds between executions
-     * @param[out] id Optional pointer to receive the task ID
-     * @param[in] group Optional group name for the task
-     * @return true if posted successfully, false otherwise
+     * @param[in] task Periodic task to execute. Returning `false` stops future runs.
+     * @param[in] interval_ms Interval between executions, in milliseconds.
+     * @param[out] id Optional pointer that receives the assigned task ID.
+     * @param[in] group Optional task group name.
+     * @return `true` if the task was scheduled successfully, or `false` otherwise.
      */
     bool post_periodic(PeriodicTask task, int interval_ms, TaskId *id = nullptr, const Group &group = "");
 
     /**
-     * @brief Post multiple tasks in batch
+     * @brief Post multiple one-shot tasks as a batch.
      *
-     * @param[in] tasks Vector of tasks to execute
-     * @param[out] ids Optional pointer to receive vector of task IDs
-     * @param[in] group Optional group name for all tasks
-     * @return true if all tasks posted successfully, false otherwise
+     * @param[in] tasks Vector of tasks to execute.
+     * @param[out] ids Optional pointer that receives the assigned task IDs.
+     * @param[in] group Optional task group name applied to every task.
+     * @return `true` if all tasks were scheduled successfully, or `false` otherwise.
      */
     bool post_batch(std::vector<OnceTask> tasks, std::vector<TaskId> *ids = nullptr, const Group &group = "");
 
     /**
-     * @brief Cancel a task by ID
+     * @brief Cancel a task by ID.
      *
-     * @param[in] id Task ID to cancel
+     * @param[in] id Task ID to cancel.
      */
     void cancel(TaskId id);
 
     /**
-     * @brief Cancel all tasks in a group
+     * @brief Cancel every task in a group.
      *
-     * @param[in] group Group name
+     * @param[in] group Group name.
      */
     void cancel_group(const Group &group);
 
     /**
-     * @brief Cancel all tasks
+     * @brief Cancel all tracked tasks.
      */
     void cancel_all();
 
     /**
-     * @brief Suspend a task by ID
+     * @brief Suspend a delayed or periodic task.
      *
      * Only delayed and periodic tasks can be suspended.
      *
-     * @param[in] id Task ID to suspend
-     * @return true if suspended successfully, false otherwise
+     * @param[in] id Task ID to suspend.
+     * @return `true` if the task was suspended successfully, or `false` otherwise.
      */
     bool suspend(TaskId id);
 
     /**
-     * @brief Suspend all tasks in a group
+     * @brief Suspend all suspendable tasks in a group.
      *
-     * @param[in] group Group name
-     * @return Number of tasks suspended
+     * @param[in] group Group name.
+     * @return Number of tasks suspended.
      */
     size_t suspend_group(const Group &group);
 
     /**
-     * @brief Suspend all tasks
+     * @brief Suspend all suspendable tasks.
      *
-     * @return Number of tasks suspended
+     * @return Number of tasks suspended.
      */
     size_t suspend_all();
 
     /**
-     * @brief Resume a suspended task by ID
+     * @brief Resume a suspended delayed or periodic task.
      *
-     * @param[in] id Task ID to resume
-     * @return true if resumed successfully, false otherwise
+     * @param[in] id Task ID to resume.
+     * @return `true` if the task was resumed successfully, or `false` otherwise.
      */
     bool resume(TaskId id);
 
     /**
-     * @brief Resume all suspended tasks in a group
+     * @brief Resume all suspended tasks in a group.
      *
-     * @param[in] group Group name
-     * @return Number of tasks resumed
+     * @param[in] group Group name.
+     * @return Number of tasks resumed.
      */
     size_t resume_group(const Group &group);
 
     /**
-     * @brief Resume all suspended tasks
+     * @brief Resume all suspended tasks.
      *
-     * @return Number of tasks resumed
+     * @return Number of tasks resumed.
      */
     size_t resume_all();
 
     /**
-     * @brief Wait for a task to complete with optional timeout
+     * @brief Wait for a task to complete.
      *
-     * @param[in] id Task ID to wait for
-     * @param[in] timeout_ms Timeout in milliseconds (-1 for infinite)
-     * @return true if task completed within timeout, false otherwise
+     * @param[in] id Task ID to wait for.
+     * @param[in] timeout_ms Timeout in milliseconds. `-1` waits indefinitely.
+     * @return `true` if the task completed within the timeout, or `false` otherwise.
      */
     bool wait(TaskId id, int timeout_ms = -1);
 
     /**
-     * @brief Wait for all tasks in a group to complete with optional timeout
+     * @brief Wait for all tasks in a group to complete.
      *
-     * @param[in] group Group name
-     * @param[in] timeout_ms Timeout in milliseconds (-1 for infinite)
-     * @return true if all tasks completed within timeout, false otherwise
+     * @param[in] group Group name.
+     * @param[in] timeout_ms Timeout in milliseconds. `-1` waits indefinitely.
+     * @return `true` if all tasks in the group completed within the timeout, or `false` otherwise.
      */
     bool wait_group(const Group &group, int timeout_ms = -1);
 
     /**
-     * @brief Wait for all tasks to complete with optional timeout
+     * @brief Wait for all tasks to complete.
      *
-     * @param[in] timeout_ms Timeout in milliseconds (-1 for infinite)
-     * @return true if all tasks completed within timeout, false otherwise
+     * @param[in] timeout_ms Timeout in milliseconds. `-1` waits indefinitely.
+     * @return `true` if all tasks completed within the timeout, or `false` otherwise.
      */
     bool wait_all(int timeout_ms = -1);
 
     /**
-     * @brief Restart the timer for a delayed or periodic task
+     * @brief Restart the timer for a delayed or periodic task.
      *
      * This resets the timer countdown to its original interval. Useful for implementing
      * debounce or watchdog-like behavior where you want to postpone execution.
      *
-     * @param[in] id Task ID to restart timer for
-     * @return true if timer restarted successfully, false otherwise (task not found, wrong type, or not running)
+     * @param[in] id Task ID whose timer should restart.
+     * @return `true` if the timer restarted successfully, or `false` when the task is missing,
+     *         has the wrong type, or is not running.
      */
     bool restart_timer(TaskId id);
 
     /**
-     * @brief Query the type of a task
+     * @brief Query the type of a task.
      *
-     * @param[in] id Task ID
-     * @return Task type (Immediate, Delayed, or Periodic)
+     * @param[in] id Task ID.
+     * @return Task type for the ID, or `TaskType::Immediate` when the task is unknown.
      */
     TaskType get_type(TaskId id) const;
 
     /**
-     * @brief Query the state of a task
+     * @brief Query the state of a task.
      *
-     * @param[in] id Task ID
-     * @return Task state (Running, Suspended, Canceled, or Finished)
+     * @param[in] id Task ID.
+     * @return Task state for the ID, or `TaskState::Finished` when the task is unknown.
      */
     TaskState get_state(TaskId id) const;
 
     /**
-     * @brief Query the group of a task
+     * @brief Query the group of a task.
      *
-     * @param[in] id Task ID
-     * @return Group name (empty string if not found)
+     * @param[in] id Task ID.
+     * @return Group name, or an empty string when the task is unknown or ungrouped.
      */
     Group get_group(TaskId id) const;
 
     /**
-     * @brief Query the number of tasks in a group
+     * @brief Query the number of tracked tasks in a group.
      *
-     * @param[in] group Group name
-     * @return Number of tasks in the group
+     * @param[in] group Group name.
+     * @return Number of tasks currently associated with the group.
      */
     size_t get_group_task_count(const Group &group) const;
 
     /**
-     * @brief Get all active groups
+     * @brief Get all groups that currently contain tasks.
      *
-     * @return Vector of active group names
+     * @return Vector of active group names.
      */
     std::vector<Group> get_active_groups() const;
 
     /**
-     * @brief Get statistics about task execution
+     * @brief Get execution statistics accumulated by the scheduler.
      *
-     * @return Statistics structure with task counters
+     * @return `Statistics` structure with task counters.
      */
     Statistics get_statistics() const;
 
     /**
-     * @brief Get the executor
+     * @brief Get a shared executor handle for the underlying `io_context`.
      *
-     * @return Shared pointer to the executor (nullptr if not running)
+     * @return Shared pointer to the executor, or `nullptr` when the scheduler is not running.
      */
     std::shared_ptr<Executor> get_executor()
     {
@@ -372,9 +458,9 @@ public:
     }
 
     /**
-     * @brief Get the number of worker threads
+     * @brief Get the number of worker threads.
      *
-     * @return Number of worker threads
+     * @return Number of worker threads currently owned by the scheduler.
      */
     size_t get_worker_count() const
     {
@@ -383,7 +469,7 @@ public:
     }
 
     /**
-     * @brief Reset all statistics counters to zero
+     * @brief Reset all accumulated statistics counters to zero.
      */
     void reset_statistics();
 
@@ -396,8 +482,8 @@ private:
         bool repeat{false};
         int interval_ms{0};
         Group group; // Group that this task belongs to
-        std::shared_ptr<std::promise<bool>> promise; // Promise for task completion
-        std::shared_future<bool> future; // Shared future for task completion
+        std::shared_ptr<boost::promise<bool>> promise; // Promise for task completion
+        boost::shared_future<bool> future; // Shared future for task completion
         std::atomic<bool> is_executing{false}; // Flag to prevent parallel execution of periodic tasks
 
         // For suspend/resume support
@@ -444,13 +530,13 @@ private:
     void mark_finished(std::shared_ptr<TaskHandle> handle, bool success);
 
     // Get future for task completion
-    std::shared_future<bool> get_future(TaskId id);
+    boost::shared_future<bool> get_future(TaskId id);
 
-    // Invoke pre-execute callback (thread-safe)
-    void invoke_pre_execute_callback(TaskId task_id, TaskType task_type);
+    // Invoke pre-execute callbacks: global ("") first, then group-specific (thread-safe)
+    void invoke_pre_execute_callback(TaskId task_id, TaskType task_type, const Group &group);
 
-    // Invoke post-execute callback (thread-safe)
-    void invoke_post_execute_callback(TaskId task_id, TaskType task_type, bool success);
+    // Invoke post-execute callbacks: global ("") first, then group-specific (thread-safe)
+    void invoke_post_execute_callback(TaskId task_id, TaskType task_type, bool success, const Group &group);
 
 private:
     std::atomic<bool> is_running_{false};
@@ -467,8 +553,8 @@ private:
     std::atomic<TaskId> failed_tasks_{0};
     std::atomic<TaskId> canceled_tasks_{0};
     std::atomic<TaskId> suspended_tasks_{0};
-    PreExecuteCallback pre_execute_callback_;
-    PostExecuteCallback post_execute_callback_;
+    std::map<Group, PreExecuteCallback> pre_execute_callbacks_;   ///< Per-group pre-execute callbacks; key "" = global.
+    std::map<Group, PostExecuteCallback> post_execute_callbacks_; ///< Per-group post-execute callbacks; key "" = global.
 };
 
 // Describe macros for TaskScheduler types

@@ -3,15 +3,13 @@
  *
  * SPDX-License-Identifier: CC0-1.0
  */
+#include <future>
 #include <thread>
 #include <string>
 #include <vector>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "freertos/semphr.h"
-#include "esp_pthread.h"
 #include "esp_heap_caps.h"
-#include "esp_idf_version.h"
 #include "unity.h"
 #include "boost/thread.hpp"
 #include "brookesia/lib_utils/thread_config.hpp"
@@ -20,1122 +18,550 @@
 
 using namespace esp_brookesia::lib_utils;
 
-// Global variables for testing
-static std::vector<std::string> g_thread_names;
-static std::vector<int> g_thread_priorities;
-static std::vector<int> g_thread_cores;
+// ==================== Helper ====================
 
-// Testing helper functions
-void record_thread_info(const char *label)
+// ThreadConfig::get_current_config().stack_size returns the FreeRTOS high-water-mark
+// (minimum free stack ever observed), NOT the allocated stack size. Before comparing a
+// "configured" ThreadConfig against a "current" ThreadConfig via operator==, normalize
+// the expected stack_size to the actual high-water-mark so the comparison is valid for
+// all other fields (name, core_id, priority, stack_in_ext).
+static void assert_config_matches_current(ThreadConfig expected)
 {
-    TaskHandle_t current_task = xTaskGetCurrentTaskHandle();
-    const char *task_name = pcTaskGetName(current_task);
-    UBaseType_t priority = uxTaskPriorityGet(current_task);
-    BaseType_t core = xPortGetCoreID();
-
-    g_thread_names.push_back(task_name ? task_name : "null");
-    g_thread_priorities.push_back(priority);
-    g_thread_cores.push_back(core);
-
-    BROOKESIA_LOGI("%s: name=%s, priority=%u, core=%d", label, task_name, priority, core);
+    auto current = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+    BROOKESIA_LOGI("Expected: %1%, Current: %2%", expected, current);
+    expected.stack_size = current.stack_size;
+    TEST_ASSERT_TRUE(expected == current);
 }
 
-// ==================== ThreadConfig structure testing ====================
+// ==================== BROOKESIA_THREAD_GET_CURRENT_CONFIG ====================
 
-TEST_CASE("Test ThreadConfig default values", "[utils][thread_config][struct]")
+TEST_CASE("BROOKESIA_THREAD_GET_CURRENT_CONFIG on main task",
+          "[utils][thread_config][current_config]")
 {
-    BROOKESIA_LOGI("=== ThreadConfig Default Values Test ===");
+    BROOKESIA_LOGI("=== BROOKESIA_THREAD_GET_CURRENT_CONFIG on Main Task ===");
 
-    ThreadConfig config;
+    ThreadConfig current = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+    BROOKESIA_LOGI("Main task: %1%", current);
 
-    TEST_ASSERT_TRUE(!config.name.empty());
-    TEST_ASSERT_GREATER_OR_EQUAL(-1, config.core_id);
-    TEST_ASSERT_GREATER_THAN(0, config.priority);
-    TEST_ASSERT_GREATER_THAN(0, config.stack_size);
-
-    BROOKESIA_LOGI("Default config: %s", BROOKESIA_DESCRIBE_TO_STR(config).c_str());
+    TEST_ASSERT_FALSE(current.name.empty());
+    TEST_ASSERT_GREATER_OR_EQUAL(-1, current.core_id);
+    TEST_ASSERT_GREATER_THAN(0, current.priority);
+    // stack_hwm > 0 proves the task exists and has remaining stack
+    TEST_ASSERT_GREATER_THAN(0, current.stack_size);
 }
 
-TEST_CASE("Test ThreadConfig custom values", "[utils][thread_config][struct]")
+// ==================== BROOKESIA_THREAD_CONFIG_GUARD: applied config ====================
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD applies and restores config",
+          "[utils][thread_config][guard][applied]")
 {
-    BROOKESIA_LOGI("=== ThreadConfig Custom Values Test ===");
+    BROOKESIA_LOGI("=== Guard Applies and Restores Applied Config ===");
 
-    ThreadConfig config = {
-        .name = "custom_thread",
-        .core_id = 1,
-        .priority = 10,
-        .stack_size = 4096,
-        .stack_in_ext = true
-    };
-
-    TEST_ASSERT_TRUE(config.name == "custom_thread");
-    TEST_ASSERT_EQUAL(1, config.core_id);
-    TEST_ASSERT_EQUAL(10, config.priority);
-    TEST_ASSERT_EQUAL(4096, config.stack_size);
-    TEST_ASSERT_TRUE(config.stack_in_ext);
-
-    BROOKESIA_LOGI("Custom config: %s", BROOKESIA_DESCRIBE_TO_STR(config).c_str());
-}
-
-TEST_CASE("Test ThreadConfig BROOKESIA_DESCRIBE_TO_STR", "[utils][thread_config][describe]")
-{
-    BROOKESIA_LOGI("=== ThreadConfig BROOKESIA_DESCRIBE_TO_STR Test ===");
-
-    ThreadConfig config = {
-        .name = "test_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 2048,
-        .stack_in_ext = false
-    };
-
-    std::string desc = BROOKESIA_DESCRIBE_TO_STR(config);
-
-    TEST_ASSERT_TRUE(desc.find("name") != std::string::npos);
-    TEST_ASSERT_TRUE(desc.find("core_id") != std::string::npos);
-    TEST_ASSERT_TRUE(desc.find("priority") != std::string::npos);
-    TEST_ASSERT_TRUE(desc.find("stack_size") != std::string::npos);
-    TEST_ASSERT_TRUE(desc.find("stack_in_ext") != std::string::npos);
-
-    BROOKESIA_LOGI("Described: %s", desc.c_str());
-}
-
-TEST_CASE("Test ThreadConfig with JSON format", "[utils][thread_config][describe][json]")
-{
-    BROOKESIA_LOGI("=== ThreadConfig JSON Format Test ===");
-
-    ThreadConfig config = {
-        .name = "json_thread",
-        .core_id = 1,
-        .priority = 8,
-        .stack_size = 8192,
-        .stack_in_ext = true
-    };
-
-    std::string json = BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, BROOKESIA_DESCRIBE_FORMAT_JSON);
-
-    TEST_ASSERT_TRUE(json.find("\"name\"") != std::string::npos);
-    TEST_ASSERT_TRUE(json.find("\"core_id\"") != std::string::npos);
-    TEST_ASSERT_TRUE(json.find("{") != std::string::npos);
-    TEST_ASSERT_TRUE(json.find("}") != std::string::npos);
-
-    BROOKESIA_LOGI("JSON format: %s", json.c_str());
-}
-
-// ==================== ThreadConfig apply/get Test ====================
-
-
-TEST_CASE("Test ThreadConfig apply and get", "[utils][thread_config][apply]")
-{
-    BROOKESIA_LOGI("=== ThreadConfig Apply and Get Test ===");
-
-    // Get current config
-    ThreadConfig original = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Original config: %s", BROOKESIA_DESCRIBE_TO_STR(original).c_str());
-
-    // Apply new config
-    ThreadConfig new_config = {
-        .name = "test_apply",
-        .core_id = 0,
-        .priority = 10,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-    new_config.apply();
-
-    // Get applied config
-    ThreadConfig applied = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Applied config: %s", BROOKESIA_DESCRIBE_TO_STR(applied).c_str());
-
-    // Verify config is applied
-    TEST_ASSERT_EQUAL(new_config.core_id, applied.core_id);
-    TEST_ASSERT_EQUAL(new_config.priority, applied.priority);
-    TEST_ASSERT_EQUAL(new_config.stack_size, applied.stack_size);
-
-    // Restore original config
-    original.apply();
-}
-
-// ==================== ThreadConfigGuard Basic Test ====================
-
-TEST_CASE("Test ThreadConfigGuard basic usage", "[utils][thread_config][guard][basic]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Basic Usage Test ===");
-
-    ThreadConfig original = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Original config: %s", BROOKESIA_DESCRIBE_TO_STR(original).c_str());
+    ThreadConfig original = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+    BROOKESIA_LOGI("Original: %1%", original);
 
     {
-        ThreadConfig config = {
-            .name = "basic_thread",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        ThreadConfigGuard guard(config);
-        BROOKESIA_LOGI("ThreadConfigGuard created");
-
-        // Verify config is applied
-        ThreadConfig current = ThreadConfig::get_applied_config();
-        TEST_ASSERT_EQUAL(config.priority, current.priority);
-        TEST_ASSERT_EQUAL(config.stack_size, current.stack_size);
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-
-    // Verify config is restored
-    ThreadConfig restored = ThreadConfig::get_applied_config();
-    BROOKESIA_LOGI("Restored config: %s", BROOKESIA_DESCRIBE_TO_STR(restored).c_str());
-    TEST_ASSERT_EQUAL(original.priority, restored.priority);
-    TEST_ASSERT_EQUAL(original.stack_size, restored.stack_size);
-}
-
-TEST_CASE("Test ThreadConfigGuard with default config", "[utils][thread_config][guard][default]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Default Config Test ===");
-
-    ThreadConfig config;
-
-    {
-        ThreadConfigGuard guard(config);
-        BROOKESIA_LOGI("Using default config");
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-// ==================== ThreadConfigGuard Thread Creation Test ====================
-
-TEST_CASE("Test ThreadConfigGuard with std::thread", "[utils][thread_config][guard][std_thread]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard with std::thread Test ===");
-
-    g_thread_names.clear();
-
-    ThreadConfig config = {
-        .name = "std_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread t([]() {
-            record_thread_info("std::thread");
+        BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{
+            .name = "guard_test", .core_id = 0, .priority = 12, .stack_size = 5120
         });
 
+        ThreadConfig applied = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+        BROOKESIA_LOGI("While active: %1%", applied);
+        TEST_ASSERT_EQUAL(0,    applied.core_id);
+        TEST_ASSERT_EQUAL(12,   applied.priority);
+        TEST_ASSERT_EQUAL(5120, applied.stack_size);
+    }
+
+    ThreadConfig restored = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+    BROOKESIA_LOGI("Restored: %1%", restored);
+    TEST_ASSERT_TRUE(original == restored);
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD with inline initializer",
+          "[utils][thread_config][guard][inline]")
+{
+    BROOKESIA_LOGI("=== Guard with Inline Initializer ===");
+
+    ThreadConfig original = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{.priority = 8, .stack_size = 4096});
+        TEST_ASSERT_EQUAL(8,    BROOKESIA_THREAD_GET_APPLIED_CONFIG().priority);
+        TEST_ASSERT_EQUAL(4096, BROOKESIA_THREAD_GET_APPLIED_CONFIG().stack_size);
+    }
+
+    TEST_ASSERT_TRUE(original == BROOKESIA_THREAD_GET_APPLIED_CONFIG());
+}
+
+// ==================== Guard with std::thread ====================
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates priority to std::thread",
+          "[utils][thread_config][guard][std_thread][priority]")
+{
+    BROOKESIA_LOGI("=== Guard Priority -> std::thread ===");
+
+    ThreadConfig config{.name = "prio_std", .core_id = 0, .priority = 15, .stack_size = 4096};
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        std::thread t([config]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates name to std::thread",
+          "[utils][thread_config][guard][std_thread][name]")
+{
+    BROOKESIA_LOGI("=== Guard Name -> std::thread ===");
+
+    ThreadConfig config{.name = "named_std", .core_id = 0};
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        std::thread t([config]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates core_id to std::thread",
+          "[utils][thread_config][guard][std_thread][core]")
+{
+    BROOKESIA_LOGI("=== Guard Core -> std::thread ===");
+
+    {
+        ThreadConfig config{.name = "core-1_std", .core_id = -1};
+
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        std::thread t([config]() {
+            assert_config_matches_current(config);
+        });
         t.join();
     }
 
-    // Verify thread name
-    TEST_ASSERT_EQUAL(1, g_thread_names.size());
-    TEST_ASSERT_TRUE(g_thread_names[0].find("std_thread") != std::string::npos);
+    for (int i = 0; i < CONFIG_SOC_CPU_CORES_NUM; i++) {
+        ThreadConfig config{.name = "core" + std::to_string(i) + "_std", .core_id = i};
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+        std::thread([config]() {
+            assert_config_matches_current(config);
+        }).join();
+    }
 }
 
-TEST_CASE("Test ThreadConfigGuard with multiple threads", "[utils][thread_config][guard][multiple]")
+#if CONFIG_SPIRAM
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates stack_in_ext to std::thread",
+          "[utils][thread_config][guard][std_thread][stack_ext]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard Multiple Threads Test ===");
+    BROOKESIA_LOGI("=== Guard Stack-In-Ext -> std::thread ===");
 
-    g_thread_names.clear();
+    {
+        ThreadConfig config{
+            .name = "ext_std", .core_id = 0, .stack_in_ext = true
+        };
 
-    ThreadConfig config = {
-        .name = "multi_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-    const int num_threads = 3;
+        std::thread t([config]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
+}
+#endif
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD applied config is restored after std::thread exits",
+          "[utils][thread_config][guard][std_thread][restore]")
+{
+    BROOKESIA_LOGI("=== Applied Config Restored After std::thread Exits ===");
+
+    ThreadConfig original = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+
+    {
+        ThreadConfig config{.name = "restore_std", .core_id = 0, .priority = 18, .stack_size = 6144};
+
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        std::thread t([config]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
+
+    TEST_ASSERT_TRUE(original == BROOKESIA_THREAD_GET_APPLIED_CONFIG());
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD multiple std::threads share same config",
+          "[utils][thread_config][guard][std_thread][multiple]")
+{
+    BROOKESIA_LOGI("=== Multiple std::threads Share Same Config ===");
+
+    ThreadConfig config{.name = "multi_std", .core_id = 0, .priority = 9, .stack_size = 4096};
     std::vector<std::thread> threads;
 
     {
-        ThreadConfigGuard guard(config);
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-        for (int i = 0; i < num_threads; i++) {
-            threads.emplace_back([i]() {
-                BROOKESIA_LOGI("Thread %d running", i);
-                record_thread_info("multi_thread");
-                vTaskDelay(pdMS_TO_TICKS(10));
+        for (int i = 0; i < 4; i++) {
+            threads.emplace_back([config, i]() {
+                BROOKESIA_LOGI("Thread %d", i);
+                assert_config_matches_current(config);
             });
         }
 
-        // Wait for all threads to complete
         for (auto &t : threads) {
             t.join();
         }
     }
-
-    TEST_ASSERT_EQUAL(num_threads, g_thread_names.size());
 }
 
-// ==================== ThreadConfigGuard Different Config Test ====================
+// ==================== Guard with boost::thread ====================
 
-TEST_CASE("Test ThreadConfigGuard with high priority", "[utils][thread_config][guard][priority]")
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates priority to boost::thread",
+          "[utils][thread_config][guard][boost][priority]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard High Priority Test ===");
+    BROOKESIA_LOGI("=== Guard Priority -> boost::thread ===");
 
-    g_thread_priorities.clear();
-
-    ThreadConfig config = {
-        .name = "high_prio",
-        .core_id = 0,
-        .priority = 20,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
+    ThreadConfig config{.name = "prio_boost", .core_id = 0, .priority = 16, .stack_size = 4096};
 
     {
-        ThreadConfigGuard guard(config);
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-        std::thread t([]() {
-            record_thread_info("high_prio");
+        boost::thread t([config]() {
+            assert_config_matches_current(config);
         });
+        t.join();
+    }
+}
 
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates name to boost::thread",
+          "[utils][thread_config][guard][boost][name]")
+{
+    BROOKESIA_LOGI("=== Guard Name -> boost::thread ===");
+
+    ThreadConfig config{.name = "named_boost", .core_id = 0};
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        boost::thread t([config]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD propagates core_id to boost::thread",
+          "[utils][thread_config][guard][boost][core]")
+{
+    BROOKESIA_LOGI("=== Guard Core -> boost::thread ===");
+
+    {
+        ThreadConfig config{.name = "core-1_boost", .core_id = -1};
+
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        boost::thread t([config]() {
+            assert_config_matches_current(config);
+        });
         t.join();
     }
 
-    // Verify priority
-    TEST_ASSERT_EQUAL(1, g_thread_priorities.size());
-    BROOKESIA_LOGI("Thread priority: %d", g_thread_priorities[0]);
+    for (int i = 0; i < CONFIG_SOC_CPU_CORES_NUM; i++) {
+        ThreadConfig config{.name = "core" + std::to_string(i) + "_boost", .core_id = i};
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+        boost::thread([config]() {
+            assert_config_matches_current(config);
+        }).join();
+    }
 }
 
-TEST_CASE("Test ThreadConfigGuard with large stack", "[utils][thread_config][guard][stack]")
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD multiple boost::threads share same config",
+          "[utils][thread_config][guard][boost][multiple]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard Large Stack Test ===");
+    BROOKESIA_LOGI("=== Multiple boost::threads Share Same Config ===");
 
-    ThreadConfig config = {
-        .name = "large_stack",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 8192,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread t([]() {
-            // Use some stack space
-            char buffer[1024];
-            memset(buffer, 0, sizeof(buffer));
-            BROOKESIA_LOGI("Large stack thread running");
-        });
-
-        t.join();
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-TEST_CASE("Test ThreadConfigGuard with core pinning", "[utils][thread_config][guard][core]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Core Pinning Test ===");
-
-    g_thread_cores.clear();
-
-    // Test Core 0
-    {
-        ThreadConfig config = {
-            .name = "core0_thread",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        {
-            ThreadConfigGuard guard(config);
-
-            std::thread t([]() {
-                record_thread_info("core0_thread");
-            });
-
-            t.join();
-        }
-    }
-
-    // Verify core
-    TEST_ASSERT_EQUAL(1, g_thread_cores.size());
-    TEST_ASSERT_EQUAL(0, g_thread_cores[0]);
-
-#if CONFIG_SOC_CPU_CORES_NUM > 1
-    // Test Core 1 (if available)
-    g_thread_cores.clear();
-
-    {
-        ThreadConfig config = {
-            .name = "core1_thread",
-            .core_id = 1,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        {
-            ThreadConfigGuard guard(config);
-
-            std::thread t([]() {
-                record_thread_info("core1_thread");
-            });
-
-            t.join();
-        }
-    }
-
-    TEST_ASSERT_EQUAL(1, g_thread_cores.size());
-    TEST_ASSERT_EQUAL(1, g_thread_cores[0]);
-#endif
-}
-
-TEST_CASE("Test ThreadConfigGuard with external stack", "[utils][thread_config][guard][ext_stack]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard External Stack Test ===");
-
-    ThreadConfig config = {
-        .name = "ext_stack",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = true
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread t([]() {
-            BROOKESIA_LOGI("Thread with external stack running");
-        });
-
-        t.join();
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-// ==================== ThreadConfigGuard Nested Test ====================
-
-TEST_CASE("Test ThreadConfigGuard nested scopes", "[utils][thread_config][guard][nested]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Nested Scopes Test ===");
-
-    ThreadConfig config1 = {
-        .name = "outer_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    ThreadConfig config2 = {
-        .name = "inner_thread",
-        .core_id = 0,
-        .priority = 10,
-        .stack_size = 8192,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard1(config1);
-        BROOKESIA_LOGI("Outer guard created");
-
-        std::thread t1([]() {
-            BROOKESIA_LOGI("Outer thread running");
-        });
-
-        {
-            ThreadConfigGuard guard2(config2);
-            BROOKESIA_LOGI("Inner guard created");
-
-            std::thread t2([]() {
-                BROOKESIA_LOGI("Inner thread running");
-            });
-
-            t2.join();
-            BROOKESIA_LOGI("Inner thread joined");
-        }
-
-        BROOKESIA_LOGI("Inner guard destroyed");
-        t1.join();
-        BROOKESIA_LOGI("Outer thread joined");
-    }
-
-    BROOKESIA_LOGI("Outer guard destroyed");
-    TEST_ASSERT_TRUE(true);
-}
-
-TEST_CASE("Test ThreadConfigGuard sequential scopes", "[utils][thread_config][guard][sequential]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Sequential Scopes Test ===");
-
-    SemaphoreHandle_t sem = xSemaphoreCreateBinary();
-
-    // First config
-    {
-        ThreadConfig config = {
-            .name = "first_thread",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        ThreadConfigGuard guard(config);
-
-        std::thread t([sem]() {
-            BROOKESIA_LOGI("First thread running");
-            xSemaphoreGive(sem);
-        });
-
-        xSemaphoreTake(sem, pdMS_TO_TICKS(1000));
-        t.join();
-    }
-
-    // Second config
-    {
-        ThreadConfig config = {
-            .name = "second_thread",
-            .core_id = 0,
-            .priority = 10,
-            .stack_size = 8192,
-            .stack_in_ext = false
-        };
-
-        ThreadConfigGuard guard(config);
-
-        std::thread t([sem]() {
-            BROOKESIA_LOGI("Second thread running");
-            xSemaphoreGive(sem);
-        });
-
-        xSemaphoreTake(sem, pdMS_TO_TICKS(1000));
-        t.join();
-    }
-
-    vSemaphoreDelete(sem);
-    TEST_ASSERT_TRUE(true);
-}
-
-// ==================== ThreadConfigGuard Boundary Test ====================
-
-TEST_CASE("Test ThreadConfigGuard with minimum stack", "[utils][thread_config][guard][boundary]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Minimum Stack Test ===");
-
-    ThreadConfig config = {
-        .name = "min_stack",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 3072,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread t([]() {
-            BROOKESIA_LOGI("Minimum stack thread running");
-        });
-
-        t.join();
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-TEST_CASE("Test ThreadConfigGuard with null name", "[utils][thread_config][guard][null_name]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Null Name Test ===");
-
-    ThreadConfig config = {
-        .name = "",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread t([]() {
-            BROOKESIA_LOGI("Thread with null name running");
-        });
-
-        t.join();
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-TEST_CASE("Test ThreadConfigGuard with empty name", "[utils][thread_config][guard][empty_name]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Empty Name Test ===");
-
-    ThreadConfig config = {
-        .name = "",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread t([]() {
-            BROOKESIA_LOGI("Thread with empty name running");
-        });
-
-        t.join();
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-// ==================== ThreadConfigGuard Real World Test ====================
-
-TEST_CASE("Test ThreadConfigGuard real world worker thread", "[utils][thread_config][guard][real_world]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Real World - Worker Thread Test ===");
-
-    ThreadConfig config = {
-        .name = "worker",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    SemaphoreHandle_t start_sem = xSemaphoreCreateBinary();
-    SemaphoreHandle_t done_sem = xSemaphoreCreateBinary();
-    int result = 0;
-
-    {
-        ThreadConfigGuard guard(config);
-
-        std::thread worker([&result, start_sem, done_sem]() {
-            // Wait for start signal
-            xSemaphoreTake(start_sem, portMAX_DELAY);
-
-            // Execute work
-            BROOKESIA_LOGI("Worker processing...");
-            result = 42;
-            vTaskDelay(pdMS_TO_TICKS(100));
-
-            // Notify completion
-            xSemaphoreGive(done_sem);
-        });
-
-        // Send start signal
-        xSemaphoreGive(start_sem);
-
-        // Wait for completion
-        xSemaphoreTake(done_sem, pdMS_TO_TICKS(1000));
-        worker.join();
-    }
-
-    vSemaphoreDelete(start_sem);
-    vSemaphoreDelete(done_sem);
-
-    TEST_ASSERT_EQUAL(42, result);
-}
-
-TEST_CASE("Test ThreadConfigGuard real world producer consumer", "[utils][thread_config][guard][real_world_pc]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Real World - Producer-Consumer Test ===");
-
-    ThreadConfig producer_config = {
-        .name = "producer",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    ThreadConfig consumer_config = {
-        .name = "consumer",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    SemaphoreHandle_t data_ready = xSemaphoreCreateBinary();
-    int shared_data = 0;
-
-    // Producer
-    std::thread producer;
-    {
-        ThreadConfigGuard guard(producer_config);
-
-        producer = std::thread([&shared_data, data_ready]() {
-            BROOKESIA_LOGI("Producer: producing data");
-            shared_data = 100;
-            xSemaphoreGive(data_ready);
-            BROOKESIA_LOGI("Producer: data ready");
-        });
-    }
-
-    // Consumer
-    std::thread consumer;
-    {
-        ThreadConfigGuard guard(consumer_config);
-
-        consumer = std::thread([&shared_data, data_ready]() {
-            BROOKESIA_LOGI("Consumer: waiting for data");
-            xSemaphoreTake(data_ready, portMAX_DELAY);
-            BROOKESIA_LOGI("Consumer: consuming data = %d", shared_data);
-            TEST_ASSERT_EQUAL(100, shared_data);
-        });
-    }
-
-    // Wait for completion
-    producer.join();
-    consumer.join();
-    vSemaphoreDelete(data_ready);
-}
-
-// ==================== ThreadConfigGuard Stress Test ====================
-
-TEST_CASE("Test ThreadConfigGuard stress many threads", "[utils][thread_config][guard][stress]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Stress - Many Threads Test ===");
-
-    ThreadConfig config = {
-        .name = "stress_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 3072,
-        .stack_in_ext = false
-    };
-
-    const int num_threads = 10;
-    std::vector<std::thread> threads;
-
-    {
-        ThreadConfigGuard guard(config);
-
-        for (int i = 0; i < num_threads; i++) {
-            threads.emplace_back([i]() {
-                BROOKESIA_LOGI("Stress thread %d running", i);
-                vTaskDelay(pdMS_TO_TICKS(10 + (i * 5)));
-            });
-        }
-
-        // Wait for all threads to complete
-        for (auto &t : threads) {
-            t.join();
-        }
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-TEST_CASE("Test ThreadConfigGuard stress rapid create destroy", "[utils][thread_config][guard][stress_rapid]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Stress - Rapid Create/Destroy Test ===");
-
-    const int iterations = 5;
-
-    for (int i = 0; i < iterations; i++) {
-        ThreadConfig config = {
-            .name = "rapid_thread",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        {
-            ThreadConfigGuard guard(config);
-
-            std::thread t([i]() {
-                BROOKESIA_LOGI("Rapid thread iteration %d", i);
-            });
-
-            t.join();
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-
-    TEST_ASSERT_TRUE(true);
-}
-
-// ==================== boost::thread Test ====================
-
-TEST_CASE("Test ThreadConfigGuard with boost::thread basic", "[utils][thread_config][guard][boost][basic]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Basic Test ===");
-
-    g_thread_names.clear();
-
-    ThreadConfig config = {
-        .name = "boost_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    {
-        ThreadConfigGuard guard(config);
-
-        boost::thread t([]() {
-            record_thread_info("boost::thread");
-        });
-
-        t.join();
-    }
-
-    // Verify thread name
-    TEST_ASSERT_EQUAL(1, g_thread_names.size());
-    TEST_ASSERT_TRUE(g_thread_names[0].find("boost_thread") != std::string::npos);
-}
-
-TEST_CASE("Test ThreadConfigGuard with boost::thread multiple", "[utils][thread_config][guard][boost][multiple]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Multiple Test ===");
-
+    // Run in a std::thread to guarantee sufficient stack for boost::thread_group
     std::thread([]() {
-        g_thread_names.clear();
-
-        ThreadConfig config = {
-            .name = "boost_multi",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        const int num_threads = 3;
-        boost::thread_group threads;
+        ThreadConfig config{.name = "multi_boost", .core_id = 0, .priority = 7, .stack_size = 4096};
+        boost::thread_group group;
 
         {
-            ThreadConfigGuard guard(config);
+            BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-            for (int i = 0; i < num_threads; i++) {
-                threads.create_thread([i]() {
-                    BROOKESIA_LOGI("boost::thread %d running", i);
-                    record_thread_info("boost_multi");
-                    vTaskDelay(pdMS_TO_TICKS(10));
+            for (int i = 0; i < 4; i++) {
+                group.create_thread([config, i]() {
+                    BROOKESIA_LOGI("boost::thread %d", i);
+                    assert_config_matches_current(config);
                 });
             }
 
-            // Wait for all threads to complete
-            threads.join_all();
+            group.join_all();
         }
-
-        TEST_ASSERT_EQUAL(num_threads, g_thread_names.size());
     }).join();
 }
 
-TEST_CASE("Test ThreadConfigGuard with boost::thread high priority", "[utils][thread_config][guard][boost][priority]")
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD applied config restored after boost::thread exits",
+          "[utils][thread_config][guard][boost][restore]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread High Priority Test ===");
+    BROOKESIA_LOGI("=== Applied Config Restored After boost::thread Exits ===");
 
-    g_thread_priorities.clear();
-
-    ThreadConfig config = {
-        .name = "boost_high_prio",
-        .core_id = 0,
-        .priority = 20,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
+    ThreadConfig original = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
 
     {
-        ThreadConfigGuard guard(config);
+        ThreadConfig config{.name = "restore_boost", .core_id = 0, .priority = 17, .stack_size = 6144};
 
-        boost::thread t([]() {
-            record_thread_info("boost_high_prio");
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        boost::thread t([config]() {
+            assert_config_matches_current(config);
         });
-
         t.join();
     }
 
-    // Verify priority
-    TEST_ASSERT_EQUAL(1, g_thread_priorities.size());
-    BROOKESIA_LOGI("boost::thread priority: %d", g_thread_priorities[0]);
+    TEST_ASSERT_TRUE(original == BROOKESIA_THREAD_GET_APPLIED_CONFIG());
 }
 
-TEST_CASE("Test ThreadConfigGuard with boost::thread core pinning", "[utils][thread_config][guard][boost][core]")
+// ==================== Nested and sequential guards ====================
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD nested scopes each thread sees its guard",
+          "[utils][thread_config][guard][nested]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Core Pinning Test ===");
+    BROOKESIA_LOGI("=== Nested Guards: each thread sees its guard's config ===");
 
-    g_thread_cores.clear();
-
-    // Test Core 0
-    {
-        ThreadConfig config = {
-            .name = "boost_core0",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
-
-        {
-            ThreadConfigGuard guard(config);
-
-            boost::thread t([]() {
-                record_thread_info("boost_core0");
-            });
-
-            t.join();
-        }
-    }
-
-    // Verify core
-    TEST_ASSERT_EQUAL(1, g_thread_cores.size());
-    TEST_ASSERT_EQUAL(0, g_thread_cores[0]);
-
-#if CONFIG_FREERTOS_UNICORE == 0
-    // Test Core 1 (if available)
-    g_thread_cores.clear();
+    ThreadConfig outer_cfg{.name = "outer", .core_id = 0, .priority = 6,  .stack_size = 4096};
+    ThreadConfig inner_cfg{.name = "inner", .core_id = 0, .priority = 14, .stack_size = 4096};
 
     {
-        ThreadConfig config = {
-            .name = "boost_core1",
-            .core_id = 1,
-            .priority = 5,
-            .stack_size = 4096,
-            .stack_in_ext = false
-        };
+        BROOKESIA_THREAD_CONFIG_GUARD(outer_cfg);
+
+        // outer_t is created while the outer guard is still active
+        std::thread outer_t([outer_cfg]() {
+            assert_config_matches_current(outer_cfg);
+        });
 
         {
-            ThreadConfigGuard guard(config);
+            BROOKESIA_THREAD_CONFIG_GUARD(inner_cfg);
 
-            boost::thread t([]() {
-                record_thread_info("boost_core1");
+            std::thread inner_t([inner_cfg]() {
+                assert_config_matches_current(inner_cfg);
             });
-
-            t.join();
+            inner_t.join();
         }
+
+        outer_t.join();
+    }
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD nested scopes restores in LIFO order",
+          "[utils][thread_config][guard][nested][lifo]")
+{
+    BROOKESIA_LOGI("=== Nested Guards Restore in LIFO Order ===");
+
+    ThreadConfig original = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{.priority = 6,  .stack_size = 4096});
+        TEST_ASSERT_EQUAL(6,  BROOKESIA_THREAD_GET_APPLIED_CONFIG().priority);
+        {
+            BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{.priority = 10, .stack_size = 4096});
+            TEST_ASSERT_EQUAL(10, BROOKESIA_THREAD_GET_APPLIED_CONFIG().priority);
+            {
+                BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{.priority = 14, .stack_size = 4096});
+                TEST_ASSERT_EQUAL(14, BROOKESIA_THREAD_GET_APPLIED_CONFIG().priority);
+            }
+            TEST_ASSERT_EQUAL(10, BROOKESIA_THREAD_GET_APPLIED_CONFIG().priority);
+        }
+        TEST_ASSERT_EQUAL(6,  BROOKESIA_THREAD_GET_APPLIED_CONFIG().priority);
     }
 
-    TEST_ASSERT_EQUAL(1, g_thread_cores.size());
-    TEST_ASSERT_EQUAL(1, g_thread_cores[0]);
+    TEST_ASSERT_TRUE(original == BROOKESIA_THREAD_GET_APPLIED_CONFIG());
+}
+
+TEST_CASE("BROOKESIA_THREAD_CONFIG_GUARD sequential scopes each thread sees its guard",
+          "[utils][thread_config][guard][sequential]")
+{
+    BROOKESIA_LOGI("=== Sequential Guards: each thread sees its guard's config ===");
+
+    {
+        ThreadConfig cfg{.name = "seq1", .core_id = 0, .priority = 6, .stack_size = 4096};
+        BROOKESIA_THREAD_CONFIG_GUARD(cfg);
+
+        std::thread t([cfg]() {
+            assert_config_matches_current(cfg);
+        });
+        t.join();
+    }
+
+    {
+        ThreadConfig cfg{.name = "seq2", .core_id = 0, .priority = 11, .stack_size = 4096};
+        BROOKESIA_THREAD_CONFIG_GUARD(cfg);
+
+        std::thread t([cfg]() {
+            assert_config_matches_current(cfg);
+        });
+        t.join();
+    }
+}
+
+// ==================== Boundary conditions ====================
+
+TEST_CASE("boundary: BROOKESIA_THREAD_CONFIG_GUARD with empty name",
+          "[utils][thread_config][guard][boundary][empty_name]")
+{
+    BROOKESIA_LOGI("=== Boundary: Empty Name ===");
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{
+            .name = "", .core_id = 0
+        });
+
+        std::thread t([]() {
+            ThreadConfig current = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+            BROOKESIA_LOGI("Empty-name thread: %1%", current);
+            TEST_ASSERT_FALSE(current.name.empty());  // FreeRTOS always assigns a name
+        });
+        t.join();
+    }
+}
+
+TEST_CASE("boundary: BROOKESIA_THREAD_CONFIG_GUARD with minimum stack",
+          "[utils][thread_config][guard][boundary][min_stack]")
+{
+    BROOKESIA_LOGI("=== Boundary: Minimum Stack Size ===");
+
+    {
+        // 3072 is the minimum stack size accepted by the FreeRTOS pthread port
+        BROOKESIA_THREAD_CONFIG_GUARD(ThreadConfig{
+            .name = "min_stk", .core_id = 0, .priority = 5, .stack_size = 3072
+        });
+
+        std::thread t([]() {
+            ThreadConfig current = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+            BROOKESIA_LOGI("Min-stack thread: %1%", current);
+            TEST_ASSERT_GREATER_THAN(0, current.stack_size);
+        });
+        t.join();
+    }
+}
+
+TEST_CASE("boundary: BROOKESIA_THREAD_CONFIG_GUARD with high priority",
+          "[utils][thread_config][guard][boundary][high_priority]")
+{
+    BROOKESIA_LOGI("=== Boundary: High Priority ===");
+
+    // configMAX_PRIORITIES - 2: leave room for system tasks at the top
+    const size_t high_prio = configMAX_PRIORITIES - 2;
+    ThreadConfig config{.name = "high_prio", .core_id = 0, .priority = high_prio, .stack_size = 4096};
+
+    {
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        std::thread t([config]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
+}
+
+#if !CONFIG_SPIRAM
+TEST_CASE("boundary: BROOKESIA_THREAD_CONFIG_GUARD with external stack while PSRAM is not available",
+          "[utils][thread_config][guard][boundary][ext_stack_while_not_available]")
+{
+    BROOKESIA_LOGI("=== Boundary: External Stack While PSRAM Not Available ===");
+
+    ThreadConfig config{.name = "ext_stack", .core_id = 0, .stack_in_ext = true};
+    BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+    std::thread t([config]() {
+        auto current = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+        BROOKESIA_LOGI("Current: %1%", current);
+        TEST_ASSERT_FALSE(current.stack_in_ext);
+    });
+    t.join();
+}
 #endif
+
+TEST_CASE("boundary: BROOKESIA_THREAD_CONFIG_GUARD with core id exceeds the number of cores",
+          "[utils][thread_config][guard][boundary][core_id_exceeds_the_number_of_cores]")
+{
+    BROOKESIA_LOGI("=== Boundary: Core ID Exceeds the Number of Cores ===");
+
+    ThreadConfig config{.name = "core_id_exceeds_the_number_of_cores", .core_id = CONFIG_SOC_CPU_CORES_NUM};
+    BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+    std::thread t([config]() {
+        auto current = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+        BROOKESIA_LOGI("Current: %1%", current);
+    });
+    t.join();
 }
 
-TEST_CASE("Test ThreadConfigGuard with boost::thread nested", "[utils][thread_config][guard][boost][nested]")
+TEST_CASE("boundary: BROOKESIA_THREAD_CONFIG_GUARD rapid create/destroy",
+          "[utils][thread_config][guard][boundary][rapid]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Nested Test ===");
+    BROOKESIA_LOGI("=== Boundary: Rapid Create/Destroy ===");
 
-    ThreadConfig config1 = {
-        .name = "boost_outer",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
+    ThreadConfig original = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+    ThreadConfig config{.name = "rapid", .core_id = 0};
 
-    ThreadConfig config2 = {
-        .name = "boost_inner",
-        .core_id = 0,
-        .priority = 10,
-        .stack_size = 8192,
-        .stack_in_ext = false
-    };
+    for (int i = 0; i < 10; i++) {
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-    {
-        ThreadConfigGuard guard1(config1);
-        BROOKESIA_LOGI("Outer guard created");
-
-        boost::thread t1([]() {
-            BROOKESIA_LOGI("Outer boost::thread running");
+        std::thread t([config]() {
+            assert_config_matches_current(config);
         });
-
-        {
-            ThreadConfigGuard guard2(config2);
-            BROOKESIA_LOGI("Inner guard created");
-
-            boost::thread t2([]() {
-                BROOKESIA_LOGI("Inner boost::thread running");
-            });
-
-            t2.join();
-            BROOKESIA_LOGI("Inner boost::thread joined");
-        }
-
-        BROOKESIA_LOGI("Inner guard destroyed");
-        t1.join();
-        BROOKESIA_LOGI("Outer boost::thread joined");
-    }
-
-    BROOKESIA_LOGI("Outer guard destroyed");
-    TEST_ASSERT_TRUE(true);
-}
-
-TEST_CASE("Test ThreadConfigGuard with boost::thread interrupt", "[utils][thread_config][guard][boost][interrupt]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Interrupt Test ===");
-
-    ThreadConfig config = {
-        .name = "boost_interrupt",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
-    bool thread_interrupted = false;
-
-    {
-        ThreadConfigGuard guard(config);
-
-        boost::thread t([&thread_interrupted]() {
-            try {
-                BROOKESIA_LOGI("boost::thread running, waiting for interrupt");
-                for (int i = 0; i < 100; i++) {
-                    boost::this_thread::interruption_point();
-                    vTaskDelay(pdMS_TO_TICKS(10));
-                }
-            } catch (boost::thread_interrupted &) {
-                thread_interrupted = true;
-                BROOKESIA_LOGI("boost::thread interrupted");
-            }
-        });
-
-        vTaskDelay(pdMS_TO_TICKS(50));
-        t.interrupt();
         t.join();
     }
 
-    TEST_ASSERT_TRUE(thread_interrupted);
+    // Applied config must be fully restored after all guards are gone
+    ThreadConfig restored = BROOKESIA_THREAD_GET_APPLIED_CONFIG();
+    BROOKESIA_LOGI("Restored: %1%", restored);
+    TEST_ASSERT_TRUE(original == restored);
 }
 
-TEST_CASE("Test ThreadConfigGuard with boost::thread real world worker", "[utils][thread_config][guard][boost][real_world]")
+TEST_CASE("boundary: BROOKESIA_THREAD_GET_CURRENT_CONFIG in any thread type",
+          "[utils][thread_config][guard][boundary][no_crash]")
 {
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Real World - Worker Test ===");
+    BROOKESIA_LOGI("=== Boundary: get_current_config Does Not Crash ===");
 
-    ThreadConfig config = {
-        .name = "boost_worker",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
+    ThreadConfig config{.priority = 5, .stack_size = 4096};
 
-    SemaphoreHandle_t start_sem = xSemaphoreCreateBinary();
-    SemaphoreHandle_t done_sem = xSemaphoreCreateBinary();
-    int result = 0;
-
+    // std::thread
     {
-        ThreadConfigGuard guard(config);
+        config.name = "std_thread";
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-        boost::thread worker([&result, start_sem, done_sem]() {
-            // Wait for start signal
-            xSemaphoreTake(start_sem, portMAX_DELAY);
-
-            // Execute work
-            BROOKESIA_LOGI("boost::thread worker processing...");
-            result = 42;
-            vTaskDelay(pdMS_TO_TICKS(100));
-
-            // Notify completion
-            xSemaphoreGive(done_sem);
+        std::thread t([&]() {
+            assert_config_matches_current(config);
         });
-
-        // Send start signal
-        xSemaphoreGive(start_sem);
-
-        // Wait for completion
-        xSemaphoreTake(done_sem, pdMS_TO_TICKS(1000));
-        worker.join();
+        t.join();
     }
 
-    vSemaphoreDelete(start_sem);
-    vSemaphoreDelete(done_sem);
-
-    TEST_ASSERT_EQUAL(42, result);
-}
-
-TEST_CASE("Test ThreadConfigGuard with boost::thread stress", "[utils][thread_config][guard][boost][stress]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard with boost::thread Stress Test ===");
-
-    std::thread([]() {
-        ThreadConfig config = {
-            .name = "boost_stress",
-            .core_id = 0,
-            .priority = 5,
-            .stack_size = 3072,
-            .stack_in_ext = false
-        };
-
-        const int num_threads = 10;
-        boost::thread_group threads;
-
-        {
-            ThreadConfigGuard guard(config);
-
-            for (int i = 0; i < num_threads; i++) {
-                threads.create_thread([i]() {
-                    BROOKESIA_LOGI("boost::thread stress %d running", i);
-                    vTaskDelay(pdMS_TO_TICKS(10 + (i * 5)));
-                });
-            }
-
-            // Wait for all threads to complete
-            threads.join_all();
-        }
-
-        TEST_ASSERT_TRUE(true);
-    }).join();
-}
-
-TEST_CASE("Test ThreadConfigGuard mixed std and boost threads", "[utils][thread_config][guard][mixed]")
-{
-    BROOKESIA_LOGI("=== ThreadConfigGuard Mixed std::thread and boost::thread Test ===");
-
-    ThreadConfig config = {
-        .name = "mixed_thread",
-        .core_id = 0,
-        .priority = 5,
-        .stack_size = 4096,
-        .stack_in_ext = false
-    };
-
+    // std::async
     {
-        ThreadConfigGuard guard(config);
+        config.name = "std_async";
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
 
-        // Create std::thread
-        std::thread std_t1([]() {
-            BROOKESIA_LOGI("std::thread 1 running");
-            vTaskDelay(pdMS_TO_TICKS(10));
+        auto future = std::async(std::launch::async, [&]() {
+            assert_config_matches_current(config);
         });
-
-        std::thread std_t2([]() {
-            BROOKESIA_LOGI("std::thread 2 running");
-            vTaskDelay(pdMS_TO_TICKS(20));
-        });
-
-        // Create boost::thread
-        boost::thread boost_t1([]() {
-            BROOKESIA_LOGI("boost::thread 1 running");
-            vTaskDelay(pdMS_TO_TICKS(15));
-        });
-
-        boost::thread boost_t2([]() {
-            BROOKESIA_LOGI("boost::thread 2 running");
-            vTaskDelay(pdMS_TO_TICKS(25));
-        });
-
-        // Wait for all threads to complete
-        std_t1.join();
-        std_t2.join();
-        boost_t1.join();
-        boost_t2.join();
+        future.get();
     }
 
-    TEST_ASSERT_TRUE(true);
+    // boost::thread
+    {
+        config.name = "boost_thread";
+        BROOKESIA_THREAD_CONFIG_GUARD(config);
+
+        boost::thread t([&]() {
+            assert_config_matches_current(config);
+        });
+        t.join();
+    }
 }

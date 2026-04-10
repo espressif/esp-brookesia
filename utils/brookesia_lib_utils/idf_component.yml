@@ -1,4 +1,4 @@
-version: "0.7.5"
+version: "0.7.6"
 description: ESP-Brookesia core utility library which provides `task scheduler`, `thread configuration`, `performance profilers`, `logging system`, `state machine`, `plugin system`, and various `helper utilities`.
 url: https://github.com/espressif/esp-brookesia/tree/master/utils/brookesia_lib_utils
 repository: https://github.com/espressif/esp-brookesia.git
@@ -11,5 +11,5 @@ dependencies:
     require: public
 
   espressif/esp-boost:
-    version: "0.4.*"
+    version: "0.5.*"
     require: public
