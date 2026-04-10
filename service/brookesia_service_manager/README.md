@@ -146,6 +146,33 @@ Before using this library, ensure you have installed the following SDK developme
 > [!NOTE]
 > For SDK installation instructions, please refer to [ESP-IDF Programming Guide - Installation](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
 
+For host and PC builds, `brookesia_service_manager` also supports standard CMake projects without `ESP-IDF`.
+In that mode, make sure the following dependencies are available:
+
+- C++23 compiler
+- Boost `thread`, `system`, `chrono`, and `json`
+- `brookesia_lib_utils` from the same repository, or let `add_subdirectory()` pull it automatically through this component's CMakeLists
+
+Typical host-side integration looks like this:
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(my_host_app LANGUAGES CXX)
+
+add_subdirectory(path/to/esp-brookesia/service/brookesia_service_manager brookesia_service_manager)
+add_executable(my_host_app main.cpp)
+target_link_libraries(my_host_app PRIVATE brookesia_service_manager)
+set_target_properties(my_host_app PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+```
+
+This component also ships with a ready-to-run host smoke test under `host_test/`:
+
+```bash
+cmake -S service/brookesia_service_manager/host_test -B build/service_manager_host
+cmake --build build/service_manager_host
+ctest --test-dir build/service_manager_host --output-on-failure
+```
+
 ### Add to Project
 
 `brookesia_service_manager` has been uploaded to the [Espressif Component Registry](https://components.espressif.com/). You can add it to your project in the following ways:

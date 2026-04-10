@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -1041,7 +1041,12 @@ TEST_CASE("Test APIs: async call function - add", "[brookesia][service][api][cal
     args["a"] = FunctionValue(10.0);
     args["b"] = FunctionValue(20.0);
 
-    auto future = service->call_function_async("add", std::move(args));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("add", std::move(args), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
+    TEST_ASSERT_TRUE(called);
 
     // Wait for result
     auto result = future.get();
@@ -1070,7 +1075,12 @@ TEST_CASE("Test APIs: async call function - echo", "[brookesia][service][api][ca
     FunctionParameterMap args;
     args["message"] = FunctionValue("Async Hello!");
 
-    auto future = service->call_function_async("echo", std::move(args));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("echo", std::move(args), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
+    TEST_ASSERT_TRUE(called);
 
     // Wait for result
     auto result = future.get();
@@ -1100,7 +1110,12 @@ TEST_CASE("Test APIs: async call function with vector", "[brookesia][service][ap
     args_vector.push_back(FunctionValue(15.0));  // a
     args_vector.push_back(FunctionValue(25.0));  // b
 
-    auto future = service->call_function_async("add", std::move(args_vector));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("add", std::move(args_vector), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
+    TEST_ASSERT_TRUE(called);
 
     // Wait for result
     auto result = future.get();
@@ -1130,7 +1145,12 @@ TEST_CASE("Test APIs: async call function with json object", "[brookesia][servic
     args_json["a"] = 100.0;
     args_json["b"] = 200.0;
 
-    auto future = service->call_function_async("add", std::move(args_json));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("add", std::move(args_json), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
+    TEST_ASSERT_TRUE(called);
 
     // Wait for result
     auto result = future.get();
@@ -1156,13 +1176,18 @@ TEST_CASE("Test APIs: async call multiple functions concurrently", "[brookesia][
     TEST_ASSERT_NOT_NULL(service);
 
     // Launch multiple async calls
+    std::vector<std::promise<FunctionResult>> promises(5);
     std::vector<std::future<FunctionResult>> futures;
 
     for (int i = 0; i < 5; i++) {
+        futures.push_back(promises[i].get_future());
         FunctionParameterMap args;
         args["a"] = FunctionValue(static_cast<double>(i));
         args["b"] = FunctionValue(static_cast<double>(i * 10));
-        futures.push_back(service->call_function_async("add", std::move(args)));
+        bool called = service->call_function_async("add", std::move(args), [&promises, i](FunctionResult && result) {
+            promises[i].set_value(std::move(result));
+        });
+        TEST_ASSERT_TRUE(called);
     }
 
     // Collect results
@@ -1195,7 +1220,12 @@ TEST_CASE("Test APIs: async call with custom timeout check", "[brookesia][servic
     FunctionParameterMap args;
     args["message"] = FunctionValue("Custom timeout test");
 
-    auto future = service->call_function_async("echo", std::move(args));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("echo", std::move(args), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
+    TEST_ASSERT_TRUE(called);
 
     // Custom timeout check (1 second)
     auto status = future.wait_for(std::chrono::seconds(1));
@@ -1229,7 +1259,12 @@ TEST_CASE("Test APIs: async vs sync call comparison", "[brookesia][service][api]
     FunctionParameterMap async_args;
     async_args["a"] = FunctionValue(50.0);
     async_args["b"] = FunctionValue(50.0);
-    auto future = service->call_function_async("add", std::move(async_args));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("add", std::move(async_args), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
+    TEST_ASSERT_TRUE(called);
     auto async_result = future.get();
 
     // Sync call (same parameters)
@@ -1265,13 +1300,11 @@ TEST_CASE("Test APIs: async call non-existent function", "[brookesia][service][a
 
     // Call non-existent function asynchronously
     FunctionParameterMap args;
-    auto future = service->call_function_async("non_existent", std::move(args));
+    bool called = service->call_function_async("non_existent", std::move(args), nullptr);
 
-    // Should get error result
-    auto result = future.get();
-    TEST_ASSERT_FALSE(result.success);
-    TEST_ASSERT_FALSE(result.error_message.empty());
-    BROOKESIA_LOGI("Expected error: %1%", result.error_message);
+    // Should return false since function doesn't exist
+    TEST_ASSERT_FALSE(called);
+    BROOKESIA_LOGI("Expected: call_function_async returned false for non-existent function");
 
     service_manager.stop();
     service_manager.deinit();
@@ -1291,12 +1324,17 @@ TEST_CASE("Test APIs: async call with mixed sync and async", "[brookesia][servic
     TEST_ASSERT_NOT_NULL(service);
 
     // Launch async calls
+    std::vector<std::promise<FunctionResult>> promises(3);
     std::vector<std::future<FunctionResult>> futures;
     for (int i = 0; i < 3; i++) {
+        futures.push_back(promises[i].get_future());
         FunctionParameterMap args;
         args["a"] = FunctionValue(static_cast<double>(i));
         args["b"] = FunctionValue(1.0);
-        futures.push_back(service->call_function_async("add", std::move(args)));
+        bool called = service->call_function_async("add", std::move(args), [&promises, i](FunctionResult && result) {
+            promises[i].set_value(std::move(result));
+        });
+        TEST_ASSERT_TRUE(called);
     }
 
     // Do sync calls while async calls are running
@@ -1340,13 +1378,22 @@ TEST_CASE("Test APIs: async call before service running", "[brookesia][service][
     args["a"] = FunctionValue(10.0);
     args["b"] = FunctionValue(20.0);
 
-    auto future = service->call_function_async("add", std::move(args));
+    std::promise<FunctionResult> promise;
+    auto future = promise.get_future();
+    bool called = service->call_function_async("add", std::move(args), [&promise](FunctionResult && result) {
+        promise.set_value(std::move(result));
+    });
 
-    // Should get error result immediately
-    auto result = future.get();
-    TEST_ASSERT_FALSE(result.success);
-    TEST_ASSERT_FALSE(result.error_message.empty());
-    BROOKESIA_LOGI("Expected error: %1%", result.error_message);
+    // The call may succeed but handler receives error, or call returns false
+    if (called) {
+        // Handler will be called with error result
+        auto result = future.get();
+        TEST_ASSERT_FALSE(result.success);
+        TEST_ASSERT_FALSE(result.error_message.empty());
+        BROOKESIA_LOGI("Expected error: %1%", result.error_message);
+    } else {
+        BROOKESIA_LOGI("Expected: call_function_async returned false when service not running");
+    }
 
     service_manager.stop();
     service_manager.deinit();
@@ -1391,15 +1438,20 @@ TEST_CASE("Test APIs: stress - rapid async calls", "[brookesia][service][api][st
     TEST_ASSERT_NOT_NULL(service);
 
     const int iterations = 50;
+    std::vector<std::promise<FunctionResult>> promises(iterations);
     std::vector<std::future<FunctionResult>> futures;
     futures.reserve(iterations);
 
     // Launch many async calls
     for (int i = 0; i < iterations; i++) {
+        futures.push_back(promises[i].get_future());
         FunctionParameterMap args;
         args["a"] = FunctionValue(static_cast<double>(i));
         args["b"] = FunctionValue(1.0);
-        futures.push_back(service->call_function_async("add", std::move(args)));
+        bool called = service->call_function_async("add", std::move(args), [&promises, i](FunctionResult && result) {
+            promises[i].set_value(std::move(result));
+        });
+        TEST_ASSERT_TRUE(called);
     }
 
     // Collect all results

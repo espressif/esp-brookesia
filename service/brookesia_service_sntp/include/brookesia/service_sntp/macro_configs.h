@@ -7,10 +7,14 @@
 
 #include "sdkconfig.h"
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the SNTP service component.
+ */
 #define BROOKESIA_SERVICE_SNTP_LOG_TAG "SvcSNTP"
 
-/* Auto register */
+/**
+ * @brief Enable automatic plugin registration for the SNTP service component.
+ */
 #if !defined(BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER)
 #       define BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
@@ -19,7 +23,9 @@
 #   endif
 #endif
 
-/* Plugin symbol */
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
 #if BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER
 #   if !defined(BROOKESIA_SERVICE_SNTP_PLUGIN_SYMBOL)
 #       define BROOKESIA_SERVICE_SNTP_PLUGIN_SYMBOL  service_sntp_symbol

@@ -419,21 +419,19 @@ TEST_CASE("Test ServiceWifi - connect and manual disconnect (no auto-reconnect)"
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .validator = [](const service::FunctionValue & value)
             {
-                // Should return a JSON array of strings
                 auto array_ptr = std::get_if<boost::json::array>(&value);
                 BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
 
-                // Should contain TEST_WIFI_SSID1
-                bool found = false;
-                for (const auto &item : *array_ptr) {
-                    if (item.is_string() && item.as_string() == TEST_WIFI_SSID1) {
-                        found = true;
-                        break;
+                std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                for (const auto &connect_ap_info : connect_ap_infos) {
+                    if (connect_ap_info.ssid == TEST_WIFI_SSID1) {
+                        return true;
                     }
                 }
-                BROOKESIA_CHECK_FALSE_RETURN(found, false, "TEST_WIFI_SSID1 not found");
-
-                return true;
+                return false;
             }
         }
     };
@@ -622,11 +620,14 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
-                    if (!array_ptr) {
-                        return false;
-                    }
-                    for (const auto &item : *array_ptr) {
-                        if (item.is_string() && item.as_string() == TEST_WIFI_SSID1) {
+                    BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                    std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                    auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                    BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                    for (const auto &connect_ap_info : connect_ap_infos) {
+                        if (connect_ap_info.ssid == TEST_WIFI_SSID1) {
                             return true;
                         }
                     }
@@ -866,14 +867,18 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
-                    if (!array_ptr) {
-                        return false;
-                    }
-                    for (const auto &item : *array_ptr) {
-                        if (item.is_string() && item.as_string() == TEST_WIFI_SSID1) {
+                    BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                    std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                    auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                    BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                    for (const auto &connect_ap_info : connect_ap_infos) {
+                        if (connect_ap_info.ssid == TEST_WIFI_SSID1) {
                             return true;
                         }
                     }
+
                     return false;
                 }
             }
@@ -941,14 +946,18 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
-                    if (!array_ptr) {
-                        return false;
-                    }
-                    for (const auto &item : *array_ptr) {
-                        if (item.is_string() && item.as_string() == TEST_WIFI_SSID1) {
+                    BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                    std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                    auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                    BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                    for (const auto &connect_ap_info : connect_ap_infos) {
+                        if (connect_ap_info.ssid == TEST_WIFI_SSID1) {
                             return true;
                         }
                     }
+
                     return false;
                 }
             }
@@ -1018,20 +1027,21 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
             .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
             .validator = [](const service::FunctionValue & value)
             {
-                // Should return a JSON array of strings
                 auto array_ptr = std::get_if<boost::json::array>(&value);
-                if (!array_ptr) {
-                    return false;
-                }
-                // Should contain TEST_WIFI_SSID1
-                bool found = false;
-                for (const auto &item : *array_ptr) {
-                    if (item.is_string() && item.as_string() == TEST_WIFI_SSID1) {
-                        found = true;
-                        break;
+                BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                for (const auto &connect_ap_info : connect_ap_infos) {
+                    BROOKESIA_LOGI("Connect AP info: %1%", BROOKESIA_DESCRIBE_TO_STR(connect_ap_info));
+                    if (connect_ap_info.ssid == TEST_WIFI_SSID1) {
+                        return true;
                     }
                 }
-                return found;
+
+                return false;
             }
         }
     };
@@ -1070,14 +1080,18 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
             .validator = [](const service::FunctionValue & value)
             {
                 auto array_ptr = std::get_if<boost::json::array>(&value);
-                if (!array_ptr) {
-                    return false;
-                }
-                for (const auto &item : *array_ptr) {
-                    if (item.is_string() && item.as_string() == TEST_WIFI_SSID2) {
+                BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                for (const auto &connect_ap_info : connect_ap_infos) {
+                    if (connect_ap_info.ssid == TEST_WIFI_SSID2) {
                         return true;
                     }
                 }
+
                 return false;
             }
         }
@@ -1111,14 +1125,18 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
                 .validator = [](const service::FunctionValue & value)
                 {
                     auto array_ptr = std::get_if<boost::json::array>(&value);
-                    if (!array_ptr) {
-                        return false;
-                    }
-                    for (const auto &item : *array_ptr) {
-                        if (item.is_string() && item.as_string() == TEST_WIFI_SSID2) {
+                    BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                    std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                    auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                    BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                    for (const auto &connect_ap_info : connect_ap_infos) {
+                        if (connect_ap_info.ssid == TEST_WIFI_SSID2) {
                             return true;
                         }
                     }
+
                     return false;
                 }
             }
@@ -1299,13 +1317,14 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
             .validator = [](const service::FunctionValue & value)
             {
                 auto array_ptr = std::get_if<boost::json::array>(&value);
-                if (!array_ptr) {
-                    return false;
-                }
-                // Should be connected to either SSID1 or SSID2 (last one should be SSID1)
-                for (const auto &item : *array_ptr) {
-                    if (item.is_string() &&
-                            (item.as_string() == TEST_WIFI_SSID1 || item.as_string() == TEST_WIFI_SSID2)) {
+                BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                for (const auto &connect_ap_info : connect_ap_infos) {
+                    if (connect_ap_info.ssid == TEST_WIFI_SSID1 || connect_ap_info.ssid == TEST_WIFI_SSID2) {
                         return true;
                     }
                 }
@@ -1321,6 +1340,99 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
                    RAPID_SWITCH_AP_CYCLES, connected_count, disconnected_count);
 }
 #endif // defined(TEST_WIFI_SSID2) && defined(TEST_WIFI_PASSWORD2)
+
+TEST_CASE("Test ServiceWifi - connect a invalid AP", "[service][wifi][connect][invalid_ap]")
+{
+    BROOKESIA_TIME_PROFILER_SCOPE("test_service_wifi_connect_invalid_ap");
+    BROOKESIA_LOGI("=== Test ServiceWifi - connect a invalid AP ===");
+
+    startup();
+    lib_utils::FunctionGuard shutdown_guard([]() {
+        shutdown();
+    });
+
+    // Setup event subscriptions
+    EventCollector collector;
+
+    static auto wifi_functions = WifiHelpler::get_function_schemas();
+
+    service::LocalTestRunner runner;
+    std::vector<service::LocalTestItem> test_items = {
+        // Clear storage
+        service::LocalTestItem{
+            .name = "Clear storage",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::ResetData),
+            .call_timeout_ms = TEST_WIFI_RESET_DATA_TIMEOUT_MS,
+        },
+        // Directly connect to uninitialized AP (empty SSID)
+        service::LocalTestItem{
+            .name = "Trigger connect action to uninitialized AP",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
+            .params = boost::json::object{{
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
+                }},
+            .run_duration_ms = 5000 // Wait for 5 seconds
+        },
+        // Then set and connect to TEST_WIFI_SSID1
+        service::LocalTestItem{
+            .name = "Set connect AP to '" TEST_WIFI_SSID1 "'",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::SetConnectAp),
+            .params = boost::json::object{
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::SSID), TEST_WIFI_SSID1},
+                {BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionSetConnectApParam::Password), TEST_WIFI_PASSWORD1}
+            }
+        },
+        service::LocalTestItem{
+            .name = "Trigger connect action",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::TriggerGeneralAction),
+            .params = boost::json::object{{
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionTriggerGeneralActionParam::Action),
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Connect)
+                }},
+            .run_duration_ms = TEST_WIFI_CONNECT_DURATION_MS
+        },
+        service::LocalTestItem{
+            .name = "Get connected APs",
+            .method = BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::FunctionId::GetConnectedAps),
+            .validator = [](const service::FunctionValue & value)
+            {
+                auto array_ptr = std::get_if<boost::json::array>(&value);
+                BROOKESIA_CHECK_NULL_RETURN(array_ptr, false, "array_ptr is NULL");
+
+                std::vector<WifiHelpler::ConnectApInfo> connect_ap_infos;
+                auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(*array_ptr, connect_ap_infos);
+                BROOKESIA_CHECK_FALSE_RETURN(parse_result, false, "Failed to parse connect AP infos");
+
+                for (const auto &connect_ap_info : connect_ap_infos) {
+                    if (connect_ap_info.ssid == TEST_WIFI_SSID1) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        }
+    };
+
+    bool all_passed = runner.run_tests(WifiHelpler::get_name().data(), test_items);
+    TEST_ASSERT_TRUE_MESSAGE(all_passed, "Failed to connect to TEST_WIFI_SSID1");
+
+    // Wait for Connected event
+    bool connected = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    TEST_ASSERT_TRUE_MESSAGE(connected, "Failed to connect to TEST_WIFI_SSID1");
+
+    // Verify Connected event
+    {
+        std::lock_guard<std::mutex> lock(collector.mutex);
+        TEST_ASSERT_TRUE_MESSAGE(
+            !collector.general_events.empty() &&
+            collector.general_events.back().event == "Connected",
+            "Connected event not received"
+        );
+    }
+    // Connections will be automatically disconnected when they go out of scope
+}
+
 #endif // defined(TEST_WIFI_SSID1) && defined(TEST_WIFI_PASSWORD1)
 
 // ==================== Error Handling Tests ====================

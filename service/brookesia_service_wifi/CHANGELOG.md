@@ -1,5 +1,19 @@
 # ChangeLog
 
+## v0.7.5 - 2026-04-10
+
+### Breaking Changes:
+
+- break(api): `GetConnectAp` function return type changed from `std::string` to `boost::json::object` (returns full AP object including password)
+
+### Enhancements:
+
+- feat(target): add `esp32h2` target support for `esp_wifi_remote` and `esp_hosted` dependencies
+- feat(deps): relax `esp_wifi_remote` version constraint from `1.2.*` to `>=0.10,<2.0`
+- feat(deps): relax `esp_hosted` version constraint from `2.0.*` to `~2`
+- feat(docs): add Doxygen documentation to public types and methods in `service_wifi.hpp` and `macro_configs.h`
+- feat(include): use fully-qualified include paths for HAL headers (`brookesia/service_wifi/hal/hal.hpp`, `brookesia/service_wifi/state_machine.hpp`)
+
 ## v0.7.4 - 2026-02-25
 
 ### Breaking Changes:

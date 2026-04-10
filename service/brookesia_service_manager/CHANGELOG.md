@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.6 - 2026-04-10
+
+### Enhancements:
+
+- feat(common): add `operator==` and `operator!=` to `RawBuffer` for value-based comparison
+- feat(service): add `FunctionResultHandler` type alias (`std::function<void(FunctionResult&&)>`) to `ServiceBase`
+- feat(service): add `ResultPromise` type alias for `boost::promise<FunctionResult>` to `ServiceBase`
+- feat(docs): add Doxygen documentation to `RpcClient`, `RpcConnection`, `DataLinkBase`, `DataLinkClient`, `DataLinkServer`, `RpcServer`, `ServiceBase`, and umbrella header `service_manager.hpp`
+- feat(build): enable `MINIMAL_BUILD` in test apps `CMakeLists.txt`
+
 ## v0.7.5 - 2026-03-12
 
 #### Enhancements:

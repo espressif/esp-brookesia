@@ -15,18 +15,34 @@
 
 namespace esp_brookesia::service {
 
+// Concept to check if a type can be converted to EventItem
+template<typename T>
+concept ConvertibleToEventItem =
+    std::convertible_to<std::decay_t<T>, bool> ||
+    std::convertible_to<std::decay_t<T>, double> ||
+    std::convertible_to<std::decay_t<T>, std::string> ||
+    std::convertible_to<std::decay_t<T>, boost::json::object> ||
+    std::convertible_to<std::decay_t<T>, boost::json::array> ||
+    std::convertible_to<std::decay_t<T>, RawBuffer>;
+
+/**
+ * @brief Supported value categories for published event items.
+ */
 enum class EventItemType {
-    Boolean,        // bool
-    Number,         // double
-    String,         // std::string
-    Object,         // boost::json::object
-    Array,          // boost::json::array
-    RawBuffer,      // RawBuffer
+    Boolean,  ///< `bool`.
+    Number,   ///< `double`.
+    String,   ///< `std::string`.
+    Object,   ///< `boost::json::object`.
+    Array,    ///< `boost::json::array`.
+    RawBuffer ///< `RawBuffer`.
 };
 BROOKESIA_DESCRIBE_ENUM(EventItemType, Boolean, Number, String, Object, Array, RawBuffer);
 
-// EventItem: A variant that can hold different types of event item values
-// Supports implicit conversion from any arithmetic type (except bool and double) to double
+/**
+ * @brief Variant container used for event payload items.
+ *
+ * Arithmetic types other than `bool` and `double` are converted to `double`.
+ */
 struct EventItem : std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer> {
     using Base = std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
 
@@ -41,13 +57,25 @@ struct EventItem : std::variant<bool, double, std::string, boost::json::object, 
     EventItem(T num) : Base(static_cast<double>(num)) {}
 };
 
+/**
+ * @brief Event payload map keyed by item name.
+ */
 using EventItemMap = std::map<std::string /* name */, EventItem /* item */>;
 
+/**
+ * @brief Schema description for one event payload item.
+ */
 struct EventItemSchema {
     std::string name;
     std::string description = "";
     EventItemType type = EventItemType::String;
 
+    /**
+     * @brief Check whether a runtime event item matches the schema type.
+     *
+     * @param item Runtime event item to validate.
+     * @return `true` when the item type is compatible with this schema item.
+     */
     bool is_compatible_item(const EventItem &item) const
     {
         switch (type) {
@@ -70,6 +98,9 @@ struct EventItemSchema {
 };
 BROOKESIA_DESCRIBE_STRUCT(EventItemSchema, (), (name, description, type))
 
+/**
+ * @brief Schema description for one publishable service event.
+ */
 struct EventSchema {
     std::string name;
     std::string description = "";

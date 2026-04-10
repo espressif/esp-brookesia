@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,23 +7,40 @@
 
 #include <expected>
 #include <string>
-#include "brookesia/service_sntp/macro_configs.h"
-#include "brookesia/service_manager/service/base.hpp"
 #include "brookesia/service_helper/sntp.hpp"
+#include "brookesia/service_manager/service/base.hpp"
+#include "brookesia/service_sntp/macro_configs.h"
 
 namespace esp_brookesia::service {
 
+/**
+ * @brief Service facade for SNTP configuration and time synchronization control.
+ */
 class SNTP : public ServiceBase {
 public:
+    /**
+     * @brief Built-in default NTP server used when no persisted configuration exists.
+     */
     static constexpr std::string_view DEFAULT_NTP_SERVER = BROOKESIA_SERVICE_SNTP_DEFAULT_NTP_SERVER;
+    /**
+     * @brief Built-in default timezone used when no persisted configuration exists.
+     */
     static constexpr std::string_view DEFAULT_TIMEZONE = BROOKESIA_SERVICE_SNTP_DEFAULT_TIMEZONE;
 
+    /**
+     * @brief Persisted data items managed by the SNTP service.
+     */
     enum class DataType {
         Timezone,
         Servers,
         Max,
     };
 
+    /**
+     * @brief Get the process-wide singleton instance.
+     *
+     * @return Reference to the singleton SNTP service.
+     */
     static SNTP &get_instance()
     {
         static SNTP instance;

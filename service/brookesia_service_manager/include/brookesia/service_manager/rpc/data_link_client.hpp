@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -10,21 +10,53 @@
 
 namespace esp_brookesia::service::rpc {
 
-// Client data link class
+/**
+ * @brief TCP transport used by RPC clients.
+ */
 class DataLinkClient : public DataLinkBase {
 public:
+    /**
+     * @brief Construct a client transport on the given executor.
+     *
+     * @param[in] executor Executor used for socket operations.
+     */
     DataLinkClient(boost::asio::io_context::executor_type executor)
         : DataLinkBase(executor)
     {}
+    /**
+     * @brief Destructor.
+     */
     ~DataLinkClient() override;
 
-    // Client interface
+    /**
+     * @brief Connect to a remote server.
+     *
+     * @param[in] host Remote host name or address.
+     * @param[in] port Remote TCP port.
+     * @param[in] timeout_ms Connection timeout in milliseconds.
+     * @return true if the connection succeeds.
+     */
     bool connect(const std::string &host, uint16_t port, size_t timeout_ms);
+    /**
+     * @brief Disconnect the active client connection.
+     *
+     * @return true if a connection existed and cleanup succeeded.
+     */
     bool disconnect();
 
+    /**
+     * @brief Send one payload over the active connection.
+     *
+     * @param[in] data Framed payload to send.
+     * @return true if the send operation was queued successfully.
+     */
     bool send_data(std::string &&data);
 
-    // Get connection status
+    /**
+     * @brief Check whether the client currently has an active connection.
+     *
+     * @return true if connected.
+     */
     bool is_connected();
 
 private:

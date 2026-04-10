@@ -1145,10 +1145,18 @@ TEST_CASE("Test CustomService - async call returns expected result", "[service][
         };
     });
 
-    auto future = custom_service.call_function_async("func_async_call", boost::json::object{{"value", 14}});
-    auto result = future.get();
-    TEST_ASSERT_TRUE(result.success);
-    TEST_ASSERT_EQUAL_DOUBLE(42.0, std::get<double>(result.data.value()));
+    std::promise<esp_brookesia::service::FunctionResult> promise;
+    auto future = promise.get_future();
+    auto handler = [&promise](esp_brookesia::service::FunctionResult && result) {
+        promise.set_value(std::move(result));
+    };
+    bool called = custom_service.call_function_async("func_async_call", boost::json::object{{"value", 14}}, handler);
+    TEST_ASSERT_TRUE(called);
+    auto wait_result = future.wait_for(std::chrono::seconds(2));
+    TEST_ASSERT_EQUAL(std::future_status::ready, wait_result);
+    auto future_result = future.get();
+    TEST_ASSERT_TRUE(future_result.success);
+    TEST_ASSERT_EQUAL_DOUBLE(42.0, std::get<double>(future_result.data.value()));
 }
 
 TEST_CASE("Test CustomService - async call for missing function fails", "[service][custom][call_overload][async]")
@@ -1160,10 +1168,12 @@ TEST_CASE("Test CustomService - async call for missing function fails", "[servic
         shutdown();
     });
 
-    auto future = custom_service.call_function_async("func_async_missing", boost::json::object{});
-    auto result = future.get();
-    TEST_ASSERT_FALSE(result.success);
-    TEST_ASSERT_TRUE(result.error_message.find("Function not found") != std::string::npos);
+    std::promise<esp_brookesia::service::FunctionResult> promise;
+    auto handler = [&promise](esp_brookesia::service::FunctionResult && result) {
+        promise.set_value(std::move(result));
+    };
+    bool called = custom_service.call_function_async("func_async_missing", boost::json::object{}, handler);
+    TEST_ASSERT_FALSE(called);
 }
 
 TEST_CASE("Test CustomService - handler returns no data", "[service][custom][reliability]")

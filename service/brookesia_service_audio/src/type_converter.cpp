@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <cstring>
+#include "private/utils.hpp"
 #include "private/type_converter.hpp"
 
 namespace esp_brookesia::service {
@@ -27,35 +28,17 @@ audio_mixer_gain_config_t TypeConverter::convert(const AudioHelper::MixerGainCon
     };
 }
 
-audio_manager_config_t TypeConverter::convert(const AudioHelper::PeripheralConfig &config)
-{
-    audio_manager_config_t result = {
-        .play_dev = config.play_dev,
-        .rec_dev = config.rec_dev,
-        .mic_layout = {0},
-        .board_sample_rate = static_cast<int>(config.board_sample_rate),
-        .board_bits = static_cast<int>(config.board_bits),
-        .board_channels = static_cast<int>(config.board_channels),
-    };
-
-    // Copy mic_layout string safely
-    if (!config.mic_layout.empty()) {
-        std::strncpy(result.mic_layout, config.mic_layout.c_str(), sizeof(result.mic_layout) - 1);
-        result.mic_layout[sizeof(result.mic_layout) - 1] = '\0';
-    }
-
-    return result;
-}
-
 audio_playback_config_t TypeConverter::convert(
     const AudioHelper::PlaybackConfig &config, const void *event_cb, void *event_cb_ctx
 )
 {
     return {
+        .type = AUDIO_PLAY_TYPE_PLAYBACK,
         .event_cb = reinterpret_cast<playback_event_callback_t>(event_cb),
         .event_cb_ctx = event_cb_ctx,
-        .playback_task_config = convert(config.player_task),
-        .playback_mixer_gain = convert(config.mixer_gain),
+        .task_config = convert(config.player_task),
+        .mixer_gain = convert(config.mixer_gain),
+        .block_until_done = false,
     };
 }
 
@@ -137,48 +120,41 @@ av_processor_decoder_config_t TypeConverter::convert(const AudioHelper::DecoderD
     return result;
 }
 
-av_processor_afe_config_t TypeConverter::convert(const AudioHelper::AFE_Config &config)
-{
-    av_processor_afe_config_t result = DEFAULT_AV_PROCESSOR_AFE_CONFIG();
-
-    if (config.vad.has_value()) {
-        const auto &vad = config.vad.value();
-        result.vad_enable = true;
-        result.vad_mode = vad.mode;
-        result.vad_min_speech_ms = vad.min_speech_ms;
-        result.vad_min_noise_ms = vad.min_noise_ms;
-    } else {
-        result.vad_enable = false;
-    }
-
-    if (config.wakenet.has_value()) {
-        const auto &wakenet = config.wakenet.value();
-        result.ai_mode_wakeup = true;
-        // Note: These point to temporary storage, use the overload with storage parameters for persistent use
-        result.wakeup_time_ms = wakenet.start_timeout_ms;
-        result.wakeup_end_time_ms = wakenet.end_timeout_ms;
-    } else {
-        result.ai_mode_wakeup = false;
-    }
-
-    return result;
-}
-
 av_processor_afe_config_t TypeConverter::convert(
-    const AudioHelper::AFE_Config &config,
-    std::string &model_storage,
-    std::string &mn_language_storage
+    const AudioHelper::AFE_Config &config, std::string &model_storage, std::string &mn_language_storage
 )
 {
-    av_processor_afe_config_t result = convert(config);
+#if !AV_PROCESSOR_AFE_USE_CUSTOM
+    av_processor_afe_config_t result = DEFAULT_AV_PROCESSOR_AFE_CONFIG();
+    auto &afe_config = result.mode.afe;
+#else
+    av_processor_afe_config_t result = DEFAULT_AV_PROCESSOR_CUSTOM_CONFIG();
+    auto &afe_config = result.mode.custom;
+#endif
+
+    if (config.vad.has_value()) {
+#if !AV_PROCESSOR_AFE_USE_CUSTOM
+        afe_config.algo_mask |= AV_PROCESSOR_AFE_FLAG_AEC_ENABLE |
+                                AV_PROCESSOR_AFE_FLAG_NS_ENABLE |
+                                AV_PROCESSOR_AFE_FLAG_VAD_ENABLE |
+                                AV_PROCESSOR_AFE_FLAG_AGC_ENABLE;
+#else
+        BROOKESIA_LOGW("VAD is not supported on this target");
+#endif
+    }
 
     if (config.wakenet.has_value()) {
+        afe_config.algo_mask |= AV_PROCESSOR_CUSTOM_FLAG_WAKENET_ENABLE;
+#if !AV_PROCESSOR_AFE_USE_CUSTOM
         const auto &wakenet = config.wakenet.value();
+        afe_config.wakeup_time_ms = wakenet.start_timeout_ms;
+        afe_config.wakeup_end_time_ms = wakenet.end_timeout_ms;
         // Store strings in persistent storage
         model_storage = wakenet.model_partition_label;
         mn_language_storage = wakenet.mn_language;
+        afe_config.mn_language = mn_language_storage.c_str();
         result.model = model_storage.c_str();
-        result.mn_language = mn_language_storage.c_str();
+#endif
     }
 
     return result;
@@ -191,12 +167,13 @@ audio_recorder_config_t TypeConverter::convert(
     std::string &afe_model_storage,
     std::string &afe_mn_language_storage,
     const void *event_cb,
-    void *event_cb_ctx,
-    const void *raw_data_cb,
-    void *raw_data_cb_ctx
+    void *event_cb_ctx
 )
 {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     audio_recorder_config_t result = DEFAULT_AUDIO_RECORDER_CONFIG();
+#pragma GCC diagnostic pop
     result.afe_feed_task_config = convert(afe_config.feeder_task);
     result.afe_config = convert(afe_config, afe_model_storage, afe_mn_language_storage);
     result.afe_fetch_task_config = convert(afe_config.fetcher_task);
@@ -204,8 +181,6 @@ audio_recorder_config_t TypeConverter::convert(
     result.encoder_cfg = convert(dynamic_config);
     result.recorder_event_cb = reinterpret_cast<recorder_event_callback_t>(event_cb);
     result.recorder_ctx = event_cb_ctx;
-    result.input_cb = reinterpret_cast<recorder_input_callback_t>(raw_data_cb);
-    result.input_ctx = raw_data_cb_ctx;
 
     return result;
 }
@@ -215,7 +190,10 @@ audio_feeder_config_t TypeConverter::convert(
     const AudioHelper::DecoderDynamicConfig &dynamic_config
 )
 {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
     audio_feeder_config_t result = DEFAULT_AUDIO_FEEDER_CONFIG();
+#pragma GCC diagnostic pop
 
     result.feeder_task_config = convert(static_config.feeder_task);
     result.decoder_cfg = convert(dynamic_config);

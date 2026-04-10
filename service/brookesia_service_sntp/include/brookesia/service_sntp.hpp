@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public SNTP service API.
+ */
+
 #include "service_sntp/macro_configs.h"
 #include "service_sntp/service_sntp.hpp"

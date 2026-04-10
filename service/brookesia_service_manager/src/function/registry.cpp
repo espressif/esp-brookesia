@@ -12,7 +12,7 @@
 
 namespace esp_brookesia::service {
 
-bool FunctionRegistry::add(FunctionSchema &&func_schema, FunctionHandler &&func_handler)
+bool FunctionRegistry::add(FunctionSchema func_schema, FunctionHandler func_handler)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -70,7 +70,7 @@ bool FunctionRegistry::remove_all()
     return true;
 }
 
-FunctionResult FunctionRegistry::call(const std::string &func_name, FunctionParameterMap &&parameters)
+FunctionResult FunctionRegistry::call(const std::string &func_name, FunctionParameterMap parameters)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

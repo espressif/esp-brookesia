@@ -1,4 +1,4 @@
-version: "0.7.4"
+version: "0.7.5"
 description: ESP-Brookesia WiFi service which provides state machine management, AP scanning, connection management, and SoftAP functionality.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_wifi
 repository: https://github.com/espressif/esp-brookesia.git
@@ -6,13 +6,15 @@ issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
   # Remote WiFi support for ESP32-P4
   espressif/esp_wifi_remote:
-    version: "1.2.*"
+    version: ">=0.10,<2.0"
     rules:
-      - if: "target in [esp32p4]"
+      - if: "target in [esp32p4, esp32h2]"
+
   espressif/esp_hosted:
-    version: "2.0.*"
+    version: "~2"
     rules:
-      - if: "target in [esp32p4]"
+      - if: "target in [esp32p4, esp32h2]"
+
 
   espressif/brookesia_service_helper:
     version: "0.7.*"
@@ -20,4 +22,6 @@ dependencies:
     require: public
 
 examples:
-  - path: ../../examples/service_console
+  - path: ../../examples/agent/chatbot
+  - path: ../../examples/service/console
+  - path: ../../examples/service/wifi

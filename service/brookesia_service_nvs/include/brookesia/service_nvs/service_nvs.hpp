@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,17 +7,32 @@
 
 #include <expected>
 #include <string>
+#include "brookesia/service_helper/nvs.hpp"
 #include "brookesia/service_manager/service/base.hpp"
 #include "brookesia/service_manager/macro_configs.h"
-#include "brookesia/service_helper/nvs.hpp"
+#include "brookesia/service_nvs/macro_configs.h"
 
 namespace esp_brookesia::service {
 
+/**
+ * @brief Service facade for namespace-based NVS key-value operations.
+ */
 class NVS : public ServiceBase {
 public:
+    /**
+     * @brief Helper type used to expose NVS schemas and conversion helpers.
+     */
     using Helper = helper::NVS;
+    /**
+     * @brief Key-value map type used by helper APIs.
+     */
     using KeyValueMap = Helper::KeyValueMap;
 
+    /**
+     * @brief Get the process-wide singleton instance.
+     *
+     * @return Reference to the singleton NVS service.
+     */
     static NVS &get_instance()
     {
         static NVS instance;
@@ -28,9 +43,7 @@ private:
     NVS()
         : ServiceBase({
         .name = Helper::get_name().data(),
-        // NVS operations must be performed in a thread with an SRAM stack.
-        // If the Service Manager's task scheduler uses an external stack,
-        // we need to use a custom task scheduler to ensure NVS operations run in a thread with an SRAM stack.
+        // NVS operations must run on a thread that uses an internal SRAM stack.
 #if BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
             .worker_configs = {

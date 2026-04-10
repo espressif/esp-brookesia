@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.1 - 2026-04-10
+
+### Enhancements:
+
+- feat(docs): add Doxygen documentation to public types and methods in `service_custom.hpp` and `macro_configs.h`
+- feat(build): enable `MINIMAL_BUILD` in test apps `CMakeLists.txt` to reduce build scope
+
 ## v0.7.0 - 2026-03-05
 
 ### Initial Release

@@ -1,5 +1,22 @@
 # ChangeLog
 
+## v0.7.7 - 2026-04-10
+
+### Breaking Changes:
+
+- break(audio): remove `PeripheralConfig` struct and `SetPeripheralConfig` / `FunctionSetPeripheralConfigParam` from Audio helper
+- break(audio): remove `BROOKESIA_DESCRIBE_ENUM` entry for `Audio::FunctionId::SetPeripheralConfig`
+
+### Enhancements:
+
+- feat(video): add new `video.hpp` helper exposing `Video`, `VideoEncoder<N>`, `VideoDecoder<N>` helper classes with full encoder/decoder schema and function/event ID definitions; added to umbrella header `service_helper.hpp`
+- feat(video): add encoder types: `EncoderSinkFormat` (H264/MJPEG/RGB/YUV variants), `EncoderSinkInfo`, `EncoderConfig`; decoder types: `DecoderSourceFormat`, `DecoderSinkFormat`
+- feat(audio): add `SetMute`, `GetAFE_WakeWords`, `PauseAFE_WakeupEnd`, `ResumeAFE_WakeupEnd`, `ResetData` to `Audio::FunctionId`
+- feat(audio): add `FunctionSetMuteParam` parameter key enum for `SetMute` function
+- feat(base): add `EventMonitor<EventIdValue>` inner template class for type-safe event subscription and result collection
+- feat(base): improve `call_function_async` API to accept variadic args directly (instead of `FunctionParameterMap`)
+- feat(docs): add Doxygen documentation to all parameter key enums, function/event schemas in `audio.hpp`, `nvs.hpp`, `sntp.hpp`, `wifi.hpp`, `video.hpp`
+
 ## v0.7.6 - 2026-03-24
 
 ### Breaking Changes:

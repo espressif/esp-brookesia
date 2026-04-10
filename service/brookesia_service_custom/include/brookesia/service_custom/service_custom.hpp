@@ -14,11 +14,21 @@
 
 namespace esp_brookesia::service {
 
+/**
+ * @brief Default service name exposed by the custom service component.
+ */
 static const char *CustomServiceName = "CustomService";
 
+/**
+ * @brief Dynamic service that lets callers register functions and events at runtime.
+ */
 class CustomService : public ServiceBase {
 public:
-
+    /**
+     * @brief Get the process-wide singleton instance.
+     *
+     * @return Reference to the singleton custom service.
+     */
     static CustomService &get_instance()
     {
         static CustomService instance;
@@ -52,7 +62,7 @@ public:
     /**
      * @brief Register an event for custom service
      *
-     * @param[in] schema Event schema
+     * @param[in] event_schema Event schema to register.
      * @return true if registered successfully, false otherwise
      */
     bool register_event(EventSchema event_schema);

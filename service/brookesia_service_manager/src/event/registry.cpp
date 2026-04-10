@@ -12,7 +12,7 @@
 
 namespace esp_brookesia::service {
 
-bool EventRegistry::add(EventSchema &&event_schema)
+bool EventRegistry::add(EventSchema event_schema)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

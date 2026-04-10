@@ -19,14 +19,13 @@ public:
     using Helper = helper::Wifi;
 
     GeneralStateClass(StateMachine &context, GeneralState state)
-        : lib_utils::StateBase()
+        : lib_utils::StateBase(BROOKESIA_DESCRIBE_TO_STR(state))
         , context_(context)
         , state_(state)
     {}
     ~GeneralStateClass() = default;
 
     bool on_enter(const std::string &from_state, const std::string &action) override;
-    void on_update() override;
 
     bool is_transient() const
     {
@@ -55,7 +54,7 @@ bool GeneralStateClass::on_enter(const std::string &from_state, const std::strin
     }
 
     if (!is_transient()) {
-        BROOKESIA_LOGD("Not a transient state, skip");
+        BROOKESIA_LOGD("Current state '%1%' is not a transient state, skip", BROOKESIA_DESCRIBE_TO_STR(state_));
         return true;
     }
 
@@ -73,37 +72,6 @@ bool GeneralStateClass::on_enter(const std::string &from_state, const std::strin
     }
 
     return true;
-}
-
-void GeneralStateClass::on_update()
-{
-    // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    auto hal = context_.get_hal();
-    BROOKESIA_CHECK_NULL_EXIT(hal, "HAL is not set");
-
-    if (!is_transient()) {
-        // BROOKESIA_LOGD("Not a transient state, skip");
-        return;
-    }
-
-    // Check if the target event is ready for transient states
-    auto target_event = get_transient_state_target_event();
-    BROOKESIA_CHECK_FALSE_EXIT(target_event != GeneralEvent::Max, "Not a transient state");
-
-    if (hal->is_general_event_ready(target_event)) {
-        BROOKESIA_LOGD("Event %1% is ready, triggering Success", BROOKESIA_DESCRIBE_TO_STR(target_event));
-        BROOKESIA_CHECK_FALSE_EXIT(
-            context_.trigger_extra_action(ExtraAction::Success), "Failed to trigger extra action"
-        );
-    } else if (hal->is_general_state_error()) {
-        BROOKESIA_LOGD("Error state, triggering Failure");
-        // Clear the error state
-        hal->update_general_state_error(false);
-        BROOKESIA_CHECK_FALSE_EXIT(
-            context_.trigger_extra_action(ExtraAction::Failure), "Failed to trigger extra action"
-        );
-    }
 }
 
 GeneralAction GeneralStateClass::get_transient_state_target_action()
@@ -168,7 +136,7 @@ bool StateMachine::init()
 
     /* Create state machine */
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        state_machine_ = std::make_unique<lib_utils::StateMachine>(Wifi::get_instance().get_state_task_group()),
+        state_machine_ = std::make_unique<lib_utils::StateMachine>(),
         false, "Failed to create state machine"
     );
 
@@ -188,7 +156,7 @@ bool StateMachine::init()
             "Failed to create state %1%", state_str
         );
         BROOKESIA_CHECK_FALSE_RETURN(
-            state_machine_->add_state(state_str, state_ptr), false, "Failed to add state %1%", state_str
+            state_machine_->add_state(state_ptr), false, "Failed to add state %1%", state_str
         );
         state_classes_.push_back(state_ptr);
     }
@@ -215,26 +183,6 @@ bool StateMachine::init()
     auto state_connecting = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Connecting);
     auto state_connected = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Connected);
     auto state_disconnecting = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Disconnecting);
-
-    /* Set update interval for transient states */
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Initing)]->set_update_interval(
-        BROOKESIA_SERVICE_WIFI_STATE_MACHINE_UPDATE_INTERVAL_MS
-    );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Deiniting)]->set_update_interval(
-        BROOKESIA_SERVICE_WIFI_STATE_MACHINE_UPDATE_INTERVAL_MS
-    );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Starting)]->set_update_interval(
-        BROOKESIA_SERVICE_WIFI_STATE_MACHINE_UPDATE_INTERVAL_MS
-    );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Stopping)]->set_update_interval(
-        BROOKESIA_SERVICE_WIFI_STATE_MACHINE_UPDATE_INTERVAL_MS
-    );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Connecting)]->set_update_interval(
-        BROOKESIA_SERVICE_WIFI_STATE_MACHINE_UPDATE_INTERVAL_MS
-    );
-    state_classes_[BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralState::Disconnecting)]->set_update_interval(
-        BROOKESIA_SERVICE_WIFI_STATE_MACHINE_UPDATE_INTERVAL_MS
-    );
 
     /* Add transitions */
     /* ===================== Idle ===================== */
@@ -509,10 +457,11 @@ bool StateMachine::start()
     );
 
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->start(
-            Wifi::get_instance().get_task_scheduler(), BROOKESIA_DESCRIBE_TO_STR(GeneralState::Idle)
-        ), false, "Failed to start state machine"
-    );
+    state_machine_->start({
+        .task_scheduler  = Wifi::get_instance().get_task_scheduler(),
+        .task_group_name = Wifi::get_instance().get_state_task_group(),
+        .initial_state   = BROOKESIA_DESCRIBE_TO_STR(GeneralState::Idle),
+    }), false, "Failed to start state machine");
 
     stop_guard.release();
 
@@ -659,14 +608,6 @@ GeneralState StateMachine::get_general_event_target_state(GeneralEvent event)
     default:
         return GeneralState::Max;
     }
-}
-
-bool StateMachine::is_action_running()
-{
-    auto has_transition_running = state_machine_->has_transition_running();
-    auto has_state_updating = state_machine_->has_state_updating();
-
-    return has_transition_running || has_state_updating;
 }
 
 } // namespace esp_brookesia::service::wifi

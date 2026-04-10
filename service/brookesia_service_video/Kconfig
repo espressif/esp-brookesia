@@ -1,0 +1,47 @@
+menu "ESP-Brookesia: Service Video Configurations"
+    menuconfig BROOKESIA_SERVICE_VIDEO_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_SERVICE_VIDEO_ENABLE_DEBUG_LOG
+        config BROOKESIA_SERVICE_VIDEO_ENCODER_ENABLE_DEBUG_LOG
+            bool "Encoder"
+            default y
+
+        config BROOKESIA_SERVICE_VIDEO_DECODER_ENABLE_DEBUG_LOG
+            bool "Decoder"
+            default y
+    endif
+
+    menuconfig BROOKESIA_SERVICE_VIDEO_ENABLE_ENCODER
+        bool "Enable encoder"
+        default y
+
+    if BROOKESIA_SERVICE_VIDEO_ENABLE_ENCODER
+        config BROOKESIA_SERVICE_VIDEO_ENCODER_DEFAULT_DEVICE_PATH_PREFIX
+            string "Default device path prefix"
+            default "/dev/video"
+            help
+                The default device path prefix of the encoders. E.g., "/dev/video". The final name of the encoder will be like "/dev/video0", "/dev/video1", "/dev/video2", etc.
+
+        config BROOKESIA_SERVICE_VIDEO_ENCODER_DEFAULT_NUM
+            int "Default number of encoders"
+            default 1
+            range 1 3
+            help
+                The default number of encoders to register.
+    endif
+
+    menuconfig BROOKESIA_SERVICE_VIDEO_ENABLE_DECODER
+        bool "Enable decoder"
+        default y
+
+    if BROOKESIA_SERVICE_VIDEO_ENABLE_DECODER
+        config BROOKESIA_SERVICE_VIDEO_DECODER_DEFAULT_NUM
+            int "Default number of decoders"
+            default 1
+            range 1 3
+            help
+                The default number of decoders to register.
+    endif
+endmenu

@@ -14,6 +14,9 @@
 
 namespace esp_brookesia::service::helper {
 
+/**
+ * @brief Helper schema definitions for the NVS service.
+ */
 class NVS: public Base<NVS> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -30,18 +33,30 @@ public:
         Max,
     };
 
+    /**
+     * @brief Value type stored in NVS entries.
+     */
     using Value = std::variant<bool, int32_t, std::string>;
+    /**
+     * @brief Key-value mapping payload for batch set/get operations.
+     */
     using KeyValueMap = std::map<std::string, Value>;
 
+    /**
+     * @brief Metadata for one entry in an NVS namespace.
+     */
     struct EntryInfo {
-        std::string nspace;
-        std::string key;
-        ValueType type;
+        std::string nspace; /*!< Namespace name */
+        std::string key;    /*!< Entry key */
+        ValueType type;     /*!< Entry value type */
     };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the types required by the Base class /////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief NVS service function identifiers.
+     */
     enum class FunctionId {
         List,
         Set,
@@ -50,6 +65,9 @@ public:
         Max,
     };
 
+    /**
+     * @brief NVS service event identifiers.
+     */
     enum class EventId {
         Max,
     };
@@ -57,20 +75,32 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function parameter types ////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Parameter keys for `FunctionId::List`.
+     */
     enum class FunctionListParam {
         Nspace,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::Set`.
+     */
     enum class FunctionSetParam {
         Nspace,
         KeyValuePairs,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::Get`.
+     */
     enum class FunctionGetParam {
         Nspace,
         Keys,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::Erase`.
+     */
     enum class FunctionEraseParam {
         Nspace,
         Keys,
@@ -82,7 +112,7 @@ public:
     // NVS has no events, so no event parameter types are defined
 
 private:
-    static constexpr std::string_view DEFAULT_NAMESPACE = "default";
+    static constexpr std::string_view DEFAULT_NAMESPACE = "storage";
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function schemas /////////////////////////////////////////////////////
@@ -91,8 +121,8 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::List),
-            .description = (boost::format("List information of key-value pairs in the NVS namespace. "
-                                          "Return a JSON array of objects. Example: %1%")
+            .description = (boost::format("List key-value entries in an NVS namespace. "
+                                          "Return type: JSON array<object>. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<EntryInfo>({
                 {"storage", "key1", ValueType::String},
                 {"storage", "key2", ValueType::Int}
@@ -100,8 +130,7 @@ private:
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionListParam::Nspace),
-                    .description = "The namespace of the NVS namespace to list, optional. "
-                    "If not provided, the default namespace will be used.",
+                    .description = "Namespace to list (optional). Uses the default namespace when omitted.",
                     .type = FunctionValueType::String,
                     .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 }
@@ -113,20 +142,18 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Set),
-            .description = "Set key-value pairs in the NVS namespace",
+            .description = "Set key-value pairs in an NVS namespace.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetParam::Nspace),
-                    .description = "The namespace of the key-value pairs to set. "
-                    "Optional. If not provided, the default namespace will be used. "
-                    "If provided empty, the default namespace will be used",
+                    .description = "Namespace to write (optional). Uses the default namespace when omitted or empty.",
                     .type = FunctionValueType::String,
                     .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetParam::KeyValuePairs),
-                    .description = (boost::format("The JSON object of key-value pairs to set, "
-                                                  "should be one of the following: %1%. Example: %2%")
+                    .description = (boost::format("Key-value pairs as a JSON object. Allowed value types: %1%. "
+                                                  "Example: %2%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<ValueType>({
                         ValueType::Bool, ValueType::Int, ValueType::String
                     })) % BROOKESIA_DESCRIBE_JSON_SERIALIZE(KeyValueMap({
@@ -142,24 +169,22 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Get),
-            .description = (boost::format("Get key-value pairs from the NVS namespace by keys. "
-                                          "Return a JSON object of key-value pairs. Example: %1%")
+            .description = (boost::format("Get key-value pairs by keys from an NVS namespace. "
+                                          "Return type: JSON object. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(KeyValueMap({
                 {"key1", "value1"}, {"key2", 2}, {"key3", true}
             }))).str(),
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionGetParam::Nspace),
-                    .description = "The namespace of the key-value pairs to get, optional. "
-                    "If not provided, the default namespace will be used.",
+                    .description = "Namespace to read (optional). Uses the default namespace when omitted.",
                     .type = FunctionValueType::String,
                     .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionGetParam::Keys),
-                    .description = (boost::format("The JSON array of keys to get, optional. "
-                                                  "If not provided, all key-value pairs in the namespace will be "
-                                                  "returned. Example: %1%")
+                    .description = (boost::format("Keys to read as JSON array<string> (optional). "
+                                                  "Returns all pairs when omitted. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({"key1", "key2", "key3"}))).str(),
                     .type = FunctionValueType::Array,
                     .default_value = FunctionValue(boost::json::array())
@@ -172,20 +197,18 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Erase),
-            .description = "Erase key-value pairs from the NVS namespace",
+            .description = "Erase key-value pairs from an NVS namespace.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionEraseParam::Nspace),
-                    .description = "The namespace of the key-value pairs to erase, optional. "
-                    "If not provided, the default namespace will be used.",
+                    .description = "Namespace to erase (optional). Uses the default namespace when omitted.",
                     .type = FunctionValueType::String,
                     .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionEraseParam::Keys),
-                    .description = (boost::format("The keys of the key-value pairs to erase, optional. "
-                                                  "If not provided or empty, all key-value pairs in the namespace will "
-                                                  "be erased. Example: %1%")
+                    .description = (boost::format("Keys to erase as JSON array<string> (optional). "
+                                                  "Erases all pairs when omitted or empty. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({"key1", "key2", "key3"}))).str(),
                     .type = FunctionValueType::Array,
                     .default_value = FunctionValue(boost::json::array())
@@ -203,11 +226,21 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the functions required by the Base class /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Service name used by `ServiceManager`.
+     *
+     * @return std::string_view Stable service name.
+     */
     static constexpr std::string_view get_name()
     {
         return "NVS";
     }
 
+    /**
+     * @brief Get function schemas exported by NVS service.
+     *
+     * @return std::span<const FunctionSchema> Static function schema span.
+     */
     static std::span<const FunctionSchema> get_function_schemas()
     {
         static const std::array<FunctionSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(FunctionId::Max)> FUNCTION_SCHEMAS = {{
@@ -220,6 +253,11 @@ public:
         return std::span<const FunctionSchema>(FUNCTION_SCHEMAS);
     }
 
+    /**
+     * @brief Get event schemas exported by NVS service.
+     *
+     * @return std::span<const EventSchema> Empty span because NVS has no events.
+     */
     static std::span<const EventSchema> get_event_schemas()
     {
         return std::span<const EventSchema>();
@@ -228,7 +266,10 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function helper methods //////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    static constexpr uint32_t DEFAULT_TIMEOUT_MS = 100;
+    /**
+     * @brief Default timeout for synchronous NVS helper calls.
+     */
+    static constexpr uint32_t DEFAULT_TIMEOUT_MS = BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS;
 
     /**
      * @brief Save key-value pairs to the NVS namespace
@@ -280,11 +321,7 @@ public:
         }
 
         boost::json::object data_object{{key, std::move(json_value)}};
-        auto result = call_function_sync<void>(FunctionId::Set,
-        FunctionParameterMap{
-            {BROOKESIA_DESCRIBE_TO_STR(FunctionSetParam::Nspace), nspace},
-            {BROOKESIA_DESCRIBE_TO_STR(FunctionSetParam::KeyValuePairs), std::move(data_object)}
-        }, timeout_ms);
+        auto result = call_function_sync(FunctionId::Set, nspace, std::move(data_object), Timeout(timeout_ms));
         if (!result) {
             return std::unexpected(
                        (boost::format("Failed to save %1% to NVS %2%: %3%") % key % nspace % result.error()).str()
@@ -331,18 +368,16 @@ public:
             return std::unexpected("Failed to bind service");
         }
 
-        auto result = call_function_sync<boost::json::object>(FunctionId::Get,
-        FunctionParameterMap{
-            {BROOKESIA_DESCRIBE_TO_STR(FunctionGetParam::Nspace), nspace},
-            {BROOKESIA_DESCRIBE_TO_STR(FunctionGetParam::Keys), boost::json::array{key}}
-        }, timeout_ms);
+        auto result = call_function_sync<boost::json::object>(
+                          FunctionId::Get, nspace, boost::json::array{key}, Timeout(timeout_ms)
+                      );
         if (!result) {
             return std::unexpected(
                        (boost::format("Failed to get %1% from NVS %2%: %3%") % key % nspace % result.error()).str()
                    );
         }
 
-        auto &data_obj = *result;
+        auto &data_obj = result.value();
         if (!data_obj.contains(key)) {
             return std::unexpected((boost::format("Key %1% not found in namespace %2%") % key % nspace).str());
         }
@@ -409,11 +444,7 @@ public:
         for (const auto &key : keys) {
             keys_array.push_back(boost::json::value(key));
         }
-        auto result = call_function_sync<void>(FunctionId::Erase,
-        FunctionParameterMap{
-            {BROOKESIA_DESCRIBE_TO_STR(FunctionEraseParam::Nspace), nspace},
-            {BROOKESIA_DESCRIBE_TO_STR(FunctionEraseParam::Keys), std::move(keys_array)}
-        }, timeout_ms);
+        auto result = call_function_sync(FunctionId::Erase, nspace, std::move(keys_array), Timeout(timeout_ms));
         if (!result) {
             return std::unexpected(
                        (boost::format("Failed to erase keys from NVS %1%: %2%") % nspace % result.error()).str()

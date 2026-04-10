@@ -3,8 +3,6 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
 #include "brookesia/lib_utils.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
 #include "brookesia/service_manager/service/local_runner.hpp"
@@ -111,27 +109,11 @@ void LocalTestRunner::execute_test(
     bool test_passed = false;
     std::string error_msg;
 
-    // Convert the parameters format
-    FunctionParameterMap parameters;
-    for (const auto &[key, value] : item.params) {
-        if (value.is_bool()) {
-            parameters[key] = FunctionValue(value.as_bool());
-        } else if (value.is_double()) {
-            parameters[key] = FunctionValue(value.as_double());
-        } else if (value.is_string()) {
-            parameters[key] = FunctionValue(std::string(value.as_string()));
-        } else if (value.is_object()) {
-            parameters[key] = FunctionValue(value.as_object());
-        } else if (value.is_array()) {
-            parameters[key] = FunctionValue(value.as_array());
-        }
-    }
-
     // Execute the service call
     FunctionResult result;
     {
         BROOKESIA_TIME_PROFILER_SCOPE(item.method);
-        result = service->call_function_sync(item.method, std::move(parameters), item.call_timeout_ms);
+        result = service->call_function_sync(item.method, item.params, item.call_timeout_ms);
     }
 
     // Validate the result

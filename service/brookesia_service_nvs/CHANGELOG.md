@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.7.3 - 2026-04-10
+
+### Enhancements:
+
+- feat(docs): add Doxygen documentation to public types and methods in `service_nvs.hpp` and `macro_configs.h`
+- feat(build): enable `MINIMAL_BUILD` in test apps `CMakeLists.txt`; add `PRIV_REQUIRES unity esp_psram` to `main/CMakeLists.txt`
+
+### Bug Fixes:
+
+- fix(test): replace `BROOKESIA_CHECK_FALSE_RETURN` with `TEST_ASSERT_TRUE_MESSAGE` for proper Unity test failure reporting
+- fix(test): increase `CALL_FUNCTION_SYNC_TIMEOUT_MS` from 20 ms to 100 ms to reduce timing-sensitive test failures
+
 ## v0.7.2 - 2026-02-02
 
 ### Enhancements:

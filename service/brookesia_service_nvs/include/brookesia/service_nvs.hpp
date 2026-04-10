@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public NVS service API.
+ */
+
 #include "service_nvs/macro_configs.h"
 #include "service_nvs/service_nvs.hpp"

@@ -12,7 +12,7 @@
 - **Playback State Management**: Tracks playback state in real-time (Idle, Playing, Paused) and notifies state changes through events.
 - **Encoder Management**: Supports encoder start, stop, and configuration, with configurable encoder read data size.
 - **Decoder Management**: Supports decoder start, stop, and data input, with streaming decoding support.
-- **HAL Audio Integration**: Uses `AudioPlayerIface` and `AudioRecorderIface` from `brookesia_hal_interface` to obtain player and recorder handles, volume control, and board audio defaults.
+- **HAL Audio Integration**: Uses `AudioCodecPlayerIface` and `AudioCodecRecorderIface` from `brookesia_hal_interface` to obtain player and recorder handles, volume control, and board audio defaults.
 - **Persistent Storage**: Optionally works with the `brookesia_service_nvs` service to persistently save volume and other information.
 
 ## Table of Contents
@@ -53,7 +53,7 @@ The following playback control operations are supported:
 
 ### HAL Audio Integration
 
-- **Typed HAL Access**: Retrieves `AudioPlayerIface` and `AudioRecorderIface` through `get_first_interface<T>()` during service startup.
+- **Typed HAL Access**: Retrieves `AudioCodecPlayerIface` and `AudioCodecRecorderIface` through `get_first_interface<T>()` during service startup.
 - **Less Codec Coupling**: Player volume, open, close, and recorder gain setup are routed through HAL interfaces instead of direct service-layer `esp_codec` calls.
 - **Board Defaults**: Recorder sample rate, sample bits, channel count, mic layout, and gain settings are taken from HAL-provided board configuration.
 

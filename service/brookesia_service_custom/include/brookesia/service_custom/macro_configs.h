@@ -7,10 +7,14 @@
 
 #include "sdkconfig.h"
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the custom service component.
+ */
 #define BROOKESIA_SERVICE_CUSTOM_LOG_TAG "SvcCustom"
 
-/* Auto register */
+/**
+ * @brief Enable automatic plugin registration for the custom service component.
+ */
 #if !defined(BROOKESIA_SERVICE_CUSTOM_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_SERVICE_CUSTOM_ENABLE_AUTO_REGISTER)
 #       define BROOKESIA_SERVICE_CUSTOM_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_SERVICE_CUSTOM_ENABLE_AUTO_REGISTER
@@ -19,7 +23,9 @@
 #   endif
 #endif
 
-/* Plugin symbol */
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
 #if BROOKESIA_SERVICE_CUSTOM_ENABLE_AUTO_REGISTER
 #   if !defined(BROOKESIA_SERVICE_CUSTOM_PLUGIN_SYMBOL)
 #       define BROOKESIA_SERVICE_CUSTOM_PLUGIN_SYMBOL  service_custom_symbol

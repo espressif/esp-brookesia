@@ -276,27 +276,18 @@ std::expected<std::string, std::string> Wifi::function_get_general_state()
     return BROOKESIA_DESCRIBE_TO_STR(general_state);
 }
 
-std::expected<std::string, std::string> Wifi::function_get_connect_ap()
+std::expected<boost::json::object, std::string> Wifi::function_get_connect_ap()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    ConnectApInfo ap_info;
-    ap_info = hal_->get_target_connect_ap_info();
-
-    return ap_info.ssid;
+    return BROOKESIA_DESCRIBE_TO_JSON(hal_->get_target_connect_ap_info()).as_object();
 }
 
 std::expected<boost::json::array, std::string> Wifi::function_get_connected_aps()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto &connected_aps = get_data<DataType::ConnectedAps>();
-    boost::json::array ap_ssids;
-    for (const auto &ap : connected_aps) {
-        ap_ssids.push_back(boost::json::string(ap.ssid));
-    }
-
-    return ap_ssids;
+    return BROOKESIA_DESCRIBE_TO_JSON(get_data<DataType::ConnectedAps>()).as_array();
 }
 
 std::expected<boost::json::object, std::string> Wifi::function_get_softap_params()
@@ -345,7 +336,7 @@ void Wifi::try_load_data()
         }
         // Skip saving to NVS, because the data is already loaded from NVS
         set_data<type>(nvs_result.value(), false, true);
-        BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
+        BROOKESIA_LOGD("Loaded '%1%' from NVS", key);
         BROOKESIA_LOGD("\t Value: %1%", BROOKESIA_DESCRIBE_TO_STR(nvs_result.value()));
     };
 
@@ -459,7 +450,25 @@ bool Wifi::publish_general_action(GeneralAction action)
     return true;
 }
 
-bool Wifi::publish_scan_ap_infos(std::span<const ApInfo> &ap_infos)
+bool Wifi::publish_scan_state_changed(bool is_running)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: is_running(%1%)", is_running);
+
+    auto result = publish_event(
+                      BROOKESIA_DESCRIBE_ENUM_TO_STR(Helper::EventId::ScanStateChanged),
+                      std::vector<EventItem> {is_running}
+                  );
+    if (!result) {
+        BROOKESIA_LOGE("Failed to publish scan state changed event");
+        return false;
+    }
+
+    return true;
+}
+
+bool Wifi::publish_scan_ap_infos(std::span<const ScanApInfo> &ap_infos)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -494,17 +503,47 @@ bool Wifi::publish_softap_event(SoftApEvent event)
     return true;
 }
 
-bool Wifi::on_hal_unexpected_general_event(GeneralEvent event)
+bool Wifi::on_hal_general_event(GeneralEvent event, bool is_unexpected)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto target_state = StateMachine::get_general_event_target_state(event);
-    BROOKESIA_LOGW("Force state machine to transition to target state: %1%", BROOKESIA_DESCRIBE_TO_STR(target_state));
+    BROOKESIA_LOGD("Params: event(%1%), is_unexpected(%2%)", event, is_unexpected);
 
-    // Trigger state machine force transition to target state
+    if (!state_machine_ || !state_machine_->is_running()) {
+        BROOKESIA_LOGD("State machine is not valid or not running, skip");
+        return true;
+    }
+
+    if (is_unexpected) {
+        auto target_state = StateMachine::get_general_event_target_state(event);
+        BROOKESIA_LOGW("Force state machine to transition to target state: %1%", BROOKESIA_DESCRIBE_TO_STR(target_state));
+
+        // Trigger state machine force transition to target state
+        BROOKESIA_CHECK_FALSE_RETURN(
+            state_machine_->force_transition_to(target_state),
+            false, "Failed to force transition to '%1%' state", BROOKESIA_DESCRIBE_TO_STR(target_state)
+        );
+    } else {
+        BROOKESIA_CHECK_FALSE_RETURN(
+            state_machine_->trigger_extra_action(ExtraAction::Success), false, "Failed to trigger extra action"
+        );
+    }
+
+    return true;
+}
+
+bool Wifi::on_hal_error_state()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!state_machine_ || !state_machine_->is_running()) {
+        BROOKESIA_LOGD("State machine is not valid or not running, skip");
+        return true;
+    }
+
+    // Trigger extra action to handle error state
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->force_transition_to(target_state),
-        false, "Failed to force transition to '%1%' state", BROOKESIA_DESCRIBE_TO_STR(target_state)
+        state_machine_->trigger_extra_action(ExtraAction::Failure), false, "Failed to trigger error state action"
     );
 
     return true;

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -70,6 +70,8 @@ void DataLinkServer::stop()
         return;
     }
 
+    is_running_.store(false);
+
     DataLinkBase::release_global_sockets();
 
     if (acceptor_) {
@@ -83,8 +85,6 @@ void DataLinkServer::stop()
 
     remove_all_connections();
     connections_.clear();
-
-    is_running_.store(false);
 }
 
 void DataLinkServer::on_handle_receive_error(std::shared_ptr<ConnectionInfo> connection, const boost::system::error_code &error)
@@ -145,6 +145,10 @@ bool DataLinkServer::handle_accept()
     // Retry when an error occurs or the global connection count limit is reached, delay for a period of time and then accept the connection again
     lib_utils::FunctionGuard retry_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        if (!is_running() || !acceptor_) {
+            BROOKESIA_LOGD("Server is stopping, skip accept retry");
+            return;
+        }
         std::shared_ptr<boost::asio::steady_timer> timer;
         BROOKESIA_CHECK_EXCEPTION_EXIT(
             timer = std::make_shared<boost::asio::steady_timer>(executor_), "Failed to allocate timer"

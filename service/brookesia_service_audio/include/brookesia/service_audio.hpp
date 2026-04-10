@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public audio service API.
+ */
+
 #include "service_audio/macro_configs.h"
 #include "service_audio/service_audio.hpp"

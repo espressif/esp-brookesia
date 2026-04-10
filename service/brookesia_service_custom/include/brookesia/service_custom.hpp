@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public custom service API.
+ */
+
 #include "service_custom/macro_configs.h"
 #include "service_custom/service_custom.hpp"

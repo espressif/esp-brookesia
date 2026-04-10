@@ -5,6 +5,10 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public service-manager API.
+ */
+
 #include "service_manager/macro_configs.h"
 #include "service_manager/common.hpp"
 /* Event */

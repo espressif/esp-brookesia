@@ -1,10 +1,13 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <chrono>
-#include "esp_netif.h"
+#if defined(ESP_PLATFORM)
+#   include "esp_err.h"
+#   include "esp_netif.h"
+#endif
 #include "brookesia/service_manager/macro_configs.h"
 #if !BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -13,6 +16,24 @@
 #include "brookesia/service_manager/service/manager.hpp"
 
 namespace esp_brookesia::service {
+
+namespace {
+
+bool ensure_network_stack_ready()
+{
+#if defined(ESP_PLATFORM)
+    const esp_err_t err = esp_netif_init();
+    if ((err == ESP_OK) || (err == ESP_ERR_INVALID_STATE)) {
+        return true;
+    }
+    BROOKESIA_LOGE("Failed to initialize ESP-NETIF: %1%", static_cast<int>(err));
+    return false;
+#else
+    return true;
+#endif
+}
+
+} // namespace
 
 ServiceBinding::ServiceBinding(ServiceBinding &&other) noexcept
     : unbind_callback_(std::move(other.unbind_callback_))
@@ -415,7 +436,7 @@ bool ServiceManager::start_rpc_server(const rpc::Server::Config &config, uint32_
         rpc_server_.reset();
     });
 
-    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_netif_init(), false, "Failed to initialize ESP-NETIF");
+    BROOKESIA_CHECK_FALSE_RETURN(ensure_network_stack_ready(), false, "Failed to initialize network stack");
 
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         rpc_server_ = std::make_unique<rpc::Server>(*task_scheduler_->get_executor(), config), false,
@@ -445,7 +466,7 @@ void ServiceManager::stop_rpc_server()
     BROOKESIA_LOGI("RPC server stopped");
 }
 
-bool ServiceManager::connect_rpc_server_to_services(std::vector<std::string> &&names)
+bool ServiceManager::connect_rpc_server_to_services(std::vector<std::string> names)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -505,7 +526,7 @@ bool ServiceManager::connect_rpc_server_to_services(std::vector<std::string> &&n
     return true;
 }
 
-bool ServiceManager::disconnect_rpc_server_from_services(std::vector<std::string> &&names)
+bool ServiceManager::disconnect_rpc_server_from_services(std::vector<std::string> names)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -581,7 +602,7 @@ std::shared_ptr<rpc::Client> ServiceManager::new_rpc_client(const RPC_ClientConf
 
 FunctionResult ServiceManager::call_rpc_function_sync(
     std::string host, const std::string &service_name, const std::string &function_name,
-    boost::json::object &&params, uint32_t timeout_ms, uint16_t port
+    boost::json::object params, uint32_t timeout_ms, uint16_t port
 )
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
