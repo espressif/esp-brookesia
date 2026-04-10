@@ -9,3 +9,7 @@ dependencies:
   brookesia_app_squareline_demo:
     version: "*"
     override_path: "../../../../apps/brookesia_app_squareline_demo"
+
+  brookesia_app_rainmaker:
+    version: "*"
+    override_path: "../../../../apps/brookesia_app_rainmaker"

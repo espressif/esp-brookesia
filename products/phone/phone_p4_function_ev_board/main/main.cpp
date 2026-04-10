@@ -6,6 +6,7 @@
 
 #include "bsp/esp-bsp.h"
 #include "esp_brookesia.hpp"
+#include "phone_common_net.hpp"
 #include "boost/thread.hpp"
 #ifdef ESP_UTILS_LOG_TAG
 #   undef ESP_UTILS_LOG_TAG
@@ -31,6 +32,8 @@ constexpr bool EXAMPLE_SHOW_MEM_INFO = false;
 extern "C" void app_main(void)
 {
     ESP_UTILS_LOGI("Display ESP-Brookesia phone demo");
+
+    phone_common_net_boot();
 
     /* Configure display */
     bsp_display_cfg_t cfg = {

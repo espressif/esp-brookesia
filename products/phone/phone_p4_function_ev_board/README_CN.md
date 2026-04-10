@@ -27,6 +27,18 @@ git clone --recursive https://github.com/espressif/esp-brookesia.git
 
   运行 ``idf.py menuconfig`` 并修改 esp-brookesia 配置。
 
+### 测试 RainMaker 应用
+
+若要在设备上编译并运行 RainMaker 应用，建议按顺序完成：
+
+1. **配置自家路由器 / 热点**：运行 ``idf.py menuconfig``，在已开启 RainMaker 支持后出现 **Phone Auto Wi-Fi** 菜单，将 **Wi-Fi SSID** 与 **Wi-Fi password** 填成与您**实际使用的无线路由器（或 AP）**一致的名称与密码（与路由器后台配置的 SSID、WPA 密码相同），以便设备**上电开机后自动作为 STA 连接**该网络。一般请使用设备可接入的频段（常见为 2.4 GHz）。可在 **Phone clock** 中按需修改时区，在 **Phone Auto Wi-Fi** 中可配置 SNTP 服务器等。
+
+烧录后，开发板会在启动时尝试连接上述 Wi‑Fi，便于 RainMaker 等需要联网/DNS 的功能直接使用，而无需再单独配网。
+
+然后执行 ``idf.py build`` 编译并烧录即可。
+
+具体 RainMaker APP 的说明，请参考 [README](../../../apps/brookesia_app_rainmaker/README_CN.md)。
+
 ## 如何使用示例
 
 ### 构建和烧录示例

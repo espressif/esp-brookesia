@@ -2,6 +2,11 @@
 dependencies:
   ## Required IDF version
   idf: ">=5.3"
+  espressif/esp_wifi_remote:
+    version: "0.14.*"
+
+  espressif/esp_hosted:
+    version: "1.4.*"
 
   espressif/esp32_p4_function_ev_board: "5.*"
 
@@ -12,3 +17,7 @@ dependencies:
   brookesia_app_squareline_demo:
     version: "*"
     override_path: "../../../../apps/brookesia_app_squareline_demo"
+
+  brookesia_app_rainmaker:
+    version: "*"
+    override_path: "../../../../apps/brookesia_app_rainmaker"
