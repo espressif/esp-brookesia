@@ -37,8 +37,8 @@ ESP-Brookesia 的功能框架如下图所示，自底向上由 **环境与依赖
 
 ## 文档中心
 
-- 中文：https://docs.espressif.com/projects/esp-brookesia/zh_CN
-- English: https://docs.espressif.com/projects/esp-brookesia/en
+- 中文：https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/esp32s3/index.html
+- English: https://docs.espressif.com/projects/esp-brookesia/en/latest/esp32s3/index.html
 
 ## 版本说明
 
