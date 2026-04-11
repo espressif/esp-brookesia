@@ -1,0 +1,25 @@
+# Custom latexmkrc for ESP-Brookesia documentation.
+#
+# This overrides the Sphinx-generated latexmkrc to fix two issues:
+#   1. "Use of uninitialized value" warnings for LATEXOPTS (use // defined-or).
+#   2. "Index style file python.ist not found" when latexmk is invoked with
+#      -outdir=build (the esp_docs default): latexmk changes its working
+#      directory to build/ before running makeindex, so python.ist (which lives
+#      in the latex root dir) is not found. Using abs_path('.') at rc-read time
+#      captures the latex root and passes it as an absolute path to makeindex.
+use Cwd 'abs_path';
+
+my $latexopts = defined($ENV{'LATEXOPTS'}) ? $ENV{'LATEXOPTS'} : '';
+my $ist_dir   = abs_path('.');
+
+$latex    = 'xelatex --no-pdf ' . $latexopts . ' %O %S';
+$pdflatex = 'xelatex '          . $latexopts . ' %O %S';
+$lualatex = 'lualatex '         . $latexopts . ' %O %S';
+$xelatex  = 'xelatex --no-pdf ' . $latexopts . ' %O %S';
+
+$makeindex = 'makeindex -s ' . $ist_dir . '/python.ist %O -o %D %S';
+
+add_cus_dep( "glo", "gls", 0, "makeglo" );
+sub makeglo {
+ return system( "makeindex -s gglo.ist -o '$_[0].gls' '$_[0].glo'" );
+}

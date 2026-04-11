@@ -4,6 +4,7 @@
 # This file is imported by language-specific conf.py files
 # (for example, docs/en/conf.py and docs/zh_CN/conf.py).
 #
+import os as _os
 
 # Base configuration from esp-docs (theme, builders, link roles, etc.).
 from esp_docs.conf_docs import *  # noqa: F403,F401
@@ -33,9 +34,11 @@ github_repo = "espressif/esp-brookesia"
 html_context["github_user"] = "espressif"
 html_context["github_repo"] = "esp-brookesia"
 
-# Supported documentation languages and chip targets.
+# Supported documentation languages.
+# idf_targets is intentionally not set: this project builds without a specific
+# -t target, and sphinx_idf_theme requires either both idf_target and
+# idf_targets to be set, or neither. Omitting idf_targets satisfies this.
 languages = ["en", "zh_CN"]
-idf_targets = ["esp32", "esp32s2", "esp32s3", "esp32c3", "esp32c5", "esp32c6", "esp32p4"]
 
 # Project metadata used by the docs theme.
 project_homepage = "https://github.com/espressif/esp-brookesia"
@@ -70,3 +73,10 @@ pygments_style = "sphinx"
 # sphinxcontrib-mermaid. This avoids any dependency on the 'mmdc' CLI tool,
 # which is not available in the CI environment.
 mermaid_output_format = "raw"
+
+# Override the Sphinx-generated latexmkrc with a custom version that:
+#   - Fixes "python.ist not found" when latexmk uses -outdir=build.
+#   - Suppresses spurious "uninitialized value" warnings for LATEXOPTS.
+latex_additional_files = [
+    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "latexmkrc"),
+]

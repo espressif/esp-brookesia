@@ -111,9 +111,9 @@ cat <<EOF > $OUT_FILE
 
   <div class="cards">
     <div class="card">
-      <h2>🔊 Speaker</h2>
-      <p>ESP-Brookesia Speaker product firmware. A complete AI voice assistant solution.</p>
-      <a class="button" href="${launchpad_base}${base_url}speaker/launchpad.toml">Flash Speaker</a>
+      <h2>🤖 Agent Chatbot</h2>
+      <p>AI chatbot example powered by ESP-Brookesia agents. Supports voice interaction and multiple AI backends.</p>
+      <a class="button blue" href="${launchpad_base}${base_url}agent/chatbot/launchpad.toml">Flash Agent Chatbot</a>
     </div>
 
     <div class="card">
