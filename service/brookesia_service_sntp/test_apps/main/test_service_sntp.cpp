@@ -109,7 +109,7 @@ TEST_CASE("Test ServiceSntp - basic set and get", "[service][sntp][basic]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_sntp_basic");
     BROOKESIA_LOGI("=== Test ServiceSntp - basic set and get ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -179,7 +179,7 @@ TEST_CASE("Test ServiceSntp - start and stop", "[service][sntp][start_stop]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_sntp_start_stop");
     BROOKESIA_LOGI("=== Test ServiceSntp - start and stop ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -230,7 +230,7 @@ TEST_CASE("Test ServiceSntp - complete workflow", "[service][sntp][workflow]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_sntp_workflow");
     BROOKESIA_LOGI("=== Test ServiceSntp - complete workflow ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -331,7 +331,7 @@ TEST_CASE("Test ServiceSntp - reset data", "[service][sntp][reset]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_sntp_reset");
     BROOKESIA_LOGI("=== Test ServiceSntp - reset data ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });

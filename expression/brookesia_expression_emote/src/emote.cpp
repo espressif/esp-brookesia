@@ -59,7 +59,7 @@ bool Emote::on_start()
 
     BROOKESIA_CHECK_FALSE_RETURN(is_configured(), false, "Emote is not configured");
 
-    BROOKESIA_LOGI("Emote start with config: %1%", BROOKESIA_DESCRIBE_TO_STR(config_));
+    BROOKESIA_LOGD("Emote start with config: %1%", BROOKESIA_DESCRIBE_TO_STR(config_));
 
     auto flush_cb = +[](int x_start, int y_start, int x_end, int y_end, const void *data, emote_handle_t handle) {
         // BROOKESIA_LOG_TRACE_GUARD();
@@ -135,8 +135,6 @@ std::expected<void, std::string> Emote::function_set_config(const boost::json::o
     if (!result) {
         return std::unexpected("Invalid config: " + BROOKESIA_DESCRIBE_TO_STR(config));
     }
-
-    BROOKESIA_LOGI("Set config: %1%", BROOKESIA_DESCRIBE_TO_STR(config_));
 
     is_configured_ = true;
 

@@ -1,5 +1,29 @@
 # ChangeLog
 
+## v0.7.4 - 2026-04-10
+
+### Breaking Changes:
+
+- break(api): remove `SetPeripheralConfig` service function and corresponding `AudioPeripheralConfig` type alias
+- break(api): remove internal `try_save_data()`, `get_data<T>()`, and `set_data<T>()` template helpers; NVS save is now deferred
+
+### Enhancements:
+
+- feat(api): add `SetMute` function to mute/unmute audio playback through `AudioCodecPlayerIface`
+- feat(api): add `GetAFE_WakeWords` function to retrieve configured AFE wake-word list
+- feat(api): add `PauseAFE_WakeupEnd` and `ResumeAFE_WakeupEnd` functions for AFE wakeup-end task lifecycle control
+- feat(api): add `ResetData` function to erase all persisted service data (NVS)
+- feat(playlist): replace single-URL loop state (`LoopPlaybackState`) with unified `PlaylistState` supporting multi-URL playlists; `PlayUrl` with an array of URLs is now handled natively
+- feat(playlist): add `start_playlist()`, `play_playlist_url_at_index()`, `advance_playlist()` for sequential multi-URL playback with loop support
+- feat(afe): add AFE wakeup-end task management (`start_afe_wakeup_end_task`, `stop_afe_wakeup_end_task`, `pause_afe_wakeup_end_task`, `update_afe_wakeup_end_task`)
+- feat(hal): add `player_iface_` and `recorder_iface_` (`std::shared_ptr<hal::AudioCodecPlayerIface/RecorderIface>`) to hold HAL interface references during service lifetime
+- feat(deps): upgrade `av_processor` dependency from `0.5.*` to `0.6.*`
+- feat(docs): add Doxygen documentation to public types and methods in `service_audio.hpp` and `macro_configs.h`
+
+### Bug Fixes:
+
+- fix(data): change `data_player_volume_` type from `int` to `std::optional<uint8_t>` to correctly represent uninitialized state
+
 ## v0.7.3 - 2026-03-24
 
 ### Enhancements:

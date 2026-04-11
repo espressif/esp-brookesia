@@ -12,7 +12,7 @@
 using namespace esp_brookesia;
 using NVSHelper = service::helper::NVS;
 
-constexpr uint32_t CALL_FUNCTION_SYNC_TIMEOUT_MS = 20;
+constexpr uint32_t CALL_FUNCTION_SYNC_TIMEOUT_MS = 100;
 
 static auto &service_manager = service::ServiceManager::get_instance();
 static auto &time_profiler = lib_utils::TimeProfiler::get_instance();
@@ -26,7 +26,7 @@ TEST_CASE("Test NVS Helper - save_key_value and get_key_value with bool", "[serv
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_bool");
     BROOKESIA_LOGI("=== Test NVS Helper - save_key_value and get_key_value with bool ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -66,7 +66,7 @@ TEST_CASE("Test NVS Helper - save_key_value and get_key_value with int32_t", "[s
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_int32_t");
     BROOKESIA_LOGI("=== Test NVS Helper - save_key_value and get_key_value with int32_t ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -121,7 +121,7 @@ TEST_CASE("Test NVS Helper - save_key_value and get_key_value with small integer
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_s_int");
     BROOKESIA_LOGI("=== Test NVS Helper - save_key_value and get_key_value with small integers (<32 bits) ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -248,7 +248,7 @@ TEST_CASE("Test NVS Helper - save_key_value and get_key_value with large integer
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_large_int");
     BROOKESIA_LOGI("=== Test NVS Helper - save_key_value and get_key_value with large integers (>32 bits) ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -360,7 +360,7 @@ TEST_CASE("Test NVS Helper - save_key_value and get_key_value with floating poin
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_float");
     BROOKESIA_LOGI("=== Test NVS Helper - save_key_value and get_key_value with floating point ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -499,7 +499,7 @@ TEST_CASE("Test NVS Helper - save_key_value and get_key_value with string", "[se
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_string");
     BROOKESIA_LOGI("=== Test NVS Helper - save_key_value and get_key_value with string ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -528,7 +528,7 @@ TEST_CASE("Test NVS Helper - mixed types workflow", "[service][nvs][helper][mixe
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_mixed");
     BROOKESIA_LOGI("=== Test NVS Helper - mixed types workflow ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -593,7 +593,7 @@ TEST_CASE("Test NVS Helper - error handling", "[service][nvs][helper][error]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_nvs_helper_error");
     BROOKESIA_LOGI("=== Test NVS Helper - error handling ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });

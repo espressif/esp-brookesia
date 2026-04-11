@@ -10,11 +10,17 @@
 
 namespace esp_brookesia::service::helper {
 
+/**
+ * @brief Helper schema definitions for the SNTP service.
+ */
 class SNTP: public Base<SNTP> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the types required by the Base class /////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief SNTP service function identifiers.
+     */
     enum class FunctionId {
         SetServers,
         SetTimezone,
@@ -27,6 +33,9 @@ public:
         Max,
     };
 
+    /**
+     * @brief SNTP service event identifiers.
+     */
     enum class EventId {
         Max,
     };
@@ -34,10 +43,16 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function parameter types ////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Parameter keys for `FunctionId::SetServers`.
+     */
     enum class FunctionSetServersParam {
         Servers,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::SetTimezone`.
+     */
     enum class FunctionSetTimezoneParam {
         Timezone,
     };
@@ -55,11 +70,15 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::SetServers),
-            .description = "Set the NTP servers.",
+            .description = "Set NTP servers.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetServersParam::Servers),
-                    .description = "The JSON array of NTP servers to set.",
+                    .description = (boost::format("NTP servers as JSON array<string>. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({
+                        "pool.ntp.org",
+                        "cn.pool.ntp.org"
+                    }))).str(),
                     .type = FunctionValueType::Array
                 }
             },
@@ -71,11 +90,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::SetTimezone),
-            .description = "Set the timezone.",
+            .description = "Set timezone.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetTimezoneParam::Timezone),
-                    .description = "The timezone to set.",
+                    .description = "Timezone string.",
                     .type = FunctionValueType::String
                 }
             },
@@ -87,7 +106,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Start),
-            .description = "Start the SNTP service.",
+            .description = "Start SNTP service.",
         };
     }
 
@@ -95,7 +114,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::Stop),
-            .description = "Stop the SNTP service",
+            .description = "Stop SNTP service.",
         };
     }
 
@@ -103,7 +122,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::GetServers),
-            .description = "Get the NTP servers, return a JSON array of NTP servers.",
+            .description = (boost::format("Get NTP servers. Return type: JSON array<string>. Example: %1%")
+            % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({
+                "pool.ntp.org",
+                "cn.pool.ntp.org"
+            }))).str(),
         };
     }
 
@@ -111,7 +134,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::GetTimezone),
-            .description = "Get the timezone, return a string of timezone.",
+            .description = "Get timezone. Return type: string. Example: \"CST-8\"",
         };
     }
 
@@ -119,7 +142,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::IsTimeSynced),
-            .description = "Check if the time is synced. Return a boolean value.",
+            .description = "Check whether time is synced. Return type: boolean. Example: true",
         };
     }
 
@@ -127,7 +150,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::ResetData),
-            .description = "Reset the data of NTP servers, timezone and time sync status.",
+            .description = "Reset NTP servers, timezone, and sync status.",
         };
     }
 
@@ -140,11 +163,21 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the functions required by the Base class /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Name of the SNTP service.
+     *
+     * @return std::string_view Stable service name.
+     */
     static constexpr std::string_view get_name()
     {
         return "SNTP";
     }
 
+    /**
+     * @brief Get the function schemas exported by the SNTP service.
+     *
+     * @return std::span<const FunctionSchema> Static schema span.
+     */
     static std::span<const FunctionSchema> get_function_schemas()
     {
         static const std::array<FunctionSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(FunctionId::Max)> FUNCTION_SCHEMAS = {{
@@ -161,6 +194,11 @@ public:
         return std::span<const FunctionSchema>(FUNCTION_SCHEMAS);
     }
 
+    /**
+     * @brief Get the event schemas exported by the SNTP service.
+     *
+     * @return std::span<const EventSchema> Empty span because SNTP exposes no events.
+     */
     static std::span<const EventSchema> get_event_schemas()
     {
         return std::span<const EventSchema>();

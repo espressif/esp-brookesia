@@ -1,0 +1,76 @@
+variables:
+  # Versioned esp-idf-doc env image to use for all document building jobs
+  ESP_DOCS_ENV_IMAGE: "$CI_DOCKER_REGISTRY/esp-idf-doc-env-v5.5"
+
+.deploy_docs_template:
+  stage: deploy
+  image: $ESP_DOCS_ENV_IMAGE
+  tags:
+    - deploy_docs
+  needs:
+    - job: "build_docs_html"
+      artifacts: true
+      optional: false
+    - job: "build_docs_pdf"
+      artifacts: true
+      optional: false
+  script:
+    - source ${CI_PROJECT_DIR}/.gitlab/tools/utils.sh
+    - add_doc_server_ssh_keys $DOCS_DEPLOY_PRIVATEKEY $DOCS_DEPLOY_SERVER $DOCS_DEPLOY_SERVER_USER
+    - export GIT_VER=${CI_COMMIT_SHORT_SHA}
+    - pip install -r ${CI_PROJECT_DIR}/docs/requirements.txt || pip3 install -r ${CI_PROJECT_DIR}/docs/requirements.txt || true
+    - mkdir -p logs
+    - deploy-docs | tee logs/doc-url.txt
+
+deploy_docs_preview:
+  extends:
+    - .deploy_docs_template
+    - .rules:deploy:docs_preview
+  environment:
+    name: esp-brookesia_docs_preview
+    url: ${FINAL_PREVIEW_URL}
+  variables:
+    TYPE: "preview"
+    DOCS_BUILD_DIR: "${CI_PROJECT_DIR}/docs/_build/"
+    DOCS_DEPLOY_PRIVATEKEY: "$DOCS_PREVIEW_DEPLOY_KEY"
+    DOCS_DEPLOY_SERVER: "$DOCS_PREVIEW_SERVER"
+    DOCS_DEPLOY_SERVER_USER: "$DOCS_PREVIEW_SERVER_USER"
+    DOCS_DEPLOY_PATH: "$DOCS_PREVIEW_PATH"
+    DOCS_DEPLOY_URL_BASE: "$DOCS_PREVIEW_URL_BASE"
+  before_script:
+    - export SANITIZED_BRANCH_NAME=$(echo "$CI_COMMIT_REF_NAME" | tr '/' '-')
+    - export FINAL_PREVIEW_URL="https://preview-docs.espressif.com/projects/esp-brookesia/zh_CN/$SANITIZED_BRANCH_NAME/index.html"
+  artifacts:
+    when: always
+    paths:
+      - logs/doc-url.txt
+    expire_in: 4 days
+
+deploy_docs_production:
+  stage: deploy
+  extends:
+    - .deploy_docs_template
+    - .rules:deploy:docs_production
+  environment:
+    name: esp-brookesia_docs_production
+    url: https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/index.html
+  variables:
+    TYPE: "production"
+    DOCS_BUILD_DIR: "${CI_PROJECT_DIR}/docs/_build/"
+    DOCS_DEPLOY_PRIVATEKEY: "$DOCS_PROD_DEPLOY_KEY"
+    DOCS_DEPLOY_SERVER: "$DOCS_PROD_SERVER"
+    DOCS_DEPLOY_SERVER_USER: "$DOCS_PROD_SERVER_USER"
+    DOCS_DEPLOY_PATH: "$DOCS_PROD_PATH"
+    DOCS_DEPLOY_URL_BASE: "$DOCS_PROD_URL_BASE"
+
+post_links:
+  stage: post_deploy
+  extends:
+    - .rules:deploy:docs_preview
+  tags: [deploy_docs]
+  image: $ESP_DOCS_ENV_IMAGE
+  needs:
+    - deploy_docs_preview
+  script:
+    - ls -al logs
+    - python3 ${CI_PROJECT_DIR}/.gitlab/tools/post-mr-note.py $GITLAB_MR_NOTE_TOKEN $CI_PROJECT_PATH $CI_MERGE_REQUEST_IID

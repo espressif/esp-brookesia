@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.7.4 - 2026-04-10
+
+### Enhancements:
+
+- feat(docs): add Doxygen documentation to public types and methods in `emote.hpp` and `macro_configs.h`
+
+### Bug Fixes:
+
+- fix(log): reduce "start with config" log level from INFO to DEBUG to reduce log noise
+- fix(log): remove redundant `SetConfig` INFO log in `function_set_config()`
+
 ## v0.7.3 - 2026-03-04
 
 ### Enhancements:

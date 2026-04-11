@@ -9,7 +9,9 @@
 #   include "sdkconfig.h"
 #endif
 
-/* Debug log */
+/**
+ * @brief Default log tag used by `lib_utils` components when no file-local tag is provided.
+ */
 #define BROOKESIA_UTILS_LOG_TAG "LibUtils"
 
 #if !defined(BROOKESIA_UTILS_ENABLE_DEBUG_LOG)
@@ -74,7 +76,7 @@
 //////////////////////////////////////////////////// Check /////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * @brief Macros for check handle method
+ * @brief Check-failure handling modes used by `check.hpp` helper macros.
  */
 #define BROOKESIA_UTILS_CHECK_HANDLE_WITH_NONE        (0) /*!< Do nothing when check failed */
 #define BROOKESIA_UTILS_CHECK_HANDLE_WITH_ERROR_LOG   (1) /*!< Print error message when check failed */
@@ -92,13 +94,13 @@
 ///////////////////////////////////////////////////// Log //////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
- * @brief Macros for log implementation
+ * @brief Logging backend identifiers.
  */
 #define BROOKESIA_UTILS_LOG_IMPL_STDLIB     (0) /*!< Standard (printf) */
 #define BROOKESIA_UTILS_LOG_IMPL_ESP        (1) /*!< ESP (esp_log) */
 
 /**
- * @brief Macros for log level
+ * @brief Compile-time log level values.
  */
 #define BROOKESIA_UTILS_LOG_LEVEL_TRACE     (0)     /*!< Trace information that is used for tracing the execution flow
                                                       *  of the program*/
@@ -192,9 +194,24 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////// Thread Profiler ////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief Thread profiler availability flag derived from the current build configuration.
+ */
 #if defined(ESP_PLATFORM) && defined(CONFIG_FREERTOS_VTASKLIST_INCLUDE_COREID) && \
     defined(CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS)
 #   define BROOKESIA_UTILS_THREAD_PROFILER_AVAILABLE (1)
 #else
 #   define BROOKESIA_UTILS_THREAD_PROFILER_AVAILABLE (0)
+#endif
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////// Time Profiler /////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief Time profiler availability flag derived from the current build configuration.
+ */
+#if defined(ESP_PLATFORM) && !(defined(CONFIG_IDF_TARGET_ESP32P4) && defined(CONFIG_SPIRAM_XIP_FROM_PSRAM))
+#   define BROOKESIA_UTILS_TIME_PROFILER_AVAILABLE (1)
+#else
+#   define BROOKESIA_UTILS_TIME_PROFILER_AVAILABLE (0)
 #endif

@@ -1,0 +1,42 @@
+device.inc:line: WARNING: Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: requires [error at 36]
+    template<typename T> inline requires IsInterface< T > std::shared_ptr< T > get_interface (const std::string &name) const
+    ------------------------------------^
+If the function has a return type:
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: requires [error at 36]
+    template<typename T> inline requires IsInterface< T > std::shared_ptr< T > get_interface (const std::string &name) const
+    ------------------------------------^
+
+base.inc:line: WARNING: Error when parsing function declaration.
+If the function has no return type:
+  Error in declarator or parameters-and-qualifiers
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: requires [error at 66]
+    template<typename EventIdType, typename Callable> inline  requires (has_event_name_first_param_v< Callable > &&!has_event_items_second_param_v< Callable >) static EventRegistry
+    ------------------------------------------------------------------^
+If the function has a return type:
+  Invalid C++ declaration: Expected identifier in nested name, got keyword: requires [error at 66]
+    template<typename EventIdType, typename Callable> inline  requires (has_event_name_first_param_v< Callable > &&!has_event_items_second_param_v< Callable >) static EventRegistry
+    ------------------------------------------------------------------^
+
+state_machine.inc:line: WARNING: Error in postfix expression, expected primary expression or type.
+If primary expression:
+  Invalid C++ declaration: Expected identifier in nested name. [error at 49]
+    TaskScheduler::GroupConfig task_group_config  = {.enable_serial_execution = true,}
+    -------------------------------------------------^
+If type:
+  Invalid C++ declaration: Expected identifier in nested name. [error at 49]
+    TaskScheduler::GroupConfig task_group_config  = {.enable_serial_execution = true,}
+    -------------------------------------------------^
+
+task_scheduler.inc:line: WARNING: Error in postfix expression, expected primary expression or type.
+If primary expression:
+  Invalid C++ declaration: Expected identifier in nested name. [error at 74]
+    std::vector< ThreadConfig > worker_configs   = {             ThreadConfig{.name = "Worker",.stack_size = 6 * 1024,}}
+    --------------------------------------------------------------------------^
+If type:
+  Invalid C++ declaration: Expected identifier in nested name. [error at 74]
+    std::vector< ThreadConfig > worker_configs   = {             ThreadConfig{.name = "Worker",.stack_size = 6 * 1024,}}
+    --------------------------------------------------------------------------^
+

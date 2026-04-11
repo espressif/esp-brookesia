@@ -11,33 +11,48 @@
 
 namespace esp_brookesia::agent::helper {
 
+/**
+ * @brief Helper schema definitions for the Coze agent service.
+ */
 class Coze: public service::helper::Base<Coze> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Credentials required to authenticate with the Coze backend.
+     */
     struct AuthInfo {
-        std::string session_name;
-        std::string device_id;
-        std::string custom_consumer;
-        std::string app_id;
-        std::string user_id;
-        std::string public_key;
-        std::string private_key;
+        std::string session_name; ///< Session name used by the Coze SDK.
+        std::string device_id; ///< Unique device identifier.
+        std::string custom_consumer; ///< Consumer identifier passed to the backend.
+        std::string app_id; ///< Application id.
+        std::string user_id; ///< End-user id.
+        std::string public_key; ///< Public key used for authentication.
+        std::string private_key; ///< Private key used for authentication.
     };
 
+    /**
+     * @brief Metadata for one available Coze robot.
+     */
     struct RobotInfo {
-        std::string name;
-        std::string bot_id;
-        std::string voice_id;
-        std::string description;
+        std::string name; ///< Human-readable robot name.
+        std::string bot_id; ///< Coze bot identifier.
+        std::string voice_id; ///< Voice profile identifier.
+        std::string description; ///< Optional robot description.
     };
 
+    /**
+     * @brief Persistent Coze agent configuration.
+     */
     struct Info {
-        AuthInfo authorization;
-        std::vector<RobotInfo> robots;
+        AuthInfo authorization; ///< Authentication material.
+        std::vector<RobotInfo> robots; ///< Available robot definitions.
     };
 
+    /**
+     * @brief Coze-specific events surfaced by the agent.
+     */
     enum class CozeEvent {
         InsufficientCreditsBalance,
         Max,
@@ -46,14 +61,14 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the types required by the Base class /////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    enum class FunctionId {
+    enum class FunctionId : uint8_t {
         SetActiveRobotIndex,
         GetActiveRobotIndex,
         GetRobotInfos,
         Max,
     };
 
-    enum class EventId {
+    enum class EventId : uint8_t {
         CozeEventHappened,
         Max,
     };
@@ -61,14 +76,14 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function parameter types ////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    enum class FunctionSetActiveRobotIndexParam {
+    enum class FunctionSetActiveRobotIndexParam : uint8_t {
         Index,
     };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the event parameter types ///////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    enum class EventCozeEventHappenedParam {
+    enum class EventCozeEventHappenedParam : uint8_t {
         CozeEvent,
     };
 
@@ -80,11 +95,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetActiveRobotIndex),
-            .description = "Set the active robot index",
+            .description = "Set active robot index.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetActiveRobotIndexParam::Index),
-                    .description = "The index of the robot to set as active",
+                    .description = "Robot index to activate.",
                     .type = service::FunctionValueType::Number
                 }
             },
@@ -96,7 +111,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveRobotIndex),
-            .description = "Get the active robot index",
+            .description = "Get active robot index. Return type: number. Example: 0",
             .require_scheduler = false
         };
     }
@@ -105,7 +120,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetRobotInfos),
-            .description = (boost::format("Get the robot infos. Return a JSON array of robot infos. Example: %1%")
+            .description = (boost::format("Get robot info list. Return type: JSON array<object>. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<RobotInfo>({
                 RobotInfo{"robot1", "bot_id1", "voice_id1", "description1"},
                 RobotInfo{"robot2", "bot_id2", "voice_id2", "description2"}
@@ -121,11 +136,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::CozeEventHappened),
-            .description = "Coze event happened event, will be triggered when a coze event happens",
+            .description = "Emitted when a Coze event occurs.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventCozeEventHappenedParam::CozeEvent),
-                    .description = (boost::format("The coze event, should be one of the following: %1%")
+                    .description = (boost::format("Coze event. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<CozeEvent>({
                         CozeEvent::InsufficientCreditsBalance
                     }))).str(),
@@ -139,11 +154,21 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the functions required by the Base class /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Name of the Coze agent service.
+     *
+     * @return std::string_view Stable service name.
+     */
     static constexpr std::string_view get_name()
     {
         return "AgentCoze";
     }
 
+    /**
+     * @brief Get the function schemas exported by the Coze agent.
+     *
+     * @return std::span<const service::FunctionSchema> Static schema span.
+     */
     static std::span<const service::FunctionSchema> get_function_schemas()
     {
         static const std::array < service::FunctionSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(FunctionId::Max) > FUNCTION_SCHEMAS = {{
@@ -155,6 +180,11 @@ public:
         return std::span<const service::FunctionSchema>(FUNCTION_SCHEMAS);
     }
 
+    /**
+     * @brief Get the event schemas exported by the Coze agent.
+     *
+     * @return std::span<const service::EventSchema> Static schema span.
+     */
     static std::span<const service::EventSchema> get_event_schemas()
     {
         static const std::array < service::EventSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(EventId::Max) > EVENT_SCHEMAS = {{

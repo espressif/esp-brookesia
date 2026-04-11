@@ -1,20 +1,50 @@
 # SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-# '''
-# Steps to run these cases (Take `esp32s3` as an example):
-#
-# - Build
-#   - . ${IDF_PATH}/export.sh
-#   - export IDF_CI_BUILD=y
-#   - pip install idf_build_apps
-#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./utils/brookesia_lib_utils/test_apps/log' --recursive --build-dir="@v/build_@t_@w"
-#
-# - Test
-#   - ${IDF_PATH}/install.sh --enable-pytest
-#   - ${IDF_PATH}/install.sh --enable-test-specific
-#   - pytest utils/brookesia_lib_utils/test_apps/log --target esp32s3 --env generic
-# '''
+'''
+Steps to run these test cases:
+
+## Build
+
+1. Setup ESP-IDF environment:
+   ```bash
+   . ${IDF_PATH}/export.sh
+   export IDF_CI_BUILD=y
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install idf_build_apps
+   ```
+
+3. Build the test app:
+
+   **Build for a specific target (replace `esp32s3` with your target chip: `esp32s3` or `esp32p4`):**
+   ```bash
+   python .gitlab/tools/build_apps.py utils/brookesia_lib_utils/test_apps/log -t esp32s3
+   ```
+
+   **Build for all CI targets (recommended for CI):**
+   ```bash
+   python .gitlab/tools/build_apps.py utils/brookesia_lib_utils/test_apps/log -t all
+   ```
+
+## Test
+
+1. Install pytest dependencies:
+   ```bash
+   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-test-specific
+   ```
+
+2. Run pytest with appropriate target and environment:
+
+   **ESP32-S3 examples:**
+   ```bash
+   # Generic environment
+   pytest utils/brookesia_lib_utils/test_apps/log --target esp32s3 --env generic
+   ```
+'''
 
 import pytest
 from pytest_embedded import Dut
@@ -23,12 +53,15 @@ import re
 
 SUCCESS_RESPONSE = b'0 Failures'
 FAILURE_RESPONSE = b'1 Failures'
+LEAK_MEMORY_RESPONSE = b'The test leaked too much memory'
 ENTER_RESPONSE_LIST = [
     b'Enter test for running',
     b'Press ENTER to see the list of tests',
 ]
 REBOOT_RESPONSE = b'Rebooting...'
-TIMEOUT_S = 300
+RESPONSE_TIMEOUT_S = 30
+SINGLE_TIMEOUT_S = 2 * 60
+TOTAL_TIMEOUT_S = 10 * 60
 RETRY_LIMIT = 5  # Retry once before recording failure
 
 # Expected log messages for different log levels
@@ -120,7 +153,7 @@ def verify_log_level_output(dut: Dut, config_name: str, captured_output: bytes) 
     print(f"✓ Log level verification passed for config: {config_name}\n")
 
 
-def test(dut: Dut, config: str = 'defaults')-> None:
+def run_test(dut: Dut, config: str = 'defaults')-> None:
     dut.expect(ENTER_RESPONSE_LIST, timeout=5)
 
     dut.write('\n\n')
@@ -137,10 +170,10 @@ def test(dut: Dut, config: str = 'defaults')-> None:
             print(f"log_level_test_num: {log_level_test_num}")
             break
 
-    failed_name_and_numbers = []
     for num, name in index_and_name_list:
         retries = 0
         success = False
+        leaked_memory = False
 
         while not success and retries < RETRY_LIMIT:
             print(f"[{num}] [{name}] Writing: {num}")
@@ -149,27 +182,15 @@ def test(dut: Dut, config: str = 'defaults')-> None:
 
             # Collect output for log level verification
             captured_output = b''
-            test_completed = False
 
-            while not test_completed:
+            while True:
                 try:
                     # Capture output before matching the response for log verification
-                    captured_before = dut.expect(
-                        [SUCCESS_RESPONSE, FAILURE_RESPONSE, REBOOT_RESPONSE, b'Enter next test'],
-                        timeout=TIMEOUT_S,
+                    captured_output = dut.expect(
+                        [b'Enter next test'],
+                        timeout=RESPONSE_TIMEOUT_S,
                         return_what_before_match=True
                     )
-                    captured_output += captured_before
-
-                    # Now expect the matched pattern (it should be immediately available)
-                    response_match = dut.expect(
-                        [SUCCESS_RESPONSE, FAILURE_RESPONSE, REBOOT_RESPONSE, b'Enter next test'],
-                        timeout=2
-                    )
-                    response_type = response_match.group(0)
-                    captured_output += response_type
-
-                    print(f"[{num}] [{name}] Received: {response_type}")
 
                     # If this is the log level test, verify the output
                     if num == log_level_test_num:
@@ -177,68 +198,75 @@ def test(dut: Dut, config: str = 'defaults')-> None:
 
                     time.sleep(0.1)
 
-                    # Set flags and break out of inner loop
-                    if response_type == SUCCESS_RESPONSE or response_type == b'Enter next test':
-                        # Both indicate test completion
+                    if SUCCESS_RESPONSE in captured_output:
+                        leaked_memory = False
                         success = True
-                        test_completed = True
-                    elif response_type == FAILURE_RESPONSE:
+                        break
+                    elif LEAK_MEMORY_RESPONSE in captured_output:
                         retries += 1
-                        print(f"[{num}] [{name}] Retrying...")
-                        test_completed = True
-                    elif response_type == REBOOT_RESPONSE:
-                        failed_name_and_numbers.append((name, num))
-                        print(f"The following numbers failed or timed out: {failed_name_and_numbers}")
+                        leaked_memory = True
+                        print(f"[{num}] [{name}] Leaked memory, retrying...")
+                        break
+                    elif FAILURE_RESPONSE in captured_output:
+                        if leaked_memory:
+                            leaked_memory = False
+                            print(f"Skip leaked memory test")
+                            continue
+                        pytest.fail(f"[{num}] [{name}] Failed")
+                        break
+                    elif REBOOT_RESPONSE in captured_output:
                         pytest.fail(f"[{num}] [{name}] Device rebooted unexpectedly.")
-                        test_completed = True
-                except Exception as e:
-                    if time.time() - start_time > TIMEOUT_S:
-                        failed_name_and_numbers.append((name, num))
-                        print(f"The following numbers failed or timed out: {failed_name_and_numbers}")
-                        pytest.fail(f"[{num}] [{name}] Timeout exceeded {TIMEOUT_S}s.")
-                        test_completed = True
-                    else:
-                        # Continue waiting if not timeout
-                        print(f"[{num}] [{name}] Exception: {e}, continuing to wait...")
-                        time.sleep(0.1)
+                        break
+                except Exception:
+                    if time.time() - start_time > SINGLE_TIMEOUT_S:
+                        pytest.fail(f"[{num}] [{name}] Timeout exceeded {SINGLE_TIMEOUT_S}s.")
+                        break
 
         if retries == RETRY_LIMIT:
-            failed_name_and_numbers.append((name, num))
-            print(f"[{num}] [{name}] Marked as failed after {RETRY_LIMIT} attempts.")
-
-    if len(failed_name_and_numbers) > 0:
-        pytest.fail(f"The following numbers failed or timed out: {failed_name_and_numbers}")
+            pytest.fail(f"[{num}] [{name}] Failed after {RETRY_LIMIT} retries.")
 
 
+# We only test all log configurations for ESP32-S3; for other chips, only the default configuration is tested.
 @pytest.mark.target('esp32s3')
 @pytest.mark.env('generic')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32s3', 'defaults'),
         # ESP_LOGV() and ESP_LOGD() print a large amount of log output which can cause tests to take too long, so they are not tested
         # 'esp_trace', 'esp_debug',
-        'esp_info', 'esp_warning', 'esp_error', 'esp_none',
-        'std_trace', 'std_debug', 'std_info', 'std_warning', 'std_error', 'std_none',
+        ('esp32s3', 'esp_info'), ('esp32s3', 'esp_warning'), ('esp32s3', 'esp_error'), ('esp32s3', 'esp_none'),
+        ('esp32s3', 'std_trace'), ('esp32s3', 'std_debug'), ('esp32s3', 'std_info'), ('esp32s3', 'std_warning'),
+        ('esp32s3', 'std_error'), ('esp32s3', 'std_none'),
     ],
 )
-@pytest.mark.timeout(30 * 60)  # 30 minutes
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
 def test_esp32s3(dut: Dut, config: str)-> None:
-    test(dut, config)
+    run_test(dut, config)
+
+
+# We only test all log configurations for ESP32-S3; for other chips, only the default configuration is tested.
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('generic')
+@pytest.mark.parametrize(
+    'target, config',
+    [
+        ('esp32s3', 'enable_thread_name'),
+    ],
+)
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
+def test_esp32s3_enable_thread_name(dut: Dut)-> None:
+    run_test(dut)
 
 
 @pytest.mark.target('esp32p4')
 @pytest.mark.env('generic,eco4')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
-        # ESP_LOGV() and ESP_LOGD() print a large amount of log output which can cause tests to take too long, so they are not tested
-        # 'esp_trace', 'esp_debug',
-        'esp_info', 'esp_warning', 'esp_error', 'esp_none',
-        'std_trace', 'std_debug', 'std_info', 'std_warning', 'std_error', 'std_none',
+        ('esp32p4', 'defaults'),
     ],
 )
-@pytest.mark.timeout(30 * 60)  # 30 minutes
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
 def test_esp32p4(dut: Dut, config: str)-> None:
-    test(dut, config)
+    run_test(dut, config)

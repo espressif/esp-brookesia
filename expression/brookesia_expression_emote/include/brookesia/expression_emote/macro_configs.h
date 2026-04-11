@@ -7,7 +7,9 @@
 
 #include "sdkconfig.h"
 
-/* Auto register */
+/**
+ * @brief Enable automatic plugin registration for the emote expression component.
+ */
 #if !defined(BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER)
 #       define BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER
@@ -16,14 +18,18 @@
 #   endif
 #endif
 
-/* Plugin symbol */
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
 #if BROOKESIA_EXPRESSION_EMOTE_ENABLE_AUTO_REGISTER
 #   if !defined(BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL)
 #       define BROOKESIA_EXPRESSION_EMOTE_PLUGIN_SYMBOL  expression_emote_symbol
 #   endif
 #endif
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the emote expression component.
+ */
 #define BROOKESIA_EXPRESSION_EMOTE_LOG_TAG "ExprEmote"
 
 #if !defined(BROOKESIA_EXPRESSION_EMOTE_ENABLE_DEBUG_LOG)

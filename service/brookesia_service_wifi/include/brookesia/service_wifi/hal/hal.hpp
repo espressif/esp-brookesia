@@ -16,31 +16,7 @@
 
 namespace esp_brookesia::service::wifi {
 
-/**
- * @brief State flag bits for tracking WiFi general state
- *
- * These bits are used to track both transient action states (Initing, Deiniting, etc.)
- * and stable state markers (Inited, Started, Connected).
- * The Error bit indicates that an error occurred during a transient state.
- */
-enum class GeneralStateFlagBit {
-    Initing,        // WiFi is initializing
-    Inited,         // WiFi is initialized (stable marker)
-    Deiniting,      // WiFi is deinitializing
-    Starting,       // WiFi is starting
-    Started,        // WiFi is started (stable marker)
-    Stopping,       // WiFi is stopping
-    Connecting,     // WiFi is connecting
-    Connected,      // WiFi is connected (stable marker)
-    Disconnecting,  // WiFi is disconnecting
-    Error,          // Error occurred during transient state
-    Max,
-};
-BROOKESIA_DESCRIBE_ENUM(
-    GeneralStateFlagBit, Initing, Inited, Deiniting, Starting, Started, Stopping, Connecting,
-    Connected, Disconnecting, Error, Max
-);
-
+using GeneralStateFlagBit = helper::Wifi::GeneralState;
 using GeneralStateFlags = std::bitset<BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Max)>;
 
 class Hal {
@@ -63,11 +39,6 @@ public:
     void trigger_general_event(GeneralEvent event);
     bool is_general_action_running(GeneralAction action);
     bool is_general_event_ready(GeneralEvent event);
-    bool is_general_state_error()
-    {
-        return state_flags_.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Error));
-    }
-    void update_general_state_error(bool enable);
 
     /**
      * @brief Connect related

@@ -31,7 +31,7 @@ TEST_CASE("Test LocalTestRunner - basic functionality", "[service][test_runner][
     BROOKESIA_LOGI("=== Test LocalTestRunner - basic functionality ===");
 
     // Initialize service manager
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -87,7 +87,7 @@ TEST_CASE("Test LocalTestRunner - with delays", "[service][test_runner][delays]"
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_delays");
     BROOKESIA_LOGI("=== Test LocalTestRunner - with delays ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -133,7 +133,7 @@ TEST_CASE("Test LocalTestRunner - validation failures", "[service][test_runner][
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_validation");
     BROOKESIA_LOGI("=== Test LocalTestRunner - validation failures ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -172,7 +172,7 @@ TEST_CASE("Test LocalTestRunner - error handling", "[service][test_runner][error
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_error");
     BROOKESIA_LOGI("=== Test LocalTestRunner - error handling ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -210,7 +210,7 @@ TEST_CASE("Test LocalTestRunner - all parameter types", "[service][test_runner][
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_all_types");
     BROOKESIA_LOGI("=== Test LocalTestRunner - all parameter types ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -257,7 +257,7 @@ TEST_CASE("Test LocalTestRunner - custom config", "[service][test_runner][config
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_config");
     BROOKESIA_LOGI("=== Test LocalTestRunner - custom config ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -315,7 +315,7 @@ TEST_CASE("Test LocalTestRunner - sequential execution", "[service][test_runner]
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_sequential");
     BROOKESIA_LOGI("=== Test LocalTestRunner - sequential execution ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -373,7 +373,7 @@ TEST_CASE("Test LocalTestRunner - empty test list", "[service][test_runner][empt
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_empty");
     BROOKESIA_LOGI("=== Test LocalTestRunner - empty test list ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -393,7 +393,7 @@ TEST_CASE("Test LocalTestRunner - stress test", "[service][test_runner][stress]"
     BROOKESIA_TIME_PROFILER_SCOPE("test_runner_stress");
     BROOKESIA_LOGI("=== Test LocalTestRunner - stress test ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     FunctionGuard shutdown_guard([]() {
         shutdown();
     });

@@ -1,5 +1,24 @@
 # ChangeLog
 
+## v0.7.6 - 2026-04-10
+
+### Breaking Changes:
+
+- break(state_machine): `StateMachine::add_state()` signature changed — removed the separate `name` parameter; the state name is now derived from the `StatePtr` itself (was `add_state(name, state)`, now `add_state(state)`)
+- break(state_machine): `StateMachine::start()` signature changed — now accepts a single `Config` struct instead of separate `task_scheduler` and `initial_state` parameters
+- break(state_machine): `StateMachine` constructor changed from `explicit StateMachine(group_name)` to default `StateMachine()` (configuration moved to `Config`)
+- break(task_scheduler): `PreExecuteCallback` signature extended with a leading `const Group &` parameter (was `void(TaskId, TaskType)`, now `void(const Group &, TaskId, TaskType)`)
+- break(task_scheduler): `PostExecuteCallback` signature extended with a leading `const Group &` parameter (was `void(TaskId, TaskType, bool)`, now `void(const Group &, TaskId, TaskType, bool)`)
+
+### Enhancements:
+
+- feat(state_machine): add `StateMachine::Config` struct encapsulating `task_scheduler`, `task_group_name`, `task_group_config`, and `initial_state`
+- feat(task_scheduler): add `pre_execute_callback` and `post_execute_callback` fields to `StartConfig` and `GroupConfig` structs
+- feat(task_scheduler): change Boost includes from broad umbrella headers (`<boost/asio.hpp>`, `<boost/thread.hpp>`) to fine-grained per-component headers for faster build times
+- feat(deps): upgrade `esp-boost` dependency from `0.4.*` to `0.5.*`
+- feat(docs): add comprehensive Doxygen documentation to all public types and methods across `task_scheduler.hpp`, `state_machine.hpp`, `check.hpp`, `describe_helpers.hpp`, `function_guard.hpp`, `log.hpp`, `memory_profiler.hpp`, `plugin.hpp`, `thread_config.hpp`, `thread_profiler.hpp`, `time_profiler.hpp`, and umbrella header `lib_utils.hpp`
+- feat(build): enable `MINIMAL_BUILD` in all test app `CMakeLists.txt` files
+
 ## v0.7.5 - 2026-02-25
 
 #### Enhancements:

@@ -11,13 +11,31 @@
 
 namespace esp_brookesia::expression {
 
+/**
+ * @brief Expression service that renders emojis, animations, QR codes, and event messages.
+ */
 class Emote: public service::ServiceBase {
 public:
+    /**
+     * @brief Event-message type alias re-exported from the helper schema.
+     */
     using AssetMessageType = service::helper::ExpressionEmote::EventMessageType;
+    /**
+     * @brief Asset-source type alias re-exported from the helper schema.
+     */
     using AssetSourceType = service::helper::ExpressionEmote::AssetSourceType;
+    /**
+     * @brief Asset-source descriptor alias re-exported from the helper schema.
+     */
     using AssetSource = service::helper::ExpressionEmote::AssetSource;
+    /**
+     * @brief Configuration type alias re-exported from the helper schema.
+     */
     using Config = service::helper::ExpressionEmote::Config;
 
+    /**
+     * @brief Native graphics object types managed by the emote service.
+     */
     enum class GFX_ObjectType {
         Emoji,
         Animation,
@@ -30,8 +48,18 @@ public:
     Emote &operator=(const Emote &) = delete;
     Emote &operator=(Emote &&) = delete;
 
+    /**
+     * @brief Notify the native backend that the previous flush operation finished.
+     *
+     * @return `true` on success, or `false` otherwise.
+     */
     bool native_notify_flush_finished();
 
+    /**
+     * @brief Get the process-wide singleton instance.
+     *
+     * @return Reference to the singleton emote service.
+     */
     static Emote &get_instance()
     {
         static Emote instance;

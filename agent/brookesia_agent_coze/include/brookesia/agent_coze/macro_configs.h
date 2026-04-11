@@ -7,7 +7,9 @@
 
 #include "sdkconfig.h"
 
-/* Auto register */
+/**
+ * @brief Enable automatic plugin registration for the Coze agent component.
+ */
 #if !defined(BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER)
 #       define BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER
@@ -16,14 +18,18 @@
 #   endif
 #endif
 
-/* Plugin symbol */
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
 #if BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER
 #   if !defined(BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL)
 #       define BROOKESIA_AGENT_COZE_PLUGIN_SYMBOL  agent_coze_symbol
 #   endif
 #endif
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the Coze agent component.
+ */
 #define BROOKESIA_AGENT_COZE_LOG_TAG "AgentCoze"
 
 #if !defined(BROOKESIA_AGENT_COZE_ENABLE_DEBUG_LOG)

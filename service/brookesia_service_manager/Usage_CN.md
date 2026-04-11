@@ -6,6 +6,7 @@
 
 - [使用示例](#使用示例)
   - [目录](#目录)
+  - [Host Smoke Test](#host-smoke-test)
   - [本地服务](#本地服务)
     - [基础用法](#基础用法)
     - [同步函数调用](#同步函数调用)
@@ -17,6 +18,23 @@
     - [RPC 服务器](#rpc-服务器)
     - [RPC 客户端](#rpc-客户端)
   - [创建自定义服务](#创建自定义服务)
+
+## Host Smoke Test
+
+为了在 PC / Host 侧快速验证，该组件提供了位于 `host_test/` 的现成 smoke test。
+
+```bash
+cmake -S service/brookesia_service_manager/host_test -B build/service_manager_host
+cmake --build build/service_manager_host
+ctest --test-dir build/service_manager_host --output-on-failure
+```
+
+该 smoke test 会验证：
+
+- 服务管理器启动与停止
+- 添加并绑定本地测试服务
+- 通过 `ServiceBase` 执行同步函数调用
+- 在 Host 平台上启动和停止 RPC server
 
 ## 本地服务
 

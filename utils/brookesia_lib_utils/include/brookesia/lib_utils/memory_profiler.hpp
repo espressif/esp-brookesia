@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -16,15 +16,16 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <boost/signals2.hpp>
+#include "boost/signals2.hpp"
 #include "boost/thread/mutex.hpp"
+#include "brookesia/lib_utils/macro_configs.h"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/lib_utils/task_scheduler.hpp"
 
 namespace esp_brookesia::lib_utils {
 
 /**
- * @brief Memory profiler for monitoring ESP32 heap memory usage
+ * @brief Heap memory profiler for internal RAM and PSRAM usage.
  *
  * This class provides a C++ interface to monitor ESP32 heap memory usage,
  * including internal SRAM and external PSRAM. It integrates naturally with
@@ -33,14 +34,14 @@ namespace esp_brookesia::lib_utils {
 class MemoryProfiler {
 public:
     /**
-     * @brief Memory information for a specific heap type
+     * @brief Snapshot of a single heap region.
      */
     struct HeapInfo {
-        size_t total_size = 0;          // Total heap size (bytes)
-        size_t free_size = 0;            // Used heap size (bytes)
-        size_t largest_free_block = 0;   // Largest free block (bytes)
-        size_t free_percent = 0;         // Free percentage
-        size_t used_percent = 0;         // Used percentage
+        size_t total_size = 0;          ///< Total heap size in bytes.
+        size_t free_size = 0;           ///< Free heap size in bytes.
+        size_t largest_free_block = 0;  ///< Size of the largest free block in bytes.
+        size_t free_percent = 0;        ///< Free memory ratio expressed as a percentage.
+        size_t used_percent = 0;        ///< Used memory ratio expressed as a percentage.
 
         HeapInfo() = default;
         HeapInfo(size_t total, size_t free, size_t largest)
@@ -52,72 +53,93 @@ public:
     };
 
     /**
-     * @brief Memory information structure
+     * @brief Aggregated memory information for all monitored heap regions.
      */
     struct MemoryInfo {
-        HeapInfo internal;  // Internal SRAM (MALLOC_CAP_INTERNAL)
-        HeapInfo external;  // External PSRAM (MALLOC_CAP_SPIRAM)
-        size_t total_size = 0;              // Total heap size (bytes)
-        size_t total_free = 0;              // Total free memory (bytes)
-        size_t total_free_percent = 0;      // Total free percentage
-        size_t total_largest_free_block = 0; // Total largest free block (bytes)
+        HeapInfo internal;                ///< Internal SRAM heap information (`MALLOC_CAP_INTERNAL`).
+        HeapInfo external;                ///< External PSRAM heap information (`MALLOC_CAP_SPIRAM`).
+        size_t total_size = 0;            ///< Total heap size in bytes across all monitored heaps.
+        size_t total_free = 0;            ///< Total free memory in bytes across all monitored heaps.
+        size_t total_free_percent = 0;    ///< Total free memory ratio expressed as a percentage.
+        size_t total_largest_free_block = 0; ///< Largest free block in bytes across all monitored heaps.
     };
 
     /**
-     * @brief Statistics summary
+     * @brief Running minimum statistics accumulated across snapshots.
      */
     struct Statistics {
-        size_t sample_count = 0;                    // Number of samples taken
-        size_t min_total_free = 0;                  // Minimum total free memory (bytes) observed
-        size_t min_internal_free = 0;               // Minimum internal free memory (bytes) observed
-        size_t min_external_free = 0;               // Minimum external free memory (bytes) observed
-        size_t min_total_free_percent = 0;          // Minimum total free percentage observed
-        size_t min_internal_free_percent = 0;       // Minimum internal free percentage observed
-        size_t min_external_free_percent = 0;       // Minimum external free percentage observed
-        size_t min_total_largest_free_block = 0;    // Minimum total largest free block (bytes)
-        size_t min_internal_largest_free_block = 0; // Minimum internal largest free block (bytes)
-        size_t min_external_largest_free_block = 0; // Minimum external largest free block (bytes)
+        size_t sample_count = 0;                    ///< Number of snapshots processed.
+        size_t min_total_free = 0;                  ///< Minimum total free memory observed, in bytes.
+        size_t min_internal_free = 0;               ///< Minimum internal free memory observed, in bytes.
+        size_t min_external_free = 0;               ///< Minimum external free memory observed, in bytes.
+        size_t min_total_free_percent = 0;          ///< Minimum total free percentage observed.
+        size_t min_internal_free_percent = 0;       ///< Minimum internal free percentage observed.
+        size_t min_external_free_percent = 0;       ///< Minimum external free percentage observed.
+        size_t min_total_largest_free_block = 0;    ///< Minimum total largest free block observed, in bytes.
+        size_t min_internal_largest_free_block = 0; ///< Minimum internal largest free block observed, in bytes.
+        size_t min_external_largest_free_block = 0; ///< Minimum external largest free block observed, in bytes.
 
         Statistics() = default;
         Statistics(const MemoryInfo &cur_memory, const Statistics &last_stats);
     };
 
     /**
-     * @brief Snapshot of memory information at a point in time
+     * @brief Memory profile snapshot captured at one point in time.
      */
     struct ProfileSnapshot {
-        std::chrono::system_clock::time_point timestamp;    // When snapshot was taken
-        MemoryInfo memory;                                  // Current memory information
-        Statistics stats;                                   // Summary statistics
+        std::chrono::system_clock::time_point timestamp; ///< Snapshot capture time.
+        MemoryInfo memory;                                ///< Instantaneous memory information.
+        Statistics stats;                                 ///< Running statistics after this snapshot.
     };
 
     /**
-     * @brief Configuration for memory profiler
+     * @brief Configuration for periodic memory profiling.
      */
     struct ProfilingConfig {
-        uint32_t sample_interval_ms = 5000;     // Sampling interval in milliseconds
-        bool enable_auto_logging = true;        // Automatically print logs on each snapshot
+        uint32_t sample_interval_ms = 5000; ///< Sampling interval in milliseconds.
+        bool enable_auto_logging = true;    ///< Whether to log each generated snapshot automatically.
     };
 
     /**
-     * @brief Threshold type for memory monitoring
+     * @brief Metric used when registering threshold callbacks.
      */
     enum class ThresholdType {
-        TotalFree,             // Monitor total free memory (bytes)
-        InternalFree,          // Monitor internal SRAM free memory (bytes)
-        ExternalFree,          // Monitor external PSRAM free memory (bytes)
-        TotalFreePercent,      // Monitor total free percentage
-        InternalFreePercent,    // Monitor internal SRAM free percentage
-        ExternalFreePercent,    // Monitor external PSRAM free percentage
-        TotalLargestFreeBlock,    // Monitor total largest free block (bytes)
-        InternalLargestFreeBlock, // Monitor internal SRAM largest free block (bytes)
-        ExternalLargestFreeBlock, // Monitor external PSRAM largest free block (bytes)
+        TotalFree,              ///< Total free memory in bytes.
+        InternalFree,           ///< Internal SRAM free memory in bytes.
+        ExternalFree,           ///< External PSRAM free memory in bytes.
+        TotalFreePercent,       ///< Total free memory as a percentage.
+        InternalFreePercent,    ///< Internal SRAM free memory as a percentage.
+        ExternalFreePercent,    ///< External PSRAM free memory as a percentage.
+        TotalLargestFreeBlock,  ///< Largest free block across all heaps, in bytes.
+        InternalLargestFreeBlock, ///< Largest internal SRAM free block, in bytes.
+        ExternalLargestFreeBlock, ///< Largest external PSRAM free block, in bytes.
+        MinTotalFree,              ///< Minimum total free memory in bytes.
+        MinInternalFree,           ///< Minimum internal SRAM free memory in bytes.
+        MinExternalFree,           ///< Minimum external PSRAM free memory in bytes.
+        MinTotalFreePercent,       ///< Minimum total free memory as a percentage.
+        MinInternalFreePercent,    ///< Minimum internal SRAM free memory as a percentage.
+        MinExternalFreePercent,    ///< Minimum external PSRAM free memory as a percentage.
+        MinTotalLargestFreeBlock,  ///< Minimum largest free block across all heaps, in bytes.
+        MinInternalLargestFreeBlock, ///< Minimum largest internal SRAM free block, in bytes.
+        MinExternalLargestFreeBlock, ///< Minimum largest external PSRAM free block, in bytes.
     };
 
+    /**
+     * @brief Signal type emitted for each profiling snapshot.
+     */
     using ProfilingSignal = boost::signals2::signal<void(const ProfileSnapshot &)>;
+    /**
+     * @brief Slot type accepted by `connect_profiling_signal()`.
+     */
     using ProfilingSignalSlot = ProfilingSignal::slot_type;
 
+    /**
+     * @brief Signal type emitted when a threshold condition is met.
+     */
     using ThresholdSignal = boost::signals2::signal<void(const ProfileSnapshot &)>;
+    /**
+     * @brief Slot type accepted by `connect_threshold_signal()`.
+     */
     using ThresholdSignalSlot = ThresholdSignal::slot_type;
 
     /**
@@ -129,27 +151,33 @@ public:
      */
     using SignalConnection = boost::signals2::scoped_connection;
 
+    /**
+     * @brief Construct an idle memory profiler.
+     */
     MemoryProfiler() = default;
     ~MemoryProfiler();
 
-    // Disable copy and move
+    /// Copy construction is not supported.
     MemoryProfiler(const MemoryProfiler &) = delete;
+    /// Copy assignment is not supported.
     MemoryProfiler &operator=(const MemoryProfiler &) = delete;
+    /// Move construction is not supported.
     MemoryProfiler(MemoryProfiler &&) = delete;
+    /// Move assignment is not supported.
     MemoryProfiler &operator=(MemoryProfiler &&) = delete;
 
     /**
-     * @brief Configure profiler settings
+     * @brief Update the profiling configuration.
      *
-     * @param config Configuration structure
-     * @return true on success, false on failure
+     * @param config New profiler configuration.
+     * @return `true` after the configuration is stored.
      */
     bool configure_profiling(const ProfilingConfig &config);
 
     /**
-     * @brief Get current configuration
+     * @brief Get the current profiling configuration.
      *
-     * @return Current configuration
+     * @return Active `ProfilingConfig`.
      */
     ProfilingConfig get_profiling_config() const
     {
@@ -158,28 +186,28 @@ public:
     }
 
     /**
-     * @brief Start periodic profiling using TaskScheduler
+     * @brief Start periodic profiling with a task scheduler.
      *
-     * @param scheduler Shared pointer to TaskScheduler instance
-     * @param period_ms Profiling period in milliseconds (0 = use config.sample_interval_ms)
-     * @return true on success, false on failure
+     * @param scheduler Scheduler used to execute periodic sampling.
+     * @param period_ms Sampling period in milliseconds. Pass `0` to use `config.sample_interval_ms`.
+     * @return `true` on success, or `false` if startup fails.
      */
     bool start_profiling(std::shared_ptr<TaskScheduler> scheduler, uint32_t period_ms = 0);
 
     /**
-     * @brief Stop periodic profiling
+     * @brief Stop periodic profiling.
      */
     void stop_profiling();
 
     /**
-     * @brief Reset profiling data, does not affect configuration.
+     * @brief Reset captured snapshots and registered callbacks without changing configuration.
      */
     void reset_profiling();
 
     /**
-     * @brief Check if profiling is active
+     * @brief Check whether periodic profiling is active.
      *
-     * @return true if profiling, false otherwise
+     * @return `true` when a profiling task is active, or `false` otherwise.
      */
     bool is_profiling() const
     {
@@ -188,9 +216,9 @@ public:
     }
 
     /**
-     * @brief Get the latest snapshot
+     * @brief Get the latest captured snapshot.
      *
-     * @return Shared pointer to the snapshot (nullptr if no snapshot available)
+     * @return Shared pointer to the latest snapshot, or `nullptr` if no snapshot is available.
      */
     std::shared_ptr<ProfileSnapshot> get_profiling_latest_snapshot() const
     {
@@ -199,29 +227,29 @@ public:
     }
 
     /**
-     * @brief Connect a signal for profiling, called on each profiling task
+     * @brief Subscribe to every profiling snapshot.
      *
-     * @param slot Signal slot function to be called on each profiling task, when a snapshot is taken
-     * @return Signal connection object for managing the signal lifetime
+     * @param slot Callback invoked whenever a new snapshot is produced.
+     * @return RAII connection handle for the registered callback.
      */
     SignalConnection connect_profiling_signal(ProfilingSignalSlot slot);
 
     /**
-     * @brief Connect a signal for thresholds, called when thresholds are met
+     * @brief Subscribe to threshold events for a specific metric.
      *
-     * @param type Type of threshold to monitor
-     * @param threshold_value Threshold value (interpretation depends on type)
-     * @param slot Signal slot function to be called when a threshold is met
-     * @return Signal connection object for managing the signal lifetime
+     * @param type Metric to monitor.
+     * @param threshold_value Threshold value interpreted according to @p type.
+     * @param slot Callback invoked when the threshold is met by a snapshot.
+     * @return RAII connection handle for the registered callback.
      */
     SignalConnection connect_threshold_signal(
         ThresholdType type, uint32_t threshold_value, ThresholdSignalSlot slot
     );
 
     /**
-     * @brief Get singleton instance
+     * @brief Get the process-wide singleton instance.
      *
-     * @return Reference to the singleton instance
+     * @return Reference to the singleton profiler.
      */
     static MemoryProfiler &get_instance()
     {
@@ -230,17 +258,17 @@ public:
     }
 
     /**
-     * @brief Take a snapshot of current memory state
+     * @brief Capture the current memory state.
      *
-     * @param last_snapshot Last snapshot (set to nullptr for the first snapshot)
-     * @return Shared pointer to the snapshot
+     * @param last_snapshot Previous snapshot used to update running statistics, or `nullptr` for the first sample.
+     * @return Shared pointer to the new snapshot, or `nullptr` if allocation fails.
      */
     static std::shared_ptr<ProfileSnapshot> take_snapshot(ProfileSnapshot *last_snapshot = nullptr);
 
     /**
-     * @brief Print snapshot to log in formatted table
+     * @brief Print a formatted snapshot summary to the log.
      *
-     * @param snapshot Snapshot to print
+     * @param snapshot Snapshot to print.
      */
     static void print_snapshot(const ProfileSnapshot &snapshot);
 
@@ -265,7 +293,7 @@ private:
     /**
      * @brief Sample current memory state
      *
-     * @return Shared pointer to the memory information
+     * @param mem_info Output structure populated with the latest memory information.
      */
     static void sample_memory(MemoryInfo &mem_info);
 

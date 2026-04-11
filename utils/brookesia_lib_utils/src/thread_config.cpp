@@ -8,6 +8,7 @@
 #   include "freertos/task.h"
 #   include "esp_idf_version.h"
 #   include "esp_pthread.h"
+#   include "esp_memory_utils.h"
 #   include "esp_heap_caps.h"
 #endif
 #include "brookesia/lib_utils/macro_configs.h"
@@ -26,24 +27,14 @@ void ThreadConfig::from_pthread_cfg(const void *cfg)
 {
     BROOKESIA_CHECK_NULL_EXIT(cfg, "Invalid argument");
 
+#if defined(ESP_PLATFORM)
     const esp_pthread_cfg_t *pthread_cfg = static_cast<const esp_pthread_cfg_t *>(cfg);
     name = (pthread_cfg->thread_name != nullptr) ? pthread_cfg->thread_name : CONFIG_PTHREAD_TASK_NAME_DEFAULT;
     core_id = (pthread_cfg->pin_to_core == tskNO_AFFINITY) ? -1 : pthread_cfg->pin_to_core;
     priority = static_cast<size_t>(pthread_cfg->prio);
     stack_size = static_cast<size_t>(pthread_cfg->stack_size);
     stack_in_ext = (pthread_cfg->stack_alloc_caps & MALLOC_CAP_SPIRAM) != 0;
-}
-
-void ThreadConfig::to_pthread_cfg(void *cfg) const
-{
-    BROOKESIA_CHECK_NULL_EXIT(cfg, "Invalid argument");
-
-    esp_pthread_cfg_t *pthread_cfg = static_cast<esp_pthread_cfg_t *>(cfg);
-    pthread_cfg->thread_name = (name.empty()) ? CONFIG_PTHREAD_TASK_NAME_DEFAULT : name.c_str();
-    pthread_cfg->pin_to_core = (core_id < 0) ? tskNO_AFFINITY : core_id;
-    pthread_cfg->prio = static_cast<int>(priority);
-    pthread_cfg->stack_size = static_cast<size_t>(stack_size);
-    pthread_cfg->stack_alloc_caps = static_cast<uint32_t>(stack_in_ext ? MALLOC_CAP_SPIRAM : MALLOC_CAP_INTERNAL) | MALLOC_CAP_8BIT;
+#endif
 }
 
 void ThreadConfig::apply() const
@@ -51,11 +42,27 @@ void ThreadConfig::apply() const
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
 #if defined(ESP_PLATFORM)
+    // esp_pthread_set_cfg only does a shallow copy and does NOT own the thread_name string.
+    // We must ensure thread_name points to memory that outlives the stored config.
+    // Use thread_local storage so the string persists for the lifetime of the current task.
+    static thread_local std::string s_applied_name;
+    s_applied_name = name;
+
     esp_pthread_cfg_t new_cfg;
-    to_pthread_cfg(&new_cfg);
+    new_cfg.thread_name = s_applied_name.empty() ? CONFIG_PTHREAD_TASK_NAME_DEFAULT : s_applied_name.c_str();
+    new_cfg.pin_to_core = (core_id < 0) ? tskNO_AFFINITY : core_id;
+    new_cfg.prio = static_cast<int>(priority);
+    new_cfg.stack_size = static_cast<size_t>(stack_size);
+#if CONFIG_SPIRAM
+    new_cfg.stack_alloc_caps = static_cast<uint32_t>(stack_in_ext ? MALLOC_CAP_SPIRAM : MALLOC_CAP_INTERNAL) |
+                               MALLOC_CAP_8BIT;
+#else
+    new_cfg.stack_alloc_caps = static_cast<uint32_t>(MALLOC_CAP_INTERNAL) | MALLOC_CAP_8BIT;
+#endif
     BROOKESIA_CHECK_ESP_ERR_EXIT(esp_pthread_set_cfg(&new_cfg), "Failed to set thread configuration");
 #else
-    BROOKESIA_LOGW("Not supported on non-ESP platforms");
+    // Host builds do not expose ESP pthread extensions; keep this as a silent no-op.
+    (void)this;
 #endif
 }
 
@@ -93,10 +100,13 @@ ThreadConfig ThreadConfig::get_applied_config()
 ThreadConfig ThreadConfig::get_current_config()
 {
 #if defined(ESP_PLATFORM)
+    auto core_id = xTaskGetCoreID(nullptr);
     return {
         .name = pcTaskGetName(nullptr),
-        .core_id = xPortGetCoreID(),
+        .core_id = (core_id == tskNO_AFFINITY) ? -1 : core_id,
         .priority = uxTaskPriorityGet(nullptr),
+        .stack_size = uxTaskGetStackHighWaterMark(nullptr),
+        .stack_in_ext = !esp_ptr_internal(pxTaskGetStackStart(nullptr)),
     };
 #else
     return ThreadConfig();

@@ -1,0 +1,7 @@
+# Ignore all files first
+*
+
+# Keep the following files
+!.gitignore
+!CMakeLists.txt
+!main.cpp

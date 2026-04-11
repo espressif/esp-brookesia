@@ -9,25 +9,47 @@
 #include "brookesia/agent_helper/coze.hpp"
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/service_manager/macro_configs.h"
+#include "brookesia/agent_coze/macro_configs.h"
 
 namespace esp_brookesia::agent {
 
+/**
+ * @brief Re-exported Coze authentication information type.
+ */
 using CozeAuthInfo = helper::Coze::AuthInfo;
+/**
+ * @brief Re-exported Coze robot metadata type.
+ */
 using CozeRobotInfo = helper::Coze::RobotInfo;
+/**
+ * @brief Re-exported Coze agent configuration type.
+ */
 using CozeInfo = helper::Coze::Info;
+/**
+ * @brief Re-exported Coze-specific event enumeration.
+ */
 using CozeErrorType = helper::Coze::CozeEvent;
 
+/**
+ * @brief Concrete agent implementation backed by the Coze service.
+ */
 class Coze: public Base {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the agent specific attributes /////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Persisted Coze data items managed by the agent.
+     */
     enum class DataType {
         Info,
         BotIndex,
         Max,
     };
 
+    /**
+     * @brief Default metadata advertised by the Coze agent.
+     */
     inline static const AgentAttributes DEFAULT_AGENT_ATTRIBUTES{
         .name = helper::Coze::get_name().data(),
         .operation_timeout = {
@@ -44,6 +66,9 @@ public:
         },
         .require_time_sync = true,
     };
+    /**
+     * @brief Default audio pipeline configuration used by the Coze agent.
+     */
     static constexpr AudioConfig DEFAULT_AUDIO_CONFIG{
         .encoder = {
             .type = service::helper::Audio::CodecFormat::G711A,
@@ -66,6 +91,11 @@ public:
         }
     };
 
+    /**
+     * @brief Get the singleton Coze agent instance.
+     *
+     * @return Coze& Singleton instance.
+     */
     static Coze &get_instance()
     {
         static Coze instance;
@@ -134,21 +164,41 @@ private:
         };
     }
 
+    /**
+     * @brief Whether the chat backend has been initialized.
+     *
+     * @return true if the backend handle exists.
+     */
     bool is_chat_initialized()
     {
         return chat_handle_ != nullptr;
     }
 
+    /**
+     * @brief Whether the chat session has been started.
+     *
+     * @return true if startup completed successfully.
+     */
     bool is_chat_started()
     {
         return is_chat_started_;
     }
 
+    /**
+     * @brief Whether the chat backend is connected to the remote service.
+     *
+     * @return true if connected.
+     */
     bool is_chat_connected()
     {
         return is_chat_connected_;
     }
 
+    /**
+     * @brief Whether the chat backend is currently listening for audio.
+     *
+     * @return true if listening.
+     */
     bool is_chat_listening()
     {
         return is_chat_listening_;

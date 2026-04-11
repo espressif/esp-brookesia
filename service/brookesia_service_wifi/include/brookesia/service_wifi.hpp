@@ -5,6 +5,10 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public Wi-Fi service API.
+ */
+
 #include "service_wifi/macro_configs.h"
 #include "service_wifi/hal/hal.hpp"
 #include "service_wifi/state_machine.hpp"

@@ -23,7 +23,9 @@
 #   endif
 #endif
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the Wi-Fi service component.
+ */
 #define BROOKESIA_SERVICE_WIFI_LOG_TAG "SvcWiFi"
 
 #if !defined(BROOKESIA_SERVICE_WIFI_ENABLE_DEBUG_LOG)

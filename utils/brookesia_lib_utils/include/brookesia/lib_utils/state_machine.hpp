@@ -5,13 +5,16 @@
  */
 #pragma once
 
-#include "brookesia/lib_utils/state_base.hpp"
-#include "brookesia/lib_utils/task_scheduler.hpp"
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
+#include <vector>
 #include <cstdint>
-#include <boost/thread/shared_mutex.hpp>
+#include "boost/thread/shared_mutex.hpp"
+#include "brookesia/lib_utils/macro_configs.h"
+#include "brookesia/lib_utils/state_base.hpp"
+#include "brookesia/lib_utils/task_scheduler.hpp"
 
 namespace esp_brookesia::lib_utils {
 
@@ -33,53 +36,88 @@ namespace esp_brookesia::lib_utils {
  */
 class StateMachine {
 public:
+    /**
+     * @brief Shared pointer type used for registered states.
+     */
     using StatePtr = std::shared_ptr<StateBase>;
+    /**
+     * @brief Callback type invoked after a transition completes successfully.
+     */
     using TransitionFinishCallback = std::function <
                                      void(const std::string &from, const std::string &action, const std::string &to)
                                      >;
 
+    /**
+     * @brief Default scheduler group name used by the state machine.
+     */
     static constexpr const char *DEFAULT_TASK_GROUP_NAME = "state_machine";
 
-    explicit StateMachine(const std::string &group_name = DEFAULT_TASK_GROUP_NAME)
-        : task_group_name_(group_name)
-    {
-    }
+    /**
+     * @brief Configuration for the state machine.
+     */
+    struct Config {
+        /**
+         * @brief Task scheduler used to serialize transitions, timeouts, and periodic updates.
+         */
+        std::shared_ptr<TaskScheduler> task_scheduler;
+        /**
+         * @brief Task group name used for serialized state-machine tasks.
+         */
+        std::string task_group_name = DEFAULT_TASK_GROUP_NAME;
+        /**
+         * @brief Task group configuration.
+         */
+        TaskScheduler::GroupConfig task_group_config = {
+            .enable_serial_execution = true,
+        };
+        /**
+         * @brief Initial state name.
+         */
+        std::string initial_state;
+    };
+
+    /**
+     * @brief Constructor
+     */
+    StateMachine() = default;
+
+    /**
+     * @brief Stop the state machine and release owned resources.
+     */
     ~StateMachine();
 
     /**
-     * @brief Add a state to the state machine
+     * @brief Register a named state object.
      *
-     * @param name Unique name for the state
-     * @param state Shared pointer to the state object
-     * @return true if added successfully, false if state already exists
+     * @param state Shared pointer to the state implementation.
+     * @return `true` if the state was added, or `false` when a state with the same name already exists.
      */
-    bool add_state(const std::string &name, StatePtr state);
+    bool add_state(StatePtr state);
 
     /**
-     * @brief Add a transition between states
+     * @brief Register a transition between two states.
      *
-     * @param from Source state name
-     * @param action Action that triggers the transition
-     * @param to Target state name
-     * @return true if added successfully, false if transition already exists
+     * @param from Source state name.
+     * @param action Action name that triggers the transition.
+     * @param to Target state name.
+     * @return `true` if the transition was added, or `false` when the same `(from, action)` mapping already exists.
      */
     bool add_transition(const std::string &from, const std::string &action, const std::string &to);
 
     /**
-     * @brief Start the state machine with an initial state
+     * @brief Start the state machine and enter the initial state.
      *
-     * @param task_scheduler Shared pointer to the task scheduler
-     * @param initial Name of the initial state
-     * @return true if started successfully, false if state doesn't exist or on other errors
+     * @param config Configuration for the state machine.
+     * @return `true` on success, or `false` if the initial state cannot be entered or startup fails.
      *
      * @note If the state machine is already running, this returns true immediately.
      *       If the scheduler is not running, this will attempt to start it.
      *       The task group is automatically configured for serial execution to ensure thread-safe transitions.
      */
-    bool start(std::shared_ptr<TaskScheduler> task_scheduler, const std::string &initial);
+    bool start(Config config);
 
     /**
-     * @brief Stop the state machine
+     * @brief Stop the state machine and wait for pending scheduled work to finish.
      *
      * @note This method is thread-safe and can be called multiple times safely.
      *       It will wait for all pending state tasks to complete before returning.
@@ -87,12 +125,11 @@ public:
     void stop();
 
     /**
-     * @brief Trigger an action to cause a state transition
+     * @brief Queue or dispatch a transition action.
      *
-     * @param action Action name
-     * @param use_dispatch Whether to use 'dispatch' to trigger the action, default is false
-     *                     if true, use 'dispatch' to trigger the action, otherwise use 'post'
-     * @return true if action was queued successfully, false otherwise
+     * @param action Transition action name.
+     * @param use_dispatch Set to `true` to call `TaskScheduler::dispatch()` instead of `post()`.
+     * @return `true` if the action was scheduled successfully, or `false` otherwise.
      *
      * @note The actual transition happens asynchronously in the task scheduler's serial queue.
      *       This ensures thread-safe state transitions even when called from multiple threads.
@@ -100,26 +137,27 @@ public:
     bool trigger_action(const std::string &action, bool use_dispatch = false);
 
     /**
-     * @brief Wait for all transitions to finish within a timeout
+     * @brief Wait until no transitions are queued or running.
      *
-     * @param timeout_ms Timeout in milliseconds (-1 for infinite)
-     * @return true if all transitions finished within timeout, false otherwise
+     * @param timeout_ms Timeout in milliseconds. The special value `static_cast<uint32_t>(-1)` waits indefinitely.
+     * @return `true` if all transitions completed before the timeout, or `false` otherwise.
      */
     bool wait_all_transitions(uint32_t timeout_ms);
 
     /**
-     * @brief Force all transitions to be cancelled immediately and then transition to a specific state immediately
-     * @note This does not trigger any callback or state update, it just immediately switches to the target state.
+     * @brief Cancel scheduled state tasks and overwrite the current state name immediately.
      *
-     * @param target_state Target state name
-     * @return true if transition to target state successfully, false otherwise
+     * @note This bypasses `on_exit()`, `on_enter()`, timeout scheduling, periodic updates, and transition callbacks.
+     *
+     * @param target_state State name assigned as the new current state.
+     * @return `true` once the internal state name has been updated.
      */
     bool force_transition_to(const std::string &target_state);
 
     /**
-     * @brief Set the callback function to be called when a transition finishes
+     * @brief Register a callback invoked after a successful transition.
      *
-     * @param callback Callback function to be called when a transition finishes
+     * @param callback Callback invoked with `(from_state, action, to_state)`.
      *
      * @note The callback is invoked with (from_state, action, to_state) parameters.
      *       The callback will be executed without holding internal locks, so it's safe
@@ -132,9 +170,9 @@ public:
     }
 
     /**
-     * @brief Check if the state machine is running
+     * @brief Check whether the state machine has been started.
      *
-     * @return true if running, false otherwise
+     * @return `true` when the machine owns a scheduler and is running, or `false` otherwise.
      *
      * @note This method is thread-safe.
      */
@@ -145,9 +183,9 @@ public:
     }
 
     /**
-     * @brief Check if any transition is currently pending or being processed
+     * @brief Check whether any transitions are queued or currently executing.
      *
-     * @return true if one or more transitions are queued or in progress, false otherwise
+     * @return `true` when one or more transitions are pending or in progress, or `false` otherwise.
      *
      * @note This method is thread-safe.
      */
@@ -158,9 +196,9 @@ public:
     }
 
     /**
-     * @brief Check if any state is currently updating
+     * @brief Check whether the current state has an active periodic update task.
      *
-     * @return true if any state is updating, false otherwise
+     * @return `true` when a periodic update task is installed, or `false` otherwise.
      *
      * @note This method is thread-safe.
      */
@@ -171,9 +209,9 @@ public:
     }
 
     /**
-     * @brief Get the current state name
+     * @brief Get the name of the current state.
      *
-     * @return Current state name (empty string if not running or not started)
+     * @return Current state name, or an empty string when the machine has not started.
      *
      * @note This method is thread-safe and returns a copy of the state name.
      */
@@ -184,18 +222,17 @@ public:
     }
 
     /**
-     * @brief Get the state pointer by name
+     * @brief Look up a registered state by name.
      *
-     * @param name State name
-     * @return State pointer (nullptr if not found)
+     * @param name State name to look up.
+     * @return Shared pointer to the registered state, or `nullptr` if not found.
      *
      * @note This method is thread-safe.
      */
     StatePtr get_state_ptr(const std::string &name) const
     {
         boost::shared_lock lock(mutex_);
-        auto it = states_.find(name);
-        return it != states_.end() ? it->second : nullptr;
+        return find_state_unlocked(name);
     }
 
 private:
@@ -231,10 +268,26 @@ private:
      */
     void cancel_current_tasks();
 
+    /**
+     * @brief Look up a state by name without acquiring the mutex.
+     *
+     * @param name State name to search for.
+     * @return Shared pointer to the matching state, or `nullptr` if not found.
+     *
+     * @note The caller must hold `mutex_` (shared or exclusive) before calling this method.
+     */
+    StatePtr find_state_unlocked(const std::string &name) const
+    {
+        auto it = std::find_if(states_.begin(), states_.end(), [&name](const StatePtr & s) {
+            return s->get_name() == name;
+        });
+        return it != states_.end() ? *it : nullptr;
+    }
+
     mutable boost::shared_mutex mutex_;  // Protects all member variables below
 
     // State management
-    std::map<std::string, StatePtr> states_;                                // name -> state object
+    std::vector<StatePtr> states_;                                          // ordered list of registered states
     std::map<std::string, std::map<std::string, std::string>> transitions_; // from_state -> (action -> to_state)
     std::string current_state_;                                             // Current active state name
 
@@ -243,9 +296,9 @@ private:
 
     // Task scheduler integration
     std::shared_ptr<TaskScheduler> task_scheduler_;  // Scheduler for async operations (nullptr when stopped)
+    std::string task_group_name_;                    // Task group name for serial execution
     TaskScheduler::TaskId timeout_task_id_ = 0;      // Current state's timeout task ID
     TaskScheduler::TaskId update_task_id_ = 0;       // Current state's periodic update task ID
-    std::string task_group_name_;                    // Task group name for serial execution
     uint32_t transition_count_ = 0;                  // Counter for pending/running transitions
 };
 

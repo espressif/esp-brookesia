@@ -97,7 +97,7 @@ TEST_CASE("Test ServiceNvs - basic set and get", "[service][nvs][basic]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_basic");
     BROOKESIA_LOGI("=== Test ServiceNvs - basic set and get ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -166,7 +166,7 @@ TEST_CASE("Test ServiceNvs - list functionality", "[service][nvs][list]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_list");
     BROOKESIA_LOGI("=== Test ServiceNvs - list functionality ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -230,7 +230,7 @@ TEST_CASE("Test ServiceNvs - complete workflow", "[service][nvs][workflow]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_workflow");
     BROOKESIA_LOGI("=== Test ServiceNvs - complete workflow ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -372,7 +372,7 @@ TEST_CASE("Test ServiceNvs - default namespace", "[service][nvs][default]")
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_default");
     BROOKESIA_LOGI("=== Test ServiceNvs - default namespace ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -433,7 +433,7 @@ TEST_CASE("Test ServiceNvs - get all keys when keys array is empty", "[service][
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_get_all");
     BROOKESIA_LOGI("=== Test ServiceNvs - get all keys when keys array is empty ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -514,7 +514,7 @@ TEST_CASE("Test ServiceNvs - handle non-existent keys", "[service][nvs][edge_cas
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_edge_cases");
     BROOKESIA_LOGI("=== Test ServiceNvs - handle non-existent keys ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
@@ -652,7 +652,7 @@ TEST_CASE("Test ServiceNvs - list result structure", "[service][nvs][list_struct
     BROOKESIA_TIME_PROFILER_SCOPE("test_service_nvs_list_structure");
     BROOKESIA_LOGI("=== Test ServiceNvs - list result structure ===");
 
-    BROOKESIA_CHECK_FALSE_RETURN(startup(),, "Failed to startup");
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });

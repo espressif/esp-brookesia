@@ -24,14 +24,17 @@ jobs:
             agent/brookesia_agent_xiaozhi;
             expression/brookesia_expression_emote;
             hal/brookesia_hal_adaptor;
+            hal/brookesia_hal_boards;
             hal/brookesia_hal_interface;
             service/brookesia_service_audio;
+            service/brookesia_service_custom;
             service/brookesia_service_helper;
             service/brookesia_service_manager;
             service/brookesia_service_nvs;
             service/brookesia_service_sntp;
+            service/brookesia_service_video;
             service/brookesia_service_wifi;
-            service/brookesia_service_custom;
             utils/brookesia_lib_utils;
+            utils/brookesia_mcp_utils;
           namespace: "espressif"
           api_token: ${{ secrets.IDF_COMPONENT_API_TOKEN }}

@@ -61,6 +61,15 @@ bool Base::set_speaking(bool speaking)
         return true;
     }
 
+    // If the wakeup words are detected (Enable AFE WakeNet),
+    // when the agent is speaking, pause the afe wakeup end task to avoid interrupting the speaking.
+    // Resume the afe wakeup end task when the agent is not speaking.
+    if (!get_wake_words().empty()) {
+        AudioHelper::call_function_async(
+            speaking ? AudioHelper::FunctionId::PauseAFE_WakeupEnd : AudioHelper::FunctionId::ResumeAFE_WakeupEnd
+        );
+    }
+
     auto result = Manager::get_instance().publish_event(
     BROOKESIA_DESCRIBE_ENUM_TO_STR(ManagerHelper::EventId::SpeakingStatusChanged), service::EventItemMap{
         {BROOKESIA_DESCRIBE_TO_STR(ManagerHelper::EventSpeakingStatusChangedParam::IsSpeaking), speaking}
@@ -300,6 +309,18 @@ bool Base::on_start()
     BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->configure_group(get_request_task_group(), {
         .parent_group = Manager::get_instance().get_request_task_group(),
     }), false, "Failed to configure request task group");
+
+    // Try to get wakeup words
+    auto get_wake_words_result = AudioHelper::call_function_sync<boost::json::array>(
+                                     AudioHelper::FunctionId::GetAFE_WakeWords
+                                 );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        get_wake_words_result, false, "Failed to get wakeup words: %1%", get_wake_words_result.error()
+    );
+    BROOKESIA_DESCRIBE_FROM_JSON(get_wake_words_result.value(), wake_words_);
+    if (!wake_words_.empty()) {
+        BROOKESIA_LOGI("Detected wakeup words: %1%", wake_words_);
+    }
 
     return true;
 }

@@ -5,6 +5,10 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public agent-helper API set.
+ */
+
 #include "agent_helper/coze.hpp"
 #include "agent_helper/manager.hpp"
 #include "agent_helper/openai.hpp"

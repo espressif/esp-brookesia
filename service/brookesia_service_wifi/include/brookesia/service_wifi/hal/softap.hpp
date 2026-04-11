@@ -8,7 +8,7 @@
 #include <bitset>
 #include <string>
 #include <memory>
-#include "boost/thread.hpp"
+#include "boost/thread/thread.hpp"
 #include "type.hpp"
 
 namespace esp_brookesia::service::wifi {
@@ -62,7 +62,7 @@ public:
         return is_softap_provision_running_;
     }
 
-    bool on_hal_scan_ap_infos_updated(const std::vector<ApInfo> &ap_infos);
+    bool on_hal_scan_ap_infos_updated(const std::vector<ScanApInfo> &ap_infos);
     bool on_hal_softap_wifi_event(uint8_t event);
     bool on_hal_softap_ip_event(uint8_t event);
 
@@ -82,7 +82,7 @@ public:
     void trigger_provision_connect(const std::string &ssid, const std::string &password);
 
     static std::string get_ap_default_ssid();
-    static uint8_t get_ap_best_channel(const std::vector<ApInfo> &ap_infos);
+    static uint8_t get_ap_best_channel(const std::vector<ScanApInfo> &ap_infos);
 
 private:
     bool do_softap_start(const SoftApParams *params = nullptr);
@@ -131,7 +131,7 @@ private:
     std::unique_ptr<boost::thread> provision_dns_thread_;
     int provision_dns_sock_ = -1;
 
-    std::vector<ApInfo> provision_scan_ap_infos_;
+    std::vector<ScanApInfo> provision_scan_ap_infos_;
     bool provision_scan_completed_ = false;
     boost::mutex provision_scan_mutex_;
     boost::condition_variable provision_scan_cv_;

@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public Coze agent API.
+ */
+
 #include "agent_coze/macro_configs.h"
 #include "agent_coze/agent_coze.hpp"

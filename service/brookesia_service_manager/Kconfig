@@ -37,6 +37,13 @@ menu "ESP-Brookesia: Service Manager Configurations"
             default y
     endif
 
+    config BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS
+        int "Default call function timeout (ms)"
+        default 500
+        help
+            The default timeout of the call function. If the timeout is not specified when calling the function, this value will be used.
+            When debug log level is enabled, a large number of logs may cause call function timeouts. In this case, this value can be increased to avoid timeouts.
+
     menu "RPC"
         config BROOKESIA_SERVICE_MANAGER_RPC_GLOBAL_MAX_SOCKETS
             int "Global: maximum sockets"
@@ -100,6 +107,13 @@ menu "ESP-Brookesia: Service Manager Configurations"
                     The interval of the worker poll.
         endmenu
 
+        config BROOKESIA_SERVICE_MANAGER_WORKER_NUM
+            int "Number of workers"
+            default 3
+            range 1 4
+            help
+                The number of workers.
+
         config BROOKESIA_SERVICE_MANAGER_WORKER_0_CORE_ID
             int "Core ID of Worker 0"
             range -1 1
@@ -107,11 +121,31 @@ menu "ESP-Brookesia: Service Manager Configurations"
             help
                 The core ID of Worker 0. `-1` means the core ID is not specified.
 
-        config BROOKESIA_SERVICE_MANAGER_WORKER_1_CORE_ID
-            int "Core ID of Worker 1"
-            range -1 1
-            default 1
-            help
-                The core ID of Worker 1. `-1` means the core ID is not specified.
+        if BROOKESIA_SERVICE_MANAGER_WORKER_NUM >= 2
+            config BROOKESIA_SERVICE_MANAGER_WORKER_1_CORE_ID
+                int "Core ID of Worker 1"
+                range -1 1
+                default 1
+                help
+                    The core ID of Worker 1. `-1` means the core ID is not specified.
+        endif
+
+        if BROOKESIA_SERVICE_MANAGER_WORKER_NUM >= 3
+            config BROOKESIA_SERVICE_MANAGER_WORKER_2_CORE_ID
+                int "Core ID of Worker 2"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 2. `-1` means the core ID is not specified.
+        endif
+
+        if BROOKESIA_SERVICE_MANAGER_WORKER_NUM >= 4
+            config BROOKESIA_SERVICE_MANAGER_WORKER_3_CORE_ID
+                int "Core ID of Worker 3"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 3. `-1` means the core ID is not specified.
+        endif
     endmenu
 endmenu

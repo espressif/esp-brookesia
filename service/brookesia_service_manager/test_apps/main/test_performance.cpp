@@ -38,7 +38,7 @@ constexpr size_t TEST_CALL_FUNCTION_TIMEOUT_MS = 100;
 // For concurrent call function
 constexpr const char *TEST_CONCURRENT_SERVICE_NAME = ServiceTest::SERVICE_NAME;
 constexpr size_t TEST_CONCURRENT_NUM = 10;
-constexpr size_t TEST_CONCURRENT_THREAD_STACK_SIZE = 10 * 1024;
+constexpr size_t TEST_CONCURRENT_THREAD_STACK_SIZE = 6 * 1024;
 constexpr size_t TEST_CONCURRENT_TOTAL_TIMEOUT_MS = TEST_CONCURRENT_NUM * TEST_CALL_FUNCTION_TIMEOUT_MS + 1000; // Extra time for concurrent overhead
 constexpr size_t TEST_CONCURRENT_SUCCESS_RATE = 90;
 static const TestItem TEST_CONCURRENT_TEST_ITEM = {
@@ -468,6 +468,7 @@ static bool do_concurrent_call_function(
     for (size_t i = 0; i < concurrent_config.num; ++i) {
         ThreadConfigGuard config_guard({
             .name = (boost::format("ConcT%1%") % i).str().c_str(),
+            .stack_size = concurrent_config.stack_size,
         });
         auto request_future = std::async(std::launch::async, [service, &method, &params, timeout_ms, i]() {
             BROOKESIA_TIME_PROFILER_SCOPE("request_" + std::to_string(i));

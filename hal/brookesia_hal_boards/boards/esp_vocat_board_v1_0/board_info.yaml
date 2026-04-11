@@ -1,0 +1,5 @@
+board: esp_vocat_board_v1_0
+chip: esp32s3
+version: 1.0.0
+description: "ESP VoCat Board V1.0 - AI Pet Companion Development Board"
+manufacturer: "ESPRESSIF"

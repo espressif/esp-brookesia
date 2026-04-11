@@ -1,6 +1,8 @@
 .gitlab/tools/check_executables.py
 .gitlab/tools/check_readme_links.py
 .gitlab/tools/push_to_github.sh
+.gitlab/tools/setup_docs_boost.sh
+.gitlab/tools/setup_docs_cxx.sh
 
 .github/tools/build_with_board_manager.sh
 .github/tools/generate_launchpad_config.sh

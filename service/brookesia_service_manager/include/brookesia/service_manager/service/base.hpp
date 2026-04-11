@@ -13,29 +13,53 @@
 #include <type_traits>
 #include <vector>
 #include "brookesia/lib_utils/task_scheduler.hpp"
+#include "brookesia/service_manager/macro_configs.h"
 #include "brookesia/service_manager/function/registry.hpp"
 #include "brookesia/service_manager/event/registry.hpp"
 #include "brookesia/service_manager/rpc/connection.hpp"
 
 namespace esp_brookesia::service {
 
+/**
+ * @brief Base class for bindable services managed by `ServiceManager`.
+ *
+ * Subclasses expose callable functions and publishable events through the
+ * function and event registries owned by the service.
+ */
 class ServiceBase {
 public:
     friend class ServiceManager;
 
+    /**
+     * @brief Map from function names to service-side handlers.
+     */
     using FunctionHandlerMap = std::map<std::string, FunctionHandler>;
-
-    static constexpr uint32_t DEFAULT_CALL_TIMEOUT_MS = 100;
+    /**
+     * @brief Callback invoked with the result of an asynchronous function call.
+     */
+    using FunctionResultHandler = std::function < void(FunctionResult &&) >;
 
     /**
      * @brief Service attributes configuration
      */
     struct Attributes {
+        /**
+         * @brief Check whether a dedicated task scheduler configuration is present.
+         *
+         * @return true if the service should create its own scheduler.
+         */
         bool has_scheduler() const
         {
             return task_scheduler_config.has_value();
         }
 
+        /**
+         * @brief Get the dedicated task scheduler configuration.
+         *
+         * @return const lib_utils::TaskScheduler::StartConfig& Config stored in `task_scheduler_config`.
+         *
+         * @note Call this only when `has_scheduler()` returns `true`.
+         */
         const lib_utils::TaskScheduler::StartConfig &get_scheduler_config() const
         {
             return task_scheduler_config.value();
@@ -49,10 +73,18 @@ public:
         bool bindable = true;  ///< Optional: Whether the service can be bound
     };
 
+    /**
+     * @brief Construct a service with immutable attributes.
+     *
+     * @param[in] attributes Public metadata and scheduler preferences for the service.
+     */
     ServiceBase(const Attributes &attributes)
         : attributes_(attributes)
     {}
 
+    /**
+     * @brief Virtual destructor.
+     */
     virtual ~ServiceBase();
 
     /**
@@ -62,7 +94,7 @@ public:
      *
      * @return std::vector<FunctionSchema> List of function schemas
      *
-     * @example
+     * @code{.cpp}
      * std::vector<FunctionSchema> get_function_schemas() override {
      *     return {
      *         {
@@ -79,6 +111,7 @@ public:
      *         }
      *     };
      * }
+     * @endcode
      */
     virtual std::vector<FunctionSchema> get_function_schemas()
     {
@@ -92,7 +125,7 @@ public:
      *
      * @return std::vector<EventSchema> List of event schemas
      *
-     * @example
+     * @code{.cpp}
      * std::vector<EventSchema> get_event_schemas() override {
      *     return {
      *         {
@@ -102,6 +135,7 @@ public:
      *         }
      *     };
      * }
+     * @endcode
      */
     virtual std::vector<EventSchema> get_event_schemas()
     {
@@ -113,10 +147,11 @@ public:
      *
      * @param[in] name Function name to call
      * @param[in] parameters_map FunctionParameterMap map (key-value pairs)
-     * @return std::future<FunctionResult> Future that will contain the result
+     * @param[in] handler FunctionResultHandler to handle the result, if not provided, the result will be ignored
+     * @return true if called successfully, false otherwise
      */
-    std::future<FunctionResult> call_function_async(
-        const std::string &name, FunctionParameterMap &&parameters_map
+    bool call_function_async(
+        const std::string &name, FunctionParameterMap parameters_map, FunctionResultHandler handler = nullptr
     );
 
     /**
@@ -124,10 +159,11 @@ public:
      *
      * @param[in] name Function name to call
      * @param[in] parameters_values FunctionParameterMap values (ordered array)
-     * @return std::future<FunctionResult> Future that will contain the result
+     * @param[in] handler FunctionResultHandler to handle the result, if not provided, the result will be ignored
+     * @return true if called successfully, false otherwise
      */
-    std::future<FunctionResult> call_function_async(
-        const std::string &name, std::vector<FunctionValue> &&parameters_values
+    bool call_function_async(
+        const std::string &name, std::vector<FunctionValue> parameters_values, FunctionResultHandler handler = nullptr
     );
 
     /**
@@ -135,10 +171,11 @@ public:
      *
      * @param[in] name Function name to call
      * @param[in] parameters_json FunctionParameterMap in JSON object format
-     * @return std::future<FunctionResult> Future that will contain the result
+     * @param[in] handler FunctionResultHandler to handle the result, if not provided, the result will be ignored
+     * @return true if called successfully, false otherwise
      */
-    std::future<FunctionResult> call_function_async(
-        const std::string &name, boost::json::object &&parameters_json
+    bool call_function_async(
+        const std::string &name, const boost::json::object &parameters_json, FunctionResultHandler handler = nullptr
     );
 
     /**
@@ -150,8 +187,8 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
-        const std::string &name, FunctionParameterMap &&parameters_map,
-        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
+        const std::string &name, FunctionParameterMap parameters_map,
+        uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS
     );
 
     /**
@@ -163,8 +200,8 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
-        const std::string &name, std::vector<FunctionValue> &&parameters_values,
-        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
+        const std::string &name, std::vector<FunctionValue> parameters_values,
+        uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS
     );
 
     /**
@@ -176,8 +213,8 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_function_sync(
-        const std::string &name, boost::json::object &&parameters_json,
-        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
+        const std::string &name, const boost::json::object &parameters_json,
+        uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS
     );
 
     /**
@@ -270,7 +307,7 @@ public:
      * @return FunctionResult Converted result
      */
     template<typename T>
-    static FunctionResult to_function_result(std::expected<T, std::string> &&result)
+    static FunctionResult to_function_result(std::expected<T, std::string> result)
     {
         if (result) {
             if constexpr (std::is_void_v<T>) {
@@ -278,7 +315,7 @@ public:
             } else {
                 return FunctionResult{
                     .success = true,
-                    .data = FunctionValue(std::move(result.value()))
+                    .data = FunctionValue(result.value())
                 };
             }
         } else {
@@ -341,7 +378,7 @@ protected:
      *
      * @return FunctionHandlerMap Function handlers map
      *
-     * @example
+     * @code{.cpp}
      * FunctionHandlerMap get_function_handlers() override {
      *     return {
      *         {
@@ -358,6 +395,7 @@ protected:
      *         }
      *     };
      * }
+     * @endcode
      */
     virtual FunctionHandlerMap get_function_handlers()
     {
@@ -371,7 +409,7 @@ protected:
      * @param[in] handlers Function handler map
      * @return true if registered successfully, false otherwise
      */
-    bool register_functions(std::vector<FunctionSchema> &&schemas, FunctionHandlerMap &&handlers);
+    bool register_functions(std::vector<FunctionSchema> schemas, FunctionHandlerMap handlers);
 
     /**
      * @brief Unregister function list (internal use)
@@ -387,7 +425,7 @@ protected:
      * @param[in] schemas Event schemas list
      * @return true if registered successfully, false otherwise
      */
-    bool register_events(std::vector<EventSchema> &&schemas);
+    bool register_events(std::vector<EventSchema> schemas);
 
     /**
      * @brief Unregister event list (internal use)
@@ -405,7 +443,7 @@ protected:
      * @param[in] use_dispatch Whether to use dispatch to publish the event
      * @return true if published successfully, false otherwise
      */
-    bool publish_event(const std::string &event_name, EventItemMap &&event_items, bool use_dispatch = false);
+    bool publish_event(const std::string &event_name, EventItemMap event_items, bool use_dispatch = false);
 
     /**
      * @brief Publish an event with data values
@@ -415,12 +453,13 @@ protected:
      * @param[in] use_dispatch Whether to use dispatch to publish the event
      * @return true if published successfully, false otherwise
      *
-     * @example
+     * @code{.cpp}
      * // Assuming event schema: {"value_change", "...", {{"value", "...", Number}}}
      * publish_event("value_change", {42.0});
+     * @endcode
      */
     bool publish_event(
-        const std::string &event_name, std::vector<EventItem> &&data_values, bool use_dispatch = false
+        const std::string &event_name, std::vector<EventItem> data_values, bool use_dispatch = false
     );
 
     /**
@@ -431,7 +470,7 @@ protected:
      * @param[in] use_dispatch Whether to use dispatch to publish the event
      * @return true if published successfully, false otherwise
      */
-    bool publish_event(const std::string &event_name, boost::json::object &&data_json, bool use_dispatch = false);
+    bool publish_event(const std::string &event_name, boost::json::object data_json, bool use_dispatch = false);
 
     /**
      * @brief Set the task scheduler
@@ -492,7 +531,7 @@ private:
 
     Attributes attributes_;
 
-    boost::mutex state_mutex_;  // Protect state transitions (init/deinit/start/stop)
+    boost::shared_mutex state_mutex_;  // Protect state transitions (init/deinit/start/stop)
     std::atomic<bool> is_initialized_{false};
     std::atomic<bool> is_running_{false};
 

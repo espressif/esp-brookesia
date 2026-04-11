@@ -95,7 +95,7 @@ def get_index_and_name_list(response: bytes):
     return result
 
 
-def test(dut: Dut)-> None:
+def run_test(dut: Dut)-> None:
     dut.expect(ENTER_RESPONSE_LIST, timeout=RESPONSE_TIMEOUT_S)
 
     dut.write('\n\n')
@@ -133,7 +133,7 @@ def test(dut: Dut)-> None:
                         if leaked_memory:
                             leaked_memory = False
                             print(f"Skip leaked memory test")
-                            break
+                            continue
                         pytest.fail(f"[{num}] [{name}] Failed")
                         break
                     elif response == REBOOT_RESPONSE:
@@ -147,40 +147,43 @@ def test(dut: Dut)-> None:
         if retries == RETRY_LIMIT:
             pytest.fail(f"[{num}] [{name}] Failed after {RETRY_LIMIT} retries.")
 
+
 @pytest.mark.target('esp32s3')
 @pytest.mark.env('generic')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32s3', 'defaults'),
     ],
 )
-@pytest.mark.timeout(TOTAL_TIMEOUT_S)  # 30 minutes
-def test_esp32s3_defaults(dut: Dut)-> None:
-    test(dut)
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
+def test_esp32s3(dut: Dut)-> None:
+    run_test(dut)
 
 
 @pytest.mark.target('esp32s3')
 @pytest.mark.env('generic,octal-psram')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'esp32s3_octal_psram',
+        ('esp32s3', 'esp32s3_octal_psram'),
+        ('esp32s3', 'esp32s3_octal_psram_xip'),
     ],
 )
-@pytest.mark.timeout(TOTAL_TIMEOUT_S)  # 30 minutes
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
 def test_esp32s3_octal_psram(dut: Dut)-> None:
-    test(dut)
+    run_test(dut)
 
 
 @pytest.mark.target('esp32p4')
 @pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32p4', 'defaults'),
+        ('esp32p4', 'esp32p4_xip'),
     ],
 )
-@pytest.mark.timeout(TOTAL_TIMEOUT_S)  # 30 minutes
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
 def test_esp32p4(dut: Dut)-> None:
-    test(dut)
+    run_test(dut)

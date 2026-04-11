@@ -3,11 +3,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#if defined(ESP_PLATFORM)
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
-#include "esp_heap_caps.h"
-#include "soc/soc_memory_layout.h"
+#include "esp_memory_utils.h"
 #include "brookesia/lib_utils/macro_configs.h"
 #if !BROOKESIA_UTILS_THREAD_PROFILER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -784,3 +784,4 @@ const char *ThreadProfiler::get_state_string(TaskState state)
 }
 
 } // namespace esp_brookesia::lib_utils
+#endif // defined(ESP_PLATFORM)

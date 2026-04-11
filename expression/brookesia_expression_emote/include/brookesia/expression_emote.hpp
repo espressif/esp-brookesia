@@ -5,5 +5,9 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header for the public emote-expression API.
+ */
+
 #include "expression_emote/macro_configs.h"
 #include "brookesia/expression_emote/emote.hpp"

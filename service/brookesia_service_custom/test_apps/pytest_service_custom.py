@@ -83,7 +83,7 @@ def get_index_and_name_list(response: bytes):
     return result
 
 
-def test(dut: Dut) -> None:
+def run_test(dut: Dut) -> None:
     dut.expect(ENTER_RESPONSE_LIST, timeout=RESPONSE_TIMEOUT_S)
 
     dut.write('\n\n')
@@ -142,24 +142,24 @@ def test(dut: Dut) -> None:
 @pytest.mark.target('esp32s3')
 @pytest.mark.env('generic')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32s3', 'defaults'),
     ],
 )
 @pytest.mark.timeout(30 * 60)  # 30 minutes
 def test_esp32s3(dut: Dut)-> None:
-    test(dut)
+    run_test(dut)
 
 
 @pytest.mark.target('esp32p4')
 @pytest.mark.env('generic,eco4')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32p4', 'defaults'),
     ],
 )
 @pytest.mark.timeout(30 * 60)  # 30 minutes
 def test_esp32p4(dut: Dut)-> None:
-    test(dut)
+    run_test(dut)

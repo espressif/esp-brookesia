@@ -1,4 +1,4 @@
-version: "0.7.3"
+version: "0.7.4"
 description: ESP-Brookesia Expression Emote which provides expression emote management, including emoji set, animation set, and event message set.
 url: https://github.com/espressif/esp-boost
 repository: https://github.com/espressif/esp-boost.git
@@ -13,3 +13,7 @@ dependencies:
     version: "0.7.*"
     override_path: "../../service/brookesia_service_helper"
     require: public
+
+examples:
+  - path: ../../examples/service/console
+  - path: ../../examples/agent/chatbot

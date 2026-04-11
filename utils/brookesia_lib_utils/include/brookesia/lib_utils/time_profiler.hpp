@@ -15,12 +15,13 @@
 #include <stack>
 #include <vector>
 #include <limits>
+#include "brookesia/lib_utils/macro_configs.h"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 
 namespace esp_brookesia::lib_utils {
 
 /**
- * @brief Time profiler for performance measurement
+ * @brief Hierarchical time profiler for scoped code regions and named events.
  *
  * This class provides hierarchical time profiling capabilities with support
  * for nested scopes, cross-thread events, and detailed statistics reporting.
@@ -28,7 +29,7 @@ namespace esp_brookesia::lib_utils {
 class TimeProfiler {
 public:
     /**
-     * @brief Profiler tree node representing a timing scope
+     * @brief Internal tree node representing one profiled scope.
      */
     struct Node {
         std::string name;  ///< Name of this profiling scope
@@ -43,7 +44,7 @@ public:
     };
 
     /**
-     * @brief Statistics for a single profiling node
+     * @brief Aggregated statistics for a single profiling node.
      */
     struct NodeStatistics {
         std::string name;              ///< Name of the profiling scope
@@ -62,7 +63,7 @@ public:
     };
 
     /**
-     * @brief Complete statistics report for the profiler
+     * @brief Structured report returned by `get_statistics()`.
      */
     struct Statistics {
         std::string unit_name;         ///< Time unit name (e.g., "ms", "us", "s")
@@ -73,11 +74,11 @@ public:
     };
 
     /**
-     * @brief Formatting options for profiler output
+     * @brief Formatting options used by `report()`.
      */
     struct FormatOptions {
         /**
-         * @brief Sort order for profiler output
+         * @brief Sort order for sibling profiling nodes.
          */
         enum class SortBy {
             TotalDesc,  ///< Sort by total time descending
@@ -86,7 +87,7 @@ public:
         };
 
         /**
-         * @brief Time unit for display
+         * @brief Time unit used for formatted output and exported statistics.
          */
         enum class TimeUnit {
             Microseconds,  ///< Display in microseconds
@@ -123,65 +124,65 @@ public:
     // ========== Configuration ==========
 
     /**
-     * @brief Set formatting options for output
+     * @brief Set formatting options used by `report()`.
      *
-     * @param[in] options Format options to apply
+     * @param[in] options Format options to apply.
      */
     void set_format_options(const FormatOptions &options);
 
     // ========== RAII Scope Profiling ==========
 
     /**
-     * @brief Enter a profiling scope
+     * @brief Enter a named profiling scope.
      *
      * Should be paired with leave_scope(). Prefer using BROOKESIA_TIME_PROFILER_SCOPE
      * macro for automatic scope management.
      *
-     * @param[in] name Name of the scope to profile
+     * @param[in] name Scope name to record.
      */
     void enter_scope(const std::string &name);
 
     /**
-     * @brief Leave the current profiling scope
+     * @brief Leave the current profiling scope.
      *
-     * Records the elapsed time since the corresponding enter_scope() call.
+     * Records the elapsed time since the matching `enter_scope()` call.
      */
     void leave_scope();
 
     // ========== Cross-thread Event Profiling ==========
 
     /**
-     * @brief Start timing a named event
+     * @brief Start timing a named event.
      *
      * Used for timing events that may span across function boundaries or threads.
      * Must be paired with end_event() with the same name.
      *
-     * @param[in] name Name of the event to start timing
+     * @param[in] name Event name to start.
      */
     void start_event(const std::string &name);
 
     /**
-     * @brief End timing a named event
+     * @brief End timing a named event.
      *
      * Records the elapsed time since the corresponding start_event() call.
      *
-     * @param[in] name Name of the event to stop timing
+     * @param[in] name Event name to stop.
      */
     void end_event(const std::string &name);
 
     // ========== Output and Management ==========
 
     /**
-     * @brief Get profiling statistics
+     * @brief Build a structured snapshot of the collected profiling data.
      *
      * Returns a structured representation of all profiling data.
      *
-     * @return Statistics structure containing all profiling information
+     * @return `Statistics` structure containing all profiling information.
      */
     Statistics get_statistics() const;
 
     /**
-     * @brief Generate and output profiling report
+     * @brief Generate and log a formatted profiling report.
      *
      * Prints a hierarchical report of all recorded timings to the log.
      * This method internally calls get_statistics() and formats the output.
@@ -189,7 +190,7 @@ public:
     void report();
 
     /**
-     * @brief Clear all profiling data
+     * @brief Clear all recorded profiling data.
      *
      * Resets all timing statistics and clears the profiling tree.
      */
@@ -238,7 +239,7 @@ private:
 };
 
 /**
- * @brief RAII wrapper for time profiling scopes
+ * @brief RAII wrapper that profiles the lifetime of a C++ scope.
  *
  * Automatically calls enter_scope() on construction and leave_scope() on destruction.
  * Use the BROOKESIA_TIME_PROFILER_SCOPE macro for convenient usage.
@@ -246,16 +247,14 @@ private:
 class TimeProfilerScope {
 public:
     /**
-     * @brief Constructor that enters a profiling scope
+     * @brief Enter a named profiling scope on construction.
      *
-     * @param[in] name Name of the scope to profile
+     * @param[in] name Scope name to record.
      */
     explicit TimeProfilerScope(const std::string &name);
 
     /**
-     * @brief Destructor that leaves the profiling scope
-     *
-     * Automatically records the elapsed time for this scope.
+     * @brief Leave the profiling scope on destruction.
      */
     ~TimeProfilerScope();
 };
@@ -278,47 +277,49 @@ BROOKESIA_DESCRIBE_STRUCT(
 #define _BROOKESIA_TIME_PROFILER_CONCAT(a, b) a##b
 #define BROOKESIA_TIME_PROFILER_CONCAT(a, b) _BROOKESIA_TIME_PROFILER_CONCAT(a, b)
 
+#if BROOKESIA_UTILS_TIME_PROFILER_AVAILABLE
 /**
- * @brief Create a profiling scope for the current block
+ * @brief Profile the current C++ scope.
  *
  * This macro creates a TimeProfilerScope object that automatically
  * measures the execution time of the current scope.
  *
- * @param name Name of the profiling scope
+ * @param name Scope name recorded in the profiler tree.
  *
- * @example
+ * @code{.cpp}
  * void my_function() {
  *     BROOKESIA_TIME_PROFILER_SCOPE("my_function");
  *     // Code to profile
  * }
+ * @endcode
  */
 #define BROOKESIA_TIME_PROFILER_SCOPE(name) \
     esp_brookesia::lib_utils::TimeProfilerScope BROOKESIA_TIME_PROFILER_CONCAT(_time_profiler_scope_, __LINE__)(name)
 
 /**
- * @brief Start timing a named event
+ * @brief Start timing a named event.
  *
  * Used for profiling events that span across function boundaries or threads.
  * Must be paired with BROOKESIA_TIME_PROFILER_END_EVENT.
  *
- * @param name Name of the event to start timing
+ * @param name Event name to start.
  */
 #define BROOKESIA_TIME_PROFILER_START_EVENT(name) \
     esp_brookesia::lib_utils::TimeProfiler::get_instance().start_event(name)
 
 /**
- * @brief End timing a named event
+ * @brief End timing a named event.
  *
  * Records the elapsed time since BROOKESIA_TIME_PROFILER_START_EVENT was called
  * with the same name.
  *
- * @param name Name of the event to stop timing
+ * @param name Event name to stop.
  */
 #define BROOKESIA_TIME_PROFILER_END_EVENT(name) \
     esp_brookesia::lib_utils::TimeProfiler::get_instance().end_event(name)
 
 /**
- * @brief Generate and output profiling report
+ * @brief Generate and log the current profiling report.
  *
  * Prints a hierarchical report of all recorded timings.
  */
@@ -326,9 +327,19 @@ BROOKESIA_DESCRIBE_STRUCT(
     esp_brookesia::lib_utils::TimeProfiler::get_instance().report()
 
 /**
- * @brief Clear all profiling data
+ * @brief Clear all recorded profiling data.
  *
  * Resets all timing statistics and clears the profiling tree.
  */
 #define BROOKESIA_TIME_PROFILER_CLEAR() \
     esp_brookesia::lib_utils::TimeProfiler::get_instance().clear()
+
+#else
+
+#define BROOKESIA_TIME_PROFILER_SCOPE(name)
+#define BROOKESIA_TIME_PROFILER_START_EVENT(name)
+#define BROOKESIA_TIME_PROFILER_END_EVENT(name)
+#define BROOKESIA_TIME_PROFILER_REPORT()
+#define BROOKESIA_TIME_PROFILER_CLEAR()
+
+#endif // BROOKESIA_UTILS_TIME_PROFILER_AVAILABLE

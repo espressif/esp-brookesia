@@ -12,7 +12,7 @@
 - **播放状态管理**：实时跟踪播放状态（空闲、播放中、暂停），并通过事件通知状态变化。
 - **编码器管理**：支持编码器的启动、停止和配置，可设置编码器读取数据大小。
 - **解码器管理**：支持解码器的启动、停止和数据输入，支持流式解码。
-- **HAL 音频集成**：通过 `brookesia_hal_interface` 的 `AudioPlayerIface` 和 `AudioRecorderIface` 获取播放器、录音器句柄、音量控制和板级音频默认配置。
+- **HAL 音频集成**：通过 `brookesia_hal_interface` 的 `AudioCodecPlayerIface` 和 `AudioCodecRecorderIface` 获取播放器、录音器句柄、音量控制和板级音频默认配置。
 - **持久化存储**：可选搭配 `brookesia_service_nvs` 服务持久化保存音量等信息
 
 ## 目录
@@ -53,7 +53,7 @@ Audio Service 支持以下音频编解码格式：
 
 ### HAL 音频集成
 
-- **类型化 HAL 访问**：在服务启动阶段通过 `get_first_interface<T>()` 获取 `AudioPlayerIface` 和 `AudioRecorderIface`。
+- **类型化 HAL 访问**：在服务启动阶段通过 `get_first_interface<T>()` 获取 `AudioCodecPlayerIface` 和 `AudioCodecRecorderIface`。
 - **减少 Codec 耦合**：播放器音量、打开、关闭以及录音增益设置都通过 HAL 接口完成，而不是在服务层直接调用 `esp_codec`。
 - **板级默认配置**：录音采样率、采样位宽、通道数、麦克风布局和增益等参数都来自 HAL 提供的板级配置。
 

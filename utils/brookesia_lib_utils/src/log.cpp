@@ -1,13 +1,96 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <initializer_list>
 #include <string>
 #include <string_view>
 #include "brookesia/lib_utils/log.hpp"
 
 namespace esp_brookesia::lib_utils {
+
+std::string Log::format_message(const char *format, std::initializer_list<FormatArg> args)
+{
+    try {
+        auto fmt = boost::format(format);
+        for (const auto &arg : args) {
+            switch (arg.type) {
+            case FormatArg::Type::Int:
+                fmt % arg.i;
+                break;
+            case FormatArg::Type::Uint:
+                fmt % arg.u;
+                break;
+            case FormatArg::Type::Double:
+                fmt % arg.d;
+                break;
+            case FormatArg::Type::Str:
+                fmt % (arg.s ? arg.s : arg.owned_str.c_str());
+                break;
+            case FormatArg::Type::Ptr:
+                fmt % arg.p;
+                break;
+            case FormatArg::Type::Char:
+                fmt % static_cast<char>(arg.i);
+                break;
+            }
+        }
+        return fmt.str();
+    } catch (const std::exception &e) {
+        return e.what();
+    }
+}
+
+void Log::write(int level, const std::source_location &loc, const char *tag, const std::string &format_str)
+{
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+    auto thread_config = ThreadConfig::get_current_config();
+    auto thread_name = thread_config.name.c_str();
+#endif
+#if BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
+    auto file_name = extract_file_name(loc.file_name());
+    auto line = static_cast<int>(loc.line());
+#endif
+#if BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
+    auto func_name = extract_function_name(loc.function_name());
+#endif
+
+    switch (level) {
+    case BROOKESIA_UTILS_LOG_LEVEL_TRACE:
+        BROOKESIA_LOGT_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_DEBUG:
+        BROOKESIA_LOGD_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_INFO:
+        BROOKESIA_LOGI_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_WARNING:
+        BROOKESIA_LOGW_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_ERROR:
+        BROOKESIA_LOGE_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    default:
+        break;
+    }
+}
 
 std::string_view Log::extract_function_name(const char *func_name)
 {

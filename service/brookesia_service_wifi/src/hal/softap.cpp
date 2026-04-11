@@ -318,7 +318,7 @@ bool SoftAp::stop_softap_provision()
     return true;
 }
 
-bool SoftAp::on_hal_scan_ap_infos_updated(const std::vector<ApInfo> &ap_infos)
+bool SoftAp::on_hal_scan_ap_infos_updated(const std::vector<ScanApInfo> &ap_infos)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -1171,7 +1171,7 @@ std::string SoftAp::get_ap_default_ssid()
 }
 
 // TODO: If AP fails to start, automatically switch channel
-uint8_t SoftAp::get_ap_best_channel(const std::vector<ApInfo> &ap_infos)
+uint8_t SoftAp::get_ap_best_channel(const std::vector<ScanApInfo> &ap_infos)
 {
     if (ap_infos.empty()) {
         BROOKESIA_LOGD("No AP scanned, return default channel: %1%", BROOKESIA_SERVICE_WIFI_SOFTAP_CHANNEL_DEFAULT);

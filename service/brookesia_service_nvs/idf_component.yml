@@ -1,4 +1,4 @@
-version: "0.7.2"
+version: "0.7.3"
 description: ESP-Brookesia NVS (Non-Volatile Storage) service which provides namespace-based key-value storage management.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_nvs
 repository: https://github.com/espressif/esp-brookesia.git
@@ -10,4 +10,5 @@ dependencies:
     require: public
 
 examples:
-  - path: ../../examples/service_console
+  - path: ../../examples/service/console
+  - path: ../../examples/service/nvs

@@ -32,7 +32,7 @@ using namespace esp_brookesia::lib_utils;
 
 class IdleState : public esp_brookesia::lib_utils::StateBase {
 public:
-    IdleState(StateMachine *sm) : sm_(sm) {}
+    IdleState(StateMachine *sm, const std::string &name = "idle") : StateBase(name), sm_(sm) {}
 
     bool on_enter(const std::string &from_state, const std::string &action) override
     {
@@ -71,7 +71,7 @@ public:
 
 class RunningState : public esp_brookesia::lib_utils::StateBase {
 public:
-    RunningState() = default;
+    explicit RunningState(const std::string &name = "running") : StateBase(name) {}
 
     bool on_enter(const std::string &from_state, const std::string &action) override
     {
@@ -100,7 +100,7 @@ public:
 
 class ErrorState : public esp_brookesia::lib_utils::StateBase {
 public:
-    ErrorState() = default;
+    explicit ErrorState(const std::string &name = "error") : StateBase(name) {}
 
     bool on_enter(const std::string &from_state, const std::string &action) override
     {
@@ -122,8 +122,8 @@ public:
 
 class GuardedState : public esp_brookesia::lib_utils::StateBase {
 public:
-    GuardedState(bool allow_enter = true, bool allow_exit = true)
-        : allow_enter_(allow_enter), allow_exit_(allow_exit) {}
+    GuardedState(const std::string &name = "guarded", bool allow_enter = true, bool allow_exit = true)
+        : StateBase(name), allow_enter_(allow_enter), allow_exit_(allow_exit) {}
 
     bool on_enter(const std::string &from_state, const std::string &action) override
     {
@@ -179,13 +179,13 @@ TEST_CASE("Test state machine basic transition", "[utils][state_machine][basic]"
     auto idle = std::make_shared<IdleState>(&sm);
     auto running = std::make_shared<RunningState>();
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "start", "running");
     sm.add_transition("running", "stop", "idle");
 
     // Start the state machine
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(100));
 
     TEST_ASSERT_EQUAL(1, idle->enter_count_.load());
@@ -218,8 +218,8 @@ TEST_CASE("Test state machine with update interval", "[utils][state_machine][upd
     auto idle = std::make_shared<IdleState>(&sm);
     idle->set_update_interval(50); // 50ms update interval
 
-    sm.add_state("idle", idle);
-    sm.start(scheduler, "idle");
+    sm.add_state(idle);
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
 
     // Wait for enough time for update to be called multiple times
     vTaskDelay(pdMS_TO_TICKS(300));
@@ -243,11 +243,11 @@ TEST_CASE("Test state machine with timeout", "[utils][state_machine][timeout]")
 
     idle->set_timeout(200, "timeout"); // 200ms after trigger timeout action
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "timeout", "running");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Before timeout, running state should not be entered
@@ -273,13 +273,13 @@ TEST_CASE("Test state machine with entry guard", "[utils][state_machine][guard]"
     StateMachine sm;
 
     auto idle = std::make_shared<IdleState>(&sm);
-    auto guarded = std::make_shared<GuardedState>(false, true); // Not allowed to enter
+    auto guarded = std::make_shared<GuardedState>("guarded", false, true); // Not allowed to enter
 
-    sm.add_state("idle", idle);
-    sm.add_state("guarded", guarded);
+    sm.add_state(idle);
+    sm.add_state(guarded);
     sm.add_transition("idle", "enter_guarded", "guarded");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Try to enter the guarded state
@@ -301,14 +301,14 @@ TEST_CASE("Test state machine with exit guard", "[utils][state_machine][guard]")
 
     StateMachine sm;
 
-    auto guarded = std::make_shared<GuardedState>(true, false); // Not allowed to exit
+    auto guarded = std::make_shared<GuardedState>("guarded", true, false); // Not allowed to exit
     auto idle = std::make_shared<IdleState>(&sm);
 
-    sm.add_state("guarded", guarded);
-    sm.add_state("idle", idle);
+    sm.add_state(guarded);
+    sm.add_state(idle);
     sm.add_transition("guarded", "exit", "idle");
 
-    sm.start(scheduler, "guarded");
+    sm.start({.task_scheduler = scheduler, .initial_state = "guarded"});
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Try to exit the guarded state
@@ -336,16 +336,16 @@ TEST_CASE("Test state machine multiple states", "[utils][state_machine][complex]
     auto running = std::make_shared<RunningState>();
     auto error = std::make_shared<ErrorState>();
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
-    sm.add_state("error", error);
+    sm.add_state(idle);
+    sm.add_state(running);
+    sm.add_state(error);
 
     sm.add_transition("idle", "start", "running");
     sm.add_transition("running", "stop", "idle");
     sm.add_transition("running", "error", "error");
     sm.add_transition("error", "reset", "idle");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // idle -> running
@@ -376,11 +376,11 @@ TEST_CASE("Test state machine invalid transitions", "[utils][state_machine][inva
     auto idle = std::make_shared<IdleState>(&sm);
     auto running = std::make_shared<RunningState>();
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "start", "running");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Trigger non-existent action
@@ -404,10 +404,10 @@ TEST_CASE("Test state machine self transition", "[utils][state_machine][self]")
 
     auto idle = std::make_shared<IdleState>(&sm);
 
-    sm.add_state("idle", idle);
+    sm.add_state(idle);
     sm.add_transition("idle", "refresh", "idle");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     TEST_ASSERT_EQUAL(1, idle->enter_count_.load());
@@ -438,11 +438,11 @@ TEST_CASE("Test state machine task cancellation on transition", "[utils][state_m
     idle->set_update_interval(50);
     running->set_update_interval(50);
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "start", "running");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(200));
 
     int idle_updates = idle->update_count_.load();
@@ -478,13 +478,13 @@ TEST_CASE("Test state machine timeout cancellation on transition", "[utils][stat
 
     idle->set_timeout(500, "timeout"); // 500ms timeout
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
-    sm.add_state("error", error);
+    sm.add_state(idle);
+    sm.add_state(running);
+    sm.add_state(error);
     sm.add_transition("idle", "timeout", "error");
     sm.add_transition("idle", "start", "running");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(100));
 
     // Transition to running state before timeout
@@ -512,10 +512,10 @@ TEST_CASE("Test state machine start with invalid state", "[utils][state_machine]
     StateMachine sm;
 
     auto idle = std::make_shared<IdleState>(&sm);
-    sm.add_state("idle", idle);
+    sm.add_state(idle);
 
     // Try to start from a non-existent state
-    sm.start(scheduler, "non_existent");
+    sm.start({.task_scheduler = scheduler, .initial_state = "non_existent"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Should not enter any state
@@ -534,12 +534,12 @@ TEST_CASE("Test state machine rapid transitions", "[utils][state_machine][rapid]
     auto idle = std::make_shared<IdleState>(&sm);
     auto running = std::make_shared<RunningState>();
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "start", "running");
     sm.add_transition("running", "stop", "idle");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Trigger multiple transitions quickly
@@ -573,7 +573,7 @@ TEST_CASE("Test state machine concurrent trigger actions", "[utils][state_machin
     class TrackingState : public esp_brookesia::lib_utils::StateBase {
     public:
         TrackingState(const std::string &name)
-            : name_(name) {}
+            : StateBase(name) {}
 
         bool on_enter(const std::string &from_state, const std::string &action) override
         {
@@ -581,7 +581,7 @@ TEST_CASE("Test state machine concurrent trigger actions", "[utils][state_machin
             enter_count_++;
             enter_from_.push_back(from_state.empty() ? "initial" : from_state);
             BROOKESIA_LOGI("%1%::on_enter from %2% action %3% (count: %4%)",
-                           name_, from_state.empty() ? "initial" : from_state, action, enter_count_.load());
+                           get_name(), from_state.empty() ? "initial" : from_state, action, enter_count_.load());
             return true;
         }
 
@@ -590,13 +590,12 @@ TEST_CASE("Test state machine concurrent trigger actions", "[utils][state_machin
             boost::lock_guard<boost::mutex> lock(mutex_);
             exit_count_++;
             exit_to_.push_back(to_state);
-            BROOKESIA_LOGI("%1%::on_exit to %2% action %3% (count: %4%)", name_, to_state, action, exit_count_.load());
+            BROOKESIA_LOGI("%1%::on_exit to %2% action %3% (count: %4%)", get_name(), to_state, action, exit_count_.load());
             // Add a small delay to increase the chance of race condition
             vTaskDelay(pdMS_TO_TICKS(10));
             return true;
         }
 
-        std::string name_;
         std::atomic<int> enter_count_{0};
         std::atomic<int> exit_count_{0};
         std::vector<std::string> enter_from_;
@@ -604,18 +603,18 @@ TEST_CASE("Test state machine concurrent trigger actions", "[utils][state_machin
         boost::mutex mutex_;
     };
 
-    auto state_a = std::make_shared<TrackingState>("StateA");
-    auto state_b = std::make_shared<TrackingState>("StateB");
-    auto state_c = std::make_shared<TrackingState>("StateC");
+    auto state_a = std::make_shared<TrackingState>("A");
+    auto state_b = std::make_shared<TrackingState>("B");
+    auto state_c = std::make_shared<TrackingState>("C");
 
-    sm.add_state("A", state_a);
-    sm.add_state("B", state_b);
-    sm.add_state("C", state_c);
+    sm.add_state(state_a);
+    sm.add_state(state_b);
+    sm.add_state(state_c);
     sm.add_transition("A", "to_b", "B");
     sm.add_transition("A", "to_c", "C");
 
     // Start in state A
-    sm.start(scheduler, "A");
+    sm.start({.task_scheduler = scheduler, .initial_state = "A"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     TEST_ASSERT_EQUAL(1, state_a->enter_count_.load());
@@ -691,9 +690,9 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
     auto running = std::make_shared<RunningState>();
     auto error = std::make_shared<ErrorState>();
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
-    sm.add_state("error", error);
+    sm.add_state(idle);
+    sm.add_state(running);
+    sm.add_state(error);
     sm.add_transition("idle", "start", "running");
     sm.add_transition("running", "stop", "idle");
     sm.add_transition("running", "error", "error");
@@ -734,7 +733,7 @@ TEST_CASE("Test state machine transition finish callback", "[utils][state_machin
     });
 
     // Start state machine
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Initial state entry should not trigger callback (no transition)
@@ -793,7 +792,7 @@ TEST_CASE("Test state machine transition finish callback with self transition", 
 
     auto idle = std::make_shared<IdleState>(&sm);
 
-    sm.add_state("idle", idle);
+    sm.add_state(idle);
     sm.add_transition("idle", "refresh", "idle");
 
     int callback_count = 0;
@@ -803,7 +802,7 @@ TEST_CASE("Test state machine transition finish callback with self transition", 
         sm.is_running();
     });
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Trigger self transition
@@ -824,10 +823,10 @@ TEST_CASE("Test state machine transition finish callback with guard rejection", 
     StateMachine sm;
 
     auto idle = std::make_shared<IdleState>(&sm);
-    auto guarded = std::make_shared<GuardedState>(false, true); // Disallow entry
+    auto guarded = std::make_shared<GuardedState>("guarded", false, true); // Disallow entry
 
-    sm.add_state("idle", idle);
-    sm.add_state("guarded", guarded);
+    sm.add_state(idle);
+    sm.add_state(guarded);
     sm.add_transition("idle", "enter_guarded", "guarded");
 
     int callback_count = 0;
@@ -837,7 +836,7 @@ TEST_CASE("Test state machine transition finish callback with guard rejection", 
         sm.is_running();
     });
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Try to enter guarded state (should fail)
@@ -860,8 +859,8 @@ TEST_CASE("Test state machine transition finish callback multiple transitions", 
     auto idle = std::make_shared<IdleState>(&sm);
     auto running = std::make_shared<RunningState>();
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "start", "running");
     sm.add_transition("running", "stop", "idle");
 
@@ -879,7 +878,7 @@ TEST_CASE("Test state machine transition finish callback multiple transitions", 
         sm.is_running();
     });
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
     vTaskDelay(pdMS_TO_TICKS(50));
 
     // Perform multiple transitions
@@ -916,11 +915,11 @@ TEST_CASE("Test state machine with update and timeout", "[utils][state_machine][
     idle->set_update_interval(50);
     idle->set_timeout(300, "timeout");
 
-    sm.add_state("idle", idle);
-    sm.add_state("running", running);
+    sm.add_state(idle);
+    sm.add_state(running);
     sm.add_transition("idle", "timeout", "running");
 
-    sm.start(scheduler, "idle");
+    sm.start({.task_scheduler = scheduler, .initial_state = "idle"});
 
     // Wait for a while, update should be called multiple times
     vTaskDelay(pdMS_TO_TICKS(200));

@@ -21,6 +21,9 @@
 
 namespace esp_brookesia::service {
 
+/**
+ * @brief Registry of statically registered service plugins.
+ */
 using ServiceRegistry = lib_utils::PluginRegistry<ServiceBase>;
 
 /**
@@ -106,7 +109,7 @@ private:
 
     ServiceBinding(
         UnbindCallback unbind_callback, std::shared_ptr<ServiceBase> service,
-        std::vector<ServiceBinding> &&dependencies
+        std::vector<ServiceBinding> dependencies
     )
         : unbind_callback_(std::move(unbind_callback))
         , service_(service)
@@ -125,29 +128,64 @@ private:
  */
 class ServiceManager {
 public:
-    inline static const lib_utils::TaskScheduler::StartConfig DEFAULT_TASK_SCHEDULER_START_CONFIG = {
-        .worker_configs = {
-            lib_utils::ThreadConfig{
-                .name = BROOKESIA_SERVICE_MANAGER_WORKER_NAME "0",
-                .core_id = BROOKESIA_SERVICE_MANAGER_WORKER_0_CORE_ID,
-                .priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY,
-                .stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE,
-                .stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT,
-            },
-            lib_utils::ThreadConfig{
-                .name = BROOKESIA_SERVICE_MANAGER_WORKER_NAME "1",
-                .core_id = BROOKESIA_SERVICE_MANAGER_WORKER_1_CORE_ID,
-                .priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY,
-                .stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE,
-                .stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT,
-            },
-        },
-        .worker_poll_interval_ms = BROOKESIA_SERVICE_MANAGER_WORKER_POLL_INTERVAL_MS,
-    };
+    /**
+     * @brief Default worker configuration used by `start()`.
+     *
+     * The configuration creates two worker threads for service dispatching and
+     * uses the module-level scheduling defaults defined in `macro_configs.h`.
+     */
+    static lib_utils::TaskScheduler::StartConfig make_default_task_scheduler_start_config()
+    {
+        lib_utils::TaskScheduler::StartConfig config{
+            .worker_configs = {},
+        };
+        lib_utils::ThreadConfig worker0;
+        worker0.name = std::string(BROOKESIA_SERVICE_MANAGER_WORKER_NAME) + "0";
+        worker0.core_id = BROOKESIA_SERVICE_MANAGER_WORKER_0_CORE_ID;
+        worker0.priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY;
+        worker0.stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE;
+        worker0.stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT;
+        config.worker_configs.push_back(worker0);
+#if BROOKESIA_SERVICE_MANAGER_WORKER_NUM >= 2
+        lib_utils::ThreadConfig worker1;
+        worker1.name = std::string(BROOKESIA_SERVICE_MANAGER_WORKER_NAME) + "1";
+        worker1.core_id = BROOKESIA_SERVICE_MANAGER_WORKER_1_CORE_ID;
+        worker1.priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY;
+        worker1.stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE;
+        worker1.stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT;
+        config.worker_configs.push_back(worker1);
+#endif
+#if BROOKESIA_SERVICE_MANAGER_WORKER_NUM >= 3
+        lib_utils::ThreadConfig worker2;
+        worker2.name = std::string(BROOKESIA_SERVICE_MANAGER_WORKER_NAME) + "2";
+        worker2.core_id = BROOKESIA_SERVICE_MANAGER_WORKER_2_CORE_ID;
+        worker2.priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY;
+        worker2.stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE;
+        worker2.stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT;
+        config.worker_configs.push_back(worker2);
+#endif
+#if BROOKESIA_SERVICE_MANAGER_WORKER_NUM >= 4
+        lib_utils::ThreadConfig worker3;
+        worker3.name = std::string(BROOKESIA_SERVICE_MANAGER_WORKER_NAME) + "3";
+        worker3.core_id = BROOKESIA_SERVICE_MANAGER_WORKER_3_CORE_ID;
+        worker3.priority = BROOKESIA_SERVICE_MANAGER_WORKER_PRIORITY;
+        worker3.stack_size = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_SIZE;
+        worker3.stack_in_ext = BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT;
+        config.worker_configs.push_back(worker3);
+#endif
+        config.worker_poll_interval_ms = BROOKESIA_SERVICE_MANAGER_WORKER_POLL_INTERVAL_MS;
+        return config;
+    }
 
+    inline static const lib_utils::TaskScheduler::StartConfig DEFAULT_TASK_SCHEDULER_START_CONFIG =
+        make_default_task_scheduler_start_config();
+
+    /**
+     * @brief Optional callbacks applied to RPC clients created by the manager.
+     */
     struct RPC_ClientConfig {
-        rpc::Client::DisconnectCallback on_disconnect_callback;
-        rpc::Client::DeinitCallback on_deinit_callback;
+        rpc::Client::DisconnectCallback on_disconnect_callback; ///< Called after the RPC transport disconnects.
+        rpc::Client::DeinitCallback on_deinit_callback; ///< Called when the client is deinitialized.
 
         RPC_ClientConfig()
             : on_disconnect_callback(nullptr)
@@ -180,7 +218,7 @@ public:
      */
     void stop();
 
-    /*/**
+    /**
      * @brief Add a service to the service manager
      *
      * @param[in] service Service to add
@@ -224,7 +262,7 @@ public:
      * @param[in] names Service names to connect (empty means all services)
      * @return true if connected successfully, false otherwise
      */
-    bool connect_rpc_server_to_services(std::vector<std::string> &&names = {});
+    bool connect_rpc_server_to_services(std::vector<std::string> names = {});
 
     /**
      * @brief Disconnect RPC server from services
@@ -232,7 +270,7 @@ public:
      * @param[in] names Service names to disconnect (empty means all services)
      * @return true if disconnected successfully, false otherwise
      */
-    bool disconnect_rpc_server_from_services(std::vector<std::string> &&names = {});
+    bool disconnect_rpc_server_from_services(std::vector<std::string> names = {});
 
     /**
      * @brief Create a new RPC client
@@ -254,7 +292,7 @@ public:
      * @return FunctionResult Result of the function call
      */
     FunctionResult call_rpc_function_sync(
-        std::string host, const std::string &service_name, const std::string &function_name, boost::json::object &&params,
+        std::string host, const std::string &service_name, const std::string &function_name, boost::json::object params,
         uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_CALL_FUNCTION_TIMEOUT_MS,
         uint16_t port = BROOKESIA_SERVICE_MANAGER_RPC_SERVER_LISTEN_PORT
     );
@@ -315,16 +353,22 @@ public:
     }
 
 private:
+    /**
+     * @brief Runtime state tracked for each managed service instance.
+     */
     enum class ServiceState {
-        Idle,       // Service not started (ref_count == 0)
-        Starting,   // Service is being started by another thread
-        Running,    // Service is running (ref_count > 0)
+        Idle,       ///< Service is registered but not running (`ref_count == 0`).
+        Starting,   ///< Service startup is in progress on another thread.
+        Running,    ///< Service is running and has at least one active binding.
     };
+    /**
+     * @brief Internal bookkeeping record for a managed service.
+     */
     struct ServiceInfo {
-        size_t ref_count;
-        std::shared_ptr<ServiceBase> service;
-        ServiceState state;
-        boost::condition_variable_any start_cv;  // Condition variable for waiting start completion
+        size_t ref_count; ///< Number of active bindings referencing the service.
+        std::shared_ptr<ServiceBase> service; ///< Managed service instance.
+        ServiceState state; ///< Current lifecycle state.
+        boost::condition_variable_any start_cv; ///< Signals completion of an in-flight start operation.
     };
 
     ServiceManager() = default;

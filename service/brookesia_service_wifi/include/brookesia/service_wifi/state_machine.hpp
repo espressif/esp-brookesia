@@ -12,7 +12,7 @@
 #include "brookesia/lib_utils/state_base.hpp"
 #include "brookesia/lib_utils/state_machine.hpp"
 #include "brookesia/service_helper/wifi.hpp"
-#include "hal/hal.hpp"
+#include "brookesia/service_wifi/hal/hal.hpp"
 
 namespace esp_brookesia::service::wifi {
 
@@ -65,7 +65,10 @@ public:
     }
 
     bool is_transient_state();
-    bool is_action_running();
+    bool is_action_running()
+    {
+        return  is_transient_state() || state_machine_->has_transition_running();
+    }
 
     static GeneralState get_general_action_target_transient_state(GeneralAction action);
     static GeneralState get_general_action_target_stable_state(GeneralAction action);

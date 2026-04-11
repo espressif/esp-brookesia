@@ -11,24 +11,36 @@
 
 namespace esp_brookesia::agent::helper {
 
+/**
+ * @brief Helper schema definitions for the agent-manager service.
+ */
 class Manager: public service::helper::Base<Manager> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Timeout budget for the major lifecycle operations of an agent.
+     */
     struct AgentOperationTimeout {
-        uint32_t activate = 1000;
-        uint32_t start = 1000;
-        uint32_t sleep = 1000;
-        uint32_t wake_up = 1000;
-        uint32_t stop = 1000;
+        uint32_t activate = 1000; ///< Timeout for activation.
+        uint32_t start = 1000; ///< Timeout for startup.
+        uint32_t sleep = 1000; ///< Timeout for sleep.
+        uint32_t wake_up = 1000; ///< Timeout for wake-up.
+        uint32_t stop = 1000; ///< Timeout for shutdown.
     };
 
+    /**
+     * @brief Optional per-agent functions surfaced by the manager.
+     */
     enum class AgentGeneralFunction : uint8_t {
         InterruptSpeaking,
         Max,
     };
 
+    /**
+     * @brief Optional per-agent events surfaced by the manager.
+     */
     enum class AgentGeneralEvent : uint8_t {
         SpeakingStatusChanged,
         ListeningStatusChanged,
@@ -38,37 +50,63 @@ public:
         Max,
     };
 
+    /**
+     * @brief Conversation mode used by the active agent.
+     */
     enum class ChatMode : uint8_t {
         RealTime,
         Manual,
         Max,
     };
 
+    /**
+     * @brief Public metadata describing one agent implementation.
+     */
     struct AgentAttributes {
+        /**
+         * @brief Get the agent name stored in the attributes.
+         *
+         * @return std::string Agent name.
+         */
         std::string get_name() const
         {
             return name;
         }
 
+        /**
+         * @brief Check whether an optional general function is supported.
+         *
+         * @param[in] function Function to check.
+         * @return true if the function is listed in `support_general_functions`.
+         */
         bool is_general_functions_supported(AgentGeneralFunction function) const
         {
             return std::find(support_general_functions.begin(), support_general_functions.end(), function) !=
                    support_general_functions.end();
         }
 
+        /**
+         * @brief Check whether an optional general event is supported.
+         *
+         * @param[in] event Event to check.
+         * @return true if the event is listed in `support_general_events`.
+         */
         bool is_general_events_supported(AgentGeneralEvent event) const
         {
             return std::find(support_general_events.begin(), support_general_events.end(), event) !=
                    support_general_events.end();
         }
 
-        std::string name;
-        AgentOperationTimeout operation_timeout{};
-        std::vector<AgentGeneralFunction> support_general_functions{};
-        std::vector<AgentGeneralEvent> support_general_events{};
-        bool require_time_sync = false;
+        std::string name; ///< Agent name exposed to the manager.
+        AgentOperationTimeout operation_timeout{}; ///< Timeout configuration for lifecycle actions.
+        std::vector<AgentGeneralFunction> support_general_functions{}; ///< Optional functions supported by the agent.
+        std::vector<AgentGeneralEvent> support_general_events{}; ///< Optional events emitted by the agent.
+        bool require_time_sync = false; ///< Whether activation requires SNTP synchronization first.
     };
 
+    /**
+     * @brief High-level actions accepted by the agent manager.
+     */
     enum class GeneralAction : uint8_t {
         TimeSync,
         Activate,
@@ -79,6 +117,9 @@ public:
         Max,
     };
 
+    /**
+     * @brief High-level completion events emitted by managed agents.
+     */
     enum class GeneralEvent : uint8_t {
         TimeSynced,
         Activated,
@@ -89,6 +130,9 @@ public:
         Max,
     };
 
+    /**
+     * @brief State-machine states used by the agent manager.
+     */
     enum class GeneralState : uint8_t {
         TimeSyncing,
         Ready,
@@ -107,20 +151,22 @@ public:
 /////////////////////////// The following are the types required by the Base class /////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     enum class FunctionId : uint8_t {
-        SetAgentInfo,
-        SetChatMode,
-        ActivateAgent,
+        GetAgentNames,
         GetAgentAttributes,
-        GetChatMode,
+        SetAgentInfo,
+        SetTargetAgent,
+        GetTargetAgent,
         GetActiveAgent,
         TriggerGeneralAction,
+        GetGeneralState,
+        InterruptSpeaking,
         Suspend,
         Resume,
-        InterruptSpeaking,
+        GetSuspendStatus,
+        SetChatMode,
+        GetChatMode,
         ManualStartListening,
         ManualStopListening,
-        GetGeneralState,
-        GetSuspendStatus,
         GetSpeakingStatus,
         GetListeningStatus,
         ResetData,
@@ -151,7 +197,7 @@ public:
         Mode,
     };
 
-    enum class FunctionActivateAgentParam : uint8_t {
+    enum class FunctionSetTargetAgentParam : uint8_t {
         Name,
     };
 
@@ -207,16 +253,20 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetAgentInfo),
-            .description = "Set the info for an agent",
+            .description = "Set agent info.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAgentInfoParam::Name),
-                    .description = "The name of the agent to set the info for",
+                    .description = "Agent name.",
                     .type = service::FunctionValueType::String
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAgentInfoParam::Info),
-                    .description = "The info for the agent.",
+                    .description = (boost::format("Agent info as a JSON object. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE((std::map<std::string, std::string>({
+                        {"model", "model_name"},
+                        {"api_key", "api_key_value"}
+                    })))).str(),
                     .type = service::FunctionValueType::Object
                 }
             },
@@ -228,11 +278,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetChatMode),
-            .description = "Set the chat mode of the agent.",
+            .description = "Set chat mode.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetChatModeParam::Mode),
-                    .description = (boost::format("The chat mode to set, should be one of the following: %1%")
+                    .description = (boost::format("Chat mode. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<ChatMode>({
                         ChatMode::Manual, ChatMode::RealTime
                     }))).str(),
@@ -242,37 +292,49 @@ private:
         };
     }
 
-    static service::FunctionSchema function_schema_activate_agent()
+    static service::FunctionSchema function_schema_set_target_agent()
     {
         return {
-            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ActivateAgent),
-            .description = "Activate an agent",
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetTargetAgent),
+            .description = "Set target agent. The agent will be activated by triggering `Activate` action.",
             .parameters = {
                 {
-                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionActivateAgentParam::Name),
-                    .description = "The name of the agent to activate. Optional. "
-                    "If not provided, the last active agent will be activated.",
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetTargetAgentParam::Name),
+                    .description = "Agent name to set as target.",
                     .type = service::FunctionValueType::String,
-                    .default_value = std::string("")
                 }
             }
         };
     }
 
-    static service::FunctionSchema function_schema_get_attributes()
+    static service::FunctionSchema function_schema_get_target_agent()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetTargetAgent),
+            .description = "Get target agent name. Return type: string. Example: \"AgentCoze\"",
+        };
+    }
+
+    static service::FunctionSchema function_schema_get_agent_names()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetAgentNames),
+            .description = "Get agent names. Return type: JSON array<string>. Example: [\"Agent1\", \"Agent2\"]",
+        };
+    }
+
+    static service::FunctionSchema function_schema_get_agent_attributes()
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetAgentAttributes),
-            .description = (boost::format("Get the attributes of one or more agents, "
-                                          "the result is a JSON array of agent attributes. Example: %1%")
+            .description = (boost::format("Get agent attributes. Return type: JSON array<object>. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<AgentAttributes>({
                 AgentAttributes{"Agent", {}},
             }))).str(),
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionGetAgentAttributesParam::Name),
-                    .description = "The name of the agent to get the attributes for. Optional. If not provided, "
-                    "all agents will be returned.",
+                    .description = "Agent name (optional). Returns all agents when omitted.",
                     .type = service::FunctionValueType::String,
                     .default_value = std::optional<service::FunctionValue>(std::string(""))
                 }
@@ -285,8 +347,8 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetChatMode),
-            .description = (boost::format("Get the chat mode of the agent, the result is a string of the chat mode, "
-                                          "should be one of the following: %1%")
+            .description = (boost::format("Get chat mode. Return type: string. Allowed values: %1%. "
+                                          "Example: \"Manual\"")
             % BROOKESIA_DESCRIBE_TO_STR(std::vector<ChatMode>({
                 ChatMode::Manual, ChatMode::RealTime
             }))).str(),
@@ -297,7 +359,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetActiveAgent),
-            .description = "Get the information of the active agent",
+            .description = "Get active agent name. Return type: string. Example: \"AgentCoze\"",
         };
     }
 
@@ -305,14 +367,14 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::TriggerGeneralAction),
-            .description = "Trigger a general action",
+            .description = "Trigger a general action.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionTriggerGeneralActionParam::Action),
-                    .description = (boost::format("The general action to trigger, should be one of the following: %1%")
+                    .description = (boost::format("General action. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
-                        GeneralAction::Activate, GeneralAction::Start, GeneralAction::Stop, GeneralAction::Sleep,
-                        GeneralAction::WakeUp
+                        GeneralAction::TimeSync, GeneralAction::Activate, GeneralAction::Start, GeneralAction::Stop,
+                        GeneralAction::Sleep, GeneralAction::WakeUp
                     }))).str(),
                     .type = service::FunctionValueType::String
                 }
@@ -324,7 +386,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::Suspend),
-            .description = "Trigger suspend the agent",
+            .description = "Suspend the agent.",
         };
     }
 
@@ -332,7 +394,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::Resume),
-            .description = "Trigger resume the agent",
+            .description = "Resume the agent.",
         };
     }
 
@@ -340,7 +402,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::InterruptSpeaking),
-            .description = "Interrupt the agent speaking, the agent will stop speaking and keep listening",
+            .description = "Interrupt speaking; the agent stops and keeps listening.",
         };
     }
 
@@ -348,7 +410,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ManualStartListening),
-            .description = "Manually start listening. Only available when the chat mode is `Manual`.",
+            .description = "Manually start listening. Only in `Manual` mode.",
         };
     }
 
@@ -356,7 +418,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ManualStopListening),
-            .description = "Manually stop listening. Only available when the chat mode is `Manual`.",
+            .description = "Manually stop listening. Only in `Manual` mode.",
         };
     }
 
@@ -364,7 +426,8 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetGeneralState),
-            .description = (boost::format("Get the general state of the agent, should be one of the following: %1%")
+            .description = (boost::format("Get general state. Return type: string. Allowed values: %1%. "
+                                          "Example: \"Started\"")
             % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralState>({
                 GeneralState::TimeSyncing, GeneralState::Ready, GeneralState::Activating, GeneralState::Activated,
                 GeneralState::Starting, GeneralState::Stopping, GeneralState::Started, GeneralState::Sleeping,
@@ -377,8 +440,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetSuspendStatus),
-            .description = "Get the suspend status of the agent, true if the agent is suspended, false if the agent is "
-            "not suspended.",
+            .description = "Get suspend status. Return type: boolean. Example: false",
         };
     }
 
@@ -386,7 +448,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
-            .description = "Reset the data of the manager and all agents.",
+            .description = "Reset manager and agent data.",
         };
     }
 
@@ -394,8 +456,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetSpeakingStatus),
-            .description = "Get the speaking status of the agent, true if the agent is speaking, false if the agent "
-            "is not speaking.",
+            .description = "Get speaking status. Return type: boolean. Example: true",
         };
     }
 
@@ -403,8 +464,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetListeningStatus),
-            .description = "Get the listening status of the agent, true if the agent is listening, false if the agent "
-            "is not listening.",
+            .description = "Get listening status. Return type: boolean. Example: true",
         };
     }
 
@@ -415,15 +475,14 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralActionTriggered),
-            .description = "Triggered when a general action is triggered",
+            .description = "Emitted when a general action is triggered.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralActionTriggeredParam::Action),
-                    .description = (boost::format("The general action that was triggered, "
-                                                  "should be one of the following: %1%")
+                    .description = (boost::format("General action. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralAction>({
-                        GeneralAction::Activate, GeneralAction::Start, GeneralAction::Stop, GeneralAction::Sleep,
-                        GeneralAction::WakeUp
+                        GeneralAction::TimeSync, GeneralAction::Activate, GeneralAction::Start, GeneralAction::Stop,
+                        GeneralAction::Sleep, GeneralAction::WakeUp
                     }))).str(),
                     .type = service::EventItemType::String
                 }
@@ -435,12 +494,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::GeneralEventHappened),
-            .description = "Triggered when a general event is happened",
+            .description = "Emitted when a general event occurs.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::Event),
-                    .description = (boost::format("The general event that was happened, "
-                                                  "should be one of the following: %1%")
+                    .description = (boost::format("General event. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<GeneralEvent>({
                         GeneralEvent::TimeSynced, GeneralEvent::Activated, GeneralEvent::Started, GeneralEvent::Stopped,
                         GeneralEvent::Slept, GeneralEvent::Awake
@@ -449,9 +507,7 @@ private:
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventGeneralEventHappenedParam::IsUnexpected),
-                    .description = "Indicates whether the event occurred unexpectedly. "
-                    "False: triggered by user action or intentional agent behavior. "
-                    "True: occurred due to an unexpected agent state.",
+                    .description = "Whether the event was unexpected.",
                     .type = service::EventItemType::Boolean
                 }
             }
@@ -462,12 +518,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::SuspendStatusChanged),
-            .description = "Triggered when the suspend status of the agent changes",
+            .description = "Emitted when suspend status changes.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventSuspendStatusChangedParam::IsSuspended),
-                    .description = "The suspend status of the agent, true if the agent is suspended, false if the agent "
-                    "is resumed.",
+                    .description = "Whether the agent is suspended.",
                     .type = service::EventItemType::Boolean
                 }
             }
@@ -478,12 +533,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::SpeakingStatusChanged),
-            .description = "Triggered when the speaking status of the agent changes",
+            .description = "Emitted when speaking status changes.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventSpeakingStatusChangedParam::IsSpeaking),
-                    .description = "The speaking status of the agent, true if the agent is speaking, false if the agent "
-                    "is not speaking.",
+                    .description = "Whether the agent is speaking.",
                     .type = service::EventItemType::Boolean
                 }
             }
@@ -494,12 +548,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::ListeningStatusChanged),
-            .description = "Triggered when the listening status of the agent changes",
+            .description = "Emitted when listening status changes.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventListeningStatusChangedParam::IsListening),
-                    .description = "The listening status of the agent, true if the agent is listening, false if the agent "
-                    "is not listening.",
+                    .description = "Whether the agent is listening.",
                     .type = service::EventItemType::Boolean
                 }
             }
@@ -510,11 +563,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::AgentSpeakingTextGot),
-            .description = "Triggered when the agent speaks a text",
+            .description = "Emitted when the agent speaks text.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventAgentSpeakingTextGotParam::Text),
-                    .description = "The text that the agent is speaking",
+                    .description = "Spoken text.",
                     .type = service::EventItemType::String
                 }
             }
@@ -525,11 +578,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::UserSpeakingTextGot),
-            .description = "Triggered when the user speaks a text",
+            .description = "Emitted when the user speaks text.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventUserSpeakingTextGotParam::Text),
-                    .description = "The text that the user is speaking",
+                    .description = "User text.",
                     .type = service::EventItemType::String
                 }
             }
@@ -540,11 +593,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::EmoteGot),
-            .description = "Triggered when the agent gets an emote",
+            .description = "Emitted when the agent shows an emote.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventEmoteGotParam::Emote),
-                    .description = "The emote that the agent is showing",
+                    .description = "Emote name.",
                     .type = service::EventItemType::String
                 }
             }
@@ -555,6 +608,11 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the functions required by the Base class /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Name of the agent-manager service.
+     *
+     * @return std::string_view Stable service name.
+     */
     static constexpr std::string_view get_name()
     {
         return "AgentManager";
@@ -566,8 +624,10 @@ public:
         FUNCTION_SCHEMAS = {{
                 function_schema_set_agent_info(),
                 function_schema_set_chat_mode(),
-                function_schema_activate_agent(),
-                function_schema_get_attributes(),
+                function_schema_set_target_agent(),
+                function_schema_get_target_agent(),
+                function_schema_get_agent_names(),
+                function_schema_get_agent_attributes(),
                 function_schema_get_chat_mode(),
                 function_schema_get_active_agent(),
                 function_schema_trigger_general_action(),
@@ -632,13 +692,16 @@ BROOKESIA_DESCRIBE_ENUM(
  * @brief  Function related
  */
 BROOKESIA_DESCRIBE_ENUM(
-    Manager::FunctionId, SetAgentInfo, SetChatMode, ActivateAgent, GetAgentAttributes, GetChatMode, GetActiveAgent,
-    TriggerGeneralAction, Suspend, Resume, InterruptSpeaking, ManualStartListening, ManualStopListening,
-    GetGeneralState, GetSuspendStatus, GetSpeakingStatus, GetListeningStatus, ResetData, Max
+    Manager::FunctionId,
+    GetAgentNames, GetAgentAttributes, SetAgentInfo, SetTargetAgent, GetTargetAgent, GetActiveAgent,
+    TriggerGeneralAction, GetGeneralState, InterruptSpeaking, Suspend, Resume, GetSuspendStatus,
+    SetChatMode, GetChatMode, ManualStartListening, ManualStopListening, GetSpeakingStatus, GetListeningStatus,
+    ResetData,
+    Max
 );
 BROOKESIA_DESCRIBE_ENUM(Manager::FunctionSetAgentInfoParam, Name, Info);
 BROOKESIA_DESCRIBE_ENUM(Manager::FunctionSetChatModeParam, Mode);
-BROOKESIA_DESCRIBE_ENUM(Manager::FunctionActivateAgentParam, Name);
+BROOKESIA_DESCRIBE_ENUM(Manager::FunctionSetTargetAgentParam, Name);
 BROOKESIA_DESCRIBE_ENUM(Manager::FunctionGetAgentAttributesParam, Name);
 BROOKESIA_DESCRIBE_ENUM(Manager::FunctionTriggerGeneralActionParam, Action);
 

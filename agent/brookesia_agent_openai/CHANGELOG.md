@@ -1,5 +1,19 @@
 # ChangeLog
 
+## v0.7.4 - 2026-04-10
+
+### Enhancements:
+
+- feat(build): replace global `-Wno-missing-field-initializers` compile flag with per-site `#pragma GCC diagnostic` suppression
+- feat(build): move OpenAI backend C/C++ sources from `src/` to a dedicated `openai/` subdirectory with private include path
+- feat(build): include `macro_configs.h` in the umbrella header `brookesia/agent_openai.hpp`
+- feat(docs): add Doxygen documentation to public types and methods in `agent_openai.hpp` and `macro_configs.h`
+
+### Bug Fixes:
+
+- fix(nvs): bind NVS service before calling `erase_keys()` in `try_erase_data()` to prevent invalid service access
+- fix(log): reduce NVS load log level from INFO to DEBUG to reduce log noise
+
 ## v0.7.3 - 2026-02-25
 
 ### Bug Fixes:

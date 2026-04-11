@@ -6,6 +6,7 @@
 
 - [Usage Examples](#usage-examples)
   - [Table of Contents](#table-of-contents)
+  - [Host Smoke Test](#host-smoke-test)
   - [Local Services](#local-services)
     - [Basic Usage](#basic-usage)
     - [Synchronous Function Calls](#synchronous-function-calls)
@@ -17,6 +18,23 @@
     - [RPC Server](#rpc-server)
     - [RPC Client](#rpc-client)
   - [Creating Custom Services](#creating-custom-services)
+
+## Host Smoke Test
+
+For PC and host-side verification, this component provides a ready-to-run smoke test in `host_test/`.
+
+```bash
+cmake -S service/brookesia_service_manager/host_test -B build/service_manager_host
+cmake --build build/service_manager_host
+ctest --test-dir build/service_manager_host --output-on-failure
+```
+
+The smoke test validates:
+
+- service manager startup and shutdown
+- adding and binding a local test service
+- synchronous function calls through `ServiceBase`
+- RPC server start and stop on the host platform
 
 ## Local Services
 

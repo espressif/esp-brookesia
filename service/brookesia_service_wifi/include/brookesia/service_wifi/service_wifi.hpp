@@ -7,22 +7,29 @@
 
 #include <expected>
 #include <string>
-#include "brookesia/service_manager/service/base.hpp"
-#include "brookesia/service_manager/macro_configs.h"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/service_helper/wifi.hpp"
-#include "hal/hal.hpp"
-#include "state_machine.hpp"
+#include "brookesia/service_manager/service/base.hpp"
+#include "brookesia/service_manager/macro_configs.h"
+#include "brookesia/service_wifi/hal/hal.hpp"
+#include "brookesia/service_wifi/state_machine.hpp"
+#include "brookesia/service_wifi/macro_configs.h"
 
 namespace esp_brookesia::service::wifi {
 
+/**
+ * @brief Wi-Fi service that coordinates HAL operations, persistence, and the Wi-Fi state machine.
+ */
 class Wifi : public ServiceBase {
     friend class StateMachine;
     friend class Hal;
     friend class SoftAp;
 
 public:
+    /**
+     * @brief Persisted data items managed by the Wi-Fi service.
+     */
     enum class DataType : uint8_t {
         LastAp,
         ConnectedAps,
@@ -31,6 +38,11 @@ public:
         Max,
     };
 
+    /**
+     * @brief Get the process-wide singleton instance.
+     *
+     * @return Reference to the singleton Wi-Fi service.
+     */
     static Wifi &get_instance()
     {
         static Wifi instance;
@@ -74,19 +86,19 @@ private:
     void on_stop() override;
 
     std::expected<void, std::string> function_trigger_general_action(const std::string &action);
+    std::expected<std::string, std::string> function_get_general_state();
+    std::expected<void, std::string> function_set_connect_ap(const std::string &ssid, const std::string &password);
+    std::expected<boost::json::object, std::string> function_get_connect_ap();
+    std::expected<boost::json::array, std::string> function_get_connected_aps();
+    std::expected<void, std::string> function_set_scan_params(const boost::json::object &params);
     std::expected<void, std::string> function_trigger_scan_start();
     std::expected<void, std::string> function_trigger_scan_stop();
+    std::expected<void, std::string> function_set_softap_params(const boost::json::object &params);
+    std::expected<boost::json::object, std::string> function_get_softap_params();
     std::expected<void, std::string> function_trigger_softap_start();
     std::expected<void, std::string> function_trigger_softap_stop();
     std::expected<void, std::string> function_trigger_softap_provision_start();
     std::expected<void, std::string> function_trigger_softap_provision_stop();
-    std::expected<void, std::string> function_set_scan_params(const boost::json::object &params);
-    std::expected<void, std::string> function_set_softap_params(const boost::json::object &params);
-    std::expected<void, std::string> function_set_connect_ap(const std::string &ssid, const std::string &password);
-    std::expected<std::string, std::string> function_get_general_state();
-    std::expected<std::string, std::string> function_get_connect_ap();
-    std::expected<boost::json::array, std::string> function_get_connected_aps();
-    std::expected<boost::json::object, std::string> function_get_softap_params();
     std::expected<void, std::string> function_reset_data();
 
     std::vector<FunctionSchema> get_function_schemas() override
@@ -106,6 +118,34 @@ private:
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
                 Helper, Helper::FunctionId::TriggerGeneralAction, std::string,
                 function_trigger_general_action(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetGeneralState,
+                function_get_general_state()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
+                Helper, Helper::FunctionId::SetConnectAp, std::string, std::string,
+                function_set_connect_ap(PARAM1, PARAM2)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetConnectAp,
+                function_get_connect_ap()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetConnectedAps,
+                function_get_connected_aps()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetScanParams, boost::json::object,
+                function_set_scan_params(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::SetSoftApParams, boost::json::object,
+                function_set_softap_params(PARAM)
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+                Helper, Helper::FunctionId::GetSoftApParams,
+                function_get_softap_params()
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::TriggerScanStart,
@@ -131,34 +171,6 @@ private:
                 Helper, Helper::FunctionId::TriggerSoftApProvisionStop,
                 function_trigger_softap_provision_stop()
             ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
-                Helper, Helper::FunctionId::SetScanParams, boost::json::object,
-                function_set_scan_params(PARAM)
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
-                Helper, Helper::FunctionId::SetSoftApParams, boost::json::object,
-                function_set_softap_params(PARAM)
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_2(
-                Helper, Helper::FunctionId::SetConnectAp, std::string, std::string,
-                function_set_connect_ap(PARAM1, PARAM2)
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
-                Helper, Helper::FunctionId::GetGeneralState,
-                function_get_general_state()
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
-                Helper, Helper::FunctionId::GetConnectAp,
-                function_get_connect_ap()
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
-                Helper, Helper::FunctionId::GetConnectedAps,
-                function_get_connected_aps()
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
-                Helper, Helper::FunctionId::GetSoftApParams,
-                function_get_softap_params()
-            ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::ResetData,
                 function_reset_data()
@@ -173,10 +185,12 @@ private:
 
     bool publish_general_event(GeneralEvent event, bool is_unexpected);
     bool publish_general_action(GeneralAction action);
-    bool publish_scan_ap_infos(std::span<const ApInfo> &ap_infos);
+    bool publish_scan_state_changed(bool is_running);
+    bool publish_scan_ap_infos(std::span<const ScanApInfo> &ap_infos);
     bool publish_softap_event(SoftApEvent event);
 
-    bool on_hal_unexpected_general_event(GeneralEvent event);
+    bool on_hal_general_event(GeneralEvent event, bool is_unexpected);
+    bool on_hal_error_state();
 
     void try_load_data();
     void try_save_data(DataType type);

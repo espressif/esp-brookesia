@@ -1,0 +1,5 @@
+menu "ESP-Brookesia: MCP Utilities Configurations"
+    menuconfig BROOKESIA_MCP_UTILS_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+endmenu

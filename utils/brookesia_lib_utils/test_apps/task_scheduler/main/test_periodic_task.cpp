@@ -40,14 +40,12 @@ using namespace esp_brookesia::lib_utils;
 
 // Global variables used for testing
 static std::atomic<int> g_counter{0};
-static std::atomic<int> g_callback_counter{0};
 static std::atomic<bool> g_task_executed{false};
 
 // Helper functions
 static void reset_counters()
 {
     g_counter = 0;
-    g_callback_counter = 0;
     g_task_executed = false;
 }
 

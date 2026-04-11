@@ -1,3 +1,0 @@
-config BOARD_ESP_BOX_3
-    bool "ESP-BOX-3 Development Board"
-    depends on IDF_TARGET_ESP32S3

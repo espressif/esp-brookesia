@@ -12,6 +12,9 @@
 
 namespace esp_brookesia::service {
 
+using audio_playback_config_t = audio_play_config_t;
+using audio_playback_handle_t = audio_play_handle_t;
+
 /**
  * @brief  Type converter class for converting helper types to audio_processor types
  */
@@ -28,11 +31,6 @@ public:
      * @brief  Convert MixerGainConfig to audio_mixer_gain_config_t
      */
     static audio_mixer_gain_config_t convert(const AudioHelper::MixerGainConfig &config);
-
-    /**
-     * @brief  Convert PeripheralConfig to audio_manager_config_t
-     */
-    static audio_manager_config_t convert(const AudioHelper::PeripheralConfig &config);
 
     /**
      * @brief  Convert PlaybackConfig to audio_playback_config_t
@@ -62,14 +60,6 @@ public:
     static av_processor_decoder_config_t convert(const AudioHelper::DecoderDynamicConfig &config);
 
     /**
-     * @brief  Convert AFE_Config to av_processor_afe_config_t
-     *
-     * @note   The returned config contains pointers to static storage for model and mn_language.
-     *         If you need persistent storage, use the overload with string references.
-     */
-    static av_processor_afe_config_t convert(const AudioHelper::AFE_Config &config);
-
-    /**
      * @brief  Convert AFE_Config to av_processor_afe_config_t with persistent string storage
      *
      * @param config            The AFE config to convert
@@ -77,9 +67,7 @@ public:
      * @param mn_language_storage Reference to string for storing mn_language
      */
     static av_processor_afe_config_t convert(
-        const AudioHelper::AFE_Config &config,
-        std::string &model_storage,
-        std::string &mn_language_storage
+        const AudioHelper::AFE_Config &config, std::string &model_storage, std::string &mn_language_storage
     );
 
     /**
@@ -92,9 +80,7 @@ public:
         std::string &afe_model_storage,
         std::string &afe_mn_language_storage,
         const void *event_cb,
-        void *event_cb_ctx,
-        const void *raw_data_cb,
-        void *raw_data_cb_ctx
+        void *event_cb_ctx
     );
 
     /**
@@ -104,6 +90,19 @@ public:
         const AudioHelper::DecoderStaticConfig &static_config,
         const AudioHelper::DecoderDynamicConfig &dynamic_config
     );
+
+    static audio_feeder_handle_t to_feeder_handle(void *handle)
+    {
+        return reinterpret_cast<audio_feeder_handle_t>(handle);
+    }
+    static audio_playback_handle_t to_playback_handle(void *handle)
+    {
+        return reinterpret_cast<audio_playback_handle_t>(handle);
+    }
+    static audio_recorder_handle_t to_recorder_handle(void *handle)
+    {
+        return reinterpret_cast<audio_recorder_handle_t>(handle);
+    }
 };
 
 } // namespace esp_brookesia::service

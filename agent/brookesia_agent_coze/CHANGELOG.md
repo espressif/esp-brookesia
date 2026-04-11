@@ -1,5 +1,22 @@
 # ChangeLog
 
+## v0.7.3 - 2026-04-10
+
+### Bug Fixes:
+
+- fix(chat): add null terminator to WebSocket message buffer before processing to prevent out-of-bounds reads
+- fix(nvs): bind NVS service before calling `erase_keys()` in `try_erase_data()` to prevent invalid service access
+
+### Enhancements:
+
+- feat(docs): add Doxygen documentation to all public types and methods in `agent_coze.hpp` and `macro_configs.h`
+- feat(build): include `macro_configs.h` in the umbrella header `brookesia/agent_coze.hpp`
+- feat(build): replace global `-Wno-missing-field-initializers` compile flag with per-site `#pragma GCC diagnostic` suppression
+
+### Refactoring:
+
+- refactor(repo): move Coze backend C sources from `src/private/` to a dedicated `coze/` subdirectory with private include path
+
 ## v0.7.2 - 2026-02-25
 
 ### Enhancements:

@@ -3,111 +3,94 @@
 #    *  A == 1 or (B == 2 and C in [1,2,3])
 #    *  (A == 1 and B == 2) or (C not in ["3", "4", 5])
 
-# Componet test_apps
-# test_apps:
-#   enable:
-#     - if: IDF_TARGET in ["esp32s3", "esp32p4"]
-
-# Products
-products/phone/phone_m5stack_core_s3:
-  enable:
-    - if: IDF_TARGET in ["esp32s3"] and (IDF_VERSION_MAJOR == 5 and IDF_VERSION_MINOR >= 4)
-
-products/phone/phone_p4_function_ev_board:
-  enable:
-    - if: IDF_TARGET in ["esp32p4"]
-
-products/phone/phone_s3_box_3:
-  enable:
-    - if: IDF_TARGET in ["esp32s3"]
-
-products/phone/phone_s3_lcd_ev_board:
-  enable:
-    - if: IDF_TARGET in ["esp32s3"]
-
-products/speaker:
-  enable:
-    - if: IDF_TARGET in ["esp32s3"] and (IDF_VERSION_MAJOR == 5 and IDF_VERSION_MINOR >= 5)
-
-#
-# Test Apps
-# Common enable condition: IDF_TARGET in ["esp32s3", "esp32p4"]
-#
 # Define common enable condition as anchor
-.general_test_apps_enable: &general_test_apps_enable
+.general_target_enable: &general_target_enable
   enable:
     - if: IDF_TARGET in ["esp32s3", "esp32p4", "esp32c5"]
 
-# brookesia_lib_utils: check
-utils/brookesia_lib_utils/test_apps/check:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: function_guard
-utils/brookesia_lib_utils/test_apps/function_guard:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: describe_helpers
-utils/brookesia_lib_utils/test_apps/describe_helpers:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: log
-utils/brookesia_lib_utils/test_apps/log:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: memory_profiler
-utils/brookesia_lib_utils/test_apps/memory_profiler:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: plugin
-utils/brookesia_lib_utils/test_apps/plugin:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: state_machine
-utils/brookesia_lib_utils/test_apps/state_machine:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: task_scheduler
-utils/brookesia_lib_utils/test_apps/task_scheduler:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: thread_config
-utils/brookesia_lib_utils/test_apps/thread_config:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: thread_profiler
-utils/brookesia_lib_utils/test_apps/thread_profiler:
-  <<: *general_test_apps_enable
-
-# brookesia_lib_utils: time_profiler
-utils/brookesia_lib_utils/test_apps/time_profiler:
-  <<: *general_test_apps_enable
-
-hal/brookesia_hal_adaptor/test_apps:
-  <<: *general_test_apps_enable
-
+#
+# Test Apps
+#
+#
+# Hal
+#
+# hal/brookesia_hal_adaptor/test_apps:
+#   <<: *general_target_enable
 hal/brookesia_hal_interface/test_apps:
-  <<: *general_test_apps_enable
-
-# brookesia_service_manager
-service/brookesia_service_manager/test_apps:
-  <<: *general_test_apps_enable
-
+  <<: *general_target_enable
+#
+# Services
+#
+# brookesia_service_audio
+service/brookesia_service_audio/test_apps:
+  <<: *general_target_enable
 # brookesia_service_custom
 service/brookesia_service_custom/test_apps:
-  <<: *general_test_apps_enable
-
+  <<: *general_target_enable
+# brookesia_service_manager
+service/brookesia_service_manager/test_apps:
+  <<: *general_target_enable
 # brookesia_service_nvs
 service/brookesia_service_nvs/test_apps:
-  <<: *general_test_apps_enable
-
+  <<: *general_target_enable
 # brookesia_service_sntp
 service/brookesia_service_sntp/test_apps:
-  <<: *general_test_apps_enable
-
+  <<: *general_target_enable
 # brookesia_service_wifi
 service/brookesia_service_wifi/test_apps:
-  <<: *general_test_apps_enable
+  <<: *general_target_enable
+#
+# Utils
+#
+# brookesia_lib_utils: check
+utils/brookesia_lib_utils/test_apps/check:
+  <<: *general_target_enable
+# brookesia_lib_utils: function_guard
+utils/brookesia_lib_utils/test_apps/function_guard:
+  <<: *general_target_enable
+# brookesia_lib_utils: describe_helpers
+utils/brookesia_lib_utils/test_apps/describe_helpers:
+  <<: *general_target_enable
+# brookesia_lib_utils: log
+utils/brookesia_lib_utils/test_apps/log:
+  <<: *general_target_enable
+# brookesia_lib_utils: memory_profiler
+utils/brookesia_lib_utils/test_apps/memory_profiler:
+  <<: *general_target_enable
+# brookesia_lib_utils: plugin
+utils/brookesia_lib_utils/test_apps/plugin:
+  <<: *general_target_enable
+# brookesia_lib_utils: state_machine
+utils/brookesia_lib_utils/test_apps/state_machine:
+  <<: *general_target_enable
+# brookesia_lib_utils: task_scheduler
+utils/brookesia_lib_utils/test_apps/task_scheduler:
+  <<: *general_target_enable
+# brookesia_lib_utils: thread_config
+utils/brookesia_lib_utils/test_apps/thread_config:
+  <<: *general_target_enable
+# brookesia_lib_utils: thread_profiler
+utils/brookesia_lib_utils/test_apps/thread_profiler:
+  <<: *general_target_enable
+# brookesia_lib_utils: time_profiler
+utils/brookesia_lib_utils/test_apps/time_profiler:
+  <<: *general_target_enable
 
+#
 # Examples
-examples/service_console:
-  <<: *general_test_apps_enable
+#
+# agent/chatbot
+examples/agent/chatbot:
+  <<: *general_target_enable
+# service/audio
+examples/service/audio:
+  <<: *general_target_enable
+# service/console
+examples/service/console:
+  <<: *general_target_enable
+# service/nvs
+examples/service/nvs:
+  <<: *general_target_enable
+# service/wifi
+examples/service/wifi:
+  <<: *general_target_enable

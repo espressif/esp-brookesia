@@ -10,11 +10,14 @@
 #include <memory>
 #include <mutex>
 #include <functional>
+#include "brookesia/lib_utils/macro_configs.h"
 
 namespace esp_brookesia::lib_utils {
 
 /**
- * @brief Plugin information structure for unified registry
+ * @brief Internal registry entry for a plugin type.
+ *
+ * @tparam T Common base type exposed by the registry.
  */
 template <typename T>
 struct PluginInfo {
@@ -26,10 +29,9 @@ struct PluginInfo {
 };
 
 /**
- * @brief Plugin registration and management class
- * Uses unified map-based storage for all plugin information (keyed by name)
+ * @brief Thread-safe registry for named plugin factories and cached instances.
  *
- * @tparam T Base class type for plugins
+ * @tparam T Base class type exposed by the registry.
  */
 template <typename T>
 class PluginRegistry {
@@ -52,11 +54,13 @@ private:
 
 public:
     /**
-     * @brief Get instance by registered name
-     * Returns cached instance if available, otherwise creates and caches a new one
+     * @brief Get a plugin instance by name.
      *
-     * @param[in] name Plugin name to get
-     * @return Shared pointer to the plugin instance (shared ownership with Registry)
+     * Returns the cached instance when available, otherwise creates it through the registered factory.
+     *
+     * @param[in] name Registered plugin name.
+     * @return Shared pointer to the plugin instance, or `nullptr` when the plugin is not registered
+     *         or the factory is empty.
      *
      * @note The returned shared_ptr shares ownership with the Registry.
      *       The instance remains valid as long as either the Registry or any returned
@@ -84,10 +88,11 @@ public:
     }
 
     /**
-     * @brief Get all registered plugin instances
-     * Returns all cached instances (creates them if not yet cached)
+     * @brief Get instances for all registered plugins.
      *
-     * @return Map of (name, shared_ptr) for all registered plugins
+     * Missing cached instances are created on demand before they are returned.
+     *
+     * @return Map from plugin name to shared plugin instance.
      *
      * @note Each returned shared_ptr shares ownership with the Registry.
      *       The instances remain valid as long as either the Registry or any returned
@@ -104,9 +109,9 @@ public:
     }
 
     /**
-     * @brief Get count of registered plugins
+     * @brief Get the number of registered plugin names.
      *
-     * @return Total number of registered plugins
+     * @return Total number of registered plugins.
      */
     static size_t get_plugin_count()
     {
@@ -115,10 +120,10 @@ public:
     }
 
     /**
-     * @brief Check if a plugin with the given name is registered
+     * @brief Check whether a plugin name is registered.
      *
-     * @param[in] name Plugin name to check
-     * @return true if plugin is registered, false otherwise
+     * @param[in] name Plugin name to test.
+     * @return `true` when the plugin exists in the registry, or `false` otherwise.
      */
     static bool has_plugin(const std::string &name)
     {
@@ -127,10 +132,11 @@ public:
     }
 
     /**
-     * @brief Release cached instance for a plugin by name
-     * Does not remove the plugin registration, only clears the cached instance
+     * @brief Release the cached instance for a registered plugin.
      *
-     * @param[in] name Plugin name
+     * This keeps the factory registration intact and only drops the registry-held shared pointer.
+     *
+     * @param[in] name Plugin name.
      */
     static void release_instance(const std::string &name)
     {
@@ -142,8 +148,7 @@ public:
     }
 
     /**
-     * @brief Release all cached instances
-     *
+     * @brief Release all cached plugin instances without removing registrations.
      */
     static void release_all_instances()
     {
@@ -154,9 +159,9 @@ public:
     }
 
     /**
-     * @brief Remove plugin by name
+     * @brief Remove a plugin registration and its cached instance.
      *
-     * @param[in] name Plugin name to remove
+     * @param[in] name Plugin name to remove.
      */
     static void remove_plugin(const std::string &name)
     {
@@ -165,8 +170,7 @@ public:
     }
 
     /**
-     * @brief Remove all registered plugins
-     *
+     * @brief Remove all registered plugins and cached instances.
      */
     static void remove_all_plugins()
     {
@@ -175,11 +179,11 @@ public:
     }
 
     /**
-     * @brief Register a plugin with factory function
+     * @brief Register a plugin factory under a unique name.
      *
-     * @tparam PluginType Specific plugin type to register
-     * @param[in] name Plugin name (must be unique)
-     * @param[in] factory Factory function to create instances
+     * @tparam PluginType Concrete plugin type being registered.
+     * @param[in] name Plugin name. Existing registrations with the same name are kept unchanged.
+     * @param[in] factory Factory used to lazily create instances.
      */
     template <typename PluginType>
     static void register_plugin(const std::string &name, FactoryFunc factory)
@@ -199,9 +203,7 @@ public:
 #endif
 
 /**
- * @brief Internal macro to create fixed symbol name for linker
- * Creates a C function with the specified name that can be referenced via -u option
- * The function references a static variable to ensure it's not optimized away
+ * @brief Create a linker-visible symbol that keeps a registrar object alive.
  *
  * @note The function is defined outside any namespace to ensure proper linking.
  *       The static variable reference ensures the registrar instance is not optimized away.
@@ -220,13 +222,13 @@ public:
     }
 
 /**
- * @brief Registration macro with custom constructor (supports specifying constructor arguments)
+ * @brief Register a plugin using a custom creator expression.
  *
- * @param BaseType Base type for the plugin registry
- * @param PluginType Plugin type to register
- * @param name Plugin name
- * @param creator Custom creator function that returns a shared pointer to the plugin instance
- * @param symbol_name Symbol name for the plugin
+ * @param BaseType Registry base type.
+ * @param PluginType Concrete plugin type to register.
+ * @param name Plugin name used by `PluginRegistry`.
+ * @param creator Creator expression returning `shared_ptr` or `unique_ptr` compatible with the registry.
+ * @param symbol_name Linker symbol exported for `-u`.
  *
  * @note Automatically creates a fixed symbol name based on PluginType for linker -u option
  */
@@ -267,12 +269,12 @@ public:
     )
 
 /**
- * @brief Registration macro (supports specifying constructor arguments)
+ * @brief Register a plugin constructed with `std::make_shared`.
  *
- * @param BaseType Base type for the plugin registry
- * @param PluginType Plugin type to register
- * @param name Plugin name
- * @param ... Constructor arguments (optional)
+ * @param BaseType Registry base type.
+ * @param PluginType Concrete plugin type to register.
+ * @param name Plugin name used by `PluginRegistry`.
+ * @param ... Optional constructor arguments forwarded to `PluginType`.
  *
  * @code
  * // Example usage:
@@ -286,16 +288,16 @@ public:
     }, BROOKESIA_PLUGIN_CONCAT(_##PluginType##_symbol_, __LINE__))
 
 /**
- * @brief Registration macro for singleton pattern
+ * @brief Register a singleton object in the plugin registry.
  *
  * This macro allows registering a singleton instance to the plugin registry.
  * It uses a custom no-op deleter to prevent the shared_ptr from destroying the singleton.
  * Automatically generates a fixed symbol name based on PluginType for linker -u option.
  *
- * @param BaseType Base type for the plugin registry
- * @param PluginType Singleton type to register (must inherit from BaseType)
- * @param name Plugin name (must be unique)
- * @param instance_expr Expression to get singleton instance reference (e.g., SingletonType::get_instance())
+ * @param BaseType Registry base type.
+ * @param PluginType Singleton type to register.
+ * @param name Plugin name used by `PluginRegistry`.
+ * @param instance_expr Expression that yields a singleton instance reference, for example `Type::get_instance()`.
  *
  * @code
  * // Example usage:
@@ -320,13 +322,13 @@ public:
     }), BROOKESIA_PLUGIN_CONCAT(_##PluginType##_symbol_, __LINE__))
 
 /**
- * @brief Registration macro with custom symbol name (supports specifying constructor arguments)
+ * @brief Register a plugin constructed with `std::make_shared` and a custom linker symbol.
  *
- * @param BaseType Base type for the plugin registry
- * @param PluginType Plugin type to register
- * @param name Plugin name
- * @param symbol_name Custom symbol name for the plugin
- * @param ... Constructor arguments (optional)
+ * @param BaseType Registry base type.
+ * @param PluginType Concrete plugin type to register.
+ * @param name Plugin name used by `PluginRegistry`.
+ * @param symbol_name Custom linker symbol exported for `-u`.
+ * @param ... Optional constructor arguments forwarded to `PluginType`.
  *
  * @code
  * // Example usage:
@@ -341,17 +343,17 @@ public:
     }, symbol_name)
 
 /**
- * @brief Registration macro for singleton pattern with custom symbol name
+ * @brief Register a singleton object with a custom linker symbol.
  *
  * This macro allows registering a singleton instance to the plugin registry.
  * It uses a custom no-op deleter to prevent the shared_ptr from destroying the singleton.
  * Uses the provided custom symbol name for linker -u option.
  *
- * @param BaseType Base type for the plugin registry
- * @param PluginType Singleton type to register (must inherit from BaseType)
- * @param name Plugin name (must be unique)
- * @param instance_expr Expression to get singleton instance reference (e.g., SingletonType::get_instance())
- * @param symbol_name Custom symbol name for the plugin
+ * @param BaseType Registry base type.
+ * @param PluginType Singleton type to register.
+ * @param name Plugin name used by `PluginRegistry`.
+ * @param instance_expr Expression that yields a singleton instance reference.
+ * @param symbol_name Custom linker symbol exported for `-u`.
  *
  * @code
  * // Example usage:

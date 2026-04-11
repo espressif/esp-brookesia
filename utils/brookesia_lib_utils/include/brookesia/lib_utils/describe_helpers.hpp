@@ -23,6 +23,7 @@
 #include "boost/describe.hpp"
 #include "boost/mp11.hpp"
 #include "boost/json.hpp"
+#include "brookesia/lib_utils/macro_configs.h"
 
 namespace esp_brookesia::lib_utils {
 
@@ -224,7 +225,11 @@ inline boost::json::object::const_iterator find_json_key_flexible(
 // ============================================================================
 
 /**
- * @brief Convert enum to string
+ * @brief Convert a described enum value to its enumerator name.
+ *
+ * @tparam T Enum type registered with `BROOKESIA_DESCRIBE_ENUM`.
+ * @param value Enum value to convert.
+ * @return Enumerator name when found, otherwise the underlying numeric value formatted as a string.
  */
 template <typename T>
 std::string describe_enum_to_string(T value)
@@ -244,7 +249,11 @@ std::string describe_enum_to_string(T value)
 }
 
 /**
- * @brief Convert enum to number
+ * @brief Convert an enum value to its underlying integer representation.
+ *
+ * @tparam T Enum type.
+ * @param value Enum value to convert.
+ * @return Underlying integer value of @p value.
  */
 template <typename T>
 constexpr std::underlying_type_t<T> describe_enum_to_number(T value) noexcept
@@ -254,7 +263,12 @@ constexpr std::underlying_type_t<T> describe_enum_to_number(T value) noexcept
 }
 
 /**
- * @brief Convert string to enum
+ * @brief Convert an enumerator name to a described enum value.
+ *
+ * @tparam T Enum type registered with `BROOKESIA_DESCRIBE_ENUM`.
+ * @param name Enumerator name to search for.
+ * @param ret_value Output enum value written on success.
+ * @return `true` if the name matched an enumerator, or `false` otherwise.
  */
 template <typename T>
 bool describe_string_to_enum(const std::string &name, T &ret_value)
@@ -273,7 +287,12 @@ bool describe_string_to_enum(const std::string &name, T &ret_value)
 }
 
 /**
- * @brief Convert number to enum
+ * @brief Convert an underlying integer value to a described enum value.
+ *
+ * @tparam T Enum type registered with `BROOKESIA_DESCRIBE_ENUM`.
+ * @param number Underlying integer value to search for.
+ * @param ret_value Output enum value written on success.
+ * @return `true` if the numeric value matched an enumerator, or `false` otherwise.
  */
 template <typename T>
 bool describe_number_to_enum(std::underlying_type_t<T> number, T &ret_value)
@@ -296,7 +315,14 @@ bool describe_number_to_enum(std::underlying_type_t<T> number, T &ret_value)
 // ============================================================================
 
 /**
- * @brief Convert value to JSON (supports all common types)
+ * @brief Convert a supported value to `boost::json::value`.
+ *
+ * Supported categories include basic scalar types, STL containers, optionals,
+ * variants, described enums, described structs, and several `boost::json` types.
+ *
+ * @tparam T Value type to serialize.
+ * @param value Value to convert.
+ * @return JSON representation of @p value.
  */
 template <typename T>
 boost::json::value describe_to_json(const T &value)
@@ -452,7 +478,12 @@ boost::json::value describe_to_json(const T &value)
 }
 
 /**
- * @brief Convert JSON to value (supports all common types)
+ * @brief Convert a `boost::json::value` to a supported C++ type.
+ *
+ * @tparam T Destination type.
+ * @param j JSON value to deserialize.
+ * @param value Output value written on success. It may be partially modified when conversion fails.
+ * @return `true` if deserialization succeeded, or `false` otherwise.
  */
 template <typename T>
 bool describe_from_json(const boost::json::value &j, T &value)
@@ -759,6 +790,13 @@ bool describe_from_json(const boost::json::value &j, T &value)
 // JSON Serialization/Deserialization Functions
 // ============================================================================
 
+/**
+ * @brief Serialize a supported value to a JSON string.
+ *
+ * @tparam T Value type to serialize.
+ * @param value Value to serialize.
+ * @return JSON text produced from @p value.
+ */
 template <typename T>
 std::string describe_json_serialize(const T &value)
 {
@@ -766,6 +804,14 @@ std::string describe_json_serialize(const T &value)
     return boost::json::serialize(json_value);
 }
 
+/**
+ * @brief Parse a JSON string into a supported C++ value.
+ *
+ * @tparam T Destination type.
+ * @param str JSON text to parse.
+ * @param value Output value written on success.
+ * @return `true` if parsing and deserialization succeeded, or `false` otherwise.
+ */
 template <typename T>
 bool describe_json_deserialize(const std::string &str, T &value)
 {
@@ -782,50 +828,67 @@ bool describe_json_deserialize(const std::string &str, T &value)
 // ============================================================================
 
 /**
- * @brief Output format configuration
+ * @brief Formatting options used by string-conversion helpers.
  */
 struct DescribeOutputFormat {
-    const char *struct_begin = "{ ";      // Struct begin symbol
-    const char *struct_end = " }";        // Struct end symbol
-    const char *field_separator = ", ";   // Field separator
-    const char *field_prefix = "";        // Field name prefix (e.g., "." for C++ style)
-    const char *name_value_separator = ": "; // Name-value separator
-    const char *address_prefix = "@";     // Address prefix
-    bool hex_address = false;             // Whether address uses hexadecimal
-    bool quote_field_names = false;       // Whether to add quotes to field names
-    bool quote_string_values = false;     // Whether to add quotes to string values
-    bool enum_as_string = true;           // Whether enum outputs as string (false outputs numeric value)
-    bool show_type_name = false;          // Whether to show type name
+    const char *struct_begin = "{ ";       ///< Opening token used for structured objects.
+    const char *struct_end = " }";         ///< Closing token used for structured objects.
+    const char *field_separator = ", ";    ///< Separator inserted between sibling fields.
+    const char *field_prefix = "";         ///< Prefix inserted before each field name.
+    const char *name_value_separator = ": "; ///< Separator inserted between a field name and its value.
+    const char *address_prefix = "@";      ///< Prefix used when formatting fallback pointer-like values.
+    bool hex_address = false;              ///< Whether fallback addresses are formatted in hexadecimal.
+    bool quote_field_names = false;        ///< Whether field names are wrapped in double quotes.
+    bool quote_string_values = false;      ///< Whether string values are wrapped in double quotes.
+    bool enum_as_string = true;            ///< Whether described enums are formatted by name instead of number.
+    bool show_type_name = false;           ///< Enables verbose multi-line formatting for composite values.
 };
 
-// Predefined formats
+/**
+ * @brief Default human-readable formatting preset.
+ */
 inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_DEFAULT = {
     .struct_begin = "{ ", .struct_end = " }", .field_separator = ", ",
     .name_value_separator = ": ", .address_prefix = "@"
 };
 
+/**
+ * @brief Compact single-line formatting preset.
+ */
 inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_COMPACT = {
     .struct_begin = "{", .struct_end = "}", .field_separator = ",",
     .name_value_separator = "=", .address_prefix = "@0x", .hex_address = true
 };
 
+/**
+ * @brief Verbose multi-line formatting preset with type-oriented layout.
+ */
 inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_VERBOSE = {
     .struct_begin = "{\n  ", .struct_end = "\n}", .field_separator = ",\n  ",
     .field_prefix = ".", .name_value_separator = " = ", .address_prefix = "0x", .hex_address = true,
-    .show_type_name = true  // Enable multiline format for arrays/objects
+    .show_type_name = true
 };
 
+/**
+ * @brief JSON-like formatting preset.
+ */
 inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_JSON = {
     .struct_begin = "{", .struct_end = "}", .field_separator = ",",
     .name_value_separator = ": ", .address_prefix = "\"@", .hex_address = true,
     .quote_field_names = true, .quote_string_values = true
 };
 
+/**
+ * @brief Python-dict-inspired formatting preset.
+ */
 inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_PYTHON = {
     .struct_begin = "{'", .struct_end = "'}", .field_separator = "', '",
     .name_value_separator = "': ", .address_prefix = "<@0x", .hex_address = true
 };
 
+/**
+ * @brief C++ designated-initializer-inspired formatting preset.
+ */
 inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_CPP = {
     .struct_begin = "{", .struct_end = "}", .field_separator = ", ",
     .field_prefix = ".", .name_value_separator = " = ", .address_prefix = "@0x", .hex_address = true
@@ -836,24 +899,42 @@ inline constexpr DescribeOutputFormat DESCRIBE_FORMAT_CPP = {
 // ============================================================================
 
 /**
- * @brief Global format manager (Singleton)
+ * @brief Singleton that stores the global default `DescribeOutputFormat`.
  */
 class DescribeFormatManager {
 public:
+    /**
+     * @brief Get the singleton instance.
+     *
+     * @return Reference to the global format manager.
+     */
     static DescribeFormatManager &instance()
     {
         static DescribeFormatManager mgr;
         return mgr;
     }
 
+    /**
+     * @brief Set the process-wide default output format.
+     *
+     * @param fmt New global format.
+     */
     void set_format(const DescribeOutputFormat &fmt)
     {
         format_ = fmt;
     }
+    /**
+     * @brief Get the current process-wide default output format.
+     *
+     * @return Reference to the active global format.
+     */
     const DescribeOutputFormat &get_format() const
     {
         return format_;
     }
+    /**
+     * @brief Restore the built-in default output format.
+     */
     void reset_to_default()
     {
         format_ = DESCRIBE_FORMAT_DEFAULT;
@@ -864,16 +945,29 @@ private:
     DescribeOutputFormat format_;
 };
 
+/**
+ * @brief Set the global default format used by `describe_to_string()`.
+ *
+ * @param fmt New global format.
+ */
 inline void describe_set_global_format(const DescribeOutputFormat &fmt)
 {
     DescribeFormatManager::instance().set_format(fmt);
 }
 
+/**
+ * @brief Get the global default format used by `describe_to_string()`.
+ *
+ * @return Reference to the active global format.
+ */
 inline const DescribeOutputFormat &describe_get_global_format()
 {
     return DescribeFormatManager::instance().get_format();
 }
 
+/**
+ * @brief Reset the global format back to `DESCRIBE_FORMAT_DEFAULT`.
+ */
 inline void describe_reset_global_format()
 {
     DescribeFormatManager::instance().reset_to_default();
@@ -884,11 +978,12 @@ inline void describe_reset_global_format()
 // ============================================================================
 
 /**
- * @brief Convert boost::json::value to formatted string
+ * @brief Convert a `boost::json::value` to a formatted string.
  *
- * @note When fmt is nullptr or using default format, uses boost::json::serialize for better performance.
- *       Custom formatting is only used when fmt.show_type_name is true (multiline mode) or
- *       custom field_prefix/name_value_separator are specified.
+ * @param j JSON value to format.
+ * @param fmt Formatting options to apply.
+ * @param indent_level Current indentation depth used for recursive formatting.
+ * @return Formatted string representation of @p j.
  */
 inline std::string describe_json_value_to_string(const boost::json::value &j, const DescribeOutputFormat &fmt, int indent_level = 0)
 {
@@ -1012,7 +1107,13 @@ template <typename T>
 std::string describe_to_string_with_fmt(const T &obj, const DescribeOutputFormat &fmt);
 
 /**
- * @brief Output single member to string stream
+ * @brief Append one named field to a string stream using a specific format.
+ *
+ * @tparam T Field value type.
+ * @param oss Destination output stream.
+ * @param name Field name.
+ * @param value Field value.
+ * @param fmt Formatting options to apply.
  */
 template <typename T>
 void describe_output_member(std::ostringstream &oss, const char *name, const T &value, const DescribeOutputFormat &fmt)
@@ -1207,7 +1308,12 @@ void describe_output_member(std::ostringstream &oss, const char *name, const T &
 }
 
 /**
- * @brief Convert struct to string with custom format
+ * @brief Convert a supported value to a string with an explicit format preset.
+ *
+ * @tparam T Value type to format.
+ * @param obj Value to convert.
+ * @param fmt Formatting options to apply.
+ * @return Formatted string representation of @p obj.
  */
 template <typename T>
 std::string describe_to_string_with_fmt(const T &obj, const DescribeOutputFormat &fmt)
@@ -1239,9 +1345,11 @@ std::string describe_to_string_with_fmt(const T &obj, const DescribeOutputFormat
 }
 
 /**
- * @brief Auto-detect type and convert to string
+ * @brief Convert a supported value to a string with the global default format.
  *
- * Supports: struct, enum, vector, map, optional, and basic types (bool, int, float, string, const char *)
+ * @tparam T Value type to format.
+ * @param value Value to convert.
+ * @return String representation of @p value.
  */
 template <typename T>
 std::string describe_to_string(const T &value)
@@ -1285,48 +1393,105 @@ std::string describe_to_string(const T &value)
 // Convenience Macros
 // ============================================================================
 
-// Describe registration macros (wrap Boost.Describe macros)
-#define BROOKESIA_DESCRIBE_STRUCT(C, Bases, Members) BOOST_DESCRIBE_STRUCT(C, Bases, Members)  ///< Register struct for reflection
-#define BROOKESIA_DESCRIBE_ENUM(C, ...) BOOST_DESCRIBE_ENUM(C, __VA_ARGS__)                    ///< Register enum for reflection
+/** @def BROOKESIA_DESCRIBE_STRUCT
+ *  @brief Register a struct with Boost.Describe reflection.
+ */
+#define BROOKESIA_DESCRIBE_STRUCT(C, Bases, Members) BOOST_DESCRIBE_STRUCT(C, Bases, Members)
+/** @def BROOKESIA_DESCRIBE_ENUM
+ *  @brief Register an enum with Boost.Describe reflection.
+ */
+#define BROOKESIA_DESCRIBE_ENUM(C, ...) BOOST_DESCRIBE_ENUM(C, __VA_ARGS__)
 
-// Enum conversion macros
+/** @def BROOKESIA_DESCRIBE_ENUM_TO_STR
+ *  @brief Convert a described enum value to a string.
+ */
 #define BROOKESIA_DESCRIBE_ENUM_TO_STR(value) \
-    esp_brookesia::lib_utils::describe_enum_to_string(value)     ///< Convert enum to string
+    esp_brookesia::lib_utils::describe_enum_to_string(value)
+/** @def BROOKESIA_DESCRIBE_ENUM_TO_NUM
+ *  @brief Convert an enum value to its underlying integer value.
+ */
 #define BROOKESIA_DESCRIBE_ENUM_TO_NUM(value) \
-    esp_brookesia::lib_utils::describe_enum_to_number(value)        ///< Convert enum to underlying number
+    esp_brookesia::lib_utils::describe_enum_to_number(value)
+/** @def BROOKESIA_DESCRIBE_NUM_TO_ENUM
+ *  @brief Convert an integer value to a described enum value.
+ */
 #define BROOKESIA_DESCRIBE_NUM_TO_ENUM(number, ret_value) \
-    esp_brookesia::lib_utils::describe_number_to_enum(number, ret_value)  ///< Convert number to enum
+    esp_brookesia::lib_utils::describe_number_to_enum(number, ret_value)
+/** @def BROOKESIA_DESCRIBE_STR_TO_ENUM
+ *  @brief Convert an enumerator name to a described enum value.
+ */
 #define BROOKESIA_DESCRIBE_STR_TO_ENUM(str, ret_value) \
-    esp_brookesia::lib_utils::describe_string_to_enum(str, ret_value)     ///< Convert string to enum
+    esp_brookesia::lib_utils::describe_string_to_enum(str, ret_value)
 
-// JSON conversion macros
+/** @def BROOKESIA_DESCRIBE_TO_JSON
+ *  @brief Convert a supported value to `boost::json::value`.
+ */
 #define BROOKESIA_DESCRIBE_TO_JSON(value) \
-    esp_brookesia::lib_utils::describe_to_json(value)               ///< Convert any type to JSON
+    esp_brookesia::lib_utils::describe_to_json(value)
+/** @def BROOKESIA_DESCRIBE_FROM_JSON
+ *  @brief Convert a `boost::json::value` to a supported C++ value.
+ */
 #define BROOKESIA_DESCRIBE_FROM_JSON(json_value, ret_value) \
-    esp_brookesia::lib_utils::describe_from_json(json_value, ret_value)  ///< Convert JSON to any type
+    esp_brookesia::lib_utils::describe_from_json(json_value, ret_value)
 
-// String serialization/deserialization macros
+/** @def BROOKESIA_DESCRIBE_JSON_SERIALIZE
+ *  @brief Serialize a supported value to JSON text.
+ */
 #define BROOKESIA_DESCRIBE_JSON_SERIALIZE(value) \
-    esp_brookesia::lib_utils::describe_json_serialize(value)  ///< Convert any type to JSON string
+    esp_brookesia::lib_utils::describe_json_serialize(value)
+/** @def BROOKESIA_DESCRIBE_JSON_DESERIALIZE
+ *  @brief Deserialize JSON text into a supported C++ value.
+ */
 #define BROOKESIA_DESCRIBE_JSON_DESERIALIZE(str, ret_value) \
-    esp_brookesia::lib_utils::describe_json_deserialize(str, ret_value)  ///< Convert JSON string to any type
+    esp_brookesia::lib_utils::describe_json_deserialize(str, ret_value)
 
-// Format management macros
-#define BROOKESIA_DESCRIBE_FORMAT_VERBOSE esp_brookesia::lib_utils::DESCRIBE_FORMAT_VERBOSE  ///< Verbose format
-#define BROOKESIA_DESCRIBE_FORMAT_JSON esp_brookesia::lib_utils::DESCRIBE_FORMAT_JSON  ///< JSON format
-#define BROOKESIA_DESCRIBE_FORMAT_COMPACT esp_brookesia::lib_utils::DESCRIBE_FORMAT_COMPACT  ///< Compact format
-#define BROOKESIA_DESCRIBE_FORMAT_DEFAULT esp_brookesia::lib_utils::DESCRIBE_FORMAT_DEFAULT  ///< Default format
-#define BROOKESIA_DESCRIBE_FORMAT_PYTHON esp_brookesia::lib_utils::DESCRIBE_FORMAT_PYTHON  ///< Python format
-#define BROOKESIA_DESCRIBE_FORMAT_CPP esp_brookesia::lib_utils::DESCRIBE_FORMAT_CPP  ///< C++ format
+/** @def BROOKESIA_DESCRIBE_FORMAT_VERBOSE
+ *  @brief Verbose multi-line formatting preset.
+ */
+#define BROOKESIA_DESCRIBE_FORMAT_VERBOSE esp_brookesia::lib_utils::DESCRIBE_FORMAT_VERBOSE
+/** @def BROOKESIA_DESCRIBE_FORMAT_JSON
+ *  @brief JSON-like formatting preset.
+ */
+#define BROOKESIA_DESCRIBE_FORMAT_JSON esp_brookesia::lib_utils::DESCRIBE_FORMAT_JSON
+/** @def BROOKESIA_DESCRIBE_FORMAT_COMPACT
+ *  @brief Compact single-line formatting preset.
+ */
+#define BROOKESIA_DESCRIBE_FORMAT_COMPACT esp_brookesia::lib_utils::DESCRIBE_FORMAT_COMPACT
+/** @def BROOKESIA_DESCRIBE_FORMAT_DEFAULT
+ *  @brief Default human-readable formatting preset.
+ */
+#define BROOKESIA_DESCRIBE_FORMAT_DEFAULT esp_brookesia::lib_utils::DESCRIBE_FORMAT_DEFAULT
+/** @def BROOKESIA_DESCRIBE_FORMAT_PYTHON
+ *  @brief Python-dict-inspired formatting preset.
+ */
+#define BROOKESIA_DESCRIBE_FORMAT_PYTHON esp_brookesia::lib_utils::DESCRIBE_FORMAT_PYTHON
+/** @def BROOKESIA_DESCRIBE_FORMAT_CPP
+ *  @brief C++ designated-initializer-inspired formatting preset.
+ */
+#define BROOKESIA_DESCRIBE_FORMAT_CPP esp_brookesia::lib_utils::DESCRIBE_FORMAT_CPP
+/** @def BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT
+ *  @brief Set the global default string formatting preset.
+ */
 #define BROOKESIA_DESCRIBE_SET_GLOBAL_FORMAT(fmt) \
-    esp_brookesia::lib_utils::describe_set_global_format(fmt)  ///< Set global format
+    esp_brookesia::lib_utils::describe_set_global_format(fmt)
+/** @def BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT
+ *  @brief Get the global default string formatting preset.
+ */
 #define BROOKESIA_DESCRIBE_GET_GLOBAL_FORMAT() \
-    esp_brookesia::lib_utils::describe_get_global_format()  ///< Get global format
+    esp_brookesia::lib_utils::describe_get_global_format()
+/** @def BROOKESIA_DESCRIBE_RESET_GLOBAL_FORMAT
+ *  @brief Reset the global default string formatting preset.
+ */
 #define BROOKESIA_DESCRIBE_RESET_GLOBAL_FORMAT() \
-    esp_brookesia::lib_utils::describe_reset_global_format()  ///< Reset global format
+    esp_brookesia::lib_utils::describe_reset_global_format()
 
-// Universal string conversion macros (auto-detect type)
+/** @def BROOKESIA_DESCRIBE_TO_STR
+ *  @brief Convert a supported value to a string with the global default format.
+ */
 #define BROOKESIA_DESCRIBE_TO_STR(value) \
-    esp_brookesia::lib_utils::describe_to_string(value) ///< Convert with default format
+    esp_brookesia::lib_utils::describe_to_string(value)
+/** @def BROOKESIA_DESCRIBE_TO_STR_WITH_FMT
+ *  @brief Convert a supported value to a string with an explicit format preset.
+ */
 #define BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(value, fmt) \
-    esp_brookesia::lib_utils::describe_to_string_with_fmt(value, fmt) ///< Convert with custom format
+    esp_brookesia::lib_utils::describe_to_string_with_fmt(value, fmt)

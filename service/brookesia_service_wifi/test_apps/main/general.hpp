@@ -63,7 +63,7 @@ struct GeneralEventHappened {
 };
 
 struct ScanApInfosUpdatedEvent {
-    std::vector<esp_brookesia::service::wifi::ApInfo> ap_infos;
+    std::vector<esp_brookesia::service::wifi::ScanApInfo> ap_infos;
 };
 
 struct SoftApEventHappened {

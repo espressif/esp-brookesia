@@ -1,0 +1,42 @@
+## IDF Component Manager Manifest File
+dependencies:
+  # Hal
+  espressif/brookesia_hal_adaptor:
+    version: "*"
+    override_path: "../../../../hal/brookesia_hal_adaptor"
+  espressif/brookesia_hal_boards:
+    version: "*"
+    override_path: "../../../../hal/brookesia_hal_boards"
+
+  # Services
+  espressif/brookesia_service_audio:
+    version: "*"
+    override_path: "../../../../service/brookesia_service_audio"
+  espressif/brookesia_service_nvs:
+    version: "*"
+    override_path: "../../../../service/brookesia_service_nvs"
+  espressif/brookesia_service_sntp:
+    version: "*"
+    override_path: "../../../../service/brookesia_service_sntp"
+  espressif/brookesia_service_wifi:
+    version: "*"
+    override_path: "../../../../service/brookesia_service_wifi"
+  espressif/brookesia_service_video:
+    version: "*"
+    override_path: "../../../../service/brookesia_service_video"
+
+  # Agents
+  espressif/brookesia_agent_coze:
+    version: "*"
+    override_path: "../../../../agent/brookesia_agent_coze"
+  espressif/brookesia_agent_openai:
+    version: "*"
+    override_path: "../../../../agent/brookesia_agent_openai"
+  espressif/brookesia_agent_xiaozhi:
+    version: "*"
+    override_path: "../../../../agent/brookesia_agent_xiaozhi"
+
+  # Expressions
+  espressif/brookesia_expression_emote:
+    version: "*"
+    override_path: "../../../../expression/brookesia_expression_emote"

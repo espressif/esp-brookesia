@@ -146,6 +146,33 @@ flowchart LR
 > [!NOTE]
 > SDK 的安装方法请参阅 [ESP-IDF 编程指南 - 安装](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html#get-started-how-to-get-esp-idf)
 
+对于 Host / PC 构建，`brookesia_service_manager` 也支持脱离 `ESP-IDF` 的标准 CMake 工程。
+在该模式下，请确保具备以下依赖：
+
+- 支持 C++23 的编译器
+- Boost `thread`、`system`、`chrono`、`json`
+- 同仓库中的 `brookesia_lib_utils`，或者让当前组件的 `CMakeLists.txt` 通过 `add_subdirectory()` 自动拉起
+
+典型的 Host 侧接入方式如下：
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(my_host_app LANGUAGES CXX)
+
+add_subdirectory(path/to/esp-brookesia/service/brookesia_service_manager brookesia_service_manager)
+add_executable(my_host_app main.cpp)
+target_link_libraries(my_host_app PRIVATE brookesia_service_manager)
+set_target_properties(my_host_app PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED ON)
+```
+
+该组件同时自带一个可直接运行的 Host smoke test，位于 `host_test/`：
+
+```bash
+cmake -S service/brookesia_service_manager/host_test -B build/service_manager_host
+cmake --build build/service_manager_host
+ctest --test-dir build/service_manager_host --output-on-failure
+```
+
 ### 添加到工程
 
 `brookesia_service_manager` 已上传到 [Espressif 组件库](https://components.espressif.com/)，您可以通过以下方式将其添加到工程中：

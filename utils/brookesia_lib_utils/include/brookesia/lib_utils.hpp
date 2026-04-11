@@ -5,6 +5,10 @@
  */
 #pragma once
 
+/**
+ * @brief Convenience umbrella header that includes the complete public `lib_utils` API.
+ */
+
 #include "lib_utils/macro_configs.h"
 #include "lib_utils/check.hpp"
 #include "lib_utils/describe_helpers.hpp"

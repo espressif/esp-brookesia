@@ -61,13 +61,13 @@ wifi_sta_config_t get_sta_config(const ConnectApInfo &ap_info)
     return cfg;
 }
 
-ApInfo get_ap_info(const wifi_ap_record_t &ap_record)
+ScanApInfo get_ap_info(const wifi_ap_record_t &ap_record)
 {
-    return ApInfo{
+    return ScanApInfo{
         .ssid = std::string(reinterpret_cast<const char *>(ap_record.ssid)),
         .is_locked = ap_record.authmode != WIFI_AUTH_OPEN,
         .rssi = ap_record.rssi,
-        .signal_level = ApInfo::get_signal_level(ap_record.rssi),
+        .signal_level = ScanApInfo::get_signal_level(ap_record.rssi),
         .channel = ap_record.primary,
     };
 }
@@ -478,6 +478,10 @@ bool Hal::do_general_action(GeneralAction action, bool is_force)
 
     // Action running bit should be cleared by call `trigger_general_event()` when the action is done or failed
     update_general_action_state_bit(action, true);
+    lib_utils::FunctionGuard clear_action_guard([this, action]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        update_general_action_state_bit(action, false);
+    });
 
     bool result = true;
     switch (action) {
@@ -508,10 +512,12 @@ bool Hal::do_general_action(GeneralAction action, bool is_force)
         break;
     }
     if (!result) {
-        update_general_state_error(true);
+        Wifi::get_instance().on_hal_error_state();
         BROOKESIA_LOGE("WiFi do '%1%' failed", action_str);
         return false;
     }
+
+    clear_action_guard.release();
 
     BROOKESIA_LOGI("WiFi do '%1%' finished", action_str);
 
@@ -544,11 +550,6 @@ void Hal::trigger_general_event(GeneralEvent event)
     if (is_unexpected_event) {
         BROOKESIA_LOGW("Detected unexpected event: %1%", event_str);
 
-        // Notify unexpected event happened
-        if (!Wifi::get_instance().on_hal_unexpected_general_event(event)) {
-            BROOKESIA_LOGE("Failed to handle unexpected general event");
-        }
-
         // Clear the current action running bit
         auto running_action = get_running_general_action();
         update_general_action_state_bit(running_action, false);
@@ -568,6 +569,11 @@ void Hal::trigger_general_event(GeneralEvent event)
     update_general_action_state_bit(event_action, false);
     // Set target event stable bit
     update_general_event_state_bit(event, true);
+
+    // Handle general event
+    if (!Wifi::get_instance().on_hal_general_event(event, is_unexpected_event)) {
+        BROOKESIA_LOGE("Failed to handle general event");
+    }
 
     // Publish general event happened
     if (!Wifi::get_instance().publish_general_event(event, is_unexpected_event)) {
@@ -610,6 +616,8 @@ bool Hal::set_scan_params(const ScanParams &params)
 bool Hal::start_scan()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    bool is_scanning = is_scan_task_running();
 
     // Stop scan and delayed tasks
     stop_scan();
@@ -667,6 +675,10 @@ bool Hal::start_scan()
         ), false, "Post scan AP delayed task failed"
     );
 
+    if (!is_scanning && !Wifi::get_instance().publish_scan_state_changed(true)) {
+        BROOKESIA_LOGE("Failed to publish scan started event");
+    }
+
     stop_guard.release();
 
     return true;
@@ -675,6 +687,8 @@ bool Hal::start_scan()
 void Hal::stop_scan()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    bool is_scanning = is_scan_task_running();
 
     if (scan_periodic_task_ != 0) {
         task_scheduler_->cancel(scan_periodic_task_);
@@ -685,6 +699,10 @@ void Hal::stop_scan()
         scan_ap_timeout_task_ = 0;
     }
     do_scan_stop();
+
+    if (is_scanning && !Wifi::get_instance().publish_scan_state_changed(false)) {
+        BROOKESIA_LOGE("Failed to publish scan stopped event");
+    }
 }
 
 void Hal::set_disable_auto_connect(bool disable)
@@ -862,15 +880,6 @@ bool Hal::is_general_event_ready(GeneralEvent event)
     return state_flags_.test(BROOKESIA_DESCRIBE_ENUM_TO_NUM(flag_bit)) == bit_value;
 }
 
-void Hal::update_general_state_error(bool enable)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: enable(%1%)", BROOKESIA_DESCRIBE_TO_STR(enable));
-
-    state_flags_.set(BROOKESIA_DESCRIBE_ENUM_TO_NUM(GeneralStateFlagBit::Error), enable);
-}
-
 void Hal::update_general_action_state_bit(GeneralAction action, bool enable)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -1004,6 +1013,11 @@ bool Hal::process_general_event_started()
         if (is_general_event_ready(GeneralEvent::Stopped) || is_general_action_running(GeneralAction::Stop) ||
                 is_general_event_ready(GeneralEvent::Connected) || is_general_action_running(GeneralAction::Connect)) {
             BROOKESIA_LOGD("Skip started connect task");
+            return;
+        }
+
+        if (is_disable_auto_connect()) {
+            BROOKESIA_LOGD("Auto connect is disabled, skip");
             return;
         }
 
@@ -1310,7 +1324,7 @@ bool Hal::update_scan_ap_infos()
 
     BROOKESIA_LOGI("Scanned AP count: %1%", actual_ap_count);
 
-    std::vector<ApInfo> scan_ap_infos(actual_ap_count);
+    std::vector<ScanApInfo> scan_ap_infos(actual_ap_count);
     for (size_t i = 0; (i < actual_ap_count); i++) {
         const auto &ap_record = ap_records[i];
         scan_ap_infos[i] = get_ap_info(ap_record);
@@ -1318,7 +1332,7 @@ bool Hal::update_scan_ap_infos()
     }
 
     auto publish_ap_count = std::min(actual_ap_count, static_cast<uint16_t>(get_scan_params().ap_count));
-    std::span<const ApInfo> publish_ap_infos(scan_ap_infos.begin(), publish_ap_count);
+    std::span<const ScanApInfo> publish_ap_infos(scan_ap_infos.begin(), publish_ap_count);
     BROOKESIA_CHECK_FALSE_EXECUTE(Wifi::get_instance().publish_scan_ap_infos(publish_ap_infos), {}, {
         BROOKESIA_LOGE("Failed to publish scan AP infos");
     });

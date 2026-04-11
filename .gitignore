@@ -37,6 +37,7 @@ test_multi_heap_host
 
 # VS Code Settings
 .vscode/
+.cursor/
 
 # VIM files
 *.swp
@@ -52,6 +53,7 @@ flake8_output.txt
 
 # esp-idf default build directory name
 build
+_build
 build_esp*/
 build_linux*/
 size_info.txt
@@ -80,3 +82,18 @@ sdkconfig.bmgr_board.old
 
 # private key files
 *.pem
+
+# python venv
+.venv/
+.venv-docs/
+
+# Drawio files
+*.drawio.dtmp
+*.drawio.bkp
+
+# SquareLine Studio files
+**/squareline_project/backup/
+**/squareline_project/cache/
+**/squareline_ui/CMakeLists.txt
+**/squareline_ui/filelist.txt
+**/squareline_ui/project.info

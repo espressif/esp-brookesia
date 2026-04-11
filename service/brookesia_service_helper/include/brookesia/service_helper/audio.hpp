@@ -11,32 +11,21 @@
 
 namespace esp_brookesia::service::helper {
 
+/**
+ * @brief Helper schema definitions for the audio service.
+ */
 class Audio: public Base<Audio> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /**
-     * @brief  Peripheral related configurations
-     */
-    struct PeripheralConfig {
-        void *play_dev;
-        void *rec_dev;
-        uint8_t board_bits;
-        uint8_t board_channels;
-        uint32_t board_sample_rate;
-        std::string mic_layout;
-        float recorder_gain;
-        std::map<uint8_t, float> recorder_channel_gains;
-    };
-
-    /**
      * @brief  Mixer related configurations
      */
     struct MixerGainConfig {
-        float initial_gain;
-        float target_gain;
-        int transition_time;
+        float initial_gain;   /*!< Initial gain value */
+        float target_gain;    /*!< Target gain value */
+        int transition_time;  /*!< Transition duration in milliseconds */
     };
 
     /**
@@ -55,22 +44,34 @@ public:
             .transition_time = 1500,
         };
     };
+
+    /**
+     * @brief Playback control actions.
+     */
     enum class PlayControlAction : uint8_t {
         Pause,
         Resume,
         Stop,
     };
+
+    /**
+     * @brief Playback states.
+     */
     enum class PlayState : uint8_t {
         Idle,
         Playing,
         Paused,
     };
+
+    /**
+     * @brief Runtime options for `PlayUrl` and `PlayUrls`.
+     */
     struct PlayUrlConfig {
-        bool interrupt = true;
-        uint32_t delay_ms = 0;
-        uint32_t loop_count = 0;
-        uint32_t loop_interval_ms = 0;
-        uint32_t timeout_ms = 0;
+        bool interrupt = true;          /*!< Whether current playback can be interrupted */
+        uint32_t delay_ms = 0;          /*!< Delay before playback starts */
+        uint32_t loop_count = 0;        /*!< Number of extra loops */
+        uint32_t loop_interval_ms = 0;  /*!< Interval between loops */
+        uint32_t timeout_ms = 0;        /*!< Timeout for finishing playback */
     };
 
     /**
@@ -112,11 +113,11 @@ public:
         uint32_t bitrate;     /*!< Bitrate in bps */
     };
     struct EncoderDynamicConfig {
-        CodecFormat type;
-        CodecGeneralConfig general;
-        std::variant<std::monostate, EncoderExtraConfigOpus> extra;
-        uint32_t fetch_interval_ms = 10;
-        uint32_t fetch_data_size = 4096;
+        CodecFormat type;                                                     /*!< Encoder codec type */
+        CodecGeneralConfig general;                                           /*!< Encoder common codec settings */
+        std::variant<std::monostate, EncoderExtraConfigOpus> extra = std::monostate{}; /*!< Optional codec-specific settings */
+        uint32_t fetch_interval_ms = 10;                                      /*!< Encoder fetch interval in milliseconds */
+        uint32_t fetch_data_size = 4096;                                      /*!< Encoder fetch size in bytes */
     };
 
     /**
@@ -136,23 +137,23 @@ public:
         };
     };
     struct DecoderDynamicConfig {
-        CodecFormat type;
-        CodecGeneralConfig general;
+        CodecFormat type;           /*!< Decoder codec type */
+        CodecGeneralConfig general; /*!< Decoder common codec settings */
     };
 
     /**
      * @brief  AFE related configurations
      */
     struct AFE_VAD_Config {
-        uint8_t mode = 4;
-        uint32_t min_speech_ms = 64;
-        uint32_t min_noise_ms = 1000;
+        uint8_t mode = 4;             /*!< VAD mode */
+        uint32_t min_speech_ms = 64;  /*!< Minimum speech duration */
+        uint32_t min_noise_ms = 1000; /*!< Minimum noise duration */
     };
     struct AFE_WakeNetConfig {
-        std::string model_partition_label = "model";
-        std::string mn_language = "cn";
-        uint32_t start_timeout_ms = 3000;
-        uint32_t end_timeout_ms = 10000;
+        std::string model_partition_label = "model"; /*!< Wake model partition label */
+        std::string mn_language = "cn";              /*!< Wake model language */
+        uint32_t start_timeout_ms = 30000;           /*!< Timeout before wake start */
+        uint32_t end_timeout_ms = 10000;             /*!< Timeout before wake end */
     };
     struct AFE_Config {
         lib_utils::ThreadConfig feeder_task{
@@ -181,17 +182,23 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the types required by the Base class /////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Audio service function identifiers.
+     */
     enum class FunctionId : uint8_t {
-        SetPeripheralConfig,
         SetPlaybackConfig,
         SetEncoderStaticConfig,
         SetDecoderStaticConfig,
         SetAFE_Config,
+        GetAFE_WakeWords,
+        PauseAFE_WakeupEnd,
+        ResumeAFE_WakeupEnd,
         PlayUrl,
         PlayUrls,
         PlayControl,
         SetVolume,
         GetVolume,
+        SetMute,
         StartEncoder,
         StopEncoder,
         PauseEncoder,
@@ -199,9 +206,13 @@ public:
         StartDecoder,
         StopDecoder,
         FeedDecoderData,
+        ResetData,
         Max,
     };
 
+    /**
+     * @brief Audio service event identifiers.
+     */
     enum class EventId : uint8_t {
         PlayStateChanged,
         AFE_EventHappened,
@@ -213,52 +224,88 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function parameter types ////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    enum class FunctionSetPeripheralConfigParam : uint8_t {
-        Config,
-    };
-
+    /**
+     * @brief Parameter keys for `FunctionId::SetPlaybackConfig`.
+     */
     enum class FunctionSetPlaybackConfigParam : uint8_t {
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::SetEncoderStaticConfig`.
+     */
     enum class FunctionSetEncoderStaticConfigParam : uint8_t {
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::SetDecoderStaticConfig`.
+     */
     enum class FunctionSetDecoderStaticConfigParam : uint8_t {
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::SetAFE_Config`.
+     */
     enum class FunctionSetAFE_ConfigParam : uint8_t {
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::PlayUrl`.
+     */
     enum class FunctionPlayUrlParam : uint8_t {
         Url,
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::PlayUrls`.
+     */
     enum class FunctionPlayUrlsParam : uint8_t {
         Urls,
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::PlayControl`.
+     */
     enum class FunctionPlayControlParam : uint8_t {
         Action,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::SetVolume`.
+     */
     enum class FunctionSetVolumeParam : uint8_t {
         Volume,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::SetMute`.
+     */
+    enum class FunctionSetMuteParam : uint8_t {
+        Enable,
+    };
+
+    /**
+     * @brief Parameter keys for `FunctionId::StartEncoder`.
+     */
     enum class FunctionStartEncoderParam : uint8_t {
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::StartDecoder`.
+     */
     enum class FunctionStartDecoderParam : uint8_t {
         Config,
     };
 
+    /**
+     * @brief Parameter keys for `FunctionId::FeedDecoderData`.
+     */
     enum class FunctionFeedDecoderDataParam : uint8_t {
         Data,
     };
@@ -266,18 +313,30 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the event parameter types ///////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Item keys for `EventId::PlayStateChanged`.
+     */
     enum class EventPlayStateChangedParam : uint8_t {
         State,
     };
 
+    /**
+     * @brief Item keys for `EventId::AFE_EventHappened`.
+     */
     enum class EventAFE_EventHappenedParam : uint8_t {
         Event,
     };
 
+    /**
+     * @brief Item keys for `EventId::EncoderDataReady`.
+     */
     enum class EventEncoderDataReadyParam : uint8_t {
         Data,
     };
 
+    /**
+     * @brief Item keys for `EventId::RecorderDataReady`.
+     */
     enum class EventRecorderDataReadyParam : uint8_t {
         Data,
     };
@@ -286,31 +345,16 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the function schemas /////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    static FunctionSchema function_schema_set_peripheral_config()
-    {
-        return {
-            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetPeripheralConfig),
-            .description = "Set the peripheral config. This function should be called before the service start",
-            .parameters = {
-                {
-                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetPeripheralConfigParam::Config),
-                    .description = "The peripheral config",
-                    .type = FunctionValueType::Object
-                }
-            },
-            .require_scheduler = false,
-        };
-    }
-
     static FunctionSchema function_schema_set_playback_config()
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetPlaybackConfig),
-            .description = "Set the playback config. This function should be called before the service start",
+            .description = "Set playback config. Call before starting the service.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetPlaybackConfigParam::Config),
-                    .description = "The playback config",
+                    .description = (boost::format("Playback config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(PlaybackConfig{})).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -322,11 +366,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetEncoderStaticConfig),
-            .description = "Set the encoder static config. This function should be called before the service start",
+            .description = "Set encoder static config. Call before starting the service.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEncoderStaticConfigParam::Config),
-                    .description = "The encoder static config",
+                    .description = (boost::format("Encoder static config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(EncoderStaticConfig{})).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -338,11 +383,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetDecoderStaticConfig),
-            .description = "Set the decoder static config. This function should be called before the service start",
+            .description = "Set decoder static config. Call before starting the service.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetDecoderStaticConfigParam::Config),
-                    .description = "The decoder static config",
+                    .description = (boost::format("Decoder static config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(DecoderStaticConfig{})).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -354,11 +400,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetAFE_Config),
-            .description = "Set the AFE config. This function should be called before the service start",
+            .description = "Set AFE config. Call before starting the service.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAFE_ConfigParam::Config),
-                    .description = "The AFE static config",
+                    .description = (boost::format("AFE config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(AFE_Config{})).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -366,21 +413,51 @@ private:
         };
     }
 
+    static FunctionSchema function_schema_get_afe_wake_words()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetAFE_WakeWords),
+            .description = (boost::format("Get AFE wake words. Return type: JSON array<string>. "
+                                          "Example: %1%")
+            % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({
+                "ni hao xiao zhi",
+                "hello brookesia"
+            }))).str(),
+            .require_scheduler = false,
+        };
+    }
+
+    static FunctionSchema function_schema_pause_afe_wakeup_end()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PauseAFE_WakeupEnd),
+            .description = "Pause AFE wakeup-end task.",
+        };
+    }
+
+    static FunctionSchema function_schema_resume_afe_wakeup_end()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResumeAFE_WakeupEnd),
+            .description = "Resume AFE wakeup-end task.",
+        };
+    }
+
     static FunctionSchema function_schema_play_url()
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayUrl),
-            .description = "Play an audio file from the specified URL. Also support loop playback and interrupt playback.",
+            .description = "Play audio from a URL. Supports loop and interrupt playback.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlParam::Url),
-                    .description = "URL of the audio file to play, eg:'file://spiffs/example.mp3'",
+                    .description = "Audio URL, for example: \"file://spiffs/example.mp3\".",
                     .type = FunctionValueType::String
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlParam::Config),
-                    .description = (boost::format("The configuration of the audio playback. Example: %1%")
-                    % BROOKESIA_DESCRIBE_TO_STR(PlayUrlConfig{})).str(),
+                    .description = (boost::format("Playback config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(PlayUrlConfig{})).str(),
                     .type = FunctionValueType::Object,
                     .default_value = FunctionValue(BROOKESIA_DESCRIBE_TO_JSON(PlayUrlConfig{}).as_object()),
                 }
@@ -392,12 +469,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayUrls),
-            .description = "Play audio files from the specified URLs. Also support loop playback and interrupt playback.",
+            .description = "Play audio from multiple URLs. Supports loop and interrupt playback.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlsParam::Urls),
-                    .description = (boost::format("URLs of the audio files to play. Example: %1%")
-                    % BROOKESIA_DESCRIBE_TO_STR(std::vector<std::string>({
+                    .description = (boost::format("Audio URL list. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({
                         "file://spiffs/example1.mp3",
                         "file://spiffs/example2.mp3"
                     }))).str(),
@@ -405,8 +482,8 @@ private:
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlsParam::Config),
-                    .description = (boost::format("The configuration of the audio playback. Example: %1%")
-                    % BROOKESIA_DESCRIBE_TO_STR(PlayUrlConfig{})).str(),
+                    .description = (boost::format("Playback config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(PlayUrlConfig{})).str(),
                     .type = FunctionValueType::Object,
                     .default_value = FunctionValue(BROOKESIA_DESCRIBE_TO_JSON(PlayUrlConfig{}).as_object()),
                 }
@@ -418,12 +495,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PlayControl),
-            .description = "Control the audio playback",
+            .description = "Control audio playback.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayControlParam::Action),
-                    .description = (boost::format("The action to control the audio playback, "
-                                                  "should be one of the following: %1%")
+                    .description = (boost::format("Playback action. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<PlayControlAction>({
                         PlayControlAction::Pause, PlayControlAction::Resume, PlayControlAction::Stop
                     }))).str(),
@@ -437,11 +513,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetVolume),
-            .description = "Set the volume of the audio playback",
+            .description = "Set playback volume.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetVolumeParam::Volume),
-                    .description = "Volume value, range from 0 to 100",
+                    .description = "Volume in range [0, 100].",
                     .type = FunctionValueType::Number
                 }
             },
@@ -452,8 +528,23 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetVolume),
-            .description = "Get the volume of the audio playback",
+            .description = "Get playback volume. Return type: number. Example: 70",
             .require_scheduler = false
+        };
+    }
+
+    static FunctionSchema function_schema_set_mute()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetMute),
+            .description = "Set playback mute.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetMuteParam::Enable),
+                    .description = "Enable mute.",
+                    .type = FunctionValueType::Boolean
+                }
+            },
         };
     }
 
@@ -461,11 +552,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartEncoder),
-            .description = "Start the audio encoder",
+            .description = "Start audio encoder.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionStartEncoderParam::Config),
-                    .description = "The configuration of the audio encoder",
+                    .description = (boost::format("Audio encoder config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(EncoderDynamicConfig{})).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -476,7 +568,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopEncoder),
-            .description = "Stop the audio encoder",
+            .description = "Stop audio encoder.",
         };
     }
 
@@ -484,7 +576,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PauseEncoder),
-            .description = "Pause the audio encoder",
+            .description = "Pause audio encoder.",
         };
     }
 
@@ -492,7 +584,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResumeEncoder),
-            .description = "Resume the audio encoder",
+            .description = "Resume audio encoder.",
         };
     }
 
@@ -500,11 +592,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartDecoder),
-            .description = "Start the audio decoder",
+            .description = "Start audio decoder.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionStartDecoderParam::Config),
-                    .description = "The configuration of the audio decoder",
+                    .description = (boost::format("Audio decoder config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE(DecoderDynamicConfig{})).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -515,7 +608,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopDecoder),
-            .description = "Stop the audio decoder",
+            .description = "Stop audio decoder.",
         };
     }
 
@@ -523,15 +616,23 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::FeedDecoderData),
-            .description = "Feed the audio data to the decoder",
+            .description = "Feed audio data to the decoder.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFeedDecoderDataParam::Data),
-                    .description = "The audio data to feed to the decoder",
+                    .description = "Audio data to decode.",
                     .type = FunctionValueType::RawBuffer
                 }
             },
             .require_scheduler = false,
+        };
+    }
+
+    static FunctionSchema function_schema_reset_data()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
+            .description = "Reset audio data. Includes player volume.",
         };
     }
 
@@ -542,11 +643,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::PlayStateChanged),
-            .description = "Play state changed event",
+            .description = "Emitted when playback state changes.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventPlayStateChangedParam::State),
-                    .description = (boost::format("Play state, should be one of the following: %1%") %
+                    .description = (boost::format("Playback state. Allowed values: %1%") %
                     BROOKESIA_DESCRIBE_TO_STR(std::vector<PlayState>({
                         PlayState::Idle, PlayState::Playing, PlayState::Paused
                     }))).str(),
@@ -560,11 +661,12 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::AFE_EventHappened),
-            .description = "AFE event happened event",
+            .description = "Emitted when an AFE event occurs.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventAFE_EventHappenedParam::Event),
-                    .description = (boost::format("The event that happened, should be one of the following: %1%") %
+                    .description = (boost::format("AFE event. Allowed values: %1%")
+                                    %
                     BROOKESIA_DESCRIBE_TO_STR(std::vector<AFE_Event>({
                         AFE_Event::VAD_Start, AFE_Event::VAD_End, AFE_Event::WakeStart, AFE_Event::WakeEnd
                     }))).str(),
@@ -578,11 +680,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::EncoderDataReady),
-            .description = "Encoder data ready event",
+            .description = "Emitted when encoder data is ready.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventEncoderDataReadyParam::Data),
-                    .description = "The audio data that is being encoded",
+                    .description = "Encoded audio data.",
                     .type = EventItemType::RawBuffer
                 }
             },
@@ -594,11 +696,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::RecorderDataReady),
-            .description = "Recorder data ready event",
+            .description = "Emitted when recorder data is ready.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventRecorderDataReadyParam::Data),
-                    .description = "The raw audio data that is being recorded",
+                    .description = "Recorded raw audio data.",
                     .type = EventItemType::RawBuffer
                 }
             },
@@ -610,24 +712,37 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the functions required by the Base class /////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Service name used by `ServiceManager`.
+     *
+     * @return std::string_view Stable service name.
+     */
     static constexpr std::string_view get_name()
     {
         return "Audio";
     }
 
+    /**
+     * @brief Get function schemas exported by audio service.
+     *
+     * @return std::span<const FunctionSchema> Static function schema span.
+     */
     static std::span<const FunctionSchema> get_function_schemas()
     {
         static const std::array<FunctionSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(FunctionId::Max)> FUNCTION_SCHEMAS = {{
-                function_schema_set_peripheral_config(),
                 function_schema_set_playback_config(),
                 function_schema_set_encoder_static_config(),
                 function_schema_set_decoder_static_config(),
                 function_schema_set_afe_config(),
+                function_schema_get_afe_wake_words(),
+                function_schema_pause_afe_wakeup_end(),
+                function_schema_resume_afe_wakeup_end(),
                 function_schema_play_url(),
                 function_schema_play_urls(),
                 function_schema_play_control(),
                 function_schema_set_volume(),
                 function_schema_get_volume(),
+                function_schema_set_mute(),
                 function_schema_start_encoder(),
                 function_schema_stop_encoder(),
                 function_schema_pause_encoder(),
@@ -635,11 +750,17 @@ public:
                 function_schema_start_decoder(),
                 function_schema_stop_decoder(),
                 function_schema_feed_decoder_data(),
+                function_schema_reset_data(),
             }
         };
         return std::span<const FunctionSchema>(FUNCTION_SCHEMAS);
     }
 
+    /**
+     * @brief Get event schemas exported by audio service.
+     *
+     * @return std::span<const EventSchema> Static event schema span.
+     */
     static std::span<const EventSchema> get_event_schemas()
     {
         static const std::array<EventSchema, BROOKESIA_DESCRIBE_ENUM_TO_NUM(EventId::Max)> EVENT_SCHEMAS = {{
@@ -656,14 +777,6 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the describe macros //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-/**
- * @brief  Peripheral related configurations
- */
-BROOKESIA_DESCRIBE_STRUCT(Audio::PeripheralConfig, (), (
-                              play_dev, rec_dev, board_bits, board_channels, board_sample_rate, mic_layout,
-                              recorder_gain, recorder_channel_gains
-                          ));
-
 /**
  * @brief  Mixer related configurations
  */
@@ -710,11 +823,11 @@ BROOKESIA_DESCRIBE_ENUM(Audio::AFE_Event, VAD_Start, VAD_End, WakeStart, WakeEnd
  * @brief  Function related
  */
 BROOKESIA_DESCRIBE_ENUM(
-    Audio::FunctionId, SetPeripheralConfig, SetPlaybackConfig, SetEncoderStaticConfig, SetDecoderStaticConfig,
-    SetAFE_Config, PlayUrl, PlayUrls, PlayControl, SetVolume, GetVolume, StartEncoder, StopEncoder, PauseEncoder,
-    ResumeEncoder, StartDecoder, StopDecoder, FeedDecoderData, Max
+    Audio::FunctionId, SetPlaybackConfig, SetEncoderStaticConfig, SetDecoderStaticConfig,
+    SetAFE_Config, GetAFE_WakeWords, PauseAFE_WakeupEnd, ResumeAFE_WakeupEnd,
+    PlayUrl, PlayUrls, PlayControl, SetVolume, GetVolume, SetMute, StartEncoder,
+    StopEncoder, PauseEncoder, ResumeEncoder, StartDecoder, StopDecoder, FeedDecoderData, ResetData, Max
 );
-BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetPeripheralConfigParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetPlaybackConfigParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetEncoderStaticConfigParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetDecoderStaticConfigParam, Config);
@@ -723,6 +836,7 @@ BROOKESIA_DESCRIBE_ENUM(Audio::FunctionPlayUrlParam, Url, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionPlayUrlsParam, Urls, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionPlayControlParam, Action);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetVolumeParam, Volume);
+BROOKESIA_DESCRIBE_ENUM(Audio::FunctionSetMuteParam, Enable);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionStartEncoderParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionStartDecoderParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Audio::FunctionFeedDecoderDataParam, Data);

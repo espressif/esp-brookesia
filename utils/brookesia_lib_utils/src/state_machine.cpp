@@ -30,18 +30,21 @@ StateMachine::~StateMachine()
     }
 }
 
-bool StateMachine::add_state(const std::string &name, StatePtr state)
+bool StateMachine::add_state(StatePtr state)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%), state(%2%)", name.c_str(), state);
-
     BROOKESIA_CHECK_NULL_RETURN(state, false, "Invalid argument");
 
-    boost::lock_guard lock(mutex_);
-    BROOKESIA_CHECK_FALSE_RETURN(states_.find(name) == states_.end(), false, "State '%1%' already exists", name);
+    const std::string &name = state->get_name();
+    BROOKESIA_LOGD("Params: name(%1%), state(%2%)", name.c_str(), state.get());
 
-    states_[name] = state;
+    boost::lock_guard lock(mutex_);
+    BROOKESIA_CHECK_FALSE_RETURN(
+        find_state_unlocked(name) == nullptr, false, "State '%1%' already exists", name
+    );
+
+    states_.push_back(std::move(state));
 
     return true;
 }
@@ -63,13 +66,13 @@ bool StateMachine::add_transition(const std::string &from, const std::string &ac
     return true;
 }
 
-bool StateMachine::start(std::shared_ptr<TaskScheduler> task_scheduler, const std::string &initial)
+bool StateMachine::start(Config config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: initial(%1%)", initial);
+    BROOKESIA_LOGD("Params: config(%1%)", config);
 
-    BROOKESIA_CHECK_NULL_RETURN(task_scheduler, false, "Task scheduler is null");
+    BROOKESIA_CHECK_NULL_RETURN(config.task_scheduler, false, "Task scheduler is null");
 
     // Check if already running
     if (is_running()) {
@@ -78,9 +81,9 @@ bool StateMachine::start(std::shared_ptr<TaskScheduler> task_scheduler, const st
     }
 
     // Ensure scheduler is running
-    if (!task_scheduler->is_running()) {
+    if (!config.task_scheduler->is_running()) {
         BROOKESIA_LOGW("Scheduler is not running, starting it...");
-        BROOKESIA_CHECK_FALSE_RETURN(task_scheduler->start(), false, "Failed to start scheduler");
+        BROOKESIA_CHECK_FALSE_RETURN(config.task_scheduler->start(), false, "Failed to start scheduler");
     }
 
     // Setup guard for cleanup on failure
@@ -95,17 +98,18 @@ bool StateMachine::start(std::shared_ptr<TaskScheduler> task_scheduler, const st
 
     // Verify initial state exists
     BROOKESIA_CHECK_FALSE_RETURN(
-        states_.find(initial) != states_.end(), false, "Initial state '%1%' does not exist", initial
+        find_state_unlocked(config.initial_state) != nullptr, false, "Initial state '%1%' does not exist",
+        config.initial_state
     );
 
     // Store scheduler and configure group
-    task_scheduler_ = task_scheduler;
+    task_scheduler_ = config.task_scheduler;
+    task_group_name_ = config.task_group_name;
 
     // Configure group for serial execution (ensures thread-safe state transitions)
-    TaskScheduler::GroupConfig config;
-    config.enable_serial_execution = true;
+    config.task_group_config.enable_serial_execution = true;
     BROOKESIA_CHECK_FALSE_RETURN(
-        task_scheduler->configure_group(task_group_name_, config), false,
+        task_scheduler_->configure_group(task_group_name_, config.task_group_config), false,
         "Failed to configure group '%1%' for state machine", task_group_name_
     );
     BROOKESIA_LOGD("State machine configured to use serial execution for group '%1%'", task_group_name_);
@@ -113,7 +117,9 @@ bool StateMachine::start(std::shared_ptr<TaskScheduler> task_scheduler, const st
     lock.unlock();
 
     // Enter initial state (without holding lock)
-    BROOKESIA_CHECK_FALSE_RETURN(enter_initial_state(initial), false, "Failed to enter initial state '%1%'", initial);
+    BROOKESIA_CHECK_FALSE_RETURN(
+        enter_initial_state(config.initial_state), false, "Failed to enter initial state '%1%'", config.initial_state
+    );
 
     stop_guard.release();
 
@@ -158,6 +164,11 @@ bool StateMachine::trigger_action(const std::string &action, bool use_dispatch)
     // Put action trigger logic into serial queue to avoid concurrency issues
     auto task = [this, action]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        if (!is_running()) {
+            BROOKESIA_LOGD("State machine is not running, ignore action '%1%'", action);
+            return;
+        }
 
         // Ensure transition_count_ is decremented when task completes
         lib_utils::FunctionGuard transition_guard([this]() {
@@ -271,6 +282,11 @@ bool StateMachine::setup_state_tasks(const std::string &name)
 
     BROOKESIA_LOGD("Params: name(%1%)", name);
 
+    if (!is_running()) {
+        BROOKESIA_LOGD("State machine is not running, ignore setup tasks for state '%1%'", name);
+        return true;
+    }
+
     std::shared_ptr<TaskScheduler> scheduler;
     StatePtr state;
     {
@@ -278,11 +294,10 @@ bool StateMachine::setup_state_tasks(const std::string &name)
         BROOKESIA_CHECK_NULL_RETURN(task_scheduler_, false, "Task scheduler is not available");
         scheduler = task_scheduler_;
 
-        auto it = states_.find(name);
+        state = find_state_unlocked(name);
         BROOKESIA_CHECK_FALSE_RETURN(
-            it != states_.end(), false, "Cannot setup tasks for non-existent state '%1%'", name
+            state != nullptr, false, "Cannot setup tasks for non-existent state '%1%'", name
         );
-        state = it->second;
     }
 
     // Periodic task (without holding lock, as scheduler operations may be slow)
@@ -332,11 +347,10 @@ bool StateMachine::enter_initial_state(const std::string &name)
     StatePtr state;
     {
         boost::shared_lock lock(mutex_);
-        auto it = states_.find(name);
+        state = find_state_unlocked(name);
         BROOKESIA_CHECK_FALSE_RETURN(
-            it != states_.end(), false, "Initial state '%1%' does not exist", name
+            state != nullptr, false, "Initial state '%1%' does not exist", name
         );
-        state = it->second;
     }
 
     // Step 3: Call on_enter guard (without holding lock to allow state logic to run freely)
@@ -377,20 +391,18 @@ bool StateMachine::transition_to(const std::string &next, const std::string &act
         }
 
         // Verify current state exists
-        auto current_it = states_.find(current_state_);
+        current_state_obj = find_state_unlocked(current_state_);
         BROOKESIA_CHECK_FALSE_RETURN(
-            current_it != states_.end(), false, "Current state '%1%' does not exist", current_state_
+            current_state_obj != nullptr, false, "Current state '%1%' does not exist", current_state_
         );
 
         // Verify next state exists
-        auto next_it = states_.find(next);
+        next_state_obj = find_state_unlocked(next);
         BROOKESIA_CHECK_FALSE_RETURN(
-            next_it != states_.end(), false, "Next state '%1%' does not exist", next
+            next_state_obj != nullptr, false, "Next state '%1%' does not exist", next
         );
 
         previous_state = current_state_;
-        current_state_obj = current_it->second;
-        next_state_obj = next_it->second;
     }
 
     // Step 2: Exit current state (without holding lock to allow state logic to run freely)

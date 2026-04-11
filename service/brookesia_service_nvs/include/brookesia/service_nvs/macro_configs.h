@@ -8,10 +8,14 @@
 #include "sdkconfig.h"
 #include "brookesia/service_manager/macro_configs.h"
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the NVS service component.
+ */
 #define BROOKESIA_SERVICE_NVS_LOG_TAG "SvcNVS"
 
-/* Auto register */
+/**
+ * @brief Enable automatic plugin registration for the NVS service component.
+ */
 #if !defined(BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER)
 #       define BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
@@ -20,7 +24,9 @@
 #   endif
 #endif
 
-/* Plugin symbol */
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
 #if BROOKESIA_SERVICE_NVS_ENABLE_AUTO_REGISTER
 #   if !defined(BROOKESIA_SERVICE_NVS_PLUGIN_SYMBOL)
 #       define BROOKESIA_SERVICE_NVS_PLUGIN_SYMBOL  service_nvs_symbol

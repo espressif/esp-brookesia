@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+# SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
 """
@@ -30,6 +30,7 @@ class TestResponse(Enum):
     """Test response patterns"""
     SUCCESS = '0 Failures'
     FAILURE = '1 Failures'
+    MEM_LEAK = 'The test leaked too much memory'
     ENTER = 'Enter test for running'
     REBOOT = 'Rebooting...'
 
@@ -37,7 +38,7 @@ class TestResponse(Enum):
 class Config:
     """Configuration constants"""
     DEFAULT_BAUDRATE = 115200
-    DEFAULT_TIMEOUT = 1
+    DEFAULT_TIMEOUT = 10
     DEFAULT_RETRY_LIMIT = 4
     DEFAULT_TEST_TIMEOUT = 120
     POLL_INTERVAL = 0.1
@@ -103,7 +104,7 @@ class SerialPort:
         if self.connection:
             try:
                 return self.connection.readline().decode(errors='ignore').strip()
-            except UnicodeDecodeError:
+            except (UnicodeDecodeError, Exception):
                 return ''
         return ''
 
@@ -118,6 +119,7 @@ class TestResult(Enum):
     FAILED = 'failed'
     TIMEOUT = 'timeout'
     REBOOT = 'reboot'
+    MEM_LEAK = 'mem_leak'
 
 
 class TestRunner:
@@ -145,9 +147,13 @@ class TestRunner:
             'reboot': 0
         }
 
-    def wait_for_menu(self) -> int:
+    def wait_for_menu(self, menu_timeout: int = 10, enable_debug: bool = False) -> int:
         """
         Wait for test menu to appear and parse test count
+
+        Args:
+            menu_timeout: Timeout for menu detection in seconds
+            enable_debug: Enable debug output for troubleshooting
 
         Returns:
             Number of tests detected in the menu
@@ -159,25 +165,69 @@ class TestRunner:
 
         test_count = 0
         menu_lines = []
+        start_time = time.time()
+        last_output_time = time.time()
+        empty_reads = 0
+        SILENCE_THRESHOLD = 10.0
 
         while True:
+            # Check overall timeout
+            elapsed = time.time() - start_time
+            if elapsed > menu_timeout:
+                print(f'\n[Menu] ⚠ Overall timeout after {menu_timeout}s')
+                if test_count > 0:
+                    print(f'[Menu] ⚠ Using detected test count: {test_count}')
+                    return test_count
+                raise TimeoutError(f'Menu detection timeout after {menu_timeout}s with no tests found')
+
             response = self.serial.readline()
             if response:
-                print(f'[Menu] {response}')
+                empty_reads = 0
+                last_output_time = time.time()
                 menu_lines.append(response)
 
-                # Parse test numbers like "(1)", "(23)", etc.
+                # Parse test numbers like "(1)", "(23)", "(227)", etc.
                 match = re.match(r'\((\d+)\)', response.strip())
                 if match:
                     num = int(match.group(1))
-                    test_count = max(test_count, num)
+                    if num > test_count:
+                        test_count = num
+                        # Show progress every 10 tests, or all in debug mode
+                        if enable_debug:
+                            print(f'[Menu] ({num}) {response[:70]}...')
+                        elif test_count % 10 == 0 or test_count == 1:
+                            print(f'[Menu] Detected {test_count} tests...')
+                else:
+                    # Always print non-test lines (like headers and completion messages)
+                    print(f'[Menu] {response}')
 
-            if TestResponse.ENTER.value in response:
-                print(f'[Menu] ✓ Test menu ready (detected {test_count} tests)')
-                break
+                # Check for menu completion (flexible matching, with or without period)
+                if 'Enter test for running' in response:
+                    print(f'[Menu] ✓ Test menu ready (detected {test_count} tests)')
+                    return test_count
+            else:
+                empty_reads += 1
+                silence_duration = time.time() - last_output_time
+
+                # Show progress indicator with helpful tips
+                if silence_duration > 10 and int(silence_duration) % 10 == 0:
+                    if test_count > 0:
+                        print(f'[Menu] ⚠ No output for {silence_duration:.0f}s (detected {test_count} tests)')
+                        print(f'[Menu] Tip: If menu seems stuck, press Ctrl+C and use: -n {test_count}')
+
+                if enable_debug:
+                    if empty_reads == 1:
+                        print(f'[Menu Debug] No data received, waiting... (last test: {test_count})')
+                    elif empty_reads % 100 == 0:
+                        print(f'[Menu Debug] Still waiting... (silence: {silence_duration:.1f}s, tests: {test_count})')
+
+                # Only trigger silence fallback after extended period
+                if test_count > 0 and silence_duration > SILENCE_THRESHOLD:
+                    print(f'[Menu] ⚠ No output for {silence_duration:.0f}s, assuming menu complete')
+                    print(f'[Menu] ✓ Using detected test count: {test_count}')
+                    return test_count
+
             time.sleep(Config.POLL_INTERVAL)
-
-        return test_count
 
     def run_single_test(self, test_num: int, custom_failure_string: Optional[str] = None) -> TestResult:
         """
@@ -209,6 +259,10 @@ class TestRunner:
             if TestResponse.REBOOT.value in response:
                 return TestResult.REBOOT
 
+            # Check for memory leak
+            if TestResponse.MEM_LEAK.value in response:
+                return TestResult.MEM_LEAK
+
             # Check for custom failure
             if custom_failure_string and custom_failure_string in response:
                 return TestResult.FAILED
@@ -234,6 +288,7 @@ class TestRunner:
         """
         self.stats['total'] += 1
 
+        is_retring = False
         for attempt in range(1, self.retry_limit + 1):
             print(f'\n[Test {test_num}] Attempt {attempt}/{self.retry_limit}')
 
@@ -251,12 +306,18 @@ class TestRunner:
                 print(f'[Test {test_num}] ✗ REBOOT DETECTED')
                 self.stats['reboot'] += 1
                 return False  # Don't retry on reboot
-            else:  # FAILED
+            elif result == TestResult.MEM_LEAK:
                 if attempt < self.retry_limit:
-                    print(f'[Test {test_num}] ✗ Failed, retrying...')
+                    is_retring = True
+                    print(f'[Test {test_num}] ✗ MEM LEAK, retrying...')
                 else:
                     print(f'[Test {test_num}] ✗ FAILED after {self.retry_limit} attempts')
                     self.stats['failed'] += 1
+            else:  # FAILED
+                if not is_retring:
+                    self.stats['failed'] += 1
+                    return False
+                is_retring = False
 
         return False
 
@@ -284,6 +345,7 @@ class TestRunner:
             for test_num in range(start, end + 1):
                 if not self.run_test_with_retry(test_num, custom_failure_string):
                     self.failed_tests.append(test_num)
+                    break
 
                 # Delay between tests
                 if test_num < end:
@@ -300,7 +362,7 @@ class TestRunner:
         print('TEST EXECUTION SUMMARY')
         print(f'{"=" * 70}')
         print(f'Total tests:    {self.stats["total"]}')
-        print(f'Passed:         {self.stats["passed"]} ({self.stats["passed"]/self.stats["total"]*100:.1f}%)')
+        print(f'Passed:         {self.stats["passed"]} ({self.stats["passed"] / self.stats["total"] * 100:.1f}%)')
         print(f'Failed:         {self.stats["failed"]}')
         print(f'Timeout:        {self.stats["timeout"]}')
         print(f'Reboot:         {self.stats["reboot"]}')
@@ -353,6 +415,12 @@ Examples:
   # Auto-detect all tests (recommended)
   python %(prog)s -p /dev/ttyUSB0
 
+  # Auto-detect with debug output (for troubleshooting)
+  python %(prog)s -p /dev/ttyUSB0 -d
+
+  # Manually specify test count (if auto-detect fails)
+  python %(prog)s -p /dev/ttyUSB0 -n 227
+
   # Run specific test range
   python %(prog)s -p /dev/ttyUSB0 -s 1 -e 10
 
@@ -361,9 +429,6 @@ Examples:
 
   # Run with custom failure pattern and longer timeout
   python %(prog)s -p COM3 -s 1 -e 10 -c "Error" -t 180
-
-  # Auto-detect with custom settings
-  python %(prog)s -p /dev/ttyUSB0 -r 3 -t 180
         '''
     )
 
@@ -376,6 +441,10 @@ Examples:
     )
     parser.add_argument(
         '-e', '--end', type=int, default=None, help='Ending test number (default: auto-detect from menu)'
+    )
+    parser.add_argument(
+        '-n', '--num-tests', type=int, default=None,
+        help='Manually specify total number of tests (skips auto-detection, implies -s 1 -e NUM_TESTS)'
     )
 
     # Optional arguments with short options
@@ -396,10 +465,19 @@ Examples:
         '-o', '--output-dir', default=Config.DEFAULT_OUTPUT_DIR,
         help=f'Output directory for failed tests (default: {Config.DEFAULT_OUTPUT_DIR})'
     )
+    parser.add_argument(
+        '-d', '--debug', action='store_true',
+        help='Enable debug output for troubleshooting'
+    )
     args = parser.parse_args()
 
     # Validation
-    if (args.start is None) != (args.end is None):
+    if args.num_tests is not None:
+        if args.start is not None or args.end is not None:
+            parser.error('--num-tests cannot be used with --start or --end')
+        if args.num_tests < 1:
+            parser.error('Number of tests must be at least 1')
+    elif (args.start is None) != (args.end is None):
         parser.error('Both --start and --end must be specified together, or both omitted for auto-detection')
 
     if args.start is not None and args.end is not None:
@@ -432,26 +510,70 @@ def main():
         # Create test runner
         runner = TestRunner(serial_port, args.retry_limit, args.timeout)
 
-        # Wait for menu and get test count
-        detected_test_count = runner.wait_for_menu()
+        # Handle manual test count specification
+        if args.num_tests is not None:
+            # Use specified count but still wait for menu to complete
+            print(f'[Menu] Using manually specified test count: {args.num_tests}')
+            print('[Menu] Sending enter command...')
+            serial_port.write('\n\n')
 
-        # Determine test range
-        if args.start is None or args.end is None:
-            # Auto-detect mode
-            if detected_test_count == 0:
-                print('✗ Error: Could not auto-detect test count from menu')
-                sys.exit(1)
+            print('[Menu] Waiting for menu to display completely...')
+            # Wait for "Enter test for running" message
+            menu_ready = False
+            wait_start = time.time()
+            last_line_time = time.time()
+            MENU_WAIT_TIMEOUT = 60
+            SILENCE_BEFORE_START = 3.0
+
+            while time.time() - wait_start < MENU_WAIT_TIMEOUT:
+                response = serial_port.readline()
+                if response:
+                    last_line_time = time.time()
+                    # Always show complete menu when using -n parameter
+                    print(f'[Menu] {response}')
+
+                    if 'Enter test for running' in response:
+                        menu_ready = True
+                        break
+                else:
+                    # Check if we've had silence for a while after seeing some output
+                    silence = time.time() - last_line_time
+                    if silence > SILENCE_BEFORE_START and last_line_time > wait_start:
+                        print(f'[Menu] ✓ Menu complete (no output for {silence:.0f}s)')
+                        menu_ready = True
+                        break
+
+                time.sleep(0.1)
+
+            if menu_ready:
+                print('[Menu] ✓ Menu ready, starting tests')
+            else:
+                print(f'[Menu] ⚠ Timeout waiting for menu, starting tests anyway...')
+
             start_test = 1
-            end_test = detected_test_count
-            print(f'\n✓ Auto-detected test range: {start_test} to {end_test}')
+            end_test = args.num_tests
+            print(f'✓ Test range: {start_test} to {end_test}')
         else:
-            # Manual mode
-            start_test = args.start
-            end_test = args.end
-            if detected_test_count > 0:
-                print(f'\nℹ Menu shows {detected_test_count} tests, but will run {start_test} to {end_test} as specified')
-                if end_test > detected_test_count:
-                    print(f'⚠ Warning: Specified end ({end_test}) exceeds detected tests ({detected_test_count})')
+            # Wait for menu and get test count
+            detected_test_count = runner.wait_for_menu(enable_debug=args.debug)
+
+            # Determine test range
+            if args.start is None or args.end is None:
+                # Auto-detect mode
+                if detected_test_count == 0:
+                    print('✗ Error: Could not auto-detect test count from menu')
+                    sys.exit(1)
+                start_test = 1
+                end_test = detected_test_count
+                print(f'\n✓ Auto-detected test range: {start_test} to {end_test}')
+            else:
+                # Manual mode
+                start_test = args.start
+                end_test = args.end
+                if detected_test_count > 0:
+                    print(f'\nℹ Menu shows {detected_test_count} tests, but will run {start_test} to {end_test} as specified')
+                    if end_test > detected_test_count:
+                        print(f'⚠ Warning: Specified end ({end_test}) exceeds detected tests ({detected_test_count})')
 
         # Run tests
         runner.run_test_range(

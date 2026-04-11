@@ -81,6 +81,13 @@ bool Manager::on_init()
     );
     BROOKESIA_CHECK_FALSE_RETURN(state_machine_->init(), false, "Failed to initialize state machine");
 
+    auto agent_names = get_agent_names();
+    if (!agent_names.empty()) {
+        set_data<DataType::TargetAgent>(agent_names[0]);
+    } else {
+        set_data<DataType::TargetAgent>("");
+    }
+
     return true;
 }
 
@@ -90,9 +97,6 @@ void Manager::on_deinit()
 
     // Deinitialize state machine
     state_machine_.reset();
-
-    // Reset all data
-    reset_data();
 
     // Release all agents
     Registry::release_all_instances();
@@ -170,27 +174,53 @@ std::expected<void, std::string> Manager::function_set_chat_mode(const std::stri
     }
 
     set_data<DataType::ChatMode>(chat_mode);
+    try_save_data(DataType::ChatMode);
 
     return {};
 }
 
-std::expected<void, std::string> Manager::function_activate_agent(const std::string &name)
+std::expected<void, std::string> Manager::function_set_target_agent(const std::string &name)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: name(%1%)", name);
 
-    auto result = activate_agent(name);
-    if (!result) {
-        return std::unexpected(result.error());
+    if (name.empty()) {
+        return std::unexpected("Target agent name is required");
     }
 
-    set_data<DataType::ActiveAgent>(name);
+    auto target_agent = get_data<DataType::TargetAgent>();
+    if (target_agent == name) {
+        BROOKESIA_LOGD("Target agent not changed, skip");
+        return {};
+    }
+
+    auto agent = Registry::get_instance(name);
+    if (agent == nullptr) {
+        return std::unexpected((boost::format("No agent found with name '%1%'") % name).str());
+    }
+
+    set_data<DataType::TargetAgent>(name);
+    try_save_data(DataType::TargetAgent);
 
     return {};
 }
 
-std::expected<boost::json::array, std::string> Manager::function_get_attributes(const std::string &name)
+std::expected<std::string, std::string> Manager::function_get_target_agent()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    return get_data<DataType::TargetAgent>();
+}
+
+std::expected<boost::json::array, std::string> Manager::function_get_agent_names()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    return BROOKESIA_DESCRIBE_TO_JSON(get_agent_names()).as_array();
+}
+
+std::expected<boost::json::array, std::string> Manager::function_get_agent_attributes(const std::string &name)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -225,10 +255,10 @@ std::expected<std::string, std::string> Manager::function_get_active_agent()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     if (active_agent_ == nullptr) {
-        return "";
+        return std::unexpected("No active agent");
     }
 
-    return active_agent_->get_attributes().get_name();
+    return active_agent_->get_attributes().name;
 }
 
 std::expected<void, std::string> Manager::function_trigger_general_action(const std::string &action)
@@ -237,16 +267,26 @@ std::expected<void, std::string> Manager::function_trigger_general_action(const 
 
     BROOKESIA_LOGD("Params: action(%1%)", action);
 
-    if (active_agent_ == nullptr) {
-        auto result = activate_agent(get_data<DataType::ActiveAgent>());
-        if (!result) {
-            return std::unexpected(result.error());
-        }
-    }
-
     GeneralAction action_enum;
     if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(action, action_enum)) {
         return std::unexpected((boost::format("Invalid general action '%1%'") % action).str());
+    }
+
+    if (action_enum == GeneralAction::Activate) {
+        if ((active_agent_ == nullptr) || (active_agent_->get_attributes().name != get_data<DataType::TargetAgent>())) {
+            if (get_data<DataType::TargetAgent>().empty()) {
+                return std::unexpected("No target agent specified");
+            } else {
+                auto result = activate_agent(get_data<DataType::TargetAgent>());
+                if (!result) {
+                    return std::unexpected(result.error());
+                }
+            }
+        }
+    }
+
+    if (active_agent_ == nullptr) {
+        return std::unexpected("No active agent");
     }
 
     if (!state_machine_->trigger_general_action(action_enum)) {
@@ -406,8 +446,6 @@ std::expected<void, std::string> Manager::function_reset_data()
 
     reset_data();
 
-    try_erase_data();
-
     return {};
 }
 
@@ -424,10 +462,10 @@ std::expected<void, std::string> Manager::activate_agent(const std::string &name
 
     std::string target_agent = name;
     if (name.empty()) {
-        if (get_data<DataType::ActiveAgent>().empty()) {
+        if (get_data<DataType::TargetAgent>().empty()) {
             return std::unexpected("No target active agent specified");
         }
-        target_agent = get_data<DataType::ActiveAgent>();
+        target_agent = get_data<DataType::TargetAgent>();
     }
 
     // Get the new agent
@@ -463,13 +501,32 @@ std::expected<void, std::string> Manager::activate_agent(const std::string &name
     return {};
 }
 
+std::vector<std::string> Manager::get_agent_names()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto instances = Registry::get_all_instances();
+    std::vector<std::string> agent_names;
+    for (const auto &[_, instance] : instances) {
+        agent_names.push_back(instance->get_attributes().name);
+    }
+
+    return agent_names;
+}
 
 void Manager::reset_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    set_data<DataType::ActiveAgent>(DEFAULT_ACTIVE_AGENT);
+    auto agent_names = get_agent_names();
+    if (!agent_names.empty()) {
+        set_data<DataType::TargetAgent>(agent_names[0]);
+    } else {
+        set_data<DataType::TargetAgent>("");
+    }
     set_data<DataType::ChatMode>(DEFAULT_CHAT_MODE);
+
+    try_erase_data();
 
     auto agents = Registry::get_all_instances();
     for (const auto &[_, agent] : agents) {
@@ -505,10 +562,10 @@ void Manager::try_load_data()
             return;
         }
         set_data<type>(nvs_result.value());
-        BROOKESIA_LOGI("Loaded '%1%' from NVS", key);
+        BROOKESIA_LOGD("Loaded '%1%' from NVS", key);
     };
 
-    load_data_from_nvs_function.template operator()<DataType::ActiveAgent>();
+    load_data_from_nvs_function.template operator()<DataType::TargetAgent>();
     load_data_from_nvs_function.template operator()<DataType::ChatMode>();
 
     is_data_loaded_ = true;
@@ -537,8 +594,8 @@ void Manager::try_save_data(DataType type)
         }
     };
 
-    if (type == DataType::ActiveAgent) {
-        save_data_to_nvs_function.template operator()<DataType::ActiveAgent>();
+    if (type == DataType::TargetAgent) {
+        save_data_to_nvs_function.template operator()<DataType::TargetAgent>();
     } else if (type == DataType::ChatMode) {
         save_data_to_nvs_function.template operator()<DataType::ChatMode>();
     } else {

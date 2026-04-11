@@ -21,7 +21,9 @@
 #   endif
 #endif
 
-/* Debug log */
+/**
+ * @brief Default log tag used by the audio service component.
+ */
 #define BROOKESIA_SERVICE_AUDIO_LOG_TAG "SvcAudio"
 
 #if !defined(BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG)

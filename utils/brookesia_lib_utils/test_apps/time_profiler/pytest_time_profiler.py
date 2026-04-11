@@ -1,20 +1,50 @@
 # SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
 # SPDX-License-Identifier: Apache-2.0
 
-# '''
-# Steps to run these cases (Take `esp32s3` as an example):
-#
-# - Build
-#   - . ${IDF_PATH}/export.sh
-#   - export IDF_CI_BUILD=y
-#   - pip install idf_build_apps
-#   - idf-build-apps build -t esp32s3 --manifest-files=".build-rules.yml" --path='./utils/brookesia_lib_utils/test_apps/time_profiler' --recursive --build-dir="@v/build_@t_@w"
-#
-# - Test
-#   - ${IDF_PATH}/install.sh --enable-pytest
-#   - ${IDF_PATH}/install.sh --enable-test-specific
-#   - pytest utils/brookesia_lib_utils/test_apps/time_profiler --target esp32s3 --env generic
-# '''
+'''
+Steps to run these test cases:
+
+## Build
+
+1. Setup ESP-IDF environment:
+   ```bash
+   . ${IDF_PATH}/export.sh
+   export IDF_CI_BUILD=y
+   ```
+
+2. Install dependencies:
+   ```bash
+   pip install idf_build_apps
+   ```
+
+3. Build the test app:
+
+   **Build for a specific target (replace `esp32s3` with your target chip: `esp32s3` or `esp32p4`):**
+   ```bash
+   python .gitlab/tools/build_apps.py utils/brookesia_lib_utils/test_apps/time_profiler -t esp32s3
+   ```
+
+   **Build for all CI targets (recommended for CI):**
+   ```bash
+   python .gitlab/tools/build_apps.py utils/brookesia_lib_utils/test_apps/time_profiler -t all
+   ```
+
+## Test
+
+1. Install pytest dependencies:
+   ```bash
+   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-test-specific
+   ```
+
+2. Run pytest with appropriate target and environment:
+
+   **ESP32-S3 examples:**
+   ```bash
+   # Generic environment
+   pytest utils/brookesia_lib_utils/test_apps/time_profiler --target esp32s3 --env generic
+   ```
+'''
 
 import pytest
 from pytest_embedded import Dut
@@ -22,12 +52,15 @@ import time
 
 SUCCESS_RESPONSE = b'0 Failures'
 FAILURE_RESPONSE = b'1 Failures'
+LEAK_MEMORY_RESPONSE = b'The test leaked too much memory'
 ENTER_RESPONSE_LIST = [
     b'Enter test for running',
     b'Press ENTER to see the list of tests',
 ]
 REBOOT_RESPONSE = b'Rebooting...'
-TIMEOUT_S = 300
+RESPONSE_TIMEOUT_S = 30
+SINGLE_TIMEOUT_S = 60
+TOTAL_TIMEOUT_S = 5 * 60
 RETRY_LIMIT = 5  # Retry once before recording failure
 
 
@@ -48,19 +81,19 @@ def get_index_and_name_list(response: bytes):
     return result
 
 
-def test(dut: Dut)-> None:
-    dut.expect(ENTER_RESPONSE_LIST, timeout=5)
+def run_test(dut: Dut)-> None:
+    dut.expect(ENTER_RESPONSE_LIST, timeout=RESPONSE_TIMEOUT_S)
 
     dut.write('\n\n')
 
-    response = dut.expect(ENTER_RESPONSE_LIST, return_what_before_match=True, timeout=5)
+    response = dut.expect(ENTER_RESPONSE_LIST, return_what_before_match=True, timeout=RESPONSE_TIMEOUT_S)
     index_and_name_list = get_index_and_name_list(response)
     print(f"index_and_name_list: {index_and_name_list}")
 
-    failed_name_and_numbers = []
     for num, name in index_and_name_list:
         retries = 0
         success = False
+        leaked_memory = False
 
         while not success and retries < RETRY_LIMIT:
             print(f"[{num}] [{name}] Writing: {num}")
@@ -69,58 +102,72 @@ def test(dut: Dut)-> None:
 
             while True:
                 try:
-                    response = dut.expect([SUCCESS_RESPONSE, FAILURE_RESPONSE, REBOOT_RESPONSE], timeout=TIMEOUT_S).group(0)
+                    response = dut.expect([SUCCESS_RESPONSE, LEAK_MEMORY_RESPONSE, FAILURE_RESPONSE, REBOOT_RESPONSE], timeout=RESPONSE_TIMEOUT_S).group(0)
                     print(f"[{num}] [{name}] Received: {response}")
                     time.sleep(0.1)
 
                     if response == SUCCESS_RESPONSE:
+                        leaked_memory = False
                         success = True
                         break
-                    elif response == FAILURE_RESPONSE:
+                    elif response == LEAK_MEMORY_RESPONSE:
                         retries += 1
-                        print(f"[{num}] [{name}] Retrying...")
+                        leaked_memory = True
+                        print(f"[{num}] [{name}] Leaked memory, retrying...")
+                        break
+                    elif response == FAILURE_RESPONSE:
+                        if leaked_memory:
+                            leaked_memory = False
+                            print(f"Skip leaked memory test")
+                            continue
+                        pytest.fail(f"[{num}] [{name}] Failed")
                         break
                     elif response == REBOOT_RESPONSE:
-                        failed_name_and_numbers.append((name, num))
-                        print(f"The following numbers failed or timed out: {failed_name_and_numbers}")
                         pytest.fail(f"[{num}] [{name}] Device rebooted unexpectedly.")
                         break
                 except Exception:
-                    if time.time() - start_time > TIMEOUT_S:
-                        failed_name_and_numbers.append((name, num))
-                        print(f"The following numbers failed or timed out: {failed_name_and_numbers}")
-                        pytest.fail(f"[{num}] [{name}] Timeout exceeded {TIMEOUT_S}s.")
+                    if time.time() - start_time > SINGLE_TIMEOUT_S:
+                        pytest.fail(f"[{num}] [{name}] Timeout exceeded {SINGLE_TIMEOUT_S}s.")
                         break
 
         if retries == RETRY_LIMIT:
-            failed_name_and_numbers.append((name, num))
-            print(f"[{num}] [{name}] Marked as failed after {RETRY_LIMIT} attempts.")
-
-    if len(failed_name_and_numbers) > 0:
-        pytest.fail(f"The following numbers failed or timed out: {failed_name_and_numbers}")
+            pytest.fail(f"[{num}] [{name}] Failed after {RETRY_LIMIT} retries.")
 
 
 @pytest.mark.target('esp32s3')
 @pytest.mark.env('generic')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32s3', 'defaults'),
     ],
 )
-@pytest.mark.timeout(30 * 60)  # 30 minutes
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
 def test_esp32s3(dut: Dut)-> None:
-    test(dut)
+    run_test(dut)
+
+
+@pytest.mark.target('esp32s3')
+@pytest.mark.env('generic,octal-psram')
+@pytest.mark.parametrize(
+    'target, config',
+    [
+        ('esp32s3', 'esp32s3_octal_psram'), ('esp32s3', 'esp32s3_octal_psram_xip'),
+    ],
+)
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
+def test_esp32s3_octal_psram(dut: Dut)-> None:
+    run_test(dut)
 
 
 @pytest.mark.target('esp32p4')
 @pytest.mark.env('generic,eco4')
 @pytest.mark.parametrize(
-    'config',
+    'target, config',
     [
-        'defaults',
+        ('esp32p4', 'defaults'),
     ],
 )
-@pytest.mark.timeout(30 * 60)  # 30 minutes
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
 def test_esp32p4(dut: Dut)-> None:
-    test(dut)
+    run_test(dut)

@@ -1,0 +1,7 @@
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=6144
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_PARTITION_TABLE_CUSTOM=y
+
+# Since service APIs are called in the system event task, we need to increase its stack size to prevent stack overflow
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=4096

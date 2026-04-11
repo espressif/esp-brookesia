@@ -1,0 +1,45 @@
+variables:
+  ESP_IDF_DOC_ENV_IMAGE: "$CI_DOCKER_REGISTRY/esp-idf-doc-env-v5.5:1-1"
+
+.build_docs_template:
+  image: $ESP_IDF_DOC_ENV_IMAGE
+  stage: build
+  tags:
+    - build
+  dependencies: []
+  script:
+    - . "${CI_PROJECT_DIR}/.gitlab/tools/setup_docs_cxx.sh"
+    - . "${CI_PROJECT_DIR}/.gitlab/tools/setup_docs_boost.sh"
+    - cd docs
+    - ./check_lang_folder_sync.sh
+    - python -m pip install -r requirements.txt
+    - build-docs -t esp32s3 -bs $DOC_BUILDERS -l $DOCLANG build
+  parallel:
+    matrix:
+      - DOCLANG: ["en", "zh_CN"]
+
+build_docs_html:
+  extends:
+    - .build_docs_template
+    - .rules:build:docs
+  artifacts:
+    when: always
+    paths:
+      - docs/_build/*/*/*.txt
+      - docs/_build/*/*/html/*
+    expire_in: 4 days
+  variables:
+    DOC_BUILDERS: "html"
+
+build_docs_pdf:
+  extends:
+    - .build_docs_template
+    - .rules:build:docs
+  artifacts:
+    when: always
+    paths:
+      - docs/_build/*/*/latex/*
+      - docs/_build/*/*/*.txt
+    expire_in: 4 days
+  variables:
+    DOC_BUILDERS: "latex"

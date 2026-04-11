@@ -8,11 +8,15 @@
 #include <string>
 #include <string_view>
 #include <expected>
+#include <optional>
 #include <type_traits>
 #include <future>
 #include <memory>
 #include <tuple>
 #include <utility>
+#include <mutex>
+#include <condition_variable>
+#include <chrono>
 #include "boost/format.hpp"
 #include "brookesia/service_manager/function/definition.hpp"
 #include "brookesia/service_manager/event/definition.hpp"
@@ -32,17 +36,6 @@ concept DerivedMeta = requires {
     T::get_event_schemas();
 };
 
-// Concept to check if a type can be converted to FunctionValue or EventItem
-template<typename T>
-concept ConvertibleToFunctionValue =
-    std::convertible_to<std::decay_t<T>, bool> ||
-    std::convertible_to<std::decay_t<T>, double> ||
-    std::convertible_to<std::decay_t<T>, std::string> ||
-    std::convertible_to<std::decay_t<T>, boost::json::object> ||
-    std::convertible_to<std::decay_t<T>, boost::json::array> ||
-    std::convertible_to<std::decay_t<T>, RawBuffer> ||
-    std::is_same_v<std::decay_t<T>, EventItem>;
-
 // Tag type for specifying timeout at the end of parameter list
 struct Timeout {
     uint32_t value;
@@ -53,9 +46,21 @@ struct Timeout {
 template<typename T>
 concept IsTimeout = std::is_same_v<std::decay_t<T>, Timeout>;
 
-// Concept to check if a type is FunctionParameterMap
+// Concept to check if a type can be used as FunctionResultHandler (e.g. std::function or lambda)
 template<typename T>
-concept IsParameterMap = std::is_same_v<std::decay_t<T>, FunctionParameterMap>;
+concept IsFunctionResultHandler =
+    std::is_constructible_v<ServiceBase::FunctionResultHandler, std::decay_t<T>>;
+
+// Helper to create a fixed string
+template <size_t N>
+struct FixedString {
+    char data[N];
+
+    constexpr FixedString(const char (&str)[N])
+    {
+        std::copy_n(str, N, data);
+    }
+};
 
 /**
  * @brief Base class for all service helpers (CRTP)
@@ -127,6 +132,12 @@ public:
         return (ServiceManager::get_instance().get_service(Derived::get_name().data()) != nullptr);
     }
 
+    static bool is_running()
+    {
+        static_assert(DerivedMeta<Derived>, "Derived must satisfy DerivedMeta concept");
+        return is_available() && ServiceManager::get_instance().get_service(Derived::get_name().data())->is_running();
+    }
+
 private:
     using ServiceAndSchema = std::pair<std::shared_ptr<ServiceBase>, const FunctionSchema *>;
 
@@ -156,24 +167,6 @@ private:
             return std::unexpected("Function schema not found");
         }
         return ServiceAndSchema{service, function_schema};
-    }
-
-    /**
-     * @brief Helper function to create a future with error result
-     *
-     * @param[in] error_msg Error message
-     * @return std::future<FunctionResult> Future containing error result
-     */
-    static std::future<FunctionResult> make_error_future(const std::string &error_msg)
-    {
-        auto result_promise = std::make_shared<std::promise<FunctionResult>>();
-        auto result_future = result_promise->get_future();
-        FunctionResult result{
-            .success = false,
-            .error_message = error_msg,
-        };
-        result_promise->set_value(std::move(result));
-        return result_future;
     }
 
     // Concept to check if a type is string-like (for event_name parameter)
@@ -489,7 +482,7 @@ private:
     )
     {
         static_assert(sizeof...(Args) >= 1, "Callback must have at least event_name parameter");
-        static_assert((ConvertibleToFunctionValue<Args> &&...),
+        static_assert((ConvertibleToEventItem<Args> &&...),
                       "All callback parameter types must be convertible to/from EventItem");
 
         // Validate parameter types (skip first parameter which is event_name)
@@ -549,7 +542,7 @@ private:
     )
     {
         static_assert(sizeof...(Args) >= 1, "Callback must have at least event_name parameter");
-        static_assert((ConvertibleToFunctionValue<Args> &&...),
+        static_assert((ConvertibleToEventItem<Args> &&...),
                       "All callback parameter types must be convertible to/from EventItem");
 
         // Validate parameter types (skip first parameter which is event_name)
@@ -593,7 +586,7 @@ private:
     )
     {
         static_assert(sizeof...(Args) >= 1, "Callback must have at least event_name parameter");
-        static_assert((ConvertibleToFunctionValue<Args> &&...),
+        static_assert((ConvertibleToEventItem<Args> &&...),
                       "All callback parameter types must be convertible to/from EventItem");
 
         // Validate parameter types (skip first parameter which is event_name)
@@ -628,8 +621,6 @@ private:
     }
 
 public:
-    static constexpr uint32_t DEFAULT_CALL_TIMEOUT_MS = 100;
-
     /**
      * @brief Helper function to process function result and convert to expected return type
      *
@@ -657,44 +648,6 @@ public:
     }
 
     /**
-     * @brief Call a function synchronously with a parameter map
-     *
-     * @tparam ReturnType Expected return type (default: void)
-     * @tparam FunctionIdType Type of the function identifier (enum)
-     * @param function_id Function identifier
-     * @param parameters_map Pre-constructed map of parameter names to values
-     * @param timeout_ms Timeout in milliseconds (default: DEFAULT_CALL_TIMEOUT_MS)
-     * @return std::expected<ReturnType, std::string> Function result or error
-     *
-     * @note Use this overload when you need explicit control over parameter names
-     * @note For simple parameter passing, prefer the variadic template overload
-     *
-     * @example
-     * // With named parameters
-     * FunctionParameterMap params;
-     * params["width"] = 100.0;
-     * params["height"] = 200.0;
-     * auto result = call_function_sync<bool>(FunctionId::SetSize, std::move(params));
-     *
-     * // With custom timeout
-     * auto result = call_function_sync<bool>(FunctionId::SetSize, std::move(params), 5000);
-     */
-    template <typename ReturnType = void, typename FunctionIdType>
-    static std::expected<ReturnType, std::string> call_function_sync(
-        FunctionIdType function_id, FunctionParameterMap && parameters_map,
-        uint32_t timeout_ms = DEFAULT_CALL_TIMEOUT_MS
-    )
-    {
-        auto service_and_schema = get_service_and_schema(function_id);
-        if (!service_and_schema) {
-            return std::unexpected(service_and_schema.error());
-        }
-        auto &[service, function_schema] = *service_and_schema;
-        auto result = service->call_function_sync(function_schema->name, std::move(parameters_map), timeout_ms);
-        return process_function_result<ReturnType>(result);
-    }
-
-    /**
      * @brief Call a function synchronously with variadic arguments (timeout at end)
      *
      * @tparam ReturnType Expected return type (default: void)
@@ -706,9 +659,9 @@ public:
      *
      * @note Arguments are packed into std::vector<FunctionValue> in the order provided
      * @note Last argument can be Timeout(milliseconds) to specify custom timeout
-     * @note All non-Timeout arguments must satisfy ConvertibleToFunctionValue concept
+     * @note All non-Timeout arguments must satisfy `ConvertibleToFunctionValue` concept
      *
-     * @example
+     * @code{.cpp}
      * // No arguments with default timeout
      * auto result = call_function_sync<int>(FunctionId::GetValue);
      *
@@ -717,9 +670,9 @@ public:
      *
      * // With custom timeout at the end
      * auto result = call_function_sync<int>(FunctionId::Add, 1.0, 2.0, Timeout(500));
+     * @endcode
      */
     template <typename ReturnType = void, typename FunctionIdType, typename... Args>
-    requires (sizeof...(Args) == 0 || !IsParameterMap<std::tuple_element_t<0, std::tuple<Args...>>>)
     static std::expected<ReturnType, std::string> call_function_sync(
         FunctionIdType function_id, Args && ... args
     )
@@ -732,7 +685,7 @@ public:
             }
             auto &[service, function_schema] = *service_and_schema;
 
-            auto result = service->call_function_sync(function_schema->name, FunctionParameterMap{}, DEFAULT_CALL_TIMEOUT_MS);
+            auto result = service->call_function_sync(function_schema->name, FunctionParameterMap{});
             return process_function_result<ReturnType>(result);
         } else {
             // Check if last argument is Timeout
@@ -777,98 +730,101 @@ public:
                 parameters_values.reserve(sizeof...(Args));
                 (parameters_values.emplace_back(std::forward<Args>(args)), ...);
 
-                auto result = service->call_function_sync(function_schema->name, std::move(parameters_values), DEFAULT_CALL_TIMEOUT_MS);
+                auto result = service->call_function_sync(function_schema->name, std::move(parameters_values));
                 return process_function_result<ReturnType>(result);
             }
         }
     }
 
     /**
-     * @brief Call a function asynchronously with a parameter map
-     *
-     * @tparam FunctionIdType Type of the function identifier (enum)
-     * @param function_id Function identifier
-     * @param parameters_map Pre-constructed map of parameter names to values
-     * @return std::future<FunctionResult> Future containing the function result
-     *
-     * @note Use this overload when you need explicit control over parameter names
-     * @note For simple parameter passing, prefer the variadic template overload
-     * @note The returned future will be ready when the function completes
-     *
-     * @example
-     * // With named parameters
-     * FunctionParameterMap params;
-     * params["ssid"] = std::string("MyWiFi");
-     * params["password"] = std::string("MyPassword");
-     * auto future = call_function_async(FunctionId::ConnectWiFi, std::move(params));
-     * auto result = future.get();  // Wait for completion
-     */
-    template <typename FunctionIdType>
-    static std::future<FunctionResult> call_function_async(
-        FunctionIdType function_id, FunctionParameterMap &&parameters_map
-    )
-    {
-        auto service_and_schema = get_service_and_schema(function_id);
-        if (!service_and_schema) {
-            return make_error_future(service_and_schema.error());
-        }
-        auto &[service, function_schema] = *service_and_schema;
-        return service->call_function_async(function_schema->name, std::move(parameters_map));
-    }
-
-    /**
      * @brief Call a function asynchronously with variadic arguments
      *
      * @tparam FunctionIdType Type of the function identifier (enum)
-     * @tparam Args Types of function arguments (must be convertible to FunctionValue)
+     * @tparam Args Types of function arguments (must be convertible to FunctionValue, optionally with
+     *              FunctionResultHandler at the end)
      * @param function_id Function identifier
-     * @param args Function arguments in order
-     * @return std::future<FunctionResult> Future containing the function result
+     * @param args Function arguments in order, optionally with FunctionResultHandler at the end
+     * @return true if the call was successfully submitted, false otherwise
      *
      * @note Arguments are packed into std::vector<FunctionValue> in the order provided
-     * @note All arguments must satisfy ConvertibleToFunctionValue concept
+     * @note All arguments (except optional FunctionResultHandler) must satisfy ConvertibleToFunctionValue concept
      * @note This overload is not used when the first argument is FunctionParameterMap or boost::json::object
      *
-     * @example
+     * @code{.cpp}
      * // No arguments
-     * auto future = call_function_async(FunctionId::GetValue);
+     * call_function_async(FunctionId::GetValue);
      *
      * // With arguments
-     * auto future = call_function_async(FunctionId::Add, 1.0, 2.0);
+     * call_function_async(FunctionId::Add, 1.0, 2.0);
+     *
+     * // With handler
+     * call_function_async(FunctionId::Add, 1.0, 2.0, [](FunctionResult &&result) {
+     *     // Handle result
+     * });
+     * @endcode
      */
     template <typename FunctionIdType, typename... Args>
-    requires (sizeof...(Args) == 0 || !IsParameterMap<std::tuple_element_t<0, std::tuple<Args...>>>)
-    static std::future<FunctionResult> call_function_async(
-        FunctionIdType function_id, Args &&... args
-    )
+    static bool call_function_async(FunctionIdType function_id, Args &&... args)
     {
         if constexpr (sizeof...(Args) == 0) {
             // No arguments, use empty parameter list
             auto service_and_schema = get_service_and_schema(function_id);
             if (!service_and_schema) {
-                return make_error_future(service_and_schema.error());
+                return false;
             }
             auto &[service, function_schema] = *service_and_schema;
 
             return service->call_function_async(function_schema->name, FunctionParameterMap{});
         } else {
-            // With arguments
-            static_assert(
-                (ConvertibleToFunctionValue<Args> &&...), "All arguments must be convertible to FunctionValue"
-            );
+            // Check if last argument is FunctionResultHandler
+            constexpr bool has_handler = IsFunctionResultHandler < std::tuple_element_t < sizeof...(Args) - 1, std::tuple<Args... >>>;
 
-            auto service_and_schema = get_service_and_schema(function_id);
-            if (!service_and_schema) {
-                return make_error_future(service_and_schema.error());
+            if constexpr (has_handler) {
+                // Extract handler from last argument and forward the rest
+                return [&]<std::size_t... Is>(std::index_sequence<Is...>) -> bool {
+                    auto args_tuple = std::forward_as_tuple(std::forward<Args>(args)...);
+                    auto handler = std::get < sizeof...(Args) - 1 > (args_tuple);
+
+                    auto service_and_schema = get_service_and_schema(function_id);
+                    if (!service_and_schema)
+                    {
+                        return false;
+                    }
+                    auto &[service, function_schema] = *service_and_schema;
+
+                    if constexpr (sizeof...(Is) == 0)
+                    {
+                        // Only handler, no parameters
+                        return service->call_function_async(function_schema->name, FunctionParameterMap{}, handler);
+                    } else
+                    {
+                        // Pack arguments into std::vector<FunctionValue> (excluding last handler)
+                        std::vector<FunctionValue> parameters_values;
+                        parameters_values.reserve(sizeof...(Is));
+                        (parameters_values.emplace_back(std::get<Is>(std::move(args_tuple))), ...);
+
+                        return service->call_function_async(function_schema->name, std::move(parameters_values), handler);
+                    }
+                }(std::make_index_sequence < sizeof...(Args) - 1 > {});
+            } else {
+                // No handler specified
+                static_assert(
+                    (ConvertibleToFunctionValue<Args> &&...), "All arguments must be convertible to FunctionValue"
+                );
+
+                auto service_and_schema = get_service_and_schema(function_id);
+                if (!service_and_schema) {
+                    return false;
+                }
+                auto &[service, function_schema] = *service_and_schema;
+
+                // Pack arguments into std::vector<FunctionValue>
+                std::vector<FunctionValue> parameters_values;
+                parameters_values.reserve(sizeof...(Args));
+                (parameters_values.emplace_back(std::forward<Args>(args)), ...);
+
+                return service->call_function_async(function_schema->name, std::move(parameters_values), nullptr);
             }
-            auto &[service, function_schema] = *service_and_schema;
-
-            // Pack arguments into std::vector<FunctionValue>
-            std::vector<FunctionValue> parameters_values;
-            parameters_values.reserve(sizeof...(Args));
-            (parameters_values.emplace_back(std::forward<Args>(args)), ...);
-
-            return service->call_function_async(function_schema->name, std::move(parameters_values));
         }
     }
 
@@ -880,11 +836,12 @@ public:
      * @param slot Signal slot function with signature: void(const std::string &event_name, const EventItemMap &event_items)
      * @return EventRegistry::SignalConnection Connection object (scoped, automatically unsubscribes on destruction)
      *
-     * @example
+     * @code{.cpp}
      * auto conn = subscribe_event(EventId::ValueChanged,
      *     [](const std::string &event_name, const EventItemMap &items) {
      *         // Handle event with raw items directly
      *     });
+     * @endcode
      */
     template <typename EventIdType>
     static EventRegistry::SignalConnection subscribe_event(EventIdType event_id, EventRegistry::SignalSlot slot)
@@ -906,36 +863,36 @@ public:
      *
      * @tparam EventIdType Type of the event identifier (enum)
      * @tparam Callable Type of the callable object (lambda, function, std::function, etc.)
-     * @param event_id Event identifier
-     * @param callback Callable object with first parameter as event_name, followed by event schema parameters
+     * Event identifier is passed as `event_id`.
+     * Callable object is passed as `callback`, with first parameter as event_name and remaining parameters
+     * matching the event schema order.
      * @return EventRegistry::SignalConnection Connection object (scoped, automatically unsubscribes on destruction)
      *
-     * @note REQUIRED: First parameter must be std::string/std::string_view to receive event_name
-     * @note Second parameter must NOT be EventItemMap (use the other overload for that)
-     * @note Remaining parameters are extracted from EventItemMap based on event schema order
-     * @note All non-event_name parameter types must satisfy ConvertibleToFunctionValue concept
-     * @note Parameter types must match the actual EventItem types in the map
+     * @note REQUIRED: First parameter must be `std::string` or `std::string_view` to receive `event_name`.
+     * @note Second parameter must not be `EventItemMap`; use the other overload for that case.
+     * @note Remaining parameters are extracted from `EventItemMap` based on the event-schema order.
+     * @note All non-`event_name` parameter types must satisfy the `ConvertibleToEventItem` concept.
+     * @note Parameter types must match the actual `EventItem` types in the map.
      *
-     * @example
+     * @code{.cpp}
      * // Event with two schema parameters: (string name, double value)
      * auto conn = subscribe_event(EventId::ValueChanged,
      *     [](const std::string &event_name, const std::string &name, double value) {
      *         std::cout << event_name << ": " << name << " = " << value << std::endl;
      *     });
      *
-     * @example
      * // Event with no schema parameters, only event_name
      * auto conn = subscribe_event(EventId::Ready,
      *     [](const std::string &event_name) {
      *         std::cout << event_name << " triggered!" << std::endl;
      *     });
      *
-     * @example
      * // Using string_view for event_name
      * auto conn = subscribe_event(EventId::StatusChanged,
      *     [](std::string_view event_name, bool status) {
      *         std::cout << event_name << ": " << (status ? "ON" : "OFF") << std::endl;
      *     });
+     * @endcode
      */
     template <typename EventIdType, typename Callable>
     requires (has_event_name_first_param_v<Callable> &&
@@ -1003,6 +960,283 @@ public:
             };
         }
     }
+
+    /**
+     * @brief Event monitor for monitoring and waiting for specific events
+     *
+     * @tparam EventIdValue The specific EventId enum value to monitor
+     *
+     * @code{.cpp}
+     * // Create a monitor for WiFi GeneralEventHappened
+     * WifiHelper::EventMonitor<WifiHelper::EventId::GeneralEventHappened> monitor;
+     * monitor.start();
+     * // ... trigger some action ...
+     * bool got_event = monitor.wait_for(std::vector<service::EventItem>{"Connected", false}, 5000);
+     * monitor.stop();
+     * @endcode
+     */
+    template<auto EventIdValue>
+    requires std::is_same_v<decltype(EventIdValue), typename Derived::EventId>
+    class EventMonitor {
+    public:
+        using ReceivedItmes = std::vector<EventItem>;
+
+        EventMonitor() = default;
+        ~EventMonitor() = default;
+
+        EventMonitor(const EventMonitor &) = delete;
+        EventMonitor &operator=(const EventMonitor &) = delete;
+        EventMonitor(EventMonitor &&) = default;
+        EventMonitor &operator=(EventMonitor &&) = default;
+
+        /**
+         * @brief Start monitoring for events
+         * @return true if successfully started monitoring, false if already monitoring or failed
+         */
+        bool start()
+        {
+            if (is_running()) {
+                return true;
+            }
+
+            std::lock_guard<std::mutex> lock(mutex_);
+            connection_ = subscribe_event(EventIdValue,
+            [this](const std::string & event_name, const EventItemMap & items) {
+                std::lock_guard<std::mutex> lock(mutex_);
+                ReceivedItmes event;
+                event.reserve(items.size());
+                for (const auto &[name, item] : items) {
+                    event.push_back(item);
+                }
+                received_items_.push_back(std::move(event));
+                cv_.notify_all();
+            });
+
+            return connection_.connected();
+        }
+
+        /**
+         * @brief Stop monitoring for events
+         */
+        void stop()
+        {
+            if (!is_running()) {
+                return;
+            }
+
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                connection_.disconnect();
+            }
+
+            clear();
+        }
+
+        /**
+         * @brief Clear all received events
+         */
+        void clear()
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            received_items_.clear();
+        }
+
+        /**
+         * @brief Wait for an event containing specific items
+         *
+         * @param expected_items The expected items to find
+         * @param timeout_ms Maximum time to wait in milliseconds
+         * @return true if matching items were received, false on timeout
+         */
+        bool wait_for(const ReceivedItmes &expected_items, uint32_t timeout_ms)
+        {
+            if (!is_running()) {
+                return false;
+            }
+
+            std::unique_lock<std::mutex> lock(mutex_);
+
+            auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+
+            while (true) {
+                for (const auto &items : received_items_) {
+                    if (items == expected_items) {
+                        return true;
+                    }
+                }
+
+                if (cv_.wait_until(lock, deadline) == std::cv_status::timeout) {
+                    return false;
+                }
+            }
+        }
+
+        /**
+         * @brief Wait for any event to be received within a timeout period
+         *
+         * @param timeout_ms Maximum time to wait in milliseconds
+         * @return true if any event was received, false on timeout
+         */
+        bool wait_for_any(uint32_t timeout_ms)
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+
+            if (!received_items_.empty()) {
+                return true;
+            }
+
+            auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
+            return cv_.wait_until(lock, deadline, [this]() {
+                return !received_items_.empty();
+            });
+        }
+
+        /**
+         * @brief Get the number of received events
+         * @return Number of events received since start() or last clear()
+         */
+        size_t get_count() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return received_items_.size();
+        }
+
+        /**
+         * @brief Check if specific items have been received
+         *
+         * @param expected_items The expected items to find
+         * @return true if matching items exists in received items
+         */
+        bool has(const ReceivedItmes &expected_items) const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            for (const auto &items : received_items_) {
+                if (items == expected_items) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /**
+         * @brief Get all received events (unfiltered)
+         * @return Copy of all received events
+         */
+        const std::vector<ReceivedItmes> &get_all() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return received_items_;
+        }
+
+        /**
+         * @brief Get the last received event
+         * @return std::optional containing the last received items, std::nullopt if no items were received
+         */
+        std::optional<ReceivedItmes> get_last() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (received_items_.empty()) {
+                return std::nullopt;
+            }
+            return received_items_.back();
+        }
+
+    private:
+        template<typename... Args, size_t... Is>
+        static std::optional<std::tuple<Args...>> try_extract_items(
+                const ReceivedItmes &items, std::index_sequence<Is...>)
+        {
+            if (((std::holds_alternative<Args>(items[Is])) && ...)) {
+                return std::make_tuple(std::get<Args>(items[Is])...);
+            }
+            return std::nullopt;
+        }
+
+    public:
+        /**
+         * @brief Get received events filtered by item types and extracted as tuples
+         *
+         * @tparam Args Expected types for each position in the event (bool, double, std::string,
+         *              boost::json::object, boost::json::array, RawBuffer)
+         * @return Vector of tuples containing extracted values from matching events
+         *
+         * @code{.cpp}
+         * // Get events where first item is string and second is bool
+         * auto events = monitor.get_all<std::string, bool>();
+         * for (const auto& [str_val, bool_val] : events) {
+         *     // use str_val and bool_val
+         * }
+         * @endcode
+         */
+        template<typename... Args>
+        std::vector<std::tuple<Args...>> get_all() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            std::vector<std::tuple<Args...>> result;
+
+            for (const auto &items : received_items_) {
+                if (items.size() >= sizeof...(Args)) {
+                    auto extracted = try_extract_items<Args...>(items, std::index_sequence_for<Args...> {});
+                    if (extracted) {
+                        result.push_back(std::move(*extracted));
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * @brief Get the last received event filtered by item types and extracted as tuple
+         *
+         * @tparam Args Expected types for each position in the event (bool, double, std::string,
+         *              boost::json::object, boost::json::array, RawBuffer)
+         * @return std::optional containing tuple of extracted values if the last event matches,
+         *         std::nullopt if no events or type mismatch
+         *
+         * @code{.cpp}
+         * // Get last event where first item is string and second is bool
+         * auto last_event = monitor.get_last<std::string, bool>();
+         * if (last_event.has_value()) {
+         *     const auto &[event_str, is_unexpected] = last_event.value();
+         *     // Or use std::get<0>/std::get<1>
+         *     const auto &event_str = std::get<0>(last_event.value());
+         *     bool is_unexpected = std::get<1>(last_event.value());
+         * }
+         *
+         * // Get last event with single boost::json::array item
+         * auto last_scan = monitor.get_last<boost::json::array>();
+         * if (last_scan.has_value()) {
+         *     const auto &ap_infos_array = std::get<0>(last_scan.value());
+         * }
+         * @endcode
+         */
+        template<typename... Args>
+        std::optional<std::tuple<Args...>> get_last() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            if (received_items_.empty()) {
+                return std::nullopt;
+            }
+            return try_extract_items<Args...>(received_items_.back(), std::index_sequence_for<Args...> {});
+        }
+
+        /**
+         * @brief Check if currently running
+         * @return true if actively running
+         */
+        bool is_running() const
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            return connection_.connected();
+        }
+
+    private:
+        mutable std::mutex mutex_;
+        std::condition_variable cv_;
+        EventRegistry::SignalConnection connection_;
+        std::vector<ReceivedItmes> received_items_;
+    };
 };
 
 } // namespace esp_brookesia::service::helper

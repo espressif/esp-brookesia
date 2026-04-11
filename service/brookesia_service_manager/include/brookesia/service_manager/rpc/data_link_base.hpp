@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -8,19 +8,36 @@
 #include <memory>
 #include <functional>
 #include <atomic>
-#include "boost/thread.hpp"
-#include "boost/asio.hpp"
+#include "boost/asio/io_context.hpp"
+#include "boost/asio/streambuf.hpp"
+#include "boost/asio/ip/tcp.hpp"
 #include "brookesia/service_manager/macro_configs.h"
 
 namespace esp_brookesia::service::rpc {
 
-// Base data link class
+/**
+ * @brief Abstract TCP data-link layer shared by RPC clients and servers.
+ */
 class DataLinkBase {
 public:
+    /**
+     * @brief Callback invoked when a complete payload string is received.
+     */
     using OnDataReceived = std::function<void(const std::string &data, size_t connection_id)>;
+    /**
+     * @brief Callback invoked when a transport connection becomes active.
+     */
     using OnConnectionEstablished = std::function<void(size_t connection_id)>;
+    /**
+     * @brief Callback invoked when a transport connection closes.
+     */
     using OnConnectionClosed = std::function<void(size_t connection_id)>;
 
+    /**
+     * @brief Construct the base transport with an executor.
+     *
+     * @param[in] executor Executor that owns asynchronous I/O operations.
+     */
     DataLinkBase(boost::asio::io_context::executor_type executor)
         : executor_(executor)
         , executor_guard_(executor)
@@ -28,33 +45,66 @@ public:
     }
     virtual ~DataLinkBase() = default;
 
-    // Callback setting
+    /**
+     * @brief Set the callback used for incoming payloads.
+     *
+     * @param[in] callback Callback to install.
+     */
     void set_on_data_received(OnDataReceived callback)
     {
         on_data_received_ = callback;
     }
+    /**
+     * @brief Set the callback used for successful connection establishment.
+     *
+     * @param[in] callback Callback to install.
+     */
     void set_on_connection_established(OnConnectionEstablished callback)
     {
         on_connection_established_ = callback;
     }
+    /**
+     * @brief Set the callback used for connection teardown.
+     *
+     * @param[in] callback Callback to install.
+     */
     void set_on_connection_closed(OnConnectionClosed callback)
     {
         on_connection_closed_ = callback;
     }
 
-    // Connection statistics
+    /**
+     * @brief Get the number of active sockets across all data-link instances.
+     *
+     * @return size_t Current global socket count.
+     */
     static size_t get_active_global_sockets_count()
     {
         return active_global_sockets_.load();
     }
+    /**
+     * @brief Get the configured global socket cap.
+     *
+     * @return size_t Maximum number of sockets allowed globally.
+     */
     static size_t get_max_global_sockets_count()
     {
         return BROOKESIA_SERVICE_MANAGER_RPC_GLOBAL_MAX_SOCKETS;
     }
+    /**
+     * @brief Check whether the global socket cap has been reached.
+     *
+     * @return true if no more sockets should be opened.
+     */
     static bool is_global_sockets_limit_reached()
     {
         return get_active_global_sockets_count() >= get_max_global_sockets_count();
     }
+    /**
+     * @brief Get the maximum number of simultaneously active sockets observed.
+     *
+     * @return size_t Historical peak socket count.
+     */
     static size_t get_max_active_global_sockets_count()
     {
         return max_global_sockets_.load();
@@ -62,10 +112,10 @@ public:
 
 protected:
     struct ConnectionInfo {
-        std::shared_ptr<boost::asio::ip::tcp::socket> socket;
-        std::atomic<bool> is_active{false};
-        size_t id;
-        boost::asio::streambuf receive_buffer;
+        std::shared_ptr<boost::asio::ip::tcp::socket> socket; ///< Owned TCP socket.
+        std::atomic<bool> is_active{false}; ///< Whether the connection is still considered active.
+        size_t id; ///< Transport-level connection identifier.
+        boost::asio::streambuf receive_buffer; ///< Accumulates incoming bytes until a frame is complete.
     };
 
     virtual void on_handle_receive_error(std::shared_ptr<ConnectionInfo> connection, const boost::system::error_code &error)

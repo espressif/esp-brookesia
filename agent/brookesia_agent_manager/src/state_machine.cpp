@@ -28,7 +28,7 @@ constexpr uint32_t GENERAL_STATE_UPDATE_INTERVAL_MS = 100;
 class GeneralStateClass : public lib_utils::StateBase {
 public:
     GeneralStateClass(StateMachine &context, GeneralState state)
-        : lib_utils::StateBase()
+        : lib_utils::StateBase(BROOKESIA_DESCRIBE_TO_STR(state))
         , context_(context)
         , state_(state)
     {}
@@ -214,9 +214,8 @@ bool StateMachine::init()
     is_initialized_ = true;
 
     /* Create state machine */
-    auto group_name = Manager::get_instance().get_state_task_group();
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        state_machine_ = std::make_unique<lib_utils::StateMachine>(group_name), false,
+        state_machine_ = std::make_unique<lib_utils::StateMachine>(), false,
         "Failed to create state machine"
     );
 
@@ -236,7 +235,7 @@ bool StateMachine::init()
             "Failed to create state %1%", state_str
         );
         BROOKESIA_CHECK_FALSE_RETURN(
-            state_machine_->add_state(state_str, state_ptr), false, "Failed to add state %1%", state_str
+            state_machine_->add_state(state_ptr), false, "Failed to add state %1%", state_str
         );
         state_classes_.push_back(state_ptr);
     }
@@ -535,12 +534,12 @@ bool StateMachine::start()
         operation_timeout.wake_up, action_timeout
     );
 
-    auto scheduler = Manager::get_instance().get_task_scheduler();
-    BROOKESIA_CHECK_NULL_RETURN(scheduler, false, "Scheduler is not set");
     BROOKESIA_CHECK_FALSE_RETURN(
-        state_machine_->start(scheduler, BROOKESIA_DESCRIBE_TO_STR(agent_init_state)), false,
-        "Failed to start state machine"
-    );
+    state_machine_->start({
+        .task_scheduler = Manager::get_instance().get_task_scheduler(),
+        .task_group_name = Manager::get_instance().get_state_task_group(),
+        .initial_state = BROOKESIA_DESCRIBE_TO_STR(agent_init_state),
+    }), false, "Failed to start state machine");
 
     stop_guard.release();
 

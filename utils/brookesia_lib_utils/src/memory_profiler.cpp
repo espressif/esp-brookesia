@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,7 +7,9 @@
 #include <iomanip>
 #include <sstream>
 #include <ctime>
-#include "esp_heap_caps.h"
+#if defined(ESP_PLATFORM)
+#   include "esp_heap_caps.h"
+#endif
 #include "brookesia/lib_utils/macro_configs.h"
 #if !BROOKESIA_UTILS_MEMORY_PROFILER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -411,6 +413,7 @@ void MemoryProfiler::sample_memory(MemoryInfo &mem_info)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
+#if defined(ESP_PLATFORM)
     // Sample internal SRAM
     size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
     size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
@@ -427,29 +430,49 @@ void MemoryProfiler::sample_memory(MemoryInfo &mem_info)
     mem_info.total_free = internal_free + external_free;
     mem_info.total_free_percent = mem_info.total_free * 100 / mem_info.total_size;
     mem_info.total_largest_free_block = std::max(internal_largest, external_largest);
+#endif
 }
 
 bool MemoryProfiler::check_threshold(const ProfileSnapshot &snapshot, ThresholdType type, uint32_t threshold_value)
 {
     auto &stats = snapshot.stats;
+    auto &memory = snapshot.memory;
     switch (type) {
     case ThresholdType::TotalFree:
-        return stats.min_total_free <= threshold_value;
+        return memory.total_free <= threshold_value;
     case ThresholdType::InternalFree:
-        return stats.min_internal_free <= threshold_value;
+        return memory.internal.free_size <= threshold_value;
     case ThresholdType::ExternalFree:
-        return stats.min_external_free <= threshold_value;
+        return memory.external.free_size <= threshold_value;
     case ThresholdType::TotalFreePercent:
-        return stats.min_total_free_percent <= threshold_value;
+        return memory.total_free_percent <= threshold_value;
     case ThresholdType::InternalFreePercent:
-        return stats.min_internal_free_percent <= threshold_value;
+        return memory.internal.free_percent <= threshold_value;
     case ThresholdType::ExternalFreePercent:
-        return stats.min_external_free_percent <= threshold_value;
+        return memory.external.free_percent <= threshold_value;
     case ThresholdType::TotalLargestFreeBlock:
-        return stats.min_total_largest_free_block <= threshold_value;
+        return memory.total_largest_free_block <= threshold_value;
     case ThresholdType::InternalLargestFreeBlock:
-        return stats.min_internal_largest_free_block <= threshold_value;
+        return memory.internal.largest_free_block <= threshold_value;
     case ThresholdType::ExternalLargestFreeBlock:
+        return memory.external.largest_free_block <= threshold_value;
+    case ThresholdType::MinTotalFree:
+        return stats.min_total_free <= threshold_value;
+    case ThresholdType::MinInternalFree:
+        return stats.min_internal_free <= threshold_value;
+    case ThresholdType::MinExternalFree:
+        return stats.min_external_free <= threshold_value;
+    case ThresholdType::MinTotalFreePercent:
+        return stats.min_total_free_percent <= threshold_value;
+    case ThresholdType::MinInternalFreePercent:
+        return stats.min_internal_free_percent <= threshold_value;
+    case ThresholdType::MinExternalFreePercent:
+        return stats.min_external_free_percent <= threshold_value;
+    case ThresholdType::MinTotalLargestFreeBlock:
+        return stats.min_total_largest_free_block <= threshold_value;
+    case ThresholdType::MinInternalLargestFreeBlock:
+        return stats.min_internal_largest_free_block <= threshold_value;
+    case ThresholdType::MinExternalLargestFreeBlock:
         return stats.min_external_largest_free_block <= threshold_value;
     default:
         return false;

@@ -1,2 +1,0 @@
-config BOARD_ESP_SENSAIR_SHUTTLE
-    bool

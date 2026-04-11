@@ -405,6 +405,118 @@ TEST_CASE("Test restart_timer with suspend and resume", "[utils][task_scheduler]
     scheduler.stop();
 }
 
+TEST_CASE("Test restart_timer after resume uses original interval", "[utils][task_scheduler][restart_timer][combined][resume_interval]")
+{
+    BROOKESIA_LOGI("=== TaskScheduler restart_timer After Resume Uses Original Interval Test ===");
+
+    reset_counters();
+    TaskScheduler scheduler;
+    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
+
+    TaskScheduler::TaskId task_id = 0;
+    const int ORIGINAL_DELAY_MS = 300;
+
+    scheduler.post_delayed([&]() {
+        g_execution_time = esp_timer_get_time();
+        g_counter++;
+        BROOKESIA_LOGI("Task executed");
+    }, ORIGINAL_DELAY_MS, &task_id);
+
+    // Wait 100ms (remaining ≈ 200ms), then suspend
+    vTaskDelay(pdMS_TO_TICKS(100));
+    bool suspended = scheduler.suspend(task_id);
+    TEST_ASSERT_TRUE(suspended);
+    BROOKESIA_LOGI("Task suspended at ~100ms (remaining ~200ms)");
+
+    // Stay suspended for 200ms
+    vTaskDelay(pdMS_TO_TICKS(200));
+    TEST_ASSERT_EQUAL(0, g_counter.load());
+
+    // Resume (internally schedules with remaining ~200ms) then restart_timer
+    // restart_timer should reset to ORIGINAL_DELAY_MS (300ms), not remaining ~200ms
+    auto restart_time = esp_timer_get_time();
+    bool resumed = scheduler.resume(task_id);
+    TEST_ASSERT_TRUE(resumed);
+    bool restarted = scheduler.restart_timer(task_id);
+    TEST_ASSERT_TRUE(restarted);
+    BROOKESIA_LOGI("Task resumed + timer restarted at ~300ms");
+
+    // At 200ms after restart: task should NOT have fired yet (would have if using remaining ~200ms)
+    vTaskDelay(pdMS_TO_TICKS(220));
+    TEST_ASSERT_EQUAL_MESSAGE(
+        0, g_counter.load(),
+        "Task fired too early - restart_timer likely used remaining time instead of original interval"
+    );
+
+    // Wait for the full original interval to elapse
+    bool completed = scheduler.wait(task_id, 500);
+    TEST_ASSERT_TRUE(completed);
+    TEST_ASSERT_EQUAL(1, g_counter.load());
+
+    // Verify elapsed time from restart is approximately ORIGINAL_DELAY_MS (300ms), not ~200ms
+    auto elapsed_from_restart = (g_execution_time.load() - restart_time) / 1000;
+    BROOKESIA_LOGI("Task executed %1% ms after restart (expected ~%2%ms)", elapsed_from_restart, ORIGINAL_DELAY_MS);
+    TEST_ASSERT_GREATER_OR_EQUAL(ORIGINAL_DELAY_MS - 30, elapsed_from_restart);
+    TEST_ASSERT_LESS_OR_EQUAL(ORIGINAL_DELAY_MS + 100, elapsed_from_restart);
+
+    scheduler.stop();
+}
+
+TEST_CASE("Test restart_timer after resume uses original interval with multiple cycles", "[utils][task_scheduler][restart_timer][combined][resume_interval_multi]")
+{
+    BROOKESIA_LOGI("=== TaskScheduler restart_timer After Resume Multiple Cycles Test ===");
+
+    reset_counters();
+    TaskScheduler scheduler;
+    scheduler.start(TEST_SCHEDULER_CONFIG_GENERIC);
+
+    TaskScheduler::TaskId task_id = 0;
+    const int ORIGINAL_DELAY_MS = 300;
+
+    scheduler.post_delayed([&]() {
+        g_execution_time = esp_timer_get_time();
+        g_counter++;
+        BROOKESIA_LOGI("Task executed");
+    }, ORIGINAL_DELAY_MS, &task_id);
+
+    // Cycle 1: wait 100ms → suspend → wait → resume + restart
+    vTaskDelay(pdMS_TO_TICKS(100));
+    scheduler.suspend(task_id);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    scheduler.resume(task_id);
+    scheduler.restart_timer(task_id);
+    BROOKESIA_LOGI("Cycle 1: resume + restart");
+
+    // Cycle 2: wait 100ms → suspend → wait → resume + restart
+    vTaskDelay(pdMS_TO_TICKS(100));
+    scheduler.suspend(task_id);
+    vTaskDelay(pdMS_TO_TICKS(100));
+    scheduler.resume(task_id);
+    auto restart_time = esp_timer_get_time();
+    scheduler.restart_timer(task_id);
+    BROOKESIA_LOGI("Cycle 2: resume + restart");
+
+    // After two suspend/resume cycles the remaining time would have decayed significantly
+    // if the bug existed. With the fix, restart_timer always resets to 300ms.
+    TEST_ASSERT_EQUAL(0, g_counter.load());
+
+    // Verify task fires ~300ms after the last restart, not earlier
+    vTaskDelay(pdMS_TO_TICKS(220));
+    TEST_ASSERT_EQUAL_MESSAGE(0, g_counter.load(),
+                              "Task fired too early - interval_ms likely decayed across suspend/resume cycles");
+
+    bool completed = scheduler.wait(task_id, 500);
+    TEST_ASSERT_TRUE(completed);
+    TEST_ASSERT_EQUAL(1, g_counter.load());
+
+    auto elapsed_from_restart = (g_execution_time.load() - restart_time) / 1000;
+    BROOKESIA_LOGI("Task executed %1% ms after last restart (expected ~%2%ms)", elapsed_from_restart, ORIGINAL_DELAY_MS);
+    TEST_ASSERT_GREATER_OR_EQUAL(ORIGINAL_DELAY_MS - 30, elapsed_from_restart);
+    TEST_ASSERT_LESS_OR_EQUAL(ORIGINAL_DELAY_MS + 100, elapsed_from_restart);
+
+    scheduler.stop();
+}
+
 TEST_CASE("Test restart_timer stress test", "[utils][task_scheduler][restart_timer][stress]")
 {
     BROOKESIA_LOGI("=== TaskScheduler restart_timer Stress Test ===");

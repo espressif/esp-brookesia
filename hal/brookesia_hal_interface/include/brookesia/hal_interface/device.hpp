@@ -6,301 +6,209 @@
 
 /**
  * @file device.hpp
- * @brief Base device abstractions, interface lookup helpers, and registry utilities for the HAL layer.
+ * @brief Defines the HAL device base type and typed lookup helpers for devices and interfaces.
  */
 #pragma once
 
-#include <list>
 #include <map>
-#include <string>
-#include <string_view>
-#include <unordered_map>
-#include <array>
 #include <memory>
-#include <vector>
+#include <string>
+#include <type_traits>
 #include "brookesia/lib_utils/plugin.hpp"
-#include "brookesia/lib_utils/check.hpp"
+#include "brookesia/hal_interface/interface.hpp"
 
 namespace esp_brookesia::hal {
 
-//---------------- Interface ID ----------------
 /**
- * @brief Calculates the FNV-1a 64-bit hash of s.
+ * @brief Base class for HAL devices.
  *
- * @param s Interface name string to hash.
- * @return FNV-1a 64-bit hash value for s.
- */
-static inline constexpr uint64_t cal_fnv1a_64(std::string_view s)
-{
-    uint64_t hash = 0xcbf29ce484222325;
-    for (char c : s) {
-        hash ^= static_cast<uint8_t>(c);
-        hash *= 0x100000001b3;
-    }
-    return hash;
-}
-
-/**
- * @brief Returns the hashed interface identifier for I.
- *
- * @tparam I Interface type exposing `interface_name`.
- * @return FNV-1a hash of `I::interface_name`.
- */
-template<typename I> constexpr uint64_t get_device_interface_fnv1a()
-{
-    return cal_fnv1a_64(I::interface_name);
-}
-
-/**
- * @brief Abstract base class for all HAL devices registered in the runtime registry.
- *
- * Concrete devices are responsible for exposing one or more public interfaces,
- * implementing the lifecycle hooks, and answering runtime interface queries.
+ * A concrete device can publish one or more interface instances through `interfaces_`
+ * during initialization, then those interfaces can be queried from the global registry.
  */
 class Device {
 public:
-    using Registry = esp_brookesia::lib_utils::PluginRegistry<Device>; ///< Registry type used to create and enumerate devices.
-
-    /**
-     * @brief Disables copy and move operations for device instances.
-     */
     Device(const Device &) = delete;
     Device(Device &&) = delete;
     Device &operator=(const Device &) = delete;
     Device &operator=(Device &&) = delete;
 
     /**
-     * @brief Constructs a device with the given registry name.
+     * @brief Check whether the device is supported on current runtime conditions.
      *
-     * @param name Device name used by the registry and lookup helpers.
-     */
-    Device(const char *name)
-        : _name(name)
-    {
-    }
-
-    /**
-     * @brief Destroys the device.
-     */
-    virtual ~Device() = default;
-
-    /**
-     * @brief Queries the device for interface I.
-     *
-     * @tparam I Interface type to query.
-     * @return Pointer to the requested interface, or `nullptr` when unsupported.
-     */
-    template<typename I> I *query()
-    {
-        return static_cast<I *>(query_interface(get_device_interface_fnv1a<I>()));
-    }
-
-    /**
-     * @brief Checks whether the device is supported on the current platform.
-     *
-     * @return true when the device should be used, otherwise false.
+     * @return `true` if the device can be initialized; otherwise `false`.
      */
     virtual bool probe() = 0;
 
     /**
-     * @brief Returns whether the device has already been initialized.
+     * @brief Get the registry name of this device.
      *
-     * @return true when the device is initialized, otherwise false.
+     * @return Device name.
      */
-    virtual bool check_initialized() const = 0;
-
-    /**
-     * @brief Returns the registry name of the device.
-     *
-     * @return Immutable reference to the device name.
-     */
-    const std::string &get_name(void) const
+    const std::string &get_name() const
     {
-        return _name;
+        return name_;
     }
 
     /**
-     * @brief Initializes the device and its exposed interfaces.
+     * @brief Retrieve a typed interface owned by this device by interface registry name.
      *
-     * @return true on success, otherwise false.
+     * @tparam T Interface type that derives from `Interface`.
+     * @param[in] name Fully-qualified interface name in the registry.
+     * @return Matching typed interface pointer, or `nullptr` if the name is missing
+     *         or the type does not match.
      */
-    virtual bool init() = 0;
+    template<typename T>
+    requires IsInterface<T>
+    std::shared_ptr<T> get_interface(const std::string &name) const
+    {
+        auto it = interfaces_.find(name);
+        if (it == interfaces_.end()) {
+            return nullptr;
+        }
 
-    /**
-     * @brief Deinitializes the device and releases owned resources.
-     *
-     * @return true on success, otherwise false.
-     */
-    virtual bool deinit() = 0;
+        if (auto casted = std::dynamic_pointer_cast<T>(it->second)) {
+            return casted;
+        }
+        return nullptr;
+    }
 
-    /**
-     * @brief Initializes every registered device that passes `probe()`.
-     *
-     * @return true when initialization finishes successfully, otherwise false.
-     */
-    static bool init_device_from_registry();
-
-private:
-    std::string _name = "BaseDevice"; /**< Registry name of the device. */
-
-    /**
-     * @brief Queries the device by hashed interface identifier.
-     *
-     * @param id Interface identifier produced by `get_device_interface_fnv1a()`.
-     * @return Pointer to the matching interface, or `nullptr` when unsupported.
-     */
-    virtual void *query_interface(uint64_t) = 0;
-};
-
-//----------------  CRTP Implementation ----------------
-/**
- * @brief CRTP helper that builds a static interface-dispatch table for a device implementation.
- *
- * @tparam Derived Concrete device type inheriting from `DeviceImpl`.
- */
-template<typename Derived>
-class DeviceImpl : public Device {
 protected:
-    /**
-     * @brief Constructs the CRTP device helper with the given registry name.
-     *
-     * @param name Device name used by the base `Device` class.
-     */
-    DeviceImpl(const char *name): Device(name) {}
+    friend void init_all_devices();
+    friend bool init_device(const std::string &name);
+    friend void deinit_all_devices();
+    friend void deinit_device(const std::string &name);
 
-    /**
-     * @brief Builds and searches a static interface-dispatch table.
-     *
-     * @tparam Ifaces Interface types supported by the device.
-     * @param id Hashed interface identifier to resolve.
-     * @return Pointer to the requested interface, or `nullptr` when no match exists.
-     */
-    template<typename... Ifaces>
-    void *build_table(uint64_t id)
+    Device(std::string name)
+        : name_(name)
     {
-        static const Entry table[] = { Make<Ifaces>()... };
-        for (const auto &e : table) {
-            if (e.id == id) {
-                return e.cast(static_cast<Derived *>(this));
-            }
-        }
-        return nullptr;
     }
+
+    ~Device();
+
+    virtual bool on_init() = 0;
+
+    virtual void on_deinit() = 0;
+
+    bool is_iface_initialized(const std::string &name) const
+    {
+        return interfaces_.find(name) != interfaces_.end();
+    }
+
+    std::map<std::string, std::shared_ptr<Interface>> interfaces_;
 
 private:
-    /**
-     * @brief One entry in the static interface-dispatch table.
-     */
-    struct Entry {
-        uint64_t id;             ///< Hashed interface identifier.
-        void *(*cast)(Derived *); ///< Cast function returning the requested interface view.
-    };
-
-    /**
-     * @brief Creates one dispatch-table entry for interface I.
-     *
-     * @tparam I Interface type supported by the device.
-     * @return Dispatch-table entry for I.
-     */
-    template<typename I> static Entry Make()
+    bool is_initialized() const
     {
-        return {get_device_interface_fnv1a<I>(), [](Derived * self)->void *{ return static_cast<I *>(self); }};
+        return is_initialized_;
     }
+
+    bool init();
+    void deinit();
+
+    std::string name_;
+    bool is_initialized_ = false;
 };
 
-//---------------- Convenience Functions ----------------
 /**
- * @brief Returns the registered device named name.
- *
- * @param name Device registry name.
- * @return Shared pointer to the device, or `nullptr` when not found.
- *
- * @code
- * auto dev = get_device("display");
- * if (!dev) {
- *     ESP_LOGE(TAG, "Device not found");
- *     return ESP_ERR_NOT_FOUND;
- * }
- * @endcode
+ * @brief Registry alias for HAL devices.
  */
-static inline std::shared_ptr<Device> get_device(const char *name)
+using DeviceRegistry = lib_utils::PluginRegistry<Device>;
+
+/**
+ * @brief Initialize all registered devices that pass `probe()`.
+ */
+void init_all_devices();
+
+/**
+ * @brief Initialize one registered device by name.
+ *
+ * @param[in] name Device registry name.
+ * @return `true` on success; otherwise `false`.
+ */
+bool init_device(const std::string &name);
+
+/**
+ * @brief Deinitialize all registered devices.
+ */
+void deinit_all_devices();
+
+/**
+ * @brief Deinitialize one registered device by name.
+ *
+ * @param[in] name Device registry name.
+ */
+void deinit_device(const std::string &name);
+
+/**
+ * @brief Type constraint for HAL device classes.
+ *
+ * `T` must inherit from `Device`.
+ */
+template<typename T>
+concept IsDevice = std::is_base_of_v<Device, std::decay_t<T>>;
+
+/**
+ * @brief Get the registered device by plugin name.
+ *
+ * @param[in] plugin_name Device plugin name.
+ * @return Matching device pointer, or `nullptr` if no match exists.
+ */
+static inline std::shared_ptr<Device> get_device_by_plugin_name(const std::string &plugin_name)
 {
-    return Device::Registry::get_instance(name);
+    return DeviceRegistry::get_instance(plugin_name);
 }
 
 /**
- * @brief Returns interface T from the registered device named name.
+ * @brief Get the registered device by device name.
  *
- * @tparam T Interface type to query.
- * @param name Device registry name.
- * @return Pointer to the requested interface, or `nullptr` when the device or interface is unavailable.
- *
- * @code
- * DisplayPanelIface *display = get_interface<DisplayPanelIface>("name");
- * if (!display) {
- *     ESP_LOGE(TAG, "Display not found");
- *     return ESP_ERR_NOT_FOUND;
- * }
- * auto &config = display->get_config();
- * @endcode
+ * @param[in] device_name Device name.
+ * @return Matching device pointer, or `nullptr` if no match exists.
  */
-template <typename T>
-static inline T *get_interface(const char *name)
+static inline std::shared_ptr<Device> get_device_by_device_name(const std::string &device_name)
 {
-    auto dev = get_device(name);
-    if (!dev) {
-        return nullptr;
-    }
-    return dev->query<T>();
-}
-
-/**
- * @brief Returns all registered interfaces of type T.
- *
- * @tparam T Interface type to enumerate.
- * @return Vector of `(device name, interface pointer)` pairs.
- *
- * @note The iteration order follows the registry order.
- */
-template <typename T>
-static inline std::vector<std::pair<std::string, T *>> get_interfaces()
-{
-    std::vector<std::pair<std::string, T *>> interfaces;
-    auto devices = Device::Registry::get_all_instances();
-    for (const auto &[name, dev] : devices) {
-        if (!dev) {
-            continue;
-        }
-        auto *iface = dev->query<T>();
-        if (iface) {
-            interfaces.emplace_back(name, iface);
-        }
-    }
-    return interfaces;
-}
-
-/**
- * @brief Returns the first registered interface of type T.
- *
- * @tparam T Interface type to search for.
- * @return Pointer to the first matching interface, or `nullptr` when no device exposes it.
- */
-template <typename T>
-static inline T *get_first_interface()
-{
-    auto devices = Device::Registry::get_all_instances();
-    for (const auto &[name, dev] : devices) {
-        (void)name;
-        if (!dev) {
-            continue;
-        }
-
-        auto *iface = dev->query<T>();
-        if (iface) {
-            return iface;
+    for (const auto &[_, dev] : DeviceRegistry::get_all_instances()) {
+        if (dev->get_name() == device_name) {
+            return dev;
         }
     }
     return nullptr;
+}
+
+/**
+ * @brief Get all registered interfaces that can be cast to `T`.
+ *
+ * @tparam T Interface type that derives from `Interface`.
+ * @return Map of interface registry name to typed interface pointer.
+ */
+template<typename T>
+requires IsInterface<T>
+std::map<std::string, std::shared_ptr<T>> get_interfaces()
+{
+    std::map<std::string, std::shared_ptr<T>> result;
+    for (const auto &[iface_name, iface] : InterfaceRegistry::get_all_instances()) {
+        if (auto casted = std::dynamic_pointer_cast<T>(iface)) {
+            result.emplace(iface_name, casted);
+        }
+    }
+    return result;
+}
+
+/**
+ * @brief Get the first registered interface that can be cast to `T`.
+ *
+ * @tparam T Interface type that derives from `Interface`.
+ * @return Pair of interface registry name and typed pointer. If not found, returns `{"", nullptr}`.
+ */
+template<typename T>
+requires IsInterface<T>
+std::pair<std::string, std::shared_ptr<T>> get_first_interface()
+{
+    for (const auto &[iface_name, iface] : InterfaceRegistry::get_all_instances()) {
+        if (auto casted = std::dynamic_pointer_cast<T>(iface)) {
+            return {iface_name, casted};
+        }
+    }
+    return {"", nullptr};
 }
 
 } // namespace esp_brookesia::hal

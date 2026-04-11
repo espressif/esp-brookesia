@@ -10,11 +10,17 @@
 
 namespace esp_brookesia::service::helper {
 
+/**
+ * @brief Helper schema definitions for the emote-expression service.
+ */
 class ExpressionEmote: public Base<ExpressionEmote> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /**
+     * @brief Supported message categories rendered by the expression service.
+     */
     enum class EventMessageType {
         Idle,
         Speak,
@@ -25,39 +31,51 @@ public:
         Max,
     };
 
+    /**
+     * @brief Supported asset-source backends used when loading expression assets.
+     */
     enum class AssetSourceType {
         Path,
         PartitionLabel,
         Max,
     };
 
+    /**
+     * @brief Description of one asset source used by the expression service.
+     */
     struct AssetSource {
-        std::string source;
-        AssetSourceType type;
-        bool flag_enable_mmap = false;
+        std::string source; ///< Source identifier such as a path or partition label.
+        AssetSourceType type; ///< How `source` should be interpreted.
+        bool flag_enable_mmap = false; ///< Whether mmap-backed loading should be enabled.
     };
 
+    /**
+     * @brief Runtime display and task configuration for the expression service.
+     */
     struct Config {
-        uint32_t h_res = 0;
-        uint32_t v_res = 0;
-        size_t buf_pixels = 0;
-        uint32_t fps = 0;
-        int task_priority = 0;
-        int task_stack = 0;
-        int task_affinity = 0;
-        bool task_stack_in_ext = false;
-        bool flag_swap_color_bytes = false;
-        bool flag_double_buffer = false;
-        bool flag_buff_dma = false;
-        bool flag_buff_spiram = false;
+        uint32_t h_res = 0; ///< Horizontal resolution in pixels.
+        uint32_t v_res = 0; ///< Vertical resolution in pixels.
+        size_t buf_pixels = 0; ///< Display buffer size in pixels.
+        uint32_t fps = 0; ///< Target render frame rate.
+        int task_priority = 0; ///< Render task priority.
+        int task_stack = 0; ///< Render task stack size in bytes.
+        int task_affinity = 0; ///< Core affinity for the render task.
+        bool task_stack_in_ext = false; ///< Whether the task stack should live in external memory.
+        bool flag_swap_color_bytes = false; ///< Whether output color bytes must be swapped.
+        bool flag_double_buffer = false; ///< Whether double buffering is enabled.
+        bool flag_buff_dma = false; ///< Whether display buffers must be DMA-capable.
+        bool flag_buff_spiram = false; ///< Whether display buffers may be allocated in SPIRAM.
     };
 
+    /**
+     * @brief Parameters delivered with the flush-ready event.
+     */
     struct FlushReadyEventParam {
-        int x_start = 0;
-        int y_start = 0;
-        int x_end = 0;
-        int y_end = 0;
-        const void *data = nullptr;
+        int x_start = 0; ///< Left edge of the dirty region.
+        int y_start = 0; ///< Top edge of the dirty region.
+        int x_end = 0; ///< Right edge of the dirty region.
+        int y_end = 0; ///< Bottom edge of the dirty region.
+        const void *data = nullptr; ///< Pixel buffer for the dirty region.
     };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -138,11 +156,25 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetConfig),
-            .description = "Set the configurations",
+            .description = "Set emote config.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetConfigParam::Config),
-                    .description = "Configuration",
+                    .description = (boost::format("Config. Example: %1%")
+                    % BROOKESIA_DESCRIBE_JSON_SERIALIZE((Config{
+                        .h_res = 320,
+                        .v_res = 240,
+                        .buf_pixels = 320 * 24,
+                        .fps = 30,
+                        .task_priority = 5,
+                        .task_stack = 4096,
+                        .task_affinity = 0,
+                        .task_stack_in_ext = true,
+                        .flag_swap_color_bytes = false,
+                        .flag_double_buffer = false,
+                        .flag_buff_dma = false,
+                        .flag_buff_spiram = true,
+                    }))).str(),
                     .type = FunctionValueType::Object
                 }
             },
@@ -154,11 +186,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::LoadAssetsSource),
-            .description = "Load the assets from the specified source",
+            .description = "Load assets from the specified source.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionLoadAssetsParam::Source),
-                    .description = (boost::format("Source of the assets, should be a JSON object. Example: %1%")
+                    .description = (boost::format("Asset source as a JSON object. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE((AssetSource{
                         .source = "anim_icon",
                         .type = AssetSourceType::PartitionLabel,
@@ -175,11 +207,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetEmoji),
-            .description = "Set the emoji. Animation will be hidden immediately",
+            .description = "Set emoji and hide animation immediately.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEmojiParam::Emoji),
-                    .description = "Name of the emoji to set",
+                    .description = "Emoji name.",
                     .type = FunctionValueType::String
                 }
             },
@@ -191,7 +223,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEmoji),
-            .description = "Hide the current emoji",
+            .description = "Hide current emoji.",
             .require_scheduler = false
         };
     }
@@ -200,11 +232,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetAnimation),
-            .description = "Set the animation. Emoji will be hidden immediately",
+            .description = "Set animation and hide emoji immediately.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetAnimationParam::Animation),
-                    .description = "Name of the animation to set",
+                    .description = "Animation name.",
                     .type = FunctionValueType::String
                 }
             },
@@ -216,17 +248,16 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::InsertAnimation),
-            .description = "Insert the animation. Animation will be hidden immediately and will "
-            "be shown after the duration",
+            .description = "Insert animation; it hides immediately and shows after the duration.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionInsertAnimationParam::Animation),
-                    .description = "Name of the animation to insert",
+                    .description = "Animation name.",
                     .type = FunctionValueType::String
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionInsertAnimationParam::DurationMs),
-                    .description = "Duration of the animation in milliseconds, will be auto-stopped after the duration",
+                    .description = "Animation duration in milliseconds. Stops automatically after this duration.",
                     .type = FunctionValueType::Number
                 }
             },
@@ -238,7 +269,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopAnimation),
-            .description = "Stop the current animation. Animation will be hidden immediately",
+            .description = "Stop current animation and hide it immediately.",
             .require_scheduler = false
         };
     }
@@ -247,11 +278,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::WaitAnimationFrameDone),
-            .description = "Wait for the animation every frame done",
+            .description = "Wait for each animation frame to finish.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionWaitAnimationFrameDoneParam::TimeoutMs),
-                    .description = "Timeout in milliseconds, 0 means wait forever",
+                    .description = "Timeout in milliseconds. `0` means wait forever.",
                     .type = FunctionValueType::Number,
                     .default_value = 0.0,
                 }
@@ -264,11 +295,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetEventMessage),
-            .description = "Set the message for the specified event of the emote system",
+            .description = "Set message for a specified emote event.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEventMessageParam::Event),
-                    .description = (boost::format("Event to set, should be one of the following types: %1%")
+                    .description = (boost::format("Event type. Allowed values: %1%")
                     % BROOKESIA_DESCRIBE_TO_STR(std::vector<EventMessageType>({
                         EventMessageType::Idle, EventMessageType::Speak, EventMessageType::Listen,
                         EventMessageType::System, EventMessageType::User, EventMessageType::Battery
@@ -277,7 +308,7 @@ private:
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEventMessageParam::Message),
-                    .description = "Message to set",
+                    .description = "Message text.",
                     .type = FunctionValueType::String,
                     .default_value = "",
                 }
@@ -290,7 +321,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEventMessage),
-            .description = "Hide the current event message",
+            .description = "Hide current event message.",
             .require_scheduler = false
         };
     }
@@ -299,11 +330,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetQrcode),
-            .description = "Set the QR code. Emoji and animation will be hidden immediately",
+            .description = "Set QR code and hide emoji and animation immediately.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetQrcodeParam::Qrcode),
-                    .description = "QR code to set",
+                    .description = "QR code content.",
                     .type = FunctionValueType::String
                 }
             },
@@ -315,7 +346,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideQrcode),
-            .description = "Hide the current QR code. Emoji will be shown immediately",
+            .description = "Hide current QR code and show emoji immediately.",
             .require_scheduler = false
         };
     }
@@ -324,7 +355,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::NotifyFlushFinished),
-            .description = "Notify the flush finished event of the emote system",
+            .description = "Notify emote flush finished.",
             .require_scheduler = false
         };
     }
@@ -333,7 +364,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::RefreshAll),
-            .description = "Refresh the whole screen",
+            .description = "Refresh the screen.",
             .require_scheduler = false
         };
     }
@@ -345,11 +376,11 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(EventId::FlushReady),
-            .description = "The flush ready event of the emote system",
+            .description = "Emitted when emote flush is ready.",
             .items = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(EventFlushReadyParam::Param),
-                    .description = (boost::format("Parameter of the flush ready event, should be a JSON object. Example: %1%")
+                    .description = (boost::format("Flush-ready parameter as a JSON object. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE((FlushReadyEventParam{
                         .x_start = 0,
                         .y_start = 0,
