@@ -13,7 +13,7 @@ variables:
     - cd docs
     - ./check_lang_folder_sync.sh
     - python -m pip install -r requirements.txt
-    - build-docs -t esp32s3 -bs $DOC_BUILDERS -l $DOCLANG build
+    - build-docs -bs $DOC_BUILDERS -l $DOCLANG build
   parallel:
     matrix:
       - DOCLANG: ["en", "zh_CN"]

@@ -10,6 +10,13 @@ For `service` and `agent`, the user-facing documentation is now helper-first:
 `service_helper` and `agent_helper` are treated as the public contracts, while
 concrete providers stay available as implementation appendices.
 
+# Hosted Documentation
+
+* English: https://docs.espressif.com/projects/esp-brookesia/en/latest/index.html
+* 中文: https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/index.html
+
+The above URLs are all for the master branch latest version. Click the drop-down in the bottom left to choose a stable version or to download a PDF.
+
 ## Build Documentation
 
 It is recommended to use a dedicated virtual environment for documentation:
@@ -48,13 +55,13 @@ cd docs
 Build the English HTML docs:
 
 ```bash
-build-docs -t esp32s3 -l en -bs html
+build-docs -l en -bs html
 ```
 
 Build the Chinese HTML docs:
 
 ```bash
-build-docs -t esp32s3 -l zh_CN -bs html
+build-docs -l zh_CN -bs html
 ```
 
 To build PDF output instead, replace `-bs html` with `-bs latex` (requires
@@ -73,13 +80,13 @@ intermediate artifacts under:
 Preview the English docs locally:
 
 ```bash
-python3 -m http.server 8000 --directory _build/en/esp32s3/html
+python3 -m http.server 8000 --directory _build/en/generic/html
 ```
 
 Preview the Chinese docs locally:
 
 ```bash
-python3 -m http.server 8000 --directory _build/zh_CN/esp32s3/html
+python3 -m http.server 8000 --directory _build/zh_CN/generic/html
 ```
 
 Then open `http://localhost:8000/` in your browser.

@@ -11,7 +11,9 @@
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-docs_rst]
     - if: !reference [.patterns-if-dev-push, if]
-      changes: !reference [.patterns-docs_inc]
+      changes: !reference [.patterns-docs_inc_1]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-docs_inc_2]
 
 .rules:deploy:docs_preview:
   rules:
@@ -22,7 +24,9 @@
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-docs_rst]
     - if: !reference [.patterns-if-dev-push, if]
-      changes: !reference [.patterns-docs_inc]
+      changes: !reference [.patterns-docs_inc_1]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-docs_inc_2]
 
 .rules:deploy:docs_production:
   rules:

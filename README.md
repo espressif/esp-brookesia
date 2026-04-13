@@ -37,8 +37,8 @@ The functional framework of ESP-Brookesia is shown below, consisting of three la
 
 ## Documentation
 
-- 中文：https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/esp32s3/index.html
-- English: https://docs.espressif.com/projects/esp-brookesia/en/latest/esp32s3/index.html
+- 中文：https://docs.espressif.com/projects/esp-brookesia/zh_CN
+- English: https://docs.espressif.com/projects/esp-brookesia/en
 
 ## Versions
 

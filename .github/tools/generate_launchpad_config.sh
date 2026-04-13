@@ -32,6 +32,9 @@ else
     firmware_url="$(echo $git_remote | sed 's|\(.*\)/\(.*\)|https://\1.github.io/\2/|')"
 fi
 
+# Ensure the output file starts clean on every run.
+: > "$OUT_FILE"
+
 cat <<EOF >> $OUT_FILE
 esp_toml_version = 1.0
 firmware_images_url = "${firmware_url}"
