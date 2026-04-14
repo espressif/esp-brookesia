@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-thread_profiler-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/thread_profiler.inc

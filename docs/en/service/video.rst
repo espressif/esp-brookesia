@@ -61,7 +61,7 @@ Compressed input and pixel output; configure per use case.
 
 .. _service-video-sec-05:
 
-Input (compressed)
+Input (Compressed)
 ~~~~~~~~~~~~~~~~~~
 
 .. list-table::
@@ -77,7 +77,7 @@ Input (compressed)
 
 .. _service-video-sec-06:
 
-Output (pixel)
+Output (Pixel)
 ~~~~~~~~~~~~~~
 
 .. list-table::

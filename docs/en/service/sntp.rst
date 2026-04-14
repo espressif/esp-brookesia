@@ -30,7 +30,7 @@ Features
 
 .. _service-sntp-sec-03:
 
-NTP servers
+NTP Servers
 ^^^^^^^^^^^
 
 - Default: ``"pool.ntp.org"``.
@@ -39,7 +39,7 @@ NTP servers
 
 .. _service-sntp-sec-04:
 
-Time zone
+Time Zone
 ^^^^^^^^^
 
 - Default: CST-8 (China, UTC+8).
@@ -48,7 +48,7 @@ Time zone
 
 .. _service-sntp-sec-05:
 
-Core operations
+Core Operations
 ^^^^^^^^^^^^^^^
 
 - **Set NTP servers**: Configure one or more NTP servers.
@@ -61,7 +61,7 @@ Core operations
 
 .. _service-sntp-sec-06:
 
-Auto management
+Auto Management
 ^^^^^^^^^^^^^^^
 
 - Load from NVS on start.

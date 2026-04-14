@@ -12,55 +12,41 @@ HAL 开发板支持
 概述
 ----
 
-``brookesia_hal_boards`` 是 ESP-Brookesia 的开发板配置集合，基于 ``esp_board_manager`` 组件以 YAML 文件描述各开发板的外设拓扑与设备参数，供 :ref:`hal-adaptor-sec-00` 在运行时无需硬编码即可完成硬件初始化。
+``brookesia_hal_boards`` 是 ESP-Brookesia 的开发板配置集合，基于 ``esp_board_manager`` 组件以 YAML 文件描述各开发板的外设拓扑与设备参数，供 :ref:`HAL 适配 <hal-adaptor-sec-00>` 在运行时无需硬编码即可完成硬件初始化。
 
 .. _hal-boards-sec-02:
 
 支持的开发板
 ------------
 
-.. list-table::
-   :widths: 35 15 50
-   :header-rows: 1
+- :doc:`乐鑫官方开发板 <espressif>`
 
-   * - 板级名称
-     - 芯片
-     - 描述
-   * - ``esp_vocat_board_v1_0``
-     - ESP32-S3
-     - ESP VoCat Board V1.0 — AI 宠物伴侣开发板
-   * - ``esp_vocat_board_v1_2``
-     - ESP32-S3
-     - ESP VoCat Board V1.2 — AI 宠物伴侣开发板
-   * - ``esp_box_3``
-     - ESP32-S3
-     - ESP-BOX-3 开发板
-   * - ``esp32_s3_korvo2_v3``
-     - ESP32-S3
-     - ESP32-S3-Korvo-2 V3 开发板
-   * - ``esp32_p4_function_ev``
-     - ESP32-P4
-     - ESP32-P4-Function-EV-Board
-   * - ``esp_sensair_shuttle``
-     - ESP32-C5
-     - ESP Sensair Shuttle 模块
+.. toctree::
+   :hidden:
+
+   乐鑫官方开发板 <espressif>
 
 .. _hal-boards-sec-03:
 
 目录结构
 --------
 
-每块开发板在 ``boards/<板级名称>/`` 目录下包含以下文件：
+每块开发板在 ``boards/<厂商>/<板级名称>/`` 目录下包含以下文件：
 
 .. code-block:: text
 
    boards/
-   └── <board>/
-       ├── board_info.yaml          # 开发板元信息（名称、芯片、版本、制造商等）
-       ├── board_devices.yaml       # 逻辑设备配置（音频编解码、LCD 显示、触摸、存储等）
-       ├── board_peripherals.yaml   # 底层外设配置（I2C/I2S/SPI 总线、GPIO、LEDC 等）
-       ├── sdkconfig.defaults.board # 开发板专用 Kconfig 默认值（Flash、PSRAM 等）
-       └── setup_device.c           # 板级设备工厂回调（用于需要自定义驱动初始化的场景）
+   └── <厂商>/
+       └── <板级名称>/
+          ├── board_info.yaml          # 开发板元信息（名称、芯片、版本、制造商等）
+          ├── board_devices.yaml       # 逻辑设备配置（音频编解码、LCD 显示、触摸、存储等）
+          ├── board_peripherals.yaml   # 底层外设配置（I2C/I2S/SPI 总线、GPIO、LEDC 等）
+          ├── sdkconfig.defaults.board # 开发板专用 Kconfig 默认值（Flash、PSRAM 等）
+          └── setup_device.c           # 板级设备工厂回调（用于需要自定义驱动初始化的场景）
+
+.. note::
+
+   关于开发板配置格式的完整说明，请参考 `esp_board_manager 组件文档 <https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md>`_。
 
 .. _hal-boards-sec-04:
 
@@ -119,28 +105,14 @@ HAL 开发板支持
 选择开发板
 ^^^^^^^^^^
 
-在工程根目录执行以下命令，指定目标开发板：
-
-.. code-block:: bash
-
-   idf.py gen-bmgr-config -b <board>
-
-``<board>`` 的可选值见 :ref:`hal-boards-sec-02`。若 ``brookesia_hal_boards`` 以本地路径依赖引入，需通过 ``-c`` 参数指定 ``boards/`` 目录路径：
-
-.. code-block:: bash
-
-   idf.py gen-bmgr-config -b <board> -c path/to/brookesia_hal_boards/boards
-
-.. note::
-
-   在使用了 ``idf_ext.py`` 的示例工程中，``-c`` 参数会在构建时自动注入，无需手动添加。
+请参考 :ref:`快速入门 - 如何使用示例工程 <getting-started-example-projects>`。
 
 .. _hal-boards-sec-08:
 
 添加自定义开发板
 ^^^^^^^^^^^^^^^^
 
-在 ``boards/`` 目录（或任意自定义目录）下创建新的开发板子目录，按以下顺序添加文件：
+在 ``boards/<厂商>/`` 目录下创建新的开发板子目录，按以下顺序添加文件：
 
 1. **board_info.yaml**：填写开发板名称、芯片型号、版本号和描述
 2. **board_peripherals.yaml**：按实际引脚和总线配置填写外设参数
@@ -149,7 +121,3 @@ HAL 开发板支持
 5. **setup_device.c** （可选）：如驱动需要额外初始化步骤则实现对应工厂函数
 
 完成后执行 ``idf.py gen-bmgr-config -b <new_board>`` 即可使用。
-
-.. note::
-
-   关于 ``esp_board_manager`` 配置格式的完整说明，请参考 `esp_board_manager 组件文档 <https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md>`_。

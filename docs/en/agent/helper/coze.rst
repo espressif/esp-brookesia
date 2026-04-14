@@ -16,7 +16,7 @@ Raw Doxygen API for the Coze helper: types, enums, methods, and macros.
 
 .. _agent-helper-coze-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/coze.inc

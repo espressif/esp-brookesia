@@ -1,7 +1,7 @@
 .. _agent-helper-index-sec-00:
 
-Agent Helper
-============
+AI Agent Helper
+===============
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -27,8 +27,8 @@ Features
 
 .. _agent-helper-index-sec-03:
 
-Modules
--------
+Module Overview
+###############
 
 .. toctree::
    :maxdepth: 1

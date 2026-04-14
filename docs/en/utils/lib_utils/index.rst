@@ -1,7 +1,7 @@
 .. _utils-lib_utils-index-sec-00:
 
-Library Utils
-=============
+General Utility Classes
+=======================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -29,7 +29,7 @@ Features
 
 .. _utils-lib_utils-index-sec-03:
 
-Core utilities
+Core Utilities
 --------------
 
 .. toctree::
@@ -56,7 +56,7 @@ Helpers
 
 .. _utils-lib_utils-index-sec-05:
 
-Debug tools
+Debug Tools
 -----------
 
 .. toctree::

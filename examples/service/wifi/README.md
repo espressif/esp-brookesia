@@ -1,7 +1,3 @@
-| Supported Chips | ESP32-S3 | ESP32-P4 |
-| :-------------: | :------: | :------: |
-|                 |    ✅     |    ✅     |
-
 # WiFi Service Example
 
 [中文版本](./README_CN.md)
@@ -16,7 +12,7 @@ This example demonstrates how to use the WiFi service in the ESP-Brookesia frame
   - [🚩 Getting Started](#-getting-started)
     - [Hardware Requirements](#hardware-requirements)
     - [Development Environment](#development-environment)
-  - [🔨 Build and Flash](#-build-and-flash)
+  - [🔨 How to Use](#-how-to-use)
   - [🚀 Quick Start](#-quick-start)
   - [📖 Example Details](#-example-details)
     - [Event Subscription Demo](#event-subscription-demo)
@@ -45,15 +41,14 @@ A development board equipped with an `ESP32-S3` or `ESP32-P4` chip, `Flash >= 4 
 
 ### Development Environment
 
-- ESP-IDF `v5.5.2` TAG (recommended) or `release/v5.5` branch
+Please refer to the following documentation:
 
-## 🔨 Build and Flash
+- [ESP-Brookesia Programming Guide - Versioning](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-versioning)
+- [ESP-Brookesia Programming Guide - Development Environment Setup](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-dev-environment)
 
-```bash
-idf.py -p PORT build flash monitor
-```
+## 🔨 How to Use
 
-Press `Ctrl-]` to exit the serial monitor.
+Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects).
 
 > [!NOTE]
 > To run the STA connect and auto-reconnect demos, uncomment and fill in the WiFi credentials at the top of `main/main.cpp`:

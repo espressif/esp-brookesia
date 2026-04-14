@@ -1,7 +1,7 @@
 .. _utils-lib_utils-log-sec-00:
 
-Logging
-=======
+Logging System
+==============
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-log-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/log.inc

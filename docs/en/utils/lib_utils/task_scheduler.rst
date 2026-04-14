@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-task_scheduler-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/task_scheduler.inc

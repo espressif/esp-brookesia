@@ -29,58 +29,28 @@ The functional framework of ESP-Brookesia is shown below, consisting of three la
 </div>
 <br>
 
-- **Utils Toolkit**: Provides common foundational capabilities for upper-layer modules, including a logging system, state machine, task scheduler, plugin management, performance profilers, and an MCP toolkit that bridges service capabilities to the MCP engine;
-- **HAL Hardware Abstraction**: Defines unified hardware access interfaces and provides board-level adaptation implementations, supporting standardized hardware interfaces for audio, display, touch, LED, storage, and more;
-- **General Service**: Provides system-level basic services including Wi-Fi, Audio, Video, NVS, and SNTP, all based on the Manager + Helper architecture with support for local calls and RPC remote communication;
-- **AI Agent Framework**: Provides a unified management framework for AI agents with built-in adapters for mainstream AI platforms including Coze, OpenAI, Xiaozhi, enabling bidirectional communication between LLMs and system services via Function Calling / MCP protocol;
-- **AI Expression**: Provides visual expression capabilities for AI interaction scenarios, including emoji sets and animation control.
+- **Utils**: Provides common foundational capabilities for upper-layer modules. `General Utils` includes the logging system, error checking, state machine, task scheduler, plugin manager, and memory/thread/time profilers. `MCP Utils` acts as the bridge between ESP-Brookesia services and the MCP engine, exposing registered service functions as standard MCP tools so large language models can call device capabilities.
+- **HAL**: Defines unified hardware access interfaces and provides board-level adaptation. `Interface` defines standardized hardware APIs for audio playback/recording, display panels and touch, status LEDs, and storage file systems. `Adaptor` provides implementations for specific development boards and completes hardware resource initialization and mapping. `Boards` provides board-level YAML configuration that describes the peripheral topology, pin assignments, and driver parameters of each board.
+- **General Service**: Provides system-level foundational services, including `Wi-Fi` connection management, `Audio` capture and playback, `Video` codec processing, `NVS` non-volatile storage, `SNTP` network time synchronization, and a `Custom` service extension mechanism. All services use the Manager + Helper architecture and support both local calls and RPC-based remote communication.
+- **AI Agent Framework**: Provides a unified management framework for AI agents, with built-in adapters for mainstream AI platforms such as `Coze`, `OpenAI`, and `XiaoZhi`. Through the `Function Calling / MCP` protocol, it enables bidirectional communication between large language models and system services, allowing LLMs to perceive and invoke device capabilities.
+- **AI Expression**: Provides visual expression capabilities for AI interaction scenarios, including `Emote` sets and animation control, delivering rich visual feedback for anthropomorphic interaction.
+- **System** *(planned)*: Provides GUI, system management, and application framework support for different product forms such as mobile devices, speakers, and robots.
+- **Runtime** *(planned)*: Provides runtime support for WebAssembly, Python, Lua, and more, enabling dynamic application loading and execution.
 
 ## Documentation
 
 - 中文：https://docs.espressif.com/projects/esp-brookesia/zh_CN
 - English: https://docs.espressif.com/projects/esp-brookesia/en
 
-## Versions
-
-Starting from `v0.7`, ESP-Brookesia adopts component-based management. It is recommended to obtain the required components via the component registry. Each component iterates independently but shares the same `major.minor` version number and depends on the same ESP-IDF version. The `release` branches maintain historical major versions, while the `master` branch continuously integrates new features.
-
-| ESP-Brookesia | ESP-IDF Required | Key Changes | Support Status |
-| :-----------: | :--------------: | :---------: | :------------: |
-| master (v0.7) | >= v5.5, < 6.0 | Component manager support | Active development branch |
-| release/v0.6 | >= v5.3, <= 5.5 | Preview system framework, ESP-VoCat firmware project | End of maintenance |
-
 ## Quick Reference
 
-### Hardware Preparation
+- [ESP-Brookesia Versioning](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-versioning)
+- [Development Environment Setup](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-dev-environment)
+- [Hardware Preparation](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-hardware)
+- [How to Obtain and Use Components](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-component-usage)
+- [How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects)
 
-You can use any ESP series development board with ESP-Brookesia, or refer to the boards supported by [esp_board_manager](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager) to get started quickly. For chip specifications, see the [ESP Product Selector](https://products.espressif.com/).
-
-ESP series SoCs use advanced process technology to deliver industry-leading RF performance, low-power characteristics, and reliable stability, supporting rich peripherals including Wi-Fi, Bluetooth, LCD, camera, USB, and more — suitable for AIoT, smart home, wearables, and many other application scenarios.
-
-### Getting Components from ESP Component Registry
-
-It is recommended to obtain ESP-Brookesia components from the [ESP Component Registry](https://components.espressif.com/).
-
-Taking the `brookesia_service_wifi` component as an example, you can add a dependency in the following ways:
-
-**Option 1: Using the command line**
-
-```bash
-idf.py add-dependency "espressif/brookesia_service_wifi"
-```
-
-**Option 2: Modifying the configuration file**
-
-Create or modify the `idf_component.yml` file in your project directory:
-
-```yaml
-dependencies:
-   espressif/brookesia_service_wifi: "*"
-```
-
-For more information on the component manager, please refer to the [ESP Registry Docs](https://docs.espressif.com/projects/idf-component-manager/en/latest/).
-
-The components registered in ESP-Brookesia are as follows:
+## Component List
 
 <center>
 
@@ -130,55 +100,22 @@ The components registered in ESP-Brookesia are as follows:
 
 </center>
 
-### Getting the ESP-Brookesia Repository
+## Getting the Repository
 
-If you wish to contribute to ESP-Brookesia or develop based on the examples in the repository, you can clone the `master` branch with the following command:
+If you would like to contribute to ESP-Brookesia or build on the examples in this repository, you can get the `master` branch with the following command:
 
-```bash
-git clone --recursive https://github.com/espressif/esp-brookesia
-```
+``bash
+git clone https://github.com/espressif/esp-brookesia
+``
 
-### Building and Flashing Examples
+## Contribution Guidelines
 
-ESP-Brookesia provides multiple example projects located in the `examples/` directory. The general build steps are as follows:
+We currently welcome contributions in the following areas:
 
-1. Ensure you have completed the [ESP-IDF environment setup](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/index.html) (ESP-IDF >= v5.5 required);
+- Fixing bugs
+- Adding support for new development boards to [brookesia_hal_boards](./hal/brookesia_hal_boards)
 
-2. Select the target chip or development board:
-
-   - **Chip peripheral only** (e.g., [examples/service/wifi](./examples/service/wifi)):
-
-     ```bash
-     idf.py set-target <target>
-     ```
-
-   - **Specific board peripheral required** (e.g., [examples/service/console](./examples/service/console)):
-
-     ```bash
-     idf.py gen-bmgr-config -b <board>
-     idf.py set-target <target>
-     ```
-
-3. Configure the project (optional):
-
-   ```bash
-   idf.py menuconfig
-   ```
-
-4. Build and flash to the development board:
-
-   ```bash
-   idf.py build
-   idf.py -p <PORT> flash
-   ```
-
-5. Monitor serial output:
-
-   ```bash
-   idf.py -p <PORT> monitor
-   ```
-
-For more examples, see the [examples](./examples) directory. Refer to the README file in each example directory for specific usage instructions.
+For new component ideas, we recommend starting a discussion in [GitHub Issues](https://github.com/espressif/esp-brookesia/issues) first so we can align on the use case, interface boundaries, and overall roadmap together. Once there is agreement on the direction, the follow-up contribution process is usually much smoother.
 
 ## Additional Resources
 

@@ -1,18 +1,18 @@
 .. _service-manager-rpc-sec-00:
 
-RPC
-===
+RPC Communication
+=================
 
 :link_to_translation:`zh_CN:[中文]`
 
 .. _service-manager-rpc-sec-01:
 
-API reference
+API Reference
 -------------
 
 .. _service-manager-rpc-sec-02:
 
-RPC protocol
+RPC Protocol
 ~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/protocol.hpp"``
@@ -21,7 +21,7 @@ Public header: ``#include "brookesia/service_manager/rpc/protocol.hpp"``
 
 .. _service-manager-rpc-sec-03:
 
-RPC connection
+RPC Connection
 ~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/connection.hpp"``
@@ -30,7 +30,7 @@ Public header: ``#include "brookesia/service_manager/rpc/connection.hpp"``
 
 .. _service-manager-rpc-sec-04:
 
-RPC data link base
+RPC Data Link Base
 ~~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/data_link_base.hpp"``
@@ -39,7 +39,7 @@ Public header: ``#include "brookesia/service_manager/rpc/data_link_base.hpp"``
 
 .. _service-manager-rpc-sec-05:
 
-RPC data link client
+RPC Data Link Client
 ~~~~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/data_link_client.hpp"``
@@ -48,7 +48,7 @@ Public header: ``#include "brookesia/service_manager/rpc/data_link_client.hpp"``
 
 .. _service-manager-rpc-sec-06:
 
-RPC data link server
+RPC Data Link Server
 ~~~~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/data_link_server.hpp"``
@@ -57,7 +57,7 @@ Public header: ``#include "brookesia/service_manager/rpc/data_link_server.hpp"``
 
 .. _service-manager-rpc-sec-07:
 
-RPC client
+RPC Client
 ~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/client.hpp"``
@@ -66,7 +66,7 @@ Public header: ``#include "brookesia/service_manager/rpc/client.hpp"``
 
 .. _service-manager-rpc-sec-08:
 
-RPC server
+RPC Server
 ~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/rpc/server.hpp"``

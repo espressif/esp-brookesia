@@ -14,8 +14,10 @@
 #
 # Hal
 #
-# hal/brookesia_hal_adaptor/test_apps:
-#   <<: *general_target_enable
+# brookesia_hal_adaptor
+hal/brookesia_hal_adaptor/test_apps:
+  <<: *general_target_enable
+# brookesia_hal_interface
 hal/brookesia_hal_interface/test_apps:
   <<: *general_target_enable
 #

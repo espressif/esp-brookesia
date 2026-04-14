@@ -16,7 +16,7 @@ Raw Doxygen API for the OpenAI helper: types, enums, methods, and macros.
 
 .. _agent-helper-openai-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/openai.inc

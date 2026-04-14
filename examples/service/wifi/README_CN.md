@@ -1,7 +1,3 @@
-| 支持的芯片 | ESP32-S3 | ESP32-P4 |
-| :--------: | :------: | :------: |
-|            |    ✅     |    ✅     |
-
 # WiFi 服务示例
 
 [English Version](./README.md)
@@ -16,7 +12,7 @@
   - [🚩 快速入门](#-快速入门)
     - [硬件要求](#硬件要求)
     - [开发环境](#开发环境)
-  - [🔨 编译烧录](#-编译烧录)
+  - [🔨 如何使用](#-如何使用)
   - [🚀 快速体验](#-快速体验)
   - [📖 示例说明](#-示例说明)
     - [事件订阅演示](#事件订阅演示)
@@ -45,15 +41,14 @@
 
 ### 开发环境
 
-- ESP-IDF `v5.5.2` TAG（推荐）或 `release/v5.5` 分支
+请参考以下文档：
 
-## 🔨 编译烧录
+- [ESP-Brookesia 编程指南 - 版本说明](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-versioning)
+- [ESP-Brookesia 编程指南 - 开发环境搭建](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-dev-environment)
 
-```bash
-idf.py -p PORT build flash monitor
-```
+## 🔨 如何使用
 
-按 `Ctrl-]` 退出串口监视。
+请参考 [ESP-Brookesia 编程指南 - 如何使用示例工程](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-example-projects)。
 
 > [!NOTE]
 > 如需演示 STA 连接与自动重连功能，请在 `main/main.cpp` 顶部取消注释并填写 WiFi 凭证：

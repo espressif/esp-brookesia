@@ -26,7 +26,7 @@ Features
 
 .. _utils-lib_utils-function_guard-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/function_guard.inc

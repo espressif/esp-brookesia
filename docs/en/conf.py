@@ -12,7 +12,7 @@ from conf_common import *  # noqa: F403,F401
 
 current_year = datetime.datetime.now().year
 
-project = "ESP-Brookesia"
+project = "ESP-Brookesia Programming Guide"
 copyright = f"{current_year}, Espressif Systems (Shanghai) CO., LTD"
 pdf_title = "ESP-Brookesia Programming Guide"
 language = "en"

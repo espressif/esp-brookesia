@@ -16,7 +16,7 @@ This page documents the SNTP helper Doxygen API: types, enums, methods, and macr
 
 .. _service-helper-sntp-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/sntp.inc

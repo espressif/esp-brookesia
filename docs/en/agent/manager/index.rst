@@ -1,7 +1,7 @@
 .. _agent-manager-index-sec-00:
 
-Agent Manager
-===============
+AI Agent Manager
+================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -28,14 +28,14 @@ Overview
 
 .. _agent-manager-index-sec-02:
 
-State machine
--------------
+State Machine Architecture
+--------------------------
 
 The manager uses a state machine for agent lifecycle.
 
 .. _agent-manager-index-sec-03:
 
-State diagram
+State Diagram
 ~~~~~~~~~~~~~
 
 .. only:: html
@@ -157,8 +157,8 @@ State diagram
 
 .. _agent-manager-index-sec-04:
 
-States
-~~~~~~
+State Descriptions
+~~~~~~~~~~~~~~~~~~
 
 .. list-table::
    :widths: 22 16 62
@@ -200,13 +200,13 @@ States
 
 .. _agent-manager-index-sec-05:
 
-API reference
+API Reference
 -------------
 
 .. _agent-manager-index-sec-06:
 
-Agent base
-~~~~~~~~~~
+Agent Base Class
+~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/agent_manager/base.hpp"``
 
@@ -214,7 +214,7 @@ Public header: ``#include "brookesia/agent_manager/base.hpp"``
 
 .. _agent-manager-index-sec-07:
 
-Agent manager
+Agent Manager
 ~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/agent_manager/manager.hpp"``

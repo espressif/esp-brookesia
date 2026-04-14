@@ -175,6 +175,20 @@ static inline std::shared_ptr<Device> get_device_by_device_name(const std::strin
 }
 
 /**
+ * @brief Get all registered devices by name.
+ *
+ * @return Map of device name to device pointer.
+ */
+static inline std::map<std::string, std::shared_ptr<Device>> get_all_devices()
+{
+    std::map<std::string, std::shared_ptr<Device>> result;
+    for (const auto &[name, dev] : DeviceRegistry::get_all_instances()) {
+        result.emplace(name, dev);
+    }
+    return result;
+}
+
+/**
  * @brief Get all registered interfaces that can be cast to `T`.
  *
  * @tparam T Interface type that derives from `Interface`.
@@ -209,6 +223,20 @@ std::pair<std::string, std::shared_ptr<T>> get_first_interface()
         }
     }
     return {"", nullptr};
+}
+
+/**
+ * @brief Get all registered interfaces.
+ *
+ * @return Map of interface registry name to interface pointer.
+ */
+static inline std::map<std::string, std::shared_ptr<Interface>> get_all_interfaces()
+{
+    std::map<std::string, std::shared_ptr<Interface>> result;
+    for (const auto &[iface_name, iface] : InterfaceRegistry::get_all_instances()) {
+        result.emplace(iface_name, iface);
+    }
+    return result;
 }
 
 } // namespace esp_brookesia::hal

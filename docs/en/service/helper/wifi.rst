@@ -16,7 +16,7 @@ This page documents the Wi-Fi helper Doxygen API: types, enums, methods, and mac
 
 .. _service-helper-wifi-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/wifi.inc

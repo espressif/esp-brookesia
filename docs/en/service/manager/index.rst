@@ -28,14 +28,14 @@ Features
 
 .. _service-manager-index-sec-03:
 
-Communication architecture
+Communication Architecture
 ----------------------------
 
 `brookesia_service_manager` supports **local** and **remote RPC** modes.
 
 .. _service-manager-index-sec-04:
 
-Local mode
+Local Mode
 ~~~~~~~~~~
 
 After `ServiceManager` binds a service, the app uses `ServiceBase` to access function and event registries with minimal overhead.
@@ -70,7 +70,7 @@ After `ServiceManager` binds a service, the app uses `ServiceBase` to access fun
 
 .. _service-manager-index-sec-05:
 
-Remote RPC mode
+Remote RPC Mode
 ~~~~~~~~~~~~~~~
 
 Clients use TCP sockets and JSON to reach remote services—suitable for cross-device or cross-language use.
@@ -121,7 +121,7 @@ Clients use TCP sockets and JSON to reach remote services—suitable for cross-d
 
 .. _service-manager-index-sec-06:
 
-Local vs remote RPC
+Local vs Remote RPC
 ~~~~~~~~~~~~~~~~~~~
 
 .. list-table::
@@ -166,7 +166,7 @@ Modules
 
 .. _service-manager-index-sec-08:
 
-Service runtime
+Service Runtime
 ~~~~~~~~~~~~~~~
 
 Lifecycle, dispatch, binding, and RPC integration—built on ``ServiceBase``, ``ServiceManager``, and ``LocalTestRunner``.
@@ -175,7 +175,7 @@ Lifecycle, dispatch, binding, and RPC integration—built on ``ServiceBase``, ``
 
 .. _service-manager-index-sec-09:
 
-Function system
+Function System
 ~~~~~~~~~~~~~~~
 
 Defines callable interfaces, validates parameters, and dispatches to handlers—function model and registry.
@@ -184,7 +184,7 @@ Defines callable interfaces, validates parameters, and dispatches to handlers—
 
 .. _service-manager-index-sec-10:
 
-Event system
+Event System
 ~~~~~~~~~~~~
 
 Event definitions, validation, and dispatch to local subscribers or RPC subscribers—definitions, registry, and dispatcher.

@@ -27,8 +27,8 @@ Features
 
 .. _service-helper-index-sec-03:
 
-Modules
--------
+Module Overview
+###############
 
 .. toctree::
    :maxdepth: 1

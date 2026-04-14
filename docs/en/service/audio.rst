@@ -31,7 +31,7 @@ Features
 
 .. _service-audio-sec-03:
 
-Codec formats
+Codec Formats
 ^^^^^^^^^^^^^
 
 The audio service supports the following codec formats:
@@ -68,7 +68,7 @@ Playback
 
 .. _service-audio-sec-05:
 
-Encoder configuration
+Encoder Configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
 - Codecs: PCM, OPUS, G711A.
@@ -80,7 +80,7 @@ Encoder configuration
 
 .. _service-audio-sec-06:
 
-Decoder configuration
+Decoder Configuration
 ^^^^^^^^^^^^^^^^^^^^^
 
 - **Codecs**: PCM, OPUS, G711A.

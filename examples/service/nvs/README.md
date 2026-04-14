@@ -1,7 +1,3 @@
-| Supported Chips | ESP32-S3 | ESP32-P4 | ESP32-C5 |
-| :-------------: | :------: | :------: | :------: |
-|                 |    ✅    |    ✅    |    ✅    |
-
 # NVS Service Example
 
 [中文版本](./README_CN.md)
@@ -16,7 +12,7 @@ This example demonstrates how to use the ESP-Brookesia NVS (Non-Volatile Storage
   - [🚩 Quick Start](#-quick-start)
     - [Hardware Requirements](#hardware-requirements)
     - [Development Environment](#development-environment)
-  - [🔨 Build and Flash](#-build-and-flash)
+  - [🔨 How to Use](#-how-to-use)
   - [🚀 Quick Experience](#-quick-experience)
   - [📖 Example Description](#-example-description)
     - [Basic Operations Demo](#basic-operations-demo)
@@ -42,19 +38,18 @@ This example demonstrates how to use the ESP-Brookesia NVS (Non-Volatile Storage
 
 ### Hardware Requirements
 
-**Basic Functionality**: Development board with `ESP32-S3`, `ESP32-P4`, or `ESP32-C5` chip and `Flash >= 4MB`
+Development board with `ESP32-S3`, `ESP32-P4`, or `ESP32-C5` chip and `Flash >= 4MB`
 
 ### Development Environment
 
-- ESP-IDF `v5.5.2` TAG (recommended) or `release/v5.5` branch
+Please refer to the following documentation:
 
-## 🔨 Build and Flash
+- [ESP-Brookesia Programming Guide - Versioning](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-versioning)
+- [ESP-Brookesia Programming Guide - Development Environment Setup](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-dev-environment)
 
-```bash
-idf.py -p PORT build flash monitor
-```
+## 🔨 How to Use
 
-Press `Ctrl-]` to exit the serial monitor.
+Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects).
 
 ## 🚀 Quick Experience
 

@@ -1,7 +1,7 @@
 .. _service-usage-sec-00:
 
-Usage
-=====
+Application Development Guide
+=============================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -17,7 +17,7 @@ The sections below follow this order: **dependencies → initialization and bind
 
 .. _service-usage-sec-01:
 
-Adding component dependencies
+Adding Component Dependencies
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Declare dependencies in ``idf_component.yml`` at the project root or in a component directory. For the Wi-Fi service:
@@ -39,15 +39,17 @@ For how to obtain components and version constraints, see :ref:`Obtaining and us
 
 .. _service-usage-sec-02:
 
-Headers, namespace, and type aliases
+Headers, Namespace, and Type Aliases
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: cpp
 
    #include "brookesia/lib_utils.hpp"
    #include "brookesia/service_manager.hpp"
-   // Helper header: pick the Helper that matches your service component
-   #include "brookesia/service_helper/wifi.hpp"
+   // Include all general service helper headers
+   #include "brookesia/service_helper.hpp"
+   // Or include the Helper header for a specific service component, e.g. Wi-Fi
+   // #include "brookesia/service_helper/wifi.hpp"
 
    // Brookesia data types live under the esp_brookesia namespace
    using namespace esp_brookesia;
@@ -57,7 +59,7 @@ Headers, namespace, and type aliases
 
 .. _service-usage-sec-03:
 
-Starting the service manager
+Starting the Service Manager
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before calling any service API, initialize the global **singleton** ``ServiceManager`` by calling ``start()``.
@@ -69,7 +71,7 @@ Before calling any service API, initialize the global **singleton** ``ServiceMan
 
 .. _service-usage-sec-04:
 
-Starting / stopping a service
+Starting / Stopping a Service
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: cpp
@@ -91,7 +93,7 @@ Starting / stopping a service
 
 .. _service-usage-sec-05:
 
-Calling service functions
+Calling Service Functions
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Before calling a function, confirm **parameter types, order, and return value** from the Helper contract or headers, for example:
@@ -125,7 +127,7 @@ Use static Helper methods for **synchronous** or **asynchronous** calls. **Synch
 
 .. _service-usage-sec-06:
 
-Synchronous calls
+Synchronous Calls
 ^^^^^^^^^^^^^^^^^
 
 The call blocks until the function finishes or times out.
@@ -152,7 +154,7 @@ The call blocks until the function finishes or times out.
 
 .. _service-usage-sec-07:
 
-Example: multiple parameters
+Example: Multiple Parameters
 """"""""""""""""""""""""""""
 
 ``SetConnectAp`` — interface summary and sample code:
@@ -175,7 +177,7 @@ Example: multiple parameters
 
 .. _service-usage-sec-08:
 
-Example: serialized parameters
+Example: Serialized Parameters
 """"""""""""""""""""""""""""""
 
 ``TriggerGeneralAction`` — interface summary and sample code:
@@ -218,7 +220,7 @@ Example: serialized parameters
 
 .. _service-usage-sec-09:
 
-Example: parsing return values
+Example: Parsing Return Values
 """"""""""""""""""""""""""""""
 
 ``GetConnectedAps`` — interface summary and sample code:
@@ -249,7 +251,7 @@ Example: parsing return values
 
 .. _service-usage-sec-10:
 
-Asynchronous calls
+Asynchronous Calls
 ^^^^^^^^^^^^^^^^^^
 
 The call **submits** work and returns immediately without blocking the caller. If you pass a result handler, the framework invokes it **asynchronously** when the function completes.
@@ -328,7 +330,7 @@ Example
 
 .. _service-usage-sec-12:
 
-Subscribing to service events
+Subscribing to Service Events
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Confirm **item names, types, and order** from the Helper contract or headers, for example:
@@ -358,7 +360,7 @@ Confirm **item names, types, and order** from the Helper contract or headers, fo
 
 .. _service-usage-sec-13:
 
-Subscribing to events
+Subscribing to Events
 ^^^^^^^^^^^^^^^^^^^^^
 
 Use ``subscribe_event()`` to register a callback; when the event fires, callbacks run **serially** in subscription order.
@@ -459,7 +461,7 @@ Example
 
 .. _service-usage-sec-15:
 
-Event monitor
+Event Monitor
 ^^^^^^^^^^^^^
 
 ``EventMonitor`` adds **blocking wait** on top of **asynchronous events**: after triggering an API, you can wait for a matching event or any occurrence to drive control flow.
@@ -495,7 +497,7 @@ Event monitor
 
 .. _service-usage-sec-16:
 
-Example: wait for specific event items
+Example: Wait for Specific Event Items
 """"""""""""""""""""""""""""""""""""""
 
 ``GeneralEventHappened`` — monitor usage:
@@ -508,7 +510,10 @@ Example: wait for specific event items
 .. code-block:: cpp
 
    WifiHelper::EventMonitor<WifiHelper::EventId::GeneralEventHappened> general_event_monitor;
-   BROOKESIA_CHECK_FALSE_EXIT(general_event_monitor.start(), "Failed to start general event monitor");
+   if (!general_event_monitor.start()) {
+      // Failed to start general event monitor
+      return;
+   }
 
    WifiHelper::call_function_async(WifiHelper::FunctionId::TriggerGeneralAction,
                                    BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Start));
@@ -522,7 +527,7 @@ Example: wait for specific event items
 
 .. _service-usage-sec-17:
 
-Example: latest received event items
+Example: Latest Received Event Items
 """"""""""""""""""""""""""""""""""""
 
 ``ScanApInfosUpdated`` — monitor usage:
@@ -534,7 +539,10 @@ Example: latest received event items
 .. code-block:: cpp
 
    WifiHelper::EventMonitor<WifiHelper::EventId::ScanApInfosUpdated> scan_ap_infos_updated_monitor;
-   BROOKESIA_CHECK_FALSE_EXIT(scan_ap_infos_updated_monitor.start(), "Failed to start scan AP infos updated monitor");
+   if (!scan_ap_infos_updated_monitor.start()) {
+      // Failed to start scan AP infos updated monitor
+      return;
+   }
 
    WifiHelper::call_function_async(WifiHelper::FunctionId::TriggerScanStart);
 

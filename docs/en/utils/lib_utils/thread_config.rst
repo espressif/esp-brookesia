@@ -1,7 +1,7 @@
 .. _utils-lib_utils-thread_config-sec-00:
 
-Thread Config
-=============
+Thread Configuration
+====================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-thread_config-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/thread_config.inc

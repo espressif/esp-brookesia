@@ -1,7 +1,7 @@
 .. _expression-index-sec-00:
 
-Expression Components
-=====================
+AI Expression Components
+========================
 
 :link_to_translation:`zh_CN:[中文]`
 

@@ -1,7 +1,7 @@
 .. _utils-lib_utils-state_base-sec-00:
 
-State Base
-==========
+State Base Class
+================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -26,7 +26,7 @@ Features
 
 .. _utils-lib_utils-state_base-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/state_base.inc

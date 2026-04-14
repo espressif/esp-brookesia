@@ -346,16 +346,43 @@
 #
 # agent/chatbot
 .patterns-examples_agent_chatbot:
-  - "examples/agent/chatbot/**/*"
+  - "examples/agent/chatbot/main/**/*"
+  - "examples/agent/chatbot/spiffs/**/*"
+  - "examples/agent/chatbot/CMakeLists.txt"
+  - "examples/agent/chatbot/idf_ext.py"
+  - "examples/agent/chatbot/partitions*.csv"
+  - "examples/agent/chatbot/pytest_*.py"
+  - "examples/agent/chatbot/sdkconfig.*"
 # service/audio
 .patterns-examples_service_audio:
-  - "examples/service/audio/**/*"
+  - "examples/service/audio/main/**/*"
+  - "examples/service/audio/spiffs/**/*"
+  - "examples/service/audio/CMakeLists.txt"
+  - "examples/service/audio/idf_ext.py"
+  - "examples/service/audio/partitions*.csv"
+  - "examples/service/audio/pytest_*.py"
+  - "examples/service/audio/sdkconfig.*"
 # service/console
 .patterns-examples_service_console:
-  - "examples/service/console/**/*"
+  - "examples/service/console/components/**/*"
+  - "examples/service/console/main/**/*"
+  - "examples/service/console/spiffs/**/*"
+  - "examples/service/console/CMakeLists.txt"
+  - "examples/service/console/idf_ext.py"
+  - "examples/service/console/partitions*.csv"
+  - "examples/service/console/pytest_*.py"
+  - "examples/service/console/sdkconfig.*"
 # service/nvs
 .patterns-examples_service_nvs:
-  - "examples/service/nvs/**/*"
+  - "examples/service/nvs/main/**/*"
+  - "examples/service/nvs/CMakeLists.txt"
+  - "examples/service/nvs/partitions*.csv"
+  - "examples/service/nvs/pytest_*.py"
+  - "examples/service/nvs/sdkconfig.*"
 # service/wifi
 .patterns-examples_service_wifi:
-  - "examples/service/wifi/**/*"
+  - "examples/service/wifi/main/**/*"
+  - "examples/service/wifi/CMakeLists.txt"
+  - "examples/service/wifi/partitions*.csv"
+  - "examples/service/wifi/pytest_*.py"
+  - "examples/service/wifi/sdkconfig.*"

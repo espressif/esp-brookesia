@@ -1,7 +1,7 @@
 .. _hal-index-sec-00:
 
-HAL Components
-==============
+Hardware Abstraction Components
+===============================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -34,7 +34,7 @@ ESP-Brookesia HAL consists of three components that work together in layers, bri
 
    Custom boards can be integrated into the ESP-Brookesia HAL framework in two ways:
 
-   - **Option 1 (Recommended)**: Create a new board subdirectory under ``brookesia_hal_boards/boards/`` following the ``esp_board_manager`` specification and add the required configuration files. No changes to the adaptor layer are needed. See :ref:`hal-boards-sec-08`.
+   - **Option 1 (Recommended)**: Create a new board subdirectory under ``brookesia_hal_boards/boards/<vendor>/`` following the ``esp_board_manager`` specification and add the required configuration files. No changes to the adaptor layer are needed. See :ref:`Add a Custom Board <hal-boards-sec-08>`.
    - **Option 2 (Fully Custom)**: Remove the dependencies on ``brookesia_hal_adaptor`` and ``brookesia_hal_boards``, and implement board-level initialization directly against the abstract interfaces in ``brookesia_hal_interface``. This is suitable for cases where ``esp_board_manager`` cannot be used, but requires maintaining compatibility with the interface specification manually.
 
 .. toctree::
@@ -42,4 +42,4 @@ ESP-Brookesia HAL consists of three components that work together in layers, bri
 
    HAL Interface <interface/index>
    HAL Adaptor <adaptor>
-   HAL Boards <boards>
+   HAL Board Support <boards/index>

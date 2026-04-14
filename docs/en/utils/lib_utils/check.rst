@@ -1,7 +1,7 @@
 .. _utils-lib_utils-check-sec-00:
 
-Check
-=====
+Error Checking
+==============
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-check-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/check.inc

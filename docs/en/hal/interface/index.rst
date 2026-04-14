@@ -77,7 +77,7 @@ When multiple devices co-exist, it is recommended to add a device-distinguishing
 
 .. _hal-interface-index-sec-06-dup2:
 
-Built-in Capability Scope
+Built-In Capability Scope
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The headers provide abstract definitions of common HAL interfaces, covering audio codec playback and recording, display panel and touch and backlight, and storage filesystem discovery. They describe static information, capability parameters, and virtual interface contracts; register operations, bus configuration, and timing are handled by the board-level adaptor or other components.
@@ -105,8 +105,8 @@ The following interface headers can be included at once via ``brookesia/hal_inte
 
 .. _hal-interface-index-sec-03:
 
-Interface Classes
-~~~~~~~~~~~~~~~~~
+Device Interface Classes
+~~~~~~~~~~~~~~~~~~~~~~~~
 
 The component provides the following interface classes:
 

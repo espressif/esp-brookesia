@@ -6,6 +6,7 @@
 # - For .rst pairs with matching line count: same explicit .. _anchor: names in order
 # - Every 'en' .rst has :link_to_translation:`zh_CN:[中文]`
 # - Every 'zh_CN' .rst has :link_to_translation:`en:[English]`
+# - Every heading in 'en' .rst uses Title Case with preserved technical acronyms
 #
 
 set -e
@@ -18,6 +19,108 @@ cd "$(dirname "$0")"
 # Extract explicit RST hyperlink target names (.. _label:) one per line, in file order.
 extract_anchor_labels() {
     grep -E '^\.\.\s+_[^:]+:\s*$' "$1" 2>/dev/null | sed -E 's/^\.\.\s+_([^:]+):\s*$/\1/' || true
+}
+
+check_en_title_case() {
+    python3 - "$1" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+path = Path(sys.argv[1])
+lines = path.read_text(encoding='utf-8').splitlines()
+heading_re = re.compile(r'^[=\-`:\'"~^+*#<>]{3,}$')
+
+whole_exceptions = {
+    'ai': 'AI',
+    'api': 'API',
+    'esp-brookesia': 'ESP-Brookesia',
+    'esp': 'ESP',
+    'hal': 'HAL',
+    'nvs': 'NVS',
+    'sntp': 'SNTP',
+    'ntp': 'NTP',
+    'wi-fi': 'Wi-Fi',
+    'openai': 'OpenAI',
+    'coze': 'Coze',
+    'xiaozhi': 'XiaoZhi',
+    'rpc': 'RPC',
+    'softap': 'SoftAP',
+}
+
+segment_exceptions = {
+    'ai': 'AI',
+    'api': 'API',
+    'esp': 'ESP',
+    'hal': 'HAL',
+    'nvs': 'NVS',
+    'sntp': 'SNTP',
+    'ntp': 'NTP',
+    'openai': 'OpenAI',
+    'coze': 'Coze',
+    'xiaozhi': 'XiaoZhi',
+    'rpc': 'RPC',
+    'softap': 'SoftAP',
+}
+
+titlecase_small_words = {
+    'a', 'an', 'and', 'as', 'at', 'but', 'by', 'for', 'in', 'nor',
+    'of', 'on', 'or', 'the', 'to', 'up', 'via', 'vs'
+}
+
+def cap_segment(seg: str) -> str:
+    lower = seg.lower()
+    if lower in segment_exceptions:
+        return segment_exceptions[lower]
+    return seg[:1].upper() + seg[1:].lower() if seg else seg
+
+def transform_token(token: str) -> str:
+    lower = token.lower()
+    if lower in whole_exceptions:
+        return whole_exceptions[lower]
+    if '/' in token:
+        return '/'.join(transform_token(part) for part in token.split('/'))
+    if '-' in token:
+        return '-'.join(cap_segment(part) for part in token.split('-'))
+    match = re.match(r'^(.*?)([A-Za-z][A-Za-z0-9\-/]*)([^A-Za-z]*)$', token)
+    if not match:
+        return token
+    prefix, core, suffix = match.groups()
+    lower_core = core.lower()
+    if lower_core in whole_exceptions:
+        normalized = whole_exceptions[lower_core]
+    else:
+        normalized = cap_segment(core)
+    return prefix + normalized + suffix
+
+for idx in range(len(lines) - 1):
+    title = lines[idx]
+    underline = lines[idx + 1].strip()
+    if not title or not heading_re.fullmatch(underline):
+        continue
+    raw_tokens = re.split(r'(\s+)', title)
+    word_indexes = [i for i, tok in enumerate(raw_tokens) if tok and not tok.isspace()]
+    normalized_tokens = []
+    for i, tok in enumerate(raw_tokens):
+        if not tok or tok.isspace():
+            normalized_tokens.append(tok)
+            continue
+
+        normalized_tok = transform_token(tok)
+        if i in word_indexes[1:-1]:
+            match = re.match(r'^([^A-Za-z]*)([A-Za-z][A-Za-z0-9\-/]*)([^A-Za-z]*)$', tok)
+            if match:
+                prefix, core, suffix = match.groups()
+                lower_core = core.lower()
+                if lower_core in titlecase_small_words:
+                    normalized_tok = prefix + lower_core + suffix
+
+        normalized_tokens.append(normalized_tok)
+
+    normalized = ''.join(normalized_tokens)
+    if normalized != title:
+        print(f"{idx + 1}:{title} -> {normalized}")
+PY
 }
 
 find en -type f | cut -d/ -f2- | sort > file_list_en
@@ -38,6 +141,7 @@ fi
 LINE_MISMATCHES=""
 ANCHOR_MISMATCHES=""
 TRANSLATION_LINK_MISMATCHES=""
+TITLE_CASE_MISMATCHES=""
 while IFS= read -r rel; do
     [ -z "$rel" ] && continue
     en_lines=$(wc -l < "en/$rel" | tr -d '[:space:]')
@@ -68,6 +172,14 @@ while IFS= read -r rel; do
             TRANSLATION_LINK_MISMATCHES="${TRANSLATION_LINK_MISMATCHES}  [zh_CN] missing :link_to_translation:\`en:[English]\`: ${rel}"$'\n'
             RESULT=1
         fi
+
+        title_case_output="$(check_en_title_case "en/$rel")"
+        if [ -n "$title_case_output" ]; then
+            TITLE_CASE_MISMATCHES="${TITLE_CASE_MISMATCHES}${STARS}"$'\n'
+            TITLE_CASE_MISMATCHES="${TITLE_CASE_MISMATCHES}English heading title-case mismatch: ${rel}"$'\n'
+            TITLE_CASE_MISMATCHES="${TITLE_CASE_MISMATCHES}${title_case_output}"$'\n'
+            RESULT=1
+        fi
         ;;
     esac
 done < <(comm -12 file_list_en file_list_zh_CN)
@@ -96,6 +208,14 @@ if ! [ -z "$TRANSLATION_LINK_MISMATCHES" ]; then
     echo "$STARS"
     echo "Each 'en' .rst must contain :link_to_translation:\`zh_CN:[中文]\`"
     echo "Each 'zh_CN' .rst must contain :link_to_translation:\`en:[English]\`"
+    RESULT=1
+fi
+
+if ! [ -z "$TITLE_CASE_MISMATCHES" ]; then
+    echo "$TITLE_CASE_MISMATCHES"
+    echo "$STARS"
+    echo "Build failed: headings in 'en' .rst files must use Title Case."
+    echo "Preserve technical acronyms and established names such as API, RPC, Wi-Fi, OpenAI, and SoftAP."
     RESULT=1
 fi
 

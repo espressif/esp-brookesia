@@ -12,9 +12,7 @@
   - [🚩 快速入门](#-快速入门)
     - [硬件要求](#硬件要求)
     - [开发环境](#开发环境)
-  - [🔨 获取固件](#-获取固件)
-    - [方式一：在线烧录](#方式一在线烧录)
-    - [方式二：从源码编译](#方式二从源码编译)
+  - [🔨 如何使用](#-如何使用)
   - [🚀 快速体验](#-快速体验)
   - [📖 命令参考](#-命令参考)
     - [服务命令](#服务命令)
@@ -34,9 +32,7 @@
 
 ### 硬件要求
 
-搭载 `ESP32-S3`、`ESP32-P4` 或 `ESP32-C5` 芯片，`Flash >= 8MB, PSRAM >= 4MB`，并具备显示屏、触摸屏、麦克风和扬声器的开发板。
-
-本示例通过 `esp_board_manager` 组件管理硬件，官方支持以下开发板：
+本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件，支持以下开发板：
 
 - ESP-VoCat V1.0
 - ESP-VoCat V1.2
@@ -47,70 +43,18 @@
 
 ### 开发环境
 
-- ESP-IDF `v5.5.2` TAG（推荐）或 `release/v5.5` 分支
+请参考以下文档：
 
-> [!WARNING]
-> 不推荐使用 VSCode 扩展插件安装 ESP-IDF 环境，可能导致编译失败。请参照 [ESP-IDF 编程指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/index.html) 设置开发环境。
+- [ESP-Brookesia 编程指南 - 版本说明](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-versioning)
+- [ESP-Brookesia 编程指南 - 开发环境搭建](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-dev-environment)
 
-## 🔨 获取固件
-
-### 方式一：在线烧录
-
-使用 ESP Launchpad 可直接在浏览器中烧录预编译固件，无需搭建开发环境：
+## 🔨 如何使用
 
 <a href="https://espressif.github.io/esp-brookesia/index.html">
-    <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
+  <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="400">
 </a>
 
-烧录完成后，使用 [MobaXterm](https://mobaxterm.mobatek.net/) 等串口工具连接设备（波特率 `115200`，Flow Control `None`）即可开始交互。
-
-> [!NOTE]
-> 在线烧录仅支持 [预设开发板](#硬件要求)，其他开发板请使用 [方式二](#方式二从源码编译) 编译。
-
-### 方式二：从源码编译
-
-**1. 选择开发板**
-
-使用支持的开发板：
-
-```bash
-idf.py gen-bmgr-config -b <board>
-```
-
-可选的 `<board>` 值包括：
-
-- `esp_vocat_board_v1_0`
-- `esp_vocat_board_v1_2`
-- `esp_box_3`
-- `esp32_p4_function_ev`
-- `esp32_s3_korvo2_v3`
-- `esp_sensair_shuttle`
-
-使用其他开发板：
-
-```bash
-idf.py set-target <target>
-```
-
-> [!NOTE]
-> 如需添加自定义开发板，请参考 [esp_board_manager 组件文档](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README_CN.md)。
-
-**2. 配置选项**
-
-运行 `idf.py menuconfig`，在 `Example Configuration` 菜单中配置：
-
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| **Console → Store history** | 将命令历史持久化存储到 Flash | 开启 |
-| **Console → Max command line length** | 最大命令行长度（字节） | 1024 |
-
-**3. 编译烧录**
-
-```bash
-idf.py -p PORT build flash monitor
-```
-
-按 `Ctrl-]` 退出串口监视。
+请参考 [ESP-Brookesia 编程指南 - 如何使用示例工程](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-example-projects)。
 
 ## 🚀 快速体验
 
