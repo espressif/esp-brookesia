@@ -1,0 +1,9 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/brookesia_hal_adaptor:
+    version: "*"
+    override_path: "../../../../hal/brookesia_hal_adaptor"
+
+  espressif/brookesia_hal_boards:
+    version: "*"
+    override_path: "../../../../hal/brookesia_hal_boards"

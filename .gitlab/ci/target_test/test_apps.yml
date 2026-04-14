@@ -1,30 +1,31 @@
 #
 # Test apps: hal
 #
-# # brookesia_hal_adaptor
-# target_test_apps_brookesia_hal_adaptor:
-#   extends:
-#     - .target_test_template
-#     - .rules:build:test_apps_brookesia_hal_adaptor
-#   needs:
-#     - job: "build_test_apps_brookesia_hal_adaptor"
-#       artifacts: true
-#       optional: true
-#   parallel:
-#     matrix:
-#       - IDF_TARGET: esp32s3
-#         IDF_VERSION: "5.5"
-#         ENV_TAG: "esp_vocat"
-#       - IDF_TARGET: esp32p4
-#         IDF_VERSION: "5.5"
-#         ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
-#   tags:
-#     - ${IDF_TARGET}
-#     - ${ENV_TAG}
-#   variables:
-#     TEST_TARGET: ${IDF_TARGET}
-#     TEST_FOLDER: hal/brookesia_hal_adaptor/test_apps
-#     TEST_ENV: ${ENV_TAG}
+# brookesia_hal_adaptor
+target_test_apps_brookesia_hal_adaptor:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_hal_adaptor
+  needs:
+    - job: "build_test_apps_brookesia_hal_adaptor"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "esp_vocat"
+      # esp32p4_function_ev_board is temporarily disabled due to lack of display
+      # - IDF_TARGET: esp32p4
+      #   IDF_VERSION: "5.5"
+      #   ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: hal/brookesia_hal_adaptor/test_apps
+    TEST_ENV: ${ENV_TAG}
 # brookesia_hal_interface
 target_test_apps_brookesia_hal_interface:
   extends:

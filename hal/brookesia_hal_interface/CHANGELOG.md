@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.2 - 2026-04-14
+
+### Enhancements:
+
+- feat(api): add `get_all_devices()`, `get_all_interfaces()` helpers for device and interface discovery
+
 ## v0.7.1 - 2026-04-10
 
 ### Breaking Changes:

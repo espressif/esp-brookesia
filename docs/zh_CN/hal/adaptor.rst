@@ -13,7 +13,7 @@ HAL 适配
 概述
 ----
 
-``brookesia_hal_adaptor`` 是 ESP-Brookesia 的板级 HAL 适配实现，基于 :ref:`hal-interface-index-sec-00` 的设备/接口模型，通过 ``esp_board_manager`` 初始化真实外设，并将 **音频** 、 **显示** 、 **存储** 三类能力注册到全局 HAL 表，供上层按名称发现和使用。
+``brookesia_hal_adaptor`` 是 ESP-Brookesia 的板级 HAL 适配实现，基于 :ref:`HAL 接口 <hal-interface-index-sec-00>` 的设备/接口模型，通过 ``esp_board_manager`` 初始化真实外设，并将 **音频** 、 **显示** 、 **存储** 三类能力注册到全局 HAL 表，供上层按名称发现和使用。
 
 .. _hal-adaptor-sec-02:
 

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.1 - 2026-04-14
+
+### Enhancements:
+
+- feat(boards): add manufacturer-specific board folder to support multiple manufacturers
+
 ## v0.7.0 - 2026-04-10
 
 ### Initial Release

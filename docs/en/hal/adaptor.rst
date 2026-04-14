@@ -13,7 +13,7 @@ HAL Adaptor
 Overview
 --------
 
-``brookesia_hal_adaptor`` is the board-level HAL adaptor of ESP-Brookesia. Based on the device/interface model in :ref:`hal-interface-index-sec-00`, it initialises real peripherals via ``esp_board_manager`` and registers **audio**, **display**, and **storage** capabilities into the global HAL table for upper layers to discover by name.
+``brookesia_hal_adaptor`` is the board-level HAL adaptor of ESP-Brookesia. Based on the device/interface model in :ref:`HAL Interface <hal-interface-index-sec-00>`, it initialises real peripherals via ``esp_board_manager`` and registers **audio**, **display**, and **storage** capabilities into the global HAL table for upper layers to discover by name.
 
 .. _hal-adaptor-sec-02:
 

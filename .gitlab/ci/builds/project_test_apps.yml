@@ -1,14 +1,14 @@
 #
 # Hal
 #
-# # brookesia_hal_adaptor
-# build_test_apps_brookesia_hal_adaptor:
-#   extends:
-#     - .build_template_without_large_artifacts
-#     - .build_idf_release_version_with_board
-#     - .rules:build:test_apps_brookesia_hal_adaptor
-#   variables:
-#     EXAMPLE_DIR: hal/brookesia_hal_adaptor/test_apps
+# brookesia_hal_adaptor
+build_test_apps_brookesia_hal_adaptor:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_with_board
+    - .rules:build:test_apps_brookesia_hal_adaptor
+  variables:
+    EXAMPLE_DIR: hal/brookesia_hal_adaptor/test_apps
 # brookesia_hal_interface
 build_test_apps_brookesia_hal_interface:
   extends:

@@ -12,15 +12,21 @@ ESP-Brookesia Programming Guide
 
 |
 
-========================  ========================  ========================
-|Getting Started|_        |Utils Components|_      |HAL Components|_
-------------------------  ------------------------  ------------------------
-`Getting Started`_        `Utils Components`_      `HAL Components`_
-------------------------  ------------------------  ------------------------
-|Service Components|_     |AI Agent Components|_   |AI Expression Components|_
-------------------------  ------------------------  ------------------------
-`Service Components`_     `AI Agent Components`_   `AI Expression Components`_
-========================  ========================  ========================
+.. list-table::
+   :widths: 33 33 34
+
+   * - |Getting Started|_
+     - |Utils Components|_
+     - |HAL Components|_
+   * - `Getting Started`_
+     - `Utils Components`_
+     - `HAL Components`_
+   * - |Service Components|_
+     - |AI Agent Components|_
+     - |AI Expression Components|_
+   * - `Service Components`_
+     - `AI Agent Components`_
+     - `AI Expression Components`_
 
 .. |Getting Started| image:: ../_static/index/getting_started.png
 .. _Getting Started: getting_started.html
