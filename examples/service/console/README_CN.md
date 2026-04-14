@@ -74,8 +74,9 @@
 | `svc_unsubscribe <服务> <事件>` | 取消订阅服务事件 | `svc_unsubscribe Wifi ScanApInfosUpdated` |
 | `svc_stop <服务>` | 解除服务绑定 | `svc_stop Wifi` |
 
-> [!WARNING]
-`svc_call` 的 `JSON参数` 中不能存在空格。例如：`svc_call Wifi TriggerGeneralAction { "Action": "Start" }` 是错误的，正确的格式是：`svc_call Wifi TriggerGeneralAction {"Action":"Start"}`。
+> [!TIP]
+> - `svc_call` 的 `JSON参数` 中不能存在空格。例如：`svc_call Wifi TriggerGeneralAction { "Action": "Start" }` 是错误的，正确的格式是：`svc_call Wifi TriggerGeneralAction {"Action":"Start"}`。
+> - 服务命令的具体参数说明和使用方法，请参考 **ESP-Brookesia 编程指南** 各服务章节中 **服务接口** 小节。请参考示例 [CLI 命令](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/wifi.html#helper-contract-service-wifi-main-functions-triggergeneralaction-cli-command)（将 `null` 替换为实际参数值）。
 
 ### 调试命令
 

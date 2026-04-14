@@ -102,6 +102,19 @@ def _slugify_anchor(text: str) -> str:
     return slug or "entry"
 
 
+def _section_anchor(contract: dict, *parts: str) -> str:
+    slug_parts = [contract["category"], contract["slug"]]
+    for part in parts:
+        slug_parts.append(_slugify_anchor(part))
+    return "helper-contract-" + "-".join(filter(None, slug_parts))
+
+
+def _append_section(lines: list[str], contract: dict, title: str, marker: str, *anchor_parts: str) -> None:
+    lines.append(f".. _{_section_anchor(contract, *anchor_parts)}:")
+    lines.append("")
+    lines.extend(_section(title, marker))
+
+
 def _service_interface_subsection_anchor(contract: dict, subsection: str) -> str:
     """Stable anchor for the Functions / Events headings (for :ref: / HTML #fragment)."""
     return f"helper-contract-{contract['category']}-{contract['slug']}-{subsection}"
@@ -119,13 +132,15 @@ def _entry_anchor(contract: dict, section_key: str, entry_kind: str, entry_name:
 
 def _emit_schema_items(
     lines: list[str],
+    contract: dict,
     items: list[dict],
     entry_kind: str,
     language: str,
+    anchor_parts: tuple[str, ...],
 ) -> None:
     text = HEADINGS[language]
     section_key = "parameters" if entry_kind == "functions" else "items"
-    lines.extend(_section(text[section_key], '"'))
+    _append_section(lines, contract, text[section_key], '"', *anchor_parts, section_key)
 
     if not items:
         lines.append(f"- {text['no_parameters' if entry_kind == 'functions' else 'no_items']}")
@@ -176,13 +191,14 @@ def _emit_schema_entries(
         lines.append(f".. _{anchor}:")
         lines.append("")
         lines.extend(_section(f"``{entry['name']}``", entry_title_marker))
+        entry_anchor_parts = (section_key, entry_kind, entry["name"])
 
-        lines.extend(_section(text["description"], '"'))
+        _append_section(lines, contract, text["description"], '"', *entry_anchor_parts, "description")
         description = (entry.get("description", "") or "").strip()
         lines.append(description if description else text["no_description"])
         lines.append("")
 
-        lines.extend(_section(text["execution"], '"'))
+        _append_section(lines, contract, text["execution"], '"', *entry_anchor_parts, "execution")
         lines.append(
             f"- {text['scheduler_label']}: "
             f"{text['scheduler_yes'] if entry.get('require_scheduler', True) else text['scheduler_no']}"
@@ -190,17 +206,19 @@ def _emit_schema_entries(
         lines.append("")
 
         if entry_kind == "functions":
-            _emit_schema_items(lines, entry.get("parameters", []), entry_kind, language)
+            _emit_schema_items(lines, contract, entry.get("parameters", []), entry_kind, language, entry_anchor_parts)
         else:
-            _emit_schema_items(lines, entry.get("items", []), entry_kind, language)
+            _emit_schema_items(lines, contract, entry.get("items", []), entry_kind, language, entry_anchor_parts)
 
-        _emit_schema_json(lines, entry, language)
-        _emit_cli_command(lines, entry, entry_kind, service_name, language)
+        _emit_schema_json(lines, contract, entry, language, entry_anchor_parts)
+        _emit_cli_command(lines, contract, entry, entry_kind, service_name, language, entry_anchor_parts)
 
 
-def _emit_schema_json(lines: list[str], entry: dict, language: str) -> None:
+def _emit_schema_json(
+    lines: list[str], contract: dict, entry: dict, language: str, anchor_parts: tuple[str, ...]
+) -> None:
     text = HEADINGS[language]
-    lines.extend(_section(text["schema_json"], '"'))
+    _append_section(lines, contract, text["schema_json"], '"', *anchor_parts, "schema-json")
 
     normalized_entry = _normalize_schema_entry_for_display(entry)
     pretty_json = json.dumps(normalized_entry, ensure_ascii=False, indent=2)
@@ -220,13 +238,15 @@ def _emit_schema_json(lines: list[str], entry: dict, language: str) -> None:
 
 def _emit_cli_command(
     lines: list[str],
+    contract: dict,
     entry: dict,
     entry_kind: str,
     service_name: str,
     language: str,
+    anchor_parts: tuple[str, ...],
 ) -> None:
     text = HEADINGS[language]
-    lines.extend(_section(text["cli_command"], '"'))
+    _append_section(lines, contract, text["cli_command"], '"', *anchor_parts, "cli-command")
 
     if entry_kind == "functions":
         params = entry.get("parameters", [])
@@ -302,7 +322,7 @@ def _emit_schema_section(
         grouped_entry_marker = entry_title_marker
     for definition in definitions:
         title = definition["title"][language]
-        lines.extend(_section(title, marker))
+        _append_section(lines, contract, title, marker, entry_kind, definition["key"], "group")
         section_key = definition["key"]
         section = exported_sections[section_key]
         _emit_schema_entries(
@@ -337,12 +357,12 @@ def generate_helper_contract_guides(build_dir: Path, language: str) -> None:
             # Keep all helper contract guides in a consistent structure by default.
             omit_overview = True
         if not omit_overview:
-            lines.extend(_section(text["overview"], "-"))
+            _append_section(lines, contract, text["overview"], "-", "overview")
             lines.append(contract["overview"][language])
             lines.append("")
 
         if language != "zh_CN":
-            lines.extend(_section(text["include"], "-"))
+            _append_section(lines, contract, text["include"], "-", "include")
             lines.append(f"- {text['include_label']}: ``#include \\\"{contract['include_header']}\\\"``")
             lines.append(f"- {text['helper_label']}: ``{contract['helper_type']}``")
             lines.append("")
@@ -353,11 +373,11 @@ def generate_helper_contract_guides(build_dir: Path, language: str) -> None:
         functions_events_marker = "-"
         entry_title_marker = "^"
         if has_interface_title and interface_as_parent:
-            lines.extend(_section(interface_title[language], "-"))
+            _append_section(lines, contract, interface_title[language], "-", "interfaces")
             functions_events_marker = "^"
             entry_title_marker = "~"
         elif has_interface_title:
-            lines.extend(_section(interface_title[language], "-"))
+            _append_section(lines, contract, interface_title[language], "-", "interfaces")
 
         lines.append(f".. _{_service_interface_subsection_anchor(contract, 'functions')}:")
         lines.append("")
@@ -383,7 +403,7 @@ def generate_helper_contract_guides(build_dir: Path, language: str) -> None:
             entry_title_marker,
         )
 
-        lines.extend(_section(text["related"], "-"))
+        _append_section(lines, contract, text["related"], "-", "related")
         lines.append(
             text["related_text"].format(label=text["api_reference"], doc=contract["api_reference_doc"])
         )

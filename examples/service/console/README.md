@@ -74,8 +74,9 @@ After flashing the firmware successfully, refer to the [Quick Start Tutorial](./
 | `svc_unsubscribe <service> <event>` | Unsubscribe from a service event | `svc_unsubscribe Wifi ScanApInfosUpdated` |
 | `svc_stop <service>` | Release the service binding | `svc_stop Wifi` |
 
-> [!WARNING]
-> The `JSON params` of `svc_call` cannot contain spaces. For example: `svc_call Wifi TriggerGeneralAction { "Action": "Start" }` is incorrect, the correct format is: `svc_call Wifi TriggerGeneralAction {"Action":"Start"}`.
+> [!TIP]
+> - The `JSON params` of `svc_call` cannot contain spaces. For example: `svc_call Wifi TriggerGeneralAction { "Action": "Start" }` is incorrect, the correct format is: `svc_call Wifi TriggerGeneralAction {"Action":"Start"}`.
+> - For detailed parameter descriptions and usage of service commands, please refer to the **Service Interfaces** sections in each service chapter of the **ESP-Brookesia Programming Guide**. You can also check the [CLI command example](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/wifi.html#helper-contract-service-wifi-main-functions-triggergeneralaction-cli-command) (replace `null` with your actual parameter values).
 
 ### Debug Commands
 
