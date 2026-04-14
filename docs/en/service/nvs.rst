@@ -38,7 +38,7 @@ Namespaces
 
 .. _service-nvs-sec-04:
 
-Supported types
+Supported Types
 ^^^^^^^^^^^^^^^
 
 - **Bool**: ``true`` / ``false``.
@@ -51,7 +51,7 @@ Supported types
 
 .. _service-nvs-sec-05:
 
-Core capabilities
+Core Capabilities
 ^^^^^^^^^^^^^^^^^
 
 - List key metadata in a namespace.

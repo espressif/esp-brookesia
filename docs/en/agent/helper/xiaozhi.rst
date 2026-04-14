@@ -16,7 +16,7 @@ Raw Doxygen API for the XiaoZhi helper: types, enums, methods, and macros.
 
 .. _agent-helper-xiaozhi-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/xiaozhi.inc

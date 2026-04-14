@@ -1,7 +1,7 @@
 .. _hal-boards-sec-00:
 
-HAL Boards
-==========
+HAL Board Support
+=================
 
 :link_to_translation:`zh_CN:[中文]`
 

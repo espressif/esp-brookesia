@@ -9,7 +9,7 @@ This guide explains how to obtain and use ESP-Brookesia components and how to bu
 
 .. _getting-started-versioning:
 
-ESP-Brookesia versioning
+ESP-Brookesia Versioning
 ------------------------
 
 From **v0.7**, ESP-Brookesia is componentized. Obtain components via the component registry as follows:
@@ -36,10 +36,14 @@ Version support:
      - Preview system framework; ESP-VoCat firmware project
      - End of maintenance
 
+.. warning::
+
+   To ensure normal compilation of example projects in ESP-Brookesia, it is not recommended to install the ESP-IDF environment using the VSCode extension plugin. Please follow the `ESP-IDF Programming Guide <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html>`__ to set up the development environment.
+
 .. _getting-started-dev-environment:
 
-Development environment
--------------------------
+Development Environment Setup
+-----------------------------
 
 ESP-IDF is Espressif’s framework for ESP series chips:
 
@@ -53,8 +57,8 @@ ESP-IDF is Espressif’s framework for ESP series chips:
 
 .. _getting-started-hardware:
 
-Hardware
---------
+Hardware Preparation
+--------------------
 
 ESP SoCs typically provide:
 
@@ -86,8 +90,8 @@ ESP SoCs use advanced process technology and offer leading RF performance, low p
 
 .. _getting-started-component-usage:
 
-Obtaining and using components
-------------------------------
+How to Obtain and Use Components
+--------------------------------
 
 Use the `ESP Component Registry <https://components.espressif.com/>`__ to add ESP-Brookesia components.
 
@@ -110,53 +114,76 @@ Example: add **brookesia_service_wifi**:
       dependencies:
          espressif/brookesia_service_wifi: "*"
 
-See `ESP Registry Docs <https://docs.espressif.com/projects/idf-component-manager/en/latest/>`__ for more.
+See `Espressif IDF Component Manager Docs <https://docs.espressif.com/projects/idf-component-manager/en/latest/>`__ for more.
 
 .. _getting-started-example-projects:
 
-Using example projects
---------------------------
+How to Use Example Projects
+---------------------------
 
-ESP-Brookesia ships multiple examples. Typical workflow:
+ESP-Brookesia provides multiple example projects. Some of them support online flashing through `ESP Launchpad <https://espressif.github.io/esp-brookesia/index.html>`__, allowing you to flash prebuilt firmware and view serial output directly in the browser without setting up a local development environment first.
 
-1. Complete ESP-IDF setup first.
+.. only:: html
 
-2. Select target chip or board (depends on peripherals):
+   .. raw:: html
 
-   - **Chip only**:
+      <div style="text-align: center;">
+         <a href="https://espressif.github.io/esp-brookesia/index.html">
+            <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="400">
+         </a>
+         <p>Click the image to try with ESP Launchpad</p>
+      </div>
+      <br>
 
-      For ``examples/service/wifi``, only Wi-Fi is required, so select a chip target (e.g. ``esp32s3``):
+The typical build and flash steps for an example project are as follows:
+
+1. Select the target chip or development board. The choice depends on the peripherals required by the example and usually falls into one of the following cases:
+
+   - **Select a target chip**:
+
+      For ``examples/service/wifi``, the project only relies on the chip's built-in Wi-Fi peripheral, so you only need to select a target chip such as ``esp32s3``:
 
       .. code-block:: bash
 
          idf.py set-target <target>
 
-   - **Board**:
+   - **Select a target development board**:
 
-      For ``examples/service/console``, audio peripherals matter, so select a board (e.g. ``esp_vocat_board_v1_2``):
+      For ``examples/service/console``, the project depends on audio peripherals provided by the board, so you need to select a target development board such as ``esp_vocat_board_v1_2``:
 
       .. code-block:: bash
 
          idf.py gen-bmgr-config -b <board>
          idf.py set-target <target>
 
-3. Optional configuration:
+      .. note::
+
+         These projects include an ``idf_ext.py`` script in the project directory. Compared with regular example projects that simply depend on ``esp_board_manager``, this script provides a few extra conveniences:
+
+            - No manual ``IDF_EXTRA_ACTIONS_PATH`` setup is required.
+            - When a board is selected, ``esp_board_manager`` and ``brookesia_hal_boards`` are downloaded automatically based on the dependencies declared in ``idf_component.yml``.
+            - When ``idf.py gen-bmgr-config`` is executed, the script automatically adds the ``-c`` option to point to a ``boards/`` directory and searches in the following order:
+               1. The project's local ``boards/`` directory.
+               2. The ``boards/`` directory inside the ``brookesia_hal_boards`` component.
+            - If needed, you can still provide a custom directory manually with the ``-c`` option.
+
+2. Optional configuration:
 
     .. code-block:: bash
 
         idf.py menuconfig
 
-4. Build and flash:
+3. Build and flash:
 
     .. code-block:: bash
 
         idf.py build
         idf.py -p <PORT> flash
 
-5. Monitor serial output:
+4. Monitor serial output:
 
     .. code-block:: bash
 
         idf.py -p <PORT> monitor
 
-More examples live under ``examples/``; see each README for details.
+More examples are available under `examples/ <https://github.com/espressif/esp-brookesia/tree/master/examples>`__. For detailed usage instructions, refer to the README file in each example directory.

@@ -16,7 +16,7 @@ This page documents the Video helper Doxygen API: types, enums, methods, and mac
 
 .. _service-helper-video-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/video.inc

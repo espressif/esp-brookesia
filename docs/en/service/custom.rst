@@ -1,7 +1,7 @@
 .. _service-custom-sec-00:
 
-Custom Service
-================
+Service Customization
+=====================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -17,7 +17,7 @@ Overview
 
 .. _service-custom-sec-02:
 
-Typical uses
+Typical Uses
 ^^^^^^^^^^^^
 
 - **Lightweight features**: LEDs, PWM, GPIO toggles, simple sensors—wrapped as CustomService calls.
@@ -37,7 +37,7 @@ Features
 
 .. _service-custom-sec-04:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/service/brookesia_service_custom/include/brookesia/service_custom/service_custom.inc

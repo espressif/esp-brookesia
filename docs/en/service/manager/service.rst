@@ -1,18 +1,18 @@
 .. _service-manager-service-sec-00:
 
-Service runtime
-===============
+Service Runtime Layer
+=====================
 
 :link_to_translation:`zh_CN:[中文]`
 
 .. _service-manager-service-sec-01:
 
-API reference
+API Reference
 -------------
 
 .. _service-manager-service-sec-02:
 
-Service base
+Service Base
 ~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/service/base.hpp"``
@@ -21,7 +21,7 @@ Public header: ``#include "brookesia/service_manager/service/base.hpp"``
 
 .. _service-manager-service-sec-03:
 
-Service manager
+Service Manager
 ~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/service/manager.hpp"``
@@ -30,7 +30,7 @@ Public header: ``#include "brookesia/service_manager/service/manager.hpp"``
 
 .. _service-manager-service-sec-04:
 
-Local test runner
+Local Test Runner
 ~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/service/local_runner.hpp"``

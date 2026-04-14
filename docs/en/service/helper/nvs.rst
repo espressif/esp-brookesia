@@ -16,7 +16,7 @@ This page documents the NVS helper Doxygen API: types, enums, methods, and macro
 
 .. _service-helper-nvs-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/nvs.inc

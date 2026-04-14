@@ -32,7 +32,7 @@ This section documents the ESP-Brookesia service framework components. The frame
 
 .. _service-index-sec-01:
 
-Service framework
+Service Framework
 -----------------
 
 .. toctree::
@@ -43,7 +43,7 @@ Service framework
 
 .. _service-index-sec-02:
 
-General services
+General Services
 ----------------
 
 .. toctree::
@@ -58,7 +58,7 @@ General services
 
 .. _service-index-sec-03:
 
-Development guide
+Development Guide
 -----------------
 
 .. toctree::

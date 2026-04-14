@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-describe_helpers-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/describe_helpers.inc

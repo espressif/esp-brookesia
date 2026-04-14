@@ -1,7 +1,7 @@
 .. _service-usage-sec-00:
 
-使用说明
-========
+应用开发指南
+============
 
 :link_to_translation:`en:[English]`
 
@@ -46,8 +46,10 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
 
    #include "brookesia/lib_utils.hpp"
    #include "brookesia/service_manager.hpp"
-   // Helper 头文件，需要根据具体服务组件选择对应的 Helper 头文件
-   #include "brookesia/service_helper/wifi.hpp"
+   // 包含所有通用服务辅助头文件
+   #include "brookesia/service_helper.hpp"
+   // 或者仅包含具体服务组件的 Helper 头文件, 例如 Wi-Fi
+   // #include "brookesia/service_helper/wifi.hpp"
 
    // 所有 Brookesia 组件中的数据类型均在 esp_brookesia 命名空间下
    using namespace esp_brookesia;
@@ -508,7 +510,10 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
 .. code-block:: cpp
 
    WifiHelper::EventMonitor<WifiHelper::EventId::GeneralEventHappened> general_event_monitor;
-   BROOKESIA_CHECK_FALSE_EXIT(general_event_monitor.start(), "Failed to start general event monitor");
+   if (!general_event_monitor.start()) {
+      // 启动监听器失败
+      return;
+   }
 
    WifiHelper::call_function_async(WifiHelper::FunctionId::TriggerGeneralAction,
                                    BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Start));
@@ -534,7 +539,10 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
 .. code-block:: cpp
 
    WifiHelper::EventMonitor<WifiHelper::EventId::ScanApInfosUpdated> scan_ap_infos_updated_monitor;
-   BROOKESIA_CHECK_FALSE_EXIT(scan_ap_infos_updated_monitor.start(), "Failed to start scan AP infos updated monitor");
+   if (!scan_ap_infos_updated_monitor.start()) {
+      // 启动监听器失败
+      return;
+   }
 
    WifiHelper::call_function_async(WifiHelper::FunctionId::TriggerScanStart);
 

@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-state_machine-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/utils/brookesia_lib_utils/include/brookesia/lib_utils/state_machine.inc

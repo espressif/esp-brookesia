@@ -13,7 +13,7 @@ variables:
     - cd docs
     - ./check_lang_folder_sync.sh
     - python -m pip install -r requirements.txt
-    - build-docs -bs $DOC_BUILDERS -l $DOCLANG build
+    - build-docs -l $DOCLANG -bs $DOC_BUILDERS
   parallel:
     matrix:
       - DOCLANG: ["en", "zh_CN"]

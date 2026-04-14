@@ -46,7 +46,7 @@ Derive a helper with function/event enums and schemas:
 
 .. _service-helper-base-sec-04:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/base.inc

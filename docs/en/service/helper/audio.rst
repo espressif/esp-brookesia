@@ -16,7 +16,7 @@ This page documents the Audio helper Doxygen API: types, enums, methods, and mac
 
 .. _service-helper-audio-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/audio.inc

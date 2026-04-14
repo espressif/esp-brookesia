@@ -27,7 +27,7 @@ Features
 
 .. _utils-lib_utils-memory_profiler-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/memory_profiler.inc

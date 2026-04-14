@@ -1,13 +1,13 @@
 .. _service-manager-event-sec-00:
 
-Event system
+Event System
 ==============
 
 :link_to_translation:`zh_CN:[中文]`
 
 .. _service-manager-event-sec-01:
 
-API reference
+API Reference
 -------------
 
 Public header: ``#include "brookesia/service_manager/event/definition.hpp"``
@@ -16,7 +16,7 @@ Public header: ``#include "brookesia/service_manager/event/definition.hpp"``
 
 .. _service-manager-event-sec-02:
 
-Event dispatcher
+Event Dispatcher
 ~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/event/dispatcher.hpp"``
@@ -25,7 +25,7 @@ Public header: ``#include "brookesia/service_manager/event/dispatcher.hpp"``
 
 .. _service-manager-event-sec-03:
 
-Event registry
+Event Registry
 ~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/event/registry.hpp"``

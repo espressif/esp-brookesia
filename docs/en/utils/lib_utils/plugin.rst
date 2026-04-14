@@ -1,7 +1,7 @@
 .. _utils-lib_utils-plugin-sec-00:
 
-Plugin
-======
+Plugin System
+=============
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -26,7 +26,7 @@ Features
 
 .. _utils-lib_utils-plugin-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/plugin.inc

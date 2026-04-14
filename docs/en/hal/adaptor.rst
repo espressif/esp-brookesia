@@ -22,7 +22,7 @@ Features
 
 .. _hal-adaptor-sec-03:
 
-Built-in Devices
+Built-In Devices
 ^^^^^^^^^^^^^^^^
 
 The component ships three board-level devices, each registered as a singleton; after initialisation they publish their interfaces into the global table:

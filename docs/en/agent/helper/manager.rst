@@ -16,7 +16,7 @@ Raw Doxygen API for the Manager helper: types, enums, methods, and macros.
 
 .. _agent-helper-manager-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/agent/brookesia_agent_helper/include/brookesia/agent_helper/manager.inc

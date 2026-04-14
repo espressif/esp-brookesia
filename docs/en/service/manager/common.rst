@@ -7,7 +7,7 @@ Common
 
 .. _service-manager-common-sec-01:
 
-API reference
+API Reference
 -------------
 
 Public header: ``#include "brookesia/service_manager/common.hpp"``

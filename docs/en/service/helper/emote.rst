@@ -16,7 +16,7 @@ This page documents the Expression/Emote helper Doxygen API: types, enums, metho
 
 .. _service-helper-emote-sec-02:
 
-API reference
+API Reference
 -------------
 
 .. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/expression/emote.inc

@@ -32,7 +32,7 @@ Features
 
 .. _utils-lib_utils-time_profiler-sec-03:
 
-API reference
+API Reference
 ---------------
 
 .. include-build-file:: inc/time_profiler.inc

@@ -1,18 +1,18 @@
 .. _service-manager-function-sec-00:
 
-Function system
+Function System
 =================
 
 :link_to_translation:`zh_CN:[中文]`
 
 .. _service-manager-function-sec-01:
 
-API reference
+API Reference
 -------------
 
 .. _service-manager-function-sec-02:
 
-Function definition
+Function Definition
 ~~~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/function/definition.hpp"``
@@ -21,7 +21,7 @@ Public header: ``#include "brookesia/service_manager/function/definition.hpp"``
 
 .. _service-manager-function-sec-03:
 
-Function registry
+Function Registry
 ~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/function/registry.hpp"``

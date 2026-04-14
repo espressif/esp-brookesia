@@ -1,7 +1,7 @@
 .. _hal-index-sec-00:
 
-HAL Components
-==============
+Hardware Abstraction Components
+===============================
 
 :link_to_translation:`zh_CN:[中文]`
 

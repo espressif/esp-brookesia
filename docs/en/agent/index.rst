@@ -1,7 +1,7 @@
 .. _agent-index-sec-00:
 
-Agent Components
-================
+AI Agent Components
+===================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -32,8 +32,8 @@ This section documents ESP-Brookesia agent framework components. The framework c
 
 .. _agent-index-sec-01:
 
-Agent framework
----------------
+AI Agent Framework
+==================
 
 .. toctree::
    :maxdepth: 1

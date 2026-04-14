@@ -30,7 +30,7 @@ Features
 
 .. _service-wifi-sec-03:
 
-State machine
+State Machine
 ^^^^^^^^^^^^^
 
 The Wi-Fi service manages lifecycle states in a state machine for safe, consistent transitions.
@@ -168,7 +168,7 @@ State transition diagram:
 
 .. _service-wifi-sec-04:
 
-Auto reconnect
+Auto Reconnect
 ^^^^^^^^^^^^^^
 
 - Connect to historical APs after start.
@@ -177,8 +177,8 @@ Auto reconnect
 
 .. _service-wifi-sec-05:
 
-Scanning
-^^^^^^^^
+Wi-Fi Scanning
+^^^^^^^^^^^^^^
 
 - Configurable interval and timeout.
 - Events with SSID, signal level, security, etc.
