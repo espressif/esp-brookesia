@@ -36,10 +36,6 @@ Version support:
      - Preview system framework; ESP-VoCat firmware project
      - End of maintenance
 
-.. warning::
-
-   To ensure normal compilation of example projects in ESP-Brookesia, it is not recommended to install the ESP-IDF environment using the VSCode extension plugin. Please follow the `ESP-IDF Programming Guide <https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html>`__ to set up the development environment.
-
 .. _getting-started-dev-environment:
 
 Development Environment Setup

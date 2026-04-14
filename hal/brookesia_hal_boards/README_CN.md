@@ -6,7 +6,7 @@
 
 `brookesia_hal_boards` 是 ESP-Brookesia 的开发板配置集合，基于 YAML 描述各开发板的外设拓扑与设备参数，供 `brookesia_hal_adaptor` 在运行时无需硬编码即可完成硬件初始化。
 
-更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards.html)。
+更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/index.html)。
 
 ## 如何使用
 

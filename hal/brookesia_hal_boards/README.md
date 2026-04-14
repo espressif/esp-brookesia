@@ -6,7 +6,7 @@
 
 `brookesia_hal_boards` is the board configuration collection for ESP-Brookesia. It uses YAML files to describe the peripheral topology and device parameters for each supported board, allowing `brookesia_hal_adaptor` to initialize hardware at runtime without board-specific hardcoding.
 
-For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/hal/boards.html).
+For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/hal/boards/index.html).
 
 ## How to Use
 
