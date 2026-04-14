@@ -2,7 +2,7 @@
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to build a complete AI voice chatbot based on the ESP-Brookesia framework. It supports wake-word detection, multi-AI-agent integration with runtime switching, animated expression display, gesture navigation, and hardware control via MCP tools.
+This example demonstrates how to build a complete AI voice chatbot based on the ESP-Brookesia framework. It supports wake-word detection, multiple AI agents with runtime switching, expression animations, gesture navigation, and direct hardware control through MCP tools.
 
 ## 📑 Table of Contents
 
@@ -12,11 +12,10 @@ This example demonstrates how to build a complete AI voice chatbot based on the 
   - [🚩 Getting Started](#-getting-started)
     - [Hardware Requirements](#hardware-requirements)
     - [Development Environment](#development-environment)
-  - [🔨 Get the Firmware](#-get-the-firmware)
-    - [Option 1: Flash Online](#option-1-flash-online)
-    - [Option 2: Build from Source](#option-2-build-from-source)
-  - [🚀 Quick Start](#-quick-start)
-    - [First Boot — Wi-Fi Provisioning](#first-boot--wi-fi-provisioning)
+  - [🔨 How to Use](#-how-to-use)
+  - [🔧 Configure AI Agents](#-configure-ai-agents)
+  - [🚀 Quick Tryout](#-quick-tryout)
+    - [First Boot and Wi-Fi Provisioning](#first-boot-and-wi-fi-provisioning)
     - [Voice Interaction](#voice-interaction)
     - [Settings Screen](#settings-screen)
   - [🔍 Troubleshooting](#-troubleshooting)
@@ -24,22 +23,20 @@ This example demonstrates how to build a complete AI voice chatbot based on the 
 
 ## ✨ Features
 
-- 🤖 **Multiple AI Agents**: Built-in support for XiaoZhi (default), Coze, and OpenAI agents with runtime switching
-- 🎙️ **Voice Wake-up and Interaction**: Integrated AFE (Audio Front-End) engine with VAD and wake-word detection for hands-free conversation
-- 😊 **Animated Expressions**: Real-time expression animations reflecting AI states such as speaking, thinking, and idle
-- 🖐️ **Gesture Navigation**: Swipe gestures to switch between the expression main screen and the settings screen
-- 🛠️ **MCP Hardware Control Tools**: The XiaoZhi agent can directly control display brightness (get/set/on/off) and audio volume (get/set/mute) via MCP (Model Context Protocol) tools
-- 📶 **Wi-Fi Provisioning**: Automatically enters SoftAP provisioning mode on first boot; credentials are saved and reconnected automatically on subsequent boots
-- 💾 **Persistent Settings**: User preferences such as brightness are saved to NVS and retained across power cycles
+- 🤖 **Multiple AI Agents**: Built-in XiaoZhi (default), Coze, and OpenAI agents, with runtime switching support
+- 🎙️ **Voice Wake-Up and Interaction**: Integrates the AFE (Audio Front-End) engine with VAD and wake-word detection for hands-free conversations
+- 😊 **Expression Animations**: Displays matching expression animations in real time for states such as speaking, thinking, and waiting
+- 🖐️ **Gesture Navigation**: Swipe on the touch screen to switch between the expression main screen and the settings screen
+- 🛠️ **MCP Hardware Control Tools**: The XiaoZhi agent can directly control screen brightness (get/set/on/off) and volume (get/set/mute) through MCP (Model Context Protocol) tools
+- 📶 **Wi-Fi Provisioning**: On first boot, the device automatically enters SoftAP provisioning mode; after provisioning, credentials are saved and reconnected automatically
+- 💾 **Persistent Settings**: User settings such as brightness are saved in NVS and retained across power cycles
 - 📊 **Runtime Profiling**: Built-in memory and thread profilers for development and debugging
 
 ## 🚩 Getting Started
 
 ### Hardware Requirements
 
-A development board equipped with an `ESP32-S3`, `ESP32-P4`, or `ESP32-C5` chip, `Flash ≥ 8 MB, PSRAM ≥ 4 MB`, and featuring a display, touchscreen, microphone, and speaker.
-
-This example uses the `esp_board_manager` component for hardware management. The following boards are officially supported:
+This example uses the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component to manage hardware and supports the following development boards:
 
 - ESP-VoCat V1.0
 - ESP-VoCat V1.2
@@ -49,82 +46,48 @@ This example uses the `esp_board_manager` component for hardware management. The
 
 ### Development Environment
 
-- ESP-IDF `v5.5.2` tag (recommended) or the `release/v5.5` branch
+Please refer to the following documentation:
 
-> [!WARNING]
-> Installing ESP-IDF via the VSCode extension plugin is not recommended, as it may cause build failures. Please follow the [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html) to set up the development environment.
+- [ESP-Brookesia Programming Guide - Versioning](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-versioning)
+- [ESP-Brookesia Programming Guide - Development Environment Setup](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-dev-environment)
 
-## 🔨 Get the Firmware
-
-### Option 1: Flash Online
-
-Use ESP Launchpad to flash the pre-built firmware directly in your browser, with no development environment required:
+## 🔨 How to Use
 
 <a href="https://espressif.github.io/esp-brookesia/index.html">
-    <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
+  <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="400">
 </a>
 
-> [!NOTE]
-> Online flashing only supports the [officially supported boards](#hardware-requirements). For other boards, please use [Option 2](#option-2-build-from-source).
+Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects).
 
-### Option 2: Build from Source
+## 🔧 Configure AI Agents
 
-**1. Select a Board**
-
-For a supported board:
-
-```bash
-idf.py gen-bmgr-config -b <board>
-```
-
-Available `<board>` values:
-
-- `esp_vocat_board_v1_0`
-- `esp_vocat_board_v1_2`
-- `esp_box_3`
-- `esp32_p4_function_ev`
-- `esp32_s3_korvo2_v3`
-
-> [!NOTE]
-> To add a custom board, refer to the [esp_board_manager component documentation](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README.md).
-
-**2. Configure AI Agents**
-
-Run `idf.py menuconfig` and configure agents under the `Example Configuration` menu:
+Run `idf.py menuconfig` and configure the agents in the `Example Configuration` menu:
 
 | Option | Description |
-|--------|-------------|
+|------|------|
 | **Enable Xiaozhi agent** | Enable the XiaoZhi agent (enabled by default) |
 | **Enable Coze agent** | Enable the Coze agent; requires App ID, public key, private key, and bot configuration |
-| **Enable OpenAI agent** | Enable the OpenAI agent; requires an API key and model name |
+| **Enable OpenAI agent** | Enable the OpenAI agent; requires API Key and model name |
 
 > [!NOTE]
-> Multiple agents can be enabled simultaneously and switched at runtime from the settings screen.
+> Multiple agents can be enabled at the same time, and the active agent can be switched at runtime from the settings screen.
 
-**3. Build and Flash**
+## 🚀 Quick Tryout
 
-```bash
-idf.py -p PORT build flash monitor
-```
+### First Boot and Wi-Fi Provisioning
 
-Press `Ctrl-]` to exit the serial monitor.
+When the device powers on, it checks whether Wi-Fi credentials have already been saved:
 
-## 🚀 Quick Start
-
-### First Boot — Wi-Fi Provisioning
-
-On power-up, the device checks for saved Wi-Fi credentials:
-
-- **Not configured**: The device opens a SoftAP hotspot. Connect to it with your phone and enter the SSID and password of your home Wi-Fi on the provisioning page to complete the setup.
-- **Already configured**: The device connects to the saved Wi-Fi automatically, and the AI agent (default XiaoZhi Agent) starts once the connection is established.
+- **Not configured**: The device automatically starts a SoftAP hotspot. Connect to it with your phone, then enter the SSID and password of your home Wi-Fi network on the provisioning page.
+- **Already configured**: The device automatically connects to the saved Wi-Fi network. After the connection succeeds, the AI agent (XiaoZhi by default) starts automatically.
 
 ### Voice Interaction
 
-After the AI agent starts, you can begin interacting by voice. When the AI responds, corresponding animated expressions will be shown on the screen in real time; once the conversation ends, the device automatically returns to standby mode.
+Once the AI agent starts, you can begin talking to it. While the AI is responding, the screen shows matching expression animations. After the conversation ends, the device automatically returns to the standby state.
 
-During a conversation, the XiaoZhi Agent can invoke MCP tools to control the device, for example:
+During conversations, the XiaoZhi agent can proactively call MCP tools to operate the device, for example:
 
-- "Turn up the volume a bit"
+- "Turn the volume up a bit"
 - "What is the current volume?"
 - "Mute"
 - "Unmute"
@@ -132,48 +95,48 @@ During a conversation, the XiaoZhi Agent can invoke MCP tools to control the dev
 - "Turn off the screen"
 - "Turn on the screen"
 
-After a period of time without detecting voice, the AI agent will automatically enter sleep mode. At this time, say the wake word (default "Hi,ESP") to wake it up and start a conversation.
+If no human voice is detected for a period of time, the AI agent automatically enters sleep mode. At that point, say the wake word (default: `"Hi,ESP"`) to start a conversation again.
 
 ### Settings Screen
 
-Swipe from anywhere on the **expression main screen** to open the **settings screen**:
+On the **expression main screen**, swipe from anywhere on the screen to enter the **settings screen**, which supports the following operations:
 
 | Setting | Description |
-|---------|-------------|
-| **Wi-Fi Status** | Shows the connected Wi-Fi SSID and connection state |
-| **Brightness** | Drag the slider to adjust screen brightness (0–100%); saved automatically on power-off |
-| **Volume** | Drag the slider to adjust playback volume (0–100%) |
-| **Agent Switch** | Drop-down to select the active agent (XiaoZhi / Coze / OpenAI) |
-| **Factory Reset** | Clears all saved settings; the device re-enters provisioning mode after reboot |
+|--------|------|
+| **WiFi Status** | Shows the current Wi-Fi SSID and connection status |
+| **Brightness** | Drag the slider to adjust screen brightness (0-100%); the value is saved after power-off |
+| **Volume** | Drag the slider to adjust playback volume (0-100%) |
+| **Agent Switch** | Select the active agent from the drop-down list (XiaoZhi / Coze / OpenAI) |
+| **Factory Reset** | Clears all saved configuration; after reboot, the device enters provisioning again |
 
-Swipe from the edge of the **settings screen** to return to the **expression main screen**.
+On the **settings screen**, swipe inward from any edge to return to the **expression main screen**.
 
 ## 🔍 Troubleshooting
 
-**Device does not enter provisioning mode**
+**The device does not enter provisioning mode**
 
-Ensure there is no stale provisioning data in Flash. Tap "Factory Reset" on the settings screen and reboot.
+Make sure there is no old provisioning information left in Flash. You can tap "Factory Reset" in the settings screen and then reboot the device.
 
-**AI does not respond**
+**The AI does not respond**
 
-- Check whether Wi-Fi is connected (view status on the settings screen).
-- Verify that the corresponding agent is enabled in menuconfig and that credentials such as API Key / Bot ID are correctly filled in.
-- Check the serial log to confirm whether the agent service started successfully.
+- Check whether Wi-Fi is connected on the settings screen.
+- Check whether the corresponding agent is enabled in menuconfig, and confirm that API Key, Bot ID, and other credentials are filled in correctly.
+- Check the serial log to verify that the agent service started successfully.
 
-**Wake word not recognized**
+**The wake word does not respond**
 
-- Confirm the microphone is working and that the volume is not too low.
-- Check that the wake-word model has been successfully flashed to the `model` partition.
+- Make sure the microphone is working properly and the input volume is not too low.
+- Check whether the wake-word model has been flashed successfully into the `model` partition.
 
-**Build failure (VSCode)**
+**Build fails in VSCode**
 
-Install ESP-IDF via the command line. Refer to [Development Environment](#development-environment).
+Install ESP-IDF using the command line. See [Development Environment](#development-environment).
 
 ## 💬 Technical Support and Feedback
 
 Please use the following channels for feedback:
 
 - For technical questions, visit the [esp32.com](https://esp32.com/viewforum.php?f=52&sid=86e7d3b29eae6d591c965ec885874da6) forum
-- For feature requests or bug reports, open a new [GitHub Issue](https://github.com/espressif/esp-brookesia/issues)
+- For feature requests or bug reports, create a new [GitHub Issue](https://github.com/espressif/esp-brookesia/issues)
 
-We will get back to you as soon as possible.
+We will respond as soon as possible.

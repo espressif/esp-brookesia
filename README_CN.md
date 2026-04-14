@@ -29,58 +29,28 @@ ESP-Brookesia 的功能框架如下图所示，自底向上由 **环境与依赖
 </div>
 <br>
 
-- **Utils 工具集**：为上层模块提供通用基础能力，包含日志系统、状态机、任务调度器、插件管理、性能分析器等核心工具，以及将服务能力桥接到 MCP 引擎的 MCP 工具集；
-- **HAL 硬件抽象**：定义统一的硬件访问接口并提供板级适配实现，支持音频、显示、触摸、LED、存储等标准化硬件接口；
-- **General Service 通用服务**：提供 Wi-Fi、Audio、Video、NVS、SNTP 等系统级基础服务，均基于 Manager + Helper 架构，支持本地调用与 RPC 远程通信；
-- **AI Agent 智能体框架**：提供 AI 智能体的统一管理框架，内置对 Coze、OpenAI、小智等主流 AI 平台的适配，通过 Function Calling / MCP 协议实现 LLM 与系统服务的双向通信；
-- **AI Expression 智能体表达**：提供 AI 交互场景下的可视化表达能力，包括表情集与动画控制。
+- **Utils 工具集**：为上层模块提供通用基础能力。其中 `General Utils` 包含日志系统、错误检查、状态机、任务调度器、插件管理、内存/线程/时间分析器等核心工具； `MCP Utils` 作为 ESP-Brookesia 服务体系与 MCP 引擎之间的桥梁，将已注册的服务函数暴露为标准 MCP 工具，实现大语言模型对设备能力的调用。
+- **HAL 硬件抽象**：定义统一的硬件访问接口并提供板级适配实现。其中 `Interface` 定义音频播放/录制、显示面板/触摸、状态 LED、存储文件系统等标准化硬件接口； `Adaptor` 针对具体开发板提供接口实现，完成硬件资源的初始化与映射。 `Boards` 提供板级 YAML 配置，描述各开发板的外设拓扑、引脚与驱动参数。
+- **General Service 通用服务**：提供系统级基础服务，包括 `Wi-Fi` 连接管理、`Audio` 音频采集与播放、`Video` 视频编解码、`NVS` 非易失性存储、`SNTP` 网络时间同步，以及 `Custom` 自定义服务扩展机制。所有服务均基于 Manager + Helper 架构，支持本地调用与 RPC 远程通信。
+- **AI Agent 智能体框架**：提供 AI 智能体的统一管理框架，内置对 `Coze`、`OpenAI`、`小智` 等主流 AI 平台的适配。通过 `Function Calling / MCP` 协议实现大语言模型与系统服务的双向通信，使 LLM 能够感知和调用设备的各项能力。
+- **AI Expression 智能体表达**：提供 AI 交互场景下的可视化表达能力，包括 `Emote` 表情集与动画控制，为拟人化交互提供丰富的视觉反馈。
+- **System 系统框架** *(规划中)*：面向不同产品形态（移动设备、音箱、机器人等）提供 GUI、系统管理与应用框架支持。
+- **Runtime 运行时** *(规划中)*：提供 WebAssembly、Python、Lua 等脚本运行时支持，实现应用的动态加载与执行。
 
 ## 文档中心
 
 - 中文：https://docs.espressif.com/projects/esp-brookesia/zh_CN
 - English: https://docs.espressif.com/projects/esp-brookesia/en
 
-## 版本说明
-
-ESP-Brookesia 自 `v0.7` 版本起采用组件化管理，建议项目通过组件注册表获取所需组件。各组件独立迭代，但均具有相同的 `major.minor` 版本号，并且依赖相同的 ESP-IDF 版本。`release` 分支仅维护历史大版本，`master` 分支持续集成新特性。
-
-| ESP-Brookesia | 依赖的 ESP-IDF | 主要变更 | 支持状态 |
-| :-----------: | :------------: | :------: | :------: |
-| master (v0.7) | >= v5.5, < 6.0 | 支持组件管理器 | 新功能开发分支 |
-| release/v0.6 | >= v5.3, <= 5.5 | 预览支持系统框架，提供 ESP-VoCat 固件工程 | 停止维护 |
-
 ## 快速参考
 
-### 硬件准备
+- [ESP-Brookesia 版本说明](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-versioning)
+- [开发环境搭建](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-dev-environment)
+- [硬件准备](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-hardware)
+- [如何获取和使用组件](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-component-usage)
+- [如何使用示例工程](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-example-projects)
 
-您可以选择任意 ESP 系列开发板使用 ESP-Brookesia，或者参考 [esp_board_manager](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager) 支持的开发板快速开始。各系列芯片规格请见 [ESP 产品选型工具](https://products.espressif.com/)。
-
-ESP 系列 SoC 采用先进工艺制程，提供业界领先的射频性能、低功耗特性和稳定可靠性，支持 Wi-Fi、蓝牙、LCD、摄像头、USB 等丰富外设，适用于 AIoT、智能家居、可穿戴设备等多种应用场景。
-
-### 从 ESP 组件注册表获取组件
-
-推荐通过 [ESP Component Registry](https://components.espressif.com/) 获取 ESP-Brookesia 组件。
-
-以 `brookesia_service_wifi` 组件为例，可通过以下方式添加依赖：
-
-**方式一：使用命令行**
-
-```bash
-idf.py add-dependency "espressif/brookesia_service_wifi"
-```
-
-**方式二：修改配置文件**
-
-在工程目录下创建或修改 `idf_component.yml` 文件：
-
-```yaml
-dependencies:
-   espressif/brookesia_service_wifi: "*"
-```
-
-更多组件管理器使用方法请参考 [ESP Registry Docs](https://docs.espressif.com/projects/idf-component-manager/en/latest/)。
-
-ESP-Brookesia 中注册的组件如下：
+## 组件列表
 
 <center>
 
@@ -130,55 +100,22 @@ ESP-Brookesia 中注册的组件如下：
 
 </center>
 
-### 从 ESP-Brookesia 仓库获取代码
+## 获取代码
 
 如果您希望为 ESP-Brookesia 贡献代码，或基于仓库中的示例进行二次开发，可通过以下指令获取 `master` 分支代码：
 
-```bash
-git clone --recursive https://github.com/espressif/esp-brookesia
-```
+``bash
+git clone https://github.com/espressif/esp-brookesia
+``
 
-### 构建和烧录示例
+## 贡献说明
 
-ESP-Brookesia 提供了多个示例工程，位于 `examples/` 目录下。以下是通用构建步骤：
+当前欢迎开发者进行以下几个方面的代码贡献：
 
-1. 确保已完成 [ESP-IDF 开发环境搭建](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/index.html)（要求 ESP-IDF >= v5.5）；
+- 修复任意 bug
+- 向 [brookesia_hal_boards](./hal/brookesia_hal_boards) 组件添加新的开发板支持
 
-2. 选择目标芯片或开发板：
-
-   - **仅依赖芯片外设**（如 [examples/service/wifi](./examples/service/wifi)）：
-
-     ```bash
-     idf.py set-target <target>
-     ```
-
-   - **依赖特定开发板外设**（如 [examples/service/console](./examples/service/console)）：
-
-     ```bash
-     idf.py gen-bmgr-config -b <board>
-     idf.py set-target <target>
-     ```
-
-3. 配置工程（可选）：
-
-   ```bash
-   idf.py menuconfig
-   ```
-
-4. 编译并烧录到开发板：
-
-   ```bash
-   idf.py build
-   idf.py -p <PORT> flash
-   ```
-
-5. 通过串口监视输出：
-
-   ```bash
-   idf.py -p <PORT> monitor
-   ```
-
-更多示例请见 [examples](./examples) 目录，具体使用方法请参考各示例目录下的 README 文件。
+对于新增组件的需求，我们更建议先在 [GitHub Issues](https://github.com/espressif/esp-brookesia/issues) 中发起讨论，便于大家一起确认使用场景、接口边界和整体规划；在需求达成一致后，再推进后续提交会更顺畅。
 
 ## 其它参考资源
 

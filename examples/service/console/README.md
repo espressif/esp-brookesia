@@ -12,9 +12,7 @@ This example demonstrates how to run and test the ESP-Brookesia service framewor
   - [🚩 Getting Started](#-getting-started)
     - [Hardware Requirements](#hardware-requirements)
     - [Development Environment](#development-environment)
-  - [🔨 Get the Firmware](#-get-the-firmware)
-    - [Option 1: Flash Online](#option-1-flash-online)
-    - [Option 2: Build from Source](#option-2-build-from-source)
+  - [🔨 How to Use](#-how-to-use)
   - [🚀 Quick Start](#-quick-start)
   - [📖 Command Reference](#-command-reference)
     - [Service Commands](#service-commands)
@@ -34,9 +32,7 @@ This example demonstrates how to run and test the ESP-Brookesia service framewor
 
 ### Hardware Requirements
 
-A development board with an `ESP32-S3`, `ESP32-P4`, or `ESP32-C5` chip, `Flash ≥ 8 MB, PSRAM ≥ 4 MB`, and equipped with a display, touchscreen, microphone, and speaker.
-
-This example uses the `esp_board_manager` component for hardware management. The following boards are officially supported:
+This example uses the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component to manage hardware and supports the following development boards:
 
 - ESP-VoCat V1.0
 - ESP-VoCat V1.2
@@ -47,74 +43,22 @@ This example uses the `esp_board_manager` component for hardware management. The
 
 ### Development Environment
 
-- ESP-IDF `v5.5.2` tag (recommended) or the `release/v5.5` branch
+Please refer to the following documentation:
 
-> [!WARNING]
-> Installing ESP-IDF via the VSCode extension plugin is not recommended, as it may cause build failures. Please follow the [ESP-IDF Programming Guide](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/get-started/index.html) to set up the development environment.
+- [ESP-Brookesia Programming Guide - Versioning](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-versioning)
+- [ESP-Brookesia Programming Guide - Development Environment Setup](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-dev-environment)
 
-## 🔨 Get the Firmware
-
-### Option 1: Flash Online
-
-Use ESP Launchpad to flash the pre-built firmware directly in your browser, with no development environment required:
+## 🔨 How to Use
 
 <a href="https://espressif.github.io/esp-brookesia/index.html">
-    <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="316" height="100">
+  <img alt="Try it with ESP Launchpad" src="https://dl.espressif.com/AE/esp-dev-kits/new_launchpad.png" width="400">
 </a>
 
-After flashing, connect to the device with a serial tool such as [MobaXterm](https://mobaxterm.mobatek.net/) (baud rate `115200`, Flow Control `None`) to start interacting.
-
-> [!NOTE]
-> Online flashing only supports the [officially supported boards](#hardware-requirements). For other boards, please use [Option 2](#option-2-build-from-source).
-
-### Option 2: Build from Source
-
-**1. Select a Board**
-
-For a supported board:
-
-```bash
-idf.py gen-bmgr-config -b <board>
-```
-
-Available `<board>` values:
-
-- `esp_vocat_board_v1_0`
-- `esp_vocat_board_v1_2`
-- `esp_box_3`
-- `esp32_p4_function_ev`
-- `esp32_s3_korvo2_v3`
-- `esp_sensair_shuttle`
-
-For other boards:
-
-```bash
-idf.py set-target <target>
-```
-
-> [!NOTE]
-> To add a custom board, refer to the [esp_board_manager component documentation](https://github.com/espressif/esp-gmf/blob/main/packages/esp_board_manager/README.md).
-
-**2. Configure Options**
-
-Run `idf.py menuconfig` and configure under the `Example Configuration` menu:
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| **Console → Store history** | Persist command history to Flash | Enabled |
-| **Console → Max command line length** | Maximum command line length (bytes) | 1024 |
-
-**3. Build and Flash**
-
-```bash
-idf.py -p PORT build flash monitor
-```
-
-Press `Ctrl-]` to exit the serial monitor.
+Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects).
 
 ## 🚀 Quick Start
 
-After flashing the firmware successfully, refer to the [Quick Start Tutorial](./docs/tutorial_cn.md) to begin exploring the service console example.
+After flashing the firmware successfully, refer to the [Quick Start Tutorial](./docs/tutorial.md) to begin exploring the service console example.
 
 ## 📖 Command Reference
 
