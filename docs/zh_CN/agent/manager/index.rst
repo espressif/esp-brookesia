@@ -1,7 +1,7 @@
 .. _agent-manager-index-sec-00:
 
-AI 智能体管理器
-===============
+智能体管理器
+=============
 
 :link_to_translation:`en:[English]`
 
@@ -36,7 +36,7 @@ AI 智能体管理器
 .. _agent-manager-index-sec-03:
 
 状态机图
-~~~~~~~~
+^^^^^^^^
 
 .. only:: html
 
@@ -158,7 +158,7 @@ AI 智能体管理器
 .. _agent-manager-index-sec-04:
 
 状态说明
-~~~~~~~~
+^^^^^^^^
 
 .. list-table::
    :widths: 22 16 62
@@ -198,6 +198,8 @@ AI 智能体管理器
      - 瞬态
      - 正在停止智能体，等待停止完成事件
 
+.. include-build-file:: contract_guides/agent/manager.inc
+
 .. _agent-manager-index-sec-05:
 
 API 参考
@@ -206,7 +208,7 @@ API 参考
 .. _agent-manager-index-sec-06:
 
 智能体基类
-~~~~~~~~~~~
+^^^^^^^^^^^
 
 公共头文件： ``#include "brookesia/agent_manager/base.hpp"``
 
@@ -215,7 +217,7 @@ API 参考
 .. _agent-manager-index-sec-07:
 
 智能体管理器
-~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 公共头文件： ``#include "brookesia/agent_manager/manager.hpp"``
 

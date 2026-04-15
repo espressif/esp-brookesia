@@ -65,6 +65,10 @@ html_theme_options["navigation_depth"] = max(int(html_theme_options.get("navigat
 # Ignore generated build output and this folder README during source scan.
 exclude_patterns = ["_build", "README.md"]
 
+# Disable typographic ("smart") quote substitution so that ASCII quotes in
+# code examples, JSON snippets, and API descriptions stay as straight quotes.
+smartquotes = False
+
 # Output naming and syntax/highlight assets.
 pdf_file_prefix = "esp-brookesia"
 pygments_style = "sphinx"
