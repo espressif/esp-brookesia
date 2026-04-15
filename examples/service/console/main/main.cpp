@@ -8,9 +8,10 @@
 #include "brookesia/hal_interface.hpp"
 #include "brookesia/hal_adaptor.hpp"
 #include "brookesia/service_manager.hpp"
+#include "modules/ai_agents.hpp"
 #include "modules/console.hpp"
-#include "modules/profiler.hpp"
 #include "modules/emote.hpp"
+#include "modules/profiler.hpp"
 
 using namespace esp_brookesia;
 
@@ -85,6 +86,11 @@ extern "C" void app_main(void)
             1
 #endif
         );
+
+        /* Initialize AI agents */
+        AI_Agents::get_instance().init({
+            .task_scheduler = backend_scheduler,
+        });
 
         /* Start profiler */
         Profiler::get_instance().init({

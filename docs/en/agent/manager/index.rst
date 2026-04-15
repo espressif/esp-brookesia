@@ -1,7 +1,7 @@
 .. _agent-manager-index-sec-00:
 
-AI Agent Manager
-================
+Agent Manager
+=============
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -36,7 +36,7 @@ The manager uses a state machine for agent lifecycle.
 .. _agent-manager-index-sec-03:
 
 State Diagram
-~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 .. only:: html
 
@@ -158,7 +158,7 @@ State Diagram
 .. _agent-manager-index-sec-04:
 
 State Descriptions
-~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^
 
 .. list-table::
    :widths: 22 16 62
@@ -198,6 +198,8 @@ State Descriptions
      - Transient
      - Stopping agent.
 
+.. include-build-file:: contract_guides/agent/manager.inc
+
 .. _agent-manager-index-sec-05:
 
 API Reference
@@ -206,7 +208,7 @@ API Reference
 .. _agent-manager-index-sec-06:
 
 Agent Base Class
-~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^
 
 Public header: ``#include "brookesia/agent_manager/base.hpp"``
 
@@ -215,7 +217,7 @@ Public header: ``#include "brookesia/agent_manager/base.hpp"``
 .. _agent-manager-index-sec-07:
 
 Agent Manager
-~~~~~~~~~~~~~
+^^^^^^^^^^^^^
 
 Public header: ``#include "brookesia/agent_manager/manager.hpp"``
 
