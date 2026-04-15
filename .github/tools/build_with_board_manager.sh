@@ -19,7 +19,7 @@
 #
 # Options:
 #   -p, --project <path>      Project directory path (required)
-#   -b, --board <name>        Board name (required)
+#   -b, --board <name>        Board reference or board name (required)
 #   -c, --chip <name>         Chip name, e.g., esp32s3, esp32p4 (required)
 #   -o, --output <path>       Output directory for merged binary (required)
 #   -n, --name <name>         Output binary name prefix (default: project directory name)
@@ -29,7 +29,11 @@
 #   -h, --help                Show this help message
 #
 # Example:
-#   build_with_board_manager.sh -p examples/service/console -b esp_box_3 -c esp32s3 -o ./images -v 0.7.2
+#   build_with_board_manager.sh -p examples/service/console -b espressif/esp_box_3 -c esp32s3 -o ./images -v 0.7.2
+#
+# Output bin name examples:
+#   service_console_0.7.2_espressif_esp_box_3.bin
+#   chatbot_espressif_esp_box_3.bin
 
 set -e
 
@@ -47,7 +51,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -b|--board)
-            BOARD_NAME="$2"
+            BOARD_REF="$2"
             shift 2
             ;;
         -c|--chip)
@@ -91,10 +95,13 @@ if [ -z "$PROJECT_PATH" ]; then
     exit 1
 fi
 
-if [ -z "$BOARD_NAME" ]; then
+if [ -z "$BOARD_REF" ]; then
     echo "Error: Board name is required (-b, --board)"
     exit 1
 fi
+
+BOARD_NAME="${BOARD_REF##*/}"
+BOARD_ID="${BOARD_REF//\//_}"
 
 if [ -z "$CHIP_NAME" ]; then
     echo "Error: Chip name is required (-c, --chip)"
@@ -113,15 +120,17 @@ fi
 
 # Build output filename
 if [ -n "$VERSION" ]; then
-    OUTPUT_FILENAME="${NAME}_${VERSION}_${CHIP_NAME}_${BOARD_NAME}.bin"
+    OUTPUT_FILENAME="${NAME}_${VERSION}_${CHIP_NAME}_${BOARD_ID}.bin"
 else
-    OUTPUT_FILENAME="${NAME}_${CHIP_NAME}_${BOARD_NAME}.bin"
+    OUTPUT_FILENAME="${NAME}_${CHIP_NAME}_${BOARD_ID}.bin"
 fi
 
 echo "============================================"
 echo "Build Configuration:"
 echo "  Project:     $PROJECT_PATH"
+echo "  Board Ref:   $BOARD_REF"
 echo "  Board:       $BOARD_NAME"
+echo "  Board ID:    $BOARD_ID"
 echo "  Chip:        $CHIP_NAME"
 echo "  Output:      $OUTPUT_DIR/$OUTPUT_FILENAME"
 echo "  Boards Dir:  $BOARDS_DIR"
