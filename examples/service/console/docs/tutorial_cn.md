@@ -8,8 +8,9 @@
   - [目录](#目录)
   - [启动设备](#启动设备)
   - [第一步：连接 WiFi](#第一步连接-wifi)
-  - [第二步：启动 XiaoZhi Agent](#第二步启动-xiaozhi-agent)
-  - [第三步：开始对话](#第三步开始对话)
+  - [第二步：启动 Expression Emote](#第二步启动-expression-emote)
+  - [第三步：启动 XiaoZhi Agent](#第三步启动-xiaozhi-agent)
+  - [第四步：开始对话](#第四步开始对话)
   - [常用操作命令](#常用操作命令)
   - [播放音频（可选）](#播放音频可选)
 
@@ -37,7 +38,21 @@ svc_call Wifi TriggerGeneralAction {"Action":"Connect"}
 
 等待看到 `Detected expected event: Connected` 日志表示连接成功。
 
-## 第二步：启动 XiaoZhi Agent
+> [!TIP]
+> 更多 `Wifi` 相关命令，请参考 [WiFi - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/wifi.html#helper-contract-service-wifi-interfaces)。
+
+## 第二步：启动 Expression Emote
+
+1. **加载表情资源**：
+
+```bash
+svc_call Emote LoadAssetsSource {"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}
+```
+
+> [!TIP]
+> 更多 `Emote` 相关命令，请参考 [表情 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/expression/emote.html#helper-contract-service-emote-interfaces)。
+
+## 第三步：启动 XiaoZhi Agent
 
 1. **订阅激活码事件**：
 
@@ -47,11 +62,13 @@ svc_subscribe AgentXiaoZhi ActivationCodeReceived
 
 >[!NOTE]
 > 此时 LOG 会出现 `Service is not bindable: AgentXiaoZhi` 错误，属于正常现象，请忽略此错误。
+> 更多 `AgentXiaoZhi` 相关命令，请参考 [小智 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/agent/xiaozhi.html#helper-contract-agent-xiaozhi-interfaces)。
 
-2. **激活 XiaoZhi Agent**：
+2. **激活 Agent**：
 
 ```bash
-svc_call AgentManager ActivateAgent {"Name":"AgentXiaoZhi"}
+svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}
+svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
 ```
 
 此时 LOG 会提示输入设备激活码，请在 PC 端将激活码输入到 [XiaoZhi 控制台](https://xiaozhi.me/console/agents)，设备会在一段时间后自动获取认证。
@@ -64,7 +81,10 @@ svc_call AgentManager ActivateAgent {"Name":"AgentXiaoZhi"}
 svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
 ```
 
-## 第三步：开始对话
+> [!TIP]
+> 更多 `AgentManager` 相关命令，请参考 [智能体管理器 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/agent/manager/index.html#helper-contract-agent-manager-interfaces)。
+
+## 第四步：开始对话
 
 现在您可以通过语音与 XiaoZhi Agent 进行对话了。
 
@@ -97,3 +117,6 @@ svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example
 # 调节音量
 svc_call Audio SetVolume {"Volume":80}
 ```
+
+> [!TIP]
+> 更多 `Audio` 相关命令，请参考 [音频 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/audio.html#helper-contract-service-audio-interfaces)。

@@ -234,7 +234,7 @@ bool Display::start_lvgl(int core_id)
     esp_lv_adapter_display_config_t display_config {0};
     switch (driver_specific.bus_type) {
     case hal::DisplayPanelIface::BusType::Generic:
-        display_config = ESP_LV_ADAPTER_DISPLAY_SPI_WITH_PSRAM_DEFAULT_CONFIG(
+        display_config = ESP_LV_ADAPTER_DISPLAY_SPI_WITHOUT_PSRAM_DEFAULT_CONFIG(
                              reinterpret_cast<esp_lcd_panel_handle_t>(driver_specific.panel_handle),
                              reinterpret_cast<esp_lcd_panel_io_handle_t>(driver_specific.io_handle),
                              static_cast<uint16_t>(display_info.h_res),
@@ -256,8 +256,8 @@ bool Display::start_lvgl(int core_id)
         return false;
     }
 #pragma GCC diagnostic pop
-    display_config.profile.use_psram = true;
     display_config.profile.require_double_buffer = true;
+    display_config.profile.buffer_height = 20;
 
     lv_display_t *lv_display = esp_lv_adapter_register_display(&display_config);
     if (!lv_display) {
