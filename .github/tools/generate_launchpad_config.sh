@@ -69,6 +69,20 @@ get_chip_from_bin() {
     esac
 }
 
+# Keep only the board identifier in the app name shown in Launchpad while still
+# keeping the original bin filename for image lookup.
+get_launchpad_app_name() {
+    local bin_name="$1"
+    local chip="$2"
+    local board_id="${bin_name##*_${chip}_}"
+
+    if [ "$board_id" = "$bin_name" ]; then
+        echo "$bin_name"
+    else
+        echo "$board_id"
+    fi
+}
+
 # Collect all bin files
 BIN_FILES=()
 for bin in *.bin; do
@@ -86,7 +100,9 @@ fi
 SUPPORTED_APPS="supported_apps = ["
 for bin in "${BIN_FILES[@]}"; do
     bin_name="${bin%.bin}"
-    SUPPORTED_APPS+="\"$bin_name\","
+    chip=$(get_chip_from_bin "$bin_name")
+    app_name=$(get_launchpad_app_name "$bin_name" "$chip")
+    SUPPORTED_APPS+="\"$app_name\","
 done
 SUPPORTED_APPS+="]"
 # Remove the last comma
@@ -99,9 +115,10 @@ echo "" >> $OUT_FILE
 for bin in "${BIN_FILES[@]}"; do
     bin_name="${bin%.bin}"
     chip=$(get_chip_from_bin "$bin_name")
+    app_name=$(get_launchpad_app_name "$bin_name" "$chip")
     chip_upper=$(echo "$chip" | tr 'a-z-' 'A-Z_')
 
-    echo "[$bin_name]" >> $OUT_FILE
+    echo "[$app_name]" >> $OUT_FILE
     echo "chipsets = [\"$chip_upper\"]" >> $OUT_FILE
     echo "image.$chip = \"$bin\"" >> $OUT_FILE
     echo "ios_app_url = \"\"" >> $OUT_FILE

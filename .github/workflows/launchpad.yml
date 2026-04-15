@@ -39,25 +39,33 @@ jobs:
     name: "Build Agent Chatbot"
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         board:
-          - esp_vocat_board_v1_0
-          - esp_vocat_board_v1_2
-          - esp_box_3
-          - esp32_p4_function_ev
-          - esp32_s3_korvo2_v3
-          # - esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
+          - espressif/esp_vocat_board_v1_0
+          - espressif/esp_vocat_board_v1_2
+          - espressif/esp_box_3
+          - espressif/esp32_p4_function_ev
+          - espressif/esp32_s3_korvo2_v3
+          # - espressif/esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
       - run: mkdir -p images/agent/chatbot
+      - name: Prepare board metadata
+        shell: bash
+        run: |
+          BOARD_REF="${{ matrix.board }}"
+          echo "BOARD_REF=$BOARD_REF" >> $GITHUB_ENV
+          echo "BOARD_NAME=${BOARD_REF##*/}" >> $GITHUB_ENV
+          echo "BOARD_ARTIFACT_NAME=${BOARD_REF//\//-}" >> $GITHUB_ENV
       - name: Get board chip type
         shell: bash
         run: |
-          CHIP=$(grep "^chip:" hal/brookesia_hal_boards/boards/${{ matrix.board }}/board_info.yaml | awk '{print $2}')
+          CHIP=$(grep "^chip:" "hal/brookesia_hal_boards/boards/$BOARD_REF/board_info.yaml" | awk '{print $2}')
           echo "CHIP=$CHIP" >> $GITHUB_ENV
           echo "Board chip: $CHIP"
       - name: Build agent/chatbot for ${{ matrix.board }}
@@ -66,14 +74,14 @@ jobs:
           . ${IDF_PATH}/export.sh
           $GITHUB_WORKSPACE/.github/tools/build_with_board_manager.sh \
             -p examples/agent/chatbot \
-            -b ${{ matrix.board }} \
-            -c $CHIP \
+            -b "$BOARD_REF" \
+            -c "$CHIP" \
             -o $GITHUB_WORKSPACE/images/agent/chatbot \
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-images-agent-chatbot-${{ matrix.board }}
+          name: build-images-agent-chatbot-${{ env.BOARD_ARTIFACT_NAME }}
           path: images/agent/chatbot/
           overwrite: true
 
@@ -81,25 +89,33 @@ jobs:
     name: "Build Service Console"
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
         board:
-          - esp_vocat_board_v1_0
-          - esp_vocat_board_v1_2
-          - esp_box_3
-          - esp32_p4_function_ev
-          - esp32_s3_korvo2_v3
-          # - esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
+          - espressif/esp_vocat_board_v1_0
+          - espressif/esp_vocat_board_v1_2
+          - espressif/esp_box_3
+          - espressif/esp32_p4_function_ev
+          - espressif/esp32_s3_korvo2_v3
+          # - espressif/esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
       - run: mkdir -p images/service/console
+      - name: Prepare board metadata
+        shell: bash
+        run: |
+          BOARD_REF="${{ matrix.board }}"
+          echo "BOARD_REF=$BOARD_REF" >> $GITHUB_ENV
+          echo "BOARD_NAME=${BOARD_REF##*/}" >> $GITHUB_ENV
+          echo "BOARD_ARTIFACT_NAME=${BOARD_REF//\//-}" >> $GITHUB_ENV
       - name: Get board chip type
         shell: bash
         run: |
-          CHIP=$(grep "^chip:" hal/brookesia_hal_boards/boards/${{ matrix.board }}/board_info.yaml | awk '{print $2}')
+          CHIP=$(grep "^chip:" "hal/brookesia_hal_boards/boards/$BOARD_REF/board_info.yaml" | awk '{print $2}')
           echo "CHIP=$CHIP" >> $GITHUB_ENV
           echo "Board chip: $CHIP"
       - name: Build service/console for ${{ matrix.board }}
@@ -108,14 +124,14 @@ jobs:
           . ${IDF_PATH}/export.sh
           $GITHUB_WORKSPACE/.github/tools/build_with_board_manager.sh \
             -p examples/service/console \
-            -b ${{ matrix.board }} \
-            -c $CHIP \
+            -b "$BOARD_REF" \
+            -c "$CHIP" \
             -o $GITHUB_WORKSPACE/images/service/console \
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-images-service-console-${{ matrix.board }}
+          name: build-images-service-console-${{ env.BOARD_ARTIFACT_NAME }}
           path: images/service/console/
           overwrite: true
 
