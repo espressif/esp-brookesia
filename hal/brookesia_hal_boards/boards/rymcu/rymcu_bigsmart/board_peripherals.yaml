@@ -1,0 +1,94 @@
+version: 1.0.0
+peripherals:
+  - name: i2c_master
+    type: i2c
+    role: master
+    config:
+      port: 1
+      pins:
+        sda: 1
+        scl: 2
+
+  - name: gpio_boot_button
+    type: gpio
+    role: io
+    config:
+      pin: 0
+      mode: GPIO_MODE_INPUT
+      pull_up: true
+      pull_down: false
+      intr_type: GPIO_INTR_DISABLE
+      default_level: 0
+
+  - name: gpio_io10_key
+    type: gpio
+    role: io
+    config:
+      pin: 10
+      mode: GPIO_MODE_INPUT
+      pull_up: true
+      pull_down: false
+      intr_type: GPIO_INTR_DISABLE
+      default_level: 0
+
+  - name: i2s_audio_out
+    type: i2s
+    role: master
+    format: std-out
+    config:
+      port: 0
+      sample_rate_hz: 48000
+      mclk_multiple: 256
+      data_bit_width: 16
+      slot_bit_width: I2S_SLOT_BIT_WIDTH_AUTO
+      slot_mode: I2S_SLOT_MODE_STEREO
+      slot_mask: I2S_STD_SLOT_BOTH
+      ws_width: 16
+      pins:
+        mclk: 38
+        bclk: 14
+        ws: 13
+        dout: 45
+        din: 12
+
+  - name: i2s_audio_in
+    type: i2s
+    role: master
+    format: tdm-in
+    config:
+      port: 0
+      sample_rate_hz: 48000
+      mclk_multiple: 256
+      bclk_div: 8
+      data_bit_width: 16
+      slot_bit_width: I2S_SLOT_BIT_WIDTH_AUTO
+      slot_mode: I2S_SLOT_MODE_STEREO
+      slot_mask: I2S_TDM_SLOT0 | I2S_TDM_SLOT1 | I2S_TDM_SLOT2 | I2S_TDM_SLOT3
+      ws_width: 16
+      total_slot: 4
+      pins:
+        mclk: 38
+        bclk: 14
+        ws: 13
+        dout: 45
+        din: 12
+
+  - name: spi_display
+    type: spi
+    role: master
+    config:
+      spi_bus_config:
+        spi_port: SPI3_HOST
+        mosi_io_num: 40
+        sclk_io_num: 41
+        max_transfer_sz: 6400
+
+  - name: ledc_backlight
+    type: ledc
+    role: none
+    config:
+      gpio_num: 42
+      freq_hz: 25000
+      duty: 0
+      duty_resolution: LEDC_TIMER_10_BIT
+      output_invert: true
