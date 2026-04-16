@@ -119,7 +119,11 @@ esp_err_t esp_xiaozhi_vision_explain_jpeg(const esp_xiaozhi_vision_t *vision,
     const size_t footer_len = boundary_len + 8;
     const size_t body_len = part1_len + part2_len + jpeg_len + footer_len;
 
-    uint8_t *body = (uint8_t *)heap_caps_malloc(body_len, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+#if CONFIG_SPIRAM_BOOT_INIT
+    uint8_t *body = (uint8_t *)heap_caps_malloc(body_len, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+    uint8_t *body = (uint8_t *)malloc(body_len);
+#endif
     ESP_RETURN_ON_FALSE(body != NULL, ESP_ERR_NO_MEM, log_tag, "Failed to allocate HTTP body");
 
     uint8_t *cursor = body;
@@ -130,7 +134,7 @@ esp_err_t esp_xiaozhi_vision_explain_jpeg(const esp_xiaozhi_vision_t *vision,
                            "%s\r\n",
                            ESP_XIAOZHI_VISION_BOUNDARY, question);
     if (written < 0 || (size_t)written != part1_len) {
-        heap_caps_free(body);
+        free(body);
         return ESP_FAIL;
     }
     cursor += part1_len;
@@ -142,7 +146,7 @@ esp_err_t esp_xiaozhi_vision_explain_jpeg(const esp_xiaozhi_vision_t *vision,
                        "\r\n",
                        ESP_XIAOZHI_VISION_BOUNDARY, filename);
     if (written < 0 || (size_t)written != part2_len) {
-        heap_caps_free(body);
+        free(body);
         return ESP_FAIL;
     }
     cursor += part2_len;
@@ -178,7 +182,7 @@ esp_err_t esp_xiaozhi_vision_explain_jpeg(const esp_xiaozhi_vision_t *vision,
 
     esp_http_client_handle_t client = esp_http_client_init(&config);
     if (client == NULL) {
-        heap_caps_free(body);
+        free(body);
         return ESP_FAIL;
     }
 
@@ -201,7 +205,7 @@ esp_err_t esp_xiaozhi_vision_explain_jpeg(const esp_xiaozhi_vision_t *vision,
     }
 
     esp_http_client_cleanup(client);
-    heap_caps_free(body);
+    free(body);
 
     return ret;
 }

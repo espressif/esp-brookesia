@@ -97,6 +97,13 @@ bool Base::set_listening(bool listening)
 
     is_listening_ = listening;
 
+    // When the agent returns to listening mode, the downlink speech path is idle.
+    // Stop the decoder promptly so its feeder/mixer resources do not stay resident
+    // throughout the entire listen phase.
+    if (listening && is_decoder_started()) {
+        stop_audio_decoder();
+    }
+
     if (!get_attributes().is_general_events_supported(ManagerHelper::AgentGeneralEvent::ListeningStatusChanged)) {
         BROOKESIA_LOGD(
             "General event '%1%' is not supported, skip",
@@ -279,6 +286,10 @@ bool Base::feed_audio_decoder_data(const uint8_t *data, size_t data_size)
     if (is_speaking_disabled()) {
         // BROOKESIA_LOGD("Speaking is disabled, skip");
         return true;
+    }
+
+    if (!is_decoder_started()) {
+        BROOKESIA_CHECK_FALSE_RETURN(start_audio_decoder(), false, "Failed to lazily start audio decoder");
     }
 
     auto result = AudioHelper::call_function_sync(
@@ -720,9 +731,10 @@ bool Base::start_audio_decoder()
     }
 
     auto &decoder_config = get_audio_config().decoder;
-    AudioHelper::call_function_async(
-        AudioHelper::FunctionId::StartDecoder, BROOKESIA_DESCRIBE_TO_JSON(decoder_config).as_object()
-    );
+    auto result = AudioHelper::call_function_sync(
+                      AudioHelper::FunctionId::StartDecoder, BROOKESIA_DESCRIBE_TO_JSON(decoder_config).as_object()
+                  );
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to start decoder: %1%", result.error());
 
     is_decoder_started_ = true;
 
@@ -738,7 +750,11 @@ void Base::stop_audio_decoder()
         return;
     }
 
-    AudioHelper::call_function_async(AudioHelper::FunctionId::StopDecoder);
+    auto result = AudioHelper::call_function_sync(AudioHelper::FunctionId::StopDecoder);
+    if (!result) {
+        BROOKESIA_LOGE("Failed to stop decoder: %1%", result.error());
+        return;
+    }
     is_decoder_started_ = false;
 }
 

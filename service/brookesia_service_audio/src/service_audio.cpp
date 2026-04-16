@@ -1057,11 +1057,33 @@ bool Audio::start_encoder(const AudioEncoderDynamicConfig &config)
 #endif
 
     auto recorder_handle = TypeConverter::to_recorder_handle(recorder_handle_);
-    lib_utils::FunctionGuard close_recorder_guard([this, recorder_handle]() {
+    auto close_recorder_safely = [this, recorder_handle]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        BROOKESIA_CHECK_ESP_ERR_EXECUTE(audio_recorder_close(recorder_handle), {}, {
-            BROOKESIA_LOGE("Failed to close recorder");
-        });
+#if (BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER && !BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT) || \
+    !BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
+        BROOKESIA_CHECK_ESP_ERR_RETURN(audio_recorder_close(recorder_handle), false, "Failed to close recorder");
+#else
+        auto current_thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+        if (!current_thread_config.stack_in_ext) {
+            BROOKESIA_CHECK_ESP_ERR_RETURN(audio_recorder_close(recorder_handle), false, "Failed to close recorder");
+        } else {
+            // Closing the recorder unmaps SR models from flash, so use an internal-memory stack.
+            BROOKESIA_THREAD_CONFIG_GUARD({
+                .stack_in_ext = false,
+            });
+            auto recorder_close_future = std::async(std::launch::async, [this, recorder_handle]() mutable {
+                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+                BROOKESIA_CHECK_ESP_ERR_RETURN(audio_recorder_close(recorder_handle), false, "Failed to close recorder");
+                return true;
+            });
+            BROOKESIA_CHECK_FALSE_RETURN(recorder_close_future.get(), false, "Failed to close recorder");
+        }
+#endif
+        return true;
+    };
+    lib_utils::FunctionGuard close_recorder_guard([this, close_recorder_safely]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        BROOKESIA_CHECK_FALSE_EXIT(close_recorder_safely(), "Failed to close recorder");
     });
 
     auto recorder_fetch_thread_func =

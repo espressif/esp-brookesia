@@ -36,7 +36,7 @@ public:
             .core_id = 0,
             .priority = 5,
             .stack_size = 4 * 1024,
-            .stack_in_ext = true,
+            .stack_in_ext = false,
         };
         MixerGainConfig mixer_gain{
             .initial_gain = 0.6,
@@ -105,7 +105,7 @@ public:
             .core_id = 1,
             .priority = 12,
             .stack_size = 6 * 1024,
-            .stack_in_ext = true,
+            .stack_in_ext = false,
         };
     };
     struct EncoderExtraConfigOpus {
@@ -166,7 +166,7 @@ public:
             .core_id = 0,
             .priority = 5,
             .stack_size = 6 * 1024,
-            .stack_in_ext = true,
+            .stack_in_ext = false,
         };
         std::optional<AFE_VAD_Config> vad = std::nullopt;
         std::optional<AFE_WakeNetConfig> wakenet = std::nullopt;

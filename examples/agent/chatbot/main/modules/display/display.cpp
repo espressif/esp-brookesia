@@ -256,8 +256,11 @@ bool Display::start_lvgl(int core_id)
         return false;
     }
 #pragma GCC diagnostic pop
+    // Avoid the full-height double-buffer preset on SPI panels. It is memory-hungry
+    // and can starve the audio pipeline when PSRAM becomes fragmented.
     display_config.profile.use_psram = true;
-    display_config.profile.require_double_buffer = true;
+    display_config.profile.buffer_height = std::min<uint16_t>(50, static_cast<uint16_t>(display_info.v_res));
+    display_config.profile.require_double_buffer = false;
 
     lv_display_t *lv_display = esp_lv_adapter_register_display(&display_config);
     if (!lv_display) {
@@ -314,8 +317,9 @@ bool Display::start_expression_emote(int core_id)
         .task_affinity = core_id,
         .task_stack_in_ext = true,
         .flag_swap_color_bytes = (driver_specific.bus_type == hal::DisplayPanelIface::BusType::Generic),
-        .flag_double_buffer = true,
+        .flag_double_buffer = false,
         .flag_buff_dma = true,
+        .flag_buff_spiram = true,
     };
     auto result = EmoteHelper::call_function_sync(
                       EmoteHelper::FunctionId::SetConfig, BROOKESIA_DESCRIBE_TO_JSON(config).as_object()
