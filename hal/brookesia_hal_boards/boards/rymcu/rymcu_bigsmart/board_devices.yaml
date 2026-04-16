@@ -1,0 +1,167 @@
+version: 1.0.0
+devices:
+  - name: boot_button
+    type: button
+    sub_type: gpio
+    config:
+      active_level: 0
+      long_press_time: 3000
+      short_press_time: 100
+      events_cfg:
+        press_down: true
+        press_up: true
+        single_click: true
+        double_click: true
+        multi_click: false
+        long_press_start: true
+        long_press_up: true
+        long_press_hold: false
+        press_repeat: false
+        press_repeat_done: false
+        press_end: false
+    peripherals:
+      - name: gpio_boot_button
+
+  - name: io10_key_button
+    type: button
+    sub_type: gpio
+    config:
+      active_level: 0
+      long_press_time: 2000
+      short_press_time: 100
+      events_cfg:
+        press_down: true
+        press_up: true
+        single_click: true
+        double_click: true
+        multi_click: false
+        long_press_start: true
+        long_press_up: true
+        long_press_hold: false
+        press_repeat: false
+        press_repeat_done: false
+        press_end: false
+    peripherals:
+      - name: gpio_io10_key
+
+  - name: audio_dac
+    chip: es8311
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: false
+      dac_enabled: true
+      dac_max_channel: 1
+      dac_channel_mask: "1"
+      dac_init_gain: 0
+      mclk_enabled: true
+    peripherals:
+      - name: i2s_audio_out
+      - name: i2c_master
+        address: 0x30
+        frequency: 400000
+
+  - name: audio_adc
+    chip: es7210
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: true
+      adc_max_channel: 4
+      # Restore the legacy 4-slot TDM capture path first, then let the HAL
+      # route it back to the stable 2-channel output [MIC2(main), MIC3(reference)].
+      adc_channel_mask: "1111"
+      adc_channel_labels: ["NA", "RE", "FC", "NA"] # MSB ~ LSB
+      adc_init_gain: 0
+    peripherals:
+      - name: i2s_audio_in
+      - name: i2c_master
+        address: 0x82
+        frequency: 400000
+
+  - name: fs_sdcard
+    type: fs_fat
+    sub_type: sdmmc
+    version: default
+    config:
+      vfs_config:
+        format_if_mount_failed: false
+      sub_config:
+        bus_width: 1
+        slot_flags: "SDMMC_SLOT_FLAG_INTERNAL_PULLUP"
+        pins:
+          clk: 47
+          cmd: 48
+          d0: 21
+
+  - name: display_lcd
+    chip: st7789
+    type: display_lcd
+    sub_type: spi
+    version: default
+    config:
+      invert_color: true
+      need_reset: false
+      mirror_x: true
+      mirror_y: false
+      swap_xy: true
+      x_max: 320
+      y_max: 240
+      io_spi_config:
+        cs_gpio_num: -1
+        dc_gpio_num: 39
+        spi_mode: 2
+        pclk_hz: 80000000
+        trans_queue_depth: 1
+        lcd_cmd_bits: 8
+        lcd_param_bits: 8
+        flags:
+          sio_mode: false
+      lcd_panel_config:
+        reset_gpio_num: -1
+        rgb_ele_order: "LCD_RGB_ELEMENT_ORDER_RGB"
+        bits_per_pixel: 16
+        vendor_config: NULL
+    peripherals:
+      - name: spi_display
+
+  - name: lcd_touch
+    chip: gt911
+    type: lcd_touch_i2c
+    version: default
+    dependencies:
+      esp_lcd_touch:
+        version: "*"
+        require: public
+      espressif/esp_lcd_touch_gt911: "*"
+    config:
+      io_i2c_config:
+        dev_addr: [0x5D, 0x14]
+        lcd_cmd_bits: 16
+        peripherals:
+          - name: i2c_master
+      touch_config:
+        x_max: 240
+        y_max: 320
+        int_gpio_num: -1
+        flags:
+          swap_xy: true
+          mirror_x: true
+          mirror_y: false
+
+  - name: lcd_brightness
+    type: ledc_ctrl
+    version: default
+    config:
+      default_percent: 100
+    peripherals:
+      - name: ledc_backlight
+
+  - name: fs_spiffs
+    type: fs_spiffs
+    version: 1.0.0
+    config:
+      base_path: "/spiffs"
+      partition_label: "spiffs_data"
+      max_files: 5
+      format_if_mount_failed: false

@@ -1,0 +1,5 @@
+board: rymcu_bigsmart
+chip: esp32s3
+version: 1.0.0
+description: "RYMCU BigSmart Development Board"
+manufacturer: "RYMCU"
