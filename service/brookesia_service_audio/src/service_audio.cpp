@@ -103,7 +103,8 @@ bool Audio::on_start()
 
     auto [player_name, player_iface] = hal::get_first_interface<hal::AudioCodecPlayerIface>();
     BROOKESIA_CHECK_NULL_RETURN(player_iface, false, "Failed to get audio player interface");
-    BROOKESIA_CHECK_FALSE_RETURN(player_iface->open(get_player_config()), false, "Failed to open audio dac");
+    const auto player_config = get_player_config();
+    BROOKESIA_CHECK_FALSE_RETURN(player_iface->open(player_config), false, "Failed to open audio dac");
     lib_utils::FunctionGuard close_player_guard([this, player_iface]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
         player_iface->close();
@@ -118,14 +119,18 @@ bool Audio::on_start()
     });
 
     auto &recorder_info = recorder_iface->get_info();
+    player_iface_ = player_iface;
+    recorder_iface_ = recorder_iface;
+    player_config_ = player_config;
+    recorder_sample_bits_ = static_cast<uint8_t>(recorder_info.bits);
     // Initialize audio manager
     auto player_write_cb = +[](uint8_t *data, int size, void *ctx) {
         BROOKESIA_LOG_TRACE_GUARD();
 
-        auto player_iface = static_cast<hal::AudioCodecPlayerIface *>(ctx);
-        BROOKESIA_CHECK_NULL_RETURN(player_iface, ESP_FAIL, "Invalid context");
+        auto self = static_cast<Audio *>(ctx);
+        BROOKESIA_CHECK_NULL_RETURN(self, ESP_FAIL, "Invalid context");
 
-        return player_iface->write_data(data, size) ? ESP_OK : ESP_FAIL;
+        return self->write_player_data(data, size) ? ESP_OK : ESP_FAIL;
     };
     auto recorder_read_cb = +[](uint8_t *data, int size, void *ctx) {
         BROOKESIA_LOG_TRACE_GUARD();
@@ -145,7 +150,7 @@ bool Audio::on_start()
             .read_cb = nullptr,
             .read_ctx = nullptr,
             .write_cb = player_write_cb,
-            .write_ctx = player_iface.get(),
+            .write_ctx = this,
         },
         .rec_io = {
             .read_cb = recorder_read_cb,
@@ -182,9 +187,6 @@ bool Audio::on_start()
     );
 
     play_state_ = AudioPlayState::Idle;
-    player_iface_ = player_iface;
-    recorder_iface_ = recorder_iface;
-
     close_player_guard.release();
     close_recorder_guard.release();
 
@@ -192,6 +194,44 @@ bool Audio::on_start()
     try_load_data();
 
     return true;
+}
+
+bool Audio::write_player_data(const uint8_t *data, size_t size)
+{
+    BROOKESIA_CHECK_FALSE_RETURN(player_iface_ != nullptr, false, "Player interface is not available");
+    BROOKESIA_CHECK_NULL_RETURN(data, false, "Invalid audio data");
+
+    if (recorder_sample_bits_ == player_config_.bits) {
+        return player_iface_->write_data(data, size);
+    }
+
+    BROOKESIA_CHECK_FALSE_RETURN(
+        (recorder_sample_bits_ == 16) && (player_config_.bits == 32),
+        false,
+        "Unsupported playback bit conversion: %1% -> %2%",
+        recorder_sample_bits_,
+        player_config_.bits
+    );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        (size % sizeof(int16_t)) == 0,
+        false,
+        "Invalid PCM data size for 16-bit samples: %1%",
+        size
+    );
+
+    const auto sample_count = size / sizeof(int16_t);
+    thread_local std::vector<int32_t> converted_buffer;
+    converted_buffer.resize(sample_count);
+
+    const auto *src = reinterpret_cast<const int16_t *>(data);
+    for (size_t i = 0; i < sample_count; ++i) {
+        converted_buffer[i] = static_cast<int32_t>(src[i]) << 16;
+    }
+
+    return player_iface_->write_data(
+        reinterpret_cast<const uint8_t *>(converted_buffer.data()),
+        converted_buffer.size() * sizeof(converted_buffer[0])
+    );
 }
 
 void Audio::on_stop()
