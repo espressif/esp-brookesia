@@ -43,8 +43,8 @@ constexpr bool use_main_reference_audio_route()
 }
 
 constexpr uint16_t MAIN_REFERENCE_ROUTE_RAW_CHANNEL_MASK = make_contiguous_channel_mask(
-    BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS
-);
+            BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS
+        );
 
 bool validate_main_reference_audio_route_config(const AudioCodecRecorderIface::Info &info)
 {
@@ -64,7 +64,7 @@ bool validate_main_reference_audio_route_config(const AudioCodecRecorderIface::I
     );
     BROOKESIA_CHECK_FALSE_RETURN(
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_SLOT <
-            BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS,
+        BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS,
         false,
         "Main microphone slot(%1%) exceeds raw channel count(%2%)",
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_SLOT,
@@ -72,7 +72,7 @@ bool validate_main_reference_audio_route_config(const AudioCodecRecorderIface::I
     );
     BROOKESIA_CHECK_FALSE_RETURN(
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_SLOT <
-            BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS,
+        BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS,
         false,
         "Reference microphone slot(%1%) exceeds raw channel count(%2%)",
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_SLOT,
@@ -80,7 +80,7 @@ bool validate_main_reference_audio_route_config(const AudioCodecRecorderIface::I
     );
     BROOKESIA_CHECK_FALSE_RETURN(
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_GAIN_CHANNEL <
-            BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_GAIN_CHANNELS,
+        BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_GAIN_CHANNELS,
         false,
         "Main microphone gain channel(%1%) exceeds gain channel count(%2%)",
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_GAIN_CHANNEL,
@@ -88,7 +88,7 @@ bool validate_main_reference_audio_route_config(const AudioCodecRecorderIface::I
     );
     BROOKESIA_CHECK_FALSE_RETURN(
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_GAIN_CHANNEL <
-            BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_GAIN_CHANNELS,
+        BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_GAIN_CHANNELS,
         false,
         "Reference microphone gain channel(%1%) exceeds gain channel count(%2%)",
         BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_GAIN_CHANNEL,
@@ -285,13 +285,13 @@ bool AudioCodecRecorderImpl::set_channel_gains_internal(const std::map<uint8_t, 
             switch (channel) {
             case 0:
                 channel_mask = ESP_CODEC_DEV_MAKE_CHANNEL_MASK(
-                    BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_GAIN_CHANNEL
-                );
+                                   BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_GAIN_CHANNEL
+                               );
                 break;
             case 1:
                 channel_mask = ESP_CODEC_DEV_MAKE_CHANNEL_MASK(
-                    BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_GAIN_CHANNEL
-                );
+                                   BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_GAIN_CHANNEL
+                               );
                 break;
             default:
                 BROOKESIA_LOGW("Ignore unsupported routed recorder channel gain: channel(%1%), gain(%2%)", channel, gain);

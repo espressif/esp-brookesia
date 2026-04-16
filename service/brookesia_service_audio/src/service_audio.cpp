@@ -229,9 +229,9 @@ bool Audio::write_player_data(const uint8_t *data, size_t size)
     }
 
     return player_iface_->write_data(
-        reinterpret_cast<const uint8_t *>(converted_buffer.data()),
-        converted_buffer.size() * sizeof(converted_buffer[0])
-    );
+               reinterpret_cast<const uint8_t *>(converted_buffer.data()),
+               converted_buffer.size() * sizeof(converted_buffer[0])
+           );
 }
 
 void Audio::on_stop()
