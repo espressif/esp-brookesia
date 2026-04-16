@@ -1,4 +1,15 @@
 menu "Example Configuration"
+    menu "Board Configuration"
+
+        config BROOKESIA_BOARD_ASSETS_RESOLUTION
+            string "Asset resolution"
+            default "320_240"
+            help
+                Resolution profile used to build the chatbot speaker asset
+                package. The value must match an available asset directory
+                name such as 320_240, 360_360, or 1024_600.
+    endmenu
+
     menuconfig EXAMPLE_AGENTS_ENABLE_COZE
         bool "Enable Coze agent"
         select BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER
