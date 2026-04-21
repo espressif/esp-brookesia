@@ -5,8 +5,10 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <map>
 #include <optional>
+#include <vector>
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
 #include "brookesia/hal_interface/audio/codec_recorder.hpp"
@@ -36,6 +38,7 @@ public:
 private:
     bool set_general_gain_internal(float gain);
     bool set_channel_gains_internal(const std::map<uint8_t, float> &gains);
+    bool read_data_routed_for_main_reference_pair(uint8_t *data, size_t size);
 
     bool is_valid_internal() const
     {
@@ -50,6 +53,7 @@ private:
     mutable boost::mutex mutex_;
     void *handles_ = nullptr;
     bool is_opened_ = false;
+    std::vector<int16_t> routed_capture_buffer_;
 };
 
 } // namespace esp_brookesia::hal

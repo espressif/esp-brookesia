@@ -242,6 +242,7 @@ private:
     {
         return is_decoder_started_;
     }
+    bool write_player_data(const uint8_t *data, size_t size);
     void on_recorder_event(void *event);
     void on_recorder_input_data(const uint8_t *data, size_t size);
 
@@ -277,6 +278,8 @@ private:
     bool is_encoder_started_ = false;
     bool is_encoder_paused_ = false;
     bool is_decoder_started_ = false;
+    hal::AudioCodecPlayerIface::Config player_config_{};
+    uint8_t recorder_sample_bits_ = 0;
     AudioPlaybackConfig playback_config_{};
     AudioEncoderStaticConfig encoder_static_config_{};
     AudioDecoderStaticConfig decoder_static_config_{};

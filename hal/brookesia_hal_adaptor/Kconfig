@@ -146,6 +146,71 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     The channel gains of the audio codec device, in dB.
                     JSON format is supported, the key is the channel index, the value is the gain in dB.
+
+            config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_ENABLE_MAIN_REFERENCE_ROUTE
+                bool "Enable main/reference recorder routing"
+                default n
+                help
+                    Read a raw multi-slot recorder stream from the board codec
+                    and repack it into the configured 2-channel [main, reference]
+                    output stream expected by the upper audio pipeline.
+
+            if BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_ENABLE_MAIN_REFERENCE_ROUTE
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS
+                    int "Raw recorder channels"
+                    default 4
+                    range 2 16
+                    help
+                        The number of raw TDM slots read from the recorder backend
+                        before they are routed to the exposed [main, reference] pair.
+
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_GAIN_CHANNELS
+                    int "Codec gain channels"
+                    default BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_RAW_CHANNELS
+                    range 1 16
+                    help
+                        The number of codec microphone gain channels available for
+                        routed recorder gain control. This can differ from the raw
+                        recorder slot count on boards where TDM slot order and codec
+                        gain channel numbering are not the same thing.
+
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_SLOT
+                    int "Main microphone slot"
+                    default 0
+                    range 0 15
+                    help
+                        Zero-based raw slot index used as the main microphone signal.
+
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_GAIN_CHANNEL
+                    int "Main microphone gain channel"
+                    default BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_MAIN_SLOT
+                    range 0 15
+                    help
+                        Zero-based codec microphone channel index used when
+                        applying gain to the routed main microphone signal.
+
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_SLOT
+                    int "Reference microphone slot"
+                    default 1
+                    range 0 15
+                    help
+                        Zero-based raw slot index used as the reference microphone signal.
+
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_GAIN_CHANNEL
+                    int "Reference microphone gain channel"
+                    default BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_SLOT
+                    range 0 15
+                    help
+                        Zero-based codec microphone channel index used when
+                        applying gain to the routed reference microphone signal.
+
+                config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_MAIN_REFERENCE_ROUTE_REFERENCE_GAIN_DB
+                    string "Reference microphone gain"
+                    default "0.0"
+                    help
+                        Additional gain, in dB, applied to the routed reference
+                        microphone codec channel.
+            endif
         endif
     endif
 

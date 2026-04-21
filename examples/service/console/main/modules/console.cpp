@@ -44,6 +44,8 @@ bool Console::start(const Config &config)
 
     config_ = config;
 
+    auto thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+
 #if CONFIG_CONSOLE_STORE_HISTORY
     auto mount_history_task = []() {
         static wl_handle_t wl_handle;
@@ -64,7 +66,6 @@ bool Console::start(const Config &config)
     };
     // Since mounting FATFS in `esp_vfs_fat_spiflash_mount_rw_wl()` operates on Flash,
     // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
-    auto thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
     if (thread_config.stack_in_ext) {
         BROOKESIA_LOGD("Mounting history in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
