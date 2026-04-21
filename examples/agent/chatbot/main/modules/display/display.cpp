@@ -24,6 +24,7 @@ using EmoteHelper = service::helper::ExpressionEmote;
 using NVSHelper = service::helper::NVS;
 
 namespace {
+constexpr uint32_t LOAD_ASSETS_TIMEOUT_MS = 10000;
 constexpr float PI = 3.14159265358979323846F;
 constexpr size_t TOUCH_READ_MAX_POINTS = 1;
 constexpr auto NVS_NAMESPACE = "Settings";
@@ -356,7 +357,8 @@ bool Display::start_expression_emote(int core_id)
             .flag_enable_mmap = false,
         };
         auto result = EmoteHelper::call_function_sync(
-                          EmoteHelper::FunctionId::LoadAssetsSource, BROOKESIA_DESCRIBE_TO_JSON(source).as_object()
+                          EmoteHelper::FunctionId::LoadAssetsSource, BROOKESIA_DESCRIBE_TO_JSON(source).as_object(),
+                          service::helper::Timeout(LOAD_ASSETS_TIMEOUT_MS)
                       );
         BROOKESIA_CHECK_FALSE_RETURN(result.has_value(), false, "Failed to load emote assets: %1%", result.error());
     }

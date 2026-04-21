@@ -107,8 +107,8 @@ void Profiler::start_memory_profiler(bool enable_auto_logging)
     // Monitor largest free internal memory
     auto largest_free_internal_memory_threshold_slot = [this](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
         BROOKESIA_LOGW(
-            "Largest free internal memory(%1% KB) is lower than the threshold(%2% KB)",
-            snapshot.memory.internal.largest_free_block / 1024, config_.mem_internal_largest_free_threshold / 1024
+            "Largest free internal memory(%1% B) reached the threshold(%2% B)",
+            snapshot.memory.internal.largest_free_block, config_.mem_internal_largest_free_threshold
         );
     };
     auto largest_free_internal_memory_connection = memory_profiler.connect_threshold_signal(
@@ -124,10 +124,10 @@ void Profiler::start_memory_profiler(bool enable_auto_logging)
     // Monitor free internal memory
     auto free_internal_memory_threshold_slot = [this](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
         BROOKESIA_LOGW(
-            "Internal free memory(%1%%%:%2% KB) is lower than the threshold(%3%%%:%4% KB)",
-            snapshot.memory.internal.free_percent, snapshot.memory.internal.free_size / 1024,
-            config_.mem_internal_free_percent_threshold,
-            config_.mem_internal_free_percent_threshold * snapshot.memory.internal.total_size / 100 / 1024
+            "Internal free memory(%1% B:~%2%%%) reached the threshold(%3% B:%4%%%)",
+            snapshot.memory.internal.free_size, snapshot.memory.internal.free_percent,
+            config_.mem_internal_free_percent_threshold * snapshot.memory.internal.total_size / 100,
+            config_.mem_internal_free_percent_threshold
         );
     };
     auto free_internal_memory_connection = memory_profiler.connect_threshold_signal(
@@ -144,8 +144,8 @@ void Profiler::start_memory_profiler(bool enable_auto_logging)
     // Monitor largest free external memory
     auto largest_free_external_memory_threshold_slot = [this](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
         BROOKESIA_LOGW(
-            "Largest free external memory(%1% KB) is lower than the threshold(%2% KB)",
-            snapshot.memory.external.largest_free_block / 1024, config_.mem_external_largest_free_threshold / 1024
+            "Largest free external memory(%1% B) reached the threshold(%2% B)",
+            snapshot.memory.external.largest_free_block, config_.mem_external_largest_free_threshold
         );
     };
     auto largest_free_external_memory_connection = memory_profiler.connect_threshold_signal(
@@ -161,10 +161,10 @@ void Profiler::start_memory_profiler(bool enable_auto_logging)
     // Monitor free external memory
     auto free_external_memory_threshold_slot = [this](const lib_utils::MemoryProfiler::ProfileSnapshot & snapshot) {
         BROOKESIA_LOGW(
-            "External free memory(%1%%%:%2% KB) is lower than the threshold(%3%%%:%4% KB)",
-            snapshot.memory.external.free_percent, snapshot.memory.external.free_size / 1024,
-            config_.mem_external_free_percent_threshold,
-            config_.mem_external_free_percent_threshold * snapshot.memory.external.total_size / 100 / 1024
+            "External free memory(%1% B:~%2%%%) reached the threshold(%3% B:%4%%%)",
+            snapshot.memory.external.free_size, snapshot.memory.external.free_percent,
+            config_.mem_external_free_percent_threshold * snapshot.memory.external.total_size / 100,
+            config_.mem_external_free_percent_threshold
         );
     };
     auto free_external_memory_connection = memory_profiler.connect_threshold_signal(

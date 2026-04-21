@@ -60,7 +60,7 @@ Steps to run these test cases:
    pytest examples/service/console --target esp32s3 --env generic
 
    # Specific board: esp_vocat_board_v1_2
-   pytest examples/service/console --target esp32s3 --env "esp_vocat_board_v1_2"
+   pytest examples/service/console --target esp32s3 --env "esp_vocat"
    ```
 
    **ESP32-P4 examples:**
@@ -81,8 +81,6 @@ PROBE_DELAY_S = 5
 WAIT_PROMPT_TIMEOUT_S = 10
 WAIT_COMMAND_TIMEOUT_S = 10
 DEFAULT_RESPONSE = b'Success!'
-
-WIFI_CONNECT_REPEAT_COUNT = 1
 
 
 def get_prompt(target: str = 'esp32s3') -> bytes:
@@ -105,8 +103,7 @@ CI_TEST_WIFI_2_4G_AP1_PSW = os.getenv('CI_TEST_WIFI_2_4G_AP1_PSW', '')
 if CI_TEST_WIFI_2_4G_AP1_SSID and CI_TEST_WIFI_2_4G_AP1_PSW:
     print(f"✓ WiFi credentials loaded from environment: SSID='{CI_TEST_WIFI_2_4G_AP1_SSID}'")
 else:
-    print("⚠ WiFi credentials not found in environment variables (CI_TEST_WIFI_2_4G_AP1_SSID, CI_TEST_WIFI_2_4G_AP1_PSW)")
-    print("  WiFi connect tests will be skipped")
+    pytest.fail("WiFi credentials not found in environment variables (CI_TEST_WIFI_2_4G_AP1_SSID, CI_TEST_WIFI_2_4G_AP1_PSW)")
 
 
 # ============================================================================
@@ -138,105 +135,102 @@ def get_wifi_connect_ap_command() -> Optional[str]:
 # ============================================================================
 
 # Basic service manager commands
-# Format: (command, expected_response_list, description, delay_seconds)
+# Format: (command, expected_response_list, description, timeout_ms, delay_ms)
+#   - timeout_ms: max time to wait for all expected responses
+#   - delay_ms:   fixed delay applied after the command succeeds (0 = no extra wait)
 BASIC_COMMANDS = [
-    ('svc_list', [b'=== Registered Services ==='], 'List all services', 4.0),
-    ('svc_funcs NVS', [b'List', b'Set', b'Get', b'Erase'], 'List NVS functions', 4.0),
+    ('svc_list', [b'=== Registered Services ==='], 'List all services', 4000, 0),
+    ('svc_funcs NVS', [b'List', b'Set', b'Get', b'Erase'], 'List NVS functions', 4000, 0),
 ]
 
 # Debug commands
 DEBUG_COMMANDS = [
-    ('debug_time_report', [b'Performance Tree Report'], 'Print time profiler report', 4.0),
-    ('debug_time_clear', [b'All time profiling data has been cleared'], 'Clear time profiler data', 4.0),
-    ('debug_mem', [b'Memory Profiler'], 'Print memory profiler info', 4.0),
-    ('debug_thread', [b'Thread Profiler', b'ipc1'], 'Print thread profiler info', 4.0),
-    ('debug_thread -p core -s cpu -d 1000', [b'Thread Profiler', b'ipc1'], 'Print thread profiler with options', 4.0),
-]
-
-# NVS service commands
-NVS_COMMANDS = [
-    ('svc_call NVS Erase', [DEFAULT_RESPONSE], 'Erase all NVS entries', 4.0),
-    ('svc_call NVS List {}', [b'Error'], 'List all NVS entries in default namespace', 4.0),
-    ('svc_call NVS Set {"KeyValuePairs":{"test_key1":"test_value1","test_key2":123,"test_key3":true}}', [DEFAULT_RESPONSE], 'Set NVS key-value pairs', 4.0),
-    ('svc_call NVS Get {}', [b'test_key1', b'test_value1', b'test_key2', b'123', b'test_key3', b'true'], 'Get all NVS entries', 4.0),
-    ('svc_call NVS Get {"Keys":["test_key1","test_key2"]}', [b'test_key1', b'test_value1', b'test_key2', b'123'], 'Get specific NVS keys', 4.0),
-    ('svc_call NVS Erase {"Keys":["test_key1","test_key2","test_key3"]}', [DEFAULT_RESPONSE], 'Erase specific NVS keys', 4.0),
-    ('svc_call NVS List {}', [b'Error'], 'Verify NVS entries erased', 4.0),
-]
-
-# WiFi service commands
-WIFI_COMMANDS = [
-    ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'Detected expected event: Started'], 'Start WiFi', 10.0)
-]
-wifi_connect_cmd = get_wifi_connect_ap_command()
-if wifi_connect_cmd:
-    for i in range(WIFI_CONNECT_REPEAT_COUNT):
-        WIFI_COMMANDS.extend([
-# Test connect to AP
-            (wifi_connect_cmd, [DEFAULT_RESPONSE], 'Set WiFi connect AP (from env vars)', 4.0),
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Connect"}', [b'Detected expected event: Connected'], 'Connect to WiFi', 10.0),
-            ('svc_call Wifi GetConnectedAps', [CI_TEST_WIFI_2_4G_AP1_SSID.encode()], 'Get connected APs', 4.0),
-# Test automatically reconnect to AP when start again
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Stop"}', [b'Detected expected event: Stopped'], 'Stop WiFi', 5.0),
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Start"}', [b'Detected expected event: Connected'], 'Start WiFi and automatically connect to AP', 20.0),
-            ('svc_call Wifi TriggerGeneralAction {"Action":"Disconnect"}', [b'Detected expected event: Disconnected'], 'Disconnect from WiFi', 5.0),
-        ])
-# Test scan
-WIFI_COMMANDS.extend([
-    ('svc_call Wifi SetScanParams {"Param":{"ap_count":30,"interval_ms":1000,"timeout_ms":20000}}', [DEFAULT_RESPONSE], 'Set WiFi scan parameters', 4.0),
-    ('svc_call Wifi TriggerScanStart {}', [b'Scanned AP count'], 'Start WiFi scan', 30.0),
-    ('svc_call Wifi TriggerScanStop {}', [DEFAULT_RESPONSE], 'Stop WiFi scan', 4.0),
-])
-if wifi_connect_cmd:
-# Test automatically reconnect to AP when scanning
-    WIFI_COMMANDS.extend([
-        # Set WiFi connect AP again to valid AP which is disconnected before
-        (wifi_connect_cmd, [DEFAULT_RESPONSE], 'Set WiFi connect AP to valid AP which is disconnected before', 4.0),
-        ('svc_call Wifi TriggerScanStart {}', [b'Detected expected event: Connected'], 'Start WiFi scan and automatically connect to AP', 30.0),
-        ('svc_call Wifi TriggerScanStop {}', [DEFAULT_RESPONSE], 'Stop WiFi scan', 4.0),
-    ])
-WIFI_COMMANDS.extend([
-    ('svc_call Wifi TriggerGeneralAction {"Action":"Stop"}', [b'Detected expected event: Stopped'], 'Stop WiFi', 5.0),
-    ('svc_call Wifi ResetData', [DEFAULT_RESPONSE], 'Reset WiFi data', 4.0),
-])
-
-# SNTP service commands
-SNTP_COMMANDS = [
-    ('svc_call SNTP SetServers {"Servers":["pool.ntp.org","time.apple.com"]}', [DEFAULT_RESPONSE], 'Set SNTP servers', 4.0),
-    ('svc_call SNTP SetTimezone {"Timezone":"CST-8"}', [DEFAULT_RESPONSE], 'Set timezone', 4.0),
-    ('svc_call SNTP GetServers', [b'pool.ntp.org', b'time.apple.com'], 'Get SNTP servers', 4.0),
-    ('svc_call SNTP GetTimezone', [b'CST-8'], 'Get timezone', 4.0),
-    ('svc_call SNTP IsTimeSynced', [DEFAULT_RESPONSE], 'Check if time is synced', 4.0),
-    ('svc_call SNTP ResetData', [DEFAULT_RESPONSE], 'Reset SNTP data', 4.0),
-]
-
-# Audio service commands (may not be available if board manager is disabled)
-AUDIO_COMMANDS = [
-    ('svc_call Audio SetVolume {"Volume":80}', [DEFAULT_RESPONSE], 'Set audio volume', 4.0),
-]
-
-# Agent service commands (may not be available if board manager is disabled)
-AGENT_COMMANDS = [
-    ('svc_call AgentManager GetAgentAttributes', [DEFAULT_RESPONSE], 'Get agent attributes', 4.0),
+    ('debug_time_report', [b'Performance Tree Report'], 'Print time profiler report', 4000, 0),
+    ('debug_time_clear', [b'All time profiling data has been cleared'], 'Clear time profiler data', 4000, 0),
+    ('debug_mem', [b'Memory Profiler'], 'Print memory profiler info', 4000, 0),
+    ('debug_thread', [b'Thread Profiler', b'ipc1'], 'Print thread profiler info', 4000, 0),
+    ('debug_thread -p core -s cpu -d 1000', [b'Thread Profiler', b'ipc1'], 'Print thread profiler with options', 4000, 0),
 ]
 
 # RPC service commands (requires WiFi connection)
 RPC_SERVER_COMMANDS = [
-    ('svc_rpc_server start', [b'RPC server started successfully'], 'Start RPC server', 4.0),
-    ('svc_rpc_server connect', [b'Services connected successfully'], 'Connect all services to RPC server', 4.0),
-    ('svc_rpc_server disconnect', [b'Services disconnected successfully'], 'Disconnect all services', 5.0),
-    ('svc_rpc_server stop', [b'RPC server stopped successfully'], 'Stop RPC server', 5.0),
+    ('svc_rpc_server start', [b'RPC server started successfully'], 'Start RPC server', 4000, 0),
+    ('svc_rpc_server connect', [b'Services connected successfully'], 'Connect all services to RPC server', 4000, 0),
+    ('svc_rpc_server disconnect', [b'Services disconnected successfully'], 'Disconnect all services', 5000, 0),
+    ('svc_rpc_server stop', [b'RPC server stopped successfully'], 'Stop RPC server', 5000, 0),
 ]
+
+# Tutorial commands following docs/tutorial_cn.md:
+#   1) Connect WiFi
+#   2) Start Expression Emote (load animation assets)
+#   3) Start XiaoZhi Agent (subscribe / set target / activate / start)
+#   4) Common operation commands during conversation
+#   5) (Optional) Play audio
+TUTORIAL_COMMANDS: List[Tuple[str, Optional[List[bytes]], str, int, int]] = []
+
+# Step 1: Connect WiFi (requires CI_TEST_WIFI_2_4G_AP1_SSID / PSW env vars)
+wifi_connect_cmd = get_wifi_connect_ap_command()
+if wifi_connect_cmd:
+    TUTORIAL_COMMANDS.extend([
+        (wifi_connect_cmd, [DEFAULT_RESPONSE],
+         'Step 1.1: Set WiFi AP info (SetConnectAp)', 4000, 0),
+        ('svc_call Wifi TriggerGeneralAction {"Action":"Connect"}',
+         [b'Detected expected event: Connected'],
+         'Step 1.2: Connect to WiFi', 15000, 0),
+    ])
+
+# Step 2: Start Expression Emote - load animation assets
+TUTORIAL_COMMANDS.append(
+    ('svc_call Emote LoadAssetsSource '
+     '{"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}',
+     [DEFAULT_RESPONSE], 'Step 2: Load Emote animation assets', 10000, 0),
+)
+
+# Step 3: Start XiaoZhi Agent
+TUTORIAL_COMMANDS.extend([
+    ('svc_subscribe AgentXiaoZhi ActivationCodeReceived',
+     [b'Subscribed successfully'],
+     'Step 3.1: Subscribe AgentXiaoZhi ActivationCodeReceived event', 4000, 0),
+    ('svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}',
+     [DEFAULT_RESPONSE], 'Step 3.2: Set target agent to AgentXiaoZhi', 4000, 0),
+    ('svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}',
+     [b'No activation code or challenge found, activate successfully'],
+     'Step 3.3: Activate agent', 120000, 2000),
+    ('svc_call AgentManager TriggerGeneralAction {"Action":"Start"}',
+     [b'Speaking status changed to'], 'Step 3.4: Start agent', 20000, 5000),
+])
+
+# Step 4: Common operation commands during conversation
+TUTORIAL_COMMANDS.extend([
+    ('svc_call AgentManager InterruptSpeaking',
+     [DEFAULT_RESPONSE], 'Ops: Interrupt agent speaking', 4000, 2000),
+    ('svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}',
+     [b"Agent do 'Sleep' finished"], 'Ops: Sleep agent', 4000, 5000),
+    ('svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}',
+     [b"Agent do 'WakeUp' finished"], 'Ops: Wake up agent', 4000, 5000),
+    ('svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}',
+     [b"Agent do 'Stop' finished", b'Decoder stopped'], 'Ops: Stop agent', 10000, 5000),
+    ('svc_call AgentManager GetGeneralState',
+     [b'Value: Ready'], 'Ops: Get agent general state', 4000, 0),
+])
+
+# Step 5 (optional): Play audio
+TUTORIAL_COMMANDS.extend([
+    ('svc_subscribe Audio PlayStateChanged',
+     [b'Subscribed successfully'], 'Audio: Subscribe play state changed event', 4000, 0),
+    ('svc_call Audio PlayUrl {"Url":"file://spiffs/example.mp3"}',
+     [b'State: Playing', b'State: Idle'], 'Audio: Play local audio', 10000, 2000),
+    ('svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}',
+     [b'State: Playing', b'State: Idle'], 'Audio: Play network audio', 10000, 2000),
+    ('svc_call Audio SetVolume {"Volume":80}',
+     [DEFAULT_RESPONSE], 'Audio: Set volume to 80', 4000, 0),
+])
 
 # Command groups mapping
 COMMAND_GROUPS = {
     'basic': BASIC_COMMANDS,
     'debug': DEBUG_COMMANDS,
-    'nvs': NVS_COMMANDS,
-    'wifi': WIFI_COMMANDS,
-    'sntp': SNTP_COMMANDS,
-    'audio': AUDIO_COMMANDS,
-    'agent': AGENT_COMMANDS,
+    'tutorial': TUTORIAL_COMMANDS,
     'rpc_server': RPC_SERVER_COMMANDS,
 }
 
@@ -251,7 +245,14 @@ def wait_for_prompt(dut: Dut, timeout: int = WAIT_PROMPT_TIMEOUT_S) -> None:
     dut.expect(prompt, timeout=timeout)
 
 
-def execute_command(dut: Dut, command: str, expected_response: Optional[List[bytes]] = None, delay: float = 4.0, timeout: int = WAIT_COMMAND_TIMEOUT_S) -> bool:
+def execute_command(
+    dut: Dut,
+    command: str,
+    expected_response: Optional[List[bytes]] = None,
+    timeout_ms: int = 4000,
+    delay_ms: int = 0,
+    prompt_timeout_s: int = WAIT_COMMAND_TIMEOUT_S,
+) -> bool:
     """
     Execute a console command and optionally verify the response.
 
@@ -259,22 +260,31 @@ def execute_command(dut: Dut, command: str, expected_response: Optional[List[byt
         dut: The device under test
         command: The command to execute
         expected_response: Optional list of expected response substrings (all must be present)
-        delay: Delay in seconds after sending command (continuously receiving output during this time)
-        timeout: Timeout in seconds
+        timeout_ms: Max time (ms) to wait for all expected responses while continuously receiving output
+        delay_ms: Fixed delay (ms) applied after the command succeeds (0 = no extra wait)
+        prompt_timeout_s: Fallback timeout (s) for waiting the console prompt after ``timeout_ms`` elapses
 
     Returns:
         True if command executed successfully, False otherwise
     """
+    timeout_s = max(timeout_ms, 0) / 1000.0
+    delay_s = max(delay_ms, 0) / 1000.0
+
+    def _post_success_delay() -> None:
+        if delay_s > 0:
+            print(f"  ⏱  Post-success delay: {delay_ms} ms")
+            time.sleep(delay_s)
+
     try:
-        print(f"  Executing: {command}")
+        print(f"  Executing: {command} (timeout={timeout_ms} ms, delay={delay_ms} ms)")
         dut.write(f"{command}\n")
 
         # Wait for the command to complete while continuously receiving output
         start_time = time.time()
         accumulated_response = b''
 
-        # Continuously read output during the delay period
-        while (time.time() - start_time) < delay:
+        # Continuously read output during the timeout period
+        while (time.time() - start_time) < timeout_s:
             try:
                 # Try to read any available output with a short timeout
                 chunk = dut.pexpect_proc.read_nonblocking(size=1024, timeout=0.1)
@@ -282,13 +292,12 @@ def execute_command(dut: Dut, command: str, expected_response: Optional[List[byt
                     accumulated_response += chunk
                     # Verify expected response if provided (all items in list must be present)
                     if expected_response:
-                        missing_responses = []
-                        for expected_item in expected_response:
-                            if expected_item not in accumulated_response:
-                                missing_responses.append(expected_item)
-
-                        if missing_responses == []:
+                        missing_responses = [
+                            item for item in expected_response if item not in accumulated_response
+                        ]
+                        if not missing_responses:
                             print(f"  ✅ All expected responses found: {expected_response}")
+                            _post_success_delay()
                             return True
             except:
                 # No data available, continue waiting
@@ -298,7 +307,7 @@ def execute_command(dut: Dut, command: str, expected_response: Optional[List[byt
         # Get the final response and wait for prompt
         prompt = get_prompt(dut.target)
         try:
-            final_response = dut.expect(prompt, timeout=timeout, return_what_before_match=True)
+            final_response = dut.expect(prompt, timeout=prompt_timeout_s, return_what_before_match=True)
             response = accumulated_response + final_response
         except:
             # If prompt not found, use accumulated response
@@ -306,20 +315,16 @@ def execute_command(dut: Dut, command: str, expected_response: Optional[List[byt
 
         # Verify expected response if provided (all items in list must be present)
         if expected_response:
-            missing_responses = []
-            for expected_item in expected_response:
-                if expected_item not in response:
-                    missing_responses.append(expected_item)
-
+            missing_responses = [item for item in expected_response if item not in response]
             if missing_responses:
                 print(f"  ❌ Expected responses not found: {missing_responses}")
                 # Print first 500 bytes of response for debugging
                 response_preview = response[:100] if len(response) > 100 else response
                 print(f"  Response (preview): {response_preview}")
                 return False
-            else:
-                print(f"  ✅ All expected responses found: {expected_response}")
-                return True
+            print(f"  ✅ All expected responses found: {expected_response}")
+            _post_success_delay()
+            return True
 
         # Check for error indicators
         if b'Error' in response or b'error' in response or b'failed' in response or b'Failed' in response:
@@ -327,10 +332,12 @@ def execute_command(dut: Dut, command: str, expected_response: Optional[List[byt
             # Some errors are acceptable (e.g., service not available)
             if b'Service not found' in response or b'not initialized' in response:
                 print(f"  ℹ️  Service not available, skipping...")
+                _post_success_delay()
                 return True  # Skip this command gracefully
             return False
 
         print(f"  ✅ Success")
+        _post_success_delay()
         return True
 
     except Exception as e:
@@ -338,14 +345,18 @@ def execute_command(dut: Dut, command: str, expected_response: Optional[List[byt
         return False
 
 
-def run_command_group(dut: Dut, group_name: str, commands: List[Tuple[str, Optional[List[bytes]], str, float]]) -> Tuple[int, int]:
+def run_command_group(
+    dut: Dut,
+    group_name: str,
+    commands: List[Tuple[str, Optional[List[bytes]], str, int, int]],
+) -> Tuple[int, int]:
     """
     Run a group of commands.
 
     Args:
         dut: The device under test
         group_name: Name of the command group
-        commands: List of (command, expected_response_list, description, delay) tuples
+        commands: List of (command, expected_response_list, description, timeout_ms, delay_ms) tuples
 
     Returns:
         Tuple of (passed_count, failed_count)
@@ -357,10 +368,13 @@ def run_command_group(dut: Dut, group_name: str, commands: List[Tuple[str, Optio
     passed = 0
     failed = 0
 
-    for command, expected_response, description, delay in commands:
-        print(f"\n[{passed + failed + 1}/{len(commands)}] {description} (delay: {delay}s)")
+    for command, expected_response, description, timeout_ms, delay_ms in commands:
+        print(
+            f"\n[{passed + failed + 1}/{len(commands)}] {description} "
+            f"(timeout: {timeout_ms} ms, delay: {delay_ms} ms)"
+        )
 
-        if execute_command(dut, command, expected_response, delay):
+        if execute_command(dut, command, expected_response, timeout_ms, delay_ms):
             passed += 1
         else:
             failed += 1
@@ -433,30 +447,12 @@ def test_service_console_commands(dut: Dut, test_groups: List[str] = None) -> No
 # ============================================================================
 
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('generic')
-@pytest.mark.parametrize('target, config', [('esp32s3', 'defaults')])
-@pytest.mark.timeout(20 * 60)
-def test_esp32s3_defaults(dut: Dut) -> None:
-    """Test all command groups on ESP32-S3 defaults."""
-    test_service_console_commands(dut, ['basic', 'debug', 'nvs', 'wifi', 'sntp', 'rpc_server'])
-
-
-@pytest.mark.target('esp32s3')
 @pytest.mark.env('esp_vocat')
 @pytest.mark.parametrize('target, config', [('esp32s3', 'esp_vocat_board_v1_2')])
 @pytest.mark.timeout(20 * 60)
 def test_esp32s3_esp_vocat_board_v1_2(dut: Dut) -> None:
-    """Test all command groups on ESP-VoCat Board V1.2."""
+    """Test all command groups (incl. tutorial flow) on ESP-VoCat Board V1.2."""
     test_service_console_commands(dut)
-
-
-@pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4')
-@pytest.mark.parametrize('target, config', [('esp32p4', 'defaults')])
-@pytest.mark.timeout(20 * 60)
-def test_esp32p4_defaults(dut: Dut) -> None:
-    """Test all command groups on ESP32-P4 defaults."""
-    test_service_console_commands(dut, ['basic', 'debug', 'nvs'])
 
 
 @pytest.mark.target('esp32p4')
@@ -464,5 +460,5 @@ def test_esp32p4_defaults(dut: Dut) -> None:
 @pytest.mark.parametrize('target, config', [('esp32p4', 'esp32_p4_function_ev')])
 @pytest.mark.timeout(20 * 60)
 def test_esp32p4_function_ev_board(dut: Dut) -> None:
-    """Test all command groups on ESP32-P4 Function EV Board."""
+    """Test all command groups (incl. tutorial flow) on ESP32-P4 Function EV Board."""
     test_service_console_commands(dut)

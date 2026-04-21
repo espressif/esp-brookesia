@@ -20,15 +20,12 @@ spiffs_create_partition_image(spiffs_data ../spiffs FLASH_IN_PROJECT)
 set(ASSETS_PARTITION_NAME "anim_icon")
 set(ASSETS_BIN_NAME ${ASSETS_PARTITION_NAME})
 
-if (CONFIG_ESP_BOARD_ESP_VOCAT_BOARD_V1_0 OR CONFIG_ESP_BOARD_ESP_VOCAT_BOARD_V1_2)
-    set(RESOLUTION "360_360")
-elseif (CONFIG_ESP_BOARD_ESP_BOX_3 OR CONFIG_ESP_BOARD_ESP32_S3_KORVO2_V3)
-    set(RESOLUTION "320_240")
-elseif (CONFIG_ESP_BOARD_ESP32_P4_FUNCTION_EV)
-    set(RESOLUTION "1024_600")
-else()
-    message(WARNING "Unsupported board, using default resolution 320_240")
-    set(RESOLUTION "320_240")
+set(SUPPORTED_RESOLUTIONS "320_240" "360_360" "1024_600")
+set(DEFAULT_RESOLUTION "320_240")
+set(RESOLUTION "${CONFIG_BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_H_RES}_${CONFIG_BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_V_RES}")
+if (NOT RESOLUTION IN_LIST SUPPORTED_RESOLUTIONS)
+    message(WARNING "Unsupported asset resolution '${RESOLUTION}', using default '${DEFAULT_RESOLUTION}' (supported: ${SUPPORTED_RESOLUTIONS})")
+    set(RESOLUTION "${DEFAULT_RESOLUTION}")
 endif()
 message(STATUS "Asset Resolution: ${RESOLUTION}")
 
@@ -40,3 +37,17 @@ esptool_py_flash_to_partition(flash ${ASSETS_PARTITION_NAME} "${ASSETS_FILE}")
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     ASSETS_PARTITION_NAME="${ASSETS_PARTITION_NAME}"
 )
+
+#
+# The following WiFi credentials are used for CI test. Please ignore them if you are not running CI test.
+#
+if(DEFINED ENV{CI_TEST_WIFI_2_4G_AP1_SSID})
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        CI_TEST_WIFI_2_4G_AP1_SSID="$ENV{CI_TEST_WIFI_2_4G_AP1_SSID}"
+    )
+endif()
+if(DEFINED ENV{CI_TEST_WIFI_2_4G_AP1_PSW})
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        CI_TEST_WIFI_2_4G_AP1_PSW="$ENV{CI_TEST_WIFI_2_4G_AP1_PSW}"
+    )
+endif()

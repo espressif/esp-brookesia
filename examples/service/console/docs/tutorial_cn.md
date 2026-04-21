@@ -64,10 +64,15 @@ svc_subscribe AgentXiaoZhi ActivationCodeReceived
 > 此时 LOG 会出现 `Service is not bindable: AgentXiaoZhi` 错误，属于正常现象，请忽略此错误。
 > 更多 `AgentXiaoZhi` 相关命令，请参考 [小智 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/agent/xiaozhi.html#helper-contract-agent-xiaozhi-interfaces)。
 
-2. **激活 Agent**：
+2. **设置目标智能体**：
 
 ```bash
 svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}
+```
+
+3. **激活智能体**：
+
+```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
 ```
 
@@ -75,7 +80,7 @@ svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
 
 等待看到 `No activation code or challenge found, activate successfully` 日志表示激活码事件已订阅成功。
 
-3. **启动 Agent**：
+4. **启动智能体**：
 
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
