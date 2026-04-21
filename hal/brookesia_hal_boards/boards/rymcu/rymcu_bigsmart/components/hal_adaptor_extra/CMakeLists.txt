@@ -1,0 +1,17 @@
+idf_component_register(
+    SRC_DIRS .
+    INCLUDE_DIRS .
+    PRIV_REQUIRES brookesia_hal_adaptor esp_board_manager
+)
+
+set(HAL_ADAPTOR_EXTRA_PRE_INIT_CALLBACKS_SYMBOL hal_adaptor_extra_pre_init_callbacks_symbol)
+target_compile_definitions(${COMPONENT_LIB} PRIVATE
+    HAL_ADAPTOR_EXTRA_PRE_INIT_CALLBACKS_SYMBOL=${HAL_ADAPTOR_EXTRA_PRE_INIT_CALLBACKS_SYMBOL}
+)
+target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${HAL_ADAPTOR_EXTRA_PRE_INIT_CALLBACKS_SYMBOL}")
+
+set(HAL_ADAPTOR_EXTRA_POST_DEINIT_CALLBACKS_SYMBOL hal_adaptor_extra_post_deinit_callbacks_symbol)
+target_compile_definitions(${COMPONENT_LIB} PRIVATE
+    HAL_ADAPTOR_EXTRA_POST_DEINIT_CALLBACKS_SYMBOL=${HAL_ADAPTOR_EXTRA_POST_DEINIT_CALLBACKS_SYMBOL}
+)
+target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${HAL_ADAPTOR_EXTRA_POST_DEINIT_CALLBACKS_SYMBOL}")

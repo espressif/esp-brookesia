@@ -94,6 +94,24 @@ devices:
           cmd: 48
           d0: 21
 
+  - name: gpio_expander
+    chip: pca9557
+    type: gpio_expander
+    version: default
+    dependencies:
+      esp_io_expander_pca9557:
+        override_path: "${BOARD_PATH}/components/esp_io_expander_pca9557"
+      hal_adaptor_extra:
+        override_path: "${BOARD_PATH}/components/hal_adaptor_extra"
+    config:
+      max_pins: 8                      # Maximum number of GPIO pins supported
+      output_io_mask: [0, 1, 2]        # List of pins configured as output
+      output_io_level_mask: [1, 1, 1]  # List of pins with initial output level
+      input_io_mask: NULL
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0x32]         # I2C address of the IO expander
+
   - name: display_lcd
     chip: st7789
     type: display_lcd

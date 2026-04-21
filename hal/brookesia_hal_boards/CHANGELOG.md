@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.7.2 - 2026-04-20
+
+### Enhancements:
+
+- feat(boards): add `rymcu_bigsmart` board with bundled PCA9557 io-expander driver
+- feat(boards): add `hal_adaptor_extra` component wiring PCA9557 lines into the audio/display HAL lifecycle
+- feat(boards): refresh `sdkconfig.defaults.board` for existing boards
+
 ## v0.7.1 - 2026-04-14
 
 ### Enhancements:
