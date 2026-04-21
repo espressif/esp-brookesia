@@ -28,11 +28,12 @@
 #include "brookesia/hal_interface/device.hpp"
 #include "brookesia/service_audio/service_audio.hpp"
 
-constexpr size_t ENCODER_FETCH_DATA_SIZE_MORE = 100;
-
 namespace esp_brookesia::service {
 
 using NVSHelper = helper::NVS;
+
+constexpr size_t ENCODER_FETCH_DATA_SIZE_MORE = 100;
+constexpr size_t GET_WAKE_WORDS_THREAD_STACK_SIZE = 5 * 1024;
 
 namespace {
 // Helper function to get current time in milliseconds using std::chrono
@@ -72,6 +73,58 @@ void try_save_data(const std::string &nvs_namespace, Audio::DataType type, const
     } else {
         BROOKESIA_LOGD("Saved '%1%' to NVS: %2%", key, data);
     }
+}
+
+bool audio_recorder_open_wrapper(const audio_recorder_config_t *config, audio_recorder_handle_t *recorder_handle)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    esp_err_t recorder_open_result = ESP_OK;
+    auto recorder_open_func = [&]() {
+        recorder_open_result = audio_recorder_open(const_cast<audio_recorder_config_t *>(config), recorder_handle);
+    };
+    // Since initializing SR in `audio_recorder_open()` operates on Flash,
+    // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+    auto thrread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+    if (thrread_config.stack_in_ext) {
+        BROOKESIA_LOGD("Opening recorder in new thread");
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        boost::thread(recorder_open_func).join();
+    } else {
+        BROOKESIA_LOGD("Opening recorder in current thread");
+        recorder_open_func();
+    }
+    BROOKESIA_CHECK_ESP_ERR_RETURN(recorder_open_result, false, "Failed to open recorder");
+
+    return true;
+}
+
+bool audio_recorder_close_wrapper(audio_recorder_handle_t recorder_handle)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    esp_err_t recorder_close_result = ESP_OK;
+    auto recorder_close_func = [&]() {
+        recorder_close_result = audio_recorder_close(recorder_handle);
+    };
+    // Since deinitializing SR in `audio_recorder_close()` operates on Flash,
+    // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+    auto thrread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
+    if (thrread_config.stack_in_ext) {
+        BROOKESIA_LOGD("Closing recorder in new thread");
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        boost::thread(recorder_close_func).join();
+    } else {
+        BROOKESIA_LOGD("Closing recorder in current thread");
+        recorder_close_func();
+    }
+    BROOKESIA_CHECK_ESP_ERR_RETURN(recorder_close_result, false, "Failed to close recorder");
+
+    return true;
 }
 } // namespace
 
@@ -351,6 +404,7 @@ std::expected<boost::json::array, std::string> Audio::function_get_afe_wake_word
     } else {
         BROOKESIA_LOGD("Getting wake words in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = GET_WAKE_WORDS_THREAD_STACK_SIZE,
             .stack_in_ext = false,
         });
         boost::thread(get_wake_words).join();
@@ -1032,34 +1086,14 @@ bool Audio::start_encoder(const AudioEncoderDynamicConfig &config)
                            );
     auto *recorder_handle_ptr = reinterpret_cast<audio_recorder_handle_t *>(&recorder_handle_);
 
-#if (BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER && !BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT) || \
-    !BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
-    BROOKESIA_CHECK_ESP_ERR_RETURN(
-        audio_recorder_open(&recorder_config, recorder_handle_ptr), false, "Failed to open recorder"
+    BROOKESIA_CHECK_FALSE_RETURN(
+        audio_recorder_open_wrapper(&recorder_config, recorder_handle_ptr), false, "Failed to open recorder"
     );
-#else
-    {
-        // Since initializing SR in `audio_recorder_open()` operates on flash,
-        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
-        BROOKESIA_THREAD_CONFIG_GUARD({
-            .stack_in_ext = false,
-        });
-        auto recorder_open_future =
-        std::async(std::launch::async, [this, recorder_config_ptr = &recorder_config, recorder_handle_ptr]() mutable {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            BROOKESIA_CHECK_ESP_ERR_RETURN(
-                audio_recorder_open(recorder_config_ptr, recorder_handle_ptr), false, "Failed to open recorder"
-            );
-            return true;
-        });
-        BROOKESIA_CHECK_FALSE_RETURN(recorder_open_future.get(), false, "Failed to open recorder");
-    }
-#endif
 
     auto recorder_handle = TypeConverter::to_recorder_handle(recorder_handle_);
     lib_utils::FunctionGuard close_recorder_guard([this, recorder_handle]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        BROOKESIA_CHECK_ESP_ERR_EXECUTE(audio_recorder_close(recorder_handle), {}, {
+        BROOKESIA_CHECK_FALSE_EXECUTE(audio_recorder_close_wrapper(recorder_handle), {}, {
             BROOKESIA_LOGE("Failed to close recorder");
         });
     });
@@ -1129,29 +1163,9 @@ void Audio::stop_encoder()
     }
 
     auto recorder_handle = TypeConverter::to_recorder_handle(recorder_handle_);
-#if (BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER && !BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT) || \
-    !BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(audio_recorder_close(recorder_handle), {}, {
+    BROOKESIA_CHECK_FALSE_EXECUTE(audio_recorder_close_wrapper(recorder_handle), {}, {
         BROOKESIA_LOGE("Failed to close recorder");
     });
-#else
-    {
-        // Since deinitializing SR in `audio_recorder_close()` operates on flash,
-        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
-        BROOKESIA_THREAD_CONFIG_GUARD({
-            .stack_in_ext = false,
-        });
-        auto recorder_close_future = std::async(std::launch::async, [this, recorder_handle]() mutable {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            BROOKESIA_CHECK_ESP_ERR_EXECUTE(audio_recorder_close(recorder_handle), {}, {
-                BROOKESIA_LOGE("Failed to close recorder");
-            });
-            return true;
-        });
-        recorder_close_future.get();
-    }
-#endif
-
     recorder_handle_ = nullptr;
     is_encoder_started_ = false;
 
