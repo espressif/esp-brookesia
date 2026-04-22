@@ -20,11 +20,13 @@ Supported Boards
 ----------------
 
 - :doc:`Espressif Boards <espressif>`
+- :doc:`Waveshare Boards <waveshare>`
 
 .. toctree::
    :hidden:
 
    Espressif Boards <espressif>
+   Waveshare Boards <waveshare>
 
 .. _hal-boards-sec-03:
 

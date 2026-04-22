@@ -20,11 +20,13 @@ HAL 开发板支持
 ------------
 
 - :doc:`乐鑫官方开发板 <espressif>`
+- :doc:`微雪电子开发板 <waveshare>`
 
 .. toctree::
    :hidden:
 
    乐鑫官方开发板 <espressif>
+   微雪电子开发板 <waveshare>
 
 .. _hal-boards-sec-03:
 
