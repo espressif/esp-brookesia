@@ -24,6 +24,8 @@ dependencies:
   espressif/brookesia_service_video:
     version: "*"
     override_path: "../../../../service/brookesia_service_video"
+    rules:
+      - if: "target in [esp32p4]"
 
   # Agents
   espressif/brookesia_agent_coze:

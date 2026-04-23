@@ -32,14 +32,9 @@
 
 ### 硬件要求
 
-本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件，支持以下开发板：
+本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件。
 
-- ESP-VoCat V1.0
-- ESP-VoCat V1.2
-- ESP32-S3-BOX-3
-- ESP32-S3-Korvo-2 V3
-- ESP32-P4-Function-EV-Board
-- ESP-SensairShuttle
+请参考 [ESP-Brookesia 编程指南 - 支持的开发板](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/index.html#hal-boards-sec-02) 获取支持的开发板列表。
 
 ### 开发环境
 

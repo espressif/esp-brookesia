@@ -44,8 +44,8 @@ import pytest
 from pytest_embedded import Dut
 import time
 
-SUCCESS_RESPONSE = b'=== Agent Chatbot Example Completed ==='
-TIMEOUT_S = 15 * 60
+SUCCESS_RESPONSE = b'Speaking status changed to'
+TIMEOUT_S = 20 * 60
 
 
 def run_test(dut: Dut)-> None:

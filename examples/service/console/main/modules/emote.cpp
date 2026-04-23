@@ -58,7 +58,7 @@ bool Emote::init(int core_id)
     // Subscribe to flush ready event
     auto flush_ready_event_slot = [display_iface](const std::string & event_name, const boost::json::object & param_json) {
         lib_utils::FunctionGuard notify_guard([]() {
-            BROOKESIA_LOG_TRACE_GUARD();
+            // BROOKESIA_LOG_TRACE_GUARD();
             expression::Emote::get_instance().native_notify_flush_finished();
         });
 

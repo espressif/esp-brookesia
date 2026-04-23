@@ -24,6 +24,7 @@ using EmoteHelper = service::helper::ExpressionEmote;
 using NVSHelper = service::helper::NVS;
 
 namespace {
+constexpr uint32_t LOAD_ASSETS_TIMEOUT_MS = 10000;
 constexpr float PI = 3.14159265358979323846F;
 constexpr size_t TOUCH_READ_MAX_POINTS = 1;
 constexpr auto NVS_NAMESPACE = "Settings";
@@ -256,7 +257,7 @@ bool Display::start_lvgl(int core_id)
         return false;
     }
 #pragma GCC diagnostic pop
-    display_config.profile.require_double_buffer = true;
+    display_config.profile.require_double_buffer = false;
     display_config.profile.buffer_height = 20;
 
     lv_display_t *lv_display = esp_lv_adapter_register_display(&display_config);
@@ -325,7 +326,7 @@ bool Display::start_expression_emote(int core_id)
     // Subscribe to flush ready event
     auto flush_ready_event_slot = [&](const std::string & event_name, const boost::json::object & param_json) {
         lib_utils::FunctionGuard notify_guard([]() {
-            BROOKESIA_LOG_TRACE_GUARD();
+            // BROOKESIA_LOG_TRACE_GUARD();
             expression::Emote::get_instance().native_notify_flush_finished();
         });
 
@@ -356,7 +357,8 @@ bool Display::start_expression_emote(int core_id)
             .flag_enable_mmap = false,
         };
         auto result = EmoteHelper::call_function_sync(
-                          EmoteHelper::FunctionId::LoadAssetsSource, BROOKESIA_DESCRIBE_TO_JSON(source).as_object()
+                          EmoteHelper::FunctionId::LoadAssetsSource, BROOKESIA_DESCRIBE_TO_JSON(source).as_object(),
+                          service::helper::Timeout(LOAD_ASSETS_TIMEOUT_MS)
                       );
         BROOKESIA_CHECK_FALSE_RETURN(result.has_value(), false, "Failed to load emote assets: %1%", result.error());
     }

@@ -22,6 +22,7 @@ on:
   push:
     branches:
       - master
+  pull_request:
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -29,14 +30,52 @@ permissions:
   pages: write
   id-token: write
 
-# Allow one concurrent deployment
+# One in-progress run per ref (PR or branch); never let a PR cancel a master deploy.
 concurrency:
-  group: "pages"
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # Detect which examples need rebuilding based on changed paths.
+  # On pull_request, builds are gated by these outputs.
+  # On workflow_dispatch / push, all builds run regardless.
+  changes:
+    name: "Detect changed paths"
+    runs-on: ubuntu-latest
+    outputs:
+      agent-chatbot: ${{ steps.filter.outputs.agent-chatbot }}
+      service-console: ${{ steps.filter.outputs.service-console }}
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            agent-chatbot:
+              - 'examples/agent/chatbot/**'
+              - 'hal/**'
+              - 'service/**'
+              - 'expression/**'
+              - 'utils/**'
+              - 'plugin/**'
+              - '.github/tools/build_with_board_manager.sh'
+              - '.github/tools/generate_launchpad_*.sh'
+              - '.github/workflows/launchpad.yml'
+            service-console:
+              - 'examples/service/console/**'
+              - 'hal/**'
+              - 'service/**'
+              - 'expression/**'
+              - 'utils/**'
+              - 'plugin/**'
+              - '.github/tools/build_with_board_manager.sh'
+              - '.github/tools/generate_launchpad_*.sh'
+              - '.github/workflows/launchpad.yml'
+
   build-examples-agent-chatbot:
     name: "Build Agent Chatbot"
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.agent-chatbot == 'true'
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
     continue-on-error: true
@@ -44,12 +83,15 @@ jobs:
       fail-fast: false
       matrix:
         board:
+          # Espressif boards
           - espressif/esp_vocat_board_v1_0
           - espressif/esp_vocat_board_v1_2
           - espressif/esp_box_3
           - espressif/esp32_p4_function_ev
           - espressif/esp32_s3_korvo2_v3
           # - espressif/esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
+          # RYMCU boards
+          - rymcu/rymcu_bigsmart
     steps:
       - uses: actions/checkout@v3
         with:
@@ -87,6 +129,8 @@ jobs:
 
   build-examples-service-console:
     name: "Build Service Console"
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.service-console == 'true'
     runs-on: ubuntu-latest
     container: espressif/idf:release-v5.5
     continue-on-error: true
@@ -94,12 +138,15 @@ jobs:
       fail-fast: false
       matrix:
         board:
+          # Espressif boards
           - espressif/esp_vocat_board_v1_0
           - espressif/esp_vocat_board_v1_2
           - espressif/esp_box_3
           - espressif/esp32_p4_function_ev
           - espressif/esp32_s3_korvo2_v3
           # - espressif/esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
+          # RYMCU boards
+          - rymcu/rymcu_bigsmart
     steps:
       - uses: actions/checkout@v3
         with:
@@ -137,6 +184,8 @@ jobs:
 
   deploy:
     needs: [build-examples-agent-chatbot, build-examples-service-console]
+    # Only deploy on master pushes (or manual dispatch); skip for pull requests.
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
 
     environment:
       name: github-pages

@@ -64,10 +64,15 @@ svc_subscribe AgentXiaoZhi ActivationCodeReceived
 > The log may show a `Service is not bindable: AgentXiaoZhi` error at this point. This is expected — please ignore it.
 > For more `AgentXiaoZhi` commands, see [XiaoZhi - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/agent/xiaozhi.html#helper-contract-agent-xiaozhi-interfaces).
 
-2. **Activate the Agent**:
+2. **Set the target agent**:
 
 ```bash
 svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}
+```
+
+3. **Activate the Agent**:
+
+```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
 ```
 
@@ -89,6 +94,7 @@ svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
 You can now have a voice conversation with the XiaoZhi Agent.
 
 > [!TIP]
+> The Agent is configured in half-duplex mode by default, meaning that the Agent will not listen to human speech while speaking.
 > You can use the wake word (default: "Hi, ESP") to interrupt the Agent while it is speaking or to wake it from sleep.
 
 ## Common Control Commands

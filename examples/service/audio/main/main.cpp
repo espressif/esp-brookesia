@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <string>
+#include "esp_log.h"
 #define BROOKESIA_LOG_TAG "Main"
 #include "brookesia/lib_utils.hpp"
 #include "brookesia/service_manager.hpp"
@@ -35,6 +36,7 @@ static AudioHelper::CodecGeneralConfig codec_general_config{
 static std::string get_audio_file_path(const std::string &filename);
 static bool get_player_volume(uint8_t &volume);
 
+static bool demo_set_configs();
 static bool demo_play_single_url();
 static bool demo_play_multiple_urls();
 static bool demo_play_control();
@@ -73,6 +75,9 @@ extern "C" void app_main(void)
     // Check if Audio service is available
     BROOKESIA_CHECK_FALSE_EXIT(AudioHelper::is_available(), "Audio service is not available");
 
+    // Should set configs before starting the service
+    BROOKESIA_CHECK_FALSE_EXIT(demo_set_configs(), "Failed to demo set configs");
+
     // Bind Audio service to start it and its dependencies (RAII - service stays alive while binding exists)
     auto binding = service_manager.bind(AudioHelper::get_name().data());
     BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind Audio service");
@@ -95,6 +100,50 @@ extern "C" void app_main(void)
     BROOKESIA_CHECK_FALSE_EXIT(demo_afe(), "Failed to demo AFE");
 
     BROOKESIA_LOGI("\n\n=== Audio Service Example Completed ===\n");
+}
+
+static bool demo_set_configs()
+{
+    BROOKESIA_LOGI("\n\n--- Demo: Set Configs ---\n");
+
+    AudioHelper::PlaybackConfig playback_config{
+        .player_task = {
+            .core_id = 0,
+            .priority = 5,
+            .stack_size = 4 * 1024,
+            // When using PSRAM but not using XIP, set stack_in_ext to true to prevent crashes caused by tasks
+            // operating on Flash.
+#if CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .stack_in_ext = true,
+#else
+            .stack_in_ext = false,
+#endif
+        }
+    };
+    auto playback_result = AudioHelper::call_function_sync(
+                               AudioHelper::FunctionId::SetPlaybackConfig, BROOKESIA_DESCRIBE_TO_JSON(playback_config).as_object()
+                           );
+    BROOKESIA_CHECK_FALSE_RETURN(playback_result, false, "Failed to set playback config: %1%", playback_result.error());
+
+    AudioHelper::EncoderStaticConfig encoder_static_config{};
+    auto encoder_static_result = AudioHelper::call_function_sync(
+                                     AudioHelper::FunctionId::SetEncoderStaticConfig, BROOKESIA_DESCRIBE_TO_JSON(encoder_static_config).as_object()
+                                 );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        encoder_static_result, false, "Failed to set encoder static config: %1%", encoder_static_result.error()
+    );
+
+    AudioHelper::DecoderStaticConfig decoder_static_config{};
+    auto decoder_static_result = AudioHelper::call_function_sync(
+                                     AudioHelper::FunctionId::SetDecoderStaticConfig, BROOKESIA_DESCRIBE_TO_JSON(decoder_static_config).as_object()
+                                 );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        decoder_static_result, false, "Failed to set decoder static config: %1%", decoder_static_result.error()
+    );
+
+    BROOKESIA_LOGI("\n\n--- Demo: Set Configs Completed ---\n");
+
+    return true;
 }
 
 static std::string get_audio_file_path(const std::string &filename)

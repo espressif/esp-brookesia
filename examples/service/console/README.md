@@ -32,14 +32,9 @@ This example demonstrates how to run and test the ESP-Brookesia service framewor
 
 ### Hardware Requirements
 
-This example uses the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component to manage hardware and supports the following development boards:
+This example manages hardware through the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component.
 
-- ESP-VoCat V1.0
-- ESP-VoCat V1.2
-- ESP32-S3-BOX-3
-- ESP32-S3-Korvo-2 V3
-- ESP32-P4-Function-EV-Board
-- ESP-SensairShuttle
+Please refer to the [ESP-Brookesia Programming Guide - Supported Boards](https://docs.espressif.com/projects/esp-brookesia/en/latest/hal/boards/index.html#hal-boards-sec-02) for a list of supported development boards.
 
 ### Development Environment
 
