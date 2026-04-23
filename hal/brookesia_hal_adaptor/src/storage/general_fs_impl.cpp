@@ -82,19 +82,19 @@ bool GeneralStorageFsImpl::init_sdcard()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_FAT);
+    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SD card");
     lib_utils::FunctionGuard deinit_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_FAT);
+        esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     });
 
     dev_fs_fat_config_t *cfg = NULL;
-    ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_FS_FAT, reinterpret_cast<void **>(&cfg));
+    ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_FS_SDCARD, reinterpret_cast<void **>(&cfg));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SD card configuration");
     BROOKESIA_CHECK_NULL_RETURN(cfg, false, "Failed to get SD card configuration");
 
-    esp_board_device_show(ESP_BOARD_DEVICE_NAME_FS_FAT);
+    esp_board_device_show(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
 
     info_list_.emplace_back(Info {
         .fs_type = FileSystemType::FATFS,
@@ -111,7 +111,7 @@ void GeneralStorageFsImpl::deinit_sdcard()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_FAT);
+    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinitialize SD card"); });
 }
 #endif

@@ -83,7 +83,7 @@ bool verify_file_system_access(const char *mount_point)
     if (file_path.back() != '/') {
         file_path += '/';
     }
-    file_path += "hal_adaptor_storage_smoke.txt";
+    file_path += "smoke.txt";
 
     constexpr char payload[] = "esp-brookesia-storage-smoke";
     std::array<char, sizeof(payload)> readback = {};

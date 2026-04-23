@@ -1,0 +1,7 @@
+version: "0.1.0"
+description: ESP IO Expander - PCA9557
+dependencies:
+  idf: ">=5.2"
+  esp_io_expander:
+    version: "^1.2.0"
+    public: true

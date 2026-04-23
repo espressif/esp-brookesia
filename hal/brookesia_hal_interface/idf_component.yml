@@ -1,4 +1,4 @@
-version: "0.7.2"
+version: "0.7.3"
 description: ESP-Brookesia HAL foundation component that defines a unified Device/Interface model, lifecycle helpers, typed lookup utilities, and reusable hardware interface definitions.
 url: https://github.com/espressif/esp-brookesia/tree/master/hal/brookesia_hal_interface
 repository: https://github.com/espressif/esp-brookesia.git
