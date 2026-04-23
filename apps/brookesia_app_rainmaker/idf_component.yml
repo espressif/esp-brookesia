@@ -1,0 +1,11 @@
+# SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+#
+# SPDX-License-Identifier: Apache-2.0
+
+version: 0.0.1
+dependencies:
+  brookesia_core:
+    override_path: "../../core/brookesia_core"
+    public: true
+  espressif/rmaker_user_api:
+    version: "*"

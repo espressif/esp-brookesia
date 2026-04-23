@@ -7,6 +7,7 @@
 #include "bsp/esp-bsp.h"
 #include "esp_brookesia.hpp"
 #include "boost/thread.hpp"
+#include "phone_common_net.hpp"
 #ifdef ESP_UTILS_LOG_TAG
 #   undef ESP_UTILS_LOG_TAG
 #endif
@@ -31,6 +32,8 @@ constexpr bool EXAMPLE_SHOW_MEM_INFO = false;
 extern "C" void app_main(void)
 {
     ESP_UTILS_LOGI("Display ESP-Brookesia phone demo");
+
+    phone_common_net_boot();
 
     bsp_display_cfg_t cfg = {
         .lvgl_port_cfg = LVGL_PORT_INIT_CONFIG(),

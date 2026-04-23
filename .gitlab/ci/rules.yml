@@ -26,6 +26,9 @@
 # brookesia_app_squareline_demo
 .patterns-app_brookesia_app_squareline_demo: &patterns-app_brookesia_app_squareline_demo
   - "apps/brookesia_app_squareline_demo/**/*"
+# brookesia_app_rainmaker
+.patterns-app_brookesia_app_rainmaker: &patterns-app_brookesia_app_rainmaker
+  - "apps/brookesia_app_rainmaker/**/*"
 
 # brookesia_core
 .patterns-component_brookesia_core: &patterns-component_brookesia_core
@@ -132,6 +135,8 @@
       changes: *patterns-build_system
     - <<: *if-dev-push
       changes: *patterns-app_brookesia_app_squareline_demo
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_rainmaker
 
 .rules:build:products_phone_s3_box_3:
   rules:
@@ -147,6 +152,8 @@
       changes: *patterns-build_system
     - <<: *if-dev-push
       changes: *patterns-app_brookesia_app_squareline_demo
+    - <<: *if-dev-push
+      changes: *patterns-app_brookesia_app_rainmaker
 
 .rules:build:products_phone_s3_lcd_ev_board:
   rules:

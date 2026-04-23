@@ -1,0 +1,70 @@
+config RAINMAKER_APP_SUPPORT
+    bool "Enable RainMaker app and boot Wi-Fi (for RainMaker workflow)"
+    default n
+    help
+        When enabled:
+          - Builds and registers the ESP RainMaker Brookesia app plugin.
+          - Exposes "Phone clock" and "Phone Auto Wi-Fi" options: on boot the device
+            can connect to your Wi-Fi as a station so HTTP/DNS (e.g. RainMaker login)
+            work without extra provisioning.
+        When disabled, the RainMaker app and the boot-time auto Wi-Fi block are
+        omitted from the firmware.
+
+menu "Phone clock"
+    depends on RAINMAKER_APP_SUPPORT
+
+    config PHONE_TIMEZONE
+        string "Default timezone (POSIX TZ)"
+        default "CST-8"
+        help
+            POSIX TZ string used with setenv/tzset for localtime() and status bar clock,
+            e.g. CST-8 for China (UTC+8). Applied at startup when RainMaker support is on;
+            also used after SNTP sync in the auto Wi-Fi flow.
+
+endmenu
+
+menu "Phone Auto Wi-Fi"
+    depends on RAINMAKER_APP_SUPPORT
+
+    comment "Use the same SSID and password as your Wi-Fi router (or AP). On boot the device connects as STA so RainMaker can reach the network without manual connection."
+
+    config PHONE_AUTO_WIFI_ENABLE
+        bool "Connect to Wi-Fi automatically on boot"
+        default y
+        help
+            If enabled, Wi-Fi stack starts during boot and the device tries to join the
+            SSID below. Disable if you only want the RainMaker UI without auto-connect.
+
+    config PHONE_AUTO_WIFI_SSID
+        string "Wi-Fi SSID (your router/AP name)"
+        default "myssid"
+        depends on PHONE_AUTO_WIFI_ENABLE
+        help
+            2.4 GHz SSID of the network the board should join (must match your router
+            or AP). Leave empty to skip auto Wi-Fi even if enabled.
+
+    config PHONE_AUTO_WIFI_PASSWORD
+        string "Wi-Fi password (WPA/WPA2 PSK)"
+        default "mypassword"
+        depends on PHONE_AUTO_WIFI_ENABLE
+        help
+            WPA/WPA2 pre-shared key for the SSID above. Use the same password as on
+            your router; open networks are not described here.
+
+    config PHONE_AUTO_WIFI_MAX_RETRY
+        int "Max reconnect attempts after disconnect"
+        range 0 20
+        default 5
+        depends on PHONE_AUTO_WIFI_ENABLE
+        help
+            After a disconnect, at most this many extra connection attempts before
+            giving up (until next boot).
+
+    config PHONE_SNTP_SERVER
+        string "SNTP / NTP server hostname"
+        default "pool.ntp.org"
+        depends on PHONE_AUTO_WIFI_ENABLE
+        help
+            Hostname used for SNTP time sync after Wi-Fi gets an IP (e.g. pool.ntp.org).
+
+endmenu

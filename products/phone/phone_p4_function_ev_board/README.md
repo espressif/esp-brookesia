@@ -27,6 +27,16 @@ git clone --recursive https://github.com/espressif/esp-brookesia.git
 
 Run `idf.py menuconfig` and modify the esp-brookesia configuration.
 
+### Testing the RainMaker app
+
+To build and run the RainMaker application on the device:
+
+1. **Configure your Wi-Fi router credentials** so the board connects automatically after power-on: run `idf.py menuconfig`, open **Phone Auto Wi-Fi** (visible when RainMaker support is enabled), and set **Wi-Fi SSID** and **Wi-Fi password** to match your **own** access point (same SSID/PSK as on the router). Ensure the network is reachable by the device (typically 2.4 GHz). Optionally adjust timezone under **Phone clock** and SNTP server under **Phone Auto Wi-Fi**.
+
+Then run `idf.py build` and flash the firmware as usual. After reset, the device will try to join that Wi-Fi on boot so RainMaker features that need internet/DNS can work without a separate connection step.
+
+For more information about the RainMaker app, see [README](../../../apps/brookesia_app_rainmaker/README.md).
+
 ## How to Use the Example
 
 ### Build and Flash the Example
