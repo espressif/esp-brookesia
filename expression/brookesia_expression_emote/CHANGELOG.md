@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.5 - 2026-04-20
+
+### Enhancements:
+
+- feat(emote): add a dedicated internal-SRAM worker thread for emote flash operations
+- feat(kconfig): add worker-thread options (enable/name/core/priority/stack/poll interval) with matching macros
+
 ## v0.7.4 - 2026-04-10
 
 ### Enhancements:

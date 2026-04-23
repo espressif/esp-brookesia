@@ -13,4 +13,42 @@ menu "ESP-Brookesia: Expression Emote Configurations"
     menuconfig BROOKESIA_EXPRESSION_EMOTE_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
+
+    menuconfig BROOKESIA_EXPRESSION_EMOTE_ENABLE_WORKER
+        bool "Enable worker"
+        default y if SPIRAM && BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
+        default n
+
+    if BROOKESIA_EXPRESSION_EMOTE_ENABLE_WORKER
+        config BROOKESIA_EXPRESSION_EMOTE_WORKER_NAME
+            string "Name"
+            default "EmoteWorker"
+            help
+                The name of the worker thread.
+
+        config BROOKESIA_EXPRESSION_EMOTE_WORKER_CORE_ID
+            int "Core ID"
+            default -1
+            help
+                The core ID of the worker thread. `-1` means the core ID is not specified.
+
+        config BROOKESIA_EXPRESSION_EMOTE_WORKER_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The priority of the worker thread.
+
+        config BROOKESIA_EXPRESSION_EMOTE_WORKER_STACK_SIZE
+            int "Stack size"
+            default 6144
+            help
+                The stack size of the worker thread.
+
+        config BROOKESIA_EXPRESSION_EMOTE_WORKER_POLL_INTERVAL_MS
+            int "Poll interval (ms)"
+            default 10
+            range 1 10
+            help
+                The interval of the worker poll.
+    endif
 endmenu
