@@ -38,11 +38,12 @@ HAL 开发板支持
    boards/
    └── <厂商>/
        └── <板级名称>/
+          ├── components/...           # 特殊组件依赖（可选，用于支持非标准外设或特殊功能）
           ├── board_info.yaml          # 开发板元信息（名称、芯片、版本、制造商等）
           ├── board_devices.yaml       # 逻辑设备配置（音频编解码、LCD 显示、触摸、存储等）
           ├── board_peripherals.yaml   # 底层外设配置（I2C/I2S/SPI 总线、GPIO、LEDC 等）
           ├── sdkconfig.defaults.board # 开发板专用 Kconfig 默认值（Flash、PSRAM 等）
-          └── setup_device.c           # 板级设备工厂回调（用于需要自定义驱动初始化的场景）
+          └── setup_device.c           # 板级设备工厂回调（可选，用于需要自定义驱动初始化的场景）
 
 .. note::
 
@@ -77,6 +78,10 @@ HAL 开发板支持
      - GPIO 供电控制（音频电源、LCD/SD 卡电源等）
    * - ``gpio_ctrl``
      - 通用 GPIO 控制（LED、按键等）
+   * - ``gpio_expander``
+     - GPIO 扩展芯片（例如 TCA9554 等）
+   * - ``custom``
+     - 自定义设备类型，用于实现非标准外设或特殊功能
 
 .. _hal-boards-sec-05:
 
@@ -118,6 +123,7 @@ HAL 开发板支持
 2. **board_peripherals.yaml**：按实际引脚和总线配置填写外设参数
 3. **board_devices.yaml**：按实际板载外设填写设备类型和配置
 4. **sdkconfig.defaults.board**：添加与该板相关的 Kconfig 默认值
-5. **setup_device.c** （可选）：如驱动需要额外初始化步骤则实现对应工厂函数
+5. **setup_device.c** *(可选)*：如驱动需要额外初始化步骤则实现对应工厂函数
+6. **components/...** *(可选)*：添加特殊组件依赖，用于支持非标准外设或特殊功能
 
 完成后执行 ``idf.py gen-bmgr-config -b <new_board>`` 即可使用。

@@ -156,12 +156,14 @@ ESP-Brookesia 提供了多个示例工程。部分示例支持在线烧录，可
 
          该类工程目录中包含 ``idf_ext.py`` 脚本。与普通依赖 ``esp_board_manager`` 的示例工程相比，它额外封装了以下能力：
 
-            - 无需手动设置 ``IDF_EXTRA_ACTIONS_PATH`` 环境变量。
-            - 选择开发板时，会根据 ``idf_component.yml`` 中声明的依赖自动拉取 ``esp_board_manager`` 和 ``brookesia_hal_boards`` 组件。
-            - 执行 ``idf.py gen-bmgr-config`` 命令时，会自动补充 ``-c`` 参数来指定 ``boards/`` 目录，并按以下优先级依次查找：
-               1. 工程目录下的 ``boards/`` 目录。
-               2. ``brookesia_hal_boards`` 组件中的 ``boards/`` 目录。
-            - 如果需要，也可以手动通过 ``-c`` 参数指定自定义目录。
+         - 无需手动设置 ``IDF_EXTRA_ACTIONS_PATH`` 环境变量。
+         - 选择开发板时，会根据 ``idf_component.yml`` 中声明的依赖自动拉取 ``esp_board_manager`` 和 ``brookesia_hal_boards`` 组件。
+         - 执行 ``idf.py gen-bmgr-config`` 命令时，会自动补充 ``-c`` 参数来指定 ``boards/`` 目录，并按以下优先级依次查找：工程目录下的 ``boards/`` 目录；然后是 ``brookesia_hal_boards`` 组件中的 ``boards/`` 目录。
+         - 如果需要，也可以手动通过 ``-c`` 参数指定自定义目录。
+
+      .. note::
+
+         请参考 :ref:`HAL 开发板支持 <hal-boards-sec-02>` 获取所有支持的开发板列表。
 
 2. 配置项目（可选）：
 

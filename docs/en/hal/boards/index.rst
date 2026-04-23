@@ -38,11 +38,12 @@ Each board has its own subdirectory under ``boards/<vendor>/<board-name>/`` cont
    boards/
    └── <vendor>/
        └── <board>/
+          ├── components/...           # Special component dependencies (optional, for non-standard peripherals or special features)
           ├── board_info.yaml          # Board metadata (name, chip, version, manufacturer, etc.)
           ├── board_devices.yaml       # Logical device configurations (audio codec, LCD, touch, storage, etc.)
           ├── board_peripherals.yaml   # Low-level peripheral configurations (I2C/I2S/SPI buses, GPIO, LEDC, etc.)
           ├── sdkconfig.defaults.board # Board-specific Kconfig defaults (Flash, PSRAM, etc.)
-          └── setup_device.c           # Board-specific device factory callbacks (for custom driver initialization)
+          └── setup_device.c           # Board-specific device factory callbacks (optional, for custom driver initialization)
 
 .. note::
 
@@ -77,6 +78,10 @@ Device Types
      - GPIO-based power control (audio power, LCD/SD card power, and more)
    * - ``gpio_ctrl``
      - General-purpose GPIO control (LEDs, buttons, and more)
+   * - ``gpio_expander``
+     - GPIO expander chip (e.g. TCA9554)
+   * - ``custom``
+     - Custom device type; for implementing non-standard peripherals or special features
 
 .. _hal-boards-sec-05:
 
@@ -119,5 +124,6 @@ Create a new board subdirectory under ``boards/<vendor>/`` and add the following
 3. **board_devices.yaml**: Describe on-board devices with their types and configurations.
 4. **sdkconfig.defaults.board**: Add board-specific Kconfig defaults.
 5. **setup_device.c** *(optional)*: Implement factory functions if the driver requires extra initialization steps.
+6. **components/...** *(optional)*: Add special component dependencies for non-standard peripherals or special features.
 
 Once done, run ``idf.py gen-bmgr-config -b <new_board>`` to use the new board.
