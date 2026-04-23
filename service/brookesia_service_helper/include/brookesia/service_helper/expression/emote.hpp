@@ -199,7 +199,6 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -215,7 +214,6 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -224,7 +222,6 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEmoji),
             .description = "Hide current emoji.",
-            .require_scheduler = false
         };
     }
 
@@ -240,7 +237,6 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -261,7 +257,6 @@ private:
                     .type = FunctionValueType::Number
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -270,7 +265,6 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopAnimation),
             .description = "Stop current animation and hide it immediately.",
-            .require_scheduler = false
         };
     }
 
@@ -287,7 +281,6 @@ private:
                     .default_value = 0.0,
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -313,7 +306,6 @@ private:
                     .default_value = "",
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -322,7 +314,6 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideEventMessage),
             .description = "Hide current event message.",
-            .require_scheduler = false
         };
     }
 
@@ -338,7 +329,6 @@ private:
                     .type = FunctionValueType::String
                 }
             },
-            .require_scheduler = false
         };
     }
 
@@ -347,7 +337,6 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::HideQrcode),
             .description = "Hide current QR code and show emoji immediately.",
-            .require_scheduler = false
         };
     }
 
@@ -356,7 +345,6 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::NotifyFlushFinished),
             .description = "Notify emote flush finished.",
-            .require_scheduler = false
         };
     }
 
@@ -365,7 +353,6 @@ private:
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::RefreshAll),
             .description = "Refresh the screen.",
-            .require_scheduler = false
         };
     }
 

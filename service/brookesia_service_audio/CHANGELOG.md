@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.5 - 2026-04-20
+
+### Enhancements:
+
+- feat(afe): dispatch `audio_recorder_open`/`close` to an internal-SRAM thread when caller runs on external-RAM stack
+- feat(afe): give the wake-words helper thread a dedicated 5 KB stack
+
 ## v0.7.4 - 2026-04-10
 
 ### Breaking Changes:
