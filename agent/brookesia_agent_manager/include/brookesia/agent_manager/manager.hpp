@@ -58,7 +58,9 @@ public:
 private:
     using Helper = helper::Manager;
 
-    const Helper::ChatMode DEFAULT_CHAT_MODE = Helper::ChatMode::RealTime; ///< Default persisted chat mode.
+    static constexpr Helper::ChatMode DEFAULT_CHAT_MODE = static_cast<Helper::ChatMode>(
+                BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE
+            );
 
     Manager():
         service::ServiceBase(service::ServiceBase::Attributes{

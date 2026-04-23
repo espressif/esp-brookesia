@@ -30,7 +30,7 @@ public:
         .name = helper::XiaoZhi::get_name().data(),
         .operation_timeout = {
             .activate = 60000,
-            .start = 5000,
+            .start = 10000,
             .sleep = 5000,
             .wake_up = 5000,
         },

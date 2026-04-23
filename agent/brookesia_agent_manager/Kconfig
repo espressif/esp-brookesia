@@ -32,6 +32,34 @@ menu "ESP-Brookesia: Agent Manager Configurations"
             - WakeStart: Trigger the wake up action.
             - WakeEnd: Trigger the sleep action.
 
+    choice BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE
+        prompt "Default chat mode"
+        default BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_HALF_DUPLEX
+        help
+            The default chat mode.
+
+        config BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_HALF_DUPLEX
+            bool "HalfDuplex"
+            help
+                Half-duplex conversation mode. Agent can only speak or only listen.
+
+        config BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_REAL_TIME
+            bool "RealTime"
+            help
+                Real-time conversation mode. Agent can listen while speaking.
+
+        config BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_MANUAL
+            bool "Manual"
+            help
+                Manual conversation mode. User can start and stop listening manually.
+    endchoice
+
+    config BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE
+        int
+        default 0 if BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_REAL_TIME
+        default 1 if BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_MANUAL
+        default 2 if BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE_HALF_DUPLEX
+
     menuconfig BROOKESIA_AGENT_MANAGER_ENABLE_WORKER
         bool "Enable worker"
         default n

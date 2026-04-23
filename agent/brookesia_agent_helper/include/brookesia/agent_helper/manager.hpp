@@ -54,8 +54,9 @@ public:
      * @brief Conversation mode used by the active agent.
      */
     enum class ChatMode : uint8_t {
-        RealTime,
-        Manual,
+        RealTime,   ///< Real-time conversation mode. Agent can listen while speaking.
+        Manual,     ///< Manual conversation mode. User can start and stop listening manually.
+        HalfDuplex, ///< Half-duplex conversation mode. Agent can only speak or only listen.
         Max,
     };
 
@@ -671,7 +672,7 @@ public:
  */
 BROOKESIA_DESCRIBE_STRUCT(Manager::AgentOperationTimeout, (), (activate, start, sleep, wake_up, stop));
 BROOKESIA_DESCRIBE_ENUM(Manager::AgentGeneralFunction, InterruptSpeaking, Max);
-BROOKESIA_DESCRIBE_ENUM(Manager::ChatMode, Manual, RealTime, Max);
+BROOKESIA_DESCRIBE_ENUM(Manager::ChatMode, RealTime, Manual, HalfDuplex, Max);
 BROOKESIA_DESCRIBE_ENUM(
     Manager::AgentGeneralEvent, SpeakingStatusChanged, ListeningStatusChanged, AgentSpeakingTextGot,
     UserSpeakingTextGot, EmoteGot, Max
