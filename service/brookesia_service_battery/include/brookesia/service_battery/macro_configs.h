@@ -1,0 +1,35 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include "sdkconfig.h"
+
+#if !defined(BROOKESIA_SERVICE_BATTERY_ENABLE_AUTO_REGISTER)
+#   if defined(CONFIG_BROOKESIA_SERVICE_BATTERY_ENABLE_AUTO_REGISTER)
+#       define BROOKESIA_SERVICE_BATTERY_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_SERVICE_BATTERY_ENABLE_AUTO_REGISTER
+#   else
+#       define BROOKESIA_SERVICE_BATTERY_ENABLE_AUTO_REGISTER  (0)
+#   endif
+#endif
+
+#if BROOKESIA_SERVICE_BATTERY_ENABLE_AUTO_REGISTER
+#   if !defined(BROOKESIA_SERVICE_BATTERY_PLUGIN_SYMBOL)
+#       define BROOKESIA_SERVICE_BATTERY_PLUGIN_SYMBOL  service_battery_symbol
+#   endif
+#endif
+
+/**
+ * @brief Default log tag used by the battery service component.
+ */
+#define BROOKESIA_SERVICE_BATTERY_LOG_TAG "SvcBattery"
+
+#if !defined(BROOKESIA_SERVICE_BATTERY_ENABLE_DEBUG_LOG)
+#   if defined(CONFIG_BROOKESIA_SERVICE_BATTERY_ENABLE_DEBUG_LOG)
+#       define BROOKESIA_SERVICE_BATTERY_ENABLE_DEBUG_LOG  CONFIG_BROOKESIA_SERVICE_BATTERY_ENABLE_DEBUG_LOG
+#   else
+#       define BROOKESIA_SERVICE_BATTERY_ENABLE_DEBUG_LOG  (0)
+#   endif
+#endif
