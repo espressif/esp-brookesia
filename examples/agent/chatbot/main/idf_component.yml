@@ -12,6 +12,9 @@ dependencies:
   espressif/brookesia_service_audio:
     version: "*"
     override_path: "../../../../service/brookesia_service_audio"
+  espressif/brookesia_service_battery:
+    version: "*"
+    override_path: "../../../../service/brookesia_service_battery"
   espressif/brookesia_service_nvs:
     version: "*"
     override_path: "../../../../service/brookesia_service_nvs"

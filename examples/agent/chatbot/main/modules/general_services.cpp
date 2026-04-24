@@ -13,6 +13,7 @@ using namespace esp_brookesia;
 
 using SNTPHelper = esp_brookesia::service::helper::SNTP;
 using AudioHelper = esp_brookesia::service::helper::Audio;
+using BatteryHelper = esp_brookesia::service::helper::Battery;
 using NVSHelper = esp_brookesia::service::helper::NVS;
 using WifiHelper = esp_brookesia::service::helper::Wifi;
 
@@ -99,6 +100,24 @@ void GeneralServices::start_sntp()
     auto binding = service_manager.bind(SNTPHelper::get_name().data());
     if (!binding.is_valid()) {
         BROOKESIA_LOGE("Failed to bind SNTP service");
+    } else {
+        service_bindings_.push_back(std::move(binding));
+    }
+}
+
+void GeneralServices::start_battery()
+{
+    BROOKESIA_CHECK_FALSE_EXIT(is_initialized(), "General services is not initialized");
+
+    if (!BatteryHelper::is_available()) {
+        BROOKESIA_LOGW("Battery service is not available");
+        return;
+    }
+
+    auto &service_manager = service::ServiceManager::get_instance();
+    auto binding = service_manager.bind(BatteryHelper::get_name().data());
+    if (!binding.is_valid()) {
+        BROOKESIA_LOGW("Battery service is unavailable on current board");
     } else {
         service_bindings_.push_back(std::move(binding));
     }
