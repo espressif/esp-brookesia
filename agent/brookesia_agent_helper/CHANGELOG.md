@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.2 - 2026-04-21
+
+### Enhancements:
+
+- feat(manager): add a half-duplex chat mode where the agent can only speak or only listen, never both at the same time
+
 ## v0.7.1 - 2026-04-10
 
 ### Breaking Changes:

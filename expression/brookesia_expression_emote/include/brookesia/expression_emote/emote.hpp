@@ -8,6 +8,7 @@
 #include <memory>
 #include "brookesia/service_helper/expression/emote.hpp"
 #include "brookesia/service_manager/service/base.hpp"
+#include "brookesia/expression_emote/macro_configs.h"
 
 namespace esp_brookesia::expression {
 
@@ -72,6 +73,21 @@ private:
     Emote()
         : service::ServiceBase({
         .name = Helper::get_name().data(),
+        // Emote operations must run on a thread that uses an internal SRAM stack.
+#if BROOKESIA_EXPRESSION_EMOTE_ENABLE_WORKER
+        .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
+            .worker_configs = {
+                lib_utils::ThreadConfig{
+                    .name = BROOKESIA_EXPRESSION_EMOTE_WORKER_NAME,
+                    .core_id = BROOKESIA_EXPRESSION_EMOTE_WORKER_CORE_ID,
+                    .priority = BROOKESIA_EXPRESSION_EMOTE_WORKER_PRIORITY,
+                    .stack_size = BROOKESIA_EXPRESSION_EMOTE_WORKER_STACK_SIZE,
+                    .stack_in_ext = false,
+                },
+            },
+            .worker_poll_interval_ms = BROOKESIA_EXPRESSION_EMOTE_WORKER_POLL_INTERVAL_MS,
+        }
+#endif // BROOKESIA_EXPRESSION_EMOTE_ENABLE_WORKER
     })
     {}
     ~Emote() = default;

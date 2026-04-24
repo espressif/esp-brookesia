@@ -115,16 +115,16 @@ svc_rpc_server disconnect -s NVS,Wifi
 
 ### Call Remote Service Functions
 
+Call a remote function with parameters:
+
+```bash
+svc_rpc_call 192.168.1.100 NVS Set {""KeyValuePairs":{"key1":"value1"}}
+```
+
 Call a remote function without parameters:
 
 ```bash
 svc_rpc_call 192.168.1.100 NVS List
-```
-
-Call a remote function with parameters:
-
-```bash
-svc_rpc_call 192.168.1.100 NVS Set {"KeyValuePairs":{"key1":"value1"}}
 ```
 
 Call with custom port and timeout (10 seconds):

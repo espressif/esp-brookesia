@@ -1,4 +1,4 @@
-version: "0.7.5"
+version: "0.7.6"
 description: ESP-Brookesia WiFi service which provides state machine management, AP scanning, connection management, and SoftAP functionality.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_wifi
 repository: https://github.com/espressif/esp-brookesia.git
@@ -9,12 +9,11 @@ dependencies:
     version: ">=0.10,<2.0"
     rules:
       - if: "target in [esp32p4, esp32h2]"
-
+  # TODO: workaround for the compatibility issue of the `v2.12.5` version
   espressif/esp_hosted:
-    version: "~2"
+    version: "2.12.3"
     rules:
       - if: "target in [esp32p4, esp32h2]"
-
 
   espressif/brookesia_service_helper:
     version: "0.7.*"

@@ -36,13 +36,20 @@
 
 ### 硬件要求
 
-本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件，支持以下开发板：
+本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件，支持符合以下条件的开发板：
 
-- ESP-VoCat V1.0
-- ESP-VoCat V1.2
-- ESP32-S3-BOX-3
-- ESP32-S3-Korvo-2 V3
-- ESP32-P4-Function-EV-Board
+- Flash >= 16MB
+- PSRAM >= 8MB
+- 支持 Wi-Fi
+- 支持以下接口：
+
+  - `AudioCodecPlayer`
+  - `AudioCodecRecorder`
+  - `DisplayPanel`
+  - `DisplayTouch`
+  - `StorageFs`
+
+请参考 [ESP-Brookesia 编程指南 - 支持的开发板](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/index.html#hal-boards-sec-02) 获取支持的开发板列表。
 
 ### 开发环境
 
@@ -83,7 +90,9 @@
 
 ### 语音交互
 
-AI Agent 启动后即可开始对话。AI 应答时屏幕会同步显示对应表情动画，对话结束后自动回到待机状态。
+AI Agent 启动后即可开始对话，默认配置为半双工模式，即 Agent 说话时不会聆听人声，但是可以通过唤醒词（默认为 "Hi,ESP"）打断 Agent 说话并开始聆听人声。
+
+Agent 应答时屏幕会同步显示对应表情动画，对话结束后自动回到待机状态。
 
 XiaoZhi Agent 在对话中可主动调用 MCP 工具执行设备操作，例如：
 

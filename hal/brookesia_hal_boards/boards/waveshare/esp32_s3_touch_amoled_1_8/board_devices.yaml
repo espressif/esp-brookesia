@@ -1,0 +1,144 @@
+# Devices Configuration
+devices:
+  - name: gpio_expander
+    chip: tca9554
+    type: gpio_expander
+    version: default
+    dependencies:
+      espressif/esp_io_expander_tca9554: "^2"
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
+    config:
+      max_pins: 8                      # Maximum number of GPIO pins supported
+      output_io_mask: [0, 1, 2, 7]        # List of pins configured as output
+      output_io_level_mask: [1, 1, 1, 1]  # List of pins with initial output level
+      input_io_mask: [4]
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0x40]         # I2C address of the IO expander
+
+  - name: axp2101_power_manager
+    chip: axp2101
+    type: custom
+    version: default
+    config:
+      frequency: 400000
+      i2c_addr: 0x34
+    peripherals:
+      - name: i2c_master
+
+  - name: audio_dac
+    chip: es8311  # Codec chip (ES8311)
+    type: audio_codec
+    version: default
+    config:
+      # DAC Configuration (for audio output)
+      dac_enabled: true
+      dac_max_channel: 1     # ES8311 support 1 DAC channel (default right channel, REG:0x09 - SDP_IN_SEL)
+      dac_channel_mask: "1"  # Enable left channel
+
+    peripherals:
+      - name: gpio_pa_control
+        gain: 6
+        active_level: 1
+
+      # I2S interface for audio output
+      - name: i2s_audio_out
+
+      # I2C interface for codec control
+      - name: i2c_master
+        address: 0x30
+        frequency: 400000
+
+  - name: audio_adc
+    chip: es8311  # Codec chip (ES8311)
+    type: audio_codec
+    version: default
+    config:
+      # ADC Configuration (for audio input)
+      adc_enabled: true
+      adc_max_channel: 2            # ES8311 support 1 ADC channel and 1 DAC echo channel, default:ADCL + DACR, refer 8311 datasheet REG44 `ADCDAT_SEL`
+      adc_channel_mask: "11"        # Enable both left and right channels
+      adc_channel_labels: [RE, FC]  # DAC reference and ADC microphone
+
+    # Peripheral configuration
+    peripherals:
+      # I2S interface for audio input
+      - name: i2s_audio_in
+
+      # I2C interface for codec control
+      - name: i2c_master
+        address: 0x30
+        frequency: 400000
+
+  # LCD Display Configuration
+  - name: display_lcd
+    chip: sh8601
+    type: display_lcd
+    sub_type: spi
+    version: default
+    dependencies:
+      espressif/esp_lcd_sh8601: "^2"
+    config:
+      x_max: 368
+      y_max: 448
+      need_reset: false
+      # esp_lcd_panel_io_spi_config_t fields
+      io_spi_config:
+        cs_gpio_num: 12                   # GPIO14 - LCD_CS (BSP_LCD_CS)
+        spi_mode: 0                       # Traditional SPI mode (0~3)
+        lcd_cmd_bits: 32                   # Bit-width of LCD command
+        flags:
+          quad_mode: true                 # Quad mode (4 data lines) - ST77916 uses quad mode
+
+      lcd_panel_config:
+        reset_gpio_num: -1
+        vendor_config: NULL
+
+    peripherals:
+    - name: spi_display                  # SPI peripheral for LCD communication
+
+  # Touch Panel Configuration
+  - name: lcd_touch
+    chip: ft5x06
+    type: lcd_touch_i2c
+    version: default
+    dependencies:
+      espressif/esp_lcd_touch_ft5x06: "^1"
+    config:
+      io_i2c_config:
+        dev_addr: [0x38]
+        lcd_cmd_bits: 8
+        scl_speed_hz: 400000
+        peripherals:
+          - name: i2c_master
+
+      # esp_lcd_touch_config_t fields for touch configuration
+      touch_config:
+        x_max: 368                        # Maximum X coordinate (BSP_LCD_H_RES)
+        y_max: 448                        # Maximum Y coordinate (BSP_LCD_V_RES)
+        int_gpio_num: 21                  # Interrupt GPIO (BSP_LCD_TOUCH_INT)
+
+  - name: fs_sdcard
+    type: fs_fat
+    sub_type: sdmmc
+    version: default
+    config:
+      vfs_config:
+        format_if_mount_failed: true
+      sub_config:
+        bus_width: 1                      # 1, 4, or 8 for slot 0; 1 or 4 for slot 1
+        slot_flags: "SDMMC_SLOT_FLAG_INTERNAL_PULLUP" # SDMMC_SLOT_FLAG_INTERNAL_PULLUP, SDMMC_SLOT_FLAG_WP_ACTIVE_HIGH, SDMMC_SLOT_FLAG_UHS1
+        pins:
+          clk: 2                         # GPIO_NUM_16
+          cmd: 1                         # GPIO_NUM_38
+          d0: 3                          # GPIO_NUM_17
+
+  - name: fs_spiffs          # The name of the device, must be unique
+    type: fs_spiffs          # The type of the device, must be unique
+    version: 1.0.0
+    config:
+      base_path: "/spiffs"            # The base path for mounting the SPIFFS filesystem
+      partition_label: "spiffs_data"  # The partition label for the SPIFFS filesystem
+      max_files: 5                    # The maximum number of files that can be open simultaneously
+      format_if_mount_failed: false   # Format the card if mount fails

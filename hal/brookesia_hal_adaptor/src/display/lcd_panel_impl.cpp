@@ -40,7 +40,7 @@ DisplayPanelIface::Info generate_info()
     auto pixel_bits = config->bits_per_pixel;
     switch (pixel_bits) {
     case 16:
-        info.pixel_format = DisplayPanelIface::PixelFormat::RGB888;
+        info.pixel_format = DisplayPanelIface::PixelFormat::RGB565;
         break;
     case 24:
         info.pixel_format = DisplayPanelIface::PixelFormat::RGB888;

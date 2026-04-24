@@ -9,6 +9,7 @@
 #include "cmd_service.hpp"
 #include "cmd_debug.hpp"
 #include "private/utils.hpp"
+#include "brookesia/lib_utils/thread_config.hpp"
 
 /*
  * We warn if a secondary serial console is enabled. A secondary serial console is always output-only and
@@ -43,23 +44,38 @@ bool Console::start(const Config &config)
 
     config_ = config;
 
+    auto thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
 #if CONFIG_CONSOLE_STORE_HISTORY
-    static wl_handle_t wl_handle;
+    auto mount_history_task = []() {
+        static wl_handle_t wl_handle;
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-    const esp_vfs_fat_mount_config_t mount_config = {
-        .format_if_mount_failed = true,
-        .max_files = 4,
-    };
+        const esp_vfs_fat_mount_config_t mount_config = {
+            .format_if_mount_failed = true,
+            .max_files = 4,
+        };
 #pragma GCC diagnostic pop
-    esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(
-                        HISTORY_MOUNT_ROOT, HISTORY_PARTITION_LABEL, &mount_config, &wl_handle
-                    );
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(err, {}, {
-        BROOKESIA_LOGE("Failed to mount FATFS for history");
-    });
-    BROOKESIA_LOGI("FATFS for history mounted successfully");
-#endif
+        esp_err_t err = esp_vfs_fat_spiflash_mount_rw_wl(
+                            HISTORY_MOUNT_ROOT, HISTORY_PARTITION_LABEL, &mount_config, &wl_handle
+                        );
+        BROOKESIA_CHECK_ESP_ERR_EXECUTE(err, {}, {
+            BROOKESIA_LOGE("Failed to mount FATFS for history");
+        });
+        BROOKESIA_LOGI("FATFS for history mounted successfully");
+    };
+    // Since mounting FATFS in `esp_vfs_fat_spiflash_mount_rw_wl()` operates on Flash,
+    // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+    if (thread_config.stack_in_ext) {
+        BROOKESIA_LOGD("Mounting history in new thread");
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        boost::thread(mount_history_task).join();
+    } else {
+        BROOKESIA_LOGD("Mounting history in current thread");
+        mount_history_task();
+    }
+#endif // CONFIG_CONSOLE_STORE_HISTORY
 
     esp_console_repl_t *repl = NULL;
     esp_console_repl_config_t repl_config = ESP_CONSOLE_REPL_CONFIG_DEFAULT();
@@ -78,24 +94,34 @@ bool Console::start(const Config &config)
     // Register commands
     register_commands();
 
+    esp_err_t result = ESP_OK;
+    auto create_repl_func = [&]() {
 #if defined(CONFIG_ESP_CONSOLE_UART_DEFAULT) || defined(CONFIG_ESP_CONSOLE_UART_CUSTOM)
-    esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
-    auto result = esp_console_new_repl_uart(&hw_config, &repl_config, &repl);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(result, false, "Failed to create UART REPL");
-
+        esp_console_dev_uart_config_t hw_config = ESP_CONSOLE_DEV_UART_CONFIG_DEFAULT();
+        result = esp_console_new_repl_uart(&hw_config, &repl_config, &repl);
 #elif defined(CONFIG_ESP_CONSOLE_USB_CDC)
-    esp_console_dev_usb_cdc_config_t hw_config = ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
-    auto result = esp_console_new_repl_usb_cdc(&hw_config, &repl_config, &repl);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(result, false, "Failed to create USB CDC REPL");
-
+        esp_console_dev_usb_cdc_config_t hw_config = ESP_CONSOLE_DEV_CDC_CONFIG_DEFAULT();
+        result = esp_console_new_repl_usb_cdc(&hw_config, &repl_config, &repl);
 #elif defined(CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG)
-    esp_console_dev_usb_serial_jtag_config_t hw_config = ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT();
-    auto result = esp_console_new_repl_usb_serial_jtag(&hw_config, &repl_config, &repl);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(result, false, "Failed to create USB Serial JTAG REPL");
-
+        esp_console_dev_usb_serial_jtag_config_t hw_config = ESP_CONSOLE_DEV_USB_SERIAL_JTAG_CONFIG_DEFAULT();
+        result = esp_console_new_repl_usb_serial_jtag(&hw_config, &repl_config, &repl);
 #else
-#error Unsupported console type
+#   error Unsupported console type
 #endif
+    };
+    // Since creating REPL operates on Flash,
+    // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+    if (thread_config.stack_in_ext) {
+        BROOKESIA_LOGD("Creating REPL in new thread");
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        boost::thread(create_repl_func).join();
+    } else {
+        BROOKESIA_LOGD("Creating REPL in current thread");
+        create_repl_func();
+    }
+    BROOKESIA_CHECK_ESP_ERR_RETURN(result, false, "Failed to create UART REPL");
 
     auto start_result = esp_console_start_repl(repl);
     BROOKESIA_CHECK_ESP_ERR_RETURN(start_result, false, "Failed to start REPL");

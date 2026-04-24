@@ -156,12 +156,14 @@ The typical build and flash steps for an example project are as follows:
 
          These projects include an ``idf_ext.py`` script in the project directory. Compared with regular example projects that simply depend on ``esp_board_manager``, this script provides a few extra conveniences:
 
-            - No manual ``IDF_EXTRA_ACTIONS_PATH`` setup is required.
-            - When a board is selected, ``esp_board_manager`` and ``brookesia_hal_boards`` are downloaded automatically based on the dependencies declared in ``idf_component.yml``.
-            - When ``idf.py gen-bmgr-config`` is executed, the script automatically adds the ``-c`` option to point to a ``boards/`` directory and searches in the following order:
-               1. The project's local ``boards/`` directory.
-               2. The ``boards/`` directory inside the ``brookesia_hal_boards`` component.
-            - If needed, you can still provide a custom directory manually with the ``-c`` option.
+         - No manual ``IDF_EXTRA_ACTIONS_PATH`` setup is required.
+         - When a board is selected, ``esp_board_manager`` and ``brookesia_hal_boards`` are downloaded automatically based on the dependencies declared in ``idf_component.yml``.
+         - When ``idf.py gen-bmgr-config`` is executed, the script automatically adds the ``-c`` option to point to a ``boards/`` directory and searches in the following order: the project's local ``boards/`` directory first, then the ``boards/`` directory inside the ``brookesia_hal_boards`` component.
+         - If needed, you can still provide a custom directory manually with the ``-c`` option.
+
+      .. note::
+
+         Refer to :ref:`HAL Board Support <hal-boards-sec-02>` for the full list of supported boards.
 
 2. Optional configuration:
 

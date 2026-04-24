@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.3 - 2026-04-21
+
+### Enhancements:
+
+- feat(agent): route the new half-duplex chat mode to XiaoZhi's real-time listening backend at start-listening
+
+### Bug Fixes:
+
+- fix(agent): increase `start` operation timeout from 5000 ms to 10000 ms
+
 ## v0.7.2 - 2026-04-10
 
 ### Breaking Changes:

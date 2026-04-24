@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.7 - 2026-04-20
+
+### Bug Fixes:
+
+- fix(memory_profiler): compare `*FreePercent` thresholds by byte ratio to avoid integer-truncation false positives
+
 ## v0.7.6 - 2026-04-10
 
 ### Breaking Changes:

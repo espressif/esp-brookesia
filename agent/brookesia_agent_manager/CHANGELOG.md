@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.5 - 2026-04-21
+
+### Enhancements:
+
+- feat(kconfig): make the default chat mode configurable (HalfDuplex / RealTime / Manual) instead of hard-coded
+- feat(base): gate the speaker/mic by speaking/listening state in half-duplex mode
+
 ## v0.7.4 - 2026-04-10
 
 ### Breaking Changes:

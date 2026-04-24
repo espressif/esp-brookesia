@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.6 - 2026-04-22
+
+### Bug Fixes:
+
+- fix(deps): correct `esp_hosted` version constraint to `2.12.3` to fix the compatibility issue with the `2.12.5` version
+
 ## v0.7.5 - 2026-04-10
 
 ### Breaking Changes:

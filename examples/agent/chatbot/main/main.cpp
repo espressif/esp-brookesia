@@ -38,6 +38,7 @@ extern "C" void app_main(void)
     esp_log_level_set("NEW_DATA_BUS", ESP_LOG_WARN);
     esp_log_level_set("ESP_XIAOZHI_MQTT", ESP_LOG_WARN);
     esp_log_level_set("ESP_XIAOZHI_CHAT", ESP_LOG_WARN);
+    esp_log_level_set("AFE", ESP_LOG_ERROR);
 
     /* Initialize all devices from HAL adaptor */
 #if CONFIG_SOC_CPU_CORES_NUM > 1
@@ -84,6 +85,7 @@ extern "C" void app_main(void)
     auto setup_task = [backend_scheduler]() {
         /* Initialize general services */
         GeneralServices::get_instance().init(backend_scheduler);
+        GeneralServices::get_instance().init_audio();
         GeneralServices::get_instance().start_nvs();
         GeneralServices::get_instance().start_sntp();
 
@@ -122,12 +124,6 @@ extern "C" void app_main(void)
         });
         Profiler::get_instance().start_thread_profiler(false);
         Profiler::get_instance().start_memory_profiler(false);
-
-        auto complete_log_task = []() {
-            BROOKESIA_LOGI("\n\n=== Agent Chatbot Example Completed ===\n");
-        };
-        auto result = backend_scheduler->post_delayed(std::move(complete_log_task), 10000);
-        BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to post delayed complete log task");
     };
     auto post_result = backend_scheduler->post(std::move(setup_task));
     BROOKESIA_CHECK_FALSE_EXIT(post_result, "Failed to post setup task");

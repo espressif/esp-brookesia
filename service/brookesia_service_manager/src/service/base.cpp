@@ -887,7 +887,12 @@ void ServiceBase::try_override_connection_request_handler()
             auto result = function_registry_->call(method, std::move(parameters));
             if (result.success)
             {
-                response.result = std::move(BROOKESIA_DESCRIBE_TO_JSON(result.data));
+                // Serialize the entire FunctionResult (success / error_message / data) so the
+                // RPC client can deserialize it back into FunctionResult in
+                // Client::on_response(). Sending only `result.data` here used to break the
+                // client-side BROOKESIA_DESCRIBE_FROM_JSON whenever the function returned a
+                // non-empty payload (e.g. NVS.List), producing "Failed to parse result".
+                response.result = std::move(BROOKESIA_DESCRIBE_TO_JSON(result));
             } else
             {
                 response.error = rpc::ResponseError{

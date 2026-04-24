@@ -7,7 +7,6 @@
 .github/tools/build_with_board_manager.sh
 .github/tools/generate_launchpad_config.sh
 .github/tools/generate_launchpad_index.sh
-.github/tools/get_boards_name.sh
 .github/tools/get_example_version.sh
 
 .gitlab/tools/run_test_apps.py

@@ -726,8 +726,19 @@ bool XiaoZhi::on_agent_event(int32_t event_id)
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
             trigger_general_event(GeneralEvent::Awake);
         };
-        if (get_chat_mode() == ChatMode::RealTime) {
-            auto ret = esp_xiaozhi_chat_send_start_listening(chat_handle_, ESP_XIAOZHI_CHAT_LISTENING_MODE_REALTIME);
+        int mode = -1;
+        switch (get_chat_mode()) {
+        case ChatMode::HalfDuplex:
+            mode = ESP_XIAOZHI_CHAT_LISTENING_MODE_REALTIME;
+            break;
+        case ChatMode::RealTime:
+            mode = ESP_XIAOZHI_CHAT_LISTENING_MODE_REALTIME;
+            break;
+        default:
+            break;
+        }
+        if (mode != -1) {
+            auto ret = esp_xiaozhi_chat_send_start_listening(chat_handle_, mode);
             BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {
                 task_func = [this]()
                 {

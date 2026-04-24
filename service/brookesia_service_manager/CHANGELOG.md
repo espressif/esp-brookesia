@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.7 - 2026-04-23
+
+### Bug Fixes:
+
+- fix(rpc): serialize full `FunctionResult` in async RPC path
+
 ## v0.7.6 - 2026-04-10
 
 ### Enhancements:

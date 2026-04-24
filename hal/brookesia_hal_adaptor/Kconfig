@@ -193,6 +193,24 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             help
                 Enable the LCD panel.
 
+        if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL
+            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_H_RES
+                int "Horizontal resolution in pixels"
+                default 0
+                range 0 65535
+                help
+                    The horizontal resolution of the display LCD panel, in pixels.
+                    This value is used to provide the LCD panel resolution information for the CMake stage.
+
+            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_V_RES
+                int "Vertical resolution in pixels"
+                default 0
+                range 0 65535
+                help
+                    The vertical resolution of the display LCD panel, in pixels.
+                    This value is used to provide the LCD panel resolution information for the CMake stage.
+        endif
+
         menuconfig BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
             bool "LCD Touch"
             depends on ESP_BOARD_DEV_LCD_TOUCH_I2C_SUPPORT

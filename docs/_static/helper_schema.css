@@ -74,3 +74,57 @@
   font-size: 1.05em;
   line-height: 1.4;
 }
+
+/* ---------------------------------------------------------------------------
+ * Opt-in wide table (applied by adding `:class: wide-table` to a list-table).
+ *
+ * Allows a single table to break out of the normal .wy-nav-content column
+ * width without affecting any other table on the page. Uses the :has()
+ * selector (Chrome 105+, Firefox 121+, Safari 15.4+) so only the wrapper of
+ * a `.wide-table` table is widened.
+ * ------------------------------------------------------------------------- */
+
+.rst-content div.wy-table-responsive:has(> table.wide-table) {
+  /* Extra horizontal room to claim beyond the normal content column. Tune
+   * this number if the table is still cramped or if it overflows into the
+   * page margin on smaller monitors. */
+  --wide-table-extend: 280px;
+
+  width: calc(100% + var(--wide-table-extend));
+  max-width: calc(100% + var(--wide-table-extend));
+  /* Push the extra width to the right, where .wy-nav-content typically has
+   * empty space next to the sidebar. This avoids overlapping the left nav. */
+  margin-right: calc(-1 * var(--wide-table-extend));
+}
+
+/* Make the table fill the widened wrapper and honor :widths: strictly. */
+.rst-content table.docutils.wide-table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+/* Prevent aggressive word-breaking only inside the wide table, so tokens
+ * like "Wi-Fi", "ESP32-S3", or C++ identifiers don't get split mid-word. */
+.rst-content table.docutils.wide-table td,
+.rst-content table.docutils.wide-table th {
+  word-break: normal;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+/* Keep line-block rows tight inside the wide table's cells. */
+.rst-content table.docutils.wide-table td .line-block {
+  margin-bottom: 0;
+  line-height: 1.4;
+}
+
+/* Narrow-viewport fallback: on screens that can't accommodate the break-out,
+ * drop back to the normal content width and rely on .wy-table-responsive's
+ * built-in horizontal scrollbar instead. */
+@media (max-width: 1280px) {
+  .rst-content div.wy-table-responsive:has(> table.wide-table) {
+    width: auto;
+    max-width: 100%;
+    margin-right: 0;
+  }
+}

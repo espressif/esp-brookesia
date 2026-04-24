@@ -277,7 +277,12 @@ bool Base::feed_audio_decoder_data(const uint8_t *data, size_t data_size)
 
     // Skip if the agent is speaking disabled
     if (is_speaking_disabled()) {
-        // BROOKESIA_LOGD("Speaking is disabled, skip");
+        BROOKESIA_LOGD("Speaking is disabled, skip");
+        return true;
+    }
+
+    if ((get_chat_mode() == ChatMode::HalfDuplex) && is_listening()) {
+        BROOKESIA_LOGD("HalfDuplex mode and listening, skip");
         return true;
     }
 
@@ -757,8 +762,13 @@ bool Base::start_audio_encoder()
 
         // BROOKESIA_LOGD("Params: event_name(%1%), item(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(item));
 
-        // Skip if the agent is speaking disabled
+        // Skip if the agent is speaking disabled or in HalfDuplex mode and listening
         if (is_listening_disabled()) {
+            // BROOKESIA_LOGD("Listening is disabled, skip");
+            return;
+        }
+        if ((get_chat_mode() == ChatMode::HalfDuplex) && is_speaking()) {
+            BROOKESIA_LOGD("HalfDuplex mode and speaking, skip");
             return;
         }
 

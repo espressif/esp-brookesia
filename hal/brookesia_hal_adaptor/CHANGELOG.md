@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.2 - 2026-04-20
+
+### Enhancements:
+
+- feat(storage): resolve SD card via `ESP_BOARD_DEVICE_NAME_FS_SDCARD` instead of `ESP_BOARD_DEVICE_NAME_FS_FAT`
+- feat(kconfig): expose LCD panel horizontal/vertical resolution at the CMake stage
+
 ## v0.7.1 - 2026-04-10
 
 ### Breaking Changes:

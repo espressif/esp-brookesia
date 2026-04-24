@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.8 - 2026-04-20
+
+### Breaking Changes:
+
+- break(expression/emote): drop `.require_scheduler = false` so emote functions now run via the service scheduler
+
+### Bug Fixes:
+
+- fix(audio): set `stack_in_ext = false` for playback task to prevent crashes caused by tasks operating on Flash
+
 ## v0.7.7 - 2026-04-10
 
 ### Breaking Changes:

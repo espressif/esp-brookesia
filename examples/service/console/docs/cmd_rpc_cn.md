@@ -115,16 +115,16 @@ svc_rpc_server disconnect -s NVS,Wifi
 
 ### 调用远程服务函数
 
-调用无参数的远程函数：
-
-```bash
-svc_rpc_call 192.168.1.100 NVS List
-```
-
 调用带参数的远程函数：
 
 ```bash
 svc_rpc_call 192.168.1.100 NVS Set {"KeyValuePairs":{"key1":"value1"}}
+```
+
+调用无参数的远程函数：
+
+```bash
+svc_rpc_call 192.168.1.100 NVS List
 ```
 
 使用自定义端口和超时时间（10 秒）调用：

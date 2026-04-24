@@ -9,6 +9,13 @@
 #include "brookesia/service_helper/wifi.hpp"
 #include "wifi_provisioning.hpp"
 
+/* The following WiFi credentials are used for CI test. Please ignore them if you are not running CI test. */
+#if defined(CI_TEST_WIFI_2_4G_AP1_SSID) && defined(CI_TEST_WIFI_2_4G_AP1_PSW)
+#  define CI_TEST_WIFI_ENABLED 1
+#else
+#  define CI_TEST_WIFI_ENABLED 0
+#endif
+
 using namespace esp_brookesia;
 
 using WifiHelper = service::helper::Wifi;
@@ -52,13 +59,17 @@ bool WifiProvisioning::start()
         auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(get_aps_result.value(), saved_aps);
         BROOKESIA_CHECK_FALSE_EXIT(parse_result, "Failed to parse connected APs");
 
+#if !CI_TEST_WIFI_ENABLED
         if (saved_aps.empty()) {
             BROOKESIA_LOGI("No connected APs, starting SoftAP provisioning");
             start_softap_provision_flow();
         } else {
+#endif
             BROOKESIA_LOGI("Found connectable AP, starting STA connect flow");
             start_sta_connect_flow();
+#if !CI_TEST_WIFI_ENABLED
         }
+#endif
     };
 
     return config_.task_scheduler->post(std::move(run_connect_or_provision));
@@ -88,6 +99,17 @@ void WifiProvisioning::start_sta_connect_flow()
 
     auto conn = WifiHelper::subscribe_event(WifiHelper::EventId::GeneralEventHappened, on_sta_general_event);
     active_conn_ = std::make_shared<service::EventRegistry::SignalConnection>(std::move(conn));
+
+#if CI_TEST_WIFI_ENABLED
+    auto set_connect_ap_result = WifiHelper::call_function_sync(
+                                     WifiHelper::FunctionId::SetConnectAp,
+                                     CI_TEST_WIFI_2_4G_AP1_SSID,
+                                     CI_TEST_WIFI_2_4G_AP1_PSW
+                                 );
+    if (!set_connect_ap_result) {
+        BROOKESIA_LOGE("Failed to set connect AP: %1%", set_connect_ap_result.error());
+    }
+#endif
 
     auto start_result = WifiHelper::call_function_sync(
                             WifiHelper::FunctionId::TriggerGeneralAction,

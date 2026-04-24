@@ -36,13 +36,20 @@ This example demonstrates how to build a complete AI voice chatbot based on the 
 
 ### Hardware Requirements
 
-This example uses the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component to manage hardware and supports the following development boards:
+This example manages hardware through the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component, and supports development boards that meet the following requirements:
 
-- ESP-VoCat V1.0
-- ESP-VoCat V1.2
-- ESP32-S3-BOX-3
-- ESP32-S3-Korvo-2 V3
-- ESP32-P4-Function-EV-Board
+- Flash >= 16MB
+- PSRAM >= 8MB
+- Support Wi-Fi
+- Support the following interfaces:
+
+  - `AudioCodecPlayer`
+  - `AudioCodecRecorder`
+  - `DisplayPanel`
+  - `DisplayTouch`
+  - `StorageFs`
+
+Please refer to the [ESP-Brookesia Programming Guide - Supported Boards](https://docs.espressif.com/projects/esp-brookesia/en/latest/hal/boards/index.html#hal-boards-sec-02) for a list of supported development boards.
 
 ### Development Environment
 
@@ -83,7 +90,9 @@ When the device powers on, it checks whether Wi-Fi credentials have already been
 
 ### Voice Interaction
 
-Once the AI agent starts, you can begin talking to it. While the AI is responding, the screen shows matching expression animations. After the conversation ends, the device automatically returns to the standby state.
+Once the AI agent starts, you can begin talking to it. The default configuration is half-duplex mode, that is, the Agent will not listen to human voice when speaking, but can be interrupted by the wake word (default: `"Hi,ESP"`) to start listening to human voice.
+
+While the Agent is responding, the screen shows matching expression animations. After the conversation ends, the device automatically returns to the standby state.
 
 During conversations, the XiaoZhi agent can proactively call MCP tools to operate the device, for example:
 

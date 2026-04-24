@@ -437,6 +437,18 @@ bool MemoryProfiler::check_threshold(const ProfileSnapshot &snapshot, ThresholdT
 {
     auto &stats = snapshot.stats;
     auto &memory = snapshot.memory;
+
+    // Compare `free / total <= threshold / 100` in bytes without losing precision to the
+    // integer-truncated `free_percent` (which can drop ~0.99 percentage points and cause
+    // false positives right at the threshold boundary).
+    auto is_free_ratio_at_or_below = [](size_t free_bytes, size_t total_bytes, uint32_t threshold_percent) {
+        if (total_bytes == 0) {
+            return false;
+        }
+        return static_cast<uint64_t>(free_bytes) * 100u <=
+               static_cast<uint64_t>(threshold_percent) * static_cast<uint64_t>(total_bytes);
+    };
+
     switch (type) {
     case ThresholdType::TotalFree:
         return memory.total_free <= threshold_value;
@@ -445,11 +457,11 @@ bool MemoryProfiler::check_threshold(const ProfileSnapshot &snapshot, ThresholdT
     case ThresholdType::ExternalFree:
         return memory.external.free_size <= threshold_value;
     case ThresholdType::TotalFreePercent:
-        return memory.total_free_percent <= threshold_value;
+        return is_free_ratio_at_or_below(memory.total_free, memory.total_size, threshold_value);
     case ThresholdType::InternalFreePercent:
-        return memory.internal.free_percent <= threshold_value;
+        return is_free_ratio_at_or_below(memory.internal.free_size, memory.internal.total_size, threshold_value);
     case ThresholdType::ExternalFreePercent:
-        return memory.external.free_percent <= threshold_value;
+        return is_free_ratio_at_or_below(memory.external.free_size, memory.external.total_size, threshold_value);
     case ThresholdType::TotalLargestFreeBlock:
         return memory.total_largest_free_block <= threshold_value;
     case ThresholdType::InternalLargestFreeBlock:
@@ -462,12 +474,14 @@ bool MemoryProfiler::check_threshold(const ProfileSnapshot &snapshot, ThresholdT
         return stats.min_internal_free <= threshold_value;
     case ThresholdType::MinExternalFree:
         return stats.min_external_free <= threshold_value;
+    // Min*FreePercent: total_size is fixed across the session, so compare the byte-accurate
+    // min_*_free against the current total_size to avoid the same truncation issue.
     case ThresholdType::MinTotalFreePercent:
-        return stats.min_total_free_percent <= threshold_value;
+        return is_free_ratio_at_or_below(stats.min_total_free, memory.total_size, threshold_value);
     case ThresholdType::MinInternalFreePercent:
-        return stats.min_internal_free_percent <= threshold_value;
+        return is_free_ratio_at_or_below(stats.min_internal_free, memory.internal.total_size, threshold_value);
     case ThresholdType::MinExternalFreePercent:
-        return stats.min_external_free_percent <= threshold_value;
+        return is_free_ratio_at_or_below(stats.min_external_free, memory.external.total_size, threshold_value);
     case ThresholdType::MinTotalLargestFreeBlock:
         return stats.min_total_largest_free_block <= threshold_value;
     case ThresholdType::MinInternalLargestFreeBlock:
