@@ -1,4 +1,15 @@
 menu "Example Configuration"
+    menu "Board Configuration"
+        config BROOKESIA_BOARD_CAPABILITY_BATTERY_STATUS
+            bool "Battery status capability"
+            default n
+            help
+                Enable battery status support for boards that expose the
+                charging-state and battery-voltage ADC peripherals required by
+                the chatbot battery monitor.
+
+    endmenu
+
     menuconfig EXAMPLE_AGENTS_ENABLE_COZE
         bool "Enable Coze agent"
         select BROOKESIA_AGENT_COZE_ENABLE_AUTO_REGISTER

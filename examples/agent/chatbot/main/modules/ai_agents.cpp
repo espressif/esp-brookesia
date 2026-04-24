@@ -20,6 +20,7 @@ using OpenaiHelper = esp_brookesia::agent::helper::Openai;
 using XiaoZhiHelper = esp_brookesia::agent::helper::XiaoZhi;
 using EmoteHelper = esp_brookesia::service::helper::ExpressionEmote;
 using AudioHelper = esp_brookesia::service::helper::Audio;
+using BatteryHelper = esp_brookesia::service::helper::Battery;
 using WifiHelper = esp_brookesia::service::helper::Wifi;
 
 #define XIAO_ZHI_AUDIO_URL_PREFIX "file://spiffs/xiaozhi/"
@@ -31,6 +32,58 @@ constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
 extern const char coze_private_key_pem_start[] asm("_binary_private_key_pem_start");
 extern const char coze_private_key_pem_end[]   asm("_binary_private_key_pem_end");
 #endif // CONFIG_EXAMPLE_AGENTS_ENABLE_COZE
+
+namespace {
+service::FunctionResult make_battery_status_result()
+{
+    auto status_result = BatteryHelper::call_function_sync<boost::json::object>(BatteryHelper::FunctionId::GetStatus);
+    if (!status_result) {
+        return service::FunctionResult{
+            .success = false,
+            .error_message = status_result.error(),
+        };
+    }
+
+    return service::FunctionResult{
+        .success = true,
+        .data = std::move(status_result.value()),
+    };
+}
+
+service::FunctionResult make_device_status_result()
+{
+    boost::json::object root;
+
+    boost::json::object audio_speaker;
+    auto volume_result = AudioHelper::call_function_sync<double>(AudioHelper::FunctionId::GetVolume);
+    if (volume_result) {
+        audio_speaker["volume"] = volume_result.value();
+    }
+    root["audio_speaker"] = std::move(audio_speaker);
+
+    boost::json::object screen;
+    auto [backlight_name, backlight_iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
+    if (backlight_iface) {
+        uint8_t brightness = 0;
+        if (backlight_iface->get_brightness(brightness)) {
+            screen["brightness"] = brightness;
+        }
+    }
+    root["screen"] = std::move(screen);
+
+    if (BatteryHelper::is_running()) {
+        auto battery_result = BatteryHelper::call_function_sync<boost::json::object>(BatteryHelper::FunctionId::GetStatus);
+        if (battery_result) {
+            root["battery"] = std::move(battery_result.value());
+        }
+    }
+
+    return service::FunctionResult{
+        .success = true,
+        .data = std::move(root),
+    };
+}
+} // namespace
 
 bool AI_Agents::init(const Config &config)
 {
@@ -197,6 +250,37 @@ void AI_Agents::init_xiaozhi()
     BROOKESIA_LOGI("Added service tools: %1%", add_service_tools_result.value());
 
     std::vector<mcp_utils::CustomTool> custom_tools;
+
+    custom_tools.push_back({
+        .schema = {
+            .name = "Device.GetStatus",
+            .description =
+            "Get the current device status (设备当前状态), including speaker volume, screen brightness, "
+            "and battery status when available. Use this tool first for questions like 当前状态、音量多少、亮度多少、电量多少.",
+        },
+        .callback = +[](service::FunctionParameterMap &&)
+        {
+            return make_device_status_result();
+        },
+    });
+
+    if (BatteryHelper::is_running()) {
+        custom_tools.push_back({
+            .schema = {
+                .name = "Battery.GetStatus",
+                .description =
+                "Get current battery status (电量 / 电池百分比 / 剩余电量 / 是否充电). "
+                "Use this tool whenever the user asks about battery level, remaining power, or charging state. "
+                "Do not use volume or brightness tools for battery questions. "
+                "Return object fields: level, charging, discharging, voltage_mv.",
+            },
+            .callback = +[](service::FunctionParameterMap &&)
+            {
+                return make_battery_status_result();
+            },
+        });
+    }
+
     auto [backlight_name, backlight_iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
     if (backlight_iface) {
         std::vector<mcp_utils::CustomTool> display_tools = {
@@ -370,6 +454,7 @@ void AI_Agents::init_xiaozhi()
             custom_tools.push_back(std::move(tool));
         }
     }
+
     if (!custom_tools.empty()) {
         auto add_custom_tools_result = XiaoZhiHelper::call_function_sync<boost::json::array>(
                                            XiaoZhiHelper::FunctionId::AddMCP_ToolsWithCustomFunction,
