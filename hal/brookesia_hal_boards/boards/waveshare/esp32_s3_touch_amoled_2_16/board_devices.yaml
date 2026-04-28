@@ -1,0 +1,135 @@
+# Devices Configuration
+devices:
+  - name: axp2101_power_manager
+    chip: axp2101
+    type: custom
+    version: default
+    config:
+      frequency: 400000
+      i2c_addr: 0x34
+    peripherals:
+      - name: i2c_master
+
+  - name: audio_dac
+    chip: es8311  # Codec chip (ES8311)
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: false
+      # DAC Configuration (for audio output)
+      dac_enabled: true
+      dac_max_channel: 1     # ES8311 support 1 DAC channel (default right channel, REG:0x09 - SDP_IN_SEL)
+      dac_channel_mask: "1"  # Enable left channel
+      mclk_enabled: true
+
+    peripherals:
+      - name: gpio_pa_control
+        gain: 6
+        active_level: 1
+
+      # I2S interface for audio output
+      - name: i2s_audio_out
+
+      # I2C interface for codec control
+      - name: i2c_master
+        address: 0x30
+        frequency: 400000
+
+  - name: audio_adc
+    chip: es7210  # Codec chip (ES7210)
+    type: audio_codec
+    version: default
+    config:
+      adc_enabled: true
+      adc_max_channel: 2            # ES7210 support 1 ADC channel and 1 DAC echo channel, default:ADCL + DACR, refer 8311 datasheet REG44 `ADCDAT_SEL`
+      adc_enabled: true
+      adc_channel_mask: "0111"        # Enable both left and right channels
+      adc_channel_labels: ['NA', 'RE', 'FR', 'FL'] # DAC reference and ADC microphone
+      adc_init_gain: 0                 # dB
+
+    # Peripheral configuration
+    peripherals:
+      # I2S interface for audio input
+      - name: i2s_audio_in
+
+      # I2C interface for codec control
+      - name: i2c_master
+        address: 0x80
+        frequency: 400000
+
+  # LCD Display Configuration
+  - name: display_lcd
+    chip: co5300
+    type: display_lcd
+    sub_type: spi
+    version: default
+    dependencies:
+      espressif/esp_lcd_co5300: "^2"
+    config:
+      x_max: 480
+      y_max: 480
+      need_reset: false
+      # esp_lcd_panel_io_spi_config_t fields
+      io_spi_config:
+        cs_gpio_num: 12                   # GPIO14 - LCD_CS (BSP_LCD_CS)
+        spi_mode: 0                       # Traditional SPI mode (0~3)
+        lcd_cmd_bits: 32                   # Bit-width of LCD command
+        flags:
+          quad_mode: true                 # Quad mode (4 data lines) - ST77916 uses quad mode
+
+      lcd_panel_config:
+        reset_gpio_num: 39
+        vendor_config: NULL
+
+    peripherals:
+    - name: spi_display                  # SPI peripheral for LCD communication
+
+  # Touch Panel Configuration
+  - name: lcd_touch
+    chip: cst9217
+    type: lcd_touch_i2c
+    version: default
+    dependencies:
+      waveshare/esp_lcd_touch_cst9217: "^1"
+    config:
+      io_i2c_config:
+        dev_addr: [0x5a]
+        lcd_cmd_bits: 8
+        scl_speed_hz: 400000
+        peripherals:
+          - name: i2c_master
+
+      # esp_lcd_touch_config_t fields for touch configuration
+      touch_config:
+        x_max: 480                        # Maximum X coordinate (BSP_LCD_H_RES)
+        y_max: 480                        # Maximum Y coordinate (BSP_LCD_V_RES)
+        rst_gpio_num: 40
+        int_gpio_num: 11                  # Interrupt GPIO (BSP_LCD_TOUCH_INT)
+        flags:
+          swap_xy: true
+          mirror_x: false
+          mirror_y: true
+
+  - name: fs_sdcard
+    type: fs_fat
+    sub_type: sdmmc
+    version: default
+    config:
+      vfs_config:
+        format_if_mount_failed: true
+      sub_config:
+        bus_width: 1                      # 1, 4, or 8 for slot 0; 1 or 4 for slot 1
+        slot_flags: "SDMMC_SLOT_FLAG_INTERNAL_PULLUP" # SDMMC_SLOT_FLAG_INTERNAL_PULLUP, SDMMC_SLOT_FLAG_WP_ACTIVE_HIGH, SDMMC_SLOT_FLAG_UHS1
+        pins:
+          clk: 2                         # GPIO_NUM_16
+          cmd: 1                         # GPIO_NUM_38
+          d0: 3                          # GPIO_NUM_17
+
+  - name: fs_spiffs          # The name of the device, must be unique
+    type: fs_spiffs          # The type of the device, must be unique
+    version: 1.0.0
+    config:
+      base_path: "/spiffs"            # The base path for mounting the SPIFFS filesystem
+      partition_label: "spiffs_data"  # The partition label for the SPIFFS filesystem
+      max_files: 5                    # The maximum number of files that can be open simultaneously
+      format_if_mount_failed: false   # Format the card if mount fails
