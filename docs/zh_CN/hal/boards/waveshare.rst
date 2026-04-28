@@ -25,3 +25,15 @@
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+   * - ``esp32_s3_touch_amoled_2_16``
+     - - *ESP32-S3*
+       - *支持 Wi-Fi*
+       - *Flash 16MB*
+       - *PSRAM 8MB*
+     - `ESP32-S3-Touch-AMOLED-2.16 <https://docs.waveshare.net/ESP32-S3-Touch-AMOLED-2.16>`_
+     - | :cpp:class:`AudioCodecPlayer <esp_brookesia::hal::AudioCodecPlayerIface>`
+       | :cpp:class:`AudioCodecRecorder <esp_brookesia::hal::AudioCodecRecorderIface>`
+       | :cpp:class:`DisplayPanel <esp_brookesia::hal::DisplayPanelIface>`
+       | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
+       | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
+       | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
