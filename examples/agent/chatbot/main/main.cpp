@@ -85,9 +85,10 @@ extern "C" void app_main(void)
     auto setup_task = [backend_scheduler]() {
         /* Initialize general services */
         GeneralServices::get_instance().init(backend_scheduler);
-        GeneralServices::get_instance().init_audio();
         GeneralServices::get_instance().start_nvs();
         GeneralServices::get_instance().start_sntp();
+        GeneralServices::get_instance().start_device();
+        GeneralServices::get_instance().init_audio();
 
         /* Initialize AI agents */
         AI_Agents::get_instance().init({

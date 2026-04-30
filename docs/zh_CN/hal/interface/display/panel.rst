@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-公共头文件： ``#include "brookesia/hal_interface/display/panel.hpp"``
+公共头文件： ``#include "brookesia/hal_interface/interfaces/display/panel.hpp"``
 
 .. _hal-interface-display-panel-sec-01:
 

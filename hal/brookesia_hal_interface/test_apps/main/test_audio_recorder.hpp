@@ -6,7 +6,7 @@
 #pragma once
 
 #include "brookesia/hal_interface/device.hpp"
-#include "brookesia/hal_interface/audio/codec_recorder.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
 
 namespace esp_brookesia {
 

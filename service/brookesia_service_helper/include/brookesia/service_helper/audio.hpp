@@ -513,7 +513,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetVolume),
-            .description = "Set playback volume.",
+            .description = "Set playback volume. [Deprecated] Use `Device::SetAudioPlayerVolume` instead.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetVolumeParam::Volume),
@@ -528,7 +528,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetVolume),
-            .description = "Get playback volume. Return type: number. Example: 70",
+            .description = "Get playback volume. Return type: number. Example: 70. [Deprecated] Use `Device::GetAudioPlayerVolume` instead.",
             .require_scheduler = false
         };
     }
@@ -537,7 +537,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::SetMute),
-            .description = "Set playback mute.",
+            .description = "Set playback mute. [Deprecated] Use `Device::SetAudioPlayerMute` instead.",
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetMuteParam::Enable),
@@ -632,7 +632,7 @@ private:
     {
         return {
             .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ResetData),
-            .description = "Reset audio data. Includes player volume.",
+            .description = "Reset audio data. Includes player volume. [Deprecated] Use `Device::ResetData` instead.",
         };
     }
 

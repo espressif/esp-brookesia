@@ -28,6 +28,7 @@ jobs:
             hal/brookesia_hal_interface;
             service/brookesia_service_audio;
             service/brookesia_service_custom;
+            service/brookesia_service_device;
             service/brookesia_service_helper;
             service/brookesia_service_manager;
             service/brookesia_service_nvs;

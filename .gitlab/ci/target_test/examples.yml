@@ -67,6 +67,30 @@ target_test_examples_service_console:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: examples/service/console
     TEST_ENV: ${ENV_TAG}
+# service/device
+target_test_examples_service_device:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_service_device
+  needs:
+    - job: "build_examples_service_device"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix:
+      - IDF_TARGET: esp32s3
+        IDF_VERSION: "5.5"
+        ENV_TAG: "esp_vocat"
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "5.5"
+        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/service/device
+    TEST_ENV: ${ENV_TAG}
 # service/nvs
 target_test_examples_service_nvs:
   extends:

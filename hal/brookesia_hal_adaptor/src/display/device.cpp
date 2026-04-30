@@ -18,21 +18,6 @@
 
 namespace esp_brookesia::hal {
 
-bool DisplayDevice::set_ledc_backlight_info(DisplayBacklightIface::Info info)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: info(%1%)", BROOKESIA_DESCRIBE_TO_STR(info));
-
-    BROOKESIA_CHECK_FALSE_RETURN(
-        !is_iface_initialized(LEDC_BACKLIGHT_IMPL_NAME), false, "Should called before initializing LEDC backlight"
-    );
-
-    ledc_backlight_info_ = info;
-
-    return true;
-}
-
 bool DisplayDevice::probe()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -123,8 +108,7 @@ bool DisplayDevice::init_ledc_backlight()
 
     std::shared_ptr<LedcDisplayBacklightImpl> iface = nullptr;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        iface = std::make_shared<LedcDisplayBacklightImpl>(ledc_backlight_info_), false,
-        "Failed to create LEDC backlight interface"
+        iface = std::make_shared<LedcDisplayBacklightImpl>(), false, "Failed to create LEDC backlight interface"
     );
     lib_utils::FunctionGuard iface_delete_guard([this, &iface]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

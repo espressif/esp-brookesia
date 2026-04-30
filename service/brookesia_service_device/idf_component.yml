@@ -1,0 +1,20 @@
+version: "0.7.0"
+description: ESP-Brookesia device control service which provides application-layer access to HAL-backed control and status interfaces.
+url: https://github.com/espressif/esp-brookesia/tree/master/service/brookesia_service_device
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_hal_interface:
+    version: "0.7.*"
+    override_path: "../../hal/brookesia_hal_interface"
+    require: private
+
+  espressif/brookesia_service_helper:
+    version: "0.7.*"
+    override_path: "../brookesia_service_helper"
+    require: public
+
+examples:
+  - path: ../../examples/agent/chatbot
+  - path: ../../examples/service/console
+  - path: ../../examples/service/device

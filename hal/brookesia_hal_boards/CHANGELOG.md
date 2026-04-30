@@ -1,5 +1,19 @@
 # ChangeLog
 
+## v0.7.3 - 2026-04-30
+
+### Enhancements:
+
+- feat(boards): add `waveshare/esp32_s3_touch_amoled_2_16` board configuration and custom HAL component
+- feat(power): add AXP2101 power manager support for Waveshare AMOLED boards
+- feat(boards): refresh board defaults for HAL adaptor general, display, audio, storage, and power capabilities
+- feat(boards): add battery ADC peripheral configuration for `rymcu_bigsmart`
+
+### Bug Fixes:
+
+- fix(waveshare): clean up AXP2101 I2C resources on initialization failures
+- fix(waveshare): check AMOLED panel creation before using the panel handle
+
 ## v0.7.2 - 2026-04-20
 
 ### Enhancements:

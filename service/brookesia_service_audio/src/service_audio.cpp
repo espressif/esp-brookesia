@@ -25,15 +25,15 @@
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/service_manager/macro_configs.h"
-#include "brookesia/service_helper/nvs.hpp"
-#include "brookesia/hal_interface/audio/codec_player.hpp"
-#include "brookesia/hal_interface/audio/codec_recorder.hpp"
+#include "brookesia/service_helper/device.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
 #include "brookesia/hal_interface/device.hpp"
 #include "brookesia/service_audio/service_audio.hpp"
 
 namespace esp_brookesia::service {
 
-using NVSHelper = helper::NVS;
+using DeviceHelper = helper::Device;
 
 constexpr size_t ENCODER_FETCH_DATA_SIZE_MORE = 100;
 constexpr size_t GET_WAKE_WORDS_THREAD_STACK_SIZE = 5 * 1024;
@@ -61,22 +61,6 @@ inline hal::AudioCodecPlayerIface::Config get_player_config()
         .sample_rate = CONFIG_AUDIO_SIMPLE_PLAYER_RESAMPLE_DEST_RATE,
     };
     return config;
-}
-
-template<typename T>
-void try_save_data(const std::string &nvs_namespace, Audio::DataType type, const T &data)
-{
-    if (!NVSHelper::is_available()) {
-        return;
-    }
-
-    auto key = BROOKESIA_DESCRIBE_TO_STR(type);
-    auto result = NVSHelper::save_key_value(nvs_namespace, key, data);
-    if (!result) {
-        BROOKESIA_LOGW("Failed to save '%1%' to NVS: %2%", key, result.error());
-    } else {
-        BROOKESIA_LOGD("Saved '%1%' to NVS: %2%", key, data);
-    }
 }
 
 /* Workaround for a non-recursive mutex self-deadlock in the closed-source
@@ -169,9 +153,6 @@ bool audio_recorder_close_wrapper(audio_recorder_handle_t recorder_handle)
     return true;
 }
 } // namespace
-
-constexpr uint32_t NVS_SAVE_DATA_TIMEOUT_MS = 20;
-constexpr uint32_t NVS_ERASE_DATA_TIMEOUT_MS = 20;
 
 bool Audio::on_init()
 {
@@ -282,9 +263,6 @@ bool Audio::on_start()
 
     close_player_guard.release();
     close_recorder_guard.release();
-
-    // Try to load data from NVS
-    try_load_data();
 
     return true;
 }
@@ -858,50 +836,18 @@ std::expected<void, std::string> Audio::function_set_volume(double volume)
 
     BROOKESIA_LOGD("Params: volume(%1%)", volume);
 
-    if (!player_iface_) {
-        return std::unexpected("Player interface is not available");
-    }
+    BROOKESIA_LOGW("[Deprecated] Use `Device::SetAudioPlayerVolume` instead.");
 
-    uint8_t old_volume = 0;
-    if (!player_iface_->get_volume(old_volume)) {
-        return std::unexpected("Failed to get volume");
-    }
-
-    if (old_volume == static_cast<uint8_t>(volume)) {
-        BROOKESIA_LOGD("Volume not changed, skip");
-        return {};
-    }
-
-    if (!player_iface_->set_volume(static_cast<uint8_t>(volume))) {
-        return std::unexpected("Failed to set volume");
-    }
-
-    uint8_t new_volume = 0;
-    if (!player_iface_->get_volume(new_volume)) {
-        return std::unexpected("Failed to get volume");
-    }
-
-    if (old_volume != new_volume) {
-        try_save_data(get_attributes().name, DataType::PlayerVolume, new_volume);
-    }
-
-    return {};
+    return DeviceHelper::call_function_sync(DeviceHelper::FunctionId::SetAudioPlayerVolume, volume);
 }
 
 std::expected<double, std::string> Audio::function_get_volume()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!player_iface_) {
-        return std::unexpected("Player interface is not available");
-    }
+    BROOKESIA_LOGW("[Deprecated] Use `Device::GetAudioPlayerVolume` instead.");
 
-    uint8_t volume = 0;
-    if (!player_iface_->get_volume(volume)) {
-        return std::unexpected("Failed to get volume");
-    }
-
-    return static_cast<double>(volume);
+    return DeviceHelper::call_function_sync<double>(DeviceHelper::FunctionId::GetAudioPlayerVolume);
 }
 
 std::expected<void, std::string> Audio::function_set_mute(bool enable)
@@ -910,21 +856,9 @@ std::expected<void, std::string> Audio::function_set_mute(bool enable)
 
     BROOKESIA_LOGD("Params: enable(%1%)", enable);
 
-    if (!player_iface_) {
-        return std::unexpected("Player interface is not available");
-    }
+    BROOKESIA_LOGW("[Deprecated] Use `Device::SetAudioPlayerMute` instead.");
 
-    if (enable) {
-        if (!player_iface_->mute()) {
-            return std::unexpected("Failed to mute player");
-        }
-    } else {
-        if (!player_iface_->unmute()) {
-            return std::unexpected("Failed to unmute player");
-        }
-    }
-
-    return {};
+    return DeviceHelper::call_function_sync(DeviceHelper::FunctionId::SetAudioPlayerMute, enable);
 }
 
 std::expected<void, std::string> Audio::function_start_encoder(const boost::json::object &config)
@@ -1034,76 +968,9 @@ std::expected<void, std::string> Audio::function_reset_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    try_erase_data();
-
-    if (player_iface_) {
-        auto &player_info = player_iface_->get_info();
-        BROOKESIA_CHECK_FALSE_EXECUTE(player_iface_->set_volume(static_cast<uint8_t>(player_info.volume_default)), {}, {
-            BROOKESIA_LOGE("Failed to reset player volume");
-        });
-    }
+    BROOKESIA_LOGW("[Deprecated] Use `Device::ResetData` instead.");
 
     return {};
-}
-
-void Audio::try_load_data()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (is_data_loaded_) {
-        BROOKESIA_LOGD("Data is already loaded, skip");
-        return;
-    }
-
-    if (!NVSHelper::is_available()) {
-        BROOKESIA_LOGD("NVS is not available, skip");
-        return;
-    }
-
-    auto binding = service::ServiceManager::get_instance().bind(NVSHelper::get_name().data());
-    BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind NVS service");
-
-    auto nvs_namespace = get_attributes().name;
-
-    {
-        auto key = BROOKESIA_DESCRIBE_TO_STR(DataType::PlayerVolume);
-        auto result = NVSHelper::get_key_value<uint8_t>(nvs_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGW("Failed to load '%1%' from NVS: %2%", key, result.error());
-            if (player_iface_) {
-                BROOKESIA_CHECK_FALSE_EXECUTE(player_iface_->unmute(), {}, {
-                    BROOKESIA_LOGE("Failed to unmute player");
-                });
-            }
-        } else {
-            auto &volume = result.value();
-            BROOKESIA_LOGD("Loaded '%1%' from NVS: %2%", key, volume);
-            BROOKESIA_CHECK_FALSE_EXECUTE(player_iface_->set_volume(volume), {}, {
-                BROOKESIA_LOGE("Failed to set player volume");
-            });
-        }
-    }
-
-    is_data_loaded_ = true;
-
-    BROOKESIA_LOGI("Loaded all data from NVS");
-}
-
-void Audio::try_erase_data()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (!NVSHelper::is_available()) {
-        BROOKESIA_LOGD("NVS is not available, skip");
-        return;
-    }
-
-    auto result = NVSHelper::erase_keys(get_attributes().name, {}, NVS_ERASE_DATA_TIMEOUT_MS);
-    if (!result) {
-        BROOKESIA_LOGE("Failed to erase NVS data: %1%", result.error());
-    } else {
-        BROOKESIA_LOGI("Erased NVS data");
-    }
 }
 
 bool Audio::start_encoder(const AudioEncoderDynamicConfig &config)

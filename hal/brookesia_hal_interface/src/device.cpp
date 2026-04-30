@@ -302,4 +302,37 @@ void register_post_deinit_callback(Device::PostDeinitCallback callback)
     BROOKESIA_LOGD("Registered global post-deinit callback");
 }
 
+Capabilities get_capabilities()
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    Capabilities capabilities;
+    for (const auto &[instance_name, iface] : InterfaceRegistry::get_all_instances()) {
+        if (!iface) {
+            BROOKESIA_LOGW("Null interface registered: %1%", instance_name);
+            continue;
+        }
+        capabilities[std::string(iface->get_name())].push_back(instance_name);
+    }
+
+    return capabilities;
+}
+
+bool has_interface(std::string_view name)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    for (const auto &[instance_name, iface] : InterfaceRegistry::get_all_instances()) {
+        if (!iface) {
+            BROOKESIA_LOGW("Null interface registered: %1%", instance_name);
+            continue;
+        }
+        if (iface->get_name() == name) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 } // namespace esp_brookesia::hal

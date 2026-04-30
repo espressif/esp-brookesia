@@ -2,7 +2,7 @@
 
 [English Version](./README.md)
 
-本示例演示了如何基于 ESP-Brookesia 框架使用音频服务（`brookesia_service_audio`），涵盖音频文件播放、播放控制、音量管理、编解码回环测试以及 AFE（音频前端）语音活动检测与唤醒词识别等功能。
+本示例演示了如何基于 ESP-Brookesia 框架使用音频服务（`brookesia_service_audio`），涵盖音频文件播放、播放控制、编解码回环测试以及 AFE（音频前端）语音活动检测与唤醒词识别等功能。
 
 ## 📑 目录
 
@@ -16,7 +16,6 @@
   - [🚀 运行说明](#-运行说明)
     - [音频文件播放](#音频文件播放)
     - [播放控制](#播放控制)
-    - [音量管理](#音量管理)
     - [编解码回环测试](#编解码回环测试)
     - [AFE 音频前端](#afe-音频前端)
   - [🔍 故障排除](#-故障排除)
@@ -26,7 +25,6 @@
 
 - 🎵 **音频文件播放**：支持播放单个或多个 URL（本地 SPIFFS / 网络），可配置循环次数、队列追加或打断当前播放
 - ⏯️ **播放控制**：支持暂停、恢复、停止操作，并通过事件订阅实时获取播放状态变化
-- 🔊 **音量管理**：运行时获取与设置播放音量（0–100），音量变更通过 NVS 自动持久化
 - 🎙️ **编解码回环测试**：启动编码器录制麦克风输入，完成后通过解码器回放，支持 PCM、OPUS、G711A 三种格式
 - 🧠 **AFE 音频前端**：集成 VAD（语音活动检测）与 WakeNet（唤醒词识别），通过事件订阅实时响应语音与唤醒事件
 
@@ -34,14 +32,17 @@
 
 ### 硬件要求
 
-本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件，支持以下开发板：
+本示例通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理硬件，支持符合以下条件的开发板：
 
-- ESP-VoCat V1.0
-- ESP-VoCat V1.2
-- ESP32-S3-BOX-3
-- ESP32-S3-Korvo-2 V3
-- ESP32-P4-Function-EV-Board
-- ESP-SensairShuttle
+- Flash >= 16MB
+- PSRAM >= 8MB
+- 支持以下接口：
+
+  - `AudioCodecPlayer`
+  - `AudioCodecRecorder`
+  - `StorageFs`
+
+请参考 [ESP-Brookesia 编程指南 - 支持的开发板](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/index.html#hal-boards-sec-02) 获取支持的开发板列表。
 
 ### 开发环境
 
@@ -93,21 +94,6 @@
   3s 后停止
 ```
 
-### 音量管理
-
-演示音量的读取、修改与验证：
-
-```
-[Demo: Volume Control]
-  读取当前音量
-  设置音量为 90，验证生效
-  播放 8.mp3、9.mp3
-  恢复原始音量并验证
-```
-
-> [!NOTE]
-> 音量变更通过 NVS 自动持久化，断电后保留。
-
 ### 编解码回环测试
 
 依次测试 PCM、OPUS、G711A（非 ESP32-C5）三种格式，每种格式流程如下：
@@ -141,7 +127,6 @@
 
 **无声音输出**
 
-- 检查扬声器连接与音量设置，确认音量大于 0。
 - 确认 SPIFFS 分区已成功烧录（`idf.py flash` 包含分区表和分区内容）。
 
 **编解码回环无声音**

@@ -17,8 +17,8 @@
 #include "brookesia/service_helper/audio.hpp"
 #include "brookesia/service_manager/service/base.hpp"
 #include "brookesia/service_manager/macro_configs.h"
-#include "brookesia/hal_interface/audio/codec_player.hpp"
-#include "brookesia/hal_interface/audio/codec_recorder.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
 #include "brookesia/service_audio/macro_configs.h"
 
 namespace esp_brookesia::service {
@@ -46,14 +46,6 @@ using AudioPlayUrlConfig = helper::Audio::PlayUrlConfig;
 class Audio : public ServiceBase {
 public:
     /**
-     * @brief Persisted data items managed by the audio service.
-     */
-    enum class DataType {
-        PlayerVolume,
-        Max,
-    };
-
-    /**
      * @brief Get the process-wide singleton instance.
      *
      * @return Reference to the singleton audio service.
@@ -70,6 +62,9 @@ private:
     Audio()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .dependencies = {
+            helper::Device::get_name().data(),
+        },
 #if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
             .worker_configs = {
@@ -222,9 +217,6 @@ private:
         };
     }
 
-    void try_load_data();
-    void try_erase_data();
-
     bool start_encoder(const AudioEncoderDynamicConfig &config);
     void stop_encoder();
     bool is_encoder_started() const
@@ -263,9 +255,6 @@ private:
     {
         return afe_wakeup_end_task_ != 0;
     }
-
-    bool is_data_loaded_ = false;
-    std::optional<uint8_t> data_player_volume_ = std::nullopt;
 
     /* HAL related */
     std::shared_ptr<hal::AudioCodecPlayerIface> player_iface_;
@@ -317,7 +306,5 @@ private:
     bool is_afe_vad_detected_ = false;
     lib_utils::TaskScheduler::TaskId afe_wakeup_end_task_ = 0;
 };
-
-BROOKESIA_DESCRIBE_ENUM(Audio::DataType, PlayerVolume, Max)
 
 } // namespace esp_brookesia::service

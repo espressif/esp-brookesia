@@ -12,6 +12,7 @@ target_include_directories(brookesia_service_helper_host_test
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
         ../include
+        ../../../hal/brookesia_hal_interface/include
 )
 
 target_link_libraries(brookesia_service_helper_host_test

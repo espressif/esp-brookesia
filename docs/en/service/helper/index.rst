@@ -35,6 +35,7 @@ Module Overview
 
    Base <base>
    Audio <audio>
+   Device Control <device>
    Emote <emote>
    NVS <nvs>
    SNTP <sntp>

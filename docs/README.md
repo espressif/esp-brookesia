@@ -43,8 +43,8 @@ Make sure the following tools are available in your `PATH`:
   If you only need HTML output, these are not required.
 
 The exporter now compiles directly against local repository components
-(`brookesia_lib_utils`, `brookesia_service_manager`, `brookesia_service_helper`,
-and `brookesia_agent_helper`) without docs-side shim headers.
+(`brookesia_lib_utils`, `brookesia_hal_interface`, `brookesia_service_manager`,
+`brookesia_service_helper`, and `brookesia_agent_helper`) without docs-side shim headers.
 
 Run the remaining commands from the `docs/` directory:
 
