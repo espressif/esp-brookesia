@@ -65,6 +65,8 @@ devices:
     version: default
     dependencies:
       espressif/esp_lcd_co5300: "^2"
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
     config:
       x_max: 480
       y_max: 480

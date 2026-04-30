@@ -4,6 +4,20 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         default n
 
     if BROOKESIA_HAL_ADAPTOR_ENABLE_DEBUG_LOG
+        menu "General"
+            config BROOKESIA_HAL_ADAPTOR_GENERAL_DEVICE_ENABLE_DEBUG_LOG
+                bool "Device"
+                default n
+                help
+                    Enable debug or lower level logs for the general device.
+
+            config BROOKESIA_HAL_ADAPTOR_BOARD_INFO_IMPL_ENABLE_DEBUG_LOG
+                bool "Board Info"
+                default n
+                help
+                    Enable debug or lower level logs for the board info implementation.
+        endmenu
+
         menu "Audio"
             config BROOKESIA_HAL_ADAPTOR_AUDIO_DEVICE_ENABLE_DEBUG_LOG
                 bool "Device"
@@ -63,11 +77,45 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     Enable debug or lower level logs for the storage general file system.
         endmenu
+
+        menu "Power"
+            config BROOKESIA_HAL_ADAPTOR_POWER_DEVICE_ENABLE_DEBUG_LOG
+                bool "Device"
+                default n
+                help
+                    Enable debug or lower level logs for the power device.
+
+            config BROOKESIA_HAL_ADAPTOR_BATTERY_AXP2101_IMPL_ENABLE_DEBUG_LOG
+                bool "Battery AXP2101"
+                default n
+                help
+                    Enable debug or lower level logs for the battery AXP2101.
+
+            config BROOKESIA_HAL_ADAPTOR_BATTERY_ADC_IMPL_ENABLE_DEBUG_LOG
+                bool "Battery ADC"
+                default n
+                help
+                    Enable debug or lower level logs for the battery ADC.
+        endmenu
+    endif
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_GENERAL_DEVICE
+        bool "General Device"
+        default y
+        help
+            Enable the general device.
+
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_GENERAL_DEVICE
+        menuconfig BROOKESIA_HAL_ADAPTOR_GENERAL_ENABLE_BOARD_INFO_IMPL
+            bool "Board Info"
+            default y
+            help
+                Enable the board info.
     endif
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE
         bool "Audio Device"
-        default y
+        default n
         help
             Enable the audio codec device.
 
@@ -75,37 +123,14 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         menuconfig BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL
             bool "Codec Player"
             depends on ESP_BOARD_DEV_AUDIO_CODEC_SUPPORT
-            default y
+            default n
             help
                 Enable the player.
-
-        if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL
-            config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_PLAYER_VOLUME_DEFAULT
-                int "Default volume"
-                default 75
-                range 0 100
-                help
-                    The default volume of the audio codec device, in percent.
-
-            config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_PLAYER_VOLUME_MIN
-                int "Minimum volume"
-                default 0
-                range 0 100
-                help
-                    The minimum volume of the audio codec device, in percent.
-
-            config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_PLAYER_VOLUME_MAX
-                int "Maximum volume"
-                default 100
-                range 0 100
-                help
-                    The maximum volume of the audio codec device, in percent.
-        endif
 
         menuconfig BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
             bool "Codec Recorder"
             depends on ESP_BOARD_DEV_AUDIO_CODEC_SUPPORT
-            default y
+            default n
             help
                 Enable the recorder.
 
@@ -151,7 +176,7 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_DISPLAY_DEVICE
         bool "Display Device"
-        default y
+        default n
         help
             Enable the display LCD device.
 
@@ -159,37 +184,14 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         menuconfig BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL
             bool "LEDC Backlight"
             depends on ESP_BOARD_DEV_LEDC_CTRL_SUPPORT
-            default y
+            default n
             help
                 Enable the LEDC backlight.
-
-        if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL
-            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LEDC_BACKLIGHT_BRIGHTNESS_DEFAULT
-                int "Default brightness"
-                default 90
-                range 0 100
-                help
-                    The default brightness of the display LCD backlight, in percent.
-
-            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LEDC_BACKLIGHT_BRIGHTNESS_MIN
-                int "Minimum brightness"
-                default 20
-                range 0 100
-                help
-                    The minimum brightness of the display LCD backlight, in percent.
-
-            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LEDC_BACKLIGHT_BRIGHTNESS_MAX
-                int "Maximum brightness"
-                default 100
-                range 0 100
-                help
-                    The maximum brightness of the display LCD backlight, in percent.
-        endif
 
         menuconfig BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL
             bool "LCD Panel"
             depends on ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT
-            default y
+            default n
             help
                 Enable the LCD panel.
 
@@ -209,19 +211,33 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     The vertical resolution of the display LCD panel, in pixels.
                     This value is used to provide the LCD panel resolution information for the CMake stage.
+
+            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_DRAW_X_ALIGN_BYTES
+                int "X-axis coordinate alignment bytes"
+                default 1
+                range 0 16
+                help
+                    The X-axis coordinate alignment bytes of the display LCD panel.
+
+            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_DRAW_Y_ALIGN_BYTES
+                int "Y-axis coordinate alignment bytes"
+                default 1
+                range 0 16
+                help
+                    The Y-axis coordinate alignment bytes of the display LCD panel.
         endif
 
         menuconfig BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
             bool "LCD Touch"
             depends on ESP_BOARD_DEV_LCD_TOUCH_I2C_SUPPORT
-            default y
+            default n
             help
                 Enable the LCD touch.
     endif
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE
         bool "Storage Device"
-        default y
+        default n
         help
             Enable the storage device.
 
@@ -243,9 +259,112 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD
                 bool "SD card (FATFS)"
                 depends on ESP_BOARD_DEV_FS_FAT_SUPPORT
-                default y
+                default n
                 help
                     Enable the SD card (FATFS).
+        endif
+    endif
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE
+        bool "Power Device"
+        default n
+        help
+            Enable the power device.
+
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE
+        menuconfig BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY
+            bool "Battery"
+            default n
+            help
+                Enable the battery.
+
+        if BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY
+            choice BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_CHOICE
+                prompt "Select implementation"
+                default BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_ADC
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_AXP2101
+                    bool "AXP2101"
+                    help
+                        Enable the battery AXP2101.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_ADC
+                    bool "ADC"
+                    help
+                        Enable the battery ADC.
+            endchoice
+
+            config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_LOW_VOLTAGE_MV
+                int "Low voltage threshold (mV)"
+                default 3500
+                range 0 65535
+                help
+                    Voltage threshold used to report the low battery state.
+
+            config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_CRITICAL_VOLTAGE_MV
+                int "Critical voltage threshold (mV)"
+                default 3300
+                range 0 65535
+                help
+                    Voltage threshold used to report the critical battery state.
+
+            if BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_ADC
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_VOLTAGE_SCALE_MUL
+                    int "ADC voltage scale multiplier"
+                    default 2
+                    range 1 65535
+                    help
+                        Multiplier applied to the calibrated ADC voltage reading.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_VOLTAGE_SCALE_DIV
+                    int "ADC voltage scale divider"
+                    default 1
+                    range 1 65535
+                    help
+                        Divider applied to the calibrated ADC voltage reading.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_CHARGE_DETECT_MV
+                    int "ADC charge detect voltage threshold (mV)"
+                    default 1000
+                    range 0 65535
+                    help
+                        The ADC charge voltage is considered charging when it is at or below this threshold.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_SAMPLE_COUNT
+                    int "ADC sample count"
+                    default 8
+                    range 1 1024
+                    help
+                        Number of ADC raw samples used to calculate the average voltage for each read.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_RAW_MAX
+                    int "ADC raw maximum value"
+                    default 4095
+                    range 1 65535
+                    help
+                        Maximum ADC raw value used by the fallback raw-to-voltage conversion.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_REF_VOLTAGE_MV
+                    int "ADC fallback reference voltage (mV)"
+                    default 3300
+                    range 1 65535
+                    help
+                        Reference voltage used by the fallback raw-to-voltage conversion when calibration is unavailable.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_PERCENTAGE_VOLTAGE_MIN_MV
+                    int "ADC percentage minimum voltage (mV)"
+                    default 3300
+                    range 0 65535
+                    help
+                        Battery voltage mapped to 0 percent when estimating the battery percentage from ADC voltage.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_PERCENTAGE_VOLTAGE_MAX_MV
+                    int "ADC percentage maximum voltage (mV)"
+                    default 4200
+                    range 0 65535
+                    help
+                        Battery voltage mapped to 100 percent when estimating the battery percentage from ADC voltage.
+            endif
         endif
     endif
 endmenu

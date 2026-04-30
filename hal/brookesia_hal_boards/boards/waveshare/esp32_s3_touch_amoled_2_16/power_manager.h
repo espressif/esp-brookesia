@@ -1,5 +1,8 @@
 #pragma once
 
+#include "driver/i2c_master.h"
+#include "axp2101_power_manager.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif  /* __cplusplus */

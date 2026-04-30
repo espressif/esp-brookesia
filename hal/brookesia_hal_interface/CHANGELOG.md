@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.7.4 - 2026-04-30
+
+### Breaking Changes:
+
+- break(api): move HAL interface headers under `include/brookesia/hal_interface/interfaces/` and update umbrella includes
+
+### Enhancements:
+
+- feat(general): add `BoardInfoIface` for board metadata discovery
+- feat(power): add `PowerBatteryIface` with battery info, state, and charge configuration APIs
+- feat(test): add board information and power battery interface coverage to test apps
+
 ## v0.7.3 - 2026-04-20
 
 ### Enhancements:

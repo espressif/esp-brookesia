@@ -8,7 +8,7 @@
 #include <cstdint>
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
-#include "brookesia/hal_interface/display/panel.hpp"
+#include "brookesia/hal_interface/interfaces/display/panel.hpp"
 
 namespace esp_brookesia::hal {
 

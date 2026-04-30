@@ -26,22 +26,11 @@ public:
     static constexpr const char *NAME = "DisplayBacklight";  ///< Interface registry name.
 
     /**
-     * @brief Static backlight capability information.
-     */
-    struct Info {
-        uint8_t brightness_default; ///< Default brightness percentage.
-        uint8_t brightness_min;     ///< Minimum brightness percentage.
-        uint8_t brightness_max;     ///< Maximum brightness percentage.
-    };
-
-    /**
      * @brief Construct a display backlight interface.
      *
-     * @param[in] info Static backlight capability information.
      */
-    DisplayBacklightIface(Info info)
+    DisplayBacklightIface()
         : Interface(NAME)
-        , info_(std::move(info))
     {
     }
 
@@ -67,39 +56,26 @@ public:
     virtual bool get_brightness(uint8_t &percent) = 0;
 
     /**
-     * @brief Turn on the backlight.
+     * @brief Check if the light on/off control is supported.
      *
-     * @note Calling this interface will restore the brightness to the last set value. If the last set value is zero,
-     *       the brightness will be restored to the default value.
-     *
-     * @return `true` on success; otherwise `false`.
+     * @return `true` if the light on/off control is supported; otherwise `false`.
      */
-    virtual bool turn_on() = 0;
+    virtual bool is_light_on_off_supported() = 0;
 
     /**
-     * @brief Turn off the backlight.
+     * @brief Set the backlight on/off state.
      *
-     * @note Calling this interface will turn off the backlight. Even if the minimum brightness is not zero,
-     *       the brightness will be turned off to zero.
-     *
-     * @return `true` on success; otherwise `false`.
+     * @param[in] on `true` to set the backlight on; `false` to set the backlight off.
+     * @return `true` if the backlight on/off state is set successfully; otherwise `false`.
      */
-    virtual bool turn_off() = 0;
+    virtual bool set_light_on_off(bool on) = 0;
 
     /**
-     * @brief Get static backlight capability information.
+     * @brief Check if the backlight is set on.
      *
-     * @return Backlight information.
+     * @return `true` if the backlight is set on; otherwise `false`.
      */
-    const Info &get_info() const
-    {
-        return info_;
-    }
-
-private:
-    Info info_{};
+    virtual bool is_light_on() const = 0;
 };
-
-BROOKESIA_DESCRIBE_STRUCT(DisplayBacklightIface::Info, (), (brightness_default, brightness_min, brightness_max));
 
 } // namespace esp_brookesia::hal

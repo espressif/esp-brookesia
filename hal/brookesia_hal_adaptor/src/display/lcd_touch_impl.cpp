@@ -38,8 +38,8 @@ DisplayTouchIface::Info generate_info()
     return DisplayTouchIface::Info {
         .x_max = config->touch_config.x_max,
         .y_max = config->touch_config.y_max,
-        .operation_mode = config->touch_config.int_gpio_num != 0 ?  DisplayTouchIface::OperationMode::Interrupt :
-        DisplayTouchIface::OperationMode::Polling,
+        .operation_mode = GPIO_IS_VALID_GPIO(config->touch_config.int_gpio_num) ?
+        DisplayTouchIface::OperationMode::Interrupt : DisplayTouchIface::OperationMode::Polling,
     };
 }
 } // namespace

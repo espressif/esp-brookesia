@@ -6,7 +6,7 @@
 #pragma once
 
 #include "brookesia/hal_interface/device.hpp"
-#include "brookesia/hal_interface/display/panel.hpp"
+#include "brookesia/hal_interface/interfaces/display/panel.hpp"
 
 namespace esp_brookesia {
 

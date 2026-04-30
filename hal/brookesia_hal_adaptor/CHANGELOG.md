@@ -1,5 +1,18 @@
 # ChangeLog
 
+## v0.7.3 - 2026-04-30
+
+### Enhancements:
+
+- feat(general): add `GeneralDevice` and `BoardInfo` HAL adaptor implementations
+- feat(power): add `PowerDevice` with ADC and AXP2101 battery implementations
+- feat(kconfig): add general and power device options, including ADC battery percentage voltage range configuration
+- feat(test): refactor HAL adaptor tests to initialize and validate each enabled device independently
+
+### Bug Fixes:
+
+- fix(display): detect touch interrupt mode only when the configured interrupt GPIO is valid
+
 ## v0.7.2 - 2026-04-20
 
 ### Enhancements:

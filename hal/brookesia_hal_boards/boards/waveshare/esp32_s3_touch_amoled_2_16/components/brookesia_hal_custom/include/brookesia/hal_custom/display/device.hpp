@@ -15,7 +15,7 @@
 #include <string>
 #include <utility>
 #include "brookesia/hal_interface/device.hpp"
-#include "brookesia/hal_interface/display/backlight.hpp"
+#include "brookesia/hal_interface/interfaces/display/backlight.hpp"
 
 namespace esp_brookesia::hal {
 
@@ -35,16 +35,6 @@ public:
     CustomDisplayDevice &operator=(const CustomDisplayDevice &) = delete;
     CustomDisplayDevice(CustomDisplayDevice &&) = delete;
     CustomDisplayDevice &operator=(CustomDisplayDevice &&) = delete;
-
-    /**
-     * @brief Overrides default static backlight capability information used when constructing the display backlight
-     *        HAL implementation.
-     *
-     * @param[in] info Backlight capability descriptor (brightness range and default).
-     *
-     * @return `true` if the value was stored; `false` on invalid input or if backlight is already initialized.
-     */
-    bool set_backlight_info(DisplayBacklightIface::Info info);
 
     /**
      * @brief Returns the process-wide singleton custom display device.
@@ -70,8 +60,6 @@ private:
 
     bool init_backlight();
     void deinit_backlight();
-
-    std::optional<DisplayBacklightIface::Info> backlight_info_ = std::nullopt;
 };
 
 } // namespace esp_brookesia::hal

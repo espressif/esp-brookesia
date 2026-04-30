@@ -5,10 +5,10 @@
  */
 #pragma once
 
-#include <optional>
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
-#include "brookesia/hal_interface/audio/codec_player.hpp"
+#include "brookesia/hal_adaptor/macro_configs.h"
+#include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
 
 namespace esp_brookesia::hal {
 
@@ -17,45 +17,63 @@ namespace esp_brookesia::hal {
  */
 class AudioCodecPlayerImpl : public AudioCodecPlayerIface {
 public:
-    AudioCodecPlayerImpl(std::optional<AudioCodecPlayerIface::Info> info);
+    AudioCodecPlayerImpl();
     ~AudioCodecPlayerImpl();
 
     bool open(const AudioCodecPlayerIface::Config &config) override;
     void close() override;
     bool set_volume(uint8_t volume) override;
-    bool get_volume(uint8_t &volume) override;
-    bool mute() override;
-    bool unmute() override;
     bool write_data(const uint8_t *data, size_t size) override;
+
+    bool is_pa_on_off_supported() override
+    {
+        boost::lock_guard<boost::mutex> lock(mutex_);
+        return is_pa_control_valid_internal();
+    }
+    bool set_pa_on_off(bool on) override;
+    bool is_pa_on() const override
+    {
+        boost::lock_guard<boost::mutex> lock(mutex_);
+        return is_pa_on_;
+    }
 
     bool is_valid() const
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
-        return is_valid_internal();
+        return is_codec_valid_internal();
     }
 
 private:
-    bool is_valid_internal() const
+    bool setup_codec();
+    bool setup_pa_control();
+
+    bool set_volume_internal(uint8_t volume, bool force = false);
+    bool set_pa_on_off_internal(bool on, bool force = false);
+
+    bool is_codec_valid_internal() const
     {
-        return handles_ != nullptr;
+        return codec_handles_ != nullptr;
     }
 
-    bool is_opened_internal() const
+    bool is_codec_opened_internal() const
     {
-        return is_opened_;
+        return is_codec_opened_;
     }
 
-    bool set_volume_internal(uint8_t volume, bool need_map = true);
-
-    bool get_volume_internal(uint8_t &volume) const;
-
-    bool mute_internal();
+    bool is_pa_control_valid_internal() const
+    {
+        return pa_control_handle_ != nullptr;
+    }
 
     mutable boost::mutex mutex_;
-    void *handles_ = nullptr;
-    bool is_opened_ = false;
-    uint8_t volume_ = std::numeric_limits<uint8_t>::max();             // Initialized to max to indicate not set
-    uint8_t volume_before_mute_ = 0; // external volume saved before mute()
+
+    void *codec_handles_ = nullptr;
+    uint8_t volume_ = 0;
+    bool is_codec_opened_ = false;
+
+    void *pa_control_handle_ = nullptr;
+    bool pa_control_active_level_ = true;
+    bool is_pa_on_ = true;
 };
 
 } // namespace esp_brookesia::hal

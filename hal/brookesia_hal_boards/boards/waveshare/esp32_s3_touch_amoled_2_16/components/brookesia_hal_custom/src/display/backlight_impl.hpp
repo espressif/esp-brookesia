@@ -8,7 +8,7 @@
 #include <cstdint>
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
-#include "brookesia/hal_interface/display/backlight.hpp"
+#include "brookesia/hal_interface/interfaces/display/backlight.hpp"
 
 namespace esp_brookesia::hal {
 
@@ -17,13 +17,24 @@ namespace esp_brookesia::hal {
  */
 class CustomDisplayBacklightImpl : public DisplayBacklightIface {
 public:
-    CustomDisplayBacklightImpl(std::optional<DisplayBacklightIface::Info> info);
+    CustomDisplayBacklightImpl();
     ~CustomDisplayBacklightImpl() override;
 
     bool set_brightness(uint8_t percent) override;
     bool get_brightness(uint8_t &percent) override;
-    bool turn_on() override;
-    bool turn_off() override;
+
+    bool is_light_on_off_supported() override
+    {
+        return false;
+    }
+    bool set_light_on_off(bool on) override
+    {
+        return false;
+    }
+    bool is_light_on() const override
+    {
+        return false;
+    }
 
     bool is_valid() const
     {
@@ -37,14 +48,11 @@ private:
         return handles_ != nullptr;
     }
 
-    bool set_brightness_internal(uint8_t percent, bool need_map = true);
-
-    bool get_brightness_internal(uint8_t &percent) const;
+    bool set_brightness_internal(uint8_t percent, bool force = false);
 
     mutable boost::mutex mutex_;
     void *handles_ = nullptr;
-    uint8_t brightness_percent_ = std::numeric_limits<uint8_t>::max();        // Initialized to max to indicate not set
-    uint8_t brightness_before_off_ = 0;     // external brightness saved before turn_off()
+    uint8_t brightness_ = 0;
 };
 
 } // namespace esp_brookesia::hal
