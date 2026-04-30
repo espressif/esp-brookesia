@@ -15,7 +15,7 @@
           App["App / 用户代码"]
           Helper["**brookesia_service_helper**<br/>· CRTP 类型安全辅助基类<br/>· 函数 / 事件 Schema 定义<br/>· call_function / subscribe_event"]
           Manager["**brookesia_service_manager**<br/>· 服务插件生命周期管理<br/>· 本地线程安全调用 & TCP RPC 远程调用<br/>· 函数注册表 & 事件注册表"]
-          Services["**通用服务（基于 service_helper 实现）**<br/>NVS · SNTP · Wi-Fi · 音频 · 视频 · 自定义"]
+          Services["**通用服务（基于 service_helper 实现）**<br/>NVS · SNTP · Wi-Fi · 音频 · 设备控制 · 视频 · 自定义"]
 
           App -->|"调用函数 / 订阅事件"| Helper
           Helper -->|"构建在"| Manager
@@ -53,6 +53,7 @@
    SNTP <sntp>
    Wi-Fi <wifi>
    音频 <audio>
+   设备控制 <device>
    视频 <video>
    自定义服务 <custom>
 

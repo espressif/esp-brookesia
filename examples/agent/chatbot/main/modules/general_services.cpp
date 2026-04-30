@@ -15,6 +15,7 @@ using SNTPHelper = esp_brookesia::service::helper::SNTP;
 using AudioHelper = esp_brookesia::service::helper::Audio;
 using NVSHelper = esp_brookesia::service::helper::NVS;
 using WifiHelper = esp_brookesia::service::helper::Wifi;
+using DeviceHelper = esp_brookesia::service::helper::Device;
 
 constexpr const char *AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
 constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
@@ -84,6 +85,9 @@ void GeneralServices::init_audio()
     BROOKESIA_CHECK_FALSE_EXIT(
         decoder_static_result, "Failed to set decoder static config: %1%", decoder_static_result.error()
     );
+
+    auto set_mute_ret = DeviceHelper::call_function_async(DeviceHelper::FunctionId::SetAudioPlayerMute, false);
+    BROOKESIA_CHECK_FALSE_EXIT(set_mute_ret, "Failed to set mute off");
 }
 
 void GeneralServices::start_sntp()
@@ -117,6 +121,24 @@ void GeneralServices::start_nvs()
     auto binding = service_manager.bind(NVSHelper::get_name().data());
     if (!binding.is_valid()) {
         BROOKESIA_LOGE("Failed to bind NVS service");
+    } else {
+        service_bindings_.push_back(std::move(binding));
+    }
+}
+
+void GeneralServices::start_device()
+{
+    BROOKESIA_CHECK_FALSE_EXIT(is_initialized(), "General services is not initialized");
+
+    if (!DeviceHelper::is_available()) {
+        BROOKESIA_LOGW("Device service is not available");
+        return;
+    }
+
+    auto &service_manager = service::ServiceManager::get_instance();
+    auto binding = service_manager.bind(DeviceHelper::get_name().data());
+    if (!binding.is_valid()) {
+        BROOKESIA_LOGE("Failed to bind Device service");
     } else {
         service_bindings_.push_back(std::move(binding));
     }

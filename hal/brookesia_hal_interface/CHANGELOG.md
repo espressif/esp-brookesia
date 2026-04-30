@@ -8,6 +8,7 @@
 
 ### Enhancements:
 
+- feat(build): split ESP-IDF and PC CMake logic into platform-specific files and expose `brookesia::hal_interface` for PC builds
 - feat(general): add `BoardInfoIface` for board metadata discovery
 - feat(power): add `PowerBatteryIface` with battery info, state, and charge configuration APIs
 - feat(test): add board information and power battery interface coverage to test apps

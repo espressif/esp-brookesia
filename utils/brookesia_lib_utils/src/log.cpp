@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <initializer_list>
+#include <mutex>
 #include <string>
 #include <string_view>
 #include "brookesia/lib_utils/log.hpp"
@@ -13,6 +14,20 @@ namespace esp_brookesia::lib_utils {
 std::string Log::format_message(const char *format, std::initializer_list<FormatArg> args)
 {
     try {
+#if defined(ESP_PLATFORM)
+        // NOTE:
+        // Warm-up alone is not sufficient on ESP targets. We still reproduced
+        // heap corruption when multiple worker threads concurrently constructed
+        // `boost::format` objects after the backend had already been warmed up.
+        //
+        // The failing stacks remained inside libstdc++ locale / streambuf
+        // construction, so we serialize the `boost::format` path here on ESP as
+        // a defensive workaround until the formatting backend is replaced with
+        // one that is known to be safe for concurrent use on this runtime.
+        static std::mutex format_mutex;
+        std::lock_guard<std::mutex> lock(format_mutex);
+#endif
+
         auto fmt = boost::format(format);
         for (const auto &arg : args) {
             switch (arg.type) {
@@ -44,6 +59,8 @@ std::string Log::format_message(const char *format, std::initializer_list<Format
 
 void Log::write(int level, const std::source_location &loc, const char *tag, const std::string &format_str)
 {
+    (void)loc;
+
 #if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
     auto thread_config = ThreadConfig::get_current_config();
     auto thread_name = thread_config.name.c_str();

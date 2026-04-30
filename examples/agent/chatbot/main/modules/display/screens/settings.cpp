@@ -15,7 +15,7 @@
 using namespace esp_brookesia;
 using AgentHelper = agent::helper::Manager;
 using WifiHelper = service::helper::Wifi;
-using AudioHelper = service::helper::Audio;
+using DeviceHelper = service::helper::Device;
 
 constexpr uint8_t VOLUME_MAX = 100;
 constexpr uint8_t VOLUME_MIN = 0;
@@ -32,15 +32,31 @@ ScreenSettings::ScreenSettings():
 
     ui_ScreenSettings_screen_init();
 
+    auto get_device_capabilities_result = DeviceHelper::call_function_sync<boost::json::object>(
+            DeviceHelper::FunctionId::GetCapabilities
+                                          );
+    BROOKESIA_CHECK_FALSE_EXIT(
+        get_device_capabilities_result, "Failed to get device capabilities: %1%", get_device_capabilities_result.error()
+    );
+    DeviceHelper::Capabilities device_capabilities;
+    auto convert_result = BROOKESIA_DESCRIBE_FROM_JSON(get_device_capabilities_result.value(), device_capabilities);
+    BROOKESIA_CHECK_FALSE_EXIT(convert_result, "Failed to convert device capabilities");
+
     BROOKESIA_CHECK_FALSE_EXECUTE(init_wifi(), {}, {
         BROOKESIA_LOGE("Failed to init wifi");
     });
-    BROOKESIA_CHECK_FALSE_EXECUTE(init_brightness(), {}, {
-        BROOKESIA_LOGE("Failed to init brightness");
-    });
-    BROOKESIA_CHECK_FALSE_EXECUTE(init_volume(), {}, {
-        BROOKESIA_LOGE("Failed to init volume");
-    });
+    if (device_capabilities.find(std::string(hal::DisplayBacklightIface::NAME)) != device_capabilities.end()) {
+        is_backlight_available_ = true;
+        BROOKESIA_CHECK_FALSE_EXECUTE(init_brightness(), {}, {
+            BROOKESIA_LOGE("Failed to init brightness");
+        });
+    }
+    if (device_capabilities.find(std::string(hal::AudioCodecPlayerIface::NAME)) != device_capabilities.end()) {
+        is_volume_available_ = true;
+        BROOKESIA_CHECK_FALSE_EXECUTE(init_volume(), {}, {
+            BROOKESIA_LOGE("Failed to init volume");
+        });
+    }
     BROOKESIA_CHECK_FALSE_EXECUTE(init_agent(), {}, {
         BROOKESIA_LOGE("Failed to init agent");
     });
@@ -54,6 +70,9 @@ ScreenSettings::~ScreenSettings()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     ui_ScreenSettings_screen_destroy();
+
+    brightness_changed_connection_.disconnect();
+    volume_changed_connection_.disconnect();
 }
 
 bool ScreenSettings::on_enter(const std::string &from_state, const std::string &action)
@@ -89,6 +108,9 @@ bool ScreenSettings::on_exit(const std::string &to_state, const std::string &act
     BROOKESIA_LOGI("Exiting '%1%' to '%2%' with action '%3%'", get_name(), to_state, action);
 
     lv_screen_load(init_screen_);
+
+    brightness_changed_connection_.disconnect();
+    volume_changed_connection_.disconnect();
 
     BROOKESIA_CHECK_FALSE_EXECUTE(exit_process_agent(), {}, {
         BROOKESIA_LOGE("Failed to exit process agent");
@@ -332,38 +354,22 @@ bool ScreenSettings::init_brightness()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!Display::get_instance().is_backlight_available()) {
-        BROOKESIA_LOGW("Backlight interface is not available, skip");
-        lv_label_set_text(ui_SettingsLabelBrightnessText, "N/A");
-        lv_obj_remove_flag(ui_SettingsButtonBrightnessInc, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_state(ui_SettingsButtonBrightnessInc, LV_STATE_DISABLED);
-        lv_obj_remove_flag(ui_SettingsButtonBrightnessDec, LV_OBJ_FLAG_CLICKABLE);
-        lv_obj_add_state(ui_SettingsButtonBrightnessDec, LV_STATE_DISABLED);
-        return true;
-    }
-
     auto brightness_increase_slot = +[](lv_event_t *event) {
         BROOKESIA_LOG_TRACE_GUARD();
-        auto brightness_text = lv_label_get_text(ui_SettingsLabelBrightnessText);
-        auto brightness = std::stoi(brightness_text);
-        if (brightness >= BRIGHTNESS_MAX) {
-            BROOKESIA_LOGW("Brightness is already at maximum: %1%", brightness);
+        auto *context = static_cast<ScreenSettings *>(lv_event_get_user_data(event));
+        BROOKESIA_CHECK_NULL_EXIT(context, "Context is null");
+
+        if (context->current_brightness_ >= BRIGHTNESS_MAX) {
+            BROOKESIA_LOGW("Brightness is already at maximum: %1%", context->current_brightness_);
             return;
         }
 
-        brightness++;
-        if (brightness >= BRIGHTNESS_MAX) {
-            BROOKESIA_LOGW("Brightness is already at maximum: %1%", brightness);
-            lv_obj_remove_flag(ui_SettingsButtonBrightnessInc, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_state(ui_SettingsButtonBrightnessInc, LV_STATE_DISABLED);
-        } else if (brightness > BRIGHTNESS_MIN) {
-            lv_obj_add_flag(ui_SettingsButtonBrightnessDec, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_state(ui_SettingsButtonBrightnessDec, LV_STATE_DISABLED);
-        }
-        lv_label_set_text(ui_SettingsLabelBrightnessText, std::to_string(brightness).c_str());
-
-        auto set_brightness_result = Display::get_instance().set_brightness(brightness);
+        const auto brightness = context->current_brightness_ + 1;
+        auto set_brightness_result = DeviceHelper::call_function_sync(
+                                         DeviceHelper::FunctionId::SetDisplayBacklightBrightness, brightness
+                                     );
         BROOKESIA_CHECK_FALSE_EXIT(set_brightness_result, "Failed to set brightness");
+        context->current_brightness_ = brightness;
     };
     lv_obj_add_event_cb(ui_SettingsButtonBrightnessInc, brightness_increase_slot, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(ui_SettingsButtonBrightnessInc, brightness_increase_slot, LV_EVENT_LONG_PRESSED, this);
@@ -371,26 +377,20 @@ bool ScreenSettings::init_brightness()
 
     auto brightness_decrease_slot = +[](lv_event_t *event) {
         BROOKESIA_LOG_TRACE_GUARD();
-        auto brightness_text = lv_label_get_text(ui_SettingsLabelBrightnessText);
-        auto brightness = std::stoi(brightness_text);
-        if (brightness <= BRIGHTNESS_MIN) {
-            BROOKESIA_LOGW("Brightness is already at minimum: %1%", brightness);
+        auto *context = static_cast<ScreenSettings *>(lv_event_get_user_data(event));
+        BROOKESIA_CHECK_NULL_EXIT(context, "Context is null");
+
+        if (context->current_brightness_ <= BRIGHTNESS_MIN) {
+            BROOKESIA_LOGW("Brightness is already at minimum: %1%", context->current_brightness_);
             return;
         }
 
-        brightness--;
-        if (brightness <= BRIGHTNESS_MIN) {
-            BROOKESIA_LOGW("Brightness is already at minimum: %1%", brightness);
-            lv_obj_remove_flag(ui_SettingsButtonBrightnessDec, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_state(ui_SettingsButtonBrightnessDec, LV_STATE_DISABLED);
-        } else if (brightness < BRIGHTNESS_MAX) {
-            lv_obj_add_flag(ui_SettingsButtonBrightnessInc, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_state(ui_SettingsButtonBrightnessInc, LV_STATE_DISABLED);
-        }
-        lv_label_set_text(ui_SettingsLabelBrightnessText, std::to_string(brightness).c_str());
-
-        auto set_brightness_result = Display::get_instance().set_brightness(brightness);
+        const auto brightness = context->current_brightness_ - 1;
+        auto set_brightness_result = DeviceHelper::call_function_sync(
+                                         DeviceHelper::FunctionId::SetDisplayBacklightBrightness, brightness
+                                     );
         BROOKESIA_CHECK_FALSE_EXIT(set_brightness_result, "Failed to set brightness");
+        context->current_brightness_ = brightness;
     };
     lv_obj_add_event_cb(ui_SettingsButtonBrightnessDec, brightness_decrease_slot, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(ui_SettingsButtonBrightnessDec, brightness_decrease_slot, LV_EVENT_LONG_PRESSED, this);
@@ -403,31 +403,22 @@ bool ScreenSettings::init_volume()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_CHECK_FALSE_RETURN(AudioHelper::is_available(), false, "Audio helper is not available");
-
     auto volume_increase_slot = +[](lv_event_t *event) {
         BROOKESIA_LOG_TRACE_GUARD();
+        auto *context = static_cast<ScreenSettings *>(lv_event_get_user_data(event));
+        BROOKESIA_CHECK_NULL_EXIT(context, "Context is null");
 
-        auto volume_text = lv_label_get_text(ui_SettingsLabelVolumeText);
-        auto volume = std::stoi(volume_text);
-        if (volume >= VOLUME_MAX) {
-            BROOKESIA_LOGW("Volume is already at maximum: %1%", volume);
+        if (context->current_volume_ >= VOLUME_MAX) {
+            BROOKESIA_LOGW("Volume is already at maximum: %1%", context->current_volume_);
             return;
         }
 
-        volume++;
-        if (volume >= VOLUME_MAX) {
-            BROOKESIA_LOGW("Volume is already at maximum: %1%", volume);
-            lv_obj_remove_flag(ui_SettingsButtonVolumeInc, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_state(ui_SettingsButtonVolumeInc, LV_STATE_DISABLED);
-        } else if (volume > VOLUME_MIN) {
-            lv_obj_add_flag(ui_SettingsButtonVolumeDec, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_state(ui_SettingsButtonVolumeDec, LV_STATE_DISABLED);
-        }
-        lv_label_set_text(ui_SettingsLabelVolumeText, std::to_string(volume).c_str());
-
-        auto set_volume_result = AudioHelper::call_function_async(AudioHelper::FunctionId::SetVolume, volume);
+        const auto volume = context->current_volume_ + 1;
+        auto set_volume_result = DeviceHelper::call_function_sync(
+                                     DeviceHelper::FunctionId::SetAudioPlayerVolume, volume
+                                 );
         BROOKESIA_CHECK_FALSE_EXIT(set_volume_result, "Failed to set volume");
+        context->current_volume_ = volume;
     };
     lv_obj_add_event_cb(ui_SettingsButtonVolumeInc, volume_increase_slot, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(ui_SettingsButtonVolumeInc, volume_increase_slot, LV_EVENT_LONG_PRESSED, this);
@@ -435,27 +426,20 @@ bool ScreenSettings::init_volume()
 
     auto volume_decrease_slot = +[](lv_event_t *event) {
         BROOKESIA_LOG_TRACE_GUARD();
+        auto *context = static_cast<ScreenSettings *>(lv_event_get_user_data(event));
+        BROOKESIA_CHECK_NULL_EXIT(context, "Context is null");
 
-        auto volume_text = lv_label_get_text(ui_SettingsLabelVolumeText);
-        auto volume = std::stoi(volume_text);
-        if (volume <= VOLUME_MIN) {
-            BROOKESIA_LOGW("Volume is already at minimum: %1%", volume);
+        if (context->current_volume_ <= VOLUME_MIN) {
+            BROOKESIA_LOGW("Volume is already at minimum: %1%", context->current_volume_);
             return;
         }
 
-        volume--;
-        if (volume <= VOLUME_MIN) {
-            BROOKESIA_LOGW("Volume is already at minimum: %1%", volume);
-            lv_obj_remove_flag(ui_SettingsButtonVolumeDec, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_add_state(ui_SettingsButtonVolumeDec, LV_STATE_DISABLED);
-        } else if (volume < VOLUME_MAX) {
-            lv_obj_add_flag(ui_SettingsButtonVolumeInc, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_state(ui_SettingsButtonVolumeInc, LV_STATE_DISABLED);
-        }
-        lv_label_set_text(ui_SettingsLabelVolumeText, std::to_string(volume).c_str());
-
-        auto set_volume_result = AudioHelper::call_function_async(AudioHelper::FunctionId::SetVolume, volume);
+        const auto volume = context->current_volume_ - 1;
+        auto set_volume_result = DeviceHelper::call_function_sync(
+                                     DeviceHelper::FunctionId::SetAudioPlayerVolume, volume
+                                 );
         BROOKESIA_CHECK_FALSE_EXIT(set_volume_result, "Failed to set volume");
+        context->current_volume_ = volume;
     };
     lv_obj_add_event_cb(ui_SettingsButtonVolumeDec, volume_decrease_slot, LV_EVENT_CLICKED, this);
     lv_obj_add_event_cb(ui_SettingsButtonVolumeDec, volume_decrease_slot, LV_EVENT_LONG_PRESSED, this);
@@ -485,14 +469,12 @@ bool ScreenSettings::init_reset()
             });
         }
 
-        if (AudioHelper::is_running()) {
-            auto reset_result = AudioHelper::call_function_sync(AudioHelper::FunctionId::ResetData);
+        {
+            auto reset_result = DeviceHelper::call_function_sync(DeviceHelper::FunctionId::ResetData);
             BROOKESIA_CHECK_FALSE_EXECUTE(reset_result, {}, {
-                BROOKESIA_LOGE("Failed to reset audio data");
+                BROOKESIA_LOGE("Failed to reset device data");
             });
         }
-
-        Display::get_instance().try_reset_data();
 
         esp_restart();
     };
@@ -505,15 +487,42 @@ bool ScreenSettings::enter_process_brightness()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!Display::get_instance().is_backlight_available()) {
+    if (!is_backlight_available_) {
+        BROOKESIA_LOGW("Backlight is not available, skip");
+        lv_obj_add_flag(ui_SettingsLabelBrightnessText, LV_OBJ_FLAG_HIDDEN);
         return true;
     }
 
-    uint8_t brightness = 0;
-    bool get_brightness_ret = Display::get_instance().get_brightness(brightness);
-    BROOKESIA_CHECK_FALSE_RETURN(get_brightness_ret, false, "Failed to get brightness");
+    auto get_brightness_result = DeviceHelper::call_function_sync<double>(
+                                     DeviceHelper::FunctionId::GetDisplayBacklightBrightness
+                                 );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        get_brightness_result, false, "Failed to get brightness: %1%", get_brightness_result.error()
+    );
 
-    lv_label_set_text(ui_SettingsLabelBrightnessText, std::to_string(brightness).c_str());
+    current_brightness_ = static_cast<int>(get_brightness_result.value());
+    refresh_brightness_ui();
+
+    brightness_changed_connection_.disconnect();
+
+    auto brightness_changed_slot = [this](const std::string & event_name, double brightness) {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        BROOKESIA_LOGD("Params: event_name(%1%), brightness(%2%)", event_name, brightness);
+
+        current_brightness_ = static_cast<int>(brightness);
+        auto send_result = Display::get_instance().send_display_task([this]() {
+            refresh_brightness_ui();
+        });
+        BROOKESIA_CHECK_FALSE_EXIT(send_result, "Failed to send brightness update task");
+    };
+    brightness_changed_connection_ = DeviceHelper::subscribe_event(
+                                         DeviceHelper::EventId::DisplayBacklightBrightnessChanged,
+                                         brightness_changed_slot
+                                     );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        brightness_changed_connection_.connected(), false, "Failed to subscribe to brightness changed event"
+    );
 
     return true;
 }
@@ -522,15 +531,84 @@ bool ScreenSettings::enter_process_volume()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_CHECK_FALSE_RETURN(AudioHelper::is_running(), false, "Audio helper is not running");
+    if (!is_volume_available_) {
+        BROOKESIA_LOGW("Volume is not available, skip");
+        lv_obj_add_flag(ui_SettingsLabelVolumeText, LV_OBJ_FLAG_HIDDEN);
+        return true;
+    }
 
-    auto volume_result = AudioHelper::call_function_sync<double>(AudioHelper::FunctionId::GetVolume);
+    auto volume_result = DeviceHelper::call_function_sync<double>(DeviceHelper::FunctionId::GetAudioPlayerVolume);
     BROOKESIA_CHECK_FALSE_RETURN(volume_result, false, "Failed to get volume: %1%", volume_result.error());
 
-    auto &volume = volume_result.value();
-    lv_label_set_text(ui_SettingsLabelVolumeText, std::to_string(static_cast<int>(volume)).c_str());
+    current_volume_ = static_cast<int>(volume_result.value());
+    refresh_volume_ui();
+
+    volume_changed_connection_.disconnect();
+
+    auto volume_changed_slot = [this](const std::string & event_name, double volume) {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        BROOKESIA_LOGD("Params: event_name(%1%), volume(%2%)", event_name, volume);
+
+        current_volume_ = static_cast<int>(volume);
+        auto send_result = Display::get_instance().send_display_task([this]() {
+            refresh_volume_ui();
+        });
+        BROOKESIA_CHECK_FALSE_EXIT(send_result, "Failed to send volume update task");
+    };
+    volume_changed_connection_ = DeviceHelper::subscribe_event(
+                                     DeviceHelper::EventId::AudioPlayerVolumeChanged, volume_changed_slot
+                                 );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        volume_changed_connection_.connected(), false, "Failed to subscribe to volume changed event"
+    );
+
 
     return true;
+}
+
+void ScreenSettings::refresh_brightness_ui() const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    lv_label_set_text(ui_SettingsLabelBrightnessText, std::to_string(current_brightness_).c_str());
+    if (current_brightness_ <= BRIGHTNESS_MIN) {
+        lv_obj_remove_flag(ui_SettingsButtonBrightnessDec, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_state(ui_SettingsButtonBrightnessDec, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_flag(ui_SettingsButtonBrightnessDec, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_state(ui_SettingsButtonBrightnessDec, LV_STATE_DISABLED);
+    }
+
+    if (current_brightness_ >= BRIGHTNESS_MAX) {
+        lv_obj_remove_flag(ui_SettingsButtonBrightnessInc, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_state(ui_SettingsButtonBrightnessInc, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_flag(ui_SettingsButtonBrightnessInc, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_state(ui_SettingsButtonBrightnessInc, LV_STATE_DISABLED);
+    }
+}
+
+void ScreenSettings::refresh_volume_ui() const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    lv_label_set_text(ui_SettingsLabelVolumeText, std::to_string(current_volume_).c_str());
+    if (current_volume_ <= VOLUME_MIN) {
+        lv_obj_remove_flag(ui_SettingsButtonVolumeDec, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_state(ui_SettingsButtonVolumeDec, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_flag(ui_SettingsButtonVolumeDec, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_state(ui_SettingsButtonVolumeDec, LV_STATE_DISABLED);
+    }
+
+    if (current_volume_ >= VOLUME_MAX) {
+        lv_obj_remove_flag(ui_SettingsButtonVolumeInc, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_state(ui_SettingsButtonVolumeInc, LV_STATE_DISABLED);
+    } else {
+        lv_obj_add_flag(ui_SettingsButtonVolumeInc, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_remove_state(ui_SettingsButtonVolumeInc, LV_STATE_DISABLED);
+    }
 }
 
 bool ScreenSettings::enter_process_agent()

@@ -47,6 +47,44 @@ HELPER_CONTRACTS: list[Contract] = [
     },
     {
         "category": "service",
+        "slug": "device",
+        "title": {"en": "Device Control", "zh_CN": "设备控制"},
+        "omit_overview": True,
+        "interface_title": {"en": "Service Interfaces", "zh_CN": "服务接口"},
+        "interface_as_parent": True,
+        "overview": {
+            "en": (
+                "The Device contract is the helper-first application-layer interface for "
+                "controlling and querying HAL-backed device capabilities."
+            ),
+            "zh_CN": "Device 合约是面向应用层的 HAL 设备控制与状态查询标准接口。",
+        },
+        "include_header": "brookesia/service_helper/device.hpp",
+        "header_path": "service/brookesia_service_helper/include/brookesia/service_helper/device.hpp",
+        "helper_type": "esp_brookesia::service::helper::Device",
+        "api_reference_doc": "/service/helper/base",
+        "page_doc": "/service/device",
+        "schema_sections": [
+            {
+                "key": "main",
+                "title": {"en": "Contract Schema", "zh_CN": "接口 Schema"},
+                "functions_accessor": "get_function_schemas()",
+                "events_accessor": "get_event_schemas()",
+            }
+        ],
+        "implementations": [
+            {
+                "doc": "/service/device/service_device",
+                "title": {"en": "Service Device Provider", "zh_CN": "Service Device 提供者"},
+                "summary": {
+                    "en": "Default device control provider that exposes HAL capabilities through the service framework.",
+                    "zh_CN": "通过 service 框架暴露 HAL 能力的默认设备控制服务提供者实现。",
+                },
+            }
+        ],
+    },
+    {
+        "category": "service",
         "slug": "nvs",
         "title": {"en": "NVS", "zh_CN": "NVS"},
         "omit_overview": True,

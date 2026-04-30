@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.7 - 2026-05-02
+
+### Bug Fixes:
+
+- fix(hal): run flash-backed startup on an internal-RAM stack only when required
+- fix(hal): keep station setup on the current thread when its stack is cache-safe
+
 ## v0.7.6 - 2026-04-22
 
 ### Bug Fixes:

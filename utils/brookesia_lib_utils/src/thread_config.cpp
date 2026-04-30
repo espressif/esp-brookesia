@@ -6,6 +6,7 @@
 #if defined(ESP_PLATFORM)
 #   include "freertos/FreeRTOS.h"
 #   include "freertos/task.h"
+#   include "esp_cpu.h"
 #   include "esp_idf_version.h"
 #   include "esp_pthread.h"
 #   include "esp_memory_utils.h"
@@ -111,6 +112,11 @@ ThreadConfig ThreadConfig::get_current_config()
 #else
     return ThreadConfig();
 #endif
+}
+
+bool ThreadConfig::check_stack_cache_safe()
+{
+    return esp_ptr_in_dram(reinterpret_cast<const void *>(esp_cpu_get_sp()));
 }
 
 ThreadConfigGuard::ThreadConfigGuard(const ThreadConfig &config)

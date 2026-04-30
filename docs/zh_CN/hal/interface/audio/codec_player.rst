@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-公共头文件： ``#include "brookesia/hal_interface/audio/codec_player.hpp"``
+公共头文件： ``#include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"``
 
 类名： ``AudioCodecPlayerIface``
 

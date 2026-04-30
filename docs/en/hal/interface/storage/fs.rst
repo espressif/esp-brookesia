@@ -5,7 +5,7 @@ Filesystem Interface
 
 :link_to_translation:`zh_CN:[中文]`
 
-Public header: ``#include "brookesia/hal_interface/storage/fs.hpp"``
+Public header: ``#include "brookesia/hal_interface/interfaces/storage/fs.hpp"``
 
 Class: ``StorageFsIface``
 

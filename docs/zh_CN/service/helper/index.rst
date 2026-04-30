@@ -35,6 +35,7 @@
 
    Helper 基类 <base>
    音频 <audio>
+   设备控制 <device>
    表情 <emote>
    NVS <nvs>
    SNTP <sntp>

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.4 - 2026-05-02
+
+### Bug Fixes:
+
+- fix(storage): run flash setup and teardown on an internal-RAM stack when required
+
 ## v0.7.3 - 2026-04-10
 
 ### Enhancements:

@@ -102,10 +102,9 @@ bool audio_recorder_open_wrapper(const audio_recorder_config_t *config, audio_re
         BROOKESIA_LOG_TRACE_GUARD();
         recorder_open_result = audio_recorder_open(const_cast<audio_recorder_config_t *>(config), recorder_handle);
     };
-    // Since initializing SR in `audio_recorder_open()` operates on Flash,
-    // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
-    auto thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
-    if (thread_config.stack_in_ext) {
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
+        // Since initializing SR in `audio_recorder_open()` operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
         BROOKESIA_LOGD("Opening recorder in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
             .stack_size = RECORDER_THREAD_STACK_SIZE,
@@ -132,10 +131,9 @@ bool audio_recorder_close_wrapper(audio_recorder_handle_t recorder_handle)
         BROOKESIA_LOG_TRACE_GUARD();
         recorder_close_result = audio_recorder_close(recorder_handle);
     };
-    // Since deinitializing SR in `audio_recorder_close()` operates on Flash,
+    // Since closing SR in `audio_recorder_close()` operates on Flash,
     // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
-    auto thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
-    if (thread_config.stack_in_ext) {
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         BROOKESIA_LOGD("Closing recorder in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
             .stack_size = RECORDER_THREAD_STACK_SIZE,
@@ -421,11 +419,12 @@ std::expected<boost::json::array, std::string> Audio::function_get_afe_wake_word
         }
     };
 
-    auto thread_config = BROOKESIA_THREAD_GET_CURRENT_CONFIG();
-    if (!thread_config.stack_in_ext || (get_static_srmodels() != nullptr)) {
+    if (lib_utils::ThreadConfig::check_stack_cache_safe() || (get_static_srmodels() != nullptr)) {
         BROOKESIA_LOGD("Getting wake words in current thread");
         get_wake_words();
     } else {
+        // Since initializing SR in `esp_srmodel_init()` operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
         BROOKESIA_LOGD("Getting wake words in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
             .stack_size = GET_WAKE_WORDS_THREAD_STACK_SIZE,

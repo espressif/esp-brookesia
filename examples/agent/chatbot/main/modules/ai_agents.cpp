@@ -21,6 +21,7 @@ using XiaoZhiHelper = esp_brookesia::agent::helper::XiaoZhi;
 using EmoteHelper = esp_brookesia::service::helper::ExpressionEmote;
 using AudioHelper = esp_brookesia::service::helper::Audio;
 using WifiHelper = esp_brookesia::service::helper::Wifi;
+using DeviceHelper = esp_brookesia::service::helper::Device;
 
 #define XIAO_ZHI_AUDIO_URL_PREFIX "file://spiffs/xiaozhi/"
 
@@ -181,205 +182,53 @@ void AI_Agents::init_xiaozhi()
     BROOKESIA_LOGW("XiaoZhi agent is not enabled, skip initialization");
 #else
 
-    std::vector<AudioHelper::FunctionId> audio_functions = {
-        AudioHelper::FunctionId::SetVolume,
-        AudioHelper::FunctionId::GetVolume,
-        AudioHelper::FunctionId::SetMute,
-    };
-    auto add_service_tools_result = XiaoZhiHelper::call_function_sync<boost::json::array>(
-                                        XiaoZhiHelper::FunctionId::AddMCP_ToolsWithServiceFunction,
-                                        std::string(AudioHelper::get_name()),
-                                        BROOKESIA_DESCRIBE_TO_JSON(audio_functions).as_array()
-                                    );
+    // Get device capabilities
+    auto get_device_capabilities_result = DeviceHelper::call_function_sync<boost::json::object>(
+            DeviceHelper::FunctionId::GetCapabilities
+                                          );
     BROOKESIA_CHECK_FALSE_EXIT(
-        add_service_tools_result, "Failed to add service tools: %1%", add_service_tools_result.error()
+        get_device_capabilities_result, "Failed to get device capabilities: %1%", get_device_capabilities_result.error()
     );
-    BROOKESIA_LOGI("Added service tools: %1%", add_service_tools_result.value());
-
-    std::vector<mcp_utils::CustomTool> custom_tools;
-    auto [backlight_name, backlight_iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
-    if (backlight_iface) {
-        std::vector<mcp_utils::CustomTool> display_tools = {
-            {
-                .schema = {
-                    .name = "Display.GetBrightness",
-                    .description = "Get the brightness of the display",
-                },
-                .callback = +[](service::FunctionParameterMap && params)
-                {
-                    auto context = std::get_if<service::RawBuffer>(
-                        &params[std::string(mcp_utils::CUSTOM_TOOL_PARAMETER_CONTEXT_NAME)]
-                    );
-                    if (!context) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to get context",
-                        };
-                    }
-                    auto backlight_iface = reinterpret_cast<hal::DisplayBacklightIface *>(context->to_ptr());
-                    if (!backlight_iface) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to convert backlight interface",
-                        };
-                    }
-
-                    uint8_t brightness = 0;
-                    if (!backlight_iface->get_brightness(brightness)) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to get brightness",
-                        };
-                    }
-
-                    return service::FunctionResult{
-                        .success = true,
-                        .data = brightness,
-                    };
-                },
-                .context{backlight_iface.get()},
-            },
-            {
-                .schema = {
-                    .name = "Display.SetBrightness",
-                    .description = "Set the brightness of the display",
-                    .parameters = {
-                        {
-                            .name = "Brightness",
-                            .description = "The brightness to set the display to, range from 0 to 100",
-                            .type = service::FunctionValueType::Number
-                        }
-                    },
-                },
-                .callback = +[](service::FunctionParameterMap && params)
-                {
-                    auto context = std::get_if<service::RawBuffer>(
-                        &params[std::string(mcp_utils::CUSTOM_TOOL_PARAMETER_CONTEXT_NAME)]
-                    );
-                    if (!context) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to get context",
-                        };
-                    }
-                    auto backlight_iface = reinterpret_cast<hal::DisplayBacklightIface *>(context->to_ptr());
-                    if (!backlight_iface) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to convert backlight interface",
-                        };
-                    }
-
-                    auto brightness = std::get_if<double>(&params["Brightness"]);
-                    if (!brightness) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to get brightness",
-                        };
-                    }
-
-                    if (!backlight_iface->set_brightness(static_cast<uint8_t>(*brightness))) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to set brightness",
-                        };
-                    }
-
-                    return service::FunctionResult{
-                        .success = true,
-                    };
-                },
-                .context{backlight_iface.get()},
-            },
-            {
-                .schema = {
-                    .name = "Display.TurnOn",
-                    .description = "Turn on the display",
-                },
-                .callback = +[](service::FunctionParameterMap && params)
-                {
-                    auto context = std::get_if<service::RawBuffer>(
-                        &params[std::string(mcp_utils::CUSTOM_TOOL_PARAMETER_CONTEXT_NAME)]
-                    );
-                    if (!context) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to get context",
-                        };
-                    }
-                    auto backlight_iface = reinterpret_cast<hal::DisplayBacklightIface *>(context->to_ptr());
-                    if (!backlight_iface) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to convert backlight interface",
-                        };
-                    }
-
-                    if (!backlight_iface->turn_on()) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to turn on display",
-                        };
-                    }
-
-                    return service::FunctionResult{
-                        .success = true,
-                    };
-                },
-                .context{backlight_iface.get()},
-            },
-            {
-                .schema = {
-                    .name = "Display.TurnOff",
-                    .description = "Turn off the display",
-                },
-                .callback = +[](service::FunctionParameterMap && params)
-                {
-                    auto context = std::get_if<service::RawBuffer>(
-                        &params[std::string(mcp_utils::CUSTOM_TOOL_PARAMETER_CONTEXT_NAME)]
-                    );
-                    if (!context) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to get context",
-                        };
-                    }
-                    auto backlight_iface = reinterpret_cast<hal::DisplayBacklightIface *>(context->to_ptr());
-                    if (!backlight_iface) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to convert backlight interface",
-                        };
-                    }
-
-                    if (!backlight_iface->turn_off()) {
-                        return service::FunctionResult{
-                            .success = false,
-                            .error_message = "Failed to turn off display",
-                        };
-                    }
-
-                    return service::FunctionResult{
-                        .success = true,
-                    };
-                },
-                .context{backlight_iface.get()},
-            },
-        };
-        for (const auto &tool : display_tools) {
-            custom_tools.push_back(std::move(tool));
-        }
+    BROOKESIA_LOGI("Device capabilities: %1%", get_device_capabilities_result.value());
+    DeviceHelper::Capabilities device_capabilities;
+    auto convert_result = BROOKESIA_DESCRIBE_FROM_JSON(get_device_capabilities_result.value(), device_capabilities);
+    BROOKESIA_CHECK_FALSE_EXIT(convert_result, "Failed to convert device capabilities");
+    // Build device service tools
+    std::vector<DeviceHelper::FunctionId> device_functions{
+        DeviceHelper::FunctionId::GetCapabilities,
+        DeviceHelper::FunctionId::GetBoardInfo,
+        DeviceHelper::FunctionId::ResetData
+    };
+    if (device_capabilities.find(std::string(hal::AudioCodecPlayerIface::NAME)) != device_capabilities.end()) {
+        device_functions.push_back(DeviceHelper::FunctionId::SetAudioPlayerVolume);
+        device_functions.push_back(DeviceHelper::FunctionId::GetAudioPlayerVolume);
+        device_functions.push_back(DeviceHelper::FunctionId::SetAudioPlayerMute);
+        device_functions.push_back(DeviceHelper::FunctionId::GetAudioPlayerMute);
     }
-    if (!custom_tools.empty()) {
-        auto add_custom_tools_result = XiaoZhiHelper::call_function_sync<boost::json::array>(
-                                           XiaoZhiHelper::FunctionId::AddMCP_ToolsWithCustomFunction,
-                                           BROOKESIA_DESCRIBE_TO_JSON(custom_tools).as_array()
-                                       );
-        BROOKESIA_CHECK_FALSE_EXIT(
-            add_custom_tools_result, "Failed to add custom tools: %1%", add_custom_tools_result.error()
-        );
-        BROOKESIA_LOGI("Added custom tools: %1%", add_custom_tools_result.value());
+    if (device_capabilities.find(std::string(hal::DisplayBacklightIface::NAME)) != device_capabilities.end()) {
+        device_functions.push_back(DeviceHelper::FunctionId::SetDisplayBacklightBrightness);
+        device_functions.push_back(DeviceHelper::FunctionId::GetDisplayBacklightBrightness);
+        device_functions.push_back(DeviceHelper::FunctionId::SetDisplayBacklightOnOff);
+        device_functions.push_back(DeviceHelper::FunctionId::GetDisplayBacklightOnOff);
     }
+    if (device_capabilities.find(std::string(hal::StorageFsIface::NAME)) != device_capabilities.end()) {
+        device_functions.push_back(DeviceHelper::FunctionId::GetStorageFileSystems);
+    }
+    if (device_capabilities.find(std::string(hal::PowerBatteryIface::NAME)) != device_capabilities.end()) {
+        device_functions.push_back(DeviceHelper::FunctionId::GetPowerBatteryInfo);
+        device_functions.push_back(DeviceHelper::FunctionId::GetPowerBatteryState);
+        device_functions.push_back(DeviceHelper::FunctionId::SetPowerBatteryChargingEnabled);
+    }
+    auto add_device_service_tools_result = XiaoZhiHelper::call_function_sync<boost::json::array>(
+            XiaoZhiHelper::FunctionId::AddMCP_ToolsWithServiceFunction,
+            std::string(DeviceHelper::get_name()),
+            BROOKESIA_DESCRIBE_TO_JSON(device_functions).as_array()
+                                           );
+    BROOKESIA_CHECK_FALSE_EXIT(
+        add_device_service_tools_result, "Failed to add device service tools: %1%",
+        add_device_service_tools_result.error()
+    );
+    BROOKESIA_LOGI("Added device service tools: %1%", add_device_service_tools_result.value());
 
     // Subscribe to activation code received event
     auto activation_code_received_slot = [this](const std::string & event_name, const std::string & code) {
@@ -882,6 +731,43 @@ void AI_Agents::process_emote_when_coze_event_happened()
     }
 }
 
+void AI_Agents::process_emote_when_power_battery_state_changed()
+{
+    auto slot = [this](const std::string & event_name, const boost::json::object & state) {
+        BROOKESIA_LOG_TRACE_GUARD();
+        BROOKESIA_LOGD("Params: event_name(%1%), state(%2%)", event_name, state);
+
+        if (!is_inactive()) {
+            BROOKESIA_LOGD("Agent is inactive, skip");
+        }
+
+        hal::PowerBatteryIface::State battery_state;
+        auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(state, battery_state);
+        BROOKESIA_CHECK_FALSE_EXIT(parse_result, "Failed to parse power battery state");
+
+        std::string battery_message = "";
+        if ((battery_state.charge_state == hal::PowerBatteryIface::ChargeState::Unknown) ||
+                (battery_state.charge_state == hal::PowerBatteryIface::ChargeState::NotCharging)) {
+            battery_message = "0,";
+        } else {
+            battery_message = "1,";
+        }
+        battery_message += std::to_string(battery_state.percentage.value_or(0));
+        BROOKESIA_LOGD("Battery message: %1%", battery_message);
+
+        EmoteHelper::call_function_async(
+            EmoteHelper::FunctionId::SetEventMessage, BROOKESIA_DESCRIBE_TO_STR(EmoteHelper::EventMessageType::Battery),
+            battery_message
+        );
+    };
+    auto connection = DeviceHelper::subscribe_event(DeviceHelper::EventId::PowerBatteryStateChanged, slot);
+    if (connection.connected()) {
+        service_connections_.push_back(std::move(connection));
+    } else {
+        BROOKESIA_LOGE("Failed to subscribe to Agent power battery state changed event");
+    }
+}
+
 void AI_Agents::process_emote_when_emote_got()
 {
     auto slot = [this](const std::string & event_name, std::string emote) {
@@ -928,7 +814,7 @@ void AI_Agents::process_emote()
     process_emote_when_agent_speaking_text_got();
     process_emote_when_user_speaking_text_got();
     process_emote_when_emote_got();
-
+    process_emote_when_power_battery_state_changed();
     process_emote_when_coze_event_happened();
 }
 

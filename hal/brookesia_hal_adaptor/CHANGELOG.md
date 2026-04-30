@@ -12,6 +12,7 @@
 ### Bug Fixes:
 
 - fix(display): detect touch interrupt mode only when the configured interrupt GPIO is valid
+- fix(storage): initialize flash-backed storage from an internal-RAM stack when required
 
 ## v0.7.2 - 2026-04-20
 

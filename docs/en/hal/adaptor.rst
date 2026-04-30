@@ -13,7 +13,7 @@ HAL Adaptor
 Overview
 --------
 
-``brookesia_hal_adaptor`` is the board-level HAL adaptor of ESP-Brookesia. Based on the device/interface model in :ref:`HAL Interface <hal-interface-index-sec-00>`, it initialises real peripherals via ``esp_board_manager`` and registers **audio**, **display**, and **storage** capabilities into the global HAL table for upper layers to discover by name.
+``brookesia_hal_adaptor`` is the board-level HAL adaptor of ESP-Brookesia. Based on the device/interface model in :ref:`HAL Interface <hal-interface-index-sec-00>`, it initialises real peripherals via ``esp_board_manager`` and registers **general information**, **audio**, **display**, **storage**, and **power** capabilities into the global HAL table for upper layers to discover by name.
 
 .. _hal-adaptor-sec-02:
 
@@ -25,7 +25,7 @@ Features
 Built-In Devices
 ^^^^^^^^^^^^^^^^
 
-The component ships three board-level devices, each registered as a singleton; after initialisation they publish their interfaces into the global table:
+The component ships multiple board-level devices, each registered as a singleton; after initialisation they publish their interfaces into the global table:
 
 .. list-table::
    :widths: 22 38 40
@@ -34,6 +34,9 @@ The component ships three board-level devices, each registered as a singleton; a
    * - Device class (logical name)
      - Registered interface implementations
      - Notes
+   * - ``GeneralDevice`` (``"General"``)
+     - ``BoardInfoIface`` (``BOARD_INFO_IMPL_NAME``)
+     - Reads static board metadata such as board name, chip, version, description, and manufacturer from board-level configuration for device identification and information display.
    * - ``AudioDevice`` (``"Audio"``)
      - ``AudioCodecPlayerIface`` (``CODEC_PLAYER_IMPL_NAME``), ``AudioCodecRecorderIface`` (``CODEC_RECORDER_IMPL_NAME``)
      - Playback via board Audio DAC; recording via Audio ADC. Each sub-implementation can be disabled in Kconfig; requires board capability ``ESP_BOARD_DEV_AUDIO_CODEC_SUPPORT``.
@@ -43,13 +46,16 @@ The component ships three board-level devices, each registered as a singleton; a
    * - ``StorageDevice`` (``"Storage"``)
      - ``StorageFsIface`` (``GENERAL_FS_IMPL_NAME``)
      - General filesystem implementation; supports SPIFFS (``ESP_BOARD_DEV_FS_SPIFFS_SUPPORT``) and SD card / FATFS (``ESP_BOARD_DEV_FS_FAT_SUPPORT``), enabled per Kconfig.
+   * - ``PowerDevice`` (``"Power"``)
+     - ``PowerBatteryIface`` (``BATTERY_IMPL_NAME``)
+     - Battery and charger capability implementation. Supports ADC voltage estimation or AXP2101 power-management-chip backends; can query level, voltage, power source, and charge state, and control charger configuration when supported by the underlying hardware.
 
 .. _hal-adaptor-sec-04:
 
 Configuration
 ^^^^^^^^^^^^^
 
-Each sub-interface can be enabled or disabled individually under **ESP-Brookesia: Hal Adaptor Configurations** in ``menuconfig``; default capability parameters (volume range, recording format, backlight range, etc.) are also adjustable there, and are mapped to compile-time macros by ``macro_configs.h``.
+Each device and sub-interface can be enabled or disabled individually under **ESP-Brookesia: Hal Adaptor Configurations** in ``menuconfig``; default capability parameters (volume range, recording format, backlight range, battery low-level thresholds, ADC voltage conversion parameters, etc.) are also adjustable there, and are mapped to compile-time macros by ``macro_configs.h``.
 
 To override default capability parameters before initialisation, call ``set_codec_player_info``, ``set_codec_recorder_info``, or ``set_ledc_backlight_info`` on the corresponding device singleton. Calls after initialisation typically have no effect.
 
@@ -58,8 +64,12 @@ To override default capability parameters before initialisation, call ``set_code
 API Reference
 -------------
 
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/general/device.inc
+
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/audio/device.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.inc

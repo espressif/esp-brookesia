@@ -101,6 +101,8 @@ def _compile_exporter(repo_root: Path, cpp_path: Path, binary_path: Path, contex
         "-I",
         str(repo_root / "utils" / "brookesia_lib_utils" / "include"),
         "-I",
+        str(repo_root / "hal" / "brookesia_hal_interface" / "include"),
+        "-I",
         str(repo_root / "service" / "brookesia_service_helper" / "include"),
         "-I",
         str(repo_root / "service" / "brookesia_service_helper" / "host_test"),

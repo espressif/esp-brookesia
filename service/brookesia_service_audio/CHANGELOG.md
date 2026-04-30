@@ -6,6 +6,10 @@
 
 - break(data): move persisted player volume ownership from Audio service to Device service
 
+### Bug Fixes:
+
+- fix(afe): use runtime stack safety checks before speech model setup and teardown
+
 ### Enhancements:
 
 - feat(deps): depend on `brookesia_service_device` for audio player volume and mute control

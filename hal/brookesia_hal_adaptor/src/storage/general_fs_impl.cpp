@@ -3,12 +3,14 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <thread>
 #include "esp_board_manager_includes.h"
 #include "brookesia/hal_adaptor/macro_configs.h"
 #if !BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include "private/utils.hpp"
+#include "brookesia/lib_utils/thread_config.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "general_fs_impl.hpp"
 
@@ -41,7 +43,21 @@ bool GeneralStorageFsImpl::init_spiffs()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    esp_err_t ret = ESP_OK;
+    auto init_func = [&ret]() {
+        BROOKESIA_LOG_TRACE_GUARD();
+        ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    };
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
+        // Since initializing SPIFFS operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        std::thread(init_func).join();
+    } else {
+        init_func();
+    }
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SPIFFS");
     lib_utils::FunctionGuard deinit_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

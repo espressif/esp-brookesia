@@ -4,6 +4,7 @@
 
 ### Enhancements:
 
+- feat(build): split ESP-IDF and PC CMake logic into platform-specific files and expose `brookesia::service_helper` for PC builds
 - feat(device): add `Device` helper with HAL capability discovery, board information, display backlight, audio player, storage, and power battery schemas
 - feat(device): add Device helper event schemas for display brightness, display on/off, audio volume, audio mute, and battery state changes
 - feat(docs): include Device helper in generated helper contract documentation
