@@ -10,9 +10,11 @@
  */
 #pragma once
 
-#include "audio/codec_player.hpp"
-#include "audio/codec_recorder.hpp"
-#include "display/backlight.hpp"
-#include "display/panel.hpp"
-#include "display/touch.hpp"
-#include "storage/fs.hpp"
+#include "interfaces/audio/codec_player.hpp"
+#include "interfaces/audio/codec_recorder.hpp"
+#include "interfaces/display/backlight.hpp"
+#include "interfaces/display/panel.hpp"
+#include "interfaces/display/touch.hpp"
+#include "interfaces/general/board_info.hpp"
+#include "interfaces/power/battery.hpp"
+#include "interfaces/storage/fs.hpp"

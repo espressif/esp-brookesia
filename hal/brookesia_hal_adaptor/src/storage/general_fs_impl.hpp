@@ -5,7 +5,7 @@
  */
 #pragma once
 
-#include "brookesia/hal_interface/storage/fs.hpp"
+#include "brookesia/hal_interface/interfaces/storage/fs.hpp"
 
 namespace esp_brookesia::hal {
 

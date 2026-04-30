@@ -15,8 +15,8 @@
 #include <string>
 #include <utility>
 #include "brookesia/hal_interface/device.hpp"
-#include "brookesia/hal_interface/audio/codec_player.hpp"
-#include "brookesia/hal_interface/audio/codec_recorder.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
 
 namespace esp_brookesia::hal {
 
@@ -38,15 +38,6 @@ public:
     AudioDevice &operator=(const AudioDevice &) = delete;
     AudioDevice(AudioDevice &&) = delete;
     AudioDevice &operator=(AudioDevice &&) = delete;
-
-    /**
-     * @brief Overrides default static playback capability information used when constructing the codec player implementation.
-     *
-     * @param[in] info Codec player capability descriptor (volume range and default).
-     *
-     * @return `true` if the value was stored; `false` on invalid input or if the player is already initialized.
-     */
-    bool set_codec_player_info(AudioCodecPlayerIface::Info info);
 
     /**
      * @brief Overrides default static recording capability information used when constructing the codec recorder implementation.
@@ -85,7 +76,6 @@ private:
     bool init_codec_recorder();
     void deinit_codec_recorder();
 
-    std::optional<AudioCodecPlayerIface::Info> codec_player_info_ = std::nullopt;
     std::optional<AudioCodecRecorderIface::Info> codec_recorder_info_ = std::nullopt;
 };
 

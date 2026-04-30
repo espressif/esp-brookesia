@@ -11,6 +11,10 @@ using namespace esp_brookesia;
 
 namespace esp_brookesia {
 
+namespace {
+bool g_light_on_off_supported = true;
+}
+
 bool TestDisplayBacklightIface::set_brightness(uint8_t percent)
 {
     BROOKESIA_LOGI("Set brightness to %1%", percent);
@@ -25,15 +29,13 @@ bool TestDisplayBacklightIface::get_brightness(uint8_t &percent)
     return true;
 }
 
-bool TestDisplayBacklightIface::turn_on()
+bool TestDisplayBacklightIface::set_light_on_off(bool on)
 {
-    BROOKESIA_LOGI("Turn on");
-    return true;
-}
-
-bool TestDisplayBacklightIface::turn_off()
-{
-    BROOKESIA_LOGI("Turn off");
+    BROOKESIA_LOGI("Turn %1%", on ? "on" : "off");
+    if (!light_on_off_supported_) {
+        return false;
+    }
+    is_light_on_ = on;
     return true;
 }
 
@@ -44,14 +46,8 @@ bool TestDisplayBacklightDevice::probe()
 
 bool TestDisplayBacklightDevice::on_init()
 {
-    auto interface = std::make_shared<TestDisplayBacklightIface>(hal::DisplayBacklightIface::Info {
-        .brightness_default = 80,
-        .brightness_min = 5,
-        .brightness_max = 100,
-    });
-
+    auto interface = std::make_shared<TestDisplayBacklightIface>(g_light_on_off_supported);
     interfaces_.emplace(TestDisplayBacklightIface::NAME, interface);
-
     return true;
 }
 
@@ -60,13 +56,30 @@ void TestDisplayBacklightDevice::on_deinit()
     interfaces_.clear();
 }
 
+void TestDisplayBacklightDevice::set_light_on_off_supported(bool light_on_off_supported)
+{
+    g_light_on_off_supported = light_on_off_supported;
+}
+
 } // namespace esp_brookesia
 
 BROOKESIA_PLUGIN_REGISTER(hal::Device, TestDisplayBacklightDevice, std::string(TestDisplayBacklightDevice::NAME));
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////// Test Cases //////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+namespace {
+
+std::shared_ptr<TestDisplayBacklightIface> get_backlight_iface_or_null()
+{
+    auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
+    TEST_ASSERT_FALSE(name.empty());
+    TEST_ASSERT_NOT_NULL(iface.get());
+
+    auto test_iface = std::dynamic_pointer_cast<TestDisplayBacklightIface>(iface);
+    TEST_ASSERT_NOT_NULL(test_iface.get());
+
+    return test_iface;
+}
+
+} // namespace
 
 TEST_CASE("DisplayBacklightIface: get_device finds plugin after registration", "[hal][device]")
 {
@@ -76,6 +89,7 @@ TEST_CASE("DisplayBacklightIface: get_device finds plugin after registration", "
 
 TEST_CASE("DisplayBacklightIface: init_device registers interfaces", "[hal][device]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
@@ -87,6 +101,7 @@ TEST_CASE("DisplayBacklightIface: init_device registers interfaces", "[hal][devi
 
 TEST_CASE("DisplayBacklightIface: deinit_device releases interfaces", "[hal][device]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     hal::deinit_device(TestDisplayBacklightDevice::NAME);
@@ -98,6 +113,7 @@ TEST_CASE("DisplayBacklightIface: deinit_device releases interfaces", "[hal][dev
 
 TEST_CASE("DisplayBacklightIface: get_device returns correct device type", "[hal][device]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     auto device = hal::get_device_by_device_name(TestDisplayBacklightDevice::NAME);
@@ -109,12 +125,12 @@ TEST_CASE("DisplayBacklightIface: get_device returns correct device type", "[hal
 
 TEST_CASE("DisplayBacklightIface: get_first_interface returns DisplayBacklightIface", "[hal][interface]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
     TEST_ASSERT_NOT_NULL(iface.get());
     TEST_ASSERT_FALSE(name.empty());
-
     TEST_ASSERT_EQUAL_STRING(TestDisplayBacklightIface::NAME, name.c_str());
 
     hal::deinit_device(TestDisplayBacklightDevice::NAME);
@@ -127,8 +143,9 @@ TEST_CASE("DisplayBacklightIface: get_first_interface returns empty pair when no
     TEST_ASSERT_TRUE(name.empty());
 }
 
-TEST_CASE("DisplayBacklightIface: get_interfaces returns all DisplayBacklightIface instances", "[hal][interface]")
+TEST_CASE("DisplayBacklightIface: get_interfaces returns all instances", "[hal][interface]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     auto interfaces = hal::get_interfaces<hal::DisplayBacklightIface>();
@@ -144,6 +161,7 @@ TEST_CASE("DisplayBacklightIface: get_interfaces returns all DisplayBacklightIfa
 
 TEST_CASE("DisplayBacklightIface: Device::get_interface returns interface from device instance", "[hal][interface]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     auto device = hal::get_device_by_device_name(TestDisplayBacklightDevice::NAME);
@@ -157,6 +175,7 @@ TEST_CASE("DisplayBacklightIface: Device::get_interface returns interface from d
 
 TEST_CASE("DisplayBacklightIface: Device::get_interface returns nullptr for missing interface", "[hal][interface]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
     auto device = hal::get_device_by_device_name(TestDisplayBacklightDevice::NAME);
@@ -168,51 +187,67 @@ TEST_CASE("DisplayBacklightIface: Device::get_interface returns nullptr for miss
     hal::deinit_device(TestDisplayBacklightDevice::NAME);
 }
 
-TEST_CASE("DisplayBacklightIface: info is correctly propagated", "[hal][interface]")
+TEST_CASE("DisplayBacklightIface: set_brightness get_brightness", "[hal][interface]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
-    auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
+    auto test_iface = get_backlight_iface_or_null();
+    TEST_ASSERT_TRUE(test_iface->set_brightness(42));
 
-    const auto &info = iface->get_info();
-    TEST_ASSERT_EQUAL_UINT8(80, info.brightness_default);
-    TEST_ASSERT_EQUAL_UINT8(5, info.brightness_min);
-    TEST_ASSERT_EQUAL_UINT8(100, info.brightness_max);
+    uint8_t brightness = 0;
+    TEST_ASSERT_TRUE(test_iface->get_brightness(brightness));
+    TEST_ASSERT_EQUAL_UINT8(42, brightness);
+    TEST_ASSERT_EQUAL_UINT8(42, test_iface->get_last_brightness());
 
     hal::deinit_device(TestDisplayBacklightDevice::NAME);
 }
 
-TEST_CASE("DisplayBacklightIface: set_brightness/get_brightness", "[hal][interface]")
+TEST_CASE("DisplayBacklightIface: light on off supported path", "[hal][interface]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
-    auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
+    auto test_iface = get_backlight_iface_or_null();
+    TEST_ASSERT_TRUE(test_iface->is_light_on_off_supported());
+    TEST_ASSERT_FALSE(test_iface->is_light_on());
+    TEST_ASSERT_TRUE(test_iface->set_light_on_off(true));
+    TEST_ASSERT_TRUE(test_iface->is_light_on());
+    TEST_ASSERT_TRUE(test_iface->set_light_on_off(false));
+    TEST_ASSERT_FALSE(test_iface->is_light_on());
 
-    TEST_ASSERT_TRUE(iface->set_brightness(42));
+    hal::deinit_device(TestDisplayBacklightDevice::NAME);
+}
 
-    uint8_t brightness = 0;
-    TEST_ASSERT_TRUE(iface->get_brightness(brightness));
-    TEST_ASSERT_EQUAL_UINT8(42, brightness);
+TEST_CASE("DisplayBacklightIface: light on off unsupported path", "[hal][interface]")
+{
+    TestDisplayBacklightDevice::set_light_on_off_supported(false);
+    TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
+
+    auto test_iface = get_backlight_iface_or_null();
+    TEST_ASSERT_FALSE(test_iface->is_light_on_off_supported());
+    TEST_ASSERT_FALSE(test_iface->is_light_on());
+    TEST_ASSERT_FALSE(test_iface->set_light_on_off(true));
+    TEST_ASSERT_FALSE(test_iface->is_light_on());
 
     hal::deinit_device(TestDisplayBacklightDevice::NAME);
 }
 
 TEST_CASE("DisplayBacklightIface: repeated init/deinit cycles work correctly", "[hal][device]")
 {
+    TestDisplayBacklightDevice::set_light_on_off_supported(true);
     for (int i = 0; i < 3; i++) {
         BROOKESIA_LOGI("Cycle %1%", i + 1);
 
         TEST_ASSERT_TRUE(hal::init_device(TestDisplayBacklightDevice::NAME));
 
-        auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
-        TEST_ASSERT_NOT_NULL(iface.get());
-        TEST_ASSERT_TRUE(iface->set_brightness(25));
+        auto test_iface = get_backlight_iface_or_null();
+        TEST_ASSERT_TRUE(test_iface->set_brightness(25));
 
         hal::deinit_device(TestDisplayBacklightDevice::NAME);
 
-        auto [name2, iface2] = hal::get_first_interface<hal::DisplayBacklightIface>();
-        TEST_ASSERT_NULL(iface2.get());
+        auto [name, iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
+        TEST_ASSERT_NULL(iface.get());
+        TEST_ASSERT_TRUE(name.empty());
     }
 }

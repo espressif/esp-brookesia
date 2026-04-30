@@ -9,7 +9,7 @@
 #include <optional>
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
-#include "brookesia/hal_interface/audio/codec_recorder.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
 
 namespace esp_brookesia::hal {
 

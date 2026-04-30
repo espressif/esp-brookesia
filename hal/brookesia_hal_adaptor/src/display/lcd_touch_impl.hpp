@@ -8,7 +8,7 @@
 #include <vector>
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
-#include "brookesia/hal_interface/display/touch.hpp"
+#include "brookesia/hal_interface/interfaces/display/touch.hpp"
 
 namespace esp_brookesia::hal {
 

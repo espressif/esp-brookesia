@@ -1,4 +1,4 @@
-version: "0.7.2"
+version: "0.7.3"
 description: ESP-Brookesia HAL boards component that provides board-specific device configurations, peripheral mappings, and hardware setup hooks for esp_board_manager.
 url: https://github.com/espressif/esp-brookesia/tree/master/hal/brookesia_hal_boards
 repository: https://github.com/espressif/esp-brookesia.git

@@ -17,21 +17,6 @@
 
 namespace esp_brookesia::hal {
 
-bool AudioDevice::set_codec_player_info(AudioCodecPlayerIface::Info info)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: info(%1%)", BROOKESIA_DESCRIBE_TO_STR(info));
-
-    BROOKESIA_CHECK_FALSE_RETURN(
-        !is_iface_initialized(CODEC_PLAYER_IMPL_NAME), false, "Should called before initializing codec player"
-    );
-
-    codec_player_info_ = info;
-
-    return true;
-}
-
 bool AudioDevice::set_codec_recorder_info(AudioCodecRecorderIface::Info info)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -93,8 +78,7 @@ bool AudioDevice::init_codec_player()
 
     std::shared_ptr<AudioCodecPlayerImpl> iface = nullptr;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        iface = std::make_shared<AudioCodecPlayerImpl>(codec_player_info_), false,
-        "Failed to create codec player interface"
+        iface = std::make_shared<AudioCodecPlayerImpl>(), false, "Failed to create codec player interface"
     );
     lib_utils::FunctionGuard iface_delete_guard([this, &iface]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

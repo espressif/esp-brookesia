@@ -13,7 +13,6 @@
 
 using namespace esp_brookesia;
 
-constexpr const char *GPIO_EXPANDER_DEVICE_NAME = "gpio_expander";
 constexpr const char *POWER_MANAGER_DEVICE_NAME = "axp2101_power_manager";
 
 ESP_BROOKESIA_HAL_DEVICE_REGISTER_PRE_INIT_CALLBACKS(
@@ -25,8 +24,6 @@ ESP_BROOKESIA_HAL_DEVICE_REGISTER_PRE_INIT_CALLBACKS(
             esp_err_t ret = ESP_OK;
             ret = esp_board_manager_init_device_by_name(POWER_MANAGER_DEVICE_NAME);
             BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init power manager");
-            ret = esp_board_manager_init_device_by_name(GPIO_EXPANDER_DEVICE_NAME);
-            BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init gpio expander");
             return true;
         }
     },
@@ -34,12 +31,9 @@ ESP_BROOKESIA_HAL_DEVICE_REGISTER_PRE_INIT_CALLBACKS(
         hal::DisplayDevice::get_instance().get_name(),
         []() {
             BROOKESIA_LOG_TRACE_GUARD();
-            BROOKESIA_LOGI("Initializing power manager and gpio expander");
             esp_err_t ret = ESP_OK;
             ret = esp_board_manager_init_device_by_name(POWER_MANAGER_DEVICE_NAME);
             BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init power manager");
-            ret = esp_board_manager_init_device_by_name(GPIO_EXPANDER_DEVICE_NAME);
-            BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init gpio expander");
             return true;
         }
     }
@@ -52,8 +46,6 @@ ESP_BROOKESIA_HAL_DEVICE_REGISTER_ALL_PRE_INIT_CALLBACK(
         esp_err_t ret = ESP_OK;
         ret = esp_board_manager_init_device_by_name(POWER_MANAGER_DEVICE_NAME);
         BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init power manager");
-        ret = esp_board_manager_init_device_by_name(GPIO_EXPANDER_DEVICE_NAME);
-        BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init gpio expander");
         return true;
     }
 )
@@ -63,8 +55,6 @@ ESP_BROOKESIA_HAL_DEVICE_REGISTER_ALL_POST_DEINIT_CALLBACK(
     []() {
         BROOKESIA_LOG_TRACE_GUARD();
         esp_err_t ret = ESP_OK;
-        ret = esp_board_manager_deinit_device_by_name(GPIO_EXPANDER_DEVICE_NAME);
-        BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to deinit gpio expander");
         ret = esp_board_manager_deinit_device_by_name(POWER_MANAGER_DEVICE_NAME);
         BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to deinit power manager");
         return true;

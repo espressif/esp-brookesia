@@ -111,6 +111,8 @@ bool LcdDisplayPanelImpl::get_driver_specific(DriverSpecific &specific)
     } else {
         BROOKESIA_LOGW("Unsupported sub type: %1%", config->sub_type);
     }
+    specific.draw_x_align_bytes = BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_DRAW_X_ALIGN_BYTES;
+    specific.draw_y_align_bytes = BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_DRAW_Y_ALIGN_BYTES;
 
     return true;
 }

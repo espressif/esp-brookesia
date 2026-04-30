@@ -49,12 +49,25 @@ esp_err_t lcd_panel_factory_entry_t(esp_lcd_panel_io_handle_t io, const esp_lcd_
     memcpy(&panel_dev_cfg, panel_dev_config, sizeof(esp_lcd_panel_dev_config_t));
 
     panel_dev_cfg.vendor_config = (void *)&vendor_config;
-    int ret = esp_lcd_new_panel_co5300(io, &panel_dev_cfg, ret_panel);
-    esp_lcd_panel_reset(*ret_panel);
-    esp_lcd_panel_init(*ret_panel);
-    esp_lcd_panel_disp_on_off(*ret_panel, true);
+    esp_err_t ret = esp_lcd_new_panel_co5300(io, &panel_dev_cfg, ret_panel);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "New co5300 panel failed");
+        return ret;
+    }
+
+    ret = esp_lcd_panel_reset(*ret_panel);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Reset co5300 panel failed");
+        return ret;
+    }
+    ret = esp_lcd_panel_init(*ret_panel);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Init co5300 panel failed");
+        return ret;
+    }
+    ret = esp_lcd_panel_disp_on_off(*ret_panel, true);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Turn on co5300 panel failed");
         return ret;
     }
 

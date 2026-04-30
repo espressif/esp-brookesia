@@ -9,7 +9,12 @@
 #include "brookesia/hal_adaptor.hpp"
 
 // Some resources are lazy allocated in the driver, the threadhold is left for that case
-#define TEST_MEMORY_LEAK_THRESHOLD (0)
+#if defined(CONFIG_IDF_TARGET_ESP32P4)
+// TODO: esp_board_manager deinit SDcard: Memory leak occurs due to missing LDO release.
+#   define TEST_MEMORY_LEAK_THRESHOLD (200)
+#else
+#   define TEST_MEMORY_LEAK_THRESHOLD (0)
+#endif
 
 using namespace esp_brookesia;
 
@@ -26,9 +31,6 @@ void tearDown(void)
 
 extern "C" void app_main(void)
 {
-    hal::init_device(hal::StorageDevice::DEVICE_NAME);
-    hal::init_device(hal::AudioDevice::DEVICE_NAME);
-
     /**
      *  __    __   ______   __                ______   _______    ______   _______  ________   ______   _______
      * |  \  |  \ /      \ |  \              /      \ |       \  /      \ |       \|        \ /      \ |       \

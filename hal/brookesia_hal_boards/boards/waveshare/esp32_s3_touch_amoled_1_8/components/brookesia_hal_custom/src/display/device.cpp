@@ -15,25 +15,7 @@
 
 using namespace esp_brookesia;
 
-constexpr const char *GPIO_EXPANDER_DEVICE_NAME = "gpio_expander";
-constexpr const char *POWER_MANAGER_DEVICE_NAME = "axp2101_power_manager";
-
 namespace esp_brookesia::hal {
-
-bool CustomDisplayDevice::set_backlight_info(DisplayBacklightIface::Info info)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: info(%1%)", BROOKESIA_DESCRIBE_TO_STR(info));
-
-    BROOKESIA_CHECK_FALSE_RETURN(
-        !is_iface_initialized(DISPLAY_BACKLIGHT_IMPL_NAME), false, "Should called before initializing display backlight"
-    );
-
-    backlight_info_ = info;
-
-    return true;
-}
 
 bool CustomDisplayDevice::probe()
 {
@@ -71,7 +53,7 @@ bool CustomDisplayDevice::init_backlight()
 
     std::shared_ptr<CustomDisplayBacklightImpl> iface = nullptr;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        iface = std::make_shared<CustomDisplayBacklightImpl>(backlight_info_), false,
+        iface = std::make_shared<CustomDisplayBacklightImpl>(), false,
         "Failed to create backlight interface"
     );
     lib_utils::FunctionGuard iface_delete_guard([this, &iface]() {

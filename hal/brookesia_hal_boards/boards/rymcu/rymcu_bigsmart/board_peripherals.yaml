@@ -31,7 +31,7 @@ peripherals:
       intr_type: GPIO_INTR_DISABLE
       default_level: 0
 
-  - name: adc_charge_state
+  - name: adc_battery_charge
     type: adc
     role: oneshot
     config:

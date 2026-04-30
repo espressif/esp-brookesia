@@ -2,29 +2,4 @@ menu "ESP-Brookesia: Hal Custom Configurations"
     menuconfig BROOKESIA_HAL_CUSTOM_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
-
-    menu "Display"
-        menu "Backlight"
-            config BROOKESIA_HAL_CUSTOM_DISPLAY_BACKLIGHT_BRIGHTNESS_DEFAULT
-                int "Default brightness"
-                default 90
-                range 0 100
-                help
-                    The default brightness of the display LCD backlight, in percent.
-
-            config BROOKESIA_HAL_CUSTOM_DISPLAY_BACKLIGHT_BRIGHTNESS_MIN
-                int "Minimum brightness"
-                default 20
-                range 0 100
-                help
-                    The minimum brightness of the display LCD backlight, in percent.
-
-            config BROOKESIA_HAL_CUSTOM_DISPLAY_BACKLIGHT_BRIGHTNESS_MAX
-                int "Maximum brightness"
-                default 100
-                range 0 100
-                help
-                    The maximum brightness of the display LCD backlight, in percent.
-        endmenu
-    endmenu
 endmenu
