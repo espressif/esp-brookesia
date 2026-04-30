@@ -5,7 +5,7 @@ Touch Interface
 
 :link_to_translation:`zh_CN:[中文]`
 
-Public header: ``#include "brookesia/hal_interface/display/touch.hpp"``
+Public header: ``#include "brookesia/hal_interface/interfaces/display/touch.hpp"``
 
 Class: ``DisplayTouchIface``
 

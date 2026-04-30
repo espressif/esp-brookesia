@@ -67,15 +67,19 @@
     - "expression/brookesia_expression_emote/include/brookesia/expression_emote.hpp"
     - "hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/audio/device.hpp"
     - "hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.hpp"
+    - "hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/general/device.hpp"
+    - "hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.hpp"
     - "hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.hpp"
-    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/audio/codec_player.hpp"
-    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/audio/codec_recorder.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/codec_player.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
     - "hal/brookesia_hal_interface/include/brookesia/hal_interface/device.hpp"
-    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/display/backlight.hpp"
-    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/display/panel.hpp"
-    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/display/touch.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/backlight.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/panel.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/touch.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/general/board_info.hpp"
     - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interface.hpp"
-    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/storage/fs.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/power/battery.hpp"
+    - "hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/storage/fs.hpp"
     - "hal/brookesia_hal_interface/include/brookesia/hal_interface.hpp"
     - "service/brookesia_service_audio/include/brookesia/service_audio/service_audio.hpp"
     - "service/brookesia_service_audio/include/brookesia/service_audio.hpp"
@@ -222,6 +226,13 @@
   - "service/brookesia_service_custom/CMakeLists.txt"
   - "service/brookesia_service_custom/idf_component.yml"
   - "service/brookesia_service_custom/Kconfig"
+# brookesia_service_device
+.patterns-component_brookesia_service_device:
+  - "service/brookesia_service_device/include/**/*"
+  - "service/brookesia_service_device/src/**/*"
+  - "service/brookesia_service_device/CMakeLists.txt"
+  - "service/brookesia_service_device/idf_component.yml"
+  - "service/brookesia_service_device/Kconfig"
 # brookesia_service_helper
 .patterns-component_brookesia_service_helper:
   - "service/brookesia_service_helper/include/**/*"
@@ -305,6 +316,9 @@
 # brookesia_service_custom
 .patterns-test_apps_brookesia_service_custom:
   - "service/brookesia_service_custom/test_apps/**/*"
+# brookesia_service_device
+.patterns-test_apps_brookesia_service_device:
+  - "service/brookesia_service_device/test_apps/**/*"
 # brookesia_service_nvs
 .patterns-test_apps_brookesia_service_nvs:
   - "service/brookesia_service_nvs/test_apps/**/*"
@@ -372,6 +386,15 @@
   - "examples/service/console/partitions*.csv"
   - "examples/service/console/pytest_*.py"
   - "examples/service/console/sdkconfig.*"
+# service/device
+.patterns-examples_service_device:
+  - "examples/service/device/main/**/*"
+  - "examples/service/device/spiffs/**/*"
+  - "examples/service/device/CMakeLists.txt"
+  - "examples/service/device/idf_ext.py"
+  - "examples/service/device/partitions*.csv"
+  - "examples/service/device/pytest_*.py"
+  - "examples/service/device/sdkconfig.*"
 # service/nvs
 .patterns-examples_service_nvs:
   - "examples/service/nvs/main/**/*"

@@ -230,8 +230,8 @@ RPC_SERVER_COMMANDS = [
 
 # Tutorial commands following docs/tutorial_cn.md:
 #   1) Connect WiFi
-#   2) Start Expression Emote (load animation assets)
-#   3) Start XiaoZhi Agent (subscribe / set target / activate / start)
+#   2) Start Expression Emote (turn on display backlight / load animation assets)
+#   3) Start XiaoZhi Agent (disable audio mute / subscribe / set target / activate / start)
 #   4) Common operation commands during conversation
 #   5) (Optional) Play audio
 TUTORIAL_COMMANDS: List[Tuple[str, Optional[List[bytes]], str, int, int]] = []
@@ -247,25 +247,29 @@ if wifi_connect_cmd:
          'Step 1.2: Connect to WiFi', 15000, 0),
     ])
 
-# Step 2: Start Expression Emote - load animation assets
-TUTORIAL_COMMANDS.append(
+# Step 2: Start Expression Emote
+TUTORIAL_COMMANDS.extend([
+    ('svc_call Device SetDisplayBacklightOnOff {"On":true}',
+     [DEFAULT_RESPONSE], 'Step 2.1: Turn on display backlight', 4000, 0),
     ('svc_call Emote LoadAssetsSource '
      '{"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}',
-     [DEFAULT_RESPONSE], 'Step 2: Load Emote animation assets', 10000, 0),
-)
+     [DEFAULT_RESPONSE], 'Step 2.2: Load Emote animation assets', 10000, 0),
+])
 
 # Step 3: Start XiaoZhi Agent
 TUTORIAL_COMMANDS.extend([
+    ('svc_call Device SetAudioPlayerMute {"Enable":false}',
+     [DEFAULT_RESPONSE], 'Step 3.1: Disable audio mute', 4000, 0),
     ('svc_subscribe AgentXiaoZhi ActivationCodeReceived',
      [b'Subscribed successfully'],
-     'Step 3.1: Subscribe AgentXiaoZhi ActivationCodeReceived event', 4000, 0),
+     'Step 3.2: Subscribe AgentXiaoZhi ActivationCodeReceived event', 4000, 0),
     ('svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}',
-     [DEFAULT_RESPONSE], 'Step 3.2: Set target agent to AgentXiaoZhi', 4000, 0),
+     [DEFAULT_RESPONSE], 'Step 3.3: Set target agent to AgentXiaoZhi', 4000, 0),
     ('svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}',
      [b'No activation code or challenge found, activate successfully'],
-     'Step 3.3: Activate agent', 120000, 2000),
+     'Step 3.4: Activate agent', 120000, 2000),
     ('svc_call AgentManager TriggerGeneralAction {"Action":"Start"}',
-     [b'Speaking status changed to'], 'Step 3.4: Start agent', 20000, 5000),
+     [b'Speaking status changed to'], 'Step 3.5: Start agent', 20000, 5000),
 ])
 
 # Step 4: Common operation commands during conversation
@@ -294,8 +298,8 @@ TUTORIAL_COMMANDS.extend([
      [b'State: Playing', b'State: Idle'], 'Audio: Play local audio', 20000, 2000),
     ('svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}',
      [b'State: Playing', b'State: Idle'], 'Audio: Play network audio', 30000, 2000),
-    ('svc_call Audio SetVolume {"Volume":80}',
-     [DEFAULT_RESPONSE], 'Audio: Set volume to 80', 4000, 0),
+    ('svc_call Device SetAudioPlayerVolume {"Volume":80}',
+     [DEFAULT_RESPONSE], 'Audio: Set player volume to 80', 4000, 0),
 ])
 
 # Command groups mapping

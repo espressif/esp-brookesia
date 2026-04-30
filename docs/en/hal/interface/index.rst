@@ -15,7 +15,7 @@ Overview
 
 ``brookesia_hal_interface`` is the hardware abstraction foundation of ESP-Brookesia, providing a unified abstraction between board-level implementations and upper-level subsystems. Its main capabilities include:
 
-- **Device and interface model**: devices aggregate hardware units; interfaces express reusable capabilities (codec playback/recording, display panel/touch/backlight, storage volumes, etc.), with clear separation of concerns
+- **Device and interface model**: devices aggregate hardware units; interfaces express reusable capabilities (board information, battery, codec playback/recording, display panel/touch/backlight, storage volumes, etc.), with clear separation of concerns
 - **Plugin-based registration**: device and interface implementations are registered in a registry and resolved by name at runtime, avoiding hard-coded implementation types in application code
 - **Probing and lifecycle**: each device is first probed for availability before initialisation; batch and per-name single-device init/deinit are supported symmetrically
 - **Global discovery**: devices can be resolved by plugin name or device logical name; interfaces can be enumerated globally by type or retrieved by name from within a device
@@ -33,7 +33,7 @@ Devices and Interfaces
 
 **A device** represents an independently managed hardware unit (e.g. an audio codec path, a display subsystem, a storage subsystem). Before a device operates it must be **probed**: only when the hardware is available in the current environment does it proceed to initialisation. During initialisation the device collects the **interface instances** it will expose.
 
-**An interface** represents a stable capability boundary (e.g. codec playback, recording, panel rendering, touch sampling, backlight control, storage medium and filesystem discovery). Multiple instances of the same abstract type can coexist, distinguished by the name used at registration time; that name uniquely identifies one instance in the global interface registry.
+**An interface** represents a stable capability boundary (e.g. board information, battery state and charger control, codec playback, recording, panel rendering, touch sampling, backlight control, storage medium and filesystem discovery). Multiple instances of the same abstract type can coexist, distinguished by the name used at registration time; that name uniquely identifies one instance in the global interface registry.
 
 Device and interface implementation classes are registered through the project's plugin mechanism; the framework creates or retrieves instances by name at runtime, and upper layers depend only on the abstract types and conventions defined in this component.
 
@@ -80,7 +80,7 @@ When multiple devices co-exist, it is recommended to add a device-distinguishing
 Built-In Capability Scope
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The headers provide abstract definitions of common HAL interfaces, covering audio codec playback and recording, display panel and touch and backlight, and storage filesystem discovery. They describe static information, capability parameters, and virtual interface contracts; register operations, bus configuration, and timing are handled by the board-level adaptor or other components.
+The headers provide abstract definitions of common HAL interfaces, covering board information, battery and charger control, audio codec playback and recording, display panel and touch and backlight, and storage filesystem discovery. They describe static information, capability parameters, and virtual interface contracts; register operations, bus configuration, and timing are handled by the board-level adaptor or other components.
 
 The following interface headers can be included at once via ``brookesia/hal_interface/interfaces.hpp``, or together with the device base class via the aggregation entry ``brookesia/hal_interface.hpp``:
 
@@ -100,6 +100,10 @@ The following interface headers can be included at once via ``brookesia/hal_inte
      - ``DisplayPanelIface``
    * - ``display/touch.hpp``
      - ``DisplayTouchIface``
+   * - ``general/board_info.hpp``
+     - ``BoardInfoIface``
+   * - ``power/battery.hpp``
+     - ``PowerBatteryIface``
    * - ``storage/fs.hpp``
      - ``StorageFsIface``
 
@@ -115,6 +119,8 @@ The component provides the following interface classes:
 - ``DisplayBacklightIface``
 - ``DisplayPanelIface``
 - ``DisplayTouchIface``
+- ``BoardInfoIface``
+- ``PowerBatteryIface``
 - ``StorageFsIface``
 
 .. _hal-interface-index-sec-04:
@@ -157,6 +163,26 @@ Display Interface Classes
    Backlight <display/backlight>
 
 .. _hal-interface-index-sec-12:
+
+General Interface Classes
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. toctree::
+   :maxdepth: 1
+
+   Board Information <general/board_info>
+
+.. _hal-interface-index-sec-13:
+
+Power Interface Classes
+^^^^^^^^^^^^^^^^^^^^^^^
+
+.. toctree::
+   :maxdepth: 1
+
+   Battery <power/battery>
+
+.. _hal-interface-index-sec-14:
 
 Storage Interface Classes
 ^^^^^^^^^^^^^^^^^^^^^^^^^

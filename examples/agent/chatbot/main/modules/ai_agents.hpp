@@ -60,6 +60,7 @@ private:
     void process_emote_when_agent_speaking_text_got();
     void process_emote_when_user_speaking_text_got();
     void process_emote_when_emote_got();
+    void process_emote_when_power_battery_state_changed();
     void process_emote_when_coze_event_happened();
 
     void process_wifi_events();

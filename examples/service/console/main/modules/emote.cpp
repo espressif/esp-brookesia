@@ -24,13 +24,6 @@ bool Emote::init(int core_id)
     auto [display_name, display_iface] = hal::get_first_interface<hal::DisplayPanelIface>();
     BROOKESIA_CHECK_NULL_RETURN(display_iface, false, "Failed to get display interface");
 
-    auto [backlight_name, backlight_iface] = hal::get_first_interface<hal::DisplayBacklightIface>();
-    if (backlight_iface) {
-        BROOKESIA_CHECK_FALSE_EXECUTE(backlight_iface->turn_on(), {}, {
-            BROOKESIA_LOGE("Failed to turn on backlight");
-        });
-    }
-
     hal::DisplayPanelIface::DriverSpecific driver_specific;
     BROOKESIA_CHECK_FALSE_RETURN(
         display_iface->get_driver_specific(driver_specific), false, "Failed to get driver specific"

@@ -43,7 +43,16 @@ svc_call Wifi TriggerGeneralAction {"Action":"Connect"}
 
 ## 第二步：启动 Expression Emote
 
-1. **加载表情资源**：
+1. **开启屏幕背光**：
+
+```bash
+svc_call Device SetDisplayBacklightOnOff {"On":true}
+```
+
+> [!TIP]
+> 更多 `Device` 相关命令，请参考 [设备控制 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/device.html#helper-contract-service-device-interfaces)。
+
+2. **加载表情资源**：
 
 ```bash
 svc_call Emote LoadAssetsSource {"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}
@@ -54,7 +63,13 @@ svc_call Emote LoadAssetsSource {"Source":{"source":"anim_icon","type":"Partitio
 
 ## 第三步：启动 XiaoZhi Agent
 
-1. **订阅激活码事件**：
+1. **关闭音频静音**：
+
+```bash
+svc_call Device SetAudioPlayerMute {"Enable":false}
+```
+
+2. **订阅激活码事件**：
 
 ```bash
 svc_subscribe AgentXiaoZhi ActivationCodeReceived
@@ -64,13 +79,13 @@ svc_subscribe AgentXiaoZhi ActivationCodeReceived
 > 此时 LOG 会出现 `Service is not bindable: AgentXiaoZhi` 错误，属于正常现象，请忽略此错误。
 > 更多 `AgentXiaoZhi` 相关命令，请参考 [小智 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/agent/xiaozhi.html#helper-contract-agent-xiaozhi-interfaces)。
 
-2. **设置目标智能体**：
+3. **设置目标智能体**：
 
 ```bash
 svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}
 ```
 
-3. **激活智能体**：
+4. **激活智能体**：
 
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
@@ -80,7 +95,7 @@ svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
 
 等待看到 `No activation code or challenge found, activate successfully` 日志表示激活码事件已订阅成功。
 
-4. **启动智能体**：
+5. **启动智能体**：
 
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
@@ -121,7 +136,7 @@ svc_call Audio PlayUrl {"Url":"file://spiffs/example.mp3"}
 svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}
 
 # 调节音量
-svc_call Audio SetVolume {"Volume":80}
+svc_call Device SetAudioPlayerVolume {"Volume":80}
 ```
 
 > [!TIP]

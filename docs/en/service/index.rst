@@ -15,7 +15,7 @@ This section documents the ESP-Brookesia service framework components. The frame
           App["App / User Code"]
           Helper["**brookesia_service_helper**<br/>· CRTP type-safe helper base class<br/>· Function / event schema definitions<br/>· call_function / subscribe_event"]
           Manager["**brookesia_service_manager**<br/>· Service plugin lifecycle management<br/>· Thread-safe local calls & TCP RPC remote calls<br/>· Function registry & event registry"]
-          Services["**General Services (built on service_helper)**<br/>NVS · SNTP · Wi-Fi · Audio · Video · Custom"]
+          Services["**General Services (built on service_helper)**<br/>NVS · SNTP · Wi-Fi · Audio · Device · Video · Custom"]
 
           App -->|"call function / subscribe event"| Helper
           Helper -->|"built on"| Manager
@@ -53,6 +53,7 @@ General Services
    SNTP <sntp>
    Wi-Fi <wifi>
    Audio <audio>
+   Device Control <device>
    Video <video>
    Custom Service <custom>
 

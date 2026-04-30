@@ -50,6 +50,14 @@ build_examples_service_console:
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
   variables:
     EXAMPLE_DIR: examples/service/console
+# service/device
+build_examples_service_device:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_with_board
+    - .rules:build:examples_service_device
+  variables:
+    EXAMPLE_DIR: examples/service/device
 # service/nvs
 build_examples_service_nvs:
   extends:

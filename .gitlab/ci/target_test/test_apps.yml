@@ -102,6 +102,24 @@ target_test_apps_brookesia_service_custom:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: service/brookesia_service_custom/test_apps
     TEST_ENV: ${ENV_TAG}
+# brookesia_service_device
+target_test_apps_brookesia_service_device:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_service_device
+  needs:
+    - job: "build_test_apps_brookesia_service_device"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_with_board_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/brookesia_service_device/test_apps
+    TEST_ENV: ${ENV_TAG}
 # brookesia_service_nvs
 target_test_apps_brookesia_service_nvs:
   extends:
