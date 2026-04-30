@@ -1,0 +1,117 @@
+menu "ESP-Brookesia: Service Device Configurations"
+    config BROOKESIA_SERVICE_DEVICE_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
+    menuconfig BROOKESIA_SERVICE_DEVICE_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    menu "Worker"
+        config BROOKESIA_SERVICE_DEVICE_WORKER_NAME
+            string "Name"
+            default "SvcDeviceWorker"
+            help
+                The name of the worker thread.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The priority of the worker thread.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_STACK_SIZE
+            int "Stack size"
+            default 6144
+            help
+                The stack size of the worker thread.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_POLL_INTERVAL_MS
+            int "Poll interval (ms)"
+            default 10
+            range 1 100
+            help
+                The interval of the worker poll.
+    endmenu
+
+    menu "Parameters"
+        config BROOKESIA_SERVICE_DEVICE_NVS_SAVE_DATA_TIMEOUT_MS
+            int "NVS save timeout (ms)"
+            default 500
+            range 1 1000
+            help
+                Timeout in milliseconds used when saving persisted device state.
+
+        config BROOKESIA_SERVICE_DEVICE_NVS_ERASE_DATA_TIMEOUT_MS
+            int "NVS erase timeout (ms)"
+            default 500
+            range 1 1000
+            help
+                Timeout in milliseconds used when erasing persisted device state.
+    endmenu
+
+    menu "Power Battery"
+        config BROOKESIA_SERVICE_DEVICE_POWER_BATTERY_POLL_INTERVAL_MS
+            int "Battery poll interval (ms)"
+            default 1000
+            range 100 60000
+            help
+                Poll interval used to refresh battery state and battery charge configuration snapshots.
+    endmenu
+
+    menu "Audio"
+        config BROOKESIA_SERVICE_DEVICE_AUDIO_PLAYER_VOLUME_DEFAULT
+            int "Player default volume (percent)"
+            default 75
+            range 0 100
+            help
+                The default volume of the audio player, in percent.
+
+        config BROOKESIA_SERVICE_DEVICE_AUDIO_PLAYER_VOLUME_MIN
+            int "Player minimum hardware volume"
+            default 0
+            help
+                The minimum hardware volume of the audio player
+
+        config BROOKESIA_SERVICE_DEVICE_AUDIO_PLAYER_VOLUME_MAX
+            int "Player maximum hardware volume"
+            default 100
+            help
+                The maximum hardware volume of the audio player
+
+        config BROOKESIA_SERVICE_DEVICE_AUDIO_PLAYER_DEFAULT_MUTE
+            bool "Player default mute"
+            default y
+            help
+                The default mute state of the audio player, true to mute, false to unmute
+    endmenu
+
+    menu "Display"
+        config BROOKESIA_SERVICE_DEVICE_DISPLAY_BACKLIGHT_BRIGHTNESS_DEFAULT
+            int "Backlight default brightness (percent)"
+            default 90
+            range 0 100
+            help
+                The default brightness of the display backlight, in percent
+
+        config BROOKESIA_SERVICE_DEVICE_DISPLAY_BACKLIGHT_BRIGHTNESS_MIN
+            int "Backlight minimum hardware brightness"
+            default 20
+            help
+                The minimum hardware brightness of the display backlight
+
+        config BROOKESIA_SERVICE_DEVICE_DISPLAY_BACKLIGHT_BRIGHTNESS_MAX
+            int "Backlight maximum hardware brightness"
+            default 100
+            help
+                The maximum hardware brightness of the display backlight
+
+        config BROOKESIA_SERVICE_DEVICE_DISPLAY_BACKLIGHT_DEFAULT_ON
+            bool "Backlight default on"
+            default n
+            help
+                The default on state of the display backlight, true to on, false to off.
+    endmenu
+endmenu

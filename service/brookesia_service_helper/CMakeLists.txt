@@ -6,4 +6,5 @@ set(COMPONENT_INCLUDE_DIRS ${COMPONENT_DIR}/include)
 #
 idf_component_register(
     INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
+    REQUIRES brookesia_hal_interface
 )

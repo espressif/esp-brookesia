@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.7.6 - 2026-04-30
+
+### Breaking Changes:
+
+- break(data): move persisted player volume ownership from Audio service to Device service
+
+### Enhancements:
+
+- feat(deps): depend on `brookesia_service_device` for audio player volume and mute control
+- feat(api): keep `SetVolume`, `GetVolume`, and `SetMute` as deprecated forwarding APIs to Device service
+
 ## v0.7.5 - 2026-04-20
 
 ### Enhancements:

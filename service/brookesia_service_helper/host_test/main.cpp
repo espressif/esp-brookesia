@@ -20,7 +20,7 @@ using brookesia_host::append_helper_schema_dump;
 int main()
 {
     boost::json::array helpers;
-    helpers.reserve(7);
+    helpers.reserve(8);
     std::size_t total_function_count = 0;
     std::size_t total_event_count = 0;
     std::size_t helper_error_count = 0;
@@ -42,6 +42,7 @@ int main()
     };
 
     append_dump_with_guard("Audio", Audio::get_function_schemas, Audio::get_event_schemas);
+    append_dump_with_guard("Device", Device::get_function_schemas, Device::get_event_schemas);
     append_dump_with_guard("NVS", NVS::get_function_schemas, NVS::get_event_schemas);
     append_dump_with_guard("SNTP", SNTP::get_function_schemas, SNTP::get_event_schemas);
     append_dump_with_guard("Wifi", Wifi::get_function_schemas, Wifi::get_event_schemas);

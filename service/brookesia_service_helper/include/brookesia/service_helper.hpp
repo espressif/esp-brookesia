@@ -11,6 +11,7 @@
 
 #include "service_helper/audio.hpp"
 #include "service_helper/base.hpp"
+#include "service_helper/device.hpp"
 #include "service_helper/nvs.hpp"
 #include "service_helper/sntp.hpp"
 #include "service_helper/video.hpp"
