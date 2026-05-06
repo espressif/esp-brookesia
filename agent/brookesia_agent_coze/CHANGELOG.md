@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.4 - 2026-05-06
+
+### Bug Fixes:
+
+- fix(chat): add `esp_crt_bundle_attach()` to support certificate bundle for TLS server verification @cnadler86 (#101)
+
 ## v0.7.3 - 2026-04-10
 
 ### Bug Fixes:
