@@ -119,16 +119,6 @@ private:
     Display &operator=(const Display &) = delete;
     Display &operator=(Display &&) = delete;
 
-    void try_load_data_from_nvs();
-    void try_reset_data();
-
-    bool is_backlight_available() const
-    {
-        return (backlight_iface_ != nullptr);
-    }
-    bool set_brightness(uint8_t brightness);
-    bool get_brightness(uint8_t &brightness);
-
     bool start_lvgl(int core_id);
     bool start_expression_emote(int core_id);
     bool start_gesture(const esp_brookesia::lib_utils::ThreadConfig &thread_config);
@@ -147,7 +137,9 @@ private:
     std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler_;
     std::shared_ptr<esp_brookesia::hal::DisplayPanelIface> display_iface_;
     std::shared_ptr<esp_brookesia::hal::DisplayTouchIface> touch_iface_;
-    std::shared_ptr<esp_brookesia::hal::DisplayBacklightIface> backlight_iface_;
+
+    void *lvgl_display_ = nullptr;
+    void *lvgl_indev_ = nullptr;
 
     boost::mutex gesture_mutex_;
     GestureData gesture_data_{};

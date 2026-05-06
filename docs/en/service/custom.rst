@@ -1,7 +1,7 @@
 .. _service-custom-sec-00:
 
-Service Customization
-=====================
+Custom
+======
 
 :link_to_translation:`zh_CN:[中文]`
 

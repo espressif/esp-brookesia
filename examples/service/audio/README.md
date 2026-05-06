@@ -2,7 +2,7 @@
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to use the audio service (`brookesia_service_audio`) in the ESP-Brookesia framework. It covers audio file playback, playback control, volume management, encoder-decoder loopback testing, and AFE (Audio Front-End) voice activity detection and wake-word recognition.
+This example demonstrates how to use the audio service (`brookesia_service_audio`) in the ESP-Brookesia framework. It covers audio file playback, playback control, encoder-decoder loopback testing, and AFE (Audio Front-End) voice activity detection and wake-word recognition.
 
 ## 📑 Table of Contents
 
@@ -16,7 +16,6 @@ This example demonstrates how to use the audio service (`brookesia_service_audio
   - [🚀 Runtime Overview](#-runtime-overview)
     - [Audio File Playback](#audio-file-playback)
     - [Playback Control](#playback-control)
-    - [Volume Management](#volume-management)
     - [Encoder-Decoder Loopback Test](#encoder-decoder-loopback-test)
     - [AFE Audio Front-End](#afe-audio-front-end)
   - [🔍 Troubleshooting](#-troubleshooting)
@@ -26,7 +25,6 @@ This example demonstrates how to use the audio service (`brookesia_service_audio
 
 - 🎵 **Audio File Playback**: Supports playback of single or multiple URLs (local SPIFFS or network sources), with configurable loop count, queue append, or interruption of current playback
 - ⏯️ **Playback Control**: Supports pause, resume, and stop operations, with real-time playback state updates through event subscription
-- 🔊 **Volume Management**: Supports runtime get/set of playback volume (0-100), with automatic NVS persistence
 - 🎙️ **Encoder-Decoder Loopback Test**: Starts the encoder to record microphone input, then plays it back through the decoder; supports PCM, OPUS, and G711A
 - 🧠 **AFE Audio Front-End**: Integrates VAD (voice activity detection) and WakeNet (wake-word recognition), with real-time voice and wake events delivered through event subscription
 
@@ -34,14 +32,17 @@ This example demonstrates how to use the audio service (`brookesia_service_audio
 
 ### Hardware Requirements
 
-This example uses the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component to manage hardware and supports the following development boards:
+This example manages hardware through the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component, and supports development boards that meet the following requirements:
 
-- ESP-VoCat V1.0
-- ESP-VoCat V1.2
-- ESP32-S3-BOX-3
-- ESP32-S3-Korvo-2 V3
-- ESP32-P4-Function-EV-Board
-- ESP-SensairShuttle
+- Flash >= 16MB
+- PSRAM >= 8MB
+- Support the following interfaces:
+
+  - `AudioCodecPlayer`
+  - `AudioCodecRecorder`
+  - `StorageFs`
+
+Please refer to the [ESP-Brookesia Programming Guide - Supported Boards](https://docs.espressif.com/projects/esp-brookesia/en/latest/hal/boards/index.html#hal-boards-sec-02) for a list of supported development boards.
 
 ### Development Environment
 
@@ -93,21 +94,6 @@ Demonstrates pause, resume, and stop operations during playback:
   Stop after 3s
 ```
 
-### Volume Management
-
-Demonstrates reading, modifying, and verifying volume:
-
-```text
-[Demo: Volume Control]
-  Read current volume
-  Set volume to 90 and verify it takes effect
-  Play 8.mp3 and 9.mp3
-  Restore the original volume and verify it
-```
-
-> [!NOTE]
-> Volume changes are automatically persisted through NVS and remain after power cycles.
-
 ### Encoder-Decoder Loopback Test
 
 Tests PCM, OPUS, and G711A (not on ESP32-C5) in sequence. For each format, the flow is:
@@ -141,7 +127,6 @@ During execution, each triggered VAD or wake-word event is printed to the serial
 
 **No audio output**
 
-- Check the speaker connection and volume setting; make sure the volume is greater than 0.
 - Confirm that the SPIFFS partition has been flashed successfully (`idf.py flash` should include both the partition table and partition contents).
 
 **No sound during encoder-decoder loopback**

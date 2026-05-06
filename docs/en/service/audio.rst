@@ -18,11 +18,9 @@ Overview
 
 - **Playback**: Stream from URL; pause, resume, stop.
 - **Codecs**: PCM, OPUS, G711A encode/decode.
-- **Volume**: Set and query volume.
 - **Playback state**: Idle / playing / paused with events.
 - **Encoder**: Start/stop/configure; configurable read size.
 - **Decoder**: Start/stop and feed compressed data; streaming decode.
-- **Persistence**: Optional `brookesia_service_nvs` for volume and related settings.
 
 .. _service-audio-sec-02:
 

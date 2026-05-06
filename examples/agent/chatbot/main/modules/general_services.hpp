@@ -27,6 +27,7 @@ public:
     void init_audio();
     void start_sntp();
     void start_nvs();
+    void start_device();
 
 private:
     GeneralServices() = default;

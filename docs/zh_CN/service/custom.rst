@@ -1,7 +1,7 @@
 .. _service-custom-sec-00:
 
-服务自定义
-==========
+自定义
+======
 
 :link_to_translation:`en:[English]`
 

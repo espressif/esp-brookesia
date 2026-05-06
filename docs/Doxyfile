@@ -24,22 +24,29 @@ INPUT = \
     $(PROJECT_PATH)/expression/brookesia_expression_emote/include/brookesia/expression_emote.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/audio/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/general/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/audio/codec_player.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/audio/codec_recorder.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/codec_player.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/codec_recorder.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/device.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/display/backlight.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/display/panel.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/display/touch.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/backlight.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/panel.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/touch.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/general/board_info.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interface.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/storage/fs.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/power/battery.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/storage/fs.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface.hpp \
     $(PROJECT_PATH)/service/brookesia_service_audio/include/brookesia/service_audio/service_audio.hpp \
     $(PROJECT_PATH)/service/brookesia_service_audio/include/brookesia/service_audio.hpp \
     $(PROJECT_PATH)/service/brookesia_service_custom/include/brookesia/service_custom/service_custom.hpp \
     $(PROJECT_PATH)/service/brookesia_service_custom/include/brookesia/service_custom.hpp \
+    $(PROJECT_PATH)/service/brookesia_service_device/include/brookesia/service_device/service_device.hpp \
+    $(PROJECT_PATH)/service/brookesia_service_device/include/brookesia/service_device.hpp \
     $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/audio.hpp \
     $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/base.hpp \
+    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/device.hpp \
     $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/expression/emote.hpp \
     $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/nvs.hpp \
     $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/sntp.hpp \

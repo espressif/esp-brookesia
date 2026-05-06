@@ -24,6 +24,7 @@ Waveshare Boards
        | :cpp:class:`DisplayPanel <esp_brookesia::hal::DisplayPanelIface>`
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
+       | :cpp:class:`PowerBattery <esp_brookesia::hal::PowerBatteryIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
    * - ``esp32_s3_touch_amoled_2_16``
      - - *ESP32-S3*
@@ -36,4 +37,5 @@ Waveshare Boards
        | :cpp:class:`DisplayPanel <esp_brookesia::hal::DisplayPanelIface>`
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
+       | :cpp:class:`PowerBattery <esp_brookesia::hal::PowerBatteryIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
