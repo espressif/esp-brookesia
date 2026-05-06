@@ -301,7 +301,10 @@ private:
                 },
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionSetEventMessageParam::Message),
-                    .description = "Message text.",
+                    .description =
+                    "Message text. For Battery event, the message format is \"<charging_status>,<percentage>\", where"
+                    " <charging_status> is `0` for not charging and `1` for charging, and <percentage> is the battery"
+                    " percentage in [0, 100].",
                     .type = FunctionValueType::String,
                     .default_value = "",
                 }

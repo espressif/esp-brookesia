@@ -90,23 +90,30 @@ bool Hal::init()
 
     is_initialized_ = true;
 
-    {
+    /* Initialize NVS flash */
+    esp_err_t ret = ESP_OK;
+    auto init_func = [&ret]() {
+        BROOKESIA_LOG_TRACE_GUARD();
+        ret = nvs_flash_init();
+        if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
+            BROOKESIA_LOGI("NVS partition was truncated and needs to be erased");
+            ret = nvs_flash_erase();
+            BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Erase NVS flash failed");
+            ret = nvs_flash_init();
+            BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Init NVS flash failed");
+        }
+    };
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
+        // Since initializing NVS flash operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
         BROOKESIA_THREAD_CONFIG_GUARD({
             .stack_in_ext = false,
         });
-        auto future = std::async(std::launch::async, []() {
-            esp_err_t ret = nvs_flash_init();
-            if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
-                BROOKESIA_LOGI("NVS partition was truncated and needs to be erased");
-                BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_erase(), false, "Erase NVS flash failed");
-                BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_init(), false, "Init NVS flash failed");
-            } else {
-                BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Initialize NVS flash failed");
-            }
-            return true;
-        });
-        BROOKESIA_CHECK_FALSE_RETURN(future.get(), false, "Initialize NVS flash failed");
+        std::thread(init_func).join();
+    } else {
+        init_func();
     }
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Initialize NVS flash failed");
 
     esp_netif_init();
 
@@ -269,27 +276,32 @@ bool Hal::do_init()
     sta_netif_ = esp_netif_create_default_wifi_sta();
     BROOKESIA_CHECK_NULL_RETURN(sta_netif_, false, "Create default STA netif failed");
 
-    {
+    auto init_func = [this, task_scheduler = task_scheduler_]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        BROOKESIA_CHECK_ESP_ERR_EXIT(esp_wifi_init(&cfg), "Initialize WiFi failed");
+        BROOKESIA_CHECK_ESP_ERR_EXIT(esp_wifi_set_mode(WIFI_MODE_STA), "Set WiFi mode failed");
+
+        auto task_func = [this]() {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            trigger_general_event(GeneralEvent::Inited);
+        };
+        BROOKESIA_CHECK_FALSE_EXIT(
+            task_scheduler->post(task_func, nullptr, Wifi::get_instance().get_state_task_group()),
+            "Post init task failed"
+        );
+    };
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         BROOKESIA_LOGD("Initialize WiFi in a thread");
-        // Since esp_wifi_init() may operate on NVS, it is necessary to ensure execution in a thread with an SRAM stack
+        // Since initializing WiFi operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
         BROOKESIA_THREAD_CONFIG_GUARD({
             .stack_in_ext = false,
         });
-        boost::thread([this, task_scheduler = task_scheduler_]() {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-            BROOKESIA_CHECK_ESP_ERR_EXIT(esp_wifi_init(&cfg), "Initialize WiFi failed");
-            BROOKESIA_CHECK_ESP_ERR_EXIT(esp_wifi_set_mode(WIFI_MODE_STA), "Set WiFi mode failed");
-
-            auto task_func = [this]() {
-                BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-                trigger_general_event(GeneralEvent::Inited);
-            };
-            BROOKESIA_CHECK_FALSE_EXIT(
-                task_scheduler->post(task_func, nullptr, Wifi::get_instance().get_state_task_group()),
-                "Post init task failed"
-            );
-        }).detach();
+        boost::thread(init_func).detach();
+    } else {
+        BROOKESIA_LOGD("Initialize WiFi in current thread");
+        init_func();
     }
 
     return true;
