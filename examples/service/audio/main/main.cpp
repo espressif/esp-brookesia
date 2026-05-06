@@ -34,13 +34,11 @@ static AudioHelper::CodecGeneralConfig codec_general_config{
 };
 
 static std::string get_audio_file_path(const std::string &filename);
-static bool get_player_volume(uint8_t &volume);
 
 static bool demo_set_configs();
 static bool demo_play_single_url();
 static bool demo_play_multiple_urls();
 static bool demo_play_control();
-static bool demo_volume_control();
 static bool demo_codec(AudioHelper::CodecFormat codec_format);
 static bool demo_afe();
 
@@ -88,8 +86,6 @@ extern "C" void app_main(void)
     BROOKESIA_CHECK_FALSE_EXIT(demo_play_multiple_urls(), "Failed to play multiple URLs");
     // Play control (pause/resume/stop)
     BROOKESIA_CHECK_FALSE_EXIT(demo_play_control(), "Failed to demo play control");
-    // Volume control
-    BROOKESIA_CHECK_FALSE_EXIT(demo_volume_control(), "Failed to demo volume control");
     // Encode -> Decode loopback
     BROOKESIA_CHECK_FALSE_EXIT(demo_codec(AudioHelper::CodecFormat::PCM), "Failed to demo encode -> decode (PCM)");
     BROOKESIA_CHECK_FALSE_EXIT(demo_codec(AudioHelper::CodecFormat::OPUS), "Failed to demo encode -> decode (OPUS)");
@@ -158,15 +154,6 @@ static std::string get_audio_file_path(const std::string &filename)
         }
     }
     return filename;
-}
-
-static bool get_player_volume(uint8_t &volume)
-{
-    auto result = AudioHelper::call_function_sync<double>(AudioHelper::FunctionId::GetVolume);
-    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to get volume: %1%", result.error());
-    volume = static_cast<uint8_t>(result.value());
-
-    return true;
 }
 
 static bool demo_play_single_url()
@@ -325,67 +312,6 @@ static bool demo_play_control()
     boost::this_thread::sleep_for(boost::chrono::seconds(3));
 
     BROOKESIA_LOGI("\n\n--- Demo: Play Control Completed ---\n");
-
-    return true;
-}
-
-static bool demo_volume_control()
-{
-    BROOKESIA_LOGI("\n\n--- Demo: Volume Control ---\n");
-
-    uint8_t new_volume = 90;
-    uint8_t original_volume = 0;
-
-    // Get original volume
-    BROOKESIA_LOGI("Getting original volume...");
-    BROOKESIA_CHECK_FALSE_RETURN(get_player_volume(original_volume), false, "Failed to get original volume");
-    BROOKESIA_LOGI("Original volume: %1%", original_volume);
-
-    // Set new volume
-    // The new volume will be saved to NVS
-    BROOKESIA_LOGI("Setting new volume to %1%", new_volume);
-    auto volume_result = AudioHelper::call_function_sync(AudioHelper::FunctionId::SetVolume, new_volume);
-    BROOKESIA_CHECK_FALSE_RETURN(volume_result, false, "Failed to set volume: %1%", volume_result.error());
-
-    uint8_t actual_volume = 0;
-
-    // Verify new volume
-    BROOKESIA_LOGI("Verifying new volume...");
-    BROOKESIA_CHECK_FALSE_RETURN(get_player_volume(actual_volume), false, "Failed to get new volume");
-    BROOKESIA_CHECK_FALSE_RETURN(
-        actual_volume == new_volume, false, "Verify volume failed, expected: %1%, actual: %2%",
-        new_volume, actual_volume
-    );
-    BROOKESIA_LOGI("New volume verified successfully");
-
-    // Play files with the new volume
-    BROOKESIA_LOGI("Playing files with the new volume...");
-    std::vector<std::string> urls{
-        get_audio_file_path("8.mp3"),
-        get_audio_file_path("9.mp3"),
-    };
-    auto play_result = AudioHelper::call_function_sync(
-                           AudioHelper::FunctionId::PlayUrls, BROOKESIA_DESCRIBE_TO_JSON(urls).as_array()
-                       );
-    BROOKESIA_CHECK_FALSE_RETURN(play_result, false, "Failed to play files: %1%", play_result.error());
-
-    boost::this_thread::sleep_for(boost::chrono::seconds(3));
-
-    // Reset data to original volume
-    BROOKESIA_LOGI("Resetting data to original volume...");
-    auto reset_volume_result = AudioHelper::call_function_sync(AudioHelper::FunctionId::SetVolume, original_volume);
-    BROOKESIA_CHECK_FALSE_RETURN(reset_volume_result, false, "Failed to set volume: %1%", reset_volume_result.error());
-
-    // Verify original volume
-    BROOKESIA_LOGI("Verifying original volume...");
-    BROOKESIA_CHECK_FALSE_RETURN(get_player_volume(actual_volume), false, "Failed to get original volume");
-    BROOKESIA_CHECK_FALSE_RETURN(
-        actual_volume == original_volume, false, "Verify volume failed, expected: %1%, actual: %2%", original_volume,
-        actual_volume
-    );
-    BROOKESIA_LOGI("Original volume verified successfully");
-
-    BROOKESIA_LOGI("\n\n--- Demo: Volume Control Completed ---\n");
 
     return true;
 }

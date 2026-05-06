@@ -11,7 +11,6 @@ set(COMPONENT_SRCS_C "")
 set(COMPONENT_SRCS_CPP "")
 set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
 set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
-set(COMPONENT_SRCS_COMPILE_OPTIONS "")
 
 #
 # Lib Utils
@@ -22,68 +21,21 @@ list(APPEND COMPONENT_SRCS_C ${LIB_UTILS_SRCS_C})
 list(APPEND COMPONENT_SRCS_CPP ${LIB_UTILS_SRCS_CPP})
 
 if(ESP_PLATFORM)
-    #
-    # ESP Platform
-    #
-    idf_component_register(
-        SRCS ${COMPONENT_SRCS_C} ${COMPONENT_SRCS_CPP}
-        INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
-        PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
-        REQUIRES ${COMPONENT_REQUIRES}
-    )
-
-    include(package_manager)
-    cu_pkg_define_version(${CMAKE_CURRENT_LIST_DIR})
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/esp_platform.cmake)
 else()
-    #
-    # PC Platform
-    #
-    # Find Boost libraries
-    # Note: signals2 is header-only, no need to find it separately
-    find_package(Boost REQUIRED COMPONENTS thread system chrono json)
-
-    set(COMPONENT_LIB brookesia_lib_utils)
-    add_library(${COMPONENT_LIB} STATIC
-        ${COMPONENT_SRCS_C}
-        ${COMPONENT_SRCS_CPP}
-    )
-
-    # Set C++20 standard for this library (required for std::span)
-    set_target_properties(${COMPONENT_LIB} PROPERTIES
-        CXX_STANDARD 20
-        CXX_STANDARD_REQUIRED ON
-    )
-    target_include_directories(${COMPONENT_LIB}
-        PUBLIC
-            ${COMPONENT_INCLUDE_DIRS}
-            ${Boost_INCLUDE_DIRS}
-        PRIVATE
-            ${COMPONENT_PRIVATE_INCLUDE_DIRS}
-    )
-
-    # Link Boost libraries
-    # Note: signals2 is header-only, no need to link it
-    target_link_libraries(${COMPONENT_LIB}
-        PUBLIC
-            Boost::thread
-            Boost::system
-            Boost::chrono
-            Boost::json
-    )
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/pc_platform.cmake)
 endif()
 
 #
 # Compile Options
 #
-target_compile_options(${COMPONENT_LIB}
-    PUBLIC
-        ${COMPONENT_SRCS_COMPILE_OPTIONS}
-)
-set_source_files_properties(${COMPONENT_SRCS_C}
-    PROPERTIES
-        COMPILE_FLAGS "${COMPONENT_SRCS_C_COMPILE_FLAGS}"
-)
-set_source_files_properties(${COMPONENT_SRCS_CPP}
-    PROPERTIES
-        COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
-)
+if(NOT CMAKE_SCRIPT_MODE_FILE)
+    set_source_files_properties(${COMPONENT_SRCS_C}
+        PROPERTIES
+            COMPILE_FLAGS "${COMPONENT_SRCS_C_COMPILE_FLAGS}"
+    )
+    set_source_files_properties(${COMPONENT_SRCS_CPP}
+        PROPERTIES
+            COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
+    )
+endif()

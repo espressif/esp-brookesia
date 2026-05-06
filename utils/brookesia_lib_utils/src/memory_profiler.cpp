@@ -430,6 +430,8 @@ void MemoryProfiler::sample_memory(MemoryInfo &mem_info)
     mem_info.total_free = internal_free + external_free;
     mem_info.total_free_percent = mem_info.total_free * 100 / mem_info.total_size;
     mem_info.total_largest_free_block = std::max(internal_largest, external_largest);
+#else
+    (void)mem_info;
 #endif
 }
 

@@ -87,6 +87,8 @@ public:
         void *io_handle = nullptr;    ///< Handle of the IO.
         void *panel_handle = nullptr; ///< Handle of the panel.
         BusType bus_type = BusType::Max; ///< Bus type.
+        uint8_t draw_x_align_bytes = 1;  ///< X-axis coordinate alignment bytes.
+        uint8_t draw_y_align_bytes = 1;  ///< Y-axis coordinate alignment bytes.
     };
 
     /**
@@ -147,5 +149,9 @@ private:
 BROOKESIA_DESCRIBE_ENUM(DisplayPanelIface::PixelFormat, RGB565, RGB888, Max);
 BROOKESIA_DESCRIBE_ENUM(DisplayPanelIface::BusType, Generic, RGB, MIPI, Max);
 BROOKESIA_DESCRIBE_STRUCT(DisplayPanelIface::Info, (), (h_res, v_res, pixel_format));
+BROOKESIA_DESCRIBE_STRUCT(
+    DisplayPanelIface::DriverSpecific, (),
+    (io_handle, panel_handle, bus_type, draw_x_align_bytes, draw_y_align_bytes)
+);
 
 } // namespace esp_brookesia::hal

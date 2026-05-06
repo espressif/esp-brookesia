@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: CC0-1.0
  */
@@ -7,6 +7,8 @@
 #include <chrono>
 #include <future>
 #include <vector>
+#include "boost/chrono.hpp"
+#include "boost/thread/thread.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/semphr.h"
@@ -379,6 +381,72 @@ TEST_CASE("Test with thread config", "[utils][task_scheduler][thread_config][bas
     bool completed = scheduler.wait(task_id, 1000);
     TEST_ASSERT_TRUE(completed);
     TEST_ASSERT_EQUAL(1, g_counter.load());
+
+    scheduler.stop();
+}
+
+TEST_CASE("Test multiple thread configs do not block blocking tasks",
+          "[utils][task_scheduler][thread_config][parallel_blocking_tasks]")
+{
+    BROOKESIA_LOGI("=== TaskScheduler Multiple ThreadConfigs Parallel Blocking Tasks Test ===");
+
+    TaskScheduler scheduler;
+    TEST_ASSERT_TRUE(scheduler.start(TEST_SCHEDULER_CONFIG_FOUR_THREADS));
+
+    constexpr int task_count = 4;
+    constexpr int task_delay_ms = 1000;
+    constexpr int concurrent_start_timeout_ms = 1100;
+    std::atomic<int> started_count{0};
+    std::atomic<int> finished_count{0};
+    std::atomic<int> concurrent_count{0};
+    std::atomic<int> max_concurrent{0};
+    std::promise<void> all_started_promise;
+    std::future<void> all_started_future = all_started_promise.get_future();
+    std::atomic<bool> all_started_notified{false};
+
+    auto blocking_task = [&started_count, &finished_count, &concurrent_count, &max_concurrent, &all_started_promise,
+                    &all_started_notified, task_delay_ms]() {
+        int current_concurrent = concurrent_count.fetch_add(1) + 1;
+        int current_max = max_concurrent.load();
+        while ((current_concurrent > current_max) &&
+                !max_concurrent.compare_exchange_weak(current_max, current_concurrent)) {
+            current_max = max_concurrent.load();
+        }
+
+        int current_started = started_count.fetch_add(1) + 1;
+        BROOKESIA_LOGI("Blocking task started, started_count = %1%, concurrent_count = %2%",
+                       current_started, current_concurrent);
+        if ((current_started == task_count) && !all_started_notified.exchange(true)) {
+            all_started_promise.set_value();
+        }
+
+        boost::this_thread::sleep_for(boost::chrono::milliseconds(task_delay_ms));
+
+        finished_count.fetch_add(1);
+        concurrent_count.fetch_sub(1);
+
+        BROOKESIA_LOGI("Blocking task finished, finished_count = %1%, concurrent_count = %2%",
+                       finished_count.load(), concurrent_count.load());
+    };
+
+    std::vector<TaskScheduler::TaskId> task_ids(task_count, 0);
+    for (auto &task_id : task_ids) {
+        TEST_ASSERT_TRUE(scheduler.post(blocking_task, &task_id));
+    }
+
+    std::future_status start_status =
+        all_started_future.wait_for(std::chrono::milliseconds(concurrent_start_timeout_ms));
+    TEST_ASSERT_TRUE(start_status == std::future_status::ready);
+
+    for (const auto task_id : task_ids) {
+        TEST_ASSERT_TRUE(scheduler.wait(task_id, 1000));
+    }
+
+    BROOKESIA_LOGI("started_count = %1%, finished_count = %2%, max_concurrent = %3%",
+                   started_count.load(), finished_count.load(), max_concurrent.load());
+    TEST_ASSERT_EQUAL(task_count, started_count.load());
+    TEST_ASSERT_EQUAL(task_count, finished_count.load());
+    TEST_ASSERT_EQUAL(task_count, max_concurrent.load());
 
     scheduler.stop();
 }

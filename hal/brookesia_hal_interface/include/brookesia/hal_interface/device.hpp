@@ -13,7 +13,9 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
+#include <vector>
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/hal_interface/interface.hpp"
 
@@ -142,6 +144,15 @@ private:
  * @brief Registry alias for HAL devices.
  */
 using DeviceRegistry = lib_utils::PluginRegistry<Device>;
+
+/**
+ * @brief Runtime snapshot of available HAL interfaces grouped by interface type name.
+ *
+ * The key is the interface type name returned by `Interface::get_name()`, such as
+ * `DisplayBacklight` or `AudioCodecPlayer`. The value is the list of registered
+ * interface instance names for that type.
+ */
+using Capabilities = std::map<std::string, std::vector<std::string>>;
 
 /**
  * @brief Initialize all registered devices that pass `probe()`.
@@ -322,6 +333,23 @@ static inline std::map<std::string, std::shared_ptr<Interface>> get_all_interfac
     }
     return result;
 }
+
+/**
+ * @brief Get all currently available HAL interface capabilities.
+ *
+ * The returned map groups registered interface instance names by interface type name.
+ *
+ * @return Capability snapshot keyed by interface type name.
+ */
+Capabilities get_capabilities();
+
+/**
+ * @brief Check whether any registered interface matches the given interface type name.
+ *
+ * @param[in] name Interface type name, such as `DisplayBacklight`.
+ * @return `true` if at least one matching interface exists; otherwise `false`.
+ */
+bool has_interface(std::string_view name);
 
 } // namespace esp_brookesia::hal
 

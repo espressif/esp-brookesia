@@ -103,6 +103,9 @@ During conversations, the XiaoZhi agent can proactively call MCP tools to operat
 - "Set the screen brightness to 50%"
 - "Turn off the screen"
 - "Turn on the screen"
+- "Get device information"
+- "Get battery level"
+- "Get supported file systems"
 
 If no human voice is detected for a period of time, the AI agent automatically enters sleep mode. At that point, say the wake word (default: `"Hi,ESP"`) to start a conversation again.
 

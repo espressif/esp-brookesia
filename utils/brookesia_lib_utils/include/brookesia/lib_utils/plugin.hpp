@@ -222,6 +222,55 @@ public:
     }
 
 /**
+ * @brief Auto-register a function to be invoked before `main()`.
+ *
+ * Generates a file-local static registrar whose constructor calls `function` exactly
+ * once during C++ static initialization - i.e. before the program enters `main()`. On
+ * ESP-IDF this also guarantees the function runs before `app_main()` is entered.
+ *
+ * Typical use cases: plugin auto-registration, installing HAL hook callbacks, seeding
+ * global singletons, or any one-shot boot-time setup. This macro is the building block
+ * behind every other `BROOKESIA_PLUGIN_REGISTER_*` form.
+ *
+ * Relative ordering between translation units that use this (or any other static
+ * initialization) is unspecified. If ordering matters, embed it inside `function`
+ * itself.
+ *
+ * The generated static instance is also exported as an external symbol via
+ * `BROOKESIA_PLUGIN_CREATE_SYMBOL` so the linker keeps it alive when this TU lives in a
+ * static library. Remember to add `-u <symbol_name>` to the final link.
+ *
+ * @param symbol_name Linker-visible identifier used with `-u` to keep the registrar alive.
+ * @param function    Callable expression (return value is ignored); typically a function
+ *                    pointer or a capture-less lambda.
+ *
+ * @code
+ * static void boot_time_setup() {
+ *     // Runs before main / app_main.
+ * }
+ * BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION(my_boot_setup_sym, boot_time_setup);
+ *
+ * BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION(my_inline_sym, [](){
+ *     // ... inline pre-main work ...
+ * });
+ * @endcode
+ */
+#define BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION(symbol_name, function) \
+    namespace { \
+        struct BROOKESIA_PLUGIN_CONCAT(_plugin_pre_main_helper_, __LINE__) { \
+            BROOKESIA_PLUGIN_CONCAT(_plugin_pre_main_helper_, __LINE__)() { \
+                static_cast<void>((function)()); \
+            } \
+        }; \
+        static BROOKESIA_PLUGIN_CONCAT(_plugin_pre_main_helper_, __LINE__) \
+            BROOKESIA_PLUGIN_CONCAT(_plugin_pre_main_instance_, __LINE__); \
+    } \
+    BROOKESIA_PLUGIN_CREATE_SYMBOL( \
+        symbol_name, \
+        BROOKESIA_PLUGIN_CONCAT(_plugin_pre_main_instance_, __LINE__) \
+    )
+
+/**
  * @brief Register a plugin using a custom creator expression.
  *
  * @param BaseType Registry base type.
@@ -230,7 +279,11 @@ public:
  * @param creator Creator expression returning `shared_ptr` or `unique_ptr` compatible with the registry.
  * @param symbol_name Linker symbol exported for `-u`.
  *
- * @note Automatically creates a fixed symbol name based on PluginType for linker -u option
+ * @note Automatically creates a fixed symbol name based on PluginType for linker -u option.
+ *       Internally delegates to `BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION` for the
+ *       static-init dispatch; the only extra machinery here is the pointer-type-coercion
+ *       helper that adapts shared/unique pointers returned by the creator into the
+ *       registry's `shared_ptr<BaseType>` factory signature.
  */
 #define BROOKESIA_PLUGIN_REGISTER_WITH_CONSTRUCTOR(BaseType, PluginType, name, creator, symbol_name) \
     namespace { \
@@ -250,23 +303,15 @@ public:
                 return std::forward<T>(ptr); \
             } \
         } \
-        struct BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_helper_, __LINE__) { \
-            BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_helper_, __LINE__)() { \
-                static_assert(std::is_base_of_v<BaseType, PluginType>, "PluginType must inherit from base type BaseType"); \
-                auto creator_func = creator; \
-                esp_brookesia::lib_utils::PluginRegistry<BaseType>::template register_plugin<PluginType>(name, \
-                    [creator_func]() mutable -> std::shared_ptr<BaseType> { \
-                        return BROOKESIA_PLUGIN_CONCAT(_convert_ptr_, __LINE__)(creator_func()); \
-                    }); \
-            } \
-        }; \
-        static BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_helper_, __LINE__) \
-            BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_instance_, __LINE__); \
     } \
-    BROOKESIA_PLUGIN_CREATE_SYMBOL( \
-        symbol_name, \
-        BROOKESIA_PLUGIN_CONCAT(_##PluginType##_registrar_instance_, __LINE__) \
-    )
+    BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION(symbol_name, ([]() { \
+        static_assert(std::is_base_of_v<BaseType, PluginType>, "PluginType must inherit from base type BaseType"); \
+        auto creator_func = creator; \
+        esp_brookesia::lib_utils::PluginRegistry<BaseType>::template register_plugin<PluginType>(name, \
+            [creator_func]() mutable -> std::shared_ptr<BaseType> { \
+                return BROOKESIA_PLUGIN_CONCAT(_convert_ptr_, __LINE__)(creator_func()); \
+            }); \
+    }))
 
 /**
  * @brief Register a plugin constructed with `std::make_shared`.

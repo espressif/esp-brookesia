@@ -7,6 +7,7 @@
 
 #include "lvgl.h"
 #include "brookesia/lib_utils/state_base.hpp"
+#include "brookesia/service_helper/device.hpp"
 #include "brookesia/service_manager/event/registry.hpp"
 #include "common.hpp"
 
@@ -31,10 +32,20 @@ private:
 
     bool exit_process_agent();
 
+    void refresh_brightness_ui() const;
+    void refresh_volume_ui() const;
+
+    bool is_backlight_available_ = false;
+    bool is_volume_available_ = false;
+    int current_brightness_ = 0;
+    int current_volume_ = 0;
+
     lv_obj_t *init_screen_ = nullptr;
     std::string wifi_ssid_ = "";
     std::vector<std::string> agents_;
     std::string target_agent_ = "";
     esp_brookesia::service::EventRegistry::SignalConnection agent_general_event_connection_;
+    esp_brookesia::service::EventRegistry::SignalConnection brightness_changed_connection_;
+    esp_brookesia::service::EventRegistry::SignalConnection volume_changed_connection_;
     std::vector<esp_brookesia::service::EventRegistry::SignalConnection> service_connections_;
 };

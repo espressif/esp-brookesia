@@ -43,7 +43,16 @@ Wait until you see the log `Detected expected event: Connected`, which indicates
 
 ## Step 2: Start Expression Emote
 
-1. **Load the emote assets**:
+1. **Turn on the display backlight**:
+
+```bash
+svc_call Device SetDisplayBacklightOnOff {"On":true}
+```
+
+> [!TIP]
+> For more `Device` commands, see [Device Control - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/device.html#helper-contract-service-device-interfaces).
+
+2. **Load the emote assets**:
 
 ```bash
 svc_call Emote LoadAssetsSource {"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}
@@ -54,7 +63,13 @@ svc_call Emote LoadAssetsSource {"Source":{"source":"anim_icon","type":"Partitio
 
 ## Step 3: Start the XiaoZhi Agent
 
-1. **Subscribe to the activation code event**:
+1. **Disable audio mute**:
+
+```bash
+svc_call Device SetAudioPlayerMute {"Enable":false}
+```
+
+2. **Subscribe to the activation code event**:
 
 ```bash
 svc_subscribe AgentXiaoZhi ActivationCodeReceived
@@ -64,13 +79,13 @@ svc_subscribe AgentXiaoZhi ActivationCodeReceived
 > The log may show a `Service is not bindable: AgentXiaoZhi` error at this point. This is expected — please ignore it.
 > For more `AgentXiaoZhi` commands, see [XiaoZhi - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/agent/xiaozhi.html#helper-contract-agent-xiaozhi-interfaces).
 
-2. **Set the target agent**:
+3. **Set the target agent**:
 
 ```bash
 svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}
 ```
 
-3. **Activate the Agent**:
+4. **Activate the Agent**:
 
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
@@ -80,7 +95,7 @@ The log will prompt you to enter the device activation code. Enter the code in t
 
 Wait until you see the log `No activation code or challenge found, activate successfully`, which indicates that the activation code event has been subscribed successfully.
 
-3. **Start the Agent**:
+5. **Start the Agent**:
 
 ```bash
 svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
@@ -121,7 +136,7 @@ svc_call Audio PlayUrl {"Url":"file://spiffs/example.mp3"}
 svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}
 
 # Adjust volume
-svc_call Audio SetVolume {"Volume":80}
+svc_call Device SetAudioPlayerVolume {"Volume":null}
 ```
 
 > [!TIP]

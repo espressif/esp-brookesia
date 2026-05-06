@@ -37,6 +37,14 @@ build_test_apps_brookesia_service_custom:
     - .rules:build:test_apps_brookesia_service_custom
   variables:
     EXAMPLE_DIR: service/brookesia_service_custom/test_apps
+# brookesia_service_device
+build_test_apps_brookesia_service_device:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_with_board
+    - .rules:build:test_apps_brookesia_service_device
+  variables:
+    EXAMPLE_DIR: service/brookesia_service_device/test_apps
 # brookesia_service_manager
 build_test_apps_brookesia_service_manager:
   extends:

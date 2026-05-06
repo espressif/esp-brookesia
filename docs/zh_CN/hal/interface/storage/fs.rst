@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-公共头文件： ``#include "brookesia/hal_interface/storage/fs.hpp"``
+公共头文件： ``#include "brookesia/hal_interface/interfaces/storage/fs.hpp"``
 
 类名： ``StorageFsIface``
 

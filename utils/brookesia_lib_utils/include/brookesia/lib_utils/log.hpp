@@ -14,6 +14,7 @@
 #include <cstdarg>
 #include <cstring>
 #include <cstdint>
+#include <mutex>
 #include <type_traits>
 #include <utility>
 #include <string>
@@ -655,7 +656,7 @@ public:
 #endif
 #if BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE
             _file_name = Log::extract_file_name(loc.file_name());
-            _line = static_cast<size_t>(loc.line());
+            _line = static_cast<int>(loc.line());
 #endif
 #if BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
             _func_name = Log::extract_function_name(loc.function_name());
@@ -729,7 +730,7 @@ public:
 
 private:
     [[no_unique_address]] const char *_tag;
-    [[no_unique_address]] size_t _line;
+    [[no_unique_address]] int _line;
     [[no_unique_address]] std::string_view _func_name;
     [[no_unique_address]] std::string_view _file_name;
     [[no_unique_address]] const void *_this_ptr;

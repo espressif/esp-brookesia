@@ -17,53 +17,81 @@
 #include "brookesia/hal_interface.hpp"
 #include "brookesia/hal_adaptor.hpp"
 
+#ifndef BROOKESIA_HAL_ADAPTOR_GENERAL_ENABLE_BOARD_INFO_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_GENERAL_ENABLE_BOARD_INFO_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_GENERAL_FS_IMPL
+#   define BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_GENERAL_FS_IMPL  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS
+#   define BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD
+#   define BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY
+#   define BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY  (0)
+#endif
+
 using namespace esp_brookesia;
 
 namespace {
 
-struct KnownDeviceStatus {
-    bool storage = false;
-    bool audio = false;
-    bool display = false;
+struct DeviceConfig {
+    const char *name;
+    bool enabled;
 };
 
-void deinit_known_devices()
+constexpr std::array<DeviceConfig, 5> DEVICE_CONFIGS = {{
+        { hal::GeneralDevice::DEVICE_NAME, BROOKESIA_HAL_ADAPTOR_ENABLE_GENERAL_DEVICE },
+        { hal::AudioDevice::DEVICE_NAME, BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE },
+        { hal::DisplayDevice::DEVICE_NAME, BROOKESIA_HAL_ADAPTOR_ENABLE_DISPLAY_DEVICE },
+        { hal::StorageDevice::DEVICE_NAME, BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE },
+        { hal::PowerDevice::DEVICE_NAME, BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE },
+    }
+};
+
+void deinit_enabled_devices()
 {
-    hal::deinit_device(hal::DisplayDevice::DEVICE_NAME);
-    hal::deinit_device(hal::AudioDevice::DEVICE_NAME);
-    hal::deinit_device(hal::StorageDevice::DEVICE_NAME);
+    for (const auto &config : DEVICE_CONFIGS) {
+        if (config.enabled) {
+            hal::deinit_device(config.name);
+        }
+    }
 }
 
-KnownDeviceStatus init_known_devices()
+void reset_and_init_device(const char *device_name, bool enabled, const char *disabled_message)
 {
-    KnownDeviceStatus status{};
+    hal::deinit_device(device_name);
+    if (!enabled) {
+        TEST_IGNORE_MESSAGE(disabled_message);
+    }
 
-    status.storage = hal::init_device(hal::StorageDevice::DEVICE_NAME);
-    status.audio = hal::init_device(hal::AudioDevice::DEVICE_NAME);
-    status.display = hal::init_device(hal::DisplayDevice::DEVICE_NAME);
-
-    return status;
-}
-
-void reset_and_init_known_devices()
-{
-    deinit_known_devices();
-    auto status = init_known_devices();
-
-    BROOKESIA_LOGI(
-        "Known device init status: storage=%1%, audio=%2%, display=%3%",
-        status.storage, status.audio, status.display
-    );
+    const auto initialized = hal::init_device(device_name);
+    const auto message = (boost::format("Failed to init enabled HAL device: %1%") % device_name).str();
+    TEST_ASSERT_TRUE_MESSAGE(initialized, message.c_str());
 }
 
 template<typename T>
-std::map<std::string, std::shared_ptr<T>> get_interfaces_or_ignore(const char *message)
+std::map<std::string, std::shared_ptr<T>> get_interfaces_or_fail(const char *message)
 {
     auto interfaces = hal::get_interfaces<T>();
-    if (interfaces.empty()) {
-        deinit_known_devices();
-        TEST_IGNORE_MESSAGE(message);
-    }
+    TEST_ASSERT_FALSE_MESSAGE(interfaces.empty(), message);
     return interfaces;
 }
 
@@ -126,7 +154,8 @@ void assert_common_interface_properties(
 {
     for (const auto &[iface_name, iface] : interfaces) {
         TEST_ASSERT_NOT_NULL(iface.get());
-        TEST_ASSERT_EQUAL_STRING(T::NAME, std::string(iface->get_name()).c_str());
+        const auto type_name = std::string(T::NAME);
+        TEST_ASSERT_EQUAL_STRING(type_name.c_str(), std::string(iface->get_name()).c_str());
 
         if (device_name != nullptr) {
             auto device = hal::get_device_by_device_name(device_name);
@@ -139,13 +168,24 @@ void assert_common_interface_properties(
 std::string describe_interface(const std::shared_ptr<hal::Interface> &iface)
 {
     if (auto player = std::dynamic_pointer_cast<hal::AudioCodecPlayerIface>(iface)) {
-        return BROOKESIA_DESCRIBE_TO_STR(player->get_info());
+        return (boost::format("{pa_on_off_supported=%1%, pa_on=%2%}") %
+                player->is_pa_on_off_supported() % player->is_pa_on()).str();
+    }
+    if (auto board = std::dynamic_pointer_cast<hal::BoardInfoIface>(iface)) {
+        return BROOKESIA_DESCRIBE_TO_STR(board->get_info());
+    }
+    if (auto battery = std::dynamic_pointer_cast<hal::PowerBatteryIface>(iface)) {
+        return BROOKESIA_DESCRIBE_TO_STR(battery->get_info());
     }
     if (auto recorder = std::dynamic_pointer_cast<hal::AudioCodecRecorderIface>(iface)) {
         return BROOKESIA_DESCRIBE_TO_STR(recorder->get_info());
     }
     if (auto backlight = std::dynamic_pointer_cast<hal::DisplayBacklightIface>(iface)) {
-        return BROOKESIA_DESCRIBE_TO_STR(backlight->get_info());
+        uint8_t brightness = 0;
+        auto has_brightness = backlight->get_brightness(brightness);
+        return (boost::format("{light_on_off_supported=%1%, brightness=%2%, brightness_valid=%3%, light_on=%4%}") %
+                backlight->is_light_on_off_supported() % static_cast<int>(brightness) % has_brightness %
+                backlight->is_light_on()).str();
     }
     if (auto panel = std::dynamic_pointer_cast<hal::DisplayPanelIface>(iface)) {
         return BROOKESIA_DESCRIBE_TO_STR(panel->get_info());
@@ -187,7 +227,17 @@ void log_registered_interfaces()
 
 TEST_CASE("HAL adaptor: enumerate all available interfaces and infos", "[hal][adaptor][enumerate]")
 {
-    reset_and_init_known_devices();
+    deinit_enabled_devices();
+    for (const auto &config : DEVICE_CONFIGS) {
+        if (!config.enabled) {
+            BROOKESIA_LOGI("Skip disabled HAL device: %1%", config.name);
+            continue;
+        }
+
+        const auto initialized = hal::init_device(config.name);
+        const auto message = (boost::format("Failed to init enabled HAL device: %1%") % config.name).str();
+        TEST_ASSERT_TRUE_MESSAGE(initialized, message.c_str());
+    }
 
     const auto devices = hal::get_all_devices();
     const auto interfaces = hal::get_all_interfaces();
@@ -198,25 +248,117 @@ TEST_CASE("HAL adaptor: enumerate all available interfaces and infos", "[hal][ad
     TEST_ASSERT_TRUE_MESSAGE(!devices.empty(), "No HAL devices were registered");
     TEST_ASSERT_TRUE_MESSAGE(!interfaces.empty(), "No HAL interfaces were registered on this board");
 
-    deinit_known_devices();
+    deinit_enabled_devices();
+}
+
+TEST_CASE("HAL adaptor: enabled devices init smoke test", "[hal][adaptor][device]")
+{
+    deinit_enabled_devices();
+    for (const auto &config : DEVICE_CONFIGS) {
+        if (!config.enabled) {
+            BROOKESIA_LOGI("Skip disabled HAL device: %1%", config.name);
+            continue;
+        }
+
+        const auto initialized = hal::init_device(config.name);
+        const auto message = (boost::format("Failed to init enabled HAL device: %1%") % config.name).str();
+        TEST_ASSERT_TRUE_MESSAGE(initialized, message.c_str());
+        hal::deinit_device(config.name);
+    }
+}
+
+TEST_CASE("HAL adaptor: BoardInfoIface smoke test", "[hal][adaptor][board][info]")
+{
+    reset_and_init_device(
+        hal::GeneralDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_GENERAL_DEVICE && BROOKESIA_HAL_ADAPTOR_GENERAL_ENABLE_BOARD_INFO_IMPL,
+        "BoardInfoIface is disabled by Kconfig"
+    );
+
+    auto interfaces = get_interfaces_or_fail<hal::BoardInfoIface>("No BoardInfoIface found after GeneralDevice init");
+    assert_common_interface_properties(interfaces, hal::GeneralDevice::DEVICE_NAME);
+
+    for (const auto &[iface_name, iface] : interfaces) {
+        const auto &info = iface->get_info();
+        BROOKESIA_LOGI("Testing board info interface %1%, info=%2%", iface_name, info);
+
+        TEST_ASSERT_TRUE(info.is_valid());
+        TEST_ASSERT_FALSE(info.name.empty() && info.chip.empty());
+    }
+
+    hal::deinit_device(hal::GeneralDevice::DEVICE_NAME);
+}
+
+TEST_CASE("HAL adaptor: PowerBatteryIface smoke test", "[hal][adaptor][battery][monitor]")
+{
+    reset_and_init_device(
+        hal::PowerDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE && BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY,
+        "PowerBatteryIface is disabled by Kconfig"
+    );
+
+    auto interfaces = get_interfaces_or_fail<hal::PowerBatteryIface>(
+                          "No PowerBatteryIface found after PowerDevice init"
+                      );
+    assert_common_interface_properties(interfaces, hal::PowerDevice::DEVICE_NAME);
+
+    for (const auto &[iface_name, iface] : interfaces) {
+        const auto &info = iface->get_info();
+        BROOKESIA_LOGI("Testing battery monitor interface %1%, info=%2%", iface_name, BROOKESIA_DESCRIBE_TO_STR(info));
+
+        TEST_ASSERT_FALSE(info.name.empty());
+        TEST_ASSERT_FALSE(info.abilities.empty());
+        TEST_ASSERT_TRUE(info.has_ability(hal::PowerBatteryIface::Ability::Voltage));
+
+        hal::PowerBatteryIface::State state;
+        TEST_ASSERT_TRUE(iface->get_state(state));
+        BROOKESIA_LOGI("Battery state: %1%", BROOKESIA_DESCRIBE_TO_STR(state));
+
+        if (state.voltage_mv.has_value()) {
+            TEST_ASSERT_GREATER_OR_EQUAL_UINT32(0, state.voltage_mv.value());
+#if defined(BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_CRITICAL_VOLTAGE_MV)
+            if (state.voltage_mv.value() <= BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_CRITICAL_VOLTAGE_MV) {
+                TEST_ASSERT_TRUE(state.is_critical);
+                TEST_ASSERT_TRUE(state.is_low);
+            }
+#endif
+        }
+        if (state.percentage.has_value()) {
+            TEST_ASSERT_LESS_OR_EQUAL_UINT8(100, state.percentage.value());
+        }
+
+        hal::PowerBatteryIface::ChargeConfig config;
+        if (info.has_ability(hal::PowerBatteryIface::Ability::ChargeConfig)) {
+            TEST_ASSERT_TRUE(iface->get_charge_config(config));
+            BROOKESIA_LOGI("Battery charge config: %1%", BROOKESIA_DESCRIBE_TO_STR(config));
+        } else {
+            TEST_ASSERT_FALSE(iface->get_charge_config(config));
+            TEST_ASSERT_FALSE(iface->set_charge_config(config));
+            TEST_ASSERT_FALSE(iface->set_charging_enabled(false));
+        }
+    }
+
+    hal::deinit_device(hal::PowerDevice::DEVICE_NAME);
 }
 
 TEST_CASE("HAL adaptor: AudioCodecPlayerIface smoke test", "[hal][adaptor][audio][player]")
 {
-    reset_and_init_known_devices();
+    reset_and_init_device(
+        hal::AudioDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE && BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL,
+        "AudioCodecPlayerIface is disabled by Kconfig"
+    );
 
-    auto interfaces = get_interfaces_or_ignore<hal::AudioCodecPlayerIface>(
-                          "No AudioCodecPlayerIface found on the current board"
+    auto interfaces = get_interfaces_or_fail<hal::AudioCodecPlayerIface>(
+                          "No AudioCodecPlayerIface found after AudioDevice init"
                       );
     assert_common_interface_properties(interfaces, hal::AudioDevice::DEVICE_NAME);
 
     for (const auto &[iface_name, iface] : interfaces) {
-        const auto &info = iface->get_info();
-        BROOKESIA_LOGI("Testing player interface %1%, info=%2%", iface_name, BROOKESIA_DESCRIBE_TO_STR(info));
-
-        TEST_ASSERT_TRUE(info.volume_min <= info.volume_default);
-        TEST_ASSERT_TRUE(info.volume_default <= info.volume_max);
-        TEST_ASSERT_TRUE(info.volume_max <= 100);
+        BROOKESIA_LOGI(
+            "Testing player interface %1%, pa_on_off_supported=%2%",
+            iface_name, iface->is_pa_on_off_supported()
+        );
 
         TEST_ASSERT_TRUE(iface->open(hal::AudioCodecPlayerIface::Config {
             .bits = 16,
@@ -224,35 +366,51 @@ TEST_CASE("HAL adaptor: AudioCodecPlayerIface smoke test", "[hal][adaptor][audio
             .sample_rate = 16000,
         }));
 
-        TEST_ASSERT_TRUE(iface->set_volume(info.volume_default));
+        TEST_ASSERT_TRUE(iface->set_volume(0));
+        TEST_ASSERT_TRUE(iface->set_volume(45));
+        TEST_ASSERT_TRUE(iface->set_volume(100));
 
-        uint8_t volume = 0;
-        TEST_ASSERT_TRUE(iface->get_volume(volume));
-        TEST_ASSERT_EQUAL_UINT8(info.volume_default, volume);
-
-        TEST_ASSERT_TRUE(iface->mute());
-        TEST_ASSERT_TRUE(iface->get_volume(volume));
-        TEST_ASSERT_EQUAL_UINT8(0, volume);
-
-        TEST_ASSERT_TRUE(iface->unmute());
-        TEST_ASSERT_TRUE(iface->get_volume(volume));
-        TEST_ASSERT_EQUAL_UINT8(info.volume_default, volume);
+        TEST_ASSERT_TRUE(iface->set_volume(33));
 
         const std::array<uint8_t, 32> silence = {};
         TEST_ASSERT_TRUE(iface->write_data(silence.data(), silence.size()));
 
+        if (iface->is_pa_on_off_supported()) {
+            TEST_ASSERT_TRUE(iface->is_pa_on());
+            TEST_ASSERT_TRUE(iface->set_pa_on_off(false));
+            TEST_ASSERT_FALSE(iface->is_pa_on());
+            TEST_ASSERT_TRUE(iface->set_pa_on_off(true));
+            TEST_ASSERT_TRUE(iface->is_pa_on());
+        } else {
+            TEST_ASSERT_FALSE(iface->set_pa_on_off(false));
+            TEST_ASSERT_TRUE(iface->is_pa_on());
+        }
+
+        iface->close();
+
+        TEST_ASSERT_TRUE(iface->set_volume(12));
+        TEST_ASSERT_TRUE(iface->open(hal::AudioCodecPlayerIface::Config {
+            .bits = 16,
+            .channels = 1,
+            .sample_rate = 16000,
+        }));
+        TEST_ASSERT_TRUE(iface->write_data(silence.data(), silence.size()));
         iface->close();
     }
 
-    deinit_known_devices();
+    hal::deinit_device(hal::AudioDevice::DEVICE_NAME);
 }
 
 TEST_CASE("HAL adaptor: AudioCodecRecorderIface smoke test", "[hal][adaptor][audio][recorder]")
 {
-    reset_and_init_known_devices();
+    reset_and_init_device(
+        hal::AudioDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE && BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL,
+        "AudioCodecRecorderIface is disabled by Kconfig"
+    );
 
-    auto interfaces = get_interfaces_or_ignore<hal::AudioCodecRecorderIface>(
-                          "No AudioCodecRecorderIface found on the current board"
+    auto interfaces = get_interfaces_or_fail<hal::AudioCodecRecorderIface>(
+                          "No AudioCodecRecorderIface found after AudioDevice init"
                       );
     assert_common_interface_properties(interfaces, hal::AudioDevice::DEVICE_NAME);
 
@@ -274,50 +432,59 @@ TEST_CASE("HAL adaptor: AudioCodecRecorderIface smoke test", "[hal][adaptor][aud
         iface->close();
     }
 
-    deinit_known_devices();
+    hal::deinit_device(hal::AudioDevice::DEVICE_NAME);
 }
 
 TEST_CASE("HAL adaptor: DisplayBacklightIface smoke test", "[hal][adaptor][display][backlight]")
 {
-    reset_and_init_known_devices();
+    reset_and_init_device(
+        hal::DisplayDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_DISPLAY_DEVICE && BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL,
+        "DisplayBacklightIface is disabled by Kconfig"
+    );
 
-    auto interfaces = get_interfaces_or_ignore<hal::DisplayBacklightIface>(
-                          "No DisplayBacklightIface found on the current board"
+    auto interfaces = get_interfaces_or_fail<hal::DisplayBacklightIface>(
+                          "No DisplayBacklightIface found after DisplayDevice init"
                       );
     assert_common_interface_properties(interfaces, hal::DisplayDevice::DEVICE_NAME);
 
     for (const auto &[iface_name, iface] : interfaces) {
-        const auto &info = iface->get_info();
-        BROOKESIA_LOGI("Testing backlight interface %1%, info=%2%", iface_name, BROOKESIA_DESCRIBE_TO_STR(info));
+        BROOKESIA_LOGI(
+            "Testing backlight interface %1%, light_on_off_supported=%2%",
+            iface_name, iface->is_light_on_off_supported()
+        );
 
-        TEST_ASSERT_TRUE(info.brightness_min <= info.brightness_default);
-        TEST_ASSERT_TRUE(info.brightness_default <= info.brightness_max);
-        TEST_ASSERT_TRUE(info.brightness_max <= 100);
-
-        TEST_ASSERT_TRUE(iface->set_brightness(info.brightness_default));
+        TEST_ASSERT_TRUE(iface->set_brightness(0));
+        TEST_ASSERT_TRUE(iface->set_brightness(42));
+        TEST_ASSERT_TRUE(iface->set_brightness(100));
 
         uint8_t brightness = 0;
         TEST_ASSERT_TRUE(iface->get_brightness(brightness));
-        TEST_ASSERT_EQUAL_UINT8(info.brightness_default, brightness);
+        TEST_ASSERT_EQUAL_UINT8(100, brightness);
 
-        TEST_ASSERT_TRUE(iface->turn_off());
-        TEST_ASSERT_TRUE(iface->get_brightness(brightness));
-        TEST_ASSERT_EQUAL_UINT8(0, brightness);
-
-        TEST_ASSERT_TRUE(iface->turn_on());
-        TEST_ASSERT_TRUE(iface->get_brightness(brightness));
-        TEST_ASSERT_TRUE(brightness > 0);
+        if (iface->is_light_on_off_supported()) {
+            TEST_ASSERT_TRUE(iface->set_light_on_off(false));
+            TEST_ASSERT_FALSE(iface->is_light_on());
+            TEST_ASSERT_TRUE(iface->set_light_on_off(true));
+            TEST_ASSERT_TRUE(iface->is_light_on());
+        } else {
+            TEST_ASSERT_FALSE(iface->set_light_on_off(false));
+        }
     }
 
-    deinit_known_devices();
+    hal::deinit_device(hal::DisplayDevice::DEVICE_NAME);
 }
 
 TEST_CASE("HAL adaptor: DisplayPanelIface smoke test", "[hal][adaptor][display][panel]")
 {
-    reset_and_init_known_devices();
+    reset_and_init_device(
+        hal::DisplayDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_DISPLAY_DEVICE && BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL,
+        "DisplayPanelIface is disabled by Kconfig"
+    );
 
-    auto interfaces = get_interfaces_or_ignore<hal::DisplayPanelIface>(
-                          "No DisplayPanelIface found on the current board"
+    auto interfaces = get_interfaces_or_fail<hal::DisplayPanelIface>(
+                          "No DisplayPanelIface found after DisplayDevice init"
                       );
     assert_common_interface_properties(interfaces, hal::DisplayDevice::DEVICE_NAME);
 
@@ -337,15 +504,19 @@ TEST_CASE("HAL adaptor: DisplayPanelIface smoke test", "[hal][adaptor][display][
         TEST_ASSERT_TRUE(iface->draw_bitmap(0, 0, 1, 1, pixel_data.data()));
     }
 
-    deinit_known_devices();
+    hal::deinit_device(hal::DisplayDevice::DEVICE_NAME);
 }
 
 TEST_CASE("HAL adaptor: DisplayTouchIface smoke test", "[hal][adaptor][display][touch]")
 {
-    reset_and_init_known_devices();
+    reset_and_init_device(
+        hal::DisplayDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_DISPLAY_DEVICE && BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL,
+        "DisplayTouchIface is disabled by Kconfig"
+    );
 
-    auto interfaces = get_interfaces_or_ignore<hal::DisplayTouchIface>(
-                          "No DisplayTouchIface found on the current board"
+    auto interfaces = get_interfaces_or_fail<hal::DisplayTouchIface>(
+                          "No DisplayTouchIface found after DisplayDevice init"
                       );
     assert_common_interface_properties(interfaces, hal::DisplayDevice::DEVICE_NAME);
 
@@ -376,15 +547,21 @@ TEST_CASE("HAL adaptor: DisplayTouchIface smoke test", "[hal][adaptor][display][
         }
     }
 
-    deinit_known_devices();
+    hal::deinit_device(hal::DisplayDevice::DEVICE_NAME);
 }
 
 TEST_CASE("HAL adaptor: StorageFsIface smoke test", "[hal][adaptor][storage][fs]")
 {
-    reset_and_init_known_devices();
+    reset_and_init_device(
+        hal::StorageDevice::DEVICE_NAME,
+        BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE && BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_GENERAL_FS_IMPL &&
+        (BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS ||
+         BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD),
+        "StorageFsIface is disabled by Kconfig"
+    );
 
-    auto interfaces = get_interfaces_or_ignore<hal::StorageFsIface>(
-                          "No StorageFsIface found on the current board"
+    auto interfaces = get_interfaces_or_fail<hal::StorageFsIface>(
+                          "No StorageFsIface found after StorageDevice init"
                       );
     assert_common_interface_properties(interfaces, hal::StorageDevice::DEVICE_NAME);
 
@@ -401,5 +578,5 @@ TEST_CASE("HAL adaptor: StorageFsIface smoke test", "[hal][adaptor][storage][fs]
         }
     }
 
-    deinit_known_devices();
+    hal::deinit_device(hal::StorageDevice::DEVICE_NAME);
 }

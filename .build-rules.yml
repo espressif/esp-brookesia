@@ -29,6 +29,9 @@ service/brookesia_service_audio/test_apps:
 # brookesia_service_custom
 service/brookesia_service_custom/test_apps:
   <<: *general_target_enable
+# brookesia_service_device
+service/brookesia_service_device/test_apps:
+  <<: *general_target_enable
 # brookesia_service_manager
 service/brookesia_service_manager/test_apps:
   <<: *general_target_enable
@@ -89,6 +92,9 @@ examples/service/audio:
   <<: *general_target_enable
 # service/console
 examples/service/console:
+  <<: *general_target_enable
+# service/device
+examples/service/device:
   <<: *general_target_enable
 # service/nvs
 examples/service/nvs:

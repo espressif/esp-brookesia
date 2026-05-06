@@ -17,6 +17,7 @@
 #include "private/utils.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
+#include "brookesia/lib_utils/thread_config.hpp"
 #include "brookesia/service_nvs/service_nvs.hpp"
 
 namespace esp_brookesia::service {
@@ -31,14 +32,29 @@ bool NVS::on_init()
     );
 
     /* Initialize NVS flash */
-    esp_err_t ret = nvs_flash_init();
-    if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
-        BROOKESIA_LOGI("NVS partition was truncated and needs to be erased");
-        BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_erase(), false, "Erase NVS flash failed");
-        BROOKESIA_CHECK_ESP_ERR_RETURN(nvs_flash_init(), false, "Init NVS flash failed");
+    esp_err_t ret = ESP_OK;
+    auto init_func = [&ret]() {
+        BROOKESIA_LOG_TRACE_GUARD();
+        ret = nvs_flash_init();
+        if ((ret == ESP_ERR_NVS_NO_FREE_PAGES) || (ret == ESP_ERR_NVS_NEW_VERSION_FOUND)) {
+            BROOKESIA_LOGI("NVS partition was truncated and needs to be erased");
+            ret = nvs_flash_erase();
+            BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Erase NVS flash failed");
+            ret = nvs_flash_init();
+            BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Init NVS flash failed");
+        }
+    };
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
+        // Since initializing NVS flash operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        std::thread(init_func).join();
     } else {
-        BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Initialize NVS flash failed");
+        init_func();
     }
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Initialize NVS flash failed");
 
     return true;
 }
@@ -47,8 +63,22 @@ void NVS::on_deinit()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    /* Deinitialize NVS flash */
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(nvs_flash_deinit(), {}, {
+    esp_err_t ret = ESP_OK;
+    auto deinit_func = [&ret]() {
+        BROOKESIA_LOG_TRACE_GUARD();
+        ret = nvs_flash_deinit();
+    };
+    if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
+        // Since deinitializing NVS flash operates on Flash,
+        // a separate thread with its stack located in SRAM needs to be created to prevent a crash.
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_in_ext = false,
+        });
+        std::thread(deinit_func).join();
+    } else {
+        deinit_func();
+    }
+    BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, {
         BROOKESIA_LOGE("Deinitialize NVS flash failed");
     });
 }

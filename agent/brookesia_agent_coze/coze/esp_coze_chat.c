@@ -19,6 +19,7 @@
 #include "esp_random.h"
 #include "esp_log.h"
 #include "esp_err.h"
+#include "esp_crt_bundle.h"
 #include "mbedtls/base64.h"
 #include "cJSON.h"
 #include "esp_coze_utils.h"
@@ -573,6 +574,11 @@ esp_err_t esp_coze_chat_init(esp_coze_chat_config_t *config, esp_coze_chat_handl
     websocket_cfg.buffer_size = config->websocket_buffer_size;
     websocket_cfg.uri = wss_url;
     websocket_cfg.task_prio = 12;
+#if CONFIG_MBEDTLS_CERTIFICATE_BUNDLE
+    websocket_cfg.crt_bundle_attach = esp_crt_bundle_attach;
+#else
+    ESP_LOGW(TAG, "CONFIG_MBEDTLS_CERTIFICATE_BUNDLE is disabled, TLS server verification may fail");
+#endif
 
     chat_obj->client = esp_websocket_client_init(&websocket_cfg);
     if (!chat_obj->client) {
