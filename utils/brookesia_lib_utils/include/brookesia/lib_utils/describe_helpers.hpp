@@ -287,6 +287,38 @@ bool describe_string_to_enum(const std::string &name, T &ret_value)
 }
 
 /**
+ * @brief Convert a string to a described enum value using exact and snake_case matching.
+ *
+ * This keeps `describe_string_to_enum()` strict while offering a generic JSON-friendly path for strings such as
+ * `"foo_bar"` to match enumerators like `FooBar`.
+ *
+ * @tparam T Enum type registered with `BROOKESIA_DESCRIBE_ENUM`.
+ * @param name Enumerator name or snake_case alias to search for.
+ * @param ret_value Output enum value written on success.
+ * @return `true` if the name matched an enumerator or snake_case alias, otherwise `false`.
+ */
+template <typename T>
+bool describe_string_to_enum_flexible(const std::string &name, T &ret_value)
+{
+    static_assert(std::is_enum_v<T>, "T must be an enum type");
+    static_assert(detail::is_described_enum_v<T>, "Enum must be described with BOOST_DESCRIBE_ENUM");
+
+    if (describe_string_to_enum(name, ret_value)) {
+        return true;
+    }
+
+    bool found = false;
+    const std::string normalized_name = detail::to_snake_case(name);
+    boost::mp11::mp_for_each<boost::describe::describe_enumerators<T>>([&](auto D) {
+        if (!found && normalized_name == detail::to_snake_case(D.name)) {
+            ret_value = D.value;
+            found = true;
+        }
+    });
+    return found;
+}
+
+/**
  * @brief Convert an underlying integer value to a described enum value.
  *
  * @tparam T Enum type registered with `BROOKESIA_DESCRIBE_ENUM`.
@@ -1422,6 +1454,11 @@ std::string describe_to_string(const T &value)
  */
 #define BROOKESIA_DESCRIBE_STR_TO_ENUM(str, ret_value) \
     esp_brookesia::lib_utils::describe_string_to_enum(str, ret_value)
+/** @def BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE
+ *  @brief Convert an enumerator name or snake_case alias to a described enum value.
+ */
+#define BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE(str, ret_value) \
+    esp_brookesia::lib_utils::describe_string_to_enum_flexible(str, ret_value)
 
 /** @def BROOKESIA_DESCRIBE_TO_JSON
  *  @brief Convert a supported value to `boost::json::value`.

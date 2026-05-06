@@ -1,5 +1,22 @@
 # ChangeLog
 
+## v0.7.8 - 2026-05-02
+
+### Enhancements:
+
+- feat(build): split ESP-IDF and PC CMake logic into platform-specific files and expose `brookesia::lib_utils` for PC builds
+- feat(build): add PC-side cache options for Brookesia utility Kconfig defaults and compile definitions
+- feat(describe_helpers): add flexible described-enum parsing with snake_case alias matching
+- feat(plugin): add `BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION` and reuse it for plugin auto-registration
+- feat(thread): add runtime stack-cache safety detection for flash-sensitive operations
+- feat(test): add concurrent formatted logging repro coverage and parallel blocking task scheduler coverage
+
+### Bug Fixes:
+
+- fix(log): serialize formatted logging on ESP targets to avoid concurrent `boost::format` runtime corruption
+- fix(log): avoid unused source-location warnings when optional log metadata is disabled
+- fix(memory_profiler): avoid unused parameter warnings when heap metrics are unavailable
+
 ## v0.7.7 - 2026-04-20
 
 ### Bug Fixes:

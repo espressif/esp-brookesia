@@ -72,6 +72,13 @@ struct ThreadConfig {
      * @return Runtime `ThreadConfig` for the current thread or task.
      */
     static ThreadConfig get_current_config();
+
+    /**
+     * @brief Check if the stack cache is safe for the current thread or task.
+     *
+     * @return `true` if the stack cache is safe, `false` otherwise.
+     */
+    static bool check_stack_cache_safe();
 };
 
 /**
