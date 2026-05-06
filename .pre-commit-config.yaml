@@ -91,6 +91,12 @@ repos:
         entry: ./.gitlab/tools/check_forbidden_strings.py -s ./.gitlab/tools/forbidden_strings.txt -f
         language: python
         files: '(^|/)sdkconfig[^/]*$'
+      - id: check-component-licenses
+        name: Check component license files
+        entry: python .gitlab/tools/check_component_licenses.py
+        language: python
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/espressif/conventional-precommit-linter
     rev: v1.8.0
     hooks:
