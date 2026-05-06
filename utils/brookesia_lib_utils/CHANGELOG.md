@@ -16,6 +16,7 @@
 - fix(log): serialize formatted logging on ESP targets to avoid concurrent `boost::format` runtime corruption
 - fix(log): avoid unused source-location warnings when optional log metadata is disabled
 - fix(memory_profiler): avoid unused parameter warnings when heap metrics are unavailable
+- fix(task_scheduler): warm up Asio timer services before worker polling to avoid startup races @tomlt (#102)
 
 ## v0.7.7 - 2026-04-20
 
