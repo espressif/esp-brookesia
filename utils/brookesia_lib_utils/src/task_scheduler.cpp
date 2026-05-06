@@ -31,17 +31,23 @@ bool TaskScheduler::start(const StartConfig &config)
 
     BROOKESIA_LOGD("Params: config(%1%)", BROOKESIA_DESCRIBE_TO_STR_WITH_FMT(config, DESCRIBE_FORMAT_VERBOSE));
 
-    boost::lock_guard<boost::mutex> lock(mutex_);
+    boost::unique_lock lock(mutex_);
 
     if (is_running()) {
         BROOKESIA_LOGD("Already running");
         return true;
     }
 
-    is_running_.store(true);
-
-    lib_utils::FunctionGuard stop_guard([this]() {
+    lib_utils::FunctionGuard stop_guard([this, &lock]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        if (!is_running()) {
+            io_work_guard_.reset();
+            io_context_.reset();
+            return;
+        }
+        if (lock.owns_lock()) {
+            lock.unlock();
+        }
         stop();
     });
 
@@ -53,6 +59,13 @@ bool TaskScheduler::start(const StartConfig &config)
                              boost::asio::make_work_guard(*io_context_)
                          ), false, "Failed to create work guard"
     );
+    // Initialize Asio timer/reactor services before worker threads start polling the io_context.
+    std::shared_ptr<boost::asio::steady_timer> asio_warmup_timer;
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        asio_warmup_timer = std::make_shared<boost::asio::steady_timer>(*io_context_), false,
+        "Failed to warm up asio timer service"
+    );
+    asio_warmup_timer.reset();
 
     reset_statistics();
 
@@ -65,6 +78,8 @@ bool TaskScheduler::start(const StartConfig &config)
     if (config.post_execute_callback) {
         post_execute_callbacks_[""] = config.post_execute_callback;
     }
+
+    is_running_.store(true);
 
     for (const auto &thread_config : config.worker_configs) {
         auto thread_func =
