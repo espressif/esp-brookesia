@@ -1,0 +1,5 @@
+menu "ESP-Brookesia: Hal Custom Configurations"
+    menuconfig BROOKESIA_HAL_CUSTOM_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+endmenu
