@@ -101,6 +101,7 @@ jobs:
           #
           - waveshare/esp32_s3_touch_amoled_1_8
           - waveshare/esp32_s3_touch_amoled_2_16
+          - waveshare/esp32_s3_touch_amoled_1_75c
     steps:
       - uses: actions/checkout@v3
         with:
@@ -165,6 +166,7 @@ jobs:
           #
           - waveshare/esp32_s3_touch_amoled_1_8
           - waveshare/esp32_s3_touch_amoled_2_16
+          - waveshare/esp32_s3_touch_amoled_1_75c
     steps:
       - uses: actions/checkout@v3
         with:

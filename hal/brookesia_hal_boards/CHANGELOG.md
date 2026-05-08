@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.4 - 2026-05-07
+
+### Enhancements:
+
+- feat(boards): add `waveshare/esp32_s3_touch_amoled_1_75c` board configuration and custom HAL component
+
 ## v0.7.3 - 2026-04-30
 
 ### Enhancements:
