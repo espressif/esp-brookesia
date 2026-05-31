@@ -1,8 +1,9 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <exception>
 #include <future>
 #include "boost/format.hpp"
 #include "brookesia/service_manager/macro_configs.h"
@@ -18,8 +19,14 @@ Client::~Client()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_initialized()) {
-        deinit();
+    try {
+        if (is_initialized()) {
+            deinit();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying client: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying client");
     }
 }
 
@@ -96,9 +103,8 @@ std::future<FunctionResult> Client::call_function_async(
         .success = false,
     };
     lib_utils::FunctionGuard set_error_result_guard(
-    [this, result_promise, error_result = std::move(error_result)]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        result_promise->set_value(std::move(error_result));
+    [&error_result, result_promise]() {
+        result_promise->set_value(error_result);
     });
 
     if (!is_connected()) {
@@ -122,7 +128,7 @@ std::future<FunctionResult> Client::call_function_async(
     request.service = target;
     request.method = method;
     request.params = std::move(params);
-    if (!data_link_->send_data(std::move(BROOKESIA_DESCRIBE_JSON_SERIALIZE(request)))) {
+    if (!data_link_->send_data(BROOKESIA_DESCRIBE_JSON_SERIALIZE(request))) {
         error_result.error_message = "Failed to send request";
         return result_future;
     }
@@ -238,6 +244,8 @@ bool Client::init(boost::asio::io_context::executor_type executor, DisconnectCal
         on_data_received(data);
     });
     data_link_->set_on_connection_closed([this](size_t connection_id) {
+        (void)connection_id;
+
         BROOKESIA_LOGD("Connection(%1%) closed by server", connection_id);
         if (on_disconnect_callback_) {
             on_disconnect_callback_();
@@ -287,14 +295,14 @@ void Client::on_data_received(const std::string &data)
     Response response;
     if (BROOKESIA_DESCRIBE_JSON_DESERIALIZE(data, response) && response.is_valid()) {
         BROOKESIA_LOGD("Got response");
-        BROOKESIA_CHECK_FALSE_EXIT(on_response(std::move(response)), "Failed to handle response");
+        BROOKESIA_CHECK_FALSE_EXIT(on_response(response), "Failed to handle response");
         return;
     }
 
     Notify notify;
     if (BROOKESIA_DESCRIBE_JSON_DESERIALIZE(data, notify) && notify.is_valid()) {
         BROOKESIA_LOGD("Got notify");
-        BROOKESIA_CHECK_FALSE_EXIT(on_notify(std::move(notify)), "Failed to handle notify");
+        BROOKESIA_CHECK_FALSE_EXIT(on_notify(notify), "Failed to handle notify");
         return;
     }
 
@@ -311,9 +319,11 @@ bool Client::on_response(const Response &response)
         .success = response.is_success(),
     };
     if (!response.is_success()) {
-        result.error_message = response.error.value().message;
+        BROOKESIA_CHECK_FALSE_RETURN(response.error.has_value(), false, "Response error is missing");
+        result.error_message = response.error->message;
     } else if (response.has_result()) {
-        auto &result_json = response.result.value();
+        BROOKESIA_CHECK_FALSE_RETURN(response.result.has_value(), false, "Response result is missing");
+        auto &result_json = *response.result;
         if (!BROOKESIA_DESCRIBE_FROM_JSON(result_json, result)) {
             result.success = false;
             result.error_message = "Failed to parse result";

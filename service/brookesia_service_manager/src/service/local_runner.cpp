@@ -59,7 +59,7 @@ bool LocalTestRunner::run_tests(const RunTestsConfig &config, const std::vector<
         // Submit the test task
         scheduler->post_delayed([this, i, service, &item]() {
             execute_test(i, service, item);
-        }, accumulated_delay);
+        }, static_cast<int>(accumulated_delay));
     }
 
     // Wait for all tests to complete

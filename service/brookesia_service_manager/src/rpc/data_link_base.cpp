@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -29,6 +29,8 @@ bool DataLinkBase::handle_receive(std::shared_ptr<ConnectionInfo> connection)
 
     boost::asio::async_read_until(*connection->socket, connection->receive_buffer, '\n',
     [this, connection](const boost::system::error_code & ec, std::size_t bytes_transferred) {
+        (void)bytes_transferred;
+
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
         BROOKESIA_LOGD("Param: ec(%1%), bytes_transferred(%2%)", ec.message(), bytes_transferred);
@@ -86,6 +88,8 @@ bool DataLinkBase::handle_send(std::shared_ptr<ConnectionInfo> connection, std::
 
     boost::asio::async_write(*connection->socket, boost::asio::buffer(*data_ptr),
     [this, connection, data_ptr](const boost::system::error_code & ec, std::size_t bytes_transferred) {
+        (void)bytes_transferred;
+
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
         BROOKESIA_LOGD("Param: ec(%1%), bytes_transferred(%2%)", ec.message(), bytes_transferred);
@@ -124,7 +128,10 @@ bool DataLinkBase::cleanup_connection(std::shared_ptr<ConnectionInfo> connection
 
     if (connection->socket && connection->socket->is_open()) {
         boost::system::error_code ec;
-        connection->socket->close(ec);
+        auto close_result = connection->socket->close(ec);
+        if (close_result) {
+            BROOKESIA_LOGE("Socket close error on connection %1%: %2%", connection->id, close_result.message());
+        }
         release_global_sockets();
     }
 

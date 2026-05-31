@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.7.1 - 2026-05-28
+
+### Enhancements:
+
+- feat(storage): expose filesystem directory support metadata in `GetStorageFileSystems`
+- feat(storage): add `GetStorageFileSystemCapacity` for dynamic total, used, and free byte queries
+- feat(test): add storage filesystem metadata and capacity query coverage
+
 ## v0.7.0 - 2026-04-30
 
 ### Initial Release

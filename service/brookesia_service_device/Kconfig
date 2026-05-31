@@ -83,7 +83,7 @@ menu "ESP-Brookesia: Service Device Configurations"
 
         config BROOKESIA_SERVICE_DEVICE_AUDIO_PLAYER_DEFAULT_MUTE
             bool "Player default mute"
-            default y
+            default n
             help
                 The default mute state of the audio player, true to mute, false to unmute
     endmenu

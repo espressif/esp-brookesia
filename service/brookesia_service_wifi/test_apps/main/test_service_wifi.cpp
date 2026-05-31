@@ -286,8 +286,6 @@ TEST_CASE("Test ServiceWifi - set connect AP", "[service][wifi][connect]")
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
     std::vector<service::LocalTestItem> test_items = {
         // Clear storage
         service::LocalTestItem{
@@ -367,8 +365,6 @@ TEST_CASE("Test ServiceWifi - connect and manual disconnect (no auto-reconnect)"
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Start WiFi
     service::LocalTestRunner runner1;
@@ -505,8 +501,6 @@ TEST_CASE("Test ServiceWifi - stop and start with auto-reconnect", "[service][wi
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Set connect AP to TEST_WIFI_SSID1
     service::LocalTestRunner runner1;
@@ -655,8 +649,6 @@ TEST_CASE("Test ServiceWifi - rapid connect and disconnect", "[service][wifi][co
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     service::LocalTestRunner runner1;
     std::vector<service::LocalTestItem> test_items1 = {
@@ -809,8 +801,6 @@ TEST_CASE("Test ServiceWifi - connect to non-existent SSID and verify auto-recon
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Connect to TEST_WIFI_SSID1 first
     service::LocalTestRunner runner1;
@@ -983,8 +973,6 @@ TEST_CASE("Test ServiceWifi - switch connection from TEST_WIFI_SSID1 to TEST_WIF
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Connect to TEST_WIFI_SSID1 first
     service::LocalTestRunner runner1;
@@ -1161,8 +1149,6 @@ TEST_CASE("Test ServiceWifi - repeatedly switch between TEST_WIFI_SSID1 and TEST
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     service::LocalTestRunner runner;
     std::vector<service::LocalTestItem> test_items;
@@ -1354,8 +1340,6 @@ TEST_CASE("Test ServiceWifi - connect a invalid AP", "[service][wifi][connect][i
     // Setup event subscriptions
     EventCollector collector;
 
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
-
     service::LocalTestRunner runner;
     std::vector<service::LocalTestItem> test_items = {
         // Clear storage
@@ -1446,8 +1430,6 @@ TEST_CASE("Test ServiceWifi - error handling: invalid parameters", "[service][wi
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
     std::vector<service::LocalTestItem> test_items = {
         // Clear storage
         service::LocalTestItem{
@@ -1562,8 +1544,6 @@ TEST_CASE("Test ServiceWifi - error handling: invalid state transitions", "[serv
         shutdown();
     });
 
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
-
     // Test connecting before WiFi is started
     std::vector<service::LocalTestItem> test_items1 = {
         // Clear storage
@@ -1661,8 +1641,6 @@ TEST_CASE("Test ServiceWifi - error handling: rapid state changes", "[service][w
         shutdown();
     });
 
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
-
     // Rapidly switch between start and stop
     std::vector<service::LocalTestItem> test_items = {
         // Clear storage
@@ -1746,8 +1724,6 @@ TEST_CASE("Test ServiceWifi - stress test: rapid scan operations", "[service][wi
     // Setup event subscriptions
     EventCollector collector;
 
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
-
     std::vector<service::LocalTestItem> test_items;
 
     test_items.push_back(service::LocalTestItem{
@@ -1797,8 +1773,6 @@ TEST_CASE("Test ServiceWifi - stress test: continuous state transitions", "[serv
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     std::vector<service::LocalTestItem> test_items;
 
@@ -1876,8 +1850,6 @@ TEST_CASE("Test ServiceWifi - stress test: multiple concurrent operations", "[se
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Start WiFi first
     service::LocalTestRunner init_runner;
@@ -2035,8 +2007,6 @@ TEST_CASE("Test ServiceWifi - stress test: random operations serial", "[service]
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Create random operations list (all operations)
     std::vector<service::LocalTestItem> random_items;
@@ -2206,8 +2176,6 @@ TEST_CASE("Test ServiceWifi - stress test: random operations parallel", "[servic
     lib_utils::FunctionGuard shutdown_guard([]() {
         shutdown();
     });
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Now run concurrent LocalTestRunner instances with random operations
     boost::thread_group threads;
@@ -2412,8 +2380,6 @@ TEST_CASE("Test ServiceWifi - stress test: long running operations", "[service][
 
     // Setup event subscriptions
     EventCollector collector;
-
-    static auto wifi_functions = WifiHelpler::get_function_schemas();
 
     // Start WiFi and begin long scan
     std::vector<service::LocalTestItem> test_items = {

@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.7.7 - 2026-05-28
+
+### Bug Fixes:
+
+- fix(afe): use the standard AFE path on ESP32-S31 targets
+- fix(afe): remove the obsolete hufzip lock prearm workaround
+
+### Enhancements:
+
+- feat(test): migrate service audio test resources from SPIFFS to LittleFS
+
 ## v0.7.6 - 2026-04-30
 
 ### Breaking Changes:

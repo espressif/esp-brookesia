@@ -1,11 +1,8 @@
 idf_component_register(
     SRC_DIRS "."
     INCLUDE_DIRS "."
-    PRIV_REQUIRES unity esp_psram
-    WHOLE_ARCHIVE
+    WHOLE_ARCHIVE TRUE
 )
-
-target_compile_options(${COMPONENT_LIB} PUBLIC -Wno-missing-field-initializers)
 
 # Check for CI test WiFi credentials environment variables
 if(DEFINED ENV{CI_TEST_WIFI_2_4G_AP1_SSID})

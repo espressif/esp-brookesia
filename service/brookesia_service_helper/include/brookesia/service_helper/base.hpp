@@ -976,7 +976,7 @@ public:
      * @endcode
      */
     template<auto EventIdValue>
-    requires std::is_same_v<decltype(EventIdValue), typename Derived::EventId>
+    requires (std::is_same_v<decltype(EventIdValue), typename Derived::EventId>)
     class EventMonitor {
     public:
         using ReceivedItmes = std::vector<EventItem>;

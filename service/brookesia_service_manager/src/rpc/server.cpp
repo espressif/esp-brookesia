@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -297,7 +297,7 @@ void Server::on_data_received(size_t connection_id, const std::string &data)
         return;
     }
     // No error occurred, set the correct response
-    response.result = std::move(BROOKESIA_DESCRIBE_TO_JSON(*function_result));
+    response.result = BROOKESIA_DESCRIBE_TO_JSON(*function_result);
 
 #if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG
     // Release error message
@@ -337,7 +337,7 @@ bool Server::send_response(size_t connection_id, const Response &response)
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
     BROOKESIA_CHECK_FALSE_RETURN(
-        data_link_->send_data(connection_id, std::move(BROOKESIA_DESCRIBE_JSON_SERIALIZE(response))), false,
+        data_link_->send_data(connection_id, BROOKESIA_DESCRIBE_JSON_SERIALIZE(response)), false,
         "Failed to send response"
     );
 
@@ -353,7 +353,7 @@ bool Server::send_notify(size_t connection_id, const Notify &notify)
     BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
 
     BROOKESIA_CHECK_FALSE_RETURN(
-        data_link_->send_data(connection_id, std::move(BROOKESIA_DESCRIBE_JSON_SERIALIZE(notify))), false,
+        data_link_->send_data(connection_id, BROOKESIA_DESCRIBE_JSON_SERIALIZE(notify)), false,
         "Failed to send notify"
     );
 

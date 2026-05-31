@@ -280,6 +280,28 @@ std::expected<boost::json::array, std::string> Device::function_get_storage_file
     return BROOKESIA_DESCRIBE_TO_JSON(infos).as_array();
 }
 
+std::expected<boost::json::object, std::string> Device::function_get_storage_file_system_capacity(
+    const std::string &mount_point
+)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGD("Params: mount_point(%1%)", mount_point);
+
+    if (!storage_fs_iface_) {
+        return std::unexpected("Storage file-system interface is not available");
+    }
+    if (mount_point.empty()) {
+        return std::unexpected("Mount point is empty");
+    }
+
+    StorageFsCapacity capacity = {};
+    if (!storage_fs_iface_->get_capacity(mount_point.c_str(), capacity)) {
+        return std::unexpected("Failed to get storage file-system capacity");
+    }
+
+    return BROOKESIA_DESCRIBE_TO_JSON(capacity).as_object();
+}
+
 std::expected<boost::json::object, std::string> Device::function_get_power_battery_info()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

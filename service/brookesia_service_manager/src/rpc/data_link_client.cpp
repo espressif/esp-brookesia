@@ -1,8 +1,9 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <exception>
 #include <future>
 #include "boost/asio.hpp"
 #include "brookesia/service_manager/macro_configs.h"
@@ -18,8 +19,14 @@ DataLinkClient::~DataLinkClient()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_connected()) {
-        disconnect();
+    try {
+        if (is_connected()) {
+            disconnect();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying RPC data link client: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying RPC data link client");
     }
 }
 

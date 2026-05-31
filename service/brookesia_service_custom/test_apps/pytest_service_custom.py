@@ -46,7 +46,7 @@ Steps to run these test cases:
 
    **ESP32-P4 examples:**
    ```bash
-   pytest service/brookesia_service_custom/test_apps --target esp32p4 --env "generic,eco4,esp32p4_function_ev_board"
+   pytest service/brookesia_service_custom/test_apps --target esp32p4 --env "esp32p4x_function_ev_board"
    ```
 '''
 
@@ -153,7 +153,7 @@ def test_esp32s3(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4')
+@pytest.mark.env('jtag,esp32p4_rev3')
 @pytest.mark.parametrize(
     'target, config',
     [

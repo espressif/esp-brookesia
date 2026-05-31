@@ -451,7 +451,7 @@ private:
             .parameters = {
                 {
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlParam::Url),
-                    .description = "Audio URL, for example: \"file://spiffs/example.mp3\".",
+                    .description = "Audio URL, for example: \"file://littlefs/example.mp3\".",
                     .type = FunctionValueType::String
                 },
                 {
@@ -475,8 +475,8 @@ private:
                     .name = BROOKESIA_DESCRIBE_TO_STR(FunctionPlayUrlsParam::Urls),
                     .description = (boost::format("Audio URL list. Example: %1%")
                     % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<std::string>({
-                        "file://spiffs/example1.mp3",
-                        "file://spiffs/example2.mp3"
+                        "file://littlefs/example1.mp3",
+                        "file://littlefs/example2.mp3"
                     }))).str(),
                     .type = FunctionValueType::Array,
                 },

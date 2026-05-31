@@ -5,7 +5,9 @@
  */
 #pragma once
 
-#include "sdkconfig.h"
+#if defined(ESP_PLATFORM)
+#   include "sdkconfig.h"
+#endif
 
 #if !defined(BROOKESIA_SERVICE_DEVICE_ENABLE_AUTO_REGISTER)
 #   if defined(CONFIG_BROOKESIA_SERVICE_DEVICE_ENABLE_AUTO_REGISTER)

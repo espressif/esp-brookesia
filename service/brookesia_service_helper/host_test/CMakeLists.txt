@@ -2,6 +2,11 @@ cmake_minimum_required(VERSION 3.20)
 
 project(brookesia_service_helper_host_test LANGUAGES CXX)
 
+add_subdirectory(../../../utils/brookesia_lib_utils brookesia_lib_utils)
+if((NOT TARGET brookesia_lib_utils) AND TARGET brookesia_lib_utils_impl)
+    add_library(brookesia_lib_utils ALIAS brookesia_lib_utils_impl)
+endif()
+
 add_subdirectory(../../brookesia_service_manager brookesia_service_manager)
 
 add_executable(brookesia_service_helper_host_test

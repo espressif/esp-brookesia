@@ -55,8 +55,8 @@ Steps to run these test cases:
 
    **ESP32-P4 examples:**
    ```bash
-   # Multiple environments: generic, eco4, esp32p4_function_ev_board
-   pytest service/brookesia_service_wifi/test_apps --target esp32p4 --env "generic,eco4,esp32p4_function_ev_board"
+   # Multiple environments: generic, eco4, esp32p4x_function_ev_board
+   pytest service/brookesia_service_wifi/test_apps --target esp32p4 --env "esp32p4x_function_ev_board"
    ```
 '''
 
@@ -176,7 +176,7 @@ def test_esp32s3_octal_psram(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
+@pytest.mark.env('esp32p4x_function_ev_board')
 @pytest.mark.parametrize(
     'target, config',
     [

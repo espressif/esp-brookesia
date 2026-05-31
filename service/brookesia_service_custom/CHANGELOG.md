@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.2 - 2026-05-29
+
+### Bug Fixes:
+
+- fix(test): set explicit whole-archive linking for the test app component
+- fix(test): update ESP32-P4 test environment and PSRAM defaults for the function EV board
+
 ## v0.7.1 - 2026-04-10
 
 ### Enhancements:

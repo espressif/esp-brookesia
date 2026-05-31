@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.8 - 2026-05-31
+
+### Bug Fixes:
+
+- fix(hal): check `ESP_ERR_WIFI_STOP_STATE` return value from `esp_wifi_stop()` to handle concurrent stop requests gracefully
+
 ## v0.7.7 - 2026-05-02
 
 ### Bug Fixes:

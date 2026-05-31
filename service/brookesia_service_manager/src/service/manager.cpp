@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <chrono>
+#include <exception>
 #if defined(ESP_PLATFORM)
 #   include "esp_err.h"
 #   include "esp_netif.h"
@@ -37,7 +38,7 @@ bool ensure_network_stack_ready()
 
 ServiceBinding::ServiceBinding(ServiceBinding &&other) noexcept
     : unbind_callback_(std::move(other.unbind_callback_))
-    , service_(other.service_)
+    , service_(std::move(other.service_))
     , dependencies_(std::move(other.dependencies_))
 {
     BROOKESIA_LOGD("Moving binding: %1%", service_ ? service_->get_attributes().name : "null");
@@ -77,8 +78,14 @@ ServiceManager::~ServiceManager()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_initialized()) {
-        deinit();
+    try {
+        if (is_initialized()) {
+            deinit();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying service manager: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying service manager");
     }
 }
 
