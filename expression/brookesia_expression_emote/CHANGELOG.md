@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.6 - 2026-05-28
+
+### Bug Fixes:
+
+- fix(deps): remove the unused ESP-IDF json component dependency
+
 ## v0.7.5 - 2026-04-20
 
 ### Enhancements:
