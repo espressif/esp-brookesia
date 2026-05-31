@@ -260,7 +260,7 @@ def test_esp32s3_enable_thread_name(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4')
+@pytest.mark.env('jtag,esp32p4_rev3')
 @pytest.mark.parametrize(
     'target, config',
     [

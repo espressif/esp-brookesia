@@ -107,7 +107,11 @@ ThreadConfig ThreadConfig::get_current_config()
         .core_id = (core_id == tskNO_AFFINITY) ? -1 : core_id,
         .priority = uxTaskPriorityGet(nullptr),
         .stack_size = uxTaskGetStackHighWaterMark(nullptr),
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+        .stack_in_ext = !esp_ptr_internal(xTaskGetStackStart(nullptr)),
+#else
         .stack_in_ext = !esp_ptr_internal(pxTaskGetStackStart(nullptr)),
+#endif
     };
 #else
     return ThreadConfig();
@@ -116,16 +120,20 @@ ThreadConfig ThreadConfig::get_current_config()
 
 bool ThreadConfig::check_stack_cache_safe()
 {
+#if defined(ESP_PLATFORM)
     return esp_ptr_in_dram(reinterpret_cast<const void *>(esp_cpu_get_sp()));
+#else
+    return true;
+#endif
 }
 
 ThreadConfigGuard::ThreadConfigGuard(const ThreadConfig &config)
+    : original_config_(ThreadConfig::get_applied_config())
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Param: config(%1%)", BROOKESIA_DESCRIBE_TO_STR(config));
 
-    original_config_ = ThreadConfig::get_applied_config();
     config.apply();
 }
 

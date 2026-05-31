@@ -12,21 +12,26 @@
 #include "brookesia/lib_utils/state_machine.hpp"
 #include "brookesia/lib_utils/log.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
+#include <exception>
 #include <thread>
 #include <chrono>
 
 namespace esp_brookesia::lib_utils {
 
-constexpr uint32_t STATE_MACHINE_STOP_TIMEOUT_MS = 100;
-
 StateMachine::~StateMachine()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    // Ensure clean shutdown
-    if (is_running()) {
-        BROOKESIA_LOGD("State machine is still running, stopping...");
-        stop();
+    try {
+        // Ensure clean shutdown
+        if (is_running()) {
+            BROOKESIA_LOGD("State machine is still running, stopping...");
+            stop();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying state machine: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying state machine");
     }
 }
 
@@ -307,7 +312,7 @@ bool StateMachine::setup_state_tasks(const std::string &name)
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
             state->on_update();
             return true;
-        }, state->get_update_interval(), &task_id, task_group_name_);
+        }, static_cast<int>(state->get_update_interval()), &task_id, task_group_name_);
 
         // Update task_id requires lock protection
         {
@@ -322,7 +327,7 @@ bool StateMachine::setup_state_tasks(const std::string &name)
         scheduler->post_delayed([this, ev = state->get_timeout_action()] {
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
             BROOKESIA_CHECK_FALSE_EXIT(this->trigger_action(ev, true), "Cannot trigger action '%1%'", ev);
-        }, state->get_timeout_ms(), &task_id, task_group_name_);
+        }, static_cast<int>(state->get_timeout_ms()), &task_id, task_group_name_);
 
         // Update task_id requires lock protection
         {

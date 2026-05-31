@@ -550,8 +550,10 @@ bool describe_from_json(const boost::json::value &j, T &value)
                 value = static_cast<T>(temp);
             } else {
                 // Fallback for other numeric types (e.g., double)
-                double temp = j.as_double();
-                if (temp < std::numeric_limits<T>::min() || temp > std::numeric_limits<T>::max()) {
+                const auto temp = static_cast<long double>(j.as_double());
+                const auto min_value = static_cast<long double>(std::numeric_limits<T>::min());
+                const auto max_value = static_cast<long double>(std::numeric_limits<T>::max());
+                if (temp < min_value || temp > max_value) {
                     return false;  // Overflow detected
                 }
                 value = static_cast<T>(temp);
