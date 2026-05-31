@@ -3,16 +3,21 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <algorithm>
+#include <cstdlib>
+#include <cstring>
+#include <functional>
+#include <map>
+#include <memory>
 #include <random>
+#include <sstream>
 #include <string>
 #include <string_view>
-#include <sstream>
-#include <memory>
 #include <vector>
-#include <cstring>
 #include "esp_mac.h"
-#include "esp_coze_utils.h"
 #include "esp_coze_chat.h"
+#include "esp_coze_http.h"
+#include "esp_coze_jwt.h"
 #include "boost/json.hpp"
 #include "boost/system/error_code.hpp"
 #include "brookesia/agent_coze/macro_configs.h"
@@ -118,33 +123,22 @@ bool Coze::on_activate()
     chat_config.access_token = const_cast<char *>(access_token.c_str());
     chat_config.uplink_audio_type = get_uplink_audio_type(get_audio_config().encoder.type);
     chat_config.downlink_audio_type = get_downlink_audio_type(get_audio_config().decoder.type);
-    chat_config.audio_callback = +[](char *data, int len, void *ctx) {
+    chat_config.audio_callback = +[](const uint8_t *data, int len, void *ctx) {
         // BROOKESIA_LOG_TRACE_GUARD();
         auto self = static_cast<Coze *>(ctx);
         BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
         BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_data(data, len), "Failed to on audio data");
     };
     chat_config.audio_callback_ctx = this;
-    chat_config.event_callback = +[](esp_coze_chat_event_t event, char *data, void *ctx) {
+    chat_config.event_callback = +[](esp_coze_chat_event_t event, void *event_data, void *ctx) {
         // BROOKESIA_LOG_TRACE_GUARD();
         auto self = static_cast<Coze *>(ctx);
         BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
-        BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_event(event, data), "Failed to on audio event");
+        BROOKESIA_CHECK_FALSE_EXIT(
+            self->on_audio_event(static_cast<uint8_t>(event), event_data), "Failed to on audio event"
+        );
     };
     chat_config.event_callback_ctx = this;
-    chat_config.ws_event_callback = +[](esp_coze_ws_event_t *event) {
-        // BROOKESIA_LOG_TRACE_GUARD();
-        BROOKESIA_CHECK_NULL_EXIT(event, "Invalid event");
-        auto scheduler = get_instance().get_task_scheduler();
-        BROOKESIA_CHECK_NULL_EXIT(scheduler, "Scheduler is not available");
-        auto task = [event = *event]() mutable {
-            // BROOKESIA_LOG_TRACE_GUARD();
-            void *event_ptr = &event;
-            BROOKESIA_CHECK_FALSE_EXIT(get_instance().on_websocket_event(event_ptr), "Failed to on websocket event");
-        };
-        auto result = scheduler->post(task, nullptr, Coze::get_instance().get_state_task_group());
-        BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to post websocket event task");
-    };
 #pragma GCC diagnostic pop
 
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_coze_chat_init(&chat_config, &chat_handle_), false, "Failed to init chat");
@@ -501,7 +495,7 @@ bool Coze::get_mac_str(std::string &mac_str)
     return true;
 }
 
-bool Coze::on_audio_data(char *data, int len)
+bool Coze::on_audio_data(const uint8_t *data, int len)
 {
     // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -512,14 +506,15 @@ bool Coze::on_audio_data(char *data, int len)
         return true;
     }
 
+    BROOKESIA_CHECK_NULL_RETURN(data, false, "Invalid audio data");
     BROOKESIA_CHECK_FALSE_RETURN(
-        feed_audio_decoder_data(reinterpret_cast<const uint8_t *>(data), len), false, "Failed to feed audio data"
+        feed_audio_decoder_data(data, len), false, "Failed to feed audio data"
     );
 
     return true;
 }
 
-bool Coze::on_audio_event(uint8_t event_id, char *data)
+bool Coze::on_audio_event(uint8_t event_id, void *event_data)
 {
     // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -529,7 +524,22 @@ bool Coze::on_audio_event(uint8_t event_id, char *data)
     std::function<void(void)> task_func;
 
     esp_coze_chat_event_t event = static_cast<esp_coze_chat_event_t>(event_id);
-    if (event == ESP_COZE_CHAT_EVENT_CHAT_ERROR) {
+    if (event == ESP_COZE_CHAT_EVENT_WS_EVENT) {
+        auto websocket_event = static_cast<esp_coze_ws_event_t *>(event_data);
+        BROOKESIA_CHECK_NULL_RETURN(websocket_event, false, "Invalid websocket event");
+
+        auto task = [this, event = *websocket_event]() mutable {
+            // BROOKESIA_LOG_TRACE_GUARD();
+            void *event_ptr = &event;
+            BROOKESIA_CHECK_FALSE_EXIT(on_websocket_event(event_ptr), "Failed to on websocket event");
+        };
+        auto result = scheduler->post(std::move(task), nullptr, get_state_task_group());
+        BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to post websocket event task");
+
+        return true;
+    } else if (event == ESP_COZE_CHAT_EVENT_CHAT_ERROR) {
+        auto data = static_cast<const char *>(event_data);
+        BROOKESIA_CHECK_NULL_RETURN(data, false, "Invalid chat error data");
         BROOKESIA_LOGE("chat error: %s", data);
 
         int code = parse_error_code(std::string_view(data));
@@ -585,10 +595,13 @@ bool Coze::on_audio_event(uint8_t event_id, char *data)
             BROOKESIA_CHECK_FALSE_EXIT(set_listening(true), "Failed to set listening");
         };
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_CUSTOMER_DATA) {
+        auto data = static_cast<const char *>(event_data);
+        BROOKESIA_CHECK_NULL_RETURN(data, false, "Invalid customer data");
         BROOKESIA_LOGD("Customer data: %s", data);
     } else if (event == ESP_COZE_CHAT_EVENT_CHAT_SUBTITLE_EVENT) {
-        BROOKESIA_LOGI("chat subtitle event: %s", data);
+        auto data = static_cast<const char *>(event_data);
         BROOKESIA_CHECK_NULL_RETURN(data, false, "Invalid data");
+        BROOKESIA_LOGI("chat subtitle event: %s", data);
 
         // Create a new task to set agent speaking text if the task is not running
         if ((speaking_text_task_id_ == 0) ||
@@ -759,7 +772,7 @@ std::string Coze::get_access_token(const CozeAuthInfo &auth_info)
 
     // Create JWT
     std::unique_ptr<char, decltype(&free)> jwt(
-        coze_jwt_create_handler(
+        esp_coze_jwt_create(
             auth_info.public_key.c_str(),
             payload_str.c_str(),
             reinterpret_cast<const uint8_t *>(auth_info.private_key.c_str()),
@@ -789,7 +802,7 @@ std::string Coze::get_access_token(const CozeAuthInfo &auth_info)
     std::vector<char> http_req_json_buf(http_req_json_str.begin(), http_req_json_str.end());
     http_req_json_buf.push_back('\0');
 
-    http_req_header_t header[] = {
+    esp_coze_http_header_t header[] = {
         {"Content-Type", "application/json"},
         {"Authorization", authorization_buf.data()},
         {nullptr, nullptr}
@@ -798,8 +811,8 @@ std::string Coze::get_access_token(const CozeAuthInfo &auth_info)
     // Send HTTP POST request
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-    http_response_t response = {0};
-    esp_err_t ret = http_client_post(AUTHORIZATION_URL.data(), header, http_req_json_buf.data(), &response);
+    esp_coze_http_response_t response = {0};
+    esp_err_t ret = esp_coze_http_post(AUTHORIZATION_URL.data(), header, http_req_json_buf.data(), &response);
 #pragma GCC diagnostic pop
 
     if (ret != ESP_OK) {

@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.4 - 2026-05-28
+
+### Breaking Changes:
+
+- break(build): remove the embedded XiaoZhi backend sources and use the external `espressif/esp_xiaozhi` component
+
+### Enhancements:
+
+- feat(api): migrate keystore integration to the external `esp_xiaozhi_nvs_ops` API
+
 ## v0.7.3 - 2026-04-21
 
 ### Enhancements:

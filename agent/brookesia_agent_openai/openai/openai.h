@@ -5,6 +5,9 @@
  */
 #pragma once
 
+#include <stddef.h>
+#include <stdint.h>
+
 #include "esp_err.h"
 
 #ifdef __cplusplus
@@ -14,16 +17,19 @@ extern "C" {
 typedef void  (*audio_data_handler_t)(uint8_t *data, int len, void *ctx);
 typedef void (*audio_event_handler_t)(int event, uint8_t *data, void *ctx);
 
-#define OPENAI_DEFAULT_CONNECT_TIMEOUT_MS 10000
+#define OPENAI_DEFAULT_CONNECT_TIMEOUT_MS 30000
+#define OPENAI_DEFAULT_VOICE            "alloy"
+#define OPENAI_DEFAULT_MODEL            "gpt-realtime-2"
 
 #define ESP_PEER_MSG_EVENT   0x1000
 
 typedef struct {
-    audio_data_handler_t audio_data_handler;
+    audio_data_handler_t  audio_data_handler;
     audio_event_handler_t audio_event_handler;
-    const char *model;
-    const char *api_key;
-    uint32_t connect_timeout_ms;
+    const char           *model;
+    const char           *api_key;
+    const char           *voice;
+    uint32_t              connect_timeout_ms;
     void *ctx;
 } openai_config_t;
 

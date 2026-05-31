@@ -16,7 +16,7 @@
 #include "esp_xiaozhi_camera.h"
 #include "esp_xiaozhi_chat.h"
 #include "esp_xiaozhi_info.h"
-#include "../src/priv_include/esp_xiaozhi_keystore.h"
+#include "esp_xiaozhi_nvs_ops.h"
 #include "brookesia/service_helper/nvs.hpp"
 #include "brookesia/agent_xiaozhi/agent_xiaozhi.hpp"
 
@@ -34,13 +34,13 @@ static uint32_t keystore_nvs_handle_counter = 0;
 static std::map<uint32_t, std::string> keystore_nvs_nspace_map;
 static std::string keystore_nvs_nspace;
 
-nvs_handle_t get_keystore_nvs_handle_by_nspace(std::string nspace)
+nvs_ops_handle_t get_keystore_nvs_handle_by_nspace(std::string nspace)
 {
     // Try to find the handle by name space
     for (auto &[counter, _nspace] : keystore_nvs_nspace_map) {
         if (_nspace == nspace) {
             BROOKESIA_LOGD("Found NVS handle '%1%' for namespace '%2%'", counter, nspace);
-            return reinterpret_cast<nvs_handle_t>(counter);
+            return counter;
         }
     }
     // If not found, create a new handle
@@ -49,13 +49,12 @@ nvs_handle_t get_keystore_nvs_handle_by_nspace(std::string nspace)
 
     BROOKESIA_LOGD("Created new NVS handle '%1%' for namespace '%2%'", new_counter, nspace);
 
-    return reinterpret_cast<nvs_handle_t>(new_counter);
+    return new_counter;
 }
 
-std::string get_keystore_nspace_by_handle(nvs_handle_t handle)
+std::string get_keystore_nspace_by_handle(nvs_ops_handle_t handle)
 {
-    auto counter = reinterpret_cast<uint32_t>(handle);
-    auto nspace = keystore_nvs_nspace_map.find(counter);
+    auto nspace = keystore_nvs_nspace_map.find(handle);
     if (nspace == keystore_nvs_nspace_map.end()) {
         BROOKESIA_LOGW("NVS handle not found, returning empty string");
         return std::string();
@@ -65,7 +64,7 @@ std::string get_keystore_nspace_by_handle(nvs_handle_t handle)
     return nspace->second;
 };
 
-esp_err_t on_keystore_nvs_open(const char *name_space, bool read_write, nvs_handle_t *out_handle)
+esp_err_t on_keystore_nvs_open(const char *name_space, bool read_write, nvs_ops_handle_t *out_handle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -79,14 +78,14 @@ esp_err_t on_keystore_nvs_open(const char *name_space, bool read_write, nvs_hand
     return ESP_OK;
 }
 
-void on_keystore_nvs_close(nvs_handle_t handle)
+void on_keystore_nvs_close(nvs_ops_handle_t handle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
     BROOKESIA_LOGD("Params: handle(%1%)", handle);
 }
 
-esp_err_t on_keystore_nvs_commit(nvs_handle_t handle)
+esp_err_t on_keystore_nvs_commit(nvs_ops_handle_t handle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -95,7 +94,7 @@ esp_err_t on_keystore_nvs_commit(nvs_handle_t handle)
     return ESP_OK;
 }
 
-esp_err_t on_keystore_nvs_get_str(nvs_handle_t handle, const char *key, char *out_value, size_t *length)
+esp_err_t on_keystore_nvs_get_str(nvs_ops_handle_t handle, const char *key, char *out_value, size_t *length)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -113,7 +112,7 @@ esp_err_t on_keystore_nvs_get_str(nvs_handle_t handle, const char *key, char *ou
     auto result = NVS_Helper::get_key_value<std::string>(nspace, key);
     if (!result && result.error().find("ESP_ERR_NVS_NOT_FOUND")) {
         BROOKESIA_LOGW("Key '%1%' not found in NVS, returning empty string", key);
-        return ESP_ERR_NVS_NOT_FOUND;
+        return ESP_ERR_NOT_FOUND;
     }
 
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -130,7 +129,7 @@ esp_err_t on_keystore_nvs_get_str(nvs_handle_t handle, const char *key, char *ou
     return ESP_OK;
 }
 
-esp_err_t on_keystore_nvs_set_str(nvs_handle_t handle, const char *key, const char *value)
+esp_err_t on_keystore_nvs_set_str(nvs_ops_handle_t handle, const char *key, const char *value)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -149,7 +148,7 @@ esp_err_t on_keystore_nvs_set_str(nvs_handle_t handle, const char *key, const ch
     return ESP_OK;
 }
 
-esp_err_t on_keystore_nvs_get_i32(nvs_handle_t handle, const char *key, int32_t *out_value)
+esp_err_t on_keystore_nvs_get_i32(nvs_ops_handle_t handle, const char *key, int32_t *out_value)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -165,7 +164,7 @@ esp_err_t on_keystore_nvs_get_i32(nvs_handle_t handle, const char *key, int32_t 
     auto result = NVS_Helper::get_key_value<int32_t>(nspace, key);
     if (!result && result.error().find("ESP_ERR_NVS_NOT_FOUND")) {
         BROOKESIA_LOGW("Key '%1%' not found in NVS, returning empty string", key);
-        return ESP_ERR_NVS_NOT_FOUND;
+        return ESP_ERR_NOT_FOUND;
     }
 
     *out_value = result.value();
@@ -175,7 +174,7 @@ esp_err_t on_keystore_nvs_get_i32(nvs_handle_t handle, const char *key, int32_t 
     return ESP_OK;
 }
 
-esp_err_t on_keystore_nvs_set_i32(nvs_handle_t handle, const char *key, int32_t value)
+esp_err_t on_keystore_nvs_set_i32(nvs_ops_handle_t handle, const char *key, int32_t value)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -193,7 +192,7 @@ esp_err_t on_keystore_nvs_set_i32(nvs_handle_t handle, const char *key, int32_t 
     return ESP_OK;
 }
 
-esp_err_t on_keystore_nvs_erase_key(nvs_handle_t handle, const char *key)
+esp_err_t on_keystore_nvs_erase_key(nvs_ops_handle_t handle, const char *key)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -211,7 +210,7 @@ esp_err_t on_keystore_nvs_erase_key(nvs_handle_t handle, const char *key)
     return ESP_OK;
 }
 
-esp_err_t on_keystore_nvs_erase_all(nvs_handle_t handle)
+esp_err_t on_keystore_nvs_erase_all(nvs_ops_handle_t handle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -239,7 +238,7 @@ bool XiaoZhi::on_init()
         BROOKESIA_AGENT_XIAOZHI_VER_PATCH
     );
 
-    static const esp_xiaozhi_keystore_nvs_ops_t keystore_nvs_callbacks{
+    static const esp_xiaozhi_nvs_ops_t keystore_nvs_callbacks{
         .nvs_open = on_keystore_nvs_open,
         .nvs_close = on_keystore_nvs_close,
         .nvs_commit = on_keystore_nvs_commit,
@@ -250,7 +249,7 @@ bool XiaoZhi::on_init()
         .nvs_erase_key = on_keystore_nvs_erase_key,
         .nvs_erase_all = on_keystore_nvs_erase_all,
     };
-    esp_xiaozhi_keystore_register_nvs_ops(&keystore_nvs_callbacks);
+    esp_xiaozhi_nvs_ops_register(&keystore_nvs_callbacks);
 
     return true;
 }
@@ -261,7 +260,7 @@ void XiaoZhi::on_deinit()
 
     mcp_tool_registry_.remove_all_tools();
 
-    esp_xiaozhi_keystore_register_nvs_ops(nullptr);
+    esp_xiaozhi_nvs_ops_register(nullptr);
 }
 
 std::expected<boost::json::array, std::string> XiaoZhi::function_add_mcp_tools_with_service_function(

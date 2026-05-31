@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.5 - 2026-05-28
+
+### Breaking Changes:
+
+- break(build): remove the embedded Coze backend sources and use the external `espressif/esp_coze` component
+
+### Enhancements:
+
+- feat(api): migrate chat, JWT, HTTP, audio, event, and WebSocket handling to the public `esp_coze` APIs
+
 ## v0.7.4 - 2026-05-06
 
 ### Bug Fixes:

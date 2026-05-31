@@ -234,8 +234,8 @@ private:
     bool validate_info(CozeInfo &info);
     bool get_mac_str(std::string &mac_str);
 
-    bool on_audio_data(char *data, int len);
-    bool on_audio_event(uint8_t event_id, char *data);
+    bool on_audio_data(const uint8_t *data, int len);
+    bool on_audio_event(uint8_t event_id, void *event_data);
     bool on_websocket_event(void *event_ptr);
 
     static int parse_error_code(std::string_view data);

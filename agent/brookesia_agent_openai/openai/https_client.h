@@ -27,6 +27,13 @@ extern "C" {
  */
 int https_post(const char *url, const char *api_key, char *data, char *body);
 
+/**
+ * @brief  Create a Realtime GA WebRTC call (multipart: sdp + session JSON)
+ *
+ * @return HTTP status code on success path, or negative esp_err on transport failure
+ */
+int https_post_realtime_call(const char *api_key, const char *sdp, const char *session_json, char *body);
+
 #ifdef __cplusplus
 }
 #endif

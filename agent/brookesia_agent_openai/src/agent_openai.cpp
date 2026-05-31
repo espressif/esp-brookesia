@@ -64,8 +64,9 @@ bool Openai::on_activate()
             BROOKESIA_CHECK_NULL_EXIT(self, "Invalid context");
             BROOKESIA_CHECK_FALSE_EXIT(self->on_audio_event(event, data), "Failed to on audio event");
         },
-        .model = info.model.c_str(),
+        .model = info.model.empty() ? OPENAI_DEFAULT_MODEL : info.model.c_str(),
         .api_key = info.api_key.c_str(),
+        .voice = info.voice.empty() ? OPENAI_DEFAULT_VOICE : info.voice.c_str(),
         .connect_timeout_ms = OPENAI_DEFAULT_CONNECT_TIMEOUT_MS,
         .ctx = this,
     };
