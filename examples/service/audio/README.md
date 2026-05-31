@@ -23,7 +23,7 @@ This example demonstrates how to use the audio service (`brookesia_service_audio
 
 ## ✨ Features
 
-- 🎵 **Audio File Playback**: Supports playback of single or multiple URLs (local SPIFFS or network sources), with configurable loop count, queue append, or interruption of current playback
+- 🎵 **Audio File Playback**: Supports playback of single or multiple URLs (local LittleFS or network sources), with configurable loop count, queue append, or interruption of current playback
 - ⏯️ **Playback Control**: Supports pause, resume, and stop operations, with real-time playback state updates through event subscription
 - 🎙️ **Encoder-Decoder Loopback Test**: Starts the encoder to record microphone input, then plays it back through the decoder; supports PCM, OPUS, and G711A
 - 🧠 **AFE Audio Front-End**: Integrates VAD (voice activity detection) and WakeNet (wake-word recognition), with real-time voice and wake events delivered through event subscription
@@ -61,7 +61,7 @@ After the example is flashed, the program automatically runs the following demo 
 
 ### Audio File Playback
 
-The example includes several MP3 files in the SPIFFS partition and demonstrates two playback modes:
+The example includes several MP3 files in the LittleFS partition and demonstrates two playback modes:
 
 **Single-file playback**: Plays three files in sequence. The second playback uses `interrupt: false` to append to the queue, and the third playback uses the default interrupt mode:
 
@@ -127,7 +127,7 @@ During execution, each triggered VAD or wake-word event is printed to the serial
 
 **No audio output**
 
-- Confirm that the SPIFFS partition has been flashed successfully (`idf.py flash` should include both the partition table and partition contents).
+- Confirm that the LittleFS partition has been flashed successfully (`idf.py flash` should include both the partition table and partition contents).
 
 **No sound during encoder-decoder loopback**
 

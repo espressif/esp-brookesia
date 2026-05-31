@@ -159,6 +159,8 @@ bool Display::start_lvgl(int core_id)
                              static_cast<uint16_t>(display_info.v_res),
                              ESP_LV_ADAPTER_ROTATE_0
                          );
+        display_config.profile.require_double_buffer = false;
+        display_config.profile.buffer_height = 20;
         break;
     case hal::DisplayPanelIface::BusType::MIPI:
         display_config = ESP_LV_ADAPTER_DISPLAY_MIPI_DEFAULT_CONFIG(
@@ -169,13 +171,21 @@ bool Display::start_lvgl(int core_id)
                              ESP_LV_ADAPTER_ROTATE_0
                          );
         break;
+    case hal::DisplayPanelIface::BusType::RGB:
+        display_config = ESP_LV_ADAPTER_DISPLAY_RGB_DEFAULT_CONFIG(
+                             reinterpret_cast<esp_lcd_panel_handle_t>(panel_driver_specific.panel_handle),
+                             reinterpret_cast<esp_lcd_panel_io_handle_t>(panel_driver_specific.io_handle),
+                             static_cast<uint16_t>(display_info.h_res),
+                             static_cast<uint16_t>(display_info.v_res),
+                             ESP_LV_ADAPTER_ROTATE_0
+                         );
+        display_config.profile.buffer_height = 10;
+        break;
     default:
         BROOKESIA_LOGE("Unsupported bus type: %1%", panel_driver_specific.bus_type);
         return false;
     }
 #pragma GCC diagnostic pop
-    display_config.profile.require_double_buffer = false;
-    display_config.profile.buffer_height = 20;
 
     lvgl_display_ = esp_lv_adapter_register_display(&display_config);
     if (!lvgl_display_) {

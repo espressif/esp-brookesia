@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <span>
@@ -38,7 +39,9 @@ constexpr uint8_t AUDIO_PCM_BITS = 16;
 constexpr uint8_t AUDIO_PCM_CHANNELS = 1;
 constexpr size_t WAV_HEADER_SIZE = 44;
 constexpr uint32_t DEVICE_WAIT_EVENT_TIMEOUT_MS = EXAMPLE_TEST_ACTION_DELAY_MS;
-constexpr const char *AUDIO_PCM_FILE_PATH = "/spiffs/audio.pcm";
+constexpr uint32_t DISPLAY_COLOR_BAR_REFRESH_LINES = 16;
+constexpr uint32_t DISPLAY_COLOR_BAR_REFRESH_DELAY_MS = 20;
+constexpr const char *AUDIO_PCM_FILE_PATH = "/littlefs/audio.pcm";
 
 static bool get_capabilities(DeviceHelper::Capabilities &capabilities);
 static bool get_board_info(DeviceHelper::BoardInfo &info);
@@ -67,11 +70,13 @@ extern "C" void app_main(void)
 {
     BROOKESIA_LOGI("\n\n=== Device Service Example ===\n");
 
+    // Initialize all devices from HAL adaptor
     hal::init_all_devices();
 
+    // Initialize ServiceManager
     auto &service_manager = service::ServiceManager::get_instance();
     BROOKESIA_CHECK_FALSE_EXIT(service_manager.start(), "Failed to start ServiceManager");
-
+    // Use FunctionGuard for cleanup
     lib_utils::FunctionGuard shutdown_guard([&service_manager]() {
         BROOKESIA_LOGI("Shutting down ServiceManager...");
         service_manager.stop();
@@ -198,37 +203,68 @@ static bool fill_display_panel_color_bars()
     BROOKESIA_CHECK_FALSE_RETURN((pixel_bits % 8) == 0, false, "Unsupported display panel pixel bits: %1%", pixel_bits);
 
     const auto bytes_per_pixel = static_cast<size_t>(pixel_bits / 8);
-    auto write_pixel_bit = [pixel_bits](uint8_t *pixel, uint8_t bit_index) {
+    const auto color_bar_count = static_cast<uint32_t>(bytes_per_pixel * 8);
+    const auto color_bar_lines = info.v_res / color_bar_count;
+    BROOKESIA_CHECK_FALSE_RETURN(color_bar_lines > 0, false, "Display panel vertical resolution is too small");
+
+    auto write_pixel_bit = [bytes_per_pixel](uint8_t *pixel, uint8_t bit_index) {
         const uint32_t pixel_value = 1U << bit_index;
-
-        if (pixel_bits == 16) {
-            pixel[0] = static_cast<uint8_t>(pixel_value & 0xFF);
-            pixel[1] = static_cast<uint8_t>((pixel_value >> 8) & 0xFF);
-            return;
+        for (size_t byte_index = 0; byte_index < bytes_per_pixel; ++byte_index) {
+            pixel[byte_index] = static_cast<uint8_t>((pixel_value >> (byte_index * 8)) & 0xFF);
         }
-
-        pixel[0] = static_cast<uint8_t>((pixel_value >> 16) & 0xFF);
-        pixel[1] = static_cast<uint8_t>((pixel_value >> 8) & 0xFF);
-        pixel[2] = static_cast<uint8_t>(pixel_value & 0xFF);
     };
 
-    std::vector<uint8_t> color_bar_line(static_cast<size_t>(info.h_res) * bytes_per_pixel, 0);
-    for (uint32_t x = 0; x < info.h_res; ++x) {
-        const auto bit_index = static_cast<uint8_t>((static_cast<size_t>(x) * pixel_bits) / info.h_res);
-        write_pixel_bit(&color_bar_line[static_cast<size_t>(x) * bytes_per_pixel], bit_index);
+    const auto line_bytes = static_cast<size_t>(info.h_res) * bytes_per_pixel;
+    std::vector<uint8_t> color_bar_line(line_bytes, 0);
+    std::vector<uint8_t> color_bar_block(line_bytes * DISPLAY_COLOR_BAR_REFRESH_LINES, 0);
+
+    for (uint32_t bit_index = 0; bit_index < color_bar_count; ++bit_index) {
+        for (uint32_t x = 0; x < info.h_res; ++x) {
+            write_pixel_bit(&color_bar_line[static_cast<size_t>(x) * bytes_per_pixel], static_cast<uint8_t>(bit_index));
+        }
+
+        const auto y_start = bit_index * color_bar_lines;
+        const auto y_end = (bit_index + 1) * color_bar_lines;
+        for (uint32_t y = y_start; y < y_end; y += DISPLAY_COLOR_BAR_REFRESH_LINES) {
+            const auto refresh_lines = std::min(DISPLAY_COLOR_BAR_REFRESH_LINES, y_end - y);
+            for (uint32_t line = 0; line < refresh_lines; ++line) {
+                std::memcpy(
+                    &color_bar_block[static_cast<size_t>(line) * line_bytes], color_bar_line.data(), line_bytes
+                );
+            }
+
+            BROOKESIA_CHECK_FALSE_RETURN(
+                panel_iface->draw_bitmap(0, y, info.h_res, y + refresh_lines, color_bar_block.data()), false,
+                "Failed to draw color-bar block at bit=%1%, y=%2%, lines=%3%", bit_index, y, refresh_lines
+            );
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(DISPLAY_COLOR_BAR_REFRESH_DELAY_MS));
+        }
     }
 
-    for (uint32_t y = 0; y < info.v_res; ++y) {
-        BROOKESIA_CHECK_FALSE_RETURN(
-            panel_iface->draw_bitmap(0, y, info.h_res, y + 1, color_bar_line.data()), false,
-            "Failed to draw color-bar line at y=%1%", y
-        );
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(100));
+    const auto color_bar_end_y = color_bar_count * color_bar_lines;
+    if (color_bar_end_y < info.v_res) {
+        std::fill(color_bar_line.begin(), color_bar_line.end(), 0xFF);
+        for (uint32_t y = color_bar_end_y; y < info.v_res; y += DISPLAY_COLOR_BAR_REFRESH_LINES) {
+            const auto refresh_lines = std::min(DISPLAY_COLOR_BAR_REFRESH_LINES, info.v_res - y);
+            for (uint32_t line = 0; line < refresh_lines; ++line) {
+                std::memcpy(
+                    &color_bar_block[static_cast<size_t>(line) * line_bytes], color_bar_line.data(), line_bytes
+                );
+            }
+
+            BROOKESIA_CHECK_FALSE_RETURN(
+                panel_iface->draw_bitmap(0, y, info.h_res, y + refresh_lines, color_bar_block.data()), false,
+                "Failed to draw color-bar remainder at y=%1%, lines=%2%", y, refresh_lines
+            );
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(DISPLAY_COLOR_BAR_REFRESH_DELAY_MS));
+        }
     }
 
     BROOKESIA_LOGI(
-        "Filled display panel with %1% pixel-bit color bars: %2%x%3%, format=%4%",
-        pixel_bits, info.h_res, info.v_res, BROOKESIA_DESCRIBE_TO_STR(info.pixel_format)
+        "Filled display panel with %1% pixel-bit row color bars: %2%x%3%, format=%4%, color_bars=%5%, "
+        "bar_lines=%6%, refresh_lines=%7%",
+        pixel_bits, info.h_res, info.v_res, BROOKESIA_DESCRIBE_TO_STR(info.pixel_format),
+        color_bar_count, color_bar_lines, DISPLAY_COLOR_BAR_REFRESH_LINES
     );
 
     return true;
@@ -314,7 +350,7 @@ static bool demo_board_info(const DeviceHelper::Capabilities &capabilities)
 
     DeviceHelper::BoardInfo board_info{};
     BROOKESIA_CHECK_FALSE_RETURN(get_board_info(board_info), false, "Failed to get board info");
-    BROOKESIA_LOGI("Board info: %1%", boost::json::serialize(BROOKESIA_DESCRIBE_TO_JSON(board_info)));
+    BROOKESIA_LOGI("Board info: %1%", board_info);
 
     BROOKESIA_LOGI("\n\n--- Demo: Board Info Completed ---\n");
 
@@ -474,15 +510,6 @@ static bool demo_audio_controls(const DeviceHelper::Capabilities &capabilities)
     BROOKESIA_LOGI("Current mute: %1%", get_mute_result.value());
     BROOKESIA_CHECK_FALSE_RETURN(!pcm_payload.empty(), false, "Embedded PCM payload is empty");
 
-    if (get_mute_result.value()) {
-        auto ensure_unmute_result = DeviceHelper::call_function_sync(DeviceHelper::FunctionId::SetAudioPlayerMute, false);
-        BROOKESIA_CHECK_FALSE_RETURN(
-            ensure_unmute_result, false, "Failed to unmute audio player before volume validation: %1%",
-            ensure_unmute_result.error()
-        );
-        boost::this_thread::sleep_for(boost::chrono::milliseconds(EXAMPLE_TEST_ACTION_DELAY_MS));
-    }
-
     AudioVolumeEventMonitor volume_event_monitor;
     BROOKESIA_CHECK_FALSE_RETURN(volume_event_monitor.start(), false, "Failed to start audio volume event monitor");
     AudioMuteEventMonitor mute_event_monitor;
@@ -567,9 +594,35 @@ static bool demo_storage_query(const DeviceHelper::Capabilities &capabilities)
     auto result = DeviceHelper::call_function_sync<boost::json::array>(DeviceHelper::FunctionId::GetStorageFileSystems);
     BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to get storage file systems: %1%", result.error());
 
-    BROOKESIA_LOGI(
-        "Storage file systems: %1%", boost::json::serialize(boost::json::value(result.value()))
-    );
+    BROOKESIA_LOGI("Storage file systems: %1%", result);
+
+    for (const auto &item : result.value()) {
+        if (!item.is_object()) {
+            BROOKESIA_LOGW("Invalid storage file-system info: %1%", item);
+            continue;
+        }
+
+        const auto &info = item.as_object();
+        auto mount_point_it = info.find("mount_point");
+        if ((mount_point_it == info.end()) || !mount_point_it->value().is_string()) {
+            BROOKESIA_LOGW("Missing storage mount point: %1%", item);
+            continue;
+        }
+        std::string mount_point(mount_point_it->value().as_string().c_str());
+
+        auto capacity_result = DeviceHelper::call_function_sync<boost::json::object>(
+                                   DeviceHelper::FunctionId::GetStorageFileSystemCapacity,
+                                   mount_point
+                               );
+        if (!capacity_result) {
+            BROOKESIA_LOGW(
+                "Failed to get storage capacity for %1%: %2%", mount_point, capacity_result.error()
+            );
+            continue;
+        }
+
+        BROOKESIA_LOGI("Storage capacity for %1%: %2%", mount_point, capacity_result.value());
+    }
 
     BROOKESIA_LOGI("\n\n--- Demo: Storage Query Completed ---\n");
 
@@ -596,11 +649,11 @@ static bool demo_power_battery(const DeviceHelper::Capabilities &capabilities)
 
     DeviceHelper::PowerBatteryInfo battery_info{};
     BROOKESIA_CHECK_FALSE_RETURN(get_power_battery_info(battery_info), false, "Failed to get power battery info");
-    BROOKESIA_LOGI("Battery info: %1%", boost::json::serialize(BROOKESIA_DESCRIBE_TO_JSON(battery_info)));
+    BROOKESIA_LOGI("Battery info: %1%", battery_info);
 
     DeviceHelper::PowerBatteryState battery_state{};
     BROOKESIA_CHECK_FALSE_RETURN(get_power_battery_state(battery_state), false, "Failed to get power battery state");
-    BROOKESIA_LOGI("Battery state: %1%", boost::json::serialize(BROOKESIA_DESCRIBE_TO_JSON(battery_state)));
+    BROOKESIA_LOGI("Battery state: %1%", battery_state);
 
     DeviceHelper::PowerBatteryChargeConfig charge_config{};
     const auto has_charge_config = battery_info.has_ability(hal::PowerBatteryIface::Ability::ChargeConfig);
@@ -608,7 +661,7 @@ static bool demo_power_battery(const DeviceHelper::Capabilities &capabilities)
         BROOKESIA_CHECK_FALSE_RETURN(
             get_power_battery_charge_config(charge_config), false, "Failed to get power battery charge config"
         );
-        BROOKESIA_LOGI("Battery charge config: %1%", boost::json::serialize(BROOKESIA_DESCRIBE_TO_JSON(charge_config)));
+        BROOKESIA_LOGI("Battery charge config: %1%", charge_config);
     } else {
         BROOKESIA_LOGW("Power battery charge config is not supported by this board, skip charge config query");
     }
@@ -625,9 +678,7 @@ static bool demo_power_battery(const DeviceHelper::Capabilities &capabilities)
         if (got_state_event) {
             auto last_state_event = state_event_monitor.get_last<boost::json::object>();
             if (last_state_event.has_value()) {
-                BROOKESIA_LOGI(
-                    "[Monitor] Battery state event: %1%", boost::json::serialize(std::get<0>(last_state_event.value()))
-                );
+                BROOKESIA_LOGI("[Monitor] Battery state event: %1%", std::get<0>(last_state_event.value()));
             }
         } else {
             BROOKESIA_LOGW("No battery state event received after charging state refresh");
@@ -638,8 +689,7 @@ static bool demo_power_battery(const DeviceHelper::Capabilities &capabilities)
             auto last_charge_config_event = charge_config_event_monitor.get_last<boost::json::object>();
             if (last_charge_config_event.has_value()) {
                 BROOKESIA_LOGI(
-                    "[Monitor] Battery charge config event: %1%",
-                    boost::json::serialize(std::get<0>(last_charge_config_event.value()))
+                    "[Monitor] Battery charge config event: %1%", std::get<0>(last_charge_config_event.value())
                 );
             }
         } else {

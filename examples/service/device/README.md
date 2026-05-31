@@ -30,7 +30,7 @@ This example demonstrates how to use the device service (`brookesia_service_devi
 - 🧾 **Board information**: Reads board name, chip, version, description, and manufacturer when `BoardInfo` is available
 - 💡 **Display control**: Reads and sets backlight brightness and on/off state when `DisplayBacklight` is available
 - 🖼️ **Display panel validation**: Draws pixel-bit color bars directly through HAL when `DisplayPanel` is available
-- 🔊 **Audio control**: Reads and sets audio player volume and mute state when `AudioCodecPlayer` is available, then plays a PCM file from SPIFFS
+- 🔊 **Audio control**: Reads and sets audio player volume and mute state when `AudioCodecPlayer` is available, then plays a PCM file from LittleFS
 - 💾 **Storage query**: Lists mounted file systems when `StorageFs` is available
 - 🔋 **Battery state**: Queries battery information, runtime state, and charge configuration when `Power:Battery` is available
 - 📡 **Event validation**: Uses `DeviceHelper::EventMonitor` to wait for and inspect display, audio, and battery events triggered by control operations
@@ -111,7 +111,7 @@ When `DisplayBacklight` is available, the example demonstrates brightness and on
 
 ### Audio Control
 
-When `AudioCodecPlayer` is available, the example demonstrates volume and mute control. It reads `/spiffs/audio.pcm` from the SPIFFS partition and opens the player as `16 kHz / 16-bit / mono`:
+When `AudioCodecPlayer` is available, the example demonstrates volume and mute control. It reads `/littlefs/audio.pcm` from the LittleFS partition and opens the player as `16 kHz / 16-bit / mono`:
 
 ```text
 [Demo: Audio Controls]
@@ -126,11 +126,13 @@ When `AudioCodecPlayer` is available, the example demonstrates volume and mute c
 ```
 
 > [!NOTE]
-> `main/CMakeLists.txt` uses `spiffs_create_partition_image(spiffs_data ../spiffs FLASH_IN_PROJECT)` to package `spiffs/audio.pcm` into the SPIFFS partition.
+> `main/CMakeLists.txt` uses `littlefs_create_partition_image(littlefs_data ../littlefs FLASH_IN_PROJECT)` to package `littlefs/audio.pcm` into the LittleFS partition.
 
 ### Storage Query
 
-When `StorageFs` is available, the example calls `GetStorageFileSystems` and prints all mounted file systems, including file system type, medium type, and mount point.
+When `StorageFs` is available, the example calls `GetStorageFileSystems` and prints all mounted file systems,
+including file system type, medium type, mount point, and directory support. It then calls
+`GetStorageFileSystemCapacity` for each mount point and prints the current capacity.
 
 ### Battery State and Charge Control
 
@@ -167,9 +169,9 @@ Finally, the example calls `ResetData` to reset the persisted device service sta
 
 **No audio output**
 
-- Confirm that the SPIFFS partition has been flashed successfully (`idf.py flash` should include both the partition table and the `spiffs_data` partition).
+- Confirm that the LittleFS partition has been flashed successfully (`idf.py flash` should include both the partition table and the `littlefs_data` partition).
 - Confirm that the current board supports `AudioCodecPlayer`, and that the amplifier/speaker hardware works correctly.
-- Check the serial log to confirm that `/spiffs/audio.pcm` was read successfully.
+- Check the serial log to confirm that `/littlefs/audio.pcm` was read successfully.
 
 **No display change**
 

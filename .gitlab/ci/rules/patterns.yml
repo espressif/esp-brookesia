@@ -361,7 +361,7 @@
 # agent/chatbot
 .patterns-examples_agent_chatbot:
   - "examples/agent/chatbot/main/**/*"
-  - "examples/agent/chatbot/spiffs/**/*"
+  - "examples/agent/chatbot/littlefs/**/*"
   - "examples/agent/chatbot/CMakeLists.txt"
   - "examples/agent/chatbot/idf_ext.py"
   - "examples/agent/chatbot/partitions*.csv"
@@ -370,7 +370,7 @@
 # service/audio
 .patterns-examples_service_audio:
   - "examples/service/audio/main/**/*"
-  - "examples/service/audio/spiffs/**/*"
+  - "examples/service/audio/littlefs/**/*"
   - "examples/service/audio/CMakeLists.txt"
   - "examples/service/audio/idf_ext.py"
   - "examples/service/audio/partitions*.csv"
@@ -380,7 +380,7 @@
 .patterns-examples_service_console:
   - "examples/service/console/components/**/*"
   - "examples/service/console/main/**/*"
-  - "examples/service/console/spiffs/**/*"
+  - "examples/service/console/littlefs/**/*"
   - "examples/service/console/CMakeLists.txt"
   - "examples/service/console/idf_ext.py"
   - "examples/service/console/partitions*.csv"
@@ -389,7 +389,7 @@
 # service/device
 .patterns-examples_service_device:
   - "examples/service/device/main/**/*"
-  - "examples/service/device/spiffs/**/*"
+  - "examples/service/device/littlefs/**/*"
   - "examples/service/device/CMakeLists.txt"
   - "examples/service/device/idf_ext.py"
   - "examples/service/device/partitions*.csv"

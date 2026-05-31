@@ -105,9 +105,9 @@ ESP-Brookesia 的功能框架如下图所示，自底向上由 **环境与依赖
 
 如果您希望为 ESP-Brookesia 贡献代码，或基于仓库中的示例进行二次开发，可通过以下指令获取 `master` 分支代码：
 
-``bash
+```bash
 git clone https://github.com/espressif/esp-brookesia
-``
+```
 
 ## 贡献说明
 

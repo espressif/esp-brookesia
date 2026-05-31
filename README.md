@@ -105,9 +105,9 @@ The functional framework of ESP-Brookesia is shown below, consisting of three la
 
 If you would like to contribute to ESP-Brookesia or build on the examples in this repository, you can get the `master` branch with the following command:
 
-``bash
+```bash
 git clone https://github.com/espressif/esp-brookesia
-``
+```
 
 ## Contribution Guidelines
 

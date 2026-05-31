@@ -11,14 +11,7 @@ target_test_apps_brookesia_hal_adaptor:
       artifacts: true
       optional: true
   parallel:
-    matrix:
-      - IDF_TARGET: esp32s3
-        IDF_VERSION: "5.5"
-        ENV_TAG: "esp_vocat"
-      # esp32p4_function_ev_board is temporarily disabled due to lack of display
-      # - IDF_TARGET: esp32p4
-      #   IDF_VERSION: "5.5"
-      #   ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+    matrix: !reference [.target_test_idf_target_version_with_board_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}

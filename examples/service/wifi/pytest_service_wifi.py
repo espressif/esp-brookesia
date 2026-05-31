@@ -84,7 +84,7 @@ def test_esp32s3_octal_psram(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
+@pytest.mark.env('esp32p4x_function_ev_board')
 @pytest.mark.parametrize(
     'target, config',
     [

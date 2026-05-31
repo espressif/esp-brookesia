@@ -23,7 +23,7 @@ using AudioHelper = esp_brookesia::service::helper::Audio;
 using WifiHelper = esp_brookesia::service::helper::Wifi;
 using DeviceHelper = esp_brookesia::service::helper::Device;
 
-#define XIAO_ZHI_AUDIO_URL_PREFIX "file://spiffs/xiaozhi/"
+#define XIAO_ZHI_AUDIO_URL_PREFIX "file://littlefs/xiaozhi/"
 
 constexpr const char *AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
 constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
@@ -1044,6 +1044,7 @@ boost::json::object AI_Agents::get_agent_openai_info()
     OpenaiHelper::Info openai_info {
         .model = CONFIG_EXAMPLE_AGENTS_OPENAI_MODEL,
         .api_key = CONFIG_EXAMPLE_AGENTS_OPENAI_API_KEY,
+        .voice = CONFIG_EXAMPLE_AGENTS_OPENAI_VOICE,
     };
     return BROOKESIA_DESCRIBE_TO_JSON(openai_info).as_object();
 #else

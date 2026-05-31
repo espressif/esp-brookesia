@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Post-process Doxygen-generated .inc files after esp-docs run_doxygen runs.
+"""Post-process Doxygen output after esp-docs run_doxygen runs.
 
 Patches:
 - ``service_helper/base.hpp``: drops the duplicate standalone ``EventMonitor``
@@ -7,6 +7,10 @@ Patches:
 - ``hal_interface/device.hpp``: appends namespace-level free functions, the
   ``DeviceRegistry`` type alias, and the ``IsDevice`` concept that gen-dxd.py
   skips (it only emits ``doxygenclass`` directives for file-level entities).
+- Breathe XML (``xml_in/*.xml``): strips C++20 constructs that the Sphinx 4.x
+  C++ domain parser cannot handle (``requires`` constraint clauses and
+  designated-/brace-initializer default member values), which would otherwise
+  raise "Invalid C++ declaration" warnings treated as fatal by the build.
 """
 
 from __future__ import annotations
@@ -120,6 +124,58 @@ def _patch_device_inc(build_dir: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Breathe XML sanitization (workaround for Sphinx 4.x C++ domain limitations)
+# ---------------------------------------------------------------------------
+
+# Doxygen faithfully emits two C++20 constructs into its XML that the Sphinx
+# C++ domain parser (driven by Breathe) cannot parse:
+#   1. ``requires`` constraint clauses, stored as ``<requiresclause>``.
+#   2. designated-/brace-initializer default member values, stored as
+#      ``<initializer>= {.field = ...}</initializer>``.
+# Either one makes Sphinx emit an "Invalid C++ declaration" warning, which the
+# esp-docs build treats as fatal. We strip only the offending fragment from the
+# XML *before* Breathe reads it (run_doxygen copies xml/ to xml_in/ at default
+# listener priority 500; this runs at 900), so each entity and its
+# documentation are preserved while the rendered signature stays parseable.
+_REQUIRESCLAUSE_RE = re.compile(r"<requiresclause>.*?</requiresclause>", re.DOTALL)
+_INITIALIZER_RE = re.compile(r"<initializer>.*?</initializer>", re.DOTALL)
+_DESIGNATED_INIT_RE = re.compile(r"\.\w+\s*=")
+
+
+def _strip_unparseable_cpp(xml_text: str) -> str:
+    text = _REQUIRESCLAUSE_RE.sub("", xml_text)
+
+    def _drop_designated(match: re.Match) -> str:
+        body = match.group(0)
+        # Only drop brace initializers that use designated initializers; simple
+        # scalar initializers (``= 1``, ``= true``) parse fine and are kept.
+        if "{" in body and _DESIGNATED_INIT_RE.search(body):
+            return ""
+        return body
+
+    return _INITIALIZER_RE.sub(_drop_designated, text)
+
+
+def _sanitize_breathe_xml(build_dir: str) -> None:
+    xml_dir = os.path.join(build_dir, "xml_in")
+    if not os.path.isdir(xml_dir):
+        return
+    for name in os.listdir(xml_dir):
+        if not name.endswith(".xml"):
+            continue
+        path = os.path.join(xml_dir, name)
+        try:
+            with open(path, encoding="utf-8") as f:
+                content = f.read()
+        except OSError:
+            continue
+        patched = _strip_unparseable_cpp(content)
+        if patched != content:
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(patched)
+
+
+# ---------------------------------------------------------------------------
 # Sphinx hook
 # ---------------------------------------------------------------------------
 
@@ -127,6 +183,7 @@ def _on_defines_generated(app, _defines) -> None:
     build_dir = getattr(app.config, "build_dir", None)
     if not build_dir:
         return
+    _sanitize_breathe_xml(build_dir)
     _patch_base_inc(build_dir)
     _patch_device_inc(build_dir)
 

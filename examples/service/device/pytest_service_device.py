@@ -19,9 +19,9 @@ Steps to run these test cases:
 
 3. Build the test app:
 
-   **Build for a specific board:** (replace `esp32p4` and `esp32_p4_function_ev` with your target chip and board name)
+   **Build for a specific board:** (replace `esp32p4` and `esp32_p4x_function_ev` with your target chip and board name)
    ```bash
-   python .gitlab/tools/build_apps.py examples/service/device -t esp32p4 --config "sdkconfig.ci.board.esp32_p4_function_ev=esp32_p4_function_ev"
+   python .gitlab/tools/build_apps.py examples/service/device -t esp32p4 --config "sdkconfig.ci.board.esp32_p4x_function_ev=esp32_p4x_function_ev"
    ```
 
 ## Test
@@ -34,9 +34,9 @@ Steps to run these test cases:
 
 2. Run pytest with appropriate target and environment:
 
-   **esp32p4_function_ev_board examples:**
+   **esp32p4x_function_ev_board examples:**
    ```bash
-   pytest examples/service/device --target esp32p4 --env generic,eco4,esp32p4_function_ev_board
+   pytest examples/service/device --target esp32p4 --env esp32p4x_function_ev_board
    ```
 '''
 
@@ -65,11 +65,11 @@ def test_esp_vocat_board_v1_2(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
+@pytest.mark.env('esp32p4x_function_ev_board')
 @pytest.mark.parametrize(
     'target, config',
     [
-        ('esp32p4', 'esp32_p4_function_ev'),
+        ('esp32p4', 'esp32_p4x_function_ev'),
     ],
 )
 @pytest.mark.timeout(TIMEOUT_S)

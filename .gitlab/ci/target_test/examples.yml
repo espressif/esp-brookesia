@@ -17,7 +17,7 @@ target_test_examples_agent_chatbot:
         ENV_TAG: "esp_vocat"
       - IDF_TARGET: esp32p4
         IDF_VERSION: "5.5"
-        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+        ENV_TAG: "esp32p4x_function_ev_board"
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -59,7 +59,7 @@ target_test_examples_service_console:
         ENV_TAG: "esp_vocat"
       - IDF_TARGET: esp32p4
         IDF_VERSION: "5.5"
-        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+        ENV_TAG: "esp32p4x_function_ev_board"
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -83,7 +83,7 @@ target_test_examples_service_device:
         ENV_TAG: "esp_vocat"
       - IDF_TARGET: esp32p4
         IDF_VERSION: "5.5"
-        ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+        ENV_TAG: "esp32p4x_function_ev_board"
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}

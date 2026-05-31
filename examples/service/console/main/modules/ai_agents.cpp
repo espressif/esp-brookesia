@@ -17,7 +17,7 @@ using XiaoZhiHelper = esp_brookesia::agent::helper::XiaoZhi;
 using EmoteHelper = esp_brookesia::service::helper::ExpressionEmote;
 using AudioHelper = esp_brookesia::service::helper::Audio;
 
-#define XIAO_ZHI_AUDIO_URL_PREFIX "file://spiffs/xiaozhi/"
+#define XIAO_ZHI_AUDIO_URL_PREFIX "file://littlefs/xiaozhi/"
 
 constexpr const char *AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
 constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
