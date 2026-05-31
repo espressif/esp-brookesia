@@ -1,4 +1,3 @@
-version: 1.0.0
 # Peripherals Configuration for ESP VoCat Board V1.2
 peripherals:
   # I2C Configuration
@@ -50,10 +49,10 @@ peripherals:
       # spi_bus_config_t fields
       spi_bus_config:
         spi_port: SPI2_HOST               # 0: SPI1_HOST, 1: SPI2_HOST, 2: SPI3_HOST
-        data0_io_num: 46                  # MOSI_IO_NUM
-        data1_io_num: 13                  # MISO_IO_NUM
-        data2_io_num: 11                  # QUADWP_IO_NUM
-        data3_io_num: 12                  # QUADHD_IO_NUM
+        mosi_io_num: 46                   # MOSI_IO_NUM
+        miso_io_num: 13                   # MISO_IO_NUM
+        quadwp_io_num: 11                 # QUADWP_IO_NUM
+        quadhd_io_num: 12                 # QUADHD_IO_NUM
         sclk_io_num: 18                   # SPI Clock signal
         max_transfer_sz: 7200             # Maximum transfer size in bytes : width * 2 * 10
 

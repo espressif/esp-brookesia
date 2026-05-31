@@ -126,7 +126,7 @@ void AudioCodecRecorderImpl::close()
 
 bool AudioCodecRecorderImpl::read_data(uint8_t *data, size_t size)
 {
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 

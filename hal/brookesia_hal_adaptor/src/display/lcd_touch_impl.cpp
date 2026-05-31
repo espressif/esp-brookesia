@@ -20,17 +20,17 @@ namespace esp_brookesia::hal {
 namespace {
 esp_lcd_touch_handle_t get_touch_handle(void *handles)
 {
-    return reinterpret_cast<dev_lcd_touch_i2c_handles_t *>(handles)->touch_handle;
+    return reinterpret_cast<dev_lcd_touch_handles_t *>(handles)->touch_handle;
 }
 
 esp_lcd_panel_io_handle_t get_io_handle(void *handles)
 {
-    return reinterpret_cast<dev_lcd_touch_i2c_handles_t *>(handles)->io_handle;
+    return reinterpret_cast<dev_lcd_touch_handles_t *>(handles)->io_handle;
 }
 
 DisplayTouchIface::Info generate_info()
 {
-    dev_lcd_touch_i2c_config_t *config = nullptr;
+    dev_lcd_touch_config_t *config = nullptr;
     auto ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, reinterpret_cast<void **>(&config));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, {}, "Failed to get LCD touch config");
     BROOKESIA_CHECK_NULL_RETURN(config, {}, "Failed to get LCD touch config");

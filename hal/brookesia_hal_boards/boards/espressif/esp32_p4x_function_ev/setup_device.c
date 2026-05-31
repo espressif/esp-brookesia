@@ -18,7 +18,7 @@
 #include "esp_lcd_touch_gt911.h"
 #endif  /* __has_include(<esp_lcd_touch_gt911.h>) */
 
-static const char *TAG = "P4_FUNCTION_EV_SETUP_DEVICE";
+static const char *TAG = "P4X_FUNCTION_EV_SETUP_DEVICE";
 
 #if defined(HAS_EK79007)
 __attribute__((weak)) esp_err_t lcd_dsi_panel_factory_entry_t(esp_lcd_dsi_bus_handle_t dsi_handle, dev_display_lcd_config_t *lcd_cfg, dev_display_lcd_handles_t *lcd_handles)

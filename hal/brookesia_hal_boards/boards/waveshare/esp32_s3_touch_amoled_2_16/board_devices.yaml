@@ -13,6 +13,7 @@ devices:
   - name: audio_dac
     chip: es8311  # Codec chip (ES8311)
     type: audio_codec
+    depends_on: axp2101_power_manager
     version: default
     config:
       adc_enabled: false
@@ -38,6 +39,7 @@ devices:
   - name: audio_adc
     chip: es7210  # Codec chip (ES7210)
     type: audio_codec
+    depends_on: axp2101_power_manager
     version: default
     config:
       adc_enabled: true
@@ -61,6 +63,7 @@ devices:
   - name: display_lcd
     chip: co5300
     type: display_lcd
+    depends_on: axp2101_power_manager
     sub_type: spi
     version: default
     dependencies:
@@ -89,17 +92,16 @@ devices:
   # Touch Panel Configuration
   - name: lcd_touch
     chip: cst9217
-    type: lcd_touch_i2c
+    type: lcd_touch
+    depends_on: axp2101_power_manager
+    sub_type: i2c
     version: default
     dependencies:
       waveshare/esp_lcd_touch_cst9217: "^1"
     config:
       io_i2c_config:
-        dev_addr: [0x5a]
         lcd_cmd_bits: 8
         scl_speed_hz: 400000
-        peripherals:
-          - name: i2c_master
 
       # esp_lcd_touch_config_t fields for touch configuration
       touch_config:
@@ -111,6 +113,9 @@ devices:
           swap_xy: true
           mirror_x: false
           mirror_y: true
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0xb4]
 
   - name: fs_sdcard
     type: fs_fat
@@ -126,12 +131,3 @@ devices:
           clk: 2                         # GPIO_NUM_16
           cmd: 1                         # GPIO_NUM_38
           d0: 3                          # GPIO_NUM_17
-
-  - name: fs_spiffs          # The name of the device, must be unique
-    type: fs_spiffs          # The type of the device, must be unique
-    version: 1.0.0
-    config:
-      base_path: "/spiffs"            # The base path for mounting the SPIFFS filesystem
-      partition_label: "spiffs_data"  # The partition label for the SPIFFS filesystem
-      max_files: 5                    # The maximum number of files that can be open simultaneously
-      format_if_mount_failed: false   # Format the card if mount fails

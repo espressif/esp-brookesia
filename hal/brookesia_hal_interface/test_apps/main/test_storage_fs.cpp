@@ -150,9 +150,24 @@ TEST_CASE("StorageFsIface: get_all_info returns mounted file systems", "[hal][in
     TEST_ASSERT_EQUAL(hal::StorageFsIface::FileSystemType::SPIFFS, info[0].fs_type);
     TEST_ASSERT_EQUAL(hal::StorageFsIface::MediumType::Flash, info[0].medium_type);
     TEST_ASSERT_EQUAL_STRING("/spiffs", info[0].mount_point);
+    TEST_ASSERT_FALSE(info[0].supports_directories);
     TEST_ASSERT_EQUAL(hal::StorageFsIface::FileSystemType::LittleFS, info[1].fs_type);
     TEST_ASSERT_EQUAL(hal::StorageFsIface::MediumType::Flash, info[1].medium_type);
     TEST_ASSERT_EQUAL_STRING("/littlefs", info[1].mount_point);
+    TEST_ASSERT_TRUE(info[1].supports_directories);
+
+    hal::StorageFsIface::Capacity capacity = {};
+    TEST_ASSERT_TRUE(iface->get_capacity("/spiffs", capacity));
+    TEST_ASSERT_EQUAL_UINT32(1024 * 1024, capacity.total_bytes);
+    TEST_ASSERT_EQUAL_UINT32(256 * 1024, capacity.used_bytes);
+    TEST_ASSERT_EQUAL_UINT32(768 * 1024, capacity.free_bytes);
+
+    TEST_ASSERT_TRUE(iface->get_capacity("/littlefs", capacity));
+    TEST_ASSERT_EQUAL_UINT32(2 * 1024 * 1024, capacity.total_bytes);
+    TEST_ASSERT_EQUAL_UINT32(512 * 1024, capacity.used_bytes);
+    TEST_ASSERT_EQUAL_UINT32(1536 * 1024, capacity.free_bytes);
+
+    TEST_ASSERT_FALSE(iface->get_capacity("/missing", capacity));
 
     hal::deinit_device(TestStorageFsDevice::NAME);
 }

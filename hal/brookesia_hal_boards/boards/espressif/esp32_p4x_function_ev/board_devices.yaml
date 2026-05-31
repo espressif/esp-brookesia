@@ -95,7 +95,7 @@ devices:
         out_color_format: LCD_COLOR_FMT_RGB565
         num_fbs: 3
         flags:
-          use_dma2d: false
+          use_dma2d: true
           disable_lp: false
         video_timing:
           h_size: 1024
@@ -117,15 +117,11 @@ devices:
     sub_type: i2c
     version: default
     dependencies:
-      esp_lcd_touch:
-        version: "*"
-        require: public
       espressif/esp_lcd_touch_gt911: "*"
     config:
       # esp_lcd_panel_io_i2c_config_t fields for touch communication
       io_i2c_config:
         lcd_cmd_bits: 16        # Bit-width of LCD command
-
       # esp_lcd_touch_config_t fields for touch configuration
       touch_config:
         x_max: 1024  # Maximum X coordinate (BSP_LCD_H_RES)
@@ -134,8 +130,8 @@ devices:
           mirror_x: true
           mirror_y: true
     peripherals:
-      - name: i2c_master        # I2C peripheral for touch communication
-        i2c_addr: [0xba, 0x28]  # GT911 I2C address candidates, 8-bit left-shifted
+      - name: i2c_master    # I2C peripheral for touch communication
+        i2c_addr: [0xBA, 0x28]  # GT911 8-bit I2C addresses, from 7-bit 0x5D/0x14
 
   - name: lcd_brightness
     type: ledc_ctrl
