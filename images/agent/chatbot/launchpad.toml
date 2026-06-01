@@ -1,11 +1,17 @@
 esp_toml_version = 1.0
 firmware_images_url = "https://espressif.github.io/esp-brookesia/agent/chatbot/"
 
-supported_apps = ["espressif_esp32_p4_function_ev","espressif_esp32_s3_korvo2_v3","espressif_esp_box_3","espressif_esp_vocat_board_v1_0","espressif_esp_vocat_board_v1_2","rymcu_rymcu_bigsmart","waveshare_esp32_s3_touch_amoled_1_75c","waveshare_esp32_s3_touch_amoled_1_8","waveshare_esp32_s3_touch_amoled_2_16"]
+supported_apps = ["espressif_esp32_p4_function_ev","espressif_esp32_p4x_function_ev","espressif_esp32_s3_korvo2_v3","espressif_esp_box_3","espressif_esp_vocat_board_v1_0","espressif_esp_vocat_board_v1_2","rymcu_rymcu_bigsmart","waveshare_esp32_s3_touch_amoled_1_75c","waveshare_esp32_s3_touch_amoled_1_8","waveshare_esp32_s3_touch_amoled_2_16"]
 
 [espressif_esp32_p4_function_ev]
 chipsets = ["ESP32P4"]
 image.esp32p4 = "chatbot_esp32p4_espressif_esp32_p4_function_ev.bin"
+ios_app_url = ""
+android_app_url = ""
+
+[espressif_esp32_p4x_function_ev]
+chipsets = ["ESP32P4"]
+image.esp32p4 = "chatbot_esp32p4_espressif_esp32_p4x_function_ev.bin"
 ios_app_url = ""
 android_app_url = ""
 
