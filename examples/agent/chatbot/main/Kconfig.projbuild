@@ -78,7 +78,11 @@ menu "Example Configuration"
 
         config EXAMPLE_AGENTS_OPENAI_MODEL
             string "Model"
-            default "gpt-4o-realtime-preview"
+            default "gpt-realtime-2"
+
+        config EXAMPLE_AGENTS_OPENAI_VOICE
+            string "Voice"
+            default "alloy"
     endif
 
     menuconfig EXAMPLE_AGENTS_ENABLE_XIAOZHI

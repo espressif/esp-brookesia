@@ -1,4 +1,3 @@
-version: 1.0.0
 # Devices Configuration
 devices:
   - name: audio_dac
@@ -81,7 +80,7 @@ devices:
       reset_gpio_num: 27
       rgb_ele_order: LCD_RGB_ELEMENT_ORDER_RGB
       data_endian: LCD_RGB_DATA_ENDIAN_BIG
-      bits_per_pixel: 24
+      bits_per_pixel: 16
       reset_active_high: 0
       dbi_config:
         virtual_channel: 0
@@ -107,14 +106,15 @@ devices:
           vsync_back_porch : 20
           vsync_pulse_width : 1
           vsync_front_porch : 20
-      peripherals:
+    peripherals:
       - name: ldo_mipi
       - name: dsi_display
 
   # Touch Panel Configuration
   - name: lcd_touch
     chip: gt911
-    type: lcd_touch_i2c
+    type: lcd_touch
+    sub_type: i2c
     version: default
     dependencies:
       esp_lcd_touch:
@@ -124,10 +124,7 @@ devices:
     config:
       # esp_lcd_panel_io_i2c_config_t fields for touch communication
       io_i2c_config:
-        dev_addr: [0x5D, 0x14]  # GT911 I2C address (ESP_LCD_TOUCH_IO_I2C_GT911_ADDRESS)
         lcd_cmd_bits: 16        # Bit-width of LCD command
-        peripherals:
-          - name: i2c_master    # I2C peripheral for touch communication
 
       # esp_lcd_touch_config_t fields for touch configuration
       touch_config:
@@ -136,6 +133,9 @@ devices:
         flags:
           mirror_x: true
           mirror_y: true
+    peripherals:
+      - name: i2c_master        # I2C peripheral for touch communication
+        i2c_addr: [0xba, 0x28]  # GT911 I2C address candidates, 8-bit left-shifted
 
   - name: lcd_brightness
     type: ledc_ctrl
@@ -156,12 +156,3 @@ devices:
       - name: "i2c_master"
         frequency: 100000
       - name: ldo_mipi
-
-  - name: fs_spiffs          # The name of the device, must be unique
-    type: fs_spiffs          # The type of the device, must be unique
-    version: 1.0.0
-    config:
-      base_path: "/spiffs"            # The base path for mounting the SPIFFS filesystem
-      partition_label: "spiffs_data"  # The partition label for the SPIFFS filesystem
-      max_files: 5                    # The maximum number of files that can be open simultaneously
-      format_if_mount_failed: false   # Format the card if mount fails

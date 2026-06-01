@@ -15,7 +15,7 @@
 #include "brookesia/hal_adaptor.hpp"
 
 using namespace esp_brookesia;
-using AudioHelper = esp_brookesia::service::helper::Audio;
+using AudioHelper = service::helper::Audio;
 
 static AudioHelper::CodecGeneralConfig codec_general_config{
 #if CONFIG_IDF_TARGET_ESP32C5
@@ -117,13 +117,15 @@ static bool demo_set_configs()
         }
     };
     auto playback_result = AudioHelper::call_function_sync(
-                               AudioHelper::FunctionId::SetPlaybackConfig, BROOKESIA_DESCRIBE_TO_JSON(playback_config).as_object()
+                               AudioHelper::FunctionId::SetPlaybackConfig,
+                               BROOKESIA_DESCRIBE_TO_JSON(playback_config).as_object()
                            );
     BROOKESIA_CHECK_FALSE_RETURN(playback_result, false, "Failed to set playback config: %1%", playback_result.error());
 
     AudioHelper::EncoderStaticConfig encoder_static_config{};
     auto encoder_static_result = AudioHelper::call_function_sync(
-                                     AudioHelper::FunctionId::SetEncoderStaticConfig, BROOKESIA_DESCRIBE_TO_JSON(encoder_static_config).as_object()
+                                     AudioHelper::FunctionId::SetEncoderStaticConfig,
+                                     BROOKESIA_DESCRIBE_TO_JSON(encoder_static_config).as_object()
                                  );
     BROOKESIA_CHECK_FALSE_RETURN(
         encoder_static_result, false, "Failed to set encoder static config: %1%", encoder_static_result.error()
@@ -131,7 +133,8 @@ static bool demo_set_configs()
 
     AudioHelper::DecoderStaticConfig decoder_static_config{};
     auto decoder_static_result = AudioHelper::call_function_sync(
-                                     AudioHelper::FunctionId::SetDecoderStaticConfig, BROOKESIA_DESCRIBE_TO_JSON(decoder_static_config).as_object()
+                                     AudioHelper::FunctionId::SetDecoderStaticConfig,
+                                     BROOKESIA_DESCRIBE_TO_JSON(decoder_static_config).as_object()
                                  );
     BROOKESIA_CHECK_FALSE_RETURN(
         decoder_static_result, false, "Failed to set decoder static config: %1%", decoder_static_result.error()
@@ -149,7 +152,7 @@ static std::string get_audio_file_path(const std::string &filename)
 
     auto infos = fs_iface->get_all_info();
     for (const auto &info : infos) {
-        if (info.fs_type == hal::StorageFsIface::FileSystemType::SPIFFS) {
+        if (info.fs_type == hal::StorageFsIface::FileSystemType::LittleFS) {
             return "file:/" + std::string(info.mount_point) + "/" + filename;
         }
     }

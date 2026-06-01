@@ -108,6 +108,8 @@ bool LcdDisplayPanelImpl::get_driver_specific(DriverSpecific &specific)
         specific.bus_type = DisplayPanelIface::BusType::Generic;
     } else if (strcmp(config->sub_type, ESP_BOARD_DEVICE_LCD_SUB_TYPE_DSI) == 0) {
         specific.bus_type = DisplayPanelIface::BusType::MIPI;
+    } else if (strcmp(config->sub_type, ESP_BOARD_DEVICE_LCD_SUB_TYPE_RGB) == 0) {
+        specific.bus_type = DisplayPanelIface::BusType::RGB;
     } else {
         BROOKESIA_LOGW("Unsupported sub type: %1%", config->sub_type);
     }

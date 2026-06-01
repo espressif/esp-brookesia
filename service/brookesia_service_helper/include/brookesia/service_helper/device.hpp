@@ -50,6 +50,11 @@ public:
     using StorageFsInfo = hal::StorageFsIface::Info;
 
     /**
+     * @brief Dynamic storage file system capacity snapshot.
+     */
+    using StorageFsCapacity = hal::StorageFsIface::Capacity;
+
+    /**
      * @brief Static battery information.
      */
     using PowerBatteryInfo = hal::PowerBatteryIface::Info;
@@ -79,6 +84,7 @@ public:
         SetAudioPlayerMute,
         GetAudioPlayerMute,
         GetStorageFileSystems,
+        GetStorageFileSystemCapacity,
         GetPowerBatteryInfo,
         GetPowerBatteryState,
         GetPowerBatteryChargeConfig,
@@ -115,6 +121,10 @@ public:
 
     enum class FunctionSetAudioPlayerMuteParam {
         Enable,
+    };
+
+    enum class FunctionGetStorageFileSystemCapacityParam {
+        MountPoint,
     };
 
     enum class FunctionSetPowerBatteryChargeConfigParam {
@@ -285,16 +295,39 @@ private:
             .description = (boost::format("Get mounted storage file systems. Return type: JSON array<object>. Example: %1%")
             % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<StorageFsInfo>({
                 {
-                    .fs_type = hal::StorageFsIface::FileSystemType::SPIFFS,
+                    .fs_type = hal::StorageFsIface::FileSystemType::LittleFS,
                     .medium_type = hal::StorageFsIface::MediumType::Flash,
-                    .mount_point = "/spiffs",
+                    .mount_point = "/littlefs",
+                    .supports_directories = true,
                 },
                 {
                     .fs_type = hal::StorageFsIface::FileSystemType::FATFS,
                     .medium_type = hal::StorageFsIface::MediumType::SDCard,
                     .mount_point = "/sdcard",
+                    .supports_directories = true,
                 },
             }))).str(),
+        };
+    }
+
+    static FunctionSchema function_schema_get_storage_file_system_capacity()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::GetStorageFileSystemCapacity),
+            .description = (boost::format("Get one mounted storage file system capacity. Return type: JSON object. "
+                                          "Example: %1%")
+            % BROOKESIA_DESCRIBE_JSON_SERIALIZE((StorageFsCapacity{
+                .total_bytes = 1024 * 1024,
+                .used_bytes = 256 * 1024,
+                .free_bytes = 768 * 1024,
+            }))).str(),
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionGetStorageFileSystemCapacityParam::MountPoint),
+                    .description = "Mount point returned by GetStorageFileSystems.",
+                    .type = FunctionValueType::String,
+                }
+            },
         };
     }
 
@@ -498,6 +531,7 @@ public:
                 function_schema_set_audio_player_mute(),
                 function_schema_get_audio_player_mute(),
                 function_schema_get_storage_file_systems(),
+                function_schema_get_storage_file_system_capacity(),
                 function_schema_get_power_battery_info(),
                 function_schema_get_power_battery_state(),
                 function_schema_get_power_battery_charge_config(),
@@ -527,8 +561,9 @@ public:
 BROOKESIA_DESCRIBE_ENUM(
     Device::FunctionId, GetCapabilities, GetBoardInfo, SetDisplayBacklightBrightness, GetDisplayBacklightBrightness,
     SetDisplayBacklightOnOff, GetDisplayBacklightOnOff, SetAudioPlayerVolume, GetAudioPlayerVolume, SetAudioPlayerMute,
-    GetAudioPlayerMute, GetStorageFileSystems, GetPowerBatteryInfo, GetPowerBatteryState, GetPowerBatteryChargeConfig,
-    SetPowerBatteryChargeConfig, SetPowerBatteryChargingEnabled, ResetData, Max
+    GetAudioPlayerMute, GetStorageFileSystems, GetStorageFileSystemCapacity, GetPowerBatteryInfo,
+    GetPowerBatteryState, GetPowerBatteryChargeConfig, SetPowerBatteryChargeConfig, SetPowerBatteryChargingEnabled,
+    ResetData, Max
 );
 BROOKESIA_DESCRIBE_ENUM(
     Device::EventId, DisplayBacklightBrightnessChanged, DisplayBacklightOnOffChanged, AudioPlayerVolumeChanged,
@@ -538,6 +573,7 @@ BROOKESIA_DESCRIBE_ENUM(Device::FunctionSetDisplayBacklightBrightnessParam, Brig
 BROOKESIA_DESCRIBE_ENUM(Device::FunctionSetDisplayBacklightOnOffParam, On);
 BROOKESIA_DESCRIBE_ENUM(Device::FunctionSetAudioPlayerVolumeParam, Volume);
 BROOKESIA_DESCRIBE_ENUM(Device::FunctionSetAudioPlayerMuteParam, Enable);
+BROOKESIA_DESCRIBE_ENUM(Device::FunctionGetStorageFileSystemCapacityParam, MountPoint);
 BROOKESIA_DESCRIBE_ENUM(Device::FunctionSetPowerBatteryChargeConfigParam, Config);
 BROOKESIA_DESCRIBE_ENUM(Device::FunctionSetPowerBatteryChargingEnabledParam, Enabled);
 BROOKESIA_DESCRIBE_ENUM(Device::EventAudioPlayerVolumeChangedParam, Volume);

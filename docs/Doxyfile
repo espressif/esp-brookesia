@@ -111,7 +111,8 @@ PREDEFINED = \
     __attribute__(x)= \
     IRAM_ATTR= \
     ESP_PLATFORM=1 \
-    unlikely(x)=x
+    unlikely(x)=x \
+    requires(...)=
 
 GENERATE_XML = YES
 GENERATE_HTML = NO

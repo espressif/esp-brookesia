@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.5 - 2026-05-28
+
+### Enhancements:
+
+- feat(deps): keep OpenAI JSON usage private and add the external `espressif/cjson` dependency for newer ESP-IDF builds
+
 ## v0.7.4 - 2026-04-10
 
 ### Enhancements:

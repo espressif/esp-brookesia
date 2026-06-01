@@ -25,13 +25,20 @@ IDF_PATH = os.getenv('IDF_PATH', '')
 
 PROJECT_ROOT = Path(__file__).parent.parent.parent.absolute()
 APPS_BUILD_PER_JOB = 30
+# Targets that require ``idf.py --preview`` to be set
+PREVIEW_TARGETS = {'esp32s31'}
 IGNORE_WARNINGS = [
     r"warning: unused variable 'head'",
     r"WARNING: The following Kconfig variables were used in",
     r"unknown kconfig symbol",
+    r"Warning: esp_board_manager dependency not found",
+    # Temporary workaround for `espressif__esp_video` Kconfig symbols warnings
     r"warning: 'ISP_AWB_SAMPLE_POINT_BEFORE_CCM' is deprecated: Use ISP_AWB_SAMPLE_POINT_0 instead",
     r"warning: 'ISP_AE_SAMPLE_POINT_AFTER_DEMOSAIC' is deprecated: Use ISP_AE_SAMPLE_POINT_0 instead",
-    r"Warning: esp_board_manager dependency not found",
+    r"warning: 'overlay_dst_cache_pixel_bytes' defined but not used",
+    # Temporary workaround for `espressif__mcp-c-sdk` stringop-truncation warning
+    r"warning: 'strncpy' output may be truncated copying 31 bytes from a string of length 31",
+    r"warning: 'strncpy' output may be truncated copying 79 bytes from a string of length 79",
 ]
 
 
@@ -91,7 +98,11 @@ class CustomApp(CMakeApp):
         subprocess.run(
             [sys.executable, f'{IDF_PATH}/tools/idf.py', 'gen-bmgr-config', '-b', board_name], cwd=self.work_dir
         )
-        subprocess.run([sys.executable, f'{IDF_PATH}/tools/idf.py', 'set-target', self.target], cwd=self.work_dir)
+        set_target_cmd = [sys.executable, f'{IDF_PATH}/tools/idf.py']
+        if self.target in PREVIEW_TARGETS:
+            set_target_cmd.append('--preview')
+        set_target_cmd.extend(['set-target', self.target])
+        subprocess.run(set_target_cmd, cwd=self.work_dir)
 
 
 def _get_idf_version():

@@ -23,8 +23,9 @@ public:
      * @brief Persistent configuration for the OpenAI agent backend.
      */
     struct Info {
-        std::string model; ///< Model identifier used for requests.
+        std::string model;   ///< Model identifier used for requests.
         std::string api_key; ///< API key used for authentication.
+        std::string voice;   ///< Voice identifier used for requests. Default is "alloy".
     };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -99,7 +100,7 @@ public:
 /////////////////////////// The following are the describe macros //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BROOKESIA_DESCRIBE_STRUCT(
-    Openai::Info, (), (model, api_key)
+    Openai::Info, (), (model, api_key, voice)
 );
 BROOKESIA_DESCRIBE_ENUM(Openai::FunctionId, Max);
 BROOKESIA_DESCRIBE_ENUM(Openai::EventId, Max);

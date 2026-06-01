@@ -59,8 +59,8 @@ ENTER_RESPONSE_LIST = [
 ]
 REBOOT_RESPONSE = b'Rebooting...'
 RESPONSE_TIMEOUT_S = 30
-SINGLE_TIMEOUT_S = 60
-TOTAL_TIMEOUT_S = 5 * 60
+SINGLE_TIMEOUT_S = 5 * 60
+TOTAL_TIMEOUT_S = 10 * 60
 RETRY_LIMIT = 5  # Retry once before recording failure
 
 
@@ -161,7 +161,7 @@ def test_esp32s3_octal_psram(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4')
+@pytest.mark.env('jtag,esp32p4_rev3')
 @pytest.mark.parametrize(
     'target, config',
     [

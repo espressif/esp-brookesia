@@ -24,6 +24,7 @@ static const char *TAG = "cmd_service";
 static auto &service_manager = ServiceManager::get_instance();
 static std::vector<ServiceBinding> g_bindings;
 static lib_utils::TaskScheduler g_task_scheduler;
+static constexpr int DEFAULT_SVC_CALL_TIMEOUT_MS = 5000;
 
 // Subscription information structure
 struct SubscriptionInfo {
@@ -72,14 +73,19 @@ struct ScheduledCallInfo {
     std::string params;
     bool is_periodic;
     int delay_or_interval_ms;
+    int timeout_ms;
 
-    ScheduledCallInfo(lib_utils::TaskScheduler::TaskId id, std::string svc, std::string func, std::string p, bool periodic, int ms)
+    ScheduledCallInfo(
+        lib_utils::TaskScheduler::TaskId id, std::string svc, std::string func, std::string p, bool periodic,
+        int ms, int timeout
+    )
         : task_id(id)
         , service(std::move(svc))
         , function(std::move(func))
         , params(std::move(p))
         , is_periodic(periodic)
         , delay_or_interval_ms(ms)
+        , timeout_ms(timeout)
     {}
 };
 
@@ -159,6 +165,7 @@ static struct {
     struct arg_str *params;
     struct arg_int *delay;
     struct arg_int *interval;
+    struct arg_int *timeout;
     struct arg_end *end;
 } call_args;
 
@@ -991,10 +998,15 @@ static int do_call_cmd(int argc, char **argv)
                              call_args.params->sval[0] : "{}";
     int delay_ms = call_args.delay->count > 0 ? call_args.delay->ival[0] : -1;
     int interval_ms = call_args.interval->count > 0 ? call_args.interval->ival[0] : -1;
+    int timeout_ms = call_args.timeout->count > 0 ? call_args.timeout->ival[0] : DEFAULT_SVC_CALL_TIMEOUT_MS;
 
     // Validate parameters
     if (delay_ms >= 0 && interval_ms >= 0) {
         printf("Error: Cannot specify both delay and interval. Use either --delay or --interval\n");
+        return 1;
+    }
+    if (timeout_ms <= 0) {
+        printf("Error: Timeout must be a positive integer\n");
         return 1;
     }
 
@@ -1066,13 +1078,13 @@ static int do_call_cmd(int argc, char **argv)
 
     // Common call function (used by both delayed and periodic)
     // Copy parameters to ensure they remain valid for delayed/periodic execution
-    auto call_function_common = [service, function_name_str, parameters]() mutable {
+    auto call_function_common = [service, function_name_str, parameters, timeout_ms]() mutable {
         try
         {
             auto result = service->call_function_sync(
                 function_name_str.c_str(),
                 std::move(parameters),  // Move parameters (mutable lambda allows this)
-                5000  // 5 seconds timeout
+                timeout_ms
             );
 
             printf("\n[%s.%s] Result:\n", service->get_attributes().name.c_str(), function_name_str.c_str());
@@ -1095,8 +1107,8 @@ static int do_call_cmd(int argc, char **argv)
     // Execute based on mode
     if (interval_ms >= 0) {
         // Periodic execution
-        printf("\nScheduling periodic call: %s.%s(%s) every %d ms\n",
-               service_name, function_name, params_str, interval_ms);
+        printf("\nScheduling periodic call: %s.%s(%s) every %d ms, timeout %d ms\n",
+               service_name, function_name, params_str, interval_ms, timeout_ms);
 
         lib_utils::TaskScheduler::TaskId task_id = 0;
         bool success = g_task_scheduler.post_periodic(
@@ -1117,7 +1129,7 @@ static int do_call_cmd(int argc, char **argv)
         // Save task information
         g_scheduled_calls[task_id] = std::make_unique<ScheduledCallInfo>(
                                          task_id, std::string(service_name), std::string(function_name),
-                                         std::string(params_str), true, interval_ms
+                                         std::string(params_str), true, interval_ms, timeout_ms
                                      );
 
         printf("Periodic task scheduled successfully (Task ID: %llu)\n",
@@ -1128,8 +1140,8 @@ static int do_call_cmd(int argc, char **argv)
 
     } else if (delay_ms >= 0) {
         // Delayed execution
-        printf("\nScheduling delayed call: %s.%s(%s) after %d ms\n",
-               service_name, function_name, params_str, delay_ms);
+        printf("\nScheduling delayed call: %s.%s(%s) after %d ms, timeout %d ms\n",
+               service_name, function_name, params_str, delay_ms, timeout_ms);
 
         lib_utils::TaskScheduler::TaskId task_id = 0;
 
@@ -1166,7 +1178,7 @@ static int do_call_cmd(int argc, char **argv)
         // Save task information
         g_scheduled_calls[task_id] = std::make_unique<ScheduledCallInfo>(
                                          task_id, service_name_str, function_name_str,
-                                         params_str_copy, false, delay_ms
+                                         params_str_copy, false, delay_ms, timeout_ms
                                      );
 
         printf("Delayed task scheduled successfully (Task ID: %llu)\n",
@@ -1178,12 +1190,13 @@ static int do_call_cmd(int argc, char **argv)
     } else {
         // Immediate execution (original behavior)
         printf("\nCalling: %s.%s(%s)\n", service_name, function_name, params_str);
+        printf("Timeout: %d ms\n", timeout_ms);
 
         try {
             auto result = service->call_function_sync(
                               function_name,
                               std::move(parameters),
-                              5000  // 5 seconds timeout
+                              timeout_ms
                           );
 
             printf("\nResult:\n");
@@ -1277,6 +1290,7 @@ static int do_call_list_cmd(int argc, char **argv)
         printf("    %s: %d ms\n",
                task_info->is_periodic ? "Interval" : "Delay",
                task_info->delay_or_interval_ms);
+        printf("    Timeout: %d ms\n", task_info->timeout_ms);
     }
 
     printf("\nTotal: %zu scheduled call(s)\n\n", g_scheduled_calls.size());
@@ -1356,11 +1370,12 @@ void register_service_commands(void)
     call_args.params = arg_str0(NULL, NULL, "<json>", "JSON parameters (optional, default: {})");
     call_args.delay = arg_int0("d", "delay", "<ms>", "Delay execution by milliseconds (mutually exclusive with --interval)");
     call_args.interval = arg_int0("i", "interval", "<ms>", "Execute periodically every milliseconds (mutually exclusive with --delay)");
-    call_args.end = arg_end(6);
+    call_args.timeout = arg_int0("t", "timeout", "<ms>", "Function call timeout in milliseconds (default: 5000)");
+    call_args.end = arg_end(8);
 
     const esp_console_cmd_t call_cmd = {
         .command = "svc_call",
-        .help = "Call a service function with JSON parameters. Use --delay for delayed execution or --interval for periodic execution",
+        .help = "Call a service function with JSON parameters. Use --timeout to set call timeout",
         .hint = NULL,
         .func = &do_call_cmd,
         .argtable = &call_args,

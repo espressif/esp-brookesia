@@ -130,7 +130,7 @@ You can also use the audio service to play local or network audio:
 
 ```bash
 # Play local audio
-svc_call Audio PlayUrl {"Url":"file://spiffs/example.mp3"}
+svc_call Audio PlayUrl {"Url":"file://littlefs/example.mp3"}
 
 # Play network audio
 svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}

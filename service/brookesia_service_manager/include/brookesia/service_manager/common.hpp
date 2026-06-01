@@ -30,7 +30,7 @@ struct RawBuffer {
      * - `int*` -> `is_const = false`
      */
     template <typename T>
-    requires std::is_pointer_v<T>
+    requires (std::is_pointer_v<T>)
     explicit RawBuffer(T pointer, size_t size = 0):
         data_ptr(reinterpret_cast<const uint8_t *>(pointer)),
         data_size(size),

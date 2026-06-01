@@ -130,7 +130,7 @@ svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
 
 ```bash
 # 播放本地音频
-svc_call Audio PlayUrl {"Url":"file://spiffs/example.mp3"}
+svc_call Audio PlayUrl {"Url":"file://littlefs/example.mp3"}
 
 # 播放网络音频
 svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}

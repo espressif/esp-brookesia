@@ -1,4 +1,3 @@
-version: 1.0.0
 # Peripherals Configuration for ESP32-S3-KORVO2-V3
 peripherals:
   # I2C Configuration

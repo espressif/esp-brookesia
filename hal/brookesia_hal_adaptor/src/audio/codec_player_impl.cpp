@@ -22,7 +22,7 @@ namespace esp_brookesia::hal {
 constexpr uint8_t VOLUME_DEFAULT = 75;
 constexpr uint8_t VOLUME_MIN = 0;
 constexpr uint8_t VOLUME_MAX = 100;
-constexpr bool PA_CONTROL_STATE_DEFAULT = false;
+constexpr bool PA_CONTROL_STATE_DEFAULT = true;
 
 namespace {
 esp_codec_dev_handle_t get_codec_handle(void *handles)
@@ -139,7 +139,7 @@ bool AudioCodecPlayerImpl::set_pa_on_off(bool on)
 
 bool AudioCodecPlayerImpl::write_data(const uint8_t *data, size_t size)
 {
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
@@ -170,12 +170,13 @@ bool AudioCodecPlayerImpl::setup_pa_control()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_get_periph_handle(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL, &pa_control_handle_);
-    if (ret != ESP_OK) {
+    if (!esp_board_manager_check_name(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL)) {
         BROOKESIA_LOGW("PA control GPIO not found, skip");
         return true;
     }
 
+    auto ret = esp_board_manager_get_periph_handle(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL, &pa_control_handle_);
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get PA control GPIO handle");
     BROOKESIA_CHECK_NULL_RETURN(pa_control_handle_, false, "Failed to get PA control GPIO handle");
 
     dev_audio_codec_config_t *config = nullptr;

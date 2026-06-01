@@ -5,7 +5,7 @@ idf_component_register(
     INCLUDE_DIRS "."
 )
 
-spiffs_create_partition_image(spiffs_data ../spiffs FLASH_IN_PROJECT)
+littlefs_create_partition_image(littlefs_data ../littlefs FLASH_IN_PROJECT)
 
 set(ASSETS_PARTITION_NAME "anim_icon")
 set(ASSETS_BIN_NAME ${ASSETS_PARTITION_NAME})

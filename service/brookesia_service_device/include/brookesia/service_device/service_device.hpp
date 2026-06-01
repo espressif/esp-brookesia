@@ -48,6 +48,7 @@ private:
     using PowerBatteryChargeConfig = Helper::PowerBatteryChargeConfig;
     using PowerBatteryInfo = Helper::PowerBatteryInfo;
     using PowerBatteryState = Helper::PowerBatteryState;
+    using StorageFsCapacity = Helper::StorageFsCapacity;
     using StorageFsInfo = Helper::StorageFsInfo;
 
     Device()
@@ -83,6 +84,9 @@ private:
     std::expected<void, std::string> function_set_audio_player_mute(bool enable);
     std::expected<bool, std::string> function_get_audio_player_mute();
     std::expected<boost::json::array, std::string> function_get_storage_file_systems();
+    std::expected<boost::json::object, std::string> function_get_storage_file_system_capacity(
+        const std::string &mount_point
+    );
     std::expected<boost::json::object, std::string> function_get_power_battery_info();
     std::expected<boost::json::object, std::string> function_get_power_battery_state();
     std::expected<boost::json::object, std::string> function_get_power_battery_charge_config();
@@ -148,6 +152,10 @@ private:
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::GetStorageFileSystems,
                 function_get_storage_file_systems()
+            ),
+            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_1(
+                Helper, Helper::FunctionId::GetStorageFileSystemCapacity, std::string,
+                function_get_storage_file_system_capacity(PARAM)
             ),
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 Helper, Helper::FunctionId::GetPowerBatteryInfo,

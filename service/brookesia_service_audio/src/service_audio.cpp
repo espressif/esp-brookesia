@@ -63,39 +63,9 @@ inline hal::AudioCodecPlayerIface::Config get_player_config()
     return config;
 }
 
-/* Workaround for a non-recursive mutex self-deadlock in the closed-source
- * libhufzip.a: its lazy-init `hufzip_lock` is taken by both `read_spiffs_params`
- * and `get_flash_index` but never released until `hufzip_model_free_data`
- * runs, so when wakenet's `model_create` walks both paths on the same thread
- * the second `xQueueSemaphoreTake` blocks forever.
- *
- * hufzip only creates the mutex when `hufzip_lock == NULL`, so we
- * pre-populate it with a counting semaphore (large initial count). Subsequent
- * takes just decrement the count and succeed without blocking, and
- * `hufzip_model_free_data`'s give+delete still work on a counting semaphore.
- *
- * Must be called before any `esp_srmodel_init()` / wakenet `model_create()`
- * inside this service. `std::call_once` guards against two entry points
- * (e.g. recorder-open thread and wake-words RPC) racing on first init.
- */
-extern "C" SemaphoreHandle_t hufzip_lock;
-static void prearm_hufzip_lock()
-{
-    static std::once_flag s_once;
-    std::call_once(s_once, []() {
-        if (hufzip_lock == nullptr) {
-            hufzip_lock = xSemaphoreCreateCounting(32, 32);
-        }
-    });
-}
-
 bool audio_recorder_open_wrapper(const audio_recorder_config_t *config, audio_recorder_handle_t *recorder_handle)
 {
     BROOKESIA_LOG_TRACE_GUARD();
-
-    // Prearm hufzip_lock before wakenet's model_create runs to avoid the
-    // libhufzip.a non-recursive mutex self-deadlock. See prearm_hufzip_lock().
-    prearm_hufzip_lock();
 
     esp_err_t recorder_open_result = ESP_OK;
     auto recorder_open_func = [&]() {
@@ -375,10 +345,6 @@ std::expected<boost::json::array, std::string> Audio::function_get_afe_wake_word
     if (partition_label.empty()) {
         return boost::json::array();
     }
-
-    // esp_srmodel_init() walks into libhufzip.a as well; prearm hufzip_lock
-    // here to prevent the same self-deadlock documented on prearm_hufzip_lock().
-    prearm_hufzip_lock();
 
     std::vector<std::string> wake_words_array;
     auto get_wake_words = [&wake_words_array, partition_label]() {

@@ -10,6 +10,8 @@
 #include "private/utils.hpp"
 #include "brookesia/hal_interface/device.hpp"
 
+#include <cstdlib>
+
 namespace esp_brookesia::hal {
 
 namespace {
@@ -90,7 +92,28 @@ Device::~Device()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    deinit();
+    // NOTE: Do NOT call the virtual `deinit()` (and therefore `on_deinit()`) from a base
+    // destructor. By the time this runs, the derived part is already destroyed and the
+    // vtable resolves `on_deinit()` to its pure-virtual slot -> `__cxa_pure_virtual` ->
+    // abort. The proper deinit flow is `deinit_all_devices()`, which is registered as
+    // an `atexit` handler inside `init_all_devices()` so it runs even when the host
+    // process is torn down via `exit()` (e.g. LVGL's SDL backend on window close).
+    //
+    // If a Device is still flagged initialized here, that means neither the explicit
+    // RAII guard nor the atexit handler ran for some reason -- do best-effort base-only
+    // cleanup so we at least drop our interface registrations without abort.
+    if (is_initialized_) {
+        BROOKESIA_LOGW(
+            "- [%1%] Destroyed while still initialized; performing base-only cleanup "
+            "(derived on_deinit was skipped to avoid pure-virtual call)",
+            name_
+        );
+        for (const auto &[iface_name, _] : interfaces_) {
+            InterfaceRegistry::remove_plugin(iface_name);
+        }
+        interfaces_.clear();
+        is_initialized_ = false;
+    }
 }
 
 bool Device::register_pre_init_callback(PreInitCallback callback)
@@ -223,6 +246,27 @@ void init_all_devices()
         BROOKESIA_LOGW("- [%1%] Pending post-deinit callback has no matching device, dropped", name);
     }
     get_pending_post_deinit_callbacks().clear();
+
+#if !defined(ESP_PLATFORM)
+    // Register `deinit_all_devices` as an atexit handler so devices are torn down with
+    // a live derived vtable even when the host process exits abruptly via `exit()`
+    // (e.g. LVGL's SDL backend calls `exit()` on window close, which bypasses the RAII
+    // FunctionGuard set up by the simulator's `main()`). Without this, `~Device()`
+    // would later run during static destruction with the derived part already gone and
+    // call the pure-virtual `on_deinit()`, triggering `__cxa_pure_virtual` -> abort.
+    //
+    // `deinit_all_devices()` is idempotent because each device's `deinit()` early-returns
+    // when `is_initialized_` is already false.
+    static bool atexit_registered = false;
+    if (!atexit_registered) {
+        if (std::atexit(&deinit_all_devices) == 0) {
+            atexit_registered = true;
+            BROOKESIA_LOGD("Registered deinit_all_devices() as atexit handler");
+        } else {
+            BROOKESIA_LOGW("Failed to register deinit_all_devices() as atexit handler");
+        }
+    }
+#endif
 }
 
 bool init_device(const std::string &name)

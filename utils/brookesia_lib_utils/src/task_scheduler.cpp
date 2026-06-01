@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <exception>
 #include "brookesia/lib_utils/macro_configs.h"
 #if !BROOKESIA_UTILS_TASK_SCHEDULER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -20,8 +21,14 @@ TaskScheduler::~TaskScheduler()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_running()) {
-        stop();
+    try {
+        if (is_running()) {
+            stop();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying task scheduler: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying task scheduler");
     }
 }
 
@@ -126,13 +133,9 @@ void TaskScheduler::stop()
         return;
     }
 
-    size_t task_count = 0;
-    // Avoid compiler warning about unused variable
-    (void)task_count;
     // Cancel all pending tasks
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
-        task_count = tasks_.size();
         for (auto& [id, handle] : tasks_) {
             handle->state = TaskState::Canceled;
             if (handle->timer) {
@@ -380,6 +383,7 @@ void TaskScheduler::cancel_group(const Group &group)
     }
 
     BROOKESIA_LOGD("Canceled group '%1%' with %2% tasks", group, canceled_count);
+    (void)canceled_count;
 }
 
 void TaskScheduler::cancel_all()
@@ -1166,7 +1170,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
 
         // Use remaining time if positive, otherwise execute immediately
         auto remaining_time = handle->remaining_time.count();
-        int delay_ms = std::max(static_cast<decltype(remaining_time)>(0), remaining_time);
+        const int delay_ms = static_cast<int>(std::max(static_cast<decltype(remaining_time)>(0), remaining_time));
 
         BROOKESIA_LOGD("Rescheduling delayed Task[%1%] with remaining time: %2% ms", task_id, delay_ms);
 
@@ -1187,7 +1191,7 @@ bool TaskScheduler::resume_internal(TaskId task_id)
 
         // Use remaining time if positive, otherwise execute immediately
         auto remaining_time = handle->remaining_time.count();
-        int delay_ms = std::max(static_cast<decltype(remaining_time)>(0), remaining_time);
+        const int delay_ms = static_cast<int>(std::max(static_cast<decltype(remaining_time)>(0), remaining_time));
 
         BROOKESIA_LOGD("Rescheduling periodic Task[%1%] with remaining time: %2% ms, then interval: %3% ms",
                        task_id, delay_ms, handle->interval_ms);

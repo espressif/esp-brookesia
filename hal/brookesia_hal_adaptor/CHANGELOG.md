@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.4 - 2026-05-31
+
+### Enhancements:
+
+- feat(storage): add LittleFS and flash FATFS (wear-levelling) file systems to the general FS implementation
+- feat(storage): implement file-system capacity query and directory-support reporting
+- feat(kconfig): add LittleFS and flash FATFS mount options (base path, partition label, format-on-fail, max files)
+- chore(kconfig): disable general device, board info, general FS, and SPIFFS by default; boards opt in through their own defaults
+- chore(deps): make `esp_board_manager` optional and add optional `joltwallet/littlefs` dependency
+
 ## v0.7.3 - 2026-04-30
 
 ### Enhancements:

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sstream>
+#include "esp_idf_version.h"
 #include "esp_memory_utils.h"
 #include "brookesia/lib_utils/macro_configs.h"
 #if !BROOKESIA_UTILS_THREAD_PROFILER_ENABLE_DEBUG_LOG
@@ -20,6 +21,21 @@
 #include "brookesia/lib_utils/thread_profiler.hpp"
 
 namespace esp_brookesia::lib_utils {
+
+namespace {
+
+// IDF >= 6.0 introduces the type-safe `xTaskGetStackStart()` and marks the legacy
+// `pxTaskGetStackStart()` as deprecated. Wrap the API choice here so call sites stay clean.
+inline const void *task_stack_start(TaskHandle_t task_handle)
+{
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 0)
+    return xTaskGetStackStart(task_handle);
+#else
+    return pxTaskGetStackStart(task_handle);
+#endif
+}
+
+} // namespace
 
 constexpr uint32_t THREAD_PROFILER_STOP_TIMEOUT_MS = 100;
 
@@ -308,7 +324,7 @@ std::shared_ptr<ThreadProfiler::ProfileSnapshot> ThreadProfiler::take_snapshot(
                 // Convert tskNO_AFFINITY to -1 for better display
                 info.core_id = (start_copy[i].xCoreID == tskNO_AFFINITY) ? -1 : start_copy[i].xCoreID;
                 info.stack_high_water_mark = start_copy[i].usStackHighWaterMark;
-                info.is_stack_external = !esp_ptr_internal(pxTaskGetStackStart(start_copy[i].xHandle));
+                info.is_stack_external = !esp_ptr_internal(task_stack_start(start_copy[i].xHandle));
                 info.runtime_counter = end_copy[j].ulRunTimeCounter;
                 info.elapsed_time = task_elapsed_time;
                 info.cpu_percent = percentage_time;
@@ -368,7 +384,7 @@ std::shared_ptr<ThreadProfiler::ProfileSnapshot> ThreadProfiler::take_snapshot(
             // Convert tskNO_AFFINITY to -1 for better display
             info.core_id = (end_copy[i].xCoreID == tskNO_AFFINITY) ? -1 : end_copy[i].xCoreID;
             info.stack_high_water_mark = end_copy[i].usStackHighWaterMark;
-            info.is_stack_external = !esp_ptr_internal(pxTaskGetStackStart(end_copy[i].xHandle));
+            info.is_stack_external = !esp_ptr_internal(task_stack_start(end_copy[i].xHandle));
             info.elapsed_time = 0;
             info.cpu_percent = 0;
             info.status = TaskStatus::Created;

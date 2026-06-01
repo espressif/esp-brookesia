@@ -76,9 +76,9 @@ Result:
   {"success":true}
 
 # Play an audio file
-esp32> svc_call audio play_url {"url":"file://spiffs/test.mp3"}
+esp32> svc_call audio play_url {"url":"file://littlefs/test.mp3"}
 
-Calling: audio.play_url({"url":"file://spiffs/test.mp3"})
+Calling: audio.play_url({"url":"file://littlefs/test.mp3"})
 
 Result:
   {"success":true,"message":"Playing audio"}

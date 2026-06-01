@@ -3,6 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <exception>
+#include <limits>
 #include "brookesia/service_manager/macro_configs.h"
 #if !BROOKESIA_SERVICE_MANAGER_RPC_DATA_LINK_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -18,8 +20,14 @@ DataLinkServer::~DataLinkServer()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_running()) {
-        stop();
+    try {
+        if (is_running()) {
+            stop();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying RPC data link server: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying RPC data link server");
     }
 }
 
@@ -51,7 +59,9 @@ bool DataLinkServer::start(uint16_t port, size_t timeout_ms)
     acceptor_->open(boost::asio::ip::tcp::v4());
     acceptor_->set_option(boost::asio::ip::tcp::acceptor::reuse_address(true));
     acceptor_->bind(boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), port));
-    acceptor_->listen(max_connections_);
+    const int listen_backlog = max_connections_ > static_cast<size_t>(std::numeric_limits<int>::max()) ?
+                               std::numeric_limits<int>::max() : static_cast<int>(max_connections_);
+    acceptor_->listen(listen_backlog);
 
     BROOKESIA_CHECK_FALSE_RETURN(handle_accept(), false, "Handle accept failed");
 
@@ -76,9 +86,9 @@ void DataLinkServer::stop()
 
     if (acceptor_) {
         boost::system::error_code ec;
-        acceptor_->close(ec);
-        if (ec) {
-            BROOKESIA_LOGE("Acceptor close error: %1%", ec.message());
+        auto close_result = acceptor_->close(ec);
+        if (close_result) {
+            BROOKESIA_LOGE("Acceptor close error: %1%", close_result.message());
         }
         acceptor_.reset();
     }
@@ -89,6 +99,8 @@ void DataLinkServer::stop()
 
 void DataLinkServer::on_handle_receive_error(std::shared_ptr<ConnectionInfo> connection, const boost::system::error_code &error)
 {
+    (void)error;
+
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: connection(%1%), error(%2%)", BROOKESIA_DESCRIBE_TO_STR(connection), error.message());
@@ -98,6 +110,8 @@ void DataLinkServer::on_handle_receive_error(std::shared_ptr<ConnectionInfo> con
 
 void DataLinkServer::on_handle_send_error(std::shared_ptr<ConnectionInfo> connection, const boost::system::error_code &error)
 {
+    (void)error;
+
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: connection(%1%), error(%2%)", BROOKESIA_DESCRIBE_TO_STR(connection), error.message());

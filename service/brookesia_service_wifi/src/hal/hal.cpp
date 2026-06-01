@@ -340,7 +340,12 @@ bool Hal::do_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_stop(), false, "Stop WiFi failed");
+    auto result = esp_wifi_stop();
+    if (result == ESP_ERR_WIFI_STOP_STATE) {
+        BROOKESIA_LOGW("WiFi is already stopping, wait for Stopped event");
+        return true;
+    }
+    BROOKESIA_CHECK_ESP_ERR_RETURN(result, false, "Stop WiFi failed");
 
     return true;
 }

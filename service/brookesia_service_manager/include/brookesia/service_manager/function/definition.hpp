@@ -48,15 +48,25 @@ BROOKESIA_DESCRIBE_ENUM(FunctionValueType, Boolean, Number, String, Object, Arra
 struct FunctionValue : std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer> {
     using Base = std::variant<bool, double, std::string, boost::json::object, boost::json::array, RawBuffer>;
 
-    // Inherit all constructors from base variant
+    /**
+     * @brief Inherit constructors from the base variant.
+     */
     using Base::Base;
 
-    // Template constructor for any arithmetic type (except bool and double) - converts to double
+    /**
+     * @brief Construct from an arithmetic value by converting it to `double`.
+     *
+     * @tparam T Arithmetic type, excluding `bool` and `double`.
+     * @param[in] num Numeric value to store.
+     */
     template<typename T>
     requires (std::is_arithmetic_v<std::decay_t<T>> &&
               !std::is_same_v<std::decay_t<T>, bool> &&
               !std::is_same_v<std::decay_t<T>, double>)
-    FunctionValue(T num) : Base(static_cast<double>(num)) {}
+    FunctionValue(T num)
+        : Base(static_cast<double>(num))
+    {
+    }
 };
 
 /**
@@ -146,12 +156,41 @@ struct FunctionResult {
      * @return The data as the specified type.
      */
     template<typename T>
-    requires ConvertibleToFunctionValue<T>
+    requires (ConvertibleToFunctionValue<T>)
     T &get_data()
     {
         return std::get<T>(data.value());
     }
 };
 BROOKESIA_DESCRIBE_STRUCT(FunctionResult, (), (success, error_message, data));
+
+/**
+ * @brief One function call entry used by batched calls on the same service.
+ */
+struct FunctionCall {
+    std::string name;
+    FunctionParameterMap parameters;
+};
+BROOKESIA_DESCRIBE_STRUCT(FunctionCall, (), (name, parameters));
+
+/**
+ * @brief Result of one function call entry in a batch.
+ */
+struct FunctionCallResult {
+    std::string name;
+    bool success = false;
+    std::string error_message = "";
+    std::optional<FunctionValue> data = std::nullopt;
+};
+BROOKESIA_DESCRIBE_STRUCT(FunctionCallResult, (), (name, success, error_message, data));
+
+/**
+ * @brief Result wrapper for a batched function call.
+ */
+struct FunctionBatchResult {
+    bool success = false;
+    std::vector<FunctionCallResult> results;
+};
+BROOKESIA_DESCRIBE_STRUCT(FunctionBatchResult, (), (success, results));
 
 } // namespace esp_brookesia::service

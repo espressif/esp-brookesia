@@ -30,7 +30,7 @@
 - 🧾 **开发板信息**：当 `BoardInfo` 可用时读取开发板名称、芯片、版本、描述和厂商信息
 - 💡 **显示控制**：当 `DisplayBacklight` 可用时演示背光亮度、开关状态读取与设置
 - 🖼️ **显示面板验证**：当 `DisplayPanel` 可用时通过 HAL 直接绘制像素位彩条验证画面
-- 🔊 **音频控制**：当 `AudioCodecPlayer` 可用时演示音量、静音状态读取与设置，并播放 SPIFFS 中的 PCM 文件
+- 🔊 **音频控制**：当 `AudioCodecPlayer` 可用时演示音量、静音状态读取与设置，并播放 LittleFS 中的 PCM 文件
 - 💾 **存储查询**：当 `StorageFs` 可用时查询已挂载文件系统列表
 - 🔋 **电池状态**：当 `Power:Battery` 可用时查询电池信息、运行状态和充电配置
 - 📡 **事件验证**：使用 `DeviceHelper::EventMonitor` 等待并检查显示、音频和电池操作触发的事件
@@ -111,7 +111,7 @@
 
 ### 音频控制
 
-当 `AudioCodecPlayer` 可用时，演示音量和静音控制。示例会从 SPIFFS 分区读取 `/spiffs/audio.pcm`，并按 `16 kHz / 16-bit / mono` 打开播放器：
+当 `AudioCodecPlayer` 可用时，演示音量和静音控制。示例会从 LittleFS 分区读取 `/littlefs/audio.pcm`，并按 `16 kHz / 16-bit / mono` 打开播放器：
 
 ```text
 [Demo: Audio Controls]
@@ -126,11 +126,11 @@
 ```
 
 > [!NOTE]
-> `main/CMakeLists.txt` 会通过 `spiffs_create_partition_image(spiffs_data ../spiffs FLASH_IN_PROJECT)` 将 `spiffs/audio.pcm` 打包进 SPIFFS 分区。
+> `main/CMakeLists.txt` 会通过 `littlefs_create_partition_image(littlefs_data ../littlefs FLASH_IN_PROJECT)` 将 `littlefs/audio.pcm` 打包进 LittleFS 分区。
 
 ### 存储查询
 
-当 `StorageFs` 可用时，调用 `GetStorageFileSystems` 并打印当前已挂载的文件系统信息，包括文件系统类型、介质类型和挂载点。
+当 `StorageFs` 可用时，调用 `GetStorageFileSystems` 并打印当前已挂载的文件系统信息，包括文件系统类型、介质类型、挂载点和目录支持能力。随后对每个挂载点调用 `GetStorageFileSystemCapacity` 并打印当前容量。
 
 ### 电池状态与充电控制
 
@@ -167,9 +167,9 @@
 
 **无声音输出**
 
-- 确认 SPIFFS 分区已成功烧录（`idf.py flash` 应包含分区表和 `spiffs_data` 分区内容）。
+- 确认 LittleFS 分区已成功烧录（`idf.py flash` 应包含分区表和 `littlefs_data` 分区内容）。
 - 确认当前开发板支持 `AudioCodecPlayer`，并且功放/扬声器硬件正常。
-- 检查串口日志中是否成功读取 `/spiffs/audio.pcm`。
+- 检查串口日志中是否成功读取 `/littlefs/audio.pcm`。
 
 **显示无变化**
 

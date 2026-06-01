@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.7.9 - 2026-05-28
+
+### Enhancements:
+
+- feat(test): add a Unity and Boost.Test adapter for cross-platform test apps
+- feat(tools): add a reusable PC quality-check script for static analysis, ASan, and heaptrack
+
 ## v0.7.8 - 2026-05-02
 
 ### Enhancements:

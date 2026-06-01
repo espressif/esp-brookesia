@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.7.8 - 2026-05-28
+
+### Enhancements:
+
+- feat(service): add ordered fail-fast batch function calls for sync and async service APIs
+
+### Bug Fixes:
+
+- fix(service): avoid scheduler teardown deadlocks during stop and deinit
+
 ## v0.7.7 - 2026-04-23
 
 ### Bug Fixes:

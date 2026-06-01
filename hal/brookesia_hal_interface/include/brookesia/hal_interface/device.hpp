@@ -15,6 +15,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 #include <vector>
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/hal_interface/interface.hpp"
@@ -87,7 +88,7 @@ public:
      *         or the type does not match.
      */
     template<typename T>
-    requires IsInterface<T>
+    requires (IsInterface<T>)
     std::shared_ptr<T> get_interface(const std::string &name) const
     {
         auto it = interfaces_.find(name);
@@ -107,17 +108,39 @@ protected:
     friend void deinit_all_devices();
     friend void deinit_device(const std::string &name);
 
+    /**
+     * @brief Construct a HAL device with a registry name.
+     *
+     * @param[in] name Device registry name.
+     */
     Device(std::string name)
-        : name_(name)
+        : name_(std::move(name))
     {
     }
 
+    /**
+     * @brief Virtual destructor for HAL devices.
+     */
     ~Device();
 
+    /**
+     * @brief Device-specific initialization hook.
+     *
+     * @return `true` on success; otherwise `false`.
+     */
     virtual bool on_init() = 0;
 
+    /**
+     * @brief Device-specific deinitialization hook.
+     */
     virtual void on_deinit() = 0;
 
+    /**
+     * @brief Check whether an interface has been registered.
+     *
+     * @param[in] name Interface registry name.
+     * @return `true` if the interface has been registered; otherwise `false`.
+     */
     bool is_iface_initialized(const std::string &name) const
     {
         return interfaces_.find(name) != interfaces_.end();
@@ -290,7 +313,7 @@ static inline std::map<std::string, std::shared_ptr<Device>> get_all_devices()
  * @return Map of interface registry name to typed interface pointer.
  */
 template<typename T>
-requires IsInterface<T>
+requires (IsInterface<T>)
 std::map<std::string, std::shared_ptr<T>> get_interfaces()
 {
     std::map<std::string, std::shared_ptr<T>> result;
@@ -309,7 +332,7 @@ std::map<std::string, std::shared_ptr<T>> get_interfaces()
  * @return Pair of interface registry name and typed pointer. If not found, returns `{"", nullptr}`.
  */
 template<typename T>
-requires IsInterface<T>
+requires (IsInterface<T>)
 std::pair<std::string, std::shared_ptr<T>> get_first_interface()
 {
     for (const auto &[iface_name, iface] : InterfaceRegistry::get_all_instances()) {

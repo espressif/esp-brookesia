@@ -38,6 +38,10 @@ public:
      * @brief Callback invoked with the result of an asynchronous function call.
      */
     using FunctionResultHandler = std::function < void(FunctionResult &&) >;
+    /**
+     * @brief Callback invoked with the result of an asynchronous batched function call.
+     */
+    using FunctionBatchResultHandler = std::function < void(FunctionBatchResult &&) >;
 
     /**
      * @brief Service attributes configuration
@@ -66,10 +70,19 @@ public:
         }
 
         std::string name;  ///< Service name
-        std::vector<std::string> dependencies = {};  ///< Optional: List of dependent service names, will be started in order
+        /**
+         * @brief Optional list of dependent service names, started in order.
+         */
+        std::vector<std::string> dependencies = {};
+
+        /**
+         * @brief Optional task scheduler configuration.
+         *
+         * If configured, service request tasks will be scheduled to this scheduler;
+         * otherwise, ServiceManager's scheduler will be used.
+         */
         std::optional<lib_utils::TaskScheduler::StartConfig> task_scheduler_config = std::nullopt;
-        ///< Optional: Task scheduler configuration. If configured, service request tasks will be scheduled to this scheduler;
-        ///< otherwise, ServiceManager's scheduler will be used
+
         bool bindable = true;  ///< Optional: Whether the service can be bound
     };
 
@@ -179,6 +192,17 @@ public:
     );
 
     /**
+     * @brief Call multiple functions asynchronously on this service in order.
+     *
+     * The batch is fail-fast: once one function fails, later functions are skipped.
+     *
+     * @param[in] calls Function calls to execute.
+     * @param[in] handler FunctionBatchResultHandler to handle the batch result.
+     * @return true if the batch was accepted, false otherwise
+     */
+    bool call_functions_async(std::vector<FunctionCall> calls, FunctionBatchResultHandler handler = nullptr);
+
+    /**
      * @brief Call a function synchronously with parameters map (blocking with timeout)
      *
      * @param[in] name Function name to call
@@ -214,6 +238,18 @@ public:
      */
     FunctionResult call_function_sync(
         const std::string &name, const boost::json::object &parameters_json,
+        uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS
+    );
+
+    /**
+     * @brief Call multiple functions synchronously on this service in order.
+     *
+     * @param[in] calls Function calls to execute.
+     * @param[in] timeout_ms Timeout in milliseconds.
+     * @return FunctionBatchResult Result of the batch call
+     */
+    FunctionBatchResult call_functions_sync(
+        std::vector<FunctionCall> calls,
         uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS
     );
 
@@ -513,7 +549,16 @@ protected:
         return event_registry_;
     }
 
+    /**
+     * @brief Start the service.
+     *
+     * @return true if started successfully, false otherwise.
+     */
     bool start();
+
+    /**
+     * @brief Stop the service.
+     */
     void stop();
 
 private:
@@ -524,6 +569,18 @@ private:
     void deinit_internal();  // Internal deinit without lock
     bool start_internal();  // Internal start without lock
     void stop_internal();  // Internal stop without lock
+    // Variant of stop_internal() that may temporarily release a caller-provided
+    // unique lock on `state_mutex_` while draining the task scheduler. This is
+    // required when the service has its own scheduler whose workers may be
+    // blocked acquiring `shared_lock(state_mutex_)` (e.g. inside
+    // publish_event's emit_signal_task). Holding the unique lock across
+    // task_scheduler->stop() would deadlock against threads_.join_all().
+    // Pass nullptr if the caller does not own a unique lock.
+    void stop_internal(boost::unique_lock<boost::shared_mutex> *state_lock);
+    // Variant of deinit_internal() that forwards a caller-provided unique lock
+    // on `state_mutex_` to stop_internal() so the deinit-while-running path
+    // does not deadlock against task_scheduler->stop().
+    void deinit_internal_locked(boost::unique_lock<boost::shared_mutex> *state_lock);
 
     std::shared_ptr<rpc::ServerConnection> connect_to_server();
     void disconnect_from_server();

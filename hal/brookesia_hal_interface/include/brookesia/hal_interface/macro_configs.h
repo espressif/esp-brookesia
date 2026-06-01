@@ -5,7 +5,9 @@
  */
 #pragma once
 
-#include "sdkconfig.h"
+#if defined(ESP_PLATFORM)
+#   include "sdkconfig.h"
+#endif
 
 /**
  * @file macro_configs.h

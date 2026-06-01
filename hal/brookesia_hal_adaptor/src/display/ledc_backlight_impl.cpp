@@ -133,12 +133,15 @@ bool LedcDisplayBacklightImpl::setup_backlight_control()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_get_periph_handle(ESP_BOARD_PERIPH_NAME_GPIO_BACKLIGHT_CONTROL, &backlight_control_handle_);
-    if (ret != ESP_OK) {
+    if (!esp_board_manager_check_name(ESP_BOARD_PERIPH_NAME_GPIO_BACKLIGHT_CONTROL)) {
         BROOKESIA_LOGW("Backlight control GPIO not found, skip");
         return true;
     }
 
+    auto ret = esp_board_manager_get_periph_handle(
+                   ESP_BOARD_PERIPH_NAME_GPIO_BACKLIGHT_CONTROL, &backlight_control_handle_
+               );
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get backlight control GPIO handle");
     BROOKESIA_CHECK_NULL_RETURN(backlight_control_handle_, false, "Failed to get backlight control GPIO handle");
 
     periph_gpio_config_t *config = nullptr;

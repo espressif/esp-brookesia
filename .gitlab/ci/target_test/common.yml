@@ -35,7 +35,7 @@ variables:
     ENV_TAG: "generic"
   - IDF_TARGET: esp32p4
     IDF_VERSION: "5.5"
-    ENV_TAG: "generic,eco4"
+    ENV_TAG: "jtag,esp32p4_rev3"
 
 .target_test_idf_target_version_general_with_psram_matrix:
   - IDF_TARGET: esp32s3
@@ -46,7 +46,7 @@ variables:
     ENV_TAG: "generic,octal-psram"
   - IDF_TARGET: esp32p4
     IDF_VERSION: "5.5"
-    ENV_TAG: "generic,eco4"
+    ENV_TAG: "jtag,esp32p4_rev3"
 
 .target_test_idf_target_version_with_wifi_matrix:
   - IDF_TARGET: esp32s3
@@ -57,7 +57,7 @@ variables:
     ENV_TAG: "generic,octal-psram"
   - IDF_TARGET: esp32p4
     IDF_VERSION: "5.5"
-    ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+    ENV_TAG: "esp32p4x_function_ev_board"
 
 .target_test_idf_target_version_with_board_matrix:
   - IDF_TARGET: esp32s3
@@ -65,4 +65,4 @@ variables:
     ENV_TAG: "esp_vocat"
   - IDF_TARGET: esp32p4
     IDF_VERSION: "5.5"
-    ENV_TAG: "generic,eco4,esp32p4_function_ev_board"
+    ENV_TAG: "esp32p4x_function_ev_board"

@@ -1,5 +1,5 @@
 /*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
  *
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -109,6 +109,7 @@ std::vector<FunctionSchema> FunctionRegistry::get_schemas() const
 {
     std::vector<FunctionSchema> definitions;
     boost::lock_guard lock(functions_mutex_);
+    definitions.reserve(functions_.size());
     for (const auto& [func_name, func_schema_handler] : functions_) {
         definitions.push_back(func_schema_handler.first);
     }
@@ -122,7 +123,7 @@ boost::json::array FunctionRegistry::get_schemas_json()
     boost::lock_guard lock(functions_mutex_);
     for (const auto& [_, func_schema_handler] : functions_) {
         const auto &[func_schema, handler] = func_schema_handler;
-        schema.push_back(std::move(BROOKESIA_DESCRIBE_TO_JSON(func_schema)));
+        schema.push_back(BROOKESIA_DESCRIBE_TO_JSON(func_schema));
     }
 
     return schema;
@@ -144,7 +145,11 @@ bool FunctionRegistry::validate_parameters(
                 break;
             } else {
                 // Fill default value for optional parameters
-                parameters[param.name] = param.default_value.value();
+                if (!param.default_value.has_value()) {
+                    error_msg = "Optional parameter `" + param.name + "` has no default value";
+                    break;
+                }
+                parameters[param.name] = *param.default_value;
             }
         } else {
             // Validate the type of the provided parameter

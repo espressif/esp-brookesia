@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.7.1 - 2026-05-28
+
+### Breaking Changes:
+
+- break(deps): update the public MCP SDK dependency to `espressif/mcp-c-sdk 2.*`
+
 ## v0.7.0 - 2026-04-10
 
 ### Initial Release

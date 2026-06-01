@@ -35,14 +35,17 @@ bool ServerConnection::publish_event(const std::string &event_name, const EventI
         return true;
     }
 
-    Notify notify{event_name, {}, boost::json::object()};
-    notify.data = BROOKESIA_DESCRIBE_TO_JSON(event_items).as_object();
+    auto notify_data = BROOKESIA_DESCRIBE_TO_JSON(event_items).as_object();
 
     for (const auto& [connection_id, connect_subscriptions] : connection_subscriptions_) {
+        Notify notify{event_name, {}, notify_data};
         for (const auto &connect_subscription : connect_subscriptions) {
             if (subscriptions.find(connect_subscription) != subscriptions.end()) {
                 notify.subscription_ids.push_back(connect_subscription);
             }
+        }
+        if (notify.subscription_ids.empty()) {
+            continue;
         }
         notifier_(connection_id, std::move(notify));
     }
@@ -55,9 +58,10 @@ bool ServerConnection::respond_request(size_t connection_id, Response &&response
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_CHECK_NULL_RETURN(responder_, false, "Responder not valid");
+    const auto response_id = response.id;
     BROOKESIA_CHECK_FALSE_RETURN(
         responder_(connection_id, std::move(response)), false,
-        "Failed to respond to connection `%1%` with request `%2%`", connection_id, response.id
+        "Failed to respond to connection `%1%` with request `%2%`", connection_id, response_id
     );
 
     return true;

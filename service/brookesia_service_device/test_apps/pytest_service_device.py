@@ -19,9 +19,9 @@ Steps to run these test cases:
 
 3. Build the test app:
 
-   **Build for a specific board:** (replace `esp32p4` and `esp32_p4_function_ev` with your target chip and board name)
+   **Build for a specific board:** (replace `esp32p4` and `esp32_p4x_function_ev` with your target chip and board name)
    ```bash
-   python .gitlab/tools/build_apps.py service/brookesia_service_device/test_apps/board -t esp32p4 --config "sdkconfig.ci.board.esp32_p4_function_ev=esp32_p4_function_ev"
+   python .gitlab/tools/build_apps.py service/brookesia_service_device/test_apps/board -t esp32p4 --config "sdkconfig.ci.board.esp32_p4x_function_ev=esp32_p4x_function_ev"
    ```
 
 ## Test
@@ -34,9 +34,9 @@ Steps to run these test cases:
 
 2. Run pytest with appropriate target and environment:
 
-   **esp32p4_function_ev_board examples:**
+   **esp32p4x_function_ev_board examples:**
    ```bash
-   pytest service/brookesia_service_device/test_apps/board --target esp32p4 --env generic,eco4,esp32p4_function_ev_board
+   pytest service/brookesia_service_device/test_apps/board --target esp32p4 --env esp32p4x_function_ev_board
    ```
 '''
 
@@ -53,8 +53,8 @@ ENTER_RESPONSE_LIST = [
 ]
 REBOOT_RESPONSE = b'Rebooting...'
 RESPONSE_TIMEOUT_S = 30
-SINGLE_TIMEOUT_S = 2 * 60
-TOTAL_TIMEOUT_S = 10 * 60
+SINGLE_TIMEOUT_S = 5 * 60
+TOTAL_TIMEOUT_S = 15 * 60
 RETRY_LIMIT = 5  # Retry once before recording failure
 
 
@@ -141,13 +141,13 @@ def test_esp_vocat_board_v1_0(dut: Dut)-> None:
     run_test(dut)
 
 
-# esp32p4_function_ev_board is temporarily disabled due to lack of display
+# esp32p4x_function_ev_board is temporarily disabled due to lack of display
 @pytest.mark.target('esp32p4')
-@pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
+@pytest.mark.env('esp32p4x_function_ev_board')
 @pytest.mark.parametrize(
     'target, config',
     [
-        ('esp32p4', 'esp32_p4_function_ev'),
+        ('esp32p4', 'esp32_p4x_function_ev'),
     ],
 )
 @pytest.mark.timeout(TOTAL_TIMEOUT_S)

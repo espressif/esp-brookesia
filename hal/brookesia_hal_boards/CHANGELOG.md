@@ -1,5 +1,14 @@
 # ChangeLog
 
+## v0.7.5 - 2026-05-31
+
+### Enhancements:
+
+- feat(boards): add `espressif/esp32_p4x_function_ev` board configuration
+- feat(boards): add `espressif/esp32_s31_korvo1` board configuration
+- feat(boards): refresh device, peripheral, and sdkconfig defaults across Espressif and RYMCU boards
+- chore(boards): drop the per-board `brookesia_hal_custom` component for RYMCU and Waveshare AMOLED boards
+
 ## v0.7.4 - 2026-05-07
 
 ### Enhancements:

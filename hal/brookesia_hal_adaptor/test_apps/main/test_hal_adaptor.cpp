@@ -41,6 +41,9 @@
 #ifndef BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS
 #   define BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS  (0)
 #endif
+#ifndef BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_LITTLEFS
+#   define BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_LITTLEFS  (0)
+#endif
 #ifndef BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD
 #   define BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD  (0)
 #endif
@@ -556,6 +559,8 @@ TEST_CASE("HAL adaptor: StorageFsIface smoke test", "[hal][adaptor][storage][fs]
         hal::StorageDevice::DEVICE_NAME,
         BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE && BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_GENERAL_FS_IMPL &&
         (BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS ||
+         BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_LITTLEFS ||
+         BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_FATFS_FLASH ||
          BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD),
         "StorageFsIface is disabled by Kconfig"
     );
@@ -575,6 +580,16 @@ TEST_CASE("HAL adaptor: StorageFsIface smoke test", "[hal][adaptor][storage][fs]
             TEST_ASSERT_NOT_NULL(info.mount_point);
             TEST_ASSERT_TRUE(info.mount_point[0] != '\0');
             TEST_ASSERT_TRUE(verify_file_system_access(info.mount_point));
+            if (info.fs_type == hal::StorageFsIface::FileSystemType::SPIFFS) {
+                TEST_ASSERT_FALSE(info.supports_directories);
+            } else {
+                TEST_ASSERT_TRUE(info.supports_directories);
+            }
+
+            hal::StorageFsIface::Capacity capacity = {};
+            TEST_ASSERT_TRUE(iface->get_capacity(info.mount_point, capacity));
+            TEST_ASSERT_GREATER_OR_EQUAL_UINT32(capacity.used_bytes, capacity.total_bytes);
+            TEST_ASSERT_EQUAL_UINT32(capacity.total_bytes - capacity.used_bytes, capacity.free_bytes);
         }
     }
 

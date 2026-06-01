@@ -1,8 +1,3 @@
-/*
- * SPDX-FileCopyrightText: 2025 Espressif Systems (Shanghai) CO LTD
- *
- * SPDX-License-Identifier: Apache-2.0
- */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -10,7 +5,7 @@
 #include "esp_log.h"
 
 #include "https_client.h"
-
+#include "openai.h"
 #include "openai_signaling.h"
 
 
@@ -19,8 +14,8 @@
 #define TAG                   "OPENAI_SIGNALING"
 
 // Prefer to use mini model currently
-#define OPENAI_REALTIME_MODEL "gpt-4o-mini-realtime-preview-2024-12-17"
-#define OPENAI_REALTIME_URL   "https://api.openai.com/v1/realtime?model=" OPENAI_REALTIME_MODEL
+#define OPENAI_REALTIME_MODEL OPENAI_DEFAULT_MODEL
+#define OPENAI_REALTIME_CALLS_URL "https://api.openai.com/v1/realtime/calls"
 
 
 #define SAFE_FREE(p) if (p) {   \
@@ -51,24 +46,24 @@ static openai_signaling_t sig;
 
 // static void session_answer(http_resp_t *resp, void *ctx)
 // {
-// openai_signaling_t *sig = (openai_signaling_t *)ctx;
-// char *token = GET_KEY_END((char *)resp->data, "\"client_secret\"");
-// if (token == NULL) {
-//     return;
-// }
-// char *secret = GET_KEY_END(token, "\"value\"");
-// if (secret == NULL) {
-//     return;
-// }
-// char *s = strchr(secret, '"');
-// if (s == NULL) {
-//     return;
-// }
-// s++;
-// char *e = strchr(s, '"');
-// *e = 0;
-// sig.ephemeral_token = strdup(s);
-// *e = '"';
+    // openai_signaling_t *sig = (openai_signaling_t *)ctx;
+    // char *token = GET_KEY_END((char *)resp->data, "\"client_secret\"");
+    // if (token == NULL) {
+    //     return;
+    // }
+    // char *secret = GET_KEY_END(token, "\"value\"");
+    // if (secret == NULL) {
+    //     return;
+    // }
+    // char *s = strchr(secret, '"');
+    // if (s == NULL) {
+    //     return;
+    // }
+    // s++;
+    // char *e = strchr(s, '"');
+    // *e = 0;
+    // sig.ephemeral_token = strdup(s);
+    // *e = '"';
 // }
 
 static void get_ephemeral_token( char *token, char *voice)

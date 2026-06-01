@@ -19,9 +19,9 @@ Steps to run these test cases:
 
 3. Build the test app:
 
-   **Build for a specific board:** (replace `esp32p4` and `esp32_p4_function_ev` with your target chip and board name)
+   **Build for a specific board:** (replace `esp32p4` and `esp32_p4x_function_ev` with your target chip and board name)
    ```bash
-   python .gitlab/tools/build_apps.py hal/brookesia_hal_adaptor/test_apps -t esp32p4 --config "sdkconfig.ci.board.esp32_p4_function_ev=esp32_p4_function_ev"
+   python .gitlab/tools/build_apps.py hal/brookesia_hal_adaptor/test_apps -t esp32p4 --config "sdkconfig.ci.board.esp32_p4x_function_ev=esp32_p4x_function_ev"
    ```
 
 ## Test
@@ -34,9 +34,9 @@ Steps to run these test cases:
 
 2. Run pytest with appropriate target and environment:
 
-   **esp32p4_function_ev_board examples:**
+   **esp32p4x_function_ev_board examples:**
    ```bash
-   pytest hal/brookesia_hal_adaptor/test_apps --target esp32p4 --env generic,eco4,esp32p4_function_ev_board
+   pytest hal/brookesia_hal_adaptor/test_apps --target esp32p4 --env esp32p4x_function_ev_board
    ```
 '''
 
@@ -141,15 +141,14 @@ def test_esp_vocat_board_v1_0(dut: Dut)-> None:
     run_test(dut)
 
 
-# esp32p4_function_ev_board is temporarily disabled due to lack of display
-# @pytest.mark.target('esp32p4')
-# @pytest.mark.env('generic,eco4,esp32p4_function_ev_board')
-# @pytest.mark.parametrize(
-#     'target, config',
-#     [
-#         ('esp32p4', 'esp32_p4_function_ev'),
-#     ],
-# )
-# @pytest.mark.timeout(TOTAL_TIMEOUT_S)
-# def test_esp32_p4_function_ev(dut: Dut)-> None:
-#     run_test(dut)
+@pytest.mark.target('esp32p4')
+@pytest.mark.env('esp32p4x_function_ev_board')
+@pytest.mark.parametrize(
+    'target, config',
+    [
+        ('esp32p4', 'esp32_p4x_function_ev'),
+    ],
+)
+@pytest.mark.timeout(TOTAL_TIMEOUT_S)
+def test_esp32_p4_function_ev(dut: Dut)-> None:
+    run_test(dut)

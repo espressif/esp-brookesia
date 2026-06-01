@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <algorithm>
+#include <exception>
 #include <iomanip>
 #include <sstream>
 #include <ctime>
@@ -70,9 +71,15 @@ MemoryProfiler::~MemoryProfiler()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_profiling()) {
-        stop_profiling();
-        reset_profiling();
+    try {
+        if (is_profiling()) {
+            stop_profiling();
+            reset_profiling();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying memory profiler: %1%", e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying memory profiler");
     }
 }
 
@@ -329,6 +336,9 @@ void MemoryProfiler::print_snapshot(const ProfileSnapshot &snapshot)
         val_oss << value << "%";
         return val_oss.str();
     };
+    auto bytes_to_kb = [](size_t value) -> double {
+        return static_cast<double>(value) / 1024.0;
+    };
 
     // Sample Count
     oss << "| " << std::left << std::setw(25) << "Sample Count"
@@ -338,7 +348,7 @@ void MemoryProfiler::print_snapshot(const ProfileSnapshot &snapshot)
 
     // Min Internal Free
     oss << "| " << std::left << std::setw(25) << "Min Inter Free"
-        << " | " << std::right << std::setw(18) << format_value(snapshot.stats.min_internal_free / 1024, "KB")
+        << " | " << std::right << std::setw(18) << format_value(bytes_to_kb(snapshot.stats.min_internal_free), "KB")
         << " |\n";
     oss << stats_row_separator << "\n";
 
@@ -350,14 +360,14 @@ void MemoryProfiler::print_snapshot(const ProfileSnapshot &snapshot)
 
     // Min Internal Largest Free
     oss << "| " << std::left << std::setw(25) << "Min Inter Largest Free"
-        << " | " << std::right << std::setw(18) << format_value(snapshot.stats.min_internal_largest_free_block / 1024, "KB")
+        << " | " << std::right << std::setw(18) << format_value(bytes_to_kb(snapshot.stats.min_internal_largest_free_block), "KB")
         << " |\n";
     oss << stats_row_separator << "\n";
 
 #if CONFIG_SPIRAM
     // Min External Free
     oss << "| " << std::left << std::setw(25) << "Min Exter Free"
-        << " | " << std::right << std::setw(18) << format_value(snapshot.stats.min_external_free / 1024, "KB")
+        << " | " << std::right << std::setw(18) << format_value(bytes_to_kb(snapshot.stats.min_external_free), "KB")
         << " |\n";
     oss << stats_row_separator << "\n";
 
@@ -369,14 +379,14 @@ void MemoryProfiler::print_snapshot(const ProfileSnapshot &snapshot)
 
     // Min External Largest Free
     oss << "| " << std::left << std::setw(25) << "Min Exter Largest Free"
-        << " | " << std::right << std::setw(18) << format_value(snapshot.stats.min_external_largest_free_block / 1024, "KB")
+        << " | " << std::right << std::setw(18) << format_value(bytes_to_kb(snapshot.stats.min_external_largest_free_block), "KB")
         << " |\n";
     oss << stats_row_separator << "\n";
 #endif
 
     // Min Total Free
     oss << "| " << std::left << std::setw(25) << "Min Total Free"
-        << " | " << std::right << std::setw(18) << format_value(snapshot.stats.min_total_free / 1024, "KB")
+        << " | " << std::right << std::setw(18) << format_value(bytes_to_kb(snapshot.stats.min_total_free), "KB")
         << " |\n";
     oss << stats_row_separator << "\n";
 
@@ -388,7 +398,7 @@ void MemoryProfiler::print_snapshot(const ProfileSnapshot &snapshot)
 
     // Min Total Largest Free
     oss << "| " << std::left << std::setw(25) << "Min Total Largest Free"
-        << " | " << std::right << std::setw(18) << format_value(snapshot.stats.min_total_largest_free_block / 1024, "KB")
+        << " | " << std::right << std::setw(18) << format_value(bytes_to_kb(snapshot.stats.min_total_largest_free_block), "KB")
         << " |\n";
     oss << stats_row_separator << "\n";
 

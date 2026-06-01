@@ -531,7 +531,7 @@ static std::string get_audio_file_path(const std::string &filename)
 
     auto infos = fs_iface->get_all_info();
     for (const auto &info : infos) {
-        if (info.fs_type == hal::StorageFsIface::FileSystemType::SPIFFS) {
+        if (info.fs_type == hal::StorageFsIface::FileSystemType::LittleFS) {
             return "file:/" + std::string(info.mount_point) + "/" + filename;
         }
     }

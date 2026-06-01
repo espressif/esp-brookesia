@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.7.10 - 2026-05-28
+
+### Breaking Changes:
+
+- break(helper): alias NVS and Wi-Fi helper business data types to their HAL interface equivalents
+
+### Enhancements:
+
+- feat(device): add filesystem capacity schema and include directory support metadata in storage filesystem examples
+- feat(docs): keep helper JSON examples aligned with LittleFS paths and HAL-backed NVS/Wi-Fi types
+
 ## v0.7.9 - 2026-04-30
 
 ### Enhancements:

@@ -7,6 +7,7 @@
 #if !BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include <exception>
 #include <memory>
 #include "private/utils.hpp"
 #include "brookesia/service_manager/service/base.hpp"
@@ -14,12 +15,32 @@
 
 namespace esp_brookesia::service {
 
+namespace {
+
+FunctionCallResult make_call_result(const std::string &name, FunctionResult &&result)
+{
+    return {
+        .name = name,
+        .success = result.success,
+        .error_message = std::move(result.error_message),
+        .data = std::move(result.data),
+    };
+}
+
+} // namespace
+
 ServiceBase::~ServiceBase()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_initialized()) {
-        deinit();
+    try {
+        if (is_initialized()) {
+            deinit();
+        }
+    } catch (const std::exception &e) {
+        BROOKESIA_LOGE("Detected exception while destroying service '%1%': %2%", attributes_.name, e.what());
+    } catch (...) {
+        BROOKESIA_LOGE("Detected unknown exception while destroying service '%1%'", attributes_.name);
     }
 }
 
@@ -134,7 +155,7 @@ bool ServiceBase::call_function_async(
         }
     }
 
-    return call_function_async(name, std::move(parameters_map), handler);
+    return call_function_async(name, std::move(parameters_map), std::move(handler));
 }
 
 bool ServiceBase::call_function_async(
@@ -152,7 +173,100 @@ bool ServiceBase::call_function_async(
     auto result = BROOKESIA_DESCRIBE_FROM_JSON(parameters_json, parameters_map);
     BROOKESIA_CHECK_FALSE_RETURN(result, false, "%1%: failed to parse parameters", error_prefix);
 
-    return call_function_async(name, std::move(parameters_map), handler);
+    return call_function_async(name, std::move(parameters_map), std::move(handler));
+}
+
+bool ServiceBase::call_functions_async(std::vector<FunctionCall> calls, FunctionBatchResultHandler handler)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: calls(%1%), handler(%2%)", calls, handler);
+
+    const std::string error_prefix = (boost::format("[%1%:batch] ") % attributes_.name).str();
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "%1%: service not initialized", error_prefix);
+
+    std::shared_ptr<FunctionRegistry> registry;
+    std::shared_ptr<lib_utils::TaskScheduler> scheduler;
+    bool require_scheduler = false;
+    {
+        boost::shared_lock lock(resources_mutex_);
+
+        BROOKESIA_CHECK_NULL_RETURN(
+            function_registry_ && task_scheduler_, false,
+            "%1%: function registry or task scheduler is not available", error_prefix
+        );
+
+        registry = function_registry_;
+        scheduler = task_scheduler_;
+
+        for (const auto &call : calls) {
+            auto *func_schema = registry->get_schema(call.name);
+            BROOKESIA_CHECK_NULL_RETURN(
+                func_schema, false, "%1%: function '%2%' not found", error_prefix, call.name
+            );
+            require_scheduler = require_scheduler || func_schema->require_scheduler;
+        }
+    }
+
+    auto call_functions_task =
+    [this, error_prefix, registry, require_scheduler, calls = std::move(calls), handler]() mutable {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        boost::shared_lock lock(state_mutex_);
+
+        FunctionBatchResult batch_result;
+        batch_result.success = true;
+
+        if (!is_running() && require_scheduler)
+        {
+            batch_result.success = false;
+            batch_result.results.push_back({
+                .name = "",
+                .success = false,
+                .error_message = (boost::format("%1%: service is not running") % error_prefix).str(),
+            });
+        } else
+        {
+            for (auto &call : calls) {
+                FunctionResult result;
+                BROOKESIA_CHECK_EXCEPTION_EXECUTE(result = registry->call(call.name, std::move(call.parameters)), {
+                    result.success = false;
+                    result.error_message =
+                    (boost::format("%1%: function '%2%' detected exception: %3%") %
+                     error_prefix % call.name % e.what()).str();
+                }, {});
+
+                const bool success = result.success;
+                batch_result.results.push_back(make_call_result(call.name, std::move(result)));
+                if (!success) {
+                    batch_result.success = false;
+                    break;
+                }
+            }
+        }
+
+        if (handler)
+        {
+            BROOKESIA_LOGD("Has handler, calling it");
+            BROOKESIA_CHECK_EXCEPTION_EXECUTE(handler(std::move(batch_result)), {
+                BROOKESIA_LOGE("%1%: detected exception when calling batch handler: %2%", error_prefix, e.what());
+            }, {});
+        }
+    };
+
+    if (!require_scheduler) {
+        BROOKESIA_LOGD("No function requires scheduler, invoke the batch directly");
+        call_functions_task();
+        return true;
+    }
+
+    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "%1%: service is not running", error_prefix);
+
+    auto post_result = scheduler->post(std::move(call_functions_task), nullptr, get_call_task_group());
+    BROOKESIA_CHECK_FALSE_RETURN(post_result, false, "%1%: failed to post batch task", error_prefix);
+
+    return true;
 }
 
 FunctionResult ServiceBase::call_function_sync(
@@ -275,6 +389,57 @@ FunctionResult ServiceBase::call_function_sync(
     }), "%1%: failed to parse parameters", error_prefix);
 
     return call_function_sync(name, std::move(parameters_map), timeout_ms);
+}
+
+FunctionBatchResult ServiceBase::call_functions_sync(std::vector<FunctionCall> calls, uint32_t timeout_ms)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: calls(%1%), timeout_ms(%2%)", calls, timeout_ms);
+
+    const std::string error_prefix = (boost::format("[%1%:batch] ") % attributes_.name).str();
+
+    using ResultPromise = boost::promise<FunctionBatchResult>;
+    std::shared_ptr<ResultPromise> result_promise;
+    BROOKESIA_CHECK_EXCEPTION_RETURN(result_promise = std::make_shared<ResultPromise>(), (FunctionBatchResult{
+        .success = false,
+        .results = {{
+                .name = "",
+                .success = false,
+                .error_message = "No memory",
+            }
+        },
+    }), "%1%: no memory", error_prefix);
+
+    auto result_future = result_promise->get_future();
+    auto result_handler = [this, result_promise](FunctionBatchResult && result) {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        result_promise->set_value(std::move(result));
+    };
+
+    auto async_result = call_functions_async(std::move(calls), result_handler);
+    BROOKESIA_CHECK_FALSE_RETURN(async_result, (FunctionBatchResult{
+        .success = false,
+        .results = {{
+                .name = "",
+                .success = false,
+                .error_message = "Failed to call functions asynchronously",
+            }
+        },
+    }), "%1%: failed to call functions asynchronously", error_prefix);
+
+    auto wait_result = result_future.wait_for(boost::chrono::milliseconds(timeout_ms));
+    BROOKESIA_CHECK_FALSE_RETURN(wait_result == boost::future_status::ready, (FunctionBatchResult{
+        .success = false,
+        .results = {{
+                .name = "",
+                .success = false,
+                .error_message = "Wait timeout after " + std::to_string(timeout_ms) + " ms",
+            }
+        },
+    }), "%1%: wait timeout", error_prefix);
+
+    return result_future.get();
 }
 
 EventRegistry::SignalConnection ServiceBase::subscribe_event(
@@ -655,11 +820,16 @@ void ServiceBase::deinit()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    boost::lock_guard lock(state_mutex_);
-    deinit_internal();
+    boost::unique_lock<boost::shared_mutex> lock(state_mutex_);
+    deinit_internal_locked(&lock);
 }
 
 void ServiceBase::deinit_internal()
+{
+    deinit_internal_locked(nullptr);
+}
+
+void ServiceBase::deinit_internal_locked(boost::unique_lock<boost::shared_mutex> *state_lock)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -669,7 +839,13 @@ void ServiceBase::deinit_internal()
     }
 
     if (is_running()) {
-        stop_internal();
+        // stop_internal may release `state_lock` to drain the scheduler safely.
+        stop_internal(state_lock);
+        // Re-acquire the lock if it was released so the rest of deinit runs
+        // serialized against other state transitions.
+        if (state_lock != nullptr && !state_lock->owns_lock()) {
+            state_lock->lock();
+        }
     }
 
     on_deinit();
@@ -770,11 +946,16 @@ void ServiceBase::stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    boost::lock_guard lock(state_mutex_);
-    stop_internal();
+    boost::unique_lock<boost::shared_mutex> lock(state_mutex_);
+    stop_internal(&lock);
 }
 
 void ServiceBase::stop_internal()
+{
+    stop_internal(nullptr);
+}
+
+void ServiceBase::stop_internal(boost::unique_lock<boost::shared_mutex> *state_lock)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -797,6 +978,20 @@ void ServiceBase::stop_internal()
         task_scheduler = task_scheduler_;
     }
 
+    // Mark the service as stopped now so any pending publish_event::emit_signal_task
+    // that is blocked acquiring shared_lock(state_mutex_) will, once we release the
+    // unique lock below, see is_running()==false and skip its emit instead of
+    // touching torn-down state.
+    is_running_.store(false);
+
+    // Release the caller's unique lock on state_mutex_ before the potentially long
+    // task_scheduler->stop() call. The scheduler joins its worker threads; if any
+    // worker is blocked on shared_lock(state_mutex_) (e.g. a queued emit_signal_task
+    // posted from on_stop()), holding the unique lock here would deadlock the join.
+    if (state_lock != nullptr && state_lock->owns_lock()) {
+        state_lock->unlock();
+    }
+
     // Deactivate server connection outside lock to avoid holding lock during potentially long operations
     if (server_connection) {
         server_connection->activate(false);
@@ -814,8 +1009,6 @@ void ServiceBase::stop_internal()
             task_scheduler->cancel_group(get_request_task_group());
         }
     }
-
-    is_running_ = false;
 
     BROOKESIA_LOGI("Stopped service: %1%", attributes_.name);
 }
@@ -892,7 +1085,7 @@ void ServiceBase::try_override_connection_request_handler()
                 // Client::on_response(). Sending only `result.data` here used to break the
                 // client-side BROOKESIA_DESCRIBE_FROM_JSON whenever the function returned a
                 // non-empty payload (e.g. NVS.List), producing "Failed to parse result".
-                response.result = std::move(BROOKESIA_DESCRIBE_TO_JSON(result));
+                response.result = BROOKESIA_DESCRIBE_TO_JSON(result);
             } else
             {
                 response.error = rpc::ResponseError{

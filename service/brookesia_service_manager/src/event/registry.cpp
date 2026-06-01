@@ -181,7 +181,7 @@ boost::json::array EventRegistry::get_schemas_json()
     boost::json::array schemas;
     for (const auto& [name, event_info] : event_infos_) {
         auto &[subscriptions, schema, signal] = event_info;
-        schemas.push_back(std::move(BROOKESIA_DESCRIBE_TO_JSON(schema)));
+        schemas.push_back(BROOKESIA_DESCRIBE_TO_JSON(schema));
     }
 
     return schemas;

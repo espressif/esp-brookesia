@@ -28,7 +28,7 @@ Version support:
      - Main changes
      - Status
    * - master (v0.7)
-     - >= v5.5, < 6.0
+     - >= v5.5
      - Component manager support
      - Active development
    * - release/v0.6
@@ -150,7 +150,6 @@ The typical build and flash steps for an example project are as follows:
       .. code-block:: bash
 
          idf.py gen-bmgr-config -b <board>
-         idf.py set-target <target>
 
       .. note::
 

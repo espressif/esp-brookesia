@@ -1,5 +1,20 @@
 # ChangeLog
 
+## v0.7.5 - 2026-05-31
+
+### Enhancements:
+
+- feat(storage): add file-system capacity query API and report directory support in mount metadata
+
+### Bug Fixes:
+
+- fix(device): avoid pure-virtual call when a device is destroyed while still initialized
+- fix(device): register device cleanup as an exit handler on PC builds to survive abrupt process exit
+
+### Documentation:
+
+- docs(device): complete Doxygen comments for device lifecycle hooks and interface lookup helpers
+
 ## v0.7.4 - 2026-04-30
 
 ### Breaking Changes:
