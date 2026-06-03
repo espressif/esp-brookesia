@@ -1,5 +1,5 @@
 variables:
-  ESP_IDF_DOC_ENV_IMAGE: "$CI_DOCKER_REGISTRY/esp-idf-doc-env-v5.5:1-1"
+  ESP_IDF_DOC_ENV_IMAGE: "$CI_REGISTRY_IMAGE/idf-v5.5-docs-cxx-boost:1-1"
 
 .build_docs_template:
   image: $ESP_IDF_DOC_ENV_IMAGE
@@ -8,8 +8,6 @@ variables:
     - build
   dependencies: []
   script:
-    - . "${CI_PROJECT_DIR}/.gitlab/tools/setup_docs_cxx.sh"
-    - . "${CI_PROJECT_DIR}/.gitlab/tools/setup_docs_boost.sh"
     - cd docs
     - ./check_lang_folder_sync.sh
     - python -m pip install -r requirements.txt
