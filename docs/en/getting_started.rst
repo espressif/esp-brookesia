@@ -15,7 +15,7 @@ ESP-Brookesia Versioning
 From **v0.7**, ESP-Brookesia is componentized. Obtain components via the component registry as follows:
 
 1. Components evolve independently but share the same **major.minor** version and depend on the same ESP-IDF release.
-2. The **release** branch maintains historical major versions; **master** integrates new features.
+2. The **release** branch maintains stable version lines; **master** integrates new features for the latest documentation.
 
 Version support:
 
@@ -27,10 +27,14 @@ Version support:
      - ESP-IDF
      - Main changes
      - Status
-   * - master (v0.7)
+   * - master (latest)
+     - >= v5.5
+     - Latest documentation and ongoing feature integration
+     - Active development
+   * - release/v0.7
      - >= v5.5
      - Component manager support
-     - Active development
+     - Active maintenance
    * - release/v0.6
      - >= v5.3, <= 5.5
      - Preview system framework; ESP-VoCat firmware project

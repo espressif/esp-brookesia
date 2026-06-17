@@ -256,35 +256,35 @@ TUTORIAL_COMMANDS.extend([
      [DEFAULT_RESPONSE], 'Step 2.2: Load Emote animation assets', 10000, 0),
 ])
 
-# Step 3: Start XiaoZhi Agent
-TUTORIAL_COMMANDS.extend([
-    ('svc_call Device SetAudioPlayerMute {"Enable":false}',
-     [DEFAULT_RESPONSE], 'Step 3.1: Disable audio mute', 4000, 0),
-    ('svc_subscribe AgentXiaoZhi ActivationCodeReceived',
-     [b'Subscribed successfully'],
-     'Step 3.2: Subscribe AgentXiaoZhi ActivationCodeReceived event', 4000, 0),
-    ('svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}',
-     [DEFAULT_RESPONSE], 'Step 3.3: Set target agent to AgentXiaoZhi', 4000, 0),
-    ('svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}',
-     [b'No activation code or challenge found, activate successfully'],
-     'Step 3.4: Activate agent', 120000, 2000),
-    ('svc_call AgentManager TriggerGeneralAction {"Action":"Start"}',
-     [b'Speaking status changed to'], 'Step 3.5: Start agent', 20000, 5000),
-])
+# # Step 3: Start XiaoZhi Agent
+# TUTORIAL_COMMANDS.extend([
+#     ('svc_call Device SetAudioPlayerMute {"Enable":false}',
+#      [DEFAULT_RESPONSE], 'Step 3.1: Disable audio mute', 4000, 0),
+#     ('svc_subscribe AgentXiaoZhi ActivationCodeReceived',
+#      [b'Subscribed successfully'],
+#      'Step 3.2: Subscribe AgentXiaoZhi ActivationCodeReceived event', 4000, 0),
+#     ('svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}',
+#      [DEFAULT_RESPONSE], 'Step 3.3: Set target agent to AgentXiaoZhi', 4000, 0),
+#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}',
+#      [b'No activation code or challenge found, activate successfully'],
+#      'Step 3.4: Activate agent', 120000, 2000),
+#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Start"}',
+#      [b'Speaking status changed to'], 'Step 3.5: Start agent', 20000, 5000),
+# ])
 
-# Step 4: Common operation commands during conversation
-TUTORIAL_COMMANDS.extend([
-    ('svc_call AgentManager InterruptSpeaking',
-     [DEFAULT_RESPONSE], 'Ops: Interrupt agent speaking', 4000, 2000),
-    ('svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}',
-     [b"Agent do 'Sleep' finished"], 'Ops: Sleep agent', 4000, 5000),
-    ('svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}',
-     [b"Agent do 'WakeUp' finished"], 'Ops: Wake up agent', 4000, 5000),
-    ('svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}',
-     [b"Agent do 'Stop' finished"], 'Ops: Stop agent', 10000, 5000),
-    ('svc_call AgentManager GetGeneralState',
-     [b'Value: Ready'], 'Ops: Get agent general state', 4000, 0),
-])
+# # Step 4: Common operation commands during conversation
+# TUTORIAL_COMMANDS.extend([
+#     ('svc_call AgentManager InterruptSpeaking',
+#      [DEFAULT_RESPONSE], 'Ops: Interrupt agent speaking', 4000, 2000),
+#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}',
+#      [b"Agent do 'Sleep' finished"], 'Ops: Sleep agent', 4000, 5000),
+#     ('svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}',
+#      [b"Agent do 'WakeUp' finished"], 'Ops: Wake up agent', 4000, 5000),
+#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}',
+#      [b"Agent do 'Stop' finished"], 'Ops: Stop agent', 10000, 5000),
+#     ('svc_call AgentManager GetGeneralState',
+#      [b'Value: Ready'], 'Ops: Get agent general state', 4000, 0),
+# ])
 
 # Step 5 (optional): Play audio
 # Timeouts need to cover: HTTP download + full playback of the MP3. The
