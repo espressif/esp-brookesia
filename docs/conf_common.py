@@ -47,6 +47,9 @@ project_slug = "esp-brookesia"
 # Brand/static assets.
 html_static_path = ["../_static"]
 
+# Version list used by sphinx_idf_theme to render the version selector.
+versions_url = "./_static/js/generic_version.js"
+
 # Keep compatibility with esp-docs defaults while appending local CSS.
 try:
     html_css_files  # type: ignore[name-defined]  # noqa: B018
