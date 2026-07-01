@@ -109,12 +109,6 @@ int main()
         return EXIT_FAILURE;
     }
 
-    if (!manager.start_rpc_server()) {
-        std::cerr << "Failed to start RPC server" << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    manager.stop_rpc_server();
     manager.stop();
     manager.deinit();
 

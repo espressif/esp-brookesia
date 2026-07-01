@@ -25,5 +25,5 @@ dependencies:
     require: private
 
   espressif/esp_lvgl_adapter:
-    version: "0.5.*"
+    version: "0.6.*"
     require: private

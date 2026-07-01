@@ -264,6 +264,11 @@ bool StorageFileSystemImpl::init_spiffs()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS)) {
+        BROOKESIA_LOGW("SPIFFS device not found, skip");
+        return false;
+    }
+
     esp_err_t ret = ESP_OK;
     auto init_func = [&ret]() {
         BROOKESIA_LOG_TRACE_GUARD();
@@ -456,6 +461,11 @@ void StorageFileSystemImpl::deinit_fatfs_flash()
 bool StorageFileSystemImpl::init_sdcard()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD)) {
+        BROOKESIA_LOGW("SD card device not found, skip");
+        return false;
+    }
 
     auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SD card");

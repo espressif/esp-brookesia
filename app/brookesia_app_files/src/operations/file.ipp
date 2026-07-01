@@ -112,20 +112,19 @@ void FileManagerApp::request_delete(system::core::AppContext &context)
         const auto removed_path = selected_entry_->path.lexically_normal();
         const auto removed_kind = selected_entry_->kind;
         BROOKESIA_LOGI("Delete File Manager item: path(%1%)", removed_path.generic_string());
-        std::error_code error_code;
-        if (selected_entry_->kind == EntryKind::Directory) {
-            std::filesystem::remove_all(selected_entry_->path, error_code);
-        } else {
-            std::filesystem::remove(selected_entry_->path, error_code);
-        }
-        if (error_code) {
-            show_message(*context_, tr("delete_failed"), error_code.message(), system::core::MessageDialogIcon::Warning);
+        auto remove_result = remove_path_tree(selected_entry_->path);
+        if (!remove_result) {
+            show_message(*context_, tr("delete_failed"), remove_result.error(), system::core::MessageDialogIcon::Warning);
             return;
         }
         if (removed_kind == EntryKind::Directory) {
             recover_current_directory_after_remove(removed_path);
         }
-        BROOKESIA_LOGI("Deleted File Manager item: path(%1%)", removed_path.generic_string());
+        BROOKESIA_LOGI(
+            "Deleted File Manager item: path(%1%), entries(%2%)",
+            removed_path.generic_string(),
+            static_cast<unsigned long long>(*remove_result)
+        );
         (void)hide_operations(*context_);
         auto refresh_result = refresh_entries(*context_);
         if (!refresh_result) {

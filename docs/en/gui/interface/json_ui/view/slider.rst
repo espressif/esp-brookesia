@@ -5,10 +5,14 @@ Slider
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-view-slider-sec-01:
+
 Overview
 --------------------
 
 ``slider`` represents a draggable numeric node.
+
+.. _gui-interface-json_ui-view-slider-sec-02:
 
 Related Documents
 ----------------------------------
@@ -17,10 +21,14 @@ Related Documents
 - :doc:`../styling/props/range`
 - :doc:`../styling/style`
 
+.. _gui-interface-json_ui-view-slider-sec-03:
+
 Exclusive Props
 ------------------------------
 
 - ``rangeProps``, see details :doc:`../styling/props/range`
+
+.. _gui-interface-json_ui-view-slider-sec-04:
 
 Common Events
 --------------------------
@@ -29,11 +37,15 @@ Common Events
 - ``pressed``
 - ``released``
 
+.. _gui-interface-json_ui-view-slider-sec-05:
+
 Part Style
 --------------------
 
 - ``partStyles.indicator``: the selected track; configurable ``bgColor``, ``bgGradientColor``, ``bgGradientDirection``
 - ``partStyles.knob``: the drag handle; configurable normal style and ``stateStyles.pressed``
+
+.. _gui-interface-json_ui-view-slider-sec-06:
 
 Example
 --------------------

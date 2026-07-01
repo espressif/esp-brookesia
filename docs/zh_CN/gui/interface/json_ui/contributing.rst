@@ -7,6 +7,8 @@
 
 本页面向协议与文档的维护者，集中说明文档导航、阅读路线、推荐目录结构、编写约定，以及修改协议时的同步检查清单。框架使用者通常无需阅读本页。
 
+.. _gui-interface-json_ui-contributing-sec-01:
+
 文档导航
 --------------------
 
@@ -40,6 +42,8 @@
      - :doc:`runtime`
      - 运行时资源模型、``document_id + absolute_path`` API
 
+.. _gui-interface-json_ui-contributing-sec-02:
+
 阅读路线
 --------------------
 
@@ -59,6 +63,8 @@
 #. :doc:`runtime`
 
 先看 ``root`` / ``assets`` / ``view`` 建立整体心智模型，再看 ``styling`` 与 ``interaction`` 的字段细节，最后看 ``runtime`` 的对接 API。
+
+.. _gui-interface-json_ui-contributing-sec-03:
 
 推荐目录结构
 --------------------
@@ -82,6 +88,8 @@
          default.json
        images/
          logo.json
+
+.. _gui-interface-json_ui-contributing-sec-04:
 
 文档编写约定
 --------------------
@@ -107,6 +115,8 @@
      - ``Key | 类型 | 默认值 | UI 影响 | Backend 行为/限制``
    * - 控件 props
      - ``Key | 类型 | 默认值 | Binding | UI 影响/限制``
+
+.. _gui-interface-json_ui-contributing-sec-05:
 
 修改协议时的同步检查
 --------------------

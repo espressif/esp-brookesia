@@ -5,10 +5,14 @@ constant
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-constant-sec-01:
+
 概览
 --------------------
 
 ``constant`` asset 定义当前 document 可用的常量树。公开 JSON 推荐使用 ``camelCase``。
+
+.. _gui-interface-json_ui-assets-constant-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ constant
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-constant-sec-03:
 
 字段表
 --------------------
@@ -39,6 +45,8 @@ constant
      - 是
      - 常量树；可嵌套 object、string、number、bool、array 等 JSON 值
 
+.. _gui-interface-json_ui-assets-constant-sec-04:
+
 引用规则
 --------------------
 
@@ -54,6 +62,8 @@ constant
 - 查询 path 不包含 ``${}``，也不包含 ``constant.`` 前缀；找不到 path 或 path 为空会返回错误。
 - 查询返回 ``boost::json::value``，因此 string、number、bool、object、array 和 null 会保留原始 JSON 类型。
 - 若 root variants 命中并覆盖默认常量，Runtime 查询返回的是覆盖后的最终值。
+
+.. _gui-interface-json_ui-assets-constant-sec-05:
 
 表达式
 --------------------
@@ -82,6 +92,8 @@ constant
 
 表达式结果为 ``dp`` 时会写回 ``"Ndp"`` 字符串；无单位整数会写回 JSON integer；无单位小数会写回 JSON number。
 非数值 constant、单位不兼容、除零、括号不匹配都会让 document 解析失败。
+
+.. _gui-interface-json_ui-assets-constant-sec-06:
 
 Environment 引用
 ----------------------------
@@ -128,6 +140,8 @@ Environment 引用
            "height": "${expr((${env.heightDp} - 44dp) / 2)}"
        }
    }
+
+.. _gui-interface-json_ui-assets-constant-sec-07:
 
 示例
 --------------------

@@ -11,7 +11,7 @@ In a typical project, using a component directly means adding a dependency, incl
 
 ESP-Brookesia abstracts this behind two unified surfaces: **functions** and **events**. In many cases you only need ``brookesia_service_manager`` and ``brookesia_service_helper`` to reach service features through the Helper; you can also check at runtime whether a service is available. If the concrete service component is not linked, Helper usage usually still compiles, which helps with trimming and maintenance.
 
-The framework also relies on mechanisms such as the :doc:`Task Scheduler <../utils/lib_utils/task_scheduler>` for asynchronous execution on the service side, reducing blocking on the caller. Exposed APIs are designed with thread safety in mind so application code does less ad-hoc synchronization.
+The framework also relies on mechanisms such as the :doc:`Task Scheduler <../../utils/lib_utils/task_scheduler>` for asynchronous execution on the service side, reducing blocking on the caller. Exposed APIs are designed with thread safety in mind so application code does less ad-hoc synchronization.
 
 The sections below follow this order: **dependencies → initialization and binding → calling functions → subscribing to events → event monitors**.
 
@@ -103,7 +103,8 @@ Before calling a function, confirm **parameter types, order, and return value** 
 
 .. note::
 
-   - **Description**: Function behavior, return information, etc. If there is no **return value** section, the function has no return value.
+   - **Description**: Function behavior.
+   - **Return Value**: Return type and description, shown only when the function returns data. In the raw schema JSON, ``return_value`` is always present; ``null`` means the function has no return value.
    - **Parameter list**: Parameter names, types, descriptions, and defaults.
       - **Types**: Six kinds are supported: ``String``, ``Number``, ``Boolean``, ``Object``, ``Array``, ``RawBuffer``. Mapping to call-time C++ types:
          - ``String``: ``std::string``
@@ -148,7 +149,8 @@ The call blocks until the function finishes or times out.
 .. note::
 
    - ``parameters`` must match the schema in type, count, and order; omit them if the function has no parameters.
-   - If the return type is ``void``, omit the ``<ReturnType>`` template argument.
+   - ``ReturnType`` must match the function's **Return Value** type.
+   - If the function has no **Return Value** (``return_value: null`` in raw JSON), omit the ``<ReturnType>`` template argument.
    - ``timeout`` is optional; if omitted, the default is ``BROOKESIA_SERVICE_MANAGER_DEFAULT_CALL_FUNCTION_TIMEOUT_MS``.
    - See :cpp:func:`esp_brookesia::service::helper::Base::call_function_sync`.
 
@@ -278,7 +280,8 @@ The call **submits** work and returns immediately without blocking the caller. I
 .. note::
 
    - ``parameters`` must match the schema; omit if the function has no parameters.
-   - ``on_function_handler`` is optional; if omitted, results are ignored.
+   - ``on_function_handler`` is optional; if omitted, the function result and return value are ignored.
+   - When reading ``result.get_data<ReturnType>()``, ``ReturnType`` must match the function's **Return Value** type; functions without a **Return Value** have no data to parse.
    - Serial async calls to the same service run **in submission order** inside the service:
 
       .. code-block:: cpp
@@ -340,8 +343,8 @@ Confirm **item names, types, and order** from the Helper contract or headers, fo
 
 .. note::
 
-   - **Description**: Event behavior and return information. If there is no **return value** section, the event carries no return payload in that sense.
-   - **Item list**: Item names, types, descriptions, and defaults.
+   - **Description**: Event behavior.
+   - **Item list**: Event payload item names, types, descriptions, and defaults.
       - **Types**: Same six kinds as for functions; mapping is the same:
          - ``String``: ``std::string``
          - ``Number``: ``double`` / ``int`` / *any arithmetic type*

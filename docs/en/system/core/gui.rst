@@ -7,12 +7,16 @@ GUI Management
 
 System Core splits app GUI into app-owned GUI and system-only GUI.
 
+.. _system-core-gui-sec-01:
+
 App-Owned GUI
 --------------------
 
 Each app owns at most one GUI document managed by the core. The document source is specified by ``AppManifest``: a native app specifies it via ``IApp::get_gui_descriptor()``, which can be ``None``, ``File``, or ``JsonString``; a runtime app always reads the ``<runtime.resource_dir>/profile.json`` descriptor and then loads the JSON UI document referenced by ``root``.
 
 ``start_app()`` loads the document before the app ``on_start()`` and auto-starts the flow from the descriptor or runtime root ``screen_flows[]``, mounting the ``initial`` screen to the logical layer. Therefore an app never exposes ``DocumentId``, layer, or mount target.
+
+.. _system-core-gui-sec-02:
 
 App GUI Runtime
 --------------------
@@ -50,6 +54,8 @@ If startup screen flows are configured, the core auto-starts them during ``start
 
 ``start_view_animation_with_result()`` returns ``RuntimeAnimationStartResult`` after starting the animation, containing ``subscription_id``, ``resolved_from``, and ``resolved_to``. When the animation uses ``from_mode = Current`` or ``to_mode = Relative``, a native app can use these resolved values to sync logic state and avoid an extra ``get_view_frame()`` read-back.
 
+.. _system-core-gui-sec-03:
+
 Runtime App GUI Service
 -----------------------
 
@@ -63,6 +69,8 @@ A runtime app operates its own GUI document through the ``SystemGui`` service; s
 - A doc id parameter
 - A layer parameter
 - A mount target parameter
+
+.. _system-core-gui-sec-04:
 
 System-Only GUI
 --------------------
@@ -97,6 +105,8 @@ These interfaces let a derived ``System`` or native system app manage system-lev
 
 A transient screen is a system-only overlay capability: it mounts a screen to the foreground of the target layer but does not write the regular ``mounted_screens_`` record, which suits temporary masks such as a startup page or an app launch transition and does not replace a Shell overlay already managed by a screen flow on the same layer.
 
+.. _system-core-gui-sec-05:
+
 Debug and Live Preview
 ----------------------
 
@@ -105,6 +115,8 @@ Debug and Live Preview
 ``System::Config::enable_gui_live_preview`` is off by default. When on, the core auto-calls ``gui::Runtime::enable_live_preview()`` for a file-backed document after ``load_file()`` succeeds, and the ``SystemGui`` task periodically calls ``poll_live_preview()``. A ``load_json()`` or JSON string document has no source file to poll, so it is not auto-enabled.
 
 Live preview is a development aid exposed only to C++ system/native apps, not to Lua/JS runtime apps through the ``SystemGui`` service.
+
+.. _system-core-gui-sec-06:
 
 Runtime Theme
 --------------------

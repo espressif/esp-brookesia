@@ -169,65 +169,6 @@ DEBUG_COMMANDS = [
     ('debug_thread -p core -s cpu -d 1000', [b'Thread Profiler', b'IDLE0'], 'Print thread profiler with options', 4000, 0),
 ]
 
-# RPC service commands following docs/cmd_rpc_cn.md (English: docs/cmd_rpc.md).
-# The flow mirrors the "Full Example" section (Device A = server,
-# Device B = client), collapsed onto a single device via the lwIP loopback
-# interface (127.0.0.1), so it does not require a real WiFi/Ethernet
-# connection.
-RPC_SERVER_COMMANDS = [
-    # --- Server side (Device A) ---
-    # Doc: "Step 3. Start the RPC server on port 65500" (default port 65500)
-    ('svc_rpc_server start',
-     [b'RPC server started successfully'],
-     'Start RPC server on default port (65500)', 4000, 0),
-    # Doc: "Step 4. Connect all services to the RPC server" -> connect all,
-    # then also demo the "-s" selector variant.
-    ('svc_rpc_server connect',
-     [b'Services connected successfully'],
-     'Connect all services to RPC server', 4000, 0),
-    ('svc_rpc_server connect -s Wifi,Storage',
-     [b'Services connected successfully'],
-     'Connect specific services (-s Wifi,Storage)', 4000, 0),
-
-    # --- Client side over loopback (Device B -> 127.0.0.1) ---
-    # Doc: "Step 2. Subscribe to a remote service event"
-    # -- svc_rpc_subscribe <host> Wifi ScanApInfosUpdated
-    ('svc_rpc_subscribe 127.0.0.1 Wifi ScanApInfosUpdated',
-     [b'Successfully subscribed!'],
-     'Loopback: subscribe Wifi.ScanApInfosUpdated', 8000, 0),
-    # Doc: "Step 3. Call a remote service function"
-    # -- svc_rpc_call <host> Wifi TriggerScanStart
-    ('svc_rpc_call 127.0.0.1 Wifi TriggerScanStart',
-     [b'Success!'],
-     'Loopback: call Wifi.TriggerScanStart', 10000, 0),
-    # Doc: "Call on local host" -- svc_rpc_call 127.0.0.1 Storage KVList
-    ('svc_rpc_call 127.0.0.1 Storage KVSet {"KeyValuePairs":{"key1":"value1"}}',
-     [b'Success!'],
-     'Loopback: call Storage.KVSet via 127.0.0.1', 8000, 0),
-    # Doc: "Call with custom port and timeout (10 s)"
-    # -- demo the -p / -t flags
-    ('svc_rpc_call 127.0.0.1 Storage KVList -p 65500 -t 10000',
-     [b'Success!'],
-     'Loopback: call Storage.KVList with custom -p/-t', 12000, 0),
-    # Doc: "Step 4. Unsubscribe from a remote service event"
-    ('svc_rpc_unsubscribe 127.0.0.1 Wifi ScanApInfosUpdated',
-     [b'Successfully unsubscribed!'],
-     'Loopback: unsubscribe Wifi.ScanApInfosUpdated', 8000, 0),
-
-    # --- Server side cleanup ---
-    # Doc: "Disconnect specific services" then "Disconnect all services"
-    ('svc_rpc_server disconnect -s Wifi,Storage',
-     [b'Services disconnected successfully'],
-     'Disconnect specific services (-s Wifi,Storage)', 5000, 0),
-    ('svc_rpc_server disconnect',
-     [b'Services disconnected successfully'],
-     'Disconnect all services', 5000, 0),
-    # Doc: "Stop the RPC server"
-    ('svc_rpc_server stop',
-     [b'RPC server stopped successfully'],
-     'Stop RPC server', 5000, 0),
-]
-
 # Tutorial commands following docs/tutorial.md / docs/tutorial_cn.md:
 #   1) Connect WiFi
 #   2) Start Expression Emote (turn on display backlight / load animation assets)
@@ -279,7 +220,6 @@ COMMAND_GROUPS = {
     'basic': BASIC_COMMANDS,
     'debug': DEBUG_COMMANDS,
     'tutorial': TUTORIAL_COMMANDS,
-    'rpc_server': RPC_SERVER_COMMANDS,
 }
 
 

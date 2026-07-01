@@ -5,6 +5,8 @@ Runtime
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-runtime-sec-01:
+
 概览
 --------------------
 
@@ -17,6 +19,8 @@ Runtime
 
 本文档不负责 JSON 字段表；字段细节请查看各模块文档。
 
+.. _gui-interface-json_ui-runtime-sec-02:
+
 相关文档
 --------------------
 
@@ -25,6 +29,8 @@ Runtime
 - :doc:`view/index`
 - :doc:`styling/placement`
 - :doc:`interaction/screen_flow`
+
+.. _gui-interface-json_ui-runtime-sec-03:
 
 运行时资源模型
 --------------------
@@ -56,8 +62,12 @@ Runtime 另外还维护三类非 document 全局资源：
 - runtime 实际使用 ``document_id + absolute_path + local_key`` 定位 binding
 - 建议通过 ``Runtime::set_binding_value(document_id, absolute_path, key, value)``、``Runtime::set_binding_values(document_id, updates)`` 或 ``View::set_binding_value(key, value)`` 读写
 
+.. _gui-interface-json_ui-runtime-sec-04:
+
 当前公共 API 对协议的映射
 ------------------------------
+
+.. _gui-interface-json_ui-runtime-sec-05:
 
 document 相关
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -119,6 +129,8 @@ document 相关
 - live preview 也是 Runtime 级开发辅助能力，但只适用于 ``load_file(...)`` 加载出的 document
 - live preview 负责监听 root 文件与解析依赖文件的变化，并自动调用 ``update(...)``
 
+.. _gui-interface-json_ui-runtime-sec-06:
+
 screen 相关
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -175,6 +187,8 @@ screen 相关
 不代表 flow 正在运行。``stop_screen_flow(...)`` 会卸载当前 screen 并停止
 flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)`` 会自动停止该 document 下正在运行的 flow。
 
+.. _gui-interface-json_ui-runtime-sec-07:
+
 任意节点查询
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -186,6 +200,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - ``find_view(document_id, absolute_path)`` 当前可以查询任意已实例化节点
 - 所有公共路径都使用 Unix 风格绝对路径，例如 ``/about/header/title``
 
+.. _gui-interface-json_ui-runtime-sec-08:
+
 节点状态与运行时操作
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -193,6 +209,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - ``scroll_view_to_visible(document_id, absolute_path, animated = true)`` / ``scroll_view_to_visible(view, animated = true)``：把目标节点滚动到可见区域
 - ``set_view_src(document_id, absolute_path, src)``：直接更新 image 节点的 ``src``
 - ``process_backend()``：驱动一次 backend 处理（事件、动画、刷新等）；通常在宿主主循环中周期调用
+
+.. _gui-interface-json_ui-runtime-sec-09:
 
 模板实例
 ^^^^^^^^^^^^^^^^^^^^
@@ -206,6 +224,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - ``parent_absolute_path`` 是 parent 的绝对路径
 - ``instance_id`` 由调用方显式提供
 - ``destroy_view(...)`` 只能删除非 ``screen`` 子树
+
+.. _gui-interface-json_ui-runtime-sec-10:
 
 事件订阅
 ^^^^^^^^^^^^^^^^^^^^
@@ -227,6 +247,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - ``subscribe_event_action_with_id(...)`` 返回 ``SubscriptionId``；适合需要记录订阅身份或后续显式断开的场景
 - ``unsubscribe_subscription(subscription_id)`` 可显式断开通过 ``with_id`` 获取到的订阅；对无效或已断开的 id 返回失败
 - ``View::on_event(...)`` 依赖一个已经可查询到的具体实例，不做 ``action`` 字符串过滤
+
+.. _gui-interface-json_ui-runtime-sec-11:
 
 运行时动画
 ^^^^^^^^^^^^^^^^^^^^
@@ -266,6 +288,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - 同一 view 上同一动画 property 的新动画会覆盖之前的动画。
 - ``completed_handler`` 只会在动画自然完成时触发；若动画被取消，则不会再触发完成回调。
 
+.. _gui-interface-json_ui-runtime-sec-12:
+
 资源查询
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -283,6 +307,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - ``unregister_image(id)`` 会从 Runtime 全局 image 表移除对应资源，并释放 backend 对该 image 的预加载引用
 - 同名 image 资源优先使用 document ``imageSet``，再回退到 Runtime 全局 image
 
+.. _gui-interface-json_ui-runtime-sec-13:
+
 Binding 批量更新与增量 Apply
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -290,6 +316,8 @@ Binding 批量更新与增量 Apply
 - Runtime 会按节点合并本批次触发的 props/style/layout/placement apply mask；同一节点在一批更新中通常只重应用一次对应域。
 - 初次创建、document reload、resource refresh 仍使用完整 apply；binding 高频更新路径使用精确 mask。
 - 动画 API 会直接修改 backend 节点属性，不会回写 binding store。若应用层自己缓存 binding 值，在动画结束或取消后需要主动失效缓存，或用强制写入覆盖动画后的真实状态。
+
+.. _gui-interface-json_ui-runtime-sec-14:
 
 语言和主题的延迟更新策略
 ^^^^^^^^^^^^^^^^^^^^^^^^

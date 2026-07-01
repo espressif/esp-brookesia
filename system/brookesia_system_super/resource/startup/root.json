@@ -2,6 +2,7 @@
     "version": "0.1.0",
     "assets": [
         "constants/default.json",
+        "images/index.json",
         "screens/startup.json"
     ],
     "variants": [

@@ -5,6 +5,8 @@ View
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-view-index-sec-01:
+
 Overview
 --------------------
 
@@ -18,6 +20,8 @@ This page covers:
 
 This page does not cover field-level details such as ``layout`` / ``placement`` / ``style`` / ``props`` / ``events`` / ``animations``. See the corresponding documents for those.
 
+.. _gui-interface-json_ui-view-index-sec-02:
+
 Related Documents
 ----------------------------------
 
@@ -30,6 +34,8 @@ Related Documents
 - :doc:`../interaction/bindings`
 - :doc:`../interaction/events`
 - :doc:`../interaction/animations`
+
+.. _gui-interface-json_ui-view-index-sec-03:
 
 Common Field Table
 ------------------------------------
@@ -115,6 +121,8 @@ Common Field Table
 
 For the full props fields, see :doc:`../styling/props/index`.
 
+.. _gui-interface-json_ui-view-index-sec-04:
+
 Stylerefs
 --------------------
 
@@ -136,6 +144,8 @@ For the full layered composition rules, see :doc:`../styling/style`. A missing s
        }
    }
 
+.. _gui-interface-json_ui-view-index-sec-05:
+
 Interactionrefs
 ------------------------------
 
@@ -153,11 +163,15 @@ Unlike ``styleRefs``, referencing a non-existent ``interactionTemplate`` is a **
        "events": [{"type": "clicked", "action": "store.install"}]
    }
 
+.. _gui-interface-json_ui-view-index-sec-06:
+
 Id
 --------------------
 
 - Must be unique under the same parent node.
 - Top-level ``screen`` and top-level template ids must be unique within the same document.
+
+.. _gui-interface-json_ui-view-index-sec-07:
 
 Mountmode
 --------------------
@@ -173,6 +187,8 @@ Currently meaningful only for ``viewScreen``.
      - Creates the screen subtree at document load; suitable for resident pages or pages that should be visible right after startup
    * - ``dynamic``
      - Creates the screen subtree on first mount; suitable for rarely used pages to reduce the document's initial load cost
+
+.. _gui-interface-json_ui-view-index-sec-08:
 
 Type
 --------------------
@@ -240,6 +256,8 @@ For an ordinary view node, ``type`` decides the control type and the dedicated p
 
 ``type`` uses the ``camelCase`` spelling from the table above.
 
+.. _gui-interface-json_ui-view-index-sec-09:
+
 Children
 --------------------
 
@@ -253,6 +271,8 @@ Constraints:
 - Use ``templateRef`` to statically instantiate a ``viewTemplate``; inside a template, ``slot`` exposes replaceable subtrees, see
   :doc:`../assets/view_template`.
 - ``placement.relativeTo`` must use a ``${view.*}`` file-root-relative path, e.g. ``${view.anchor}`` or ``${view.host.anchor}``.
+
+.. _gui-interface-json_ui-view-index-sec-10:
 
 Subtype Navigation
 ------------------------------------

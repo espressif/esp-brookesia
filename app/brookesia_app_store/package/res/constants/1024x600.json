@@ -4,7 +4,6 @@
         "appStore": {
             "layout": {
                 "pagePadding": "18dp",
-                "headerHeight": "132dp",
                 "itemHeight": "112dp",
                 "itemRadius": "12dp",
                 "iconColumnWidth": "72dp",

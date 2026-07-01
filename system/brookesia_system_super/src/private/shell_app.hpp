@@ -131,6 +131,8 @@ private:
     void release_wifi_service_binding();
     void refresh_wifi_status();
     void set_status_wifi_state(bool visible, bool connected);
+    bool ensure_sntp_service_binding();
+    void release_sntp_service_binding();
     void subscribe_sntp_events();
     void disconnect_sntp_events();
     void refresh_status_clock();
@@ -152,6 +154,7 @@ private:
     core::AppContext *context_ = nullptr;
     service::ServiceBinding display_service_binding_;
     service::ServiceBinding wifi_service_binding_;
+    service::ServiceBinding sntp_service_binding_;
     service::EventRegistry::SignalConnection display_gesture_connection_;
     service::EventRegistry::SignalConnection wifi_event_connection_;
     service::EventRegistry::SignalConnection sntp_event_connection_;

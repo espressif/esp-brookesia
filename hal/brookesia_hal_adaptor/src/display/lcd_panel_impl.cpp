@@ -100,6 +100,11 @@ uint8_t get_frame_buffer_count_from_config(const dev_display_lcd_config_t *confi
 
 display::PanelIface::BusType get_bus_type()
 {
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+        BROOKESIA_LOGW("LCD panel device not found");
+        return display::PanelIface::BusType::Max;
+    }
+
     dev_display_lcd_config_t *config = nullptr;
     auto ret = esp_board_manager_get_device_config(
                    ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, reinterpret_cast<void **>(&config)
@@ -112,6 +117,11 @@ display::PanelIface::BusType get_bus_type()
 
 display::PanelIface::Info generate_info()
 {
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+        BROOKESIA_LOGW("LCD panel device not found");
+        return {};
+    }
+
     dev_display_lcd_config_t *config = nullptr;
     auto ret = esp_board_manager_get_device_config(
                    ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, reinterpret_cast<void **>(&config)
@@ -227,6 +237,11 @@ LcdDisplayPanelImpl::LcdDisplayPanelImpl()
 
     BROOKESIA_CHECK_FALSE_EXIT(get_info().is_valid(), "Invalid panel information");
 
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+        BROOKESIA_LOGW("LCD panel device not found, skip");
+        return;
+    }
+
     esp_err_t ret = ESP_OK;
     auto init_func = [&]() {
         BROOKESIA_LOG_TRACE_GUARD();
@@ -278,8 +293,10 @@ LcdDisplayPanelImpl::~LcdDisplayPanelImpl()
         sync_done_ = nullptr;
     }
 
-    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD"); });
+    if (esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+        auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+        BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD"); });
+    }
 }
 
 bool LcdDisplayPanelImpl::draw_bitmap(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, const uint8_t *data)
@@ -503,9 +520,11 @@ bool LcdDisplayPanelImpl::enable_event_dispatcher_locked()
     }
     case display::PanelIface::BusType::MIPI: {
 #if CONFIG_SOC_MIPI_DSI_SUPPORTED
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
         esp_lcd_dpi_panel_event_callbacks_t callbacks = {};
         callbacks.on_color_trans_done = on_mipi_color_trans_done;
-#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 1, 0)
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(6, 0, 2)
         callbacks.on_frame_buf_complete = on_mipi_frame_done;
 #else
         callbacks.on_refresh_done = on_mipi_frame_done;
@@ -514,6 +533,7 @@ bool LcdDisplayPanelImpl::enable_event_dispatcher_locked()
 #else
         BROOKESIA_LOGE("MIPI DPI callbacks are not supported on this target");
 #endif
+#pragma GCC diagnostic pop
         break;
     }
     default:
@@ -610,6 +630,11 @@ bool LcdDisplayPanelImpl::remove_event_listener_trampoline(void *ctx, uint32_t l
 bool LcdDisplayPanelImpl::get_driver_specific(DriverSpecific &specific)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+        BROOKESIA_LOGW("LCD panel device not found");
+        return false;
+    }
 
     dev_display_lcd_config_t *config = nullptr;
     auto ret = esp_board_manager_get_device_config(

@@ -5,6 +5,8 @@ Fontset
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-font-sec-01:
+
 Overview
 --------------------
 
@@ -12,12 +14,16 @@ The ``fontSet`` descriptor describes a set of Runtime global font resources. Fon
 
 Font resources are always organized into ``fontSet.fonts[]``, even for a single font.
 
+.. _gui-interface-json_ui-assets-font-sec-02:
+
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-font-sec-03:
 
 Field Table
 ----------------------
@@ -109,6 +115,8 @@ A ``fonts[]`` entry does not contain ``type``. Duplicate ids cannot appear withi
 codepoint set; the backend picks the closest one by ``style.imageFontSize``. ``style.imageFontSize`` only affects image-font
 glyphs and does not change the fallback regular-text ``fontSize``.
 
+.. _gui-interface-json_ui-assets-font-sec-04:
+
 Runtime API
 ----------------------
 
@@ -123,6 +131,8 @@ Runtime API
 ``register_font_json/file(...)`` registers all fonts in a ``fontSet``; if any one fails to register, the fonts registered this time are rolled back.
 
 ``style.font`` uses ``${font.<id>}`` to reference a font id. A node without an explicit ``style.font`` follows the Runtime current language to pick the default font. An app can register fonts first and then call ``set_default_font_for_language(language, font_id)`` to map languages to fonts; ``set_language(...)`` reapplies the styles of loaded documents.
+
+.. _gui-interface-json_ui-assets-font-sec-05:
 
 Example
 --------------------

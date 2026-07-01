@@ -7,6 +7,10 @@
 - feat(repo): move Service Manager into the framework service category for grouped component publishing
 - feat(deps): align first-party Brookesia dependencies with the v0.8 release train
 
+### Breaking Changes:
+
+- break(rpc): remove TCP RPC server/client APIs, transport implementation, configuration, docs, and example commands
+
 ### Documentation:
 
 - docs(readme): refresh component README links for the reorganized programming guide

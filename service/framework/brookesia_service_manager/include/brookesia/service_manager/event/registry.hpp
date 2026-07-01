@@ -6,7 +6,6 @@
 #pragma once
 
 #include <map>
-#include <unordered_set>
 #include <functional>
 #include <memory>
 #include <string>
@@ -19,14 +18,10 @@
 namespace esp_brookesia::service {
 
 /**
- * @brief Registry of event schemas and active RPC subscriptions for one service.
+ * @brief Registry of event schemas and local subscriptions for one service.
  */
 class EventRegistry {
 public:
-    /**
-     * @brief Set of subscription identifiers attached to an event.
-     */
-    using Subscriptions = std::unordered_set<std::string>;
     /**
      * @brief Signal type used for local in-process event listeners.
      */
@@ -39,10 +34,6 @@ public:
      * @brief Slot type accepted by `subscribe_event()`.
      */
     using SignalSlot = Signal::slot_type;
-    /**
-     * @brief Callback invoked after a successful RPC event subscription.
-     */
-    using SubscriptionCallback = std::function<void(const std::string &event_name)>;
 
     EventRegistry() = default;
     ~EventRegistry() = default;
@@ -73,33 +64,6 @@ public:
      * @return true if the payload conforms to the schema, false otherwise.
      */
     bool validate_items(const std::string &event_name, const EventItemMap &event_items);
-    /**
-     * @brief Create a new RPC subscription for the given event.
-     *
-     * @param[in] event_name Name of the event to subscribe to.
-     * @param[out] subscription_id Generated subscription id on success.
-     * @param[out] error_message Validation or registration failure details.
-     * @return true if the subscription was created, false otherwise.
-     */
-    bool on_rpc_subscribe(const std::string &event_name, std::string &subscription_id, std::string &error_message);
-    /**
-     * @brief Set a callback invoked after successful RPC event subscriptions.
-     *
-     * @param[in] callback Callback to store. Passing an empty callback clears the hook.
-     */
-    void set_rpc_subscription_callback(SubscriptionCallback callback);
-    /**
-     * @brief Remove all RPC subscriptions associated with an event name.
-     *
-     * @param[in] event_name Name of the event whose subscriptions should be removed.
-     */
-    void on_rpc_unsubscribe_by_name(const std::string &event_name);
-    /**
-     * @brief Remove a set of RPC subscriptions from every registered event.
-     *
-     * @param[in] subscriptions Subscription ids to remove.
-     */
-    void on_rpc_unsubscribe_by_subscriptions(const Subscriptions &subscriptions);
 
     /**
      * @brief Look up the schema for a registered event.
@@ -114,7 +78,7 @@ public:
         if (it == event_infos_.end()) {
             return nullptr;
         }
-        return &std::get<1>(it->second);
+        return &std::get<0>(it->second);
     }
     /**
      * @brief Get a snapshot of all registered event schemas.
@@ -151,13 +115,6 @@ public:
     }
 
     /**
-     * @brief Get all RPC subscription ids associated with an event.
-     *
-     * @param[in] event_name Event name to query.
-     * @return Subscriptions Copy of the registered subscription ids.
-     */
-    Subscriptions get_subscriptions(const std::string &event_name);
-    /**
      * @brief Get the in-process signal associated with an event.
      *
      * @param[in] event_name Event name to query.
@@ -166,11 +123,10 @@ public:
     Signal *get_signal(const std::string &event_name);
 
 private:
-    using EventInfo = std::tuple<Subscriptions, EventSchema, std::unique_ptr<Signal>>;
+    using EventInfo = std::tuple<EventSchema, std::unique_ptr<Signal>>;
 
     mutable boost::mutex event_infos_mutex_;
     std::map<std::string /*name*/, EventInfo> event_infos_;
-    SubscriptionCallback rpc_subscription_callback_;
 };
 
 } // namespace esp_brookesia::service

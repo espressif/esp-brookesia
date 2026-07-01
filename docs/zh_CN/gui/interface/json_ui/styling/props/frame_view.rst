@@ -5,16 +5,22 @@ frameViewProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-frame_view-sec-01:
+
 概览
 --------------------
 
 ``frameViewProps`` 适用于 ``frameView``，用于配置离屏帧缓冲的输出注册方式与像素格式。
+
+.. _gui-interface-json_ui-styling-props-frame_view-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/frame_view`
+
+.. _gui-interface-json_ui-styling-props-frame_view-sec-03:
 
 字段表
 --------------------
@@ -42,6 +48,8 @@ frameViewProps
      - ``"RGB565"``
      - 否
      - 帧缓冲像素格式
+
+.. _gui-interface-json_ui-styling-props-frame_view-sec-04:
 
 示例
 --------------------

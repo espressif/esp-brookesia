@@ -5,6 +5,8 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-layout-sec-01:
+
 概览
 --------------------
 
@@ -13,6 +15,8 @@
 本文档只负责 ``layout``。节点自身尺寸、坐标、锚点和 grid child placement 语义请查看
 :doc:`placement`。
 
+.. _gui-interface-json_ui-styling-layout-sec-02:
+
 相关文档
 --------------------
 
@@ -20,6 +24,8 @@
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`placement`
+
+.. _gui-interface-json_ui-styling-layout-sec-03:
 
 心智模型
 --------------------
@@ -43,6 +49,8 @@
      - backend 应用尺寸、坐标、相对锚点和 grid cell 语义
 
 ``style`` 只负责视觉表现，例如颜色、圆角、字体和间距。不要把 ``placement`` 的尺寸、坐标写进 ``layout``。
+
+.. _gui-interface-json_ui-styling-layout-sec-04:
 
 Dimension
 --------------------
@@ -73,6 +81,8 @@ Dimension
 
 ``dp`` 字符串只支持 ``dp`` 后缀；百分比字符串只支持 ``%`` 后缀；裸数字表示已经换算好的 backend 像素，不会乘以 ``density``。
 
+.. _gui-interface-json_ui-styling-layout-sec-05:
+
 layout
 --------------------
 
@@ -87,6 +97,8 @@ layout
 - ``gridTemplateRows = []``
 
 也就是说，缺省时当前节点不启用 backend 自动布局。
+
+.. _gui-interface-json_ui-styling-layout-sec-06:
 
 字段表
 ^^^^^^^^^^^^^^^^^^^^
@@ -138,8 +150,12 @@ layout
 ``align enum`` 支持 ``start``、``center``、``end``、``spaceBetween``、``spaceAround``、``spaceEvenly``、``stretch``。
 其中 ``stretch`` 主要用于 ``placement.alignSelf``，用在 flex 对齐时会按 ``start`` 处理。
 
+.. _gui-interface-json_ui-styling-layout-sec-07:
+
 取值说明
 --------------------
+
+.. _gui-interface-json_ui-styling-layout-sec-08:
 
 type
 ^^^^^^^^^^^^^^^^^^^^
@@ -155,6 +171,8 @@ type
      - 启用 flex 布局，按 ``flexFlow``、``mainAlign``、``crossAlign``、``gap`` 排列直接子节点
    * - ``grid``
      - 启用 grid 布局，按 ``gridTemplateColumns`` / ``gridTemplateRows`` 建立网格
+
+.. _gui-interface-json_ui-styling-layout-sec-09:
 
 flexFlow
 ^^^^^^^^^^^^^^^^^^^^
@@ -172,6 +190,8 @@ flexFlow
      - 主轴横向，空间不足时换到下一行
    * - ``columnWrap``
      - 主轴纵向，空间不足时换到下一列
+
+.. _gui-interface-json_ui-styling-layout-sec-10:
 
 align enum
 ^^^^^^^^^^^^^^^^^^^^
@@ -198,6 +218,8 @@ align enum
    * - ``stretch``
      - 拉伸填满可用空间；主要用于 grid 子项的 ``placement.alignSelf``
 
+.. _gui-interface-json_ui-styling-layout-sec-11:
+
 none
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -222,6 +244,8 @@ none
            }
        ]
    }
+
+.. _gui-interface-json_ui-styling-layout-sec-12:
 
 flex
 ^^^^^^^^^^^^^^^^^^^^
@@ -249,6 +273,8 @@ flex
 如果某个 flex 子节点需要占用当前 track 的剩余空间，应在该子节点的 ``placement`` 中使用
 ``flexGrow``。不要用 ``placement.width: "match"`` 模拟 Figma Auto Layout 的主轴 ``Fill container``；
 ``match`` 是相对父对象的 100% 尺寸，不是 flex 剩余空间语义。
+
+.. _gui-interface-json_ui-styling-layout-sec-13:
 
 grid
 ^^^^^^^^^^^^^^^^^^^^

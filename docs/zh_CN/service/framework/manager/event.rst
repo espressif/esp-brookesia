@@ -14,15 +14,6 @@ API 参考
 
 .. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/definition.inc
 
-.. _service-manager-event-sec-02:
-
-事件调度器
-~~~~~~~~~~
-
-公共头文件： ``#include "brookesia/service_manager/event/dispatcher.hpp"``
-
-.. include-build-file:: inc/dispatcher.inc
-
 .. _service-manager-event-sec-03:
 
 事件注册表

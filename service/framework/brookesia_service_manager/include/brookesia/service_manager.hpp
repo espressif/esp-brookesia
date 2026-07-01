@@ -12,7 +12,6 @@
 #include "service_manager/macro_configs.h"
 #include "service_manager/common.hpp"
 /* Event */
-#include "service_manager/event/dispatcher.hpp"
 #include "service_manager/event/definition.hpp"
 #include "service_manager/event/registry.hpp"
 /* Function */
@@ -24,12 +23,3 @@
 #include "service_manager/service/local_runner.hpp"
 /* Helper */
 #include "service_manager/helper/base.hpp"
-/* RPC */
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-#   include "service_manager/rpc/data_link_base.hpp"
-#   include "service_manager/rpc/data_link_client.hpp"
-#   include "service_manager/rpc/data_link_server.hpp"
-#   include "service_manager/rpc/server.hpp"
-#   include "service_manager/rpc/connection.hpp"
-#   include "service_manager/rpc/client.hpp"
-#endif

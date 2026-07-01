@@ -5,6 +5,8 @@ Runtime
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-runtime-sec-01:
+
 Overview
 --------------------
 
@@ -17,6 +19,8 @@ This page covers:
 
 This page does not cover JSON field tables; for field details, see the per-module pages.
 
+.. _gui-interface-json_ui-runtime-sec-02:
+
 Related Documents
 ----------------------------------
 
@@ -25,6 +29,8 @@ Related Documents
 - :doc:`view/index`
 - :doc:`styling/placement`
 - :doc:`interaction/screen_flow`
+
+.. _gui-interface-json_ui-runtime-sec-03:
 
 Runtime Resource Model
 --------------------------------------------
@@ -56,8 +62,12 @@ Current bindings rules:
 - the runtime actually locates a binding by ``document_id + absolute_path + local_key``
 - prefer reading/writing via ``Runtime::set_binding_value(document_id, absolute_path, key, value)``, ``Runtime::set_binding_values(document_id, updates)``, or ``View::set_binding_value(key, value)``
 
+.. _gui-interface-json_ui-runtime-sec-04:
+
 Current Public API Mapping of Protocols
 ------------------------------------------------------------------------------
+
+.. _gui-interface-json_ui-runtime-sec-05:
 
 Document Related
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -119,6 +129,8 @@ Notes:
 - live preview is also a Runtime-level development aid, but applies only to documents loaded via ``load_file(...)``
 - live preview watches the root file and its parsed dependencies for changes and calls ``update(...)`` automatically
 
+.. _gui-interface-json_ui-runtime-sec-06:
+
 Screen Related
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -175,6 +187,8 @@ If transitions are configured, you can later use
 not whether the flow is running. ``stop_screen_flow(...)`` unmounts the current screen and stops the
 flow. A document can run multiple flows at once; ``unload(...)`` or ``update(...)`` automatically stops flows running under that document.
 
+.. _gui-interface-json_ui-runtime-sec-07:
+
 Any Node Query
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -186,6 +200,8 @@ Notes:
 - ``find_view(document_id, absolute_path)`` can currently query any instantiated node
 - all public paths use Unix-style absolute paths, e.g. ``/about/header/title``
 
+.. _gui-interface-json_ui-runtime-sec-08:
+
 Node Status and Runtime Operations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -193,6 +209,8 @@ Node Status and Runtime Operations
 - ``scroll_view_to_visible(document_id, absolute_path, animated = true)`` / ``scroll_view_to_visible(view, animated = true)``: scroll the target node into the visible area
 - ``set_view_src(document_id, absolute_path, src)``: directly update an image node's ``src``
 - ``process_backend()``: drive one backend processing pass (events, animations, refresh, etc.); usually called periodically in the host main loop
+
+.. _gui-interface-json_ui-runtime-sec-09:
 
 Template Instance
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -206,6 +224,8 @@ Where:
 - ``parent_absolute_path`` is the parent's absolute path
 - ``instance_id`` is explicitly provided by the caller
 - ``destroy_view(...)`` can only delete a non-``screen`` subtree
+
+.. _gui-interface-json_ui-runtime-sec-10:
 
 Event Subscription
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -227,6 +247,8 @@ Notes:
 - ``subscribe_event_action_with_id(...)`` returns a ``SubscriptionId``; suitable when you need to record the subscription identity or disconnect explicitly later
 - ``unsubscribe_subscription(subscription_id)`` can explicitly disconnect a subscription obtained via ``with_id``; it returns failure for an invalid or already-disconnected id
 - ``View::on_event(...)`` relies on a concrete, already-queryable instance and does no ``action`` string filtering
+
+.. _gui-interface-json_ui-runtime-sec-11:
 
 Runtime Animation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -266,6 +288,8 @@ Notes:
 - a new animation of the same animation property on the same view overrides the previous one.
 - ``completed_handler`` fires only when the animation completes naturally; if the animation is canceled, the completion callback does not fire.
 
+.. _gui-interface-json_ui-runtime-sec-12:
+
 Resource Query
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -283,6 +307,8 @@ Notes:
 - ``unregister_image(id)`` removes the resource from the Runtime global image table and releases the backend's preload reference to that image
 - for image resources with the same name, the document ``imageSet`` is preferred, then the Runtime global image
 
+.. _gui-interface-json_ui-runtime-sec-13:
+
 Binding Batch Update and Incremental Apply
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -290,6 +316,8 @@ Binding Batch Update and Incremental Apply
 - the Runtime merges, per node, the props/style/layout/placement apply masks triggered by the batch; a node usually re-applies a given domain only once in a batch.
 - initial creation, document reload, and resource refresh still use a full apply; the high-frequency binding update path uses precise masks.
 - the animation API modifies backend node attributes directly and does not write back to the binding store. If the app layer caches binding values itself, invalidate the cache after the animation ends or is canceled, or force-write to overwrite the post-animation real state.
+
+.. _gui-interface-json_ui-runtime-sec-14:
 
 Delayed Update Policy for Languages and Themes
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

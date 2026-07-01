@@ -4,9 +4,9 @@
 
 ## Overview
 
-`brookesia_service_manager` is the service lifecycle, local-call, event, and RPC framework for ESP-Brookesia.
+`brookesia_service_manager` is the service lifecycle, local-call, and event framework for ESP-Brookesia.
 
-For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/manager/index.html).
+For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/framework/manager/index.html).
 
 ## How to Use
 

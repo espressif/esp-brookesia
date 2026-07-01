@@ -7,6 +7,8 @@ Assets
 
 The main JSON UI resources of system super are concentrated in the Shell directory, organized as ``constants + screens + flows + templates``.
 
+.. _system-super-assets-sec-01:
+
 Overview
 --------------------
 
@@ -21,6 +23,8 @@ The Shell resource directory structure:
 - ``resource/startup/root.json``: the boot screen mounted by system core to ``SystemTop`` before the Shell loads.
 
 The source images live under ``assets/shell/images/**``. At build time, CMake first stages ``resource/`` verbatim to the runtime resource root, then converts the images under ``assets/`` with ``brookesia_gui_lvgl_pack_images()`` into LVGL ``.bin + imageSet index.json``: PNG outputs as ``ARGB8888`` and JPG/JPEG outputs as ``RGB565``, and the generated files are not committed to the source directory.
+
+.. _system-super-assets-sec-02:
 
 Constants Namespaces
 --------------------
@@ -43,10 +47,14 @@ Constants use ``ui`` as the internal Shell token namespace:
 
 Common visuals such as the default font, base text color, transparent screen/container background, and default borders of button/text input are provided by ``resource/themes/*.json``; constants are reserved for semantic colors, font sizes, and layout sizes that need explicit reference in specific nodes.
 
+.. _system-super-assets-sec-03:
+
 Runtime Themes
 --------------------
 
 A theme descriptor is a global Runtime resource, not a Shell document asset. ShellApp scans all ``*.json`` in the first level of ``<system-root>/super/themes`` at startup, loads them sorted by file name, and sets the default theme to ``shell.light``. The current V1 provides ``light.json`` (``shell.light``) and ``dark.json`` (``shell.dark``). Shell screens reference named styles such as ``shell.card``, ``shell.pageTitle``, and ``shell.navButton`` through ``styleRefs``; an explicit node ``style`` takes precedence. Do not write ``resource/themes/*.json`` into the ``assets`` of ``root.json``; the JSON UI parser rejects the document asset type ``theme``.
+
+.. _system-super-assets-sec-04:
 
 Shell Root
 --------------------
@@ -104,6 +112,8 @@ The Shell root defines the Shell background screens, content pages, overlay, and
 
 A dynamic instance uses the instance id prefix ``app_`` and the path prefix ``/launcher/content/grid/app_``. A valid tap on the launcher button root starts an app through the action ``super.launch.app`` (``SUPER_ACTION_LAUNCH_APP``).
 
+.. _system-super-assets-sec-05:
+
 Screen Flows
 --------------------
 
@@ -123,20 +133,28 @@ The Shell root references 3 flows: ``flows/background.json`` manages ``/backgrou
 
 The Shell manifest auto-starts the ``shell_pages`` flow, and subsequent page switching only triggers the flow, without manual unmount/mount of content screens.
 
+.. _system-super-assets-sec-06:
+
 Startup Overlay
 --------------------
 
 ``resource/startup/root.json`` is a standalone lightweight JSON UI root, loaded by ``system_core`` after the GUI runtime is created and before the Shell and app scan, and mounted to ``SystemTop`` through a transient screen to avoid a long blank screen during ESP-side file parsing, resource registration, and Shell initialization. The default screen path is ``/startup``, and the root file path can be changed via Super Kconfig or PC CMake config.
+
+.. _system-super-assets-sec-07:
 
 Background Screens
 --------------------
 
 The background flow is the bottom background state machine in the Shell root. ``/background`` is the Shell desktop image background, and ``/app_background`` is the solid background when a regular app is in front. At runtime the Shell manifest mounts the ``background`` flow to ``SystemBottom``: it switches to ``/background`` when the Shell is in front and to ``/app_background`` when a regular app is in front. Content pages still mount to the app layer and the overlay still mounts to the top of the ``AppTop`` stack, so there is no need to repeat the background node in each content screen.
 
+.. _system-super-assets-sec-08:
+
 Keyboard Input
 --------------------
 
 Keyboard input is the on-demand transient screen ``/keyboard_input`` in the Shell root, not part of any Shell screenFlow. When an app requests the system keyboard, ShellApp shows it through a transient mount to the top of the ``AppTop`` stack with a higher z-order than the overlay. The screen contains a full-screen mask, a single-line ``textInput``, and a ``keyboard``; ``abc`` / ``ABC`` / ``123`` / ``,.?!``, confirm, and cancel are embedded in the keyboard key layout. The keyboard layout is described by ``keyboardProps.layouts`` for the ``text`` / ``upper`` / ``number`` / ``special`` layouts, mapped by the backend to the LVGL keyboard map, with disallowed mode switch keys disabled by ``allowedModes``. Key actions include ``super.keyboard.text_changed``, ``super.keyboard.submit.*``, ``super.keyboard.cancel.*``, and ``super.keyboard.toggle_password``.
+
+.. _system-super-assets-sec-09:
 
 Modification Notes
 --------------------

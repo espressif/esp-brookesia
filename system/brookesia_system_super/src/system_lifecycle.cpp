@@ -3,17 +3,21 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <expected>
 #include <filesystem>
+#include <optional>
+#include <string>
 #include <string_view>
 
 #include "brookesia/system_super/macro_configs.h"
 #if !BROOKESIA_SYSTEM_SUPER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include "brookesia/system_super/system.hpp"
+#include "private/font_language.hpp"
 #include "private/utils.hpp"
 #include "private/shell_app.hpp"
 #include "private/system_constants.hpp"
-#include "brookesia/system_super/system.hpp"
 
 namespace esp_brookesia::system::super {
 namespace {
@@ -76,25 +80,30 @@ std::expected<void, std::string> System::prepare_shell_fonts()
         return {};
 #endif
     }
-    auto font_result = system_gui().register_font_file(share_dir, make_font_index_relative_path());
+    auto &gui_access = system_gui();
+    auto font_result = gui_access.register_font_file(share_dir, make_font_index_relative_path());
     if (!font_result) {
         return std::unexpected("Failed to register Shell font index: " + font_result.error());
     }
-    font_result = system_gui().set_default_font_for_language("en", SUPER_DEFAULT_EN_FONT_ID);
-    if (!font_result) {
-        return std::unexpected("Failed to set default English font: " + font_result.error());
+    const auto stored_language = get_stored_gui_language_preference();
+    const std::string requested_language = (stored_language.has_value() && !stored_language->empty()) ?
+                                           *stored_language :
+                                           gui_access.get_language();
+    auto language_result = apply_font_language_fallback(
+                               gui_access,
+                               requested_language,
+                               SUPER_DEFAULT_FONT_ID,
+                               false
+                           );
+    if (!language_result) {
+        return std::unexpected("Failed to prepare Shell font language fallback: " + language_result.error());
     }
-    font_result = system_gui().set_default_font_for_language("zh_CN", SUPER_DEFAULT_ZH_CN_FONT_ID);
-    if (!font_result) {
-        return std::unexpected("Failed to set default Chinese font: " + font_result.error());
-    }
-    if (system_gui().get_language().empty()) {
-        font_result = system_gui().set_language("en", false);
-        if (!font_result) {
-            return std::unexpected("Failed to set default Shell language: " + font_result.error());
-        }
-    }
-    BROOKESIA_LOGI("Super shell fonts preloaded: %1%", font_index.generic_string());
+    BROOKESIA_LOGI(
+        "Super shell fonts preloaded: %1%, language(%2%), default_font(%3%)",
+        font_index.generic_string(),
+        language_result->language,
+        language_result->font_id
+    );
     shell_fonts_prepared_ = true;
     return {};
 }
@@ -140,7 +149,7 @@ std::expected<void, std::string> System::prepare_shell_themes()
 
 std::expected<void, std::string> System::on_prepare_startup_overlay()
 {
-    return prepare_shell_fonts();
+    return {};
 }
 
 std::expected<void, std::string> System::on_init()
@@ -246,8 +255,11 @@ std::expected<void, std::string> System::on_app_uninstalled(const core::AppInfo 
 std::expected<void, std::string> System::on_app_started(const core::AppInfo &app)
 {
     BROOKESIA_LOGI("Super foreground app: id(%1%), name(%2%)", app.app_id, app.manifest.name);
+    if (app.app_id == shell_app_id_) {
+        return {};
+    }
     if (shell_app_) {
-        auto result = shell_app_->set_foreground_app(app.app_id == shell_app_id_ ? std::nullopt : std::optional(app));
+        auto result = shell_app_->set_foreground_app(app);
         if (!result) {
             BROOKESIA_LOGW("Failed to update Shell foreground state: %1%", result.error());
         }
@@ -301,8 +313,17 @@ void System::on_app_stop_failed(const core::AppInfo &app, std::string_view reaso
     }
 }
 
-std::expected<void, std::string> System::on_language_changed(std::string_view)
+std::expected<void, std::string> System::on_language_changed(std::string_view language)
 {
+    auto fallback = apply_font_language_fallback(
+                        system_gui(),
+                        language,
+                        SUPER_DEFAULT_FONT_ID,
+                        false
+                    );
+    if (!fallback) {
+        BROOKESIA_LOGW("Failed to apply Shell font language fallback after language change: %1%", fallback.error());
+    }
     if (!shell_app_) {
         return {};
     }

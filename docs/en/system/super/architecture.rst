@@ -7,6 +7,8 @@ Architecture
 
 ``esp_brookesia::system::super::System`` derives from ``esp_brookesia::system::core::System`` and provides a Super-style system shell on top of the core.
 
+.. _system-super-architecture-sec-01:
+
 Initialization
 --------------------
 
@@ -18,10 +20,14 @@ Initialization
 
 Super does not depend on a specific GUI backend directly; the product project selects the backend (for example the LVGL backend) and passes it via ``core_config.gui_backend``.
 
+.. _system-super-architecture-sec-02:
+
 System Type
 --------------------
 
 Super uses ``BROOKESIA_SYSTEM_SUPER_SYSTEM_TYPE``, currently ``"super"``. ``on_init()`` also calls ``set_system_type("super")`` again to ensure service queries return the Super type.
+
+.. _system-super-architecture-sec-03:
 
 Extension Points
 --------------------
@@ -48,6 +54,8 @@ The core extension points Super overrides:
    * - ``on_app_stopped()``
      - Restore the shell after a regular app stops
 
+.. _system-super-architecture-sec-04:
+
 Source Modules
 --------------------
 
@@ -72,6 +80,8 @@ The implementation of ``system_super`` is split by responsibility:
      - Internal path, action, and animation constants
    * - ``src/private/shell_app.hpp``
      - Internal ``ShellApp`` declaration
+
+.. _system-super-architecture-sec-05:
 
 Built-In Components
 --------------------

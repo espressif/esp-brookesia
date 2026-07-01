@@ -46,8 +46,9 @@ extern "C" void app_main(void)
 
     auto setup_task = [backend_scheduler]() {
         /* Initialize general services */
-        GeneralServices::get_instance().init(backend_scheduler);
-        GeneralServices::get_instance().init_audio();
+        BROOKESIA_CHECK_FALSE_EXIT(
+            GeneralServices::get_instance().init(backend_scheduler), "Failed to initialize general services"
+        );
 
         /* Start display UI */
         auto &display = Display::get_instance();
@@ -75,6 +76,9 @@ extern "C" void app_main(void)
         BROOKESIA_CHECK_FALSE_EXIT(init_result, "System init failed: %1%", init_result.error());
         auto start_result = system_instance->start();
         BROOKESIA_CHECK_FALSE_EXIT(start_result, "System start failed: %1%", start_result.error());
+        BROOKESIA_CHECK_FALSE_EXIT(
+            GeneralServices::get_instance().start_audio_services(), "Failed to start audio services"
+        );
 
         // /* Start profiler */
         // Profiler::get_instance().init({

@@ -5,10 +5,14 @@ Rangeprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-range-sec-01:
+
 Overview
 --------------------
 
 ``rangeProps`` applies to ``slider``, ``progressBar``, and ``arc``.
+
+.. _gui-interface-json_ui-styling-props-range-sec-02:
 
 Related Documents
 ----------------------------------
@@ -17,6 +21,8 @@ Related Documents
 - :doc:`../../view/slider`
 - :doc:`../../view/progress_bar`
 - :doc:`../../view/arc`
+
+.. _gui-interface-json_ui-styling-props-range-sec-03:
 
 Field Table
 ----------------------
@@ -49,6 +55,8 @@ Field Table
      - ``1``
      - ``rangeProps.step``
      - step value; currently used mainly for protocol expression and event logic
+
+.. _gui-interface-json_ui-styling-props-range-sec-04:
 
 Example
 --------------------

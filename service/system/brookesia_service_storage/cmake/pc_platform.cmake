@@ -23,28 +23,28 @@ set(COMPONENT_SRCS_CPP "")
 
 if(NOT TARGET brookesia::lib_utils)
     add_subdirectory(
-        ${COMPONENT_DIR}/../../utils/brookesia_lib_utils
+        ${COMPONENT_DIR}/../../../utils/brookesia_lib_utils
         ${CMAKE_BINARY_DIR}/brookesia_lib_utils
     )
 endif()
 
 if(NOT TARGET brookesia::service_manager)
     add_subdirectory(
-        /../../framework/brookesia_service_manager
+        ${COMPONENT_DIR}/../../framework/brookesia_service_manager
         ${CMAKE_BINARY_DIR}/brookesia_service_manager
     )
 endif()
 
 if(NOT TARGET brookesia::hal_interface)
     add_subdirectory(
-        ${COMPONENT_DIR}/../../hal/brookesia_hal_interface
+        ${COMPONENT_DIR}/../../../hal/brookesia_hal_interface
         ${CMAKE_BINARY_DIR}/brookesia_hal_interface
     )
 endif()
 
 if(NOT TARGET brookesia::service_helper)
     add_subdirectory(
-        /../../framework/brookesia_service_helper
+        ${COMPONENT_DIR}/../../framework/brookesia_service_helper
         ${CMAKE_BINARY_DIR}/brookesia_service_helper
     )
 endif()

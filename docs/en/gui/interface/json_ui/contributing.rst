@@ -7,6 +7,8 @@ Protocol Maintenance
 
 This page is for protocol and documentation maintainers. It collects the document navigation, reading route, recommended directory structure, writing conventions, and the sync checklist for protocol changes. Framework users normally do not need this page.
 
+.. _gui-interface-json_ui-contributing-sec-01:
+
 Document Navigation
 --------------------
 
@@ -40,6 +42,8 @@ Documents are grouped by topic, and each group directory has an index that serve
      - :doc:`runtime`
      - Runtime resource model, ``document_id + absolute_path`` API
 
+.. _gui-interface-json_ui-contributing-sec-02:
+
 Reading Route
 --------------------
 
@@ -59,6 +63,8 @@ When meeting this protocol for the first time, read it in the following order:
 #. :doc:`runtime`
 
 Read ``root`` / ``assets`` / ``view`` first to build the overall mental model, then ``styling`` and ``interaction`` for field details, and finally the ``runtime`` integration API.
+
+.. _gui-interface-json_ui-contributing-sec-03:
 
 Recommended Directory Structure
 -------------------------------
@@ -82,6 +88,8 @@ The directory name does not affect the protocol itself; whether a file is a cons
          default.json
        images/
          logo.json
+
+.. _gui-interface-json_ui-contributing-sec-04:
 
 Document Writing Conventions
 ----------------------------
@@ -107,6 +115,8 @@ Field table headers are fixed by purpose:
      - ``Key | Type | Default | UI Effect | Backend Behavior/Limits``
    * - Control props
      - ``Key | Type | Default | Binding | UI Effect/Limits``
+
+.. _gui-interface-json_ui-contributing-sec-05:
 
 Sync Checklist for Protocol Changes
 -----------------------------------

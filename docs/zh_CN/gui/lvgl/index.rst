@@ -7,6 +7,8 @@ LVGL 后端
 
 ``brookesia_gui_lvgl`` 是 ``brookesia_gui_interface`` 的 LVGL 后端实现，负责把解析后的 JSON UI 文档模型映射为 LVGL 对象，并提供图片的构建期打包能力。
 
+.. _gui-lvgl-index-sec-01:
+
 适用范围
 --------------------
 
@@ -15,6 +17,8 @@ LVGL 后端
 - ``.bin`` 图片在后端中的预加载与缓存行为
 
 JSON UI 协议本身见 :doc:`../interface/json_ui/index`。
+
+.. _gui-lvgl-index-sec-02:
 
 本组文档
 --------------------

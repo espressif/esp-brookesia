@@ -97,61 +97,20 @@ BROOKESIA_TEST_CASE(test_servicewifi_state_transitions, "Test ServiceWifi - stat
         BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_STARTED_TIMEOUT_MS +
         BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_STOPPED_TIMEOUT_MS +
         BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_DEINITED_TIMEOUT_MS;
-    bool actions_received = collector.wait_for_general_actions(4, timeout_ms);
-    bool events_received = collector.wait_for_general_events(4, timeout_ms);
-    TEST_ASSERT_TRUE_MESSAGE(actions_received, "Not all general action events received");
-    TEST_ASSERT_TRUE_MESSAGE(events_received, "Not all general event events received");
-
-    // Verify general actions triggered
-    std::lock_guard<std::mutex> lock(collector.mutex);
-    size_t action_index = 0;
-
-    // Verify first action: Init (triggered during service startup)
-    TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Init).c_str(),
-        collector.general_actions[action_index].action.c_str(), "First action mismatch (should be Init)"
-    );
-    action_index++;
-
-    // Verify second action: Start
-    TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Start).c_str(),
-        collector.general_actions[action_index].action.c_str(), "Second action mismatch"
-    );
-    action_index++;
-
-    // Verify fourth action: Stop
-    TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Stop).c_str(),
-        collector.general_actions[action_index].action.c_str(), "Fourth action mismatch"
-    );
-    action_index++;
-
-    // Verify fifth action: Deinit
-    TEST_ASSERT_EQUAL_STRING_MESSAGE(
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralAction::Deinit).c_str(),
-        collector.general_actions[action_index].action.c_str(), "Sixth action mismatch"
-    );
-    action_index++;
-
-    // Verify general events happened (state changes)
-    // Expected events: Inited (from Init), Started, Inited, Started, Inited
-    std::vector<std::string> expected_events;
-    expected_events = {
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Inited),
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Started),
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Stopped),
-        BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::GeneralEvent::Deinited)
-    };
-
-    TEST_ASSERT_EQUAL_MESSAGE(expected_events.size(), collector.general_events.size(), "Event count mismatch");
-    for (size_t i = 0; i < expected_events.size() && i < collector.general_events.size(); i++) {
-        TEST_ASSERT_EQUAL_STRING_MESSAGE(
-            expected_events[i].c_str(),
-            collector.general_events[i].event.c_str(),
-            ("Event " + std::to_string(i) + " mismatch").c_str()
-        );
-    }
+    bool actions_received = collector.wait_for_general_action_sequence({
+        WifiHelpler::GeneralAction::Init,
+        WifiHelpler::GeneralAction::Start,
+        WifiHelpler::GeneralAction::Stop,
+        WifiHelpler::GeneralAction::Deinit,
+    }, timeout_ms);
+    bool events_received = collector.wait_for_general_event_sequence({
+        WifiHelpler::GeneralEvent::Inited,
+        WifiHelpler::GeneralEvent::Started,
+        WifiHelpler::GeneralEvent::Stopped,
+        WifiHelpler::GeneralEvent::Deinited,
+    }, timeout_ms);
+    TEST_ASSERT_TRUE_MESSAGE(actions_received, "General action sequence not received");
+    TEST_ASSERT_TRUE_MESSAGE(events_received, "General event sequence not received");
 
     const auto &results = runner.get_results();
     TEST_ASSERT_EQUAL(test_items.size(), results.size());
@@ -436,7 +395,9 @@ BROOKESIA_TEST_CASE(test_servicewifi_connect_and_manual_disconnect_no_auto_recon
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to setup connection");
 
     // Wait for Connected event
-    bool connected = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool connected = collector.wait_for_general_events(
+                         1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                     );
     TEST_ASSERT_TRUE_MESSAGE(connected, "Failed to connect to TEST_WIFI_SSID1");
 
     // Verify Connected event
@@ -467,7 +428,7 @@ BROOKESIA_TEST_CASE(test_servicewifi_connect_and_manual_disconnect_no_auto_recon
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to disconnect");
 
     // Wait for Disconnected event
-    bool disconnected = collector.wait_for_general_events(1, 2000);
+    bool disconnected = collector.wait_for_general_events(1, 2000, WifiHelpler::GeneralEvent::Disconnected);
     TEST_ASSERT_TRUE_MESSAGE(disconnected, "Failed to disconnect");
 
     // Verify no auto-reconnect (wait for a period and check no Connected event)
@@ -544,7 +505,9 @@ BROOKESIA_TEST_CASE(test_servicewifi_stop_and_start_with_auto_reconnect, "Test S
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to setup connection");
 
     // Wait for Connected event
-    bool connected = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool connected = collector.wait_for_general_events(
+                         1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                     );
     TEST_ASSERT_TRUE_MESSAGE(connected, "Failed to connect to TEST_WIFI_SSID1");
 
     // Stop WiFi
@@ -565,7 +528,7 @@ BROOKESIA_TEST_CASE(test_servicewifi_stop_and_start_with_auto_reconnect, "Test S
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to stop WiFi");
 
     // Wait for Stopped event
-    bool stopped = collector.wait_for_general_events(1, 2000);
+    bool stopped = collector.wait_for_general_events(1, 2000, WifiHelpler::GeneralEvent::Stopped);
     TEST_ASSERT_TRUE_MESSAGE(stopped, "Failed to stop WiFi");
 
     // Start WiFi again
@@ -586,11 +549,13 @@ BROOKESIA_TEST_CASE(test_servicewifi_stop_and_start_with_auto_reconnect, "Test S
     TEST_ASSERT_TRUE_MESSAGE(all_passed3, "Failed to start WiFi again");
 
     // Wait for Started event
-    bool started = collector.wait_for_general_events(1, 2000);
+    bool started = collector.wait_for_general_events(1, 2000, WifiHelpler::GeneralEvent::Started);
     TEST_ASSERT_TRUE_MESSAGE(started, "Failed to start WiFi");
 
     // Wait for auto-reconnect (Connected event)
-    bool auto_connected = collector.wait_for_general_events(2, TEST_WIFI_CONNECT_DURATION_MS);
+    bool auto_connected = collector.wait_for_general_events(
+                              1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                          );
     TEST_ASSERT_TRUE_MESSAGE(auto_connected, "Failed to auto-reconnect");
 
     // Verify Connected event and verify connected to TEST_WIFI_SSID1
@@ -844,7 +809,9 @@ BROOKESIA_TEST_CASE(test_servicewifi_connect_to_non_existent_ssid_and_verify_aut
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to connect to TEST_WIFI_SSID1");
 
     // Wait for Connected event
-    bool connected1 = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool connected1 = collector.wait_for_general_events(
+                          1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                      );
     TEST_ASSERT_TRUE_MESSAGE(connected1, "Failed to connect to TEST_WIFI_SSID1");
 
     // Verify connected to TEST_WIFI_SSID1 (so it's saved as last connectable AP)
@@ -907,12 +874,16 @@ BROOKESIA_TEST_CASE(test_servicewifi_connect_to_non_existent_ssid_and_verify_aut
 
     // Wait for Disconnected event (connection will fail)
     // The system should automatically try to reconnect to TEST_WIFI_SSID1
-    bool disconnected = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool disconnected = collector.wait_for_general_events(
+                            1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Disconnected
+                        );
     TEST_ASSERT_TRUE_MESSAGE(disconnected, "Disconnected event not received");
 
     // Wait for auto-reconnect to TEST_WIFI_SSID1 (Connected event)
     // The system should automatically reconnect to the last connectable AP (TEST_WIFI_SSID1)
-    bool auto_connected = collector.wait_for_general_events(2, TEST_WIFI_CONNECT_DURATION_MS);
+    bool auto_connected = collector.wait_for_general_events(
+                              1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                          );
     TEST_ASSERT_TRUE_MESSAGE(auto_connected, "Failed to auto-reconnect to TEST_WIFI_SSID1");
 
     // Verify Connected event and verify connected to TEST_WIFI_SSID1
@@ -1038,7 +1009,9 @@ BROOKESIA_TEST_CASE(test_servicewifi_switch_connection_from_test_wifi_ssid1_to_t
     TEST_ASSERT_TRUE_MESSAGE(all_passed1, "Failed to connect to " TEST_WIFI_SSID1);
 
     // Wait for Connected event
-    bool connected1 = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool connected1 = collector.wait_for_general_events(
+                          1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                      );
     TEST_ASSERT_TRUE_MESSAGE(connected1, "Failed to connect to " TEST_WIFI_SSID1);
 
     // Switch to TEST_WIFI_SSID2 without disconnecting
@@ -1089,7 +1062,9 @@ BROOKESIA_TEST_CASE(test_servicewifi_switch_connection_from_test_wifi_ssid1_to_t
     TEST_ASSERT_TRUE_MESSAGE(all_passed2, "Failed to switch to " TEST_WIFI_SSID2);
 
     // Wait for Connected event (may have Disconnected first, then Connected)
-    bool connected2 = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool connected2 = collector.wait_for_general_events(
+                          1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                      );
     TEST_ASSERT_TRUE_MESSAGE(connected2, "Failed to connect to " TEST_WIFI_SSID2);
 
     // Verify connected to TEST_WIFI_SSID2
@@ -1402,7 +1377,9 @@ BROOKESIA_TEST_CASE(test_servicewifi_connect_a_invalid_ap, "Test ServiceWifi - c
     TEST_ASSERT_TRUE_MESSAGE(all_passed, "Failed to connect to TEST_WIFI_SSID1");
 
     // Wait for Connected event
-    bool connected = collector.wait_for_general_events(1, TEST_WIFI_CONNECT_DURATION_MS);
+    bool connected = collector.wait_for_general_events(
+                         1, TEST_WIFI_CONNECT_DURATION_MS, WifiHelpler::GeneralEvent::Connected
+                     );
     TEST_ASSERT_TRUE_MESSAGE(connected, "Failed to connect to TEST_WIFI_SSID1");
 
     // Verify Connected event

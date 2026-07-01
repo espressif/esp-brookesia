@@ -5,10 +5,14 @@ viewTemplate
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-view_template-sec-01:
+
 概览
 --------------------
 
 ``viewTemplate`` 是可复用的模板，运行时可由 ``create_view(...)`` 动态实例化，也可在 ``children[]`` 中通过 ``templateRef`` 静态实例化。
+
+.. _gui-interface-json_ui-assets-view_template-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ viewTemplate
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../view/index`
+
+.. _gui-interface-json_ui-assets-view_template-sec-03:
 
 字段
 --------------------
@@ -56,6 +62,8 @@ viewTemplate
            ]
        }
    }
+
+.. _gui-interface-json_ui-assets-view_template-sec-04:
 
 templateRef
 ----------------------

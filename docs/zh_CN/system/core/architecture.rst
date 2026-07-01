@@ -7,6 +7,8 @@
 
 本文说明 ``brookesia_system_core`` 的主要对象、启动流程和内部协作关系。
 
+.. _system-core-architecture-sec-01:
+
 入口对象
 --------------------
 
@@ -19,6 +21,8 @@
 - 运行时调用方 owner 查询：``get_current_runtime_app_owner()``。
 
 内部状态保存在 ``System::Impl`` 中，公共头文件只暴露稳定接口。``System::Impl`` 的内部记录和共享调度 helper 位于 ``src/private/system/impl.hpp``，具体行为按 ``system/``、``app/``、``service/``、``runtime/`` 目录分模块实现。
+
+.. _system-core-architecture-sec-02:
 
 主流程
 --------------------
@@ -39,6 +43,8 @@
 ``System::process_timers()`` 当前保留为兼容入口；timer 由 system 内部 scheduler 自动触发并派发到应用。
 
 如果 ``System::Config::enable_gui_live_preview`` 打开，core 会在 file-backed GUI document 加载后注册 live preview，并在 ``SystemGui`` task group 中启动周期 poll。poll 与 document reload 仍经过 GUI runtime gate 和 backend thread guard，``deinit()`` 或 document unload 时会取消对应轮询状态。
+
+.. _system-core-architecture-sec-03:
 
 Task 调度
 --------------------
@@ -65,6 +71,8 @@ Task 调度
 
 GUI action 不在 LVGL event callback 栈内直接执行应用逻辑。对于无 payload 的轻量 action，``gui::Runtime`` 使用 fast path 直接触发 action subscription，subscription 只负责投递到 ``SystemAppInput``；对于 ``ValueChanged`` 等需要同步 GUI runtime 状态的事件，backend event 仍先进入 ``SystemGuiInput``，再由 action subscription 投递到 ``SystemAppInput``。
 
+.. _system-core-architecture-sec-04:
+
 Impl 记录模型
 --------------------
 
@@ -81,6 +89,8 @@ Impl 记录模型
 - runtime 和 GUI 是否已加载的标记。
 
 core 通过 ``AppRecord`` 统一处理原生应用与运行时应用的差异。
+
+.. _system-core-architecture-sec-05:
 
 源码模块
 --------------------
@@ -123,6 +133,8 @@ core 通过 ``AppRecord`` 统一处理原生应用与运行时应用的差异。
    * - ``service/*.cpp``
      - ``SystemCore``、``SystemGui``、``SystemTimer`` schema、handler 和 service helper
 
+.. _system-core-architecture-sec-06:
+
 Public Include 模块
 --------------------
 
@@ -150,6 +162,8 @@ Public Include 模块
 
 仓库内实现文件优先 include 细粒度头；外部代码可继续 include 顶层兼容头。
 
+.. _system-core-architecture-sec-07:
+
 模块协作
 --------------------
 
@@ -170,6 +184,8 @@ Public Include 模块
      - 实现 system 内部 GUI、app、timer 调度
    * - ``IAppProvider`` registry
      - 提供编译期链接进工程的原生应用 provider
+
+.. _system-core-architecture-sec-08:
 
 扩展点
 --------------------

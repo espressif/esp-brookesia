@@ -7,6 +7,8 @@
 
 本文说明运行时应用包的结构、manifest 字段、资源 descriptor 和扫描安装规则。
 
+.. _system-core-app_package-sec-01:
+
 概述
 --------------------
 
@@ -16,6 +18,8 @@ App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runt
 - unpacked package：直接部署 ``manifest.json + app/ + res/``，由 ``System::init()`` 扫描安装。
 
 需要运行 ``.bpk`` 时，先调用 system_core package API（可选 ``verify_app_package_release()``，再 ``unpack_app_package_to()``）得到 ``AppManifest``，再用 ``make_runtime_app_config()`` 转成 ``runtime::AppConfig``。
+
+.. _system-core-app_package-sec-02:
 
 最小包结构
 --------------------
@@ -49,6 +53,8 @@ App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runt
        "arguments": []
      }
    }
+
+.. _system-core-app_package-sec-03:
 
 Manifest 字段
 --------------------
@@ -87,6 +93,8 @@ Manifest 字段
    * - ``arguments``
      - runtime 启动参数字符串数组
 
+.. _system-core-app_package-sec-04:
+
 资源 descriptor
 --------------------
 
@@ -104,12 +112,16 @@ Manifest 字段
 
 ``icon_id`` 用于在包内定位 launcher 图标；``root`` 指向标准 JSON UI document；``screen_flows[]`` 指定启动 flow。普通 app 主界面应使用 ``AppDefault``，``AppTop`` 只用于 app 自己的 header、浮层或工具栏；runtime app 只能使用 ``Replace``，``z_order`` 在 ``0..100`` 内。``root.json`` 是标准 JSON UI document，应引用一个 ``screenFlow`` asset。
 
+.. _system-core-app_package-sec-05:
+
 扫描与安装
 --------------------
 
 ``System::init()`` 在 ``install_package_apps = true`` 时扫描 storage layout 中 internal 和 external 的 ``apps`` 目录，按目录路径排序加载每个包含 ``manifest.json`` 的一级目录。如果多个 volume 下出现相同 manifest id，internal 和 preferred external 优先，后扫描的重复项会跳过并输出 warning。
 
 安装阶段会用 runtime root ``icon_id`` 在资源目录中查找匹配的 ``imageSet`` descriptor，找到后注册为 runtime-global image resource 并填充 ``AppManifest.icon_path``，供 launcher 显示图标。
+
+.. _system-core-app_package-sec-06:
 
 安全约束
 --------------------
@@ -118,6 +130,8 @@ Manifest 字段
 - ``package.systems`` 与当前 system type 不匹配时跳过该 package。
 - ``package.id``、``package.version``、``runtime.type``、``runtime.entry`` 缺失或类型错误会导致 manifest 解析失败。
 - runtime GUI 启动 flow 必须写入 ``profile.json`` 的 ``screen_flows[]``。
+
+.. _system-core-app_package-sec-07:
 
 打包工具
 --------------------

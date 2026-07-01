@@ -40,10 +40,11 @@ std::expected<void, std::string> AppStoreApp::start_remote_refresh(system::core:
         return {};
     }
 
+    stop_size_metadata_timer(context);
+    cancel_size_metadata_requests();
+    cancel_refresh_icon_update(context);
     refresh_in_progress_ = true;
     refresh_request_id_ = 0;
-    refresh_icon_request_id_ = 0;
-    refresh_icon_index_ = 0;
     status_text_ = tr("status.checking_network");
     ensure_message_dialog(
         context,
@@ -78,8 +79,7 @@ std::expected<void, std::string> AppStoreApp::start_remote_refresh_request(syste
     }
 
     refresh_request_id_ = 0;
-    refresh_icon_request_id_ = 0;
-    refresh_icon_index_ = 0;
+    reset_refresh_icon_state();
     status_text_ = tr("status.refreshing_app_list");
     ensure_message_dialog(
         context,
@@ -151,6 +151,9 @@ std::expected<void, std::string> AppStoreApp::parse_index_json(
         }
         entry.updated_at = get_string_field(object, "updated_at");
         entry.categories = get_string_array_field(object, "categories");
+        if (auto size = get_size_field(object, "size_download")) {
+            entry.download_size = *size;
+        }
         if (auto it = object.find("app_name"); it != object.end()) {
             entry.app_names = parse_localized_map(it->value());
         }

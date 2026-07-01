@@ -5,16 +5,22 @@ labelProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-label-sec-01:
+
 概览
 --------------------
 
 ``labelProps`` 适用于 ``label`` 和 ``checkbox``。``checkbox`` 的文案也通过 ``labelProps.text`` 表达，不额外引入 ``checkboxProps.text``。
+
+.. _gui-interface-json_ui-styling-props-label-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/label`
+
+.. _gui-interface-json_ui-styling-props-label-sec-03:
 
 字段表
 --------------------
@@ -32,6 +38,8 @@ labelProps
      - ``""``
      - ``labelProps.text``
      - 显示文本；可使用 ``${constant.*}`` 常量引用
+
+.. _gui-interface-json_ui-styling-props-label-sec-04:
 
 示例
 --------------------

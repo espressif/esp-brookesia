@@ -1,0 +1,11 @@
+{
+    "type": "imageSet",
+    "images": [
+        {
+            "id": "background",
+            "src": "background.png",
+            "width": 320,
+            "height": 240
+        }
+    ]
+}

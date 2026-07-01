@@ -5,16 +5,22 @@ Canvasprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-canvas-sec-01:
+
 Overview
 --------------------
 
 ``canvasProps`` applies to ``canvas``.
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-02:
 
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../../view/canvas`
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-03:
 
 Field Table
 ----------------------
@@ -32,6 +38,8 @@ Field Table
      - ``[]``
      - ``canvasProps.commands``
      - declarative drawing command list
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-04:
 
 Canvascommand Field Table
 --------------------------------------------------
@@ -68,6 +76,8 @@ Canvascommand Field Table
      - ``""``
      - command color
 
+.. _gui-interface-json_ui-styling-props-canvas-sec-05:
+
 Canvascommand Type
 ------------------------------------
 
@@ -87,6 +97,8 @@ Currently exposed command types:
      - ``x``, ``y``, ``color``
 
 ``width`` / ``height`` are currently accepted by the parser but not yet used during command execution. A ``type`` that is not listed is ignored.
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-06:
 
 Example
 --------------------

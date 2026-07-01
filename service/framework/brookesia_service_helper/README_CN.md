@@ -6,7 +6,7 @@
 
 `brookesia_service_helper` 是 Brookesia 服务函数与事件的类型化 helper 契约层。
 
-更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/helper/index.html)。
+更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/framework/helper/index.html)。
 
 ## 如何使用
 

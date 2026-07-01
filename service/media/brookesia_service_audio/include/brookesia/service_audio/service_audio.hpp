@@ -61,6 +61,10 @@ private:
         StartingItem,
         PlayingCurrentItem,
     };
+    struct PlaybackRequest {
+        std::vector<std::string> urls;
+        AudioPlayUrlConfig config;
+    };
 
     AudioPlayback()
         : ServiceBase({
@@ -97,6 +101,8 @@ private:
     std::expected<void, std::string> function_pause();
     std::expected<void, std::string> function_resume();
     std::expected<void, std::string> function_stop();
+    std::expected<void, std::string> submit_playback_request(PlaybackRequest request);
+    std::expected<void, std::string> submit_interrupt_playback_request(PlaybackRequest request);
     std::expected<void, std::string> function_set_volume(double volume);
     std::expected<double, std::string> function_get_volume();
     std::expected<void, std::string> function_set_mute(bool enable);
@@ -150,6 +156,8 @@ private:
     void start_playlist(
         std::vector<std::string> urls, const AudioPlayUrlConfig &config, bool allow_gap_idle_before_start
     );
+    void clear_pending_interrupt_playback();
+    void start_pending_interrupt_playback_after_idle();
     void play_playlist_url_at_index(size_t index);
     void advance_playlist();
 
@@ -176,12 +184,11 @@ private:
     bool control_data_loaded_ = false;
 
     AudioPlayState play_state_ = AudioPlayState::Idle;
-    struct PlaybackRequest {
-        std::vector<std::string> urls;
-        AudioPlayUrlConfig config;
-    };
     std::queue<PlaybackRequest> playback_queue_;
     bool is_processing_queue_ = false;
+    bool pause_requested_ = false;
+    bool stop_for_pending_interrupt_ = false;
+    std::optional<PlaybackRequest> pending_interrupt_request_;
 
     struct PlaylistState {
         std::vector<std::string> urls;

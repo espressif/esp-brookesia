@@ -9,5 +9,6 @@ namespace esp_brookesia::gui::lvgl {
 
 bool is_timer_managed_by_port();
 void set_timer_managed_by_port(bool managed);
+bool request_refresh_now();
 
 } // namespace esp_brookesia::gui::lvgl

@@ -21,7 +21,7 @@ Typical Uses
 ^^^^^^^^^^^^
 
 - **Lightweight features**: LEDs, PWM, GPIO toggles, simple sensors—wrapped as CustomService calls.
-- **Prototypes**: Expose logic as functions or events for local or RPC access.
+- **Prototypes**: Expose logic as functions or events for local access.
 - **Extensibility**: Add capabilities without changing the core service framework.
 
 .. _service-custom-sec-03:
@@ -32,7 +32,7 @@ Features
 - **Dynamic registration**: `register_function()` / `register_event()` at runtime.
 - **Fixed handler shape**: `FunctionParameterMap` in, `FunctionResult` out; lambdas, `std::function`, free functions, functors, `std::bind`.
 - **Events**: Full publish/subscribe lifecycle.
-- **ServiceManager**: Local calls and remote RPC.
+- **ServiceManager**: Local calls and event subscriptions.
 - **Optional worker**: Task scheduler for thread-safe execution.
 
 .. _service-custom-sec-04:

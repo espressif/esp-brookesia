@@ -74,17 +74,9 @@ INPUT = \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/common.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/definition.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/dispatcher.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/registry.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/definition.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/registry.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/client.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/connection.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_base.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_client.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_server.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/protocol.hpp \
-    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/rpc/server.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/base.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/local_runner.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager.hpp \

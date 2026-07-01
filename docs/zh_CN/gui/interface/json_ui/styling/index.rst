@@ -5,10 +5,14 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-index-sec-01:
+
 概览
 --------------------
 
 本分组负责一个 view 节点的布局与外观：``layout`` 决定如何排布直接子节点，``placement`` 决定自身如何被父节点摆放，``style`` 决定视觉样式，``props`` 决定各控件类型的字段级内容与状态。
+
+.. _gui-interface-json_ui-styling-index-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`../interaction/bindings`
+
+.. _gui-interface-json_ui-styling-index-sec-03:
 
 本组文档
 --------------------

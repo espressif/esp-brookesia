@@ -65,8 +65,16 @@ void EventCollector::on_general_event_happened(const service::EventItemMap &para
         TEST_ASSERT_NOT_NULL_MESSAGE(event_ptr, "Failed to get event");
 
         evt.event = *event_ptr;
+        auto unexpected_it = params.find(
+                                 BROOKESIA_DESCRIBE_TO_STR(WifiHelpler::EventGeneralEventHappenedParam::IsUnexpected)
+                             );
+        if (unexpected_it != params.end()) {
+            auto unexpected_ptr = std::get_if<bool>(&unexpected_it->second);
+            TEST_ASSERT_NOT_NULL_MESSAGE(unexpected_ptr, "Failed to get unexpected flag");
+            evt.is_unexpected = *unexpected_ptr;
+        }
         general_events.push_back(evt);
-        BROOKESIA_LOGI("General event happened: %s", evt.event.c_str());
+        BROOKESIA_LOGI("General event happened: %s, unexpected: %d", evt.event.c_str(), evt.is_unexpected);
         cv.notify_one();
     }
 }
@@ -156,6 +164,48 @@ bool EventCollector::wait_for_general_events(size_t count, uint32_t timeout_ms, 
         }
         return general_events.size() >= count;
     });
+}
+
+bool EventCollector::wait_for_general_action_sequence(
+    const std::vector<WifiHelpler::GeneralAction> &actions, uint32_t timeout_ms
+)
+{
+    auto sequence_received = [this, &actions]() {
+        size_t expected_index = 0;
+        for (const auto &evt : general_actions) {
+            if (expected_index >= actions.size()) {
+                return true;
+            }
+            if (evt.action == BROOKESIA_DESCRIBE_TO_STR(actions[expected_index])) {
+                expected_index++;
+            }
+        }
+        return expected_index >= actions.size();
+    };
+
+    std::unique_lock<std::mutex> lock(mutex);
+    return cv.wait_for(lock, std::chrono::milliseconds(timeout_ms), sequence_received);
+}
+
+bool EventCollector::wait_for_general_event_sequence(
+    const std::vector<WifiHelpler::GeneralEvent> &events, uint32_t timeout_ms
+)
+{
+    auto sequence_received = [this, &events]() {
+        size_t expected_index = 0;
+        for (const auto &evt : general_events) {
+            if (expected_index >= events.size()) {
+                return true;
+            }
+            if (evt.event == BROOKESIA_DESCRIBE_TO_STR(events[expected_index])) {
+                expected_index++;
+            }
+        }
+        return expected_index >= events.size();
+    };
+
+    std::unique_lock<std::mutex> lock(mutex);
+    return cv.wait_for(lock, std::chrono::milliseconds(timeout_ms), sequence_received);
 }
 
 bool EventCollector::wait_for_scan_ap_infos_updated(size_t count, uint32_t timeout_ms)

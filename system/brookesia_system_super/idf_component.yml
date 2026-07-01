@@ -8,15 +8,18 @@ dependencies:
     version: "0.8.*"
     override_path: ../brookesia_system_core
     require: public
-  espressif/brookesia_gui_lvgl:
-    version: "0.8.*"
-    override_path: ../../gui/brookesia_gui_lvgl
-    require: private
+
   espressif/brookesia_service_display:
     version: "0.8.*"
     override_path: ../../service/media/brookesia_service_display
     require: private
+
   espressif/brookesia_service_wifi:
     version: "0.8.*"
     override_path: ../../service/network/brookesia_service_wifi
+    require: private
+
+  espressif/brookesia_service_sntp:
+    version: "0.8.*"
+    override_path: ../../service/network/brookesia_service_sntp
     require: private

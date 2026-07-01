@@ -5,10 +5,14 @@ imageProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-image-sec-01:
+
 概览
 --------------------
 
 ``imageProps`` 适用于 ``image``。
+
+.. _gui-interface-json_ui-styling-props-image-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ imageProps
 - :doc:`index`
 - :doc:`../../view/image`
 - :doc:`../../assets/image`
+
+.. _gui-interface-json_ui-styling-props-image-sec-03:
 
 字段表
 --------------------
@@ -79,6 +85,8 @@ imageProps
      - ``imageProps.pivotY``
      - 图片本地旋转/缩放 pivot 的 Y 坐标；作用于所有节点的 pivot 优先使用 ``commonProps.pivotY``
 
+.. _gui-interface-json_ui-styling-props-image-sec-04:
+
 示例
 --------------------
 
@@ -102,6 +110,8 @@ imageProps
 ``recolorOpacity`` 当前值，便于后续动态恢复；若该节点还有 theme/style 层重着色，空字符串会清除局部覆盖并回退到 style 层效果。
 
 ``imageProps.angle`` / ``zoom`` / ``pivotX`` / ``pivotY`` 只作用于当前 image 节点。对于需要作用在所有节点上的 transform，使用 ``commonProps.angle`` / ``zoom`` / ``pivotX`` / ``pivotY``。
+
+.. _gui-interface-json_ui-styling-props-image-sec-05:
 
 innerAlign
 --------------------

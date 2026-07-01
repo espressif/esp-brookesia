@@ -65,4 +65,9 @@ void set_timer_managed_by_port(bool managed)
     get_timer_managed().store(managed);
 }
 
+bool request_refresh_now()
+{
+    return false;
+}
+
 } // namespace esp_brookesia::gui::lvgl

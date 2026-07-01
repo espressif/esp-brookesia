@@ -7,6 +7,8 @@
 
 system core 当前注册三个基础 service：``SystemCore``、``SystemGui``、``SystemTimer``。运行时应用通过 system core 私有的 ``SystemHostBridge`` 调用这些 service，service 侧会根据当前 runtime caller 判定 owner app，从而把 GUI 和 timer 操作限制在调用方 app 内。
 
+.. _system-core-services-sec-01:
+
 服务名
 --------------------
 
@@ -22,10 +24,14 @@ system core 当前注册三个基础 service：``SystemCore``、``SystemGui``、
    * - ``BROOKESIA_SYSTEM_CORE_TIMER_SERVICE_NAME``
      - ``SystemTimer``
 
+.. _system-core-services-sec-02:
+
 权限边界
 --------------------
 
 运行时应用可以查询系统信息、只能操作自己的 GUI document、只能管理自己的 timer，且不能通过 service 启动或停止其他 app。原生应用通过 ``AppContext`` 直接调用 ``SystemApi``、``AppGuiRuntime``、``AppTimerRuntime``，当前被视为系统内置可信 app。
+
+.. _system-core-services-sec-03:
 
 Core 服务
 --------------------
@@ -59,6 +65,8 @@ Core 服务
 运行时应用可调用 ``ShowKeyboard`` 请求系统键盘，``Options`` 支持 ``title``、``placeholder``、``initial_text``、``max_length``、``password``、``mode``（``text`` / ``upper`` / ``number`` / ``special``）和 ``allowedModes``。如果 ``mode`` 不在 ``allowedModes`` 中，Shell 自动使用 ``allowedModes`` 的第一项；未设置时默认允许全部四种布局。用户确认或取消后通过 ``KeyboardClosed`` event 返回 ``RequestId``、``AppId``、``Confirmed`` 和 ``Text``。
 
 ``GetEnvironment`` 返回 ``width_px``、``height_px``、``density``、``font_scale``、``language``、``theme_id``。``GetActiveApp`` 和 ``ListApps`` 基于 ``AppInfo``，包含 ``app_id``、``manifest``、``state``、``last_error``。
+
+.. _system-core-services-sec-04:
 
 GUI 服务
 --------------------
@@ -140,6 +148,8 @@ v1 支持 ``SetBindings``、``SetViewSrc``、``StopAnimation``、``StartViewAnim
 
 ``SubscribeAction(action)`` 订阅当前 app document 中的 GUI action，触发后原生应用进入 ``IApp::on_action()``，运行时应用进入 ``brookesia_app.on_action()``。action 不在 LVGL callback 栈中直接执行：事件先进入 ``SystemGuiInput``，再投递到 ``SystemAppInput``，与普通 timer 回调共享 app callback gate。
 
+.. _system-core-services-sec-05:
+
 Timer 服务
 --------------------
 
@@ -164,6 +174,8 @@ Timer 服务
 ``IntervalMs`` / ``DelayMs`` 必须大于 ``0``。timer 触发后运行时应用会收到 ``brookesia_app.on_timer(timer_id, name)``；app 不在 ``Running`` 状态时 pending timer 不会派发。同一个 periodic timer 已在 pending 队列时，core 会合并后续 tick，避免脚本或 GUI 刷新慢于 timer 周期时无限积压；delayed timer 不做合并。
 
 原生应用通过 ``AppContext::timer()`` 使用 ``AppTimerRuntime`` 的 ``start_periodic()``、``start_delayed()``、``stop()``。core 会在 ``stop_app()``、``uninstall_app()`` 和 ``deinit()`` 时自动取消 app timer，并从 pending 队列中移除未派发事件。
+
+.. _system-core-services-sec-06:
 
 相关文档
 --------------------

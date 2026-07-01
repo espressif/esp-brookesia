@@ -7,12 +7,16 @@ System Core
 
 ``brookesia_system_core`` 提供 ESP-Brookesia 产品系统所需的通用核心能力，统一编排原生应用、运行时应用、应用自有 GUI 文档、存储、定时器、服务访问和权限边界。
 
+.. _system-core-index-sec-01:
+
 概述
 --------------------
 
 System Core 是 Brookesia 系统框架的编排层，把 GUI Runtime、Runtime Manager、Service Manager 和 TaskScheduler 串联起来，对外提供稳定的应用接入模型。
 
 它统一处理两类应用：原生应用通过 C++ 继承 ``IApp`` 接入，运行时应用通过解包后的 package 与脚本约定函数接入。两类应用都只操作自身的 GUI 文档，不直接接触 ``DocumentId``、图层或挂载目标。
+
+.. _system-core-index-sec-02:
 
 核心能力
 --------------------
@@ -24,10 +28,14 @@ System Core 是 Brookesia 系统框架的编排层，把 GUI Runtime、Runtime M
 - 原生应用 GUI image/font 资源的自动注册与反注册。
 - 基于 ``AppKind`` 的基础权限分层。
 
+.. _system-core-index-sec-03:
+
 主线模型
 --------------------
 
 普通应用不直接接触 ``gui::DocumentId``、图层或挂载目标，只操作自身 GUI 文档，普通 screen 固定挂载到 ``AppDefault``。派生 ``System`` 和系统内置原生应用可通过 system-only API 使用更完整的系统能力，例如管理 shell、状态栏和 overlay。
+
+.. _system-core-index-sec-04:
 
 文档导航
 --------------------

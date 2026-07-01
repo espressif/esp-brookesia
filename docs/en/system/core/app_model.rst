@@ -7,6 +7,8 @@ App Model
 
 This page describes the base app types in System Core, the native and runtime integration paths, and the full lifecycle state transitions.
 
+.. _system-core-app_model-sec-01:
+
 Base Types
 --------------------
 
@@ -31,6 +33,8 @@ Base Types
      - GUI root, startup screen flows, and GUI resources
    * - ``AppInfo``
      - ``AppId``, ``AppManifest``, state, and last error
+
+.. _system-core-app_model-sec-02:
 
 App Manifest
 --------------------
@@ -69,6 +73,8 @@ App Manifest
    * - ``arguments``
      - Runtime startup arguments
 
+.. _system-core-app_model-sec-03:
+
 Native App Versus Runtime App
 -----------------------------
 
@@ -100,6 +106,8 @@ Native App Versus Runtime App
      - Currently treated as a trusted built-in app
      - Regular app, can only operate its own resources
 
+.. _system-core-app_model-sec-04:
+
 App Lifecycle
 --------------------
 
@@ -129,6 +137,8 @@ The ``stop_app()`` order:
 ``uninstall_app()`` first stops a ``Running`` or ``Paused`` app, then calls ``on_uninstall()`` or ``brookesia_app.on_uninstall()``, cancels timers, unloads the runtime, unloads the GUI document, unregisters GUI resources, and removes it from the app table and manifest id index.
 
 ``pause_app()`` calls ``on_pause()`` and the state becomes ``Paused``; ``resume_app()`` calls ``on_resume()`` and the state becomes ``Running`` again and updates the active app. The current implementation does not auto-unmount the GUI or stop timers on pause; an app should handle special needs in its callbacks.
+
+.. _system-core-app_model-sec-05:
 
 Native App Integration
 ----------------------
@@ -166,6 +176,8 @@ A native app integrates by subclassing ``core::IApp`` in C++, usually including 
    BROOKESIA_SYSTEM_CORE_APP_PROVIDER_REGISTER_WITH_SYMBOL(ProviderType, name, symbol_name)
 
 ``System::install_registered_apps()`` iterates the ``AppProviderRegistry`` and installs the apps the providers supply.
+
+.. _system-core-app_model-sec-06:
 
 Runtime App Integration
 -----------------------
@@ -218,6 +230,8 @@ The core scans the first-level directories that contain ``manifest.json`` under 
 - ``brookesia_app.on_timer(timer_id, name)``
 
 A missing function is treated as a no-op; a function that returns ``false`` or throws fails the corresponding lifecycle step, and the app may enter ``Error``. The runtime app GUI document comes from the ``root`` of ``<runtime.resource_dir>/profile.json``, and the startup flow is written in ``screen_flows[]``; see :doc:`app_package`.
+
+.. _system-core-app_model-sec-07:
 
 Related Documents
 --------------------

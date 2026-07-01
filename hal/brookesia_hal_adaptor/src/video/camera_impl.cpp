@@ -116,6 +116,11 @@ std::vector<VideoCameraImpl::DeviceInfo> VideoCameraImpl::discover_device_infos(
     std::vector<DeviceInfo> devices;
 
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_CAMERA)) {
+        BROOKESIA_LOGW("Camera device not found, skip discovery");
+        return devices;
+    }
+
     auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_CAMERA);
     if (ret != ESP_OK) {
         BROOKESIA_LOGW("Failed to initialize camera device: %1%", esp_err_to_name(ret));

@@ -31,21 +31,24 @@ bool GeneralServices::init(std::shared_ptr<esp_brookesia::lib_utils::TaskSchedul
     }
 
     BROOKESIA_LOGI("Initializing service manager...");
+    task_scheduler_ = task_scheduler;
 
     auto &service_manager = service::ServiceManager::get_instance();
     BROOKESIA_CHECK_FALSE_RETURN(service_manager.init(), false, "Failed to initialize service manager");
+    BROOKESIA_CHECK_FALSE_RETURN(init_audio(), false, "Failed to initialize audio");
     BROOKESIA_CHECK_FALSE_RETURN(service_manager.start(), false, "Failed to start service manager");
-
-    task_scheduler_ = task_scheduler;
 
     BROOKESIA_LOGI("Service manager started successfully");
 
     return true;
 }
 
-void GeneralServices::init_audio()
+bool GeneralServices::init_audio()
 {
-    BROOKESIA_CHECK_FALSE_EXIT(is_initialized(), "General services is not initialized");
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "General services is not initialized");
+    if (audio_initialized_) {
+        return true;
+    }
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_AUDIO_PROCESSOR_IMPL
     hal::AudioProcessorConfig processor_config {
@@ -73,8 +76,9 @@ void GeneralServices::init_audio()
             },
         },
     };
-    BROOKESIA_CHECK_FALSE_EXIT(
+    BROOKESIA_CHECK_FALSE_RETURN(
         hal::AudioDevice::get_instance().set_processor_config(std::move(processor_config)),
+        false,
         "Failed to configure audio processor"
     );
     BROOKESIA_LOGI(
@@ -87,12 +91,26 @@ void GeneralServices::init_audio()
     );
 #endif
 
+    audio_initialized_ = true;
+    return true;
+}
+
+bool GeneralServices::start_audio_services()
+{
+    BROOKESIA_CHECK_FALSE_RETURN(is_initialized(), false, "General services is not initialized");
+    if (audio_services_started_) {
+        return true;
+    }
+
     if (AudioPlaybackHelper::is_available()) {
         auto &service_manager = service::ServiceManager::get_instance();
         auto playback_binding = service_manager.bind(AudioPlaybackHelper::get_name().data());
-        BROOKESIA_CHECK_FALSE_EXIT(playback_binding.is_valid(), "Failed to bind audio playback service");
+        BROOKESIA_CHECK_FALSE_RETURN(playback_binding.is_valid(), false, "Failed to bind audio playback service");
         service_bindings_.push_back(std::move(playback_binding));
     }
+
+    audio_services_started_ = true;
+    return true;
 }
 
 void GeneralServices::start_device()

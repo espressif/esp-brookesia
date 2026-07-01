@@ -7,6 +7,8 @@ Examples
 
 This page provides minimal integration skeletons for a native app and a runtime app.
 
+.. _system-core-examples-sec-01:
+
 Minimal Native App
 --------------------
 
@@ -45,6 +47,8 @@ A native app subclasses ``core::IApp``, provides metadata in ``get_manifest()``,
    };
 
 ``on_stop()`` can usually be omitted: the core auto-cancels timers, stops action subscriptions, stops startup flows, unloads the GUI document, and unregisters GUI resources when the app stops.
+
+.. _system-core-examples-sec-02:
 
 Minimal Runtime App
 --------------------

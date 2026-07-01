@@ -66,7 +66,7 @@
                             "commonProps.hidden": "hidden"
                         },
                         "imageProps": {
-                            "src": "${image.default}",
+                            "src": "",
                             "innerAlign": "contain"
                         },
                         "placement": {

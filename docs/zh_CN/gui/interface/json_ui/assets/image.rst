@@ -5,6 +5,8 @@ imageSet
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-image-sec-01:
+
 概览
 --------------------
 
@@ -13,12 +15,16 @@ imageSet
 
 图片资源统一组织为 ``imageSet.images[]``，即使只有一张图片。
 
+.. _gui-interface-json_ui-assets-image-sec-02:
+
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-image-sec-03:
 
 字段表
 --------------------
@@ -64,6 +70,8 @@ imageSet
 
 ``images[]`` entry 不包含 ``type``。同一个 ``imageSet`` 内不能出现重复 id。
 
+.. _gui-interface-json_ui-assets-image-sec-04:
+
 Runtime API
 ----------------------
 
@@ -77,12 +85,16 @@ Runtime API
 
 Document image 资源优先级高于 Runtime 全局 image；Runtime 全局 image 用于补充 document 未声明的图片 id。
 
+.. _gui-interface-json_ui-assets-image-sec-05:
+
 源文件格式（backend 相关）
 ----------------------------------
 
 ``src`` / ``RuntimeImageResource.primary_src`` 的具体文件格式由当前 backend 决定。``gui_interface`` 只保存图片 id、路径和尺寸，并在 document load 阶段调用 backend 的资源补全与预加载 hook。
 
 若某个 backend 支持从专有图片格式中读取尺寸，``register_image(...)`` 可以在 ``width`` / ``height`` 缺失时通过 backend hook 补全。若无法补全，``width`` / ``height`` 必须显式为正数。
+
+.. _gui-interface-json_ui-assets-image-sec-06:
 
 示例
 --------------------

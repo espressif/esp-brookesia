@@ -5,16 +5,22 @@ Frameviewprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-frame_view-sec-01:
+
 Overview
 --------------------
 
 ``frameViewProps`` applies to ``frameView`` and configures how the off-screen frame buffer is registered as an output and its pixel format.
+
+.. _gui-interface-json_ui-styling-props-frame_view-sec-02:
 
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../../view/frame_view`
+
+.. _gui-interface-json_ui-styling-props-frame_view-sec-03:
 
 Field Table
 ----------------------
@@ -42,6 +48,8 @@ Field Table
      - ``"RGB565"``
      - no
      - frame buffer pixel format
+
+.. _gui-interface-json_ui-styling-props-frame_view-sec-04:
 
 Example
 --------------------

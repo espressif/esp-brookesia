@@ -7,6 +7,8 @@ Configuration
 
 This page collects the macros, Kconfig options, and resource paths used by the current ``brookesia_system_super`` implementation. Super resources live in the ``system/super`` directory of the System Core internal storage and do not define a separate resource root.
 
+.. _system-super-configuration-sec-01:
+
 Kconfig
 --------------------
 
@@ -42,6 +44,8 @@ ESP platform configuration lives in ``system/brookesia_system_super/Kconfig``.
    * - ``BROOKESIA_SYSTEM_SUPER_APP_LAUNCH_POST_COMPLETE_HOLD_MS``
      - ``0``
      - Extra hold time after the Shell app launch animation completion callback
+
+.. _system-super-configuration-sec-02:
 
 Host Platform Config
 --------------------
@@ -79,10 +83,14 @@ PC platform configuration lives in ``system/brookesia_system_super/cmake/pc_plat
      - ``0``
      - Extra hold time after the PC launch animation completes
 
+.. _system-super-configuration-sec-03:
+
 GUI Backend
 --------------------
 
 The Super runtime only accesses the GUI backend through the ``brookesia_system_core`` and ``gui_interface`` abstractions. The caller must pass a backend instance in ``core_config.gui_backend``. Build-time image packing uses ``brookesia_gui_lvgl_pack_images()`` to convert the images under ``assets/shell/images`` into LVGL ``.bin + imageSet index.json``; this capability only generates staged resources and does not depend on a specific backend in C++ runtime code.
+
+.. _system-super-configuration-sec-04:
 
 Macro Configs
 --------------------
@@ -122,6 +130,8 @@ The public macros live in ``include/brookesia/system_super/macro_configs.h``.
    * - ``BROOKESIA_SYSTEM_SUPER_APP_LAUNCH_POST_COMPLETE_HOLD_MS``
      - Kconfig/PC config
      - Extra hold time after the launch animation completion callback
+
+.. _system-super-configuration-sec-05:
 
 Resource Paths
 --------------------

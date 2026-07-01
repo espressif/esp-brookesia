@@ -11,6 +11,7 @@
 #include "private/shell_app.hpp"
 #include "private/system_constants.hpp"
 #include "brookesia/service_display.hpp"
+#include "brookesia/service_helper/network/sntp.hpp"
 #include "brookesia/service_wifi.hpp"
 
 #include <algorithm>
@@ -29,9 +30,8 @@ namespace esp_brookesia::system::super {
 namespace {
 
 inline constexpr const char *SUPER_GUI_DISPLAY_SOURCE_ROLE = "gui";
-inline constexpr const char *SNTP_SERVICE_NAME = "SNTP";
-inline constexpr const char *SNTP_TIMEZONE_CHANGED_EVENT_NAME = "TimezoneChanged";
 using DisplayHelper = service::helper::Display;
+using SNTPHelper = service::helper::SNTP;
 using WifiHelper = service::helper::Wifi;
 
 struct WifiStatusState {
@@ -459,7 +459,7 @@ void ShellApp::unmount_overlay()
 {
     disconnect_overlay_actions();
     disconnect_display_gesture();
-    disconnect_sntp_events();
+    release_sntp_service_binding();
     release_wifi_service_binding();
     cancel_gesture_exit_hold_timer();
     cancel_status_peek_auto_hide_timer();
@@ -686,13 +686,34 @@ void ShellApp::set_status_wifi_state(bool visible, bool connected)
     }
 }
 
+bool ShellApp::ensure_sntp_service_binding()
+{
+    if (sntp_service_binding_.is_valid()) {
+        return true;
+    }
+    if (!SNTPHelper::is_available()) {
+        BROOKESIA_LOGD("SNTP service is not available for Shell status clock updates");
+        return false;
+    }
+
+    sntp_service_binding_ = service::ServiceManager::get_instance().bind(SNTPHelper::get_name().data());
+    if (!sntp_service_binding_.is_valid()) {
+        BROOKESIA_LOGW("Failed to bind SNTP service for Shell status clock updates");
+        return false;
+    }
+    return true;
+}
+
+void ShellApp::release_sntp_service_binding()
+{
+    disconnect_sntp_events();
+    sntp_service_binding_.release();
+}
+
 void ShellApp::subscribe_sntp_events()
 {
     disconnect_sntp_events();
-
-    auto sntp_service = service::ServiceManager::get_instance().get_service(SNTP_SERVICE_NAME);
-    if (!sntp_service) {
-        BROOKESIA_LOGD("SNTP service is not available for Shell status clock updates");
+    if (!ensure_sntp_service_binding()) {
         return;
     }
 
@@ -702,8 +723,8 @@ void ShellApp::subscribe_sntp_events()
         stop_status_clock_timer();
         schedule_status_clock_timer();
     };
-    sntp_event_connection_ = sntp_service->subscribe_event(
-                                 SNTP_TIMEZONE_CHANGED_EVENT_NAME,
+    sntp_event_connection_ = SNTPHelper::subscribe_event(
+                                 SNTPHelper::EventId::TimezoneChanged,
                                  timezone_callback
                              );
     if (!sntp_event_connection_.connected()) {
@@ -1360,13 +1381,18 @@ void ShellApp::trigger_gesture_exit()
 
 std::expected<void, std::string> ShellApp::set_foreground_app(const std::optional<core::AppInfo> &app)
 {
-    if (!foreground_is_shell_) {
-        reset_status_peek_session(true, true, "foreground app change");
-    }
+    const bool next_foreground_is_shell = !app.has_value() || (app->app_id == owner_.shell_app_id_);
     const bool should_reset_gesture = gesture_tracking_ || gesture_exit_armed_ || gesture_exit_triggered_ ||
                                       gesture_exit_hold_timer_id_ != core::INVALID_TIMER_ID ||
                                       gesture_indicator_animation_id_ != 0 ||
                                       gesture_indicator_x_animation_id_ != 0;
+    if (next_foreground_is_shell && foreground_is_shell_ && system_ui_expanded_ && !should_reset_gesture) {
+        return {};
+    }
+
+    if (!foreground_is_shell_) {
+        reset_status_peek_session(true, true, "foreground app change");
+    }
     if (should_reset_gesture) {
         BROOKESIA_LOGI(
             "Reset Shell bottom gesture: reason(foreground app change), tracking(%1%), armed(%2%), triggered(%3%)",
@@ -1376,7 +1402,7 @@ std::expected<void, std::string> ShellApp::set_foreground_app(const std::optiona
         );
         reset_gesture_indicator();
     }
-    foreground_is_shell_ = !app.has_value() || (app->app_id == owner_.shell_app_id_);
+    foreground_is_shell_ = next_foreground_is_shell;
     if (foreground_is_shell_) {
         clear_display_source_restore_records();
     }

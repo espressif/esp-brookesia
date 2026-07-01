@@ -5,16 +5,22 @@ textInputProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-text_input-sec-01:
+
 概览
 --------------------
 
 ``textInputProps`` 适用于 ``textInput``。
+
+.. _gui-interface-json_ui-styling-props-text_input-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/text_input`
+
+.. _gui-interface-json_ui-styling-props-text_input-sec-03:
 
 字段表
 --------------------
@@ -52,6 +58,8 @@ textInputProps
      - ``0``
      - ``textInputProps.maxLength``
      - 最大输入长度；``0`` 表示不额外限制
+
+.. _gui-interface-json_ui-styling-props-text_input-sec-04:
 
 示例
 --------------------

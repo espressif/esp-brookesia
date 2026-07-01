@@ -5,6 +5,8 @@ Root
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-document-root-sec-01:
+
 Overview
 --------------------
 
@@ -19,6 +21,8 @@ This page covers the entry structure of the document loading layer:
 This page does not cover asset field details, nor view/layout/style/props. See those separately in
 :doc:`../assets/index`, :doc:`../view/index`, :doc:`../styling/layout`, :doc:`../styling/placement`.
 
+.. _gui-interface-json_ui-document-root-sec-02:
+
 Related Documents
 ----------------------------------
 
@@ -26,6 +30,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../assets/index`
 - :doc:`../styling/placement`
+
+.. _gui-interface-json_ui-document-root-sec-03:
 
 Root Document Top-Level Structure
 --------------------------------------------------------
@@ -73,6 +79,8 @@ Example:
        ]
    }
 
+.. _gui-interface-json_ui-document-root-sec-04:
+
 Top-Level Field Table
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -100,8 +108,12 @@ Top-Level Field Table
      - No
      - Condition-matched resource overlay list
 
+.. _gui-interface-json_ui-document-root-sec-05:
+
 Top-Level Field Description
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _gui-interface-json_ui-document-root-sec-06:
 
 Version
 ~~~~~~~~~~~~~~~~~~~~
@@ -109,6 +121,8 @@ Version
 - type: ``string``
 - Required: No
 - Current value: ``"0.1.0"``
+
+.. _gui-interface-json_ui-document-root-sec-07:
 
 Assets
 ~~~~~~~~~~~~~~~~~~~~
@@ -128,6 +142,8 @@ Notes:
 - May mix ``constant`` / ``styleSet`` / ``imageSet`` / ``viewScreen`` / ``viewTemplate`` / ``interactionTemplate`` / ``screenFlow`` assets
 - When mixed, the array's original order applies strictly; ``constants`` / ``nodes`` / ``screenFlow`` are no longer root-level fields, put them in ``assets``
 
+.. _gui-interface-json_ui-document-root-sec-08:
+
 Variants
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -140,6 +156,8 @@ Notes:
 - ``variants`` may be omitted or empty
 - When empty, only the top-level ``assets`` are loaded
 - All matched variants are overlaid; matching does not stop at the first hit
+
+.. _gui-interface-json_ui-document-root-sec-09:
 
 Variants[]
 --------------------
@@ -179,6 +197,8 @@ Field table:
      - No
      - Resources to overlay when the variant matches
 
+.. _gui-interface-json_ui-document-root-sec-10:
+
 Assets Entry Forms
 ----------------------------------------------
 
@@ -217,8 +237,12 @@ Rules:
 - For relative paths inside ``imageSet`` / ``viewScreen`` / ``viewTemplate`` / ``interactionTemplate`` embedded objects:
   - they resolve relative to the current ``root.json`` directory
 
+.. _gui-interface-json_ui-document-root-sec-11:
+
 When Expression
 ----------------------------
+
+.. _gui-interface-json_ui-document-root-sec-12:
 
 Supported Environment References
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -230,6 +254,8 @@ Supported Environment References
 - ``${env.language}``
 - ``${env.theme}``
 
+.. _gui-interface-json_ui-document-root-sec-13:
+
 Supported Operators
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -239,6 +265,8 @@ Supported Operators
 - Arithmetic: ``+``, ``-``, ``*``, ``/``
 - String literal: ``"zh"``
 - Numeric unit: ``dp``
+
+.. _gui-interface-json_ui-document-root-sec-14:
 
 Example
 ^^^^^^^^^^^^^^^^^^^^
@@ -250,6 +278,8 @@ Example
    { "when": "${expr(${env.widthDp} < 600dp)}" }
    { "when": "${expr(${env.widthDp} >= 600dp && ${env.heightDp} >= 360dp)}" }
    { "when": "${expr((${env.widthDp} >= 600dp && ${env.heightDp} >= 400dp) || ${env.widthPx} >= 1280)}" }
+
+.. _gui-interface-json_ui-document-root-sec-15:
 
 Runtime Environment
 ------------------------------------------------------------
@@ -295,6 +325,8 @@ so constants, images, and screen resources follow the variant update; non-file-b
 For theme resources and theme switching, see :doc:`../runtime`.
 
 The view debug frame is not part of ``Environment`` but a Runtime-level debugging capability; see :doc:`../runtime`.
+
+.. _gui-interface-json_ui-document-root-sec-16:
 
 Unit and Font-Size Conversion
 ----------------------------------------------------------

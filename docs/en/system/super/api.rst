@@ -7,6 +7,8 @@ API Reference
 
 This page collects the API reference generated from the System Super public headers.
 
+.. _system-super-api-sec-01:
+
 System
 --------------------
 

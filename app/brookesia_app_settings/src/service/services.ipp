@@ -196,10 +196,16 @@ bool SettingsApp::load_wifi_enabled_preference()
         return false;
     }
 
+    auto kv_name = make_settings_kv_name(SETTINGS_STORAGE_NAMESPACE, WIFI_ENABLED_STORAGE_KEY);
+    if (!kv_name) {
+        BROOKESIA_LOGW("Failed to resolve Settings Wi-Fi switch preference key: %1%", kv_name.error());
+        return false;
+    }
+
     auto result = StorageHelper::get_key_value<bool>(
-                      SETTINGS_STORAGE_NAMESPACE,
-                      WIFI_ENABLED_STORAGE_KEY,
-                      WIFI_SERVICE_TIMEOUT_MS
+                      kv_name->nspace,
+                      kv_name->key,
+                      SETTINGS_STORAGE_TIMEOUT_MS
                   );
     if (!result) {
         BROOKESIA_LOGD(
@@ -221,9 +227,14 @@ std::expected<void, std::string> SettingsApp::submit_wifi_enabled_preference_sav
         return std::unexpected("Storage service is unavailable");
     }
 
+    auto kv_name = make_settings_kv_name(SETTINGS_STORAGE_NAMESPACE, WIFI_ENABLED_STORAGE_KEY);
+    if (!kv_name) {
+        return std::unexpected("Failed to resolve Settings Wi-Fi switch preference key: " + kv_name.error());
+    }
+
     if (!StorageHelper::save_key_value_async(
-                SETTINGS_STORAGE_NAMESPACE,
-                WIFI_ENABLED_STORAGE_KEY,
+                kv_name->nspace,
+                kv_name->key,
                 enabled,
                 std::move(handler)
             )) {

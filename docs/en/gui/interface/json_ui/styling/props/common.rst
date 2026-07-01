@@ -5,6 +5,8 @@ Commonprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-common-sec-01:
+
 Overview
 --------------------
 
@@ -13,12 +15,16 @@ Overview
 A node's outer-frame size is not part of ``commonProps``. Size/box constraints such as ``width``, ``height``, ``aspectRatio`` all live in
 :doc:`placement <../placement>`; ``commonProps.zoom`` / ``pivotX`` / ``pivotY`` only handle the transform applied after layout.
 
+.. _gui-interface-json_ui-styling-props-common-sec-02:
+
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../../view/index`
 - :doc:`../placement`
+
+.. _gui-interface-json_ui-styling-props-common-sec-03:
 
 Field Table
 ----------------------
@@ -77,6 +83,8 @@ Field Table
      - ``commonProps.pivotY``
      - Y coordinate of the general rotation/scale pivot; e.g. ``"50%"`` is half the node height
 
+.. _gui-interface-json_ui-styling-props-common-sec-04:
+
 Baseline Default Value
 --------------------------------------------
 
@@ -89,6 +97,8 @@ The default of ``scrollable`` also comes from the built-in baseline:
 
 - ``screen``, ``container`` default to ``true``
 - other regular nodes such as ``label``, ``button``, ``image`` default to ``false``
+
+.. _gui-interface-json_ui-styling-props-common-sec-05:
 
 Example
 --------------------

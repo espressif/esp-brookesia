@@ -5,12 +5,16 @@ Placement
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-placement-sec-01:
+
 Overview
 --------------------
 
 This page explains the semantics of the ``placement`` fields. Public JSON uses ``camelCase``.
 
 This page covers only ``placement``. For how the current node lays out its children, see :doc:`layout`.
+
+.. _gui-interface-json_ui-styling-placement-sec-02:
 
 Related Documents
 ----------------------------------
@@ -20,6 +24,8 @@ Related Documents
 - :doc:`layout`
 - :doc:`props/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-styling-placement-sec-03:
 
 Mental Model
 ------------------------
@@ -32,6 +38,8 @@ Mental Model
 - cell info when placed into a parent grid
 
 ``placement`` does not control how the current node lays out its children. Child layout lives entirely in ``layout``, see :doc:`layout`.
+
+.. _gui-interface-json_ui-styling-placement-sec-04:
 
 Dimension
 --------------------
@@ -78,6 +86,8 @@ A ``dp`` string supports only the ``dp`` suffix; a percentage string supports on
 The result of ``${expr(...)}`` must fit the type the field originally accepts: ``x/y`` is usually an integer, ``"Ndp"``, or ``"N%"``,
 and ``width/height`` is usually a dimension. For expression syntax, ``${env.*}`` fields, and unit rules, see
 :doc:`../assets/constant`.
+
+.. _gui-interface-json_ui-styling-placement-sec-05:
 
 Placement
 --------------------
@@ -187,8 +197,12 @@ In other words, this difference is itself a baseline rule, not an extra patch:
      - the share of remaining space the current node takes in the parent flex track
      - ``0`` disables it; ``1+`` distributes the remaining space proportionally
 
+.. _gui-interface-json_ui-styling-placement-sec-06:
+
 Value Description
 ----------------------------------
+
+.. _gui-interface-json_ui-styling-placement-sec-07:
 
 Mode
 ^^^^^^^^^^^^^^^^^^^^
@@ -204,6 +218,8 @@ Mode
      - uses ``x/y`` as absolute coordinates relative to the parent's top-left corner
    * - ``relative``
      - uses ``align`` and an optional ``relativeTo`` for anchor positioning
+
+.. _gui-interface-json_ui-styling-placement-sec-08:
 
 Placement Align Enum
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -258,6 +274,8 @@ Placement Align Enum
    * - ``outRightBottom``
      - outside to the right of the target area, bottom-aligned
 
+.. _gui-interface-json_ui-styling-placement-sec-09:
+
 Alignself
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -265,11 +283,15 @@ Alignself
 ``spaceAround``, ``spaceEvenly``, ``stretch``. The most common in grid child placement are ``start``, ``center``, ``end``, and
 ``stretch``; ``stretch`` means fill the grid cell the node sits in.
 
+.. _gui-interface-json_ui-styling-placement-sec-10:
+
 Flow
 --------------------
 
 ``flow`` is not the default placement. The backend only sets the size and does not apply coordinates or anchors. If the parent is
 flex/grid, the node participates in the parent layout; if the parent has ``layout.type = "none"``, the backend default position is used.
+
+.. _gui-interface-json_ui-styling-placement-sec-11:
 
 Percent Size
 ------------------------
@@ -280,6 +302,8 @@ Percent Size
 ``placement.x`` / ``placement.y`` may also use percentage strings such as ``"50%"``. A percentage offset is computed against the
 content area of the current node's parent: ``x`` uses parent content width and ``y`` uses parent content height. ``relativeTo`` only changes the anchor target; the
 base for the percentage offset is still the current node's parent.
+
+.. _gui-interface-json_ui-styling-placement-sec-12:
 
 Aspectratio
 ----------------------
@@ -308,6 +332,8 @@ Limits:
 - ``aspectRatio`` requires that neither ``width`` nor ``height`` is ``wrap``.
 - No cover/crop mode is provided; to crop or fill image content, use ``imageProps.innerAlign``.
 
+.. _gui-interface-json_ui-styling-placement-sec-13:
+
 Absolute
 --------------------
 
@@ -326,6 +352,8 @@ Absolute
    }
 
 Corresponding backend behavior: apply fixed width and height, and position by adding the ``x/y`` offset to the parent's top-left corner.
+
+.. _gui-interface-json_ui-styling-placement-sec-14:
 
 Relative
 --------------------
@@ -364,6 +392,8 @@ Limits:
 - referencing ancestor, sibling, and collateral nodes in the current file is allowed.
 - referencing the node itself or its descendants is not allowed.
 
+.. _gui-interface-json_ui-styling-placement-sec-15:
+
 Grid Child Placement
 ----------------------------------------
 
@@ -383,6 +413,8 @@ When the parent has ``layout.type = "grid"``, a child decides how it lands in a 
 
 To make a grid child fill its cell, prefer ``placement.alignSelf: "stretch"``. Do not treat
 ``placement.width: "match"`` as cell-stretch semantics.
+
+.. _gui-interface-json_ui-styling-placement-sec-16:
 
 Flex Grow
 --------------------
@@ -406,6 +438,8 @@ Flex Grow
            "flexGrow": 1
        }
    }
+
+.. _gui-interface-json_ui-styling-placement-sec-17:
 
 Image Size
 --------------------

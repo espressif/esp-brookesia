@@ -7,6 +7,8 @@ Architecture
 
 This page describes the main objects, startup flow, and internal collaboration of ``brookesia_system_core``.
 
+.. _system-core-architecture-sec-01:
+
 Entry Object
 --------------------
 
@@ -19,6 +21,8 @@ The core entry is ``esp_brookesia::system::core::System``, which exposes:
 - Runtime caller owner lookup: ``get_current_runtime_app_owner()``.
 
 Internal state lives in ``System::Impl``, and the public header exposes only the stable interface. The internal records and shared scheduling helpers of ``System::Impl`` live in ``src/private/system/impl.hpp``, while behavior is implemented per module under the ``system/``, ``app/``, ``service/``, and ``runtime/`` directories.
+
+.. _system-core-architecture-sec-02:
 
 Main Flow
 --------------------
@@ -39,6 +43,8 @@ Main Flow
 ``System::process_timers()`` is currently retained as a compatibility entry; timers are triggered automatically by the internal scheduler and dispatched to apps.
 
 If ``System::Config::enable_gui_live_preview`` is on, the core registers live preview after a file-backed GUI document loads, and starts a periodic poll in the ``SystemGui`` task group. The poll and document reload still pass through the GUI runtime gate and backend thread guard, and the poll state is canceled on ``deinit()`` or document unload.
+
+.. _system-core-architecture-sec-03:
 
 Task Scheduling
 --------------------
@@ -65,6 +71,8 @@ Task Scheduling
 
 GUI actions do not run app logic directly inside the LVGL event callback stack. For lightweight actions without payload, ``gui::Runtime`` uses a fast path to trigger the action subscription directly, and the subscription only posts to ``SystemAppInput``; for events such as ``ValueChanged`` that need to sync GUI runtime state, the backend event still enters ``SystemGuiInput`` first, and then the action subscription posts to ``SystemAppInput``.
 
+.. _system-core-architecture-sec-04:
+
 Impl Record Model
 --------------------
 
@@ -81,6 +89,8 @@ Impl Record Model
 - Flags for whether the runtime and GUI are loaded.
 
 The core uses ``AppRecord`` to handle native and runtime app differences uniformly.
+
+.. _system-core-architecture-sec-05:
 
 Source Modules
 --------------------
@@ -123,6 +133,8 @@ The implementation of ``system_core`` is split by function:
    * - ``service/*.cpp``
      - ``SystemCore``, ``SystemGui``, ``SystemTimer`` schema, handlers, and service helpers
 
+.. _system-core-architecture-sec-06:
+
 Public Include Modules
 ----------------------
 
@@ -150,6 +162,8 @@ Public Include Modules
 
 In-repo implementation files prefer including the fine-grained headers; external code can keep including the top-level compatibility headers.
 
+.. _system-core-architecture-sec-07:
+
 Module Collaboration
 --------------------
 
@@ -170,6 +184,8 @@ Module Collaboration
      - Implements internal GUI, app, and timer scheduling
    * - ``IAppProvider`` registry
      - Provides native app providers linked into the project at compile time
+
+.. _system-core-architecture-sec-08:
 
 Extension Points
 --------------------

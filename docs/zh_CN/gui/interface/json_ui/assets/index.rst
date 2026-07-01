@@ -5,12 +5,16 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-index-sec-01:
+
 概览
 --------------------
 
 本文档负责 asset 与 Runtime 资源的入口说明。公开 JSON 使用 ``camelCase``。
 
 本文档不负责 ``view`` 内部字段细节，也不负责具体 ``layout`` / ``placement`` / ``style`` / ``props``。这些内容请查看 :doc:`../view/index`、:doc:`../styling/layout`、:doc:`../styling/placement`、:doc:`../styling/style`、:doc:`../styling/props/index`。
+
+.. _gui-interface-json_ui-assets-index-sec-02:
 
 相关文档
 --------------------
@@ -19,6 +23,8 @@
 - :doc:`../document/root`
 - :doc:`../view/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-index-sec-03:
 
 资源类型
 --------------------
@@ -73,6 +79,8 @@ Runtime 全局资源由 Runtime API 注册或加载：
      - :doc:`theme`
      - 全局主题覆盖层，供 ``set_theme(...)`` 选择
 
+.. _gui-interface-json_ui-assets-index-sec-04:
+
 资源边界
 --------------------
 
@@ -80,6 +88,8 @@ Runtime 全局资源由 Runtime API 注册或加载：
 - 普通 view 节点用 ``type`` 表示控件类型。
 - 图片、字体资源统一使用 ``imageSet`` / ``fontSet``，即使只有一个资源。
 - ``fontSet`` 和 ``theme`` 不是 document ``assets`` 的标准类型，应通过 Runtime 全局 API 注册或加载。
+
+.. _gui-interface-json_ui-assets-index-sec-05:
 
 子文档
 --------------------

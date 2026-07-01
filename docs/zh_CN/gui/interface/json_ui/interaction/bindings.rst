@@ -5,10 +5,14 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-interaction-bindings-sec-01:
+
 概览
 --------------------
 
 ``bindings`` 是可选 object，用于把 Runtime bindings 中的字符串值应用到当前节点的叶子字段。
+
+.. _gui-interface-json_ui-interaction-bindings-sec-02:
 
 相关文档
 --------------------
@@ -17,6 +21,8 @@
 - :doc:`../index`
 - :doc:`../styling/props/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-bindings-sec-03:
 
 字段表
 --------------------
@@ -37,6 +43,8 @@
      - 无
      - 当前节点路径作用域下的本地 store key，不带前缀
 
+.. _gui-interface-json_ui-interaction-bindings-sec-04:
+
 规则
 --------------------
 
@@ -44,6 +52,8 @@
 - ``bindings`` value 是当前节点路径作用域下的本地 store key，不带前缀。
 - 相同 local key 可安全复用于不同节点；真实作用域是 ``document_id + absolute_path + local_key``。
 - props 域绑定是否可用，取决于当前控件类型。
+
+.. _gui-interface-json_ui-interaction-bindings-sec-05:
 
 为什么公开接口必须带 absolute_path
 ------------------------------------------------
@@ -55,6 +65,8 @@
   - 哪个静态节点
   - 哪个模板实例中的哪个节点
 - 因此 bindings 的正式公开定位是 ``document_id + absolute_path + local_key``，而不是 document 级唯一 key。
+
+.. _gui-interface-json_ui-interaction-bindings-sec-06:
 
 常见路径
 --------------------
@@ -113,6 +125,8 @@
 ``partStyles.knob.bgColor``、``partStyles.knob.stateStyles.pressed.bgColor``。不支持
 ``partStyles.<part>.font``、``partStyles.<part>.fontSize`` 和 ``partStyles.<part>.imageFontSize``。
 
+.. _gui-interface-json_ui-interaction-bindings-sec-07:
+
 公开 API
 --------------------
 
@@ -129,6 +143,8 @@
 - ``IDataStore`` 是 Runtime 内部实现细节，不作为 bindings 的公开入口。
 - ``bindings`` 属于节点级 scoped 绑定能力，不属于 ``events`` 子能力。
 
+.. _gui-interface-json_ui-interaction-bindings-sec-08:
+
 增量更新行为
 --------------------
 
@@ -140,6 +156,8 @@
   可使用 ``"16:9"`` 或数字字符串。
 - 批量写入时，同一个节点的多个字段会先合并 mask，再统一 apply。
 - 运行时动画直接作用于 backend 节点，不会更新 binding store；如果应用层维护了自己的 binding cache，动画结束后应失效对应 key 或强制写入。
+
+.. _gui-interface-json_ui-interaction-bindings-sec-09:
 
 示例
 --------------------

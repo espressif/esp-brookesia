@@ -8,10 +8,14 @@ LVGL JSON UI Backend Notes
 本文档记录 ``brookesia_gui_lvgl`` 对 JSON UI resolved model 的实现细节。JSON UI 协议字段本身仍以
 ``gui/brookesia_gui_interface/docs/json_ui`` 为准；这里仅说明 LVGL backend 如何落地这些字段。
 
+.. _gui-lvgl-backend-sec-01:
+
 Backend Pump
 ------------------------
 
 ``gui::Runtime::process_backend()`` 会转发到 LVGL backend 的 timer 处理。独立 examples 或没有系统主循环的场景，可以周期调用该接口驱动 LVGL 动画、事件和内部 timer。
+
+.. _gui-lvgl-backend-sec-02:
 
 Image .bin
 --------------------
@@ -25,6 +29,8 @@ LVGL backend 支持 LVGL v9 image ``.bin``：
 - binding 更新、``set_view_src(...)`` 和 props apply 只复用已预加载 descriptor，不在动态路径补读文件。
 
 构建期 PNG 转 ``.bin`` 请看 :doc:`image_pack`。
+
+.. _gui-lvgl-backend-sec-03:
 
 Layout
 --------------------
@@ -60,6 +66,8 @@ Layout
      - ``LV_GRID_CONTENT``
 
 当前 backend 没有单独暴露 LVGL track cross place 参数，``crossAlign`` 会同时用于 cross place 和 track cross place。
+
+.. _gui-lvgl-backend-sec-04:
 
 Placement
 --------------------
@@ -104,8 +112,12 @@ Image sizing：
    * - 使用 percent / ``match``
      - 保留显式外框尺寸；不会被 image asset 宽高覆盖
 
+.. _gui-lvgl-backend-sec-05:
+
 Props
 --------------------
+
+.. _gui-lvgl-backend-sec-06:
 
 commonProps
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -115,6 +127,8 @@ commonProps
 - ``pressLock = true``：添加 ``LV_OBJ_FLAG_PRESS_LOCK``，按住后滑出节点范围时继续锁定当前 pressed target。
 - ``pressLock = false``：移除 ``LV_OBJ_FLAG_PRESS_LOCK``，按住滑出范围时允许 LVGL 重新命中目标并触发 ``pressLost``。
 - ``pivotX`` / ``pivotY`` 百分比值在应用 transform 前会刷新一次对象 layout，避免早期尺寸未更新时按 ``(0, 0)`` 计算 pivot。
+
+.. _gui-lvgl-backend-sec-07:
 
 imageProps.innerAlign
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -137,6 +151,8 @@ imageProps.innerAlign
    * - ``tile``
      - ``LV_IMAGE_ALIGN_TILE``
 
+.. _gui-lvgl-backend-sec-08:
+
 imageProps.recolor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -144,12 +160,16 @@ imageProps.recolor
 - ``recolorOpacity = 0..255``：调用 ``lv_obj_set_style_image_recolor_opa()``。
 - ``recolor = ""``：移除 image 节点本地 image recolor 属性，回退到 style/theme 层效果。
 
+.. _gui-lvgl-backend-sec-09:
+
 style.imageRecolor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - ``imageRecolor = "#RRGGBB"``：调用 ``lv_style_set_image_recolor()``。
 - ``imageRecolorOpacity = 0..255``：调用 ``lv_style_set_image_recolor_opa()``。
 - ``imageRecolor = ""`` 或未设置：移除 style 层 image recolor 属性。
+
+.. _gui-lvgl-backend-sec-10:
 
 keyboardProps.mode
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -170,6 +190,8 @@ keyboardProps.mode
 
 JSON UI parser/validator 会拒绝未知 mode；backend 收到异常 mode 时会保持当前可用布局。
 
+.. _gui-lvgl-backend-sec-11:
+
 keyboardProps.targetTextInput / layouts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -189,6 +211,8 @@ handler，而是缓存目标对象并在 ``LV_EVENT_VALUE_CHANGED`` 中按 JSON 
 - ``width`` 映射到 ``lv_keyboard_set_ctrl_map()`` 的相对宽度，范围由 JSON UI parser/validator 保证。
 - ``keyStyles`` 通过 draw-task hook 修改 ``LV_PART_ITEMS`` 的 fill/label 颜色，支持普通、控制、模式、确认/取消和 disabled 类。
 
+.. _gui-lvgl-backend-sec-12:
+
 canvasProps.commands
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -205,6 +229,8 @@ canvasProps.commands
      - 在 ``(x, y)`` 设置像素
 
 ``width`` / ``height`` 字段会被 parser 接收，但当前 LVGL canvas command 执行未使用。
+
+.. _gui-lvgl-backend-sec-13:
 
 Style
 --------------------
@@ -240,6 +266,8 @@ LVGL backend 在 style apply 时维护每个节点的 ``lv_style_t``，并按 di
 1. ``ResolvedFontSpec.native_fonts`` 中最接近请求字号的 native LVGL font。
 2. JSON/backend 字体资源的 ``primary_src``，并按 fallback 链创建 FreeType 字体。
 3. 内置字体；FreeType 不可用或文件不可用时回退。
+
+.. _gui-lvgl-backend-sec-14:
 
 Animations
 --------------------

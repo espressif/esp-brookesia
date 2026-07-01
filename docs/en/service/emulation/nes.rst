@@ -15,7 +15,7 @@ NES Service
 .. rubric:: Core Responsibilities
 
 - Controls ROM loading, start, pause, stop, save, and gamepad state.
-- Uses Display service sources for frame output instead of sending frames through RPC.
+- Uses Display service sources for frame output instead of streaming raw frames through a remote transport.
 - Keeps nofrendo backend code inside the service component.
 
 .. rubric:: Integration Position

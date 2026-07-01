@@ -24,7 +24,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/media/audio.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/media/audio.hpp",
         "helper_type": "esp_brookesia::service::helper::Audio",
-        "api_reference_doc": "/service/helper/base",
+        "api_reference_doc": "/service/framework/helper/base",
         "page_doc": "/service/audio",
         "schema_sections": [
             {
@@ -74,7 +74,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/media/display.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/media/display.hpp",
         "helper_type": "esp_brookesia::service::helper::Display",
-        "api_reference_doc": "/service/helper/display",
+        "api_reference_doc": "/service/framework/helper/display",
         "page_doc": "/service/display",
         "schema_sections": [
             {
@@ -100,7 +100,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/network/http.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/network/http.hpp",
         "helper_type": "esp_brookesia::service::helper::Http",
-        "api_reference_doc": "/service/helper/http",
+        "api_reference_doc": "/service/framework/helper/http",
         "page_doc": "/service/http",
         "schema_sections": [
             {
@@ -126,7 +126,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/emulation/nes.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/emulation/nes.hpp",
         "helper_type": "esp_brookesia::service::helper::Nes",
-        "api_reference_doc": "/service/helper/nes",
+        "api_reference_doc": "/service/framework/helper/nes",
         "page_doc": "/service/emulation/nes",
         "schema_sections": [
             {
@@ -155,7 +155,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/system/device.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/system/device.hpp",
         "helper_type": "esp_brookesia::service::helper::Device",
-        "api_reference_doc": "/service/helper/base",
+        "api_reference_doc": "/service/framework/helper/base",
         "page_doc": "/service/device",
         "schema_sections": [
             {
@@ -190,7 +190,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/system/storage.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/system/storage.hpp",
         "helper_type": "esp_brookesia::service::helper::Storage",
-        "api_reference_doc": "/service/helper/base",
+        "api_reference_doc": "/service/framework/helper/base",
         "page_doc": "/service/storage",
         "schema_sections": [
             {
@@ -225,7 +225,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/network/sntp.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/network/sntp.hpp",
         "helper_type": "esp_brookesia::service::helper::SNTP",
-        "api_reference_doc": "/service/helper/sntp",
+        "api_reference_doc": "/service/framework/helper/sntp",
         "page_doc": "/service/sntp",
         "schema_sections": [
             {
@@ -263,7 +263,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/media/video.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/media/video.hpp",
         "helper_type": "esp_brookesia::service::helper::Video",
-        "api_reference_doc": "/service/helper/base",
+        "api_reference_doc": "/service/framework/helper/base",
         "page_doc": "/service/video",
         "schema_sections": [
             {
@@ -309,7 +309,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/network/wifi.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp",
         "helper_type": "esp_brookesia::service::helper::Wifi",
-        "api_reference_doc": "/service/helper/wifi",
+        "api_reference_doc": "/service/framework/helper/wifi",
         "page_doc": "/service/wifi",
         "schema_sections": [
             {
@@ -347,7 +347,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/expression/emote.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/expression/emote.hpp",
         "helper_type": "esp_brookesia::service::helper::ExpressionEmote",
-        "api_reference_doc": "/service/helper/base",
+        "api_reference_doc": "/service/framework/helper/base",
         "page_doc": "/service/emote",
         "schema_sections": [
             {
@@ -385,7 +385,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/agent/manager.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/manager.hpp",
         "helper_type": "esp_brookesia::service::helper::Manager",
-        "api_reference_doc": "/service/helper/agent/manager",
+        "api_reference_doc": "/service/framework/helper/agent/manager",
         "page_doc": "/service/agent/manager/index",
         "schema_sections": [
             {
@@ -411,7 +411,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/agent/coze.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/coze.hpp",
         "helper_type": "esp_brookesia::service::helper::Coze",
-        "api_reference_doc": "/service/helper/agent/coze",
+        "api_reference_doc": "/service/framework/helper/agent/coze",
         "page_doc": "/service/agent/coze",
         "schema_sections": [
             {
@@ -437,7 +437,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/agent/openai.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/openai.hpp",
         "helper_type": "esp_brookesia::service::helper::Openai",
-        "api_reference_doc": "/service/helper/agent/openai",
+        "api_reference_doc": "/service/framework/helper/agent/openai",
         "page_doc": "/service/agent/openai",
         "schema_sections": [
             {
@@ -463,7 +463,7 @@ HELPER_CONTRACTS: list[Contract] = [
         "include_header": "brookesia/service_helper/agent/xiaozhi.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/xiaozhi.hpp",
         "helper_type": "esp_brookesia::service::helper::XiaoZhi",
-        "api_reference_doc": "/service/helper/agent/xiaozhi",
+        "api_reference_doc": "/service/framework/helper/agent/xiaozhi",
         "page_doc": "/service/agent/xiaozhi",
         "schema_sections": [
             {

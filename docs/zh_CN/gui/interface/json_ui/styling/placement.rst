@@ -5,12 +5,16 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-placement-sec-01:
+
 概览
 --------------------
 
 本文档说明 ``placement`` 的字段语义。公开 JSON 使用 ``camelCase``。
 
 本文档只负责 ``placement``。当前节点对子节点的布局方式请查看 :doc:`layout`。
+
+.. _gui-interface-json_ui-styling-placement-sec-02:
 
 相关文档
 --------------------
@@ -20,6 +24,8 @@
 - :doc:`layout`
 - :doc:`props/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-styling-placement-sec-03:
 
 心智模型
 --------------------
@@ -32,6 +38,8 @@
 - 放入父 grid 时的 cell 信息
 
 ``placement`` 不负责当前节点对子节点的布局。子节点布局统一写在 ``layout``，详见 :doc:`layout`。
+
+.. _gui-interface-json_ui-styling-placement-sec-04:
 
 Dimension
 --------------------
@@ -78,6 +86,8 @@ Dimension
 ``${expr(...)}`` 的结果必须能落到字段原本支持的类型：``x/y`` 通常是 integer、``"Ndp"`` 或 ``"N%"``，
 ``width/height`` 通常是 dimension。表达式语法、``${env.*}`` 字段和单位规则见
 :doc:`../assets/constant`。
+
+.. _gui-interface-json_ui-styling-placement-sec-05:
 
 placement
 --------------------
@@ -187,8 +197,12 @@ placement
      - 当前节点在父 flex track 内占用剩余空间的比例
      - ``0`` 禁用；``1+`` 按比例分配剩余空间
 
+.. _gui-interface-json_ui-styling-placement-sec-06:
+
 取值说明
 --------------------
+
+.. _gui-interface-json_ui-styling-placement-sec-07:
 
 mode
 ^^^^^^^^^^^^^^^^^^^^
@@ -204,6 +218,8 @@ mode
      - 使用 ``x/y`` 作为相对父对象左上角的绝对坐标
    * - ``relative``
      - 使用 ``align`` 和可选 ``relativeTo`` 做锚点定位
+
+.. _gui-interface-json_ui-styling-placement-sec-08:
 
 placement align enum
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -258,6 +274,8 @@ placement align enum
    * - ``outRightBottom``
      - 目标区域外侧右方，下边对齐
 
+.. _gui-interface-json_ui-styling-placement-sec-09:
+
 alignSelf
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -265,11 +283,15 @@ alignSelf
 ``spaceAround``、``spaceEvenly``、``stretch``。在 grid child placement 中最常用的是 ``start``、``center``、``end`` 和
 ``stretch``；其中 ``stretch`` 表示填满所在 grid cell。
 
+.. _gui-interface-json_ui-styling-placement-sec-10:
+
 flow
 --------------------
 
 ``flow`` 不是默认 placement。backend 只设置尺寸，不主动应用坐标或锚点。如果父节点是
 flex/grid，节点会参与父布局；如果父节点是 ``layout.type = "none"``，则沿用 backend 默认位置。
+
+.. _gui-interface-json_ui-styling-placement-sec-11:
 
 百分比尺寸
 --------------------
@@ -280,6 +302,8 @@ flex/grid，节点会参与父布局；如果父节点是 ``layout.type = "none"
 ``placement.x`` / ``placement.y`` 也可使用百分比字符串，例如 ``"50%"``。百分比 offset 按当前节点父对象的
 内容区域计算：``x`` 使用父内容宽度，``y`` 使用父内容高度。``relativeTo`` 只改变锚点目标，百分比 offset 的
 计算基准仍是当前节点父对象。
+
+.. _gui-interface-json_ui-styling-placement-sec-12:
 
 aspectRatio
 ----------------------
@@ -308,6 +332,8 @@ aspectRatio
 - ``aspectRatio`` 需要 ``width`` 和 ``height`` 都不是 ``wrap``。
 - 不提供 cover/crop 模式；需要图片内容裁剪或填充时，使用 ``imageProps.innerAlign``。
 
+.. _gui-interface-json_ui-styling-placement-sec-13:
+
 absolute
 --------------------
 
@@ -326,6 +352,8 @@ absolute
    }
 
 对应后端行为：应用固定宽高，并按父对象左上角加上 ``x/y`` 偏移定位。
+
+.. _gui-interface-json_ui-styling-placement-sec-14:
 
 relative
 --------------------
@@ -364,6 +392,8 @@ relative
 - 允许引用当前文件内祖先、同级和旁系节点。
 - 不允许引用自身或自身后代。
 
+.. _gui-interface-json_ui-styling-placement-sec-15:
+
 Grid 子项放置
 --------------------
 
@@ -383,6 +413,8 @@ Grid 子项放置
 
 如果希望 grid 子项填满所在 cell，推荐使用 ``placement.alignSelf: "stretch"``。不要把
 ``placement.width: "match"`` 当作 cell 拉伸语义。
+
+.. _gui-interface-json_ui-styling-placement-sec-16:
 
 Flex grow
 --------------------
@@ -406,6 +438,8 @@ Flex grow
            "flexGrow": 1
        }
    }
+
+.. _gui-interface-json_ui-styling-placement-sec-17:
 
 Image 尺寸
 --------------------

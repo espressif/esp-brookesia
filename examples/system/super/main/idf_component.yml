@@ -1,8 +1,5 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  joltwallet/littlefs:
-    version: "1.*"
-
   # Hal
   espressif/brookesia_hal_adaptor:
     version: "0.8.*"
@@ -39,6 +36,12 @@ dependencies:
   espressif/brookesia_emulation_nes:
     version: "0.8.*"
     override_path: ../../../../service/emulation/brookesia_emulation_nes
+  espressif/brookesia_agent_coze:
+    version: "0.8.*"
+    override_path: ../../../../service/agent/brookesia_agent_coze
+  espressif/brookesia_agent_xiaozhi:
+    version: "0.8.*"
+    override_path: ../../../../service/agent/brookesia_agent_xiaozhi
 
   # GUI
   espressif/brookesia_gui_lvgl:

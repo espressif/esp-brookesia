@@ -5,10 +5,14 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-interaction-index-sec-01:
+
 概览
 --------------------
 
 本分组负责 view 的交互与动态行为：``bindings`` 处理 store 数据绑定与订阅，``events`` 处理交互事件与 action 路由，``animations`` 处理声明式动画，``screenFlow`` 处理同一 document 内一组 screen 的状态机切换。
+
+.. _gui-interface-json_ui-interaction-index-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-index-sec-03:
 
 本组文档
 --------------------

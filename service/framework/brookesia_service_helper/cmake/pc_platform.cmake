@@ -5,7 +5,7 @@ set(COMPONENT_LIB brookesia_service_helper_impl)
 
 if(NOT TARGET brookesia::hal_interface)
     add_subdirectory(
-        ${COMPONENT_DIR}/../../hal/brookesia_hal_interface
+        ${COMPONENT_DIR}/../../../hal/brookesia_hal_interface
         ${CMAKE_BINARY_DIR}/brookesia_hal_interface
     )
 endif()

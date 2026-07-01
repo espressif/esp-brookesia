@@ -109,6 +109,10 @@
                     {
                         "type": "container",
                         "id": "content",
+                        "commonProps": {
+                            "clickable": false,
+                            "scrollable": false
+                        },
                         "layout": {
                             "type": "flex",
                             "flexFlow": "column",
@@ -142,6 +146,10 @@
                             {
                                 "type": "label",
                                 "id": "description",
+                                "commonProps": {
+                                    "clickable": false,
+                                    "scrollable": false
+                                },
                                 "bindings": {
                                     "labelProps.text": "description"
                                 },

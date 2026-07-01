@@ -311,6 +311,15 @@ bool Display::start_ui_state_machine()
         lib_utils::FunctionGuard unlock_guard([this]() {
             esp_lv_adapter_unlock();
         });
+        // The Emote state renders through a native display source, so the LVGL default screen stays
+        // empty underneath it. Force its background to black so the brief LVGL flush during the
+        // handover to dummy-draw does not surface the light-gray default theme background.
+        if (lv_obj_t *active_screen = lv_screen_active(); active_screen != nullptr) {
+            const lv_style_selector_t main_default =
+                static_cast<lv_style_selector_t>(LV_PART_MAIN) | static_cast<lv_style_selector_t>(LV_STATE_DEFAULT);
+            lv_obj_set_style_bg_color(active_screen, lv_color_black(), main_default);
+            lv_obj_set_style_bg_opa(active_screen, LV_OPA_COVER, main_default);
+        }
         BROOKESIA_CHECK_EXCEPTION_RETURN(
             screen_settings = std::make_shared<ScreenSettings>(), false, "Failed to create state"
         );

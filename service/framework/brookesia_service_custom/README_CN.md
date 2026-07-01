@@ -6,7 +6,7 @@
 
 `brookesia_service_custom` 是用于注册产品自定义函数与事件的扩展服务组件。
 
-更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/custom.html)。
+更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/framework/custom.html)。
 
 ## 如何使用
 

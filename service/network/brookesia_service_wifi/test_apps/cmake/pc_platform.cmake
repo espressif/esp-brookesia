@@ -1,4 +1,4 @@
-include(/../../../system/brookesia_service_storage/cmake/pc_test_common.cmake)
+include(${TEST_APP_DIR}/../../../system/brookesia_service_storage/cmake/pc_test_common.cmake)
 
 brookesia_service_storage_init_pc_defaults()
 
@@ -28,9 +28,36 @@ set(
     CACHE STRING "HAL Linux Wi-Fi backend used by PC Wi-Fi service tests"
 )
 
+set(brookesia_repo_root ${TEST_APP_DIR}/../../../..)
+
+if(NOT TARGET brookesia::lib_utils)
+    add_subdirectory(
+        ${brookesia_repo_root}/utils/brookesia_lib_utils
+        ${CMAKE_BINARY_DIR}/brookesia_lib_utils
+    )
+endif()
+if(NOT TARGET brookesia::service_manager)
+    add_subdirectory(
+        ${brookesia_repo_root}/service/framework/brookesia_service_manager
+        ${CMAKE_BINARY_DIR}/brookesia_service_manager
+    )
+endif()
+if(NOT TARGET brookesia::hal_interface)
+    add_subdirectory(
+        ${brookesia_repo_root}/hal/brookesia_hal_interface
+        ${CMAKE_BINARY_DIR}/brookesia_hal_interface
+    )
+endif()
+if(NOT TARGET brookesia::service_helper)
+    add_subdirectory(
+        ${brookesia_repo_root}/service/framework/brookesia_service_helper
+        ${CMAKE_BINARY_DIR}/brookesia_service_helper
+    )
+endif()
+
 if(NOT TARGET brookesia::service_storage)
     add_subdirectory(
-        /../../../system/brookesia_service_storage
+        ${TEST_APP_DIR}/../../../system/brookesia_service_storage
         ${CMAKE_BINARY_DIR}/brookesia_service_storage
     )
 endif()
@@ -39,7 +66,7 @@ if(NOT TARGET brookesia::service_wifi)
 endif()
 if(NOT TARGET brookesia::hal_linux)
     add_subdirectory(
-        ${TEST_APP_DIR}/../../../hal/brookesia_hal_linux
+        ${TEST_APP_DIR}/../../../../hal/brookesia_hal_linux
         ${CMAKE_BINARY_DIR}/brookesia_hal_linux
     )
 endif()

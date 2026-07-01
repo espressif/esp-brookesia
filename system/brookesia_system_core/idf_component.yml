@@ -9,11 +9,6 @@ dependencies:
     version: "^1.3.0"
     require: private
 
-  espressif/brookesia_lib_utils:
-    version: "0.8.*"
-    override_path: ../../utils/brookesia_lib_utils
-    require: public
-
   espressif/brookesia_service_helper:
     version: "0.8.*"
     override_path: ../../service/framework/brookesia_service_helper

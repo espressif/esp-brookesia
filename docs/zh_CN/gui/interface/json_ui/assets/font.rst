@@ -5,6 +5,8 @@ fontSet
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-font-sec-01:
+
 概览
 --------------------
 
@@ -12,12 +14,16 @@ fontSet
 
 字体资源统一组织为 ``fontSet.fonts[]``，即使只有一个字体。
 
+.. _gui-interface-json_ui-assets-font-sec-02:
+
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-font-sec-03:
 
 字段表
 --------------------
@@ -109,6 +115,8 @@ fontSet
 codepoint 集合；backend 根据 ``style.imageFontSize`` 选择最接近的一档。``style.imageFontSize`` 只影响 image font
 glyph，不改变 fallback 普通文字的 ``fontSize``。
 
+.. _gui-interface-json_ui-assets-font-sec-04:
+
 Runtime API
 ----------------------
 
@@ -123,6 +131,8 @@ Runtime API
 ``register_font_json/file(...)`` 会注册 ``fontSet`` 中的所有字体；若其中任意一项注册失败，本次已注册的字体会回滚。
 
 ``style.font`` 使用 ``${font.<id>}`` 引用字体 id。未显式设置 ``style.font`` 的节点会跟随 Runtime 当前语言选择默认字体。应用可先注册字体，再调用 ``set_default_font_for_language(language, font_id)`` 建立语言到字体的映射；``set_language(...)`` 会重新应用已加载 document 的样式。
+
+.. _gui-interface-json_ui-assets-font-sec-05:
 
 示例
 --------------------

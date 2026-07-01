@@ -5,16 +5,22 @@ canvasProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-canvas-sec-01:
+
 概览
 --------------------
 
 ``canvasProps`` 适用于 ``canvas``。
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/canvas`
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-03:
 
 字段表
 --------------------
@@ -32,6 +38,8 @@ canvasProps
      - ``[]``
      - ``canvasProps.commands``
      - 声明式绘制命令列表
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-04:
 
 CanvasCommand 字段表
 ----------------------------------
@@ -68,6 +76,8 @@ CanvasCommand 字段表
      - ``""``
      - 命令颜色
 
+.. _gui-interface-json_ui-styling-props-canvas-sec-05:
+
 CanvasCommand type
 ------------------------------------
 
@@ -87,6 +97,8 @@ CanvasCommand type
      - ``x``、``y``、``color``
 
 ``width`` / ``height`` 当前会被 parser 接收，但命令执行暂未使用。未列出的 ``type`` 会被忽略。
+
+.. _gui-interface-json_ui-styling-props-canvas-sec-06:
 
 示例
 --------------------

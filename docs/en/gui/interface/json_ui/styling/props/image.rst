@@ -5,10 +5,14 @@ Imageprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-image-sec-01:
+
 Overview
 --------------------
 
 ``imageProps`` applies to ``image``.
+
+.. _gui-interface-json_ui-styling-props-image-sec-02:
 
 Related Documents
 ----------------------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../../view/image`
 - :doc:`../../assets/image`
+
+.. _gui-interface-json_ui-styling-props-image-sec-03:
 
 Field Table
 ----------------------
@@ -79,6 +85,8 @@ Field Table
      - ``imageProps.pivotY``
      - Y coordinate of the image's local rotation/scale pivot; for a pivot that applies to all nodes, prefer ``commonProps.pivotY``
 
+.. _gui-interface-json_ui-styling-props-image-sec-04:
+
 Example
 --------------------
 
@@ -102,6 +110,8 @@ If only ``recolor`` is set, ``recolorOpacity`` defaults to ``255``. Writing an e
 ``recolorOpacity`` value for later dynamic restoration; if the node also has theme/style-layer recoloring, an empty string clears the local override and falls back to the style-layer effect.
 
 ``imageProps.angle`` / ``zoom`` / ``pivotX`` / ``pivotY`` affect only the current image node. For a transform that must apply to all nodes, use ``commonProps.angle`` / ``zoom`` / ``pivotX`` / ``pivotY``.
+
+.. _gui-interface-json_ui-styling-props-image-sec-05:
 
 Inneralign
 --------------------

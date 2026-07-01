@@ -32,6 +32,11 @@ esp_lcd_panel_io_handle_t get_io_handle(void *handles)
 
 display::TouchIface::Info generate_info()
 {
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
+        BROOKESIA_LOGW("LCD touch device not found");
+        return {};
+    }
+
     dev_lcd_touch_config_t *config = nullptr;
     auto ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, reinterpret_cast<void **>(&config));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, {}, "Failed to get LCD touch config");
@@ -57,6 +62,11 @@ I2cDisplayTouchImpl::I2cDisplayTouchImpl()
 
     BROOKESIA_CHECK_FALSE_EXIT(get_info().is_valid(), "Invalid touch information");
 
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
+        BROOKESIA_LOGW("LCD touch device not found, skip");
+        return;
+    }
+
     auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to init LCD touch");
 
@@ -70,8 +80,10 @@ I2cDisplayTouchImpl::~I2cDisplayTouchImpl()
 
     register_interrupt_handler(nullptr, nullptr);
 
-    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD touch"); });
+    if (esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
+        auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
+        BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD touch"); });
+    }
 }
 
 bool I2cDisplayTouchImpl::read_points(std::vector<display::TouchIface::Point> &points)

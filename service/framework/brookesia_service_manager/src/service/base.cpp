@@ -538,7 +538,7 @@ bool ServiceBase::register_functions(std::vector<FunctionSchema> schemas, Functi
         registered_count++;
     }
 
-    BROOKESIA_LOGI("[%1%] Registered %2%/%3% functions", attributes_.name, registered_count, total_count);
+    BROOKESIA_LOGD("[%1%] Registered %2%/%3% functions", attributes_.name, registered_count, total_count);
 
     return true;
 }
@@ -557,7 +557,7 @@ bool ServiceBase::unregister_functions(const std::vector<std::string> &names)
         function_registry_->remove(name);
     }
 
-    BROOKESIA_LOGI("[%1%] Unregistered %2% functions", attributes_.name, names.size());
+    BROOKESIA_LOGD("[%1%] Unregistered %2% functions", attributes_.name, names.size());
 
     return true;
 }
@@ -591,7 +591,7 @@ bool ServiceBase::register_events(std::vector<EventSchema> schemas)
         registered_count++;
     }
 
-    BROOKESIA_LOGI("[%1%] Registered %2%/%3% events", attributes_.name, registered_count, total_count);
+    BROOKESIA_LOGD("[%1%] Registered %2%/%3% events", attributes_.name, registered_count, total_count);
 
     return true;
 }
@@ -610,7 +610,7 @@ bool ServiceBase::unregister_events(const std::vector<std::string> &names)
         event_registry_->remove(name);
     }
 
-    BROOKESIA_LOGI("[%1%] Unregistered %2% events", attributes_.name, names.size());
+    BROOKESIA_LOGD("[%1%] Unregistered %2% events", attributes_.name, names.size());
 
     return true;
 }
@@ -655,17 +655,6 @@ bool ServiceBase::publish_event(const std::string &event_name, EventItemMap even
     BROOKESIA_CHECK_FALSE_RETURN(
         registry->validate_items(event_name, event_items), false, "Event '%1%': failed to validate data", event_name
     );
-
-    // If connected to the server, publish to the server
-    // Should be before the task posted to avoid event_items being moved
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    if (is_server_connected()) {
-        BROOKESIA_LOGD("Connected to server, publishing event to it");
-        BROOKESIA_CHECK_FALSE_EXECUTE(server_connection_->publish_event(event_name, event_items), {}, {
-            BROOKESIA_LOGE("Event '%1%': failed to publish to server", event_name);
-        });
-    }
-#endif
 
     auto emit_signal_task = [this, registry, require_scheduler, event_name, event_items = std::move(event_items)]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -819,9 +808,6 @@ bool ServiceBase::init_internal(std::shared_ptr<lib_utils::TaskScheduler> task_s
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         event_registry_ = std::make_shared<EventRegistry>(), false, "Failed to create event registry"
     );
-    event_registry_->set_rpc_subscription_callback([this](const std::string & event_name) {
-        on_event_subscribed(event_name);
-    });
 
     BROOKESIA_CHECK_FALSE_RETURN(on_init(), false, "Failed to initialize service");
 
@@ -885,9 +871,6 @@ void ServiceBase::deinit_internal_locked(boost::unique_lock<boost::shared_mutex>
     // Use write lock to protect the registry reset
     {
         boost::lock_guard lock(resources_mutex_);
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-        server_connection_.reset();
-#endif
         task_scheduler_.reset();
         function_registry_.reset();
         event_registry_.reset();
@@ -928,17 +911,11 @@ bool ServiceBase::start_internal()
 
     // Acquire write lock to protect resource access and prevent concurrent execution with call_function_task
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler;
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    std::shared_ptr<rpc::ServerConnection> server_connection;
-#endif
     {
         boost::lock_guard lock(resources_mutex_);
 
         // Get copies of resources under lock
         task_scheduler = task_scheduler_;
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-        server_connection = server_connection_;
-#endif
     }
 
     // Start and configure task scheduler outside lock to avoid holding lock during potentially long operations
@@ -963,17 +940,6 @@ bool ServiceBase::start_internal()
     }), false, "Failed to configure request task group");
 
     BROOKESIA_CHECK_FALSE_RETURN(on_start(), false, "Failed to start service");
-
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    if (server_connection) {
-        server_connection->activate(true);
-        // Re-acquire lock for try_override_connection_request_handler() if it needs to access resources
-        {
-            boost::lock_guard lock(resources_mutex_);
-            try_override_connection_request_handler();
-        }
-    }
-#endif
 
     stop_guard.release();
 
@@ -1008,17 +974,11 @@ void ServiceBase::stop_internal(boost::unique_lock<boost::shared_mutex> *state_l
 
     // Acquire write lock to prevent concurrent execution with call_function_task
     // This ensures on_stop() can safely clean up resources without race conditions
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    std::shared_ptr<rpc::ServerConnection> server_connection;
-#endif
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler;
     {
         boost::lock_guard lock(resources_mutex_);
 
         // Get copies of resources under lock
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-        server_connection = server_connection_;
-#endif
         task_scheduler = task_scheduler_;
     }
 
@@ -1036,13 +996,6 @@ void ServiceBase::stop_internal(boost::unique_lock<boost::shared_mutex> *state_l
         state_lock->unlock();
     }
 
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    // Deactivate server connection outside lock to avoid holding lock during potentially long operations
-    if (server_connection) {
-        server_connection->activate(false);
-    }
-#endif
-
     // Stop task scheduler outside lock to avoid holding lock during potentially long operations
     if (task_scheduler) {
         if (get_attributes().has_scheduler()) {
@@ -1058,101 +1011,5 @@ void ServiceBase::stop_internal(boost::unique_lock<boost::shared_mutex> *state_l
 
     BROOKESIA_LOGI("Stopped service: %1%", attributes_.name);
 }
-
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-std::shared_ptr<rpc::ServerConnection> ServiceBase::connect_to_server()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    // Use write lock to protect the server_connection_ and registries access
-    boost::lock_guard lock(resources_mutex_);
-
-    if (is_server_connected()) {
-        BROOKESIA_LOGD("Already connected to server");
-        return server_connection_;
-    }
-
-    BROOKESIA_CHECK_EXCEPTION_RETURN(
-        server_connection_ = std::make_shared<rpc::ServerConnection>(
-                                 attributes_.name, *function_registry_, *event_registry_
-                             ), nullptr, "Failed to create server connection"
-    );
-
-    if (is_running()) {
-        server_connection_->activate(true);
-    }
-
-    try_override_connection_request_handler();
-
-    return server_connection_;
-}
-
-void ServiceBase::disconnect_from_server()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    // Use write lock to protect the server_connection_ access
-    boost::lock_guard lock(resources_mutex_);
-    server_connection_.reset();
-}
-
-void ServiceBase::try_override_connection_request_handler()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (!is_server_connected()) {
-        BROOKESIA_LOGD("Not connected to server");
-        return;
-    }
-
-    if (!task_scheduler_) {
-        BROOKESIA_LOGD("Task scheduler is not supported");
-        return;
-    }
-
-    // Use the task_scheduler to handle the request
-    auto request_handler =
-        [this]( size_t connection_id, std::string request_id, std::string method,
-                FunctionParameterMap parameters
-    ) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-        auto task = [
-                        this, connection_id, request_id = std::move(request_id), method = std::move(method),
-                        parameters = std::move(parameters)
-        ]() mutable {
-            rpc::Response response{
-                .id = std::move(request_id),
-            };
-            auto result = function_registry_->call(method, std::move(parameters));
-            if (result.success)
-            {
-                // Serialize the entire FunctionResult (success / error_message / data) so the
-                // RPC client can deserialize it back into FunctionResult in
-                // Client::on_response(). Sending only `result.data` here used to break the
-                // client-side BROOKESIA_DESCRIBE_FROM_JSON whenever the function returned a
-                // non-empty payload (e.g. Storage.KVList), producing "Failed to parse result".
-                response.result = BROOKESIA_DESCRIBE_TO_JSON(result);
-            } else
-            {
-                response.error = rpc::ResponseError{
-                    .code = -1,
-                    .message = result.error_message,
-                };
-            }
-            BROOKESIA_CHECK_FALSE_EXIT(
-                server_connection_->respond_request(connection_id, std::move(response)),
-                "Failed to respond to request"
-            );
-        };
-        BROOKESIA_CHECK_FALSE_RETURN(
-            task_scheduler_->post(std::move(task), nullptr, get_request_task_group()),
-            false, "Failed to post request task"
-        );
-        return true;
-    };
-    server_connection_->set_request_handler(request_handler);
-}
-#endif
 
 } // namespace esp_brookesia::service

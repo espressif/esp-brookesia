@@ -6,6 +6,10 @@
 
 - feat(hal): add storage, network, video, HTTP, OTA, and board adaptation updates.
 
+### Bug Fixes:
+
+- fix(board): check board-manager hardware names before initializing board-backed HAL implementations.
+
 ### Documentation:
 
 - docs(release): align component metadata, README content, and API documentation for v0.8.0.

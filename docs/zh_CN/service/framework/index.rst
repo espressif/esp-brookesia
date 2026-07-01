@@ -10,7 +10,7 @@
 .. toctree::
    :maxdepth: 1
 
-   服务管理器 <../manager/index>
-   服务辅助 <../helper/index>
-   自定义 <../custom>
-   应用开发指南 <../usage>
+   服务管理器 <manager/index>
+   服务辅助 <helper/index>
+   自定义 <custom>
+   应用开发指南 <usage>

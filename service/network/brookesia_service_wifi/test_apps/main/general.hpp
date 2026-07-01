@@ -62,6 +62,7 @@ struct GeneralActionEvent {
 
 struct GeneralEventHappened {
     std::string event;
+    bool is_unexpected = false;
 };
 
 struct ScanApInfosUpdatedEvent {
@@ -95,6 +96,14 @@ public:
         size_t count, uint32_t timeout_ms = 5000,
         esp_brookesia::service::helper::Wifi::GeneralEvent event =
             esp_brookesia::service::helper::Wifi::GeneralEvent::Max
+    );
+    bool wait_for_general_action_sequence(
+        const std::vector<esp_brookesia::service::helper::Wifi::GeneralAction> &actions,
+        uint32_t timeout_ms = 5000
+    );
+    bool wait_for_general_event_sequence(
+        const std::vector<esp_brookesia::service::helper::Wifi::GeneralEvent> &events,
+        uint32_t timeout_ms = 5000
     );
     bool wait_for_scan_ap_infos_updated(size_t count, uint32_t timeout_ms = 10000);
     bool wait_for_softap_events(

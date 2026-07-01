@@ -7,12 +7,16 @@ Shell
 
 The Shell is the built-in native app of ``system_super``, with the class name ``ShellApp``. It is the app container for the built-in system UI and contains three pages: Home Dashboard, App Launcher, and Notifications.
 
+.. _system-super-shell-sec-01:
+
 Overview
 --------------------
 
 The status bar and the bottom swipe-up gesture indicator to exit an app are also managed by ShellApp, but they mount to the top of the ``GuiLayer::Top`` stack with ``z_order = 101`` and are not covered by a regular app's replace screen.
 
 The Shell also owns a background flow, mounted from the same Shell document to ``GuiLayer::Bottom``. When the Shell is in front it shows the ``/background`` image background, and when a regular app is in front it shows the ``/app_background`` solid background.
+
+.. _system-super-shell-sec-02:
 
 Manifest
 --------------------
@@ -43,6 +47,8 @@ The current key fields of the Shell manifest:
 
 ``visible = false`` ensures the Shell itself does not appear in the launcher app list.
 
+.. _system-super-shell-sec-03:
+
 Pages
 --------------------
 
@@ -66,10 +72,14 @@ The Shell app loads ``shell/root.json`` once, and that root aggregates 2 backgro
 
 ``/background`` and ``/app_background`` are mounted by the ``background`` flow to ``SystemBottom`` and switch exclusively with the foreground app state. The 3 content screens are managed by the ``shell_pages`` flow, with the state id using the screen id directly: the core auto-starts that flow to ``AppDefault`` before the Shell ``on_start()``, and navigation hotkeys trigger flow actions for exclusive switching. When a regular app is the active app, its default ``AppDefault`` screen naturally replaces the Shell page; when returning to the Shell, the system first closes the regular app and then lets the resident Shell trigger the target page transition.
 
+.. _system-super-shell-sec-04:
+
 Overlay
 --------------------
 
 The Shell root contains the ``/overlay`` screen. The ``overlay`` flow is mounted by the Shell manifest to ``AppTop`` with the ``Stack`` mount mode and ``z_order = 101`` to stay above the regular app top screen. ShellApp only updates bindings, subscribes to Display/Wi-Fi events, and runs animations. See :doc:`overlay` for the overlay nodes and behavior.
+
+.. _system-super-shell-sec-05:
 
 App Launcher
 --------------------
@@ -85,10 +95,14 @@ When the App Launcher page starts, it shows ``/launcher`` and calls ``populate_l
 - Build the mapping from instance id to ``AppId``.
 - Set ``/launcher/content/summary_badge/summary`` to the launchable app count.
 
+.. _system-super-shell-sec-06:
+
 Launch Action
 --------------------
 
 The launcher button root uses the single action ``super.launch.app``. The inner icon/label child nodes are not clickable, to avoid stealing the root button's press/click event; clicking the button blank area, the icon image, the fallback first character, or the app name all resolve the instance id by event path and then call ``owner_.start_app(app_id)``. The button root also plays a local press/release animation through JSON UI event effects. If a press triggers ``pressLost``, the subsequent ``clicked`` does not dispatch ``super.launch.app``, so sliding off the control does not accidentally launch an app.
+
+.. _system-super-shell-sec-07:
 
 Theme
 --------------------

@@ -5,6 +5,8 @@ Layout
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-layout-sec-01:
+
 Overview
 --------------------
 
@@ -13,6 +15,8 @@ This page explains the semantics of the ``layout`` fields. Public JSON uses ``ca
 This page covers only ``layout``. For the node's own size, coordinates, anchors, and grid-child placement semantics, see
 :doc:`placement`.
 
+.. _gui-interface-json_ui-styling-layout-sec-02:
+
 Related Documents
 ----------------------------------
 
@@ -20,6 +24,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`placement`
+
+.. _gui-interface-json_ui-styling-layout-sec-03:
 
 Mental Model
 ------------------------
@@ -43,6 +49,8 @@ When Runtime view debug is on, the backend only draws an extra debug outline to 
      - the backend applies size, coordinates, relative anchors, and grid cell semantics
 
 ``style`` only handles visual presentation such as color, corner radius, fonts, and spacing. Do not write ``placement`` size or coordinates into ``layout``.
+
+.. _gui-interface-json_ui-styling-layout-sec-04:
 
 Dimension
 --------------------
@@ -73,6 +81,8 @@ Dimension
 
 A ``dp`` string supports only the ``dp`` suffix; a percentage string supports only the ``%`` suffix; a bare number is an already-converted backend pixel and is not multiplied by ``density``.
 
+.. _gui-interface-json_ui-styling-layout-sec-05:
+
 Layout
 --------------------
 
@@ -87,6 +97,8 @@ Layout
 - ``gridTemplateRows = []``
 
 That is, by default the current node does not enable backend auto layout.
+
+.. _gui-interface-json_ui-styling-layout-sec-06:
 
 Field Table
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -138,8 +150,12 @@ Field Table
 ``align enum`` supports ``start``, ``center``, ``end``, ``spaceBetween``, ``spaceAround``, ``spaceEvenly``, ``stretch``.
 Among them ``stretch`` is mainly for ``placement.alignSelf``; used in flex alignment it is treated as ``start``.
 
+.. _gui-interface-json_ui-styling-layout-sec-07:
+
 Value Description
 ----------------------------------
+
+.. _gui-interface-json_ui-styling-layout-sec-08:
 
 Type
 ^^^^^^^^^^^^^^^^^^^^
@@ -155,6 +171,8 @@ Type
      - Enables flex layout, arranging direct children by ``flexFlow``, ``mainAlign``, ``crossAlign``, ``gap``
    * - ``grid``
      - Enables grid layout, building a grid by ``gridTemplateColumns`` / ``gridTemplateRows``
+
+.. _gui-interface-json_ui-styling-layout-sec-09:
 
 Flexflow
 ^^^^^^^^^^^^^^^^^^^^
@@ -172,6 +190,8 @@ Flexflow
      - Main axis horizontal; wraps to the next row when space runs out
    * - ``columnWrap``
      - Main axis vertical; wraps to the next column when space runs out
+
+.. _gui-interface-json_ui-styling-layout-sec-10:
 
 Align Enum
 ^^^^^^^^^^^^^^^^^^^^
@@ -198,6 +218,8 @@ Align Enum
    * - ``stretch``
      - Stretch to fill available space; mainly for grid children's ``placement.alignSelf``
 
+.. _gui-interface-json_ui-styling-layout-sec-11:
+
 None
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -222,6 +244,8 @@ None
            }
        ]
    }
+
+.. _gui-interface-json_ui-styling-layout-sec-12:
 
 Flex
 ^^^^^^^^^^^^^^^^^^^^
@@ -249,6 +273,8 @@ Corresponding backend behavior: enable flex layout and apply ``flexFlow``, ``mai
 If a flex child needs to occupy the remaining space of the current track, use
 ``flexGrow`` in that child's ``placement``. Do not use ``placement.width: "match"`` to mimic the main-axis ``Fill container`` of Figma Auto Layout;
 ``match`` is 100% of the parent's size, not flex remaining-space semantics.
+
+.. _gui-interface-json_ui-styling-layout-sec-13:
 
 Grid
 ^^^^^^^^^^^^^^^^^^^^

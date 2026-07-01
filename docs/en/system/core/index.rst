@@ -7,12 +7,16 @@ System Core
 
 ``brookesia_system_core`` provides the common core capabilities required by ESP-Brookesia product systems. It coordinates native apps, runtime apps, app-owned GUI documents, storage, timers, service access, and permission boundaries.
 
+.. _system-core-index-sec-01:
+
 Overview
 --------------------
 
 System Core is the orchestration layer of the Brookesia system framework. It wires together the GUI Runtime, Runtime Manager, Service Manager, and TaskScheduler, and exposes a stable app integration model.
 
 It handles two app kinds uniformly: native apps integrate by subclassing ``IApp`` in C++, while runtime apps integrate through an unpacked package and scripted convention functions. Both kinds operate only on their own GUI document and never touch ``DocumentId``, layers, or mount targets directly.
+
+.. _system-core-index-sec-02:
 
 Core Capabilities
 --------------------
@@ -24,10 +28,14 @@ Core Capabilities
 - Automatic registration and unregistration of native app GUI image/font resources.
 - Basic permission tiers based on ``AppKind``.
 
+.. _system-core-index-sec-03:
+
 Mainline Model
 --------------------
 
 A regular app never touches ``gui::DocumentId``, layers, or mount targets; it operates only on its own GUI document, and regular screens always mount to ``AppDefault``. A derived ``System`` and built-in native system apps can use the more complete system capabilities through system-only APIs, for example to manage the shell, status bar, and overlay.
+
+.. _system-core-index-sec-04:
 
 Documentation
 --------------------

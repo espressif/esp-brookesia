@@ -5,6 +5,8 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-view-index-sec-01:
+
 概览
 --------------------
 
@@ -18,6 +20,8 @@
 
 本文档不负责字段级细节，例如 ``layout`` / ``placement`` / ``style`` / ``props`` / ``events`` / ``animations``。这些内容请查看对应文档。
 
+.. _gui-interface-json_ui-view-index-sec-02:
+
 相关文档
 --------------------
 
@@ -30,6 +34,8 @@
 - :doc:`../interaction/bindings`
 - :doc:`../interaction/events`
 - :doc:`../interaction/animations`
+
+.. _gui-interface-json_ui-view-index-sec-03:
 
 通用字段表
 --------------------
@@ -115,6 +121,8 @@
 
 完整 props 域请查看 :doc:`../styling/props/index`。
 
+.. _gui-interface-json_ui-view-index-sec-04:
+
 styleRefs
 --------------------
 
@@ -136,6 +144,8 @@ styleRefs
        }
    }
 
+.. _gui-interface-json_ui-view-index-sec-05:
+
 interactionRefs
 ------------------------------
 
@@ -153,11 +163,15 @@ interactionRefs
        "events": [{"type": "clicked", "action": "store.install"}]
    }
 
+.. _gui-interface-json_ui-view-index-sec-06:
+
 id
 --------------------
 
 - 同一父节点下必须唯一。
 - 顶层 ``screen`` 和顶层模板 id 在同一 document 内必须唯一。
+
+.. _gui-interface-json_ui-view-index-sec-07:
 
 mountMode
 --------------------
@@ -173,6 +187,8 @@ mountMode
      - document load 时创建 screen 子树；适合常驻页面或希望启动后立即可见的页面
    * - ``dynamic``
      - 首次 mount 时再创建 screen 子树；适合不常用页面，减少 document 初始加载开销
+
+.. _gui-interface-json_ui-view-index-sec-08:
 
 type
 --------------------
@@ -240,6 +256,8 @@ type
 
 ``type`` 统一使用上表中的 ``camelCase`` 写法。
 
+.. _gui-interface-json_ui-view-index-sec-09:
+
 children
 --------------------
 
@@ -253,6 +271,8 @@ children
 - 可以使用 ``templateRef`` 静态实例化 ``viewTemplate``；模板内部可用 ``slot`` 暴露可替换子树，详见
   :doc:`../assets/view_template`。
 - ``placement.relativeTo`` 必须使用 ``${view.*}`` 文件根相对点路径，例如 ``${view.anchor}`` 或 ``${view.host.anchor}``。
+
+.. _gui-interface-json_ui-view-index-sec-10:
 
 Subtype 导航
 --------------------

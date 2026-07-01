@@ -5,10 +5,14 @@ rangeProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-range-sec-01:
+
 概览
 --------------------
 
 ``rangeProps`` 适用于 ``slider``、``progressBar`` 和 ``arc``。
+
+.. _gui-interface-json_ui-styling-props-range-sec-02:
 
 相关文档
 --------------------
@@ -17,6 +21,8 @@ rangeProps
 - :doc:`../../view/slider`
 - :doc:`../../view/progress_bar`
 - :doc:`../../view/arc`
+
+.. _gui-interface-json_ui-styling-props-range-sec-03:
 
 字段表
 --------------------
@@ -49,6 +55,8 @@ rangeProps
      - ``1``
      - ``rangeProps.step``
      - 步进值；当前主要供协议表达和事件逻辑使用
+
+.. _gui-interface-json_ui-styling-props-range-sec-04:
 
 示例
 --------------------

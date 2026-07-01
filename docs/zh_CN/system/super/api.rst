@@ -7,6 +7,8 @@ API 参考
 
 本页汇总 System Super 公共头文件生成的 API 参考。
 
+.. _system-super-api-sec-01:
+
 System
 --------------------
 

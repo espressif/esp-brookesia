@@ -34,6 +34,7 @@
                 "dialog.refreshing_app_list": "Refreshing app list...",
                 "dialog.requesting_app_list": "Requesting app list...",
                 "dialog.updating_icons_prefix": "Updating icons ",
+                "detail.size_prefix": "Size: ",
                 "error.download_failed": "Download failed",
                 "error.failed_check_network": "Failed to check network",
                 "error.http_request_failed": "HTTP request failed",

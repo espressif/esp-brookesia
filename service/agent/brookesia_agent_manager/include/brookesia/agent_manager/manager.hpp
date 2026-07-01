@@ -215,6 +215,8 @@ private:
 
     std::expected<void, std::string> activate_agent(const std::string &name);
     std::vector<std::string> get_agent_names();
+    void stop_active_agent();
+    void stop_agent_if_running(const std::shared_ptr<Base> &agent, const char *reason);
 
     void reset_data();
     void try_load_data();

@@ -5,10 +5,14 @@ image
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-view-image-sec-01:
+
 概览
 --------------------
 
 ``image`` 表示图片节点。
+
+.. _gui-interface-json_ui-view-image-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ image
 - :doc:`index`
 - :doc:`../styling/props/image`
 - :doc:`../assets/image`
+
+.. _gui-interface-json_ui-view-image-sec-03:
 
 专属 props
 --------------------
@@ -32,6 +38,8 @@ image
   - ``imageProps.pivotX``
   - ``imageProps.pivotY``
   - ``imageProps.innerAlign``
+
+.. _gui-interface-json_ui-view-image-sec-04:
 
 常见事件
 --------------------

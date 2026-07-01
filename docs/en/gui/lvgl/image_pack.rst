@@ -7,6 +7,8 @@ LVGL Image Packaging
 
 ``brookesia_gui_lvgl`` provides a CMake helper that converts the app's PNG/JPG/JPEG images into LVGL v9 ``.bin`` and generates an ``index.json``-form ``imageSet`` descriptor in the output directory.
 
+.. _gui-lvgl-image_pack-sec-01:
+
 Cmake Commands
 ----------------------------
 
@@ -34,6 +36,8 @@ Behavior:
 - a ``.bin`` generated with ``CF RGB565`` can be loaded directly by the LVGL backend, suitable for large alpha-free background images to reduce image size.
 - icons or sprites that need a transparent channel should still use ``CF ARGB8888``.
 
+.. _gui-lvgl-image_pack-sec-02:
+
 LVGL Image Python Source
 --------------------------------------
 
@@ -43,6 +47,8 @@ The helper does not keep a local copy of ``LVGLImage.py``; it resolves the scrip
 - PC: reads ``scripts/LVGLImage.py`` from the ``SOURCE_DIR`` of the ``lvgl`` target.
 - special projects can override the script path explicitly through the cache variable ``BROOKESIA_GUI_LVGL_IMAGE_TOOL``.
 
+.. _gui-lvgl-image_pack-sec-03:
+
 Python Environment
 ------------------------------------
 
@@ -51,6 +57,8 @@ The helper needs a Python that can import ``png``, ``lz4.block``, and ``PIL.Imag
 - ``BROOKESIA_GUI_LVGL_IMAGE_TOOL_PYTHON`` can specify the Python to use.
 - by default it tries candidates such as the project Python, ``BROOKESIA_ROOT_DIR/.venv-docs/bin/python``, and ``BROOKESIA_ROOT_DIR/.venv/bin/python``.
 - ``BROOKESIA_GUI_LVGL_IMAGE_TOOL_AUTO_INSTALL_PIP_DEPS`` defaults to ``ON``; if a candidate Python lacks the dependencies, a build-local venv is created at ``${CMAKE_BINARY_DIR}/brookesia_gui_lvgl_image_tool_venv`` and ``pypng``, ``lz4``, ``Pillow`` are installed.
+
+.. _gui-lvgl-image_pack-sec-04:
 
 Runtime Behavior
 --------------------------------

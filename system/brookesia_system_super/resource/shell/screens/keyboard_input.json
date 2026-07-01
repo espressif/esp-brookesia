@@ -1,5 +1,6 @@
 {
     "type": "viewScreen",
+    "mount_mode": "dynamic",
     "id": "keyboard_input",
     "commonProps": {
         "clickable": true,

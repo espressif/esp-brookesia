@@ -5,6 +5,8 @@ commonProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-common-sec-01:
+
 概览
 --------------------
 
@@ -13,12 +15,16 @@ commonProps
 节点外框尺寸不属于 ``commonProps``。``width``、``height``、``aspectRatio`` 等 size/box 约束统一写在
 :doc:`placement <../placement>` 中；``commonProps.zoom`` / ``pivotX`` / ``pivotY`` 只负责已经布局后的 transform。
 
+.. _gui-interface-json_ui-styling-props-common-sec-02:
+
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/index`
 - :doc:`../placement`
+
+.. _gui-interface-json_ui-styling-props-common-sec-03:
 
 字段表
 --------------------
@@ -77,6 +83,8 @@ commonProps
      - ``commonProps.pivotY``
      - 通用旋转/缩放 pivot 的 Y 坐标；如 ``"50%"`` 表示节点高度的一半
 
+.. _gui-interface-json_ui-styling-props-common-sec-04:
+
 Baseline 默认值
 ------------------------
 
@@ -89,6 +97,8 @@ Baseline 默认值
 
 - ``screen``、``container`` 默认 ``true``
 - 其它常规节点，如 ``label``、``button``、``image`` 等，默认 ``false``
+
+.. _gui-interface-json_ui-styling-props-common-sec-05:
 
 示例
 --------------------

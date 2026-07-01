@@ -7,12 +7,16 @@ GUI 管理
 
 system core 将 app GUI 分为应用自有 GUI 和 system-only GUI 两类。
 
+.. _system-core-gui-sec-01:
+
 应用自有 GUI
 --------------------
 
 每个 app 最多拥有一个由 core 托管的 GUI document。document 来源由 ``AppManifest`` 指定：原生应用由 ``IApp::get_gui_descriptor()`` 指定，可为 ``None``、``File`` 或 ``JsonString``；运行时应用固定读取 ``<runtime.resource_dir>/profile.json`` descriptor，再加载 ``root`` 指向的 JSON UI document。
 
 ``start_app()`` 会在 app ``on_start()`` 前加载 document，并按 descriptor 或 runtime root 的 ``screen_flows[]`` 自动启动对应 flow，把 ``initial`` screen 挂到指定逻辑 layer。因此 app 不暴露 ``DocumentId``、layer 或 mount target。
+
+.. _system-core-gui-sec-02:
 
 AppGuiRuntime
 --------------------
@@ -50,6 +54,8 @@ AppGuiRuntime
 
 ``start_view_animation_with_result()`` 在启动动画后返回 ``RuntimeAnimationStartResult``，包含 ``subscription_id``、``resolved_from``、``resolved_to``。当 animation 使用 ``from_mode = Current`` 或 ``to_mode = Relative`` 时，原生应用可用这些 resolved 值同步逻辑状态，避免额外 ``get_view_frame()`` 回读。
 
+.. _system-core-gui-sec-03:
+
 运行时应用 GUI service
 ----------------------
 
@@ -63,6 +69,8 @@ AppGuiRuntime
 - doc id 参数
 - layer 参数
 - mount target 参数
+
+.. _system-core-gui-sec-04:
 
 system-only GUI
 --------------------
@@ -97,6 +105,8 @@ system-only GUI
 
 Transient screen 是 system-only overlay 能力：它把 screen 挂到目标 layer 前景，但不写入普通 ``mounted_screens_`` 记录，适合启动页、app launch transition 这类临时遮罩，不会替换同 layer 上已由 screen flow 管理的 Shell overlay。
 
+.. _system-core-gui-sec-05:
+
 Debug 与 Live Preview
 ---------------------
 
@@ -105,6 +115,8 @@ Debug 与 Live Preview
 ``System::Config::enable_gui_live_preview`` 默认关闭。开启后，core 会在 ``load_file()`` 成功后自动为 file-backed document 调用 ``gui::Runtime::enable_live_preview()``，并由 ``SystemGui`` task 定期调用 ``poll_live_preview()``。``load_json()`` 或 JSON string document 没有可轮询的源文件，因此不会自动开启。
 
 live preview 是开发辅助能力，只暴露给 C++ system/native app，不通过 ``SystemGui`` service 暴露给 Lua/JS 运行时应用。
+
+.. _system-core-gui-sec-06:
 
 Runtime Theme
 --------------------

@@ -5,10 +5,14 @@ Image
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-view-image-sec-01:
+
 Overview
 --------------------
 
 ``image`` represents an image node.
+
+.. _gui-interface-json_ui-view-image-sec-02:
 
 Related Documents
 ----------------------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../styling/props/image`
 - :doc:`../assets/image`
+
+.. _gui-interface-json_ui-view-image-sec-03:
 
 Exclusive Props
 ------------------------------
@@ -32,6 +38,8 @@ Exclusive Props
   - ``imageProps.pivotX``
   - ``imageProps.pivotY``
   - ``imageProps.innerAlign``
+
+.. _gui-interface-json_ui-view-image-sec-04:
 
 Common Events
 --------------------------

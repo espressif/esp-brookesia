@@ -10,18 +10,6 @@ idf_component_register(
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)
 
-idf_build_get_property(build_components BUILD_COMPONENTS)
-set(brookesia_gui_lvgl_component "")
-if("brookesia_gui_lvgl" IN_LIST build_components)
-    set(brookesia_gui_lvgl_component "brookesia_gui_lvgl")
-elseif("espressif__brookesia_gui_lvgl" IN_LIST build_components)
-    set(brookesia_gui_lvgl_component "espressif__brookesia_gui_lvgl")
-endif()
-if(NOT brookesia_gui_lvgl_component)
-    message(FATAL_ERROR "brookesia_system_super requires brookesia_gui_lvgl to stage shell image resources")
-endif()
-idf_component_get_property(brookesia_gui_lvgl_dir ${brookesia_gui_lvgl_component} COMPONENT_DIR)
-include(${brookesia_gui_lvgl_dir}/cmake/image_pack.cmake)
 idf_component_get_property(brookesia_system_core_dir brookesia_system_core COMPONENT_DIR)
 include(${brookesia_system_core_dir}/cmake/runtime_app_stage.cmake)
 include(${COMPONENT_DIR}/cmake/resource_stage.cmake)

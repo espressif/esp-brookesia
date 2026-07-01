@@ -10,8 +10,8 @@
 #include <string_view>
 #include <vector>
 #include "boost/json.hpp"
-#include "schema_json_serializer.hpp"
 #include "brookesia/service_helper.hpp"
+#include "schema_json_serializer.hpp"
 
 using namespace esp_brookesia::service;
 using namespace esp_brookesia::service::helper;
@@ -20,7 +20,7 @@ using brookesia_host::append_helper_schema_dump;
 int main()
 {
     boost::json::array helpers;
-    helpers.reserve(14);
+    helpers.reserve(17);
     std::size_t total_function_count = 0;
     std::size_t total_event_count = 0;
     std::size_t helper_error_count = 0;
@@ -41,19 +41,35 @@ int main()
         }
     };
 
-    append_dump_with_guard("AudioPlayback", AudioPlayback::get_function_schemas, AudioPlayback::get_event_schemas);
-    append_dump_with_guard("AudioEncoder0", AudioEncoder<0>::get_function_schemas, AudioEncoder<0>::get_event_schemas);
-    append_dump_with_guard("AudioDecoder0", AudioDecoder<0>::get_function_schemas, AudioDecoder<0>::get_event_schemas);
-    append_dump_with_guard("Device", Device::get_function_schemas, Device::get_event_schemas);
-    append_dump_with_guard("Storage", Storage::get_function_schemas, Storage::get_event_schemas);
-    append_dump_with_guard("Wifi", Wifi::get_function_schemas, Wifi::get_event_schemas);
-    append_dump_with_guard("ExpressionEmote", ExpressionEmote::get_function_schemas, ExpressionEmote::get_event_schemas);
-    append_dump_with_guard("VideoEncoder", Video::get_encoder_function_schemas, Video::get_encoder_event_schemas);
-    append_dump_with_guard("VideoDecoder", Video::get_decoder_function_schemas, Video::get_decoder_event_schemas);
-    append_dump_with_guard("Coze", Coze::get_function_schemas, Coze::get_event_schemas);
-    append_dump_with_guard("AgentManager", Manager::get_function_schemas, Manager::get_event_schemas);
-    append_dump_with_guard("OpenAI", Openai::get_function_schemas, Openai::get_event_schemas);
-    append_dump_with_guard("XiaoZhi", XiaoZhi::get_function_schemas, XiaoZhi::get_event_schemas);
+    append_dump_with_guard(
+        AudioPlayback::get_name(), AudioPlayback::get_function_schemas, AudioPlayback::get_event_schemas
+    );
+    append_dump_with_guard(
+        AudioEncoder<0>::get_name(), AudioEncoder<0>::get_function_schemas, AudioEncoder<0>::get_event_schemas
+    );
+    append_dump_with_guard(
+        AudioDecoder<0>::get_name(), AudioDecoder<0>::get_function_schemas, AudioDecoder<0>::get_event_schemas
+    );
+    append_dump_with_guard(Device::get_name(), Device::get_function_schemas, Device::get_event_schemas);
+    append_dump_with_guard(Display::get_name(), Display::get_function_schemas, Display::get_event_schemas);
+    append_dump_with_guard(Http::get_name(), Http::get_function_schemas, Http::get_event_schemas);
+    append_dump_with_guard(Nes::get_name(), Nes::get_function_schemas, Nes::get_event_schemas);
+    append_dump_with_guard(SNTP::get_name(), SNTP::get_function_schemas, SNTP::get_event_schemas);
+    append_dump_with_guard(Storage::get_name(), Storage::get_function_schemas, Storage::get_event_schemas);
+    append_dump_with_guard(Wifi::get_name(), Wifi::get_function_schemas, Wifi::get_event_schemas);
+    append_dump_with_guard(
+        ExpressionEmote::get_name(), ExpressionEmote::get_function_schemas, ExpressionEmote::get_event_schemas
+    );
+    append_dump_with_guard(
+        VideoEncoder<0>::get_name(), VideoEncoder<0>::get_function_schemas, VideoEncoder<0>::get_event_schemas
+    );
+    append_dump_with_guard(
+        VideoDecoder<0>::get_name(), VideoDecoder<0>::get_function_schemas, VideoDecoder<0>::get_event_schemas
+    );
+    append_dump_with_guard(Manager::get_name(), Manager::get_function_schemas, Manager::get_event_schemas);
+    append_dump_with_guard(Coze::get_name(), Coze::get_function_schemas, Coze::get_event_schemas);
+    append_dump_with_guard(Openai::get_name(), Openai::get_function_schemas, Openai::get_event_schemas);
+    append_dump_with_guard(XiaoZhi::get_name(), XiaoZhi::get_function_schemas, XiaoZhi::get_event_schemas);
 
     boost::json::object root;
     root["helper_count"] = static_cast<std::uint64_t>(helpers.size());

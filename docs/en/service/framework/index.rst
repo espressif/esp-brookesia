@@ -10,7 +10,7 @@ Core components for service lifecycle management, helper contracts, custom servi
 .. toctree::
    :maxdepth: 1
 
-   Service Manager <../manager/index>
-   Service Helper <../helper/index>
-   Custom <../custom>
-   Application Development Guide <../usage>
+   Service Manager <manager/index>
+   Service Helper <helper/index>
+   Custom <custom>
+   Application Development Guide <usage>

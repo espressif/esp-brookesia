@@ -19,7 +19,7 @@
 
 .. rubric:: 组件职责
 
-- Service Manager 负责插件生命周期、函数路由、事件分发、本地调用和 RPC。
+- Service Manager 负责插件生命周期、函数路由、事件分发和本地调用。
 - Service Helper 提供类型安全 schema 和辅助调用。
 - service 族按 framework、network、media、system-service、agent、expression 和 emulation 组件组织。
 

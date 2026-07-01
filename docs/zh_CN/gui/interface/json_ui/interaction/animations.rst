@@ -5,12 +5,16 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-interaction-animations-sec-01:
+
 概览
 --------------------
 
 本文档说明 ``animations`` 的字段语义。公开 JSON 使用 ``camelCase``，enum 值按本文档写法书写。
 
 本文档只负责 ``animations``。事件触发语义请查看 :doc:`events`，节点结构请查看 :doc:`../view/index`。
+
+.. _gui-interface-json_ui-interaction-animations-sec-02:
 
 相关文档
 --------------------
@@ -19,6 +23,8 @@
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`events`
+
+.. _gui-interface-json_ui-interaction-animations-sec-03:
 
 总览
 --------------------
@@ -36,6 +42,8 @@
 - 基础 easing、delay、repeat、playback
 
 后端创建节点时的应用顺序为：props 域、``layout``、``placement``（其后还会再应用一次 ``commonProps`` 的 transform，如 ``zoom`` / ``angle`` / ``pivot``）、``style``、debug outline、``animations``、``events``，随后订阅 ``bindings``。因此 ``mount`` 动画开始时，节点的初始 props、布局、摆放和样式已经应用。
+
+.. _gui-interface-json_ui-interaction-animations-sec-04:
 
 字段表
 --------------------
@@ -109,6 +117,8 @@
      - 是否反向播放
      - true 时设置 reverse duration，时长等于 ``duration``
 
+.. _gui-interface-json_ui-interaction-animations-sec-05:
+
 触发时机（trigger）
 --------------------------
 
@@ -137,6 +147,8 @@
 - ``show`` / ``hide`` 依赖 ``commonProps.hidden`` 状态变化，不会因为 backend 对象可见性被外部代码直接修改而自动触发。
 - ``click``、``pressed``、``valueChanged`` 等事件可以通过 ``events[].effects`` 中的 ``startAnimation``
   触发 ``manual`` 动画；也可以继续由 app 在 action 回调中调用 runtime API。
+
+.. _gui-interface-json_ui-interaction-animations-sec-06:
 
 动画属性（property）
 ----------------------------
@@ -187,6 +199,8 @@
 
 当前 ``from`` / ``to`` 只解析 integer。若希望使用 ``dp`` 或 ``sp``，需要先在常量中换算为裸整数并保证 parser 读到的是 JSON number；字符串 ``"24dp"`` 不适用于动画字段。
 
+.. _gui-interface-json_ui-interaction-animations-sec-07:
+
 取值模式（value mode）
 --------------------------------
 
@@ -213,6 +227,8 @@
        "easing": "linear"
    }
 
+.. _gui-interface-json_ui-interaction-animations-sec-08:
+
 缓动（easing）
 --------------------
 
@@ -237,6 +253,8 @@
      - 阶跃
 
 非法 enum 会在解析或校验阶段报错；``AnimationEasing::Max`` 不允许通过 validator。
+
+.. _gui-interface-json_ui-interaction-animations-sec-09:
 
 示例
 --------------------
@@ -329,6 +347,8 @@
            }
        ]
    }
+
+.. _gui-interface-json_ui-interaction-animations-sec-10:
 
 当前限制
 --------------------

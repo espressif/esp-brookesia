@@ -10,6 +10,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdint>
+#include <expected>
 #include <filesystem>
 #include <fstream>
 #include <memory>
@@ -49,6 +50,7 @@ static constexpr const char *APP_ID = "brookesia.general.settings";
 static constexpr const char *APP_NAME = "Settings";
 static constexpr const char *APP_NAME_ZH_CN = "设置";
 static constexpr const char *APP_ICON_ID = "launcher_icon";
+static constexpr const char *APP_ICON_PATH = "res/images/index.json";
 static constexpr const char *GUI_ROOT = "res/root.json";
 static constexpr const char *CONTENT_FLOW_ID = "settings_content";
 static constexpr const char *HEADER_FLOW_ID = "settings_header";
@@ -186,6 +188,7 @@ static constexpr const char *MY_DEVICE_FALLBACK_SYSTEM_NAME = "System";
 static constexpr const char *MY_DEVICE_FALLBACK_SYSTEM_VERSION = "--";
 static constexpr const char *SETTINGS_STORAGE_NAMESPACE = "app.settings";
 static constexpr const char *WIFI_ENABLED_STORAGE_KEY = "WifiEnabled";
+static constexpr uint32_t SETTINGS_STORAGE_TIMEOUT_MS = WIFI_SERVICE_TIMEOUT_MS;
 
 static constexpr std::array<const char *, 16> NAVIGATION_ACTIONS = {
     ACTION_OPEN_HOME,
@@ -224,6 +227,60 @@ struct NavigationTarget {
     std::string_view action;
     std::string_view page;
 };
+
+struct SettingsKvName {
+    std::string nspace;
+    std::string key;
+};
+
+std::expected<std::string, std::string> make_settings_kv_namespace(std::string_view raw_namespace)
+{
+    auto result = StorageHelper::make_kv_namespace({raw_namespace}, ".", SETTINGS_STORAGE_TIMEOUT_MS);
+    if (!result) {
+        return std::unexpected(
+                   "Failed to make Settings KV namespace '" + std::string(raw_namespace) + "': " + result.error()
+               );
+    }
+    if (result->hashed) {
+        BROOKESIA_LOGD("%1%", result->warning);
+    }
+    return result->name;
+}
+
+std::expected<std::string, std::string> make_settings_kv_key(std::string_view raw_key)
+{
+    auto result = StorageHelper::make_kv_key({raw_key}, ".", SETTINGS_STORAGE_TIMEOUT_MS);
+    if (!result) {
+        return std::unexpected(
+                   "Failed to make Settings KV key '" + std::string(raw_key) + "': " + result.error()
+               );
+    }
+    if (result->hashed) {
+        BROOKESIA_LOGD("%1%", result->warning);
+    }
+    return result->name;
+}
+
+std::expected<SettingsKvName, std::string> make_settings_kv_name(
+    std::string_view raw_namespace,
+    std::string_view raw_key
+)
+{
+    auto namespace_result = make_settings_kv_namespace(raw_namespace);
+    if (!namespace_result) {
+        return std::unexpected(namespace_result.error());
+    }
+
+    auto key_result = make_settings_kv_key(raw_key);
+    if (!key_result) {
+        return std::unexpected(key_result.error());
+    }
+
+    return SettingsKvName{
+        .nspace = std::move(namespace_result.value()),
+        .key = std::move(key_result.value()),
+    };
+}
 
 struct SelectableThemeTokens {
     std::string border_width;

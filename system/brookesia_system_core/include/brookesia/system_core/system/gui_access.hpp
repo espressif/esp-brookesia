@@ -115,7 +115,9 @@ public:
     ) const;
     std::expected<void, std::string> register_image(const gui::RuntimeImageResource &resource) const;
     bool unregister_image(std::string_view id) const;
+    std::vector<std::string> list_supported_fonts(std::string_view language) const;
     std::vector<std::string> list_supported_languages() const;
+    std::vector<std::string> list_supported_languages(std::string_view font_id) const;
     std::expected<void, std::string> set_default_font_for_language(
         std::string_view language,
         std::string_view font_id

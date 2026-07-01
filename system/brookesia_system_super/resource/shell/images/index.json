@@ -2,12 +2,6 @@
     "type": "imageSet",
     "images": [
         {
-            "id": "default",
-            "src": "default.png",
-            "width": 57,
-            "height": 41
-        },
-        {
             "id": "icon.backspace",
             "src": "icon/backspace.png",
             "width": 32,

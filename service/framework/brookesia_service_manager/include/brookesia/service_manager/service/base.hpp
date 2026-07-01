@@ -18,9 +18,6 @@
 #include "brookesia/service_manager/macro_configs.h"
 #include "brookesia/service_manager/function/registry.hpp"
 #include "brookesia/service_manager/event/registry.hpp"
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-#   include "brookesia/service_manager/rpc/connection.hpp"
-#endif
 
 namespace esp_brookesia::service {
 
@@ -290,20 +287,6 @@ public:
     }
 
     /**
-     * @brief Check if the service is connected to server
-     *
-     * @return true if connected, false otherwise
-     */
-    bool is_server_connected() const
-    {
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-        return (server_connection_ != nullptr);
-#else
-        return false;
-#endif
-    }
-
-    /**
      * @brief Get the service attributes
      *
      * @return const Attributes& Reference to service attributes
@@ -419,7 +402,7 @@ protected:
      * @brief Event-subscription callback.
      *
      * Subclasses can override this hook to lazily enable event-producing backends.
-     * It is called after a local or RPC subscription to a registered event succeeds.
+     * It is called after a local subscription to a registered event succeeds.
      *
      * @param[in] event_name Event name that was subscribed.
      */
@@ -603,12 +586,6 @@ private:
     // does not deadlock against task_scheduler->stop().
     void deinit_internal_locked(boost::unique_lock<boost::shared_mutex> *state_lock);
 
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    std::shared_ptr<rpc::ServerConnection> connect_to_server();
-    void disconnect_from_server();
-    void try_override_connection_request_handler();
-#endif
-
     Attributes attributes_;
 
     boost::shared_mutex state_mutex_;  // Protect state transitions (init/deinit/start/stop)
@@ -620,9 +597,6 @@ private:
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
     std::shared_ptr<FunctionRegistry> function_registry_;
     std::shared_ptr<EventRegistry> event_registry_;
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    std::shared_ptr<rpc::ServerConnection> server_connection_;
-#endif
 };
 
 BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task_scheduler_config))

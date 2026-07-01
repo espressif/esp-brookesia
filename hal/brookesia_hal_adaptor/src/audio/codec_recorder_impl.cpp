@@ -53,6 +53,11 @@ AudioCodecRecorderImpl::AudioCodecRecorderImpl(std::optional<audio::CodecRecorde
 
     BROOKESIA_LOGD("Params: info(%1%)", get_info());
 
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC)) {
+        BROOKESIA_LOGW("Audio ADC device not found, skip");
+        return;
+    }
+
     auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to init codec ADC");
 
@@ -67,7 +72,9 @@ AudioCodecRecorderImpl::~AudioCodecRecorderImpl()
 
     close();
 
-    esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
+    if (esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC)) {
+        esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
+    }
 }
 
 bool AudioCodecRecorderImpl::open()

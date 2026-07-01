@@ -6,7 +6,7 @@ set(
 
 if(NOT TARGET brookesia::lib_utils)
     add_subdirectory(
-        ${TEST_APP_DIR}/../../../utils/brookesia_lib_utils
+        ${TEST_APP_DIR}/../../../../utils/brookesia_lib_utils
         ${CMAKE_BINARY_DIR}/brookesia_lib_utils
     )
 endif()

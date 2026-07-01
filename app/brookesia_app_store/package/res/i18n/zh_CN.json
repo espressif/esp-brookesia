@@ -34,6 +34,7 @@
                 "dialog.refreshing_app_list": "正在刷新应用列表...",
                 "dialog.requesting_app_list": "正在请求应用列表...",
                 "dialog.updating_icons_prefix": "正在更新图标 ",
+                "detail.size_prefix": "大小：",
                 "error.download_failed": "下载失败",
                 "error.failed_check_network": "网络检查失败",
                 "error.http_request_failed": "HTTP 请求失败",

@@ -5,10 +5,14 @@ Bindings
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-interaction-bindings-sec-01:
+
 Overview
 --------------------
 
 ``bindings`` is an optional object that applies the string values from Runtime bindings to the current node's leaf fields.
+
+.. _gui-interface-json_ui-interaction-bindings-sec-02:
 
 Related Documents
 ----------------------------------
@@ -17,6 +21,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`../styling/props/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-bindings-sec-03:
 
 Field Table
 ----------------------
@@ -37,6 +43,8 @@ Field Table
      - none
      - the local store key in the current node path scope, without a prefix
 
+.. _gui-interface-json_ui-interaction-bindings-sec-04:
+
 Rule
 --------------------
 
@@ -44,6 +52,8 @@ Rule
 - the ``bindings`` value is the local store key in the current node path scope, without a prefix.
 - the same local key can be safely reused on different nodes; the real scope is ``document_id + absolute_path + local_key``.
 - whether a props-field binding is available depends on the current control type.
+
+.. _gui-interface-json_ui-interaction-bindings-sec-05:
 
 Why the Public Interface Needs Absolute Path
 ------------------------------------------------------------------------------------------------------
@@ -55,6 +65,8 @@ Why the Public Interface Needs Absolute Path
   - which static node
   - which node in which template instance
 - therefore the formal public locator for bindings is ``document_id + absolute_path + local_key``, not a document-level unique key.
+
+.. _gui-interface-json_ui-interaction-bindings-sec-06:
 
 Common Paths
 ------------------------
@@ -113,6 +125,8 @@ Not supported: ``stateStyles.<state>.font``, ``stateStyles.<state>.fontSize``, a
 ``partStyles.knob.bgColor``, ``partStyles.knob.stateStyles.pressed.bgColor``. Not supported:
 ``partStyles.<part>.font``, ``partStyles.<part>.fontSize``, and ``partStyles.<part>.imageFontSize``.
 
+.. _gui-interface-json_ui-interaction-bindings-sec-07:
+
 Public API
 --------------------
 
@@ -129,6 +143,8 @@ Public API
 - ``IDataStore`` is an internal Runtime implementation detail, not a public entry point for bindings.
 - ``bindings`` is a node-level scoped binding capability, not a sub-capability of ``events``.
 
+.. _gui-interface-json_ui-interaction-bindings-sec-08:
+
 Incremental Update Behavior
 ------------------------------------------------------
 
@@ -140,6 +156,8 @@ Incremental Update Behavior
   can use ``"16:9"`` or a numeric string.
 - in a batch write, multiple fields of the same node merge their masks first, then apply once.
 - runtime animation acts directly on the backend node and does not update the binding store; if the app layer keeps its own binding cache, invalidate or force-write the key after the animation ends.
+
+.. _gui-interface-json_ui-interaction-bindings-sec-09:
 
 Example
 --------------------

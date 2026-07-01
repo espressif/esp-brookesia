@@ -5,16 +5,22 @@ dropdownProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-dropdown-sec-01:
+
 概览
 --------------------
 
 ``dropdownProps`` 适用于 ``dropdown``。
+
+.. _gui-interface-json_ui-styling-props-dropdown-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/dropdown`
+
+.. _gui-interface-json_ui-styling-props-dropdown-sec-03:
 
 字段表
 --------------------
@@ -37,6 +43,8 @@ dropdownProps
      - ``0``
      - ``dropdownProps.selectedIndex``
      - 当前选中项索引
+
+.. _gui-interface-json_ui-styling-props-dropdown-sec-04:
 
 示例
 --------------------

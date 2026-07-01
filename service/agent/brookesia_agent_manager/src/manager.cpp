@@ -147,7 +147,11 @@ bool Manager::on_start()
     auto agents = Registry::get_all_instances();
     for (const auto &[_, agent] : agents) {
         auto &service_attributes = agent->service::ServiceBase::get_attributes();
-        if (!service_attributes.task_scheduler_config.has_value() && !agent->set_task_scheduler(get_task_scheduler())) {
+        if (service_attributes.task_scheduler_config.has_value()) {
+            continue;
+        }
+        stop_agent_if_running(agent, "setting task scheduler");
+        if (!agent->set_task_scheduler(get_task_scheduler())) {
             BROOKESIA_LOGE("Failed to set task scheduler for agent '%1%'", service_attributes.name);
         }
     }
@@ -164,17 +168,12 @@ void Manager::on_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    // Stop the state machine
-    if (state_machine_->is_running()) {
-        state_machine_->stop();
-    }
-
-    // Reset the active agent
-    active_agent_.reset();
+    stop_active_agent();
 
     // Reset task scheduler for all agents
     auto agents = Registry::get_all_instances();
     for (const auto &[_, agent] : agents) {
+        stop_agent_if_running(agent, "resetting task scheduler");
         if (!agent->set_task_scheduler(nullptr)) {
             BROOKESIA_LOGE("Failed to reset task scheduler for agent '%1%'", agent->get_attributes().name);
         }
@@ -504,11 +503,6 @@ std::expected<void, std::string> Manager::activate_agent(const std::string &name
 
     BROOKESIA_LOGD("Params: name(%1%)", name);
 
-    if ((active_agent_ != nullptr) && (active_agent_->get_attributes().name == name)) {
-        BROOKESIA_LOGD("Agent is already active, skip");
-        return {};
-    }
-
     std::string target_agent = name;
     if (name.empty()) {
         if (get_data<DataType::TargetAgent>().empty()) {
@@ -517,17 +511,18 @@ std::expected<void, std::string> Manager::activate_agent(const std::string &name
         target_agent = get_data<DataType::TargetAgent>();
     }
 
+    if ((active_agent_ != nullptr) && (active_agent_->get_attributes().name == target_agent)) {
+        BROOKESIA_LOGD("Agent is already active, skip");
+        return {};
+    }
+
     // Get the new agent
     auto new_agent = Registry::get_instance(target_agent);
     if (new_agent == nullptr) {
         return std::unexpected((boost::format("No agent found with name '%1%'") % target_agent).str());
     }
 
-    // Stop the state machine and the active agent
-    if (active_agent_ != nullptr) {
-        state_machine_->stop();
-        active_agent_->stop();
-    }
+    stop_active_agent();
 
     // Start the new agent
     if (!new_agent->start()) {
@@ -536,6 +531,19 @@ std::expected<void, std::string> Manager::activate_agent(const std::string &name
 
     // Set the new agent as the active agent before registering its functions and events
     active_agent_ = new_agent;
+    lib_utils::FunctionGuard stop_new_agent_guard([this, new_agent]() {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+        if ((state_machine_ != nullptr) && state_machine_->is_running()) {
+            state_machine_->stop();
+        }
+        if (new_agent->is_running()) {
+            new_agent->stop();
+        }
+        if (active_agent_ == new_agent) {
+            active_agent_.reset();
+        }
+    });
 
     // Start the state machine with the new agent
     if (!state_machine_->start()) {
@@ -546,6 +554,8 @@ std::expected<void, std::string> Manager::activate_agent(const std::string &name
     if (!state_machine_->trigger_general_action(GeneralAction::Activate)) {
         return std::unexpected("Failed to trigger general action to activate agent");
     }
+
+    stop_new_agent_guard.release();
 
     return {};
 }
@@ -561,6 +571,39 @@ std::vector<std::string> Manager::get_agent_names()
     }
 
     return agent_names;
+}
+
+void Manager::stop_active_agent()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if ((state_machine_ != nullptr) && state_machine_->is_running()) {
+        state_machine_->stop();
+    }
+
+    if (active_agent_ == nullptr) {
+        return;
+    }
+
+    if (active_agent_->is_running()) {
+        active_agent_->stop();
+    }
+    active_agent_.reset();
+}
+
+void Manager::stop_agent_if_running(const std::shared_ptr<Base> &agent, const char *reason)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if ((agent == nullptr) || !agent->is_running()) {
+        return;
+    }
+
+    BROOKESIA_LOGW("Stopping running agent '%1%' before %2%", agent->get_attributes().name, reason);
+    agent->stop();
+    if (active_agent_ == agent) {
+        active_agent_.reset();
+    }
 }
 
 void Manager::reset_data()

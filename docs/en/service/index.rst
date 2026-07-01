@@ -19,7 +19,7 @@ This section documents the ESP-Brookesia service framework and publishable servi
 
 .. rubric:: Component Responsibilities
 
-- Service Manager handles plugin lifecycle, function routing, event dispatch, local calls, and RPC.
+- Service Manager handles plugin lifecycle, function routing, event dispatch, and local calls.
 - Service Helper provides type-safe schemas and helper calls.
 - The service family is organized by framework, network, media, system-service, agent, expression, and emulation components.
 

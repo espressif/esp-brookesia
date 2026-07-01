@@ -5,16 +5,22 @@ Keyboardprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-keyboard-sec-01:
+
 Overview
 --------------------
 
 ``keyboardProps`` applies to ``keyboard``.
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-02:
 
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../../view/keyboard`
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-03:
 
 Field Table
 ----------------------
@@ -68,6 +74,8 @@ Field Table
      - no
      - mapping from key style class to theme style id; supports the same style classes as ``keyStyles``
 
+.. _gui-interface-json_ui-styling-props-keyboard-sec-04:
+
 Mode
 --------------------
 
@@ -90,6 +98,8 @@ Current public values:
 Only ``text``, ``upper``, ``number``, ``special`` modes are supported; an unknown mode raises an error at the parser/validator
 stage. If ``allowedModes`` is non-empty and a ``role=mode`` target mode is not in the list, the key uses the disabled style and ignores clicks.
 
+.. _gui-interface-json_ui-styling-props-keyboard-sec-05:
+
 Targettextinput
 ------------------------------
 
@@ -100,6 +110,8 @@ Targettextinput
    "keyboardProps": {
        "targetTextInput": "/keyboard_input/panel/input"
    }
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-06:
 
 Layouts
 --------------------
@@ -163,6 +175,8 @@ mode-switch keys are ``mode``, confirm/cancel are ``action``, and unavailable mo
 ``keyStyleRefs`` can reference named styles in the current theme. The runtime resolves key colors and corner radius from that style's ``bgColor``, ``textColor``, ``radius`` and
 ``stateStyles.pressed.bgColor``, ``stateStyles.pressed.textColor``. ``keyStyles`` can still serve as an
 inline fallback; when the same style class appears in both places, the result from ``keyStyleRefs`` takes precedence.
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-07:
 
 Example
 --------------------

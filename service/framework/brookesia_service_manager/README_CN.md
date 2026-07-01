@@ -4,9 +4,9 @@
 
 ## 概述
 
-`brookesia_service_manager` 是 ESP-Brookesia 的服务生命周期、本地调用、事件和 RPC 框架。
+`brookesia_service_manager` 是 ESP-Brookesia 的服务生命周期、本地调用和事件框架。
 
-更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/manager/index.html)。
+更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/framework/manager/index.html)。
 
 ## 如何使用
 

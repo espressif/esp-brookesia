@@ -7,13 +7,20 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cctype>
+#include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iomanip>
 #include <iterator>
 #include <sstream>
 #include <system_error>
 #include <unordered_map>
+
+#include <dirent.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 #include "boost/json.hpp"
 
@@ -28,6 +35,7 @@ static constexpr const char *APP_NAME = "Files";
 static constexpr const char *APP_NAME_ZH_CN = "文件";
 static constexpr const char *APP_NAME_I18N_KEY = "app_name";
 static constexpr const char *APP_ICON_ID = "launcher_icon";
+static constexpr const char *APP_ICON_PATH = "res/images/index.json";
 static constexpr const char *LOCALE_EN = "en";
 static constexpr const char *LOCALE_ZH_CN = "zh_CN";
 static constexpr const char *GUI_ROOT = "res/root.json";
@@ -219,6 +227,94 @@ bool path_is_same_or_child(const std::filesystem::path &path, const std::filesys
     const auto normalized_path = path.lexically_normal().generic_string();
     const auto normalized_parent = parent.lexically_normal().generic_string();
     return normalized_path == normalized_parent || normalized_path.starts_with(normalized_parent + "/");
+}
+
+std::string make_errno_error(std::string_view action, const std::filesystem::path &path)
+{
+    return std::string(action) + " '" + path.generic_string() + "': " + std::strerror(errno);
+}
+
+std::expected<std::uintmax_t, std::string> remove_path_tree_recursive(const std::filesystem::path &path)
+{
+    const auto path_text = path.generic_string();
+    struct stat info = {};
+    if (stat(path_text.c_str(), &info) != 0) {
+        if (errno == ENOENT) {
+            return 0;
+        }
+        return std::unexpected(make_errno_error("Failed to stat path", path));
+    }
+
+    if (!S_ISDIR(info.st_mode)) {
+        if (unlink(path_text.c_str()) != 0) {
+            return std::unexpected(make_errno_error("Failed to remove file", path));
+        }
+        return 1;
+    }
+
+    DIR *raw_dir = opendir(path_text.c_str());
+    if (raw_dir == nullptr) {
+        return std::unexpected(make_errno_error("Failed to open directory", path));
+    }
+
+    std::uintmax_t removed_count = 0;
+    while (true) {
+        errno = 0;
+        dirent *entry = readdir(raw_dir);
+        if (entry == nullptr) {
+            if (errno != 0) {
+                const auto error = make_errno_error("Failed to read directory", path);
+                closedir(raw_dir);
+                return std::unexpected(error);
+            }
+            break;
+        }
+
+        const std::string_view name(entry->d_name);
+        if (name == "." || name == "..") {
+            continue;
+        }
+
+        auto child_result = remove_path_tree_recursive(path / std::string(name));
+        if (!child_result) {
+            closedir(raw_dir);
+            return child_result;
+        }
+        removed_count += *child_result;
+    }
+
+    if (closedir(raw_dir) != 0) {
+        return std::unexpected(make_errno_error("Failed to close directory", path));
+    }
+    if (rmdir(path_text.c_str()) != 0) {
+        return std::unexpected(make_errno_error("Failed to remove directory", path));
+    }
+    return removed_count + 1;
+}
+
+std::expected<std::uintmax_t, std::string> remove_path_tree(const std::filesystem::path &path)
+{
+    if (path.empty()) {
+        return std::unexpected("Failed to remove path: path is empty");
+    }
+
+    const auto path_text = path.generic_string();
+    auto removed_count = remove_path_tree_recursive(path);
+    if (!removed_count) {
+        return std::unexpected(
+                   "Failed to remove path '" + path_text + "': " + removed_count.error()
+               );
+    }
+
+    struct stat after = {};
+    if (stat(path_text.c_str(), &after) == 0) {
+        return std::unexpected("Failed to remove path '" + path_text + "': path still exists after removal");
+    }
+    if (errno != ENOENT) {
+        return std::unexpected(make_errno_error("Failed to check path after removal", path));
+    }
+
+    return removed_count;
 }
 
 void add_binding(

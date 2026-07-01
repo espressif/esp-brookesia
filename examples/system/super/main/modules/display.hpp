@@ -68,5 +68,6 @@ private:
     uint32_t display_output_id_ = 0;
     uint32_t display_width_ = 0;
     uint32_t display_height_ = 0;
+    bool display_backlight_on_off_supported_ = false;
     GestureData gesture_data_{};
 };

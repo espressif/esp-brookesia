@@ -94,7 +94,7 @@ Demonstrates how to use type-safe `save_key_value` and `get_key_value` APIs to h
 All types are automatically serialized/deserialized, and values are verified for correctness after reading.
 
 > [!NOTE]
-> Compared to using the generic RPC-style API for data storage and retrieval, it is recommended to use the type-safe API for data storage and retrieval, as they are easier to use and less error-prone.
+> Compared to using the generic function-call API for data storage and retrieval, it is recommended to use the type-safe API for data storage and retrieval, as they are easier to use and less error-prone.
 
 ### Namespace Management Demo
 

@@ -7,6 +7,8 @@ App Package
 
 This page describes the structure of a runtime app package, its manifest fields, the resource descriptor, and the scan and install rules.
 
+.. _system-core-app_package-sec-01:
+
 Overview
 --------------------
 
@@ -16,6 +18,8 @@ An app package uses ``manifest.json`` to describe package metadata and the runti
 - unpacked package: deploy ``manifest.json + app/ + res/`` directly, scanned and installed by ``System::init()``.
 
 To run a ``.bpk``, first call the system_core package API (optionally ``verify_app_package_release()``, then ``unpack_app_package_to()``) to obtain an ``AppManifest``, then convert it with ``make_runtime_app_config()`` into a ``runtime::AppConfig``.
+
+.. _system-core-app_package-sec-02:
 
 Minimal Package Structure
 -------------------------
@@ -49,6 +53,8 @@ Example ``manifest.json``:
        "arguments": []
      }
    }
+
+.. _system-core-app_package-sec-03:
 
 Manifest Fields
 --------------------
@@ -87,6 +93,8 @@ The ``runtime`` object:
    * - ``arguments``
      - String array of runtime startup arguments
 
+.. _system-core-app_package-sec-04:
+
 Resource Descriptor
 --------------------
 
@@ -104,12 +112,16 @@ Resource Descriptor
 
 ``icon_id`` locates the launcher icon within the package; ``root`` points to a standard JSON UI document; ``screen_flows[]`` specifies the startup flow. A regular app main screen should use ``AppDefault``, and ``AppTop`` is only for an app's own header, floating layer, or toolbar; a runtime app can only use ``Replace`` with ``z_order`` within ``0..100``. ``root.json`` is a standard JSON UI document and should reference a ``screenFlow`` asset.
 
+.. _system-core-app_package-sec-05:
+
 Scanning and Install
 --------------------
 
 When ``install_package_apps = true``, ``System::init()`` scans the ``apps`` directories of internal and external storage in the layout and loads each first-level directory that contains ``manifest.json``, sorted by directory path. If the same manifest id appears under multiple volumes, internal and preferred external take priority, and later duplicates are skipped with a warning.
 
 During install, the runtime root ``icon_id`` is used to find a matching ``imageSet`` descriptor in the resource directory; once found, it is registered as a runtime-global image resource and fills ``AppManifest.icon_path`` so the launcher can show the icon.
+
+.. _system-core-app_package-sec-06:
 
 Safety Constraints
 --------------------
@@ -118,6 +130,8 @@ Safety Constraints
 - A package whose ``package.systems`` does not match the current system type is skipped.
 - A missing or wrongly typed ``package.id``, ``package.version``, ``runtime.type``, or ``runtime.entry`` fails manifest parsing.
 - The runtime GUI startup flow must be written in ``screen_flows[]`` of ``profile.json``.
+
+.. _system-core-app_package-sec-07:
 
 Packaging Tool
 --------------------

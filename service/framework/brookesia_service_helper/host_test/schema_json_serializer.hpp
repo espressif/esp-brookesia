@@ -26,6 +26,7 @@ namespace brookesia_host {
 using esp_brookesia::service::EventItemSchema;
 using esp_brookesia::service::EventSchema;
 using esp_brookesia::service::FunctionParameterSchema;
+using esp_brookesia::service::FunctionReturnSchema;
 using esp_brookesia::service::FunctionSchema;
 using esp_brookesia::service::FunctionValue;
 using esp_brookesia::service::RawBuffer;
@@ -80,6 +81,26 @@ inline boost::json::object serialize_parameter(const FunctionParameterSchema &pa
     return result;
 }
 
+inline boost::json::value serialize_timeout_ms(const std::optional<std::uint32_t> &timeout_ms)
+{
+    if (!timeout_ms.has_value()) {
+        return nullptr;
+    }
+    return static_cast<std::uint64_t>(timeout_ms.value());
+}
+
+inline boost::json::value serialize_return_value(const std::optional<FunctionReturnSchema> &return_value)
+{
+    if (!return_value.has_value()) {
+        return nullptr;
+    }
+
+    boost::json::object result;
+    result["type"] = BROOKESIA_DESCRIBE_ENUM_TO_STR(return_value->type);
+    result["description"] = return_value->description;
+    return result;
+}
+
 inline boost::json::array serialize_functions(std::span<const FunctionSchema> schemas)
 {
     boost::json::array result;
@@ -89,6 +110,7 @@ inline boost::json::array serialize_functions(std::span<const FunctionSchema> sc
         schema_obj["name"] = schema.name;
         schema_obj["description"] = schema.description;
         schema_obj["require_scheduler"] = schema.require_scheduler;
+        schema_obj["default_timeout_ms"] = serialize_timeout_ms(schema.default_timeout_ms);
 
         boost::json::array parameters;
         parameters.reserve(schema.parameters.size());
@@ -96,6 +118,7 @@ inline boost::json::array serialize_functions(std::span<const FunctionSchema> sc
             parameters.emplace_back(serialize_parameter(parameter));
         }
         schema_obj["parameters"] = std::move(parameters);
+        schema_obj["return_value"] = serialize_return_value(schema.return_value);
         result.emplace_back(std::move(schema_obj));
     }
     return result;
@@ -170,8 +193,8 @@ inline void append_helper_schema_dump(
     helper_object["helper"] = helper_name;
     helper_object["function_count"] = static_cast<std::uint64_t>(function_schemas.size());
     helper_object["event_count"] = static_cast<std::uint64_t>(event_schemas.size());
-    helper_object["functions"] = describe_to_json_array(function_schemas);
-    helper_object["events"] = describe_to_json_array(event_schemas);
+    helper_object["functions"] = serialize_functions(function_schemas);
+    helper_object["events"] = serialize_events(event_schemas);
     helpers.emplace_back(std::move(helper_object));
 }
 

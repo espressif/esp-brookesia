@@ -5,12 +5,16 @@ Animations
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-interaction-animations-sec-01:
+
 Overview
 --------------------
 
 This page explains the semantics of the ``animations`` fields. Public JSON uses ``camelCase``, and enum values follow the spellings in this page.
 
 This page covers only ``animations``. For event-trigger semantics see :doc:`events`; for node structure see :doc:`../view/index`.
+
+.. _gui-interface-json_ui-interaction-animations-sec-02:
 
 Related Documents
 ----------------------------------
@@ -19,6 +23,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`events`
+
+.. _gui-interface-json_ui-interaction-animations-sec-03:
 
 Summary
 --------------------
@@ -36,6 +42,8 @@ The current implementation supports:
 - basic easing, delay, repeat, playback
 
 When the backend creates a node, the apply order is: props fields, ``layout``, ``placement`` (then the ``commonProps`` transform such as ``zoom`` / ``angle`` / ``pivot`` is applied once more), ``style``, debug outline, ``animations``, ``events``, then ``bindings`` are subscribed. So when a ``mount`` animation starts, the node's initial props, layout, placement, and style are already applied.
+
+.. _gui-interface-json_ui-interaction-animations-sec-04:
 
 Field Table
 ----------------------
@@ -109,6 +117,8 @@ Field Table
      - whether to play in reverse
      - when true, sets a reverse duration equal to ``duration``
 
+.. _gui-interface-json_ui-interaction-animations-sec-05:
+
 Trigger Time (Trigger)
 --------------------------------------------
 
@@ -137,6 +147,8 @@ Notes:
 - ``show`` / ``hide`` depend on ``commonProps.hidden`` state changes; they do not auto-fire when external code directly changes the backend object's visibility.
 - events such as ``click``, ``pressed``, ``valueChanged`` can trigger a ``manual`` animation via ``startAnimation`` in
   ``events[].effects``; the app can also keep calling the runtime API in the action callback.
+
+.. _gui-interface-json_ui-interaction-animations-sec-06:
 
 Animation Properties (Property)
 --------------------------------------------------------------
@@ -187,6 +199,8 @@ Animation Properties (Property)
 
 Currently ``from`` / ``to`` parse only integers. To use ``dp`` or ``sp``, convert them to a bare integer in a constant first and make sure the parser reads a JSON number; the string ``"24dp"`` does not work for animation fields.
 
+.. _gui-interface-json_ui-interaction-animations-sec-07:
+
 Value Mode
 --------------------
 
@@ -213,6 +227,8 @@ For example, to move a node up 48px from its current Y coordinate:
        "easing": "linear"
    }
 
+.. _gui-interface-json_ui-interaction-animations-sec-08:
+
 Easing
 --------------------
 
@@ -237,6 +253,8 @@ Easing
      - step
 
 An illegal enum raises an error during parsing or validation; ``AnimationEasing::Max`` is not allowed through the validator.
+
+.. _gui-interface-json_ui-interaction-animations-sec-09:
 
 Example
 --------------------
@@ -329,6 +347,8 @@ Show/hide animation example:
            }
        ]
    }
+
+.. _gui-interface-json_ui-interaction-animations-sec-10:
 
 Current Restrictions
 ----------------------------------------

@@ -7,6 +7,8 @@ LVGL Image 打包
 
 ``brookesia_gui_lvgl`` 提供 CMake helper，将 app 的 PNG/JPG/JPEG 图片转换为 LVGL v9 ``.bin``，并在输出目录生成 ``index.json`` 形式的 ``imageSet`` descriptor。
 
+.. _gui-lvgl-image_pack-sec-01:
+
 CMake 命令
 --------------------
 
@@ -34,6 +36,8 @@ CMake 命令
 - ``CF RGB565`` 生成的 ``.bin`` 可被 LVGL backend 直接加载，适合无 alpha 的大背景图以降低镜像体积。
 - 需要透明通道的 icon 或 sprite 仍建议使用 ``CF ARGB8888``。
 
+.. _gui-lvgl-image_pack-sec-02:
+
 LVGLImage.py 来源
 ------------------------------
 
@@ -43,6 +47,8 @@ helper 不维护本地 ``LVGLImage.py`` 副本，而是从当前工程依赖的 
 - PC：从 ``lvgl`` target 的 ``SOURCE_DIR`` 读取 ``scripts/LVGLImage.py``。
 - 特殊工程可通过 cache 变量 ``BROOKESIA_GUI_LVGL_IMAGE_TOOL`` 显式覆盖脚本路径。
 
+.. _gui-lvgl-image_pack-sec-03:
+
 Python 环境
 --------------------
 
@@ -51,6 +57,8 @@ helper 需要可导入 ``png``、``lz4.block`` 和 ``PIL.Image`` 的 Python：
 - 可通过 ``BROOKESIA_GUI_LVGL_IMAGE_TOOL_PYTHON`` 指定 Python。
 - 默认会尝试工程 Python、``BROOKESIA_ROOT_DIR/.venv-docs/bin/python``、``BROOKESIA_ROOT_DIR/.venv/bin/python`` 等候选。
 - ``BROOKESIA_GUI_LVGL_IMAGE_TOOL_AUTO_INSTALL_PIP_DEPS`` 默认为 ``ON``；若候选 Python 缺少依赖，会在 ``${CMAKE_BINARY_DIR}/brookesia_gui_lvgl_image_tool_venv`` 创建构建本地 venv 并安装 ``pypng``、``lz4``、``Pillow``。
+
+.. _gui-lvgl-image_pack-sec-04:
 
 Runtime 行为
 --------------------

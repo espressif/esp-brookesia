@@ -5,16 +5,22 @@ keyboardProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-keyboard-sec-01:
+
 概览
 --------------------
 
 ``keyboardProps`` 适用于 ``keyboard``。
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/keyboard`
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-03:
 
 字段表
 --------------------
@@ -68,6 +74,8 @@ keyboardProps
      - 否
      - 按键样式类到 theme style id 的映射；支持同 ``keyStyles`` 的样式类
 
+.. _gui-interface-json_ui-styling-props-keyboard-sec-04:
+
 mode
 --------------------
 
@@ -90,6 +98,8 @@ mode
 仅支持 ``text``、``upper``、``number``、``special`` 四种 mode；未知 mode 会在 parser/validator
 阶段报错。如果 ``allowedModes`` 非空，``role=mode`` 的目标模式不在列表中时按键会使用 disabled 样式并忽略点击。
 
+.. _gui-interface-json_ui-styling-props-keyboard-sec-05:
+
 targetTextInput
 ------------------------------
 
@@ -100,6 +110,8 @@ targetTextInput
    "keyboardProps": {
        "targetTextInput": "/keyboard_input/panel/input"
    }
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-06:
 
 layouts
 --------------------
@@ -163,6 +175,8 @@ layouts
 ``keyStyleRefs`` 可引用当前 theme 中的命名样式。runtime 会从该 style 的 ``bgColor``、``textColor``、``radius`` 以及
 ``stateStyles.pressed.bgColor``、``stateStyles.pressed.textColor`` 解析出键盘按键颜色和圆角。``keyStyles`` 仍可作为
 内联 fallback；当同一个样式类同时出现在两处时，``keyStyleRefs`` 的解析结果优先生效。
+
+.. _gui-interface-json_ui-styling-props-keyboard-sec-07:
 
 示例
 --------------------

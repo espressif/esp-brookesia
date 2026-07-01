@@ -6,7 +6,7 @@
 
 `brookesia_service_helper` is the typed helper contract layer for Brookesia service functions and events.
 
-For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/helper/index.html).
+For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/framework/helper/index.html).
 
 ## How to Use
 

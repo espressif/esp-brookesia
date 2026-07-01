@@ -446,7 +446,6 @@ def run_cppcheck(cppcheck: Tool, compile_commands: Path, reports_dir: Path) -> i
         "--suppress=wrongPrintfScanfArgNum:*/brookesia_lib_utils/include/brookesia/lib_utils/log.hpp",
         "--suppress=wrongPrintfScanfArgNum:*/brookesia_lib_utils/src/log.cpp",
         "--suppress=pureVirtualCall:*/brookesia_hal_interface/include/brookesia/hal_interface/device.hpp",
-        "--suppress=virtualCallInConstructor:*/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_client.hpp",
         "--error-exitcode=2",
         "--quiet",
     ]

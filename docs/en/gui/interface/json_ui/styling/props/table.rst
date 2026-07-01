@@ -5,16 +5,22 @@ Tableprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-table-sec-01:
+
 Overview
 --------------------
 
 ``tableProps`` applies to ``table``.
+
+.. _gui-interface-json_ui-styling-props-table-sec-02:
 
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../../view/table`
+
+.. _gui-interface-json_ui-styling-props-table-sec-03:
 
 Field Table
 ----------------------
@@ -43,6 +49,8 @@ Field Table
      - ``tableProps.cells``
      - cell text
 
+.. _gui-interface-json_ui-styling-props-table-sec-04:
+
 Tablecell Field Table
 ------------------------------------------
 
@@ -65,6 +73,8 @@ Tablecell Field Table
      - string
      - ``""``
      - cell text
+
+.. _gui-interface-json_ui-styling-props-table-sec-05:
 
 Example
 --------------------

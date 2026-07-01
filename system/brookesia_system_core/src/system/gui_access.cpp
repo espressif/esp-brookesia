@@ -732,6 +732,22 @@ bool SystemGuiAccess::unregister_image(std::string_view id) const
            );
 }
 
+std::vector<std::string> SystemGuiAccess::list_supported_fonts(std::string_view language) const
+{
+    if (system_ == nullptr) {
+        return {};
+    }
+    return system_->impl_->run_task_sync<std::vector<std::string>>(
+               SYSTEM_GUI_TASK_GROUP,
+    [this, language = std::string(language)]() {
+        return system_->impl_->gui_runtime_ ?
+               system_->impl_->gui_runtime_->list_supported_fonts(language) :
+               std::vector<std::string>();
+    },
+    {}
+           );
+}
+
 std::vector<std::string> SystemGuiAccess::list_supported_languages() const
 {
     if (system_ == nullptr) {
@@ -742,6 +758,22 @@ std::vector<std::string> SystemGuiAccess::list_supported_languages() const
     [this]() {
         return system_->impl_->gui_runtime_ ?
                system_->impl_->gui_runtime_->list_supported_languages() :
+               std::vector<std::string>();
+    },
+    {}
+           );
+}
+
+std::vector<std::string> SystemGuiAccess::list_supported_languages(std::string_view font_id) const
+{
+    if (system_ == nullptr) {
+        return {};
+    }
+    return system_->impl_->run_task_sync<std::vector<std::string>>(
+               SYSTEM_GUI_TASK_GROUP,
+    [this, font_id = std::string(font_id)]() {
+        return system_->impl_->gui_runtime_ ?
+               system_->impl_->gui_runtime_->list_supported_languages(font_id) :
                std::vector<std::string>();
     },
     {}

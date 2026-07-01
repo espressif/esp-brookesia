@@ -5,7 +5,6 @@
             "layout": {
                 "pagePadding": "14dp",
                 "pageGap": "10dp",
-                "headerHeight": "125dp",
                 "headerButtonWidth": "112dp",
                 "tabHeight": "30dp",
                 "tabButtonWidth": "86dp",

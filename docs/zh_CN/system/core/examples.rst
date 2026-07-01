@@ -7,6 +7,8 @@
 
 本文提供原生应用和运行时应用的最小接入骨架。
 
+.. _system-core-examples-sec-01:
+
 原生应用最小骨架
 --------------------
 
@@ -45,6 +47,8 @@
    };
 
 ``on_stop()`` 通常可以省略：core 会在 app stop 时自动取消 timer、停止 action subscription、停止启动 flow、unload GUI document 并反注册 GUI 资源。
+
+.. _system-core-examples-sec-02:
 
 运行时应用最小包
 --------------------

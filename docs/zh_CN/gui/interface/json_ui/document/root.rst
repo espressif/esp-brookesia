@@ -5,6 +5,8 @@ root.json 文档入口
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-document-root-sec-01:
+
 概览
 --------------------
 
@@ -19,6 +21,8 @@ root.json 文档入口
 本文档不负责 asset 字段细节，也不负责 view/layout/style/props。那些内容请分别查看
 :doc:`../assets/index`、:doc:`../view/index`、:doc:`../styling/layout`、:doc:`../styling/placement`。
 
+.. _gui-interface-json_ui-document-root-sec-02:
+
 相关文档
 --------------------
 
@@ -26,6 +30,8 @@ root.json 文档入口
 - :doc:`index`
 - :doc:`../assets/index`
 - :doc:`../styling/placement`
+
+.. _gui-interface-json_ui-document-root-sec-03:
 
 root.json 顶层结构
 ----------------------------
@@ -73,6 +79,8 @@ root.json 顶层结构
        ]
    }
 
+.. _gui-interface-json_ui-document-root-sec-04:
+
 顶层字段表
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -100,8 +108,12 @@ root.json 顶层结构
      - 否
      - 条件命中的资源叠加列表
 
+.. _gui-interface-json_ui-document-root-sec-05:
+
 顶层字段说明
 ^^^^^^^^^^^^^^^^^^^^
+
+.. _gui-interface-json_ui-document-root-sec-06:
 
 version
 ~~~~~~~~~~~~~~~~~~~~
@@ -109,6 +121,8 @@ version
 - 类型：``string``
 - 是否必填：否
 - 当前值：``"0.1.0"``
+
+.. _gui-interface-json_ui-document-root-sec-07:
 
 assets
 ~~~~~~~~~~~~~~~~~~~~
@@ -128,6 +142,8 @@ assets
 - 可以混合包含 ``constant`` / ``styleSet`` / ``imageSet`` / ``viewScreen`` / ``viewTemplate`` / ``interactionTemplate`` / ``screenFlow`` asset
 - 混写时严格按数组原始顺序生效；``constants`` / ``nodes`` / ``screenFlow`` 不再作为 root 顶层字段，请放入 ``assets``
 
+.. _gui-interface-json_ui-document-root-sec-08:
+
 variants
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -140,6 +156,8 @@ variants
 - ``variants`` 可以缺省或为空
 - 为空时只加载顶层 ``assets``
 - 所有命中的 variant 都会叠加，不是命中一个就停止
+
+.. _gui-interface-json_ui-document-root-sec-09:
 
 variants[]
 --------------------
@@ -179,6 +197,8 @@ variants[]
      - 否
      - variant 命中后需要叠加的资源
 
+.. _gui-interface-json_ui-document-root-sec-10:
+
 assets entry 双形态
 --------------------------------
 
@@ -217,8 +237,12 @@ assets entry 双形态
 - 对 ``imageSet`` / ``viewScreen`` / ``viewTemplate`` / ``interactionTemplate`` 内嵌 object 中出现的相对路径：
   - 统一相对当前 ``root.json`` 所在目录解析
 
+.. _gui-interface-json_ui-document-root-sec-11:
+
 when 表达式
 --------------------
+
+.. _gui-interface-json_ui-document-root-sec-12:
 
 支持的环境引用
 ^^^^^^^^^^^^^^^^^^^^
@@ -230,6 +254,8 @@ when 表达式
 - ``${env.language}``
 - ``${env.theme}``
 
+.. _gui-interface-json_ui-document-root-sec-13:
+
 支持的运算符
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -239,6 +265,8 @@ when 表达式
 - 算术：``+``, ``-``, ``*``, ``/``
 - 字符串字面量：``"zh"``
 - 数值单位：``dp``
+
+.. _gui-interface-json_ui-document-root-sec-14:
 
 示例
 ^^^^^^^^^^^^^^^^^^^^
@@ -250,6 +278,8 @@ when 表达式
    { "when": "${expr(${env.widthDp} < 600dp)}" }
    { "when": "${expr(${env.widthDp} >= 600dp && ${env.heightDp} >= 360dp)}" }
    { "when": "${expr((${env.widthDp} >= 600dp && ${env.heightDp} >= 400dp) || ${env.widthPx} >= 1280)}" }
+
+.. _gui-interface-json_ui-document-root-sec-15:
 
 运行时环境 Environment
 ----------------------------------
@@ -295,6 +325,8 @@ root，以便常量、图片和 screen 资源跟随 variant 更新；非 file-ba
 主题资源与主题切换请查看 :doc:`../runtime`。
 
 view 调试外框不属于 ``Environment``，而是 Runtime 级调试能力；详见 :doc:`../runtime`。
+
+.. _gui-interface-json_ui-document-root-sec-16:
 
 单位与字号换算
 --------------------

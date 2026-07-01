@@ -18,7 +18,7 @@ system::core::AppManifest AppStoreApp::get_manifest() const
         .visible = true,
         .icon_id = APP_ICON_ID,
         .supported_systems = {},
-        .icon_path = "",
+        .icon_path = APP_ICON_PATH,
         .runtime_type = runtime::BackendType::Unknown,
         .app_path = "",
         .entry = "",
@@ -86,8 +86,7 @@ std::expected<void, std::string> AppStoreApp::on_start(system::core::AppContext 
 
     refresh_in_progress_ = true;
     refresh_request_id_ = 0;
-    refresh_icon_request_id_ = 0;
-    refresh_icon_index_ = 0;
+    reset_refresh_icon_state();
     status_text_ = tr("status.checking_network");
     ensure_message_dialog(
         context,
@@ -109,6 +108,7 @@ std::expected<void, std::string> AppStoreApp::on_stop(system::core::AppContext &
     cancel_remote_refresh();
     stop_view_mode_load_timer(context);
     stop_refresh_icon_timer(context);
+    stop_size_metadata_timer(context);
     stop_time_sync_timers(context);
     hide_message_dialog_if_visible(context);
     for (auto &entry : entries_) {
@@ -133,8 +133,7 @@ std::expected<void, std::string> AppStoreApp::on_stop(system::core::AppContext &
     storage_text_.clear();
     refresh_dialog_message_.clear();
     refresh_request_id_ = 0;
-    refresh_icon_request_id_ = 0;
-    refresh_icon_index_ = 0;
+    reset_refresh_icon_state();
     pending_view_mode_.reset();
     http_general_state_.reset();
     message_dialog_purpose_ = MessageDialogPurpose::None;
@@ -256,6 +255,19 @@ std::expected<void, std::string> AppStoreApp::on_timer(
         }
         refresh_result_timer_id_ = system::core::INVALID_TIMER_ID;
         process_pending_refresh_result(context);
+        return {};
+    }
+
+    if (name == SIZE_METADATA_TIMER_NAME) {
+        if (timer_id != size_metadata_timer_id_) {
+            BROOKESIA_LOGW(
+                "Ignore stale App Store size metadata timer: timer_id(%1%), pending(%2%)",
+                timer_id, size_metadata_timer_id_
+            );
+            return {};
+        }
+        size_metadata_timer_id_ = system::core::INVALID_TIMER_ID;
+        process_size_metadata_step(context);
         return {};
     }
 

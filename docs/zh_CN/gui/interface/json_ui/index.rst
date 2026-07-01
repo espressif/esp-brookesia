@@ -5,6 +5,8 @@ GUI 接口
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-index-sec-01:
+
 概览
 --------------------
 
@@ -21,6 +23,8 @@ JSON UI 是当前公开的后端无关界面编排协议：应用用 JSON 描述
 - document 内 asset 一级类型：``constant`` / ``imageSet`` / ``viewScreen`` / ``viewTemplate`` / ``interactionTemplate`` / ``screenFlow`` / ``styleSet``
 - Runtime 全局资源：``theme`` / ``fontSet`` / ``imageSet``
 
+.. _gui-interface-json_ui-index-sec-02:
+
 主线模型
 --------------------
 
@@ -29,8 +33,12 @@ JSON UI 是当前公开的后端无关界面编排协议：应用用 JSON 描述
 - ``view`` 通过 ``layout`` 排布子节点，通过 ``placement`` 决定自身摆放
 - Runtime 将 JSON 资源解析为 ``Document``，并以 ``document_id + absolute_path`` 索引节点
 
+.. _gui-interface-json_ui-index-sec-03:
+
 全局约束
 --------------------
+
+.. _gui-interface-json_ui-index-sec-04:
 
 资源引用
 ^^^^^^^^^^^^^^^^^^^^
@@ -56,6 +64,8 @@ JSON UI 是当前公开的后端无关界面编排协议：应用用 JSON 描述
 
 不支持 ``${metrics.titleFont}``、复数形式 ``${colors.*}``、``font: "title"``、``src: "logo"`` 以及冒号写法 ``${font:title}`` / ``${image:logo}``。
 
+.. _gui-interface-json_ui-index-sec-05:
+
 单位
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -68,6 +78,8 @@ JSON UI 中的尺寸在解析阶段统一换算为后端使用的像素值：
 字段取值规则：``layout.gap`` 用 ``dp`` 字符串或裸数字 ``px``；``placement.x`` / ``placement.y`` 支持 ``dp`` 字符串、百分比或裸数字 ``px``；``placement.width`` / ``placement.height`` 还支持 ``match`` / ``wrap``；``style.fontSize`` 用 ``sp`` 字符串或裸数字 ``px``。
 
 更完整的单位与换算示例见 :doc:`document/root` 与 :doc:`styling/placement`。
+
+.. _gui-interface-json_ui-index-sec-06:
 
 JSON UI 规范
 --------------------

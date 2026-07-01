@@ -4,10 +4,18 @@
         {
             "id": "default",
             "kind": "file",
+            "src": "Telex-Regular.ttf",
+            "languages": [
+                "en"
+            ]
+        },
+      {
+            "id": "zh_CN",
+            "kind": "file",
             "src": "WenYuanSansSC-Regular.subset.ttf",
             "languages": [
-                "zh_CN",
-                "en"
+                "en",
+                "zh_CN"
             ]
         }
     ]

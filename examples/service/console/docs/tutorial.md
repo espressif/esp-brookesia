@@ -17,7 +17,7 @@ Once the device boots successfully, press Enter to see the console prompt `esp32
 
 ## Step 1: Connect to Wi-Fi
 
-Network-backed commands such as RPC calls or network audio playback require a Wi-Fi connection. Connect to Wi-Fi first.
+Network audio playback requires a Wi-Fi connection. Connect to Wi-Fi first.
 
 1. **Set the Wi-Fi credentials**:
 

@@ -5,10 +5,14 @@ toggleProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-toggle-sec-01:
+
 概览
 --------------------
 
 ``toggleProps`` 适用于 ``switch`` 和 ``checkbox``。
+
+.. _gui-interface-json_ui-styling-props-toggle-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ toggleProps
 - :doc:`index`
 - :doc:`../../view/switch`
 - :doc:`../../view/checkbox`
+
+.. _gui-interface-json_ui-styling-props-toggle-sec-03:
 
 字段表
 --------------------
@@ -33,6 +39,8 @@ toggleProps
      - ``false``
      - ``toggleProps.checked``
      - 当前开关或勾选状态
+
+.. _gui-interface-json_ui-styling-props-toggle-sec-04:
 
 示例
 --------------------

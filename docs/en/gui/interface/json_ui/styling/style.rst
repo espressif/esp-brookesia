@@ -5,12 +5,16 @@ Style
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-style-sec-01:
+
 Overview
 --------------------
 
 This page explains the semantics of the ``style`` fields. Public JSON uses ``camelCase``.
 
 This page covers only ``style``. For control semantics see :doc:`../view/index`; for field-level ``props`` see :doc:`props/index`.
+
+.. _gui-interface-json_ui-styling-style-sec-02:
 
 Related Documents
 ----------------------------------
@@ -20,6 +24,8 @@ Related Documents
 - :doc:`../assets/index`
 - :doc:`../view/index`
 - :doc:`props/index`
+
+.. _gui-interface-json_ui-styling-style-sec-03:
 
 Style Composition Order
 ----------------------------------------------
@@ -49,6 +55,8 @@ Runtime view debug overlays the backend debug outline:
 - this visualization is not ``style.margin``
 - it does not participate in layout and does not change ``placement``, ``layout``, the real margin, or the final frame
 - its goal is to help observe control size and position, not to express formal UI style
+
+.. _gui-interface-json_ui-styling-style-sec-04:
 
 Field Table
 ----------------------
@@ -378,6 +386,8 @@ Composition rules:
 - binding / event effects can write fields such as ``partStyles.indicator.bgGradientColor`` and
   ``partStyles.knob.stateStyles.pressed.bgColor``.
 
+.. _gui-interface-json_ui-styling-style-sec-07:
+
 Range Gradient
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -406,6 +416,8 @@ The ``partStyles.indicator`` of ``progressBar`` and ``slider`` uses an LVGL back
            "arcGradientSegments": 48
        }
    }
+
+.. _gui-interface-json_ui-styling-style-sec-08:
 
 Theme Default Style Layer
 --------------------------------------------------
@@ -446,6 +458,8 @@ A color field accepts two forms: a literal ``#RRGGBB``, or a color reference ``$
 ``shadowColor``, ``imageRecolor`` and their corresponding ``stateStyles`` / ``partStyles`` fields. An empty string means the color is not set;
 illegal colors or other CSS-style forms raise an error in the document validator stage and never reach the backend application flow.
 
+.. _gui-interface-json_ui-styling-style-sec-09:
+
 Font and Font Size
 ------------------------------------
 
@@ -484,6 +498,8 @@ Backend font priority:
 2. the ``primary_src`` of the JSON/backend font resource, creating FreeType fonts along the fallback chain.
 3. the built-in Montserrat font; it also falls back to the built-in font when FreeType or the file is unavailable.
 
+.. _gui-interface-json_ui-styling-style-sec-10:
+
 Size and Spacing
 --------------------------------
 
@@ -509,6 +525,8 @@ Current rules:
 - ``margin`` and per-side ``margin*`` work the same way.
 - color and font ids still keep the semantics that an empty string means no specific resource/color is set.
 
+.. _gui-interface-json_ui-styling-style-sec-11:
+
 Transparency
 ------------------------
 
@@ -530,6 +548,8 @@ Notes:
 - ``imageRecolor`` / ``imageRecolorOpacity`` affect the image draw color and can be placed in a theme style so icons adapt to the theme uniformly.
 - the built-in default theme defaults are all ``255``, meaning fully opaque; an external theme or an explicit node field can override this.
 - the current parser only requires an integer; the validator further restricts it to ``0..255``; values out of range fail document validation.
+
+.. _gui-interface-json_ui-styling-style-sec-12:
 
 Example
 --------------------

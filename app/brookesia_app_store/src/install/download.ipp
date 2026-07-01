@@ -10,6 +10,10 @@ void AppStoreApp::start_or_cancel_download(system::core::AppContext &context, si
         return;
     }
     auto &entry = entries_[index];
+    if (refresh_icon_purpose_ == IconUpdatePurpose::LazyVisiblePage) {
+        cancel_refresh_icon_update(context);
+    }
+    cancel_size_metadata_request(entry);
     if (entry.downloading) {
         const auto request_id = entry.download_request_id;
         cancel_download(entry);
@@ -73,6 +77,46 @@ void AppStoreApp::start_metadata_request(system::core::AppContext &context, size
     entry.downloaded = 0;
     entry.total = 0;
     (void)refresh_entry(context, index);
+}
+
+bool AppStoreApp::start_size_metadata_request(system::core::AppContext &context, size_t index)
+{
+    if (!http_available_ || index >= entries_.size()) {
+        return false;
+    }
+    auto &entry = entries_[index];
+    if (!should_fetch_size_metadata(entry)) {
+        return false;
+    }
+
+    auto request = make_get_request(entry.metadata_url);
+    request.max_response_size = METADATA_MAX_RESPONSE_SIZE;
+    auto result = HttpHelper::call_function_sync<double>(
+                      HttpHelper::FunctionId::RequestAsync,
+                      BROOKESIA_DESCRIBE_TO_JSON(request).as_object()
+                  );
+    if (!result) {
+        if (result.error().find("Too many concurrent HTTP requests") != std::string::npos) {
+            BROOKESIA_LOGD(
+                "Delay App Store size metadata request: package(%1%), error(%2%)",
+                entry.package_name, result.error()
+            );
+            schedule_size_metadata_step(context, SIZE_METADATA_RETRY_DELAY_MS);
+            return true;
+        }
+
+        entry.size_metadata_failed = true;
+        BROOKESIA_LOGW(
+            "Failed to start App Store size metadata request: package(%1%), error(%2%)",
+            entry.package_name, result.error()
+        );
+        return false;
+    }
+
+    entry.size_metadata_request_id = static_cast<uint64_t>(*result);
+    entry.size_metadata_loading = true;
+    entry.size_metadata_failed = false;
+    return true;
 }
 
 void AppStoreApp::start_download(system::core::AppContext &context, size_t index)
@@ -166,18 +210,51 @@ std::expected<void, std::string> AppStoreApp::parse_metadata_json(
     }
 
     entry.download_url = std::move(download_url);
-    entry.download_size = 0;
-    if (auto it = root.find("size_download"); it != root.end() && it->value().is_int64()) {
-        const auto value = it->value().as_int64();
-        entry.download_size = value > 0 ? static_cast<uint64_t>(value) : 0;
-    } else if (auto uint_it = root.find("size_download"); uint_it != root.end() && uint_it->value().is_uint64()) {
-        entry.download_size = uint_it->value().as_uint64();
-    }
+    entry.download_size = get_size_field(root, "size_download").value_or(0);
     entry.sha256 = get_string_field(root, "hash_sha256");
+    entry.size_metadata_failed = false;
     entry.metadata_loading = false;
     entry.metadata_request_id = 0;
     entry.schema_error.clear();
     start_download(context, index);
+    return {};
+}
+
+std::expected<void, std::string> AppStoreApp::parse_size_metadata_json(size_t index, std::string_view json)
+{
+    if (index >= entries_.size()) {
+        return {};
+    }
+
+    boost::system::error_code error_code;
+    auto parsed = boost::json::parse(json, error_code);
+    if (error_code || !parsed.is_object()) {
+        return std::unexpected("App metadata is not a JSON object");
+    }
+
+    auto &entry = entries_[index];
+    const auto &root = parsed.as_object();
+    const auto package_name = get_string_field(root, "package_name");
+    const auto version = get_string_field(root, "version");
+    if (!package_name.empty() && package_name != entry.package_name) {
+        return std::unexpected("Metadata package_name mismatch");
+    }
+    if (!version.empty() && !entry.latest_version.empty() && version != entry.latest_version) {
+        return std::unexpected("Metadata version mismatch");
+    }
+
+    auto download_url = resolve_relative_url(entry.metadata_url, get_string_field(root, "download_url"));
+    if (!download_url.empty()) {
+        entry.download_url = std::move(download_url);
+    }
+    if (auto size = get_size_field(root, "size_download")) {
+        entry.download_size = *size;
+    } else {
+        return std::unexpected("Metadata missing size_download");
+    }
+    if (auto sha256 = get_string_field(root, "hash_sha256"); !sha256.empty()) {
+        entry.sha256 = std::move(sha256);
+    }
     return {};
 }
 
@@ -307,6 +384,8 @@ void AppStoreApp::uninstall_installed_app(system::core::AppContext &context, siz
 
 void AppStoreApp::cancel_download(StoreEntry &entry)
 {
+    cancel_size_metadata_request(entry);
+
     if (entry.metadata_loading && entry.metadata_request_id != 0 && http_available_) {
         const auto request_id = entry.metadata_request_id;
         if (!HttpHelper::call_function_async(
@@ -339,6 +418,28 @@ void AppStoreApp::cancel_download(StoreEntry &entry)
     entry.download_path.clear();
     entry.downloaded = 0;
     entry.total = 0;
+}
+
+void AppStoreApp::cancel_size_metadata_request(StoreEntry &entry)
+{
+    if (entry.size_metadata_loading && entry.size_metadata_request_id != 0 && http_available_) {
+        const auto request_id = entry.size_metadata_request_id;
+        if (!HttpHelper::call_function_async(
+                    HttpHelper::FunctionId::CancelRequest,
+                    static_cast<double>(request_id)
+                )) {
+            BROOKESIA_LOGW("Failed to submit cancel for size metadata request %1%", request_id);
+        }
+    }
+    entry.size_metadata_loading = false;
+    entry.size_metadata_request_id = 0;
+}
+
+void AppStoreApp::cancel_size_metadata_requests()
+{
+    for (auto &entry : entries_) {
+        cancel_size_metadata_request(entry);
+    }
 }
 
 void AppStoreApp::show_download_preparing_dialog(system::core::AppContext &context, const StoreEntry &entry)

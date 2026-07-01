@@ -248,6 +248,11 @@ bool BatteryAxp2101Impl::setup_power_manager()
 
     BROOKESIA_CHECK_NULL_RETURN(power_manager_get_battery_state, false, "AXP2101 power manager battery API is unavailable");
 
+    if (!esp_board_manager_check_name(AXP2101_POWER_MANAGER_NAME)) {
+        BROOKESIA_LOGW("AXP2101 power manager device not found, skip");
+        return false;
+    }
+
     auto ret = esp_board_manager_init_device_by_name(AXP2101_POWER_MANAGER_NAME);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init AXP2101 power manager");
     device_initialized_ = true;

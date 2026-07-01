@@ -7,6 +7,7 @@
 #if !BROOKESIA_SYSTEM_SUPER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include "private/font_language.hpp"
 #include "private/utils.hpp"
 #include "private/shell_app.hpp"
 #include "private/system_constants.hpp"
@@ -29,6 +30,7 @@ namespace esp_brookesia::system::super {
 namespace {
 
 inline constexpr int32_t LAUNCHER_ITEM_WIDTH = 112;
+inline constexpr int32_t LAUNCHER_ITEM_HEIGHT = 112;
 inline constexpr int32_t LAUNCHER_ITEM_GAP = 18;
 
 std::optional<std::string> get_launcher_instance_id(const gui::Event &event)
@@ -45,11 +47,6 @@ std::optional<std::string> get_launcher_instance_id(const gui::Event &event)
         return std::nullopt;
     }
     return std::string(SUPER_LAUNCHER_INSTANCE_PREFIX) + instance_id;
-}
-
-std::string make_launcher_slot_instance_id(size_t index)
-{
-    return std::string(SUPER_LAUNCHER_SLOT_INSTANCE_PREFIX) + std::to_string(index);
 }
 
 std::string make_launcher_slot_path(size_t index)
@@ -101,43 +98,18 @@ std::string normalize_theme_id(std::string_view theme_id)
     return std::string(theme_id);
 }
 
-bool contains_language(const std::vector<std::string> &languages, std::string_view language)
-{
-    return std::find_if(
-               languages.begin(),
-               languages.end(),
-    [language](const std::string & supported_language) {
-        return supported_language == language;
-    }
-           ) != languages.end();
-}
-
-std::string select_fallback_language(const std::vector<std::string> &languages)
-{
-    if (contains_language(languages, "en")) {
-        return "en";
-    }
-    if (!languages.empty()) {
-        return languages.front();
-    }
-    return "en";
-}
-
 std::string get_current_language(core::AppContext *context)
 {
     if (context == nullptr) {
-        return "en";
-    }
-    const auto supported_languages = context->gui().list_supported_languages();
-    if (supported_languages.empty()) {
-        return "en";
+        return {};
     }
 
+    const auto supported_languages = context->gui().list_supported_languages();
     const auto language = context->gui().get_language();
     if (!language.empty() && contains_language(supported_languages, language)) {
         return language;
     }
-    return select_fallback_language(supported_languages);
+    return select_default_font_language(context->gui());
 }
 
 std::string make_system_resource_dir(const System &system)
@@ -590,9 +562,15 @@ std::expected<void, std::string> ShellApp::apply_i18n_updates()
     const auto resource_dir = make_system_resource_dir(owner_);
     auto updates = load_shell_i18n_updates(resource_dir, locale);
     if (!updates) {
-        if (locale != "en") {
-            BROOKESIA_LOGW("Failed to load Shell i18n for '%1%', falling back to English: %2%", locale, updates.error());
-            updates = load_shell_i18n_updates(resource_dir, "en");
+        const auto fallback_locale = select_default_font_language(context_->gui());
+        if (!fallback_locale.empty() && locale != fallback_locale) {
+            BROOKESIA_LOGW(
+                "Failed to load Shell i18n for '%1%', falling back to '%2%': %3%",
+                locale,
+                fallback_locale,
+                updates.error()
+            );
+            updates = load_shell_i18n_updates(resource_dir, fallback_locale);
         }
         if (!updates) {
             return std::unexpected(updates.error());
@@ -609,6 +587,11 @@ std::expected<void, std::string> ShellApp::apply_i18n_updates()
 
 std::expected<void, std::string> ShellApp::load_fonts(core::AppContext &context)
 {
+    if (owner_.shell_fonts_prepared_) {
+        BROOKESIA_LOGI("Shell fonts already prepared by Super system; skip duplicate registration");
+        return {};
+    }
+
     const auto share_dir = make_share_resource_dir(owner_);
     auto font_files = list_font_files(share_dir);
     if (!font_files) {
@@ -623,79 +606,71 @@ std::expected<void, std::string> ShellApp::load_fonts(core::AppContext &context)
         }
     }
 
-    auto result = context.gui().set_default_font_for_language("en", SUPER_DEFAULT_EN_FONT_ID);
-    if (!result) {
-        return std::unexpected("Failed to set default English font: " + result.error());
-    }
-    result = context.gui().set_default_font_for_language("zh_CN", SUPER_DEFAULT_ZH_CN_FONT_ID);
-    if (!result) {
-        return std::unexpected("Failed to set default Chinese font: " + result.error());
+    const auto stored_language = owner_.get_stored_gui_language_preference();
+    const std::string requested_language = (stored_language.has_value() && !stored_language->empty()) ?
+                                           *stored_language :
+                                           context.gui().get_language();
+    auto fallback = apply_font_language_fallback(
+                        context.gui(),
+                        requested_language,
+                        SUPER_DEFAULT_FONT_ID,
+                        false
+                    );
+    if (!fallback) {
+        return std::unexpected("Failed to apply Shell font language fallback: " + fallback.error());
     }
     BROOKESIA_LOGI(
-        "Shell fonts registered: languages(%1%), default_fonts(en=%2%, zh_CN=%3%)",
+        "Shell fonts registered: languages(%1%), language(%2%), default_font(%3%)",
         context.gui().list_supported_languages(),
-        SUPER_DEFAULT_EN_FONT_ID,
-        SUPER_DEFAULT_ZH_CN_FONT_ID
+        fallback->language,
+        fallback->font_id
     );
     return {};
 }
 
 std::expected<void, std::string> ShellApp::apply_language_preference(core::AppContext &context)
 {
-    const auto supported_languages = context.gui().list_supported_languages();
     auto stored_language = owner_.get_stored_gui_language_preference();
     const auto runtime_language_before = context.gui().get_language();
-    if (supported_languages.empty()) {
-        BROOKESIA_LOGW("Shell language skipped because no registered font languages are available; using en text");
-        return {};
+    const bool use_stored_language = stored_language.has_value() && !stored_language->empty();
+    const std::string requested_language = use_stored_language ? *stored_language : runtime_language_before;
+    auto fallback = apply_font_language_fallback(
+                        context.gui(),
+                        requested_language,
+                        SUPER_DEFAULT_FONT_ID,
+                        true
+                    );
+    if (!fallback) {
+        return std::unexpected("Failed to apply Shell language font fallback: " + fallback.error());
     }
 
-    bool use_stored_language = stored_language.has_value() && !stored_language->empty();
-    std::string language = use_stored_language ? *stored_language : runtime_language_before;
-    if (language.empty()) {
-        language = "en";
-    }
-    if (!contains_language(supported_languages, language)) {
-        const auto fallback_language = select_fallback_language(supported_languages);
+    if (use_stored_language && fallback->language == requested_language) {
+        BROOKESIA_LOGI("System GUI language '%1%' is restored", fallback->language);
+    } else if (use_stored_language) {
         BROOKESIA_LOGW(
-            "System GUI language '%1%' is not supported by registered fonts; falling back to %2%",
-            language,
-            fallback_language
+            "Stored system GUI language '%1%' is not available; falling back to %2%",
+            requested_language,
+            fallback->language
         );
-        use_stored_language = false;
-        language = fallback_language;
-    }
-
-    auto result = context.gui().set_language(language, true);
-    if (!result && use_stored_language) {
-        const auto fallback_language = select_fallback_language(supported_languages);
-        if (language == fallback_language) {
-            return std::unexpected("Failed to set default Shell language: " + result.error());
-        }
-        BROOKESIA_LOGW(
-            "Failed to restore system GUI language '%1%': %2%; falling back to %3%",
-            language,
-            result.error(),
-            fallback_language
-        );
-        use_stored_language = false;
-        language = fallback_language;
-        result = context.gui().set_language(language, true);
-    }
-    if (!result) {
-        return std::unexpected("Failed to set default Shell language: " + result.error());
-    }
-
-    if (use_stored_language) {
-        BROOKESIA_LOGI("System GUI language '%1%' is restored", language);
+    } else if (fallback->language == runtime_language_before) {
+        BROOKESIA_LOGI("System GUI language '%1%' is already active; skip duplicate reapply", fallback->language);
     } else {
-        BROOKESIA_LOGD("Default system GUI language '%1%' is applied", language);
+        BROOKESIA_LOGD("Default system GUI language '%1%' is applied", fallback->language);
     }
     return {};
 }
 
 std::expected<void, std::string> ShellApp::load_themes(core::AppContext &context)
 {
+    if (owner_.shell_themes_prepared_) {
+        auto stored_theme_id = owner_.get_stored_gui_theme_preference();
+        current_theme_id_ = (stored_theme_id.has_value() && !stored_theme_id->empty()) ?
+                            normalize_theme_id(*stored_theme_id) :
+                            SUPER_DEFAULT_THEME_ID;
+        BROOKESIA_LOGI("Shell themes already prepared by Super system; skip duplicate loading");
+        return {};
+    }
+
     const auto resource_dir = make_system_resource_dir(owner_);
     auto theme_files = list_theme_files(resource_dir);
     if (!theme_files) {
@@ -785,42 +760,25 @@ std::expected<void, std::string> ShellApp::populate_launcher(core::AppContext &c
     const auto launcher_grid_width =
         launcher_columns * LAUNCHER_ITEM_WIDTH + (launcher_columns - 1) * LAUNCHER_ITEM_GAP;
     const auto launcher_grid_x = std::max<int32_t>(0, (available_width - launcher_grid_width) / 2);
-    std::vector<gui::BindingValueUpdate> grid_stage_updates;
-    add_binding_update(grid_stage_updates, SUPER_LAUNCHER_GRID_STAGE_PATH, "grid_x", std::to_string(launcher_grid_x));
+    std::vector<gui::BindingValueUpdate> binding_updates;
+    add_binding_update(binding_updates, SUPER_LAUNCHER_GRID_STAGE_PATH, "grid_x", std::to_string(launcher_grid_x));
     add_binding_update(
-        grid_stage_updates,
+        binding_updates,
         SUPER_LAUNCHER_GRID_STAGE_PATH,
         "grid_width",
         std::to_string(launcher_grid_width)
     );
-    auto grid_stage_result = context.gui().set_binding_values(grid_stage_updates);
-    if (!grid_stage_result) {
-        return grid_stage_result;
-    }
 
-    for (size_t i = 0; i < visible_apps.size(); ++i) {
-        const auto create_result = context.gui().create_view(
-                                       SUPER_LAUNCHER_SLOT_TEMPLATE_ID,
-                                       SUPER_LAUNCHER_SLOT_GRID_PATH,
-                                       make_launcher_slot_instance_id(i)
-                                   );
-        if (!create_result) {
-            return std::unexpected(create_result.error());
-        }
-    }
-    launcher_slot_count_ = visible_apps.size();
+    launcher_slot_count_ = 0;
 
-    const auto grid_stage_frame = context.gui().get_view_frame(SUPER_LAUNCHER_GRID_STAGE_PATH);
-    int32_t content_height = grid_stage_frame.has_value() ? std::max<int32_t>(grid_stage_frame->height, 1) : 1;
+    int32_t content_height = content_frame.has_value() ? std::max<int32_t>(content_frame->height, 1) : 1;
     for (size_t i = 0; i < visible_apps.size(); ++i) {
         const auto &app = visible_apps[i];
-        const auto slot_path = make_launcher_slot_path(i);
-        const auto slot_frame = context.gui().get_view_frame(slot_path);
-        if (!slot_frame.has_value()) {
-            return std::unexpected("Launcher slot frame is not available: " + slot_path);
-        }
-
-        content_height = std::max(content_height, slot_frame->y + slot_frame->height);
+        const auto column = static_cast<int32_t>(i % static_cast<size_t>(launcher_columns));
+        const auto row = static_cast<int32_t>(i / static_cast<size_t>(launcher_columns));
+        const auto item_x = column * (LAUNCHER_ITEM_WIDTH + LAUNCHER_ITEM_GAP);
+        const auto item_y = row * (LAUNCHER_ITEM_HEIGHT + LAUNCHER_ITEM_GAP);
+        content_height = std::max(content_height, item_y + LAUNCHER_ITEM_HEIGHT);
 
         const auto instance_id = make_launcher_item_instance_id(app.app_id);
         const auto instance_path = make_launcher_item_path(app.app_id);
@@ -839,22 +797,8 @@ std::expected<void, std::string> ShellApp::populate_launcher(core::AppContext &c
             return std::unexpected(create_result.error());
         }
 
-        auto text_result = context.gui().set_text(label_path, display_name);
-        if (!text_result) {
-            return text_result;
-        }
-        if (has_image_icon) {
-            text_result = context.gui().set_text(fallback_icon_path, "");
-        } else {
-            text_result = context.gui().set_text(fallback_icon_path, make_launcher_icon_text(display_name));
-        }
-        if (!text_result) {
-            return text_result;
-        }
-
-        std::vector<gui::BindingValueUpdate> binding_updates;
-        add_binding_update(binding_updates, instance_path, "x", std::to_string(slot_frame->x));
-        add_binding_update(binding_updates, instance_path, "y", std::to_string(slot_frame->y));
+        add_binding_update(binding_updates, instance_path, "x", std::to_string(item_x));
+        add_binding_update(binding_updates, instance_path, "y", std::to_string(item_y));
         add_binding_update(binding_updates, label_path, "name", display_name);
         if (has_image_icon) {
             add_binding_update(
@@ -871,21 +815,8 @@ std::expected<void, std::string> ShellApp::populate_launcher(core::AppContext &c
             add_binding_update(binding_updates, fallback_icon_path, "hidden", "false");
             add_binding_update(binding_updates, fallback_icon_path, "text", make_launcher_icon_text(display_name));
         }
-        auto binding_result = context.gui().set_binding_values(binding_updates);
-        if (!binding_result) {
-            return binding_result;
-        }
 
         launcher_instance_to_app_.emplace(instance_id, app.app_id);
-    }
-
-    std::vector<gui::BindingValueUpdate> stage_updates;
-    add_binding_update(stage_updates, SUPER_LAUNCHER_SLOT_GRID_PATH, "content_height", std::to_string(content_height));
-    add_binding_update(stage_updates, SUPER_LAUNCHER_ITEM_LAYER_PATH, "content_height", std::to_string(content_height));
-    add_binding_update(stage_updates, SUPER_LAUNCHER_DRAG_LAYER_PATH, "content_height", std::to_string(content_height));
-    auto stage_result = context.gui().set_binding_values(stage_updates);
-    if (!stage_result) {
-        return stage_result;
     }
 
     static constexpr std::array launcher_actions = {
@@ -904,6 +835,31 @@ std::expected<void, std::string> ShellApp::populate_launcher(core::AppContext &c
         }
         launcher_action_connections_.push_back(std::move(connection));
     }
+
+    add_binding_update(
+        binding_updates,
+        SUPER_LAUNCHER_SLOT_GRID_PATH,
+        "content_height",
+        std::to_string(content_height)
+    );
+    add_binding_update(
+        binding_updates,
+        SUPER_LAUNCHER_ITEM_LAYER_PATH,
+        "content_height",
+        std::to_string(content_height)
+    );
+    add_binding_update(
+        binding_updates,
+        SUPER_LAUNCHER_DRAG_LAYER_PATH,
+        "content_height",
+        std::to_string(content_height)
+    );
+    auto binding_result = context.gui().set_binding_values(binding_updates);
+    if (!binding_result) {
+        disconnect_launcher_actions();
+        return binding_result;
+    }
+
     launcher_populated_ = true;
     return {};
 }
@@ -942,15 +898,7 @@ std::expected<void, std::string> ShellApp::refresh_environment()
         const auto image_icon_path = instance_path + "/" + SUPER_LAUNCHER_IMAGE_ICON_ID;
         const auto has_image_icon = core::has_app_icon_image(app.manifest);
         const auto display_name = get_app_display_name(app);
-        auto text_result = context_->gui().set_text(label_path, display_name);
-        if (!text_result) {
-            return text_result;
-        }
         const auto fallback_text = has_image_icon ? std::string() : get_app_icon_text(display_name);
-        text_result = context_->gui().set_text(fallback_icon_path, fallback_text);
-        if (!text_result) {
-            return text_result;
-        }
 
         add_binding_update(updates, label_path, "name", display_name);
         if (has_image_icon) {

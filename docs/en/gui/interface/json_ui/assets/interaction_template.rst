@@ -5,10 +5,14 @@ Interactiontemplate
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-interaction_template-sec-01:
+
 Overview
 --------------------
 
 ``interactionTemplate`` reuses events, animations, state styles, and some common props without producing a runtime view; it expands only in the parser stage. After a node references it via ``interactionRefs``, the template's ``commonProps``, ``stateStyles``, ``events``, and ``animations`` are merged into the node.
+
+.. _gui-interface-json_ui-assets-interaction_template-sec-02:
 
 Related Documents
 --------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../view/index`
+
+.. _gui-interface-json_ui-assets-interaction_template-sec-03:
 
 Fields
 --------------------

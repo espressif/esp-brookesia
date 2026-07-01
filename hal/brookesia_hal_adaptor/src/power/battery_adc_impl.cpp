@@ -37,6 +37,10 @@ constexpr int ADC_REF_VOLTAGE_MV = BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_REF_V
 
 bool is_charge_adc_config_available()
 {
+    if (!esp_board_manager_check_name(ADC_BATTERY_CHARGE_NAME)) {
+        return false;
+    }
+
     void *config = nullptr;
     return esp_board_periph_get_config(ADC_BATTERY_CHARGE_NAME, &config) == ESP_OK;
 }
@@ -227,6 +231,11 @@ bool BatteryAdcImpl::setup_voltage_adc()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (!esp_board_manager_check_name(ADC_BATTERY_VOLTAGE_NAME)) {
+        BROOKESIA_LOGW("Battery voltage ADC periph not found, skip");
+        return false;
+    }
+
     auto ret = esp_board_periph_ref_handle(ADC_BATTERY_VOLTAGE_NAME, &voltage_adc_handle_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to ref battery voltage ADC");
     BROOKESIA_CHECK_NULL_RETURN(voltage_adc_handle_, false, "Failed to get battery voltage ADC handle");
@@ -248,6 +257,11 @@ bool BatteryAdcImpl::setup_voltage_adc()
 bool BatteryAdcImpl::setup_charge_adc()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!esp_board_manager_check_name(ADC_BATTERY_CHARGE_NAME)) {
+        BROOKESIA_LOGW("Battery charge ADC periph not found, skip");
+        return false;
+    }
 
     auto ret = esp_board_periph_ref_handle(ADC_BATTERY_CHARGE_NAME, &charge_adc_handle_);
     if (ret != ESP_OK) {

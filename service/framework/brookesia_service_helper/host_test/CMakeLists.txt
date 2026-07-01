@@ -2,12 +2,28 @@ cmake_minimum_required(VERSION 3.20)
 
 project(brookesia_service_helper_host_test LANGUAGES CXX)
 
-add_subdirectory(../../../utils/brookesia_lib_utils brookesia_lib_utils)
-if((NOT TARGET brookesia_lib_utils) AND TARGET brookesia_lib_utils_impl)
-    add_library(brookesia_lib_utils ALIAS brookesia_lib_utils_impl)
+get_filename_component(brookesia_root "${CMAKE_CURRENT_LIST_DIR}/../../../.." ABSOLUTE)
+
+if(NOT TARGET brookesia::lib_utils)
+    add_subdirectory(
+        ${brookesia_root}/utils/brookesia_lib_utils
+        ${CMAKE_BINARY_DIR}/brookesia_lib_utils
+    )
 endif()
 
-add_subdirectory(../../brookesia_service_manager brookesia_service_manager)
+if(NOT TARGET brookesia::service_manager)
+    add_subdirectory(
+        ${brookesia_root}/service/framework/brookesia_service_manager
+        ${CMAKE_BINARY_DIR}/brookesia_service_manager
+    )
+endif()
+
+if(NOT TARGET brookesia::service_helper)
+    add_subdirectory(
+        ${brookesia_root}/service/framework/brookesia_service_helper
+        ${CMAKE_BINARY_DIR}/brookesia_service_helper
+    )
+endif()
 
 add_executable(brookesia_service_helper_host_test
     main.cpp
@@ -16,13 +32,11 @@ add_executable(brookesia_service_helper_host_test
 target_include_directories(brookesia_service_helper_host_test
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ../include
-        ../../../hal/brookesia_hal_interface/include
 )
 
 target_link_libraries(brookesia_service_helper_host_test
     PRIVATE
-        brookesia::service_manager
+        brookesia::service_helper
 )
 
 set_target_properties(brookesia_service_helper_host_test PROPERTIES

@@ -26,11 +26,15 @@ Linux 平台
 
 ``brookesia_hal_linux`` 是 ``brookesia_hal_interface`` 的 Linux host 后端，可在桌面 Linux 上构建并运行框架与上层应用，便于在无真实硬件时进行开发与联调。
 
+.. _hal-pc_simulation-sec-03:
+
 依赖与构建
 ^^^^^^^^^^^^
 
 - 依赖安装脚本位于组件目录下的 ``scripts/install_linux_deps.sh``，支持 ``apt`` / ``dnf`` / ``pacman``；``--minimal`` 仅安装构建、Boost 与 OpenSSL 依赖，``--full`` 额外安装透明绝对路径所需的 ``proot`` 辅助工具，``--media`` / ``--video`` / ``--display`` / ``--network`` 分别安装 FFmpeg/PortAudio/V4L2、SDL2、NetworkManager/UPower 等可选依赖组。
 - 组件提供 host test 工程，可通过 ``cmake -S host_test -B host_test/build`` 构建并用 ``ctest`` 运行；默认强制使用 stub 后端以保证 CI 确定性。
+
+.. _hal-pc_simulation-sec-04:
 
 后端策略
 ^^^^^^^^^^
@@ -55,6 +59,8 @@ Linux 平台
      - ``stub`` 或 ``networkmanager`` （基于 ``nmcli`` 扫描、连接、断开、状态查询）
 
 ``auto`` 会在依赖可用时优先选择真实后端；运行时若缺少图形会话、摄像头、电池或权限不足，会打印 warning 并降级到确定性 stub 路径。
+
+.. _hal-pc_simulation-sec-05:
 
 运行时数据
 ^^^^^^^^^^^^

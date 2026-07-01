@@ -5,10 +5,14 @@ Constant
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-constant-sec-01:
+
 Overview
 --------------------
 
 The ``constant`` asset defines the constant tree available to the current document. Public JSON should use ``camelCase``.
+
+.. _gui-interface-json_ui-assets-constant-sec-02:
 
 Related Documents
 ----------------------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-constant-sec-03:
 
 Field Table
 ----------------------
@@ -39,6 +45,8 @@ Field Table
      - Yes
      - Constant tree; may nest JSON values such as object, string, number, bool, and array
 
+.. _gui-interface-json_ui-assets-constant-sec-04:
+
 Reference Rules
 ----------------------
 
@@ -54,6 +62,8 @@ Reference Rules
 - The query path contains neither ``${}`` nor the ``constant.`` prefix; a missing or empty path returns an error.
 - The query returns a ``boost::json::value``, so string, number, bool, object, array, and null keep their original JSON type.
 - If root variants match and override a default constant, the runtime query returns the final overridden value.
+
+.. _gui-interface-json_ui-assets-constant-sec-05:
 
 Expression
 --------------------
@@ -82,6 +92,8 @@ Unit rules:
 
 When the result is ``dp`` it is written back as an ``"Ndp"`` string; a unitless integer is written back as a JSON integer; a unitless decimal as a JSON number.
 Non-numeric constants, incompatible units, division by zero, and mismatched parentheses make document parsing fail.
+
+.. _gui-interface-json_ui-assets-constant-sec-06:
 
 Environment Reference
 ------------------------------------------
@@ -128,6 +140,8 @@ Environment Reference
            "height": "${expr((${env.heightDp} - 44dp) / 2)}"
        }
    }
+
+.. _gui-interface-json_ui-assets-constant-sec-07:
 
 Example
 --------------------

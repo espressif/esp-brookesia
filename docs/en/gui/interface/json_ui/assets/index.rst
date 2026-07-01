@@ -5,12 +5,16 @@ Assets
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-index-sec-01:
+
 Overview
 --------------------
 
 This page is the entry description for assets and Runtime resources. Public JSON uses ``camelCase``.
 
 It does not cover ``view`` internal field details, nor the specifics of ``layout`` / ``placement`` / ``style`` / ``props``. For those, see :doc:`../view/index`, :doc:`../styling/layout`, :doc:`../styling/placement`, :doc:`../styling/style`, :doc:`../styling/props/index`.
+
+.. _gui-interface-json_ui-assets-index-sec-02:
 
 Related Documents
 ----------------------------------
@@ -19,6 +23,8 @@ Related Documents
 - :doc:`../document/root`
 - :doc:`../view/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-index-sec-03:
 
 Asset Types
 --------------------
@@ -73,6 +79,8 @@ Runtime global resources are registered or loaded through the Runtime API:
      - :doc:`theme`
      - Global theme overlay, selected by ``set_theme(...)``
 
+.. _gui-interface-json_ui-assets-index-sec-04:
+
 Resource Boundaries
 --------------------------------------
 
@@ -80,6 +88,8 @@ Resource Boundaries
 - An ordinary view node uses ``type`` for its control type.
 - Image and font resources always use ``imageSet`` / ``fontSet``, even for a single resource.
 - ``fontSet`` and ``theme`` are not document ``assets`` types; register or load them through the Runtime global API.
+
+.. _gui-interface-json_ui-assets-index-sec-05:
 
 Subdocuments
 ----------------------

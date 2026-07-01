@@ -11,7 +11,7 @@ dependencies:
 
   espressif/esp_board_manager:
     version: "0.5.*"
-    rules:
+    matches:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_SYSTEM_ENABLE_BOARD_INFO_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_SYSTEM_ENABLE_OTA_UPDATER_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True
@@ -23,32 +23,32 @@ dependencies:
 
   jason-mao/av_processor:
     version: "0.6.*"
-    rules:
+    matches:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
 
   espressif/esp_video:
     version: "2.2.*"
-    rules:
+    matches:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL} == True
 
   # Remote WiFi support for ESP32-P4
   espressif/esp_wifi_remote:
     version: ">=0.10,<2.0"
     require: no
-    rules:
+    matches:
       - if: "target in [esp32p4] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE} == True"
   # TODO: workaround for the compatibility issue of the `v2.12.5` version
   espressif/esp_hosted:
     version: "2.12.3"
     require: no
-    rules:
+    matches:
       - if: "target in [esp32p4] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE} == True"
 
   joltwallet/littlefs:
     version: "1.*"
-    rules:
+    matches:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_FILE_SYSTEM_IMPL} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_LITTLEFS} == True
 
 examples:

@@ -337,6 +337,7 @@ bool BackendImpl::requires_preloaded_image_resource(const RuntimeImageResource &
 void BackendImpl::process_timers()
 {
     if (is_timer_managed_by_port()) {
+        request_refresh_now();
         return;
     }
 

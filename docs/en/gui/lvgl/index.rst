@@ -7,6 +7,8 @@ LVGL Backend
 
 ``brookesia_gui_lvgl`` is the LVGL backend implementation of ``brookesia_gui_interface``. It maps the resolved JSON UI document model to LVGL objects and provides build-time image packaging.
 
+.. _gui-lvgl-index-sec-01:
+
 Scope
 --------------------
 
@@ -15,6 +17,8 @@ Scope
 - Preloading and caching behavior of ``.bin`` images in the backend
 
 For the JSON UI protocol itself, see :doc:`../interface/json_ui/index`.
+
+.. _gui-lvgl-index-sec-02:
 
 Documents in This Group
 -----------------------

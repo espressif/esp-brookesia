@@ -20,9 +20,9 @@
 /**
  * @brief Storage service usage demos: basic operations vs type-safe operations.
  *
- * - demo_basic_operations(): uses the generic RPC-style API (call_function_sync with
+ * - demo_basic_operations(): uses the generic function-call API (call_function_sync with
  *   FunctionId::KVSet/KVGet/KVList/KVErase). You pass/parse JSON and handle KeyValueMap; suitable
- *   when you need fine-grained control or integration with other RPC callers.
+ *   when you need fine-grained control or integration with generic function callers.
  *
  * - demo_type_safe_operations(): uses the type-safe helpers save_key_value() and
  *   get_key_value(). Types are serialized/deserialized automatically; supports bool,

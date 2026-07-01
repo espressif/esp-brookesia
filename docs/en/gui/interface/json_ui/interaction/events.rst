@@ -5,10 +5,14 @@ Events
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-interaction-events-sec-01:
+
 Overview
 --------------------
 
 ``events`` is an optional array. Each event item maps a backend event to a runtime action.
+
+.. _gui-interface-json_ui-interaction-events-sec-02:
 
 Related Documents
 ----------------------------------
@@ -17,6 +21,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`animations`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-events-sec-03:
 
 Event Item Field Table
 --------------------------------------------
@@ -44,6 +50,8 @@ Event Item Field Table
      - ``[]``
      - no
      - local event effects, executed in declaration order
+
+.. _gui-interface-json_ui-interaction-events-sec-04:
 
 Event Type
 --------------------
@@ -82,6 +90,8 @@ Event Type
    * - ``gesture``
      - gesture
 
+.. _gui-interface-json_ui-interaction-events-sec-05:
+
 Payload
 --------------------
 
@@ -115,6 +125,8 @@ Runtime events uniformly use a ``boost::json::object payload`` to carry extra da
      - ``clicked``, etc.
      - ``{}``
 
+.. _gui-interface-json_ui-interaction-events-sec-06:
+
 Subscription Portal
 --------------------------------------
 
@@ -122,6 +134,8 @@ Subscription Portal
 - ``Runtime::subscribe_event_action_with_id(document_id, action, ...)``: returns a stable ``subscription_id`` with the same routing semantics.
 - ``Runtime::unsubscribe_subscription(subscription_id)``: actively disconnects, by id, an event subscription obtained via ``with_id``.
 - ``View::on_event(...)``: subscribe by ``EventType`` once you have the concrete instance; no ``action`` filtering.
+
+.. _gui-interface-json_ui-interaction-events-sec-07:
 
 Event Effects (Effects)
 ----------------------------------------------
@@ -131,6 +145,8 @@ an illegal schema raises an error during parsing.
 
 > Tip: if a node needs to receive ``pressLost`` when the press slides out of bounds, set ``commonProps.pressLock=false`` on that node.
 > The default ``pressLock=true`` tries to keep the pressed target when the finger slides out of the node bounds.
+
+.. _gui-interface-json_ui-interaction-events-sec-08:
 
 Emitaction
 ^^^^^^^^^^^^^^^^^^^^
@@ -144,6 +160,8 @@ Dispatch a runtime action. When ``requireValidPress=true``, dispatch is skipped 
        "action": "launcher.open",
        "requireValidPress": true
    }
+
+.. _gui-interface-json_ui-interaction-events-sec-09:
 
 Setproperty
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -164,6 +182,8 @@ The event value of ``placement.x`` / ``placement.y`` can use a ``"50%"`` percent
        "value": 180
    }
 
+.. _gui-interface-json_ui-interaction-events-sec-10:
+
 Setproperties
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -179,6 +199,8 @@ Modify multiple fields in batch. Each ``updates[]`` entry contains ``target``, `
        ]
    }
 
+.. _gui-interface-json_ui-interaction-events-sec-11:
+
 Startanimation / Stopanimation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -193,6 +215,8 @@ an animation that was started and recorded by an event effect.
        "target": "self",
        "animationId": "press_down"
    }
+
+.. _gui-interface-json_ui-interaction-events-sec-12:
 
 Target
 --------------------
@@ -216,6 +240,8 @@ Notes:
 - when template instances share an ``action``, prefer ``event.path`` to tell instances apart; ``event.node_id`` distinguishes the triggering node inside the template.
 - ``subscribe_event_action(...)`` returns a ``ScopedConnection``; the connection disconnects automatically on destruction.
 - ``subscribe_event_action_with_id(...)`` returns a ``SubscriptionId``; it is only a subscription identity and does not affect the ``document_id + action`` routing model.
+
+.. _gui-interface-json_ui-interaction-events-sec-13:
 
 Example
 --------------------

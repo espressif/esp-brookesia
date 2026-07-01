@@ -5,10 +5,14 @@ interactionTemplate
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-interaction_template-sec-01:
+
 概览
 --------------------
 
 ``interactionTemplate`` 复用事件、动画、状态样式和部分 common props，只在 parser 阶段展开，不生成 runtime view。节点通过 ``interactionRefs`` 引用后，模板里的 ``commonProps``、``stateStyles``、``events`` 和 ``animations`` 会合并到节点上。
+
+.. _gui-interface-json_ui-assets-interaction_template-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ interactionTemplate
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../view/index`
+
+.. _gui-interface-json_ui-assets-interaction_template-sec-03:
 
 字段
 --------------------

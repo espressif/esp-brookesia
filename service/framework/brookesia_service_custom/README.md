@@ -6,7 +6,7 @@
 
 `brookesia_service_custom` is the extension service for registering product-specific functions and events.
 
-For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/custom.html).
+For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/framework/custom.html).
 
 ## How to Use
 

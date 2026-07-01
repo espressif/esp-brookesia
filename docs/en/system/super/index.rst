@@ -7,6 +7,8 @@ System Super
 
 ``brookesia_system_super`` is a standard system built on System Core for handheld devices with rectangular touch screens. It provides a default shell, launcher, overlay, status bar, app switching, and built-in resource flow.
 
+.. _system-super-index-sec-01:
+
 Overview
 --------------------
 
@@ -16,12 +18,16 @@ System Super derives from ``core::System`` and uses the core lifecycle extension
 
    The Super name originates from the simplified form of `Brookesia Superciliaris <https://en.wikipedia.org/wiki/Brookesia_superciliaris>`_, a representative species of the Brookesia genus. It fits this system as the standard and complete ESP-Brookesia system for rectangular touch devices.
 
+.. _system-super-index-sec-02:
+
 Relationship to System Core
 ---------------------------
 
 - The product project provides the GUI backend and device services through ``core_config.gui_backend``.
 - Super manages the Shell and overlay resources, while the app lifecycle, GUI document loading, and runtime app package scanning are still handled by System Core.
 - A customized product should keep user app screens in the regular app layer and keep the system UI in the Shell-managed layers.
+
+.. _system-super-index-sec-03:
 
 Key Capabilities
 --------------------
@@ -31,6 +37,8 @@ Key Capabilities
 - The background flow for the desktop background and app background.
 - Light/dark Runtime themes and an on-demand system keyboard.
 - The startup overlay at boot and the app launch transition animation.
+
+.. _system-super-index-sec-04:
 
 Documentation
 --------------------

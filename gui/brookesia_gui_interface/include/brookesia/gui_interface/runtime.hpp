@@ -82,6 +82,7 @@ public:
     std::expected<void, std::string> register_font_file(std::string_view path);
     std::vector<std::string> list_supported_fonts(std::string_view language = {}) const;
     std::vector<std::string> list_supported_languages() const;
+    std::vector<std::string> list_supported_languages(std::string_view font_id) const;
     std::expected<void, std::string> set_language(std::string_view language);
     std::expected<void, std::string> set_language(std::string_view language, bool reapply_loaded_documents);
     std::string get_language() const;

@@ -347,7 +347,7 @@
                                         "commonProps.hidden": "hidden"
                                     },
                                     "imageProps": {
-                                        "src": "${image.default}",
+                                        "src": "",
                                         "innerAlign": "contain"
                                     },
                                     "placement": {
@@ -447,7 +447,7 @@
                                         "clickable": false
                                     },
                                     "imageProps": {
-                                        "src": "${image.default}",
+                                        "src": "${image.icon.ok}",
                                         "innerAlign": "contain"
                                     },
                                     "placement": {

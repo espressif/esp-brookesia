@@ -1,4 +1,4 @@
-include(/../../../system/brookesia_service_storage/cmake/pc_test_common.cmake)
+include(${TEST_APP_DIR}/../../../system/brookesia_service_storage/cmake/pc_test_common.cmake)
 
 brookesia_service_storage_init_pc_defaults()
 
@@ -32,14 +32,14 @@ add_subdirectory(${TEST_APP_DIR}/.. ${CMAKE_BINARY_DIR}/brookesia_service_audio)
 
 if(NOT TARGET brookesia::service_storage)
     add_subdirectory(
-        /../../../system/brookesia_service_storage
+        ${TEST_APP_DIR}/../../../system/brookesia_service_storage
         ${CMAKE_BINARY_DIR}/brookesia_service_storage
     )
 endif()
 
 if(NOT TARGET brookesia::hal_linux)
     add_subdirectory(
-        ${TEST_APP_DIR}/../../../hal/brookesia_hal_linux
+        ${TEST_APP_DIR}/../../../../hal/brookesia_hal_linux
         ${CMAKE_BINARY_DIR}/brookesia_hal_linux
     )
 endif()

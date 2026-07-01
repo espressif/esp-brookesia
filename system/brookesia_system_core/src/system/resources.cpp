@@ -265,6 +265,9 @@ void System::Impl::unregister_app_icon_resource(AppRecord &record)
 
 std::expected<void, std::string> System::Impl::register_app_icon_resource(AppRecord &record)
 {
+    if (!record.info.manifest.visible) {
+        return {};
+    }
     if (record.info.manifest.icon_path.empty() && record.info.manifest.icon_id.empty()) {
         return {};
     }

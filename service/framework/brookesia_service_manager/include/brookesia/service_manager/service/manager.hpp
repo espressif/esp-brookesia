@@ -15,10 +15,6 @@
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/service_manager/macro_configs.h"
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-#   include "brookesia/service_manager/rpc/server.hpp"
-#   include "brookesia/service_manager/rpc/client.hpp"
-#endif
 #include "brookesia/service_manager/service/base.hpp"
 
 namespace esp_brookesia::service {
@@ -126,7 +122,7 @@ private:
 /**
  * @brief Service manager singleton
  *
- * Manages service lifecycle, dependencies, and RPC communication.
+ * Manages service lifecycle, dependencies, local function calls, and event dispatch.
  */
 class ServiceManager {
 public:
@@ -182,21 +178,6 @@ public:
     inline static const lib_utils::TaskScheduler::StartConfig DEFAULT_TASK_SCHEDULER_START_CONFIG =
         make_default_task_scheduler_start_config();
 
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    /**
-     * @brief Optional callbacks applied to RPC clients created by the manager.
-     */
-    struct RPC_ClientConfig {
-        rpc::Client::DisconnectCallback on_disconnect_callback; ///< Called after the RPC transport disconnects.
-        rpc::Client::DeinitCallback on_deinit_callback; ///< Called when the client is deinitialized.
-
-        RPC_ClientConfig()
-            : on_disconnect_callback(nullptr)
-            , on_deinit_callback(nullptr)
-        {}
-    };
-#endif
-
     /**
      * @brief Initialize the service manager
      *
@@ -246,63 +227,6 @@ public:
      */
     ServiceBinding bind(const std::string &name);
 
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    /**
-     * @brief Start the RPC server
-     *
-     * @param[in] config RPC server configuration
-     * @param[in] timeout_ms Timeout in milliseconds (default: 100ms)
-     * @return true if started successfully, false otherwise
-     */
-    bool start_rpc_server(const rpc::Server::Config &config = rpc::Server::Config(), uint32_t timeout_ms = 100);
-
-    /**
-     * @brief Stop the RPC server
-     */
-    void stop_rpc_server();
-
-    /**
-     * @brief Connect RPC server to services
-     *
-     * @param[in] names Service names to connect (empty means all services)
-     * @return true if connected successfully, false otherwise
-     */
-    bool connect_rpc_server_to_services(std::vector<std::string> names = {});
-
-    /**
-     * @brief Disconnect RPC server from services
-     *
-     * @param[in] names Service names to disconnect (empty means all services)
-     * @return true if disconnected successfully, false otherwise
-     */
-    bool disconnect_rpc_server_from_services(std::vector<std::string> names = {});
-
-    /**
-     * @brief Create a new RPC client
-     *
-     * @param[in] config RPC client configuration
-     * @return std::shared_ptr<rpc::Client> Shared pointer to the RPC client
-     */
-    std::shared_ptr<rpc::Client> new_rpc_client(const RPC_ClientConfig &config = RPC_ClientConfig());
-
-    /**
-     * @brief Call an RPC function synchronously
-     *
-     * @param[in] host Host address
-     * @param[in] service_name Service name
-     * @param[in] function_name Function name
-     * @param[in] params Function parameters in JSON format
-     * @param[in] timeout_ms Timeout in milliseconds (default: configured timeout)
-     * @param[in] port Server port (default: configured port)
-     * @return FunctionResult Result of the function call
-     */
-    FunctionResult call_rpc_function_sync(
-        std::string host, const std::string &service_name, const std::string &function_name, boost::json::object params,
-        uint32_t timeout_ms = BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_CALL_FUNCTION_TIMEOUT_MS,
-        uint16_t port = BROOKESIA_SERVICE_MANAGER_RPC_SERVER_LISTEN_PORT
-    );
-#endif
-
     /**
      * @brief Check if the service manager is initialized
      *
@@ -321,21 +245,6 @@ public:
     bool is_running() const
     {
         return is_running_.load();
-    }
-
-    /**
-     * @brief Check if the RPC server is running
-     *
-     * @return true if running, false otherwise
-     */
-    bool is_rpc_server_running() const
-    {
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-        boost::shared_lock lock(rpc_mutex_);
-        return (rpc_server_ && rpc_server_->is_running());
-#else
-        return false;
-#endif
     }
 
     /**
@@ -404,12 +313,6 @@ private:
     boost::shared_mutex service_mutex_;  // Use recursive mutex to support recursive bind calls
     std::map<std::string, ServiceInfo> services_;
     std::list<std::string> service_init_order_;
-
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    mutable boost::shared_mutex rpc_mutex_;  // Protect RPC server and client access
-    std::unique_ptr<rpc::Server> rpc_server_;
-    std::list<std::weak_ptr<rpc::Client>> rpc_clients_;
-#endif
 };
 
 } // namespace esp_brookesia::service

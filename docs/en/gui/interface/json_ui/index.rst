@@ -5,6 +5,8 @@ GUI Interface
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-index-sec-01:
+
 Overview
 --------------------
 
@@ -21,6 +23,8 @@ Key points:
 - In-document asset first-level types: ``constant`` / ``imageSet`` / ``viewScreen`` / ``viewTemplate`` / ``interactionTemplate`` / ``screenFlow`` / ``styleSet``
 - Runtime global resources: ``theme`` / ``fontSet`` / ``imageSet``
 
+.. _gui-interface-json_ui-index-sec-02:
+
 Mainline Model
 --------------------
 
@@ -29,8 +33,12 @@ Mainline Model
 - ``view`` arranges children through ``layout`` and positions itself through ``placement``
 - The Runtime parses JSON resources into a ``Document`` and indexes nodes by ``document_id + absolute_path``
 
+.. _gui-interface-json_ui-index-sec-03:
+
 Global Constraints
 --------------------
+
+.. _gui-interface-json_ui-index-sec-04:
 
 Resource Reference
 ^^^^^^^^^^^^^^^^^^^^
@@ -56,6 +64,8 @@ Rules:
 
 Not supported: ``${metrics.titleFont}``, the plural form ``${colors.*}``, ``font: "title"``, ``src: "logo"``, and the colon form ``${font:title}`` / ``${image:logo}``.
 
+.. _gui-interface-json_ui-index-sec-05:
+
 Units
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -68,6 +78,8 @@ Sizes in JSON UI are converted to backend pixel values during parsing:
 Field value rules: ``layout.gap`` takes a ``dp`` string or a bare number ``px``; ``placement.x`` / ``placement.y`` take a ``dp`` string, percentage, or bare number ``px``; ``placement.width`` / ``placement.height`` also accept ``match`` / ``wrap``; ``style.fontSize`` takes an ``sp`` string or a bare number ``px``.
 
 For more complete unit and conversion examples, see :doc:`document/root` and :doc:`styling/placement`.
+
+.. _gui-interface-json_ui-index-sec-06:
 
 Json UI Specification
 -----------------------

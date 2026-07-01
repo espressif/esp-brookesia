@@ -3,12 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
-#include <chrono>
 #include <exception>
-#if defined(ESP_PLATFORM)
-#   include "esp_err.h"
-#   include "esp_netif.h"
-#endif
 #include "brookesia/service_manager/macro_configs.h"
 #if !BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -17,26 +12,6 @@
 #include "brookesia/service_manager/service/manager.hpp"
 
 namespace esp_brookesia::service {
-
-namespace {
-
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-bool ensure_network_stack_ready()
-{
-#if defined(ESP_PLATFORM)
-    const esp_err_t err = esp_netif_init();
-    if ((err == ESP_OK) || (err == ESP_ERR_INVALID_STATE)) {
-        return true;
-    }
-    BROOKESIA_LOGE("Failed to initialize ESP-NETIF: %1%", static_cast<int>(err));
-    return false;
-#else
-    return true;
-#endif
-}
-#endif
-
-} // namespace
 
 ServiceBinding::ServiceBinding(ServiceBinding &&other) noexcept
     : unbind_callback_(std::move(other.unbind_callback_))
@@ -198,13 +173,6 @@ void ServiceManager::stop_internal()
         BROOKESIA_LOGD("Already stopped");
         return;
     }
-
-    // Stop RPC server first
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-    if (is_rpc_server_running()) {
-        stop_rpc_server();
-    }
-#endif
 
     // Stop task scheduler
     task_scheduler_->stop();
@@ -422,252 +390,6 @@ ServiceBinding ServiceManager::bind(const std::string &name)
     return ServiceBinding(unbind_callback, service_info.service, std::move(dependency_bindings));
 }
 
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-bool ServiceManager::start_rpc_server(const rpc::Server::Config &config, uint32_t timeout_ms)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: config(%1%), timeout_ms(%2%)", BROOKESIA_DESCRIBE_TO_STR(config), timeout_ms);
-
-    // Use write lock to protect RPC server operations
-    boost::unique_lock lock(rpc_mutex_);
-
-    if (rpc_server_ && rpc_server_->is_running()) {
-        BROOKESIA_LOGD("RPC server already started");
-        return true;
-    }
-
-    BROOKESIA_CHECK_FALSE_RETURN(is_running(), false, "Not running");
-
-    lib_utils::FunctionGuard stop_guard([this]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        // Directly operate in the guard, no need to acquire the lock again (already held externally)
-        if (rpc_server_ && rpc_server_->is_running()) {
-            rpc_server_->stop();
-        }
-        rpc_server_.reset();
-    });
-
-    BROOKESIA_CHECK_FALSE_RETURN(ensure_network_stack_ready(), false, "Failed to initialize network stack");
-
-    BROOKESIA_CHECK_EXCEPTION_RETURN(
-        rpc_server_ = std::make_unique<rpc::Server>(*task_scheduler_->get_executor(), config), false,
-        "Failed to create RPC server"
-    );
-    BROOKESIA_CHECK_FALSE_RETURN(rpc_server_->start(timeout_ms), false, "Failed to start RPC server");
-
-    stop_guard.release();
-
-    BROOKESIA_LOGI("RPC server started with config: %1%", BROOKESIA_DESCRIBE_TO_STR(config));
-
-    return true;
-}
-
-void ServiceManager::stop_rpc_server()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    // Use write lock to protect RPC server operations
-    boost::unique_lock lock(rpc_mutex_);
-
-    if (rpc_server_ && rpc_server_->is_running()) {
-        rpc_server_->stop();
-    }
-    rpc_server_.reset();
-
-    BROOKESIA_LOGI("RPC server stopped");
-}
-
-bool ServiceManager::connect_rpc_server_to_services(std::vector<std::string> names)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    // Use read lock to check the RPC server status
-    {
-        boost::shared_lock lock(rpc_mutex_);
-        BROOKESIA_CHECK_FALSE_RETURN(rpc_server_ && rpc_server_->is_running(), false, "RPC server is not running");
-    }
-
-    if (names.empty()) {
-        boost::lock_guard lock(service_mutex_);
-        names = std::vector<std::string>(service_init_order_.begin(), service_init_order_.end());
-    }
-
-    for (const auto &name : names) {
-        boost::lock_guard lock(service_mutex_);
-        auto service_it = services_.find(name);
-        BROOKESIA_CHECK_FALSE_RETURN(
-            service_it != services_.end(), false, "Service not found: %1%", name
-        );
-
-        auto &service_info = service_it->second;
-        if (!service_info.service) {
-            BROOKESIA_LOGW("Service instance is null: %1%", name);
-            continue;
-        }
-
-        auto connection = service_info.service->connect_to_server();
-        if (!connection) {
-            BROOKESIA_LOGW("Failed to connect to server: %1%", name);
-            continue;
-        }
-
-        auto service_ptr = service_info.service;
-        lib_utils::FunctionGuard disconnect_guard([this, service_ptr]() {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            service_ptr->disconnect_from_server();
-        });
-
-        // Again acquire the read lock to access rpc_server_
-        {
-            boost::shared_lock rpc_lock(rpc_mutex_);
-            if (!rpc_server_) {
-                BROOKESIA_LOGE("RPC server was stopped");
-                return false;
-            }
-            BROOKESIA_CHECK_FALSE_RETURN(
-                rpc_server_->add_connection(connection), false, "Failed to add RPC server connection to server"
-            );
-        }
-
-        disconnect_guard.release();
-
-        BROOKESIA_LOGI("Connected RPC server to service: %1%", name);
-    }
-
-    return true;
-}
-
-bool ServiceManager::disconnect_rpc_server_from_services(std::vector<std::string> names)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    // Use read lock to check the RPC server status
-    {
-        boost::shared_lock lock(rpc_mutex_);
-        if (!rpc_server_ || !rpc_server_->is_running()) {
-            BROOKESIA_LOGE("RPC server not started");
-            return false;
-        }
-    }
-
-    if (names.empty()) {
-        boost::lock_guard lock(service_mutex_);
-        names = std::vector<std::string>(service_init_order_.begin(), service_init_order_.end());
-    }
-
-    for (const auto &name : names) {
-        boost::lock_guard lock(service_mutex_);
-        auto service_it = services_.find(name);
-        BROOKESIA_CHECK_FALSE_RETURN(
-            service_it != services_.end(), false, "Service not found: %1%", name
-        );
-
-        auto &service_info = service_it->second;
-        if (!service_info.service) {
-            BROOKESIA_LOGW("Service instance is null: %1%", name);
-            continue;
-        }
-
-        // Again acquire the read lock to access rpc_server_
-        {
-            boost::shared_lock rpc_lock(rpc_mutex_);
-            if (!rpc_server_) {
-                BROOKESIA_LOGE("RPC server was stopped");
-                return false;
-            }
-            rpc_server_->remove_connection(name);
-        }
-        service_info.service->disconnect_from_server();
-
-        BROOKESIA_LOGI("Disconnected RPC server from service: %1%", name);
-    }
-
-    return true;
-}
-
-std::shared_ptr<rpc::Client> ServiceManager::new_rpc_client(const RPC_ClientConfig &config)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_CHECK_FALSE_RETURN(is_running(), nullptr, "Not running");
-
-    std::shared_ptr<rpc::Client> client;
-    BROOKESIA_CHECK_EXCEPTION_RETURN(
-        client = std::make_shared<rpc::Client>(config.on_deinit_callback), nullptr,
-        "Failed to create RPC client"
-    );
-
-    BROOKESIA_CHECK_FALSE_RETURN(
-        client->init(*task_scheduler_->get_executor(), config.on_disconnect_callback), nullptr,
-        "Failed to initialize RPC client"
-    );
-
-    // Use write lock to add the client to the list (for tracking)
-    {
-        boost::unique_lock lock(rpc_mutex_);
-        rpc_clients_.push_back(client);
-    }
-
-    return client;
-}
-
-FunctionResult ServiceManager::call_rpc_function_sync(
-    std::string host, const std::string &service_name, const std::string &function_name,
-    boost::json::object params, uint32_t timeout_ms, uint16_t port
-)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    FunctionResult result{
-        .success = false,
-    };
-    auto &error_message = result.error_message;
-
-    BROOKESIA_LOGD(
-        "Params: host(%1%), service_name(%2%), function_name(%3%), params(%4%), timeout_ms(%5%), port(%6%)",
-        host, service_name, function_name, boost::json::serialize(params), timeout_ms, port
-    );
-
-    auto start_time = std::chrono::steady_clock::now();
-
-    std::shared_ptr<rpc::Client> client = new_rpc_client();
-    if (!client) {
-        error_message = "Failed to create RPC client";
-        BROOKESIA_LOGE("%1%", error_message);
-        return result;
-    }
-
-    if (!client->connect(host, port, timeout_ms)) {
-        error_message = (boost::format("Failed to connect to RPC server: %1%:%2%") % host % port).str();
-        BROOKESIA_LOGE("%1%", error_message);
-        return result;
-    }
-
-    // Calculate the remaining timeout after connection
-    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - start_time);
-    auto remaining_ms = (elapsed < std::chrono::milliseconds(timeout_ms))
-                        ? (std::chrono::milliseconds(timeout_ms) - elapsed).count()
-                        : 0;
-
-    if (remaining_ms <= 0) {
-        error_message = (boost::format("Timeout after connection, elapsed: %1%ms") % elapsed.count()).str();
-        BROOKESIA_LOGE("%1%", error_message);
-        return result;
-    }
-
-    BROOKESIA_LOGD("Calling RPC function with remaining timeout: %1%ms", remaining_ms);
-
-    result = client->call_function_sync(service_name, function_name, std::move(params), remaining_ms);
-    if (!result.success) {
-        BROOKESIA_LOGE("Failed to call RPC function: %1%", result.error_message);
-        return result;
-    }
-
-    return result;
-}
-#endif
-
 void ServiceManager::unbind(const std::string &name)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -716,15 +438,6 @@ void ServiceManager::unbind(const std::string &name)
     // But we've already checked ref_count == 1 before decrementing, so bind() won't interfere
     if (should_stop && service_to_stop) {
         service_to_stop->stop();
-#if BROOKESIA_SERVICE_MANAGER_ENABLE_RPC
-        // Remove RPC connection if needed (without holding service_mutex_)
-        {
-            boost::shared_lock rpc_lock(rpc_mutex_);
-            if (rpc_server_ && rpc_server_->is_running()) {
-                rpc_server_->remove_connection(name);
-            }
-        }
-#endif
 
         BROOKESIA_LOGI("Service stopped: %1%", name);
     }

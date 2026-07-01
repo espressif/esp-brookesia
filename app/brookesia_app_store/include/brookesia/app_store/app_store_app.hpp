@@ -99,6 +99,12 @@ private:
         Canceled,
     };
 
+    enum class IconUpdatePurpose {
+        None,
+        RefreshVisiblePage,
+        LazyVisiblePage,
+    };
+
     struct VisibleItemRef {
         VisibleItemKind kind = VisibleItemKind::Store;
         size_t index = 0;
@@ -127,12 +133,15 @@ private:
         uint64_t download_request_id = 0;
         uint64_t icon_request_id = 0;
         uint64_t metadata_request_id = 0;
+        uint64_t size_metadata_request_id = 0;
         uint64_t download_size = 0;
         uint32_t downloaded = 0;
         uint32_t total = 0;
         std::string installed_version;
         bool downloading = false;
         bool metadata_loading = false;
+        bool size_metadata_loading = false;
+        bool size_metadata_failed = false;
         bool installed = false;
         bool update_available = false;
         bool cached = false;
@@ -208,6 +217,15 @@ private:
     std::expected<void, std::string> refresh_ui(system::core::AppContext &context);
     std::expected<void, std::string> scroll_list_to_top(system::core::AppContext &context);
     std::expected<void, std::string> refresh_entry(system::core::AppContext &context, size_t index);
+    void start_visible_size_metadata_requests(system::core::AppContext &context);
+    void start_visible_icon_update(system::core::AppContext &context);
+    void process_size_metadata_step(system::core::AppContext &context);
+    void schedule_size_metadata_step(system::core::AppContext &context, int delay_ms);
+    void stop_size_metadata_timer(system::core::AppContext &context);
+    bool has_size_metadata_request_in_flight() const;
+    std::optional<size_t> find_next_visible_size_metadata_index() const;
+    bool should_fetch_size_metadata(const StoreEntry &entry) const;
+    bool should_fetch_icon(const StoreEntry &entry) const;
     std::vector<VisibleItemRef> build_visible_items() const;
     void clamp_list_page();
     std::optional<size_t> find_store_entry_index_by_package(std::string_view package_name) const;
@@ -219,12 +237,14 @@ private:
     void set_view_mode(system::core::AppContext &context, ViewMode mode);
     void start_or_cancel_download(system::core::AppContext &context, size_t index);
     void start_metadata_request(system::core::AppContext &context, size_t index);
+    bool start_size_metadata_request(system::core::AppContext &context, size_t index);
     void start_download(system::core::AppContext &context, size_t index);
     std::expected<void, std::string> parse_metadata_json(
         system::core::AppContext &context,
         size_t index,
         std::string_view json
     );
+    std::expected<void, std::string> parse_size_metadata_json(size_t index, std::string_view json);
     std::expected<void, std::string> install_package(
         system::core::AppContext &context,
         const std::filesystem::path &path,
@@ -233,6 +253,8 @@ private:
     void install_local_package(system::core::AppContext &context, size_t index);
     void uninstall_installed_app(system::core::AppContext &context, size_t index);
     void cancel_download(StoreEntry &entry);
+    void cancel_size_metadata_request(StoreEntry &entry);
+    void cancel_size_metadata_requests();
     void show_download_preparing_dialog(system::core::AppContext &context, const StoreEntry &entry);
     void ensure_download_progress_dialog(system::core::AppContext &context, const StoreEntry &entry);
     void update_download_progress_dialog_if_current(system::core::AppContext &context, const StoreEntry &entry);
@@ -261,6 +283,9 @@ private:
     void handle_metadata_completed(size_t index, const boost::json::object &response_json);
     void handle_metadata_failed(size_t index, const boost::json::object &response_json);
     void handle_metadata_canceled(size_t index);
+    void handle_size_metadata_completed(size_t index, const boost::json::object &response_json);
+    void handle_size_metadata_failed(size_t index, const boost::json::object &response_json);
+    void handle_size_metadata_canceled(size_t index);
     void handle_refresh_progress(const boost::json::object &progress_json);
     void handle_refresh_completed(const boost::json::object &response_json);
     void handle_refresh_failed(const boost::json::object &response_json);
@@ -271,8 +296,16 @@ private:
     void handle_refresh_icon_canceled();
     std::optional<size_t> find_entry_by_request(uint64_t request_id) const;
     std::optional<size_t> find_entry_by_metadata_request(uint64_t request_id) const;
+    std::optional<size_t> find_entry_by_size_metadata_request(uint64_t request_id) const;
     std::optional<VisibleItemRef> find_visible_item_by_path(std::string_view path) const;
     void start_refresh_icon_update(system::core::AppContext &context);
+    void restart_visible_icon_update(system::core::AppContext &context, IconUpdatePurpose purpose);
+    void cancel_refresh_icon_update(system::core::AppContext &context);
+    void reset_refresh_icon_state();
+    std::vector<size_t> build_visible_icon_indices() const;
+    std::optional<size_t> current_refresh_icon_index() const;
+    void advance_refresh_icon_step(system::core::AppContext &context);
+    void finish_refresh_icon_update(system::core::AppContext &context);
     std::expected<void, std::string> process_refresh_icon_step(system::core::AppContext &context);
     void schedule_refresh_icon_step(system::core::AppContext &context);
     void stop_refresh_icon_timer(system::core::AppContext &context);
@@ -322,6 +355,9 @@ private:
     std::expected<void, std::string> register_icon(system::core::AppContext &context, size_t index);
     std::string register_cached_icon(system::core::AppContext &context, const std::vector<std::string> &keys);
     void unregister_icons(system::core::AppContext &context);
+    std::optional<uint64_t> store_entry_package_size(const StoreEntry &entry) const;
+    std::optional<uint64_t> find_installed_package_size(std::string_view manifest_id) const;
+    std::string make_size_detail(uint64_t bytes) const;
     std::string localized(const std::map<std::string, std::string> &values) const;
     std::string tr(std::string_view key) const;
     std::string current_language() const;

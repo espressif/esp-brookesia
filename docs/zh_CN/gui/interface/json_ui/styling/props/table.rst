@@ -5,16 +5,22 @@ tableProps
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-styling-props-table-sec-01:
+
 概览
 --------------------
 
 ``tableProps`` 适用于 ``table``。
+
+.. _gui-interface-json_ui-styling-props-table-sec-02:
 
 相关文档
 --------------------
 
 - :doc:`index`
 - :doc:`../../view/table`
+
+.. _gui-interface-json_ui-styling-props-table-sec-03:
 
 字段表
 --------------------
@@ -43,6 +49,8 @@ tableProps
      - ``tableProps.cells``
      - 单元格文本
 
+.. _gui-interface-json_ui-styling-props-table-sec-04:
+
 TableCell 字段表
 --------------------------
 
@@ -65,6 +73,8 @@ TableCell 字段表
      - string
      - ``""``
      - 单元格文本
+
+.. _gui-interface-json_ui-styling-props-table-sec-05:
 
 示例
 --------------------

@@ -5,16 +5,22 @@ Textinputprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-text_input-sec-01:
+
 Overview
 --------------------
 
 ``textInputProps`` applies to ``textInput``.
+
+.. _gui-interface-json_ui-styling-props-text_input-sec-02:
 
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../../view/text_input`
+
+.. _gui-interface-json_ui-styling-props-text_input-sec-03:
 
 Field Table
 ----------------------
@@ -52,6 +58,8 @@ Field Table
      - ``0``
      - ``textInputProps.maxLength``
      - maximum input length; ``0`` means no extra limit
+
+.. _gui-interface-json_ui-styling-props-text_input-sec-04:
 
 Example
 --------------------

@@ -219,6 +219,10 @@ std::expected<void, std::string> SettingsApp::commit_language_switch(
     if (!result) {
         return result;
     }
+    result = populate_language_options(context);
+    if (!result) {
+        return result;
+    }
     result = refresh_language_state(context);
     if (!result) {
         return result;

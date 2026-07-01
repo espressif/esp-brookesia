@@ -5,10 +5,14 @@ Interaction
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-interaction-index-sec-01:
+
 Overview
 --------------------
 
 This group covers the view's interaction and dynamic behavior: ``bindings`` handles store data binding and subscription, ``events`` handles interaction events and action routing, ``animations`` handles declarative animations, and ``screenFlow`` handles state-machine switching across a group of screens within the same document.
+
+.. _gui-interface-json_ui-interaction-index-sec-02:
 
 Related Documents
 ----------------------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`../view/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-index-sec-03:
 
 Documents for This Group
 ------------------------------------------------

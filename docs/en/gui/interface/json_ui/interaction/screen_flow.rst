@@ -5,12 +5,16 @@ Screen Flow
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-interaction-screen_flow-sec-01:
+
 Overview
 --------------------
 
 ``screenFlow`` is a document asset that describes a mutually exclusive switching state machine for a group of top-level screens within the same document. A
 document can declare multiple flows, but a given screen can belong to only one flow. A flow handles only screen
 ``mount`` / ``unmount``; it runs no script callbacks, does not cross documents, and does not manage the app lifecycle.
+
+.. _gui-interface-json_ui-interaction-screen_flow-sec-02:
 
 Related Documents
 ----------------------------------
@@ -19,6 +23,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`../assets/index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-screen_flow-sec-03:
 
 Asset Field Table
 ----------------------------------
@@ -56,6 +62,8 @@ Asset Field Table
      - ``[]``
      - no
      - transition list; omitted or an empty array declares only a static initial screen
+
+.. _gui-interface-json_ui-interaction-screen_flow-sec-04:
 
 Transitions[]
 --------------------------
@@ -96,6 +104,8 @@ Rules:
 - triggering to the current state while the current screen is still mounted on the flow target is treated as a no-op success.
 - if ``transitions`` is omitted or empty, the flow is still valid; starting the flow mounts the ``initial`` screen, but triggering a transition fails.
 
+.. _gui-interface-json_ui-interaction-screen_flow-sec-05:
+
 Example
 --------------------
 
@@ -126,6 +136,8 @@ Example
            {"from": ["home", "settings"], "action": "open_settings", "to": "settings"}
        ]
    }
+
+.. _gui-interface-json_ui-interaction-screen_flow-sec-06:
 
 Runtime API
 ----------------------

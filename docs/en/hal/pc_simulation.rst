@@ -26,11 +26,15 @@ Linux Platform
 
 ``brookesia_hal_linux`` is the Linux host backend of ``brookesia_hal_interface``. It builds and runs the framework and upper-layer apps on desktop Linux, which is convenient for development and integration without real hardware.
 
+.. _hal-pc_simulation-sec-03:
+
 Dependencies and Build
 ^^^^^^^^^^^^^^^^^^^^^^^
 
 - The dependency installer ``scripts/install_linux_deps.sh`` in the component directory supports ``apt`` / ``dnf`` / ``pacman``; ``--minimal`` installs only the build, Boost, and OpenSSL dependencies, ``--full`` also installs the ``proot`` helper used for transparent absolute paths, and ``--media`` / ``--video`` / ``--display`` / ``--network`` install the optional groups for FFmpeg/PortAudio/V4L2, SDL2, and NetworkManager/UPower.
 - The component ships a host test project that builds via ``cmake -S host_test -B host_test/build`` and runs with ``ctest``; it forces stub backends by default to keep CI deterministic.
+
+.. _hal-pc_simulation-sec-04:
 
 Backend Strategy
 ^^^^^^^^^^^^^^^^^^
@@ -55,6 +59,8 @@ Each capability can choose between stub and real backends, controlled by CMake v
      - ``stub`` or ``networkmanager`` (scan, connect, disconnect, and status via ``nmcli``)
 
 ``auto`` prefers the real backend when its dependencies are available; at runtime it prints a warning and falls back to the deterministic stub path if there is no display session, camera, battery, or sufficient permission.
+
+.. _hal-pc_simulation-sec-05:
 
 Runtime Data
 ^^^^^^^^^^^^^^

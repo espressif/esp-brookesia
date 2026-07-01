@@ -594,8 +594,20 @@ bool DisplaySourceImpl::panel_event_callback(uint8_t event, bool in_isr, void *u
     switch (event_type) {
     case hal::display::PanelIface::EventType::ColorTransDone:
         return esp_lv_adapter_display_notify_color_trans_done_from_isr(self->display_);
-    case hal::display::PanelIface::EventType::FrameDone:
-        return esp_lv_adapter_display_notify_frame_done_from_isr(self->display_);
+    case hal::display::PanelIface::EventType::FrameDone: {
+        // The HAL owns the ESP-IDF panel callback slot (adapter self-registration was disabled via
+        // esp_lv_adapter_set_default_display_idf_callback_registration_enabled(false)), so the adapter
+        // never sees the panel's frame-buffer-complete / refresh-done interrupt and relies on this
+        // forwarding instead. The HAL maps that interrupt to FrameDone, which drives two adapter paths:
+        //   - notify_frame_buf_complete: releases/rotates a pipeline buffer. Buffer-switch tear-avoid
+        //     modes (TRIPLE_PARTIAL / DOUBLE_DIRECT) and dummy-draw need this, otherwise the flush path
+        //     blocks forever waiting for a free buffer.
+        //   - notify_frame_done: signals vsync / dummy-draw frame-done handling.
+        // Both must run; OR their yield hints so a higher-priority task is resumed if either requests it.
+        const bool release_yield = esp_lv_adapter_display_notify_frame_buf_complete_from_isr(self->display_);
+        const bool frame_yield = esp_lv_adapter_display_notify_frame_done_from_isr(self->display_);
+        return release_yield || frame_yield;
+    }
     default:
         return false;
     }

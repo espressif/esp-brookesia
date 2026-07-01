@@ -100,6 +100,8 @@ bool AudioPlayback::on_start()
     );
 
     play_state_ = AudioPlayState::Idle;
+    pause_requested_ = false;
+    clear_pending_interrupt_playback();
     playback_iface_ = std::move(playback_handle);
 #if BROOKESIA_SERVICE_AUDIO_PLAYBACK_ENABLE_AUTO_LOAD_DATA
     load_control_data_from_storage();
@@ -114,6 +116,8 @@ void AudioPlayback::on_stop()
 
     std::queue<PlaybackRequest>().swap(playback_queue_);
     is_processing_queue_ = false;
+    pause_requested_ = false;
+    clear_pending_interrupt_playback();
     cancel_playlist_scheduled_task();
 
     if (playback_iface_) {
@@ -137,24 +141,10 @@ std::expected<void, std::string> AudioPlayback::function_play(
         return std::unexpected("Invalid play URL config");
     }
 
-    if (playback_config.interrupt) {
-        bool allow_gap_idle_before_start = (play_state_ != AudioPlayState::Idle) && (playback_config.delay_ms > 0);
-        std::queue<PlaybackRequest>().swap(playback_queue_);
-        is_processing_queue_ = false;
-
-        cancel_playlist_scheduled_task();
-        start_playlist({url}, playback_config, allow_gap_idle_before_start);
-    } else {
-        playback_queue_.push({{url}, playback_config});
-        is_processing_queue_ = true;
-        BROOKESIA_LOGD("Added URL to queue, queue size: %1%", playback_queue_.size());
-
-        if ((play_state_ == AudioPlayState::Idle) && (playlist_state_.phase == PlaylistPhase::Inactive)) {
-            process_playback_queue();
-        }
-    }
-
-    return {};
+    return submit_playback_request(PlaybackRequest{
+        .urls = {url},
+        .config = playback_config,
+    });
 }
 
 std::expected<void, std::string> AudioPlayback::function_play_list(
@@ -183,22 +173,57 @@ std::expected<void, std::string> AudioPlayback::function_play_list(
         return std::unexpected("Invalid play URL config");
     }
 
-    if (playback_config.interrupt) {
-        bool allow_gap_idle_before_start = (play_state_ != AudioPlayState::Idle) && (playback_config.delay_ms > 0);
-        std::queue<PlaybackRequest>().swap(playback_queue_);
-        is_processing_queue_ = false;
+    return submit_playback_request(PlaybackRequest{
+        .urls = std::move(url_list),
+        .config = playback_config,
+    });
+}
 
-        cancel_playlist_scheduled_task();
-        start_playlist(std::move(url_list), playback_config, allow_gap_idle_before_start);
-    } else {
-        playback_queue_.push({std::move(url_list), playback_config});
-        is_processing_queue_ = true;
-        BROOKESIA_LOGD("Queued playlist request, queue size: %1%", playback_queue_.size());
+std::expected<void, std::string> AudioPlayback::submit_playback_request(PlaybackRequest request)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-        if ((play_state_ == AudioPlayState::Idle) && (playlist_state_.phase == PlaylistPhase::Inactive)) {
-            process_playback_queue();
-        }
+    if (request.config.interrupt) {
+        return submit_interrupt_playback_request(std::move(request));
     }
+
+    playback_queue_.push(std::move(request));
+    is_processing_queue_ = true;
+    BROOKESIA_LOGD("Queued playback request, queue size: %1%", playback_queue_.size());
+
+    if ((play_state_ == AudioPlayState::Idle) && (playlist_state_.phase == PlaylistPhase::Inactive)) {
+        process_playback_queue();
+    }
+
+    return {};
+}
+
+std::expected<void, std::string> AudioPlayback::submit_interrupt_playback_request(PlaybackRequest request)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    bool should_stop_paused_playback = (play_state_ == AudioPlayState::Paused) || pause_requested_;
+    bool allow_gap_idle_before_start = (play_state_ != AudioPlayState::Idle) && (request.config.delay_ms > 0);
+
+    std::queue<PlaybackRequest>().swap(playback_queue_);
+    is_processing_queue_ = false;
+    clear_pending_interrupt_playback();
+    cancel_playlist_scheduled_task();
+
+    if (should_stop_paused_playback) {
+        pending_interrupt_request_ = std::move(request);
+        stop_for_pending_interrupt_ = true;
+        pause_requested_ = false;
+
+        if (!playback_iface_ || !playback_iface_->stop()) {
+            clear_pending_interrupt_playback();
+            return std::unexpected("Failed to stop paused playback before interrupt");
+        }
+        return {};
+    }
+
+    auto config = request.config;
+    start_playlist(std::move(request.urls), config, allow_gap_idle_before_start);
 
     return {};
 }
@@ -207,7 +232,10 @@ std::expected<void, std::string> AudioPlayback::function_pause()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!playback_iface_ || !playback_iface_->pause()) {
+    pause_requested_ = true;
+    const bool pause_ok = playback_iface_ && playback_iface_->pause();
+    if (!pause_ok) {
+        pause_requested_ = false;
         return std::unexpected("Failed to pause playback");
     }
     suspend_playlist_scheduled_task();
@@ -219,8 +247,12 @@ std::expected<void, std::string> AudioPlayback::function_resume()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    pause_requested_ = false;
     if (!playback_iface_ || !playback_iface_->resume()) {
         return std::unexpected("Failed to resume playback");
+    }
+    if (!stop_for_pending_interrupt_) {
+        pending_interrupt_request_.reset();
     }
     resume_playlist_scheduled_task();
 
@@ -231,6 +263,8 @@ std::expected<void, std::string> AudioPlayback::function_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    pause_requested_ = false;
+    clear_pending_interrupt_playback();
     cancel_playlist_scheduled_task();
     if (!playback_iface_ || !playback_iface_->stop()) {
         return std::unexpected("Failed to stop playback");
@@ -266,6 +300,37 @@ void AudioPlayback::start_playlist(
     BROOKESIA_LOGD("Starting playlist: %1% URLs x %2% loops, session %3%", urls.size(), total_loops, new_session_id);
 
     play_playlist_url_at_index(0);
+}
+
+void AudioPlayback::clear_pending_interrupt_playback()
+{
+    pending_interrupt_request_.reset();
+    stop_for_pending_interrupt_ = false;
+}
+
+void AudioPlayback::start_pending_interrupt_playback_after_idle()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!pending_interrupt_request_) {
+        clear_pending_interrupt_playback();
+        return;
+    }
+
+    auto request = std::move(*pending_interrupt_request_);
+    clear_pending_interrupt_playback();
+
+    if (request.config.delay_ms > 0) {
+        auto result = publish_event(BROOKESIA_DESCRIBE_TO_STR(Helper::EventId::PlayStateChanged), {
+            BROOKESIA_DESCRIBE_TO_STR(AudioPlayState::Idle)
+        });
+        BROOKESIA_CHECK_FALSE_EXECUTE(result, {}, {
+            BROOKESIA_LOGE("Failed to publish play state changed event");
+        });
+    }
+
+    auto config = request.config;
+    start_playlist(std::move(request.urls), config, false);
 }
 
 void AudioPlayback::play_playlist_url_at_index(size_t index)
@@ -488,7 +553,12 @@ void AudioPlayback::on_playback_event(AudioPlayState new_state)
                 ((playlist_state_.phase == PlaylistPhase::WaitingToStart) ||
                  (playlist_state_.phase == PlaylistPhase::StartingItem))
             );
-    if ((new_state == play_state_) && !should_process_same_state_playing) {
+    bool should_process_pending_interrupt_idle = (
+                (new_state == AudioPlayState::Idle) &&
+                stop_for_pending_interrupt_ &&
+                pending_interrupt_request_.has_value()
+            );
+    if ((new_state == play_state_) && !should_process_same_state_playing && !should_process_pending_interrupt_idle) {
         return;
     }
 
@@ -497,6 +567,21 @@ void AudioPlayback::on_playback_event(AudioPlayState new_state)
         bool is_first_url_of_loop = (playlist_state_.current_url_index == 0);
 
         play_state_ = new_state;
+        if (new_state == AudioPlayState::Paused) {
+            pause_requested_ = false;
+            if (stop_for_pending_interrupt_) {
+                return;
+            }
+        } else if (new_state == AudioPlayState::Idle) {
+            pause_requested_ = false;
+            if (stop_for_pending_interrupt_) {
+                start_pending_interrupt_playback_after_idle();
+                return;
+            }
+        } else if (new_state == AudioPlayState::Playing) {
+            pause_requested_ = false;
+        }
+
         bool should_publish_event = true;
         if (new_state == AudioPlayState::Playing) {
             if ((playlist_phase == PlaylistPhase::WaitingToStart) ||

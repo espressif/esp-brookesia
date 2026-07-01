@@ -5,6 +5,8 @@ Imageset
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-image-sec-01:
+
 Overview
 --------------------
 
@@ -13,12 +15,16 @@ The ``imageSet`` descriptor describes a set of image resources. A document can r
 
 Image resources are always organized into ``imageSet.images[]``, even for a single image.
 
+.. _gui-interface-json_ui-assets-image-sec-02:
+
 Related Documents
 ----------------------------------
 
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-image-sec-03:
 
 Field Table
 ----------------------
@@ -64,6 +70,8 @@ Field Table
 
 An ``images[]`` entry does not contain ``type``. Duplicate ids cannot appear within one ``imageSet``.
 
+.. _gui-interface-json_ui-assets-image-sec-04:
+
 Runtime API
 ----------------------
 
@@ -77,12 +85,16 @@ Runtime API
 
 Document image resources take priority over Runtime global images; Runtime global images supplement image ids a document does not declare.
 
+.. _gui-interface-json_ui-assets-image-sec-05:
+
 Source File Format (Backend Related)
 ------------------------------------------------------------------------
 
 The concrete file format of ``src`` / ``RuntimeImageResource.primary_src`` is decided by the current backend. ``gui_interface`` only stores the image id, path, and size, and calls the backend's resource-completion and preload hooks during the document load phase.
 
 If a backend supports reading dimensions from a proprietary image format, ``register_image(...)`` can complete ``width`` / ``height`` through a backend hook when they are missing. If they cannot be completed, ``width`` / ``height`` must be explicitly positive.
+
+.. _gui-interface-json_ui-assets-image-sec-06:
 
 Example
 --------------------

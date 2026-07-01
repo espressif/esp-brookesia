@@ -8,10 +8,14 @@ LVGL Json UI Backend Notes
 This page records how ``brookesia_gui_lvgl`` implements the resolved JSON UI model. The JSON UI protocol fields themselves are still governed by
 ``gui/brookesia_gui_interface/docs/json_ui``; this page only explains how the LVGL backend realizes those fields.
 
+.. _gui-lvgl-backend-sec-01:
+
 Backend Pump
 ------------------------
 
 ``gui::Runtime::process_backend()`` forwards to the LVGL backend timer processing. In standalone examples or scenarios without a system main loop, call this interface periodically to drive LVGL animations, events, and internal timers.
+
+.. _gui-lvgl-backend-sec-02:
 
 Image .Bin
 --------------------
@@ -25,6 +29,8 @@ LVGL backend supports LVGL v9 image ``.bin``:
 - binding updates, ``set_view_src(...)``, and props apply only reuse the preloaded descriptor and do not read files on the dynamic path.
 
 For build-time PNG-to-``.bin`` conversion, see :doc:`image_pack`.
+
+.. _gui-lvgl-backend-sec-03:
 
 Layout
 --------------------
@@ -60,6 +66,8 @@ In ``layout.gridTemplateColumns`` / ``layout.gridTemplateRows``:
      - ``LV_GRID_CONTENT``
 
 The backend does not currently expose the LVGL track cross-place parameter separately; ``crossAlign`` applies to both cross place and track cross place.
+
+.. _gui-lvgl-backend-sec-04:
 
 Placement
 --------------------
@@ -104,8 +112,12 @@ Image sizing:
    * - use percent / ``match``
      - keep the explicit frame size; not overridden by the image asset width/height
 
+.. _gui-lvgl-backend-sec-05:
+
 Props
 --------------------
+
+.. _gui-lvgl-backend-sec-06:
 
 Commonprops
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -115,6 +127,8 @@ Commonprops
 - ``pressLock = true``: adds ``LV_OBJ_FLAG_PRESS_LOCK`` and keeps locking the current pressed target when the press slides outside the node bounds.
 - ``pressLock = false``: removes ``LV_OBJ_FLAG_PRESS_LOCK`` and lets LVGL re-hit the target and fire ``pressLost`` when the press slides out of range.
 - ``pivotX`` / ``pivotY`` percentage values refresh the object layout once before applying the transform, avoiding pivot calculation at ``(0, 0)`` when early sizes are not yet updated.
+
+.. _gui-lvgl-backend-sec-07:
 
 Image Props Inner Align
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -137,6 +151,8 @@ Image Props Inner Align
    * - ``tile``
      - ``LV_IMAGE_ALIGN_TILE``
 
+.. _gui-lvgl-backend-sec-08:
+
 Image Props Recolor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -144,12 +160,16 @@ Image Props Recolor
 - ``recolorOpacity = 0..255``: calls ``lv_obj_set_style_image_recolor_opa()``.
 - ``recolor = ""``: removes the image node's local image-recolor property and falls back to the style/theme layer effect.
 
+.. _gui-lvgl-backend-sec-09:
+
 Style Image Recolor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 - ``imageRecolor = "#RRGGBB"``: calls ``lv_style_set_image_recolor()``.
 - ``imageRecolorOpacity = 0..255``: calls ``lv_style_set_image_recolor_opa()``.
 - ``imageRecolor = ""`` or unset: removes the style-layer image-recolor property.
+
+.. _gui-lvgl-backend-sec-10:
 
 Keyboard Props Mode
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -170,6 +190,8 @@ Keyboard Props Mode
 
 The JSON UI parser/validator rejects unknown modes; on an invalid mode, the backend keeps the currently available layout.
 
+.. _gui-lvgl-backend-sec-11:
+
 Keyboard Props Target Text Input / Layouts
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -189,6 +211,8 @@ image resource ids are not inserted as plain characters.
 - ``width`` maps to the relative width in ``lv_keyboard_set_ctrl_map()``; its range is guaranteed by the JSON UI parser/validator.
 - ``keyStyles`` modifies the fill/label color of ``LV_PART_ITEMS`` through a draw-task hook, supporting the normal, control, mode, confirm/cancel, and disabled classes.
 
+.. _gui-lvgl-backend-sec-12:
+
 Canvas Props Commands
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -205,6 +229,8 @@ The current LVGL backend supports:
      - sets the pixel at ``(x, y)``
 
 The ``width`` / ``height`` fields are accepted by the parser but unused by the current LVGL canvas command execution.
+
+.. _gui-lvgl-backend-sec-13:
 
 Style
 --------------------
@@ -240,6 +266,8 @@ Font resolution priority:
 1. the native LVGL font in ``ResolvedFontSpec.native_fonts`` closest to the requested size.
 2. the ``primary_src`` of the JSON/backend font resource, creating a FreeType font along the fallback chain.
 3. a built-in font; used as fallback when FreeType or the file is unavailable.
+
+.. _gui-lvgl-backend-sec-14:
 
 Animations
 --------------------

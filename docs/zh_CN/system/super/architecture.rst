@@ -7,6 +7,8 @@
 
 ``esp_brookesia::system::super::System`` 继承 ``esp_brookesia::system::core::System``，在 core 的基础上提供 Super 风格系统壳。
 
+.. _system-super-architecture-sec-01:
+
 初始化
 --------------------
 
@@ -18,10 +20,14 @@
 
 Super 不直接依赖具体 GUI backend，产品工程负责选择 backend（例如 LVGL backend）并传入 ``core_config.gui_backend``。
 
+.. _system-super-architecture-sec-02:
+
 system type
 --------------------
 
 Super 使用 ``BROOKESIA_SYSTEM_SUPER_SYSTEM_TYPE``，当前值为 ``"super"``。``on_init()`` 中也会再次调用 ``set_system_type("super")``，保证 service 查询得到 Super 类型。
+
+.. _system-super-architecture-sec-03:
 
 扩展点
 --------------------
@@ -48,6 +54,8 @@ Super 覆盖的 core 扩展点：
    * - ``on_app_stopped()``
      - 普通 app 停止后恢复 shell
 
+.. _system-super-architecture-sec-04:
+
 源码模块
 --------------------
 
@@ -72,6 +80,8 @@ Super 覆盖的 core 扩展点：
      - 内部路径、action 和动画常量
    * - ``src/private/shell_app.hpp``
      - 内部 ``ShellApp`` 声明
+
+.. _system-super-architecture-sec-05:
 
 内置组成
 --------------------

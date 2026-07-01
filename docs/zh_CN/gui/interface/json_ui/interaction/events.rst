@@ -5,10 +5,14 @@
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-interaction-events-sec-01:
+
 概览
 --------------------
 
 ``events`` 是可选数组。每个事件项描述一个 backend 事件到 runtime action 的映射。
+
+.. _gui-interface-json_ui-interaction-events-sec-02:
 
 相关文档
 --------------------
@@ -17,6 +21,8 @@
 - :doc:`../index`
 - :doc:`animations`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-interaction-events-sec-03:
 
 事件项字段表
 --------------------
@@ -44,6 +50,8 @@
      - ``[]``
      - 否
      - 本地事件效果，按声明顺序执行
+
+.. _gui-interface-json_ui-interaction-events-sec-04:
 
 事件类型
 --------------------
@@ -82,6 +90,8 @@
    * - ``gesture``
      - 手势
 
+.. _gui-interface-json_ui-interaction-events-sec-05:
+
 Payload
 --------------------
 
@@ -115,6 +125,8 @@ Runtime 事件统一使用 ``boost::json::object payload`` 承载附加数据。
      - ``clicked`` 等
      - ``{}``
 
+.. _gui-interface-json_ui-interaction-events-sec-06:
+
 订阅入口
 --------------------
 
@@ -122,6 +134,8 @@ Runtime 事件统一使用 ``boost::json::object payload`` 承载附加数据。
 - ``Runtime::subscribe_event_action_with_id(document_id, action, ...)``：在相同路由语义上返回稳定的 ``subscription_id``。
 - ``Runtime::unsubscribe_subscription(subscription_id)``：按 id 主动断开通过 ``with_id`` 获取到的事件订阅。
 - ``View::on_event(...)``：拿到具体实例后按 ``EventType`` 订阅，不使用 ``action`` 过滤。
+
+.. _gui-interface-json_ui-interaction-events-sec-07:
 
 事件效果（effects）
 --------------------------
@@ -131,6 +145,8 @@ Runtime 事件统一使用 ``boost::json::object payload`` 承载附加数据。
 
 > 提示：如果节点需要在按住后滑出范围时收到 ``pressLost``，请在该节点设置 ``commonProps.pressLock=false``。
 > 默认 ``pressLock=true`` 会在手指滑出节点范围时尽量保持 pressed target。
+
+.. _gui-interface-json_ui-interaction-events-sec-08:
 
 emitAction
 ^^^^^^^^^^^^^^^^^^^^
@@ -144,6 +160,8 @@ emitAction
        "action": "launcher.open",
        "requireValidPress": true
    }
+
+.. _gui-interface-json_ui-interaction-events-sec-09:
 
 setProperty
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -164,6 +182,8 @@ setProperty
        "value": 180
    }
 
+.. _gui-interface-json_ui-interaction-events-sec-10:
+
 setProperties
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -179,6 +199,8 @@ setProperties
        ]
    }
 
+.. _gui-interface-json_ui-interaction-events-sec-11:
+
 startAnimation / stopAnimation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -193,6 +215,8 @@ startAnimation / stopAnimation
        "target": "self",
        "animationId": "press_down"
    }
+
+.. _gui-interface-json_ui-interaction-events-sec-12:
 
 目标（target）
 --------------------
@@ -216,6 +240,8 @@ startAnimation / stopAnimation
 - 模板实例共用 ``action`` 时，建议优先使用 ``event.path`` 区分具体实例，``event.node_id`` 用于区分模板内部触发节点。
 - ``subscribe_event_action(...)`` 返回 ``ScopedConnection``；connection 析构后自动断开。
 - ``subscribe_event_action_with_id(...)`` 返回 ``SubscriptionId``；它只是订阅身份，不影响 ``document_id + action`` 路由模型。
+
+.. _gui-interface-json_ui-interaction-events-sec-13:
 
 示例
 --------------------

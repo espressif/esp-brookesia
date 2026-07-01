@@ -5,10 +5,14 @@ Viewtemplate
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-view_template-sec-01:
+
 Overview
 --------------------
 
 ``viewTemplate`` is a reusable template, instantiable dynamically at runtime via ``create_view(...)`` or statically in ``children[]`` via ``templateRef``.
+
+.. _gui-interface-json_ui-assets-view_template-sec-02:
 
 Related Documents
 --------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../view/index`
+
+.. _gui-interface-json_ui-assets-view_template-sec-03:
 
 Fields
 --------------------
@@ -56,6 +62,8 @@ Fields
            ]
        }
    }
+
+.. _gui-interface-json_ui-assets-view_template-sec-04:
 
 Templateref
 ----------------------

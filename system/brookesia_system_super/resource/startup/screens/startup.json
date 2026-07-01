@@ -16,62 +16,18 @@
     },
     "children": [
         {
-            "type": "container",
-            "id": "brand",
+            "type": "image",
+            "id": "startup_image",
             "commonProps": {
-                "clickable": false,
-                "scrollable": false
+                "clickable": false
             },
-            "layout": {
-                "type": "flex",
-                "flexFlow": "row",
-                "mainAlign": "center",
-                "crossAlign": "center",
-                "gap": "${constant.startup.titleGap}"
-            },
-            "style": {
-                "bgColor": "",
-                "padding": 0
+            "imageProps": {
+                "src": "${image.background}"
             },
             "placement": {
-                "mode": "flow",
-                "width": "wrap",
-                "height": "wrap"
-            },
-            "children": [
-                {
-                    "type": "label",
-                    "id": "prefix",
-                    "labelProps": {
-                        "text": "ESP-Brookesia"
-                    },
-                    "style": {
-                        "textColor": "#38393a",
-                        "fontSize": "${constant.startup.titleFont}"
-                    },
-                    "placement": {
-                        "mode": "flow",
-                        "width": "wrap",
-                        "height": "wrap"
-                    }
-                },
-                {
-                    "type": "label",
-                    "id": "product",
-                    "labelProps": {
-                        "text": "SuperOS"
-                    },
-                    "style": {
-                        "textColor": "#E8362D",
-                        "fontSize": "${constant.startup.titleFont}"
-                    },
-                    "placement": {
-                        "mode": "flow",
-                        "width": "wrap",
-                        "height": "wrap"
-                    }
-                }
-            ]
+                "mode": "relative",
+                "align": "center"
+            }
         }
     ]
 }

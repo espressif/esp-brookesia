@@ -4,34 +4,14 @@
 set(COMPONENT_LIB brookesia_service_manager_impl)
 set(component_pc_config_compile_definitions "")
 
-if(EMSCRIPTEN)
-    list(REMOVE_ITEM COMPONENT_SRCS_C ${RPC_SRCS_C})
-    list(REMOVE_ITEM COMPONENT_SRCS_CPP ${RPC_SRCS_CPP})
-    set(BROOKESIA_SERVICE_MANAGER_WASM_ENABLE_RPC OFF CACHE BOOL
-        "Enable Boost.Asio RPC endpoints in wasm builds" FORCE)
-else()
-    find_package(Boost REQUIRED COMPONENTS thread system chrono json)
+if(NOT EMSCRIPTEN)
+    find_package(Boost REQUIRED COMPONENTS thread chrono json)
 endif()
 
 option(
     BROOKESIA_SERVICE_MANAGER_PC_CONFIG_ENABLE_DEBUG_LOG
     "Default value of CONFIG_BROOKESIA_SERVICE_MANAGER_ENABLE_DEBUG_LOG on PC"
     OFF
-)
-option(
-    BROOKESIA_SERVICE_MANAGER_PC_CONFIG_RPC_DATA_LINK_ENABLE_DEBUG_LOG
-    "Default value of CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_DATA_LINK_ENABLE_DEBUG_LOG on PC"
-    ON
-)
-option(
-    BROOKESIA_SERVICE_MANAGER_PC_CONFIG_RPC_SERVER_ENABLE_DEBUG_LOG
-    "Default value of CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_SERVER_ENABLE_DEBUG_LOG on PC"
-    ON
-)
-option(
-    BROOKESIA_SERVICE_MANAGER_PC_CONFIG_RPC_CLIENT_ENABLE_DEBUG_LOG
-    "Default value of CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_ENABLE_DEBUG_LOG on PC"
-    ON
 )
 option(
     BROOKESIA_SERVICE_MANAGER_PC_CONFIG_EVENT_ENABLE_DEBUG_LOG
@@ -55,24 +35,6 @@ else()
     list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_ENABLE_DEBUG_LOG=0)
 endif()
 
-if(BROOKESIA_SERVICE_MANAGER_PC_CONFIG_RPC_DATA_LINK_ENABLE_DEBUG_LOG)
-    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_DATA_LINK_ENABLE_DEBUG_LOG=1)
-else()
-    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_DATA_LINK_ENABLE_DEBUG_LOG=0)
-endif()
-
-if(BROOKESIA_SERVICE_MANAGER_PC_CONFIG_RPC_SERVER_ENABLE_DEBUG_LOG)
-    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_SERVER_ENABLE_DEBUG_LOG=1)
-else()
-    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_SERVER_ENABLE_DEBUG_LOG=0)
-endif()
-
-if(BROOKESIA_SERVICE_MANAGER_PC_CONFIG_RPC_CLIENT_ENABLE_DEBUG_LOG)
-    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_ENABLE_DEBUG_LOG=1)
-else()
-    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_RPC_CLIENT_ENABLE_DEBUG_LOG=0)
-endif()
-
 if(BROOKESIA_SERVICE_MANAGER_PC_CONFIG_EVENT_ENABLE_DEBUG_LOG)
     list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_EVENT_ENABLE_DEBUG_LOG=1)
 else()
@@ -89,13 +51,6 @@ if(BROOKESIA_SERVICE_MANAGER_PC_CONFIG_SERVICE_ENABLE_DEBUG_LOG)
     list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG=1)
 else()
     list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG=0)
-endif()
-if(EMSCRIPTEN)
-    if(BROOKESIA_SERVICE_MANAGER_WASM_ENABLE_RPC)
-        list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_WASM_ENABLE_RPC=1)
-    else()
-        list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_MANAGER_WASM_ENABLE_RPC=0)
-    endif()
 endif()
 
 add_library(${COMPONENT_LIB} STATIC
@@ -124,7 +79,6 @@ else()
         PUBLIC
             brookesia::lib_utils
             Boost::thread
-            Boost::system
             Boost::chrono
             Boost::json
     )

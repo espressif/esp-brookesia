@@ -33,7 +33,7 @@ bool EventRegistry::add(EventSchema event_schema)
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         signal = std::make_unique<Signal>(), false, "Failed to create signal"
     );
-    event_infos_[event_schema.name] = std::make_tuple(Subscriptions(), event_schema, std::move(signal));
+    event_infos_[event_schema.name] = std::make_tuple(event_schema, std::move(signal));
 
     return true;
 }
@@ -76,7 +76,7 @@ bool EventRegistry::validate_items(const std::string &event_name, const EventIte
         auto event_it = event_infos_.find(event_name);
         BROOKESIA_CHECK_FALSE_RETURN(event_it != event_infos_.end(), false, "Event not found");
 
-        event_schema = std::get<1>(event_it->second);
+        event_schema = std::get<0>(event_it->second);
     }
 
     // Validate the event items against the event schema
@@ -107,86 +107,13 @@ bool EventRegistry::validate_items(const std::string &event_name, const EventIte
     return true;
 }
 
-bool EventRegistry::on_rpc_subscribe(const std::string &event_name, std::string &subscription_id, std::string &error_message)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: event_name(%1%)", event_name);
-
-    SubscriptionCallback callback;
-    {
-        boost::lock_guard lock(event_infos_mutex_);
-
-        auto event_it = event_infos_.find(event_name);
-        if (event_it == event_infos_.end()) {
-            error_message = "Event not found";
-#if BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG
-            BROOKESIA_LOGE("%s", error_message.c_str());
-#endif
-            return false;
-        }
-
-        auto &subscriptions = std::get<0>(event_it->second);
-        subscription_id = utils_generate_uuid();
-        subscriptions.insert(subscription_id);
-        callback = rpc_subscription_callback_;
-    }
-
-    if (callback) {
-        callback(event_name);
-    }
-
-    return true;
-}
-
-void EventRegistry::set_rpc_subscription_callback(SubscriptionCallback callback)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    boost::lock_guard lock(event_infos_mutex_);
-    rpc_subscription_callback_ = std::move(callback);
-}
-
-void EventRegistry::on_rpc_unsubscribe_by_name(const std::string &event_name)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: event_name(%1%)", event_name);
-
-    boost::lock_guard lock(event_infos_mutex_);
-
-    auto it = event_infos_.find(event_name);
-    if (it != event_infos_.end()) {
-        event_infos_.erase(it);
-    }
-}
-
-void EventRegistry::on_rpc_unsubscribe_by_subscriptions(const Subscriptions &subscriptions)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    BROOKESIA_LOGD("Params: subscriptions(%1%)", BROOKESIA_DESCRIBE_TO_STR(subscriptions));
-
-    boost::lock_guard lock(event_infos_mutex_);
-
-    for (const auto &subscription_id : subscriptions) {
-        for (auto& [name, event_info] : event_infos_) {
-            auto &[subscriptions, schema, signal] = event_info;
-            auto it = subscriptions.find(subscription_id);
-            if (it != subscriptions.end()) {
-                subscriptions.erase(it);
-            }
-        }
-    }
-}
-
 std::vector<EventSchema> EventRegistry::get_schemas() const
 {
     boost::lock_guard lock(event_infos_mutex_);
 
     std::vector<EventSchema> schemas;
     for (const auto& [name, event_info] : event_infos_) {
-        auto &[subscriptions, schema, signal] = event_info;
+        auto &[schema, signal] = event_info;
         schemas.push_back(schema);
     }
     return schemas;
@@ -198,21 +125,11 @@ boost::json::array EventRegistry::get_schemas_json()
 
     boost::json::array schemas;
     for (const auto& [name, event_info] : event_infos_) {
-        auto &[subscriptions, schema, signal] = event_info;
+        auto &[schema, signal] = event_info;
         schemas.push_back(BROOKESIA_DESCRIBE_TO_JSON(schema));
     }
 
     return schemas;
-}
-
-EventRegistry::Subscriptions EventRegistry::get_subscriptions(const std::string &event_name)
-{
-    boost::lock_guard lock(event_infos_mutex_);
-
-    auto it = event_infos_.find(event_name);
-    BROOKESIA_CHECK_FALSE_RETURN(it != event_infos_.end(), Subscriptions(), "Event not found");
-
-    return std::get<0>(it->second);
 }
 
 EventRegistry::Signal *EventRegistry::get_signal(const std::string &event_name)
@@ -222,7 +139,7 @@ EventRegistry::Signal *EventRegistry::get_signal(const std::string &event_name)
     auto it = event_infos_.find(event_name);
     BROOKESIA_CHECK_FALSE_RETURN(it != event_infos_.end(), nullptr, "Event not found");
 
-    return std::get<2>(it->second).get();
+    return std::get<1>(it->second).get();
 }
 
 } // namespace esp_brookesia::service

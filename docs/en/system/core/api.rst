@@ -7,12 +7,16 @@ API Reference
 
 This page collects the API reference generated from the System Core public headers.
 
+.. _system-core-api-sec-01:
+
 System
 --------------------
 
 Public header: ``#include "brookesia/system_core/system/system.hpp"``
 
 .. include-build-file:: inc/system/brookesia_system_core/include/brookesia/system_core/system/system.inc
+
+.. _system-core-api-sec-02:
 
 Application Interface
 ---------------------

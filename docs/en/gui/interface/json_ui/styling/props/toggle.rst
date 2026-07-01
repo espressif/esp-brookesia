@@ -5,10 +5,14 @@ Toggleprops
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-toggle-sec-01:
+
 Overview
 --------------------
 
 ``toggleProps`` applies to ``switch`` and ``checkbox``.
+
+.. _gui-interface-json_ui-styling-props-toggle-sec-02:
 
 Related Documents
 ----------------------------------
@@ -16,6 +20,8 @@ Related Documents
 - :doc:`index`
 - :doc:`../../view/switch`
 - :doc:`../../view/checkbox`
+
+.. _gui-interface-json_ui-styling-props-toggle-sec-03:
 
 Field Table
 ----------------------
@@ -33,6 +39,8 @@ Field Table
      - ``false``
      - ``toggleProps.checked``
      - current switch or checked state
+
+.. _gui-interface-json_ui-styling-props-toggle-sec-04:
 
 Example
 --------------------

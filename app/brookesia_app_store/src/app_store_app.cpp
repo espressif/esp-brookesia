@@ -38,6 +38,7 @@ static constexpr const char *APP_NAME = "App Store";
 static constexpr const char *APP_NAME_ZH_CN = "应用商店";
 static constexpr const char *APP_NAME_I18N_KEY = "app_name";
 static constexpr const char *APP_ICON_ID = "launcher_icon";
+static constexpr const char *APP_ICON_PATH = "res/images/index.json";
 static constexpr const char *LOCALE_EN = "en";
 static constexpr const char *LOCALE_ZH_CN = "zh_CN";
 static constexpr const char *GUI_ROOT = "res/root.json";
@@ -57,18 +58,19 @@ static constexpr const char *PAGER_PATH = "/app_store/page/list/pager";
 static constexpr const char *PAGER_PREV_PATH = "/app_store/page/list/pager/prev";
 static constexpr const char *PAGER_LABEL_PATH = "/app_store/page/list/pager/page/label";
 static constexpr const char *PAGER_NEXT_PATH = "/app_store/page/list/pager/next";
-static constexpr const char *TITLE_PATH = "/app_store/page/header/text/title";
-static constexpr const char *STATUS_PATH = "/app_store/page/header/text/status";
-static constexpr const char *STORAGE_PATH = "/app_store/page/header/text/storage";
-static constexpr const char *REFRESH_BUTTON_PATH = "/app_store/page/header/refresh";
-static constexpr const char *REFRESH_LABEL_PATH = "/app_store/page/header/refresh/label";
-static constexpr const char *TAB_STORE_PATH = "/app_store/page/header/text/tabs/store";
-static constexpr const char *TAB_STORE_LABEL_PATH = "/app_store/page/header/text/tabs/store/label";
-static constexpr const char *TAB_LOCAL_PATH = "/app_store/page/header/text/tabs/local";
-static constexpr const char *TAB_LOCAL_LABEL_PATH = "/app_store/page/header/text/tabs/local/label";
-static constexpr const char *TAB_INSTALLED_PATH = "/app_store/page/header/text/tabs/installed";
-static constexpr const char *TAB_INSTALLED_LABEL_PATH = "/app_store/page/header/text/tabs/installed/label";
+static constexpr const char *TITLE_PATH = "/app_store/page/header/summary/text/title";
+static constexpr const char *STATUS_PATH = "/app_store/page/header/summary/text/status";
+static constexpr const char *STORAGE_PATH = "/app_store/page/header/summary/text/storage";
+static constexpr const char *REFRESH_BUTTON_PATH = "/app_store/page/header/summary/refresh";
+static constexpr const char *REFRESH_LABEL_PATH = "/app_store/page/header/summary/refresh/label";
+static constexpr const char *TAB_STORE_PATH = "/app_store/page/header/tabs/store";
+static constexpr const char *TAB_STORE_LABEL_PATH = "/app_store/page/header/tabs/store/label";
+static constexpr const char *TAB_LOCAL_PATH = "/app_store/page/header/tabs/local";
+static constexpr const char *TAB_LOCAL_LABEL_PATH = "/app_store/page/header/tabs/local/label";
+static constexpr const char *TAB_INSTALLED_PATH = "/app_store/page/header/tabs/installed";
+static constexpr const char *TAB_INSTALLED_LABEL_PATH = "/app_store/page/header/tabs/installed/label";
 static constexpr const char *REFRESH_ICON_TIMER_NAME = "app_store.refresh.icon_step";
+static constexpr const char *SIZE_METADATA_TIMER_NAME = "app_store.size_metadata.step";
 static constexpr const char *REFRESH_REQUEST_TIMEOUT_TIMER_NAME = "app_store.refresh.request_timeout";
 static constexpr const char *REFRESH_RESULT_TIMER_NAME = "app_store.refresh.result";
 static constexpr const char *VIEW_MODE_LOAD_TIMER_NAME = "app_store.view_mode.load";
@@ -89,6 +91,8 @@ static constexpr int NETWORK_UNAVAILABLE_DIALOG_AUTO_CLOSE_MS = 3000;
 static constexpr int REFRESH_SUCCESS_DIALOG_AUTO_CLOSE_MS = 1500;
 static constexpr int REFRESH_FAILED_DIALOG_AUTO_CLOSE_MS = 4000;
 static constexpr int REFRESH_ICON_STEP_DELAY_MS = 1;
+static constexpr int SIZE_METADATA_STEP_DELAY_MS = 1;
+static constexpr int SIZE_METADATA_RETRY_DELAY_MS = 250;
 static constexpr int REFRESH_REQUEST_TIMEOUT_EXTRA_MS = 1000;
 static constexpr int VIEW_MODE_LOAD_DELAY_MS = 1;
 static constexpr int VIEW_MODE_LOAD_COMPLETE_DIALOG_AUTO_CLOSE_MS = 700;
@@ -262,6 +266,28 @@ std::string string_array_join(const std::vector<std::string> &items)
     return result;
 }
 
+void append_detail(std::string &detail, std::string item)
+{
+    if (item.empty()) {
+        return;
+    }
+    if (!detail.empty()) {
+        detail += " | ";
+    }
+    detail += std::move(item);
+}
+
+std::optional<uint64_t> display_size_from_file_size(uintmax_t bytes)
+{
+    if (bytes == 0) {
+        return std::nullopt;
+    }
+    if (bytes > static_cast<uintmax_t>(std::numeric_limits<uint64_t>::max())) {
+        return std::numeric_limits<uint64_t>::max();
+    }
+    return static_cast<uint64_t>(bytes);
+}
+
 bool is_decimal_segment(std::string_view value)
 {
     return !value.empty() && std::all_of(value.begin(), value.end(), [](char ch) {
@@ -427,6 +453,25 @@ std::string get_string_field(const boost::json::object &object, std::string_view
         return {};
     }
     return it->value().as_string().c_str();
+}
+
+std::optional<uint64_t> get_size_field(const boost::json::object &object, std::string_view key)
+{
+    auto it = object.find(key);
+    if (it == object.end()) {
+        return std::nullopt;
+    }
+
+    const auto &value = it->value();
+    if (value.is_uint64()) {
+        const auto size = value.as_uint64();
+        return size > 0 ? std::optional<uint64_t>(size) : std::nullopt;
+    }
+    if (value.is_int64()) {
+        const auto size = value.as_int64();
+        return size > 0 ? std::optional<uint64_t>(static_cast<uint64_t>(size)) : std::nullopt;
+    }
+    return std::nullopt;
 }
 
 std::expected<std::unordered_map<std::string, std::string>, std::string> load_i18n_strings(
@@ -709,6 +754,7 @@ struct AppStoreApp::Impl {
     std::vector<InstalledAppEntry> installed_runtime_apps;
     std::vector<std::string> entry_paths;
     std::vector<VisibleItemRef> visible_items;
+    std::vector<size_t> refresh_icon_indices;
     std::unordered_map<std::string, VisibleItemRef> instance_to_entry;
     std::unordered_map<std::string, size_t> local_package_by_manifest_id;
     std::unordered_set<std::string> installed_manifest_ids;
@@ -725,6 +771,7 @@ struct AppStoreApp::Impl {
     system::core::MessageDialogRequestId message_dialog_request_id =
         system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
     system::core::TimerId refresh_icon_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId size_metadata_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId view_mode_load_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId refresh_request_timeout_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId refresh_result_timer_id = system::core::INVALID_TIMER_ID;
@@ -734,12 +781,13 @@ struct AppStoreApp::Impl {
     std::optional<ViewMode> pending_view_mode;
     MessageDialogPurpose message_dialog_purpose = MessageDialogPurpose::None;
     PendingRefreshResultType pending_refresh_result_type = PendingRefreshResultType::None;
+    IconUpdatePurpose refresh_icon_purpose = IconUpdatePurpose::None;
     std::optional<boost::json::object> pending_refresh_result_response;
     uint64_t async_generation = 0;
     uint64_t refresh_request_id = 0;
     uint64_t refresh_icon_request_id = 0;
     uint64_t download_dialog_request_id = 0;
-    size_t refresh_icon_index = 0;
+    size_t refresh_icon_cursor = 0;
     bool refresh_in_progress = false;
     bool http_available = false;
     bool device_available = false;
@@ -768,6 +816,7 @@ AppStoreApp::~AppStoreApp() = default;
 #define installed_runtime_apps_ impl_->installed_runtime_apps
 #define entry_paths_ impl_->entry_paths
 #define visible_items_ impl_->visible_items
+#define refresh_icon_indices_ impl_->refresh_icon_indices
 #define instance_to_entry_ impl_->instance_to_entry
 #define local_package_by_manifest_id_ impl_->local_package_by_manifest_id
 #define installed_manifest_ids_ impl_->installed_manifest_ids
@@ -783,6 +832,7 @@ AppStoreApp::~AppStoreApp() = default;
 #define list_page_ impl_->list_page
 #define message_dialog_request_id_ impl_->message_dialog_request_id
 #define refresh_icon_timer_id_ impl_->refresh_icon_timer_id
+#define size_metadata_timer_id_ impl_->size_metadata_timer_id
 #define view_mode_load_timer_id_ impl_->view_mode_load_timer_id
 #define refresh_request_timeout_timer_id_ impl_->refresh_request_timeout_timer_id
 #define refresh_result_timer_id_ impl_->refresh_result_timer_id
@@ -792,12 +842,13 @@ AppStoreApp::~AppStoreApp() = default;
 #define pending_view_mode_ impl_->pending_view_mode
 #define message_dialog_purpose_ impl_->message_dialog_purpose
 #define pending_refresh_result_type_ impl_->pending_refresh_result_type
+#define refresh_icon_purpose_ impl_->refresh_icon_purpose
 #define pending_refresh_result_response_ impl_->pending_refresh_result_response
 #define async_generation_ impl_->async_generation
 #define refresh_request_id_ impl_->refresh_request_id
 #define refresh_icon_request_id_ impl_->refresh_icon_request_id
 #define download_dialog_request_id_ impl_->download_dialog_request_id
-#define refresh_icon_index_ impl_->refresh_icon_index
+#define refresh_icon_cursor_ impl_->refresh_icon_cursor
 #define refresh_in_progress_ impl_->refresh_in_progress
 #define http_available_ impl_->http_available
 #define device_available_ impl_->device_available
@@ -831,6 +882,7 @@ AppStoreApp::~AppStoreApp() = default;
 #undef installed_runtime_apps_
 #undef entry_paths_
 #undef visible_items_
+#undef refresh_icon_indices_
 #undef instance_to_entry_
 #undef local_package_by_manifest_id_
 #undef installed_manifest_ids_
@@ -846,6 +898,7 @@ AppStoreApp::~AppStoreApp() = default;
 #undef list_page_
 #undef message_dialog_request_id_
 #undef refresh_icon_timer_id_
+#undef size_metadata_timer_id_
 #undef view_mode_load_timer_id_
 #undef refresh_request_timeout_timer_id_
 #undef refresh_result_timer_id_
@@ -855,12 +908,13 @@ AppStoreApp::~AppStoreApp() = default;
 #undef pending_view_mode_
 #undef message_dialog_purpose_
 #undef pending_refresh_result_type_
+#undef refresh_icon_purpose_
 #undef pending_refresh_result_response_
 #undef async_generation_
 #undef refresh_request_id_
 #undef refresh_icon_request_id_
 #undef download_dialog_request_id_
-#undef refresh_icon_index_
+#undef refresh_icon_cursor_
 #undef refresh_in_progress_
 #undef http_available_
 #undef device_available_

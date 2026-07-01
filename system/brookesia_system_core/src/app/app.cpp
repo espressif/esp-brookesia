@@ -568,12 +568,28 @@ bool AppGuiRuntime::unregister_image(std::string_view id) const
     return (system_ != nullptr) && is_native_system_app() && system_->system_gui().unregister_image(id);
 }
 
+std::vector<std::string> AppGuiRuntime::list_supported_fonts(std::string_view language) const
+{
+    if (system_ == nullptr || !is_native_system_app()) {
+        return {};
+    }
+    return system_->system_gui().list_supported_fonts(language);
+}
+
 std::vector<std::string> AppGuiRuntime::list_supported_languages() const
 {
     if (system_ == nullptr || !is_native_system_app()) {
         return {};
     }
     return system_->system_gui().list_supported_languages();
+}
+
+std::vector<std::string> AppGuiRuntime::list_supported_languages(std::string_view font_id) const
+{
+    if (system_ == nullptr || !is_native_system_app()) {
+        return {};
+    }
+    return system_->system_gui().list_supported_languages(font_id);
 }
 
 std::expected<void, std::string> AppGuiRuntime::set_default_font_for_language(

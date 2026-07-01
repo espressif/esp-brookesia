@@ -5,11 +5,15 @@ Theme
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-assets-theme-sec-01:
+
 Overview
 --------------------
 
 The ``theme`` descriptor describes the Runtime global theme entry. The theme entry combines token fragments and produces the final
 ``colors`` and global ``styles``; application- or Shell-specific named styles should live in the document's own ``styleSet`` resources.
+
+.. _gui-interface-json_ui-assets-theme-sec-02:
 
 Related Documents
 ----------------------------------
@@ -18,6 +22,8 @@ Related Documents
 - :doc:`../index`
 - :doc:`../styling/style`
 - :doc:`../runtime`
+
+.. _gui-interface-json_ui-assets-theme-sec-03:
 
 Field Table
 ----------------------
@@ -57,6 +63,8 @@ Field Table
      - Final global style overrides inside the entry file
 
 A ``theme`` file does not support a ``colors`` field. Color aliases must live in a ``constant`` asset's ``data.colors``.
+
+.. _gui-interface-json_ui-assets-theme-sec-04:
 
 Theme Token Constant
 ----------------------------------------
@@ -144,6 +152,8 @@ Example:
        }
    }
 
+.. _gui-interface-json_ui-assets-theme-sec-05:
+
 Style Key Convention
 ----------------------------------------
 
@@ -161,6 +171,8 @@ Style Key Convention
 
 A global theme should not define styles for specific UI, such as ``shell.*``, ``settings.*``. Those styles belong in the corresponding document's
 ``styleSet``.
+
+.. _gui-interface-json_ui-assets-theme-sec-06:
 
 Document Local Styleset
 ----------------------------------------------
@@ -188,6 +200,8 @@ A local style key must contain ``.``. The ``styleRefs`` resolution order is:
 3. Named styles in the document-local ``styleSet``
 4. Named style fallback in the current global theme
 5. The node's own ``style`` / ``stateStyles`` / ``partStyles``
+
+.. _gui-interface-json_ui-assets-theme-sec-07:
 
 Colors
 --------------------

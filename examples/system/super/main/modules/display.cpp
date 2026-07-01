@@ -23,7 +23,6 @@ using LvglDisplaySource = gui::lvgl::DisplaySource;
 
 namespace {
 
-constexpr uint32_t BACKLIGHT_ON_DELAY_MS = 1000;
 constexpr uint32_t DISPLAY_SERVICE_TIMEOUT_MS = 1000;
 
 } // namespace
@@ -42,10 +41,15 @@ bool Display::start(const Config &config)
     BROOKESIA_CHECK_FALSE_RETURN(set_active_lvgl_source(), false, "Failed to activate LVGL source");
     BROOKESIA_CHECK_FALSE_RETURN(start_gesture(), false, "Failed to start display gesture");
 
-    auto result = DisplayHelper::call_function_async(
-                      DisplayHelper::FunctionId::SetBacklightOnOff, static_cast<double>(display_output_id_), true
-                  );
-    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to set backlight on");
+    if (display_backlight_on_off_supported_) {
+        auto result = DisplayHelper::call_function_async(
+                          DisplayHelper::FunctionId::SetBacklightOnOff, static_cast<double>(display_output_id_), true
+                      );
+        BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to set backlight on");
+    } else {
+        BROOKESIA_LOGI("Display output %1% has no on/off backlight control; skip turning backlight on",
+                       display_output_name_);
+    }
 
     return true;
 }
@@ -84,6 +88,8 @@ bool Display::start_display_service()
     display_output_id_ = main_output.id;
     display_width_ = main_output.width;
     display_height_ = main_output.height;
+    display_backlight_on_off_supported_ =
+        main_output.backlight.has_value() && main_output.backlight->on_off_supported;
     BROOKESIA_LOGI("Using Display output %1%", main_output);
 
     return true;

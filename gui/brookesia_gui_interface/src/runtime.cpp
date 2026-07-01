@@ -2462,6 +2462,7 @@ public:
 
     void reapply_styles_for_all_trees()
     {
+        current_style_revision_++;
         for (auto &[unused_document_id, tree] : trees) {
             (void)unused_document_id;
             reapply_styles(tree);
@@ -2890,6 +2891,15 @@ public:
             }
         }
         return languages;
+    }
+
+    std::vector<std::string> list_supported_languages(std::string_view font_id) const
+    {
+        auto it = global_fonts.find(std::string(font_id));
+        if (it == global_fonts.end()) {
+            return {};
+        }
+        return it->second.languages;
     }
 
     std::expected<void, std::string> set_language(
@@ -6665,6 +6675,11 @@ std::vector<std::string> Runtime::list_supported_fonts(std::string_view language
 std::vector<std::string> Runtime::list_supported_languages() const
 {
     return impl_->list_supported_languages();
+}
+
+std::vector<std::string> Runtime::list_supported_languages(std::string_view font_id) const
+{
+    return impl_->list_supported_languages(font_id);
 }
 
 std::expected<void, std::string> Runtime::set_language(std::string_view language)

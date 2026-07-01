@@ -161,13 +161,6 @@ void Console::print_banner()
     printf("│  debug_time_clear                 Clear time profiler data   │\n");
     printf("└──────────────────────────────────────────────────────────────┘\n");
     printf("\n");
-    printf("┌─ RPC Commands ───────────────────────────────────────────────┐\n");
-    printf("│  svc_rpc_server <action>          Manage RPC server          │\n");
-    printf("│  svc_rpc_call <host> <srv> ...    Remote function call       │\n");
-    printf("│  svc_rpc_subscribe <host> ...     Remote event subscribe     │\n");
-    printf("│  svc_rpc_unsubscribe <host> ...   Remote event unsubscribe   │\n");
-    printf("└──────────────────────────────────────────────────────────────┘\n");
-    printf("\n");
     printf("Type 'help' for detailed command usage.\n");
     printf("\n");
 }

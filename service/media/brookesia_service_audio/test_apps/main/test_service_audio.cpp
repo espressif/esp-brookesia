@@ -290,6 +290,71 @@ BROOKESIA_TEST_CASE(
     );
 }
 
+BROOKESIA_TEST_CASE(
+    play_interrupt_after_pause,
+    "Test ServiceAudio - interrupt after pause",
+    "[service][audio][interrupt][pause]"
+)
+{
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
+    lib_utils::FunctionGuard shutdown_guard([]() {
+        shutdown();
+    });
+
+    AudioPlaybackHelper::EventMonitor<AudioPlaybackHelper::EventId::PlayStateChanged> play_state_monitor;
+    TEST_ASSERT_TRUE_MESSAGE(play_state_monitor.start(), "Failed to monitor PlayStateChanged event");
+
+    auto first_result = AudioPlaybackHelper::call_function_sync(
+                            AudioPlaybackHelper::FunctionId::Play, get_audio_file_path("example.mp3")
+                        );
+    TEST_ASSERT_TRUE_MESSAGE(first_result, "Failed to start first playback");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Playing, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Playing state after starting first playback"
+        ),
+        "Expected Playing state after starting first playback"
+    );
+    lib_utils::test_adapter::delay_ms(AUDIO_PLAYBACK_AUDITION_WINDOW_MS);
+
+    play_state_monitor.clear();
+    auto pause_result = AudioPlaybackHelper::call_function_sync(AudioPlaybackHelper::FunctionId::Pause);
+    TEST_ASSERT_TRUE_MESSAGE(pause_result, "Failed to pause playback");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Paused, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Paused state after pausing first playback"
+        ),
+        "Expected Paused state after pausing first playback"
+    );
+
+    play_state_monitor.clear();
+    auto interrupt_result = AudioPlaybackHelper::call_function_sync(
+                                AudioPlaybackHelper::FunctionId::Play, get_audio_file_path("2.mp3")
+                            );
+    TEST_ASSERT_TRUE_MESSAGE(interrupt_result, "Failed to interrupt paused playback with new URL");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Playing, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Playing state after interrupting paused playback"
+        ),
+        "Expected Playing state after interrupting paused playback"
+    );
+    TEST_ASSERT_TRUE_MESSAGE(
+        !has_playback_state(play_state_monitor, AudioHelper::PlayState::Idle),
+        "Unexpected transient Idle state during paused interrupt"
+    );
+
+    play_state_monitor.clear();
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Idle, AUDIO_PLAYBACK_FINISH_TIMEOUT_MS,
+            "Expected final Idle state after paused interrupt playback finishes"
+        ),
+        "Expected final Idle state after paused interrupt playback finishes"
+    );
+}
+
 BROOKESIA_TEST_CASE(play_multiple_urls, "Test ServiceAudio - play multiple urls", "[service][audio][play_multiple]")
 {
     TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");

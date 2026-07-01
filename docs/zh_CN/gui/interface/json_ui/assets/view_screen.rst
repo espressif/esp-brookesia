@@ -5,10 +5,14 @@ viewScreen
 
 :link_to_translation:`en:[English]`
 
+.. _gui-interface-json_ui-assets-view_screen-sec-01:
+
 概览
 --------------------
 
 ``viewScreen`` 是可挂载的 top-level screen，运行时可由 ``mount_screen(...)`` 或 ``screenFlow`` 挂载，挂载路径为 ``/<id>``。
+
+.. _gui-interface-json_ui-assets-view_screen-sec-02:
 
 相关文档
 --------------------
@@ -16,6 +20,8 @@ viewScreen
 - :doc:`index`
 - :doc:`../index`
 - :doc:`../view/index`
+
+.. _gui-interface-json_ui-assets-view_screen-sec-03:
 
 字段
 --------------------

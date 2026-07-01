@@ -93,8 +93,8 @@ std::expected<void, std::string> System::Impl::show_startup_overlay()
         return {};
     }
 
-    return run_task_sync<std::expected<void, std::string>>(
-               SYSTEM_GUI_TASK_GROUP,
+    auto result = run_task_sync<std::expected<void, std::string>>(
+                      SYSTEM_GUI_TASK_GROUP,
     [this, &config]() -> std::expected<void, std::string> {
         auto document_result = gui_runtime_->load_file(
             resolve_resource_file(get_system_storage_dir(), config.root_path),
@@ -105,7 +105,9 @@ std::expected<void, std::string> System::Impl::show_startup_overlay()
             return std::unexpected(document_result.error());
         }
 
-        auto mount_result = gui_runtime_->push_transient_screen(*document_result, config.screen_path, config.target);
+        auto mount_result = gui_runtime_->push_transient_screen(
+            *document_result, config.screen_path, config.target
+        );
         if (!mount_result)
         {
             gui_runtime_->unload(*document_result);
@@ -121,7 +123,8 @@ std::expected<void, std::string> System::Impl::show_startup_overlay()
         return {};
     },
     std::unexpected("Failed to post startup overlay task")
-           );
+                  );
+    return result;
 }
 
 void System::Impl::hide_startup_overlay()
@@ -140,19 +143,40 @@ void System::Impl::hide_startup_overlay()
             boost::this_thread::sleep_for(boost::chrono::milliseconds(min_present_ms - elapsed_ms));
         }
     }
-    auto cleanup_result = run_task_sync<bool>(
-                              SYSTEM_GUI_TASK_GROUP,
-    [this, overlay]() {
+    auto pop_overlay = [this, overlay]() {
         if (!gui_runtime_) {
             return false;
         }
-        (void)gui_runtime_->pop_transient_screen(overlay.mount_id);
-        return gui_runtime_->unload(overlay.document_id);
-    },
-    false
-                          );
-    if (!cleanup_result) {
-        BROOKESIA_LOGW("Failed to hide startup overlay");
+        return gui_runtime_->pop_transient_screen(overlay.mount_id);
+    };
+    auto pop_result = run_task_sync<bool>(SYSTEM_GUI_TASK_GROUP, std::move(pop_overlay), false);
+    if (!pop_result) {
+        BROOKESIA_LOGW("Failed to pop startup overlay");
+    }
+
+    auto unload_task = [this, document_id = overlay.document_id]() {
+        if (!gui_runtime_) {
+            BROOKESIA_LOGW("Failed to unload startup overlay: GUI runtime is not available");
+            return;
+        }
+        if (!gui_runtime_->unload(document_id)) {
+            BROOKESIA_LOGW("Failed to unload startup overlay document");
+            return;
+        }
+    };
+    auto unload_post_result = post_gui_task(std::move(unload_task));
+    if (!unload_post_result) {
+        BROOKESIA_LOGW("Failed to post startup overlay unload task: %1%", unload_post_result.error());
+        auto unload_overlay = [this, document_id = overlay.document_id]() {
+            if (!gui_runtime_) {
+                return false;
+            }
+            return gui_runtime_->unload(document_id);
+        };
+        auto unload_result = run_task_sync<bool>(SYSTEM_GUI_TASK_GROUP, std::move(unload_overlay), false);
+        if (!unload_result) {
+            BROOKESIA_LOGW("Failed to unload startup overlay document");
+        }
     }
 }
 

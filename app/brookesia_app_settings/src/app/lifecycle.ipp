@@ -18,7 +18,7 @@ system::core::AppManifest SettingsApp::get_manifest() const
         .visible = true,
         .icon_id = APP_ICON_ID,
         .supported_systems = {},
-        .icon_path = "",
+        .icon_path = APP_ICON_PATH,
         .runtime_type = runtime::BackendType::Unknown,
         .app_path = "",
         .entry = "",

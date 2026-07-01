@@ -5,12 +5,16 @@ Props
 
 :link_to_translation:`zh_CN:[中文]`
 
+.. _gui-interface-json_ui-styling-props-index-sec-01:
+
 Overview
 --------------------
 
 This page covers the props fields of each control type / semantic group, and the props leaf fields that ``bindings`` can target. Public JSON uses ``camelCase``; ``bindings`` keys also use public ``camelCase`` dotted paths.
 
 This page does not cover ``layout`` / ``placement`` / ``style`` / ``events`` / ``animations``. See their respective pages.
+
+.. _gui-interface-json_ui-styling-props-index-sec-02:
 
 Related Documents
 ----------------------------------
@@ -20,6 +24,8 @@ Related Documents
 - :doc:`../../view/index`
 - :doc:`../../interaction/bindings`
 - :doc:`../placement`
+
+.. _gui-interface-json_ui-styling-props-index-sec-03:
 
 General Rules
 --------------------------
@@ -69,6 +75,8 @@ Public JSON uses explicit props fields:
      - ``frameView``
      - :doc:`frame_view`
 
+.. _gui-interface-json_ui-styling-props-index-sec-04:
+
 Subdocument
 ----------------------
 
@@ -85,6 +93,8 @@ Subdocument
 - :doc:`canvas`
 - :doc:`frame_view`
 
+.. _gui-interface-json_ui-styling-props-index-sec-05:
+
 Binding Path
 ------------------------
 
@@ -99,6 +109,8 @@ To bind props, ``bindings`` must use a public ``camelCase`` dotted path, for exa
    }
 
 Each subdocument's field table lists whether a field supports binding.
+
+.. _gui-interface-json_ui-styling-props-index-sec-06:
 
 Control Types That Do Not Use Proprietary Props
 ----------------------------------------------------------------------------------------------

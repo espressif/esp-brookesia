@@ -14,15 +14,6 @@ Public header: ``#include "brookesia/service_manager/event/definition.hpp"``
 
 .. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/definition.inc
 
-.. _service-manager-event-sec-02:
-
-Event Dispatcher
-~~~~~~~~~~~~~~~~
-
-Public header: ``#include "brookesia/service_manager/event/dispatcher.hpp"``
-
-.. include-build-file:: inc/dispatcher.inc
-
 .. _service-manager-event-sec-03:
 
 Event Registry

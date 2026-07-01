@@ -7,6 +7,8 @@ Configuration
 
 This page collects the Kconfig options, PC CMake config, macro defaults, and runtime storage configuration used by the current ``brookesia_system_core`` implementation.
 
+.. _system-core-configuration-sec-01:
+
 Kconfig
 --------------------
 
@@ -65,6 +67,8 @@ ESP platform configuration lives in ``system/brookesia_system_core/Kconfig``.
      - Worker 3 core affinity; ``-1`` means unspecified
 
 System no longer specifies a legacy resource root through Kconfig. At runtime it enumerates storage filesystems from the Device service and builds an Android-like storage layout.
+
+.. _system-core-configuration-sec-02:
 
 Host Platform Config
 --------------------
@@ -134,6 +138,8 @@ PC platform configuration lives in ``system/brookesia_system_core/cmake/pc_platf
 
 The ``PC_STAGE_*`` variables are only for build-time staging. The runtime storage layout is still determined by the Device service or by ``System::Config::storage`` overrides.
 
+.. _system-core-configuration-sec-03:
+
 Macro Configs
 --------------------
 
@@ -173,6 +179,8 @@ The public macros live in ``include/brookesia/system_core/macro_configs.h``.
      - Kconfig/PC config/default
      - System task scheduler worker configuration
 
+.. _system-core-configuration-sec-04:
+
 Storage Layout
 --------------------
 
@@ -198,6 +206,8 @@ The runtime app scan directories are ``apps`` under internal and all external vo
 
 The default runtime app install target is ``Auto``: prefer the preferred external, then the first external, then fall back to internal. A native app can change the default via ``SystemApi::set_default_install_storage()``; System saves it to Storage KV and restores it on the next startup.
 
+.. _system-core-configuration-sec-05:
+
 System::Config
 --------------------
 
@@ -216,6 +226,8 @@ System::Config
 - ``gui_live_preview_poll_interval_ms``: the period of the internal live preview poll task; defaults to ``100ms``.
 - ``startup_overlay``: an optional system startup overlay; shown after the GUI runtime is created and before app install and Shell startup, hidden after ``start()`` completes.
 - ``app_launch_transition``: an optional app launch transition; shown before app GUI resource registration and document loading, with its origin set by ``start_app(app_id, AppStartOptions{.launch_origin_frame = ...})``.
+
+.. _system-core-configuration-sec-06:
 
 Directory and File Interface
 ----------------------------
