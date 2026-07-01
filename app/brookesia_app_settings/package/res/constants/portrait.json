@@ -1,0 +1,46 @@
+{
+    "type": "constant",
+    "data": {
+        "settings": {
+            "layout": {
+                "pageX": "8dp",
+                "pageY": "54dp",
+                "pageWidth": "${expr(${env.widthDp} - 16dp)}",
+                "pageHeight": "${expr(${env.heightDp} - 62dp)}",
+                "pageGap": "12dp",
+                "cardGap": "10dp",
+                "rowHeight": "58dp",
+                "iconSize": "36dp",
+                "navIconColumn": "44dp",
+                "navValueColumn": "64dp",
+                "chevronWidth": "22dp",
+                "switchColumnWidth": "62dp",
+                "headerHeight": "48dp",
+                "headerSideWidth": "56dp",
+                "headerBackSize": "42dp",
+                "headerIconSize": "28dp",
+                "themeModeCardWidth": "match",
+                "themeModeCardHeight": "128dp",
+                "themePreviewWidth": "150dp",
+                "themePreviewHeight": "58dp",
+                "wifiMetaColumn": "36dp",
+                "wifiRefreshColumnWidth": "44dp",
+                "wifiRefreshSize": "34dp",
+                "wifiHeaderHeight": "34dp",
+                "wifiStatusCardHeight": "68dp",
+                "wifiConnectedHeight": "74dp",
+                "wifiRowHeight": "62dp",
+                "wifiPasswordLabelColumn": "92dp",
+                "wifiConnectActionWidth": "96dp"
+            },
+            "font": {
+                "hero": "34sp",
+                "title": "26sp",
+                "section": "18sp",
+                "body": "17sp",
+                "caption": "13sp",
+                "small": "12sp"
+            }
+        }
+    }
+}

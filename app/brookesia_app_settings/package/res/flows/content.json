@@ -1,0 +1,98 @@
+{
+    "type": "screenFlow",
+    "id": "settings_content",
+    "screens": [
+        "settings_home",
+        "my_device",
+        "wifi",
+        "wifi_connect",
+        "sound",
+        "display",
+        "more",
+        "language",
+        "time_zone"
+    ],
+    "initial": "settings_home",
+    "transitions": [
+        {
+            "from": [],
+            "action": "settings.open.home",
+            "to": "settings_home"
+        },
+        {
+            "from": [],
+            "action": "settings.back.device",
+            "to": "settings_home"
+        },
+        {
+            "from": [],
+            "action": "settings.back.wifi",
+            "to": "settings_home"
+        },
+        {
+            "from": [],
+            "action": "settings.back.wifi_connect",
+            "to": "wifi"
+        },
+        {
+            "from": [],
+            "action": "settings.back.sound",
+            "to": "settings_home"
+        },
+        {
+            "from": [],
+            "action": "settings.back.display",
+            "to": "settings_home"
+        },
+        {
+            "from": [],
+            "action": "settings.open.device",
+            "to": "my_device"
+        },
+        {
+            "from": [],
+            "action": "settings.open.wifi",
+            "to": "wifi"
+        },
+        {
+            "from": [],
+            "action": "settings.open.wifi_connect",
+            "to": "wifi_connect"
+        },
+        {
+            "from": [],
+            "action": "settings.open.sound",
+            "to": "sound"
+        },
+        {
+            "from": [],
+            "action": "settings.open.display",
+            "to": "display"
+        },
+        {
+            "from": [],
+            "action": "settings.open.more",
+            "to": "more"
+        },
+        {
+            "from": [],
+            "action": "settings.open.language",
+            "to": "language"
+        },
+        {
+            "from": [],
+            "action": "settings.back.language",
+            "to": "more"
+        },
+        {
+            "from": [],
+            "action": "settings.open.time_zone",
+            "to": "time_zone"
+        },
+        {
+            "from": [],
+            "action": "settings.back.time_zone",
+            "to": "more"
+        }
+    ]
+}

@@ -1,0 +1,318 @@
+{
+    "type": "viewScreen",
+    "id": "time_zone",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "id": "status_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "SNTP"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "status_card",
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "18dp"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "0dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "current",
+                            "commonProps": {
+                                "scrollable": false
+                            },
+                            "styleRefs": [
+                                "app.listItem"
+                            ],
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "column",
+                                "gap": "4dp",
+                                "mainAlign": "center",
+                                "crossAlign": "stretch"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "72dp",
+                                "alignSelf": "stretch"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "title",
+                                    "styleRefs": [
+                                        "app.caption"
+                                    ],
+                                    "labelProps": {
+                                        "text": "Time zone"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "match",
+                                        "alignSelf": "stretch"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                },
+                                {
+                                    "type": "label",
+                                    "id": "value",
+                                    "styleRefs": [
+                                        "app.listItemTitle"
+                                    ],
+                                    "labelProps": {
+                                        "text": "Unavailable"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "match",
+                                        "alignSelf": "stretch"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "state",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [],
+                                    "layout": {
+                                        "gridTemplateColumns": [
+                                            "match",
+                                            "180dp"
+                                        ]
+                                    }
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "State"
+                                    }
+                                },
+                                "value_box/value": {
+                                    "labelProps": {
+                                        "text": "Unavailable"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "label",
+                    "id": "options_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Common time zones"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "options_card",
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "18dp"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "0dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "templateRef",
+                            "id": "utc",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.time_zone.utc"
+                                        }
+                                    ]
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "UTC"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "china",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.time_zone.china"
+                                        }
+                                    ]
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "China"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "japan",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.time_zone.japan"
+                                        }
+                                    ]
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "Japan"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "eastern",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.time_zone.eastern"
+                                        }
+                                    ]
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "US Eastern"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "pacific",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.time_zone.pacific"
+                                        }
+                                    ]
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "US Pacific"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "central_europe",
+                            "templateId": "menu_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.time_zone.central_europe"
+                                        }
+                                    ]
+                                },
+                                "title_box/title": {
+                                    "labelProps": {
+                                        "text": "Central Europe"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

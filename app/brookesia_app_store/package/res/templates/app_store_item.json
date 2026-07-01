@@ -1,0 +1,264 @@
+{
+    "type": "viewTemplate",
+    "id": "app_store_item",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "commonProps.hidden"
+        },
+        "styleRefs": [
+            "app.listItem"
+        ],
+        "style": {
+            "padding": "0dp"
+        },
+        "layout": {
+            "type": "none"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.appStore.layout.itemHeight}"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "body",
+                "style": {
+                    "padding": "${constant.appStore.layout.cardPadding}"
+                },
+                "layout": {
+                    "type": "grid",
+                    "gridTemplateColumns": [
+                        "${constant.appStore.layout.iconColumnWidth}",
+                        "match",
+                        "${constant.appStore.layout.actionColumnWidth}"
+                    ],
+                    "gridTemplateRows": [
+                        "match"
+                    ],
+                    "gap": "${constant.appStore.layout.cardGap}"
+                },
+                "placement": {
+                    "mode": "relative",
+                    "align": "center",
+                    "width": "match",
+                    "height": "match"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "icon_box",
+                        "styleRefs": [
+                            "app.iconBox"
+                        ],
+                        "layout": {
+                            "type": "flex",
+                            "mainAlign": "center",
+                            "crossAlign": "center"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 0,
+                            "gridRow": 0,
+                            "width": "${constant.appStore.layout.iconBoxSize}",
+                            "height": "${constant.appStore.layout.iconBoxSize}",
+                            "alignSelf": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "image",
+                                "id": "icon",
+                                "hidden": true,
+                                "commonProps": {
+                                    "clickable": false
+                                },
+                                "bindings": {
+                                    "imageProps.src": "src",
+                                    "commonProps.hidden": "hidden"
+                                },
+                                "imageProps": {
+                                    "src": "",
+                                    "innerAlign": "contain"
+                                },
+                                "placement": {
+                                    "width": "${constant.appStore.layout.iconSize}",
+                                    "height": "${constant.appStore.layout.iconSize}"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "fallback",
+                                "bindings": {
+                                    "labelProps.text": "label",
+                                    "commonProps.hidden": "hidden"
+                                },
+                                "labelProps": {
+                                    "text": "A"
+                                },
+                                "style": {
+                                    "textColor": "${color.primary.fill}",
+                                    "fontSize": "${constant.appStore.font.fallback}"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "content",
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "mainAlign": "center",
+                            "crossAlign": "stretch",
+                            "gap": "3dp"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 1,
+                            "gridRow": 0,
+                            "alignSelf": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "title",
+                                "bindings": {
+                                    "labelProps.text": "title"
+                                },
+                                "labelProps": {
+                                    "text": ""
+                                },
+                                "styleRefs": [
+                                    "app.listItemTitle"
+                                ],
+                                "style": {
+                                    "fontSize": "${constant.appStore.font.itemTitle}"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "description",
+                                "bindings": {
+                                    "labelProps.text": "description"
+                                },
+                                "labelProps": {
+                                    "text": ""
+                                },
+                                "styleRefs": [
+                                    "app.listItemValue"
+                                ],
+                                "style": {
+                                    "fontSize": "${constant.appStore.font.body}"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "detail",
+                                "bindings": {
+                                    "labelProps.text": "detail"
+                                },
+                                "labelProps": {
+                                    "text": ""
+                                },
+                                "styleRefs": [
+                                    "app.caption"
+                                ],
+                                "style": {
+                                    "fontSize": "${constant.appStore.font.caption}"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "state",
+                                "bindings": {
+                                    "labelProps.text": "state"
+                                },
+                                "labelProps": {
+                                    "text": ""
+                                },
+                                "styleRefs": [
+                                    "app.caption"
+                                ],
+                                "style": {
+                                    "fontSize": "${constant.appStore.font.caption}"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "actions",
+                        "layout": {
+                            "type": "flex",
+                            "mainAlign": "center",
+                            "crossAlign": "center"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 2,
+                            "gridRow": 0,
+                            "width": "${constant.appStore.layout.actionColumnWidth}",
+                            "height": "match",
+                            "alignSelf": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "button",
+                                "id": "primary",
+                                "interactionRefs": [
+                                    "press.scale"
+                                ],
+                                "bindings": {
+                                    "commonProps.disabled": "commonProps.disabled",
+                                    "style.opacity": "style.opacity"
+                                },
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "app_store.item.primary"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "${color.primary.fill}",
+                                    "borderColor": "${color.primary.fill}",
+                                    "borderWidth": "1dp",
+                                    "radius": "${constant.appStore.layout.actionButtonHeight}",
+                                    "padding": "0dp"
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "placement": {
+                                    "width": "match",
+                                    "height": "${constant.appStore.layout.actionButtonHeight}"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "label",
+                                        "bindings": {
+                                            "labelProps.text": "label"
+                                        },
+                                        "labelProps": {
+                                            "text": ""
+                                        },
+                                        "style": {
+                                            "textColor": "${color.primary.on}",
+                                            "fontSize": "${constant.appStore.font.button}"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

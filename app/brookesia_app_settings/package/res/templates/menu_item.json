@@ -1,0 +1,118 @@
+{
+    "type": "viewTemplate",
+    "id": "menu_item",
+    "node": {
+        "type": "button",
+        "interactionRefs": [
+            "press.item"
+        ],
+        "events": [
+            {
+                "type": "clicked",
+                "action": "settings.language.select"
+            }
+        ],
+        "styleRefs": [
+            "app.listItem"
+        ],
+        "style": {
+            "borderWidth": "0dp"
+        },
+        "layout": {
+            "type": "grid",
+            "gridTemplateColumns": [
+                "match",
+                "${constant.settings.layout.navValueColumn}"
+            ],
+            "gridTemplateRows": [
+                "match"
+            ],
+            "gap": "14dp",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.settings.layout.rowHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "title_box",
+                "commonProps": {
+                    "clickable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "row",
+                    "mainAlign": "start",
+                    "crossAlign": "center"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 0,
+                    "gridRow": 0,
+                    "alignSelf": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "title",
+                        "styleRefs": [
+                            "app.listItemTitle"
+                        ],
+                        "labelProps": {
+                            "text": "Item"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "width": "wrap"
+                        },
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "container",
+                "id": "value_box",
+                "commonProps": {
+                    "clickable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "row",
+                    "mainAlign": "end",
+                    "crossAlign": "center"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 1,
+                    "gridRow": 0,
+                    "alignSelf": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "value",
+                        "styleRefs": [
+                            "app.listItemValue"
+                        ],
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "width": "wrap"
+                        },
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -1,0 +1,13 @@
+{
+    "type": "viewScreen",
+    "id": "keyboard_hidden",
+    "commonProps": {
+        "hidden": true,
+        "clickable": false,
+        "scrollable": false
+    },
+    "placement": {
+        "width": "${env.widthDp}",
+        "height": "${env.heightDp}"
+    }
+}

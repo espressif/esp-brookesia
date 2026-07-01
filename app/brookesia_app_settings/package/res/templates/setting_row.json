@@ -1,0 +1,91 @@
+{
+    "type": "viewTemplate",
+    "id": "setting_row",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false
+        },
+        "styleRefs": [
+            "app.listItem"
+        ],
+        "layout": {
+            "type": "grid",
+            "gridTemplateColumns": [
+                "match",
+                "${constant.settings.layout.navValueColumn}",
+                "${constant.settings.layout.chevronWidth}"
+            ],
+            "gridTemplateRows": [
+                "match"
+            ],
+            "gap": "12dp",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.settings.layout.smallRowHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "title",
+                "styleRefs": [
+                    "app.listItemTitle"
+                ],
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                },
+                "labelProps": {
+                    "text": "Setting"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 0,
+                    "gridRow": 0,
+                    "alignSelf": "center"
+                }
+            },
+            {
+                "type": "label",
+                "id": "value",
+                "styleRefs": [
+                    "app.listItemValue"
+                ],
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                },
+                "labelProps": {
+                    "text": ""
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 1,
+                    "gridRow": 0,
+                    "alignSelf": "center"
+                }
+            },
+            {
+                "type": "label",
+                "id": "chevron",
+                "styleRefs": [
+                    "app.listItemValue"
+                ],
+                "labelProps": {
+                    "text": ">"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 2,
+                    "gridRow": 0,
+                    "alignSelf": "center"
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            }
+        ]
+    }
+}

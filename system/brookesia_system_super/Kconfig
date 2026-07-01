@@ -1,0 +1,36 @@
+menu "ESP-Brookesia: System Super Configurations"
+    config BROOKESIA_SYSTEM_SUPER_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    config BROOKESIA_SYSTEM_SUPER_ENABLE_STARTUP_OVERLAY
+        bool "Enable startup overlay"
+        default y
+
+    config BROOKESIA_SYSTEM_SUPER_STARTUP_ROOT_JSON
+        string "Startup overlay root JSON path"
+        default "startup/root.json"
+        depends on BROOKESIA_SYSTEM_SUPER_ENABLE_STARTUP_OVERLAY
+
+    config BROOKESIA_SYSTEM_SUPER_ENABLE_RESOURCE_FONT_COPY
+        bool "Copy built-in font resources"
+        default y
+
+    config BROOKESIA_SYSTEM_SUPER_ENABLE_APP_LAUNCH_TRANSITION
+        bool "Enable core app launch transition compatibility option"
+        default n
+
+    config BROOKESIA_SYSTEM_SUPER_APP_LAUNCH_ROOT_JSON
+        string "Core app launch transition root JSON path compatibility option"
+        default "app_launch/root.json"
+        depends on BROOKESIA_SYSTEM_SUPER_ENABLE_APP_LAUNCH_TRANSITION
+
+    config BROOKESIA_SYSTEM_SUPER_ENABLE_APP_LAUNCH_ANIMATION
+        bool "Enable Shell app launch mask and icon animation"
+        default y
+
+    config BROOKESIA_SYSTEM_SUPER_APP_LAUNCH_POST_COMPLETE_HOLD_MS
+        int "Shell app launch post-completion hold time in milliseconds"
+        default 0
+        range 0 1000
+endmenu

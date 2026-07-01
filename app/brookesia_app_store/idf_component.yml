@@ -1,0 +1,30 @@
+version: "0.8.0"
+description: ESP-Brookesia native App Store app for runtime package discovery and installation.
+url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_store
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_system_core:
+    version: "0.8.*"
+    override_path: ../../system/brookesia_system_core
+    require: public
+
+  espressif/brookesia_service_helper:
+    version: "0.8.*"
+    override_path: ../../service/framework/brookesia_service_helper
+    require: public
+
+  espressif/brookesia_service_http:
+    version: "0.8.*"
+    override_path: ../../service/network/brookesia_service_http
+    require: public
+
+  espressif/brookesia_service_device:
+    version: "0.8.*"
+    override_path: ../../service/system/brookesia_service_device
+    require: public
+
+  espressif/brookesia_service_storage:
+    version: "0.8.*"
+    override_path: ../../service/system/brookesia_service_storage
+    require: public

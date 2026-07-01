@@ -1,0 +1,77 @@
+{
+    "type": "viewScreen",
+    "id": "startup",
+    "commonProps": {
+        "clickable": true,
+        "scrollable": false
+    },
+    "layout": {
+        "type": "flex",
+        "mainAlign": "center",
+        "crossAlign": "center"
+    },
+    "style": {
+        "bgColor": "#fafbfc",
+        "padding": 0
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "brand",
+            "commonProps": {
+                "clickable": false,
+                "scrollable": false
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "row",
+                "mainAlign": "center",
+                "crossAlign": "center",
+                "gap": "${constant.startup.titleGap}"
+            },
+            "style": {
+                "bgColor": "",
+                "padding": 0
+            },
+            "placement": {
+                "mode": "flow",
+                "width": "wrap",
+                "height": "wrap"
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "id": "prefix",
+                    "labelProps": {
+                        "text": "ESP-Brookesia"
+                    },
+                    "style": {
+                        "textColor": "#38393a",
+                        "fontSize": "${constant.startup.titleFont}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "wrap",
+                        "height": "wrap"
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "product",
+                    "labelProps": {
+                        "text": "SuperOS"
+                    },
+                    "style": {
+                        "textColor": "#E8362D",
+                        "fontSize": "${constant.startup.titleFont}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "wrap",
+                        "height": "wrap"
+                    }
+                }
+            ]
+        }
+    ]
+}

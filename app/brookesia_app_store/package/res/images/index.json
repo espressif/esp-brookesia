@@ -1,0 +1,35 @@
+{
+    "type": "imageSet",
+    "images": [
+        {
+            "id": "launcher_icon",
+            "src": "launcher_icon.png",
+            "width": 92,
+            "height": 92
+        },
+        {
+            "id": "app_store.icon.bpk",
+            "src": "bpk.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "app_store.action.download",
+            "src": "start.png",
+            "width": 64,
+            "height": 64
+        },
+        {
+            "id": "app_store.action.pause",
+            "src": "pause.png",
+            "width": 64,
+            "height": 64
+        },
+        {
+            "id": "app_store.action.ok",
+            "src": "ok.png",
+            "width": 64,
+            "height": 64
+        }
+    ]
+}

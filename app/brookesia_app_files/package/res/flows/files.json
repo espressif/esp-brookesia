@@ -1,0 +1,21 @@
+{
+    "type": "screenFlow",
+    "id": "files",
+    "initial": "browser",
+    "screens": [
+        "browser",
+        "operations"
+    ],
+    "transitions": [
+        {
+            "from": [],
+            "action": "files.open.browser",
+            "to": "browser"
+        },
+        {
+            "from": [],
+            "action": "files.open.operation",
+            "to": "operations"
+        }
+    ]
+}

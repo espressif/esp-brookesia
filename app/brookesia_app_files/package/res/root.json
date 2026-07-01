@@ -1,0 +1,23 @@
+{
+    "version": "0.1.0",
+    "assets": [
+        "constants/default.json",
+        "i18n/en.json",
+        "images/index.json",
+        "screens/header.json",
+        "screens/browser.json",
+        "screens/operations.json",
+        "templates/file_entry.json",
+        "templates/operation_item.json",
+        "flows/header.json",
+        "flows/files.json"
+    ],
+    "variants": [
+        {
+            "when": "${expr(${env.language} == \"zh_CN\")}",
+            "assets": [
+                "i18n/zh_CN.json"
+            ]
+        }
+    ]
+}

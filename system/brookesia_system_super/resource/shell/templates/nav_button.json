@@ -1,0 +1,42 @@
+{
+    "type": "viewTemplate",
+    "id": "nav_button",
+    "node": {
+        "type": "button",
+        "interactionRefs": [
+            "press.scale"
+        ],
+        "events": [],
+        "layout": {
+            "type": "flex",
+            "mainAlign": "center",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "${constant.ui.overlay.metric.navButton}",
+            "height": "${constant.ui.overlay.metric.navButton}"
+        },
+        "children": [
+            {
+                "type": "image",
+                "id": "icon",
+                "commonProps": {
+                    "clickable": false
+                },
+                "imageProps": {
+                    "src": "${image.default}",
+                    "innerAlign": "contain"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "width": "${constant.ui.overlay.metric.navIcon}",
+                    "height": "${constant.ui.overlay.metric.navIcon}"
+                }
+            }
+        ],
+        "styleRefs": [
+            "shell.navButton"
+        ]
+    }
+}

@@ -1,0 +1,108 @@
+{
+    "type": "viewTemplate",
+    "id": "wifi_network_item",
+    "node": {
+        "type": "button",
+        "interactionRefs": [
+            "press.item"
+        ],
+        "commonProps": {
+            "scrollable": false
+        },
+        "bindings": {
+            "commonProps.hidden": "commonProps.hidden"
+        },
+        "events": [
+            {
+                "type": "clicked",
+                "action": "settings.wifi.select"
+            },
+            {
+                "type": "longPressed",
+                "action": "settings.wifi.saved.forget"
+            }
+        ],
+        "styleRefs": [
+            "app.listItem"
+        ],
+        "layout": {
+            "type": "grid",
+            "gridTemplateColumns": [
+                "match"
+            ],
+            "gridTemplateRows": [
+                "match"
+            ],
+            "gap": "10dp",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.settings.layout.wifiRowHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "text",
+                "commonProps": {
+                    "clickable": false,
+                    "scrollable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "mainAlign": "center",
+                    "gap": "3dp"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 0,
+                    "gridRow": 0,
+                    "alignSelf": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "ssid",
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "styleRefs": [
+                            "app.listItemTitle"
+                        ],
+                        "bindings": {
+                            "labelProps.text": "ssid"
+                        },
+                        "labelProps": {
+                            "text": "Network"
+                        },
+                        "placement": {
+                            "mode": "flow"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "detail",
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "styleRefs": [
+                            "app.cardSubtitle"
+                        ],
+                        "bindings": {
+                            "labelProps.text": "detail"
+                        },
+                        "labelProps": {
+                            "text": "Secured"
+                        },
+                        "placement": {
+                            "mode": "flow"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

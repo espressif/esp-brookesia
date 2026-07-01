@@ -1,0 +1,43 @@
+{
+    "type": "constant",
+    "data": {
+        "files": {
+            "i18n": {
+                "app_name": "Files",
+                "storage": "Storage",
+                "volumes_subtitle": "Internal and external volumes",
+                "empty": "Empty",
+                "items_suffix": " items",
+                "selected_item": "Selected item",
+                "file_actions": "File actions",
+                "action": "Action",
+                "rename": "Rename",
+                "rename_detail": "Edit the file or folder name",
+                "delete": "Delete",
+                "delete_detail": "Remove this item",
+                "folder": "Folder",
+                "file": "File",
+                "other": "Other",
+                "internal": "Internal",
+                "external_prefix": "External ",
+                "storage_free_prefix": "Free ",
+                "open_failed": "Open failed",
+                "operation_unavailable": "Operation unavailable",
+                "rename_unavailable": "Rename unavailable",
+                "delete_unavailable": "Delete unavailable",
+                "select_first": "Select a file or directory first",
+                "rename_title": "Rename",
+                "rename_placeholder": "New name",
+                "rename_failed": "Rename failed",
+                "invalid_name": "Invalid name",
+                "destination_escapes": "Destination escapes current volume",
+                "refresh_failed": "Refresh failed",
+                "delete_title_prefix": "Delete ",
+                "delete_title_suffix": "?",
+                "delete_failed": "Delete failed",
+                "cancel": "Cancel",
+                "close": "Close"
+            }
+        }
+    }
+}

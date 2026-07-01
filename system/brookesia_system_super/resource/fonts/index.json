@@ -1,0 +1,14 @@
+{
+    "type": "fontSet",
+    "fonts": [
+        {
+            "id": "default",
+            "kind": "file",
+            "src": "WenYuanSansSC-Regular.subset.ttf",
+            "languages": [
+                "zh_CN",
+                "en"
+            ]
+        }
+    ]
+}

@@ -1,0 +1,65 @@
+{
+    "type": "imageSet",
+    "images": [
+        {
+            "id": "launcher_icon",
+            "src": "launcher_icon.png",
+            "width": 92,
+            "height": 92
+        },
+        {
+            "id": "header.back",
+            "src": "icon/back.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "home.display",
+            "src": "icon/display.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "home.more",
+            "src": "icon/more.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "home.my_device",
+            "src": "icon/my_device.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "home.sound",
+            "src": "icon/sound.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "home.wifi",
+            "src": "icon/wifi.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "wifi.refresh",
+            "src": "icon/refresh.png",
+            "width": 36,
+            "height": 36
+        },
+        {
+            "id": "more.language",
+            "src": "icon/language.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "more.time_zone",
+            "src": "icon/time_zone.png",
+            "width": 42,
+            "height": 42
+        }
+    ]
+}

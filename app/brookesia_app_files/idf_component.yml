@@ -1,0 +1,20 @@
+version: "0.8.0"
+description: ESP-Brookesia native file manager app for browsing internal and external storage volumes.
+url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_files
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_system_core:
+    version: "0.8.*"
+    override_path: ../../system/brookesia_system_core
+    require: public
+
+  espressif/brookesia_service_helper:
+    version: "0.8.*"
+    override_path: ../../service/framework/brookesia_service_helper
+    require: public
+
+  espressif/brookesia_service_storage:
+    version: "0.8.*"
+    override_path: ../../service/system/brookesia_service_storage
+    require: public

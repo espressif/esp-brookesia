@@ -1,0 +1,319 @@
+{
+    "strings": {
+        "app_name": "Settings",
+        "current": "Current",
+        "dark": "Dark",
+        "display": "Display & brightness",
+        "language": "Language",
+        "language.display.en": "English",
+        "language.display.zh_CN": "Chinese (Simplified)",
+        "language.summary.en": "English",
+        "language.summary.zh_CN": "Chinese",
+        "language.switch.failed": "Failed to switch language",
+        "language.switch.success": "Language switched",
+        "language.switching": "Switching language...",
+        "light": "Light",
+        "more": "More settings",
+        "my_device": "My device",
+        "no": "No",
+        "settings_home": "Settings",
+        "sound": "Sound",
+        "text.battery_prefix": "Battery: ",
+        "text.board_version_prefix": "Board version: ",
+        "text.camera_prefix": "Camera ",
+        "text.chip_prefix": "Chip: ",
+        "text.hardware.audio": "Audio",
+        "text.hardware.display": "Display",
+        "text.hardware.network": "Network",
+        "text.hardware.other": "Other",
+        "text.hardware.power": "Power",
+        "text.hardware.storage": "Storage",
+        "text.hardware.system": "System",
+        "text.hardware.video": "Video",
+        "text.manufacturer_prefix": "Manufacturer: ",
+        "text.muted": "Muted",
+        "text.network": "Network",
+        "text.unavailable": "Unavailable",
+        "text.unknown": "Unknown",
+        "theme.switch.failed": "Failed to switch theme",
+        "theme.switch.success": "Theme switched",
+        "theme.switching": "Switching theme...",
+        "time_zone": "Time zone",
+        "time_zone.name.CET-1CEST,M3.5.0/2,M10.5.0/3": "Central Europe",
+        "time_zone.name.CST-8": "China",
+        "time_zone.name.EST5EDT,M3.2.0/2,M11.1.0/2": "US Eastern",
+        "time_zone.name.JST-9": "Japan",
+        "time_zone.name.PST8PDT,M3.2.0/2,M11.1.0/2": "US Pacific",
+        "time_zone.name.UTC0": "UTC",
+        "time_zone_set": "Time zone updated",
+        "time_zone_set_failed": "Failed to update time zone",
+        "wifi": "Wi-Fi",
+        "wifi_connect": "Connect to Wi-Fi",
+        "wifi_connected_detail": "Connected - tap to disconnect",
+        "wifi_connect_failed": "Connection failed",
+        "wifi_connecting": "Connecting...",
+        "wifi_disconnected": "Disconnected",
+        "wifi_no_available_networks": "No available networks",
+        "wifi_no_network_selected": "No Wi-Fi network is selected",
+        "wifi_no_saved_networks": "No saved networks",
+        "wifi_not_connected": "None",
+        "wifi_open_network": "Open network",
+        "wifi_password_placeholder": "Tap to enter password",
+        "wifi_password_required": "Enter the network password.",
+        "wifi_ready_to_connect": "Ready to connect.",
+        "wifi_refresh": "Refresh",
+        "wifi_saved_secured_network": "Saved secured network",
+        "wifi_scan": "Scan",
+        "wifi_scanning": "Scanning...",
+        "wifi_secured_network": "Secured network",
+        "wifi_service_unavailable": "Wi-Fi service unavailable",
+        "yes": "Yes"
+    },
+    "updates": [
+        {
+            "path": "/settings_header/bar/title",
+            "key": "labelProps.text",
+            "value": "Settings"
+        },
+        {
+            "path": "/settings_home/page/device_card/my_device/title_box/title",
+            "key": "labelProps.text",
+            "value": "My device"
+        },
+        {
+            "path": "/settings_home/page/main_list/wifi/title_box/title",
+            "key": "labelProps.text",
+            "value": "Wi-Fi"
+        },
+        {
+            "path": "/settings_home/page/main_list/wifi/value_box/value",
+            "key": "labelProps.text",
+            "value": "None"
+        },
+        {
+            "path": "/settings_home/page/main_list/sound/title_box/title",
+            "key": "labelProps.text",
+            "value": "Sound"
+        },
+        {
+            "path": "/settings_home/page/main_list/sound/value_box/value",
+            "key": "labelProps.text",
+            "value": "72%"
+        },
+        {
+            "path": "/settings_home/page/main_list/display/title_box/title",
+            "key": "labelProps.text",
+            "value": "Display"
+        },
+        {
+            "path": "/settings_home/page/main_list/more/title_box/title",
+            "key": "labelProps.text",
+            "value": "More settings"
+        },
+        {
+            "path": "/settings_home/page/main_list/more/value_box/value",
+            "key": "labelProps.text",
+            "value": "Language"
+        },
+        {
+            "path": "/my_device/page/hero/brand",
+            "key": "labelProps.text",
+            "value": "ESP-Brookesia"
+        },
+        {
+            "path": "/my_device/page/summary_card/device_label",
+            "key": "labelProps.text",
+            "value": "Device name"
+        },
+        {
+            "path": "/my_device/page/summary_card/device_value",
+            "key": "labelProps.text",
+            "value": "Brookesia Dev Kit"
+        },
+        {
+            "path": "/wifi/page/wifi_status_card/wifi_label",
+            "key": "labelProps.text",
+            "value": "Wi-Fi"
+        },
+        {
+            "path": "/wifi/page/wifi_content/connected/text/ssid",
+            "key": "labelProps.text",
+            "value": ""
+        },
+        {
+            "path": "/wifi/page/wifi_content/connected/text/detail",
+            "key": "labelProps.text",
+            "value": "Connected - tap to disconnect"
+        },
+        {
+            "path": "/wifi/page/wifi_content/saved_caption",
+            "key": "labelProps.text",
+            "value": "Saved networks"
+        },
+        {
+            "path": "/wifi/page/wifi_content/available_header/available_caption",
+            "key": "labelProps.text",
+            "value": "Available networks"
+        },
+        {
+            "path": "/wifi/page/wifi_content/saved_networks/list/empty",
+            "key": "labelProps.text",
+            "value": "No saved networks"
+        },
+        {
+            "path": "/wifi/page/wifi_content/available_networks/list/empty",
+            "key": "labelProps.text",
+            "value": "No available networks"
+        },
+        {
+            "path": "/wifi_connect/page/network_card/caption",
+            "key": "labelProps.text",
+            "value": "Selected network"
+        },
+        {
+            "path": "/wifi_connect/page/password_card/password_row/title",
+            "key": "labelProps.text",
+            "value": "Password"
+        },
+        {
+            "path": "/wifi_connect/page/password_card/password_row/value",
+            "key": "passwordValue",
+            "value": "Tap to enter password"
+        },
+        {
+            "path": "/wifi_connect/page/status",
+            "key": "status",
+            "value": "Enter the network password."
+        },
+        {
+            "path": "/wifi_connect/page/actions/cancel/label",
+            "key": "labelProps.text",
+            "value": "Cancel"
+        },
+        {
+            "path": "/wifi_connect/page/actions/connect/label",
+            "key": "labelProps.text",
+            "value": "Connect"
+        },
+        {
+            "path": "/sound/page/volume_card/media_volume_row/title",
+            "key": "labelProps.text",
+            "value": "Volume"
+        },
+        {
+            "path": "/sound/page/options_caption",
+            "key": "labelProps.text",
+            "value": "Sound options"
+        },
+        {
+            "path": "/sound/page/silent_card/silent_mode/text/title",
+            "key": "labelProps.text",
+            "value": "Mute"
+        },
+        {
+            "path": "/sound/page/silent_card/silent_mode/text/subtitle",
+            "key": "labelProps.text",
+            "value": ""
+        },
+        {
+            "path": "/display/page/theme_modes/light_mode/label",
+            "key": "labelProps.text",
+            "value": "Light mode"
+        },
+        {
+            "path": "/display/page/theme_modes/dark_mode/label",
+            "key": "labelProps.text",
+            "value": "Dark mode"
+        },
+        {
+            "path": "/display/page/brightness_caption",
+            "key": "labelProps.text",
+            "value": "Brightness level"
+        },
+        {
+            "path": "/display/page/brightness_card/brightness_row/title",
+            "key": "labelProps.text",
+            "value": "Screen brightness"
+        },
+        {
+            "path": "/more/page/system_caption",
+            "key": "labelProps.text",
+            "value": "System settings"
+        },
+        {
+            "path": "/more/page/language_card/language/title_box/title",
+            "key": "labelProps.text",
+            "value": "Language"
+        },
+        {
+            "path": "/more/page/language_card/language/value_box/value",
+            "key": "labelProps.text",
+            "value": "English"
+        },
+        {
+            "path": "/more/page/language_card/time_zone/title_box/title",
+            "key": "labelProps.text",
+            "value": "Time zone"
+        },
+        {
+            "path": "/more/page/language_card/time_zone/value_box/value",
+            "key": "labelProps.text",
+            "value": "Unavailable"
+        },
+        {
+            "path": "/language/page/system_caption",
+            "key": "labelProps.text",
+            "value": "Language"
+        },
+        {
+            "path": "/time_zone/page/status_caption",
+            "key": "labelProps.text",
+            "value": "SNTP"
+        },
+        {
+            "path": "/time_zone/page/status_card/current/title",
+            "key": "labelProps.text",
+            "value": "Time zone"
+        },
+        {
+            "path": "/time_zone/page/status_card/state/title_box/title",
+            "key": "labelProps.text",
+            "value": "State"
+        },
+        {
+            "path": "/time_zone/page/options_caption",
+            "key": "labelProps.text",
+            "value": "Common time zones"
+        },
+        {
+            "path": "/time_zone/page/options_card/utc/title_box/title",
+            "key": "labelProps.text",
+            "value": "UTC"
+        },
+        {
+            "path": "/time_zone/page/options_card/china/title_box/title",
+            "key": "labelProps.text",
+            "value": "China"
+        },
+        {
+            "path": "/time_zone/page/options_card/japan/title_box/title",
+            "key": "labelProps.text",
+            "value": "Japan"
+        },
+        {
+            "path": "/time_zone/page/options_card/eastern/title_box/title",
+            "key": "labelProps.text",
+            "value": "US Eastern"
+        },
+        {
+            "path": "/time_zone/page/options_card/pacific/title_box/title",
+            "key": "labelProps.text",
+            "value": "US Pacific"
+        },
+        {
+            "path": "/time_zone/page/options_card/central_europe/title_box/title",
+            "key": "labelProps.text",
+            "value": "Central Europe"
+        }
+    ]
+}

@@ -1,0 +1,33 @@
+{
+    "version": "0.1.0",
+    "assets": [
+        "constants/default.json",
+        "screens/startup.json"
+    ],
+    "variants": [
+        {
+            "when": "${expr(${env.widthDp} == 1024dp && ${env.heightDp} == 600dp)}",
+            "assets": [
+                "constants/1024x600.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} == 800dp && ${env.heightDp} == 480dp)}",
+            "assets": [
+                "constants/800x480.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} < ${env.heightDp})}",
+            "assets": [
+                "constants/portrait.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} <= 360dp || ${env.heightDp} <= 240dp)}",
+            "assets": [
+                "constants/small.json"
+            ]
+        }
+    ]
+}

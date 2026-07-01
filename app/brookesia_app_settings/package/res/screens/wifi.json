@@ -1,0 +1,732 @@
+{
+    "type": "viewScreen",
+    "id": "wifi",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "wifi_status_card",
+                    "bindings": {
+                        "style.opacity": "opacity"
+                    },
+                    "commonProps": {
+                        "scrollable": false
+                    },
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "${constant.settings.layout.cardPadding}"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "row",
+                        "mainAlign": "spaceBetween",
+                        "crossAlign": "center"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "${constant.settings.layout.wifiStatusCardHeight}",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "wifi_label",
+                            "styleRefs": [
+                                "app.listItemTitle"
+                            ],
+                            "labelProps": {
+                                "text": "Wi-Fi"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "alignSelf": "center",
+                                "width": "wrap"
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            }
+                        },
+                        {
+                            "type": "switch",
+                            "id": "wifi_switch",
+                            "bindings": {
+                                "toggleProps.checked": "checked",
+                                "commonProps.disabled": "disabled"
+                            },
+                            "events": [
+                                {
+                                    "type": "valueChanged",
+                                    "action": "settings.wifi.toggle"
+                                }
+                            ],
+                            "toggleProps": {
+                                "checked": false
+                            },
+                            "styleRefs": [
+                                "app.switch"
+                            ],
+                            "placement": {
+                                "mode": "flow",
+                                "alignSelf": "center",
+                                "width": "${constant.settings.layout.switchWidth}",
+                                "height": "${constant.settings.layout.switchHeight}"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "wifi_content",
+                    "commonProps": {
+                        "hidden": true,
+                        "scrollable": false
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "commonProps.hidden"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "${constant.settings.layout.pageGap}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "templateRef",
+                            "id": "connected",
+                            "templateId": "wifi_connected_item",
+                            "bindings": {
+                                "commonProps.hidden": "commonProps.hidden"
+                            },
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.wifi.disconnect"
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "saved_caption",
+                            "styleRefs": [
+                                "app.caption"
+                            ],
+                            "labelProps": {
+                                "text": "Saved networks"
+                            },
+                            "placement": {
+                                "mode": "flow"
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text",
+                                "commonProps.hidden": "commonProps.hidden"
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "saved_networks",
+                            "templateId": "settings_card",
+                            "bindings": {
+                                "commonProps.hidden": "commonProps.hidden"
+                            },
+                            "overrides": {
+                                ".": {
+                                    "style": {
+                                        "padding": "8dp"
+                                    },
+                                    "layout": {
+                                        "gap": "4dp"
+                                    }
+                                }
+                            },
+                            "slots": {
+                                "content": [
+                                    {
+                                        "type": "container",
+                                        "id": "list",
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "column",
+                                            "gap": "4dp"
+                                        },
+                                        "placement": {
+                                            "mode": "flow",
+                                            "width": "match",
+                                            "alignSelf": "stretch"
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "container",
+                                                "id": "items",
+                                                "layout": {
+                                                    "type": "flex",
+                                                    "flexFlow": "column",
+                                                    "gap": "4dp"
+                                                },
+                                                "placement": {
+                                                    "mode": "flow",
+                                                    "width": "match",
+                                                    "alignSelf": "stretch"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "empty",
+                                                "commonProps": {
+                                                    "hidden": true
+                                                },
+                                                "styleRefs": [
+                                                    "app.caption"
+                                                ],
+                                                "labelProps": {
+                                                    "text": "No saved networks"
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text",
+                                                    "commonProps.hidden": "commonProps.hidden"
+                                                },
+                                                "placement": {
+                                                    "mode": "flow"
+                                                }
+                                            },
+                                            {
+                                                "type": "container",
+                                                "id": "pager",
+                                                "commonProps": {
+                                                    "hidden": true,
+                                                    "scrollable": false
+                                                },
+                                                "bindings": {
+                                                    "commonProps.hidden": "commonProps.hidden"
+                                                },
+                                                "layout": {
+                                                    "type": "flex",
+                                                    "flexFlow": "row",
+                                                    "mainAlign": "center",
+                                                    "crossAlign": "center",
+                                                    "gap": "8dp"
+                                                },
+                                                "placement": {
+                                                    "mode": "flow",
+                                                    "width": "match",
+                                                    "height": "32dp",
+                                                    "alignSelf": "stretch"
+                                                },
+                                                "children": [
+                                                    {
+                                                        "type": "button",
+                                                        "id": "prev",
+                                                        "commonProps": {
+                                                            "disabled": true,
+                                                            "scrollable": false
+                                                        },
+                                                        "style": {
+                                                            "bgColor": "",
+                                                            "borderWidth": "0dp",
+                                                            "padding": "0dp",
+                                                            "opacity": 96
+                                                        },
+                                                        "layout": {
+                                                            "type": "flex",
+                                                            "flexFlow": "row",
+                                                            "mainAlign": "center",
+                                                            "crossAlign": "center"
+                                                        },
+                                                        "bindings": {
+                                                            "commonProps.disabled": "commonProps.disabled",
+                                                            "style.opacity": "style.opacity"
+                                                        },
+                                                        "events": [
+                                                            {
+                                                                "type": "clicked",
+                                                                "action": "settings.wifi.saved.prev"
+                                                            }
+                                                        ],
+                                                        "placement": {
+                                                            "mode": "flow",
+                                                            "width": "36dp",
+                                                            "height": "28dp"
+                                                        },
+                                                        "children": [
+                                                            {
+                                                                "type": "label",
+                                                                "id": "label",
+                                                                "commonProps": {
+                                                                    "clickable": false
+                                                                },
+                                                                "styleRefs": [
+                                                                    "app.caption"
+                                                                ],
+                                                                "style": {
+                                                                    "textAlign": "center"
+                                                                },
+                                                                "labelProps": {
+                                                                    "text": "<"
+                                                                },
+                                                                "placement": {
+                                                                    "mode": "flow",
+                                                                    "alignSelf": "center"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "label",
+                                                        "id": "page",
+                                                        "styleRefs": [
+                                                            "app.caption"
+                                                        ],
+                                                        "style": {
+                                                            "textAlign": "center"
+                                                        },
+                                                        "labelProps": {
+                                                            "text": "-- / --"
+                                                        },
+                                                        "bindings": {
+                                                            "labelProps.text": "labelProps.text"
+                                                        },
+                                                        "placement": {
+                                                            "mode": "flow",
+                                                            "width": "64dp",
+                                                            "alignSelf": "center"
+                                                        }
+                                                    },
+                                                    {
+                                                        "type": "button",
+                                                        "id": "next",
+                                                        "commonProps": {
+                                                            "disabled": true,
+                                                            "scrollable": false
+                                                        },
+                                                        "style": {
+                                                            "bgColor": "",
+                                                            "borderWidth": "0dp",
+                                                            "padding": "0dp",
+                                                            "opacity": 96
+                                                        },
+                                                        "layout": {
+                                                            "type": "flex",
+                                                            "flexFlow": "row",
+                                                            "mainAlign": "center",
+                                                            "crossAlign": "center"
+                                                        },
+                                                        "bindings": {
+                                                            "commonProps.disabled": "commonProps.disabled",
+                                                            "style.opacity": "style.opacity"
+                                                        },
+                                                        "events": [
+                                                            {
+                                                                "type": "clicked",
+                                                                "action": "settings.wifi.saved.next"
+                                                            }
+                                                        ],
+                                                        "placement": {
+                                                            "mode": "flow",
+                                                            "width": "36dp",
+                                                            "height": "28dp"
+                                                        },
+                                                        "children": [
+                                                            {
+                                                                "type": "label",
+                                                                "id": "label",
+                                                                "commonProps": {
+                                                                    "clickable": false
+                                                                },
+                                                                "styleRefs": [
+                                                                    "app.caption"
+                                                                ],
+                                                                "style": {
+                                                                    "textAlign": "center"
+                                                                },
+                                                                "labelProps": {
+                                                                    "text": ">"
+                                                                },
+                                                                "placement": {
+                                                                    "mode": "flow",
+                                                                    "alignSelf": "center"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "container",
+                            "id": "available_header",
+                            "commonProps": {
+                                "scrollable": false
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "row",
+                                "mainAlign": "spaceBetween",
+                                "crossAlign": "center"
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "commonProps.hidden"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "${constant.settings.layout.wifiHeaderHeight}",
+                                "alignSelf": "stretch"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "available_caption",
+                                    "styleRefs": [
+                                        "app.caption"
+                                    ],
+                                    "labelProps": {
+                                        "text": "Available networks"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "alignSelf": "center",
+                                        "width": "wrap"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                },
+                                {
+                                    "type": "button",
+                                    "id": "available_refresh",
+                                    "commonProps": {
+                                        "disabled": true,
+                                        "scrollable": false
+                                    },
+                                    "style": {
+                                        "bgColor": "",
+                                        "borderWidth": "0dp",
+                                        "padding": "0dp",
+                                        "opacity": 96
+                                    },
+                                    "bindings": {
+                                        "commonProps.disabled": "disabled",
+                                        "style.opacity": "opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.wifi.scan"
+                                        }
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "alignSelf": "center",
+                                        "width": "${constant.settings.layout.wifiRefreshSize}",
+                                        "height": "${constant.settings.layout.wifiRefreshSize}"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "image",
+                                            "id": "icon",
+                                            "styleRefs": [
+                                                "app.iconRecolor"
+                                            ],
+                                            "commonProps": {
+                                                "scrollable": false,
+                                                "clickable": false,
+                                                "pivotX": "50%",
+                                                "pivotY": "50%"
+                                            },
+                                            "imageProps": {
+                                                "src": "${image.wifi.refresh}",
+                                                "innerAlign": "contain"
+                                            },
+                                            "bindings": {
+                                                "commonProps.angle": "angle"
+                                            },
+                                            "placement": {
+                                                "mode": "absolute",
+                                                "x": "0dp",
+                                                "y": "0dp",
+                                                "width": "${constant.settings.layout.wifiRefreshSize}",
+                                                "height": "${constant.settings.layout.wifiRefreshSize}"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "available_networks",
+                            "templateId": "settings_card",
+                            "bindings": {
+                                "commonProps.hidden": "commonProps.hidden"
+                            },
+                            "overrides": {
+                                ".": {
+                                    "style": {
+                                        "padding": "8dp"
+                                    },
+                                    "layout": {
+                                        "gap": "4dp"
+                                    }
+                                }
+                            },
+                            "slots": {
+                                "content": [
+                                    {
+                                        "type": "container",
+                                        "id": "list",
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "column",
+                                            "gap": "4dp"
+                                        },
+                                        "placement": {
+                                            "mode": "flow",
+                                            "width": "match",
+                                            "alignSelf": "stretch"
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "container",
+                                                "id": "items",
+                                                "layout": {
+                                                    "type": "flex",
+                                                    "flexFlow": "column",
+                                                    "gap": "4dp"
+                                                },
+                                                "placement": {
+                                                    "mode": "flow",
+                                                    "width": "match",
+                                                    "alignSelf": "stretch"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "empty",
+                                                "commonProps": {
+                                                    "hidden": true
+                                                },
+                                                "styleRefs": [
+                                                    "app.caption"
+                                                ],
+                                                "labelProps": {
+                                                    "text": "No available networks"
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text",
+                                                    "commonProps.hidden": "commonProps.hidden"
+                                                },
+                                                "placement": {
+                                                    "mode": "flow"
+                                                }
+                                            },
+                                            {
+                                                "type": "container",
+                                                "id": "pager",
+                                                "commonProps": {
+                                                    "hidden": true,
+                                                    "scrollable": false
+                                                },
+                                                "bindings": {
+                                                    "commonProps.hidden": "commonProps.hidden"
+                                                },
+                                                "layout": {
+                                                    "type": "flex",
+                                                    "flexFlow": "row",
+                                                    "mainAlign": "center",
+                                                    "crossAlign": "center",
+                                                    "gap": "8dp"
+                                                },
+                                                "placement": {
+                                                    "mode": "flow",
+                                                    "width": "match",
+                                                    "height": "32dp",
+                                                    "alignSelf": "stretch"
+                                                },
+                                                "children": [
+                                                    {
+                                                        "type": "button",
+                                                        "id": "prev",
+                                                        "commonProps": {
+                                                            "disabled": true,
+                                                            "scrollable": false
+                                                        },
+                                                        "style": {
+                                                            "bgColor": "",
+                                                            "borderWidth": "0dp",
+                                                            "padding": "0dp",
+                                                            "opacity": 96
+                                                        },
+                                                        "layout": {
+                                                            "type": "flex",
+                                                            "flexFlow": "row",
+                                                            "mainAlign": "center",
+                                                            "crossAlign": "center"
+                                                        },
+                                                        "bindings": {
+                                                            "commonProps.disabled": "commonProps.disabled",
+                                                            "style.opacity": "style.opacity"
+                                                        },
+                                                        "events": [
+                                                            {
+                                                                "type": "clicked",
+                                                                "action": "settings.wifi.available.prev"
+                                                            }
+                                                        ],
+                                                        "placement": {
+                                                            "mode": "flow",
+                                                            "width": "36dp",
+                                                            "height": "28dp"
+                                                        },
+                                                        "children": [
+                                                            {
+                                                                "type": "label",
+                                                                "id": "label",
+                                                                "commonProps": {
+                                                                    "clickable": false
+                                                                },
+                                                                "styleRefs": [
+                                                                    "app.caption"
+                                                                ],
+                                                                "style": {
+                                                                    "textAlign": "center"
+                                                                },
+                                                                "labelProps": {
+                                                                    "text": "<"
+                                                                },
+                                                                "placement": {
+                                                                    "mode": "flow",
+                                                                    "alignSelf": "center"
+                                                                }
+                                                            }
+                                                        ]
+                                                    },
+                                                    {
+                                                        "type": "label",
+                                                        "id": "page",
+                                                        "styleRefs": [
+                                                            "app.caption"
+                                                        ],
+                                                        "style": {
+                                                            "textAlign": "center"
+                                                        },
+                                                        "labelProps": {
+                                                            "text": "-- / --"
+                                                        },
+                                                        "bindings": {
+                                                            "labelProps.text": "labelProps.text"
+                                                        },
+                                                        "placement": {
+                                                            "mode": "flow",
+                                                            "width": "64dp",
+                                                            "alignSelf": "center"
+                                                        }
+                                                    },
+                                                    {
+                                                        "type": "button",
+                                                        "id": "next",
+                                                        "commonProps": {
+                                                            "disabled": true,
+                                                            "scrollable": false
+                                                        },
+                                                        "style": {
+                                                            "bgColor": "",
+                                                            "borderWidth": "0dp",
+                                                            "padding": "0dp",
+                                                            "opacity": 96
+                                                        },
+                                                        "layout": {
+                                                            "type": "flex",
+                                                            "flexFlow": "row",
+                                                            "mainAlign": "center",
+                                                            "crossAlign": "center"
+                                                        },
+                                                        "bindings": {
+                                                            "commonProps.disabled": "commonProps.disabled",
+                                                            "style.opacity": "style.opacity"
+                                                        },
+                                                        "events": [
+                                                            {
+                                                                "type": "clicked",
+                                                                "action": "settings.wifi.available.next"
+                                                            }
+                                                        ],
+                                                        "placement": {
+                                                            "mode": "flow",
+                                                            "width": "36dp",
+                                                            "height": "28dp"
+                                                        },
+                                                        "children": [
+                                                            {
+                                                                "type": "label",
+                                                                "id": "label",
+                                                                "commonProps": {
+                                                                    "clickable": false
+                                                                },
+                                                                "styleRefs": [
+                                                                    "app.caption"
+                                                                ],
+                                                                "style": {
+                                                                    "textAlign": "center"
+                                                                },
+                                                                "labelProps": {
+                                                                    "text": ">"
+                                                                },
+                                                                "placement": {
+                                                                    "mode": "flow",
+                                                                    "alignSelf": "center"
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

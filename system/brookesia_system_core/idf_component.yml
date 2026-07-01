@@ -1,0 +1,30 @@
+version: "0.8.0"
+description: ESP-Brookesia system core app, service, runtime, and GUI orchestration framework.
+url: https://github.com/espressif/esp-brookesia/tree/master/system/brookesia_system_core
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  # Inflate for .bpk (ZIP) app package unpacking.
+  espressif/zlib:
+    version: "^1.3.0"
+    require: private
+
+  espressif/brookesia_lib_utils:
+    version: "0.8.*"
+    override_path: ../../utils/brookesia_lib_utils
+    require: public
+
+  espressif/brookesia_service_helper:
+    version: "0.8.*"
+    override_path: ../../service/framework/brookesia_service_helper
+    require: public
+
+  espressif/brookesia_runtime_manager:
+    version: "0.8.*"
+    override_path: ../../runtime/brookesia_runtime_manager
+    require: public
+
+  espressif/brookesia_gui_interface:
+    version: "0.8.*"
+    override_path: ../../gui/brookesia_gui_interface
+    require: public
