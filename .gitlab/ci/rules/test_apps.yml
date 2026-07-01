@@ -35,6 +35,106 @@
       changes: !reference [.patterns-component_brookesia_lib_utils]
 
 #
+# GUI
+#
+.rules:build:test_apps_brookesia_gui_interface:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_gui_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_gui_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+# .rules:build:test_apps_brookesia_gui_lvgl:
+#   rules:
+#     - !reference [.patterns-if-protected]
+#     - !reference [.patterns-if-label-build]
+#     - !reference [.patterns-if-label-target_test]
+#     - !reference [.patterns-if-trigger-job]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-build_system]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-test_apps_brookesia_gui_lvgl]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-component_brookesia_gui_lvgl]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-component_brookesia_gui_interface]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-component_brookesia_hal_interface]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-component_brookesia_service_display]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-component_brookesia_service_manager]
+#     - if: !reference [.patterns-if-dev-push, if]
+#       changes: !reference [.patterns-component_brookesia_lib_utils]
+
+#
+# Runtime
+#
+.rules:build:test_apps_brookesia_runtime_manager:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_runtime_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_runtime_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+.rules:build:test_apps_brookesia_runtime_js:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_runtime_js]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_runtime_js]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_runtime_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+.rules:build:test_apps_brookesia_runtime_lua:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_runtime_lua]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_runtime_lua]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_runtime_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+.rules:build:test_apps_brookesia_runtime_wasm:
+  # wasm-micro-runtime currently fails to compile its ESP-IDF file API path with IDF 6.2.
+  # Keep the test app for PC coverage and re-enable ESP CI after the managed component is compatible.
+  rules:
+    - when: never
+.rules:build:test_apps_brookesia_runtime_elf:
+  # elf_loader 1.x references removed newlib symbols on IDF 6.2.
+  # Keep the test app for PC coverage and re-enable ESP CI after the managed component is compatible.
+  rules:
+    - when: never
+
+#
 # Service
 #
 # brookesia_service_audio
@@ -71,6 +171,31 @@
       changes: !reference [.patterns-component_brookesia_service_manager]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_lib_utils]
+# brookesia_emulation_nes
+.rules:build:test_apps_brookesia_emulation_nes:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_emulation_nes]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_emulation_nes]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_display]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_audio]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_helper]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
 # brookesia_service_custom
 .rules:build:test_apps_brookesia_service_custom:
   rules:
@@ -104,7 +229,7 @@
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_device]
     - if: !reference [.patterns-if-dev-push, if]
-      changes: !reference [.patterns-component_brookesia_service_nvs]
+      changes: !reference [.patterns-component_brookesia_service_storage]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_helper]
     - if: !reference [.patterns-if-dev-push, if]
@@ -117,8 +242,8 @@
       changes: !reference [.patterns-component_brookesia_hal_interface]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_lib_utils]
-# brookesia_service_nvs
-.rules:build:test_apps_brookesia_service_nvs:
+# brookesia_service_display
+.rules:build:test_apps_brookesia_service_display:
   rules:
     - !reference [.patterns-if-protected]
     - !reference [.patterns-if-label-build]
@@ -127,9 +252,74 @@
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-build_system]
     - if: !reference [.patterns-if-dev-push, if]
-      changes: !reference [.patterns-test_apps_brookesia_service_nvs]
+      changes: !reference [.patterns-test_apps_brookesia_service_display]
     - if: !reference [.patterns-if-dev-push, if]
-      changes: !reference [.patterns-component_brookesia_service_nvs]
+      changes: !reference [.patterns-component_brookesia_service_display]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_storage]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_helper]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+# brookesia_service_http
+.rules:build:test_apps_brookesia_service_http:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_service_http]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_http]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_helper]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_adaptor]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+# brookesia_service_helper
+.rules:build:test_apps_brookesia_service_helper:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_service_helper]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_helper]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+# brookesia_service_storage
+.rules:build:test_apps_brookesia_service_storage:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_service_storage]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_storage]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_helper]
     - if: !reference [.patterns-if-dev-push, if]
@@ -150,9 +340,15 @@
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_sntp]
     - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_storage]
+    - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_helper]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_adaptor]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_interface]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_lib_utils]
 # brookesia_service_wifi
@@ -174,6 +370,37 @@
       changes: !reference [.patterns-component_brookesia_service_manager]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_lib_utils]
+# brookesia_service_video
+.rules:build:test_apps_brookesia_service_video:
+  rules:
+    - !reference [.patterns-if-protected]
+    - !reference [.patterns-if-label-build]
+    - !reference [.patterns-if-label-target_test]
+    - !reference [.patterns-if-trigger-job]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-build_system]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-test_apps_brookesia_service_video]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_video]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_helper]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_manager]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_hal_interface]
+    - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_lib_utils]
+
+#
+# System
+#
+.rules:build:test_apps_brookesia_system_core:
+  rules:
+    - when: never
+.rules:build:test_apps_brookesia_system_super:
+  rules:
+    - when: never
 
 #
 # Utils

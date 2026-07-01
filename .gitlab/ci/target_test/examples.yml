@@ -11,12 +11,13 @@ target_test_examples_agent_chatbot:
       artifacts: true
       optional: true
   parallel:
+    # Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.
     matrix:
       - IDF_TARGET: esp32s3
-        IDF_VERSION: "5.5"
+        IDF_VERSION: "6.0"
         ENV_TAG: "esp_vocat"
       - IDF_TARGET: esp32p4
-        IDF_VERSION: "5.5"
+        IDF_VERSION: "6.0"
         ENV_TAG: "esp32p4x_function_ev_board"
   tags:
     - ${IDF_TARGET}
@@ -53,12 +54,13 @@ target_test_examples_service_console:
       artifacts: true
       optional: true
   parallel:
+    # Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.
     matrix:
       - IDF_TARGET: esp32s3
-        IDF_VERSION: "5.5"
+        IDF_VERSION: "6.0"
         ENV_TAG: "esp_vocat"
       - IDF_TARGET: esp32p4
-        IDF_VERSION: "5.5"
+        IDF_VERSION: "6.0"
         ENV_TAG: "esp32p4x_function_ev_board"
   tags:
     - ${IDF_TARGET}
@@ -67,47 +69,41 @@ target_test_examples_service_console:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: examples/service/console
     TEST_ENV: ${ENV_TAG}
-# service/device
-target_test_examples_service_device:
+# service/http
+target_test_examples_service_http:
   extends:
     - .target_test_template
-    - .rules:build:examples_service_device
+    - .rules:build:examples_service_http
   needs:
-    - job: "build_examples_service_device"
+    - job: "build_examples_service_http"
       artifacts: true
       optional: true
   parallel:
-    matrix:
-      - IDF_TARGET: esp32s3
-        IDF_VERSION: "5.5"
-        ENV_TAG: "esp_vocat"
-      - IDF_TARGET: esp32p4
-        IDF_VERSION: "5.5"
-        ENV_TAG: "esp32p4x_function_ev_board"
+    matrix: !reference [.target_test_idf_target_version_with_wifi_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: examples/service/device
+    TEST_FOLDER: examples/service/http
     TEST_ENV: ${ENV_TAG}
-# service/nvs
-target_test_examples_service_nvs:
+# service/storage
+target_test_examples_service_storage:
   extends:
     - .target_test_template
-    - .rules:build:examples_service_nvs
+    - .rules:build:examples_service_storage
   needs:
-    - job: "build_examples_service_nvs"
+    - job: "build_examples_service_storage"
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: examples/service/nvs
+    TEST_FOLDER: examples/service/storage
     TEST_ENV: ${ENV_TAG}
 # service/wifi
 target_test_examples_service_wifi:
@@ -119,11 +115,33 @@ target_test_examples_service_wifi:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_with_wifi_matrix]
+    matrix: !reference [.target_test_idf_target_version_with_wifi_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: examples/service/wifi
+    TEST_ENV: ${ENV_TAG}
+# system/super
+target_test_examples_system_super:
+  extends:
+    - .target_test_template
+    - .rules:build:examples_system_super
+  needs:
+    - job: "build_examples_system_super"
+      artifacts: true
+      optional: true
+  parallel:
+    # Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.
+    matrix:
+      - IDF_TARGET: esp32p4
+        IDF_VERSION: "6.0"
+        ENV_TAG: "esp32p4x_function_ev_board"
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: examples/system/super
     TEST_ENV: ${ENV_TAG}

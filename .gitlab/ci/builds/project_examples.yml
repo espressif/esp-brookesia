@@ -29,22 +29,22 @@ build_examples_service_console:
     - .rules:build:examples_service_console
   variables:
     EXAMPLE_DIR: examples/service/console
-# service/device
-build_examples_service_device:
-  extends:
-    - .build_template_without_large_artifacts
-    - .build_idf_release_version_with_board
-    - .rules:build:examples_service_device
-  variables:
-    EXAMPLE_DIR: examples/service/device
-# service/nvs
-build_examples_service_nvs:
+# service/http
+build_examples_service_http:
   extends:
     - .build_template
     - .build_idf_release_version_general
-    - .rules:build:examples_service_nvs
+    - .rules:build:examples_service_http
   variables:
-    EXAMPLE_DIR: examples/service/nvs
+    EXAMPLE_DIR: examples/service/http
+# service/storage
+build_examples_service_storage:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:examples_service_storage
+  variables:
+    EXAMPLE_DIR: examples/service/storage
 # service/wifi
 build_examples_service_wifi:
   extends:
@@ -53,3 +53,15 @@ build_examples_service_wifi:
     - .rules:build:examples_service_wifi
   variables:
     EXAMPLE_DIR: examples/service/wifi
+
+#
+# System
+#
+# system/super
+build_examples_system_super:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_with_board
+    - .rules:build:examples_system_super
+  variables:
+    EXAMPLE_DIR: examples/system/super

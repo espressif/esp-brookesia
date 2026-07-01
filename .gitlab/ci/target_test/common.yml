@@ -1,8 +1,8 @@
 variables:
-  DOCKER_TARGET_TEST_v5_5_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/target-test-env-v5.5:2"
+  DOCKER_TARGET_TEST_v6_0_ENV_IMAGE: "${CI_DOCKER_REGISTRY}/target-test-env-v6.0:2"
 
 .target_test_template:
-  image: ${DOCKER_TARGET_TEST_v5_5_ENV_IMAGE}
+  image: ${DOCKER_TARGET_TEST_v6_0_ENV_IMAGE}
   stage: target_test
   timeout: 4 hour
   cache:
@@ -29,40 +29,27 @@ variables:
     - pip install -r .gitlab/requirements/requirement.pytest.txt
     - pytest ${TEST_FOLDER} --target ${TEST_TARGET} --env ${TEST_ENV} --junitxml=XUNIT_RESULT.xml
 
-.target_test_idf_target_version_general_matrix:
+# Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.
+.target_test_idf_target_version_general_psram_default_matrix:
   - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
-    ENV_TAG: "generic"
-  - IDF_TARGET: esp32p4
-    IDF_VERSION: "5.5"
-    ENV_TAG: "jtag,esp32p4_rev3"
-
-.target_test_idf_target_version_general_with_psram_matrix:
-  - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
-    ENV_TAG: "generic"
-  - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
+    IDF_VERSION: "6.0"
     ENV_TAG: "generic,octal-psram"
   - IDF_TARGET: esp32p4
-    IDF_VERSION: "5.5"
+    IDF_VERSION: "6.0"
     ENV_TAG: "jtag,esp32p4_rev3"
 
-.target_test_idf_target_version_with_wifi_matrix:
+.target_test_idf_target_version_with_wifi_psram_default_matrix:
   - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
-    ENV_TAG: "generic"
-  - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
+    IDF_VERSION: "6.0"
     ENV_TAG: "generic,octal-psram"
   - IDF_TARGET: esp32p4
-    IDF_VERSION: "5.5"
+    IDF_VERSION: "6.0"
     ENV_TAG: "esp32p4x_function_ev_board"
 
 .target_test_idf_target_version_with_board_matrix:
   - IDF_TARGET: esp32s3
-    IDF_VERSION: "5.5"
+    IDF_VERSION: "6.0"
     ENV_TAG: "esp_vocat"
   - IDF_TARGET: esp32p4
-    IDF_VERSION: "5.5"
+    IDF_VERSION: "6.0"
     ENV_TAG: "esp32p4x_function_ev_board"

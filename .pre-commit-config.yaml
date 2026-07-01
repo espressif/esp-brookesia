@@ -11,11 +11,16 @@ exclude: |
     | .*/boards/(?!.*sdkconfig\.defaults\.board$).*
     | .*/squareline_project/.*
     | .*/squareline_ui/.*
-    | agent/brookesia_agent_coze/coze/.*
-    | agent/brookesia_agent_openai/openai/.*
-    | agent/brookesia_agent_xiaozhi/xiaozhi/.*
+    | .*.wasm
+    | .*.elf
+    | service/agent/brookesia_agent_coze/coze/.*
+    | service/agent/brookesia_agent_openai/openai/.*
+    | service/agent/brookesia_agent_xiaozhi/xiaozhi/.*
     | docs/.*
     | hal/brookesia_hal_boards/.*/.*
+    | runtime/brookesia_runtime_js/qjs_core/.*
+    | runtime/brookesia_runtime_js/quickjs-ng/.*
+    | service/emulation/brookesia_emulation_nes/src/nofrendo/.*
   )
 repos:
   - repo: https://github.com/igrr/astyle_py.git

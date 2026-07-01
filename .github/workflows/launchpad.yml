@@ -45,6 +45,7 @@ jobs:
     outputs:
       agent-chatbot: ${{ steps.filter.outputs.agent-chatbot }}
       service-console: ${{ steps.filter.outputs.service-console }}
+      system-super: ${{ steps.filter.outputs.system-super }}
     steps:
       - uses: actions/checkout@v3
       - uses: dorny/paths-filter@v3
@@ -55,7 +56,6 @@ jobs:
               - 'examples/agent/chatbot/**'
               - 'hal/**'
               - 'service/**'
-              - 'expression/**'
               - 'utils/**'
               - 'plugin/**'
               - '.github/tools/build_with_board_manager.sh'
@@ -65,7 +65,19 @@ jobs:
               - 'examples/service/console/**'
               - 'hal/**'
               - 'service/**'
-              - 'expression/**'
+              - 'utils/**'
+              - 'plugin/**'
+              - '.github/tools/build_with_board_manager.sh'
+              - '.github/tools/generate_launchpad_*.sh'
+              - '.github/workflows/launchpad.yml'
+            system-super:
+              - 'examples/system/super/**'
+              - 'app/**'
+              - 'gui/**'
+              - 'hal/**'
+              - 'runtime/**'
+              - 'service/**'
+              - 'system/**'
               - 'utils/**'
               - 'plugin/**'
               - '.github/tools/build_with_board_manager.sh'
@@ -90,7 +102,6 @@ jobs:
           - espressif/esp32_s3_korvo2_v3
           - espressif/esp_vocat_board_v1_0
           - espressif/esp_vocat_board_v1_2
-          - espressif/esp32_p4_function_ev
           - espressif/esp32_p4x_function_ev
           # - espressif/esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
           # - espressif/esp32_s31_korvo1 # TODO: ESP32-S31 chip is not supported by Launchpad yet
@@ -157,7 +168,6 @@ jobs:
           - espressif/esp32_s3_korvo2_v3
           - espressif/esp_vocat_board_v1_0
           - espressif/esp_vocat_board_v1_2
-          - espressif/esp32_p4_function_ev
           - espressif/esp32_p4x_function_ev
           # - espressif/esp_sensair_shuttle # TODO: ESP32-C5 chip is not supported by Launchpad yet
           # - espressif/esp32_s31_korvo1 # TODO: ESP32-S31 chip is not supported by Launchpad yet
@@ -206,8 +216,59 @@ jobs:
           path: images/service/console/
           overwrite: true
 
+  build-examples-system-super:
+    name: "Build System Super"
+    needs: changes
+    if: github.event_name != 'pull_request' || needs.changes.outputs.system-super == 'true'
+    runs-on: ubuntu-latest
+    container: espressif/idf:release-v5.5
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        board:
+          #
+          # Espressif boards
+          #
+          - espressif/esp32_p4x_function_ev
+          - espressif/esp32_s31_korvo1 # TODO: ESP32-S31 chip is not supported by Launchpad yet
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+      - run: mkdir -p images/system/super
+      - name: Prepare board metadata
+        shell: bash
+        run: |
+          BOARD_REF="${{ matrix.board }}"
+          echo "BOARD_REF=$BOARD_REF" >> $GITHUB_ENV
+          echo "BOARD_NAME=${BOARD_REF##*/}" >> $GITHUB_ENV
+          echo "BOARD_ARTIFACT_NAME=${BOARD_REF//\//-}" >> $GITHUB_ENV
+      - name: Get board chip type
+        shell: bash
+        run: |
+          CHIP=$(grep "^chip:" "hal/brookesia_hal_boards/boards/$BOARD_REF/board_info.yaml" | awk '{print $2}')
+          echo "CHIP=$CHIP" >> $GITHUB_ENV
+          echo "Board chip: $CHIP"
+      - name: Build system/super for ${{ matrix.board }}
+        shell: bash
+        run: |
+          . ${IDF_PATH}/export.sh
+          $GITHUB_WORKSPACE/.github/tools/build_with_board_manager.sh \
+            -p examples/system/super \
+            -b "$BOARD_REF" \
+            -c "$CHIP" \
+            -o $GITHUB_WORKSPACE/images/system/super \
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-images-system-super-${{ env.BOARD_ARTIFACT_NAME }}
+          path: images/system/super/
+          overwrite: true
+
   deploy:
-    needs: [build-examples-agent-chatbot, build-examples-service-console]
+    needs: [build-examples-agent-chatbot, build-examples-service-console, build-examples-system-super]
     # Only deploy on master pushes (or manual dispatch); skip for pull requests.
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/master')
 
@@ -233,6 +294,7 @@ jobs:
           fi
           mkdir -p images/agent/chatbot
           mkdir -p images/service/console
+          mkdir -p images/system/super
 
       - name: Download agent/chatbot builds
         uses: actions/download-artifact@v4
@@ -248,6 +310,13 @@ jobs:
           path: images/service/console/
           merge-multiple: true
 
+      - name: Download system/super builds
+        uses: actions/download-artifact@v4
+        with:
+          pattern: build-images-system-super-*
+          path: images/system/super/
+          merge-multiple: true
+
       - name: Generate launchpad configs
         run: |
           # Generate agent/chatbot launchpad
@@ -258,6 +327,10 @@ jobs:
           cd $GITHUB_WORKSPACE/images/service/console/
           ls -la
           $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY service/console
+          # Generate system/super launchpad
+          cd $GITHUB_WORKSPACE/images/system/super/
+          ls -la
+          $GITHUB_WORKSPACE/.github/tools/generate_launchpad_config.sh $GITHUB_REPOSITORY system/super
 
       - name: Generate index page
         run: |

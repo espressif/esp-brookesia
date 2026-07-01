@@ -1,7 +1,11 @@
+variables:
+  ESP_IDF_COMPONENT_MANAGER_VERSION: ">=3"
+
 .build_template: &build_template
   stage: build
   tags:
     - build
+    - nocaps
   image: ${IMAGE}
   variables:
     # Enable ccache for all build jobs. See configure_ci_environment.sh for more ccache related settings.
@@ -39,7 +43,7 @@
     EXAMPLE_TARGET: "all"
   script:
     - pip list | grep idf-component-manager
-    - pip install --upgrade "idf-component-manager${IDF_COMPONENT_MANAGER_VERSION}"
+    - pip install --upgrade "idf-component-manager${ESP_IDF_COMPONENT_MANAGER_VERSION}"
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
@@ -73,51 +77,42 @@
     EXAMPLE_TARGET: "all"
   script:
     - pip list | grep idf-component-manager
-    - pip install --upgrade "idf-component-manager${IDF_COMPONENT_MANAGER_VERSION}"
+    - pip install --upgrade "idf-component-manager${ESP_IDF_COMPONENT_MANAGER_VERSION}"
     - pip install idf_build_apps
     - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} -vv
 
 # Target ESP-IDF versions
+# Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.
 .build_idf_release_version_general:
   parallel:
     matrix:
-      - IMAGE: espressif/idf:release-v5.5
-        IDF_COMPONENT_MANAGER_VERSION: "~=2.4"
-      - IMAGE: espressif/idf:latest
-        IDF_COMPONENT_MANAGER_VERSION: ">=3"
+      - IMAGE: "espressif/idf:release-v6.0"
 
 .build_idf_release_version_with_board:
   parallel:
     matrix:
-      - IMAGE: espressif/idf:release-v5.5
-        IDF_COMPONENT_MANAGER_VERSION: "~=2.4"
+      - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32s3"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: espressif/idf:release-v5.5
-        IDF_COMPONENT_MANAGER_VERSION: "~=2.4"
+      - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: espressif/idf:release-v5.5
-        IDF_COMPONENT_MANAGER_VERSION: "~=2.4"
+      - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32c5"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: espressif/idf:latest
-        IDF_COMPONENT_MANAGER_VERSION: ">=3"
+      - IMAGE: "espressif/idf:latest"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
 
 .build_idf_release_version_for_chatbot:
   parallel:
     matrix:
-      - IMAGE: espressif/idf:release-v5.5
-        IDF_COMPONENT_MANAGER_VERSION: "~=2.4"
+      - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32s3"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: espressif/idf:release-v5.5
-        IDF_COMPONENT_MANAGER_VERSION: "~=2.4"
+      - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
-      - IMAGE: espressif/idf:latest
-        IDF_COMPONENT_MANAGER_VERSION: ">=3"
+      - IMAGE: "espressif/idf:latest"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="

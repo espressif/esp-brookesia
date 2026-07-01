@@ -1,4 +1,6 @@
 .config
+# Local PC build deps (Boost/Lua/Wasmtime/QuickJS trees from README experiments)
+.deps/
 *.o
 *.pyc
 *.orig
@@ -53,6 +55,7 @@ flake8_output.txt
 
 # esp-idf default build directory name
 build
+**/bin/
 _build
 build_esp*/
 build_linux*/
@@ -79,6 +82,8 @@ board_manager.defaults
 sdkconfig.bmgr_board.backup
 sdkconfig.bmgr_board.old
 **/gen_bmgr_codes/
+!examples/gui/json_ui_apps/components/gen_bmgr_codes/
+!examples/gui/json_ui_apps/components/gen_bmgr_codes/**
 
 # private key files
 *.pem
@@ -97,3 +102,6 @@ sdkconfig.bmgr_board.old
 **/squareline_ui/CMakeLists.txt
 **/squareline_ui/filelist.txt
 **/squareline_ui/project.info
+
+# Local planning notes (not part of upstream docs)
+docs/commits_rpk_runtime_feature.md

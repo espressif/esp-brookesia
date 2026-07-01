@@ -19,6 +19,70 @@ build_test_apps_brookesia_hal_interface:
     EXAMPLE_DIR: hal/brookesia_hal_interface/test_apps
 
 #
+# GUI
+#
+# brookesia_gui_interface
+build_test_apps_brookesia_gui_interface:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_gui_interface
+  variables:
+    EXAMPLE_DIR: gui/brookesia_gui_interface/test_apps
+# brookesia_gui_lvgl
+# build_test_apps_brookesia_gui_lvgl:
+#   extends:
+#     - .build_template_without_large_artifacts
+#     - .build_idf_release_version_with_board
+#     - .rules:build:test_apps_brookesia_gui_lvgl
+#   variables:
+#     EXAMPLE_DIR: gui/brookesia_gui_lvgl/test_apps
+
+#
+# Runtime
+#
+# brookesia_runtime_manager
+build_test_apps_brookesia_runtime_manager:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_runtime_manager
+  variables:
+    EXAMPLE_DIR: runtime/brookesia_runtime_manager/test_apps
+# brookesia_runtime_js
+build_test_apps_brookesia_runtime_js:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_runtime_js
+  variables:
+    EXAMPLE_DIR: runtime/brookesia_runtime_js/test_apps
+# brookesia_runtime_lua
+build_test_apps_brookesia_runtime_lua:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_runtime_lua
+  variables:
+    EXAMPLE_DIR: runtime/brookesia_runtime_lua/test_apps
+# brookesia_runtime_wasm
+build_test_apps_brookesia_runtime_wasm:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_runtime_wasm
+  variables:
+    EXAMPLE_DIR: runtime/brookesia_runtime_wasm/test_apps
+# brookesia_runtime_elf
+build_test_apps_brookesia_runtime_elf:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_runtime_elf
+  variables:
+    EXAMPLE_DIR: runtime/brookesia_runtime_elf/test_apps
+
+#
 # Service
 #
 # brookesia_service_audio
@@ -28,7 +92,7 @@ build_test_apps_brookesia_service_audio:
     - .build_idf_release_version_with_board
     - .rules:build:test_apps_brookesia_service_audio
   variables:
-    EXAMPLE_DIR: service/brookesia_service_audio/test_apps
+    EXAMPLE_DIR: service/media/brookesia_service_audio/test_apps
 # brookesia_service_custom
 build_test_apps_brookesia_service_custom:
   extends:
@@ -36,7 +100,7 @@ build_test_apps_brookesia_service_custom:
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_custom
   variables:
-    EXAMPLE_DIR: service/brookesia_service_custom/test_apps
+    EXAMPLE_DIR: service/framework/brookesia_service_custom/test_apps
 # brookesia_service_device
 build_test_apps_brookesia_service_device:
   extends:
@@ -44,7 +108,31 @@ build_test_apps_brookesia_service_device:
     - .build_idf_release_version_with_board
     - .rules:build:test_apps_brookesia_service_device
   variables:
-    EXAMPLE_DIR: service/brookesia_service_device/test_apps
+    EXAMPLE_DIR: service/system/brookesia_service_device/test_apps
+# brookesia_service_display
+build_test_apps_brookesia_service_display:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_service_display
+  variables:
+    EXAMPLE_DIR: service/media/brookesia_service_display/test_apps
+# brookesia_service_http
+build_test_apps_brookesia_service_http:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_service_http
+  variables:
+    EXAMPLE_DIR: service/network/brookesia_service_http/test_apps
+# brookesia_service_helper
+build_test_apps_brookesia_service_helper:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_service_helper
+  variables:
+    EXAMPLE_DIR: service/framework/brookesia_service_helper/test_apps
 # brookesia_service_manager
 build_test_apps_brookesia_service_manager:
   extends:
@@ -52,15 +140,23 @@ build_test_apps_brookesia_service_manager:
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_manager
   variables:
-    EXAMPLE_DIR: service/brookesia_service_manager/test_apps
-# brookesia_service_nvs
-build_test_apps_brookesia_service_nvs:
+    EXAMPLE_DIR: service/framework/brookesia_service_manager/test_apps
+# brookesia_emulation_nes
+build_test_apps_brookesia_emulation_nes:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_emulation_nes
+  variables:
+    EXAMPLE_DIR: service/emulation/brookesia_emulation_nes/test_apps
+# brookesia_service_storage
+build_test_apps_brookesia_service_storage:
   extends:
     - .build_template
     - .build_idf_release_version_general
-    - .rules:build:test_apps_brookesia_service_nvs
+    - .rules:build:test_apps_brookesia_service_storage
   variables:
-    EXAMPLE_DIR: service/brookesia_service_nvs/test_apps
+    EXAMPLE_DIR: service/system/brookesia_service_storage/test_apps
 # brookesia_service_sntp
 build_test_apps_brookesia_service_sntp:
   extends:
@@ -68,7 +164,7 @@ build_test_apps_brookesia_service_sntp:
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_sntp
   variables:
-    EXAMPLE_DIR: service/brookesia_service_sntp/test_apps
+    EXAMPLE_DIR: service/network/brookesia_service_sntp/test_apps
 # brookesia_service_wifi
 build_test_apps_brookesia_service_wifi:
   extends:
@@ -76,7 +172,35 @@ build_test_apps_brookesia_service_wifi:
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_wifi
   variables:
-    EXAMPLE_DIR: service/brookesia_service_wifi/test_apps
+    EXAMPLE_DIR: service/network/brookesia_service_wifi/test_apps
+# brookesia_service_video
+build_test_apps_brookesia_service_video:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_service_video
+  variables:
+    EXAMPLE_DIR: service/media/brookesia_service_video/test_apps
+
+#
+# System
+#
+# brookesia_system_core
+build_test_apps_brookesia_system_core:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_system_core
+  variables:
+    EXAMPLE_DIR: system/brookesia_system_core/test_apps
+# brookesia_system_super
+build_test_apps_brookesia_system_super:
+  extends:
+    - .build_template_without_large_artifacts
+    - .build_idf_release_version_with_board
+    - .rules:build:test_apps_brookesia_system_super
+  variables:
+    EXAMPLE_DIR: system/brookesia_system_super/test_apps
 
 #
 # Utils

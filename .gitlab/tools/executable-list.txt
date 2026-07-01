@@ -10,3 +10,5 @@
 .github/tools/get_example_version.sh
 
 .gitlab/tools/run_test_apps.py
+
+hal/brookesia_hal_linux/scripts/install_linux_deps.sh
