@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.0 - 2026-06-28
+
+### Enhancements:
+
+- feat(mcp): align MCP utility integration with the refreshed service manager APIs.
+
+### Documentation:
+
+- docs(release): align component metadata, README content, and API documentation for v0.8.0.
+
 ## v0.7.1 - 2026-05-28
 
 ### Breaking Changes:

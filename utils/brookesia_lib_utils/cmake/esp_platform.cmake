@@ -6,6 +6,15 @@ idf_component_register(
     INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
     PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
     REQUIRES ${COMPONENT_REQUIRES}
+    PRIV_REQUIRES freertos heap pthread
+)
+
+# Wrap explicit pthread mutex init/destroy so Brookesia can allocate mutex semaphores with caps that avoid
+# unnecessary Internal SRAM pressure on ESP platforms.
+target_link_options(${COMPONENT_LIB}
+    INTERFACE
+        "-Wl,--wrap=pthread_mutex_init"
+        "-Wl,--wrap=pthread_mutex_destroy"
 )
 
 include(package_manager)

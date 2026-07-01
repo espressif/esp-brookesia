@@ -2,4 +2,4 @@
 dependencies:
   espressif/brookesia_lib_utils:
     version: "*"
-    override_path: "../../../../../brookesia_lib_utils"
+    override_path: ../../../..

@@ -4,7 +4,15 @@
 set(COMPONENT_LIB brookesia_lib_utils_impl)
 set(component_pc_config_compile_definitions "")
 
-find_package(Boost REQUIRED COMPONENTS thread system chrono json)
+if(EMSCRIPTEN)
+    set(BROOKESIA_LIB_UTILS_WASM_SINGLE_THREAD_SCHEDULER ON CACHE BOOL
+        "Use browser single-thread TaskScheduler backend" FORCE)
+    list(REMOVE_ITEM COMPONENT_SRCS_CPP "${COMPONENT_SRC_DIR}/task_scheduler.cpp")
+    list(APPEND COMPONENT_SRCS_CPP "${COMPONENT_DIR}/wasm_shims/task_scheduler_wasm.cpp")
+    list(APPEND COMPONENT_SRCS_CPP "${COMPONENT_DIR}/wasm_shims/boost_json_wasm.cpp")
+else()
+    find_package(Boost REQUIRED COMPONENTS thread system chrono json)
+endif()
 
 option(
     BROOKESIA_LIB_UTILS_PC_CONFIG_ENABLE_DEBUG_LOG
@@ -184,6 +192,11 @@ if(BROOKESIA_LIB_UTILS_PC_CONFIG_THREAD_CONFIG_STACK_IN_EXT)
 else()
     list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_UTILS_THREAD_CONFIG_STACK_IN_EXT=0)
 endif()
+if(BROOKESIA_LIB_UTILS_WASM_SINGLE_THREAD_SCHEDULER)
+    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_LIB_UTILS_WASM_SINGLE_THREAD_SCHEDULER=1)
+else()
+    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_LIB_UTILS_WASM_SINGLE_THREAD_SCHEDULER=0)
+endif()
 
 add_library(${COMPONENT_LIB} STATIC
     ${COMPONENT_SRCS_C}
@@ -193,19 +206,29 @@ add_library(${COMPONENT_LIB} STATIC
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
 target_include_directories(${COMPONENT_LIB}
     PUBLIC
+        $<$<BOOL:${EMSCRIPTEN}>:${COMPONENT_DIR}/wasm_shims>
         ${COMPONENT_INCLUDE_DIRS}
-        ${Boost_INCLUDE_DIRS}
     PRIVATE
         ${COMPONENT_PRIVATE_INCLUDE_DIRS}
 )
+if(Boost_INCLUDE_DIRS)
+    target_include_directories(${COMPONENT_LIB} PUBLIC ${Boost_INCLUDE_DIRS})
+endif()
 
-target_link_libraries(${COMPONENT_LIB}
-    PUBLIC
-        Boost::thread
-        Boost::system
-        Boost::chrono
-        Boost::json
-)
+if(EMSCRIPTEN)
+    target_link_options(${COMPONENT_LIB}
+        PUBLIC
+            -sUSE_BOOST_HEADERS=1
+    )
+else()
+    target_link_libraries(${COMPONENT_LIB}
+        PUBLIC
+            Boost::thread
+            Boost::system
+            Boost::chrono
+            Boost::json
+    )
+endif()
 
 target_compile_definitions(${COMPONENT_LIB}
     PUBLIC

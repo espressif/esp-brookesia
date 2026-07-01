@@ -15,7 +15,7 @@
 #include <optional>
 #include <string>
 #include <vector>
-#include <boost/signals2.hpp>
+#include "brookesia/lib_utils/signal.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "boost/thread/mutex.hpp"
@@ -153,11 +153,11 @@ public:
     /**
      * @brief Signal type emitted for each profiling snapshot.
      */
-    using ProfilingSignal = boost::signals2::signal<void(const ProfileSnapshot &)>;
+    using ProfilingSignal = esp_brookesia::lib_utils::signal<void(const ProfileSnapshot &)>;
     /**
      * @brief Signal type emitted when threshold matches are found.
      */
-    using ThresholdSignal = boost::signals2::signal<void(const std::vector<TaskInfo>&)>;
+    using ThresholdSignal = esp_brookesia::lib_utils::signal<void(const std::vector<TaskInfo>&)>;
 
     /**
      * @brief Signal connection type
@@ -166,7 +166,7 @@ public:
      *       When this object is destroyed, the corresponding callback is automatically disconnected.
      *       It is recommended to use `std::move()` to transfer ownership for manual management of the connection lifetime.
      */
-    using SignalConnection = boost::signals2::scoped_connection;
+    using SignalConnection = esp_brookesia::lib_utils::scoped_connection;
 
     /// Copy construction is not supported.
     ThreadProfiler(const ThreadProfiler &) = delete;
