@@ -1,0 +1,24 @@
+menu "ESP-Brookesia: Runtime WASM Configurations"
+    config BROOKESIA_RUNTIME_WASM_ENABLE_AUTO_REGISTER
+        bool "Enable auto-register as runtime backend service"
+        default y
+
+    menuconfig BROOKESIA_RUNTIME_WASM_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    config BROOKESIA_RUNTIME_WASM_WAMR_ENABLED
+        bool
+        default y
+        select WAMR_ENABLE_REF_TYPES
+
+    if BROOKESIA_RUNTIME_WASM_ENABLE_DEBUG_LOG
+        config BROOKESIA_RUNTIME_WASM_BACKEND_ENABLE_DEBUG_LOG
+            bool "Backend"
+            default y
+
+        config BROOKESIA_RUNTIME_WASM_HOST_IMPORT_ENABLE_DEBUG_LOG
+            bool "Host Import"
+            default y
+    endif
+endmenu

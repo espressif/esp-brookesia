@@ -1,0 +1,14 @@
+version: "0.8.0"
+description: ESP-Brookesia Lua runtime backend.
+url: https://github.com/espressif/esp-brookesia/tree/master/runtime/brookesia_runtime_lua
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_runtime_manager:
+    version: "0.8.*"
+    override_path: ../brookesia_runtime_manager
+    require: public
+
+  georgik/lua:
+    version: "5.5.*"
+    require: public

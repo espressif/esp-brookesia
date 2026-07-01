@@ -1,0 +1,58 @@
+menu "ESP-Brookesia: GUI LVGL Configurations"
+    config BROOKESIA_GUI_LVGL_DEFAULT_CONFIGS
+        bool
+        select LV_USE_LABEL
+        select LV_USE_BUTTON
+        select LV_USE_BUTTONMATRIX
+        select LV_USE_IMAGE
+        select LV_USE_CANVAS
+        select LV_USE_CHECKBOX
+        select LV_USE_DROPDOWN
+        select LV_USE_KEYBOARD
+        select LV_USE_LINE
+        select LV_USE_SLIDER
+        select LV_USE_BAR
+        select LV_USE_ARC
+        select LV_USE_SPINNER
+        select LV_USE_SWITCH
+        select LV_USE_TEXTAREA
+        select LV_USE_TABLE
+        select LV_USE_FLEX
+        select LV_USE_GRID
+        select LV_USE_IMGFONT
+        select LV_USE_FS_STDIO
+        select LV_USE_FS_POSIX
+        select LV_USE_FLOAT
+        select LV_USE_GESTURE_RECOGNITION
+        default y
+
+    menuconfig BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG
+        config BROOKESIA_GUI_LVGL_BACKEND_ENABLE_DEBUG_LOG
+            bool "Backend"
+            default y
+
+        config BROOKESIA_GUI_LVGL_EVENT_ENABLE_DEBUG_LOG
+            bool "Event"
+            default y
+
+        config BROOKESIA_GUI_LVGL_FACTORY_ENABLE_DEBUG_LOG
+            bool "Factory"
+            default y
+
+        config BROOKESIA_GUI_LVGL_LAYOUT_ENABLE_DEBUG_LOG
+            bool "Layout"
+            default y
+
+        config BROOKESIA_GUI_LVGL_PROPS_ENABLE_DEBUG_LOG
+            bool "Props"
+            default y
+
+        config BROOKESIA_GUI_LVGL_STYLE_ENABLE_DEBUG_LOG
+            bool "Style"
+            default y
+    endif
+endmenu

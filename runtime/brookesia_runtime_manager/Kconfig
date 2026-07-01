@@ -1,0 +1,19 @@
+menu "ESP-Brookesia: Runtime Manager Configurations"
+    menuconfig BROOKESIA_RUNTIME_MANAGER_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_RUNTIME_MANAGER_ENABLE_DEBUG_LOG
+        config BROOKESIA_RUNTIME_MANAGER_CORE_ENABLE_DEBUG_LOG
+            bool "Core"
+            default y
+
+        config BROOKESIA_RUNTIME_MANAGER_HOST_BRIDGE_ENABLE_DEBUG_LOG
+            bool "Host Bridge"
+            default y
+
+        config BROOKESIA_RUNTIME_MANAGER_FUNCTION_BRIDGE_ENABLE_DEBUG_LOG
+            bool "Function Bridge"
+            default y
+    endif
+endmenu

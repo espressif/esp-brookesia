@@ -1,0 +1,27 @@
+#
+# ESP Platform
+#
+idf_component_register(
+    SRCS ${COMPONENT_SRCS_C} ${COMPONENT_SRCS_CPP}
+    INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
+    PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
+    REQUIRES ${COMPONENT_REQUIRES}
+)
+
+target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)
+
+target_compile_definitions(${COMPONENT_LIB}
+    PRIVATE
+        BROOKESIA_RUNTIME_WASM_HAS_WAMR=1
+)
+
+if(CONFIG_BROOKESIA_RUNTIME_WASM_ENABLE_AUTO_REGISTER)
+    set(BROOKESIA_RUNTIME_WASM_PLUGIN_SYMBOL runtime_wasm_backend_symbol)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        BROOKESIA_RUNTIME_WASM_PLUGIN_SYMBOL=${BROOKESIA_RUNTIME_WASM_PLUGIN_SYMBOL}
+    )
+    target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${BROOKESIA_RUNTIME_WASM_PLUGIN_SYMBOL}")
+endif()
+
+include(package_manager)
+cu_pkg_define_version(${COMPONENT_DIR})

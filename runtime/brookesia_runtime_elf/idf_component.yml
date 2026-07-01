@@ -1,0 +1,14 @@
+version: "0.8.0"
+description: ESP-Brookesia ELF runtime backend powered by elf_loader.
+url: https://github.com/espressif/esp-brookesia/tree/master/runtime/brookesia_runtime_elf
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/elf_loader:
+    version: "1.*"
+    require: private
+
+  espressif/brookesia_runtime_manager:
+    version: "0.8.*"
+    override_path: ../brookesia_runtime_manager
+    require: public

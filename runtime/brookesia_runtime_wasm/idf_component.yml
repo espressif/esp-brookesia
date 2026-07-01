@@ -1,0 +1,13 @@
+version: "0.8.0"
+description: ESP-Brookesia WebAssembly runtime backend.
+url: https://github.com/espressif/esp-brookesia/tree/master/runtime/brookesia_runtime_wasm
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/wasm-micro-runtime:
+    version: "^2"
+
+  espressif/brookesia_runtime_manager:
+    version: "0.8.*"
+    override_path: ../brookesia_runtime_manager
+    require: public

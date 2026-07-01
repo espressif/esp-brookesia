@@ -1,0 +1,14 @@
+version: "0.8.0"
+description: ESP-Brookesia JavaScript runtime backend powered by QuickJS.
+url: https://github.com/espressif/esp-brookesia/tree/master/runtime/brookesia_runtime_js
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_runtime_manager:
+    version: "0.8.*"
+    override_path: ../brookesia_runtime_manager
+    require: public
+
+  espressif/quickjs-ng:
+    version: "0.14.*"
+    require: private

@@ -1,0 +1,29 @@
+version: "0.8.0"
+description: ESP-Brookesia LVGL backend and image packaging helpers for GUI documents.
+url: https://github.com/espressif/esp-brookesia/tree/master/gui/brookesia_gui_lvgl
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_gui_interface:
+    version: "0.8.*"
+    override_path: ../brookesia_gui_interface
+    require: public
+
+  espressif/brookesia_lib_utils:
+    version: "0.8.*"
+    override_path: ../../utils/brookesia_lib_utils
+    require: public
+
+  espressif/brookesia_hal_interface:
+    version: "0.8.*"
+    override_path: ../../hal/brookesia_hal_interface
+    require: private
+
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../service/media/brookesia_service_display
+    require: private
+
+  espressif/esp_lvgl_adapter:
+    version: "0.5.*"
+    require: private

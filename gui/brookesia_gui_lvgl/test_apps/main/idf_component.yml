@@ -1,0 +1,10 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/esp_board_manager:
+    version: "*"
+  espressif/brookesia_lib_utils:
+    override_path: ../../../../utils/brookesia_lib_utils
+  espressif/brookesia_hal_boards:
+    override_path: ../../../../hal/brookesia_hal_boards
+  espressif/brookesia_gui_lvgl:
+    override_path: ../..
