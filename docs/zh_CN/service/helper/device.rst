@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-- 公共头文件： ``#include "brookesia/service_helper/device.hpp"``
+- 公共头文件： ``#include "brookesia/service_helper/system/device.hpp"``
 
 .. _service-helper-device-sec-01:
 
@@ -19,4 +19,4 @@
 API 参考
 --------
 
-.. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/device.inc
+.. include-build-file:: inc/service/framework/brookesia_service_helper/include/brookesia/service_helper/system/device.inc

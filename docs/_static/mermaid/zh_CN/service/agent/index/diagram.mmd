@@ -1,0 +1,17 @@
+flowchart TD
+    A["应用 / 服务 / 示例"]
+    B["**brookesia_service_helper**<br/>· 智能体 helper 合约<br/>· 参数与 schema 封装<br/>· 面向业务的调用入口"]
+    C["**brookesia_agent_manager**<br/>· 插件生命周期<br/>· 智能体状态机<br/>· 共享服务接入"]
+    D["具体智能体"]
+    E["**Coze**<br/>· 云端智能体接入<br/>· 会话与工具调用<br/>· 产品化扩展入口"]
+    F["**OpenAI**<br/>· 大模型对话接入<br/>· 工具调用适配<br/>· 流式响应处理"]
+    G["**小智**<br/>· 本地设备交互<br/>· 语音/表情联动<br/>· 设备侧智能体形态"]
+    H["**共享服务**<br/>· Audio<br/>· Device 时间同步<br/>· Storage"]
+
+    A -->|"调用 helper"| B
+    B -->|"委托管理器"| C
+    C -->|"创建和驱动"| D
+    D -->|"接入 Coze"| E
+    D -->|"接入 OpenAI"| F
+    D -->|"接入小智"| G
+    C -->|"复用系统能力"| H

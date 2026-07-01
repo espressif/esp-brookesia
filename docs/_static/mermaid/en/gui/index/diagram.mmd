@@ -1,0 +1,9 @@
+flowchart TD
+    A["GUI Packages / System UI"]
+    B["**brookesia_gui_interface**<br/>· JSON UI document model<br/>· Runtime resources and bindings<br/>· Backend-neutral rendering contract"]
+    C["**brookesia_gui_lvgl**<br/>· LVGL object mapping<br/>· Event and animation bridge<br/>· Image packaging helpers"]
+    D["**LVGL / Display Service**<br/>· Display driver and screen refresh<br/>· Input event dispatch<br/>· Device-specific rendering entry"]
+
+    A -->|"Declares UI resources"| B
+    B -->|"Parses and adapts backend"| C
+    C -->|"Creates and updates objects"| D

@@ -1,0 +1,13 @@
+flowchart TD
+    A["**Idle**<br/>· Not initialized<br/>· Waits for Init"]
+    B["**Inited**<br/>· Driver and config are ready<br/>· Can start connection flow"]
+    C["**Started**<br/>· Wi-Fi is started<br/>· Can initiate connection"]
+    D["**Connected**<br/>· AP is connected<br/>· Provides network capability"]
+
+    A -->|"Init"| B
+    B -->|"Start"| C
+    C -->|"Connect"| D
+    D -->|"Disconnect"| C
+    C -->|"Stop"| B
+    D -->|"Stop"| B
+    B -->|"Deinit"| A

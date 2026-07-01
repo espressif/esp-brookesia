@@ -1,0 +1,43 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;**TimeSyncing**&lt;br/&gt;· 等待时间同步&lt;br/&gt;· 可按配置跳过&quot;]
+    B[&quot;**Ready**&lt;br/&gt;· 基础环境就绪&lt;br/&gt;· 等待激活&quot;]
+    C[&quot;**Activating**&lt;br/&gt;· 初始化插件资源&lt;br/&gt;· 准备智能体上下文&quot;]
+    D[&quot;**Activated**&lt;br/&gt;· 插件已激活&lt;br/&gt;· 可启动会话&quot;]
+    E[&quot;**Starting**&lt;br/&gt;· 启动会话流程&lt;br/&gt;· 打开所需服务&quot;]
+    F[&quot;**Started**&lt;br/&gt;· 智能体运行中&lt;br/&gt;· 可处理交互&quot;]
+    G[&quot;**Sleeping**&lt;br/&gt;· 进入休眠流程&lt;br/&gt;· 暂停活跃交互&quot;]
+    H[&quot;**Slept**&lt;br/&gt;· 已休眠&lt;br/&gt;· 等待唤醒或停止&quot;]
+    I[&quot;**WakingUp**&lt;br/&gt;· 恢复会话资源&lt;br/&gt;· 回到运行态&quot;]
+    J[&quot;**Stopping**&lt;br/&gt;· 停止会话&lt;br/&gt;· 释放运行资源&quot;]
+
+    A --&gt;|&quot;时间已同步 / 跳过&quot;| B
+    B --&gt;|&quot;Activate&quot;| C
+    C --&gt;|&quot;激活完成&quot;| D
+    D --&gt;|&quot;Start&quot;| E
+    E --&gt;|&quot;启动完成&quot;| F
+    F --&gt;|&quot;Sleep&quot;| G
+    G --&gt;|&quot;休眠完成&quot;| H
+    H --&gt;|&quot;Wake&quot;| I
+    I --&gt;|&quot;唤醒完成&quot;| F
+    F --&gt;|&quot;Stop&quot;| J
+    H --&gt;|&quot;Stop&quot;| J
+    J --&gt;|&quot;停止完成&quot;| D
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

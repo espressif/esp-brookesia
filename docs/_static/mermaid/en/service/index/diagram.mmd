@@ -1,0 +1,21 @@
+flowchart TD
+    A["App / Agent<br/>· Runtime caller<br/>· Business logic entry"]
+    B["**Service Helper**<br/>· Type-safe schema<br/>· Helper call wrapping"]
+    C["**Service Manager**<br/>· Plugin lifecycle<br/>· Function routing and event dispatch<br/>· Local calls and RPC"]
+    D["**Network Services**<br/>· Wi-Fi<br/>· HTTP<br/>· SNTP"]
+    E["**Media Services**<br/>· Audio<br/>· Video<br/>· Display"]
+    F["**System Services**<br/>· Storage<br/>· Device"]
+    G["**AI Agents**<br/>· Agent Manager<br/>· Coze / OpenAI / XiaoZhi"]
+    H["**AI Expression**<br/>· Emote expression driver"]
+    I["**Emulation Services**<br/>· NES emulation"]
+    J["**Custom Services**<br/>· Product-specific capabilities<br/>· Based on the Custom template"]
+
+    A -->|"Calls helper APIs"| B
+    B -->|"Binds service capabilities"| C
+    C -->|"Hosts network services"| D
+    C -->|"Hosts media services"| E
+    C -->|"Hosts system services"| F
+    C -->|"Hosts agents"| G
+    C -->|"Hosts expression services"| H
+    C -->|"Hosts emulation services"| I
+    C -->|"Registers custom services"| J

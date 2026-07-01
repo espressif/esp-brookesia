@@ -42,30 +42,12 @@
 
 .. only:: html
 
-
-   .. mermaid::
-
-      flowchart TB
-          App["App/User Code"]
-          SM["ServiceManager"]
-          Binding["ServiceBinding"]
-          Base["ServiceBase"]
-          Registry["FunctionRegistry & EventRegistry"]
-
-          App -->|"bind()"| SM
-          SM -->|"returns"| Binding
-          Binding -->|"get_service()"| Base
-          Base -->|"call_function_sync()<br/>call_function_async()<br/>subscribe_event()"| Registry
-
-          style App fill:#e1f5ff
-          style SM fill:#fff4e1
-          style Binding fill:#f0e1ff
-          style Base fill:#e1ffe1
-          style Registry fill:#ffe1e1
+   .. raw:: html
+      :file: ../../../_static/mermaid/zh_CN/service/manager/index/diagram_local.html
 
 .. only:: latex
 
-   .. image:: ../../../_static/service/manager_local_diagram.png
+   .. image:: ../../../_static/mermaid/zh_CN/service/manager/index/diagram_local.png
       :width: 100%
 
 .. _service-manager-index-sec-05:
@@ -77,46 +59,12 @@
 
 .. only:: html
 
-
-   .. mermaid::
-
-      flowchart LR
-          subgraph Client_Side["Client Device"]
-              App["App/User Code"]
-              Client["RPC Client"]
-              Dispatcher["EventDispatcher"]
-          end
-
-          subgraph Network["Network Layer"]
-              DataLink["DataLink<br/>(TCP Socket)"]
-          end
-
-          subgraph Server_Side["Server Device"]
-              Server["RPC Server"]
-              Base["ServiceBase"]
-              Registry["EventRegistry &<br/>FunctionRegistry"]
-          end
-
-          App --->|"call_function / <br/>subscribe_event"| Client
-          Client --->|"Request"| DataLink
-          DataLink --->|"Response"| Client
-          DataLink <-->|"Forward"| Server
-          Server <-->|"invoke"| Base
-          Base <-->|"access"| Registry
-          App <---|"event callback"| Dispatcher
-          DataLink -.->|"Notify"| Dispatcher
-
-          style App fill:#e1f5ff
-          style Client fill:#f0e1ff
-          style Dispatcher fill:#ffe1f0
-          style DataLink fill:#fff4e1
-          style Server fill:#f0e1ff
-          style Base fill:#e1ffe1
-          style Registry fill:#ffe1e1
+   .. raw:: html
+      :file: ../../../_static/mermaid/zh_CN/service/manager/index/diagram_rpc.html
 
 .. only:: latex
 
-   .. image:: ../../../_static/service/manager_rpc_diagram.png
+   .. image:: ../../../_static/mermaid/zh_CN/service/manager/index/diagram_rpc.png
       :width: 100%
 
 .. _service-manager-index-sec-06:

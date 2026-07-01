@@ -1,0 +1,29 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;App Packages / Built-In Apps&quot;]
+    B[&quot;**brookesia_system_core**&lt;br/&gt;· App lifecycle&lt;br/&gt;· Runtime bridge&lt;br/&gt;· GUI, service, storage, and permission boundaries&quot;]
+    C[&quot;**brookesia_system_super**&lt;br/&gt;· Standard handheld system&lt;br/&gt;· Shell / launcher / overlay&lt;br/&gt;· Status bar and app switching&quot;]
+    D[&quot;**HAL / Service / GUI / Runtime**&lt;br/&gt;· Device abstraction and system services&lt;br/&gt;· UI rendering and dynamic runtimes&lt;br/&gt;· Foundation capabilities used by Core&quot;]
+
+    D --&gt;|&quot;Provides foundation&quot;| B
+    B --&gt;|&quot;Extends system shell&quot;| C
+    A --&gt;|&quot;Registers and runs&quot;| B
+    C --&gt;|&quot;Presents and schedules apps&quot;| A
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

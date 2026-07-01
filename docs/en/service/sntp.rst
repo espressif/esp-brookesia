@@ -6,7 +6,7 @@ SNTP
 :link_to_translation:`zh_CN:[中文]`
 
 - Component registry: `espressif/brookesia_service_sntp <https://components.espressif.com/components/espressif/brookesia_service_sntp>`_
-- Helper header: ``#include "brookesia/service_helper/sntp.hpp"``
+- Helper header: ``#include "brookesia/service_helper/network/sntp.hpp"``
 - Helper class: ``esp_brookesia::service::helper::SNTP``
 
 .. _service-sntp-sec-01:
@@ -19,9 +19,9 @@ for the ESP-Brookesia ecosystem:
 
 - **NTP servers**: Multiple servers; picks an available one.
 - **Time zone**: System time zone with offset applied.
-- **Auto sync**: Starts when the network is up.
-- **Status**: Query sync state, server list, and zone.
-- **Persistence**: Optional `brookesia_service_nvs` for servers and zone.
+- **Auto sync**: Starts the state machine when the service starts, waits for network availability, then syncs.
+- **Status**: Query ``CheckingNetwork``, ``Syncing``, ``Synced`` or ``Stopped`` state, server list, and zone.
+- **Persistence**: Uses `brookesia_service_storage` in the ``SNTP`` namespace for servers and zone.
 
 .. _service-sntp-sec-02:
 
@@ -56,6 +56,7 @@ Core Operations
 - **Start / stop service**: Start or stop SNTP and time synchronization.
 - **Get server list**: Read the configured NTP server list.
 - **Get time zone**: Read the configured time zone.
+- **Get state**: Read the synchronization state.
 - **Check sync status**: Check whether system time is synchronized with NTP.
 - **Reset data**: Reset all configuration to defaults.
 
@@ -64,9 +65,9 @@ Core Operations
 Auto Management
 ^^^^^^^^^^^^^^^
 
-- Load from NVS on start.
-- Save after changes.
-- Detect network and start sync when available.
-- Monitor sync status and flags.
+- Load from the Storage service on start.
+- Save after changes in the ``SNTP`` namespace.
+- Enter ``CheckingNetwork`` first, then move to ``Syncing`` when ``ProtocolSntpIface::is_network_ready()`` returns true.
+- Publish ``StateChanged`` when synchronization state changes.
 
 .. include-build-file:: contract_guides/service/sntp.inc

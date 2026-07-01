@@ -1,7 +1,7 @@
 .. _hal-index-sec-00:
 
-Hardware Abstraction Components
-===============================
+Hardware Components
+===================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -9,21 +9,12 @@ ESP-Brookesia HAL consists of three components that work together in layers, bri
 
 .. only:: html
 
-   .. mermaid::
-
-      flowchart TD
-          A["Upper Layer (Services / Examples)"]
-          B["**brookesia_hal_interface**<br/>· Device / Interface abstract base classes<br/>· Audio, display, storage HAL definitions<br/>· Global interface registry"]
-          C["**brookesia_hal_adaptor**<br/>· AudioDevice / DisplayDevice / StorageDevice implementations<br/>· Init peripherals via esp_board_manager<br/>· Register interface instances globally"]
-          D["**brookesia_hal_boards**<br/>· Peripheral topology (pins, buses)<br/>· Logical device config (codec, LCD)<br/>· Board Kconfig defaults & callbacks"]
-
-          A -->|"discover & call by interface name"| B
-          B -->|"implements abstract interfaces"| C
-          C -->|"provides YAML configuration"| D
+   .. raw:: html
+      :file: ../../_static/mermaid/en/hal/index/diagram.html
 
 .. only:: latex
 
-   .. image:: ../../_static/hal/index_diagram_en.png
+   .. image:: ../../_static/mermaid/en/hal/index/diagram.png
       :width: 100%
 
 - ``brookesia_hal_interface``: **Defines abstract interfaces**; upper-layer code depends only on this layer and remains decoupled from hardware details.
@@ -40,6 +31,7 @@ ESP-Brookesia HAL consists of three components that work together in layers, bri
 .. toctree::
    :maxdepth: 1
 
-   HAL Interface <interface/index>
-   HAL Adaptor <adaptor>
-   HAL Board Support <boards/index>
+   Interface Abstraction <interface/index>
+   ESP Device Board Adaptation <adaptor>
+   ESP Device Board Configuration <boards/index>
+   Host Platform Simulation Support <pc_simulation>

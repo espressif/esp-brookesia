@@ -1,0 +1,29 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;应用包 / 内置应用&quot;]
+    B[&quot;**brookesia_system_core**&lt;br/&gt;· 应用生命周期&lt;br/&gt;· Runtime 桥接&lt;br/&gt;· GUI、服务、存储、权限边界&quot;]
+    C[&quot;**brookesia_system_super**&lt;br/&gt;· 手持设备标准系统&lt;br/&gt;· Shell / launcher / overlay&lt;br/&gt;· 状态栏与应用切换&quot;]
+    D[&quot;**HAL / Service / GUI / Runtime**&lt;br/&gt;· 设备抽象与系统服务&lt;br/&gt;· 界面渲染与动态运行时&lt;br/&gt;· Core 依赖的基础能力&quot;]
+
+    D --&gt;|&quot;提供基础能力&quot;| B
+    B --&gt;|&quot;扩展系统壳&quot;| C
+    A --&gt;|&quot;注册并运行&quot;| B
+    C --&gt;|&quot;展示和调度应用&quot;| A
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

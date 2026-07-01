@@ -1,0 +1,28 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;GUI 包 / 系统 UI&quot;]
+    B[&quot;**brookesia_gui_interface**&lt;br/&gt;· JSON UI 文档模型&lt;br/&gt;· 运行时资源与绑定&lt;br/&gt;· 后端无关渲染契约&quot;]
+    C[&quot;**brookesia_gui_lvgl**&lt;br/&gt;· LVGL 对象映射&lt;br/&gt;· 事件与动画桥接&lt;br/&gt;· 图片打包辅助能力&quot;]
+    D[&quot;**LVGL / Display Service**&lt;br/&gt;· 显示驱动与屏幕刷新&lt;br/&gt;· 输入事件分发&lt;br/&gt;· 具体设备渲染入口&quot;]
+
+    A --&gt;|&quot;声明界面资源&quot;| B
+    B --&gt;|&quot;解析并适配后端&quot;| C
+    C --&gt;|&quot;创建与更新对象&quot;| D
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

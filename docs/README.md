@@ -3,12 +3,13 @@
 This directory contains the source files for the ESP-Brookesia RST documentation.
 
 The documentation is built with `esp-docs` and Sphinx. Public API references
-for the `utils`, `service`, `agent`, and `expression` components are generated
-automatically during the `build-docs` process.
+for the `utils` and `service` component families are generated automatically
+during the `build-docs` process.
 
-For `service` and `agent`, the user-facing documentation is now helper-first:
-`service_helper` and `agent_helper` are treated as the public contracts, while
-concrete providers stay available as implementation appendices.
+For service components, the user-facing documentation is helper-first:
+`brookesia_service_helper` owns the public service, agent, expression, and
+emulation contracts, while concrete providers stay available as implementation
+appendices.
 
 # Hosted Documentation
 
@@ -44,7 +45,7 @@ Make sure the following tools are available in your `PATH`:
 
 The exporter now compiles directly against local repository components
 (`brookesia_lib_utils`, `brookesia_hal_interface`, `brookesia_service_manager`,
-`brookesia_service_helper`, and `brookesia_agent_helper`) without docs-side shim headers.
+and `brookesia_service_helper`) without docs-side shim headers.
 
 Run the remaining commands from the `docs/` directory:
 

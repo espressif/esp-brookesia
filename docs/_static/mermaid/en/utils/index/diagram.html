@@ -1,0 +1,30 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;**brookesia_lib_utils**&lt;br/&gt;· Common C++ infrastructure&lt;br/&gt;· Logging, checks, and describe helpers&lt;br/&gt;· Reused by framework components&quot;]
+    B[&quot;Framework Components&quot;]
+    C[&quot;Service Functions / Callbacks&quot;]
+    D[&quot;**brookesia_mcp_utils**&lt;br/&gt;· MCP bridge&lt;br/&gt;· Tool description and call wrappers&lt;br/&gt;· Connects LLM clients&quot;]
+    E[&quot;**MCP Tools / LLM Clients**&lt;br/&gt;· Tool discovery&lt;br/&gt;· Argument calls&lt;br/&gt;· Agent integration&quot;]
+
+    A --&gt;|&quot;Provides utility base&quot;| B
+    B --&gt;|&quot;Registers capabilities&quot;| C
+    C --&gt;|&quot;Exposes MCP interface&quot;| D
+    D --&gt;|&quot;Connects tool calls&quot;| E
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

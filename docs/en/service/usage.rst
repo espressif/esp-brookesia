@@ -26,7 +26,7 @@ Declare dependencies in ``idf_component.yml`` at the project root or in a compon
 
    dependencies:
      espressif/brookesia_service_wifi: "*"
-     # espressif/brookesia_service_nvs: "*" # optional, if you need the NVS service
+     # espressif/brookesia_service_storage: "*" # optional, if you need the Storage service
 
 If your project does not link a concrete service implementation and you only need to satisfy “Helper code compiles”, you can depend on ``brookesia_service_helper`` alone:
 
@@ -49,7 +49,7 @@ Headers, Namespace, and Type Aliases
    // Include all general service helper headers
    #include "brookesia/service_helper.hpp"
    // Or include the Helper header for a specific service component, e.g. Wi-Fi
-   // #include "brookesia/service_helper/wifi.hpp"
+   // #include "brookesia/service_helper/network/wifi.hpp"
 
    // Brookesia data types live under the esp_brookesia namespace
    using namespace esp_brookesia;
@@ -99,7 +99,7 @@ Calling Service Functions
 Before calling a function, confirm **parameter types, order, and return value** from the Helper contract or headers, for example:
 
 - :ref:`Wi-Fi service function interface reference <helper-contract-service-wifi-functions>`
-- `Wi-Fi Helper header source <https://github.com/espressif/esp-brookesia/blob/master/service/brookesia_service_helper/include/brookesia/service_helper/wifi.hpp>`_
+- `Wi-Fi Helper header source <https://github.com/espressif/esp-brookesia/blob/master/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp>`_
 
 .. note::
 
@@ -163,7 +163,7 @@ Example: Multiple Parameters
 - Parameters:
    - ``SSID``: ``String``
    - ``Password``: ``String``
-- Return type: ``void``
+- Return value: none
 
 .. code-block:: cpp
 
@@ -185,7 +185,7 @@ Example: Serialized Parameters
 - Function: ``TriggerGeneralAction``
 - Parameters:
    - ``Action``: ``String`` (serialize from ``WifiHelper::GeneralAction``)
-- Return type: ``void``
+- Return value: none
 
 .. code-block:: cpp
 
@@ -202,7 +202,7 @@ Example: Serialized Parameters
 - Function: ``SetScanParams``
 - Parameters:
    - ``Param``: ``Object`` (serialize from ``WifiHelper::ScanParams``)
-- Return type: ``void``
+- Return value: none
 
 .. code-block:: cpp
 
@@ -227,7 +227,7 @@ Example: Parsing Return Values
 
 - Function: ``GetConnectedAps``
 - Parameters: none
-- Return type: ``boost::json::array`` (deserialize to ``std::vector<WifiHelper::ConnectApInfo>``)
+- Return value: ``boost::json::array`` (deserialize to ``std::vector<WifiHelper::ConnectApInfo>``)
 
 .. code-block:: cpp
 
@@ -299,7 +299,7 @@ Example
 
 - Function: ``GetConnectedAps``
 - Parameters: none
-- Return type: ``boost::json::array`` (same as ``std::vector<WifiHelper::ConnectApInfo>`` when serialized)
+- Return value: ``boost::json::array`` (same as ``std::vector<WifiHelper::ConnectApInfo>`` when serialized)
 
 .. code-block:: cpp
 
@@ -336,7 +336,7 @@ Subscribing to Service Events
 Confirm **item names, types, and order** from the Helper contract or headers, for example:
 
 - :ref:`Wi-Fi service event interface reference <helper-contract-service-wifi-events>`
-- `Wi-Fi Helper header source <https://github.com/espressif/esp-brookesia/blob/master/service/brookesia_service_helper/include/brookesia/service_helper/wifi.hpp>`_
+- `Wi-Fi Helper header source <https://github.com/espressif/esp-brookesia/blob/master/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp>`_
 
 .. note::
 

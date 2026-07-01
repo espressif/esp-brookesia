@@ -1,0 +1,24 @@
+flowchart TD
+    A["**TimeSyncing**<br/>· Waits for time sync<br/>· Can be skipped by config"]
+    B["**Ready**<br/>· Base environment is ready<br/>· Waits for activation"]
+    C["**Activating**<br/>· Initializes plugin resources<br/>· Prepares agent context"]
+    D["**Activated**<br/>· Plugin is activated<br/>· Session can start"]
+    E["**Starting**<br/>· Starts session flow<br/>· Opens required services"]
+    F["**Started**<br/>· Agent is running<br/>· Handles interactions"]
+    G["**Sleeping**<br/>· Enters sleep flow<br/>· Pauses active interaction"]
+    H["**Slept**<br/>· Agent is sleeping<br/>· Waits for wake or stop"]
+    I["**WakingUp**<br/>· Restores session resources<br/>· Returns to running state"]
+    J["**Stopping**<br/>· Stops session<br/>· Releases runtime resources"]
+
+    A -->|"time synced / skipped"| B
+    B -->|"Activate"| C
+    C -->|"activated"| D
+    D -->|"Start"| E
+    E -->|"started"| F
+    F -->|"Sleep"| G
+    G -->|"slept"| H
+    H -->|"Wake"| I
+    I -->|"woke"| F
+    F -->|"Stop"| J
+    H -->|"Stop"| J
+    J -->|"stopped"| D

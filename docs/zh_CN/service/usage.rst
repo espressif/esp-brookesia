@@ -26,7 +26,7 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
 
    dependencies:
      espressif/brookesia_service_wifi: "*"
-     # espressif/brookesia_service_nvs: "*" # 可选，如果需要使用 NVS 服务
+     # espressif/brookesia_service_storage: "*" # 可选，如果需要使用 Storage 服务
 
 若工程不链接具体服务实现，仅需满足「能编译通过 Helper 相关代码」一类约束时，可只添加 ``brookesia_service_helper``：
 
@@ -49,7 +49,7 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
    // 包含所有通用服务辅助头文件
    #include "brookesia/service_helper.hpp"
    // 或者仅包含具体服务组件的 Helper 头文件, 例如 Wi-Fi
-   // #include "brookesia/service_helper/wifi.hpp"
+   // #include "brookesia/service_helper/network/wifi.hpp"
 
    // 所有 Brookesia 组件中的数据类型均在 esp_brookesia 命名空间下
    using namespace esp_brookesia;
@@ -99,7 +99,7 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
 调用前请确认目标函数的 **参数类型、顺序与返回值**，可在对应 Helper 的契约文档或头文件中查阅，例如：
 
 - :ref:`Wi-Fi 服务函数接口说明文档 <helper-contract-service-wifi-functions>`
-- `Wi-Fi 服务辅助头文件源码 <https://github.com/espressif/esp-brookesia/blob/master/service/brookesia_service_helper/include/brookesia/service_helper/wifi.hpp>`_
+- `Wi-Fi 服务辅助头文件源码 <https://github.com/espressif/esp-brookesia/blob/master/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp>`_
 
 .. note::
 
@@ -336,7 +336,7 @@ ESP-Brookesia 将上述关系抽象为统一的 **函数** 与 **事件** 两类
 订阅前请确认事件的 **条目名称、类型与顺序**，可在 Helper 文档或头文件中查阅，例如：
 
 - :ref:`Wi-Fi 服务事件接口说明文档 <helper-contract-service-wifi-events>`
-- `Wi-Fi 服务辅助头文件源码 <https://github.com/espressif/esp-brookesia/blob/master/service/brookesia_service_helper/include/brookesia/service_helper/wifi.hpp>`_
+- `Wi-Fi 服务辅助头文件源码 <https://github.com/espressif/esp-brookesia/blob/master/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp>`_
 
 .. note::
 

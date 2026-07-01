@@ -12,7 +12,7 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/event/definition.hpp"``
 
-.. include-build-file:: inc/service/brookesia_service_manager/include/brookesia/service_manager/event/definition.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/definition.inc
 
 .. _service-manager-event-sec-02:
 
@@ -30,4 +30,4 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/event/registry.hpp"``
 
-.. include-build-file:: inc/service/brookesia_service_manager/include/brookesia/service_manager/event/registry.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/registry.inc

@@ -17,7 +17,7 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/function/definition.hpp"``
 
-.. include-build-file:: inc/service/brookesia_service_manager/include/brookesia/service_manager/function/definition.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/definition.inc
 
 .. _service-manager-function-sec-03:
 
@@ -26,4 +26,4 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/function/registry.hpp"``
 
-.. include-build-file:: inc/service/brookesia_service_manager/include/brookesia/service_manager/function/registry.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/registry.inc

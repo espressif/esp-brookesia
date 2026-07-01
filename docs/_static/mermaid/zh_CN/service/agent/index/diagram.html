@@ -1,0 +1,36 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;应用 / 服务 / 示例&quot;]
+    B[&quot;**brookesia_service_helper**&lt;br/&gt;· 智能体 helper 合约&lt;br/&gt;· 参数与 schema 封装&lt;br/&gt;· 面向业务的调用入口&quot;]
+    C[&quot;**brookesia_agent_manager**&lt;br/&gt;· 插件生命周期&lt;br/&gt;· 智能体状态机&lt;br/&gt;· 共享服务接入&quot;]
+    D[&quot;具体智能体&quot;]
+    E[&quot;**Coze**&lt;br/&gt;· 云端智能体接入&lt;br/&gt;· 会话与工具调用&lt;br/&gt;· 产品化扩展入口&quot;]
+    F[&quot;**OpenAI**&lt;br/&gt;· 大模型对话接入&lt;br/&gt;· 工具调用适配&lt;br/&gt;· 流式响应处理&quot;]
+    G[&quot;**小智**&lt;br/&gt;· 本地设备交互&lt;br/&gt;· 语音/表情联动&lt;br/&gt;· 设备侧智能体形态&quot;]
+    H[&quot;**共享服务**&lt;br/&gt;· Audio&lt;br/&gt;· Device 时间同步&lt;br/&gt;· Storage&quot;]
+
+    A --&gt;|&quot;调用 helper&quot;| B
+    B --&gt;|&quot;委托管理器&quot;| C
+    C --&gt;|&quot;创建和驱动&quot;| D
+    D --&gt;|&quot;接入 Coze&quot;| E
+    D --&gt;|&quot;接入 OpenAI&quot;| F
+    D --&gt;|&quot;接入小智&quot;| G
+    C --&gt;|&quot;复用系统能力&quot;| H
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

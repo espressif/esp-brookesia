@@ -1,7 +1,7 @@
 .. _hal-interface-index-sec-00:
 
-HAL 接口
-=============
+接口抽象
+=========
 
 :link_to_translation:`en:[English]`
 
@@ -19,7 +19,7 @@ HAL 接口
 - **插件式注册**：具体设备与接口实现通过注册表登记，运行时按名称解析，避免业务侧硬编码实现类
 - **探测与生命周期**：设备先探测是否可用，再初始化；支持批量或按名称单独初始化、对称反初始化
 - **全局发现**：设备可按插件名或设备逻辑名解析；接口可在全局范围内按类型枚举或按设备内名称获取
-- **常用 HAL 声明**：内置音频、显示、存储等接口的抽象定义，具体行为由适配层实现
+- **常用 HAL 声明**：内置音频、显示、存储、网络、视频、系统与 Wi-Fi 等接口的抽象定义，具体行为由适配层实现
 
 .. _hal-interface-index-sec-02:
 
@@ -80,7 +80,7 @@ HAL 接口
 内置能力范畴
 ^^^^^^^^^^^^
 
-头文件中提供常用 HAL 接口的抽象定义，涵盖开发板信息、电池与充电控制、音频编解码播放与录音、显示面板与触摸与背光、以及存储文件系统发现等。它们描述静态信息、能力参数与虚接口约定；具体寄存器操作、总线与时序由板级适配或其它组件完成。
+头文件中提供常用 HAL 接口的抽象定义，涵盖开发板信息、电池与充电控制、音频编解码播放与录音、显示面板、触摸与背光、存储文件系统与键值发现、网络连接/HTTP/SNTP、视频摄像头与处理，以及 Wi-Fi 控制接口等。它们描述静态信息、能力参数与虚接口约定；具体寄存器操作、总线、连接策略与时序由板级适配、Service 层或其它组件完成。
 
 以下接口头文件可通过 ``brookesia/hal_interface/interfaces.hpp`` 一次性引入，也可通过聚合入口 ``brookesia/hal_interface.hpp`` 同时引入设备基类：
 
@@ -94,18 +94,42 @@ HAL 接口
      - ``AudioCodecPlayerIface``
    * - ``audio/codec_recorder.hpp``
      - ``AudioCodecRecorderIface``
+   * - ``audio/processor.hpp``
+     - ``AudioProcessorIface``
    * - ``display/backlight.hpp``
      - ``DisplayBacklightIface``
    * - ``display/panel.hpp``
      - ``DisplayPanelIface``
    * - ``display/touch.hpp``
      - ``DisplayTouchIface``
-   * - ``general/board_info.hpp``
+   * - ``network/connectivity.hpp``
+     - ``ConnectivityIface``
+   * - ``network/http_client.hpp``
+     - ``HttpClientIface``
+   * - ``network/sntp_client.hpp``
+     - ``SntpClientIface``
+   * - ``system/board_info.hpp``
      - ``BoardInfoIface``
+   * - ``system/ota_updater.hpp``
+     - ``OtaUpdaterIface``
    * - ``power/battery.hpp``
      - ``PowerBatteryIface``
-   * - ``storage/fs.hpp``
-     - ``StorageFsIface``
+   * - ``storage/file_system.hpp``
+     - ``FileSystemIface``
+   * - ``storage/key_value.hpp``
+     - ``KeyValueIface``
+   * - ``video/camera.hpp``
+     - ``CameraIface``
+   * - ``video/processor.hpp``
+     - 视频处理接口
+   * - ``wifi/types.hpp``
+     - Wi-Fi 共享 action、event、AP、扫描和 SoftAP 类型
+   * - ``wifi/basic.hpp``
+     - ``BasicIface``
+   * - ``wifi/station.hpp``
+     - ``StationIface``
+   * - ``wifi/softap.hpp``
+     - ``SoftApIface``
 
 .. _hal-interface-index-sec-03:
 
@@ -116,12 +140,22 @@ HAL 接口
 
 - ``AudioCodecPlayerIface``
 - ``AudioCodecRecorderIface``
+- ``AudioProcessorIface``
 - ``DisplayBacklightIface``
 - ``DisplayPanelIface``
 - ``DisplayTouchIface``
+- ``ConnectivityIface``
+- ``HttpClientIface``
+- ``SntpClientIface``
 - ``BoardInfoIface``
+- ``OtaUpdaterIface``
 - ``PowerBatteryIface``
-- ``StorageFsIface``
+- ``FileSystemIface``
+- ``KeyValueIface``
+- ``CameraIface``
+- ``BasicIface``
+- ``StationIface``
+- ``SoftApIface``
 
 .. _hal-interface-index-sec-04:
 
@@ -191,3 +225,17 @@ API 参考
    :maxdepth: 1
 
    文件系统 <storage/fs>
+   键值存储 <storage/kv>
+
+.. _hal-interface-index-sec-15:
+
+Wi-Fi 接口类
+^^^^^^^^^^^^
+
+.. toctree::
+   :maxdepth: 1
+
+   共享类型 <wifi/types>
+   基础控制 <wifi/basic>
+   Station <wifi/sta>
+   SoftAP <wifi/softap>

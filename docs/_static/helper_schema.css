@@ -75,6 +75,18 @@
   line-height: 1.4;
 }
 
+/* Center Mermaid diagrams after the client-side renderer replaces <pre> with SVG. */
+.rst-content pre.mermaid {
+  text-align: center;
+}
+
+.rst-content pre.mermaid > svg {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  max-width: 100%;
+}
+
 /* ---------------------------------------------------------------------------
  * Opt-in wide table (applied by adding `:class: wide-table` to a list-table).
  *

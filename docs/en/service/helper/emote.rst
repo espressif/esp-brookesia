@@ -19,4 +19,4 @@ This page documents the Expression/Emote helper Doxygen API: types, enums, metho
 API Reference
 -------------
 
-.. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/expression/emote.inc
+.. include-build-file:: inc/service/framework/brookesia_service_helper/include/brookesia/service_helper/expression/emote.inc

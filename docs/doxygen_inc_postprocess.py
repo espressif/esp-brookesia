@@ -2,10 +2,13 @@
 """Post-process Doxygen output after esp-docs run_doxygen runs.
 
 Patches:
-- ``service_helper/base.hpp``: drops the duplicate standalone ``EventMonitor``
+- ``service_manager/helper/base.hpp``: drops the duplicate standalone ``EventMonitor``
   block so Breathe does not emit duplicate C++ domain IDs.
+- ``hal_interface/interface.hpp``: drops the ``InterfaceHandle`` class block,
+  which some CI Doxygen/Breathe combinations expand into both the forward
+  declaration and the definition, creating duplicate C++ domain IDs.
 - ``hal_interface/device.hpp``: appends namespace-level free functions, the
-  ``DeviceRegistry`` type alias, and the ``IsDevice`` concept that gen-dxd.py
+  ``InterfaceSpec`` type alias, and the ``IsDevice`` concept that gen-dxd.py
   skips (it only emits ``doxygenclass`` directives for file-level entities).
 - Breathe XML (``xml_in/*.xml``): strips C++20 constructs that the Sphinx 4.x
   C++ domain parser cannot handle (``requires`` constraint clauses and
@@ -19,7 +22,7 @@ import os
 import re
 
 # ---------------------------------------------------------------------------
-# service_helper/base.hpp patch
+# service_manager/helper/base.hpp patch
 # ---------------------------------------------------------------------------
 
 def _strip_duplicate_event_monitor_block(text: str) -> str:
@@ -36,10 +39,12 @@ def _patch_base_inc(build_dir: str) -> None:
         build_dir,
         "inc",
         "service",
-        "brookesia_service_helper",
+        "framework",
+        "brookesia_service_manager",
         "include",
         "brookesia",
-        "service_helper",
+        "service_manager",
+        "helper",
         "base.inc",
     )
     if not os.path.isfile(base_inc):
@@ -49,6 +54,43 @@ def _patch_base_inc(build_dir: str) -> None:
     patched = _strip_duplicate_event_monitor_block(content)
     if patched != content:
         with open(base_inc, "w", encoding="utf-8") as f:
+            f.write(patched)
+
+
+# ---------------------------------------------------------------------------
+# hal_interface/interface.hpp patch
+# ---------------------------------------------------------------------------
+
+def _strip_duplicate_interface_handle_block(text: str) -> str:
+    return re.sub(
+        r"\n\.\. doxygenclass:: esp_brookesia::hal::InterfaceHandle\n    :members:\n\n?",
+        "\n",
+        text,
+        count=1,
+    )
+
+
+def _patch_interface_inc(build_dir: str) -> None:
+    interface_inc = os.path.join(build_dir, "inc", "interface.inc")
+    if not os.path.isfile(interface_inc):
+        return
+    with open(interface_inc, encoding="utf-8") as f:
+        content = f.read()
+    patched = _strip_duplicate_interface_handle_block(content)
+    if patched != content:
+        with open(interface_inc, "w", encoding="utf-8") as f:
+            f.write(patched)
+
+
+def _patch_log_inc(build_dir: str) -> None:
+    log_inc = os.path.join(build_dir, "inc", "log.inc")
+    if not os.path.isfile(log_inc):
+        return
+    with open(log_inc, encoding="utf-8") as f:
+        content = f.read()
+    patched = content.replace(".. doxygendefine:: _BROOKESIA_LOG_GNU_NOCLONE\n", "")
+    if patched != content:
+        with open(log_inc, "w", encoding="utf-8") as f:
             f.write(patched)
 
 
@@ -69,7 +111,7 @@ _DEVICE_INC_EXTRA = """\
 Type Aliases
 ^^^^^^^^^^^^
 
-.. doxygentypedef:: esp_brookesia::hal::DeviceRegistry
+.. doxygentypedef:: esp_brookesia::hal::InterfaceSpec
 
 Concepts
 ^^^^^^^^
@@ -81,12 +123,12 @@ _DEVICE_INC_EXTRA_NO_CONCEPT = """\
 Type Aliases
 ^^^^^^^^^^^^
 
-.. doxygentypedef:: esp_brookesia::hal::DeviceRegistry
+.. doxygentypedef:: esp_brookesia::hal::InterfaceSpec
 """
 
-# Use DeviceRegistry as sentinel: gen-dxd.py never emits doxygentypedef, so
+# Use InterfaceSpec as sentinel: gen-dxd.py never emits doxygentypedef, so
 # this string only appears once our patch has already run.
-_DEVICE_INC_SENTINEL = ".. doxygentypedef:: esp_brookesia::hal::DeviceRegistry"
+_DEVICE_INC_SENTINEL = ".. doxygentypedef:: esp_brookesia::hal::InterfaceSpec"
 
 # Doxygen 1.9.2+ generates a dedicated XML file for each C++20 concept.
 # The filename encodes the fully-qualified name with "::" → "_1_1" mangling.
@@ -140,10 +182,14 @@ def _patch_device_inc(build_dir: str) -> None:
 _REQUIRESCLAUSE_RE = re.compile(r"<requiresclause>.*?</requiresclause>", re.DOTALL)
 _INITIALIZER_RE = re.compile(r"<initializer>.*?</initializer>", re.DOTALL)
 _DESIGNATED_INIT_RE = re.compile(r"\.\w+\s*=")
+_LOG_NOCLONE_REF_RE = re.compile(r"<ref[^>]*>_BROOKESIA_LOG_GNU_NOCLONE</ref>\s*")
+_LOG_NOCLONE_TEXT_RE = re.compile(r"_BROOKESIA_LOG_GNU_NOCLONE\s*")
 
 
 def _strip_unparseable_cpp(xml_text: str) -> str:
     text = _REQUIRESCLAUSE_RE.sub("", xml_text)
+    text = _LOG_NOCLONE_REF_RE.sub("", text)
+    text = _LOG_NOCLONE_TEXT_RE.sub("", text)
 
     def _drop_designated(match: re.Match) -> str:
         body = match.group(0)
@@ -185,6 +231,8 @@ def _on_defines_generated(app, _defines) -> None:
         return
     _sanitize_breathe_xml(build_dir)
     _patch_base_inc(build_dir)
+    _patch_interface_inc(build_dir)
+    _patch_log_inc(build_dir)
     _patch_device_inc(build_dir)
 
 

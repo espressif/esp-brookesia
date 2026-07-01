@@ -1,0 +1,17 @@
+flowchart TD
+    A["App / Service / Example"]
+    B["**brookesia_service_helper**<br/>· Agent helper contracts<br/>· Argument and schema wrapping<br/>· Business-facing call entry"]
+    C["**brookesia_agent_manager**<br/>· Plugin lifecycle<br/>· Agent state machine<br/>· Shared service access"]
+    D["Concrete Agents"]
+    E["**Coze**<br/>· Cloud agent integration<br/>· Conversation and tool calls<br/>· Product extension entry"]
+    F["**OpenAI**<br/>· LLM chat integration<br/>· Tool-call adaptation<br/>· Streaming response handling"]
+    G["**XiaoZhi**<br/>· Local device interaction<br/>· Voice/expression coordination<br/>· Device-side agent form"]
+    H["**Shared Services**<br/>· Audio<br/>· Device time sync<br/>· Storage"]
+
+    A -->|"Calls helper"| B
+    B -->|"Delegates to manager"| C
+    C -->|"Creates and drives"| D
+    D -->|"Integrates Coze"| E
+    D -->|"Integrates OpenAI"| F
+    D -->|"Integrates XiaoZhi"| G
+    C -->|"Reuses system capabilities"| H

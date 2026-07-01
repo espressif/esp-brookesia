@@ -40,4 +40,4 @@ Features
 API Reference
 -------------
 
-.. include-build-file:: inc/service/brookesia_service_custom/include/brookesia/service_custom/service_custom.inc
+.. include-build-file:: inc/service/framework/brookesia_service_custom/include/brookesia/service_custom/service_custom.inc

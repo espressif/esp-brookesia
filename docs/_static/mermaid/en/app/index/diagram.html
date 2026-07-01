@@ -1,0 +1,30 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;**System Core / System Super**&lt;br/&gt;· Owns app lifecycle&lt;br/&gt;· Provides system resources and services&lt;br/&gt;· Schedules built-in app entries&quot;]
+    B[&quot;Built-In Apps&quot;]
+    C[&quot;**Files**&lt;br/&gt;· Storage browser&lt;br/&gt;· Local storage entry&lt;br/&gt;· User-facing data access&quot;]
+    D[&quot;**Settings**&lt;br/&gt;· Device settings&lt;br/&gt;· System configuration&lt;br/&gt;· Permission and preference entry&quot;]
+    E[&quot;**App Store**&lt;br/&gt;· Local app packages&lt;br/&gt;· Remote app packages&lt;br/&gt;· Install and update entry&quot;]
+
+    A --&gt;|&quot;Loads and hosts&quot;| B
+    B --&gt;|&quot;Provides file access&quot;| C
+    B --&gt;|&quot;Provides settings entry&quot;| D
+    B --&gt;|&quot;Manages app sources&quot;| E
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

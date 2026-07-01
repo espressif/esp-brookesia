@@ -15,9 +15,10 @@ ESP-Brookesia Versioning
 From **v0.7**, ESP-Brookesia is componentized. Obtain components via the component registry as follows:
 
 1. Components evolve independently but share the same **major.minor** version and depend on the same ESP-IDF release.
-2. The **release** branch maintains stable version lines; **master** integrates new features for the latest documentation.
+2. The ``release`` branch maintains historical stable versions and only fixes bugs and security issues.
+3. The ``master`` branch continuously integrates new features and may contain functionality that has not stabilized yet.
 
-Version support:
+The version support matrix is shown below. For the component list and release notes, refer to:
 
 .. list-table:: ESP-Brookesia version support
    :header-rows: 1
@@ -27,16 +28,18 @@ Version support:
      - ESP-IDF
      - Main changes
      - Status
-   * - master (latest)
-     - >= v5.5
-     - Latest documentation and ongoing feature integration
+   * - master (v0.8)
+     - - ESP32-S31: 6.2
+       - Others: >= 6.0, <= 6.2
+     - - Componentized publishing expands to GUI, Runtime, System, App, and AI capabilities
+       - Adds PC simulation, JSON UI, multi-runtime support, and the standard System Super mainline
      - Active development
    * - release/v0.7
-     - >= v5.5
+     - >= 5.5, <= 6.0
      - Component manager support
-     - Active maintenance
+     - Stable version, bug and security fixes only
    * - release/v0.6
-     - >= v5.3, <= 5.5
+     - >= 5.3, <= 5.5
      - Preview system framework; ESP-VoCat firmware project
      - End of maintenance
 
@@ -137,7 +140,7 @@ ESP-Brookesia provides multiple example projects. Some of them support online fl
 
 The typical build and flash steps for an example project are as follows:
 
-1. Select the target chip or development board. The choice depends on the peripherals required by the example and usually falls into one of the following cases:
+1. Select the target chip or development board. The choice depends on the peripherals required by the example and usually falls into one of the following cases; choose one of them:
 
    - **Select a target chip**:
 

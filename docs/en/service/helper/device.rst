@@ -5,7 +5,7 @@ Device Helper
 
 :link_to_translation:`zh_CN:[中文]`
 
-- Public header: ``#include "brookesia/service_helper/device.hpp"``
+- Public header: ``#include "brookesia/service_helper/system/device.hpp"``
 
 .. _service-helper-device-sec-01:
 
@@ -19,4 +19,4 @@ This page documents the Device helper Doxygen API: types, enums, methods, and ma
 API Reference
 -------------
 
-.. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/device.inc
+.. include-build-file:: inc/service/framework/brookesia_service_helper/include/brookesia/service_helper/system/device.inc

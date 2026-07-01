@@ -1,0 +1,9 @@
+flowchart TD
+    A["Upper-layer business / services / examples"]
+    B["**brookesia_hal_interface**<br/>- Device and interface abstraction base classes<br/>- HAL interface definitions for audio, display, storage, etc.<br/>- Global interface registry"]
+    C["**brookesia_hal_adaptor**<br/>- Board-level AudioDevice / DisplayDevice / StorageDevice implementations<br/>- Initializes peripherals through esp_board_manager<br/>- Registers interface instances globally"]
+    D["**brookesia_hal_boards**<br/>- Peripheral topology for each board<br/>- Logical device configuration for codec, LCD, touch, etc.<br/>- Board Kconfig defaults and driver factory callbacks"]
+
+    A -->|"Discover and call by interface name"| B
+    B -->|"Implements abstract interfaces"| C
+    C -->|"Provides YAML configuration"| D

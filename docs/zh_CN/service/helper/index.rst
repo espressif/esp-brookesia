@@ -35,9 +35,13 @@
 
    Helper 基类 <base>
    音频 <audio>
+   显示 <display>
    设备控制 <device>
    表情 <emote>
-   NVS <nvs>
+   HTTP <http>
+   NES <nes>
    SNTP <sntp>
+   Storage <storage>
    视频 <video>
    Wi-Fi <wifi>
+   智能体辅助 <agent/index>

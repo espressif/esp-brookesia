@@ -6,7 +6,7 @@ Device Control
 :link_to_translation:`zh_CN:[中文]`
 
 - Component registry: `espressif/brookesia_service_device <https://components.espressif.com/components/espressif/brookesia_service_device>`_
-- Helper header: ``#include "brookesia/service_helper/device.hpp"``
+- Helper header: ``#include "brookesia/service_helper/system/device.hpp"``
 - Helper class: ``esp_brookesia::service::helper::Device``
 
 .. _service-device-sec-01:
@@ -19,7 +19,7 @@ Overview
 Typical usage:
 
 - Application code calls functions or subscribes to events through ``service::helper::Device``.
-- HAL adaptor and board components provide low-level interfaces such as ``AudioCodecPlayerIface``, ``DisplayBacklightIface``, ``StorageFsIface``, and ``PowerBatteryIface``.
+- HAL adaptor and board components provide low-level interfaces such as ``AudioCodecPlayerIface``, ``DisplayBacklightIface``, ``StorageFsIface``, ``PowerBatteryIface``, and ``ProtocolSntpIface``.
 - ``brookesia_service_device`` sits in between to validate parameters, cache state, publish events, and persist selected application-level state.
 
 Therefore, applications usually do not need to hold HAL interface pointers directly unless they need low-level or board-specific behavior.
@@ -54,6 +54,8 @@ Common capabilities:
      - Get mounted file-system information.
    * - ``PowerBatteryIface``
      - Get battery information, state, and charge configuration; control charging when supported.
+   * - ``ProtocolSntpIface``
+     - Configure NTP servers and timezone, start or stop SNTP, and query time-sync state.
 
 .. _service-device-sec-04:
 
@@ -65,7 +67,8 @@ Control functions update device state and are intended for UI, Agent tool calls,
 - **Display control**: set backlight brightness percentage and backlight on/off state.
 - **Audio control**: set player volume percentage and mute state.
 - **Power control**: set battery charge configuration or enable/disable charging when supported by HAL.
-- **Data reset**: clear persisted volume, mute, and brightness state, then restore defaults.
+- **SNTP control**: set NTP servers and timezone, start or stop time synchronization, and query time-sync state.
+- **Data reset**: clear persisted volume, mute, brightness, and SNTP state, then restore defaults.
 
 Brightness and volume use application-level percentages in ``[0, 100]``. The service maps them to the hardware min/max ranges configured through Kconfig before calling HAL.
 
@@ -81,6 +84,7 @@ Status-query functions read static information or runtime state:
 - **Audio state**: get target player volume percentage and mute state.
 - **Storage state**: get mounted file systems and mount points.
 - **Battery state**: get battery capabilities, voltage, percentage, charge state, low/critical flags, and charge configuration when supported.
+- **SNTP state**: get configured NTP servers, timezone, and whether system time has synchronized.
 
 .. _service-device-sec-06:
 
@@ -103,13 +107,15 @@ Battery state is polled from HAL at the configured interval, and an event is pub
 Persisted State
 ^^^^^^^^^^^^^^^
 
-When ``brookesia_service_nvs`` is enabled and running, Device service attempts to save and restore the following application-level state:
+When ``brookesia_service_storage`` is enabled and running, Device service attempts to save and restore the following application-level state:
 
 - Player volume
 - Player mute
 - Backlight brightness
+- SNTP timezone
+- SNTP NTP server list
 
-If the NVS service is unavailable, Device service still works, but these values are not persisted across reboot.
+If the Storage service is unavailable, Device service still works, but these values are not persisted across reboot.
 
 .. _service-device-sec-08:
 
@@ -118,6 +124,8 @@ Usage Recommendations
 
 - Initialize required HAL devices before starting ``ServiceManager`` and the Device service.
 - Query ``GetCapabilities`` before invoking optional control functions.
+- Enable the HAL General SNTP implementation when time synchronization is required.
+- Call ``StartSntp`` explicitly after networking has been configured; Device service prepares SNTP but does not auto-start synchronization.
 - For UI and Agent tool calls, prefer Device service as the application-layer entry point to HAL instead of depending on board-specific HAL implementations directly.
 - For high-throughput data paths such as audio streams or display frame drawing, use dedicated services or HAL interfaces instead of routing bulk data through Device service.
 

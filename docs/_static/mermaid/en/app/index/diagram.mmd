@@ -1,0 +1,11 @@
+flowchart TD
+    A["**System Core / System Super**<br/>· Owns app lifecycle<br/>· Provides system resources and services<br/>· Schedules built-in app entries"]
+    B["Built-In Apps"]
+    C["**Files**<br/>· Storage browser<br/>· Local storage entry<br/>· User-facing data access"]
+    D["**Settings**<br/>· Device settings<br/>· System configuration<br/>· Permission and preference entry"]
+    E["**App Store**<br/>· Local app packages<br/>· Remote app packages<br/>· Install and update entry"]
+
+    A -->|"Loads and hosts"| B
+    B -->|"Provides file access"| C
+    B -->|"Provides settings entry"| D
+    B -->|"Manages app sources"| E

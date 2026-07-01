@@ -6,7 +6,7 @@
 :link_to_translation:`en:[English]`
 
 - 组件注册表： `espressif/brookesia_service_device <https://components.espressif.com/components/espressif/brookesia_service_device>`_
-- 辅助头文件： ``#include "brookesia/service_helper/device.hpp"``
+- 辅助头文件： ``#include "brookesia/service_helper/system/device.hpp"``
 - 辅助类： ``esp_brookesia::service::helper::Device``
 
 .. _service-device-sec-01:
@@ -19,7 +19,7 @@
 典型使用方式是：
 
 - 应用层只通过 ``service::helper::Device`` 调用函数或订阅事件。
-- HAL adaptor/board 负责提供底层 ``AudioCodecPlayerIface``、``DisplayBacklightIface``、``StorageFsIface``、``PowerBatteryIface`` 等接口。
+- HAL adaptor/board 负责提供底层 ``AudioCodecPlayerIface``、``DisplayBacklightIface``、``StorageFsIface``、``PowerBatteryIface``、``ProtocolSntpIface`` 等接口。
 - ``brookesia_service_device`` 在中间完成参数校验、状态缓存、事件发布，以及部分状态持久化。
 
 因此，应用代码通常不需要直接持有 HAL interface 指针，除非需要访问非常底层或板级私有能力。
@@ -54,6 +54,8 @@
      - 获取已挂载文件系统列表
    * - ``PowerBatteryIface``
      - 获取电池信息、状态和充电配置，支持时可控制充电
+   * - ``ProtocolSntpIface``
+     - 配置 NTP 服务器和时区，启动或停止 SNTP，并查询时间同步状态
 
 .. _service-device-sec-04:
 
@@ -65,7 +67,8 @@
 - **显示控制**：设置背光亮度百分比，设置背光开关状态。
 - **音频控制**：设置播放器音量百分比，设置播放器静音状态。
 - **电源控制**：在 HAL 支持时设置电池充电配置，或启用/禁用充电。
-- **数据重置**：清除服务保存的音量、静音、亮度等持久化状态并恢复默认值。
+- **SNTP 控制**：设置 NTP 服务器和时区，启动或停止时间同步，并查询时间同步状态。
+- **数据重置**：清除服务保存的音量、静音、亮度和 SNTP 状态并恢复默认值。
 
 亮度和音量传入值使用应用层百分比 ``[0, 100]``，服务会根据 Kconfig 中配置的硬件最小/最大值映射到底层 HAL。
 
@@ -81,6 +84,7 @@
 - **音频状态**：读取当前目标音量百分比和静音状态。
 - **存储状态**：读取已挂载文件系统及其挂载点。
 - **电池状态**：读取电池能力信息、电压、电量百分比、充电状态、低电量/严重低电量状态等。
+- **SNTP 状态**：读取配置的 NTP 服务器、时区，以及系统时间是否已经同步。
 
 .. _service-device-sec-06:
 
@@ -103,13 +107,15 @@
 持久化状态
 ^^^^^^^^^^
 
-当系统启用并启动 ``brookesia_service_nvs`` 时，Device 服务会尝试保存和恢复以下应用层状态：
+当系统启用并启动 ``brookesia_service_storage`` 时，Device 服务会尝试保存和恢复以下应用层状态：
 
 - 播放器音量
 - 播放器静音
 - 背光亮度
+- SNTP 时区
+- SNTP NTP 服务器列表
 
-如果 NVS 服务不可用，Device 服务仍可工作，只是这些状态不会跨重启保存。
+如果 Storage 服务不可用，Device 服务仍可工作，只是这些状态不会跨重启保存。
 
 .. _service-device-sec-08:
 
@@ -118,6 +124,8 @@
 
 - 在应用启动阶段先初始化所需 HAL 设备，再启动 ``ServiceManager`` 和 Device 服务。
 - 调用控制接口前先通过 ``GetCapabilities`` 判断能力是否存在。
+- 需要时间同步时启用 HAL General SNTP 实现。
+- 网络配置完成后显式调用 ``StartSntp``；Device 服务会准备 SNTP，但不会自动开始同步。
 - 对 UI 和 Agent 工具调用，优先使用 Device 服务作为访问 HAL 的入口，避免业务层直接依赖具体板级 HAL 实现。
 - 对实时音频流、显示刷图等高频数据通道，仍应使用专门服务或 HAL 接口，不建议通过 Device 服务承载大数据流。
 

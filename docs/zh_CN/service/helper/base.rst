@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-- 公共头文件： ``#include "brookesia/service_helper/base.hpp"``
+- 公共头文件： ``#include "brookesia/service_manager/helper/base.hpp"``
 
 .. _service-helper-base-sec-01:
 
@@ -49,4 +49,4 @@
 API 参考
 --------
 
-.. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/base.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/helper/base.inc

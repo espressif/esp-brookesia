@@ -1,0 +1,10 @@
+flowchart TD
+    A["应用包 / 内置应用"]
+    B["**brookesia_system_core**<br/>· 应用生命周期<br/>· Runtime 桥接<br/>· GUI、服务、存储、权限边界"]
+    C["**brookesia_system_super**<br/>· 手持设备标准系统<br/>· Shell / launcher / overlay<br/>· 状态栏与应用切换"]
+    D["**HAL / Service / GUI / Runtime**<br/>· 设备抽象与系统服务<br/>· 界面渲染与动态运行时<br/>· Core 依赖的基础能力"]
+
+    D -->|"提供基础能力"| B
+    B -->|"扩展系统壳"| C
+    A -->|"注册并运行"| B
+    C -->|"展示和调度应用"| A

@@ -1,0 +1,13 @@
+flowchart TD
+    A["App / User Code"]
+    B["**ServiceManager**<br/>· Service discovery<br/>· Lifecycle coordination<br/>· Binding entry"]
+    C["**ServiceBinding**<br/>· Holds service reference<br/>· Provides access wrapper<br/>· Manages call context"]
+    D["**ServiceBase**<br/>· Service instance base<br/>· Function and event containers<br/>· Permission check entry"]
+    E["**Function Registry**<br/>· Named functions<br/>· Argument schema<br/>· Sync/async execution"]
+    F["**Event Registry**<br/>· Event names<br/>· Subscriber list<br/>· Notification dispatch"]
+
+    A -->|"bind()"| B
+    B -->|"Returns binding"| C
+    C -->|"get_service()"| D
+    D -->|"Registers functions"| E
+    D -->|"Registers events"| F

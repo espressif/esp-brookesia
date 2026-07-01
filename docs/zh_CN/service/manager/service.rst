@@ -17,7 +17,7 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/service/base.hpp"``
 
-.. include-build-file:: inc/service/brookesia_service_manager/include/brookesia/service_manager/service/base.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/base.inc
 
 .. _service-manager-service-sec-03:
 
@@ -26,7 +26,7 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/service/manager.hpp"``
 
-.. include-build-file:: inc/service/brookesia_service_manager/include/brookesia/service_manager/service/manager.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager.inc
 
 .. _service-manager-service-sec-04:
 

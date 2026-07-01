@@ -5,7 +5,7 @@ Base
 
 :link_to_translation:`zh_CN:[中文]`
 
-- Public header: ``#include "brookesia/service_helper/base.hpp"``
+- Public header: ``#include "brookesia/service_manager/helper/base.hpp"``
 
 .. _service-helper-base-sec-01:
 
@@ -49,4 +49,4 @@ Derive a helper with function/event enums and schemas:
 API Reference
 -------------
 
-.. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/base.inc
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/helper/base.inc

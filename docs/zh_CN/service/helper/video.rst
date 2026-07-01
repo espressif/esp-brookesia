@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-- 公共头文件： ``#include "brookesia/service_helper/video.hpp"``
+- 公共头文件： ``#include "brookesia/service_helper/media/video.hpp"``
 
 .. _service-helper-video-sec-01:
 

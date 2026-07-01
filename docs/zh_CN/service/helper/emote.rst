@@ -19,4 +19,4 @@
 API 参考
 --------
 
-.. include-build-file:: inc/service/brookesia_service_helper/include/brookesia/service_helper/expression/emote.inc
+.. include-build-file:: inc/service/framework/brookesia_service_helper/include/brookesia/service_helper/expression/emote.inc

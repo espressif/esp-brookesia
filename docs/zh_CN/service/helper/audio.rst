@@ -5,14 +5,14 @@
 
 :link_to_translation:`en:[English]`
 
-- 公共头文件： ``#include "brookesia/service_helper/audio.hpp"``
+- 公共头文件： ``#include "brookesia/service_helper/media/audio.hpp"``
 
 .. _service-helper-audio-sec-01:
 
 概述
 ----
 
-本页用于查看 Audio helper 的原始 Doxygen API，包括公共类型、枚举、方法与相关宏定义。
+本页用于查看 Audio helper 的原始 Doxygen API，包括共享类型、播放、编码器、解码器 helper 与相关宏定义。
 
 .. _service-helper-audio-sec-02:
 

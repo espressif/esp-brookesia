@@ -1,0 +1,13 @@
+flowchart TD
+    A["App / 用户代码"]
+    B["**ServiceManager**<br/>· 服务发现<br/>· 生命周期协调<br/>· 绑定入口"]
+    C["**ServiceBinding**<br/>· 持有服务引用<br/>· 提供访问封装<br/>· 管理调用上下文"]
+    D["**ServiceBase**<br/>· 服务实例基类<br/>· 函数与事件容器<br/>· 权限检查入口"]
+    E["**函数注册表**<br/>· 命名函数<br/>· 参数 schema<br/>· 同步/异步执行"]
+    F["**事件注册表**<br/>· 事件名称<br/>· 订阅者列表<br/>· 通知派发"]
+
+    A -->|"bind()"| B
+    B -->|"返回 binding"| C
+    C -->|"get_service()"| D
+    D -->|"注册函数"| E
+    D -->|"注册事件"| F

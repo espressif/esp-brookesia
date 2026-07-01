@@ -5,13 +5,13 @@ Filesystem Interface
 
 :link_to_translation:`zh_CN:[中文]`
 
-Public header: ``#include "brookesia/hal_interface/interfaces/storage/fs.hpp"``
+Public header: ``#include "brookesia/hal_interface/interfaces/storage/file_system.hpp"``
 
-Class: ``StorageFsIface``
+Class: ``FileSystemIface``
 
 .. _hal-interface-storage-fs-sec-01:
 
 API Reference
 -------------
 
-.. include-build-file:: inc/fs.inc
+.. include-build-file:: inc/file_system.inc

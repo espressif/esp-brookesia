@@ -35,9 +35,13 @@ Module Overview
 
    Base <base>
    Audio <audio>
+   Display <display>
    Device Control <device>
    Emote <emote>
-   NVS <nvs>
+   HTTP <http>
+   NES <nes>
    SNTP <sntp>
+   Storage <storage>
    Video <video>
    Wi-Fi <wifi>
+   Agent Helpers <agent/index>

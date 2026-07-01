@@ -1,0 +1,35 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;RPC 客户端&quot;]
+    B[&quot;**TCP Socket**&lt;br/&gt;· 连接管理&lt;br/&gt;· 字节流传输&lt;br/&gt;· 远端访问通道&quot;]
+    C[&quot;**JSON 协议**&lt;br/&gt;· 请求/响应封装&lt;br/&gt;· 事件消息格式&lt;br/&gt;· 参数序列化&quot;]
+    D[&quot;**RPC Server**&lt;br/&gt;· 解析远端请求&lt;br/&gt;· 转发服务调用&lt;br/&gt;· 维护会话状态&quot;]
+    E[&quot;**ServiceManager**&lt;br/&gt;· 查找目标服务&lt;br/&gt;· 绑定服务实例&lt;br/&gt;· 统一权限边界&quot;]
+    F[&quot;**ServiceBase**&lt;br/&gt;· 执行服务函数&lt;br/&gt;· 触发服务事件&lt;br/&gt;· 暴露注册表&quot;]
+    G[&quot;**函数 / 事件注册表**&lt;br/&gt;· 函数入口&lt;br/&gt;· 事件源&lt;br/&gt;· schema 元数据&quot;]
+
+    A --&gt;|&quot;建立连接&quot;| B
+    B --&gt;|&quot;传输消息&quot;| C
+    C --&gt;|&quot;解码请求&quot;| D
+    D --&gt;|&quot;委托调用&quot;| E
+    E --&gt;|&quot;定位服务&quot;| F
+    F --&gt;|&quot;查询接口&quot;| G
+    G -.-&gt;|&quot;事件通知&quot;| A
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>
