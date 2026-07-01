@@ -17,12 +17,12 @@
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/hal_interface/interface.hpp"
 
-namespace esp_brookesia::hal {
+namespace esp_brookesia::hal::audio {
 
 /**
  * @brief Player interface exposed by audio-capable devices.
  */
-class AudioCodecPlayerIface: public Interface {
+class CodecPlayerIface: public Interface {
 public:
     static constexpr const char *NAME = "AudioCodecPlayer";  ///< Interface registry name.
 
@@ -38,7 +38,7 @@ public:
     /**
      * @brief Construct an audio interface.
      */
-    AudioCodecPlayerIface()
+    CodecPlayerIface()
         : Interface(NAME)
     {
     }
@@ -46,7 +46,7 @@ public:
     /**
      * @brief Virtual destructor for polymorphic interfaces.
      */
-    virtual ~AudioCodecPlayerIface() = default;
+    virtual ~CodecPlayerIface() = default;
 
     /**
      * @brief Open the backend.
@@ -101,4 +101,6 @@ public:
     virtual bool is_pa_on() const = 0;
 };
 
-} // namespace esp_brookesia::hal
+BROOKESIA_DESCRIBE_STRUCT(CodecPlayerIface::Config, (), (bits, channels, sample_rate));
+
+} // namespace esp_brookesia::hal::audio

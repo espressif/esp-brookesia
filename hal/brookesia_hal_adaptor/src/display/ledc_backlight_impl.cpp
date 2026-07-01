@@ -19,6 +19,10 @@
 
 namespace esp_brookesia::hal {
 
+namespace {
+constexpr const char *DISPLAY_GROUP_ID = "display_lcd";
+}
+
 constexpr uint8_t BRIGHTNESS_DEFAULT = 0;
 constexpr uint8_t BRIGHTNESS_MIN = 0;
 constexpr uint8_t BRIGHTNESS_MAX = 100;
@@ -42,7 +46,9 @@ periph_ledc_config_t *get_ledc_config(void *config)
 } // namespace
 
 LedcDisplayBacklightImpl::LedcDisplayBacklightImpl()
-    : DisplayBacklightIface()
+    : display::BacklightIface(display::BacklightIface::Info{
+    .group_id = DISPLAY_GROUP_ID,
+})
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

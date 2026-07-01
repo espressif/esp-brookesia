@@ -6,7 +6,7 @@
 
 /**
  * @file device.hpp
- * @brief Singleton HAL device that registers a general-purpose filesystem interface for board-backed storage.
+ * @brief Singleton HAL device that registers board-backed storage interfaces.
  */
 #pragma once
 
@@ -15,7 +15,7 @@
 namespace esp_brookesia::hal {
 
 /**
- * @brief Board-backed storage device: publishes a general filesystem HAL interface after bring-up.
+ * @brief Board-backed storage device: publishes filesystem and key-value HAL interfaces after bring-up.
  *
  * Obtained via get_instance(). Not copyable or movable.
  */
@@ -23,8 +23,8 @@ class StorageDevice : public Device {
 public:
     /** @brief Logical device name passed to the base @ref Device constructor. */
     static constexpr const char *DEVICE_NAME = "Storage";
-    /** @brief Registry key for the general filesystem HAL interface (`"Storage:GenralFS"`). */
-    static constexpr const char *GENERAL_FS_IMPL_NAME = "Storage:GenralFS";
+    static constexpr const char *FILE_SYSTEM_IFACE_NAME = "Storage:FileSystem";
+    static constexpr const char *KEY_VALUE_IFACE_NAME = "Storage:KeyValue";
 
     StorageDevice(const StorageDevice &) = delete;
     StorageDevice &operator=(const StorageDevice &) = delete;
@@ -50,11 +50,14 @@ private:
     ~StorageDevice() = default;
 
     bool probe() override;
+    std::vector<InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 
-    bool init_general_fs();
-    void deinit_general_fs();
+    bool init_file_system();
+    void deinit_file_system();
+    bool init_key_value();
+    void deinit_key_value();
 };
 
 } // namespace esp_brookesia::hal

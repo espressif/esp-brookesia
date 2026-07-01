@@ -37,7 +37,7 @@ periph_gpio_handle_t *get_gpio_handle(void *handle)
 } // namespace
 
 AudioCodecPlayerImpl::AudioCodecPlayerImpl()
-    : AudioCodecPlayerIface()
+    : audio::CodecPlayerIface()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -65,7 +65,7 @@ AudioCodecPlayerImpl::~AudioCodecPlayerImpl()
     }
 }
 
-bool AudioCodecPlayerImpl::open(const AudioCodecPlayerIface::Config &config)
+bool AudioCodecPlayerImpl::open(const audio::CodecPlayerIface::Config &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

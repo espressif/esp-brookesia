@@ -10,6 +10,5 @@
  */
 #pragma once
 
-#include "hal_interface/device.hpp"
 #include "hal_interface/interface.hpp"
 #include "hal_interface/interfaces.hpp"

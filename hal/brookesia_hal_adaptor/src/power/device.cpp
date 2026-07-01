@@ -21,6 +21,15 @@ bool PowerDevice::probe()
     return true;
 }
 
+std::vector<InterfaceSpec> PowerDevice::get_interface_specs() const
+{
+    std::vector<InterfaceSpec> specs;
+#if BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY
+    specs.push_back({power::BatteryIface::NAME, BATTERY_IMPL_NAME});
+#endif
+    return specs;
+}
+
 bool PowerDevice::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

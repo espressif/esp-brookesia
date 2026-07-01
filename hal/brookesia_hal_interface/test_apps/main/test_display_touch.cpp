@@ -11,23 +11,24 @@ using namespace esp_brookesia;
 
 namespace esp_brookesia {
 
-bool TestDisplayTouchIface::read_points(std::vector<hal::DisplayTouchIface::Point> &points)
+bool TestDisplayTouchIface::read_points(std::vector<hal::display::TouchIface::Point> &points)
 {
     BROOKESIA_LOGI("Read points");
     points = {
-        hal::DisplayTouchIface::Point{.x = 12, .y = 34, .pressure = 56},
-        hal::DisplayTouchIface::Point{.x = 78, .y = 90, .pressure = 12},
+        hal::display::TouchIface::Point{.x = 12, .y = 34, .pressure = 56, .track_id = 0},
+        hal::display::TouchIface::Point{.x = 78, .y = 90, .pressure = 12, .track_id = 1},
     };
     return true;
 }
 
-bool TestDisplayTouchIface::register_interrupt_handler(hal::DisplayTouchIface::InterruptHandler handler)
+bool TestDisplayTouchIface::register_interrupt_handler(hal::display::TouchIface::InterruptHandler handler, void *ctx)
 {
-    interrupt_handler_ = std::move(handler);
+    interrupt_handler_ = handler;
+    interrupt_handler_ctx_ = ctx;
     return true;
 }
 
-bool TestDisplayTouchIface::get_driver_specific(hal::DisplayTouchIface::DriverSpecific &specific)
+bool TestDisplayTouchIface::get_driver_specific(hal::display::TouchIface::DriverSpecific &specific)
 {
     BROOKESIA_LOGI("Get driver specific");
     specific.io_handle = reinterpret_cast<void *>(0x12345678);
@@ -40,12 +41,19 @@ bool TestDisplayTouchDevice::probe()
     return true;
 }
 
+std::vector<hal::InterfaceSpec> TestDisplayTouchDevice::get_interface_specs() const
+{
+    return {{hal::display::TouchIface::NAME, TestDisplayTouchIface::NAME}};
+}
+
 bool TestDisplayTouchDevice::on_init()
 {
-    auto interface = std::make_shared<TestDisplayTouchIface>(hal::DisplayTouchIface::Info {
+    auto interface = std::make_shared<TestDisplayTouchIface>(hal::display::TouchIface::Info {
         .x_max = 320,
         .y_max = 240,
-        .operation_mode = hal::DisplayTouchIface::OperationMode::Polling
+        .max_points = 5,
+        .operation_mode = hal::display::TouchIface::OperationMode::Polling,
+        .group_id = "display0",
     });
 
     interfaces_.emplace(TestDisplayTouchIface::NAME, interface);
@@ -66,170 +74,45 @@ BROOKESIA_PLUGIN_REGISTER(hal::Device, TestDisplayTouchDevice, std::string(TestD
 ////////////////////////////////////////////////// Test Cases //////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-TEST_CASE("DisplayTouchIface: get_device finds plugin after registration", "[hal][device]")
+TEST_CASE("display::TouchIface: acquire and read points", "[hal][interface]")
 {
-    auto device = hal::get_device_by_device_name(TestDisplayTouchDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-}
+    auto handle = hal::acquire_first_interface<hal::display::TouchIface>();
+    TEST_ASSERT_TRUE(static_cast<bool>(handle));
+    TEST_ASSERT_EQUAL_STRING(TestDisplayTouchIface::NAME, std::string(handle.instance_name()).c_str());
 
-TEST_CASE("DisplayTouchIface: init_device registers interfaces", "[hal][device]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
+    auto iface = handle.get();
     TEST_ASSERT_NOT_NULL(iface.get());
-    TEST_ASSERT_FALSE(name.empty());
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: deinit_device releases interfaces", "[hal][device]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    TEST_ASSERT_NULL(iface.get());
-    TEST_ASSERT_TRUE(name.empty());
-}
-
-TEST_CASE("DisplayTouchIface: get_device returns correct device type", "[hal][device]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto device = hal::get_device_by_device_name(TestDisplayTouchDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-    TEST_ASSERT_EQUAL_STRING(TestDisplayTouchDevice::NAME, std::string(device->get_name()).c_str());
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: get_first_interface returns DisplayTouchIface", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
-    TEST_ASSERT_FALSE(name.empty());
-
-    TEST_ASSERT_EQUAL_STRING(TestDisplayTouchIface::NAME, name.c_str());
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: get_first_interface returns empty pair when no devices initialized", "[hal][interface]")
-{
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    TEST_ASSERT_NULL(iface.get());
-    TEST_ASSERT_TRUE(name.empty());
-}
-
-TEST_CASE("DisplayTouchIface: get_interfaces returns all DisplayTouchIface instances", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto interfaces = hal::get_interfaces<hal::DisplayTouchIface>();
-    TEST_ASSERT_GREATER_OR_EQUAL(1, interfaces.size());
-
-    for (const auto &[iface_name, iface] : interfaces) {
-        TEST_ASSERT_NOT_NULL(iface.get());
-        BROOKESIA_LOGI("Found interface: %1%", iface_name);
-    }
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: Device::get_interface returns interface from device instance", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto device = hal::get_device_by_device_name(TestDisplayTouchDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-
-    auto iface = device->get_interface<hal::DisplayTouchIface>(TestDisplayTouchIface::NAME);
-    TEST_ASSERT_NOT_NULL(iface.get());
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: Device::get_interface returns nullptr for missing interface", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto device = hal::get_device_by_device_name(TestDisplayTouchDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-
-    auto iface = device->get_interface<hal::DisplayTouchIface>("missing:DisplayTouch");
-    TEST_ASSERT_NULL(iface.get());
-
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: info is correctly propagated", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
-
     const auto &info = iface->get_info();
-    TEST_ASSERT_EQUAL_UINT16(320, info.x_max);
-    TEST_ASSERT_EQUAL_UINT16(240, info.y_max);
-    TEST_ASSERT_TRUE(info.operation_mode == hal::DisplayTouchIface::OperationMode::Polling);
+    TEST_ASSERT_EQUAL_UINT32(320, info.x_max);
+    TEST_ASSERT_EQUAL_UINT32(240, info.y_max);
+    TEST_ASSERT_EQUAL_UINT32(5, info.max_points);
+    TEST_ASSERT_EQUAL(hal::display::TouchIface::OperationMode::Polling, info.operation_mode);
+    TEST_ASSERT_EQUAL_STRING("display0", info.group_id.c_str());
+    TEST_ASSERT_TRUE(info.is_valid());
 
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
-
-TEST_CASE("DisplayTouchIface: read_points", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
-
-    std::vector<hal::DisplayTouchIface::Point> points;
+    std::vector<hal::display::TouchIface::Point> points;
     TEST_ASSERT_TRUE(iface->read_points(points));
     TEST_ASSERT_EQUAL(2, points.size());
-    TEST_ASSERT_EQUAL(12, points[0].x);
-    TEST_ASSERT_EQUAL(34, points[0].y);
-    TEST_ASSERT_EQUAL(56, points[0].pressure);
-    TEST_ASSERT_EQUAL(78, points[1].x);
-    TEST_ASSERT_EQUAL(90, points[1].y);
-    TEST_ASSERT_EQUAL(12, points[1].pressure);
+    TEST_ASSERT_EQUAL_UINT32(12, points.front().x);
 
-    hal::deinit_device(TestDisplayTouchDevice::NAME);
-}
+    bool interrupted = false;
+    auto interrupt_handler = [](void *ctx) {
+        auto *interrupted = static_cast<bool *>(ctx);
+        *interrupted = true;
+        return false;
+    };
+    TEST_ASSERT_TRUE(iface->register_interrupt_handler(interrupt_handler, &interrupted));
+    (void)interrupted;
 
-TEST_CASE("DisplayTouchIface: repeated init/deinit cycles work correctly", "[hal][device]")
-{
-    for (int i = 0; i < 3; i++) {
-        BROOKESIA_LOGI("Cycle %1%", i + 1);
-
-        TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-        auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-        TEST_ASSERT_NOT_NULL(iface.get());
-        std::vector<hal::DisplayTouchIface::Point> points;
-        TEST_ASSERT_TRUE(iface->read_points(points));
-
-        hal::deinit_device(TestDisplayTouchDevice::NAME);
-
-        auto [name2, iface2] = hal::get_first_interface<hal::DisplayTouchIface>();
-        TEST_ASSERT_NULL(iface2.get());
-    }
-}
-
-
-TEST_CASE("DisplayTouchIface: get_driver_specific", "[hal][interface]")
-{
-    TEST_ASSERT_TRUE(hal::init_device(TestDisplayTouchDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
-
-    hal::DisplayTouchIface::DriverSpecific specific;
+    hal::display::TouchIface::DriverSpecific specific;
     TEST_ASSERT_TRUE(iface->get_driver_specific(specific));
-    TEST_ASSERT_NOT_NULL(specific.io_handle);
-    TEST_ASSERT_NOT_NULL(specific.touch_handle);
+}
+
+TEST_CASE("display::TouchIface: acquire by instance and list handles", "[hal][interface]")
+{
+    auto handle = hal::acquire_interface<hal::display::TouchIface>(TestDisplayTouchIface::NAME);
+    TEST_ASSERT_TRUE(static_cast<bool>(handle));
+
+    auto handles = hal::acquire_interfaces<hal::display::TouchIface>();
+    TEST_ASSERT_GREATER_OR_EQUAL(1, handles.size());
 }

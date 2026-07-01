@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.0 - 2026-06-28
+
+### Enhancements:
+
+- feat(hal): extend storage, network, Wi-Fi, and OTA hardware interface contracts.
+
+### Documentation:
+
+- docs(release): align component metadata, README content, and API documentation for v0.8.0.
+
 ## v0.7.5 - 2026-05-31
 
 ### Enhancements:

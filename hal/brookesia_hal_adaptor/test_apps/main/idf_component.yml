@@ -2,8 +2,8 @@
 dependencies:
   espressif/brookesia_hal_adaptor:
     version: "*"
-    override_path: "../../../../hal/brookesia_hal_adaptor"
+    override_path: ../..
 
   espressif/brookesia_hal_boards:
     version: "*"
-    override_path: "../../../../hal/brookesia_hal_boards"
+    override_path: ../../../brookesia_hal_boards

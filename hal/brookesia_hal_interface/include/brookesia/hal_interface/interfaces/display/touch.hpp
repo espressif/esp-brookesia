@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -17,12 +18,12 @@
  * @brief Declares the display touch-input HAL interface.
  */
 
-namespace esp_brookesia::hal {
+namespace esp_brookesia::hal::display {
 
 /**
  * @brief Touch-input interface paired with a display.
  */
-class DisplayTouchIface: public Interface {
+class TouchIface: public Interface {
 public:
     static constexpr const char *NAME = "DisplayTouch";  ///< Interface registry name.
 
@@ -41,11 +42,13 @@ public:
     struct Info {
         uint16_t x_max = 0;              ///< Maximum X coordinate value.
         uint16_t y_max = 0;              ///< Maximum Y coordinate value.
+        uint8_t max_points = 1;          ///< Maximum number of simultaneous touch points.
         OperationMode operation_mode = OperationMode::Max; ///< Supported acquisition mode.
+        std::string group_id;            ///< Stable physical display group identifier.
 
         bool is_valid() const
         {
-            return (x_max > 0) && (y_max > 0) && (operation_mode != OperationMode::Max);
+            return (x_max > 0) && (y_max > 0) && (max_points > 0) && (operation_mode != OperationMode::Max);
         }
     };
 
@@ -53,9 +56,10 @@ public:
      * @brief A single touch point sample.
      */
     struct Point {
-        int16_t x;         ///< X coordinate.
-        int16_t y;         ///< Y coordinate.
-        uint16_t pressure; ///< Pressure or strength value from controller.
+        int16_t x = 0;         ///< X coordinate.
+        int16_t y = 0;         ///< Y coordinate.
+        uint16_t pressure = 0; ///< Pressure or strength value from controller.
+        uint8_t track_id = 0;  ///< Hardware track identifier for multi-touch controllers.
     };
 
     /**
@@ -66,14 +70,14 @@ public:
         void *touch_handle = nullptr; ///< Handle of the touch.
     };
 
-    using InterruptHandler = std::function<void()>;
+    using InterruptHandler = bool (*)(void *ctx);
 
     /**
      * @brief Construct a touch-input interface.
      *
      * @param[in] info Static touch capability information.
      */
-    DisplayTouchIface(Info info)
+    TouchIface(Info info)
         : Interface(NAME)
         , info_(std::move(info))
     {
@@ -82,7 +86,7 @@ public:
     /**
      * @brief Virtual destructor for polymorphic touch interfaces.
      */
-    virtual ~DisplayTouchIface() = default;
+    virtual ~TouchIface() = default;
 
     /**
      * @brief Read current touch points.
@@ -95,10 +99,13 @@ public:
     /**
      * @brief Register an interrupt handler.
      *
+     * The handler is called from ISR context and must only do ISR-safe work.
+     *
      * @param[in] handler Interrupt handler. If `nullptr`, the interrupt handler will be unregistered.
+     * @param[in] ctx User context passed to @p handler.
      * @return `true` on success; otherwise `false`.
      */
-    virtual bool register_interrupt_handler(InterruptHandler handler) = 0;
+    virtual bool register_interrupt_handler(InterruptHandler handler, void *ctx) = 0;
 
     /**
      * @brief Get the driver-specific data.
@@ -108,6 +115,7 @@ public:
      */
     virtual bool get_driver_specific(DriverSpecific &specific)
     {
+        (void)specific;
         return false;
     }
 
@@ -122,13 +130,15 @@ public:
     }
 
 protected:
-    InterruptHandler interrupt_handler_;
+    InterruptHandler interrupt_handler_ = nullptr;
+    void *interrupt_handler_ctx_ = nullptr;
 
 private:
     Info info_{};
 };
 
-BROOKESIA_DESCRIBE_ENUM(DisplayTouchIface::OperationMode, Polling, Interrupt, Max);
-BROOKESIA_DESCRIBE_STRUCT(DisplayTouchIface::Info, (), (x_max, y_max, operation_mode));
+BROOKESIA_DESCRIBE_ENUM(TouchIface::OperationMode, Polling, Interrupt, Max);
+BROOKESIA_DESCRIBE_STRUCT(TouchIface::Info, (), (x_max, y_max, max_points, operation_mode, group_id));
+BROOKESIA_DESCRIBE_STRUCT(TouchIface::Point, (), (x, y, pressure, track_id));
 
-} // namespace esp_brookesia::hal
+} // namespace esp_brookesia::hal::display

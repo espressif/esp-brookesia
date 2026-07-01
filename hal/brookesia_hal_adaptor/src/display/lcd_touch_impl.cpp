@@ -18,6 +18,8 @@
 namespace esp_brookesia::hal {
 
 namespace {
+constexpr const char *DISPLAY_GROUP_ID = "display_lcd";
+
 esp_lcd_touch_handle_t get_touch_handle(void *handles)
 {
     return reinterpret_cast<dev_lcd_touch_handles_t *>(handles)->touch_handle;
@@ -28,24 +30,26 @@ esp_lcd_panel_io_handle_t get_io_handle(void *handles)
     return reinterpret_cast<dev_lcd_touch_handles_t *>(handles)->io_handle;
 }
 
-DisplayTouchIface::Info generate_info()
+display::TouchIface::Info generate_info()
 {
     dev_lcd_touch_config_t *config = nullptr;
     auto ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, reinterpret_cast<void **>(&config));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, {}, "Failed to get LCD touch config");
     BROOKESIA_CHECK_NULL_RETURN(config, {}, "Failed to get LCD touch config");
 
-    return DisplayTouchIface::Info {
+    return display::TouchIface::Info {
         .x_max = config->touch_config.x_max,
         .y_max = config->touch_config.y_max,
+        .max_points = static_cast<uint8_t>(CONFIG_ESP_LCD_TOUCH_MAX_POINTS),
         .operation_mode = GPIO_IS_VALID_GPIO(config->touch_config.int_gpio_num) ?
-        DisplayTouchIface::OperationMode::Interrupt : DisplayTouchIface::OperationMode::Polling,
+        display::TouchIface::OperationMode::Interrupt : display::TouchIface::OperationMode::Polling,
+        .group_id = DISPLAY_GROUP_ID,
     };
 }
 } // namespace
 
 I2cDisplayTouchImpl::I2cDisplayTouchImpl()
-    : DisplayTouchIface(generate_info())
+    : display::TouchIface(generate_info())
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -64,17 +68,17 @@ I2cDisplayTouchImpl::~I2cDisplayTouchImpl()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    register_interrupt_handler(nullptr);
+    register_interrupt_handler(nullptr, nullptr);
 
     auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD touch"); });
 }
 
-bool I2cDisplayTouchImpl::read_points(std::vector<DisplayTouchIface::Point> &points)
+bool I2cDisplayTouchImpl::read_points(std::vector<display::TouchIface::Point> &points)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    boost::lock_guard<boost::mutex> lock(mutex_);
+    boost::unique_lock<boost::mutex> lock(mutex_);
 
     BROOKESIA_CHECK_FALSE_RETURN(is_valid_internal(), false, "LCD touch is not initialized");
 
@@ -94,21 +98,22 @@ bool I2cDisplayTouchImpl::read_points(std::vector<DisplayTouchIface::Point> &poi
     }
 
     for (size_t i = 0; i < count; ++i) {
-        points[i] = DisplayTouchIface::Point {
+        points[i] = display::TouchIface::Point {
             .x = static_cast<int16_t>(data[i].x),
             .y = static_cast<int16_t>(data[i].y),
             .pressure = static_cast<uint16_t>(data[i].strength),
+            .track_id = data[i].track_id,
         };
     }
 
     return true;
 }
 
-bool I2cDisplayTouchImpl::register_interrupt_handler(InterruptHandler handler)
+bool I2cDisplayTouchImpl::register_interrupt_handler(InterruptHandler handler, void *ctx)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: handler(%1%)", handler);
+    BROOKESIA_LOGD("Params: handler_registered(%1%), ctx(%2%)", handler != nullptr, ctx);
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
@@ -122,18 +127,47 @@ bool I2cDisplayTouchImpl::register_interrupt_handler(InterruptHandler handler)
         get_info().operation_mode == OperationMode::Interrupt, false, "Only support in interrupt mode"
     );
 
-    interrupt_handler_ = std::move(handler);
-
-    esp_lcd_touch_interrupt_callback_t callback = nullptr;
-    if (interrupt_handler_) {
-        callback = [](esp_lcd_touch_handle_t tp) {
+    if (handler) {
+        auto callback = [](esp_lcd_touch_handle_t tp) {
             auto iface = reinterpret_cast<I2cDisplayTouchImpl *>(tp->config.user_data);
-            if (iface && iface->interrupt_handler_) {
-                iface->interrupt_handler_();
+            if (iface == nullptr) {
+                return;
+            }
+
+            InterruptHandler interrupt_handler = nullptr;
+            void *interrupt_handler_ctx = nullptr;
+            portENTER_CRITICAL_ISR(&iface->interrupt_lock_);
+            interrupt_handler = iface->interrupt_handler_;
+            interrupt_handler_ctx = iface->interrupt_handler_ctx_;
+            portEXIT_CRITICAL_ISR(&iface->interrupt_lock_);
+
+            if ((interrupt_handler != nullptr) && interrupt_handler(interrupt_handler_ctx)) {
+                portYIELD_FROM_ISR();
             }
         };
+
+        portENTER_CRITICAL(&interrupt_lock_);
+        interrupt_handler_ = handler;
+        interrupt_handler_ctx_ = ctx;
+        portEXIT_CRITICAL(&interrupt_lock_);
+
+        auto ret = esp_lcd_touch_register_interrupt_callback_with_data(get_touch_handle(handles_), callback, this);
+        if (ret != ESP_OK) {
+            portENTER_CRITICAL(&interrupt_lock_);
+            interrupt_handler_ = nullptr;
+            interrupt_handler_ctx_ = nullptr;
+            portEXIT_CRITICAL(&interrupt_lock_);
+            BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to register interrupt callback");
+        }
+        return true;
     }
-    auto ret = esp_lcd_touch_register_interrupt_callback_with_data(get_touch_handle(handles_), callback, this);
+
+    portENTER_CRITICAL(&interrupt_lock_);
+    interrupt_handler_ = nullptr;
+    interrupt_handler_ctx_ = nullptr;
+    portEXIT_CRITICAL(&interrupt_lock_);
+
+    auto ret = esp_lcd_touch_register_interrupt_callback_with_data(get_touch_handle(handles_), nullptr, nullptr);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to register interrupt callback");
 
     return true;

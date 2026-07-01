@@ -25,9 +25,9 @@ esp_codec_dev_handle_t get_codec_handle(void *handles)
     return reinterpret_cast<dev_audio_codec_handles_t *>(handles)->codec_dev;
 }
 
-AudioCodecRecorderIface::Info generate_info()
+audio::CodecRecorderIface::Info generate_info()
 {
-    AudioCodecRecorderIface::Info info = {
+    audio::CodecRecorderIface::Info info = {
         .bits = BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_BITS,
         .channels = BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_CHANNELS,
         .sample_rate = BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_SAMPLE_RATE,
@@ -46,8 +46,8 @@ AudioCodecRecorderIface::Info generate_info()
 }
 } // namespace
 
-AudioCodecRecorderImpl::AudioCodecRecorderImpl(std::optional<AudioCodecRecorderIface::Info> info)
-    : AudioCodecRecorderIface(info.has_value() ? info.value() : generate_info())
+AudioCodecRecorderImpl::AudioCodecRecorderImpl(std::optional<audio::CodecRecorderIface::Info> info)
+    : audio::CodecRecorderIface(info.has_value() ? info.value() : generate_info())
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

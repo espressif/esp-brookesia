@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.0 - 2026-06-28
+
+### Enhancements:
+
+- feat(boards): add and refresh board configurations for the updated system examples.
+
+### Documentation:
+
+- docs(release): align component metadata, README content, and API documentation for v0.8.0.
+
 ## v0.7.5 - 2026-05-31
 
 ### Enhancements:

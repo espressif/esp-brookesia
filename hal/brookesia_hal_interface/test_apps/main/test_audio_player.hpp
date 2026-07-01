@@ -10,18 +10,18 @@
 
 namespace esp_brookesia {
 
-class TestAudioCodecPlayerIface: public hal::AudioCodecPlayerIface {
+class TestAudioCodecPlayerIface: public hal::audio::CodecPlayerIface {
 public:
     static constexpr const char *NAME = "TestAudioPlayer:Player";
 
     explicit TestAudioCodecPlayerIface(bool pa_supported)
-        : hal::AudioCodecPlayerIface()
+        : hal::audio::CodecPlayerIface()
         , pa_supported_(pa_supported)
     {
     }
     ~TestAudioCodecPlayerIface() = default;
 
-    bool open(const hal::AudioCodecPlayerIface::Config &config) override;
+    bool open(const hal::audio::CodecPlayerIface::Config &config) override;
     void close() override;
     bool set_volume(uint8_t volume) override;
     bool write_data(const uint8_t *data, size_t size) override;
@@ -66,6 +66,7 @@ public:
     }
 
     bool probe() override;
+    std::vector<hal::InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 

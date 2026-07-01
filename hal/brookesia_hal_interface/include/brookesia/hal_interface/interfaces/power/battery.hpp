@@ -19,14 +19,14 @@
  * @brief Declares the battery HAL interface.
  */
 
-namespace esp_brookesia::hal {
+namespace esp_brookesia::hal::power {
 
 /**
  * @brief Battery interface for querying battery state and controlling charger settings.
  */
-class PowerBatteryIface: public Interface {
+class BatteryIface: public Interface {
 public:
-    static constexpr const char *NAME = "Power:Battery";  ///< Interface registry name.
+    static constexpr const char *NAME = "PowerBattery";  ///< Interface registry name.
 
     /**
      * @brief Battery backend capability.
@@ -127,7 +127,7 @@ public:
      *
      * @param[in] info Static battery capability information.
      */
-    explicit PowerBatteryIface(Info info)
+    explicit BatteryIface(Info info)
         : Interface(NAME)
         , info_(std::move(info))
     {
@@ -136,7 +136,7 @@ public:
     /**
      * @brief Virtual destructor for polymorphic battery interfaces.
      */
-    virtual ~PowerBatteryIface() = default;
+    virtual ~BatteryIface() = default;
 
     /**
      * @brief Get static battery capability information.
@@ -185,26 +185,26 @@ private:
 };
 
 BROOKESIA_DESCRIBE_ENUM(
-    PowerBatteryIface::Ability, Voltage, Percentage, PowerSource, ChargeState, VbusVoltage, SystemVoltage, ChargerControl,
+    BatteryIface::Ability, Voltage, Percentage, PowerSource, ChargeState, VbusVoltage, SystemVoltage, ChargerControl,
     ChargeConfig
 );
-BROOKESIA_DESCRIBE_ENUM(PowerBatteryIface::PowerSource, Unknown, Battery, External);
+BROOKESIA_DESCRIBE_ENUM(BatteryIface::PowerSource, Unknown, Battery, External);
 BROOKESIA_DESCRIBE_ENUM(
-    PowerBatteryIface::ChargeState, Unknown, NotCharging, Charging, Trickle, PreCharge, ConstantCurrent, ConstantVoltage,
+    BatteryIface::ChargeState, Unknown, NotCharging, Charging, Trickle, PreCharge, ConstantCurrent, ConstantVoltage,
     Full, Fault
 );
-BROOKESIA_DESCRIBE_ENUM(PowerBatteryIface::LevelSource, Unknown, FuelGauge, VoltageCurve);
-BROOKESIA_DESCRIBE_STRUCT(PowerBatteryIface::Info, (), (name, chemistry, abilities));
+BROOKESIA_DESCRIBE_ENUM(BatteryIface::LevelSource, Unknown, FuelGauge, VoltageCurve);
+BROOKESIA_DESCRIBE_STRUCT(BatteryIface::Info, (), (name, chemistry, abilities));
 BROOKESIA_DESCRIBE_STRUCT(
-    PowerBatteryIface::State, (),
+    BatteryIface::State, (),
     (
         is_present, power_source, charge_state, level_source, voltage_mv, percentage, vbus_voltage_mv,
         system_voltage_mv, is_low, is_critical
     )
 );
 BROOKESIA_DESCRIBE_STRUCT(
-    PowerBatteryIface::ChargeConfig, (),
+    BatteryIface::ChargeConfig, (),
     (enabled, target_voltage_mv, charge_current_ma, precharge_current_ma, termination_current_ma)
 );
 
-} // namespace esp_brookesia::hal
+} // namespace esp_brookesia::hal::power

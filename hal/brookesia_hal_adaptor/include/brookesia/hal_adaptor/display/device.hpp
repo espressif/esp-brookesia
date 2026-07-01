@@ -59,6 +59,7 @@ private:
     ~DisplayDevice() = default;
 
     bool probe() override;
+    std::vector<InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 

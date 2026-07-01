@@ -10,12 +10,12 @@
 
 namespace esp_brookesia {
 
-class TestDisplayBacklightIface: public hal::DisplayBacklightIface {
+class TestDisplayBacklightIface: public hal::display::BacklightIface {
 public:
     static constexpr const char *NAME = "TestDisplayBacklight:Backlight";
 
     explicit TestDisplayBacklightIface(bool light_on_off_supported)
-        : hal::DisplayBacklightIface()
+        : hal::display::BacklightIface()
         , light_on_off_supported_(light_on_off_supported)
     {
     }
@@ -54,6 +54,7 @@ public:
     }
 
     bool probe() override;
+    std::vector<hal::InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 

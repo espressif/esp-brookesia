@@ -16,8 +16,12 @@ namespace esp_brookesia::hal {
 
 namespace {
 
+using ProviderPluginRegistry = lib_utils::PluginRegistry<Device>;
+using PublishedInterfacePluginRegistry = lib_utils::PluginRegistry<Interface>;
+
 Device::PreInitCallback g_pre_init_callback;
 Device::PostDeinitCallback g_post_deinit_callback;
+size_t g_initialized_device_count = 0;
 
 std::map<std::string, Device::PreInitCallback> &get_pending_pre_init_callbacks()
 {
@@ -31,10 +35,163 @@ std::map<std::string, Device::PostDeinitCallback> &get_pending_post_deinit_callb
     return pending;
 }
 
-// Drain any pending per-device callbacks queued by the auto-registration macros and attach
-// them to `device` through the public `register_*` API. Called from `init_device()` once the
-// device instance is known to exist, so it decouples macro registration from the plugin
-// registration order.
+} // namespace
+
+namespace detail {
+
+#if !defined(ESP_PLATFORM)
+bool register_atexit_cleanup_once();
+#endif
+
+bool is_device_available(Device &device)
+{
+    BROOKESIA_LOGD("- [%1%] Probing...", device.name_);
+    if (!device.probe()) {
+        BROOKESIA_LOGD("- [%1%] Probe failed, skipped", device.name_);
+        return false;
+    }
+
+    BROOKESIA_LOGD("- [%1%] Probed", device.name_);
+    return true;
+}
+
+std::shared_ptr<Device> acquire_device(const std::string &plugin_name)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    auto device = ProviderPluginRegistry::get_instance(plugin_name);
+    BROOKESIA_CHECK_NULL_RETURN(device, nullptr, "- [%1%] Device not found", plugin_name);
+
+    detail::apply_pending_callbacks_for(plugin_name, *device);
+    BROOKESIA_CHECK_FALSE_RETURN(is_device_available(*device), nullptr, "- [%1%] Device is not available", plugin_name);
+
+    const auto was_initialized = device->is_initialized();
+    if (!was_initialized && (g_initialized_device_count == 0) && g_pre_init_callback) {
+        BROOKESIA_LOGD("Invoking global pre-init callback");
+        BROOKESIA_CHECK_FALSE_RETURN(g_pre_init_callback(), nullptr, "Global pre-init callback failed");
+    }
+
+    BROOKESIA_CHECK_FALSE_RETURN(device->acquire(), nullptr, "- [%1%] Failed to acquire device", plugin_name);
+
+    if (!was_initialized) {
+        g_initialized_device_count++;
+#if !defined(ESP_PLATFORM)
+        register_atexit_cleanup_once();
+#endif
+    }
+
+    return device;
+}
+
+void cleanup_all_devices()
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    bool had_initialized_device = false;
+    for (const auto &[_, device] : ProviderPluginRegistry::get_all_instances()) {
+        if (!device || !device->is_initialized()) {
+            continue;
+        }
+
+        had_initialized_device = true;
+        device->force_deinit();
+    }
+
+    g_initialized_device_count = 0;
+
+    if (had_initialized_device && g_post_deinit_callback) {
+        BROOKESIA_LOGD("Invoking global post-deinit callback");
+        if (!g_post_deinit_callback()) {
+            BROOKESIA_LOGW("Global post-deinit callback reported failure");
+        }
+    }
+}
+
+void cleanup_all_devices_at_exit()
+{
+    detail::cleanup_all_devices();
+}
+
+#if !defined(ESP_PLATFORM)
+bool register_atexit_cleanup_once()
+{
+    static bool atexit_registered = false;
+    if (atexit_registered) {
+        return true;
+    }
+
+    if (std::atexit(&cleanup_all_devices_at_exit) != 0) {
+        BROOKESIA_LOGW("Failed to register HAL device cleanup atexit handler");
+        return false;
+    }
+
+    atexit_registered = true;
+    BROOKESIA_LOGD("Registered HAL device cleanup atexit handler");
+    return true;
+}
+#endif
+
+AcquiredInterface try_acquire_interface(
+    const std::string &plugin_name, Device &device, const InterfaceSpec &spec
+)
+{
+    (void)device;
+
+    auto acquired_device = acquire_device(plugin_name);
+    if (!acquired_device) {
+        return {};
+    }
+
+    auto interface = acquired_device->get_published_interface(spec.instance_name);
+    if (!interface) {
+        BROOKESIA_LOGW(
+            "- [%1%] Declared interface '%2%' was not published during init",
+            plugin_name, spec.instance_name
+        );
+        release_interface(plugin_name);
+        return {};
+    }
+
+    BROOKESIA_LOGI(
+        "- [%1%] Acquired interface '%2%' with reference count %3%",
+        acquired_device->name_, spec.instance_name, acquired_device->reference_count_
+    );
+
+    return {
+        .device_plugin_name = plugin_name,
+        .instance_name = spec.instance_name,
+        .interface = std::move(interface),
+    };
+}
+
+void register_pre_init_callback(Device::PreInitCallback callback)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    BROOKESIA_LOGD("Params: callback(%1%)", callback);
+
+    if (g_pre_init_callback) {
+        BROOKESIA_LOGW("Global pre-init callback already registered, overwriting");
+    }
+    g_pre_init_callback = std::move(callback);
+
+    BROOKESIA_LOGD("Registered global pre-init callback");
+}
+
+void register_post_deinit_callback(Device::PostDeinitCallback callback)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    BROOKESIA_LOGD("Params: callback(%1%)", callback);
+
+    if (g_post_deinit_callback) {
+        BROOKESIA_LOGW("Global post-deinit callback already registered, overwriting");
+    }
+    g_post_deinit_callback = std::move(callback);
+
+    BROOKESIA_LOGD("Registered global post-deinit callback");
+}
+
 void apply_pending_callbacks_for(const std::string &plugin_name, Device &device)
 {
     auto &pre = get_pending_pre_init_callbacks();
@@ -49,10 +206,6 @@ void apply_pending_callbacks_for(const std::string &plugin_name, Device &device)
         post.erase(it);
     }
 }
-
-} // namespace
-
-namespace detail {
 
 void enqueue_pending_pre_init_callback(std::string plugin_name, Device::PreInitCallback callback)
 {
@@ -86,34 +239,138 @@ void enqueue_pending_post_deinit_callback(std::string plugin_name, Device::PostD
     pending[std::move(plugin_name)] = std::move(callback);
 }
 
+AcquiredInterface acquire_interface(std::string_view type_name, std::string_view instance_name)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    for (const auto &[plugin_name, device] : ProviderPluginRegistry::get_all_instances()) {
+        if (!device) {
+            continue;
+        }
+
+        for (const auto &spec : device->get_interface_specs()) {
+            if ((spec.type_name != type_name) || (spec.instance_name != instance_name)) {
+                continue;
+            }
+
+            auto result = try_acquire_interface(plugin_name, *device, spec);
+            if (result.interface) {
+                return result;
+            }
+        }
+    }
+
+    return {};
+}
+
+AcquiredInterface acquire_first_interface(std::string_view type_name)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    for (const auto &[plugin_name, device] : ProviderPluginRegistry::get_all_instances()) {
+        if (!device) {
+            continue;
+        }
+
+        for (const auto &spec : device->get_interface_specs()) {
+            if (spec.type_name != type_name) {
+                continue;
+            }
+
+            auto result = try_acquire_interface(plugin_name, *device, spec);
+            if (result.interface) {
+                return result;
+            }
+        }
+    }
+
+    return {};
+}
+
+std::vector<AcquiredInterface> acquire_interfaces(std::string_view type_name)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    std::vector<AcquiredInterface> result;
+    for (const auto &[plugin_name, device] : ProviderPluginRegistry::get_all_instances()) {
+        if (!device) {
+            continue;
+        }
+
+        for (const auto &spec : device->get_interface_specs()) {
+            if (spec.type_name != type_name) {
+                continue;
+            }
+
+            auto acquired = try_acquire_interface(plugin_name, *device, spec);
+            if (acquired.interface) {
+                result.emplace_back(std::move(acquired));
+            }
+        }
+    }
+
+    return result;
+}
+
+void release_interface(std::string device_plugin_name)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    if (device_plugin_name.empty()) {
+        return;
+    }
+
+    auto device = ProviderPluginRegistry::get_instance(device_plugin_name);
+    BROOKESIA_CHECK_NULL_EXIT(device, "- [%1%] Device not found", device_plugin_name);
+
+    const auto was_initialized = device->is_initialized();
+    device->release();
+
+    if (was_initialized && !device->is_initialized() && (g_initialized_device_count > 0)) {
+        g_initialized_device_count--;
+        if ((g_initialized_device_count == 0) && g_post_deinit_callback) {
+            BROOKESIA_LOGD("Invoking global post-deinit callback");
+            if (!g_post_deinit_callback()) {
+                BROOKESIA_LOGW("Global post-deinit callback reported failure");
+            }
+        }
+    }
+}
+
 } // namespace detail
 
 Device::~Device()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    // NOTE: Do NOT call the virtual `deinit()` (and therefore `on_deinit()`) from a base
-    // destructor. By the time this runs, the derived part is already destroyed and the
-    // vtable resolves `on_deinit()` to its pure-virtual slot -> `__cxa_pure_virtual` ->
-    // abort. The proper deinit flow is `deinit_all_devices()`, which is registered as
-    // an `atexit` handler inside `init_all_devices()` so it runs even when the host
-    // process is torn down via `exit()` (e.g. LVGL's SDL backend on window close).
-    //
-    // If a Device is still flagged initialized here, that means neither the explicit
-    // RAII guard nor the atexit handler ran for some reason -- do best-effort base-only
-    // cleanup so we at least drop our interface registrations without abort.
+    // Do not call virtual on_deinit() from a base destructor; derived state is already gone.
     if (is_initialized_) {
         BROOKESIA_LOGW(
-            "- [%1%] Destroyed while still initialized; performing base-only cleanup "
-            "(derived on_deinit was skipped to avoid pure-virtual call)",
+            "- [%1%] Destroyed while still initialized; performing base-only cleanup",
             name_
         );
         for (const auto &[iface_name, _] : interfaces_) {
-            InterfaceRegistry::remove_plugin(iface_name);
+            PublishedInterfacePluginRegistry::remove_plugin(iface_name);
         }
         interfaces_.clear();
+        reference_count_ = 0;
         is_initialized_ = false;
     }
+}
+
+bool Device::publish_interface(const std::string &name, std::shared_ptr<Interface> interface)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_CHECK_FALSE_RETURN(!name.empty(), false, "- [%1%] Interface name is empty", name_);
+    BROOKESIA_CHECK_NULL_RETURN(interface, false, "- [%1%] Interface '%2%' is null", name_, name);
+
+    if (interfaces_.find(name) != interfaces_.end()) {
+        BROOKESIA_LOGW("- [%1%] Interface '%2%' already published, overwriting", name_, name);
+    }
+    interfaces_[name] = std::move(interface);
+
+    return true;
 }
 
 bool Device::register_pre_init_callback(PreInitCallback callback)
@@ -165,18 +422,18 @@ bool Device::init()
 
     if (pre_init_callback_) {
         BROOKESIA_LOGD("- [%1%] Invoking pre-init callback", name_);
-        BROOKESIA_CHECK_FALSE_RETURN(pre_init_callback_(), false,
-                                     "- [%1%] Pre-init callback failed", name_);
+        BROOKESIA_CHECK_FALSE_RETURN(pre_init_callback_(), false, "- [%1%] Pre-init callback failed", name_);
     }
 
+    interfaces_.clear();
     BROOKESIA_CHECK_FALSE_RETURN(on_init(), false, "[%1%] Initialization failed", name_);
 
     for (const auto &[name, interface] : interfaces_) {
-        if (InterfaceRegistry::has_plugin(name)) {
+        if (PublishedInterfacePluginRegistry::has_plugin(name)) {
             BROOKESIA_LOGW("- [%1%] Interface '%2%' already registered, skipping", name_, name);
             continue;
         }
-        InterfaceRegistry::register_plugin<Interface>(name, [interface]() {
+        PublishedInterfacePluginRegistry::register_plugin<Interface>(name, [interface]() {
             return interface;
         });
         BROOKESIA_LOGI("- [%1%] Registered interface '%2%'", name_, name);
@@ -200,9 +457,9 @@ void Device::deinit()
 
     BROOKESIA_LOGD("- [%1%] Deinitializing...", name_);
 
-    for (const auto &[name, interface] : interfaces_) {
+    for (const auto &[name, _] : interfaces_) {
         BROOKESIA_LOGI("- [%1%] Unregistering interface '%2%'", name_, name);
-        InterfaceRegistry::remove_plugin(name);
+        PublishedInterfacePluginRegistry::remove_plugin(name);
     }
 
     on_deinit();
@@ -220,159 +477,98 @@ void Device::deinit()
     BROOKESIA_LOGI("- [%1%] Deinitialized", name_);
 }
 
-void init_all_devices()
+bool Device::acquire()
 {
-    BROOKESIA_LOG_TRACE_GUARD();
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (g_pre_init_callback) {
-        BROOKESIA_LOGD("Invoking global pre-init callback");
-        BROOKESIA_CHECK_FALSE_EXIT(g_pre_init_callback(), "Global pre-init callback failed");
+    if (reference_count_ > 0) {
+        reference_count_++;
+        BROOKESIA_LOGI("- [%1%] Reference count increased to %2%", name_, reference_count_);
+        return true;
     }
 
-    BROOKESIA_LOGI("Found %1% devices", DeviceRegistry::get_plugin_count());
-    size_t count = 0;
-    for (const auto &[name, _] : DeviceRegistry::get_all_instances()) {
-        if (init_device(name)) {
-            count++;
-        }
-    }
-    BROOKESIA_LOGI("Initialized %1%/%2% devices", count, DeviceRegistry::get_plugin_count());
-
-    for (const auto &[name, _] : get_pending_pre_init_callbacks()) {
-        BROOKESIA_LOGW("- [%1%] Pending pre-init callback has no matching device, dropped", name);
-    }
-    get_pending_pre_init_callbacks().clear();
-    for (const auto &[name, _] : get_pending_post_deinit_callbacks()) {
-        BROOKESIA_LOGW("- [%1%] Pending post-deinit callback has no matching device, dropped", name);
-    }
-    get_pending_post_deinit_callbacks().clear();
-
-#if !defined(ESP_PLATFORM)
-    // Register `deinit_all_devices` as an atexit handler so devices are torn down with
-    // a live derived vtable even when the host process exits abruptly via `exit()`
-    // (e.g. LVGL's SDL backend calls `exit()` on window close, which bypasses the RAII
-    // FunctionGuard set up by the simulator's `main()`). Without this, `~Device()`
-    // would later run during static destruction with the derived part already gone and
-    // call the pure-virtual `on_deinit()`, triggering `__cxa_pure_virtual` -> abort.
-    //
-    // `deinit_all_devices()` is idempotent because each device's `deinit()` early-returns
-    // when `is_initialized_` is already false.
-    static bool atexit_registered = false;
-    if (!atexit_registered) {
-        if (std::atexit(&deinit_all_devices) == 0) {
-            atexit_registered = true;
-            BROOKESIA_LOGD("Registered deinit_all_devices() as atexit handler");
-        } else {
-            BROOKESIA_LOGW("Failed to register deinit_all_devices() as atexit handler");
-        }
-    }
-#endif
-}
-
-bool init_device(const std::string &name)
-{
-    BROOKESIA_LOG_TRACE_GUARD();
-
-    BROOKESIA_LOGD("Params: name(%1%)", name);
-
-    auto device = DeviceRegistry::get_instance(name);
-    BROOKESIA_CHECK_NULL_RETURN(device, false, "- [%1%] Device not found", name);
-
-    apply_pending_callbacks_for(name, *device);
-
-    BROOKESIA_LOGD("- [%1%] Probing...", name);
-    BROOKESIA_CHECK_FALSE_RETURN(device->probe(), false, "- [%1%] Probe failed, skipped", name);
-    BROOKESIA_LOGD("- [%1%] Probed", name);
-
-    BROOKESIA_CHECK_FALSE_RETURN(device->init(), false, "- [%1%] Initialization failed, skipped", name);
+    BROOKESIA_CHECK_FALSE_RETURN(init(), false, "- [%1%] Initialization failed", name_);
+    reference_count_ = 1;
+    BROOKESIA_LOGI("- [%1%] Reference count increased to %2%", name_, reference_count_);
 
     return true;
 }
 
-void deinit_all_devices()
+void Device::release()
 {
-    BROOKESIA_LOG_TRACE_GUARD();
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Found %1% devices", DeviceRegistry::get_plugin_count());
-    for (const auto &[name, _] : DeviceRegistry::get_all_instances()) {
-        deinit_device(name);
+    if (reference_count_ == 0) {
+        BROOKESIA_LOGW("- [%1%] Release requested with zero references", name_);
+        return;
     }
 
-    if (g_post_deinit_callback) {
-        BROOKESIA_LOGD("Invoking global post-deinit callback");
-        if (!g_post_deinit_callback()) {
-            BROOKESIA_LOGW("Global post-deinit callback reported failure");
+    reference_count_--;
+    BROOKESIA_LOGI("- [%1%] Reference count decreased to %2%", name_, reference_count_);
+    if (reference_count_ == 0) {
+        if (deinit_on_zero_references()) {
+            deinit();
+        } else {
+            BROOKESIA_LOGI("- [%1%] Keeping device initialized after release", name_);
         }
     }
 }
 
-void deinit_device(const std::string &name)
+void Device::force_deinit()
 {
-    BROOKESIA_LOG_TRACE_GUARD();
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: name(%1%)", name);
-
-    auto device = DeviceRegistry::get_instance(name);
-    BROOKESIA_CHECK_NULL_EXIT(device, "- [%1%] Device not found", name);
-
-    device->deinit();
-}
-
-void register_pre_init_callback(Device::PreInitCallback callback)
-{
-    BROOKESIA_LOG_TRACE_GUARD();
-
-    BROOKESIA_LOGD("Params: callback(%1%)", callback);
-
-    if (g_pre_init_callback) {
-        BROOKESIA_LOGW("Global pre-init callback already registered, overwriting");
+    if (reference_count_ > 0) {
+        BROOKESIA_LOGW("- [%1%] Force cleanup with %2% active references", name_, reference_count_);
     }
-    g_pre_init_callback = std::move(callback);
-
-    BROOKESIA_LOGD("Registered global pre-init callback");
+    reference_count_ = 0;
+    BROOKESIA_LOGI("- [%1%] Reference count reset to %2%", name_, reference_count_);
+    deinit();
 }
 
-void register_post_deinit_callback(Device::PostDeinitCallback callback)
+std::shared_ptr<Interface> Device::get_published_interface(std::string_view name) const
 {
-    BROOKESIA_LOG_TRACE_GUARD();
-
-    BROOKESIA_LOGD("Params: callback(%1%)", callback);
-
-    if (g_post_deinit_callback) {
-        BROOKESIA_LOGW("Global post-deinit callback already registered, overwriting");
+    auto it = interfaces_.find(std::string(name));
+    if (it == interfaces_.end()) {
+        return nullptr;
     }
-    g_post_deinit_callback = std::move(callback);
 
-    BROOKESIA_LOGD("Registered global post-deinit callback");
+    return it->second;
 }
 
-Capabilities get_capabilities()
+DeviceInfoList get_device_infos()
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
-    Capabilities capabilities;
-    for (const auto &[instance_name, iface] : InterfaceRegistry::get_all_instances()) {
-        if (!iface) {
-            BROOKESIA_LOGW("Null interface registered: %1%", instance_name);
+    DeviceInfoList infos;
+    for (const auto &[_, device] : ProviderPluginRegistry::get_all_instances()) {
+        if (!device || !detail::is_device_available(*device)) {
             continue;
         }
-        capabilities[std::string(iface->get_name())].push_back(instance_name);
+
+        auto specs = device->get_interface_specs();
+        if (specs.empty()) {
+            continue;
+        }
+
+        infos.push_back({
+            .name = device->name_,
+            .interfaces = std::move(specs),
+        });
     }
 
-    return capabilities;
+    return infos;
 }
 
-bool has_interface(std::string_view name)
+bool has_interface(std::string_view type_name)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
-    for (const auto &[instance_name, iface] : InterfaceRegistry::get_all_instances()) {
-        if (!iface) {
-            BROOKESIA_LOGW("Null interface registered: %1%", instance_name);
-            continue;
-        }
-        if (iface->get_name() == name) {
-            return true;
+    for (const auto &device_info : get_device_infos()) {
+        for (const auto &interface_info : device_info.interfaces) {
+            if (interface_info.type_name == type_name) {
+                return true;
+            }
         }
     }
 

@@ -41,19 +41,19 @@ bool is_charge_adc_config_available()
     return esp_board_periph_get_config(ADC_BATTERY_CHARGE_NAME, &config) == ESP_OK;
 }
 
-PowerBatteryIface::Info generate_info()
+power::BatteryIface::Info generate_info()
 {
-    PowerBatteryIface::Info info = {
+    power::BatteryIface::Info info = {
         .name = BATTERY_NAME,
         .chemistry = BATTERY_CHEMISTRY,
         .abilities = {
-            PowerBatteryIface::Ability::Voltage,
-            PowerBatteryIface::Ability::Percentage,
+            power::BatteryIface::Ability::Voltage,
+            power::BatteryIface::Ability::Percentage,
         },
     };
 
     if (is_charge_adc_config_available()) {
-        info.abilities.push_back(PowerBatteryIface::Ability::ChargeState);
+        info.abilities.push_back(power::BatteryIface::Ability::ChargeState);
     }
 
     return info;
@@ -96,7 +96,7 @@ uint8_t estimate_percentage(uint32_t voltage_mv)
     return static_cast<uint8_t>(((voltage_mv - PERCENTAGE_VOLTAGE_MIN_MV) * 100) / range);
 }
 
-void apply_low_critical_state(PowerBatteryIface::State &state)
+void apply_low_critical_state(power::BatteryIface::State &state)
 {
     state.is_low = false;
     state.is_critical = false;
@@ -114,7 +114,7 @@ void apply_low_critical_state(PowerBatteryIface::State &state)
 } // namespace
 
 BatteryAdcImpl::BatteryAdcImpl()
-    : PowerBatteryIface(generate_info())
+    : power::BatteryIface(generate_info())
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

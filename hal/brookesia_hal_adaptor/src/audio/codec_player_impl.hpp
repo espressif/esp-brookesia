@@ -15,12 +15,12 @@ namespace esp_brookesia::hal {
 /**
  * @brief Board-backed audio playback HAL interface (obtains codec handle from board manager).
  */
-class AudioCodecPlayerImpl : public AudioCodecPlayerIface {
+class AudioCodecPlayerImpl : public audio::CodecPlayerIface {
 public:
     AudioCodecPlayerImpl();
     ~AudioCodecPlayerImpl();
 
-    bool open(const AudioCodecPlayerIface::Config &config) override;
+    bool open(const audio::CodecPlayerIface::Config &config) override;
     void close() override;
     bool set_volume(uint8_t volume) override;
     bool write_data(const uint8_t *data, size_t size) override;

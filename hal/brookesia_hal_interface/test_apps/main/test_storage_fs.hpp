@@ -8,28 +8,30 @@
 #include <string>
 
 #include "brookesia/hal_interface/device.hpp"
-#include "brookesia/hal_interface/interfaces/storage/fs.hpp"
+#include "brookesia/hal_interface/interfaces/storage/file_system.hpp"
 
 namespace esp_brookesia {
 
-class TestStorageFsIface: public hal::StorageFsIface {
+class TestStorageFsIface: public hal::storage::FileSystemIface {
 public:
     static constexpr const char *NAME = "TestStorageFs:StorageFs";
 
     TestStorageFsIface()
-        : StorageFsIface()
+        : hal::storage::FileSystemIface()
     {
         info_list_ = {
-            hal::StorageFsIface::Info{
-                .fs_type = hal::StorageFsIface::FileSystemType::SPIFFS,
-                .medium_type = hal::StorageFsIface::MediumType::Flash,
+            hal::storage::FileSystemIface::Info{
+                .fs_type = hal::storage::FileSystemIface::FileSystemType::SPIFFS,
+                .medium_type = hal::storage::FileSystemIface::MediumType::Flash,
                 .mount_point = "/spiffs",
+                .root_path = "/spiffs",
                 .supports_directories = false,
             },
-            hal::StorageFsIface::Info{
-                .fs_type = hal::StorageFsIface::FileSystemType::LittleFS,
-                .medium_type = hal::StorageFsIface::MediumType::Flash,
+            hal::storage::FileSystemIface::Info{
+                .fs_type = hal::storage::FileSystemIface::FileSystemType::LittleFS,
+                .medium_type = hal::storage::FileSystemIface::MediumType::Flash,
                 .mount_point = "/littlefs",
+                .root_path = "/littlefs",
                 .supports_directories = true,
             },
         };
@@ -66,6 +68,7 @@ public:
     TestStorageFsDevice() : hal::Device(std::string(NAME)) {}
 
     bool probe() override;
+    std::vector<hal::InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 };

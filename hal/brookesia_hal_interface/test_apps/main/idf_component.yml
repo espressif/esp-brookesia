@@ -2,4 +2,4 @@
 dependencies:
   espressif/brookesia_hal_interface:
     version: "*"
-    override_path: "../../../brookesia_hal_interface"
+    override_path: ../..

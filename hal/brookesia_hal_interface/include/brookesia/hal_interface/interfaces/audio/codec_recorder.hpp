@@ -19,12 +19,12 @@
  * @brief Declares the audio recording HAL interface.
  */
 
-namespace esp_brookesia::hal {
+namespace esp_brookesia::hal::audio {
 
 /**
  * @brief Recording interface exposed by audio-capable devices.
  */
-class AudioCodecRecorderIface: public Interface {
+class CodecRecorderIface: public Interface {
 public:
     static constexpr const char *NAME = "AudioCodecRecorder";  ///< Interface registry name.
 
@@ -45,7 +45,7 @@ public:
      *
      * @param[in] info Static recording capability information.
      */
-    AudioCodecRecorderIface(Info info)
+    CodecRecorderIface(Info info)
         : Interface(NAME)
         , info_(std::move(info))
     {
@@ -54,7 +54,7 @@ public:
     /**
      * @brief Virtual destructor for polymorphic recording interfaces.
      */
-    virtual ~AudioCodecRecorderIface() = default;
+    virtual ~CodecRecorderIface() = default;
 
     /**
      * @brief Open the recording backend.
@@ -107,8 +107,6 @@ private:
     Info info_{};
 };
 
-BROOKESIA_DESCRIBE_STRUCT(
-    AudioCodecRecorderIface::Info, (), (bits, channels, sample_rate, mic_layout, general_gain, channel_gains)
-);
+BROOKESIA_DESCRIBE_STRUCT(CodecRecorderIface::Info, (), (bits, channels, sample_rate, mic_layout, general_gain, channel_gains));
 
-} // namespace esp_brookesia::hal
+} // namespace esp_brookesia::hal::audio
