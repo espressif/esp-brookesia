@@ -42,8 +42,8 @@ svc_rpc_server connect
 # Or connect only specific services
 svc_rpc_server connect -s Wifi
 
-# 5. Start a service (e.g., NVS)
-svc_funcs NVS
+# 5. Start a service (e.g., Storage)
+svc_funcs Storage
 ```
 
 ### Device B (RPC Client)
@@ -96,7 +96,7 @@ svc_rpc_server connect
 Connect specific services (comma-separated):
 
 ```bash
-svc_rpc_server connect -s NVS,Wifi
+svc_rpc_server connect -s Storage,Wifi
 ```
 
 Disconnect all services:
@@ -108,7 +108,7 @@ svc_rpc_server disconnect
 Disconnect specific services:
 
 ```bash
-svc_rpc_server disconnect -s NVS,Wifi
+svc_rpc_server disconnect -s Storage,Wifi
 ```
 
 ## Client Commands
@@ -118,25 +118,25 @@ svc_rpc_server disconnect -s NVS,Wifi
 Call a remote function with parameters:
 
 ```bash
-svc_rpc_call 192.168.1.100 NVS Set {""KeyValuePairs":{"key1":"value1"}}
+svc_rpc_call 192.168.1.100 Storage KVSet {""KeyValuePairs":{"key1":"value1"}}
 ```
 
 Call a remote function without parameters:
 
 ```bash
-svc_rpc_call 192.168.1.100 NVS List
+svc_rpc_call 192.168.1.100 Storage KVList
 ```
 
 Call with custom port and timeout (10 seconds):
 
 ```bash
-svc_rpc_call 192.168.1.100 NVS List -p 9000 -t 10000
+svc_rpc_call 192.168.1.100 Storage KVList -p 9000 -t 10000
 ```
 
 Call on localhost:
 
 ```bash
-svc_rpc_call 127.0.0.1 NVS List
+svc_rpc_call 127.0.0.1 Storage KVList
 ```
 
 ### Subscribe to Remote Service Events

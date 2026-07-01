@@ -67,6 +67,7 @@ bool Console::start(const Config &config)
     if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         BROOKESIA_LOGD("Mounting history in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = 6 * 1024,
             .stack_in_ext = false,
         });
         boost::thread(mount_history_task).join();
@@ -113,6 +114,7 @@ bool Console::start(const Config &config)
     if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         BROOKESIA_LOGD("Creating REPL in new thread");
         BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = 6 * 1024,
             .stack_in_ext = false,
         });
         boost::thread(create_repl_func).join();

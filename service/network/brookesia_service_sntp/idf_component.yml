@@ -1,0 +1,13 @@
+version: "0.8.0"
+description: ESP-Brookesia SNTP (Simple Network Time Protocol) service which provides NTP server management, timezone settings, and automatic time synchronization.
+url: https://github.com/espressif/esp-brookesia/tree/master/service/network/brookesia_service_sntp
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_service_storage:
+    version: "0.8.*"
+    override_path: ../../system/brookesia_service_storage
+    require: public
+
+examples:
+  - path: ../../../examples/service/console

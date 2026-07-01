@@ -3,12 +3,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <cstdint>
+#include <utility>
+
 #include "esp_log.h"
 #include "private/utils.hpp"
 #include "brookesia/lib_utils.hpp"
 #include "brookesia/service_manager.hpp"
-#include "brookesia/hal_interface.hpp"
-#include "brookesia/hal_adaptor.hpp"
 #include "modules/wifi_provisioning.hpp"
 #include "modules/ai_agents.hpp"
 #include "modules/general_services.hpp"
@@ -40,25 +41,6 @@ extern "C" void app_main(void)
     esp_log_level_set("ESP_XIAOZHI_CHAT", ESP_LOG_WARN);
     esp_log_level_set("AFE", ESP_LOG_ERROR);
 
-    /* Initialize all devices from HAL adaptor */
-#if CONFIG_SOC_CPU_CORES_NUM > 1
-    {
-        // For SPI LCDs, bus initialization and data transmission operations must be performed on the same core;
-        // otherwise, a crash may occur.
-        BROOKESIA_THREAD_CONFIG_GUARD({
-            .core_id = 1,
-        });
-        std::thread([&]() {
-            hal::init_device(hal::DisplayDevice::DEVICE_NAME);
-        }).join();
-    }
-#endif
-    hal::init_all_devices();
-
-    /* Start ServiceManager */
-    auto &service_manager = service::ServiceManager::get_instance();
-    BROOKESIA_CHECK_FALSE_EXIT(service_manager.start(), "Failed to start ServiceManager");
-
     /* Create a task scheduler for backend usage */
     std::shared_ptr<lib_utils::TaskScheduler> backend_scheduler;
     BROOKESIA_CHECK_EXCEPTION_EXIT(
@@ -85,10 +67,13 @@ extern "C" void app_main(void)
     auto setup_task = [backend_scheduler]() {
         /* Initialize general services */
         GeneralServices::get_instance().init(backend_scheduler);
-        GeneralServices::get_instance().start_nvs();
-        GeneralServices::get_instance().start_sntp();
-        GeneralServices::get_instance().start_device();
         GeneralServices::get_instance().init_audio();
+
+        /* Start ServiceManager */
+        auto &service_manager = service::ServiceManager::get_instance();
+        BROOKESIA_CHECK_FALSE_EXIT(service_manager.start(), "Failed to start ServiceManager");
+
+        GeneralServices::get_instance().start_device();
 
         /* Initialize AI agents */
         AI_Agents::get_instance().init({
@@ -101,10 +86,6 @@ extern "C" void app_main(void)
         /* Start display UI */
         Display::get_instance().start({
             .task_scheduler = backend_scheduler,
-#if CONFIG_SOC_CPU_CORES_NUM > 1
-            .lvgl_task_core = 1,
-            .emote_task_core = 1,
-#endif
         });
 
         /* Start WiFi provisioning module */

@@ -3,30 +3,103 @@
  *
  * SPDX-License-Identifier: CC0-1.0
  */
+#include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstdint>
+#include <mutex>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
+
 #include "sdkconfig.h"
+#include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/service_manager.hpp"
 #include "brookesia/service_helper.hpp"
-#include "brookesia/agent_helper.hpp"
 #include "brookesia/mcp_utils/mcp_utils.hpp"
 #include "brookesia/hal_interface.hpp"
 #include "private/utils.hpp"
+#include "modules/display/display.hpp"
 #include "ai_agents.hpp"
 
 using namespace esp_brookesia;
 
-using AgentHelper = esp_brookesia::agent::helper::Manager;
-using CozeHelper = esp_brookesia::agent::helper::Coze;
-using OpenaiHelper = esp_brookesia::agent::helper::Openai;
-using XiaoZhiHelper = esp_brookesia::agent::helper::XiaoZhi;
+using AgentHelper = esp_brookesia::service::helper::Manager;
+using CozeHelper = esp_brookesia::service::helper::Coze;
+using OpenaiHelper = esp_brookesia::service::helper::Openai;
+using XiaoZhiHelper = esp_brookesia::service::helper::XiaoZhi;
 using EmoteHelper = esp_brookesia::service::helper::ExpressionEmote;
 using AudioHelper = esp_brookesia::service::helper::Audio;
+using AudioPlaybackHelper = esp_brookesia::service::helper::AudioPlayback;
 using WifiHelper = esp_brookesia::service::helper::Wifi;
 using DeviceHelper = esp_brookesia::service::helper::Device;
+using VideoHelper = esp_brookesia::service::helper::Video;
+using VideoEncoderHelper = esp_brookesia::service::helper::VideoEncoder<0>;
+using VideoDecoderHelper = esp_brookesia::service::helper::VideoDecoder<0>;
 
 #define XIAO_ZHI_AUDIO_URL_PREFIX "file://littlefs/xiaozhi/"
 
-constexpr const char *AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
-constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
+namespace {
+
+constexpr const char *CAMERA_OPEN_TOOL_NAME = "Camera.Open";
+constexpr const char *CAMERA_CLOSE_TOOL_NAME = "Camera.Close";
+constexpr const char *CAMERA_TAKE_PHOTO_TOOL_NAME = "Camera.TakePhoto";
+constexpr const char *CAMERA_TOOL_PARAM_QUESTION = "Question";
+constexpr const char *CAMERA_DEFAULT_QUESTION = "What is in the image?";
+constexpr uint16_t CAMERA_PREVIEW_WIDTH = 640;
+constexpr uint16_t CAMERA_PREVIEW_HEIGHT = 480;
+constexpr uint8_t CAMERA_PHOTO_FPS = 15;
+constexpr uint8_t CAMERA_V4L2_BUFFER_COUNT = 2;
+constexpr uint32_t CAMERA_FETCH_TIMEOUT_MS = 5000;
+constexpr uint32_t CAMERA_EXPLAIN_TIMEOUT_MS = 15000;
+constexpr int CAMERA_SINK_INDEX = 0;
+
+using CameraDeviceInfo = DeviceHelper::CameraDeviceInfos::value_type;
+
+std::mutex camera_mutex;
+std::mutex camera_frame_mutex;
+std::condition_variable camera_frame_cv;
+std::vector<uint8_t> camera_frame_data;
+bool camera_frame_ready = false;
+bool camera_video_encoder_started = false;
+bool camera_opened_by_mcp = false;
+std::atomic_bool camera_video_decoder_started = false;
+service::ServiceBinding camera_video_encoder_binding;
+service::ServiceBinding camera_video_decoder_binding;
+service::EventRegistry::SignalConnection camera_frame_ready_connection;
+
+static bool add_camera_mcp_tool();
+static service::FunctionResult camera_open_callback(service::FunctionParameterMap &&params);
+static service::FunctionResult camera_close_callback(service::FunctionParameterMap &&params);
+static service::FunctionResult camera_take_photo_callback(service::FunctionParameterMap &&params);
+static bool ensure_camera_video_encoder_started(std::string &error_message);
+static bool ensure_camera_video_decoder_started(std::string &error_message);
+static void close_camera_video_pipeline();
+static bool fetch_camera_frame(std::vector<uint8_t> &frame_data, std::string &error_message);
+static bool get_camera_device_info(CameraDeviceInfo &device_info, std::string &error_message);
+static bool subscribe_camera_frame_event(std::string &error_message);
+static uint16_t get_camera_output_width();
+static uint16_t get_camera_output_height();
+static uint16_t get_camera_preview_width();
+static uint16_t get_camera_preview_height();
+static uint32_t get_camera_preview_x();
+static uint32_t get_camera_preview_y();
+static VideoHelper::EncoderConfig make_camera_encoder_config(const CameraDeviceInfo &device_info);
+static std::optional<VideoHelper::EncoderSinkFormat> select_camera_source_format(
+    const std::vector<VideoHelper::EncoderSinkFormat> &supported_formats
+);
+static VideoHelper::DecoderConfig make_camera_decoder_config();
+static void reset_camera_frame_state();
+static void on_camera_stream_frame_ready(
+    const std::string &event_name, double sink_index, const boost::json::object &sink_info,
+    const service::RawBuffer &frame
+);
+static service::FunctionResult make_camera_error_result(const std::string &error_message);
+static std::string get_camera_question(const service::FunctionParameterMap &params);
+
+} // namespace
 
 #if CONFIG_EXAMPLE_AGENTS_ENABLE_COZE
 extern const char coze_private_key_pem_start[] asm("_binary_private_key_pem_start");
@@ -47,34 +120,27 @@ bool AI_Agents::init(const Config &config)
         return false;
     }
 
-    // Configure the AFE
-    AudioHelper::AFE_Config afe_config{
-        .vad = AudioHelper::AFE_VAD_Config{},
-        .wakenet = AudioHelper::AFE_WakeNetConfig{
-            .model_partition_label = AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL,
-            .mn_language = AUDIO_WAKEUP_WORD_MN_LANGUAGE,
-            .start_timeout_ms = config.afe_wakeup_start_timeout_ms,
-            .end_timeout_ms = config.afe_wakeup_end_timeout_ms,
-        },
-    };
-    auto set_afe_result = AudioHelper::call_function_sync(
-                              AudioHelper::FunctionId::SetAFE_Config, BROOKESIA_DESCRIBE_TO_JSON(afe_config).as_object()
-                          );
-    BROOKESIA_CHECK_FALSE_RETURN(set_afe_result, false, "Failed to set audio AFE config: %1%", set_afe_result.error());
-
     task_scheduler_ = config.task_scheduler;
     emote_animation_duration_ms_ = config.emote_animation_duration_ms;
     agent_restart_delay_s_ = config.agent_restart_delay_s;
     coze_error_show_emote_delay_s_ = config.coze_error_show_emote_delay_s;
 
-    process_agent_general_events();
-    process_emote();
-    process_wifi_events();
-
     auto binding = service::ServiceManager::get_instance().bind(AgentHelper::get_name().data());
     BROOKESIA_CHECK_FALSE_RETURN(binding.is_valid(), false, "Failed to bind Agent manager service");
 
     service_bindings_.push_back(std::move(binding));
+
+#ifdef IDF_CI_BUILD
+    BROOKESIA_LOGI("CI build detected, resetting Agent manager data");
+    auto reset_data_result = AgentHelper::call_function_sync(AgentHelper::FunctionId::ResetData);
+    BROOKESIA_CHECK_FALSE_RETURN(
+        reset_data_result, false, "Failed to reset Agent manager data: %1%", reset_data_result.error()
+    );
+#endif
+
+    process_agent_general_events();
+    process_emote();
+    process_wifi_events();
 
     BROOKESIA_LOGI("AI agents initialized successfully");
 
@@ -183,7 +249,7 @@ void AI_Agents::init_xiaozhi()
 #else
 
     // Get device capabilities
-    auto get_device_capabilities_result = DeviceHelper::call_function_sync<boost::json::object>(
+    auto get_device_capabilities_result = DeviceHelper::call_function_sync<boost::json::array>(
             DeviceHelper::FunctionId::GetCapabilities
                                           );
     BROOKESIA_CHECK_FALSE_EXIT(
@@ -193,31 +259,28 @@ void AI_Agents::init_xiaozhi()
     DeviceHelper::Capabilities device_capabilities;
     auto convert_result = BROOKESIA_DESCRIBE_FROM_JSON(get_device_capabilities_result.value(), device_capabilities);
     BROOKESIA_CHECK_FALSE_EXIT(convert_result, "Failed to convert device capabilities");
+    auto has_capability = [&device_capabilities](std::string_view interface_name) {
+        for (const auto &device : device_capabilities) {
+            for (const auto &interface : device.interfaces) {
+                if (interface.type_name == interface_name) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
     // Build device service tools
     std::vector<DeviceHelper::FunctionId> device_functions{
         DeviceHelper::FunctionId::GetCapabilities,
-        DeviceHelper::FunctionId::GetBoardInfo,
-        DeviceHelper::FunctionId::ResetData
+        DeviceHelper::FunctionId::GetBoardInfo
     };
-    if (device_capabilities.find(std::string(hal::AudioCodecPlayerIface::NAME)) != device_capabilities.end()) {
-        device_functions.push_back(DeviceHelper::FunctionId::SetAudioPlayerVolume);
-        device_functions.push_back(DeviceHelper::FunctionId::GetAudioPlayerVolume);
-        device_functions.push_back(DeviceHelper::FunctionId::SetAudioPlayerMute);
-        device_functions.push_back(DeviceHelper::FunctionId::GetAudioPlayerMute);
-    }
-    if (device_capabilities.find(std::string(hal::DisplayBacklightIface::NAME)) != device_capabilities.end()) {
-        device_functions.push_back(DeviceHelper::FunctionId::SetDisplayBacklightBrightness);
-        device_functions.push_back(DeviceHelper::FunctionId::GetDisplayBacklightBrightness);
-        device_functions.push_back(DeviceHelper::FunctionId::SetDisplayBacklightOnOff);
-        device_functions.push_back(DeviceHelper::FunctionId::GetDisplayBacklightOnOff);
-    }
-    if (device_capabilities.find(std::string(hal::StorageFsIface::NAME)) != device_capabilities.end()) {
-        device_functions.push_back(DeviceHelper::FunctionId::GetStorageFileSystems);
-    }
-    if (device_capabilities.find(std::string(hal::PowerBatteryIface::NAME)) != device_capabilities.end()) {
+    if (has_capability(hal::power::BatteryIface::NAME)) {
         device_functions.push_back(DeviceHelper::FunctionId::GetPowerBatteryInfo);
         device_functions.push_back(DeviceHelper::FunctionId::GetPowerBatteryState);
         device_functions.push_back(DeviceHelper::FunctionId::SetPowerBatteryChargingEnabled);
+    }
+    if (has_capability(hal::video::CameraIface::NAME)) {
+        device_functions.push_back(DeviceHelper::FunctionId::GetCameraDeviceInfos);
     }
     auto add_device_service_tools_result = XiaoZhiHelper::call_function_sync<boost::json::array>(
             XiaoZhiHelper::FunctionId::AddMCP_ToolsWithServiceFunction,
@@ -229,6 +292,10 @@ void AI_Agents::init_xiaozhi()
         add_device_service_tools_result.error()
     );
     BROOKESIA_LOGI("Added device service tools: %1%", add_device_service_tools_result.value());
+
+    if (!add_camera_mcp_tool()) {
+        BROOKESIA_LOGW("XiaoZhi camera MCP tool is unavailable, continue without camera");
+    }
 
     // Subscribe to activation code received event
     auto activation_code_received_slot = [this](const std::string & event_name, const std::string & code) {
@@ -254,8 +321,8 @@ void AI_Agents::init_xiaozhi()
                 urls.push_back(XIAO_ZHI_AUDIO_URL_PREFIX + std::string(1, c) + ".mp3");
             }
         }
-        AudioHelper::call_function_async(
-            AudioHelper::FunctionId::PlayUrls,
+        AudioPlaybackHelper::call_function_async(
+            AudioPlaybackHelper::FunctionId::PlayUrls,
             BROOKESIA_DESCRIBE_TO_JSON(urls).as_array(),
             BROOKESIA_DESCRIBE_TO_JSON(AudioHelper::PlayUrlConfig{}).as_object()
         );
@@ -304,10 +371,13 @@ void AI_Agents::process_agent_general_unexpected_events()
             auto task_func = []() {
                 BROOKESIA_LOG_TRACE_GUARD();
                 BROOKESIA_LOGW("Restarting agent...");
-                AgentHelper::call_function_sync(
-                    AgentHelper::FunctionId::TriggerGeneralAction,
-                    BROOKESIA_DESCRIBE_TO_STR(AgentHelper::GeneralAction::Start)
-                );
+                auto result = AgentHelper::call_function_sync(
+                                  AgentHelper::FunctionId::TriggerGeneralAction,
+                                  BROOKESIA_DESCRIBE_TO_STR(AgentHelper::GeneralAction::Start)
+                              );
+                if (!result) {
+                    BROOKESIA_LOGW("Failed to restart agent: %1%", result.error());
+                }
             };
             auto result = task_scheduler_->post_delayed(std::move(task_func), agent_restart_delay_s_ * 1000);
             BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to post restart agent task");
@@ -741,13 +811,13 @@ void AI_Agents::process_emote_when_power_battery_state_changed()
             BROOKESIA_LOGD("Agent is inactive, skip");
         }
 
-        hal::PowerBatteryIface::State battery_state;
+        hal::power::BatteryIface::State battery_state;
         auto parse_result = BROOKESIA_DESCRIBE_FROM_JSON(state, battery_state);
         BROOKESIA_CHECK_FALSE_EXIT(parse_result, "Failed to parse power battery state");
 
         std::string battery_message = "";
-        if ((battery_state.charge_state == hal::PowerBatteryIface::ChargeState::Unknown) ||
-                (battery_state.charge_state == hal::PowerBatteryIface::ChargeState::NotCharging)) {
+        if ((battery_state.charge_state == hal::power::BatteryIface::ChargeState::Unknown) ||
+                (battery_state.charge_state == hal::power::BatteryIface::ChargeState::NotCharging)) {
             battery_message = "0,";
         } else {
             battery_message = "1,";
@@ -1051,3 +1121,591 @@ boost::json::object AI_Agents::get_agent_openai_info()
     return boost::json::object {};
 #endif // CONFIG_EXAMPLE_AGENTS_ENABLE_OPENAI
 }
+
+namespace {
+
+static bool add_camera_mcp_tool()
+{
+    if (!VideoEncoderHelper::is_available()) {
+        BROOKESIA_LOGW("Video encoder service is not available");
+        return false;
+    }
+
+    std::string error_message;
+    CameraDeviceInfo device_info;
+    if (!get_camera_device_info(device_info, error_message)) {
+        BROOKESIA_LOGW("Camera device is not available: %1%", error_message);
+        return false;
+    }
+    if (!VideoDecoderHelper::is_available()) {
+        BROOKESIA_LOGW("Video decoder service is not available, camera preview will be disabled");
+    }
+
+    mcp_utils::CustomTool camera_open_tool = {
+        .schema = {
+            .name = CAMERA_OPEN_TOOL_NAME,
+            .description = "Open the board camera and show camera preview when display preview is available.",
+            .require_scheduler = false,
+        },
+        .callback = camera_open_callback,
+    };
+    mcp_utils::CustomTool camera_close_tool = {
+        .schema = {
+            .name = CAMERA_CLOSE_TOOL_NAME,
+            .description = "Close the board camera and return to the emote display.",
+            .require_scheduler = false,
+        },
+        .callback = camera_close_callback,
+    };
+    mcp_utils::CustomTool camera_take_photo_tool = {
+        .schema = {
+            .name = CAMERA_TAKE_PHOTO_TOOL_NAME,
+            .description = "Take a photo with the board camera and answer the question about it.",
+            .parameters = {
+                {
+                    .name = CAMERA_TOOL_PARAM_QUESTION,
+                    .description = "Question text.",
+                    .type = service::FunctionValueType::String,
+                    .default_value = service::FunctionValue(std::string(CAMERA_DEFAULT_QUESTION)),
+                },
+            },
+            .require_scheduler = false,
+        },
+        .callback = camera_take_photo_callback,
+    };
+    std::vector<mcp_utils::CustomTool> camera_tools;
+    camera_tools.push_back(std::move(camera_open_tool));
+    camera_tools.push_back(std::move(camera_close_tool));
+    camera_tools.push_back(std::move(camera_take_photo_tool));
+
+    auto result = XiaoZhiHelper::call_function_sync<boost::json::array>(
+                      XiaoZhiHelper::FunctionId::AddMCP_ToolsWithCustomFunction,
+                      BROOKESIA_DESCRIBE_TO_JSON(camera_tools).as_array()
+                  );
+    if (!result) {
+        BROOKESIA_LOGE("Failed to add camera MCP tool: %1%", result.error());
+        return false;
+    }
+
+    BROOKESIA_LOGI("Added XiaoZhi camera MCP tools: %1%", result.value());
+    BROOKESIA_LOGI(
+        "Camera MCP uses device info: id(%1%), name(%2%), path(%3%)",
+        device_info.id, device_info.name, device_info.device_path
+    );
+    return true;
+}
+
+static service::FunctionResult camera_open_callback(service::FunctionParameterMap &&params)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    (void)params;
+    std::lock_guard<std::mutex> lock(camera_mutex);
+
+    std::string error_message;
+    if (!ensure_camera_video_encoder_started(error_message)) {
+        BROOKESIA_LOGE("Failed to open camera video encoder: %1%", error_message);
+        return make_camera_error_result(error_message);
+    }
+
+
+    bool preview_started = false;
+    std::string preview_error_message;
+    if (ensure_camera_video_decoder_started(preview_error_message)) {
+
+        preview_started = true;
+        if (!Display::get_instance().show_video()) {
+            BROOKESIA_LOGW("Failed to switch Display to video source after opening camera");
+        }
+    } else {
+        BROOKESIA_LOGW("Camera preview is disabled: %1%", preview_error_message);
+    }
+
+
+    camera_opened_by_mcp = true;
+
+    return service::FunctionResult {
+        .success = true,
+        .data = service::FunctionValue(std::string(
+                                           preview_started ? "Camera opened" : "Camera opened without preview"
+                                       )),
+    };
+}
+
+static service::FunctionResult camera_close_callback(service::FunctionParameterMap &&params)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    (void)params;
+    std::lock_guard<std::mutex> lock(camera_mutex);
+
+    camera_opened_by_mcp = false;
+    close_camera_video_pipeline();
+    if (!Display::get_instance().show_emote()) {
+        BROOKESIA_LOGW("Failed to switch Display back to emote source");
+    }
+
+    return service::FunctionResult {
+        .success = true,
+        .data = service::FunctionValue(std::string("Camera closed")),
+    };
+}
+
+static service::FunctionResult camera_take_photo_callback(service::FunctionParameterMap &&params)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    std::lock_guard<std::mutex> lock(camera_mutex);
+    auto question = get_camera_question(params);
+    const bool keep_camera_open = camera_opened_by_mcp && camera_video_encoder_started;
+
+    std::string error_message;
+    reset_camera_frame_state();
+    if (!ensure_camera_video_encoder_started(error_message)) {
+        BROOKESIA_LOGE("Failed to start camera video encoder: %1%", error_message);
+        return make_camera_error_result(error_message);
+    }
+
+    auto close_camera_if_needed = [keep_camera_open]() {
+        if (!keep_camera_open) {
+            close_camera_video_pipeline();
+            if (!Display::get_instance().show_emote()) {
+                BROOKESIA_LOGW("Failed to switch Display back to emote source");
+            }
+        }
+    };
+    lib_utils::FunctionGuard close_camera_guard(close_camera_if_needed);
+
+    std::string preview_error_message;
+    const bool preview_started = ensure_camera_video_decoder_started(preview_error_message);
+    if (!preview_started) {
+        BROOKESIA_LOGW("Camera preview is disabled: %1%", preview_error_message);
+    } else if (!Display::get_instance().show_video()) {
+        BROOKESIA_LOGW("Failed to switch Display to video source, continue camera recognition");
+    }
+
+    std::vector<uint8_t> frame_data;
+    if (!fetch_camera_frame(frame_data, error_message)) {
+        BROOKESIA_LOGE("%1%", error_message);
+        return make_camera_error_result(error_message);
+    }
+
+    auto explain_result = XiaoZhiHelper::call_function_sync<std::string>(
+                              XiaoZhiHelper::FunctionId::ExplainImage,
+                              service::RawBuffer(frame_data.data(), frame_data.size()),
+                              question,
+                              service::helper::Timeout(CAMERA_EXPLAIN_TIMEOUT_MS)
+                          );
+    if (!explain_result) {
+        error_message = "Explain camera image failed: " + explain_result.error();
+        BROOKESIA_LOGE("%1%", error_message);
+        return make_camera_error_result(error_message);
+    }
+    close_camera_if_needed();
+    close_camera_guard.release();
+
+    return service::FunctionResult {
+        .success = true,
+        .data = service::FunctionValue(std::move(explain_result.value())),
+    };
+}
+
+static bool ensure_camera_video_encoder_started(std::string &error_message)
+{
+    if (camera_video_encoder_started) {
+        return true;
+    }
+
+    if (!VideoEncoderHelper::is_available()) {
+        error_message = "Video encoder service is not available";
+        return false;
+    }
+
+
+    CameraDeviceInfo device_info;
+    if (!get_camera_device_info(device_info, error_message)) {
+        return false;
+    }
+    const auto &device_path = device_info.device_path;
+
+
+    if (!camera_video_encoder_binding.is_valid()) {
+        auto binding = service::ServiceManager::get_instance().bind(VideoEncoderHelper::get_name().data());
+        if (!binding.is_valid()) {
+            error_message = "Bind video encoder service failed";
+            return false;
+        }
+        camera_video_encoder_binding = std::move(binding);
+    }
+
+
+    if (!subscribe_camera_frame_event(error_message)) {
+        return false;
+    }
+
+
+    auto encoder_config = make_camera_encoder_config(device_info);
+    auto open_result = VideoEncoderHelper::call_function_sync(
+                           VideoEncoderHelper::FunctionId::Open,
+                           BROOKESIA_DESCRIBE_TO_JSON(encoder_config).as_object()
+                       );
+    if (!open_result) {
+        error_message = "Open camera video encoder failed: " + open_result.error();
+        return false;
+    }
+
+
+    auto start_result = VideoEncoderHelper::call_function_sync(VideoEncoderHelper::FunctionId::Start);
+    if (!start_result) {
+        auto close_result = VideoEncoderHelper::call_function_sync(VideoEncoderHelper::FunctionId::Close);
+        if (!close_result) {
+            BROOKESIA_LOGE("Failed to close camera video encoder after start failure: %1%", close_result.error());
+        }
+        error_message = "Start camera video encoder failed: " + start_result.error();
+        return false;
+    }
+
+
+    camera_video_encoder_started = true;
+    BROOKESIA_LOGI(
+        "Camera video encoder started: device(%1%), preview(%2%x%3%)",
+        device_path,
+        get_camera_preview_width(),
+        get_camera_preview_height()
+    );
+
+    return true;
+}
+
+static bool ensure_camera_video_decoder_started(std::string &error_message)
+{
+    if (camera_video_decoder_started.load()) {
+        return true;
+    }
+
+    if (!VideoDecoderHelper::is_available()) {
+        error_message = "Video decoder service is not available";
+        return false;
+    }
+    if (Display::get_instance().output_name().empty()) {
+        error_message = "Display output is not initialized";
+        return false;
+    }
+    if ((Display::get_instance().width() == 0) || (Display::get_instance().height() == 0)) {
+        error_message = "Display output size is invalid";
+        return false;
+    }
+
+    if (!camera_video_decoder_binding.is_valid()) {
+        auto binding = service::ServiceManager::get_instance().bind(VideoDecoderHelper::get_name().data());
+        if (!binding.is_valid()) {
+            error_message = "Bind video decoder service failed";
+            return false;
+        }
+        camera_video_decoder_binding = std::move(binding);
+    }
+
+    auto decoder_config = make_camera_decoder_config();
+    auto open_result = VideoDecoderHelper::call_function_sync(
+                           VideoDecoderHelper::FunctionId::Open,
+                           BROOKESIA_DESCRIBE_TO_JSON(decoder_config).as_object()
+                       );
+    if (!open_result) {
+        error_message = "Open camera video decoder failed: " + open_result.error();
+        return false;
+    }
+
+    auto start_result = VideoDecoderHelper::call_function_sync(VideoDecoderHelper::FunctionId::Start);
+    if (!start_result) {
+        auto close_result = VideoDecoderHelper::call_function_sync(VideoDecoderHelper::FunctionId::Close);
+        if (!close_result) {
+            BROOKESIA_LOGE("Failed to close camera video decoder after start failure: %1%", close_result.error());
+        }
+        error_message = "Start camera video decoder failed: " + start_result.error();
+        return false;
+    }
+
+    camera_video_decoder_started.store(true);
+    BROOKESIA_LOGI(
+        "Camera video decoder preview started: output(%1%, %2%x%3%), preview(%4%x%5% at %6%,%7%)",
+        Display::get_instance().output_name(),
+        Display::get_instance().width(),
+        Display::get_instance().height(),
+        get_camera_preview_width(),
+        get_camera_preview_height(),
+        get_camera_preview_x(),
+        get_camera_preview_y()
+    );
+
+    return true;
+}
+
+static void close_camera_video_pipeline()
+{
+    if (camera_video_decoder_started.exchange(false)) {
+        auto close_result = VideoDecoderHelper::call_function_sync(VideoDecoderHelper::FunctionId::Close);
+        if (!close_result) {
+            BROOKESIA_LOGW("Failed to close camera video decoder: %1%", close_result.error());
+        }
+    }
+
+    if (camera_video_encoder_started) {
+        auto close_result = VideoEncoderHelper::call_function_sync(VideoEncoderHelper::FunctionId::Close);
+        if (!close_result) {
+            BROOKESIA_LOGW("Failed to close camera video encoder: %1%", close_result.error());
+        }
+        camera_video_encoder_started = false;
+    }
+}
+
+static bool fetch_camera_frame(std::vector<uint8_t> &frame_data, std::string &error_message)
+{
+    std::unique_lock<std::mutex> lock(camera_frame_mutex);
+    auto got_frame = camera_frame_cv.wait_for(lock, std::chrono::milliseconds(CAMERA_FETCH_TIMEOUT_MS), []() {
+        return camera_frame_ready;
+    });
+    if (!got_frame) {
+        error_message = "Wait camera stream frame timed out";
+        return false;
+    }
+    if (camera_frame_data.empty()) {
+        error_message = "Camera frame is empty";
+        return false;
+    }
+
+    frame_data = camera_frame_data;
+    camera_frame_ready = false;
+
+    return true;
+}
+
+static bool get_camera_device_info(CameraDeviceInfo &device_info, std::string &error_message)
+{
+    auto result = DeviceHelper::call_function_sync<boost::json::array>(DeviceHelper::FunctionId::GetCameraDeviceInfos);
+    if (!result) {
+        error_message = "Get camera device infos failed: " + result.error();
+        return false;
+    }
+
+    DeviceHelper::CameraDeviceInfos device_infos;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(result.value(), device_infos)) {
+        error_message = "Failed to parse camera device infos";
+        return false;
+    }
+
+    for (const auto &info : device_infos) {
+        if (!info.device_path.empty()) {
+            device_info = info;
+            return true;
+        }
+    }
+
+    if (device_infos.empty()) {
+        error_message = "Camera device info is not available";
+    } else {
+        error_message = "Camera device info list does not contain a valid path";
+    }
+    return false;
+}
+
+static bool subscribe_camera_frame_event(std::string &error_message)
+{
+    if (camera_frame_ready_connection.connected()) {
+        return true;
+    }
+
+    auto connection = VideoEncoderHelper::subscribe_event(
+                          VideoEncoderHelper::EventId::StreamSinkFrameReady, on_camera_stream_frame_ready
+                      );
+    if (!connection.connected()) {
+        error_message = "Subscribe camera frame event failed";
+        return false;
+    }
+
+    camera_frame_ready_connection = std::move(connection);
+
+    return true;
+}
+
+static uint16_t get_camera_output_width()
+{
+    return static_cast<uint16_t>(Display::get_instance().width());
+}
+
+static uint16_t get_camera_output_height()
+{
+    return static_cast<uint16_t>(Display::get_instance().height());
+}
+
+static uint16_t get_camera_preview_width()
+{
+    return CAMERA_PREVIEW_WIDTH;
+}
+
+static uint16_t get_camera_preview_height()
+{
+    return CAMERA_PREVIEW_HEIGHT;
+}
+
+static uint32_t get_camera_preview_x()
+{
+    const auto output_width = get_camera_output_width();
+    const auto preview_width = get_camera_preview_width();
+    if (output_width < preview_width) {
+        return 0;
+    }
+
+    return (output_width - preview_width) / 2;
+}
+
+static uint32_t get_camera_preview_y()
+{
+    const auto output_height = get_camera_output_height();
+    const auto preview_height = get_camera_preview_height();
+    if (output_height < preview_height) {
+        return 0;
+    }
+
+    return (output_height - preview_height) / 2;
+}
+
+static std::optional<VideoHelper::EncoderSinkFormat> select_camera_source_format(
+    const std::vector<VideoHelper::EncoderSinkFormat> &supported_formats
+)
+{
+    // Prefer raw source formats the capture pipeline can convert/encode efficiently.
+    // The order reflects common DVP/MIPI sensor outputs (e.g. OV3660 emits YUYV).
+    static constexpr VideoHelper::EncoderSinkFormat preferred[] = {
+        VideoHelper::EncoderSinkFormat::RGB565,
+        VideoHelper::EncoderSinkFormat::YUV422,
+        VideoHelper::EncoderSinkFormat::O_UYY_E_VYY,
+        VideoHelper::EncoderSinkFormat::YUV420,
+    };
+
+    for (auto format : preferred) {
+        if (std::find(supported_formats.begin(), supported_formats.end(), format) != supported_formats.end()) {
+            return format;
+        }
+    }
+
+    return std::nullopt;
+}
+
+static VideoHelper::EncoderConfig make_camera_encoder_config(const CameraDeviceInfo &device_info)
+{
+    const auto preview_width = get_camera_preview_width();
+    const auto preview_height = get_camera_preview_height();
+
+    auto source = VideoHelper::EncoderSourceConfig{
+        .device_path = device_info.device_path,
+        .fixed_width = preview_width,
+        .fixed_height = preview_height,
+        .v4l2_buffer_count = CAMERA_V4L2_BUFFER_COUNT,
+    };
+
+    // Pick a fixed source format from the formats the camera actually reports. When the
+    // list is empty (older HAL or enumeration failed), leave it unset and let the capture
+    // pipeline auto-negotiate.
+    auto selected_format = select_camera_source_format(device_info.supported_formats);
+    if (selected_format.has_value()) {
+        source.fixed_format = selected_format.value();
+    }
+
+    return VideoHelper::EncoderConfig{
+        .sinks = std::vector<VideoHelper::EncoderSinkInfo>({
+            {
+                .format = VideoHelper::EncoderSinkFormat::MJPEG,
+                .width = preview_width,
+                .height = preview_height,
+                .fps = CAMERA_PHOTO_FPS,
+            },
+        }),
+        .enable_stream_mode = true,
+        .source = source,
+    };
+}
+
+static VideoHelper::DecoderConfig make_camera_decoder_config()
+{
+    return VideoHelper::DecoderConfig{
+        .width = get_camera_preview_width(),
+        .height = get_camera_preview_height(),
+        .source_format = VideoHelper::DecoderSourceFormat::MJPEG,
+        .enable_stream_mode = true,
+        .enable_hw_acceleration = true,
+        .display = VideoHelper::DecoderDisplayConfig{
+            .output_name = "",
+            .source_name = std::string(VideoHelper::DISPLAY_SOURCE_NAME),
+            .source_role = std::string(VideoHelper::DISPLAY_SOURCE_ROLE),
+            .x = get_camera_preview_x(),
+            .y = get_camera_preview_y(),
+            .draw_timeout_ms = 1000,
+            .publish_sink_event = false,
+        },
+    };
+}
+
+static void reset_camera_frame_state()
+{
+    std::lock_guard<std::mutex> lock(camera_frame_mutex);
+    camera_frame_data.clear();
+    camera_frame_ready = false;
+}
+
+static void on_camera_stream_frame_ready(
+    const std::string &event_name, double sink_index, const boost::json::object &sink_info,
+    const service::RawBuffer &frame
+)
+{
+    BROOKESIA_LOG_TRACE_GUARD();
+
+    (void)event_name;
+    (void)sink_info;
+    if (static_cast<int>(sink_index) != CAMERA_SINK_INDEX) {
+        return;
+    }
+
+    bool notify_frame = false;
+    if ((frame.data_ptr != nullptr) && (frame.data_size > 0)) {
+        std::lock_guard<std::mutex> lock(camera_frame_mutex);
+        if (camera_frame_data.empty()) {
+            camera_frame_data.assign(frame.data_ptr, frame.data_ptr + frame.data_size);
+            camera_frame_ready = true;
+            notify_frame = true;
+        }
+    }
+    if (notify_frame) {
+        camera_frame_cv.notify_all();
+    }
+
+    if (camera_video_decoder_started.load() && (frame.data_ptr != nullptr) && (frame.data_size > 0)) {
+        auto feed_result = VideoDecoderHelper::call_function_sync(VideoDecoderHelper::FunctionId::FeedFrame, frame);
+        if (!feed_result) {
+            BROOKESIA_LOGW("Failed to feed camera frame to video decoder: %1%", feed_result.error());
+        }
+    }
+}
+
+static service::FunctionResult make_camera_error_result(const std::string &error_message)
+{
+    return service::FunctionResult {
+        .success = false,
+        .error_message = error_message,
+    };
+}
+
+static std::string get_camera_question(const service::FunctionParameterMap &params)
+{
+    auto question_it = params.find(CAMERA_TOOL_PARAM_QUESTION);
+    if (question_it == params.end()) {
+        return CAMERA_DEFAULT_QUESTION;
+    }
+
+    auto question = std::get_if<std::string>(&question_it->second);
+    if ((question == nullptr) || question->empty()) {
+        return CAMERA_DEFAULT_QUESTION;
+    }
+
+    return *question;
+}
+} // namespace

@@ -954,6 +954,7 @@ static int do_rpc_unsubscribe_cmd(int argc, char **argv)
         }
 
         // Remove subscription from our list
+        auto client = sub_info->client;
         g_rpc_subscriptions.erase(it);
 
         // Check if there are any other subscriptions using this client
@@ -966,7 +967,7 @@ static int do_rpc_unsubscribe_cmd(int argc, char **argv)
         // If no more subscriptions, disconnect the client but keep it in cache for potential reuse
         if (!has_other_subscriptions) {
             ESP_LOGD(TAG, "No more subscriptions for %s, disconnecting client", key.c_str());
-            sub_info->client->disconnect();
+            client->disconnect();
             // Note: We keep the client in g_rpc_clients cache for potential reuse
         }
 

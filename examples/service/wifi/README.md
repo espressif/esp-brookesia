@@ -31,7 +31,7 @@ This example demonstrates how to use the WiFi service in the ESP-Brookesia frame
 - 🔗 **STA Connect**: Set a target AP (SSID/password), trigger connection, wait for connect/disconnect events, and verify state
 - 🔄 **Auto-Reconnect**: Restart WiFi and automatically reconnect to a previously saved AP, then verify successful reconnection
 - 📶 **SoftAP Provisioning**: Start a SoftAP hotspot; after a phone connects and submits home WiFi credentials via the provisioning page, the hotspot is stopped automatically
-- 🗑️ **Credential Reset**: Clear all WiFi credentials stored in NVS and verify the result
+- 🗑️ **Credential Reset**: Clear all WiFi credentials stored in Storage and verify the result
 
 ## 🚩 Getting Started
 
@@ -125,7 +125,7 @@ Flow:
 
 ### Reset Data Demo
 
-Calls `ResetData` to clear all WiFi credentials (connected AP history) from NVS, then verifies that the connected AP list is empty.
+Calls `ResetData` to clear all WiFi credentials (connected AP history) from Storage, then verifies that the connected AP list is empty.
 
 ## 🔍 Troubleshooting
 

@@ -42,8 +42,8 @@ svc_rpc_server connect
 # 或者只连接特定服务
 svc_rpc_server connect -s Wifi
 
-# 5. 启动服务（例如 NVS）
-svc_funcs NVS
+# 5. 启动服务（例如 Storage）
+svc_funcs Storage
 ```
 
 ### 设备 B（RPC 客户端）
@@ -96,7 +96,7 @@ svc_rpc_server connect
 连接特定服务（逗号分隔）：
 
 ```bash
-svc_rpc_server connect -s NVS,Wifi
+svc_rpc_server connect -s Storage,Wifi
 ```
 
 断开所有服务：
@@ -108,7 +108,7 @@ svc_rpc_server disconnect
 断开特定服务：
 
 ```bash
-svc_rpc_server disconnect -s NVS,Wifi
+svc_rpc_server disconnect -s Storage,Wifi
 ```
 
 ## 客户端命令
@@ -118,25 +118,25 @@ svc_rpc_server disconnect -s NVS,Wifi
 调用带参数的远程函数：
 
 ```bash
-svc_rpc_call 192.168.1.100 NVS Set {"KeyValuePairs":{"key1":"value1"}}
+svc_rpc_call 192.168.1.100 Storage KVSet {"KeyValuePairs":{"key1":"value1"}}
 ```
 
 调用无参数的远程函数：
 
 ```bash
-svc_rpc_call 192.168.1.100 NVS List
+svc_rpc_call 192.168.1.100 Storage KVList
 ```
 
 使用自定义端口和超时时间（10 秒）调用：
 
 ```bash
-svc_rpc_call 192.168.1.100 NVS List -p 9000 -t 10000
+svc_rpc_call 192.168.1.100 Storage KVList -p 9000 -t 10000
 ```
 
 在本地主机上调用：
 
 ```bash
-svc_rpc_call 127.0.0.1 NVS List
+svc_rpc_call 127.0.0.1 Storage KVList
 ```
 
 ### 订阅远程服务事件

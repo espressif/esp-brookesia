@@ -3,16 +3,13 @@
  *
  * SPDX-License-Identifier: CC0-1.0
  */
-#include "esp_lv_adapter.h"
 #include "private/utils.hpp"
 #include "brookesia/service_helper.hpp"
-#include "brookesia/agent_helper.hpp"
 #include "modules/display/display.hpp"
 #include "emote.hpp"
 
 using namespace esp_brookesia;
-using EmoteHelper = service::helper::ExpressionEmote;
-using AgentHelper = agent::helper::Manager;
+using AgentHelper = service::helper::Manager;
 using WifiHelper = service::helper::Wifi;
 
 ScreenEmote::ScreenEmote():
@@ -56,14 +53,12 @@ bool ScreenEmote::on_enter(const std::string &from_state, const std::string &act
         BROOKESIA_CHECK_FALSE_RETURN(wifi_state_result, true, "Failed to get WiFi state");
     }
 
-    lv_display_t *lv_disp = lv_display_get_default();
-    BROOKESIA_CHECK_NULL_RETURN(lv_disp, false, "Failed to get default display");
-
-    auto ret = esp_lv_adapter_set_dummy_draw(lv_disp, true);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to set dummy draw");
-
-    auto result = EmoteHelper::call_function_sync(EmoteHelper::FunctionId::RefreshAll);
-    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to refresh emotes");
+    // Activate the emote display source. The Emote component refreshes itself once the Display
+    // service confirms the emote source owns the output, so no RefreshAll is needed here.
+    BROOKESIA_CHECK_FALSE_RETURN(
+        Display::get_instance().set_active_source_role(Display::DrawSource::Emote), false,
+        "Failed to activate emote display source"
+    );
 
     return true;
 }

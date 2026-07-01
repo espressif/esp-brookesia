@@ -1,0 +1,49 @@
+/*
+ * SPDX-FileCopyrightText: 2025-2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#include "sdkconfig.h"
+
+/**
+ * @brief Enable automatic plugin registration for the OpenAI agent component.
+ */
+#if !defined(BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER)
+#   if defined(CONFIG_BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER)
+#       define BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER  CONFIG_BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER
+#   else
+#       define BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER  (0)
+#   endif
+#endif
+
+/**
+ * @brief Linker symbol exported when automatic plugin registration is enabled.
+ */
+#if BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER
+#   if !defined(BROOKESIA_AGENT_OPENAI_PLUGIN_SYMBOL)
+#       define BROOKESIA_AGENT_OPENAI_PLUGIN_SYMBOL  agent_openai_symbol
+#   endif
+#endif
+
+/**
+ * @brief Default log tag used by the OpenAI agent component.
+ */
+#define BROOKESIA_AGENT_OPENAI_LOG_TAG "OpenAI"
+
+#if !defined(BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG)
+#   if defined(CONFIG_BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG)
+#       define BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG  CONFIG_BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG
+#   else
+#       define BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG  (0)
+#   endif
+#endif
+
+#if !defined(BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA)
+#   if defined(CONFIG_BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA)
+#       define BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA  CONFIG_BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA
+#   else
+#       define BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA  (1)
+#   endif
+#endif

@@ -42,7 +42,7 @@ Steps to run these test cases:
 
 1. Install pytest dependencies:
    ```bash
-   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-ci
    ${IDF_PATH}/install.sh --enable-test-specific
    ```
 
@@ -57,7 +57,7 @@ Steps to run these test cases:
    **ESP32-S3 examples:**
    ```bash
    # Generic environment
-   pytest examples/service/console --target esp32s3 --env generic
+   pytest examples/service/console --target esp32s3 --env generic,octal-psram
 
    # Specific board: esp_vocat_board_v1_2
    pytest examples/service/console --target esp32s3 --env "esp_vocat"
@@ -157,7 +157,7 @@ def get_wifi_connect_ap_command() -> Optional[str]:
 #   - delay_ms:   fixed delay applied after the command succeeds (0 = no extra wait)
 BASIC_COMMANDS = [
     ('svc_list', [b'=== Registered Services ==='], 'List all services', 4000, 0),
-    ('svc_funcs NVS', [b'List', b'Set', b'Get', b'Erase'], 'List NVS functions', 4000, 0),
+    ('svc_funcs Storage', [b'KVList', b'KVSet', b'KVGet', b'KVErase'], 'List Storage functions', 4000, 0),
 ]
 
 # Debug commands
@@ -185,9 +185,9 @@ RPC_SERVER_COMMANDS = [
     ('svc_rpc_server connect',
      [b'Services connected successfully'],
      'Connect all services to RPC server', 4000, 0),
-    ('svc_rpc_server connect -s Wifi,NVS',
+    ('svc_rpc_server connect -s Wifi,Storage',
      [b'Services connected successfully'],
-     'Connect specific services (-s Wifi,NVS)', 4000, 0),
+     'Connect specific services (-s Wifi,Storage)', 4000, 0),
 
     # --- Client side over loopback (Device B -> 127.0.0.1) ---
     # Doc: "Step 2. Subscribe to a remote service event"
@@ -200,15 +200,15 @@ RPC_SERVER_COMMANDS = [
     ('svc_rpc_call 127.0.0.1 Wifi TriggerScanStart',
      [b'Success!'],
      'Loopback: call Wifi.TriggerScanStart', 10000, 0),
-    # Doc: "Call on local host" -- svc_rpc_call 127.0.0.1 NVS List
-    ('svc_rpc_call 127.0.0.1 NVS Set {"KeyValuePairs":{"key1":"value1"}}',
+    # Doc: "Call on local host" -- svc_rpc_call 127.0.0.1 Storage KVList
+    ('svc_rpc_call 127.0.0.1 Storage KVSet {"KeyValuePairs":{"key1":"value1"}}',
      [b'Success!'],
-     'Loopback: call NVS.Set via 127.0.0.1', 8000, 0),
+     'Loopback: call Storage.KVSet via 127.0.0.1', 8000, 0),
     # Doc: "Call with custom port and timeout (10 s)"
     # -- demo the -p / -t flags
-    ('svc_rpc_call 127.0.0.1 NVS List -p 65500 -t 10000',
+    ('svc_rpc_call 127.0.0.1 Storage KVList -p 65500 -t 10000',
      [b'Success!'],
-     'Loopback: call NVS.List with custom -p/-t', 12000, 0),
+     'Loopback: call Storage.KVList with custom -p/-t', 12000, 0),
     # Doc: "Step 4. Unsubscribe from a remote service event"
     ('svc_rpc_unsubscribe 127.0.0.1 Wifi ScanApInfosUpdated',
      [b'Successfully unsubscribed!'],
@@ -216,9 +216,9 @@ RPC_SERVER_COMMANDS = [
 
     # --- Server side cleanup ---
     # Doc: "Disconnect specific services" then "Disconnect all services"
-    ('svc_rpc_server disconnect -s Wifi,NVS',
+    ('svc_rpc_server disconnect -s Wifi,Storage',
      [b'Services disconnected successfully'],
-     'Disconnect specific services (-s Wifi,NVS)', 5000, 0),
+     'Disconnect specific services (-s Wifi,Storage)', 5000, 0),
     ('svc_rpc_server disconnect',
      [b'Services disconnected successfully'],
      'Disconnect all services', 5000, 0),
@@ -228,12 +228,10 @@ RPC_SERVER_COMMANDS = [
      'Stop RPC server', 5000, 0),
 ]
 
-# Tutorial commands following docs/tutorial_cn.md:
+# Tutorial commands following docs/tutorial.md / docs/tutorial_cn.md:
 #   1) Connect WiFi
 #   2) Start Expression Emote (turn on display backlight / load animation assets)
-#   3) Start XiaoZhi Agent (disable audio mute / subscribe / set target / activate / start)
-#   4) Common operation commands during conversation
-#   5) (Optional) Play audio
+#   3) Play audio
 TUTORIAL_COMMANDS: List[Tuple[str, Optional[List[bytes]], str, int, int]] = []
 
 # Step 1: Connect WiFi (requires CI_TEST_WIFI_2_4G_AP1_SSID / PSW env vars)
@@ -249,56 +247,30 @@ if wifi_connect_cmd:
 
 # Step 2: Start Expression Emote
 TUTORIAL_COMMANDS.extend([
-    ('svc_call Device SetDisplayBacklightOnOff {"On":true}',
+    ('svc_call Display SetBacklightOnOff {"OutputId":1,"On":true}',
      [DEFAULT_RESPONSE], 'Step 2.1: Turn on display backlight', 4000, 0),
     ('svc_call Emote LoadAssetsSource '
      '{"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}',
      [DEFAULT_RESPONSE], 'Step 2.2: Load Emote animation assets', 10000, 0),
+    ('svc_call Emote SetEmoji {"Emoji":"happy"}',
+     [DEFAULT_RESPONSE], 'Step 2.3: Display happy Emote emoji', 4000, 1000),
 ])
 
-# # Step 3: Start XiaoZhi Agent
-# TUTORIAL_COMMANDS.extend([
-#     ('svc_call Device SetAudioPlayerMute {"Enable":false}',
-#      [DEFAULT_RESPONSE], 'Step 3.1: Disable audio mute', 4000, 0),
-#     ('svc_subscribe AgentXiaoZhi ActivationCodeReceived',
-#      [b'Subscribed successfully'],
-#      'Step 3.2: Subscribe AgentXiaoZhi ActivationCodeReceived event', 4000, 0),
-#     ('svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}',
-#      [DEFAULT_RESPONSE], 'Step 3.3: Set target agent to AgentXiaoZhi', 4000, 0),
-#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}',
-#      [b'No activation code or challenge found, activate successfully'],
-#      'Step 3.4: Activate agent', 120000, 2000),
-#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Start"}',
-#      [b'Speaking status changed to'], 'Step 3.5: Start agent', 20000, 5000),
-# ])
-
-# # Step 4: Common operation commands during conversation
-# TUTORIAL_COMMANDS.extend([
-#     ('svc_call AgentManager InterruptSpeaking',
-#      [DEFAULT_RESPONSE], 'Ops: Interrupt agent speaking', 4000, 2000),
-#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}',
-#      [b"Agent do 'Sleep' finished"], 'Ops: Sleep agent', 4000, 5000),
-#     ('svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}',
-#      [b"Agent do 'WakeUp' finished"], 'Ops: Wake up agent', 4000, 5000),
-#     ('svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}',
-#      [b"Agent do 'Stop' finished"], 'Ops: Stop agent', 10000, 5000),
-#     ('svc_call AgentManager GetGeneralState',
-#      [b'Value: Ready'], 'Ops: Get agent general state', 4000, 0),
-# ])
-
-# Step 5 (optional): Play audio
+# Step 3: Play audio
 # Timeouts need to cover: HTTP download + full playback of the MP3. The
 # reference example.mp3 plays for ~9 s and network pull adds another ~6 s,
 # so 15 s was exactly at the edge; bump it to give the async "State: Idle"
 # event some room.
 TUTORIAL_COMMANDS.extend([
-    ('svc_subscribe Audio PlayStateChanged',
+    ('svc_call AudioPlayback SetMute {"Enable":false}',
+     [DEFAULT_RESPONSE], 'Audio: Disable playback mute', 4000, 0),
+    ('svc_subscribe AudioPlayback PlayStateChanged',
      [b'Subscribed successfully'], 'Audio: Subscribe play state changed event', 4000, 0),
-    ('svc_call Audio PlayUrl {"Url":"file://littlefs/example.mp3"}',
+    ('svc_call AudioPlayback Play {"Url":"file://littlefs/example.mp3"}',
      [b'State: Playing', b'State: Idle'], 'Audio: Play local audio', 20000, 2000),
-    ('svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}',
+    ('svc_call AudioPlayback Play {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}',
      [b'State: Playing', b'State: Idle'], 'Audio: Play network audio', 30000, 2000),
-    ('svc_call Device SetAudioPlayerVolume {"Volume":80}',
+    ('svc_call AudioPlayback SetVolume {"Volume":80}',
      [DEFAULT_RESPONSE], 'Audio: Set player volume to 80', 4000, 0),
 ])
 
@@ -414,8 +386,8 @@ def _execute_command_once(
                 # recognize this command (almost always a dropped UART char),
                 # there is no point in waiting for ``timeout_s`` to elapse -
                 # especially for commands with very long timeouts (e.g. the
-                # 120 s Activate step). Bail out now so the retry can fire
-                # within a second instead of minutes later.
+                # long command timeout). Bail out now so the retry can fire
+                # quickly.
                 if _is_unrecognized_command_failure(command, accumulated_response):
                     return False, accumulated_response
         except Exception:

@@ -1,0 +1,25 @@
+menu "ESP-Brookesia: Agent Openai Configurations"
+    config BROOKESIA_AGENT_OPENAI_ENABLE_CONFIGS
+        bool
+        select MBEDTLS_SSL_PROTO_DTLS
+        select ESP_WS_CLIENT_SEPARATE_TX_LOCK
+        select MBEDTLS_SSL_DTLS_SRTP
+        select MBEDTLS_X509_CREATE_C
+        default y
+
+    config BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the agent as a plugin on startup.
+
+    config BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    config BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA
+        bool "Automatically load persisted OpenAI data on activation"
+        default y
+        help
+            Load persisted OpenAI agent data when the agent activates.
+endmenu

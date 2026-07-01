@@ -6,7 +6,7 @@
 #define BROOKESIA_LOG_TAG "WifiProvisioning"
 #include "brookesia/lib_utils.hpp"
 #include "brookesia/service_manager.hpp"
-#include "brookesia/service_helper/wifi.hpp"
+#include "brookesia/service_helper/network/wifi.hpp"
 #include "wifi_provisioning.hpp"
 
 /* The following WiFi credentials are used for CI test. Please ignore them if you are not running CI test. */

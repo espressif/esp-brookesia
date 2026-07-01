@@ -3,47 +3,34 @@
  *
  * SPDX-License-Identifier: CC0-1.0
  */
-#include <algorithm>
-#include <array>
-#include <chrono>
-#include <cmath>
 #include <cstdint>
-#include <limits>
-#include "esp_lcd_touch.h"
+#include <string>
+#include <vector>
+#include "boost/json/array.hpp"
+#include "boost/json/object.hpp"
+#include "boost/json/value.hpp"
 #include "esp_lv_adapter.h"
 #include "private/utils.hpp"
 #include "brookesia/lib_utils.hpp"
 #include "brookesia/service_helper.hpp"
 #include "brookesia/expression_emote.hpp"
-#include "brookesia/hal_interface.hpp"
+#include "brookesia/gui_lvgl.hpp"
 #include "screens/settings.hpp"
 #include "screens/emote.hpp"
 #include "display.hpp"
 
 using namespace esp_brookesia;
 using EmoteHelper = service::helper::ExpressionEmote;
-using DeviceHelper = service::helper::Device;
+using DisplayHelper = service::helper::Display;
+using VideoHelper = service::helper::Video;
+using LvglDisplaySource = gui::lvgl::DisplaySource;
 
 namespace {
 
 constexpr uint32_t BACKLIGHT_ON_DELAY_MS = 1000;
 constexpr uint32_t LOAD_ASSETS_TIMEOUT_MS = 10000;
-constexpr float PI = 3.14159265358979323846F;
-constexpr size_t TOUCH_READ_MAX_POINTS = 1;
+constexpr uint32_t DISPLAY_SERVICE_TIMEOUT_MS = 1000;
 
-constexpr uint8_t to_area_mask(Display::GestureArea area)
-{
-    return static_cast<uint8_t>(area);
-}
-
-uint64_t get_current_time_ms()
-{
-    return static_cast<uint64_t>(
-               std::chrono::duration_cast<std::chrono::milliseconds>(
-                   std::chrono::steady_clock::now().time_since_epoch()
-               ).count()
-           );
-}
 } // namespace
 
 bool Display::start(const Config &config)
@@ -52,70 +39,29 @@ bool Display::start(const Config &config)
 
     BROOKESIA_CHECK_NULL_RETURN(config.task_scheduler, false, "Task scheduler is null");
 
-    auto [display_name, display_iface] = hal::get_first_interface<hal::DisplayPanelIface>();
-    BROOKESIA_CHECK_NULL_RETURN(display_iface, false, "Failed to get display interface");
-    display_iface_ = display_iface;
-
-    auto [touch_name, touch_iface] = hal::get_first_interface<hal::DisplayTouchIface>();
-    BROOKESIA_CHECK_NULL_RETURN(touch_iface, false, "Failed to get touch interface");
-    touch_iface_ = touch_iface;
-
     task_scheduler_ = config.task_scheduler;
     gesture_data_ = config.gesture_data;
 
+    BROOKESIA_CHECK_FALSE_RETURN(start_display_service(), false, "Failed to start display service");
+
     // Start LVGL and expression emote first
     BROOKESIA_CHECK_FALSE_RETURN(
-        start_lvgl(config.lvgl_task_core), false, "Failed to start LVGL"
+        start_lvgl_display_source(), false, "Failed to start LVGL"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
-        start_expression_emote(config.emote_task_core), false, "Failed to start expression emote"
+        start_expression_emote_assets(), false, "Failed to start expression emote"
     );
+    BROOKESIA_CHECK_FALSE_RETURN(set_active_source_role(DrawSource::Lvgl), false, "Failed to activate LVGL source");
     BROOKESIA_CHECK_FALSE_RETURN(start_ui_state_machine(), false, "Failed to start UI state machine");
 
     // Start gesture detection
-    BROOKESIA_CHECK_FALSE_RETURN(start_gesture(config.gesture_thread_config), false, "Failed to start gesture");
-    // Monitor pressing event
-    auto pressing_slot = [this](const GestureInfo & info) {
-        // BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-        if (is_ui_state_action_triggered_) {
-            return;
-        }
-
-        // BROOKESIA_LOGI("Gesture pressing: %1%", info);
-
-        if (info.direction != GestureDirection::None) {
-            auto action = get_ui_action_from_gesture(info);
-            if (action == DisplayAction::Max) {
-                return;
-            }
-
-            auto action_ret = ui_state_machine_->trigger_action(BROOKESIA_DESCRIBE_TO_STR(action));
-            BROOKESIA_CHECK_FALSE_EXIT(action_ret, "Failed to trigger action");
-
-            is_ui_state_action_triggered_ = true;
-        }
-    };
-    ui_state_gesture_pressing_connection_ = connect_gesture_pressing_signal(pressing_slot);
-    BROOKESIA_CHECK_FALSE_RETURN(
-        ui_state_gesture_pressing_connection_.connected(), false, "Failed to connect gesture pressing signal"
-    );
-    // Monitor release event
-    auto release_slot = [this](const GestureInfo & info) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-        // BROOKESIA_LOGI("Gesture release: %1%", info);
-
-        is_ui_state_action_triggered_ = false;
-    };
-    ui_state_gesture_release_connection_ = connect_gesture_release_signal(release_slot);
-    BROOKESIA_CHECK_FALSE_RETURN(
-        ui_state_gesture_release_connection_.connected(), false, "Failed to connect gesture release signal"
-    );
+    BROOKESIA_CHECK_FALSE_RETURN(start_gesture(), false, "Failed to start gesture");
 
     auto delayed_task = []() {
-        auto result = DeviceHelper::call_function_async(
-                          DeviceHelper::FunctionId::SetDisplayBacklightOnOff, true
+        auto result = DisplayHelper::call_function_async(
+                          DisplayHelper::FunctionId::SetBacklightOnOff,
+                          Display::get_instance().display_output_id_,
+                          true
                       );
         BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to set backlight on");
     };
@@ -125,133 +71,107 @@ bool Display::start(const Config &config)
     return true;
 }
 
-bool Display::start_lvgl(int core_id)
+bool Display::start_display_service()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    // init esp lvgl adapter
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-    esp_lv_adapter_config_t adapter_config = ESP_LV_ADAPTER_DEFAULT_CONFIG();
-#pragma GCC diagnostic pop
-    adapter_config.task_priority = 6;
-    adapter_config.task_core_id = core_id;
-    adapter_config.tick_period_ms = 5;
-    adapter_config.task_min_delay_ms = 10;
-    adapter_config.task_max_delay_ms = 100;
-    adapter_config.stack_in_psram = true;
-    BROOKESIA_CHECK_ESP_ERR_RETURN(esp_lv_adapter_init(&adapter_config), false, "Failed to initialize LVGL adapter");
+    BROOKESIA_CHECK_FALSE_RETURN(DisplayHelper::is_available(), false, "Display service is not available");
 
-    hal::DisplayPanelIface::DriverSpecific panel_driver_specific;
+    display_service_binding_ = service::ServiceManager::get_instance().bind(DisplayHelper::get_name().data());
+    BROOKESIA_CHECK_FALSE_RETURN(display_service_binding_.is_valid(), false, "Failed to bind Display service");
+
+    auto outputs_json = DisplayHelper::call_function_sync<boost::json::array>(
+                            DisplayHelper::FunctionId::GetOutputs,
+                            service::helper::Timeout(DISPLAY_SERVICE_TIMEOUT_MS)
+                        );
     BROOKESIA_CHECK_FALSE_RETURN(
-        display_iface_->get_driver_specific(panel_driver_specific), false, "Failed to get driver specific"
+        outputs_json.has_value(), false, "Failed to get Display outputs: %1%", outputs_json.error()
     );
-    auto &display_info = display_iface_->get_info();
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-    esp_lv_adapter_display_config_t display_config {0};
-    switch (panel_driver_specific.bus_type) {
-    case hal::DisplayPanelIface::BusType::Generic:
-        display_config = ESP_LV_ADAPTER_DISPLAY_SPI_WITHOUT_PSRAM_DEFAULT_CONFIG(
-                             reinterpret_cast<esp_lcd_panel_handle_t>(panel_driver_specific.panel_handle),
-                             reinterpret_cast<esp_lcd_panel_io_handle_t>(panel_driver_specific.io_handle),
-                             static_cast<uint16_t>(display_info.h_res),
-                             static_cast<uint16_t>(display_info.v_res),
-                             ESP_LV_ADAPTER_ROTATE_0
-                         );
-        display_config.profile.require_double_buffer = false;
-        display_config.profile.buffer_height = 20;
-        break;
-    case hal::DisplayPanelIface::BusType::MIPI:
-        display_config = ESP_LV_ADAPTER_DISPLAY_MIPI_DEFAULT_CONFIG(
-                             reinterpret_cast<esp_lcd_panel_handle_t>(panel_driver_specific.panel_handle),
-                             reinterpret_cast<esp_lcd_panel_io_handle_t>(panel_driver_specific.io_handle),
-                             static_cast<uint16_t>(display_info.h_res),
-                             static_cast<uint16_t>(display_info.v_res),
-                             ESP_LV_ADAPTER_ROTATE_0
-                         );
-        break;
-    case hal::DisplayPanelIface::BusType::RGB:
-        display_config = ESP_LV_ADAPTER_DISPLAY_RGB_DEFAULT_CONFIG(
-                             reinterpret_cast<esp_lcd_panel_handle_t>(panel_driver_specific.panel_handle),
-                             reinterpret_cast<esp_lcd_panel_io_handle_t>(panel_driver_specific.io_handle),
-                             static_cast<uint16_t>(display_info.h_res),
-                             static_cast<uint16_t>(display_info.v_res),
-                             ESP_LV_ADAPTER_ROTATE_0
-                         );
-        display_config.profile.buffer_height = 10;
-        break;
-    default:
-        BROOKESIA_LOGE("Unsupported bus type: %1%", panel_driver_specific.bus_type);
-        return false;
-    }
-#pragma GCC diagnostic pop
 
-    lvgl_display_ = esp_lv_adapter_register_display(&display_config);
-    if (!lvgl_display_) {
-        BROOKESIA_LOGE("Failed to register display");
-        return false;
-    }
-
-    // Add event callback to round the coordinate to the nearest 2M or 2N+1 number if necessary
-    if ((panel_driver_specific.draw_x_align_bytes > 1) || (panel_driver_specific.draw_y_align_bytes > 1)) {
-        uint16_t rounder_data = (panel_driver_specific.draw_x_align_bytes << 8) |
-                                panel_driver_specific.draw_y_align_bytes;
-        auto rounder_event_cb = [](lv_event_t *e) {
-            lv_area_t *area = (lv_area_t *)lv_event_get_param(e);
-            uint16_t rounder_data = static_cast<uint16_t>(
-                                        reinterpret_cast<std::uintptr_t>(lv_event_get_user_data(e))
-                                    );
-            uint8_t draw_x_align_byte = static_cast<uint8_t>((rounder_data >> 8) & 0xFF) - 1;
-            uint8_t draw_y_align_byte = static_cast<uint8_t>(rounder_data & 0xFF) - 1;
-
-            uint16_t x1 = area->x1;
-            uint16_t x2 = area->x2;
-
-            uint16_t y1 = area->y1;
-            uint16_t y2 = area->y2;
-
-            // round the start of coordinate down to the nearest 2M number
-            // round the end of coordinate up to the nearest 2N+1 number
-            if (draw_x_align_byte > 0) {
-                area->x1 = (x1 >> draw_x_align_byte) << draw_x_align_byte;
-                area->x2 = ((x2 >> draw_x_align_byte) << draw_x_align_byte) + ((1 << draw_x_align_byte) - 1);
-            }
-            if (draw_y_align_byte > 0) {
-                area->y1 = (y1 >> draw_y_align_byte) << draw_y_align_byte;
-                area->y2 = ((y2 >> draw_y_align_byte) << draw_y_align_byte) + ((1 << draw_y_align_byte) - 1);
-            }
-        };
-        lv_display_add_event_cb(
-            reinterpret_cast<lv_display_t *>(lvgl_display_), rounder_event_cb, LV_EVENT_INVALIDATE_AREA,
-            reinterpret_cast<void *>(static_cast<std::uintptr_t>(rounder_data))
-        );
-    }
-
-    hal::DisplayTouchIface::DriverSpecific touch_driver_specific;
+    std::vector<DisplayHelper::OutputInfo> outputs;
     BROOKESIA_CHECK_FALSE_RETURN(
-        touch_iface_->get_driver_specific(touch_driver_specific), false, "Failed to get driver specific"
+        BROOKESIA_DESCRIBE_FROM_JSON(boost::json::value(outputs_json.value()), outputs), false,
+        "Failed to parse Display outputs"
     );
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-    esp_lv_adapter_touch_config_t touch_config = ESP_LV_ADAPTER_TOUCH_DEFAULT_CONFIG(
-                reinterpret_cast<lv_display_t *>(lvgl_display_),
-                reinterpret_cast<esp_lcd_touch_handle_t>(touch_driver_specific.touch_handle)
-            );
-#pragma GCC diagnostic pop
-    lvgl_indev_ = esp_lv_adapter_register_touch(&touch_config);
-    if (!lvgl_indev_) {
-        BROOKESIA_LOGE("Failed to register touch");
-        return false;
-    }
+    BROOKESIA_CHECK_FALSE_RETURN(!outputs.empty(), false, "No Display output is available");
 
-    auto start_ret = esp_lv_adapter_start();
-    BROOKESIA_CHECK_ESP_ERR_RETURN(start_ret, false, "Failed to start LVGL adapter");
+    const auto &main_output = outputs.front();
+    BROOKESIA_CHECK_FALSE_RETURN(
+        (main_output.width > 0) && (main_output.height > 0), false,
+        "Invalid Display output size: %1%x%2%", main_output.width, main_output.height
+    );
+
+    display_output_name_ = main_output.name;
+    display_output_id_ = main_output.id;
+    display_width_ = main_output.width;
+    display_height_ = main_output.height;
+    BROOKESIA_LOGI("Using display output %1% (%2%x%3%)", display_output_name_, display_width_, display_height_);
 
     return true;
 }
 
-bool Display::start_expression_emote(int core_id)
+bool Display::start_lvgl_display_source()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    gui::lvgl::DisplaySourceConfig config{};
+    config.output_name = "";
+    config.task_core_id = CONFIG_BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_INIT_THREAD_CORE_ID;
+
+    auto &source = LvglDisplaySource::get_instance();
+    BROOKESIA_CHECK_FALSE_RETURN(source.start(config), false, "Failed to start LVGL display source");
+
+    return true;
+}
+
+bool Display::set_active_source_role(DrawSource source)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    std::string source_role;
+    switch (source) {
+    case DrawSource::Lvgl:
+        source_role = gui::lvgl::DISPLAY_SOURCE_ROLE;
+        break;
+    case DrawSource::Emote:
+        source_role = expression::Emote::DISPLAY_SOURCE_ROLE;
+        break;
+    case DrawSource::Video:
+        source_role = std::string(VideoHelper::DISPLAY_SOURCE_ROLE);
+        break;
+    default:
+        return false;
+    }
+
+    BROOKESIA_CHECK_FALSE_RETURN(!source_role.empty(), false, "Display source role is not initialized");
+
+    auto result_handler = [](service::FunctionResult && result) {
+        if (!result.success) {
+            BROOKESIA_LOGE("Failed to set active display source role: %1%", result.error_message);
+        }
+    };
+    auto dispatched = DisplayHelper::call_function_async(
+                          DisplayHelper::FunctionId::SetActiveSourceRole,
+                          std::string(),
+                          source_role,
+                          result_handler
+                      );
+    BROOKESIA_CHECK_FALSE_RETURN(dispatched, false, "Failed to dispatch active display source role switch");
+
+    return true;
+}
+
+bool Display::show_video()
+{
+    return set_active_source_role(DrawSource::Video);
+}
+
+bool Display::show_emote()
+{
+    return set_active_source_role(DrawSource::Emote);
+}
+
+bool Display::start_expression_emote_assets()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -260,59 +180,26 @@ bool Display::start_expression_emote(int core_id)
         return true;
     }
 
-    BROOKESIA_LOGI("Initializing emote...");
+    BROOKESIA_LOGI("Initializing emote assets...");
 
-    hal::DisplayPanelIface::DriverSpecific panel_driver_specific;
-    BROOKESIA_CHECK_FALSE_RETURN(
-        display_iface_->get_driver_specific(panel_driver_specific), false, "Failed to get driver specific"
-    );
-    auto &display_info = display_iface_->get_info();
-    // Set emote config
-    EmoteHelper::Config config{
-        .h_res = display_info.h_res,
-        .v_res = display_info.v_res,
-        .buf_pixels = static_cast<size_t>(display_info.h_res * 16),
-        .fps = 30,
-        .task_priority = 5,
-        .task_stack = 5 * 1024,
-        .task_affinity = core_id,
-        .flag_swap_color_bytes = (panel_driver_specific.bus_type == hal::DisplayPanelIface::BusType::Generic),
-        .flag_double_buffer = true,
-        .flag_buff_dma = true,
-    };
-    auto result = EmoteHelper::call_function_sync(
-                      EmoteHelper::FunctionId::SetConfig, BROOKESIA_DESCRIBE_TO_JSON(config).as_object()
-                  );
-    BROOKESIA_CHECK_FALSE_RETURN(result.has_value(), false, "Failed to set emote config: %1%", result.error());
+    emote_service_binding_ = service::ServiceManager::get_instance().bind(EmoteHelper::get_name().data());
+    BROOKESIA_CHECK_FALSE_RETURN(emote_service_binding_.is_valid(), false, "Failed to bind Emote service");
 
-    // Subscribe to flush ready event
-    auto flush_ready_event_slot = [&](const std::string & event_name, const boost::json::object & param_json) {
-        lib_utils::FunctionGuard notify_guard([]() {
-            // BROOKESIA_LOG_TRACE_GUARD();
-            expression::Emote::get_instance().native_notify_flush_finished();
-        });
+    {
+        // Set emote config
+        EmoteHelper::Config config{
+            .task_priority = 6,
+            .task_stack = 8 * 1024,
+            .task_affinity = CONFIG_BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_INIT_THREAD_CORE_ID,
+            .task_stack_in_ext = false,
+            .flag_buff_dma = true,
+        };
+        auto result = EmoteHelper::call_function_sync(
+                          EmoteHelper::FunctionId::SetConfig, BROOKESIA_DESCRIBE_TO_JSON(config).as_object()
+                      );
+        BROOKESIA_CHECK_FALSE_RETURN(result.has_value(), false, "Failed to set emote config: %1%", result.error());
+    }
 
-        if (!esp_lv_adapter_get_dummy_draw_enabled(reinterpret_cast<lv_display_t *>(lvgl_display_))) {
-            return;
-        }
-
-        EmoteHelper::FlushReadyEventParam param;
-        auto success = BROOKESIA_DESCRIBE_FROM_JSON(param_json, param);
-        BROOKESIA_CHECK_FALSE_EXIT(success, "Failed to parse flush ready event param: %1%");
-
-        auto ret = esp_lv_adapter_dummy_draw_blit(
-                       reinterpret_cast<lv_display_t *>(lvgl_display_), param.x_start, param.y_start, param.x_end,
-                       param.y_end, param.data, true
-                   );
-        BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to draw bitmap");
-    };
-    static auto connection = EmoteHelper::subscribe_event(EmoteHelper::EventId::FlushReady, flush_ready_event_slot);
-    BROOKESIA_CHECK_FALSE_RETURN(connection.connected(), false, "Failed to subscribe to flush ready event");
-
-    static auto binding = service::ServiceManager::get_instance().bind(EmoteHelper::get_name().data());
-    BROOKESIA_CHECK_FALSE_RETURN(binding.is_valid(), false, "Failed to bind Emote service");
-
-    // Load emote assets
     {
         EmoteHelper::AssetSource source{
             .source = ASSETS_PARTITION_NAME,
@@ -326,48 +213,76 @@ bool Display::start_expression_emote(int core_id)
         BROOKESIA_CHECK_FALSE_RETURN(result.has_value(), false, "Failed to load emote assets: %1%", result.error());
     }
 
-    // Set idle event message
     {
         auto result = EmoteHelper::call_function_sync(
-                          EmoteHelper::FunctionId::SetEventMessage, BROOKESIA_DESCRIBE_TO_STR(EmoteHelper::EventMessageType::Idle)
+                          EmoteHelper::FunctionId::SetEventMessage,
+                          BROOKESIA_DESCRIBE_TO_STR(EmoteHelper::EventMessageType::Idle)
                       );
-        BROOKESIA_CHECK_FALSE_RETURN(result.has_value(), false, "Failed to set emote event message: %1%", result.error());
+        BROOKESIA_CHECK_FALSE_RETURN(
+            result.has_value(), false, "Failed to set emote event message: %1%", result.error()
+        );
     }
 
     return true;
 }
 
-bool Display::start_gesture(const esp_brookesia::lib_utils::ThreadConfig &thread_config)
+bool Display::start_gesture()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!check_gesture_data(gesture_data_)) {
-        auto &display_info = display_iface_->get_info();
-        gesture_data_ = build_default_gesture_data(display_info.h_res, display_info.v_res);
-    }
-    BROOKESIA_CHECK_FALSE_RETURN(check_gesture_data(gesture_data_), false, "Invalid gesture data");
+    BROOKESIA_CHECK_FALSE_RETURN(!display_output_name_.empty(), false, "Display output is not initialized");
 
-    {
-        boost::lock_guard<boost::mutex> lock(gesture_mutex_);
-        gesture_direction_tan_threshold_ = std::tan((static_cast<float>(gesture_data_.threshold.direction_angle) * PI) / 180.0F);
-        gesture_info_ = GestureInfo{};
-        gesture_touch_start_time_ms_ = 0;
-        gesture_detection_started_ = false;
-    }
+    auto config = gesture_data_;
+    config.enabled = true;
+    auto config_json = BROOKESIA_DESCRIBE_TO_JSON(config).as_object();
+    auto result = DisplayHelper::call_function_sync(
+                      DisplayHelper::FunctionId::SetTouchGestureConfig,
+                      static_cast<double>(display_output_id_),
+                      config_json,
+                      service::helper::Timeout(DISPLAY_SERVICE_TIMEOUT_MS)
+                  );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        result.has_value(), false, "Failed to configure Display touch gesture: %1%", result.error()
+    );
 
-    {
-        BROOKESIA_THREAD_CONFIG_GUARD(thread_config);
-        gesture_thread_ = boost::thread([this]() {
-            BROOKESIA_LOG_TRACE_GUARD();
-            while (true) {
-                process_gesture_tick();
-                boost::this_thread::sleep_for(boost::chrono::milliseconds(gesture_data_.detect_period_ms));
-            }
-        });
-    }
+    auto gesture_slot = [this](const std::string & event_name, const boost::json::object & info_json) {
+        BROOKESIA_LOGD("Display gesture event: %1%", event_name);
 
-    BROOKESIA_LOGI("Gesture detection started(period=%1%ms)", gesture_data_.detect_period_ms);
+        GestureInfo info;
+        if (!BROOKESIA_DESCRIBE_FROM_JSON(boost::json::value(info_json), info)) {
+            BROOKESIA_LOGE("Failed to parse Display touch gesture event");
+            return;
+        }
+        if (info.output_name != display_output_name_) {
+            return;
+        }
 
+        if (info.event_type == GestureEventType::Release) {
+            is_ui_state_action_triggered_ = false;
+            return;
+        }
+        if ((info.event_type != GestureEventType::Pressing) || is_ui_state_action_triggered_) {
+            return;
+        }
+        if (info.direction == GestureDirection::None) {
+            return;
+        }
+
+        auto action = get_ui_action_from_gesture(info);
+        if (action == DisplayAction::Max) {
+            return;
+        }
+
+        auto action_ret = ui_state_machine_->trigger_action(BROOKESIA_DESCRIBE_TO_STR(action));
+        BROOKESIA_CHECK_FALSE_EXIT(action_ret, "Failed to trigger action");
+        is_ui_state_action_triggered_ = true;
+    };
+    gesture_event_connection_ = DisplayHelper::subscribe_event(DisplayHelper::EventId::TouchGesture, gesture_slot);
+    BROOKESIA_CHECK_FALSE_RETURN(
+        gesture_event_connection_.connected(), false, "Failed to subscribe Display touch gesture event"
+    );
+
+    BROOKESIA_LOGI("Display touch gesture enabled for output %1%", display_output_name_);
     return true;
 }
 
@@ -375,190 +290,8 @@ void Display::stop_gesture()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    boost::lock_guard<boost::mutex> lock(gesture_mutex_);
-    gesture_info_ = GestureInfo{};
-    gesture_touch_start_time_ms_ = 0;
-    gesture_detection_started_ = false;
-}
-
-uint8_t Display::get_gesture_area(int x, int y) const
-{
-    uint8_t area = to_area_mask(GestureArea::Center);
-
-    auto &gesture_data = gesture_data_;
-    auto &display_info = display_iface_->get_info();
-    area |= (y < gesture_data.threshold.vertical_edge) ? to_area_mask(GestureArea::TopEdge) : 0;
-    area |= ((static_cast<int>(display_info.v_res) - y) < gesture_data.threshold.vertical_edge) ?
-            to_area_mask(GestureArea::BottomEdge) : 0;
-    area |= (x < gesture_data.threshold.horizontal_edge) ? to_area_mask(GestureArea::LeftEdge) : 0;
-    area |= ((static_cast<int>(display_info.h_res) - x) < gesture_data.threshold.horizontal_edge) ?
-            to_area_mask(GestureArea::RightEdge) : 0;
-
-    return area;
-}
-
-bool Display::process_gesture_tick()
-{
-    enum class GestureEventType {
-        None,
-        Press,
-        Pressing,
-        Release,
-    };
-
-    GestureEventType event_type = GestureEventType::None;
-    GestureInfo event_info;
-
-    bool touched = false;
-    lv_point_t point{0, 0};
-    {
-        esp_lv_adapter_lock(-1);
-        lib_utils::FunctionGuard unlock_guard([this]() {
-            esp_lv_adapter_unlock();
-        });
-
-        auto indev = reinterpret_cast<lv_indev_t *>(lvgl_indev_);
-
-        lv_indev_read(indev);
-        auto state = lv_indev_get_state(indev);
-        touched = (state == LV_INDEV_STATE_PRESSED);
-        lv_indev_get_point(indev, &point);
-    }
-
-    auto &gesture_data = gesture_data_;
-    {
-        boost::lock_guard<boost::mutex> lock(gesture_mutex_);
-
-        if (touched) {
-            gesture_info_.stop_x = point.x;
-            gesture_info_.stop_y = point.y;
-            gesture_info_.stop_area = get_gesture_area(point.x, point.y);
-        }
-
-        if (!gesture_detection_started_ && !touched) {
-            return true;
-        }
-
-        if (!gesture_detection_started_ && touched) {
-            gesture_detection_started_ = true;
-            gesture_touch_start_time_ms_ = get_current_time_ms();
-            gesture_info_ = GestureInfo{};
-            gesture_info_.start_x = point.x;
-            gesture_info_.start_y = point.y;
-            gesture_info_.stop_x = point.x;
-            gesture_info_.stop_y = point.y;
-            gesture_info_.start_area = get_gesture_area(point.x, point.y);
-            gesture_info_.stop_area = gesture_info_.start_area;
-
-            event_type = GestureEventType::Press;
-            event_info = gesture_info_;
-        } else {
-            auto current_time_ms = get_current_time_ms();
-            gesture_info_.duration_ms = static_cast<uint32_t>(current_time_ms - gesture_touch_start_time_ms_);
-            gesture_info_.flags_short_duration = (gesture_info_.duration_ms < static_cast<uint32_t>(gesture_data.threshold.duration_short_ms));
-
-            int distance_x = gesture_info_.stop_x - gesture_info_.start_x;
-            int distance_y = gesture_info_.stop_y - gesture_info_.start_y;
-            if ((distance_x != 0) || (distance_y != 0)) {
-                gesture_info_.distance_px = std::sqrt(static_cast<float>((distance_x * distance_x) + (distance_y * distance_y)));
-                gesture_info_.speed_px_per_ms = (gesture_info_.duration_ms > 0) ?
-                                                (gesture_info_.distance_px / static_cast<float>(gesture_info_.duration_ms)) :
-                                                std::numeric_limits<float>::infinity();
-                gesture_info_.flags_slow_speed = (gesture_info_.speed_px_per_ms < gesture_data.threshold.speed_slow_px_per_ms);
-
-                float distance_tan = (distance_x == 0) ?
-                                     std::numeric_limits<float>::infinity() :
-                                     (static_cast<float>(distance_y) / static_cast<float>(distance_x));
-                if ((distance_tan == std::numeric_limits<float>::infinity()) ||
-                        (distance_tan > gesture_direction_tan_threshold_) ||
-                        (distance_tan < -gesture_direction_tan_threshold_)) {
-                    if (distance_y > gesture_data.threshold.direction_vertical) {
-                        gesture_info_.direction = GestureDirection::Down;
-                    } else if (distance_y < -gesture_data.threshold.direction_vertical) {
-                        gesture_info_.direction = GestureDirection::Up;
-                    }
-                } else {
-                    if (distance_x > gesture_data.threshold.direction_horizon) {
-                        gesture_info_.direction = GestureDirection::Right;
-                    } else if (distance_x < -gesture_data.threshold.direction_horizon) {
-                        gesture_info_.direction = GestureDirection::Left;
-                    }
-                }
-            }
-
-            event_type = touched ? GestureEventType::Pressing : GestureEventType::Release;
-            event_info = gesture_info_;
-            if (!touched) {
-                gesture_info_ = GestureInfo{};
-                gesture_touch_start_time_ms_ = 0;
-                gesture_detection_started_ = false;
-            }
-        }
-    }
-
-    switch (event_type) {
-    case GestureEventType::Press:
-        gesture_press_signal_(event_info);
-        break;
-    case GestureEventType::Pressing:
-        gesture_pressing_signal_(event_info);
-        break;
-    case GestureEventType::Release:
-        gesture_release_signal_(event_info);
-        break;
-    case GestureEventType::None:
-    default:
-        break;
-    }
-
-    return true;
-}
-
-bool Display::check_gesture_data(const GestureData &data) const
-{
-    if (data.detect_period_ms == 0) {
-        return false;
-    }
-    if ((data.threshold.direction_vertical <= 0) || (data.threshold.direction_horizon <= 0)) {
-        return false;
-    }
-    if ((data.threshold.direction_angle == 0) || (data.threshold.direction_angle >= 90)) {
-        return false;
-    }
-    if ((data.threshold.horizontal_edge <= 0) || (data.threshold.vertical_edge <= 0)) {
-        return false;
-    }
-    if (data.threshold.duration_short_ms <= 0) {
-        return false;
-    }
-    if (data.threshold.speed_slow_px_per_ms <= 0) {
-        return false;
-    }
-    auto &display_info = display_iface_->get_info();
-    if ((data.threshold.direction_horizon > static_cast<int>(display_info.h_res)) ||
-            (data.threshold.horizontal_edge > static_cast<int>(display_info.h_res))) {
-        return false;
-    }
-    if ((data.threshold.direction_vertical > static_cast<int>(display_info.v_res)) ||
-            (data.threshold.vertical_edge > static_cast<int>(display_info.v_res))) {
-        return false;
-    }
-
-    return true;
-}
-
-Display::GestureData Display::build_default_gesture_data(uint32_t h_res, uint32_t v_res)
-{
-    GestureData data;
-    data.detect_period_ms = 20;
-    data.threshold.direction_horizon = std::max(24, static_cast<int>(h_res / 6));
-    data.threshold.direction_vertical = std::max(24, static_cast<int>(v_res / 6));
-    data.threshold.direction_angle = 45;
-    data.threshold.horizontal_edge = std::max(12, static_cast<int>(h_res / 10));
-    data.threshold.vertical_edge = std::max(12, static_cast<int>(v_res / 10));
-    data.threshold.duration_short_ms = 220;
-    data.threshold.speed_slow_px_per_ms = 0.6F;
-    return data;
+    gesture_event_connection_.disconnect();
+    is_ui_state_action_triggered_ = false;
 }
 
 bool Display::start_ui_state_machine()

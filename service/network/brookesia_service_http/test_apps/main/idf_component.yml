@@ -1,0 +1,13 @@
+## IDF Component Manager Manifest File
+dependencies:
+  joltwallet/littlefs:
+    version: "~=1.20.0"
+
+  espressif/brookesia_hal_adaptor:
+    override_path: ../../../../../hal/brookesia_hal_adaptor
+
+  espressif/brookesia_service_wifi:
+    override_path: ../../../brookesia_service_wifi
+
+  espressif/brookesia_service_http:
+    override_path: ../..

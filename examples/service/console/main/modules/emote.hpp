@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include "sdkconfig.h"
+
 class Emote {
 public:
     static Emote &get_instance()
@@ -13,7 +15,7 @@ public:
         return instance;
     }
 
-    bool init(int core_id = 0);
+    bool init(int core_id = CONFIG_BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_INIT_THREAD_CORE_ID);
 
 private:
     Emote() = default;

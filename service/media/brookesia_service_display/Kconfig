@@ -1,0 +1,66 @@
+menu "ESP-Brookesia: Service Display Configurations"
+    config BROOKESIA_SERVICE_DISPLAY_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
+    menuconfig BROOKESIA_SERVICE_DISPLAY_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    config BROOKESIA_SERVICE_DISPLAY_DRAW_TIMEOUT_MS
+        int "Synchronous draw timeout (ms)"
+        default 5000
+        range 1 60000
+        help
+            Timeout used when Display submits a frame through HAL panel draw_bitmap_sync().
+
+    config BROOKESIA_SERVICE_DISPLAY_TOUCH_POLL_INTERVAL_MS
+        int "Default touch polling interval (ms)"
+        default 20
+        range 5 1000
+        help
+            Default interval used to refresh cached touch points when the HAL touch interface
+            does not support interrupt mode.
+
+    menu "Backlight"
+        config BROOKESIA_SERVICE_DISPLAY_BACKLIGHT_ENABLE_AUTO_LOAD_DATA
+            bool "Automatically load persisted backlight data on start"
+            default y
+            help
+                Load persisted backlight brightness and on/off state when Display starts.
+
+        config BROOKESIA_SERVICE_DISPLAY_BACKLIGHT_KV_ERASE_DATA_TIMEOUT_MS
+            int "Storage erase timeout (ms)"
+            default 500
+            range 1 1000
+            help
+                Timeout in milliseconds used when erasing persisted display backlight state.
+
+        config BROOKESIA_SERVICE_DISPLAY_BACKLIGHT_BRIGHTNESS_DEFAULT
+            int "Backlight default brightness (percent)"
+            default 90
+            range 0 100
+            help
+                The default brightness of the display backlight, in percent.
+
+        config BROOKESIA_SERVICE_DISPLAY_BACKLIGHT_BRIGHTNESS_MIN
+            int "Backlight minimum hardware brightness"
+            default 20
+            help
+                The minimum hardware brightness of the display backlight.
+
+        config BROOKESIA_SERVICE_DISPLAY_BACKLIGHT_BRIGHTNESS_MAX
+            int "Backlight maximum hardware brightness"
+            default 100
+            help
+                The maximum hardware brightness of the display backlight.
+
+        config BROOKESIA_SERVICE_DISPLAY_BACKLIGHT_DEFAULT_ON
+            bool "Backlight default on"
+            default n
+            help
+                The default on state of the display backlight.
+    endmenu
+endmenu

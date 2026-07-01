@@ -1,0 +1,24 @@
+idf_component_register(
+    SRCS ${COMPONENT_SRCS_C} ${COMPONENT_SRCS_CPP}
+    INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
+    PRIV_INCLUDE_DIRS ${COMPONENT_PRIVATE_INCLUDE_DIRS}
+    REQUIRES
+        brookesia_service_manager
+        brookesia_service_helper
+        brookesia_service_display
+        brookesia_service_audio
+        brookesia_lib_utils
+        ${COMPONENT_REQUIRES}
+    PRIV_REQUIRES ${COMPONENT_PRIV_REQUIRES}
+)
+
+if(CONFIG_BROOKESIA_EMULATION_NES_ENABLE_AUTO_REGISTER)
+    set(BROOKESIA_EMULATION_NES_PLUGIN_SYMBOL emulation_nes_symbol)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        BROOKESIA_EMULATION_NES_PLUGIN_SYMBOL=${BROOKESIA_EMULATION_NES_PLUGIN_SYMBOL}
+    )
+    target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${BROOKESIA_EMULATION_NES_PLUGIN_SYMBOL}")
+endif()
+
+include(package_manager)
+cu_pkg_define_version(${COMPONENT_DIR})

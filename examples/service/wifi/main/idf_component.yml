@@ -1,9 +1,13 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  espressif/brookesia_service_nvs:
-    version: "*"
-    override_path: "../../../../service/brookesia_service_nvs"
+  espressif/brookesia_hal_adaptor:
+    version: "0.8.*"
+    override_path: ../../../../hal/brookesia_hal_adaptor
+
+  espressif/brookesia_service_storage:
+    version: "0.8.*"
+    override_path: ../../../../service/system/brookesia_service_storage
 
   espressif/brookesia_service_wifi:
-    version: "*"
-    override_path: "../../../../service/brookesia_service_wifi"
+    version: "0.8.*"
+    override_path: ../../../../service/network/brookesia_service_wifi

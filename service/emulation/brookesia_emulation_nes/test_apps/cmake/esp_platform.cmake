@@ -1,0 +1,4 @@
+set(EXTRA_COMPONENT_DIRS
+    ${TEST_APP_DIR}/..
+    ${TEST_APP_MAIN_DIR}
+)

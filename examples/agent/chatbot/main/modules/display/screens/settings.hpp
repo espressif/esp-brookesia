@@ -7,7 +7,7 @@
 
 #include "lvgl.h"
 #include "brookesia/lib_utils/state_base.hpp"
-#include "brookesia/service_helper/device.hpp"
+#include "brookesia/service_helper/system/device.hpp"
 #include "brookesia/service_manager/event/registry.hpp"
 #include "common.hpp"
 

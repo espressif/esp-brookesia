@@ -10,6 +10,8 @@ Steps to run these test cases:
    ```bash
    . ${IDF_PATH}/export.sh
    export IDF_CI_BUILD=y
+   export CI_TEST_WIFI_2_4G_AP1_SSID="your_wifi_ssid"
+   export CI_TEST_WIFI_2_4G_AP1_PSW="your_wifi_password"
    ```
 
 2. Install dependencies:
@@ -28,7 +30,7 @@ Steps to run these test cases:
 
 1. Install pytest dependencies:
    ```bash
-   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-ci
    ${IDF_PATH}/install.sh --enable-test-specific
    ```
 
@@ -74,5 +76,5 @@ def test_esp_vocat_board_v1_2(dut: Dut)-> None:
     ],
 )
 @pytest.mark.timeout(TIMEOUT_S)
-def test_esp32_p4_function_ev(dut: Dut)-> None:
+def test_esp32_p4x_function_ev(dut: Dut)-> None:
     run_test(dut)

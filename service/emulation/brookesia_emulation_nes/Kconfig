@@ -1,0 +1,174 @@
+menu "ESP-Brookesia: Emulation NES Configurations"
+    config BROOKESIA_EMULATION_NES_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the NES service as a plugin on startup.
+
+    menuconfig BROOKESIA_EMULATION_NES_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    config BROOKESIA_EMULATION_NES_FRAME_INTERVAL_MS
+        int "NES frame scheduler tick interval (ms)"
+        default 2
+        range 1 100
+        help
+            Tick interval used by the service-owned NES frame task. The emulator frame
+            cadence is controlled by FRAME_PERIOD_MS.
+
+    config BROOKESIA_EMULATION_NES_FRAME_PERIOD_MS
+        int "NES emulation frame period (ms)"
+        default 16
+        range 1 100
+        help
+            Target emulation frame period. Use 16 ms for a 60 Hz NTSC-style loop.
+
+    config BROOKESIA_EMULATION_NES_BASE_FRAME_SKIP
+        int "Base skipped video frames after each drawn frame"
+        default 0
+        range 0 10
+        help
+            Minimum number of no-draw emulation frames after each drawn frame.
+            Keep this at 0 when comparing same-resolution video performance.
+
+    config BROOKESIA_EMULATION_NES_AUTO_FRAME_SKIP_MAX
+        int "Maximum automatic skipped video frames"
+        default 2
+        range 0 10
+        help
+            Upper bound for automatic frame skip adjustment. CPU, APU and input
+            still advance while video conversion/present is skipped.
+
+    config BROOKESIA_EMULATION_NES_MAX_CONSECUTIVE_FRAME_SKIP
+        int "Maximum consecutive skipped video frames"
+        default 2
+        range 0 10
+        help
+            Maximum number of consecutive no-draw emulation frames used to recover
+            when the frame loop falls behind. Audio and CPU emulation still advance.
+
+    menuconfig BROOKESIA_EMULATION_NES_ENABLE_WORKER
+        bool "Enable dedicated workers"
+        default y
+
+    if BROOKESIA_EMULATION_NES_ENABLE_WORKER
+        menu "Worker"
+            config BROOKESIA_EMULATION_NES_WORKER_NAME
+                string "Name"
+                default "SvcNESWorker"
+                help
+                    Prefix used by the NES service worker threads.
+
+            config BROOKESIA_EMULATION_NES_WORKER_POLL_INTERVAL_MS
+                int "Poll interval (ms)"
+                default 4
+                range 1 100
+                help
+                    Poll interval used by the NES service task scheduler workers.
+
+            config BROOKESIA_EMULATION_NES_WORKER_0_CORE_ID
+                int "Core ID of Worker 0"
+                default 0
+                range -1 8
+                help
+                    Core affinity for Worker 0, which runs the frame task. Use -1 for no affinity.
+
+            config BROOKESIA_EMULATION_NES_WORKER_0_PRIORITY
+                int "Priority of Worker 0"
+                default 7
+                range 1 25
+                help
+                    Priority for Worker 0, which runs the frame task.
+
+            config BROOKESIA_EMULATION_NES_WORKER_0_STACK_SIZE
+                int "Stack size of Worker 0"
+                default 12288
+                range 4096 65536
+                help
+                    Stack size in bytes for Worker 0, which runs the frame task.
+
+            config BROOKESIA_EMULATION_NES_WORKER_1_CORE_ID
+                int "Core ID of Worker 1"
+                default 1
+                range -1 8
+                help
+                    Core affinity for Worker 1, which runs the audio feed task. Use -1 for no affinity.
+
+            config BROOKESIA_EMULATION_NES_WORKER_1_PRIORITY
+                int "Priority of Worker 1"
+                default 5
+                range 1 25
+                help
+                    Priority for Worker 1, which runs the audio feed task.
+
+            config BROOKESIA_EMULATION_NES_WORKER_1_STACK_SIZE
+                int "Stack size of Worker 1"
+                default 8192
+                range 4096 65536
+                help
+                    Stack size in bytes for Worker 1, which runs the audio feed task.
+        endmenu
+    endif
+
+    config BROOKESIA_EMULATION_NES_AUDIO_QUEUE_MAX_FRAMES
+        int "NES audio queue frame count"
+        default 32
+        range 1 64
+        help
+            Number of PCM chunks kept in the NES audio ring buffer.
+
+    config BROOKESIA_EMULATION_NES_AUDIO_FEED_MAX_CHUNKS_PER_TICK
+        int "Maximum audio chunks fed per scheduler tick"
+        default 2
+        range 1 16
+        help
+            Caps how much audio work one audio task invocation may perform.
+
+    config BROOKESIA_EMULATION_NES_AUDIO_FEED_BUDGET_MS
+        int "Audio feed time budget per scheduler tick (ms)"
+        default 2
+        range 0 100
+        help
+            Time budget for one audio feed task. Use 0 to disable the time budget.
+
+    config BROOKESIA_EMULATION_NES_AUDIO_SAMPLE_RATE
+        int "NES audio sample rate"
+        default 22050
+        range 8000 48000
+        help
+            Sample rate passed to nofrendo and AudioDecoder. Lower rates reduce CPU
+            and audio feed bandwidth.
+
+    config BROOKESIA_EMULATION_NES_AUDIO_STEREO
+        bool "Enable NES stereo audio"
+        default n
+        help
+            Stereo improves audio quality but doubles PCM bandwidth.
+
+    config BROOKESIA_EMULATION_NES_LOG_BUFFER_MEMORY
+        bool "Log NES buffer memory regions"
+        default n
+        help
+            Log low-frequency NES buffer allocation diagnostics.
+
+    config BROOKESIA_EMULATION_NES_PERF_LOG_INTERVAL_MS
+        int "NES performance log interval (ms)"
+        default 5000
+        range 0 60000
+        help
+            Interval for low-frequency frame/audio performance logs. Use 0 to disable.
+
+    config BROOKESIA_EMULATION_NES_DRAW_TIMEOUT_MS
+        int "Display draw timeout (ms)"
+        default 5000
+        range 1 60000
+        help
+            Timeout used when presenting a NES frame through Display service.
+
+    config BROOKESIA_EMULATION_NES_ENABLE_NOFRENDO
+        bool "Enable nofrendo backend"
+        default y
+        help
+            Enable the imported nofrendo backend when its platform port is available.
+endmenu

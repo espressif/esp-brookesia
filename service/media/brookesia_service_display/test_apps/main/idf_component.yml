@@ -1,0 +1,14 @@
+## IDF Component Manager Manifest File
+dependencies:
+  espressif/brookesia_lib_utils:
+    override_path: ../../../../../utils/brookesia_lib_utils
+  espressif/brookesia_hal_interface:
+    override_path: ../../../../../hal/brookesia_hal_interface
+  espressif/brookesia_service_helper:
+    override_path: ../../../../framework/brookesia_service_helper
+  espressif/brookesia_service_manager:
+    override_path: ../../../../framework/brookesia_service_manager
+  espressif/brookesia_service_storage:
+    override_path: ../../../../system/brookesia_service_storage
+  espressif/brookesia_service_display:
+    override_path: ../..

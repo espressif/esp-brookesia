@@ -1,0 +1,14 @@
+version: "0.8.0"
+description: ESP-Brookesia Storage service which provides namespace-based key-value storage management.
+url: https://github.com/espressif/esp-brookesia/tree/master/service/system/brookesia_service_storage
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_service_helper:
+    version: "0.8.*"
+    override_path: ../../framework/brookesia_service_helper
+    require: public
+
+examples:
+  - path: ../../../examples/service/console
+  - path: ../../../examples/service/storage
