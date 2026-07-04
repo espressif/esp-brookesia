@@ -1,0 +1,55 @@
+{
+    "type": "viewTemplate",
+    "id": "page_header",
+    "node": {
+        "type": "button",
+        "events": [],
+        "style": {
+            "borderWidth": "0dp"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "row",
+            "crossAlign": "center",
+            "gap": "18dp"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "58dp",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "arrow",
+                "styleRefs": [
+                    "app.pageTitle"
+                ],
+                "labelProps": {
+                    "text": "<"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "width": "46dp"
+                }
+            },
+            {
+                "type": "label",
+                "id": "title",
+                "styleRefs": [
+                    "app.pageTitle"
+                ],
+                "style": {
+                    "fontSize": "42sp"
+                },
+                "labelProps": {
+                    "text": "Page"
+                },
+                "placement": {
+                    "mode": "flow"
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "type": "viewTemplate",
+    "id": "chip",
+    "node": {
+        "type": "container",
+        "layout": {
+            "type": "flex",
+            "mainAlign": "center",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "width": "${constant.ui.content.metric.chipWidth}",
+            "height": "${constant.ui.content.metric.chipHeight}"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "label",
+                "labelProps": {
+                    "text": "Chip"
+                },
+                "styleRefs": [
+                    "shell.caption"
+                ]
+            }
+        ],
+        "styleRefs": [
+            "shell.chip"
+        ]
+    }
+}

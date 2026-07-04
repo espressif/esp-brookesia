@@ -16,9 +16,9 @@ namespace esp_brookesia::hal {
 /**
  * @brief Board-backed audio recording HAL interface (obtains codec handle from board manager).
  */
-class AudioCodecRecorderImpl : public AudioCodecRecorderIface {
+class AudioCodecRecorderImpl : public audio::CodecRecorderIface {
 public:
-    AudioCodecRecorderImpl(std::optional<AudioCodecRecorderIface::Info> info);
+    AudioCodecRecorderImpl(std::optional<audio::CodecRecorderIface::Info> info);
     ~AudioCodecRecorderImpl();
 
     bool open() override;

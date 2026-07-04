@@ -1,0 +1,16 @@
+version: "0.8.0"
+description: NES emulation service for ESP-Brookesia
+url: https://github.com/espressif/esp-brookesia/tree/master/service/emulation/brookesia_emulation_nes
+dependencies:
+  espressif/brookesia_service_manager:
+    version: "0.8.*"
+    override_path: ../../framework/brookesia_service_manager
+  espressif/brookesia_service_helper:
+    version: "0.8.*"
+    override_path: ../../framework/brookesia_service_helper
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../media/brookesia_service_display
+  espressif/brookesia_service_audio:
+    version: "0.8.*"
+    override_path: ../../media/brookesia_service_audio

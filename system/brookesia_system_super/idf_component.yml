@@ -1,0 +1,25 @@
+version: "0.8.0"
+description: ESP-Brookesia handheld square-screen system shell.
+url: https://github.com/espressif/esp-brookesia/tree/master/system/brookesia_system_super
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_system_core:
+    version: "0.8.*"
+    override_path: ../brookesia_system_core
+    require: public
+
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../service/media/brookesia_service_display
+    require: private
+
+  espressif/brookesia_service_wifi:
+    version: "0.8.*"
+    override_path: ../../service/network/brookesia_service_wifi
+    require: private
+
+  espressif/brookesia_service_sntp:
+    version: "0.8.*"
+    override_path: ../../service/network/brookesia_service_sntp
+    require: private

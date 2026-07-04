@@ -1,0 +1,303 @@
+{
+    "type": "styleSet",
+    "styles": {
+        "shell.desktop": {
+            "bgColor": "${color.bg.base}"
+        },
+        "shell.appBackground": {
+            "bgColor": "${color.bg.app}"
+        },
+        "shell.desktopImage": {
+            "imageOpacity": 255
+        },
+        "shell.pageTitle": {
+            "textColor": "${color.text.default}",
+            "fontSize": "28sp"
+        },
+        "shell.subtitle": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "11sp"
+        },
+        "shell.card": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "12dp"
+        },
+        "shell.cardTitle": {
+            "textColor": "${color.text.default}",
+            "fontSize": "14sp"
+        },
+        "shell.caption": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "11sp"
+        },
+        "shell.bodyMuted": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "14sp"
+        },
+        "shell.metricValue": {
+            "textColor": "${color.text.default}",
+            "fontSize": "26sp"
+        },
+        "shell.chart": {
+            "textColor": "${color.primary.fill}",
+            "fontSize": "28sp"
+        },
+        "shell.statusBar": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp"
+        },
+        "shell.statusBrand": {
+            "textColor": "${color.text.default}",
+            "fontSize": "12sp"
+        },
+        "shell.statusTitle": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "14sp"
+        },
+        "shell.statusTiny": {
+            "textColor": "${color.text.default}",
+            "fontSize": "10sp"
+        },
+        "shell.statusTinyMuted": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "10sp"
+        },
+        "shell.statusPill": {
+            "bgColor": "${color.border.strong}",
+            "radius": "9dp"
+        },
+        "shell.pillText": {
+            "textColor": "${color.text.inverse}",
+            "fontSize": "10sp"
+        },
+        "shell.navBar": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp"
+        },
+        "shell.navButton": {
+            "bgColor": "${color.surface.muted}",
+            "radius": "8dp"
+        },
+        "shell.navButtonActive": {
+            "bgColor": "${color.info.soft}",
+            "radius": "8dp"
+        },
+        "shell.closeButton": {
+            "bgColor": "${color.text.default}",
+            "radius": "8dp"
+        },
+        "shell.closeButtonLabel": {
+            "textColor": "${color.text.inverse}",
+            "fontSize": "12sp"
+        },
+        "shell.edgeHandle": {
+            "bgColor": "${color.primary.fill}",
+            "radius": "10dp",
+            "opacity": 230
+        },
+        "shell.edgeHandleLabel": {
+            "textColor": "${color.primary.on}",
+            "fontSize": "16sp"
+        },
+        "shell.searchBox": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "18dp"
+        },
+        "shell.chip": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "13dp"
+        },
+        "shell.chipActive": {
+            "bgColor": "${color.primary.fill}",
+            "radius": "13dp"
+        },
+        "shell.chipLabel": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "11sp"
+        },
+        "shell.chipActiveLabel": {
+            "textColor": "${color.primary.on}",
+            "fontSize": "11sp"
+        },
+        "shell.launcherAppButton": {
+            "bgColor": "",
+            "borderWidth": "0dp",
+            "radius": "18dp"
+        },
+        "shell.launcherIconTile": {
+            "bgColor": "",
+            "borderWidth": "0dp",
+            "radius": "16dp",
+            "clipCorner": true
+        },
+        "shell.launcherAppLabel": {
+            "textColor": "${color.text.default}",
+            "fontSize": "12sp"
+        },
+        "shell.launcherFallbackIcon": {
+            "textColor": "${color.primary.fill}",
+            "fontSize": "28sp"
+        },
+        "shell.gestureIndicatorBar": {
+            "bgColor": "${color.text.muted}",
+            "opacity": 144,
+            "radius": "3dp"
+        },
+        "shell.keyboardBackdrop": {
+            "bgColor": "${color.bg.overlay}",
+            "opacity": 96
+        },
+        "shell.keyboardPanel": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "18dp"
+        },
+        "shell.keyboardInput": {
+            "bgColor": "${color.surface.muted}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "12dp",
+            "textColor": "${color.text.default}"
+        },
+        "shell.keyboardInputField": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "10dp",
+            "textColor": "${color.text.default}"
+        },
+        "shell.keyboardEyeButton": {
+            "bgColor": "${color.surface.base}",
+            "radius": "10dp"
+        },
+        "shell.keyboardKeyDefault": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "8dp",
+            "textColor": "${color.text.default}",
+            "stateStyles": {
+                "pressed": {
+                    "bgColor": "${color.surface.pressed}"
+                }
+            }
+        },
+        "shell.keyboardKeySpecial": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.primary.fill}",
+            "borderWidth": "1dp",
+            "radius": "8dp",
+            "textColor": "${color.text.default}",
+            "stateStyles": {
+                "pressed": {
+                    "bgColor": "${color.primary.hover}",
+                    "textColor": "${color.primary.on}"
+                }
+            }
+        },
+        "shell.keyboardKeyMode": {
+            "bgColor": "${color.primary.fill}",
+            "borderColor": "${color.primary.fill}",
+            "borderWidth": "1dp",
+            "radius": "8dp",
+            "textColor": "${color.primary.on}",
+            "stateStyles": {
+                "pressed": {
+                    "bgColor": "${color.primary.hover}"
+                }
+            }
+        },
+        "shell.keyboardKeyAction": {
+            "bgColor": "${color.primary.fill}",
+            "borderColor": "${color.primary.fill}",
+            "borderWidth": "1dp",
+            "radius": "8dp",
+            "textColor": "${color.primary.on}",
+            "stateStyles": {
+                "pressed": {
+                    "bgColor": "${color.primary.hover}"
+                }
+            }
+        },
+        "shell.keyboardKeyDisabled": {
+            "bgColor": "${color.border.default}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "8dp",
+            "textColor": "${color.text.subtle}",
+            "opacity": 128
+        },
+        "shell.messageDialogBackdrop": {
+            "bgColor": "${color.bg.overlay}",
+            "opacity": 80
+        },
+        "system.appOverlayLaunchBackdrop": {
+            "bgColor": "${color.bg.overlay}",
+            "opacity": 88
+        },
+        "system.appOverlayLaunchSurface": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "0dp"
+        },
+        "system.appOverlayLaunchIconBox": {
+            "bgColor": "${color.primary.soft}",
+            "borderColor": "${color.primary.hover}",
+            "borderWidth": "1dp",
+            "radius": "24dp",
+            "padding": "16dp"
+        },
+        "system.appOverlayLaunchFallbackIcon": {
+            "textColor": "${color.primary.fill}",
+            "fontSize": "42sp"
+        },
+        "system.appOverlayLoadingBackdrop": {
+            "bgColor": "${color.bg.overlay}",
+            "opacity": 168
+        },
+        "system.appOverlayLoadingIconBox": {
+            "bgColor": "${color.primary.soft}",
+            "borderColor": "${color.primary.hover}",
+            "borderWidth": "1dp",
+            "radius": "24dp",
+            "padding": "16dp"
+        },
+        "shell.messageDialogPanel": {
+            "bgColor": "${color.surface.base}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "18dp",
+            "shadowWidth": "18dp",
+            "shadowColor": "${color.bg.overlay}"
+        },
+        "shell.messageDialogText": {
+            "textColor": "${color.text.default}",
+            "fontSize": "18sp",
+            "textAlign": "center"
+        },
+        "shell.messageDialogInformativeText": {
+            "textColor": "${color.text.muted}",
+            "fontSize": "14sp",
+            "textAlign": "center"
+        },
+        "shell.messageDialogButton": {
+            "bgColor": "${color.surface.muted}",
+            "borderColor": "${color.border.default}",
+            "borderWidth": "1dp",
+            "radius": "8dp"
+        },
+        "shell.messageDialogButtonLabel": {
+            "textColor": "${color.text.default}"
+        }
+    }
+}

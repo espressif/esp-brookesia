@@ -80,6 +80,12 @@ target_compile_definitions(${COMPONENT_LIB} PRIVATE
     ASSETS_PARTITION_NAME="${ASSETS_PARTITION_NAME}"
 )
 
+if(DEFINED ENV{IDF_CI_BUILD})
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        IDF_CI_BUILD
+    )
+endif()
+
 #
 # The following WiFi credentials are used for CI test. Please ignore them if you are not running CI test.
 #

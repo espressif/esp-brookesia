@@ -1,0 +1,105 @@
+## IDF Component Manager Manifest File
+dependencies:
+  # Hal
+  espressif/brookesia_hal_adaptor:
+    version: "0.8.*"
+    override_path: ../../../../hal/brookesia_hal_adaptor
+  espressif/brookesia_hal_boards:
+    version: "0.8.*"
+    override_path: ../../../../hal/brookesia_hal_boards
+
+  # Services
+  espressif/brookesia_service_audio:
+    version: "0.8.*"
+    override_path: ../../../../service/media/brookesia_service_audio
+  espressif/brookesia_service_device:
+    version: "0.8.*"
+    override_path: ../../../../service/system/brookesia_service_device
+  espressif/brookesia_service_storage:
+    version: "0.8.*"
+    override_path: ../../../../service/system/brookesia_service_storage
+  espressif/brookesia_service_sntp:
+    version: "0.8.*"
+    override_path: ../../../../service/network/brookesia_service_sntp
+  espressif/brookesia_service_http:
+    version: "0.8.*"
+    override_path: ../../../../service/network/brookesia_service_http
+  espressif/brookesia_service_wifi:
+    version: "0.8.*"
+    override_path: ../../../../service/network/brookesia_service_wifi
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../../../service/media/brookesia_service_display
+  espressif/brookesia_service_video:
+    version: "0.8.*"
+    override_path: ../../../../service/media/brookesia_service_video
+  espressif/brookesia_emulation_nes:
+    version: "0.8.*"
+    override_path: ../../../../service/emulation/brookesia_emulation_nes
+  espressif/brookesia_agent_coze:
+    version: "0.8.*"
+    override_path: ../../../../service/agent/brookesia_agent_coze
+  espressif/brookesia_agent_xiaozhi:
+    version: "0.8.*"
+    override_path: ../../../../service/agent/brookesia_agent_xiaozhi
+
+  # GUI
+  espressif/brookesia_gui_lvgl:
+    version: "0.8.*"
+    override_path: ../../../../gui/brookesia_gui_lvgl
+
+  # Runtime
+  espressif/brookesia_runtime_js:
+    version: "0.8.*"
+    override_path: ../../../../runtime/brookesia_runtime_js
+    require: public
+
+  # System
+  espressif/brookesia_system_super:
+    version: "0.8.*"
+    override_path: ../../../../system/brookesia_system_super
+    require: public
+
+  # Native Apps
+  espressif/brookesia_app_settings:
+    version: "0.8.*"
+    override_path: ../../../../app/brookesia_app_settings
+    require: public
+  espressif/brookesia_app_store:
+    version: "0.8.*"
+    override_path: ../../../../app/brookesia_app_store
+    require: public
+  espressif/brookesia_app_files:
+    version: "0.8.*"
+    override_path: ../../../../app/brookesia_app_files
+    require: public
+
+  # # Runtime Apps
+  # espressif/brookesia_app_2048:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_2048
+  #   require: public
+  # espressif/brookesia_app_ai_chatbot:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_ai_chatbot
+  #   require: public
+  # espressif/brookesia_app_calculator:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_calculator
+  #   require: public
+  # espressif/brookesia_app_camera:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_camera
+  #   require: public
+  # espressif/brookesia_app_flappy_bird:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_flappy_bird
+  #   require: public
+  # espressif/brookesia_app_music_player:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_music_player
+  #   require: public
+  # espressif/brookesia_app_nes_emulator:
+  #   version: "*"
+  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_nes_emulator
+  #   require: public

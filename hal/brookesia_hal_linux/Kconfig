@@ -1,0 +1,221 @@
+menu "ESP-Brookesia: HAL Linux Configurations"
+    menuconfig BROOKESIA_HAL_LINUX_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_HAL_LINUX_ENABLE_DEBUG_LOG
+        config BROOKESIA_HAL_LINUX_SYSTEM_DEVICE_ENABLE_DEBUG_LOG
+            bool "System device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux system device.
+
+        config BROOKESIA_HAL_LINUX_NETWORK_DEVICE_ENABLE_DEBUG_LOG
+            bool "Network device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux network device.
+
+        config BROOKESIA_HAL_LINUX_NETWORK_SNTP_CLIENT_IMPL_ENABLE_DEBUG_LOG
+            bool "SNTP client"
+            default n
+            help
+                Enable debug or lower level logs for the Linux SNTP client interface.
+
+        config BROOKESIA_HAL_LINUX_NETWORK_HTTP_CLIENT_IMPL_ENABLE_DEBUG_LOG
+            bool "HTTP client"
+            default n
+            help
+                Enable debug or lower level logs for the Linux HTTP client interface.
+
+        config BROOKESIA_HAL_LINUX_SYSTEM_OTA_UPDATER_IMPL_ENABLE_DEBUG_LOG
+            bool "OTA updater"
+            default n
+            help
+                Enable debug or lower level logs for the Linux OTA updater interface.
+
+        config BROOKESIA_HAL_LINUX_AUDIO_DEVICE_ENABLE_DEBUG_LOG
+            bool "Audio device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux audio device.
+
+        config BROOKESIA_HAL_LINUX_VIDEO_DEVICE_ENABLE_DEBUG_LOG
+            bool "Video device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux video device.
+
+        config BROOKESIA_HAL_LINUX_DISPLAY_DEVICE_ENABLE_DEBUG_LOG
+            bool "Display device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux display device.
+
+        config BROOKESIA_HAL_LINUX_POWER_DEVICE_ENABLE_DEBUG_LOG
+            bool "Power device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux power device.
+
+        config BROOKESIA_HAL_LINUX_WIFI_DEVICE_ENABLE_DEBUG_LOG
+            bool "Wi-Fi device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux Wi-Fi device.
+
+        config BROOKESIA_HAL_LINUX_STORAGE_DEVICE_ENABLE_DEBUG_LOG
+            bool "Storage device"
+            default n
+            help
+                Enable debug or lower level logs for the Linux storage device.
+    endif
+
+    config BROOKESIA_HAL_LINUX_ENABLE_SYSTEM_DEVICE
+        bool "System Device"
+        default y
+        help
+            Enable the Linux system device and its HAL interfaces.
+
+    if BROOKESIA_HAL_LINUX_ENABLE_SYSTEM_DEVICE
+        config BROOKESIA_HAL_LINUX_SYSTEM_ENABLE_OTA_UPDATER_IMPL
+            bool "OTA Updater"
+            default y
+            help
+                Enable the Linux OTA updater HAL interface.
+    endif
+
+    config BROOKESIA_HAL_LINUX_ENABLE_NETWORK_DEVICE
+        bool "Network Device"
+        default y
+        help
+            Enable the Linux network device and its protocol HAL interfaces.
+
+    if BROOKESIA_HAL_LINUX_ENABLE_NETWORK_DEVICE
+        config BROOKESIA_HAL_LINUX_NETWORK_ENABLE_SNTP_CLIENT_IMPL
+            bool "SNTP Client"
+            default y
+            help
+                Enable the Linux SNTP client HAL interface.
+
+        config BROOKESIA_HAL_LINUX_NETWORK_ENABLE_HTTP_CLIENT_IMPL
+            bool "HTTP Client"
+            default y
+            help
+                Enable the Linux HTTP client HAL interface.
+
+        config BROOKESIA_HAL_LINUX_NETWORK_HTTP_CLIENT_REQUIRE_TLS_VERIFY
+            bool "Require TLS verification by default"
+            default y
+            help
+                Verify HTTPS server certificates when a request uses the default TLS policy.
+
+        config BROOKESIA_HAL_LINUX_NETWORK_HTTP_CLIENT_READ_THROTTLE_BYTES_PER_SEC
+            int "HTTP client read throttle bytes per second"
+            default 102400
+            range 0 2147483647
+            help
+                Limit the Linux HTTP client response body delivery speed to simulate ESP-class download
+                throughput. Set to 0 to disable throttling.
+    endif
+
+    choice BROOKESIA_HAL_LINUX_MEDIA_BACKEND
+        prompt "Media backend"
+        default BROOKESIA_HAL_LINUX_MEDIA_BACKEND_AUTO
+        help
+            Select the Linux media backend used by audio and video processor interfaces.
+
+        config BROOKESIA_HAL_LINUX_MEDIA_BACKEND_AUTO
+            bool "Auto"
+
+        config BROOKESIA_HAL_LINUX_MEDIA_BACKEND_STUB
+            bool "Stub"
+
+        config BROOKESIA_HAL_LINUX_MEDIA_BACKEND_FFMPEG_PORTAUDIO
+            bool "FFmpeg + PortAudio"
+    endchoice
+
+    choice BROOKESIA_HAL_LINUX_WIFI_BACKEND
+        prompt "Wi-Fi backend"
+        default BROOKESIA_HAL_LINUX_WIFI_BACKEND_AUTO
+        help
+            Select the Linux Wi-Fi backend.
+
+        config BROOKESIA_HAL_LINUX_WIFI_BACKEND_AUTO
+            bool "Auto"
+
+        config BROOKESIA_HAL_LINUX_WIFI_BACKEND_STUB
+            bool "Stub"
+
+        config BROOKESIA_HAL_LINUX_WIFI_BACKEND_NETWORKMANAGER
+            bool "NetworkManager"
+    endchoice
+
+    choice BROOKESIA_HAL_LINUX_DISPLAY_BACKEND
+        prompt "Display backend"
+        default BROOKESIA_HAL_LINUX_DISPLAY_BACKEND_AUTO
+        help
+            Select the Linux display and touch backend.
+
+        config BROOKESIA_HAL_LINUX_DISPLAY_BACKEND_AUTO
+            bool "Auto"
+
+        config BROOKESIA_HAL_LINUX_DISPLAY_BACKEND_STUB
+            bool "Stub"
+
+        config BROOKESIA_HAL_LINUX_DISPLAY_BACKEND_SDL2
+            bool "SDL2"
+    endchoice
+
+    choice BROOKESIA_HAL_LINUX_POWER_BACKEND
+        prompt "Power backend"
+        default BROOKESIA_HAL_LINUX_POWER_BACKEND_AUTO
+        help
+            Select the Linux power backend.
+
+        config BROOKESIA_HAL_LINUX_POWER_BACKEND_AUTO
+            bool "Auto"
+
+        config BROOKESIA_HAL_LINUX_POWER_BACKEND_STUB
+            bool "Stub"
+
+        config BROOKESIA_HAL_LINUX_POWER_BACKEND_UPOWER
+            bool "UPower"
+    endchoice
+
+    config BROOKESIA_HAL_LINUX_ENABLE_AUDIO_DEVICE
+        bool "Audio Device"
+        default y
+        help
+            Enable the Linux audio device and its player, recorder, and media processor HAL interfaces.
+
+    config BROOKESIA_HAL_LINUX_ENABLE_VIDEO_DEVICE
+        bool "Video Device"
+        default y
+        help
+            Enable the Linux video device and its encoder and decoder HAL interfaces.
+
+    config BROOKESIA_HAL_LINUX_ENABLE_DISPLAY_DEVICE
+        bool "Display Device"
+        default y
+        help
+            Enable the Linux display device and its panel, touch, and backlight HAL interfaces.
+
+    config BROOKESIA_HAL_LINUX_ENABLE_POWER_DEVICE
+        bool "Power Device"
+        default y
+        help
+            Enable the Linux power device and its battery HAL interface.
+
+    config BROOKESIA_HAL_LINUX_ENABLE_WIFI_DEVICE
+        bool "Wi-Fi Device"
+        default y
+        help
+            Enable the Linux Wi-Fi device and its Basic, Station, and SoftAP HAL interfaces.
+
+    config BROOKESIA_HAL_LINUX_ENABLE_STORAGE_DEVICE
+        bool "Storage Device"
+        default y
+        help
+            Enable the Linux storage device and its key-value and file-system HAL interfaces.
+endmenu

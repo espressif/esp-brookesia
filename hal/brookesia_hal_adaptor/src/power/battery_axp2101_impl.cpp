@@ -35,63 +35,63 @@ constexpr const char *AXP2101_POWER_MANAGER_NAME = "axp2101_power_manager";
 constexpr const char *BATTERY_NAME = "AXP2101 Battery";
 constexpr const char *BATTERY_CHEMISTRY = "Li-ion";
 
-PowerBatteryIface::Info generate_info()
+power::BatteryIface::Info generate_info()
 {
     return {
         .name = BATTERY_NAME,
         .chemistry = BATTERY_CHEMISTRY,
         .abilities = {
-            PowerBatteryIface::Ability::Voltage,
-            PowerBatteryIface::Ability::Percentage,
-            PowerBatteryIface::Ability::PowerSource,
-            PowerBatteryIface::Ability::ChargeState,
-            PowerBatteryIface::Ability::VbusVoltage,
-            PowerBatteryIface::Ability::SystemVoltage,
-            PowerBatteryIface::Ability::ChargerControl,
-            PowerBatteryIface::Ability::ChargeConfig,
+            power::BatteryIface::Ability::Voltage,
+            power::BatteryIface::Ability::Percentage,
+            power::BatteryIface::Ability::PowerSource,
+            power::BatteryIface::Ability::ChargeState,
+            power::BatteryIface::Ability::VbusVoltage,
+            power::BatteryIface::Ability::SystemVoltage,
+            power::BatteryIface::Ability::ChargerControl,
+            power::BatteryIface::Ability::ChargeConfig,
         },
     };
 }
 
-PowerBatteryIface::PowerSource convert_power_source(power_manager_battery_power_source_t source)
+power::BatteryIface::PowerSource convert_power_source(power_manager_battery_power_source_t source)
 {
     switch (source) {
     case POWER_MANAGER_BATTERY_POWER_SOURCE_BATTERY:
-        return PowerBatteryIface::PowerSource::Battery;
+        return power::BatteryIface::PowerSource::Battery;
     case POWER_MANAGER_BATTERY_POWER_SOURCE_EXTERNAL:
-        return PowerBatteryIface::PowerSource::External;
+        return power::BatteryIface::PowerSource::External;
     case POWER_MANAGER_BATTERY_POWER_SOURCE_UNKNOWN:
     default:
-        return PowerBatteryIface::PowerSource::Unknown;
+        return power::BatteryIface::PowerSource::Unknown;
     }
 }
 
-PowerBatteryIface::ChargeState convert_charge_state(power_manager_battery_charge_state_t state)
+power::BatteryIface::ChargeState convert_charge_state(power_manager_battery_charge_state_t state)
 {
     switch (state) {
     case POWER_MANAGER_BATTERY_CHARGE_STATE_NOT_CHARGING:
-        return PowerBatteryIface::ChargeState::NotCharging;
+        return power::BatteryIface::ChargeState::NotCharging;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_CHARGING:
-        return PowerBatteryIface::ChargeState::Charging;
+        return power::BatteryIface::ChargeState::Charging;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_TRICKLE:
-        return PowerBatteryIface::ChargeState::Trickle;
+        return power::BatteryIface::ChargeState::Trickle;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_PRE_CHARGE:
-        return PowerBatteryIface::ChargeState::PreCharge;
+        return power::BatteryIface::ChargeState::PreCharge;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_CONSTANT_CURRENT:
-        return PowerBatteryIface::ChargeState::ConstantCurrent;
+        return power::BatteryIface::ChargeState::ConstantCurrent;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_CONSTANT_VOLTAGE:
-        return PowerBatteryIface::ChargeState::ConstantVoltage;
+        return power::BatteryIface::ChargeState::ConstantVoltage;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_FULL:
-        return PowerBatteryIface::ChargeState::Full;
+        return power::BatteryIface::ChargeState::Full;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_FAULT:
-        return PowerBatteryIface::ChargeState::Fault;
+        return power::BatteryIface::ChargeState::Fault;
     case POWER_MANAGER_BATTERY_CHARGE_STATE_UNKNOWN:
     default:
-        return PowerBatteryIface::ChargeState::Unknown;
+        return power::BatteryIface::ChargeState::Unknown;
     }
 }
 
-void apply_low_critical_state(PowerBatteryIface::State &state)
+void apply_low_critical_state(power::BatteryIface::State &state)
 {
     state.is_low = false;
     state.is_critical = false;
@@ -109,7 +109,7 @@ void apply_low_critical_state(PowerBatteryIface::State &state)
 } // namespace
 
 BatteryAxp2101Impl::BatteryAxp2101Impl()
-    : PowerBatteryIface(generate_info())
+    : power::BatteryIface(generate_info())
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -247,6 +247,11 @@ bool BatteryAxp2101Impl::setup_power_manager()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_CHECK_NULL_RETURN(power_manager_get_battery_state, false, "AXP2101 power manager battery API is unavailable");
+
+    if (!esp_board_manager_check_name(AXP2101_POWER_MANAGER_NAME)) {
+        BROOKESIA_LOGW("AXP2101 power manager device not found, skip");
+        return false;
+    }
 
     auto ret = esp_board_manager_init_device_by_name(AXP2101_POWER_MANAGER_NAME);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init AXP2101 power manager");

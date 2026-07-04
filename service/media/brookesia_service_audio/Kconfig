@@ -1,0 +1,95 @@
+menu "ESP-Brookesia: Service Audio Configurations"
+    config BROOKESIA_SERVICE_AUDIO_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
+    menuconfig BROOKESIA_SERVICE_AUDIO_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    menuconfig BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
+        bool "Enable worker"
+        default n
+
+    if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
+        config BROOKESIA_SERVICE_AUDIO_WORKER_NAME
+            string "Name"
+            default "SvcAudioWorker"
+            help
+                The name of the worker thread.
+
+        config BROOKESIA_SERVICE_AUDIO_WORKER_CORE_ID
+            int "Core ID"
+            default -1
+            help
+                The core ID of the worker thread. `-1` means the core ID is not specified.
+
+        config BROOKESIA_SERVICE_AUDIO_WORKER_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The priority of the worker thread.
+
+        config BROOKESIA_SERVICE_AUDIO_WORKER_STACK_SIZE
+            int "Stack size"
+            default 8192
+            help
+                The stack size of the worker thread.
+
+        config BROOKESIA_SERVICE_AUDIO_WORKER_STACK_IN_EXT
+            bool "Stack in external memory"
+            depends on SPIRAM
+            default y
+            help
+                Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
+
+        config BROOKESIA_SERVICE_AUDIO_WORKER_POLL_INTERVAL_MS
+            int "Poll interval (ms)"
+            default 10
+            range 1 10
+            help
+                The interval of the worker poll.
+    endif
+
+    menu "Playback Control"
+        config BROOKESIA_SERVICE_AUDIO_PLAYBACK_ENABLE_AUTO_LOAD_DATA
+            bool "Automatically load persisted playback control data on start"
+            default y
+            help
+                Load persisted playback volume and mute state when AudioPlayback starts.
+
+        config BROOKESIA_SERVICE_AUDIO_PLAYBACK_KV_ERASE_DATA_TIMEOUT_MS
+            int "Storage erase timeout (ms)"
+            default 500
+            range 1 1000
+            help
+                Timeout in milliseconds used when erasing persisted audio playback state.
+
+        config BROOKESIA_SERVICE_AUDIO_PLAYBACK_VOLUME_DEFAULT
+            int "Playback default volume (percent)"
+            default 75
+            range 0 100
+            help
+                The default volume of audio playback, in percent.
+
+        config BROOKESIA_SERVICE_AUDIO_PLAYBACK_VOLUME_MIN
+            int "Playback minimum hardware volume"
+            default 0
+            help
+                The minimum hardware volume of audio playback.
+
+        config BROOKESIA_SERVICE_AUDIO_PLAYBACK_VOLUME_MAX
+            int "Playback maximum hardware volume"
+            default 100
+            help
+                The maximum hardware volume of audio playback.
+
+        config BROOKESIA_SERVICE_AUDIO_PLAYBACK_DEFAULT_MUTE
+            bool "Playback default mute"
+            default n
+            help
+                The default mute state of audio playback.
+    endmenu
+endmenu

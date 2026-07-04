@@ -1,0 +1,10 @@
+version: "0.8.0"
+description: ESP-Brookesia runtime manager with common app lifecycle and native host bridge APIs.
+url: https://github.com/espressif/esp-brookesia/tree/master/runtime/brookesia_runtime_manager
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_lib_utils:
+    version: "0.8.*"
+    override_path: ../../utils/brookesia_lib_utils
+    require: public

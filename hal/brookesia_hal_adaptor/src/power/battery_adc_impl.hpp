@@ -12,7 +12,7 @@
 
 namespace esp_brookesia::hal {
 
-class BatteryAdcImpl : public PowerBatteryIface {
+class BatteryAdcImpl : public power::BatteryIface {
 public:
     BatteryAdcImpl();
     ~BatteryAdcImpl() override;

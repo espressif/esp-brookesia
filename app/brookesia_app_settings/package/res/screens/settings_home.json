@@ -1,0 +1,239 @@
+{
+    "type": "viewScreen",
+    "id": "settings_home",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "templateRef",
+                    "id": "device_card",
+                    "templateId": "settings_card",
+                    "overrides": {
+                        ".": {
+                            "style": {
+                                "padding": "${constant.settings.layout.cardPadding}"
+                            },
+                            "layout": {
+                                "gap": "2dp"
+                            }
+                        }
+                    },
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "my_device",
+                                "templateId": "nav_menu_item",
+                                "overrides": {
+                                    ".": {
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.open.device"
+                                            }
+                                        ],
+                                        "placement": {
+                                            "mode": "flow",
+                                            "width": "match",
+                                            "height": "${constant.settings.layout.rowHeight}",
+                                            "alignSelf": "stretch"
+                                        }
+                                    },
+                                    "icon": {
+                                        "imageProps": {
+                                            "src": "${image.home.my_device}"
+                                        },
+                                        "style": {
+                                            "bgColor": "${color.info.soft}"
+                                        }
+                                    },
+                                    "title_box/title": {
+                                        "labelProps": {
+                                            "text": "My device"
+                                        }
+                                    },
+                                    "value_box/value": {
+                                        "labelProps": {
+                                            "text": ""
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "main_list",
+                    "templateId": "settings_card",
+                    "overrides": {
+                        ".": {
+                            "style": {
+                                "padding": "${constant.settings.layout.cardPadding}"
+                            },
+                            "layout": {
+                                "gap": "0dp"
+                            }
+                        }
+                    },
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "wifi",
+                                "templateId": "nav_menu_item",
+                                "overrides": {
+                                    ".": {
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.open.wifi"
+                                            }
+                                        ]
+                                    },
+                                    "icon": {
+                                        "imageProps": {
+                                            "src": "${image.home.wifi}"
+                                        },
+                                        "style": {
+                                            "bgColor": "${color.info.soft}"
+                                        }
+                                    },
+                                    "title_box/title": {
+                                        "labelProps": {
+                                            "text": "Wi-Fi"
+                                        }
+                                    },
+                                    "value_box/value": {
+                                        "labelProps": {
+                                            "text": "Not connected"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "sound",
+                                "templateId": "nav_menu_item",
+                                "overrides": {
+                                    ".": {
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.open.sound"
+                                            }
+                                        ]
+                                    },
+                                    "icon": {
+                                        "imageProps": {
+                                            "src": "${image.home.sound}"
+                                        },
+                                        "style": {
+                                            "bgColor": "${color.primary.soft}"
+                                        }
+                                    },
+                                    "title_box/title": {
+                                        "labelProps": {
+                                            "text": "Sound"
+                                        }
+                                    },
+                                    "value_box/value": {
+                                        "labelProps": {
+                                            "text": "72%"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "display",
+                                "templateId": "nav_menu_item",
+                                "overrides": {
+                                    ".": {
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.open.display"
+                                            }
+                                        ]
+                                    },
+                                    "icon": {
+                                        "imageProps": {
+                                            "src": "${image.home.display}"
+                                        },
+                                        "style": {
+                                            "bgColor": "${color.warning.soft}"
+                                        }
+                                    },
+                                    "title_box/title": {
+                                        "labelProps": {
+                                            "text": "Display"
+                                        }
+                                    },
+                                    "value_box/value": {
+                                        "labelProps": {
+                                            "text": "Dark"
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "more",
+                                "templateId": "nav_menu_item",
+                                "overrides": {
+                                    ".": {
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.open.more"
+                                            }
+                                        ]
+                                    },
+                                    "icon": {
+                                        "imageProps": {
+                                            "src": "${image.home.more}"
+                                        }
+                                    },
+                                    "title_box/title": {
+                                        "labelProps": {
+                                            "text": "More settings"
+                                        }
+                                    },
+                                    "value_box/value": {
+                                        "labelProps": {
+                                            "text": ""
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}

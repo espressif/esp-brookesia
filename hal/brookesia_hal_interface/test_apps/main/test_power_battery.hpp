@@ -10,22 +10,22 @@
 
 namespace esp_brookesia {
 
-class TestPowerBatteryIface: public hal::PowerBatteryIface {
+class TestPowerBatteryIface: public hal::power::BatteryIface {
 public:
     static constexpr const char *NAME = "TestPowerBattery:Battery";
 
     explicit TestPowerBatteryIface(bool charger_control_supported);
     ~TestPowerBatteryIface() = default;
 
-    bool get_state(hal::PowerBatteryIface::State &state) override;
-    bool get_charge_config(hal::PowerBatteryIface::ChargeConfig &config) override;
-    bool set_charge_config(const hal::PowerBatteryIface::ChargeConfig &config) override;
+    bool get_state(hal::power::BatteryIface::State &state) override;
+    bool get_charge_config(hal::power::BatteryIface::ChargeConfig &config) override;
+    bool set_charge_config(const hal::power::BatteryIface::ChargeConfig &config) override;
     bool set_charging_enabled(bool enabled) override;
 
 private:
     bool charger_control_supported_ = false;
-    hal::PowerBatteryIface::State state_{};
-    hal::PowerBatteryIface::ChargeConfig charge_config_{};
+    hal::power::BatteryIface::State state_{};
+    hal::power::BatteryIface::ChargeConfig charge_config_{};
 };
 
 class TestBatteryDevice: public hal::Device {
@@ -38,6 +38,7 @@ public:
     }
 
     bool probe() override;
+    std::vector<hal::InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 

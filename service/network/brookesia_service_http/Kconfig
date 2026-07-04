@@ -1,0 +1,177 @@
+menu "ESP-Brookesia: Service HTTP Configurations"
+    config BROOKESIA_SERVICE_HTTP_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
+    menuconfig BROOKESIA_SERVICE_HTTP_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_SERVICE_HTTP_ENABLE_DEBUG_LOG
+        config BROOKESIA_SERVICE_HTTP_SERVICE_ENABLE_DEBUG_LOG
+            bool "Service"
+            default y
+
+        config BROOKESIA_SERVICE_HTTP_STATE_MACHINE_ENABLE_DEBUG_LOG
+            bool "State Machine"
+            default y
+    endif
+
+    menuconfig BROOKESIA_SERVICE_HTTP_ENABLE_WORKER
+        bool "Enable worker"
+        default y
+
+    if BROOKESIA_SERVICE_HTTP_ENABLE_WORKER
+        menu "General"
+            config BROOKESIA_SERVICE_HTTP_WORKER_NAME
+                string "Name"
+                default "SvcHttpWorker"
+                help
+                    The base name of the worker thread. Each worker thread is
+                    suffixed with its index (e.g. SvcHttpWorker0, SvcHttpWorker1).
+
+            config BROOKESIA_SERVICE_HTTP_WORKER_PRIORITY
+                int "Priority"
+                default 5
+                help
+                    The priority of the worker thread.
+
+            config BROOKESIA_SERVICE_HTTP_WORKER_STACK_SIZE
+                int "Stack size"
+                default 12288
+                help
+                    The stack size of the worker thread.
+
+            config BROOKESIA_SERVICE_HTTP_WORKER_STACK_IN_EXT
+                bool "Stack in external memory"
+                depends on SPIRAM
+                default y
+                help
+                    Whether the stack of the worker thread is in external memory.
+
+            config BROOKESIA_SERVICE_HTTP_WORKER_POLL_INTERVAL_MS
+                int "Poll interval (ms)"
+                default 10
+                range 1 100
+                help
+                    The interval of the worker poll.
+        endmenu
+
+        config BROOKESIA_SERVICE_HTTP_WORKER_NUM
+            int "Number of workers"
+            default 2
+            range 1 3
+            help
+                The number of workers. The default is 2 so that long-running
+                requests (e.g. large file downloads that block a worker on
+                join()) do not starve periodic tasks such as the progress
+                emitter.
+
+        config BROOKESIA_SERVICE_HTTP_WORKER_0_CORE_ID
+            int "Core ID of Worker 0"
+            range -1 1
+            default -1
+            help
+                The core ID of Worker 0. `-1` means the core ID is not specified.
+
+        if BROOKESIA_SERVICE_HTTP_WORKER_NUM >= 2
+            config BROOKESIA_SERVICE_HTTP_WORKER_1_CORE_ID
+                int "Core ID of Worker 1"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 1. `-1` means the core ID is not specified.
+        endif
+
+        if BROOKESIA_SERVICE_HTTP_WORKER_NUM >= 3
+            config BROOKESIA_SERVICE_HTTP_WORKER_2_CORE_ID
+                int "Core ID of Worker 2"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 2. `-1` means the core ID is not specified.
+        endif
+
+        if BROOKESIA_SERVICE_HTTP_WORKER_NUM >= 4
+            config BROOKESIA_SERVICE_HTTP_WORKER_3_CORE_ID
+                int "Core ID of Worker 3"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 3. `-1` means the core ID is not specified.
+        endif
+    endif
+
+    menu "Policy"
+        config BROOKESIA_SERVICE_HTTP_ENABLE_HTTP
+            bool "Enable HTTP"
+            default y
+
+        config BROOKESIA_SERVICE_HTTP_ENABLE_HTTPS
+            bool "Enable HTTPS"
+            default y
+
+        config BROOKESIA_SERVICE_HTTP_REQUIRE_TLS_VERIFY
+            bool "Require TLS verification by default"
+            default y
+
+        config BROOKESIA_SERVICE_HTTP_REQUIRE_TIME_SYNC
+            bool "Require SNTP time synchronization before starting"
+            default y if BROOKESIA_SERVICE_HTTP_ENABLE_HTTPS
+            default n
+            help
+                Start the SNTP service and wait until system time is synchronized before
+                the HTTP service reports Started. This is useful for HTTPS certificate
+                validation.
+
+        config BROOKESIA_SERVICE_HTTP_TIME_SYNC_POLL_MS
+            int "Time synchronization poll interval (ms)"
+            default 1000
+            range 100 60000
+            depends on BROOKESIA_SERVICE_HTTP_REQUIRE_TIME_SYNC
+            help
+                Poll interval used by the HTTP service TimeSyncing state.
+    endmenu
+
+    menu "Resource Limits"
+        config BROOKESIA_SERVICE_HTTP_MAX_CONCURRENT_REQUESTS
+            int "Maximum concurrent requests"
+            default 2
+            range 1 8
+
+        config BROOKESIA_SERVICE_HTTP_MAX_MEMORY_BODY_SIZE
+            int "Maximum memory response body size"
+            default 32768
+            range 1024 1048576
+
+        config BROOKESIA_SERVICE_HTTP_MAX_DOWNLOAD_FILE_SIZE
+            int "Maximum file download size"
+            default 4194304
+            range 1024 16777216
+
+        config BROOKESIA_SERVICE_HTTP_DEFAULT_TIMEOUT_MS
+            int "Default request timeout (ms)"
+            default 10000
+            range 1000 120000
+
+        config BROOKESIA_SERVICE_HTTP_DEFAULT_RETRY_COUNT
+            int "Default retry count"
+            default 0
+            range 0 5
+
+        config BROOKESIA_SERVICE_HTTP_BUFFER_SIZE
+            int "Transfer buffer size"
+            default 1024
+            range 256 8192
+
+        config BROOKESIA_SERVICE_HTTP_FILE_IO_THREAD_STACK_SIZE
+            int "File I/O thread stack size"
+            default 8192
+            range 4096 32768
+            help
+                Stack size used by the temporary internal-stack thread when
+                downloading an HTTP response directly to a file.
+    endmenu
+endmenu

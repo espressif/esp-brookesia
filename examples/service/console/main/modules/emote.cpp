@@ -21,10 +21,11 @@ bool Emote::init(int core_id)
         return true;
     }
 
-    auto [display_name, display_iface] = hal::get_first_interface<hal::DisplayPanelIface>();
+    auto display_panel_handle = hal::acquire_first_interface<hal::display::PanelIface>();
+    auto display_iface = display_panel_handle.get();
     BROOKESIA_CHECK_NULL_RETURN(display_iface, false, "Failed to get display interface");
 
-    hal::DisplayPanelIface::DriverSpecific driver_specific;
+    hal::display::PanelIface::DriverSpecific driver_specific;
     BROOKESIA_CHECK_FALSE_RETURN(
         display_iface->get_driver_specific(driver_specific), false, "Failed to get driver specific"
     );
@@ -39,7 +40,7 @@ bool Emote::init(int core_id)
         .task_stack = 10 * 1024,
         .task_affinity = core_id,
         .task_stack_in_ext = true,
-        .flag_swap_color_bytes = (driver_specific.bus_type == hal::DisplayPanelIface::BusType::Generic),
+        .flag_swap_color_bytes = (driver_specific.bus_type == hal::display::PanelIface::BusType::Generic),
         .flag_double_buffer = true,
         .flag_buff_dma = true,
     };

@@ -1,0 +1,251 @@
+{
+    "type": "viewScreen",
+    "mount_mode": "dynamic",
+    "id": "keyboard_input",
+    "commonProps": {
+        "clickable": true,
+        "scrollable": false
+    },
+    "placement": {
+        "width": "${env.widthDp}",
+        "height": "${env.heightDp}"
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "backdrop",
+            "commonProps": {
+                "clickable": true
+            },
+            "events": [
+                {
+                    "type": "clicked",
+                    "action": "super.keyboard.cancel.backdrop"
+                }
+            ],
+            "placement": {
+                "width": "${env.widthDp}",
+                "height": "${env.heightDp}"
+            },
+            "styleRefs": [
+                "shell.keyboardBackdrop"
+            ]
+        },
+        {
+            "type": "container",
+            "id": "input_bar",
+            "commonProps": {
+                "clickable": true,
+                "hidden": true,
+                "scrollable": false
+            },
+            "bindings": {
+                "commonProps.hidden": "inputHidden"
+            },
+            "placement": {
+                "x": "${constant.ui.keyboard.marginX}",
+                "y": "${constant.ui.keyboard.inputY}",
+                "width": "${expr(${env.widthDp} - ${constant.ui.keyboard.marginX} * 2)}",
+                "height": "${constant.ui.keyboard.inputHeight}"
+            },
+            "styleRefs": [
+                "shell.keyboardInput"
+            ],
+            "children": [
+                {
+                    "type": "textInput",
+                    "id": "input",
+                    "bindings": {
+                        "textInputProps.text": "text",
+                        "textInputProps.placeholder": "placeholder",
+                        "textInputProps.password": "password",
+                        "textInputProps.maxLength": "maxLength"
+                    },
+                    "textInputProps": {
+                        "text": "",
+                        "placeholder": "",
+                        "password": false,
+                        "multiline": false,
+                        "maxLength": 128
+                    },
+                    "events": [
+                        {
+                            "type": "valueChanged",
+                            "action": "super.keyboard.text_changed"
+                        },
+                        {
+                            "type": "ready",
+                            "action": "super.keyboard.submit.input"
+                        },
+                        {
+                            "type": "cancel",
+                            "action": "super.keyboard.cancel.input"
+                        }
+                    ],
+                    "placement": {
+                        "x": 0,
+                        "y": 0,
+                        "width": "${expr(${env.widthDp} - ${constant.ui.keyboard.marginX} * 2 - ${constant.ui.keyboard.eyeButtonSize} - ${constant.ui.keyboard.eyeInset} * 2)}",
+                        "height": "match"
+                    },
+                    "styleRefs": [
+                        "shell.keyboardInputField"
+                    ],
+                    "style": {
+                        "fontSize": "${constant.ui.keyboard.inputFontSize}"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "password_toggle",
+                    "interactionRefs": [
+                        "press.scale"
+                    ],
+                    "commonProps": {
+                        "clickable": true,
+                        "scrollable": false
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "passwordToggleHidden"
+                    },
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "super.keyboard.toggle_password"
+                        }
+                    ],
+                    "layout": {
+                        "type": "flex",
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "placement": {
+                        "x": "${expr(${env.widthDp} - ${constant.ui.keyboard.marginX} * 2 - ${constant.ui.keyboard.eyeButtonSize} - ${constant.ui.keyboard.eyeInset})}",
+                        "y": 0,
+                        "width": "${constant.ui.keyboard.eyeButtonSize}",
+                        "height": "match"
+                    },
+                    "children": [
+                        {
+                            "type": "image",
+                            "id": "icon",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "imageProps.src": "passwordIcon"
+                            },
+                            "imageProps": {
+                                "src": "${image.icon.eyeHide}",
+                                "innerAlign": "contain"
+                            },
+                            "placement": {
+                                "width": "${constant.ui.keyboard.eyeIconSize}",
+                                "height": "${constant.ui.keyboard.eyeIconSize}"
+                            },
+                            "styleRefs": [
+                                "shell.keyboardEyeButton"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "container",
+            "id": "keyboard_panel",
+            "commonProps": {
+                "clickable": false,
+                "hidden": true,
+                "scrollable": false
+            },
+            "bindings": {
+                "commonProps.hidden": "keyboardHidden"
+            },
+            "placement": {
+                "x": "${constant.ui.keyboard.marginX}",
+                "y": "${expr(${env.heightDp} - ${constant.ui.keyboard.keyboardHeight} - ${constant.ui.keyboard.popoverHeight} - ${constant.ui.keyboard.marginBottom})}",
+                "width": "${expr(${env.widthDp} - ${constant.ui.keyboard.marginX} * 2)}",
+                "height": "${expr(${constant.ui.keyboard.keyboardHeight} + ${constant.ui.keyboard.popoverHeight})}"
+            },
+            "children": [
+                {
+                    "type": "keyboard",
+                    "id": "keyboard",
+                    "bindings": {
+                        "keyboardProps.mode": "mode",
+                        "keyboardProps.allowedModes": "allowedModes"
+                    },
+                    "keyboardProps": {
+                "mode": "text",
+                "allowedModes": [
+                    "text",
+                    "upper",
+                    "number",
+                    "special"
+                ],
+                "popovers": true,
+                "iconSize": "${constant.ui.keyboard.iconSize}",
+                "targetTextInput": "/keyboard_input/input_bar/input",
+                "keyStyleRefs": {
+                    "default": "shell.keyboardKeyDefault",
+                    "special": "shell.keyboardKeySpecial",
+                    "mode": "shell.keyboardKeyMode",
+                    "action": "shell.keyboardKeyAction",
+                    "disabled": "shell.keyboardKeyDisabled"
+                },
+                "layouts": {
+                    "text": [
+                        ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p", {"text": "Del", "role": "backspace", "width": 2, "image": "${image.icon.backspace}"}],
+                        ["a", "s", "d", "f", "g", "h", "j", "k", "l"],
+                        [{"text": "ABC", "role": "mode", "mode": "upper", "width": 2}, "z", "x", "c", "v", "b", "n", "m", {"text": ",.?!", "role": "mode", "mode": "special", "width": 2}],
+                        [{"text": "Cancel", "role": "cancel", "width": 2, "image": "${image.icon.cancel}"}, {"text": "Left", "role": "left", "width": 2, "image": "${image.icon.left}"}, {"text": "123", "role": "mode", "mode": "number", "width": 2}, {"text": "Space", "role": "space", "width": 6, "image": "${image.icon.space}"}, {"text": "Right", "role": "right", "width": 2, "image": "${image.icon.right}"}, {"text": "OK", "role": "ok", "width": 2, "image": "${image.icon.ok}"}]
+                    ],
+                    "upper": [
+                        ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P", {"text": "Del", "role": "backspace", "width": 2, "image": "${image.icon.backspace}"}],
+                        ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+                        [{"text": "abc", "role": "mode", "mode": "text", "width": 2}, "Z", "X", "C", "V", "B", "N", "M", {"text": ",.?!", "role": "mode", "mode": "special", "width": 2}],
+                        [{"text": "Cancel", "role": "cancel", "width": 2, "image": "${image.icon.cancel}"}, {"text": "Left", "role": "left", "width": 2, "image": "${image.icon.left}"}, {"text": "123", "role": "mode", "mode": "number", "width": 2}, {"text": "Space", "role": "space", "width": 6, "image": "${image.icon.space}"}, {"text": "Right", "role": "right", "width": 2, "image": "${image.icon.right}"}, {"text": "OK", "role": "ok", "width": 2, "image": "${image.icon.ok}"}]
+                    ],
+                    "number": [
+                        ["1", "2", "3", {"text": "Del", "role": "backspace", "width": 2, "image": "${image.icon.backspace}"}],
+                        ["4", "5", "6", {"text": "abc", "role": "mode", "mode": "text", "width": 2}],
+                        ["7", "8", "9", {"text": ",.?!", "role": "mode", "mode": "special", "width": 2}],
+                        [{"text": "Cancel", "role": "cancel", "width": 2, "image": "${image.icon.cancel}"}, {"text": "Left", "role": "left", "image": "${image.icon.left}"}, "0", {"text": "Right", "role": "right", "image": "${image.icon.right}"}, {"text": "OK", "role": "ok", "width": 2, "image": "${image.icon.ok}"}]
+                    ],
+                    "special": [
+                        [{"text": "+", "styleClass": "special"}, {"text": "|", "styleClass": "special"}, {"text": "\\", "styleClass": "special"}, {"text": "\"", "styleClass": "special"}, {"text": "<", "styleClass": "special"}, {"text": ">", "styleClass": "special"}, {"text": "{", "styleClass": "special"}, {"text": "}", "styleClass": "special"}, {"text": "[", "styleClass": "special"}, {"text": "]", "styleClass": "special"}],
+                        [{"text": "~", "styleClass": "special"}, {"text": "@", "styleClass": "special"}, {"text": "#", "styleClass": "special"}, {"text": "!", "styleClass": "special"}, {"text": "%", "styleClass": "special"}, {"text": "&", "styleClass": "special"}, {"text": "*", "styleClass": "special"}, {"text": "(", "styleClass": "special"}, {"text": ")", "styleClass": "special"}],
+                        [{"text": "abc", "role": "mode", "mode": "text", "width": 2}, {"text": "'", "styleClass": "special"}, {"text": "/", "styleClass": "special"}, {"text": "-", "styleClass": "special"}, {"text": "_", "styleClass": "special"}, {"text": ":", "styleClass": "special"}, {"text": ";", "styleClass": "special"}, {"text": "?", "styleClass": "special"}],
+                        [{"text": "Cancel", "role": "cancel", "width": 2, "image": "${image.icon.cancel}"}, {"text": "Left", "role": "left", "width": 2, "image": "${image.icon.left}"}, {"text": "123", "role": "mode", "mode": "number", "width": 2}, {"text": "Space", "role": "space", "width": 6, "image": "${image.icon.space}"}, {"text": "Right", "role": "right", "width": 2, "image": "${image.icon.right}"}, {"text": "OK", "role": "ok", "width": 2, "image": "${image.icon.ok}"}]
+                    ]
+                }
+            },
+                    "events": [
+                        {
+                            "type": "ready",
+                            "action": "super.keyboard.submit.keyboard"
+                        },
+                        {
+                            "type": "cancel",
+                            "action": "super.keyboard.cancel.keyboard"
+                        }
+                    ],
+                    "placement": {
+                        "mode": "relative",
+                        "align": "topLeft",
+                        "y": "${constant.ui.keyboard.popoverHeight}",
+                        "width": "match",
+                        "height": "${constant.ui.keyboard.keyboardHeight}"
+                    },
+                    "style": {
+                        "fontSize": "${constant.ui.keyboard.keyFontSize}"
+                    },
+                    "styleRefs": [
+                        "shell.keyboardPanel"
+                    ]
+                }
+            ]
+        }
+    ]
+}

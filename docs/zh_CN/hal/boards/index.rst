@@ -1,7 +1,7 @@
 .. _hal-boards-sec-00:
 
-HAL 开发板支持
-==============
+ESP 设备板级配置
+================
 
 :link_to_translation:`en:[English]`
 
@@ -72,8 +72,8 @@ HAL 开发板支持
      - 触摸面板，支持 CST816S、GT911 等 I2C 触控芯片
    * - ``ledc_ctrl``
      - 基于 LEDC 的 PWM 背光控制
-   * - ``fs_fat`` / ``fs_spiffs``
-     - 文件系统存储，支持 SD 卡（SDMMC/SPI）和 SPIFFS
+   * - ``fs_fat``
+     - 由 board-manager 管理的 SD 卡 / FATFS 存储。LittleFS 与 Flash FATFS 由 ``brookesia_hal_adaptor`` 根据 Kconfig 与分区表直接挂载，不需要在 ``board_devices.yaml`` 中配置设备块。
    * - ``camera``
      - 摄像头（CSI 接口）
    * - ``power_ctrl``
@@ -99,6 +99,8 @@ HAL 开发板支持
 - **GPIO**：供电控制、功放使能、LED 等独立引脚配置
 
 ``sdkconfig.defaults.board`` 包含与该开发板硬件强相关的 Kconfig 默认值，例如 Flash 大小、PSRAM 模式与频率、CPU 主频，以及 ``brookesia_hal_adaptor`` 的录音格式参数等。
+
+除 ``board_devices.yaml`` 中描述的物理设备外，开发板默认配置还可能启用 ``BoardInfoIface``、``StorageKvIface`` 以及 Wi-Fi ``Basic`` / ``STA`` / ``SoftAP`` 等通用 HAL 接口。这类实现通过 Kconfig 配置，而不是独立的 board-manager 设备块。
 
 若驱动需要自定义初始化流程（例如向 LCD 传入厂商特定的寄存器序列），则通过 ``setup_device.c`` 中的工厂回调函数实现。
 

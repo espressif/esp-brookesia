@@ -47,38 +47,25 @@ Total: 1 service(s)
 #### List functions in a service
 
 ```bash
-esp32> svc_funcs audio
+esp32> svc_funcs AudioPlayback
 
-=== Functions in service 'audio' ===
+=== Functions in service 'AudioPlayback' ===
 
-  Function: set_volume
-    Description: Set audio volume
-    Parameters:
-      {"type":"object","properties":{"volume":{"type":"integer","minimum":0,"maximum":100}}}
-
-  Function: play_url
+  Function: Play
     Description: Play audio from URL
     Parameters:
-      {"type":"object","properties":{"url":{"type":"string"}}}
+      {"type":"object","properties":{"Url":{"type":"string"}}}
 
-Total: 2 function(s)
+Total: 5 function(s)
 ```
 
 #### Call a service function
 
 ```bash
-# Set volume to 80
-esp32> svc_call audio set_volume {"volume":80}
-
-Calling: audio.set_volume({"volume":80})
-
-Result:
-  {"success":true}
-
 # Play an audio file
-esp32> svc_call audio play_url {"url":"file://littlefs/test.mp3"}
+esp32> svc_call AudioPlayback Play {"Url":"file://littlefs/test.mp3"}
 
-Calling: audio.play_url({"url":"file://littlefs/test.mp3"})
+Calling: AudioPlayback.Play({"Url":"file://littlefs/test.mp3"})
 
 Result:
   {"success":true,"message":"Playing audio"}
@@ -136,4 +123,3 @@ idf_component_register(
 ## License
 
 Apache-2.0
-

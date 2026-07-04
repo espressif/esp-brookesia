@@ -19,9 +19,9 @@
 
           <div style="height: 0.5rem;"></div>
 
-       .. image:: https://www.waveshare.net/w/upload/thumb/b/bb/ESP32-S3-Touch-AMOLED-1.8-brookesia.png/600px-ESP32-S3-Touch-AMOLED-1.8-brookesia.png
-          :width: 220px
-          :alt: ESP32-S3-Touch-AMOLED-1.8
+       .. raw:: html
+
+          <img alt="ESP32-S3-Touch-AMOLED-1.8" src="https://www.waveshare.net/w/upload/thumb/b/bb/ESP32-S3-Touch-AMOLED-1.8-brookesia.png/600px-ESP32-S3-Touch-AMOLED-1.8-brookesia.png" width="220">
      - - *ESP32-S3*
        - *支持 Wi-Fi*
        - *Flash 16MB*
@@ -34,15 +34,19 @@
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`PowerBattery <esp_brookesia::hal::PowerBatteryIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp32_s3_touch_amoled_2_16``
 
        .. raw:: html
 
           <div style="height: 0.5rem;"></div>
 
-       .. image:: https://www.waveshare.net/w/upload/thumb/2/2b/ESP32-S3-Touch-AMOLED-2.16-brookesia.png/600px-ESP32-S3-Touch-AMOLED-2.16-brookesia.png
-          :width: 220px
-          :alt: ESP32-S3-Touch-AMOLED-2.16
+       .. raw:: html
+
+          <img alt="ESP32-S3-Touch-AMOLED-2.16" src="https://www.waveshare.net/w/upload/thumb/2/2b/ESP32-S3-Touch-AMOLED-2.16-brookesia.png/600px-ESP32-S3-Touch-AMOLED-2.16-brookesia.png" width="220">
      - - *ESP32-S3*
        - *支持 Wi-Fi*
        - *Flash 16MB*
@@ -55,15 +59,19 @@
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`PowerBattery <esp_brookesia::hal::PowerBatteryIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp32_s3_touch_amoled_1_75c``
 
        .. raw:: html
 
           <div style="height: 0.5rem;"></div>
 
-       .. image:: https://www.waveshare.net/w/upload/thumb/f/fd/ESP32-S3-Touch-AMOLED-1.75-brookesia.png/600px-ESP32-S3-Touch-AMOLED-1.75-brookesia.png
-          :width: 220px
-          :alt: ESP32-S3-Touch-AMOLED-1.75C
+       .. raw:: html
+
+          <img alt="ESP32-S3-Touch-AMOLED-1.75C" src="https://www.waveshare.net/w/upload/thumb/f/fd/ESP32-S3-Touch-AMOLED-1.75-brookesia.png/600px-ESP32-S3-Touch-AMOLED-1.75-brookesia.png" width="220">
      - - *ESP32-S3*
        - *支持 Wi-Fi*
        - *Flash 32MB*
@@ -76,3 +84,7 @@
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`PowerBattery <esp_brookesia::hal::PowerBatteryIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`

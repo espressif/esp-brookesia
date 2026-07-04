@@ -1,0 +1,81 @@
+{
+    "type": "constant",
+    "data": {
+        "colors": {
+            "neutral": {
+                "0": "#ffffff",
+                "50": "#fafbfc",
+                "100": "#dddddd",
+                "200": "#9b9b9b",
+                "300": "#7a7a7a",
+                "400": "#6b6b6b",
+                "500": "#4c494b",
+                "600": "#38393a",
+                "700": "#364354",
+                "800": "#2f3031",
+                "900": "#101418"
+            },
+            "accent": {
+                "red": "#E8362D",
+                "redSoft": "#4c494b",
+                "redMuted": "#ff8e78",
+                "blue": "#1290d8",
+                "blueSoft": "#364354",
+                "cyan": "#4dc6fd",
+                "orange": "#f4b22c",
+                "orangeSoft": "#4c494b",
+                "yellow": "#fdc800",
+                "yellowSoft": "#4c494b"
+            },
+            "bg": {
+                "base": "#38393a",
+                "app": "#38393a",
+                "overlay": "#101418"
+            },
+            "surface": {
+                "base": "#4c494b",
+                "raised": "#4c494b",
+                "muted": "#38393a",
+                "pressed": "#364354",
+                "inverse": "#fafbfc"
+            },
+            "text": {
+                "default": "#fafbfc",
+                "muted": "#dddddd",
+                "subtle": "#9b9b9b",
+                "inverse": "#38393a"
+            },
+            "border": {
+                "default": "#7a7a7a",
+                "muted": "#4c494b",
+                "strong": "#9b9b9b"
+            },
+            "primary": {
+                "fill": "#ff8e78",
+                "soft": "#5a2f2d",
+                "hover": "#fcdede",
+                "on": "#38393a"
+            },
+            "info": {
+                "fill": "#4dc6fd",
+                "soft": "#364354",
+                "on": "#38393a"
+            },
+            "success": {
+                "fill": "#5fd28a",
+                "soft": "#263d31",
+                "on": "#101418"
+            },
+            "warning": {
+                "fill": "#fdc800",
+                "soft": "#4c494b",
+                "on": "#38393a"
+            },
+            "danger": {
+                "fill": "#ff8e78",
+                "soft": "#4c494b",
+                "on": "#38393a"
+            }
+        }
+    }
+}

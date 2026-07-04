@@ -11,6 +11,7 @@
 #include "esp_check.h"
 #include "unity.h"
 #include "unity_test_utils.h"
+#include "unity_test_runner.h"
 
 // Some resources are lazy allocated in the driver, the threadhold is left for that case
 #define TEST_MEMORY_LEAK_THRESHOLD (0)
@@ -52,5 +53,7 @@ extern "C" void app_main(void)
     printf("   | $$   | $$  | $$ \\$$    $$| $$  \\$$\\ ______\\$$    $$ \\$$    $$| $$  | $$| $$     \\| $$    $$ \\$$    $$| $$     \\| $$     \\| $$  | $$\r\n");
     printf("    \\$$    \\$$   \\$$  \\$$$$$$  \\$$   \\$$|      \\\\$$$$$$   \\$$$$$$  \\$$   \\$$ \\$$$$$$$$ \\$$$$$$$   \\$$$$$$  \\$$$$$$$$ \\$$$$$$$$ \\$$   \\$$\r\n");
     printf("                                         \\$$$$$$\r\n");
+    printf("\r\nUnity test count: %d\r\n", unity_get_test_count());
+    fflush(stdout);
     unity_run_menu();
 }

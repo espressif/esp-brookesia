@@ -2,7 +2,7 @@
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to run and test the ESP-Brookesia service framework via a serial console. It provides an interactive CLI (Command Line Interface) with command history support, allowing you to manage and invoke services, subscribe to events, perform remote RPC calls, and inspect runtime performance data directly from the command line.
+This example demonstrates how to run and test the ESP-Brookesia service framework via a serial console. It provides an interactive CLI (Command Line Interface) with command history support, allowing you to manage and invoke services, subscribe to events, and inspect runtime performance data directly from the command line.
 
 ## 📑 Table of Contents
 
@@ -17,14 +17,12 @@ This example demonstrates how to run and test the ESP-Brookesia service framewor
   - [📖 Command Reference](#-command-reference)
     - [Service Commands](#service-commands)
     - [Debug Commands](#debug-commands)
-    - [RPC Commands](#rpc-commands)
   - [🔍 Troubleshooting](#-troubleshooting)
   - [💬 Technical Support and Feedback](#-technical-support-and-feedback)
 
 ## ✨ Features
 
 - 🎯 **Service Management**: List and call service functions, and subscribe/unsubscribe to service events from the command line
-- 🌐 **RPC Remote Calls**: Start an RPC server to call service functions or subscribe to events across devices over Wi-Fi
 - 📊 **Runtime Profiling**: Built-in memory and thread profilers with on-demand or periodic output
 - 📝 **Command History**: Command history is persisted to Flash and survives reboots (configurable)
 
@@ -85,20 +83,6 @@ After flashing the firmware successfully, refer to the [Quick Start Tutorial](./
 > [!TIP]
 > For detailed descriptions, refer to the [Debug Command Documentation](./docs/cmd_debug_cn.md).
 
-### RPC Commands
-
-The RPC feature allows calling service functions or subscribing to events across multiple devices over Wi-Fi.
-
-| Command | Description | Example |
-|---------|-------------|---------|
-| `svc_rpc_server <action> [-p <port>] [-s <services>]` | Start/stop the local RPC server | `svc_rpc_server start` |
-| `svc_rpc_call <host> <service> <function> [params] [-p <port>] [-t <timeout>]` | Call a service function on a remote device | `svc_rpc_call 192.168.1.100 Wifi TriggerScanStart` |
-| `svc_rpc_subscribe <host> <service> <event> [-p <port>] [-t <timeout>]` | Subscribe to a service event on a remote device | `svc_rpc_subscribe 192.168.1.100 Wifi ScanApInfosUpdated` |
-| `svc_rpc_unsubscribe <host> <service> <event> [-p <port>] [-t <timeout>]` | Unsubscribe from a service event on a remote device | `svc_rpc_unsubscribe 192.168.1.100 Wifi ScanApInfosUpdated` |
-
-> [!TIP]
-> For detailed descriptions, refer to the [RPC Command Documentation](./docs/cmd_rpc_cn.md).
-
 ## 🔍 Troubleshooting
 
 **Build failure (VSCode)**
@@ -112,10 +96,6 @@ Confirm the firmware has been flashed correctly and check that the serial connec
 **Service not found**
 
 Run `svc_list` to view all registered services. If the service is not listed, confirm that it has been enabled in menuconfig.
-
-**RPC connection failure**
-
-Ensure both devices are connected to the same Wi-Fi network and that the target device has started its RPC server with `svc_rpc_server start`.
 
 ## 💬 Technical Support and Feedback
 

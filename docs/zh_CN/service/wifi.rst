@@ -6,7 +6,7 @@ Wi-Fi
 :link_to_translation:`en:[English]`
 
 - 组件注册表： `espressif/brookesia_service_wifi <https://components.espressif.com/components/espressif/brookesia_service_wifi>`_
-- 辅助头文件： ``#include "brookesia/service_helper/wifi.hpp"``
+- 辅助头文件： ``#include "brookesia/service_helper/network/wifi.hpp"``
 - 辅助类： ``esp_brookesia::service::helper::Wifi``
 
 .. _service-wifi-sec-01:
@@ -21,7 +21,7 @@ Wi-Fi
 - **WiFi 扫描**：支持周期性扫描周围 AP，并自动发现可连接的 AP
 - **连接管理**：管理目标 AP 和已连接 AP 列表，支持多 AP 历史记录
 - **事件通知**：提供丰富的事件通知机制，实时反馈 WiFi 状态变化
-- **持久化存储**：可选搭配 `brookesia_service_nvs` 服务持久化保存连接配置和其他参数
+- **持久化存储**：可选搭配 `brookesia_service_storage` 服务持久化保存连接配置和其他参数
 
 .. _service-wifi-sec-02:
 
@@ -61,108 +61,12 @@ WiFi 服务通过状态机统一管理 WiFi 的生命周期状态，确保状态
 
 .. only:: html
 
-
-   .. mermaid::
-
-      stateDiagram-v2
-        direction TB
-
-        %% State Styles
-        classDef Stable fill:#DEFFF8,stroke:#46EDC8,color:#378E7A,font-weight:bold;
-        classDef Transient fill:#FFEFDB,stroke:#FBB35A,color:#8F632D,font-weight:bold;
-
-        %% Initial State
-        [*] --> Idle
-
-        %% =====================
-        %% Idle
-        %% =====================
-        Idle --> Initing: Init
-
-        %% =====================
-        %% Initing
-        %% =====================
-        state Initing {
-          do_init() --> poll_until_inited()
-        }
-
-        Initing --> Inited: Success
-        Initing --> Idle: Failure
-        Initing --> Deiniting: Timeout
-
-        %% =====================
-        %% Inited
-        %% =====================
-        Inited --> Starting: Start
-        Inited --> Deiniting: Deinit
-
-        %% =====================
-        %% Deiniting
-        %% =====================
-        state Deiniting {
-          do_deinit() --> poll_until_deinited()
-        }
-
-        Deiniting --> Idle: Success / Failure / Timeout
-
-        %% =====================
-        %% Starting
-        %% =====================
-        state Starting {
-          do_start() --> poll_until_started()
-        }
-
-        Starting --> Started: Success
-        Starting --> Inited: Failure
-        Starting --> Stopping: Timeout
-
-        %% =====================
-        %% Started
-        %% =====================
-        Started --> Connecting: Connect
-        Started --> Stopping: Stop
-
-        %% =====================
-        %% Connecting
-        %% =====================
-        state Connecting {
-          do_connect() --> poll_until_connected()
-        }
-
-        Connecting --> Connected: Success
-        Connecting --> Started: Failure
-        Connecting --> Disconnecting: Timeout
-
-        %% =====================
-        %% Connected
-        %% =====================
-        Connected --> Disconnecting: Disconnect
-        Connected --> Stopping: Stop
-
-        %% =====================
-        %% Disconnecting
-        %% =====================
-        state Disconnecting {
-          do_disconnect() --> poll_until_disconnected()
-        }
-
-        Disconnecting --> Started: Success / Failure / Timeout
-
-        %% =====================
-        %% Stopping
-        %% =====================
-        state Stopping {
-          do_stop() --> poll_until_stopped()
-        }
-
-        Stopping --> Inited: Success / Failure / Timeout
-
-        class Idle,Inited,Started,Connected Stable
-        class Initing,Starting,Connecting,Disconnecting,Stopping,Deiniting Transient
+   .. raw:: html
+      :file: ../../_static/mermaid/zh_CN/service/wifi/diagram.html
 
 .. only:: latex
 
-   .. image:: ../../_static/service/wifi_diagram.png
+   .. image:: ../../_static/mermaid/zh_CN/service/wifi/diagram.png
       :width: 100%
 
 .. _service-wifi-sec-04:

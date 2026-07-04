@@ -6,7 +6,7 @@ Video
 :link_to_translation:`zh_CN:[中文]`
 
 - Component registry: `espressif/brookesia_service_video <https://components.espressif.com/components/espressif/brookesia_service_video>`_
-- Helper header: ``#include "brookesia/service_helper/video.hpp"``
+- Helper header: ``#include "brookesia/service_helper/media/video.hpp"``
 - Helper class: ``esp_brookesia::service::helper::Video``
 
 .. _service-video-sec-01:

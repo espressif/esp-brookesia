@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.0 - 2026-06-28
+
+### Enhancements:
+
+- feat(utils): add signal, logging, describe helper, scheduler, and WASM utility updates.
+
+### Documentation:
+
+- docs(release): align component metadata, README content, and API documentation for v0.8.0.
+
 ## v0.7.9 - 2026-05-28
 
 ### Enhancements:

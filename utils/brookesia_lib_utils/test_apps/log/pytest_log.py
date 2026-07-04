@@ -33,7 +33,7 @@ Steps to run these test cases:
 
 1. Install pytest dependencies:
    ```bash
-   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-ci
    ${IDF_PATH}/install.sh --enable-test-specific
    ```
 
@@ -42,27 +42,27 @@ Steps to run these test cases:
    **ESP32-S3 examples:**
    ```bash
    # Generic environment
-   pytest utils/brookesia_lib_utils/test_apps/log --target esp32s3 --env generic
+   pytest utils/brookesia_lib_utils/test_apps/log --target esp32s3 --env generic,octal-psram
    ```
 '''
 
 import pytest
-from pytest_embedded import Dut
 import time
-import re
+from pytest_embedded import Dut
 
-SUCCESS_RESPONSE = b'0 Failures'
-FAILURE_RESPONSE = b'1 Failures'
-LEAK_MEMORY_RESPONSE = b'The test leaked too much memory'
-ENTER_RESPONSE_LIST = [
-    b'Enter test for running',
-    b'Press ENTER to see the list of tests',
-]
-REBOOT_RESPONSE = b'Rebooting...'
-RESPONSE_TIMEOUT_S = 30
+from unity_menu_runner import (
+    FAILURE_RESPONSE,
+    LEAK_MEMORY_RESPONSE,
+    REBOOT_RESPONSE,
+    RETRY_LIMIT,
+    SUCCESS_RESPONSE,
+    collect_unity_menu,
+)
+
 SINGLE_TIMEOUT_S = 2 * 60
 TOTAL_TIMEOUT_S = 10 * 60
-RETRY_LIMIT = 5  # Retry once before recording failure
+MENU_TIMEOUT_S = 5
+RESPONSE_TIMEOUT_S = 30
 
 # Expected log messages for different log levels
 LOG_LEVEL_MARKERS = {
@@ -90,23 +90,6 @@ LOG_LEVEL_CONFIG = {
     'std_none': {'expected': [], 'not_expected': ['trace', 'debug', 'info', 'warning', 'error']},
     'defaults': {'expected': ['info', 'warning', 'error'], 'not_expected': ['trace', 'debug']},  # Default is usually INFO
 }
-
-
-def get_index_and_name_list(response: bytes):
-    import re
-    # Find all numbers in parentheses like (1), (2), etc.
-    index_pattern = rb'\((\d+)\)'
-    # Extract the test name in quotes
-    name_pattern = rb'"([^"]+)"'
-
-    indices = re.findall(index_pattern, response)
-    names = re.findall(name_pattern, response)
-
-    result = []
-    for i in range(min(len(indices), len(names))):
-        result.append((int(indices[i]), names[i].decode('utf-8').strip()))
-
-    return result
 
 
 def verify_log_level_output(dut: Dut, config_name: str, captured_output: bytes) -> None:
@@ -154,12 +137,11 @@ def verify_log_level_output(dut: Dut, config_name: str, captured_output: bytes) 
 
 
 def run_test(dut: Dut, config: str = 'defaults')-> None:
-    dut.expect(ENTER_RESPONSE_LIST, timeout=5)
-
-    dut.write('\n\n')
-
-    response = dut.expect(ENTER_RESPONSE_LIST, return_what_before_match=True, timeout=5)
-    index_and_name_list = get_index_and_name_list(response)
+    index_and_name_list = collect_unity_menu(
+        dut,
+        timeout=MENU_TIMEOUT_S,
+        response_timeout_s=MENU_TIMEOUT_S,
+    )
     print(f"index_and_name_list: {index_and_name_list}")
 
     # Find the log level test case
@@ -210,8 +192,9 @@ def run_test(dut: Dut, config: str = 'defaults')-> None:
                     elif FAILURE_RESPONSE in captured_output:
                         if leaked_memory:
                             leaked_memory = False
+                            success = True
                             print(f"Skip leaked memory test")
-                            continue
+                            break
                         pytest.fail(f"[{num}] [{name}] Failed")
                         break
                     elif REBOOT_RESPONSE in captured_output:
@@ -228,7 +211,7 @@ def run_test(dut: Dut, config: str = 'defaults')-> None:
 
 # We only test all log configurations for ESP32-S3; for other chips, only the default configuration is tested.
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('generic')
+@pytest.mark.env('generic,octal-psram')
 @pytest.mark.parametrize(
     'target, config',
     [
@@ -247,7 +230,7 @@ def test_esp32s3(dut: Dut, config: str)-> None:
 
 # We only test all log configurations for ESP32-S3; for other chips, only the default configuration is tested.
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('generic')
+@pytest.mark.env('generic,octal-psram')
 @pytest.mark.parametrize(
     'target, config',
     [

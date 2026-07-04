@@ -1,0 +1,185 @@
+menu "ESP-Brookesia: GUI Interface Configurations"
+    menuconfig BROOKESIA_GUI_INTERFACE_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_GUI_INTERFACE_ENABLE_DEBUG_LOG
+        config BROOKESIA_GUI_INTERFACE_DATA_STORE_ENABLE_DEBUG_LOG
+            bool "Data store"
+            default y
+
+        config BROOKESIA_GUI_INTERFACE_PARSER_ENABLE_DEBUG_LOG
+            bool "Parser"
+            default y
+
+        config BROOKESIA_GUI_INTERFACE_RUNTIME_ENABLE_DEBUG_LOG
+            bool "Runtime"
+            default y
+
+        config BROOKESIA_GUI_INTERFACE_VALIDATOR_ENABLE_DEBUG_LOG
+            bool "Validator"
+            default y
+
+        config BROOKESIA_GUI_INTERFACE_WIDGET_ENABLE_DEBUG_LOG
+            bool "Widget"
+            default y
+    endif
+
+    config BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+        bool "Enable runtime memory/heap trace logs (profiling)"
+        default n
+        help
+            When enabled, the GUI runtime emits detailed [HeapTrace] logs and
+            per-substep PSRAM accounting while loading documents and creating
+            views (e.g. gui.load.split, gui.create_view, gui.binding.signals).
+            This is a profiling aid only; keep it disabled in production builds
+            because the extra snapshots and logging add CPU and log overhead.
+
+    menuconfig BROOKESIA_GUI_INTERFACE_ENABLE_EXAMPLES
+        bool "Enable JSON-UI example suite"
+        default y
+        help
+            Master switch for the JSON-UI example plugins. Each example below can
+            be toggled individually; disabled examples are not compiled, linked,
+            or shown in the example menu.
+
+    if BROOKESIA_GUI_INTERFACE_ENABLE_EXAMPLES
+        menu "Document examples"
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_DOCUMENT_ROOT
+                bool "document.root"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_DOCUMENT_VARIANTS
+                bool "document.variants"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_DOCUMENT_ENVIRONMENT
+                bool "document.environment"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_DOCUMENT_CONSTANTS
+                bool "document.constants"
+                default y
+        endmenu
+
+        menu "Assets examples"
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_ASSETS_CONSTANT
+                bool "assets.constant"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_ASSETS_STYLESET
+                bool "assets.styleset"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_ASSETS_THEME
+                bool "assets.theme"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_ASSETS_TEMPLATE
+                bool "assets.template"
+                default y
+        endmenu
+
+        menu "View examples"
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_SCREEN
+                bool "view.screen"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_CONTAINER
+                bool "view.container"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_LABEL
+                bool "view.label"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_BUTTON
+                bool "view.button"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_IMAGE
+                bool "view.image"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_TEXT_INPUT
+                bool "view.text_input"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_SLIDER
+                bool "view.slider"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_SWITCH
+                bool "view.switch"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_CHECKBOX
+                bool "view.checkbox"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_DROPDOWN
+                bool "view.dropdown"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_PROGRESS_BAR
+                bool "view.progress_bar"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_SPINNER
+                bool "view.spinner"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_ARC
+                bool "view.arc"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_LINE
+                bool "view.line"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_TABLE
+                bool "view.table"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_KEYBOARD
+                bool "view.keyboard"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_CANVAS
+                bool "view.canvas"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_VIEW_FRAME_VIEW
+                bool "view.frame_view"
+                default y
+        endmenu
+
+        menu "Styling examples"
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_STYLING_FLEX
+                bool "styling.flex"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_STYLING_GRID
+                bool "styling.grid"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_STYLING_PLACEMENT
+                bool "styling.placement"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_STYLING_STYLE
+                bool "styling.style"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_STYLING_STATE_STYLES
+                bool "styling.state_styles"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_STYLING_STYLE_REFS
+                bool "styling.style_refs"
+                default y
+        endmenu
+
+        menu "Interaction examples"
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_INTERACTION_BINDINGS
+                bool "interaction.bindings"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_INTERACTION_EVENTS
+                bool "interaction.events"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_INTERACTION_ANIMATIONS
+                bool "interaction.animations"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_INTERACTION_SCREEN_FLOW
+                bool "interaction.screen_flow"
+                default y
+        endmenu
+
+        menu "Runtime examples"
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_RUNTIME_TEMPLATE
+                bool "runtime.template"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_RUNTIME_THEME_LANGUAGE
+                bool "runtime.theme_language"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_RUNTIME_ANIMATION_API
+                bool "runtime.animation_api"
+                default y
+            config BROOKESIA_GUI_INTERFACE_EXAMPLE_RUNTIME_MOUNT_STACK
+                bool "runtime.mount_stack"
+                default y
+        endmenu
+    endif
+endmenu

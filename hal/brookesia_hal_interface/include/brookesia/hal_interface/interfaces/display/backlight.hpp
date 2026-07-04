@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstdint>
+#include <string>
 #include <string_view>
 #include <utility>
 #include "brookesia/lib_utils/describe_helpers.hpp"
@@ -16,28 +17,36 @@
  * @brief Declares the display backlight HAL interface.
  */
 
-namespace esp_brookesia::hal {
+namespace esp_brookesia::hal::display {
 
 /**
  * @brief Display backlight control interface.
  */
-class DisplayBacklightIface: public Interface {
+class BacklightIface: public Interface {
 public:
     static constexpr const char *NAME = "DisplayBacklight";  ///< Interface registry name.
+
+    /**
+     * @brief Static backlight association information.
+     */
+    struct Info {
+        std::string group_id; ///< Stable physical display group identifier.
+    };
 
     /**
      * @brief Construct a display backlight interface.
      *
      */
-    DisplayBacklightIface()
+    explicit BacklightIface(Info info = {})
         : Interface(NAME)
+        , info_(std::move(info))
     {
     }
 
     /**
      * @brief Virtual destructor for polymorphic backlight interfaces.
      */
-    virtual ~DisplayBacklightIface() = default;
+    virtual ~BacklightIface() = default;
 
     /**
      * @brief Set backlight brightness.
@@ -76,6 +85,21 @@ public:
      * @return `true` if the backlight is set on; otherwise `false`.
      */
     virtual bool is_light_on() const = 0;
+
+    /**
+     * @brief Get static backlight association information.
+     *
+     * @return Backlight information.
+     */
+    const Info &get_info() const
+    {
+        return info_;
+    }
+
+private:
+    Info info_{};
 };
 
-} // namespace esp_brookesia::hal
+BROOKESIA_DESCRIBE_STRUCT(BacklightIface::Info, (), (group_id));
+
+} // namespace esp_brookesia::hal::display

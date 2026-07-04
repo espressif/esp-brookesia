@@ -21,6 +21,12 @@
 #include <source_location>
 #include "boost/format.hpp"
 #include "brookesia/lib_utils/macro_configs.h"
+#define _BROOKESIA_LOG_OPTIONAL_ARGS(...) __VA_OPT__(,) __VA_ARGS__
+#if defined(__GNUC__) && !defined(__clang__)
+#   define _BROOKESIA_LOG_GNU_NOCLONE [[gnu::noclone]]
+#else
+#   define _BROOKESIA_LOG_GNU_NOCLONE
+#endif
 #if defined(ESP_PLATFORM) && (BROOKESIA_UTILS_LOG_IMPL_TYPE == BROOKESIA_UTILS_LOG_IMPL_ESP)
 #   include "log_impl_esp.h"
 #else
@@ -37,10 +43,17 @@ namespace esp_brookesia::lib_utils {
  */
 
 // Format string components
-#define _BROOKESIA_LOG_FORMAT_THREAD_NAME "<%s>"
-#define _BROOKESIA_LOG_FORMAT_FILE_LINE "[%.*s:%04d]"
-#define _BROOKESIA_LOG_FORMAT_FUNCTION "(%.*s)"
-#define _BROOKESIA_LOG_FORMAT_MESSAGE ": %s"
+#if defined(ESP_PLATFORM)
+#   define _BROOKESIA_LOG_FORMAT_THREAD_NAME "<%s>"
+#   define _BROOKESIA_LOG_FORMAT_FILE_LINE "[%.*s:%04d] "
+#   define _BROOKESIA_LOG_FORMAT_FUNCTION "(%.*s) "
+#   define _BROOKESIA_LOG_FORMAT_MESSAGE ": %s"
+#else
+#   define _BROOKESIA_LOG_FORMAT_THREAD_NAME "<%s>"
+#   define _BROOKESIA_LOG_FORMAT_FILE_LINE "[%20.*s:%04d] "
+#   define _BROOKESIA_LOG_FORMAT_FUNCTION "(%20.*s) "
+#   define _BROOKESIA_LOG_FORMAT_MESSAGE ": %s"
+#endif
 
 // Assemble format string using string literal concatenation
 #if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME && BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE && BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME
@@ -126,6 +139,9 @@ namespace esp_brookesia::lib_utils {
         _BROOKESIA_LOG_ARGS_MESSAGE(format_str)
 #endif
 
+#define BROOKESIA_UTILS_LOG_NEEDS_SOURCE_LOCATION \
+    (BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE || BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME)
+
 /**
  * Type-erased format argument that preserves type category for boost::format.
  * Only 6 type slots are used, so boost::format::operator% is instantiated exactly 6 times
@@ -151,7 +167,7 @@ struct FormatArg {
  * @brief Convert a log argument to FormatArg while preserving its type category.
  */
 template<typename T>
-FormatArg make_format_arg(T &&arg)
+[[gnu::noinline]] FormatArg make_format_arg(T &&arg)
 {
     using D = std::remove_cvref_t<T>;
     FormatArg a{};
@@ -231,10 +247,16 @@ public:
      * @param tag Log tag string.
      * @param format Message string passed through without argument formatting.
      */
-    void print(int level, const std::source_location &loc, const char *tag, const char *format)
-    {
-        write(level, loc, tag, std::string(format));
-    }
+    void print(int level, const std::source_location &loc, const char *tag, const char *format);
+
+    /**
+     * @brief Print a preformatted message without per-call-site source metadata.
+     *
+     * @param level Log level defined by `BROOKESIA_UTILS_LOG_LEVEL_*`.
+     * @param tag Log tag string.
+     * @param format Message string passed through without argument formatting.
+     */
+    void print(int level, const char *tag, const char *format);
 
     /**
      * @brief Format a message and print it.
@@ -247,9 +269,26 @@ public:
      * @param args Format arguments forwarded through the type-erased formatter.
      */
     template <typename... Args>
-    void print(int level, const std::source_location &loc, const char *tag, const char *format, Args &&... args)
+    _BROOKESIA_LOG_GNU_NOCLONE void print(
+        int level, const std::source_location &loc, const char *tag, const char *format, Args &&... args
+    )
     {
-        write(level, loc, tag, format_message(format, {make_format_arg(std::forward<Args>(args))...}));
+        print_impl(level, loc, tag, format, {make_format_arg(std::forward<Args>(args))...});
+    }
+
+    /**
+     * @brief Format a message and print it without per-call-site source metadata.
+     *
+     * @tparam Args Format argument types.
+     * @param level Log level defined by `BROOKESIA_UTILS_LOG_LEVEL_*`.
+     * @param tag Log tag string.
+     * @param format Boost-format-style message format.
+     * @param args Format arguments forwarded through the type-erased formatter.
+     */
+    template <typename... Args>
+    _BROOKESIA_LOG_GNU_NOCLONE void print(int level, const char *tag, const char *format, Args &&... args)
+    {
+        print_impl(level, tag, format, {make_format_arg(std::forward<Args>(args))...});
     }
 
     /**
@@ -273,6 +312,14 @@ public:
      */
     static void write(int level, const std::source_location &loc, const char *tag, const std::string &message);
     /**
+     * @brief Emit a fully formatted message through the selected backend without source metadata.
+     *
+     * @param level Log level defined by `BROOKESIA_UTILS_LOG_LEVEL_*`.
+     * @param tag Log tag string.
+     * @param message Final message body.
+     */
+    static void write(int level, const char *tag, const std::string &message);
+    /**
      * @brief Format a message using `boost::format`-style placeholders.
      *
      * @param format Format string.
@@ -280,6 +327,17 @@ public:
      * @return Formatted message string.
      */
     static std::string format_message(const char *format, std::initializer_list<FormatArg> args);
+    /**
+     * @brief Out-of-line tail shared by every `print` template instantiation.
+     *
+     * Keeping the type-independent formatting/dispatch logic in a single non-template
+     * function prevents the compiler from emitting a per-call-site `.isra`/`.constprop`
+     * clone (which has internal linkage and cannot be folded by the linker) for each
+     * distinct argument-type combination.
+     */
+    static void print_impl(int level, const std::source_location &loc, const char *tag, const char *format,
+                           std::initializer_list<FormatArg> args);
+    static void print_impl(int level, const char *tag, const char *format, std::initializer_list<FormatArg> args);
     /**
      * @brief Extract the display-friendly function name from a source location string.
      *
@@ -302,26 +360,49 @@ private:
 /**
  * Macros to simplify logging calls with a fixed tag
  */
+#if BROOKESIA_UTILS_LOG_NEEDS_SOURCE_LOCATION
 #define BROOKESIA_LOGT_IMPL(tag, format, ...) \
     esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_TRACE,     \
-        std::source_location::current(), tag, format, ##__VA_ARGS__ \
+        std::source_location::current(), tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
     )
 #define BROOKESIA_LOGD_IMPL(tag, format, ...) \
     esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_DEBUG,     \
-        std::source_location::current(), tag, format, ##__VA_ARGS__ \
+        std::source_location::current(), tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
     )
 #define BROOKESIA_LOGI_IMPL(tag, format, ...) \
     esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_INFO,      \
-        std::source_location::current(), tag, format, ##__VA_ARGS__ \
+        std::source_location::current(), tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
     )
 #define BROOKESIA_LOGW_IMPL(tag, format, ...) \
     esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_WARNING,   \
-        std::source_location::current(), tag, format, ##__VA_ARGS__ \
+        std::source_location::current(), tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
     )
 #define BROOKESIA_LOGE_IMPL(tag, format, ...) \
     esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_ERROR,     \
-        std::source_location::current(), tag, format, ##__VA_ARGS__ \
+        std::source_location::current(), tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
     )
+#else
+#define BROOKESIA_LOGT_IMPL(tag, format, ...) \
+    esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_TRACE,     \
+        tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
+    )
+#define BROOKESIA_LOGD_IMPL(tag, format, ...) \
+    esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_DEBUG,     \
+        tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
+    )
+#define BROOKESIA_LOGI_IMPL(tag, format, ...) \
+    esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_INFO,      \
+        tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
+    )
+#define BROOKESIA_LOGW_IMPL(tag, format, ...) \
+    esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_WARNING,   \
+        tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
+    )
+#define BROOKESIA_LOGE_IMPL(tag, format, ...) \
+    esp_brookesia::lib_utils::Log::getInstance().print(BROOKESIA_UTILS_LOG_LEVEL_ERROR,     \
+        tag, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__) \
+    )
+#endif
 
 /**
  * @brief Default tag used by `BROOKESIA_LOG*` macros in the current translation unit.
@@ -368,32 +449,37 @@ constexpr auto TAG = BROOKESIA_UTILS_LOG_TAG;
  */
 #if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_TRACE) && \
     (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE)
-#   define BROOKESIA_LOGT(format, ...) BROOKESIA_LOGT_IMPL(esp_brookesia::lib_utils::TAG, format, ##__VA_ARGS__)
+#   define BROOKESIA_LOGT(format, ...) \
+        BROOKESIA_LOGT_IMPL(esp_brookesia::lib_utils::TAG, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__))
 #else
 #   define BROOKESIA_LOGT(format, ...) ((void)0)
 #endif
 
 #if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_DEBUG) && \
     (!BROOKESIA_LOG_DISABLE_DEBUG_TRACE)
-#   define BROOKESIA_LOGD(format, ...) BROOKESIA_LOGD_IMPL(esp_brookesia::lib_utils::TAG, format, ##__VA_ARGS__)
+#   define BROOKESIA_LOGD(format, ...) \
+        BROOKESIA_LOGD_IMPL(esp_brookesia::lib_utils::TAG, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__))
 #else
 #   define BROOKESIA_LOGD(format, ...) ((void)0)
 #endif
 
 #if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_INFO)
-#   define BROOKESIA_LOGI(format, ...) BROOKESIA_LOGI_IMPL(esp_brookesia::lib_utils::TAG, format, ##__VA_ARGS__)
+#   define BROOKESIA_LOGI(format, ...) \
+        BROOKESIA_LOGI_IMPL(esp_brookesia::lib_utils::TAG, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__))
 #else
 #   define BROOKESIA_LOGI(format, ...) ((void)0)
 #endif
 
 #if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_WARNING)
-#   define BROOKESIA_LOGW(format, ...) BROOKESIA_LOGW_IMPL(esp_brookesia::lib_utils::TAG, format, ##__VA_ARGS__)
+#   define BROOKESIA_LOGW(format, ...) \
+        BROOKESIA_LOGW_IMPL(esp_brookesia::lib_utils::TAG, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__))
 #else
 #   define BROOKESIA_LOGW(format, ...) ((void)0)
 #endif
 
 #if (BROOKESIA_UTILS_LOG_LEVEL <= BROOKESIA_UTILS_LOG_LEVEL_ERROR)
-#   define BROOKESIA_LOGE(format, ...) BROOKESIA_LOGE_IMPL(esp_brookesia::lib_utils::TAG, format, ##__VA_ARGS__)
+#   define BROOKESIA_LOGE(format, ...) \
+        BROOKESIA_LOGE_IMPL(esp_brookesia::lib_utils::TAG, format _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__))
 #else
 #   define BROOKESIA_LOGE(format, ...) ((void)0)
 #endif

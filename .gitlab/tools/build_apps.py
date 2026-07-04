@@ -96,13 +96,15 @@ class CustomApp(CMakeApp):
             print(f'== No board name found, skip setting board manager config')
             return  # no board name found, skip the pre build hook
         subprocess.run(
-            [sys.executable, f'{IDF_PATH}/tools/idf.py', 'gen-bmgr-config', '-b', board_name], cwd=self.work_dir
+            [sys.executable, f'{IDF_PATH}/tools/idf.py', 'gen-bmgr-config', '-b', board_name],
+            cwd=self.work_dir,
+            check=True,
         )
         set_target_cmd = [sys.executable, f'{IDF_PATH}/tools/idf.py']
         if self.target in PREVIEW_TARGETS:
             set_target_cmd.append('--preview')
         set_target_cmd.extend(['set-target', self.target])
-        subprocess.run(set_target_cmd, cwd=self.work_dir)
+        subprocess.run(set_target_cmd, cwd=self.work_dir, check=True)
 
 
 def _get_idf_version():

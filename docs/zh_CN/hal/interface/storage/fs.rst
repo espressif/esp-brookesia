@@ -5,13 +5,13 @@
 
 :link_to_translation:`en:[English]`
 
-公共头文件： ``#include "brookesia/hal_interface/interfaces/storage/fs.hpp"``
+公共头文件： ``#include "brookesia/hal_interface/interfaces/storage/file_system.hpp"``
 
-类名： ``StorageFsIface``
+类名： ``FileSystemIface``
 
 .. _hal-interface-storage-fs-sec-01:
 
 API 参考
 --------
 
-.. include-build-file:: inc/fs.inc
+.. include-build-file:: inc/file_system.inc

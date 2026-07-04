@@ -1,0 +1,21 @@
+flowchart TD
+    A["App / Agent<br/>· 运行时调用方<br/>· 业务逻辑入口"]
+    B["**Service Helper**<br/>· 类型安全 schema<br/>· 辅助调用封装"]
+    C["**Service Manager**<br/>· 插件生命周期<br/>· 函数路由与事件分发<br/>· 本地调用"]
+    D["**网络服务**<br/>· Wi-Fi<br/>· HTTP<br/>· SNTP"]
+    E["**媒体服务**<br/>· Audio<br/>· Video<br/>· Display"]
+    F["**系统服务**<br/>· Storage<br/>· Device"]
+    G["**AI 智能体**<br/>· Agent Manager<br/>· Coze / OpenAI / 小智"]
+    H["**AI 表达**<br/>· Emote 表情驱动"]
+    I["**模拟器服务**<br/>· NES 模拟"]
+    J["**自定义服务**<br/>· 产品自定义能力<br/>· 基于 Custom 模板"]
+
+    A -->|"调用辅助接口"| B
+    B -->|"绑定服务能力"| C
+    C -->|"托管网络服务"| D
+    C -->|"托管媒体服务"| E
+    C -->|"托管系统服务"| F
+    C -->|"托管智能体"| G
+    C -->|"托管表达服务"| H
+    C -->|"托管模拟器服务"| I
+    C -->|"注册自定义服务"| J

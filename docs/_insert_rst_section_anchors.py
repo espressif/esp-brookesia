@@ -26,7 +26,7 @@ def is_underline(line: str) -> bool:
 
 
 def file_base(rel: str) -> str:
-    """service/usage.rst -> service-usage"""
+    """service/framework/usage.rst -> service-framework-usage"""
     p = rel.replace("\\", "/")
     if p.endswith(".rst"):
         p = p[:-4]

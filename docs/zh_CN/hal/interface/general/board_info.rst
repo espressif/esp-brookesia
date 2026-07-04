@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-公共头文件： ``#include "brookesia/hal_interface/interfaces/general/board_info.hpp"``
+公共头文件： ``#include "brookesia/hal_interface/interfaces/system/board_info.hpp"``
 
 类名： ``BoardInfoIface``
 

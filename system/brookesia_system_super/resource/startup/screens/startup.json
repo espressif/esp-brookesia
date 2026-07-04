@@ -1,0 +1,33 @@
+{
+    "type": "viewScreen",
+    "id": "startup",
+    "commonProps": {
+        "clickable": true,
+        "scrollable": false
+    },
+    "layout": {
+        "type": "flex",
+        "mainAlign": "center",
+        "crossAlign": "center"
+    },
+    "style": {
+        "bgColor": "#fafbfc",
+        "padding": 0
+    },
+    "children": [
+        {
+            "type": "image",
+            "id": "startup_image",
+            "commonProps": {
+                "clickable": false
+            },
+            "imageProps": {
+                "src": "${image.background}"
+            },
+            "placement": {
+                "mode": "relative",
+                "align": "center"
+            }
+        }
+    ]
+}

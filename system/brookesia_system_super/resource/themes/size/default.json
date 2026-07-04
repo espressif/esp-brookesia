@@ -1,0 +1,22 @@
+{
+    "type": "constant",
+    "data": {
+        "radius": {
+            "none": "0dp",
+            "button": "8dp",
+            "input": "18dp",
+            "card": "22dp",
+            "listItem": "16dp",
+            "chip": "18dp",
+            "iconBox": "12dp",
+            "control": "18dp",
+            "switchTrack": "19dp",
+            "switchKnob": "14dp"
+        },
+        "stroke": {
+            "none": "0dp",
+            "thin": "1dp",
+            "selected": "3dp"
+        }
+    }
+}

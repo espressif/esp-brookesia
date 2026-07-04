@@ -13,6 +13,8 @@
 #   define unlikely(x)  (x)
 #endif
 
+#define _BROOKESIA_CHECK_LOGE(fmt, ...) BROOKESIA_LOGE(fmt _BROOKESIA_LOG_OPTIONAL_ARGS(__VA_ARGS__))
+
 #if BROOKESIA_UTILS_CHECK_HANDLE_METHOD == BROOKESIA_UTILS_CHECK_HANDLE_WITH_NONE
 
 /**
@@ -251,7 +253,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_NULL_RETURN(value, ret, fmt, ...) \
-    BROOKESIA_CHECK_NULL_EXECUTE(value, { return ret;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_NULL_EXECUTE(value, { return ret;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Return from the current `void` function when a pointer is null.
@@ -261,7 +263,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_NULL_EXIT(value, fmt, ...) \
-    BROOKESIA_CHECK_NULL_EXECUTE(value, {return;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_NULL_EXECUTE(value, {return;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Jump to a label when a pointer is null.
@@ -272,7 +274,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_NULL_GOTO(value, goto_tag, fmt, ...) \
-    BROOKESIA_CHECK_NULL_EXECUTE(value, {goto goto_tag;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_NULL_EXECUTE(value, {goto goto_tag;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////// Check False /////////////////////////////////////////////////////////
@@ -286,7 +288,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_FALSE_RETURN(value, ret, fmt, ...) \
-    BROOKESIA_CHECK_FALSE_EXECUTE(value, {return ret;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_FALSE_EXECUTE(value, {return ret;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Return from the current `void` function when an expression evaluates to `false`.
@@ -296,7 +298,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_FALSE_EXIT(value, fmt, ...) \
-    BROOKESIA_CHECK_FALSE_EXECUTE(value, {return;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_FALSE_EXECUTE(value, {return;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Jump to a label when an expression evaluates to `false`.
@@ -307,7 +309,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_FALSE_GOTO(value, goto_tag, fmt, ...) \
-    BROOKESIA_CHECK_FALSE_EXECUTE(value, {goto goto_tag;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_FALSE_EXECUTE(value, {goto goto_tag;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////// Check Error /////////////////////////////////////////////////////////
@@ -321,7 +323,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_ESP_ERR_RETURN(value, ret, fmt, ...) \
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(value, {return ret;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_ESP_ERR_EXECUTE(value, {return ret;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Return from the current `void` function when an ESP-IDF error code is not `ESP_OK`.
@@ -331,7 +333,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_ESP_ERR_EXIT(value, fmt, ...) \
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(value, {return;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_ESP_ERR_EXECUTE(value, {return;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Jump to a label when an ESP-IDF error code is not `ESP_OK`.
@@ -342,7 +344,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_ESP_ERR_GOTO(value, goto_tag, fmt, ...) \
-    BROOKESIA_CHECK_ESP_ERR_EXECUTE(value, {goto goto_tag;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_ESP_ERR_EXECUTE(value, {goto goto_tag;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////// Check Exception /////////////////////////////////////////////////////
@@ -356,7 +358,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_EXCEPTION_RETURN(expression, ret, fmt, ...) \
-    BROOKESIA_CHECK_EXCEPTION_EXECUTE(expression, {return ret;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_EXCEPTION_EXECUTE(expression, {return ret;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Return from the current `void` function when an expression throws `std::exception`.
@@ -366,7 +368,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_EXCEPTION_EXIT(expression, fmt, ...) \
-    BROOKESIA_CHECK_EXCEPTION_EXECUTE(expression, {return;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_EXCEPTION_EXECUTE(expression, {return;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Jump to a label when an expression throws `std::exception`.
@@ -377,7 +379,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_EXCEPTION_GOTO(expression, goto_tag, fmt, ...) \
-    BROOKESIA_CHECK_EXCEPTION_EXECUTE(expression, {goto goto_tag;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_EXCEPTION_EXECUTE(expression, {goto goto_tag;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////// Check Range /////////////////////////////////////////////////////////
@@ -392,7 +394,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_OUT_RANGE(value, min, max, fmt, ...) \
-    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Return a value when a value is outside the inclusive range [`min`, `max`].
@@ -405,7 +407,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_OUT_RANGE_RETURN(value, min, max, ret, fmt, ...) \
-    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {return ret;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {return ret;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Return from the current `void` function when a value is outside the inclusive range [`min`, `max`].
@@ -417,7 +419,7 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_OUT_RANGE_EXIT(value, min, max, fmt, ...) \
-    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {return;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {return;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})
 
 /**
  * @brief Jump to a label when a value is outside the inclusive range [`min`, `max`].
@@ -430,4 +432,4 @@
  * @param ... Optional format arguments for @p fmt.
  */
 #define BROOKESIA_CHECK_OUT_RANGE_GOTO(value, min, max, goto_tag, fmt, ...) \
-    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {goto goto_tag;}, {BROOKESIA_LOGE(fmt, ##__VA_ARGS__);})
+    BROOKESIA_CHECK_OUT_RANGE_EXECUTE(value, min, max, {goto goto_tag;}, {_BROOKESIA_CHECK_LOGE(fmt, __VA_ARGS__);})

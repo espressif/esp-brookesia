@@ -1,0 +1,15 @@
+menu "ESP-Brookesia: Runtime ELF Configurations"
+    config BROOKESIA_RUNTIME_ELF_ENABLE_AUTO_REGISTER
+        bool "Enable auto-register as runtime backend service"
+        default y
+
+    menuconfig BROOKESIA_RUNTIME_ELF_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_RUNTIME_ELF_ENABLE_DEBUG_LOG
+        config BROOKESIA_RUNTIME_ELF_BACKEND_ENABLE_DEBUG_LOG
+            bool "Backend"
+            default y
+    endif
+endmenu

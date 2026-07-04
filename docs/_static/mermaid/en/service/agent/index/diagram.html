@@ -1,0 +1,36 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;App / Service / Example&quot;]
+    B[&quot;**brookesia_service_helper**&lt;br/&gt;· Agent helper contracts&lt;br/&gt;· Argument and schema wrapping&lt;br/&gt;· Business-facing call entry&quot;]
+    C[&quot;**brookesia_agent_manager**&lt;br/&gt;· Plugin lifecycle&lt;br/&gt;· Agent state machine&lt;br/&gt;· Shared service access&quot;]
+    D[&quot;Concrete Agents&quot;]
+    E[&quot;**Coze**&lt;br/&gt;· Cloud agent integration&lt;br/&gt;· Conversation and tool calls&lt;br/&gt;· Product extension entry&quot;]
+    F[&quot;**OpenAI**&lt;br/&gt;· LLM chat integration&lt;br/&gt;· Tool-call adaptation&lt;br/&gt;· Streaming response handling&quot;]
+    G[&quot;**XiaoZhi**&lt;br/&gt;· Local device interaction&lt;br/&gt;· Voice/expression coordination&lt;br/&gt;· Device-side agent form&quot;]
+    H[&quot;**Shared Services**&lt;br/&gt;· Audio&lt;br/&gt;· Device time sync&lt;br/&gt;· Storage&quot;]
+
+    A --&gt;|&quot;Calls helper&quot;| B
+    B --&gt;|&quot;Delegates to manager&quot;| C
+    C --&gt;|&quot;Creates and drives&quot;| D
+    D --&gt;|&quot;Integrates Coze&quot;| E
+    D --&gt;|&quot;Integrates OpenAI&quot;| F
+    D --&gt;|&quot;Integrates XiaoZhi&quot;| G
+    C --&gt;|&quot;Reuses system capabilities&quot;| H
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

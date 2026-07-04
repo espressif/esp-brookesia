@@ -1,0 +1,43 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;**TimeSyncing**&lt;br/&gt;· Waits for time sync&lt;br/&gt;· Can be skipped by config&quot;]
+    B[&quot;**Ready**&lt;br/&gt;· Base environment is ready&lt;br/&gt;· Waits for activation&quot;]
+    C[&quot;**Activating**&lt;br/&gt;· Initializes plugin resources&lt;br/&gt;· Prepares agent context&quot;]
+    D[&quot;**Activated**&lt;br/&gt;· Plugin is activated&lt;br/&gt;· Session can start&quot;]
+    E[&quot;**Starting**&lt;br/&gt;· Starts session flow&lt;br/&gt;· Opens required services&quot;]
+    F[&quot;**Started**&lt;br/&gt;· Agent is running&lt;br/&gt;· Handles interactions&quot;]
+    G[&quot;**Sleeping**&lt;br/&gt;· Enters sleep flow&lt;br/&gt;· Pauses active interaction&quot;]
+    H[&quot;**Slept**&lt;br/&gt;· Agent is sleeping&lt;br/&gt;· Waits for wake or stop&quot;]
+    I[&quot;**WakingUp**&lt;br/&gt;· Restores session resources&lt;br/&gt;· Returns to running state&quot;]
+    J[&quot;**Stopping**&lt;br/&gt;· Stops session&lt;br/&gt;· Releases runtime resources&quot;]
+
+    A --&gt;|&quot;time synced / skipped&quot;| B
+    B --&gt;|&quot;Activate&quot;| C
+    C --&gt;|&quot;activated&quot;| D
+    D --&gt;|&quot;Start&quot;| E
+    E --&gt;|&quot;started&quot;| F
+    F --&gt;|&quot;Sleep&quot;| G
+    G --&gt;|&quot;slept&quot;| H
+    H --&gt;|&quot;Wake&quot;| I
+    I --&gt;|&quot;woke&quot;| F
+    F --&gt;|&quot;Stop&quot;| J
+    H --&gt;|&quot;Stop&quot;| J
+    J --&gt;|&quot;stopped&quot;| D
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

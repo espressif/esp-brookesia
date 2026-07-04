@@ -1,0 +1,30 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;**System Core / System Super**&lt;br/&gt;· 负责应用生命周期&lt;br/&gt;· 提供系统资源与服务&lt;br/&gt;· 调度内置应用入口&quot;]
+    B[&quot;内置应用&quot;]
+    C[&quot;**Files**&lt;br/&gt;· 文件浏览&lt;br/&gt;· 本地存储入口&lt;br/&gt;· 面向用户的数据访问&quot;]
+    D[&quot;**Settings**&lt;br/&gt;· 设备设置&lt;br/&gt;· 系统配置&lt;br/&gt;· 权限与偏好入口&quot;]
+    E[&quot;**App Store**&lt;br/&gt;· 本地应用包&lt;br/&gt;· 远端应用包&lt;br/&gt;· 安装与更新入口&quot;]
+
+    A --&gt;|&quot;加载并托管&quot;| B
+    B --&gt;|&quot;提供文件能力&quot;| C
+    B --&gt;|&quot;提供配置入口&quot;| D
+    B --&gt;|&quot;管理应用来源&quot;| E
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

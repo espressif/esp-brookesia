@@ -1,0 +1,13 @@
+flowchart TD
+    A["Dynamic App Package"]
+    B["**Runtime Manager**<br/>· Backend registration<br/>· App context<br/>· Runtime selection and scheduling"]
+    C["**ELF Runtime**<br/>· Native binary loading<br/>· High-performance extension<br/>· Platform-specific capability"]
+    D["**JS Runtime**<br/>· Scripted business logic<br/>· Fast iteration<br/>· Lightweight app entry"]
+    E["**Lua Runtime**<br/>· Small scripted apps<br/>· Low resource usage<br/>· Simple embedded interface"]
+    F["**WASM Runtime**<br/>· Sandboxed execution<br/>· Cross-language modules<br/>· Portable extension capability"]
+
+    A -->|"Parses manifest"| B
+    B -->|"Loads ELF package"| C
+    B -->|"Loads JS package"| D
+    B -->|"Loads Lua package"| E
+    B -->|"Loads WASM package"| F

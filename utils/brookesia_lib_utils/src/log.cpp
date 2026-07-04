@@ -57,6 +57,27 @@ std::string Log::format_message(const char *format, std::initializer_list<Format
     }
 }
 
+void Log::print(int level, const std::source_location &loc, const char *tag, const char *format)
+{
+    write(level, loc, tag, std::string(format));
+}
+
+void Log::print(int level, const char *tag, const char *format)
+{
+    write(level, tag, std::string(format));
+}
+
+void Log::print_impl(int level, const std::source_location &loc, const char *tag, const char *format,
+                     std::initializer_list<FormatArg> args)
+{
+    write(level, loc, tag, format_message(format, args));
+}
+
+void Log::print_impl(int level, const char *tag, const char *format, std::initializer_list<FormatArg> args)
+{
+    write(level, tag, format_message(format, args));
+}
+
 void Log::write(int level, const std::source_location &loc, const char *tag, const std::string &format_str)
 {
     (void)loc;
@@ -107,6 +128,53 @@ void Log::write(int level, const std::source_location &loc, const char *tag, con
     default:
         break;
     }
+}
+
+void Log::write(int level, const char *tag, const std::string &format_str)
+{
+#if BROOKESIA_UTILS_LOG_NEEDS_SOURCE_LOCATION
+    write(level, std::source_location::current(), tag, format_str);
+#else
+#if BROOKESIA_UTILS_LOG_ENABLE_THREAD_NAME
+    auto thread_config = ThreadConfig::get_current_config();
+    auto thread_name = thread_config.name.c_str();
+#endif
+
+    switch (level) {
+    case BROOKESIA_UTILS_LOG_LEVEL_TRACE:
+        BROOKESIA_LOGT_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_DEBUG:
+        BROOKESIA_LOGD_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_INFO:
+        BROOKESIA_LOGI_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_WARNING:
+        BROOKESIA_LOGW_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    case BROOKESIA_UTILS_LOG_LEVEL_ERROR:
+        BROOKESIA_LOGE_IMPL_FUNC(
+            tag, _BROOKESIA_LOG_FORMAT_STRING,
+            _BROOKESIA_LOG_ARGS(thread_name, file_name, line, func_name, format_str)
+        );
+        break;
+    default:
+        break;
+    }
+#endif
 }
 
 std::string_view Log::extract_function_name(const char *func_name)

@@ -1,0 +1,469 @@
+{
+    "type": "viewScreen",
+    "id": "overlay",
+    "commonProps": {
+        "clickable": false,
+        "scrollable": false
+    },
+    "placement": {
+        "mode": "absolute",
+        "x": 0,
+        "y": 0,
+        "width": "${env.widthDp}",
+        "height": "${env.heightDp}"
+    },
+    "style": {
+        "padding": 0
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "system_ui_mask",
+            "commonProps": {
+                "hidden": true,
+                "clickable": true,
+                "scrollable": false
+            },
+            "bindings": {
+                "commonProps.hidden": "hidden"
+            },
+            "events": [
+                {
+                    "type": "clicked",
+                    "action": "super.nav.mask.click"
+                },
+                {
+                    "type": "gesture",
+                    "action": "super.nav.mask.gesture"
+                }
+            ],
+            "placement": {
+                "mode": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": "${env.widthDp}",
+                "height": "${env.heightDp}"
+            },
+            "style": {
+                "padding": 0
+            }
+        },
+        {
+            "type": "container",
+            "id": "status",
+            "layout": {
+                "type": "flex",
+                "flexFlow": "row",
+                "gap": "${constant.ui.overlay.metric.statusGap}",
+                "mainAlign": "spaceBetween",
+                "crossAlign": "center"
+            },
+            "style": {
+                "paddingLeft": "${constant.ui.overlay.metric.statusPaddingX}",
+                "paddingRight": "${constant.ui.overlay.metric.statusPaddingX}",
+                "paddingTop": "${constant.ui.overlay.metric.statusPaddingY}",
+                "paddingBottom": "${constant.ui.overlay.metric.statusPaddingY}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": 0,
+                "y": "${constant.ui.overlay.metric.statusBarExpandedY}",
+                "width": "match",
+                "height": "${constant.ui.overlay.metric.topBarHeight}"
+            },
+            "bindings": {
+                "placement.y": "system_ui_status_y"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "status_right",
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "row",
+                        "mainAlign": "end",
+                        "crossAlign": "center",
+                        "gap": "${constant.ui.overlay.metric.statusItemGap}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "${constant.ui.overlay.metric.statusPillHeight}"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "wifi_pill",
+                            "commonProps": {
+                                "hidden": true
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "wifi_hidden",
+                                "style.bgColor": "wifi_bg"
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.ui.overlay.metric.statusPillWidth}",
+                                "height": "${constant.ui.overlay.metric.statusPillHeight}"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text",
+                                        "style.textColor": "wifi_text"
+                                    },
+                                "labelProps": {
+                                    "text": "${constant.i18n.overlay.wifi}"
+                                },
+                                "style": {
+                                    "fontSize": "${constant.ui.overlay.metric.statusPillFont}"
+                                },
+                                "placement": {
+                                    "mode": "flow"
+                                },
+                                "styleRefs": [
+                                    "shell.pillText"
+                                    ]
+                                }
+                            ],
+                            "styleRefs": [
+                                "shell.statusPill"
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "clock",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.ui.overlay.metric.statusClockWidth}",
+                                "height": "${constant.ui.overlay.metric.statusPillHeight}"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "labelProps": {
+                                        "text": "--:--"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "clock_text"
+                                    },
+                                    "style": {
+                                        "fontSize": "${constant.ui.overlay.metric.statusClockFont}"
+                                    },
+                                    "placement": {
+                                        "mode": "flow"
+                                    },
+                                    "styleRefs": [
+                                        "shell.statusTinyMuted"
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ],
+            "styleRefs": [
+                "shell.statusBar"
+            ]
+        },
+        {
+            "type": "container",
+            "id": "gesture_indicator",
+            "commonProps": {
+                "hidden": true,
+                "clickable": false,
+                "scrollable": false
+            },
+            "bindings": {
+                "commonProps.hidden": "gesture_indicator_hidden"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${expr((${env.widthDp} - ${constant.ui.overlay.metric.gestureIndicatorWidth}) / 2)}",
+                "y": "${expr(${env.heightDp} - ${constant.ui.overlay.metric.gestureIndicatorBottom} - ${constant.ui.overlay.metric.gestureIndicatorHeight})}",
+                "width": "${constant.ui.overlay.metric.gestureIndicatorWidth}",
+                "height": "${constant.ui.overlay.metric.gestureIndicatorHeight}"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "bar",
+                    "bindings": {
+                        "placement.x": "gesture_bar_x",
+                        "placement.width": "gesture_bar_width"
+                    },
+                    "placement": {
+                        "mode": "absolute",
+                        "x": 0,
+                        "y": 0,
+                        "width": "${constant.ui.overlay.metric.gestureIndicatorWidth}",
+                        "height": "match"
+                    },
+                    "styleRefs": [
+                        "shell.gestureIndicatorBar"
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "container",
+            "id": "app_modal",
+            "commonProps": {
+                "hidden": true,
+                "clickable": true,
+                "scrollable": false
+            },
+            "bindings": {
+                "commonProps.hidden": "hidden"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": "${env.widthDp}",
+                "height": "${env.heightDp}"
+            },
+            "style": {
+                "padding": 0
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "launch_group",
+                    "commonProps": {
+                        "hidden": true,
+                        "clickable": true,
+                        "scrollable": false
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "hidden"
+                    },
+                    "placement": {
+                        "mode": "absolute",
+                        "x": 0,
+                        "y": 0,
+                        "width": "${env.widthDp}",
+                        "height": "${env.heightDp}"
+                    },
+                    "style": {
+                        "padding": 0
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "backdrop",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "${env.widthDp}",
+                                "height": "${env.heightDp}"
+                            },
+                            "styleRefs": [
+                                "system.appOverlayLaunchBackdrop"
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "surface",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "placement.x": "x",
+                                "placement.y": "y",
+                                "placement.width": "width",
+                                "placement.height": "height"
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "1dp",
+                                "height": "1dp"
+                            },
+                            "styleRefs": [
+                                "system.appOverlayLaunchSurface"
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "icon_box",
+                            "commonProps": {
+                                "hidden": true,
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "hidden",
+                                "placement.x": "x",
+                                "placement.y": "y",
+                                "placement.width": "width",
+                                "placement.height": "height"
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "1dp",
+                                "height": "1dp"
+                            },
+                            "children": [
+                                {
+                                    "type": "image",
+                                    "id": "icon_image",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "hidden": true
+                                    },
+                                    "bindings": {
+                                        "imageProps.src": "src",
+                                        "commonProps.hidden": "hidden"
+                                    },
+                                    "imageProps": {
+                                        "src": "",
+                                        "innerAlign": "contain"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "match",
+                                        "height": "match"
+                                    }
+                                },
+                                {
+                                    "type": "label",
+                                    "id": "fallback_label",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "text",
+                                        "commonProps.hidden": "hidden"
+                                    },
+                                    "labelProps": {
+                                        "text": "?"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "wrap",
+                                        "height": "wrap"
+                                    },
+                                    "styleRefs": [
+                                        "system.appOverlayLaunchFallbackIcon"
+                                    ]
+                                }
+                            ],
+                            "styleRefs": [
+                                "system.appOverlayLaunchIconBox"
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "loading_group",
+                    "commonProps": {
+                        "hidden": true,
+                        "clickable": true,
+                        "scrollable": false
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "hidden"
+                    },
+                    "placement": {
+                        "mode": "absolute",
+                        "x": 0,
+                        "y": 0,
+                        "width": "${env.widthDp}",
+                        "height": "${env.heightDp}"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "backdrop",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "${env.widthDp}",
+                                "height": "${env.heightDp}"
+                            },
+                            "styleRefs": [
+                                "system.appOverlayLoadingBackdrop"
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "icon_box",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": "${expr((${env.widthDp} - ${constant.ui.overlay.metric.loadingIconBox}) / 2)}",
+                                "y": "${expr((${env.heightDp} - ${constant.ui.overlay.metric.loadingIconBox}) / 2)}",
+                                "width": "${constant.ui.overlay.metric.loadingIconBox}",
+                                "height": "${constant.ui.overlay.metric.loadingIconBox}"
+                            },
+                            "children": [
+                                {
+                                    "type": "image",
+                                    "id": "icon",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "imageProps": {
+                                        "src": "${image.icon.ok}",
+                                        "innerAlign": "contain"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "${constant.ui.overlay.metric.loadingIcon}",
+                                        "height": "${constant.ui.overlay.metric.loadingIcon}"
+                                    }
+                                }
+                            ],
+                            "styleRefs": [
+                                "system.appOverlayLoadingIconBox"
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

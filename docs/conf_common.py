@@ -21,7 +21,7 @@ extensions += [
     "esp_docs.esp_extensions.dummy_build_system",
     # Run Doxygen during build and generate inc/*.inc fragments.
     "esp_docs.esp_extensions.run_doxygen",
-    # Patch duplicate Breathe output for service_helper/base.hpp (after run_doxygen).
+    # Patch duplicate Breathe output for service_manager/helper/base.hpp (after run_doxygen).
     "doxygen_inc_postprocess",
     # Generate helper-first contract guide fragments.
     "helper_contract_docs",

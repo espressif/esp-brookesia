@@ -6,7 +6,7 @@ SNTP
 :link_to_translation:`en:[English]`
 
 - 组件注册表： `espressif/brookesia_service_sntp <https://components.espressif.com/components/espressif/brookesia_service_sntp>`_
-- 辅助头文件： ``#include "brookesia/service_helper/sntp.hpp"``
+- 辅助头文件： ``#include "brookesia/service_helper/network/sntp.hpp"``
 - 辅助类： ``esp_brookesia::service::helper::SNTP``
 
 .. _service-sntp-sec-01:
@@ -19,8 +19,8 @@ SNTP
 - **NTP 服务器管理**：支持配置多个 NTP 服务器，自动从服务器列表中选择可用的服务器进行时间同步。
 - **时区设置**：支持设置系统时区，自动应用时区偏移。
 - **自动时间同步**：自动检测网络连接状态，在网络可用时自动启动时间同步。
-- **状态查询**：支持查询时间同步状态、当前配置的服务器列表和时区信息。
-- **持久化存储**：可选搭配 `brookesia_service_nvs` 服务持久化保存 NTP 服务器列表和时区信息。
+- **状态查询**：支持查询 ``CheckingNetwork``、``Syncing``、``Synced``、``Stopped`` 状态、当前配置的服务器列表和时区信息。
+- **持久化存储**：通过 `brookesia_service_storage` 在 ``SNTP`` namespace 下保存 NTP 服务器列表和时区信息。
 
 .. _service-sntp-sec-02:
 
@@ -56,6 +56,7 @@ NTP 服务器管理
 - **停止服务**：停止 SNTP 服务，停止时间同步。
 - **获取服务器列表**：获取当前配置的 NTP 服务器列表。
 - **获取时区**：获取当前配置的时区。
+- **获取状态**：获取当前同步状态。
 - **检查同步状态**：检查系统时间是否已与 NTP 服务器同步。
 - **重置数据**：重置所有配置数据到默认值。
 
@@ -64,9 +65,9 @@ NTP 服务器管理
 自动管理
 ^^^^^^^^
 
-- **自动加载配置**：服务启动时自动从 NVS 加载保存的配置。
-- **自动保存配置**：配置更改后自动保存到 NVS。
-- **网络检测**：自动检测网络连接状态，在网络可用时自动启动时间同步。
-- **状态监控**：自动监控时间同步状态，更新同步标志。
+- **自动加载配置**：服务启动时自动从 Storage Service 加载保存的配置。
+- **自动保存配置**：配置更改后自动保存到 ``SNTP`` namespace。
+- **网络检测**：启动后首先进入 ``CheckingNetwork``，当 ``ProtocolSntpIface::is_network_ready()`` 返回 true 后进入 ``Syncing``。
+- **状态监控**：状态变化时发布 ``StateChanged`` 事件。
 
 .. include-build-file:: contract_guides/service/sntp.inc

@@ -19,6 +19,10 @@
 
 namespace esp_brookesia::hal {
 
+namespace {
+constexpr const char *DISPLAY_GROUP_ID = "display_lcd";
+}
+
 constexpr uint8_t BRIGHTNESS_DEFAULT = 0;
 constexpr uint8_t BRIGHTNESS_MIN = 0;
 constexpr uint8_t BRIGHTNESS_MAX = 100;
@@ -42,7 +46,9 @@ periph_ledc_config_t *get_ledc_config(void *config)
 } // namespace
 
 LedcDisplayBacklightImpl::LedcDisplayBacklightImpl()
-    : DisplayBacklightIface()
+    : display::BacklightIface(display::BacklightIface::Info{
+    .group_id = DISPLAY_GROUP_ID,
+})
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -107,6 +113,11 @@ bool LedcDisplayBacklightImpl::setup_ledc()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_BRIGHTNESS)) {
+        BROOKESIA_LOGW("LEDC brightness device not found, skip");
+        return false;
+    }
+
     auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_BRIGHTNESS);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init LEDC");
 
@@ -117,6 +128,12 @@ bool LedcDisplayBacklightImpl::setup_ledc()
     dev_ledc_ctrl_config_t *dev_cfg = nullptr;
     ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_LCD_BRIGHTNESS, reinterpret_cast<void **>(&dev_cfg));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get LEDC config");
+    BROOKESIA_CHECK_NULL_RETURN(dev_cfg, false, "Failed to get LEDC config");
+
+    if (!esp_board_manager_check_name(dev_cfg->ledc_name)) {
+        BROOKESIA_LOGW("LEDC periph '%1%' not found, skip", dev_cfg->ledc_name);
+        return false;
+    }
 
     ret = esp_board_periph_get_config(dev_cfg->ledc_name, (void **)&ledc_periph_config_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get LEDC periph config");

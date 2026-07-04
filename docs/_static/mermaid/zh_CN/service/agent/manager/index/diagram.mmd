@@ -1,0 +1,24 @@
+flowchart TD
+    A["**TimeSyncing**<br/>· 等待时间同步<br/>· 可按配置跳过"]
+    B["**Ready**<br/>· 基础环境就绪<br/>· 等待激活"]
+    C["**Activating**<br/>· 初始化插件资源<br/>· 准备智能体上下文"]
+    D["**Activated**<br/>· 插件已激活<br/>· 可启动会话"]
+    E["**Starting**<br/>· 启动会话流程<br/>· 打开所需服务"]
+    F["**Started**<br/>· 智能体运行中<br/>· 可处理交互"]
+    G["**Sleeping**<br/>· 进入休眠流程<br/>· 暂停活跃交互"]
+    H["**Slept**<br/>· 已休眠<br/>· 等待唤醒或停止"]
+    I["**WakingUp**<br/>· 恢复会话资源<br/>· 回到运行态"]
+    J["**Stopping**<br/>· 停止会话<br/>· 释放运行资源"]
+
+    A -->|"时间已同步 / 跳过"| B
+    B -->|"Activate"| C
+    C -->|"激活完成"| D
+    D -->|"Start"| E
+    E -->|"启动完成"| F
+    F -->|"Sleep"| G
+    G -->|"休眠完成"| H
+    H -->|"Wake"| I
+    I -->|"唤醒完成"| F
+    F -->|"Stop"| J
+    H -->|"Stop"| J
+    J -->|"停止完成"| D

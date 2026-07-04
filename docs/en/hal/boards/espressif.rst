@@ -25,6 +25,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp_box_3``
      - - *ESP32-S3*
        - *Wi-Fi*
@@ -37,6 +41,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp_vocat_board_v1_0``
      - - *ESP32-S3*
        - *Wi-Fi*
@@ -49,6 +57,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp_vocat_board_v1_2``
      - - *ESP32-S3*
        - *Wi-Fi*
@@ -61,6 +73,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp32_p4_function_ev``
      - - *ESP32-P4*
        - *Wi-Fi*
@@ -73,6 +89,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp32_p4x_function_ev``
      - - *ESP32-P4*
        - *Wi-Fi*
@@ -85,6 +105,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp32_s31_korvo1``
      - - *ESP32-S31*
        - *Wi-Fi*
@@ -97,6 +121,10 @@ Espressif Boards
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`DisplayBacklight <esp_brookesia::hal::DisplayBacklightIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
    * - ``esp_sensair_shuttle``
      - - *ESP32-C5*
        - *Wi-Fi*
@@ -108,3 +136,7 @@ Espressif Boards
        | :cpp:class:`DisplayPanel <esp_brookesia::hal::DisplayPanelIface>`
        | :cpp:class:`DisplayTouch <esp_brookesia::hal::DisplayTouchIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::StorageFsIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::StorageKvIface>`
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`

@@ -1,0 +1,32 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;动态应用包&quot;]
+    B[&quot;**Runtime Manager**&lt;br/&gt;· 后端注册&lt;br/&gt;· 应用上下文&lt;br/&gt;· 运行时选择与调度&quot;]
+    C[&quot;**ELF 运行时**&lt;br/&gt;· 原生二进制加载&lt;br/&gt;· 高性能扩展&lt;br/&gt;· 平台相关能力&quot;]
+    D[&quot;**JS 运行时**&lt;br/&gt;· 脚本化业务逻辑&lt;br/&gt;· 快速迭代&lt;br/&gt;· 轻量应用入口&quot;]
+    E[&quot;**Lua 运行时**&lt;br/&gt;· 小型脚本应用&lt;br/&gt;· 低资源占用&lt;br/&gt;· 简洁嵌入接口&quot;]
+    F[&quot;**WASM 运行时**&lt;br/&gt;· 沙箱执行&lt;br/&gt;· 跨语言模块&lt;br/&gt;· 可移植扩展能力&quot;]
+
+    A --&gt;|&quot;解析 manifest&quot;| B
+    B --&gt;|&quot;加载 ELF 包&quot;| C
+    B --&gt;|&quot;加载 JS 包&quot;| D
+    B --&gt;|&quot;加载 Lua 包&quot;| E
+    B --&gt;|&quot;加载 WASM 包&quot;| F
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

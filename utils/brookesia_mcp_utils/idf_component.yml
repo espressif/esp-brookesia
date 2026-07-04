@@ -1,4 +1,4 @@
-version: "0.7.1"
+version: "0.8.0"
 description: Bridges Brookesia services and the ESP MCP engine; register service functions or custom callbacks as MCP tools and generate tool handles for the MCP engine.
 url: https://github.com/espressif/esp-brookesia/tree/master/utils/brookesia_mcp_utils
 repository: https://github.com/espressif/esp-brookesia.git
@@ -9,6 +9,6 @@ dependencies:
     require: public
 
   espressif/brookesia_service_manager:
-    version: "0.7.*"
-    override_path: "../../service/brookesia_service_manager"
+    version: "0.8.*"
+    override_path: ../../service/framework/brookesia_service_manager
     require: public

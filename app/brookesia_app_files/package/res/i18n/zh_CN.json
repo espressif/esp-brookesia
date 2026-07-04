@@ -1,0 +1,43 @@
+{
+    "type": "constant",
+    "data": {
+        "files": {
+            "i18n": {
+                "app_name": "文件",
+                "storage": "存储",
+                "volumes_subtitle": "内部与外部存储",
+                "empty": "空",
+                "items_suffix": " 项",
+                "selected_item": "选中项目",
+                "file_actions": "文件操作",
+                "action": "操作",
+                "rename": "重命名",
+                "rename_detail": "编辑文件或文件夹名称",
+                "delete": "删除",
+                "delete_detail": "移除此项目",
+                "folder": "文件夹",
+                "file": "文件",
+                "other": "其他",
+                "internal": "内部存储",
+                "external_prefix": "外部存储 ",
+                "storage_free_prefix": "可用 ",
+                "open_failed": "打开失败",
+                "operation_unavailable": "操作不可用",
+                "rename_unavailable": "无法重命名",
+                "delete_unavailable": "无法删除",
+                "select_first": "请先选择文件或文件夹",
+                "rename_title": "重命名",
+                "rename_placeholder": "新名称",
+                "rename_failed": "重命名失败",
+                "invalid_name": "名称无效",
+                "destination_escapes": "目标路径超出当前存储",
+                "refresh_failed": "刷新失败",
+                "delete_title_prefix": "删除 ",
+                "delete_title_suffix": "？",
+                "delete_failed": "删除失败",
+                "cancel": "取消",
+                "close": "关闭"
+            }
+        }
+    }
+}

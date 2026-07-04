@@ -1,0 +1,40 @@
+{
+    "type": "theme",
+    "id": "dark",
+    "assets": [
+        "color/dark.json",
+        "font/default.json",
+        "size/default.json",
+        "style/default.json"
+    ],
+    "variants": [
+        {
+            "when": "${expr(${env.widthDp} == 1024dp && ${env.heightDp} == 600dp)}",
+            "assets": [
+                "font/1024x600.json",
+                "size/1024x600.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} == 800dp && ${env.heightDp} == 480dp)}",
+            "assets": [
+                "font/800x480.json",
+                "size/800x480.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} < ${env.heightDp})}",
+            "assets": [
+                "font/portrait.json",
+                "size/portrait.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} <= 360dp || ${env.heightDp} <= 240dp)}",
+            "assets": [
+                "font/small.json",
+                "size/small.json"
+            ]
+        }
+    ]
+}

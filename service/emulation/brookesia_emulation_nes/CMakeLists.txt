@@ -1,0 +1,63 @@
+if(POLICY CMP0144)
+    cmake_policy(SET CMP0144 NEW)
+endif()
+
+set(COMPONENT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(COMPONENT_SRC_DIR ${COMPONENT_DIR}/src)
+set(COMPONENT_INCLUDE_DIRS ${COMPONENT_DIR}/include)
+set(COMPONENT_PRIVATE_INCLUDE_DIRS
+    ${COMPONENT_SRC_DIR}
+    ${COMPONENT_SRC_DIR}/nofrendo
+)
+set(COMPONENT_REQUIRES)
+set(COMPONENT_PRIV_REQUIRES)
+set(COMPONENT_SRCS_C "")
+set(COMPONENT_SRCS_CPP "")
+set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
+set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
+set(COMPONENT_SRCS_COMPILE_OPTIONS "")
+set(COMPONENT_VERSION_MAJOR 0)
+set(COMPONENT_VERSION_MINOR 1)
+set(COMPONENT_VERSION_PATCH 0)
+
+file(GLOB_RECURSE SERVICE_SRCS_C ${COMPONENT_SRC_DIR}/*.c)
+file(GLOB_RECURSE SERVICE_SRCS_CPP ${COMPONENT_SRC_DIR}/*.cpp)
+list(APPEND COMPONENT_SRCS_C ${SERVICE_SRCS_C})
+list(APPEND COMPONENT_SRCS_CPP ${SERVICE_SRCS_CPP})
+
+if(ESP_PLATFORM)
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/esp_platform.cmake)
+else()
+    include(${CMAKE_CURRENT_LIST_DIR}/cmake/pc_platform.cmake)
+endif()
+
+if(NOT CMAKE_SCRIPT_MODE_FILE)
+    foreach(source_file IN LISTS COMPONENT_SRCS_C)
+        if(source_file MATCHES "/nofrendo/")
+            set_source_files_properties(${source_file}
+                PROPERTIES
+                    COMPILE_OPTIONS "-O3;-fjump-tables;-ftree-switch-conversion;-Wno-pedantic;-Wno-array-bounds;-Wno-format;-Wno-error=format;-Wno-unused-parameter;-Wno-sign-compare;-Wno-unused-result"
+            )
+        endif()
+    endforeach()
+    foreach(source_file IN LISTS COMPONENT_SRCS_CPP)
+        if(source_file MATCHES "emulation_nes\\.cpp$")
+            set_source_files_properties(${source_file}
+                PROPERTIES
+                    COMPILE_OPTIONS "-Wno-variadic-macros"
+            )
+        endif()
+    endforeach()
+    target_compile_options(${COMPONENT_LIB}
+        PUBLIC
+            ${COMPONENT_SRCS_COMPILE_OPTIONS}
+    )
+    set_source_files_properties(${COMPONENT_SRCS_C}
+        PROPERTIES
+            COMPILE_FLAGS "${COMPONENT_SRCS_C_COMPILE_FLAGS}"
+    )
+    set_source_files_properties(${COMPONENT_SRCS_CPP}
+        PROPERTIES
+            COMPILE_FLAGS "${COMPONENT_SRCS_CPP_COMPILE_FLAGS}"
+    )
+endif()

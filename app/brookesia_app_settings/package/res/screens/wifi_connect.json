@@ -1,0 +1,340 @@
+{
+    "type": "viewScreen",
+    "id": "wifi_connect",
+    "mountMode": "dynamic",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "templateRef",
+                    "id": "network_card",
+                    "templateId": "settings_card",
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "label",
+                                "id": "caption",
+                                "styleRefs": [
+                                    "app.caption"
+                                ],
+                                "labelProps": {
+                                    "text": "Selected network"
+                                },
+                                "placement": {
+                                    "mode": "flow"
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "ssid",
+                                "styleRefs": [
+                                    "app.cardTitle"
+                                ],
+                                "labelProps": {
+                                    "text": "Network"
+                                },
+                                "placement": {
+                                    "mode": "flow"
+                                },
+                                "bindings": {
+                                    "labelProps.text": "ssid"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "detail",
+                                "styleRefs": [
+                                    "app.cardSubtitle"
+                                ],
+                                "labelProps": {
+                                    "text": "Secured"
+                                },
+                                "placement": {
+                                    "mode": "flow"
+                                },
+                                "bindings": {
+                                    "labelProps.text": "detail"
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "password_card",
+                    "templateId": "settings_card",
+                    "overrides": {
+                        ".": {
+                            "style": {
+                                "padding": "10dp"
+                            }
+                        }
+                    },
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "button",
+                                "id": "password_row",
+                                "commonProps": {
+                                    "scrollable": false
+                                },
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "settings.wifi.password.edit"
+                                    }
+                                ],
+                                "styleRefs": [
+                                    "app.listItem"
+                                ],
+                                "layout": {
+                                    "type": "grid",
+                                    "gridTemplateColumns": [
+                                        "${constant.settings.layout.wifiPasswordLabelColumn}",
+                                        "match",
+                                        "${constant.settings.layout.chevronWidth}"
+                                    ],
+                                    "gridTemplateRows": [
+                                        "match"
+                                    ],
+                                    "gap": "12dp",
+                                    "crossAlign": "center"
+                                },
+                                "placement": {
+                                    "mode": "flow",
+                                    "width": "match",
+                                    "height": "${constant.settings.layout.smallRowHeight}",
+                                    "alignSelf": "stretch"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "title",
+                                        "commonProps": {
+                                            "clickable": false
+                                        },
+                                        "styleRefs": [
+                                            "app.listItemTitle"
+                                        ],
+                                        "labelProps": {
+                                            "text": "Password"
+                                        },
+                                        "placement": {
+                                            "mode": "flow",
+                                            "gridColumn": 0,
+                                            "gridRow": 0,
+                                            "alignSelf": "center"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "value",
+                                        "commonProps": {
+                                            "clickable": false
+                                        },
+                                        "styleRefs": [
+                                            "app.listItemValue"
+                                        ],
+                                        "labelProps": {
+                                            "text": "Tap to enter password"
+                                        },
+                                        "placement": {
+                                            "mode": "flow",
+                                            "gridColumn": 1,
+                                            "gridRow": 0,
+                                            "alignSelf": "center"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "passwordValue"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "chevron",
+                                        "commonProps": {
+                                            "clickable": false
+                                        },
+                                        "styleRefs": [
+                                            "app.listItemValue"
+                                        ],
+                                        "labelProps": {
+                                            "text": ">"
+                                        },
+                                        "placement": {
+                                            "mode": "flow",
+                                            "gridColumn": 2,
+                                            "gridRow": 0,
+                                            "alignSelf": "center"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "status",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Enter the network password."
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "status"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "actions",
+                    "commonProps": {
+                        "scrollable": false
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "rowWrap",
+                        "mainAlign": "end",
+                        "crossAlign": "center",
+                        "gap": "10dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "button",
+                            "id": "cancel",
+                            "events": [
+                                {
+                                    "type": "clicked",
+                                    "action": "settings.wifi.connect.cancel"
+                                }
+                            ],
+                            "styleRefs": [
+                                "app.listItem"
+                            ],
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.settings.layout.wifiConnectActionWidth}",
+                                "height": "${constant.settings.layout.smallRowHeight}"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "styleRefs": [
+                                        "app.listItemTitle"
+                                    ],
+                                    "labelProps": {
+                                        "text": "Cancel"
+                                    },
+                                    "placement": {
+                                        "mode": "flow"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "button",
+                            "id": "connect",
+                            "events": [
+                                {
+                                    "type": "clicked",
+                                    "action": "settings.wifi.connect.submit"
+                                }
+                            ],
+                            "bindings": {
+                                "commonProps.disabled": "disabled",
+                                "style.opacity": "opacity"
+                            },
+                            "styleRefs": [
+                                "app.listItem"
+                            ],
+                            "style": {
+                                "opacity": 96
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.settings.layout.wifiConnectActionWidth}",
+                                "height": "${constant.settings.layout.smallRowHeight}"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "styleRefs": [
+                                        "app.listItemTitle"
+                                    ],
+                                    "labelProps": {
+                                        "text": "Connect"
+                                    },
+                                    "placement": {
+                                        "mode": "flow"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

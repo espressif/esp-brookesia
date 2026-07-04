@@ -1,0 +1,319 @@
+{
+    "strings": {
+        "app_name": "设置",
+        "current": "当前",
+        "dark": "深色",
+        "display": "显示与亮度",
+        "language": "语言",
+        "language.display.en": "English",
+        "language.display.zh_CN": "中文",
+        "language.summary.en": "English",
+        "language.summary.zh_CN": "中文",
+        "language.switch.failed": "语言切换失败",
+        "language.switch.success": "语言已切换",
+        "language.switching": "正在切换语言...",
+        "light": "浅色",
+        "more": "更多设置",
+        "my_device": "我的设备",
+        "no": "否",
+        "settings_home": "设置",
+        "sound": "声音",
+        "text.battery_prefix": "电池：",
+        "text.board_version_prefix": "硬件版本：",
+        "text.camera_prefix": "摄像头 ",
+        "text.chip_prefix": "芯片：",
+        "text.hardware.audio": "音频",
+        "text.hardware.display": "显示",
+        "text.hardware.network": "网络",
+        "text.hardware.other": "其他",
+        "text.hardware.power": "电源",
+        "text.hardware.storage": "存储",
+        "text.hardware.system": "系统",
+        "text.hardware.video": "视频",
+        "text.manufacturer_prefix": "制造商：",
+        "text.muted": "静音",
+        "text.network": "网络",
+        "text.unavailable": "不可用",
+        "text.unknown": "未知",
+        "theme.switch.failed": "主题切换失败",
+        "theme.switch.success": "主题已切换",
+        "theme.switching": "正在切换主题...",
+        "time_zone": "时区",
+        "time_zone.name.CET-1CEST,M3.5.0/2,M10.5.0/3": "中欧",
+        "time_zone.name.CST-8": "中国",
+        "time_zone.name.EST5EDT,M3.2.0/2,M11.1.0/2": "美国东部",
+        "time_zone.name.JST-9": "日本",
+        "time_zone.name.PST8PDT,M3.2.0/2,M11.1.0/2": "美国太平洋",
+        "time_zone.name.UTC0": "UTC",
+        "time_zone_set": "时区已更新",
+        "time_zone_set_failed": "时区更新失败",
+        "wifi": "Wi-Fi",
+        "wifi_connect": "连接 Wi-Fi",
+        "wifi_connected_detail": "已连接 - 点击断开",
+        "wifi_connect_failed": "连接失败",
+        "wifi_connecting": "正在连接...",
+        "wifi_disconnected": "已断开",
+        "wifi_no_available_networks": "暂无可用网络",
+        "wifi_no_network_selected": "未选择 Wi-Fi 网络",
+        "wifi_no_saved_networks": "暂无已保存网络",
+        "wifi_not_connected": "未连接",
+        "wifi_open_network": "开放网络",
+        "wifi_password_placeholder": "点击输入密码",
+        "wifi_password_required": "请输入网络密码",
+        "wifi_ready_to_connect": "准备连接",
+        "wifi_refresh": "刷新",
+        "wifi_saved_secured_network": "已保存的安全网络",
+        "wifi_scan": "扫描",
+        "wifi_scanning": "正在扫描...",
+        "wifi_secured_network": "安全网络",
+        "wifi_service_unavailable": "Wi-Fi 服务不可用",
+        "yes": "是"
+    },
+    "updates": [
+        {
+            "path": "/settings_header/bar/title",
+            "key": "labelProps.text",
+            "value": "设置"
+        },
+        {
+            "path": "/settings_home/page/device_card/my_device/title_box/title",
+            "key": "labelProps.text",
+            "value": "我的设备"
+        },
+        {
+            "path": "/settings_home/page/main_list/wifi/title_box/title",
+            "key": "labelProps.text",
+            "value": "Wi-Fi"
+        },
+        {
+            "path": "/settings_home/page/main_list/wifi/value_box/value",
+            "key": "labelProps.text",
+            "value": "未连接"
+        },
+        {
+            "path": "/settings_home/page/main_list/sound/title_box/title",
+            "key": "labelProps.text",
+            "value": "声音"
+        },
+        {
+            "path": "/settings_home/page/main_list/sound/value_box/value",
+            "key": "labelProps.text",
+            "value": "72%"
+        },
+        {
+            "path": "/settings_home/page/main_list/display/title_box/title",
+            "key": "labelProps.text",
+            "value": "显示"
+        },
+        {
+            "path": "/settings_home/page/main_list/more/title_box/title",
+            "key": "labelProps.text",
+            "value": "更多设置"
+        },
+        {
+            "path": "/settings_home/page/main_list/more/value_box/value",
+            "key": "labelProps.text",
+            "value": "语言"
+        },
+        {
+            "path": "/my_device/page/hero/brand",
+            "key": "labelProps.text",
+            "value": "ESP-Brookesia"
+        },
+        {
+            "path": "/my_device/page/summary_card/device_label",
+            "key": "labelProps.text",
+            "value": "设备名称"
+        },
+        {
+            "path": "/my_device/page/summary_card/device_value",
+            "key": "labelProps.text",
+            "value": "Brookesia Dev Kit"
+        },
+        {
+            "path": "/wifi/page/wifi_status_card/wifi_label",
+            "key": "labelProps.text",
+            "value": "Wi-Fi"
+        },
+        {
+            "path": "/wifi/page/wifi_content/connected/text/ssid",
+            "key": "labelProps.text",
+            "value": ""
+        },
+        {
+            "path": "/wifi/page/wifi_content/connected/text/detail",
+            "key": "labelProps.text",
+            "value": "已连接 - 点击断开"
+        },
+        {
+            "path": "/wifi/page/wifi_content/saved_caption",
+            "key": "labelProps.text",
+            "value": "已保存网络"
+        },
+        {
+            "path": "/wifi/page/wifi_content/available_header/available_caption",
+            "key": "labelProps.text",
+            "value": "可用网络"
+        },
+        {
+            "path": "/wifi/page/wifi_content/saved_networks/list/empty",
+            "key": "labelProps.text",
+            "value": "暂无已保存网络"
+        },
+        {
+            "path": "/wifi/page/wifi_content/available_networks/list/empty",
+            "key": "labelProps.text",
+            "value": "暂无可用网络"
+        },
+        {
+            "path": "/wifi_connect/page/network_card/caption",
+            "key": "labelProps.text",
+            "value": "目标网络"
+        },
+        {
+            "path": "/wifi_connect/page/password_card/password_row/title",
+            "key": "labelProps.text",
+            "value": "密码"
+        },
+        {
+            "path": "/wifi_connect/page/password_card/password_row/value",
+            "key": "passwordValue",
+            "value": "点击输入密码"
+        },
+        {
+            "path": "/wifi_connect/page/status",
+            "key": "status",
+            "value": "请输入网络密码"
+        },
+        {
+            "path": "/wifi_connect/page/actions/cancel/label",
+            "key": "labelProps.text",
+            "value": "取消"
+        },
+        {
+            "path": "/wifi_connect/page/actions/connect/label",
+            "key": "labelProps.text",
+            "value": "连接"
+        },
+        {
+            "path": "/sound/page/volume_card/media_volume_row/title",
+            "key": "labelProps.text",
+            "value": "音量"
+        },
+        {
+            "path": "/sound/page/options_caption",
+            "key": "labelProps.text",
+            "value": "声音选项"
+        },
+        {
+            "path": "/sound/page/silent_card/silent_mode/text/title",
+            "key": "labelProps.text",
+            "value": "静音"
+        },
+        {
+            "path": "/sound/page/silent_card/silent_mode/text/subtitle",
+            "key": "labelProps.text",
+            "value": ""
+        },
+        {
+            "path": "/display/page/theme_modes/light_mode/label",
+            "key": "labelProps.text",
+            "value": "浅色模式"
+        },
+        {
+            "path": "/display/page/theme_modes/dark_mode/label",
+            "key": "labelProps.text",
+            "value": "深色模式"
+        },
+        {
+            "path": "/display/page/brightness_caption",
+            "key": "labelProps.text",
+            "value": "亮度级别"
+        },
+        {
+            "path": "/display/page/brightness_card/brightness_row/title",
+            "key": "labelProps.text",
+            "value": "屏幕亮度"
+        },
+        {
+            "path": "/more/page/system_caption",
+            "key": "labelProps.text",
+            "value": "系统设置"
+        },
+        {
+            "path": "/more/page/language_card/language/title_box/title",
+            "key": "labelProps.text",
+            "value": "语言"
+        },
+        {
+            "path": "/more/page/language_card/language/value_box/value",
+            "key": "labelProps.text",
+            "value": "中文"
+        },
+        {
+            "path": "/more/page/language_card/time_zone/title_box/title",
+            "key": "labelProps.text",
+            "value": "时区"
+        },
+        {
+            "path": "/more/page/language_card/time_zone/value_box/value",
+            "key": "labelProps.text",
+            "value": "不可用"
+        },
+        {
+            "path": "/language/page/system_caption",
+            "key": "labelProps.text",
+            "value": "语言"
+        },
+        {
+            "path": "/time_zone/page/status_caption",
+            "key": "labelProps.text",
+            "value": "SNTP"
+        },
+        {
+            "path": "/time_zone/page/status_card/current/title",
+            "key": "labelProps.text",
+            "value": "时区"
+        },
+        {
+            "path": "/time_zone/page/status_card/state/title_box/title",
+            "key": "labelProps.text",
+            "value": "状态"
+        },
+        {
+            "path": "/time_zone/page/options_caption",
+            "key": "labelProps.text",
+            "value": "常用时区"
+        },
+        {
+            "path": "/time_zone/page/options_card/utc/title_box/title",
+            "key": "labelProps.text",
+            "value": "UTC"
+        },
+        {
+            "path": "/time_zone/page/options_card/china/title_box/title",
+            "key": "labelProps.text",
+            "value": "中国"
+        },
+        {
+            "path": "/time_zone/page/options_card/japan/title_box/title",
+            "key": "labelProps.text",
+            "value": "日本"
+        },
+        {
+            "path": "/time_zone/page/options_card/eastern/title_box/title",
+            "key": "labelProps.text",
+            "value": "美国东部"
+        },
+        {
+            "path": "/time_zone/page/options_card/pacific/title_box/title",
+            "key": "labelProps.text",
+            "value": "美国太平洋"
+        },
+        {
+            "path": "/time_zone/page/options_card/central_europe/title_box/title",
+            "key": "labelProps.text",
+            "value": "中欧"
+        }
+    ]
+}

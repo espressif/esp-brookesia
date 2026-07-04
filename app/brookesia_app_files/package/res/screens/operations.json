@@ -1,0 +1,183 @@
+{
+    "type": "viewScreen",
+    "id": "operations",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.files.layout.pagePadding}",
+                "y": "${constant.files.layout.contentTop}",
+                "width": "${expr(${env.widthDp} - ${constant.files.layout.pagePadding} * 2)}",
+                "height": "${expr(${env.heightDp} - ${constant.files.layout.contentTop} - ${constant.files.layout.pagePadding})}"
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.files.layout.pageGap}"
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "id": "selected_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "${constant.files.i18n.selected_item}"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "selection_card",
+                    "commonProps": {
+                        "scrollable": false
+                    },
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "${constant.files.layout.cardPadding}"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "0dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "templateRef",
+                            "id": "selected",
+                            "templateId": "operation_item",
+                            "overrides": {
+                                ".": {
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "events": []
+                                },
+                                "chevron": {
+                                    "labelProps": {
+                                        "text": ""
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "label",
+                    "id": "actions_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "${constant.files.i18n.file_actions}"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "actions_card",
+                    "commonProps": {
+                        "scrollable": false
+                    },
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "${constant.files.layout.cardPadding}"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "0dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "templateRef",
+                            "id": "rename",
+                            "templateId": "operation_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "files.rename"
+                                        }
+                                    ]
+                                },
+                                "icon": {
+                                    "imageProps": {
+                                        "src": "${image.files.icon.rename}"
+                                    }
+                                },
+                                "content/title": {
+                                    "labelProps": {
+                                        "text": "${constant.files.i18n.rename}"
+                                    }
+                                },
+                                "content/detail": {
+                                    "labelProps": {
+                                        "text": "${constant.files.i18n.rename_detail}"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "delete",
+                            "templateId": "operation_item",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "files.delete"
+                                        }
+                                    ]
+                                },
+                                "icon": {
+                                    "imageProps": {
+                                        "src": "${image.files.icon.delete}"
+                                    }
+                                },
+                                "content/title": {
+                                    "labelProps": {
+                                        "text": "${constant.files.i18n.delete}"
+                                    }
+                                },
+                                "content/detail": {
+                                    "labelProps": {
+                                        "text": "${constant.files.i18n.delete_detail}"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

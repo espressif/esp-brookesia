@@ -29,7 +29,7 @@ This example demonstrates how to build a complete AI voice chatbot based on the 
 - 🖐️ **Gesture Navigation**: Swipe on the touch screen to switch between the expression main screen and the settings screen
 - 🛠️ **MCP Hardware Control Tools**: The XiaoZhi agent can directly control screen brightness (get/set/on/off) and volume (get/set/mute) through MCP (Model Context Protocol) tools
 - 📶 **Wi-Fi Provisioning**: On first boot, the device automatically enters SoftAP provisioning mode; after provisioning, credentials are saved and reconnected automatically
-- 💾 **Persistent Settings**: User settings such as brightness are saved in NVS and retained across power cycles
+- 💾 **Persistent Settings**: User settings such as brightness are saved in Storage and retained across power cycles
 - 📊 **Runtime Profiling**: Built-in memory and thread profilers for development and debugging
 
 ## 🚩 Getting Started
@@ -106,6 +106,9 @@ During conversations, the XiaoZhi agent can proactively call MCP tools to operat
 - "Get device information"
 - "Get battery level"
 - "Get supported file systems"
+- "Open the camera"
+- "Close the camera"
+- "Take a photo"
 
 If no human voice is detected for a period of time, the AI agent automatically enters sleep mode. At that point, say the wake word (default: `"Hi,ESP"`) to start a conversation again.
 

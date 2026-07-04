@@ -1,0 +1,93 @@
+#
+# PC Platform
+#
+set(COMPONENT_LIB brookesia_runtime_manager_impl)
+set(component_pc_config_compile_definitions "")
+
+option(
+    BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_ENABLE_DEBUG_LOG
+    "Default value of CONFIG_BROOKESIA_RUNTIME_MANAGER_ENABLE_DEBUG_LOG on PC"
+    OFF
+)
+option(
+    BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_CORE_ENABLE_DEBUG_LOG
+    "Default value of CONFIG_BROOKESIA_RUNTIME_MANAGER_CORE_ENABLE_DEBUG_LOG on PC"
+    ON
+)
+option(
+    BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_HOST_BRIDGE_ENABLE_DEBUG_LOG
+    "Default value of CONFIG_BROOKESIA_RUNTIME_MANAGER_HOST_BRIDGE_ENABLE_DEBUG_LOG on PC"
+    ON
+)
+option(
+    BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_FUNCTION_BRIDGE_ENABLE_DEBUG_LOG
+    "Default value of CONFIG_BROOKESIA_RUNTIME_MANAGER_FUNCTION_BRIDGE_ENABLE_DEBUG_LOG on PC"
+    ON
+)
+
+if(BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_ENABLE_DEBUG_LOG)
+    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_RUNTIME_MANAGER_ENABLE_DEBUG_LOG=1)
+else()
+    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_RUNTIME_MANAGER_ENABLE_DEBUG_LOG=0)
+endif()
+if(BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_CORE_ENABLE_DEBUG_LOG)
+    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_RUNTIME_MANAGER_CORE_ENABLE_DEBUG_LOG=1)
+else()
+    list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_RUNTIME_MANAGER_CORE_ENABLE_DEBUG_LOG=0)
+endif()
+if(BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_HOST_BRIDGE_ENABLE_DEBUG_LOG)
+    list(APPEND component_pc_config_compile_definitions
+        CONFIG_BROOKESIA_RUNTIME_MANAGER_HOST_BRIDGE_ENABLE_DEBUG_LOG=1
+    )
+else()
+    list(APPEND component_pc_config_compile_definitions
+        CONFIG_BROOKESIA_RUNTIME_MANAGER_HOST_BRIDGE_ENABLE_DEBUG_LOG=0
+    )
+endif()
+if(BROOKESIA_RUNTIME_MANAGER_PC_CONFIG_FUNCTION_BRIDGE_ENABLE_DEBUG_LOG)
+    list(APPEND component_pc_config_compile_definitions
+        CONFIG_BROOKESIA_RUNTIME_MANAGER_FUNCTION_BRIDGE_ENABLE_DEBUG_LOG=1
+    )
+else()
+    list(APPEND component_pc_config_compile_definitions
+        CONFIG_BROOKESIA_RUNTIME_MANAGER_FUNCTION_BRIDGE_ENABLE_DEBUG_LOG=0
+    )
+endif()
+add_library(${COMPONENT_LIB} STATIC
+    ${COMPONENT_SRCS_C}
+    ${COMPONENT_SRCS_CPP}
+)
+
+target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)
+target_include_directories(${COMPONENT_LIB}
+    PUBLIC
+        ${COMPONENT_INCLUDE_DIRS}
+    PRIVATE
+        ${COMPONENT_PRIVATE_INCLUDE_DIRS}
+)
+target_link_libraries(${COMPONENT_LIB}
+    PUBLIC
+        brookesia::lib_utils
+)
+target_compile_definitions(${COMPONENT_LIB}
+    PRIVATE
+        ${component_pc_config_compile_definitions}
+)
+
+if(DEFINED BROOKESIA_RUNTIME_MANAGER_PC_COMPILE_DEFINITIONS AND
+    NOT "${BROOKESIA_RUNTIME_MANAGER_PC_COMPILE_DEFINITIONS}" STREQUAL "")
+    target_compile_definitions(${COMPONENT_LIB}
+        PRIVATE
+            ${BROOKESIA_RUNTIME_MANAGER_PC_COMPILE_DEFINITIONS}
+    )
+endif()
+
+if(DEFINED BROOKESIA_RUNTIME_MANAGER_PC_COMPILE_OPTIONS AND
+    NOT "${BROOKESIA_RUNTIME_MANAGER_PC_COMPILE_OPTIONS}" STREQUAL "")
+    target_compile_options(${COMPONENT_LIB}
+        PRIVATE
+            ${BROOKESIA_RUNTIME_MANAGER_PC_COMPILE_OPTIONS}
+    )
+endif()
+
+add_library(brookesia::runtime_manager ALIAS ${COMPONENT_LIB})

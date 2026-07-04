@@ -16,7 +16,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include "boost/signals2.hpp"
+#include "brookesia/lib_utils/signal.hpp"
 #include "boost/thread/mutex.hpp"
 #include "brookesia/lib_utils/macro_configs.h"
 #include "brookesia/lib_utils/describe_helpers.hpp"
@@ -62,6 +62,22 @@ public:
         size_t total_free = 0;            ///< Total free memory in bytes across all monitored heaps.
         size_t total_free_percent = 0;    ///< Total free memory ratio expressed as a percentage.
         size_t total_largest_free_block = 0; ///< Largest free block in bytes across all monitored heaps.
+    };
+
+    /**
+     * @brief Allocation-free heap snapshot for fine-grained diagnostics.
+     *
+     * This snapshot intentionally omits totals and running statistics so callers can sample heap state without
+     * allocating memory or perturbing the measurement window.
+     */
+    struct RawHeapSnapshot {
+        size_t internal_free = 0;     ///< Free internal SRAM heap bytes (`MALLOC_CAP_INTERNAL`).
+        size_t internal_largest = 0;  ///< Largest free internal SRAM block.
+        size_t external_free = 0;     ///< Free external PSRAM heap bytes (`MALLOC_CAP_SPIRAM`).
+        size_t external_largest = 0;  ///< Largest free external PSRAM block.
+        size_t cap8_free = 0;         ///< Free 8-bit capable heap bytes (`MALLOC_CAP_8BIT`).
+        size_t cap8_largest = 0;      ///< Largest free 8-bit capable heap block.
+        bool valid = false;           ///< True when heap caps sampling is available.
     };
 
     /**
@@ -127,7 +143,7 @@ public:
     /**
      * @brief Signal type emitted for each profiling snapshot.
      */
-    using ProfilingSignal = boost::signals2::signal<void(const ProfileSnapshot &)>;
+    using ProfilingSignal = esp_brookesia::lib_utils::signal<void(const ProfileSnapshot &)>;
     /**
      * @brief Slot type accepted by `connect_profiling_signal()`.
      */
@@ -136,7 +152,7 @@ public:
     /**
      * @brief Signal type emitted when a threshold condition is met.
      */
-    using ThresholdSignal = boost::signals2::signal<void(const ProfileSnapshot &)>;
+    using ThresholdSignal = esp_brookesia::lib_utils::signal<void(const ProfileSnapshot &)>;
     /**
      * @brief Slot type accepted by `connect_threshold_signal()`.
      */
@@ -149,7 +165,7 @@ public:
      *       When this object is destroyed, the corresponding callback is automatically disconnected.
      *       It is recommended to use `std::move()` to transfer ownership for manual management of the connection lifetime.
      */
-    using SignalConnection = boost::signals2::scoped_connection;
+    using SignalConnection = esp_brookesia::lib_utils::scoped_connection;
 
     /**
      * @brief Construct an idle memory profiler.
@@ -264,6 +280,22 @@ public:
      * @return Shared pointer to the new snapshot, or `nullptr` if allocation fails.
      */
     static std::shared_ptr<ProfileSnapshot> take_snapshot(ProfileSnapshot *last_snapshot = nullptr);
+
+    /**
+     * @brief Capture the current heap state without dynamic allocation.
+     *
+     * @return Raw heap snapshot. On unsupported platforms, `valid` is false.
+     */
+    static RawHeapSnapshot take_raw_heap_snapshot();
+
+    /**
+     * @brief Calculate signed delta between two sampled heap values.
+     *
+     * @param current Current sample value.
+     * @param baseline Baseline sample value.
+     * @return `current - baseline` as a signed integer.
+     */
+    static int64_t heap_delta(size_t current, size_t baseline);
 
     /**
      * @brief Print a formatted snapshot summary to the log.

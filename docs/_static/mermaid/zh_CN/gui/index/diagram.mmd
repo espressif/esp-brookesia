@@ -1,0 +1,9 @@
+flowchart TD
+    A["GUI 包 / 系统 UI"]
+    B["**brookesia_gui_interface**<br/>· JSON UI 文档模型<br/>· 运行时资源与绑定<br/>· 后端无关渲染契约"]
+    C["**brookesia_gui_lvgl**<br/>· LVGL 对象映射<br/>· 事件与动画桥接<br/>· 图片打包辅助能力"]
+    D["**LVGL / Display Service**<br/>· 显示驱动与屏幕刷新<br/>· 输入事件分发<br/>· 具体设备渲染入口"]
+
+    A -->|"声明界面资源"| B
+    B -->|"解析并适配后端"| C
+    C -->|"创建与更新对象"| D

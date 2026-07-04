@@ -1,0 +1,28 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;GUI Packages / System UI&quot;]
+    B[&quot;**brookesia_gui_interface**&lt;br/&gt;· JSON UI document model&lt;br/&gt;· Runtime resources and bindings&lt;br/&gt;· Backend-neutral rendering contract&quot;]
+    C[&quot;**brookesia_gui_lvgl**&lt;br/&gt;· LVGL object mapping&lt;br/&gt;· Event and animation bridge&lt;br/&gt;· Image packaging helpers&quot;]
+    D[&quot;**LVGL / Display Service**&lt;br/&gt;· Display driver and screen refresh&lt;br/&gt;· Input event dispatch&lt;br/&gt;· Device-specific rendering entry&quot;]
+
+    A --&gt;|&quot;Declares UI resources&quot;| B
+    B --&gt;|&quot;Parses and adapts backend&quot;| C
+    C --&gt;|&quot;Creates and updates objects&quot;| D
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

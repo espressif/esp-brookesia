@@ -1,0 +1,77 @@
+{
+    "type": "imageSet",
+    "images": [
+        {
+            "id": "icon.backspace",
+            "src": "icon/backspace.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.cancel",
+            "src": "icon/cancel.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.eyeHide",
+            "src": "icon/eye_hide.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.eyeShow",
+            "src": "icon/eye_show.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.left",
+            "src": "icon/left.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "msg_dialog/critical",
+            "src": "icon/msg_dialog/critical.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "msg_dialog/information",
+            "src": "icon/msg_dialog/information.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "msg_dialog/question",
+            "src": "icon/msg_dialog/question.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "msg_dialog/warning",
+            "src": "icon/msg_dialog/warning.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.ok",
+            "src": "icon/ok.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.right",
+            "src": "icon/right.png",
+            "width": 32,
+            "height": 32
+        },
+        {
+            "id": "icon.space",
+            "src": "icon/space.png",
+            "width": 32,
+            "height": 32
+        }
+    ]
+}

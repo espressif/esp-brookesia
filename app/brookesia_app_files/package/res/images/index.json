@@ -1,0 +1,71 @@
+{
+    "type": "imageSet",
+    "images": [
+        {
+            "id": "launcher_icon",
+            "src": "launcher_icon.png",
+            "width": 92,
+            "height": 92
+        },
+        {
+            "id": "files.icon.driver",
+            "src": "icon/driver.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.directory",
+            "src": "icon/directory.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.file",
+            "src": "icon/file.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.image",
+            "src": "icon/image.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.doc",
+            "src": "icon/doc.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.bpk",
+            "src": "icon/bpk.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.audio",
+            "src": "icon/audio.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.video",
+            "src": "icon/video.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.rename",
+            "src": "icon/rename.png",
+            "width": 42,
+            "height": 42
+        },
+        {
+            "id": "files.icon.delete",
+            "src": "icon/delete.png",
+            "width": 42,
+            "height": 42
+        }
+    ]
+}

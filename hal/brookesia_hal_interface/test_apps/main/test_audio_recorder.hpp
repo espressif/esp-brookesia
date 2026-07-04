@@ -10,11 +10,11 @@
 
 namespace esp_brookesia {
 
-class TestAudioCodecRecorderIface: public hal::AudioCodecRecorderIface {
+class TestAudioCodecRecorderIface: public hal::audio::CodecRecorderIface {
 public:
     static constexpr const char *NAME = "TestAudioRecorder:Recorder";
 
-    TestAudioCodecRecorderIface(hal::AudioCodecRecorderIface::Info info) : hal::AudioCodecRecorderIface(std::move(info)) {}
+    TestAudioCodecRecorderIface(hal::audio::CodecRecorderIface::Info info) : hal::audio::CodecRecorderIface(std::move(info)) {}
     ~TestAudioCodecRecorderIface() = default;
 
     bool open() override;
@@ -31,6 +31,7 @@ public:
     TestAudioRecorderDevice() : hal::Device(std::string(NAME)) {}
 
     bool probe() override;
+    std::vector<hal::InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 };

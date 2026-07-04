@@ -1,0 +1,10 @@
+flowchart TD
+    A["App Packages / Built-In Apps"]
+    B["**brookesia_system_core**<br/>· App lifecycle<br/>· Runtime bridge<br/>· GUI, service, storage, and permission boundaries"]
+    C["**brookesia_system_super**<br/>· Standard handheld system<br/>· Shell / launcher / overlay<br/>· Status bar and app switching"]
+    D["**HAL / Service / GUI / Runtime**<br/>· Device abstraction and system services<br/>· UI rendering and dynamic runtimes<br/>· Foundation capabilities used by Core"]
+
+    D -->|"Provides foundation"| B
+    B -->|"Extends system shell"| C
+    A -->|"Registers and runs"| B
+    C -->|"Presents and schedules apps"| A

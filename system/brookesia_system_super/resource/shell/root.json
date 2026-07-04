@@ -1,0 +1,53 @@
+{
+    "version": "0.1.0",
+    "assets": [
+        "constants/default.json",
+        "constants/i18n/en.json",
+        "styles/shell.json",
+        "images/index.json",
+        "screens/background.json",
+        "screens/app_background.json",
+        "screens/app_launcher.json",
+        "screens/overlay.json",
+        "screens/keyboard_hidden.json",
+        "screens/keyboard_input.json",
+        "screens/message_dialog_hidden.json",
+        "screens/message_dialog.json",
+        "templates/press_scale.json",
+        "templates/launcher_app_button.json",
+        "templates/launcher_slot.json",
+        "templates/chip.json",
+        "templates/nav_button.json",
+        "flows/background.json",
+        "flows/shell_pages.json",
+        "flows/overlay.json",
+        "flows/keyboard.json",
+        "flows/message_dialog.json"
+    ],
+    "variants": [
+        {
+            "when": "${expr(${env.widthDp} == 1024dp && ${env.heightDp} == 600dp)}",
+            "assets": [
+                "constants/1024x600.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} == 800dp && ${env.heightDp} == 480dp)}",
+            "assets": [
+                "constants/800x480.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} < ${env.heightDp})}",
+            "assets": [
+                "constants/portrait.json"
+            ]
+        },
+        {
+            "when": "${expr(${env.widthDp} <= 360dp || ${env.heightDp} <= 240dp)}",
+            "assets": [
+                "constants/small.json"
+            ]
+        }
+    ]
+}

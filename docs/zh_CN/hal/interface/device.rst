@@ -5,7 +5,7 @@
 
 :link_to_translation:`en:[English]`
 
-公共头文件： ``#include "brookesia/hal_interface/device.hpp"``
+Provider 侧头文件： ``#include "brookesia/hal_interface/device.hpp"``
 
 .. _hal-interface-device-sec-01:
 

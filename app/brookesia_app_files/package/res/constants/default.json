@@ -1,0 +1,31 @@
+{
+    "type": "constant",
+    "data": {
+        "files": {
+            "layout": {
+                "pagePadding": "16dp",
+                "pageGap": "12dp",
+                "cardPadding": "12dp",
+                "headerHeight": "76dp",
+                "headerPadding": "10dp",
+                "headerBackColumn": "56dp",
+                "headerBackSize": "52dp",
+                "headerCountWidth": "88dp",
+                "headerCountHeight": "36dp",
+                "contentTop": "104dp",
+                "entryHeight": "72dp",
+                "iconColumn": "60dp",
+                "iconBox": "42dp",
+                "operationIconColumn": "60dp",
+                "operationItemHeight": "76dp",
+                "chevronWidth": "22dp"
+            },
+            "font": {
+                "title": "26sp",
+                "body": "16sp",
+                "caption": "12sp",
+                "button": "16sp"
+            }
+        }
+    }
+}

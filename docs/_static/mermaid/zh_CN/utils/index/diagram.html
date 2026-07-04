@@ -1,0 +1,30 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;**brookesia_lib_utils**&lt;br/&gt;· 通用 C++ 基础设施&lt;br/&gt;· 日志、检查与描述工具&lt;br/&gt;· 被框架组件复用&quot;]
+    B[&quot;框架组件&quot;]
+    C[&quot;服务函数 / 回调&quot;]
+    D[&quot;**brookesia_mcp_utils**&lt;br/&gt;· MCP 桥接&lt;br/&gt;· 工具描述与调用封装&lt;br/&gt;· 连接大模型客户端&quot;]
+    E[&quot;**MCP 工具 / 大模型客户端**&lt;br/&gt;· 工具发现&lt;br/&gt;· 参数调用&lt;br/&gt;· 智能体集成&quot;]
+
+    A --&gt;|&quot;提供基础工具&quot;| B
+    B --&gt;|&quot;注册能力&quot;| C
+    C --&gt;|&quot;暴露 MCP 接口&quot;| D
+    D --&gt;|&quot;连接工具调用&quot;| E
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

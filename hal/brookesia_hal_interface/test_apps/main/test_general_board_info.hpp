@@ -6,17 +6,17 @@
 #pragma once
 
 #include "sdkconfig.h"
-#include "brookesia/hal_interface/interfaces/general/board_info.hpp"
+#include "brookesia/hal_interface/interfaces/system/board_info.hpp"
 #include "brookesia/hal_interface/device.hpp"
 
 namespace esp_brookesia {
 
-class TestGeneralBoardInfoIface: public hal::BoardInfoIface {
+class TestGeneralBoardInfoIface: public hal::system::BoardInfoIface {
 public:
     static constexpr const char *NAME = "TestGeneralBoardInfo:BoardInfo";
 
     TestGeneralBoardInfoIface()
-        : BoardInfoIface(hal::BoardInfoIface::Info {
+        : hal::system::BoardInfoIface(hal::system::BoardInfoIface::Info {
         .name = "ESP-Test-Board",
         .chip = CONFIG_IDF_TARGET,
         .version = "v1.2",
@@ -38,6 +38,7 @@ public:
     }
 
     bool probe() override;
+    std::vector<hal::InterfaceSpec> get_interface_specs() const override;
     bool on_init() override;
     void on_deinit() override;
 };

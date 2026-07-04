@@ -4,18 +4,44 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         default n
 
     if BROOKESIA_HAL_ADAPTOR_ENABLE_DEBUG_LOG
-        menu "General"
-            config BROOKESIA_HAL_ADAPTOR_GENERAL_DEVICE_ENABLE_DEBUG_LOG
+        menu "System"
+            config BROOKESIA_HAL_ADAPTOR_SYSTEM_DEVICE_ENABLE_DEBUG_LOG
                 bool "Device"
                 default n
                 help
-                    Enable debug or lower level logs for the general device.
+                    Enable debug or lower level logs for the system device.
 
-            config BROOKESIA_HAL_ADAPTOR_BOARD_INFO_IMPL_ENABLE_DEBUG_LOG
+            config BROOKESIA_HAL_ADAPTOR_SYSTEM_BOARD_INFO_IMPL_ENABLE_DEBUG_LOG
                 bool "Board Info"
                 default n
                 help
                     Enable debug or lower level logs for the board info implementation.
+
+            config BROOKESIA_HAL_ADAPTOR_SYSTEM_OTA_UPDATER_IMPL_ENABLE_DEBUG_LOG
+                bool "OTA Updater"
+                default n
+                help
+                    Enable debug or lower level logs for the OTA updater implementation.
+        endmenu
+
+        menu "Network"
+            config BROOKESIA_HAL_ADAPTOR_NETWORK_DEVICE_ENABLE_DEBUG_LOG
+                bool "Device"
+                default n
+                help
+                    Enable debug or lower level logs for the network device.
+
+            config BROOKESIA_HAL_ADAPTOR_NETWORK_SNTP_CLIENT_IMPL_ENABLE_DEBUG_LOG
+                bool "SNTP Client"
+                default n
+                help
+                    Enable debug or lower level logs for the SNTP client implementation.
+
+            config BROOKESIA_HAL_ADAPTOR_NETWORK_HTTP_CLIENT_IMPL_ENABLE_DEBUG_LOG
+                bool "HTTP Client"
+                default n
+                help
+                    Enable debug or lower level logs for the HTTP client implementation.
         endmenu
 
         menu "Audio"
@@ -36,6 +62,32 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 default n
                 help
                     Enable debug or lower level logs for the audio codec recorder.
+
+            config BROOKESIA_HAL_ADAPTOR_AUDIO_PROCESSOR_IMPL_ENABLE_DEBUG_LOG
+                bool "Processor"
+                default n
+                help
+                    Enable debug or lower level logs for the audio processor implementation.
+        endmenu
+
+        menu "Video"
+            config BROOKESIA_HAL_ADAPTOR_VIDEO_DEVICE_ENABLE_DEBUG_LOG
+                bool "Device"
+                default n
+                help
+                    Enable debug or lower level logs for the video device.
+
+            config BROOKESIA_HAL_ADAPTOR_VIDEO_ENCODER_IMPL_ENABLE_DEBUG_LOG
+                bool "Encoder"
+                default n
+                help
+                    Enable debug or lower level logs for the video encoder implementation.
+
+            config BROOKESIA_HAL_ADAPTOR_VIDEO_DECODER_IMPL_ENABLE_DEBUG_LOG
+                bool "Decoder"
+                default n
+                help
+                    Enable debug or lower level logs for the video decoder implementation.
         endmenu
 
         menu "Display"
@@ -71,11 +123,31 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     Enable debug or lower level logs for the storage device.
 
-            config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_DEBUG_LOG
-                bool "General FS"
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_DEBUG_LOG
+                bool "File System"
                 default n
                 help
-                    Enable debug or lower level logs for the storage general file system.
+                    Enable debug or lower level logs for the storage file system implementation.
+
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_KEY_VALUE_ENABLE_DEBUG_LOG
+                bool "Key-Value"
+                default n
+                help
+                    Enable debug or lower level logs for the storage key-value implementation.
+        endmenu
+
+        menu "Wi-Fi"
+            config BROOKESIA_HAL_ADAPTOR_WIFI_DEVICE_ENABLE_DEBUG_LOG
+                bool "Device"
+                default n
+                help
+                    Enable debug or lower level logs for the Wi-Fi device.
+
+            config BROOKESIA_HAL_ADAPTOR_WIFI_BACKEND_ENABLE_DEBUG_LOG
+                bool "ESP-IDF backend"
+                default n
+                help
+                    Enable debug or lower level logs for the Wi-Fi ESP-IDF backend.
         endmenu
 
         menu "Power"
@@ -97,20 +169,63 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     Enable debug or lower level logs for the battery ADC.
         endmenu
+
     endif
 
-    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_GENERAL_DEVICE
-        bool "General Device"
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE
+        bool "System Device"
         default n
         help
-            Enable the general device.
+            Enable the system device.
 
-    if BROOKESIA_HAL_ADAPTOR_ENABLE_GENERAL_DEVICE
-        menuconfig BROOKESIA_HAL_ADAPTOR_GENERAL_ENABLE_BOARD_INFO_IMPL
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE
+        menuconfig BROOKESIA_HAL_ADAPTOR_SYSTEM_ENABLE_BOARD_INFO_IMPL
             bool "Board Info"
             default n
             help
                 Enable the board info.
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_SYSTEM_ENABLE_OTA_UPDATER_IMPL
+            bool "OTA Updater"
+            default n
+            help
+                Enable the OTA updater implementation.
+
+        if BROOKESIA_HAL_ADAPTOR_SYSTEM_ENABLE_OTA_UPDATER_IMPL
+            config BROOKESIA_HAL_ADAPTOR_SYSTEM_OTA_UPDATER_THREAD_STACK_SIZE
+                int "OTA updater internal-stack thread stack size"
+                default 10240
+                help
+                    Stack size for OTA updater work that must run outside external RAM.
+        endif
+    endif
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_NETWORK_DEVICE
+        bool "Network Device"
+        default n
+        help
+            Enable the network protocol device.
+
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_NETWORK_DEVICE
+        menuconfig BROOKESIA_HAL_ADAPTOR_NETWORK_ENABLE_SNTP_CLIENT_IMPL
+            bool "SNTP Client"
+            default n
+            help
+                Enable the SNTP client implementation.
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_NETWORK_ENABLE_HTTP_CLIENT_IMPL
+            bool "HTTP Client"
+            default n
+            help
+                Enable the HTTP client implementation.
+
+        if BROOKESIA_HAL_ADAPTOR_NETWORK_ENABLE_HTTP_CLIENT_IMPL
+            config BROOKESIA_HAL_ADAPTOR_NETWORK_HTTP_CLIENT_REQUIRE_TLS_VERIFY
+                bool "Require TLS verification by default"
+                default y
+                help
+                    Verify HTTPS server certificates when a request uses the default TLS policy.
+        endif
     endif
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE
@@ -133,6 +248,14 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             default n
             help
                 Enable the recorder.
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
+            bool "Audio Processor"
+            depends on BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL
+            depends on BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
+            default y
+            help
+                Enable the high-level audio processor backed by av_processor.
 
         if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
             config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_BITS
@@ -171,6 +294,64 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     The channel gains of the audio codec device, in dB.
                     JSON format is supported, the key is the channel index, the value is the gain in dB.
+        endif
+    endif
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE
+        bool "Video Device"
+        default n
+        help
+            Enable the video processor device backed by av_processor.
+
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE
+        config BROOKESIA_HAL_ADAPTOR_VIDEO_KEEP_DEVICE_INITIALIZED_ON_RELEASE
+            bool "Keep video device initialized after release"
+            default y
+            help
+                Keep the video device initialized when its HAL reference count drops to zero.
+                This avoids repeated camera/esp_video init-deinit cycles for expensive or non-idempotent camera drivers.
+                The device is still deinitialized by force cleanup or process exit.
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+            bool "Camera"
+            default y
+            help
+                Enable the video camera discovery implementation.
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
+            bool "Encoder"
+            default y
+            help
+                Enable the video encoder implementation.
+
+        if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
+            config BROOKESIA_HAL_ADAPTOR_VIDEO_ENCODER_DEFAULT_DEVICE_PATH_PREFIX
+                string "Default device path prefix"
+                default "/dev/video"
+                help
+                    The default device path prefix of the encoders.
+
+            config BROOKESIA_HAL_ADAPTOR_VIDEO_ENCODER_DEFAULT_NUM
+                int "Default number of encoders"
+                default 1
+                range 1 3
+                help
+                    The default number of encoder HAL interfaces to register.
+        endif
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL
+            bool "Decoder"
+            default y
+            help
+                Enable the video decoder implementation.
+
+        if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL
+            config BROOKESIA_HAL_ADAPTOR_VIDEO_DECODER_DEFAULT_NUM
+                int "Default number of decoders"
+                default 1
+                range 1 3
+                help
+                    The default number of decoder HAL interfaces to register.
         endif
     endif
 
@@ -225,6 +406,14 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 range 0 16
                 help
                     The Y-axis coordinate alignment bytes of the display LCD panel.
+
+            config BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_INIT_THREAD_CORE_ID
+                int "Init thread core ID"
+                default 0
+                help
+                    The core ID used to run `esp_board_manager_init_device_by_name()` for the LCD panel.
+                    `-1` means run the init directly in the current thread.
+                    This option only takes effect when the LCD panel bus type is Generic.
         endif
 
         menuconfig BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
@@ -242,72 +431,72 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             Enable the storage device.
 
     if BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE
-        menuconfig BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_GENERAL_FS_IMPL
-            bool "General FS"
+        menuconfig BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_FILE_SYSTEM_IMPL
+            bool "File System"
             default n
             help
-                Enable the storage general file system.
+                Enable the storage file system.
 
-        if BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_GENERAL_FS_IMPL
-            config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SPIFFS
+        if BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_FILE_SYSTEM_IMPL
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SPIFFS
                 bool "SPIFFS"
                 depends on ESP_BOARD_DEV_FS_SPIFFS_SUPPORT
                 default n
                 help
                     Enable the SPIFFS.
 
-            config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_LITTLEFS
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_LITTLEFS
                 bool "LittleFS"
                 default n
                 help
                     Enable the LittleFS.
 
-            if BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_LITTLEFS
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_LITTLEFS_BASE_PATH
+            if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_LITTLEFS
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_BASE_PATH
                     string "LittleFS base path"
                     default "/littlefs"
                     help
                         Base path used to mount the LittleFS filesystem.
 
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_LITTLEFS_PARTITION_LABEL
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_PARTITION_LABEL
                     string "LittleFS partition label"
                     default "littlefs_data"
                     help
                         Partition label used to mount the LittleFS filesystem.
 
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_LITTLEFS_FORMAT_IF_MOUNT_FAILED
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_FORMAT_IF_MOUNT_FAILED
                     bool "Format LittleFS if mount failed"
                     default n
                     help
                         Format the LittleFS partition when mount fails.
             endif
 
-            config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_FATFS_FLASH
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH
                 bool "Flash FATFS"
                 default n
                 help
                     Enable the flash FATFS filesystem mounted through wear levelling.
 
-            if BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_FATFS_FLASH
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_FATFS_FLASH_BASE_PATH
+            if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_BASE_PATH
                     string "Flash FATFS base path"
                     default "/fatfs"
                     help
                         Base path used to mount the flash FATFS filesystem.
 
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_FATFS_FLASH_PARTITION_LABEL
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_PARTITION_LABEL
                     string "Flash FATFS partition label"
                     default "fatfs_data"
                     help
                         Partition label used to mount the flash FATFS filesystem.
 
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_FATFS_FLASH_FORMAT_IF_MOUNT_FAILED
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_FORMAT_IF_MOUNT_FAILED
                     bool "Format flash FATFS if mount failed"
                     default n
                     help
                         Format the flash FATFS partition when mount fails.
 
-                config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_FATFS_FLASH_MAX_FILES
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_MAX_FILES
                     int "Flash FATFS max open files"
                     default 4
                     range 1 16
@@ -315,13 +504,19 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                         Maximum number of files that can be open at the same time.
             endif
 
-            config BROOKESIA_HAL_ADAPTOR_STORAGE_GENERAL_FS_ENABLE_SDCARD
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
                 bool "SD card (FATFS)"
                 depends on ESP_BOARD_DEV_FS_FAT_SUPPORT
                 default n
                 help
                     Enable the SD card (FATFS).
         endif
+
+        menuconfig BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_KEY_VALUE_IMPL
+            bool "Key-value storage"
+            default n
+            help
+                Enable the storage key-value implementation backed by ESP-IDF NVS.
     endif
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE
@@ -426,4 +621,101 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             endif
         endif
     endif
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE
+        bool "Wi-Fi Device"
+        default n
+        help
+            Enable the ESP-IDF Wi-Fi device and its Basic, STA, and SoftAP HAL interfaces.
+
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE
+        menu "SoftAP"
+            config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_CHANNEL_MIN
+                int "Minimum channel"
+                default 1
+                range 1 11
+                help
+                    Minimum channel considered for SoftAP setup.
+
+            config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_CHANNEL_MAX
+                int "Maximum channel"
+                default 11
+                range 1 11
+                help
+                    Maximum channel considered for SoftAP setup.
+
+            config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_CHANNEL_DEFAULT
+                int "Default channel"
+                default 1
+                range 1 11
+                help
+                    Default SoftAP channel when no channel is specified and setup cannot scan.
+
+            config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_SETUP_INTERVAL_MS
+                int "Setup interval (ms)"
+                default 1000
+                range 100 10000
+                help
+                    Interval for the SoftAP setup task.
+
+            config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_SETUP_TIMEOUT_MS
+                int "Setup timeout (ms)"
+                default 300000
+                range 1000 600000
+                help
+                    Timeout in milliseconds for SoftAP setup.
+
+            config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_EVENT_DELAY_MS
+                int "Event delay (ms)"
+                default 2000
+                range 100 10000
+                help
+                    Delay in milliseconds before reporting a SoftAP event.
+
+            menu "Provision"
+                config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_PROVISION_SCAN_START_INTERVAL_MS
+                    int "Provision scan start interval (ms)"
+                    default 1000
+                    range 100 10000
+                    help
+                        Interval for starting provision scans.
+
+                config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_PROVISION_SCAN_TIMEOUT_MS
+                    int "Provision scan timeout (ms)"
+                    default 20000
+                    range 1000 60000
+                    help
+                        Timeout in milliseconds while waiting for provision scan results.
+
+                config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_PROVISION_SUCCESS_CLOSE_DELAY_MS
+                    int "Provision close after success delay (ms)"
+                    default 3000
+                    range 100 10000
+                    help
+                        Delay in milliseconds before closing provision after a successful STA connection.
+
+                menu "DNS Thread"
+                    config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_PROVISION_DNS_THREAD_STACK_SIZE
+                        int "Stack size"
+                        default 4096
+                        help
+                            Stack size of the provision DNS thread.
+
+                    config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_PROVISION_DNS_THREAD_PRIORITY
+                        int "Priority"
+                        default 3
+                        help
+                            Priority of the provision DNS thread.
+
+                    config BROOKESIA_HAL_ADAPTOR_WIFI_SOFTAP_PROVISION_DNS_THREAD_CORE_ID
+                        int "Core ID"
+                        default -1
+                        range -1 1
+                        help
+                            Core ID of the provision DNS thread. `-1` means the core ID is not specified.
+                endmenu
+            endmenu
+        endmenu
+    endif
+
 endmenu

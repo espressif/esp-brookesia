@@ -218,6 +218,16 @@ inline boost::json::object::const_iterator find_json_key_flexible(
     return obj.end();
 }
 
+/**
+ * @brief Insert/assign a member into a JSON object out-of-line.
+ *
+ * Declared here but defined in describe_helpers.cpp on purpose: every
+ * `describe_to_json<Struct>` instantiation would otherwise inline the
+ * `boost::json::object` insertion machinery once per member. Routing it through
+ * a single non-template function folds all of those copies into one.
+ */
+void json_object_set(boost::json::object &obj, boost::json::string_view name, boost::json::value value);
+
 } // namespace detail
 
 // ============================================================================
@@ -432,7 +442,7 @@ boost::json::value describe_to_json(const T &value)
                 // Fallback: convert key to JSON first, then to string
                 key_str = boost::json::value_to<std::string>(describe_to_json(key));
             }
-            obj[key_str] = describe_to_json(val);
+            detail::json_object_set(obj, key_str, describe_to_json(val));
         }
         return obj;
     }
@@ -493,7 +503,7 @@ boost::json::value describe_to_json(const T &value)
         boost::mp11::mp_for_each<boost::describe::describe_members<T, boost::describe::mod_public>>(
         [&](auto D) {
             // Serialize all fields, including null optionals (for symmetry)
-            j[D.name] = describe_to_json(value.*D.pointer);
+            detail::json_object_set(j, D.name, describe_to_json(value.*D.pointer));
         });
         return j;
     }
@@ -819,6 +829,13 @@ bool describe_from_json(const boost::json::value &j, T &value)
     }
     return false;
 }
+
+// `std::string` is by far the most common type fed through these helpers. Without an
+// explicit instantiation every translation unit emits its own (uncoalesced `.isra`)
+// copy of the std::string specialization. Declaring them `extern template` here and
+// instantiating once in describe_helpers.cpp folds those per-TU copies into one.
+extern template boost::json::value describe_to_json<std::string>(const std::string &value);
+extern template bool describe_from_json<std::string>(const boost::json::value &j, std::string &value);
 
 // ============================================================================
 // JSON Serialization/Deserialization Functions

@@ -4,18 +4,20 @@
  * SPDX-License-Identifier: CC0-1.0
  */
 #include "esp_system.h"
-#include "esp_lv_adapter.h"
 #include "private/utils.hpp"
 #include "modules/display/display.hpp"
 #include "modules/display/squareline_ui/ui.h"
-#include "brookesia/agent_helper.hpp"
 #include "brookesia/service_helper.hpp"
+#include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
+#include "brookesia/hal_interface/interfaces/display/backlight.hpp"
 #include "settings.hpp"
 
 using namespace esp_brookesia;
-using AgentHelper = agent::helper::Manager;
+using AgentHelper = service::helper::Manager;
 using WifiHelper = service::helper::Wifi;
 using DeviceHelper = service::helper::Device;
+using DisplayHelper = service::helper::Display;
+using AudioPlaybackHelper = service::helper::AudioPlayback;
 
 constexpr uint8_t VOLUME_MAX = 100;
 constexpr uint8_t VOLUME_MIN = 0;
@@ -32,7 +34,7 @@ ScreenSettings::ScreenSettings():
 
     ui_ScreenSettings_screen_init();
 
-    auto get_device_capabilities_result = DeviceHelper::call_function_sync<boost::json::object>(
+    auto get_device_capabilities_result = DeviceHelper::call_function_sync<boost::json::array>(
             DeviceHelper::FunctionId::GetCapabilities
                                           );
     BROOKESIA_CHECK_FALSE_EXIT(
@@ -41,17 +43,27 @@ ScreenSettings::ScreenSettings():
     DeviceHelper::Capabilities device_capabilities;
     auto convert_result = BROOKESIA_DESCRIBE_FROM_JSON(get_device_capabilities_result.value(), device_capabilities);
     BROOKESIA_CHECK_FALSE_EXIT(convert_result, "Failed to convert device capabilities");
+    auto has_capability = [&device_capabilities](std::string_view interface_name) {
+        for (const auto &device : device_capabilities) {
+            for (const auto &interface : device.interfaces) {
+                if (interface.type_name == interface_name) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    };
 
     BROOKESIA_CHECK_FALSE_EXECUTE(init_wifi(), {}, {
         BROOKESIA_LOGE("Failed to init wifi");
     });
-    if (device_capabilities.find(std::string(hal::DisplayBacklightIface::NAME)) != device_capabilities.end()) {
+    if (has_capability(hal::display::BacklightIface::NAME)) {
         is_backlight_available_ = true;
         BROOKESIA_CHECK_FALSE_EXECUTE(init_brightness(), {}, {
             BROOKESIA_LOGE("Failed to init brightness");
         });
     }
-    if (device_capabilities.find(std::string(hal::AudioCodecPlayerIface::NAME)) != device_capabilities.end()) {
+    if (has_capability(hal::audio::CodecPlayerIface::NAME)) {
         is_volume_available_ = true;
         BROOKESIA_CHECK_FALSE_EXECUTE(init_volume(), {}, {
             BROOKESIA_LOGE("Failed to init volume");
@@ -93,10 +105,10 @@ bool ScreenSettings::on_enter(const std::string &from_state, const std::string &
         BROOKESIA_LOGE("Failed to enter process agent");
     });
 
-    lv_display_t *lv_disp = lv_display_get_default();
-    BROOKESIA_CHECK_NULL_RETURN(lv_disp, false, "Failed to get default display");
-    auto ret = esp_lv_adapter_set_dummy_draw(lv_disp, false);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to set dummy draw");
+    BROOKESIA_CHECK_FALSE_RETURN(
+        Display::get_instance().set_active_source_role(Display::DrawSource::Lvgl), false,
+        "Failed to activate LVGL display source"
+    );
 
     return true;
 }
@@ -365,8 +377,10 @@ bool ScreenSettings::init_brightness()
         }
 
         const auto brightness = context->current_brightness_ + 1;
-        auto set_brightness_result = DeviceHelper::call_function_sync(
-                                         DeviceHelper::FunctionId::SetDisplayBacklightBrightness, brightness
+        auto set_brightness_result = DisplayHelper::call_function_sync(
+                                         DisplayHelper::FunctionId::SetBacklightBrightness,
+                                         Display::get_instance().display_output_id_,
+                                         brightness
                                      );
         BROOKESIA_CHECK_FALSE_EXIT(set_brightness_result, "Failed to set brightness");
         context->current_brightness_ = brightness;
@@ -386,8 +400,10 @@ bool ScreenSettings::init_brightness()
         }
 
         const auto brightness = context->current_brightness_ - 1;
-        auto set_brightness_result = DeviceHelper::call_function_sync(
-                                         DeviceHelper::FunctionId::SetDisplayBacklightBrightness, brightness
+        auto set_brightness_result = DisplayHelper::call_function_sync(
+                                         DisplayHelper::FunctionId::SetBacklightBrightness,
+                                         Display::get_instance().display_output_id_,
+                                         brightness
                                      );
         BROOKESIA_CHECK_FALSE_EXIT(set_brightness_result, "Failed to set brightness");
         context->current_brightness_ = brightness;
@@ -414,8 +430,8 @@ bool ScreenSettings::init_volume()
         }
 
         const auto volume = context->current_volume_ + 1;
-        auto set_volume_result = DeviceHelper::call_function_sync(
-                                     DeviceHelper::FunctionId::SetAudioPlayerVolume, volume
+        auto set_volume_result = AudioPlaybackHelper::call_function_sync(
+                                     AudioPlaybackHelper::FunctionId::SetVolume, volume
                                  );
         BROOKESIA_CHECK_FALSE_EXIT(set_volume_result, "Failed to set volume");
         context->current_volume_ = volume;
@@ -435,8 +451,8 @@ bool ScreenSettings::init_volume()
         }
 
         const auto volume = context->current_volume_ - 1;
-        auto set_volume_result = DeviceHelper::call_function_sync(
-                                     DeviceHelper::FunctionId::SetAudioPlayerVolume, volume
+        auto set_volume_result = AudioPlaybackHelper::call_function_sync(
+                                     AudioPlaybackHelper::FunctionId::SetVolume, volume
                                  );
         BROOKESIA_CHECK_FALSE_EXIT(set_volume_result, "Failed to set volume");
         context->current_volume_ = volume;
@@ -469,10 +485,17 @@ bool ScreenSettings::init_reset()
             });
         }
 
-        {
-            auto reset_result = DeviceHelper::call_function_sync(DeviceHelper::FunctionId::ResetData);
+        if (DisplayHelper::is_running()) {
+            auto reset_result = DisplayHelper::call_function_sync(DisplayHelper::FunctionId::ResetData, 0);
             BROOKESIA_CHECK_FALSE_EXECUTE(reset_result, {}, {
-                BROOKESIA_LOGE("Failed to reset device data");
+                BROOKESIA_LOGE("Failed to reset display data");
+            });
+        }
+
+        if (AudioPlaybackHelper::is_running()) {
+            auto reset_result = AudioPlaybackHelper::call_function_sync(AudioPlaybackHelper::FunctionId::ResetData);
+            BROOKESIA_CHECK_FALSE_EXECUTE(reset_result, {}, {
+                BROOKESIA_LOGE("Failed to reset audio playback data");
             });
         }
 
@@ -493,8 +516,9 @@ bool ScreenSettings::enter_process_brightness()
         return true;
     }
 
-    auto get_brightness_result = DeviceHelper::call_function_sync<double>(
-                                     DeviceHelper::FunctionId::GetDisplayBacklightBrightness
+    auto get_brightness_result = DisplayHelper::call_function_sync<double>(
+                                     DisplayHelper::FunctionId::GetBacklightBrightness,
+                                     Display::get_instance().display_output_id_
                                  );
     BROOKESIA_CHECK_FALSE_RETURN(
         get_brightness_result, false, "Failed to get brightness: %1%", get_brightness_result.error()
@@ -505,10 +529,18 @@ bool ScreenSettings::enter_process_brightness()
 
     brightness_changed_connection_.disconnect();
 
-    auto brightness_changed_slot = [this](const std::string & event_name, double brightness) {
+    auto brightness_changed_slot = [this](
+                                       const std::string & event_name,
+                                       double output_id,
+                                       const std::string &,
+                                       double brightness
+    ) {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-        BROOKESIA_LOGD("Params: event_name(%1%), brightness(%2%)", event_name, brightness);
+        BROOKESIA_LOGD("Params: event_name(%1%), output_id(%2%), brightness(%3%)", event_name, output_id, brightness);
+        if (static_cast<uint32_t>(output_id) != Display::get_instance().display_output_id_) {
+            return;
+        }
 
         current_brightness_ = static_cast<int>(brightness);
         auto send_result = Display::get_instance().send_display_task([this]() {
@@ -516,8 +548,8 @@ bool ScreenSettings::enter_process_brightness()
         });
         BROOKESIA_CHECK_FALSE_EXIT(send_result, "Failed to send brightness update task");
     };
-    brightness_changed_connection_ = DeviceHelper::subscribe_event(
-                                         DeviceHelper::EventId::DisplayBacklightBrightnessChanged,
+    brightness_changed_connection_ = DisplayHelper::subscribe_event(
+                                         DisplayHelper::EventId::BacklightBrightnessChanged,
                                          brightness_changed_slot
                                      );
     BROOKESIA_CHECK_FALSE_RETURN(
@@ -537,7 +569,7 @@ bool ScreenSettings::enter_process_volume()
         return true;
     }
 
-    auto volume_result = DeviceHelper::call_function_sync<double>(DeviceHelper::FunctionId::GetAudioPlayerVolume);
+    auto volume_result = AudioPlaybackHelper::call_function_sync<double>(AudioPlaybackHelper::FunctionId::GetVolume);
     BROOKESIA_CHECK_FALSE_RETURN(volume_result, false, "Failed to get volume: %1%", volume_result.error());
 
     current_volume_ = static_cast<int>(volume_result.value());
@@ -556,8 +588,8 @@ bool ScreenSettings::enter_process_volume()
         });
         BROOKESIA_CHECK_FALSE_EXIT(send_result, "Failed to send volume update task");
     };
-    volume_changed_connection_ = DeviceHelper::subscribe_event(
-                                     DeviceHelper::EventId::AudioPlayerVolumeChanged, volume_changed_slot
+    volume_changed_connection_ = AudioPlaybackHelper::subscribe_event(
+                                     AudioPlaybackHelper::EventId::VolumeChanged, volume_changed_slot
                                  );
     BROOKESIA_CHECK_FALSE_RETURN(
         volume_changed_connection_.connected(), false, "Failed to subscribe to volume changed event"

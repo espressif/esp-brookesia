@@ -6,8 +6,8 @@
 :link_to_translation:`en:[English]`
 
 - 组件注册表： `espressif/brookesia_service_audio <https://components.espressif.com/components/espressif/brookesia_service_audio>`_
-- 辅助头文件： ``#include "brookesia/service_helper/audio.hpp"``
-- 辅助类： ``esp_brookesia::service::helper::Audio``
+- 辅助头文件： ``#include "brookesia/service_helper/media/audio.hpp"``
+- 辅助类： ``esp_brookesia::service::helper::AudioPlayback``、``AudioEncoder<0>``、``AudioDecoder<0>``
 
 .. _service-audio-sec-01:
 

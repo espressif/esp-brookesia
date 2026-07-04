@@ -1,0 +1,104 @@
+{
+    "type": "constant",
+    "data": {
+        "ui": {
+            "metric": {
+                "titleFont": "22sp",
+                "sectionTitleFont": "13sp",
+                "bodyFont": "13sp",
+                "captionFont": "14sp"
+            },
+            "content": {
+                "metric": {
+                    "x": "8dp",
+                    "y": "42dp",
+                    "width": "${expr(${env.widthDp} - 16dp)}",
+                    "height": "${expr(${env.heightDp} - 98dp)}",
+                    "gap": "10dp",
+                    "cardPadding": "12dp",
+                    "searchWidth": "${expr(${env.widthDp} - 24dp)}",
+                    "launcherGridTop": "18dp",
+                    "launcherColumns": 2,
+                    "launcherGridWidth": "242dp",
+                    "launcherItemWidth": "112dp",
+                    "launcherItemHeight": "112dp",
+                    "launcherItemGap": "18dp",
+                    "launcherIconTileSize": "92dp",
+                    "launcherIconSize": "92dp",
+                    "launcherLabelGap": "4dp",
+                    "launcherTitleBoxHeight": "16dp",
+                    "summaryHeight": "62dp",
+                    "metricCardWidth": "108dp",
+                    "metricCardHeight": "74dp",
+                    "wideCardHeight": "124dp",
+                    "notificationHeight": "78dp"
+                }
+            },
+            "overlay": {
+                "metric": {
+                    "topBarHeight": "36dp",
+                    "statusBarCollapsedY": -36,
+                    "statusPaddingX": "10dp",
+                    "statusLeftWidth": "${expr(${env.widthDp} - 20dp)}",
+                    "statusBrandWidth": "76dp",
+                    "statusTitleWidth": "${expr(${env.widthDp} - 110dp)}",
+                    "statusRightWidth": "0dp",
+                    "statusPillHeight": "22dp",
+                    "statusPillWidth": "54dp",
+                    "statusPillFont": "11sp",
+                    "statusClockWidth": "54dp",
+                    "statusClockFont": "11sp",
+                    "gestureIndicatorWidth": "132dp",
+                    "gestureIndicatorHeight": "6dp",
+                    "gestureIndicatorBottom": "12dp",
+                    "gestureExitDistance": 96,
+                    "gestureExitHoldMs": 300,
+                    "gestureReboundMs": 180,
+                    "statusPeekDistance": 48,
+                    "statusPeekHoldMs": 1500,
+                    "navFlow": "row",
+                    "navTopFlow": "row",
+                    "navExpandedX": 0,
+                    "navExpandedY": "${expr(${env.heightDp} - 50dp)}",
+                    "navCollapsedX": 0,
+                    "navCollapsedY": "${env.heightDp}",
+                    "navWidth": "${env.widthDp}",
+                    "navHeight": "50dp",
+                    "railPaddingX": "10dp",
+                    "railPaddingTop": "7dp",
+                    "railPaddingBottom": "7dp",
+                    "navSectionGap": "10dp",
+                    "navButtonGap": "10dp",
+                    "navBottomHeight": "40dp",
+                    "navButton": "36dp",
+                    "navIcon": "22dp",
+                    "handleWidth": "56dp",
+                    "handleHeight": "24dp",
+                    "handleX": "${expr((${env.widthDp} - 56dp) / 2)}",
+                    "handleY": "${expr(${env.heightDp} - 24dp)}"
+                }
+            },
+            "keyboard": {
+                "iconSize": "20dp",
+                "marginX": "4dp",
+                "inputY": "4dp",
+                "marginBottom": "4dp",
+                "panelHeight": "264dp",
+                "panelPadding": "6dp",
+                "panelGap": "6dp",
+                "inputHeight": "32dp",
+                "inputFontSize": "18sp",
+                "keyFontSize": "18sp",
+                "eyeButtonSize": "28dp",
+                "eyeIconSize": "20dp",
+                "eyeInset": "4dp",
+                "popoverHeight": "53dp",
+                "keyboardHeight": "210dp"
+            },
+            "messageDialog": {
+                "contentWidth": "300dp",
+                "buttonWidth": "120dp"
+            }
+        }
+    }
+}

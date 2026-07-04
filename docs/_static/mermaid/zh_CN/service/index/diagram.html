@@ -1,0 +1,40 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;App / Agent&lt;br/&gt;· 运行时调用方&lt;br/&gt;· 业务逻辑入口&quot;]
+    B[&quot;**Service Helper**&lt;br/&gt;· 类型安全 schema&lt;br/&gt;· 辅助调用封装&quot;]
+    C[&quot;**Service Manager**&lt;br/&gt;· 插件生命周期&lt;br/&gt;· 函数路由与事件分发&lt;br/&gt;· 本地调用&quot;]
+    D[&quot;**网络服务**&lt;br/&gt;· Wi-Fi&lt;br/&gt;· HTTP&lt;br/&gt;· SNTP&quot;]
+    E[&quot;**媒体服务**&lt;br/&gt;· Audio&lt;br/&gt;· Video&lt;br/&gt;· Display&quot;]
+    F[&quot;**系统服务**&lt;br/&gt;· Storage&lt;br/&gt;· Device&quot;]
+    G[&quot;**AI 智能体**&lt;br/&gt;· Agent Manager&lt;br/&gt;· Coze / OpenAI / 小智&quot;]
+    H[&quot;**AI 表达**&lt;br/&gt;· Emote 表情驱动&quot;]
+    I[&quot;**模拟器服务**&lt;br/&gt;· NES 模拟&quot;]
+    J[&quot;**自定义服务**&lt;br/&gt;· 产品自定义能力&lt;br/&gt;· 基于 Custom 模板&quot;]
+
+    A --&gt;|&quot;调用辅助接口&quot;| B
+    B --&gt;|&quot;绑定服务能力&quot;| C
+    C --&gt;|&quot;托管网络服务&quot;| D
+    C --&gt;|&quot;托管媒体服务&quot;| E
+    C --&gt;|&quot;托管系统服务&quot;| F
+    C --&gt;|&quot;托管智能体&quot;| G
+    C --&gt;|&quot;托管表达服务&quot;| H
+    C --&gt;|&quot;托管模拟器服务&quot;| I
+    C --&gt;|&quot;注册自定义服务&quot;| J
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

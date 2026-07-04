@@ -1,0 +1,32 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;App / 用户代码&quot;]
+    B[&quot;**ServiceManager**&lt;br/&gt;· 服务发现&lt;br/&gt;· 生命周期协调&lt;br/&gt;· 绑定入口&quot;]
+    C[&quot;**ServiceBinding**&lt;br/&gt;· 持有服务引用&lt;br/&gt;· 提供访问封装&lt;br/&gt;· 管理调用上下文&quot;]
+    D[&quot;**ServiceBase**&lt;br/&gt;· 服务实例基类&lt;br/&gt;· 函数与事件容器&lt;br/&gt;· 权限检查入口&quot;]
+    E[&quot;**函数注册表**&lt;br/&gt;· 命名函数&lt;br/&gt;· 参数 schema&lt;br/&gt;· 同步/异步执行&quot;]
+    F[&quot;**事件注册表**&lt;br/&gt;· 事件名称&lt;br/&gt;· 订阅者列表&lt;br/&gt;· 通知派发&quot;]
+
+    A --&gt;|&quot;bind()&quot;| B
+    B --&gt;|&quot;返回 binding&quot;| C
+    C --&gt;|&quot;get_service()&quot;| D
+    D --&gt;|&quot;注册函数&quot;| E
+    D --&gt;|&quot;注册事件&quot;| F
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

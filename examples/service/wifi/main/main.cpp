@@ -9,8 +9,10 @@
 #include <string>
 #define BROOKESIA_LOG_TAG "Main"
 #include "brookesia/lib_utils.hpp"
+#include "brookesia/hal_interface.hpp"
+#include "brookesia/hal_adaptor.hpp"
 #include "brookesia/service_manager.hpp"
-#include "brookesia/service_helper/wifi.hpp"
+#include "brookesia/service_helper/network/wifi.hpp"
 
 // #define EXAMPLE_WIFI_SSID ""
 // #define EXAMPLE_WIFI_PSW  ""
@@ -58,11 +60,10 @@ extern "C" void app_main(void)
     auto &service_manager = service::ServiceManager::get_instance();
     BROOKESIA_CHECK_FALSE_EXIT(service_manager.init(), "Failed to initialize ServiceManager");
     BROOKESIA_CHECK_FALSE_EXIT(service_manager.start(), "Failed to start ServiceManager");
-
     // Use FunctionGuard for cleanup
     lib_utils::FunctionGuard shutdown_guard([&service_manager]() {
         BROOKESIA_LOGI("Shutting down ServiceManager...");
-        service_manager.stop();
+        service_manager.deinit();
     });
 
     // Check if the service is available
@@ -587,7 +588,7 @@ static bool demo_wifi_reset_data()
     BROOKESIA_CHECK_FALSE_RETURN(get_wifi_connected_aps(connected_aps), false, "Failed to get connected APs");
     BROOKESIA_LOGI("Connected APs before reset: %1%", connected_aps);
 
-    // Reset all WiFi data (clears NVS stored credentials)
+    // Reset all WiFi data (clears Storage-stored credentials)
     auto reset_result = WifiHelper::call_function_sync(WifiHelper::FunctionId::ResetData);
     BROOKESIA_CHECK_FALSE_RETURN(reset_result, false, "Failed to reset data: %1%", reset_result.error());
     BROOKESIA_LOGI("WiFi data reset successfully");

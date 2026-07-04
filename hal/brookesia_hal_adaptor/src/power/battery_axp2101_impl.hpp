@@ -11,7 +11,7 @@
 
 namespace esp_brookesia::hal {
 
-class BatteryAxp2101Impl : public PowerBatteryIface {
+class BatteryAxp2101Impl : public power::BatteryIface {
 public:
     BatteryAxp2101Impl();
     ~BatteryAxp2101Impl() override;

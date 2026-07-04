@@ -5,84 +5,127 @@
 PROJECT_NAME = "ESP-Brookesia Public API Reference"
 
 INPUT = \
-    $(PROJECT_PATH)/agent/brookesia_agent_helper/include/brookesia/agent_helper/coze.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_helper/include/brookesia/agent_helper/manager.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_helper/include/brookesia/agent_helper/openai.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_helper/include/brookesia/agent_helper/xiaozhi.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_helper/include/brookesia/agent_helper.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_coze/include/brookesia/agent_coze/agent_coze.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_coze/include/brookesia/agent_coze.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_manager/include/brookesia/agent_manager/base.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_manager/include/brookesia/agent_manager/manager.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_manager/include/brookesia/agent_manager/state_machine.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_manager/include/brookesia/agent_manager.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_openai/include/brookesia/agent_openai/agent_openai.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_openai/include/brookesia/agent_openai.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_xiaozhi/include/brookesia/agent_xiaozhi/agent_xiaozhi.hpp \
-    $(PROJECT_PATH)/agent/brookesia_agent_xiaozhi/include/brookesia/agent_xiaozhi.hpp \
-    $(PROJECT_PATH)/expression/brookesia_expression_emote/include/brookesia/expression_emote/emote.hpp \
-    $(PROJECT_PATH)/expression/brookesia_expression_emote/include/brookesia/expression_emote.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/coze.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/manager.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/openai.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/xiaozhi.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_coze/include/brookesia/agent_coze/agent_coze.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_coze/include/brookesia/agent_coze.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_manager/include/brookesia/agent_manager/base.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_manager/include/brookesia/agent_manager/manager.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_manager/include/brookesia/agent_manager/state_machine.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_manager/include/brookesia/agent_manager.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_openai/include/brookesia/agent_openai/agent_openai.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_openai/include/brookesia/agent_openai.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_xiaozhi/include/brookesia/agent_xiaozhi/agent_xiaozhi.hpp \
+    $(PROJECT_PATH)/service/agent/brookesia_agent_xiaozhi/include/brookesia/agent_xiaozhi.hpp \
+    $(PROJECT_PATH)/service/expression/brookesia_expression_emote/include/brookesia/expression_emote/emote.hpp \
+    $(PROJECT_PATH)/service/expression/brookesia_expression_emote/include/brookesia/expression_emote.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/audio/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/general/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/network/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/system/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/video/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/wifi/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/codec_player.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/codec_recorder.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/audio/processor.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/backlight.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/panel.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/touch.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/general/board_info.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/connectivity.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/http_client.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/sntp_client.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interface.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/power/battery.hpp \
-    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/storage/fs.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/storage/file_system.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/storage/key_value.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/system/board_info.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/system/ota_updater.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/video/camera.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/video/processor.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/wifi/basic.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/wifi/softap.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/wifi/station.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/wifi/types.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_audio/include/brookesia/service_audio/service_audio.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_audio/include/brookesia/service_audio.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_custom/include/brookesia/service_custom/service_custom.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_custom/include/brookesia/service_custom.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_device/include/brookesia/service_device/service_device.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_device/include/brookesia/service_device.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/audio.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/base.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/device.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/expression/emote.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/nvs.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/sntp.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/video.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper/wifi.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_helper/include/brookesia/service_helper.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/common.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/event/definition.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/event/dispatcher.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/event/registry.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/function/definition.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/function/registry.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/client.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/connection.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_base.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_client.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/data_link_server.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/protocol.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/rpc/server.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/service/base.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/service/local_runner.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager/service/manager.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_manager/include/brookesia/service_manager.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_nvs/include/brookesia/service_nvs/service_nvs.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_nvs/include/brookesia/service_nvs.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_sntp/include/brookesia/service_sntp/service_sntp.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_sntp/include/brookesia/service_sntp.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_video/include/brookesia/service_video/decoder.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_video/include/brookesia/service_video/encoder.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_video/include/brookesia/service_video.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_wifi/include/brookesia/service_wifi/hal/hal.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_wifi/include/brookesia/service_wifi/hal/softap.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_wifi/include/brookesia/service_wifi/hal/type.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_wifi/include/brookesia/service_wifi/service_wifi.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_wifi/include/brookesia/service_wifi/state_machine.hpp \
-    $(PROJECT_PATH)/service/brookesia_service_wifi/include/brookesia/service_wifi.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_audio/include/brookesia/service_audio/service_audio.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_audio/include/brookesia/service_audio.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_custom/include/brookesia/service_custom/service_custom.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_custom/include/brookesia/service_custom.hpp \
+    $(PROJECT_PATH)/service/system/brookesia_service_device/include/brookesia/service_device/service_device.hpp \
+    $(PROJECT_PATH)/service/system/brookesia_service_device/include/brookesia/service_device.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_display/include/brookesia/service_display/service_display.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_display/include/brookesia/service_display/types.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_display/include/brookesia/service_display.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/audio.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/helper/base.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/system/device.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/display.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/expression/emote.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/http.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/emulation/nes.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/sntp.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/system/storage.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/video.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/common.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/definition.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/event/registry.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/definition.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/registry.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/base.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/local_runner.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_http/include/brookesia/service_http/service_http.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_http/include/brookesia/service_http/state_machine.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_http/include/brookesia/service_http.hpp \
+    $(PROJECT_PATH)/service/emulation/brookesia_emulation_nes/include/brookesia/emulation_nes/emulation_nes.hpp \
+    $(PROJECT_PATH)/service/emulation/brookesia_emulation_nes/include/brookesia/emulation_nes.hpp \
+    $(PROJECT_PATH)/service/system/brookesia_service_storage/include/brookesia/service_storage/service_storage.hpp \
+    $(PROJECT_PATH)/service/system/brookesia_service_storage/include/brookesia/service_storage.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_sntp/include/brookesia/service_sntp/service_sntp.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_sntp/include/brookesia/service_sntp.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_video/include/brookesia/service_video/decoder.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_video/include/brookesia/service_video/encoder.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_video/include/brookesia/service_video.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_wifi/include/brookesia/service_wifi/hal/type.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_wifi/include/brookesia/service_wifi/service_wifi.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_wifi/include/brookesia/service_wifi/state_machine.hpp \
+    $(PROJECT_PATH)/service/network/brookesia_service_wifi/include/brookesia/service_wifi.hpp \
+    $(PROJECT_PATH)/app/brookesia_app_files/include/brookesia/app_files/files_app.hpp \
+    $(PROJECT_PATH)/app/brookesia_app_files/include/brookesia/app_files.hpp \
+    $(PROJECT_PATH)/app/brookesia_app_settings/include/brookesia/app_settings/settings_app.hpp \
+    $(PROJECT_PATH)/app/brookesia_app_settings/include/brookesia/app_settings.hpp \
+    $(PROJECT_PATH)/app/brookesia_app_store/include/brookesia/app_store/app_store_app.hpp \
+    $(PROJECT_PATH)/app/brookesia_app_store/include/brookesia/app_store.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_manager/include/brookesia/runtime_manager/backend.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_manager/include/brookesia/runtime_manager/function_bridge.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_manager/include/brookesia/runtime_manager/host_bridge.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_manager/include/brookesia/runtime_manager/runtime.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_manager/include/brookesia/runtime_manager/types.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_manager/include/brookesia/runtime_manager.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_elf/include/brookesia/runtime_elf/backend.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_elf/include/brookesia/runtime_elf.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_js/include/brookesia/runtime_js/backend.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_js/include/brookesia/runtime_js.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_lua/include/brookesia/runtime_lua/backend.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_lua/include/brookesia/runtime_lua.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_wasm/include/brookesia/runtime_wasm/backend.hpp \
+    $(PROJECT_PATH)/runtime/brookesia_runtime_wasm/include/brookesia/runtime_wasm.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core/app/context.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core/app/iapp.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core/app/types.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core/package.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core/system/storage.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core/system/system.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_core/include/brookesia/system_core.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_super/include/brookesia/system_super/system.hpp \
+    $(PROJECT_PATH)/system/brookesia_system_super/include/brookesia/system_super.hpp \
     $(PROJECT_PATH)/utils/brookesia_lib_utils/include/brookesia/lib_utils/check.hpp \
     $(PROJECT_PATH)/utils/brookesia_lib_utils/include/brookesia/lib_utils/describe_helpers.hpp \
     $(PROJECT_PATH)/utils/brookesia_lib_utils/include/brookesia/lib_utils/function_guard.hpp \
@@ -122,3 +165,5 @@ GENERATE_RTF = NO
 
 QUIET = YES
 WARN_LOGFILE = "doxygen-warning-log.txt"
+
+DOT_GRAPH_MAX_NODES = 100

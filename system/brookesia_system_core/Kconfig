@@ -1,0 +1,170 @@
+menu "ESP-Brookesia: System Core Configurations"
+    config BROOKESIA_SYSTEM_CORE_RUNTIME_APP_MAX_Z_ORDER
+        int "Maximum runtime app z_order"
+        default 100
+        range 0 1000
+        help
+            The maximum z_order that runtime app manifest GUI screen flows can request.
+            Native system apps can use higher values for trusted overlays.
+
+    menuconfig BROOKESIA_SYSTEM_CORE_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    if BROOKESIA_SYSTEM_CORE_ENABLE_DEBUG_LOG
+        config BROOKESIA_SYSTEM_CORE_SYSTEM_ENABLE_DEBUG_LOG
+            bool "System"
+            default y
+
+        config BROOKESIA_SYSTEM_CORE_SERVICE_ENABLE_DEBUG_LOG
+            bool "Service"
+            default y
+    endif
+
+    config BROOKESIA_SYSTEM_HEAP_TRACE_APP_START
+        bool "Trace heap usage while starting and stopping apps"
+        default n
+        help
+            Print phase-by-phase heap snapshots around app install/start/stop paths.
+            This is intended for ESP memory attribution debugging. It reports internal
+            SRAM, PSRAM and 8-bit heap free/largest-block values without changing app
+            behavior.
+
+    config BROOKESIA_SYSTEM_CORE_RUNTIME_ASYNC_DEBUG_PROBE
+        bool "Enable runtime async debug probe"
+        default n
+        help
+            Register a debug-only JavaScript native function used to verify runtime
+            async timeout behavior. This is intended for tests and diagnostics only.
+
+    menu "ESP runtime paths"
+        config BROOKESIA_SYSTEM_CORE_ESP_RUNTIME_INTERNAL_ROOT
+            string "Internal runtime root"
+            default "/littlefs"
+            help
+                The device-side internal runtime storage root used by ESP runtime
+                apps and system resources.
+
+        config BROOKESIA_SYSTEM_CORE_ESP_RUNTIME_APP_ROOT
+            string "Runtime app root"
+            default ""
+            help
+                The device-side runtime app root. If empty, the build derives it
+                from the internal runtime root as <internal>/apps.
+
+        config BROOKESIA_SYSTEM_CORE_ESP_RUNTIME_SYSTEM_ROOT
+            string "Runtime system resource root"
+            default ""
+            help
+                The device-side runtime system resource root. If empty, the build
+                derives it from the internal runtime root as <internal>/system.
+
+        config BROOKESIA_SYSTEM_CORE_ESP_RESOURCE_STAGE_ROOT
+            string "Host resource staging root"
+            default ""
+            help
+                The host-side staging root for runtime resources. If empty, the
+                build stages under the project directory by using the first path
+                segment of the device-side runtime root, for example
+                ${PROJECT_DIR}/littlefs.
+    endmenu
+
+    menu "Application package (.bpk)"
+
+        config BROOKESIA_SYSTEM_CORE_ENABLE_PACKAGE_RELEASE_VERIFY
+            bool "Enable release signature verification (mbedTLS, META-INF)"
+            default y
+            help
+                When enabled, links mbedTLS and compiles verify_app_package_release() with the same rules as
+                tools/app_pack.py verify: RSA-PSS-SHA256 over META-INF/hash.json bytes, then per-member SHA-256
+                (META-INF/hash.json + META-INF/signature.sig inside the .bpk only).
+                Disable to save flash/code if your product never calls verify on device.
+
+        config BROOKESIA_SYSTEM_CORE_ENABLE_PACKAGE_PAYLOAD_ENCRYPTION
+            bool "Enable packaged app payload encryption (reserved)"
+            default n
+            help
+                Not implemented. Release signing (META-INF digest integrity) is separate from content encryption.
+
+    endmenu
+
+    menu "Worker"
+        menu "General"
+            config BROOKESIA_SYSTEM_CORE_WORKER_NAME_PREFIX
+                string "Name prefix"
+                default "SystemWorker"
+                help
+                    The name prefix of system task scheduler worker threads.
+                    The worker index is appended to this prefix.
+
+            config BROOKESIA_SYSTEM_CORE_WORKER_PRIORITY
+                int "Priority"
+                default 10
+                help
+                    The priority of system task scheduler worker threads.
+
+            config BROOKESIA_SYSTEM_CORE_WORKER_STACK_SIZE
+                int "Stack size"
+                default 65536
+                help
+                    The stack size of system task scheduler worker threads. These
+                    workers can run GUI document loading and FreeType glyph rendering,
+                    so keep enough headroom for complex fonts.
+
+            config BROOKESIA_SYSTEM_CORE_WORKER_STACK_IN_EXT
+                bool "Stack in external memory"
+                default y if SPIRAM
+                default n if !SPIRAM
+                help
+                    Whether the stack of system task scheduler worker threads is allocated in external memory.
+
+            config BROOKESIA_SYSTEM_CORE_WORKER_POLL_INTERVAL_MS
+                int "Poll interval (ms)"
+                default 5
+                range 1 10
+                help
+                    The system task scheduler worker poll interval.
+        endmenu
+
+        config BROOKESIA_SYSTEM_CORE_WORKER_NUM
+            int "Number of workers"
+            default 3
+            range 1 4
+            help
+                The number of system task scheduler worker threads.
+
+        config BROOKESIA_SYSTEM_CORE_WORKER_0_CORE_ID
+            int "Core ID of Worker 0"
+            range -1 1
+            default 0
+            help
+                The core ID of Worker 0. `-1` means the core ID is not specified.
+
+        if BROOKESIA_SYSTEM_CORE_WORKER_NUM >= 2
+            config BROOKESIA_SYSTEM_CORE_WORKER_1_CORE_ID
+                int "Core ID of Worker 1"
+                range -1 1
+                default 1
+                help
+                    The core ID of Worker 1. `-1` means the core ID is not specified.
+        endif
+
+        if BROOKESIA_SYSTEM_CORE_WORKER_NUM >= 3
+            config BROOKESIA_SYSTEM_CORE_WORKER_2_CORE_ID
+                int "Core ID of Worker 2"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 2. `-1` means the core ID is not specified.
+        endif
+
+        if BROOKESIA_SYSTEM_CORE_WORKER_NUM >= 4
+            config BROOKESIA_SYSTEM_CORE_WORKER_3_CORE_ID
+                int "Core ID of Worker 3"
+                range -1 1
+                default -1
+                help
+                    The core ID of Worker 3. `-1` means the core ID is not specified.
+        endif
+    endmenu
+endmenu

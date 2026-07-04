@@ -1,0 +1,208 @@
+{
+    "type": "viewScreen",
+    "id": "my_device",
+    "mountMode": "dynamic",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "hero",
+                    "style": {
+                        "bgColor": "${color.primary.fill}",
+                        "radius": "${constant.settings.layout.cardRadius}",
+                        "padding": "${constant.settings.layout.cardPadding}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "150dp",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "brand",
+                            "style": {
+                                "textColor": "${color.primary.on}",
+                                "fontSize": "${constant.settings.font.caption}"
+                            },
+                            "labelProps": {
+                                "text": "ESP-Brookesia"
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": "0dp",
+                                "y": "0dp",
+                                "width": "wrap",
+                                "height": "wrap"
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            }
+                        },
+                        {
+                            "type": "container",
+                            "id": "hero_content",
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "column",
+                                "mainAlign": "center",
+                                "crossAlign": "center",
+                                "gap": "8dp"
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": "0dp",
+                                "y": "0dp",
+                                "width": "match",
+                                "height": "match"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "os",
+                                    "style": {
+                                        "textColor": "${color.primary.on}",
+                                        "fontSize": "${constant.settings.font.hero}"
+                                    },
+                                    "labelProps": {
+                                        "text": "System"
+                                    },
+                                    "placement": {
+                                        "mode": "flow"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                },
+                                {
+                                    "type": "label",
+                                    "id": "version",
+                                    "styleRefs": [
+                                        "app.cardSubtitle"
+                                    ],
+                                    "labelProps": {
+                                        "text": "--"
+                                    },
+                                    "placement": {
+                                        "mode": "flow"
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "summary_card",
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "${constant.settings.layout.cardPadding}"
+                    },
+                    "layout": {
+                        "type": "grid",
+                        "gridTemplateColumns": [
+                            "${constant.settings.layout.navValueColumn}",
+                            "match"
+                        ],
+                        "gridTemplateRows": [
+                            "${constant.settings.layout.smallRowHeight}"
+                        ],
+                        "gap": "10dp",
+                        "crossAlign": "center"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "device_label",
+                            "styleRefs": [
+                                "app.listItemTitle"
+                            ],
+                            "labelProps": {
+                                "text": "Device name"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "gridColumn": 0,
+                                "gridRow": 0,
+                                "alignSelf": "center"
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "device_value",
+                            "styleRefs": [
+                                "app.listItemValue"
+                            ],
+                            "labelProps": {
+                                "text": "Brookesia Dev Kit"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "gridColumn": 1,
+                                "gridRow": 0,
+                                "alignSelf": "center"
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "hardware_groups",
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "${constant.settings.layout.pageGap}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    }
+                }
+            ]
+        }
+    ]
+}

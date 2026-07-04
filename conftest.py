@@ -16,6 +16,9 @@ from pytest_embedded.plugin import multi_dut_argument, multi_dut_fixture
 
 IDF_VERSION = os.environ.get('IDF_VERSION')
 PYTEST_ROOT_DIR = str(pathlib.Path(__file__).parent)
+_GITLAB_TOOLS_PATH = str(pathlib.Path(__file__).parent / '.gitlab' / 'tools')
+if _GITLAB_TOOLS_PATH not in sys.path:
+    sys.path.insert(0, _GITLAB_TOOLS_PATH)
 logging.info(f'Pytest root dir: {PYTEST_ROOT_DIR}')
 
 

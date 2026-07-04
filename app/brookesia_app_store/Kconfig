@@ -1,0 +1,24 @@
+menu "ESP-Brookesia: App Store Configurations"
+    config BROOKESIA_APP_STORE_SERVER_ROOT_URL
+        string "App Store server root URL"
+        default "https://brookesia-app-store.espressif.com/api/v1"
+        help
+            Root URL of the App Store API. The App Store reads index.json from this directory and
+            fetches per-app metadata from apps/<package_name>/versions/<version>/metadata.json.
+
+    config BROOKESIA_APP_STORE_INDEX_URL
+        string "App Store legacy index URL override"
+        default ""
+        help
+            Optional legacy override for the App Store index JSON. For a local development server, use a URL such as:
+            http://<host-ip>:65535/app_store/index.json
+
+            Leave empty to use BROOKESIA_APP_STORE_SERVER_ROOT_URL/index.json.
+
+    config BROOKESIA_APP_STORE_LIST_PAGE_SIZE
+        int "App Store list page size"
+        range 1 30
+        default 5
+        help
+            Number of app rows shown per page in Store, Installed, and Local tabs.
+endmenu

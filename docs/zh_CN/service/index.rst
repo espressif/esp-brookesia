@@ -1,68 +1,37 @@
 .. _service-index-sec-00:
 
 服务组件
-============
+==========
 
 :link_to_translation:`en:[English]`
 
-本分类包含 ESP-Brookesia 服务框架组件的说明内容。ESP-Brookesia 服务框架由服务框架层和通用服务层组成，各组件的层级关系如下：
+本分类说明 ESP-Brookesia 服务框架以及可发布的 service 族组件。
 
 .. only:: html
 
-   .. mermaid::
-
-      flowchart TD
-          App["App / 用户代码"]
-          Helper["**brookesia_service_helper**<br/>· CRTP 类型安全辅助基类<br/>· 函数 / 事件 Schema 定义<br/>· call_function / subscribe_event"]
-          Manager["**brookesia_service_manager**<br/>· 服务插件生命周期管理<br/>· 本地线程安全调用 & TCP RPC 远程调用<br/>· 函数注册表 & 事件注册表"]
-          Services["**通用服务（基于 service_helper 实现）**<br/>NVS · SNTP · Wi-Fi · 音频 · 设备控制 · 视频 · 自定义"]
-
-          App -->|"调用函数 / 订阅事件"| Helper
-          Helper -->|"构建在"| Manager
-          Services -->|"注册为插件"| Manager
+   .. raw:: html
+      :file: ../../_static/mermaid/zh_CN/service/index/diagram.html
 
 .. only:: latex
 
-   .. image:: ../../_static/service/index_diagram_cn.png
+   .. image:: ../../_static/mermaid/zh_CN/service/index/diagram.png
       :width: 100%
 
-- ``brookesia_service_manager``：服务框架核心，负责服务插件注册、本地/RPC 两种通信模式下的函数路由与事件分发
-- ``brookesia_service_helper``：基于 CRTP 的类型安全辅助层，简化服务的函数/事件定义与调用方式
-- **通用服务**：基于 ``service_helper`` 实现的具体业务服务，注册到 ``service_manager`` 后可被上层按名称发现和调用
+.. rubric:: 组件职责
 
-.. _service-index-sec-01:
+- Service Manager 负责插件生命周期、函数路由、事件分发和本地调用。
+- Service Helper 提供类型安全 schema 和辅助调用。
+- service 族按 framework、network、media、system-service、agent、expression 和 emulation 组件组织。
 
-服务框架
---------
-
-.. toctree::
-   :maxdepth: 1
-
-   服务管理器 <manager/index>
-   服务辅助 <helper/index>
-
-.. _service-index-sec-02:
-
-通用服务
---------
+.. rubric:: 组件类别
 
 .. toctree::
    :maxdepth: 1
 
-   NVS <nvs>
-   SNTP <sntp>
-   Wi-Fi <wifi>
-   音频 <audio>
-   设备控制 <device>
-   视频 <video>
-   自定义 <custom>
-
-.. _service-index-sec-03:
-
-开发指南
---------
-
-.. toctree::
-   :maxdepth: 1
-
-   应用开发指南 <usage>
+   服务框架 <framework/index>
+   网络服务 <network/index>
+   媒体服务 <media/index>
+   系统服务 <system/index>
+   AI 智能体 <agent/index>
+   AI 表达 <expression/index>
+   模拟器服务 <emulation/index>

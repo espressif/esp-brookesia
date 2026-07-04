@@ -1,0 +1,105 @@
+{
+    "type": "viewTemplate",
+    "id": "wifi_connected_item",
+    "node": {
+        "type": "button",
+        "interactionRefs": [
+            "press.item"
+        ],
+        "commonProps": {
+            "hidden": true,
+            "scrollable": false
+        },
+        "bindings": {
+            "commonProps.hidden": "commonProps.hidden"
+        },
+        "styleRefs": [
+            "app.card"
+        ],
+        "style": {
+            "bgColor": "${color.primary.soft}",
+            "borderColor": "${color.primary.fill}",
+            "padding": "12dp"
+        },
+        "layout": {
+            "type": "grid",
+            "gridTemplateColumns": [
+                "match"
+            ],
+            "gridTemplateRows": [
+                "match"
+            ],
+            "gap": "0dp",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.settings.layout.wifiConnectedHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "text",
+                "commonProps": {
+                    "clickable": false,
+                    "scrollable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "mainAlign": "center",
+                    "gap": "3dp"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 0,
+                    "gridRow": 0,
+                    "width": "match",
+                    "alignSelf": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "ssid",
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "styleRefs": [
+                            "app.listItemTitle"
+                        ],
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        },
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "placement": {
+                            "mode": "flow"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "detail",
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "styleRefs": [
+                            "app.cardSubtitle"
+                        ],
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        },
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "placement": {
+                            "mode": "flow"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

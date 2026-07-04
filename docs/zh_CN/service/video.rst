@@ -6,7 +6,7 @@
 :link_to_translation:`en:[English]`
 
 - 组件注册表： `espressif/brookesia_service_video <https://components.espressif.com/components/espressif/brookesia_service_video>`_
-- 辅助头文件： ``#include "brookesia/service_helper/video.hpp"``
+- 辅助头文件： ``#include "brookesia/service_helper/media/video.hpp"``
 - 辅助类： ``esp_brookesia::service::helper::Video``
 
 .. _service-video-sec-01:

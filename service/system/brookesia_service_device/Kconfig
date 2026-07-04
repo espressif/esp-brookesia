@@ -1,0 +1,58 @@
+menu "ESP-Brookesia: Service Device Configurations"
+    config BROOKESIA_SERVICE_DEVICE_ENABLE_AUTO_REGISTER
+        bool "Enable automatic plugin registration"
+        default y
+        help
+            Automatically register the service as a plugin on startup.
+
+    menuconfig BROOKESIA_SERVICE_DEVICE_ENABLE_DEBUG_LOG
+        bool "Enable debug or lower level logs"
+        default n
+
+    menuconfig BROOKESIA_SERVICE_DEVICE_ENABLE_WORKER
+        bool "Enable worker"
+        default n
+
+    if BROOKESIA_SERVICE_DEVICE_ENABLE_WORKER
+        config BROOKESIA_SERVICE_DEVICE_WORKER_NAME
+            string "Name"
+            default "SvcDevice"
+            help
+                The name of the worker thread.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_CORE_ID
+            int "Core ID"
+            default -1
+            help
+                The core ID of the worker thread. `-1` means the core ID is not specified.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_PRIORITY
+            int "Priority"
+            default 5
+            help
+                The priority of the worker thread.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_STACK_SIZE
+            int "Stack size"
+            default 6144
+            help
+                The stack size of the worker thread.
+
+        config BROOKESIA_SERVICE_DEVICE_WORKER_POLL_INTERVAL_MS
+            int "Poll interval (ms)"
+            default 10
+            range 1 100
+            help
+                The interval of the worker poll.
+    endif
+
+    menu "Power Battery"
+        config BROOKESIA_SERVICE_DEVICE_POWER_BATTERY_POLL_INTERVAL_MS
+            int "Battery poll interval (ms)"
+            default 1000
+            range 100 60000
+            help
+                Poll interval used to refresh battery state and battery charge configuration snapshots.
+    endmenu
+
+endmenu

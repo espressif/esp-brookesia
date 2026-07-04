@@ -1,0 +1,17 @@
+menu "ESP-Brookesia: Settings App Configurations"
+    config BROOKESIA_APP_SETTINGS_WIFI_MAX_VISIBLE_APS
+        int "Wi-Fi AP list page size"
+        range 1 30
+        default 5
+        help
+            Number of saved or scanned Wi-Fi access point rows shown per page in Settings.
+            Scan results are kept as a full list and paged in the UI.
+
+    config BROOKESIA_APP_SETTINGS_ENABLE_MEMORY_TRACE
+        bool "Enable Settings memory/heap trace logs (profiling)"
+        default n
+        help
+            When enabled, the Settings app emits [HeapTrace] logs while populating the
+            Wi-Fi network lists (e.g. settings.sync_wifi slot accounting). Profiling aid
+            only; keep disabled in production builds.
+endmenu

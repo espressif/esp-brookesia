@@ -1,6 +1,6 @@
 # Quick Start Tutorial
 
-This tutorial uses running the XiaoZhi Agent as an example to show how to use the service console example.
+This tutorial walks through common service-console workflows: connecting Wi-Fi, loading emote assets, and playing audio.
 
 ## Table of Contents
 
@@ -9,10 +9,7 @@ This tutorial uses running the XiaoZhi Agent as an example to show how to use th
   - [Boot the Device](#boot-the-device)
   - [Step 1: Connect to Wi-Fi](#step-1-connect-to-wi-fi)
   - [Step 2: Start Expression Emote](#step-2-start-expression-emote)
-  - [Step 3: Start the XiaoZhi Agent](#step-3-start-the-xiaozhi-agent)
-  - [Step 4: Start a Conversation](#step-4-start-a-conversation)
-  - [Common Control Commands](#common-control-commands)
-  - [Play Audio (Optional)](#play-audio-optional)
+  - [Step 3: Play Audio](#step-3-play-audio)
 
 ## Boot the Device
 
@@ -20,7 +17,7 @@ Once the device boots successfully, press Enter to see the console prompt `esp32
 
 ## Step 1: Connect to Wi-Fi
 
-The XiaoZhi Agent requires a network connection. Connect to Wi-Fi first.
+Network audio playback requires a Wi-Fi connection. Connect to Wi-Fi first.
 
 1. **Set the Wi-Fi credentials**:
 
@@ -46,11 +43,12 @@ Wait until you see the log `Detected expected event: Connected`, which indicates
 1. **Turn on the display backlight**:
 
 ```bash
-svc_call Device SetDisplayBacklightOnOff {"On":true}
+svc_call Display SetBacklightOnOff {"OutputId":1,"On":true}
 ```
 
 > [!TIP]
-> For more `Device` commands, see [Device Control - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/device.html#helper-contract-service-device-interfaces).
+> Use `svc_call Display GetOutputs` to check the current output id if needed.
+> For more `Display` commands, see the [Display service README](../../../../service/media/brookesia_service_display/README.md).
 
 2. **Load the emote assets**:
 
@@ -58,85 +56,42 @@ svc_call Device SetDisplayBacklightOnOff {"On":true}
 svc_call Emote LoadAssetsSource {"Source":{"source":"anim_icon","type":"PartitionLabel","flag_enable_mmap":false}}
 ```
 
+3. **Display an emote emoji**:
+
+```bash
+svc_call Emote SetEmoji {"Emoji":"happy"}
+```
+
+You should now see the `happy` emote on the display. Other available emote names include `sad`, `angry`, `thinking`, `winking`, and `idle`.
+
 > [!TIP]
 > For more `Emote` commands, see [Emote - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/expression/emote.html#helper-contract-service-emote-interfaces).
 
-## Step 3: Start the XiaoZhi Agent
+## Step 3: Play Audio
 
 1. **Disable audio mute**:
 
 ```bash
-svc_call Device SetAudioPlayerMute {"Enable":false}
+svc_call AudioPlayback SetMute {"Enable":false}
 ```
 
-2. **Subscribe to the activation code event**:
+2. **Subscribe to playback-state changes**:
 
 ```bash
-svc_subscribe AgentXiaoZhi ActivationCodeReceived
+svc_subscribe AudioPlayback PlayStateChanged
 ```
 
-> [!NOTE]
-> The log may show a `Service is not bindable: AgentXiaoZhi` error at this point. This is expected — please ignore it.
-> For more `AgentXiaoZhi` commands, see [XiaoZhi - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/agent/xiaozhi.html#helper-contract-agent-xiaozhi-interfaces).
-
-3. **Set the target agent**:
-
-```bash
-svc_call AgentManager SetTargetAgent {"Name":"AgentXiaoZhi"}
-```
-
-4. **Activate the Agent**:
-
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"Activate"}
-```
-
-The log will prompt you to enter the device activation code. Enter the code in the [XiaoZhi Console](https://xiaozhi.me/console/agents) on your PC. The device will obtain authentication automatically after a short while.
-
-Wait until you see the log `No activation code or challenge found, activate successfully`, which indicates that the activation code event has been subscribed successfully.
-
-5. **Start the Agent**:
-
-```bash
-svc_call AgentManager TriggerGeneralAction {"Action":"Start"}
-```
-
-> [!TIP]
-> For more `AgentManager` commands, see [Agent Manager - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/agent/manager/index.html#helper-contract-agent-manager-interfaces).
-
-## Step 4: Start a Conversation
-
-You can now have a voice conversation with the XiaoZhi Agent.
-
-> [!TIP]
-> The Agent is configured in half-duplex mode by default, meaning that the Agent will not listen to human speech while speaking.
-> You can use the wake word (default: "Hi, ESP") to interrupt the Agent while it is speaking or to wake it from sleep.
-
-## Common Control Commands
-
-During a conversation, use the following commands to control the Agent:
-
-| Action | Command |
-|--------|---------|
-| Interrupt the Agent | `svc_call AgentManager InterruptSpeaking` |
-| Put the Agent to sleep | `svc_call AgentManager TriggerGeneralAction {"Action":"Sleep"}` |
-| Wake up the Agent | `svc_call AgentManager TriggerGeneralAction {"Action":"WakeUp"}` |
-| Stop the Agent | `svc_call AgentManager TriggerGeneralAction {"Action":"Stop"}` |
-| Check the Agent state | `svc_call AgentManager GetGeneralState` |
-
-## Play Audio (Optional)
-
-You can also use the audio service to play local or network audio:
+3. **Play local or network audio**:
 
 ```bash
 # Play local audio
-svc_call Audio PlayUrl {"Url":"file://littlefs/example.mp3"}
+svc_call AudioPlayback Play {"Url":"file://littlefs/example.mp3"}
 
 # Play network audio
-svc_call Audio PlayUrl {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}
+svc_call AudioPlayback Play {"Url":"https://dl.espressif.com/AE/esp-brookesia/example.mp3"}
 
 # Adjust volume
-svc_call Device SetAudioPlayerVolume {"Volume":null}
+svc_call AudioPlayback SetVolume {"Volume":80}
 ```
 
 > [!TIP]

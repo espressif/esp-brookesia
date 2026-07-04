@@ -3,17 +3,45 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <utility>
+
 #include "esp_log.h"
 #include "private/utils.hpp"
 #include "brookesia/hal_interface.hpp"
 #include "brookesia/hal_adaptor.hpp"
 #include "brookesia/service_manager.hpp"
-#include "modules/ai_agents.hpp"
 #include "modules/console.hpp"
 #include "modules/emote.hpp"
 #include "modules/profiler.hpp"
 
 using namespace esp_brookesia;
+
+namespace {
+
+bool configure_audio_processor()
+{
+    hal::AudioProcessorConfig processor_config{
+        .playback = {
+            .player_task = {
+                .core_id = 0,
+                .priority = 5,
+                .stack_size = 4 * 1024,
+#if CONFIG_SPIRAM_XIP_FROM_PSRAM
+                .stack_in_ext = true,
+#else
+                .stack_in_ext = false,
+#endif
+            },
+        },
+        .encoder = {},
+        .decoder = {},
+        .afe = {},
+    };
+
+    return hal::AudioDevice::get_instance().set_processor_config(std::move(processor_config));
+}
+
+} // namespace
 
 extern "C" void app_main(void)
 {
@@ -34,27 +62,6 @@ extern "C" void app_main(void)
     esp_log_level_set("AUD_SDEC", ESP_LOG_WARN);
     esp_log_level_set("AFE_CONFIG", ESP_LOG_WARN);
     esp_log_level_set("NEW_DATA_BUS", ESP_LOG_WARN);
-    esp_log_level_set("ESP_XIAOZHI_MQTT", ESP_LOG_WARN);
-    esp_log_level_set("ESP_XIAOZHI_CHAT", ESP_LOG_WARN);
-
-    /* Initialize all devices from HAL adaptor */
-#if CONFIG_SOC_CPU_CORES_NUM > 1
-    {
-        // For SPI LCDs, bus initialization and data transmission operations must be performed on the same core;
-        // otherwise, a crash may occur.
-        BROOKESIA_THREAD_CONFIG_GUARD({
-            .core_id = 1,
-        });
-        std::thread([&]() {
-            hal::init_device(hal::DisplayDevice::DEVICE_NAME);
-        }).join();
-    }
-#endif
-    hal::init_all_devices();
-
-    /* Start ServiceManager */
-    auto &service_manager = service::ServiceManager::get_instance();
-    BROOKESIA_CHECK_FALSE_EXIT(service_manager.start(), "Failed to start ServiceManager");
 
     /* Create a task scheduler for backend usage */
     std::shared_ptr<lib_utils::TaskScheduler> backend_scheduler;
@@ -80,17 +87,14 @@ extern "C" void app_main(void)
     BROOKESIA_CHECK_FALSE_EXIT(start_result, "Failed to start task scheduler");
 
     auto setup_task = [backend_scheduler]() {
-        /* Start emote */
-        Emote::get_instance().init(
-#if CONFIG_SOC_CPU_CORES_NUM > 1
-            1
-#endif
-        );
+        BROOKESIA_CHECK_FALSE_EXIT(configure_audio_processor(), "Failed to configure audio processor");
 
-        /* Initialize AI agents */
-        AI_Agents::get_instance().init({
-            .task_scheduler = backend_scheduler,
-        });
+        /* Start ServiceManager */
+        auto &service_manager = service::ServiceManager::get_instance();
+        BROOKESIA_CHECK_FALSE_EXIT(service_manager.start(), "Failed to start ServiceManager");
+
+        /* Start emote */
+        Emote::get_instance().init();
 
         /* Start profiler */
         Profiler::get_instance().init({

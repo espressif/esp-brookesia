@@ -37,7 +37,7 @@ periph_gpio_handle_t *get_gpio_handle(void *handle)
 } // namespace
 
 AudioCodecPlayerImpl::AudioCodecPlayerImpl()
-    : AudioCodecPlayerIface()
+    : audio::CodecPlayerIface()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -65,7 +65,7 @@ AudioCodecPlayerImpl::~AudioCodecPlayerImpl()
     }
 }
 
-bool AudioCodecPlayerImpl::open(const AudioCodecPlayerIface::Config &config)
+bool AudioCodecPlayerImpl::open(const audio::CodecPlayerIface::Config &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -155,6 +155,11 @@ bool AudioCodecPlayerImpl::write_data(const uint8_t *data, size_t size)
 bool AudioCodecPlayerImpl::setup_codec()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC)) {
+        BROOKESIA_LOGW("Audio DAC device not found, skip");
+        return false;
+    }
 
     auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init codec DAC");

@@ -29,13 +29,147 @@ target_test_apps_brookesia_hal_interface:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: hal/brookesia_hal_interface/test_apps
+    TEST_ENV: ${ENV_TAG}
+
+#
+# Test apps: gui
+#
+# brookesia_gui_interface
+target_test_apps_brookesia_gui_interface:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_gui_interface
+  needs:
+    - job: "build_test_apps_brookesia_gui_interface"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: gui/brookesia_gui_interface/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_gui_lvgl
+# target_test_apps_brookesia_gui_lvgl:
+#   extends:
+#     - .target_test_template
+#     - .rules:build:test_apps_brookesia_gui_lvgl
+#   needs:
+#     - job: "build_test_apps_brookesia_gui_lvgl"
+#       artifacts: true
+#       optional: true
+#   parallel:
+#     matrix: !reference [.target_test_idf_target_version_with_board_matrix]
+#   tags:
+#     - ${IDF_TARGET}
+#     - ${ENV_TAG}
+#   variables:
+#     TEST_TARGET: ${IDF_TARGET}
+#     TEST_FOLDER: gui/brookesia_gui_lvgl/test_apps
+#     TEST_ENV: ${ENV_TAG}
+
+#
+# Test apps: runtime
+#
+# brookesia_runtime_manager
+target_test_apps_brookesia_runtime_manager:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_runtime_manager
+  needs:
+    - job: "build_test_apps_brookesia_runtime_manager"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: runtime/brookesia_runtime_manager/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_runtime_js
+target_test_apps_brookesia_runtime_js:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_runtime_js
+  needs:
+    - job: "build_test_apps_brookesia_runtime_js"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: runtime/brookesia_runtime_js/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_runtime_lua
+target_test_apps_brookesia_runtime_lua:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_runtime_lua
+  needs:
+    - job: "build_test_apps_brookesia_runtime_lua"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: runtime/brookesia_runtime_lua/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_runtime_wasm
+target_test_apps_brookesia_runtime_wasm:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_runtime_wasm
+  needs:
+    - job: "build_test_apps_brookesia_runtime_wasm"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: runtime/brookesia_runtime_wasm/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_runtime_elf
+target_test_apps_brookesia_runtime_elf:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_runtime_elf
+  needs:
+    - job: "build_test_apps_brookesia_runtime_elf"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: runtime/brookesia_runtime_elf/test_apps
     TEST_ENV: ${ENV_TAG}
 
 #
@@ -57,7 +191,7 @@ target_test_apps_brookesia_service_audio:
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_audio/test_apps
+    TEST_FOLDER: service/media/brookesia_service_audio/test_apps
     TEST_ENV: ${ENV_TAG}
 # brookesia_service_manager
 target_test_apps_brookesia_service_manager:
@@ -69,13 +203,31 @@ target_test_apps_brookesia_service_manager:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_manager/test_apps
+    TEST_FOLDER: service/framework/brookesia_service_manager/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_emulation_nes
+target_test_apps_brookesia_emulation_nes:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_emulation_nes
+  needs:
+    - job: "build_test_apps_brookesia_emulation_nes"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/emulation/brookesia_emulation_nes/test_apps
     TEST_ENV: ${ENV_TAG}
 # brookesia_service_custom
 target_test_apps_brookesia_service_custom:
@@ -87,13 +239,13 @@ target_test_apps_brookesia_service_custom:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_custom/test_apps
+    TEST_FOLDER: service/framework/brookesia_service_custom/test_apps
     TEST_ENV: ${ENV_TAG}
 # brookesia_service_device
 target_test_apps_brookesia_service_device:
@@ -111,25 +263,79 @@ target_test_apps_brookesia_service_device:
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_device/test_apps
+    TEST_FOLDER: service/system/brookesia_service_device/test_apps
     TEST_ENV: ${ENV_TAG}
-# brookesia_service_nvs
-target_test_apps_brookesia_service_nvs:
+# brookesia_service_display
+target_test_apps_brookesia_service_display:
   extends:
     - .target_test_template
-    - .rules:build:test_apps_brookesia_service_nvs
+    - .rules:build:test_apps_brookesia_service_display
   needs:
-    - job: "build_test_apps_brookesia_service_nvs"
+    - job: "build_test_apps_brookesia_service_display"
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_nvs/test_apps
+    TEST_FOLDER: service/media/brookesia_service_display/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_http
+target_test_apps_brookesia_service_http:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_service_http
+  needs:
+    - job: "build_test_apps_brookesia_service_http"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_with_wifi_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/network/brookesia_service_http/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_helper
+target_test_apps_brookesia_service_helper:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_service_helper
+  needs:
+    - job: "build_test_apps_brookesia_service_helper"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/framework/brookesia_service_helper/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_storage
+target_test_apps_brookesia_service_storage:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_service_storage
+  needs:
+    - job: "build_test_apps_brookesia_service_storage"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/system/brookesia_service_storage/test_apps
     TEST_ENV: ${ENV_TAG}
 # brookesia_service_sntp
 target_test_apps_brookesia_service_sntp:
@@ -141,13 +347,13 @@ target_test_apps_brookesia_service_sntp:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_with_wifi_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_sntp/test_apps
+    TEST_FOLDER: service/network/brookesia_service_sntp/test_apps
     TEST_ENV: ${ENV_TAG}
 # brookesia_service_wifi
 target_test_apps_brookesia_service_wifi:
@@ -159,13 +365,71 @@ target_test_apps_brookesia_service_wifi:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_with_wifi_matrix]
+    matrix: !reference [.target_test_idf_target_version_with_wifi_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
   variables:
     TEST_TARGET: ${IDF_TARGET}
-    TEST_FOLDER: service/brookesia_service_wifi/test_apps
+    TEST_FOLDER: service/network/brookesia_service_wifi/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_service_video
+target_test_apps_brookesia_service_video:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_service_video
+  needs:
+    - job: "build_test_apps_brookesia_service_video"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/media/brookesia_service_video/test_apps
+    TEST_ENV: ${ENV_TAG}
+
+#
+# Test apps: system
+#
+# brookesia_system_core
+target_test_apps_brookesia_system_core:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_system_core
+  needs:
+    - job: "build_test_apps_brookesia_system_core"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: system/brookesia_system_core/test_apps
+    TEST_ENV: ${ENV_TAG}
+# brookesia_system_super
+target_test_apps_brookesia_system_super:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_system_super
+  needs:
+    - job: "build_test_apps_brookesia_system_super"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_with_board_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: system/brookesia_system_super/test_apps
     TEST_ENV: ${ENV_TAG}
 
 #
@@ -181,7 +445,7 @@ target_test_apps_brookesia_lib_utils_check:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -199,7 +463,7 @@ target_test_apps_brookesia_lib_utils_function_guard:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -217,7 +481,7 @@ target_test_apps_brookesia_lib_utils_describe_helpers:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -235,7 +499,7 @@ target_test_apps_brookesia_lib_utils_log:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -253,7 +517,7 @@ target_test_apps_brookesia_lib_utils_memory_profiler:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -271,7 +535,7 @@ target_test_apps_brookesia_lib_utils_plugin:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -289,7 +553,7 @@ target_test_apps_brookesia_lib_utils_state_machine:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -307,7 +571,7 @@ target_test_apps_brookesia_lib_utils_task_scheduler:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -325,7 +589,7 @@ target_test_apps_brookesia_lib_utils_thread_config:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -343,7 +607,7 @@ target_test_apps_brookesia_lib_utils_thread_profiler:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}
@@ -361,7 +625,7 @@ target_test_apps_brookesia_lib_utils_time_profiler:
       artifacts: true
       optional: true
   parallel:
-    matrix: !reference [.target_test_idf_target_version_general_with_psram_matrix]
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
   tags:
     - ${IDF_TARGET}
     - ${ENV_TAG}

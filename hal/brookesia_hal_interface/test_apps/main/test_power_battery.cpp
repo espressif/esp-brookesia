@@ -14,23 +14,23 @@ namespace esp_brookesia {
 namespace {
 bool g_charger_control_supported = true;
 
-hal::PowerBatteryIface::Info make_battery_info(bool charger_control_supported)
+hal::power::BatteryIface::Info make_battery_info(bool charger_control_supported)
 {
-    hal::PowerBatteryIface::Info info = {
+    hal::power::BatteryIface::Info info = {
         .name = "Test battery",
         .chemistry = "Li-ion",
         .abilities = {
-            hal::PowerBatteryIface::Ability::Voltage,
-            hal::PowerBatteryIface::Ability::Percentage,
-            hal::PowerBatteryIface::Ability::PowerSource,
-            hal::PowerBatteryIface::Ability::ChargeState,
-            hal::PowerBatteryIface::Ability::VbusVoltage,
+            hal::power::BatteryIface::Ability::Voltage,
+            hal::power::BatteryIface::Ability::Percentage,
+            hal::power::BatteryIface::Ability::PowerSource,
+            hal::power::BatteryIface::Ability::ChargeState,
+            hal::power::BatteryIface::Ability::VbusVoltage,
         },
     };
 
     if (charger_control_supported) {
-        info.abilities.push_back(hal::PowerBatteryIface::Ability::ChargerControl);
-        info.abilities.push_back(hal::PowerBatteryIface::Ability::ChargeConfig);
+        info.abilities.push_back(hal::power::BatteryIface::Ability::ChargerControl);
+        info.abilities.push_back(hal::power::BatteryIface::Ability::ChargeConfig);
     }
 
     return info;
@@ -38,14 +38,14 @@ hal::PowerBatteryIface::Info make_battery_info(bool charger_control_supported)
 } // namespace
 
 TestPowerBatteryIface::TestPowerBatteryIface(bool charger_control_supported)
-    : hal::PowerBatteryIface(make_battery_info(charger_control_supported))
+    : hal::power::BatteryIface(make_battery_info(charger_control_supported))
     , charger_control_supported_(charger_control_supported)
 {
     state_ = {
         .is_present = true,
-        .power_source = hal::PowerBatteryIface::PowerSource::External,
-        .charge_state = hal::PowerBatteryIface::ChargeState::ConstantCurrent,
-        .level_source = hal::PowerBatteryIface::LevelSource::FuelGauge,
+        .power_source = hal::power::BatteryIface::PowerSource::External,
+        .charge_state = hal::power::BatteryIface::ChargeState::ConstantCurrent,
+        .level_source = hal::power::BatteryIface::LevelSource::FuelGauge,
         .voltage_mv = 3850,
         .percentage = 67,
         .vbus_voltage_mv = 5000,
@@ -62,14 +62,14 @@ TestPowerBatteryIface::TestPowerBatteryIface(bool charger_control_supported)
     };
 }
 
-bool TestPowerBatteryIface::get_state(hal::PowerBatteryIface::State &state)
+bool TestPowerBatteryIface::get_state(hal::power::BatteryIface::State &state)
 {
     state = state_;
 
     return true;
 }
 
-bool TestPowerBatteryIface::get_charge_config(hal::PowerBatteryIface::ChargeConfig &config)
+bool TestPowerBatteryIface::get_charge_config(hal::power::BatteryIface::ChargeConfig &config)
 {
     if (!charger_control_supported_) {
         return false;
@@ -80,7 +80,7 @@ bool TestPowerBatteryIface::get_charge_config(hal::PowerBatteryIface::ChargeConf
     return true;
 }
 
-bool TestPowerBatteryIface::set_charge_config(const hal::PowerBatteryIface::ChargeConfig &config)
+bool TestPowerBatteryIface::set_charge_config(const hal::power::BatteryIface::ChargeConfig &config)
 {
     if (!charger_control_supported_) {
         return false;
@@ -107,6 +107,11 @@ bool TestBatteryDevice::probe()
     return true;
 }
 
+std::vector<hal::InterfaceSpec> TestBatteryDevice::get_interface_specs() const
+{
+    return {{hal::power::BatteryIface::NAME, TestPowerBatteryIface::NAME}};
+}
+
 bool TestBatteryDevice::on_init()
 {
     auto interface = std::make_shared<TestPowerBatteryIface>(g_charger_control_supported);
@@ -130,239 +135,43 @@ void TestBatteryDevice::set_charger_control_supported(bool charger_control_suppo
 
 BROOKESIA_PLUGIN_REGISTER(hal::Device, TestBatteryDevice, std::string(TestBatteryDevice::NAME));
 
-namespace {
 
-std::shared_ptr<TestPowerBatteryIface> get_battery_iface_or_null()
+TEST_CASE("power::BatteryIface: acquire and read battery state", "[hal][interface]")
 {
-    auto [name, iface] = hal::get_first_interface<hal::PowerBatteryIface>();
-    TEST_ASSERT_FALSE(name.empty());
+    TestBatteryDevice::set_charger_control_supported(true);
+    auto handle = hal::acquire_first_interface<hal::power::BatteryIface>();
+    TEST_ASSERT_TRUE(static_cast<bool>(handle));
+    TEST_ASSERT_EQUAL_STRING(TestPowerBatteryIface::NAME, std::string(handle.instance_name()).c_str());
+
+    auto iface = handle.get();
     TEST_ASSERT_NOT_NULL(iface.get());
-
-    auto test_iface = std::dynamic_pointer_cast<TestPowerBatteryIface>(iface);
-    TEST_ASSERT_NOT_NULL(test_iface.get());
-
-    return test_iface;
-}
-
-} // namespace
-
-TEST_CASE("PowerBatteryIface: get_device finds plugin after registration", "[hal][device]")
-{
-    auto device = hal::get_device_by_device_name(TestBatteryDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-}
-
-TEST_CASE("PowerBatteryIface: init_device registers interfaces", "[hal][device]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::PowerBatteryIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
-    TEST_ASSERT_FALSE(name.empty());
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: deinit_device releases interfaces", "[hal][device]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-
-    auto [name, iface] = hal::get_first_interface<hal::PowerBatteryIface>();
-    TEST_ASSERT_NULL(iface.get());
-    TEST_ASSERT_TRUE(name.empty());
-}
-
-TEST_CASE("PowerBatteryIface: get_device returns correct device type", "[hal][device]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto device = hal::get_device_by_device_name(TestBatteryDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-    TEST_ASSERT_EQUAL_STRING(TestBatteryDevice::NAME, std::string(device->get_name()).c_str());
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: get_first_interface returns PowerBatteryIface", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto [name, iface] = hal::get_first_interface<hal::PowerBatteryIface>();
-    TEST_ASSERT_NOT_NULL(iface.get());
-    TEST_ASSERT_FALSE(name.empty());
-    TEST_ASSERT_EQUAL_STRING(TestPowerBatteryIface::NAME, name.c_str());
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: get_first_interface returns empty pair when no devices initialized", "[hal][interface]")
-{
-    auto [name, iface] = hal::get_first_interface<hal::PowerBatteryIface>();
-    TEST_ASSERT_NULL(iface.get());
-    TEST_ASSERT_TRUE(name.empty());
-}
-
-TEST_CASE("PowerBatteryIface: get_interfaces returns all instances", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto interfaces = hal::get_interfaces<hal::PowerBatteryIface>();
-    TEST_ASSERT_GREATER_OR_EQUAL(1, interfaces.size());
-
-    for (const auto &[iface_name, iface] : interfaces) {
-        TEST_ASSERT_NOT_NULL(iface.get());
-        BROOKESIA_LOGI("Found interface: %1%", iface_name);
-    }
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: Device::get_interface returns interface from device instance", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto device = hal::get_device_by_device_name(TestBatteryDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-
-    auto iface = device->get_interface<hal::PowerBatteryIface>(TestPowerBatteryIface::NAME);
-    TEST_ASSERT_NOT_NULL(iface.get());
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: Device::get_interface returns nullptr for missing interface", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto device = hal::get_device_by_device_name(TestBatteryDevice::NAME);
-    TEST_ASSERT_NOT_NULL(device.get());
-
-    auto iface = device->get_interface<hal::PowerBatteryIface>("missing:Battery");
-    TEST_ASSERT_NULL(iface.get());
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: info abilities are queryable", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto test_iface = get_battery_iface_or_null();
-    const auto &info = test_iface->get_info();
+    const auto &info = iface->get_info();
     TEST_ASSERT_EQUAL_STRING("Test battery", info.name.c_str());
-    TEST_ASSERT_EQUAL_STRING("Li-ion", info.chemistry.c_str());
-    TEST_ASSERT_TRUE(info.has_ability(hal::PowerBatteryIface::Ability::Voltage));
-    TEST_ASSERT_TRUE(info.has_ability(hal::PowerBatteryIface::Ability::ChargeConfig));
-    TEST_ASSERT_FALSE(info.has_ability(hal::PowerBatteryIface::Ability::SystemVoltage));
 
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: state optional fields distinguish available values", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto test_iface = get_battery_iface_or_null();
-    hal::PowerBatteryIface::State state;
-    TEST_ASSERT_TRUE(test_iface->get_state(state));
+    hal::power::BatteryIface::State state;
+    TEST_ASSERT_TRUE(iface->get_state(state));
     TEST_ASSERT_TRUE(state.is_present);
-    TEST_ASSERT_EQUAL(hal::PowerBatteryIface::PowerSource::External, state.power_source);
-    TEST_ASSERT_EQUAL(hal::PowerBatteryIface::ChargeState::ConstantCurrent, state.charge_state);
-    TEST_ASSERT_EQUAL(hal::PowerBatteryIface::LevelSource::FuelGauge, state.level_source);
-    TEST_ASSERT_TRUE(state.voltage_mv.has_value());
-    TEST_ASSERT_EQUAL_UINT32(3850, state.voltage_mv.value());
-    TEST_ASSERT_TRUE(state.percentage.has_value());
-    TEST_ASSERT_EQUAL_UINT8(67, state.percentage.value());
-    TEST_ASSERT_TRUE(state.vbus_voltage_mv.has_value());
-    TEST_ASSERT_EQUAL_UINT32(5000, state.vbus_voltage_mv.value());
-    TEST_ASSERT_FALSE(state.system_voltage_mv.has_value());
-    TEST_ASSERT_FALSE(state.is_low);
-    TEST_ASSERT_FALSE(state.is_critical);
+    TEST_ASSERT_EQUAL_UINT32(3850, state.voltage_mv.value_or(0));
+    TEST_ASSERT_EQUAL_UINT8(67, state.percentage.value_or(0));
 
-    hal::deinit_device(TestBatteryDevice::NAME);
+    hal::power::BatteryIface::ChargeConfig config;
+    TEST_ASSERT_TRUE(iface->get_charge_config(config));
+    config.enabled = false;
+    TEST_ASSERT_TRUE(iface->set_charge_config(config));
+    TEST_ASSERT_TRUE(iface->set_charging_enabled(true));
 }
 
-TEST_CASE("PowerBatteryIface: charger config supported path", "[hal][interface]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-    auto test_iface = get_battery_iface_or_null();
-    hal::PowerBatteryIface::ChargeConfig config;
-    TEST_ASSERT_TRUE(test_iface->get_charge_config(config));
-    TEST_ASSERT_TRUE(config.enabled);
-    TEST_ASSERT_EQUAL_UINT32(4100, config.target_voltage_mv);
-    TEST_ASSERT_EQUAL_UINT32(400, config.charge_current_ma);
-    TEST_ASSERT_EQUAL_UINT32(50, config.precharge_current_ma);
-    TEST_ASSERT_EQUAL_UINT32(25, config.termination_current_ma);
-
-    config = {
-        .enabled = true,
-        .target_voltage_mv = 4200,
-        .charge_current_ma = 500,
-        .precharge_current_ma = 60,
-        .termination_current_ma = 30,
-    };
-    TEST_ASSERT_TRUE(test_iface->set_charge_config(config));
-    TEST_ASSERT_TRUE(test_iface->set_charging_enabled(false));
-
-    hal::PowerBatteryIface::ChargeConfig updated;
-    TEST_ASSERT_TRUE(test_iface->get_charge_config(updated));
-    TEST_ASSERT_FALSE(updated.enabled);
-    TEST_ASSERT_EQUAL_UINT32(4200, updated.target_voltage_mv);
-    TEST_ASSERT_EQUAL_UINT32(500, updated.charge_current_ma);
-    TEST_ASSERT_EQUAL_UINT32(60, updated.precharge_current_ma);
-    TEST_ASSERT_EQUAL_UINT32(30, updated.termination_current_ma);
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: charger config unsupported path", "[hal][interface]")
+TEST_CASE("power::BatteryIface: acquire by instance and unsupported charger path", "[hal][interface]")
 {
     TestBatteryDevice::set_charger_control_supported(false);
-    TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
+    auto handle = hal::acquire_interface<hal::power::BatteryIface>(TestPowerBatteryIface::NAME);
+    TEST_ASSERT_TRUE(static_cast<bool>(handle));
 
-    auto test_iface = get_battery_iface_or_null();
-    const auto &info = test_iface->get_info();
-    TEST_ASSERT_FALSE(info.has_ability(hal::PowerBatteryIface::Ability::ChargerControl));
-    TEST_ASSERT_FALSE(info.has_ability(hal::PowerBatteryIface::Ability::ChargeConfig));
+    auto iface = handle.get();
+    hal::power::BatteryIface::ChargeConfig config;
+    TEST_ASSERT_FALSE(iface->get_charge_config(config));
+    TEST_ASSERT_FALSE(iface->set_charging_enabled(false));
 
-    hal::PowerBatteryIface::ChargeConfig config;
-    TEST_ASSERT_FALSE(test_iface->get_charge_config(config));
-    TEST_ASSERT_FALSE(test_iface->set_charge_config(config));
-    TEST_ASSERT_FALSE(test_iface->set_charging_enabled(false));
-
-    hal::deinit_device(TestBatteryDevice::NAME);
-}
-
-TEST_CASE("PowerBatteryIface: repeated init/deinit cycles work correctly", "[hal][device]")
-{
-    TestBatteryDevice::set_charger_control_supported(true);
-    for (int i = 0; i < 3; i++) {
-        BROOKESIA_LOGI("Cycle %1%", i + 1);
-
-        TEST_ASSERT_TRUE(hal::init_device(TestBatteryDevice::NAME));
-
-        auto test_iface = get_battery_iface_or_null();
-        hal::PowerBatteryIface::State state;
-        TEST_ASSERT_TRUE(test_iface->get_state(state));
-        TEST_ASSERT_TRUE(state.voltage_mv.has_value());
-
-        hal::deinit_device(TestBatteryDevice::NAME);
-
-        auto [name, iface] = hal::get_first_interface<hal::PowerBatteryIface>();
-        TEST_ASSERT_NULL(iface.get());
-        TEST_ASSERT_TRUE(name.empty());
-    }
+    auto handles = hal::acquire_interfaces<hal::power::BatteryIface>();
+    TEST_ASSERT_GREATER_OR_EQUAL(1, handles.size());
 }

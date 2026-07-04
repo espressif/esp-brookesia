@@ -1,0 +1,22 @@
+{
+    "type": "fontSet",
+    "fonts": [
+        {
+            "id": "default",
+            "kind": "file",
+            "src": "Telex-Regular.ttf",
+            "languages": [
+                "en"
+            ]
+        },
+      {
+            "id": "zh_CN",
+            "kind": "file",
+            "src": "WenYuanSansSC-Regular.subset.ttf",
+            "languages": [
+                "en",
+                "zh_CN"
+            ]
+        }
+    ]
+}

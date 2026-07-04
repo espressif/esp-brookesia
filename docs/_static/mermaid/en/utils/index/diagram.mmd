@@ -1,0 +1,11 @@
+flowchart TD
+    A["**brookesia_lib_utils**<br/>· Common C++ infrastructure<br/>· Logging, checks, and describe helpers<br/>· Reused by framework components"]
+    B["Framework Components"]
+    C["Service Functions / Callbacks"]
+    D["**brookesia_mcp_utils**<br/>· MCP bridge<br/>· Tool description and call wrappers<br/>· Connects LLM clients"]
+    E["**MCP Tools / LLM Clients**<br/>· Tool discovery<br/>· Argument calls<br/>· Agent integration"]
+
+    A -->|"Provides utility base"| B
+    B -->|"Registers capabilities"| C
+    C -->|"Exposes MCP interface"| D
+    D -->|"Connects tool calls"| E

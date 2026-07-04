@@ -24,6 +24,13 @@ bool CustomDisplayDevice::probe()
     return true;
 }
 
+std::vector<InterfaceSpec> CustomDisplayDevice::get_interface_specs() const
+{
+    return {
+        {DisplayBacklightIface::NAME, DISPLAY_BACKLIGHT_IMPL_NAME},
+    };
+}
+
 bool CustomDisplayDevice::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

@@ -1,0 +1,10 @@
+version: "0.8.0"
+description: ESP-Brookesia service manager which provides plugin-based lifecycle management, thread-safe local calls, event pub/sub, and RAII-style service binding.
+url: https://github.com/espressif/esp-brookesia/tree/master/service/framework/brookesia_service_manager
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_lib_utils:
+    version: "0.8.*"
+    override_path: ../../../utils/brookesia_lib_utils
+    require: public

@@ -1,0 +1,28 @@
+<pre class="mermaid">
+flowchart TD
+    A[&quot;上层业务 / 服务 / 示例&quot;]
+    B[&quot;**brookesia_hal_interface**&lt;br/&gt;· 设备 / 接口抽象基类&lt;br/&gt;· 音频、显示、存储等 HAL 接口定义&lt;br/&gt;· 全局接口注册表&quot;]
+    C[&quot;**brookesia_hal_adaptor**&lt;br/&gt;· AudioDevice / DisplayDevice / StorageDevice 板级实现&lt;br/&gt;· 通过 esp_board_manager 初始化外设&lt;br/&gt;· 将接口实例注册到全局表&quot;]
+    D[&quot;**brookesia_hal_boards**&lt;br/&gt;· 各开发板的外设拓扑（引脚、总线）&lt;br/&gt;· 逻辑设备配置（音频编解码、LCD、触摸等）&lt;br/&gt;· 板级 Kconfig 默认值与驱动工厂回调&quot;]
+
+    A --&gt;|&quot;按接口名称发现 &amp; 调用&quot;| B
+    B --&gt;|&quot;实现抽象接口&quot;| C
+    C --&gt;|&quot;提供 YAML 配置&quot;| D
+
+</pre>
+<script type="module">
+if (!window.__brookesiaMermaidRunner) {
+  window.__brookesiaMermaidRunner = true;
+  import("https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs").then(({ default: mermaid }) => {
+    const run = () => {
+      mermaid.initialize({ startOnLoad: false, theme: "default" });
+      mermaid.run({ querySelector: ".mermaid" });
+    };
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", run, { once: true });
+    } else {
+      run();
+    }
+  });
+}
+</script>

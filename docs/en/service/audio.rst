@@ -6,8 +6,8 @@ Audio
 :link_to_translation:`zh_CN:[中文]`
 
 - Component registry: `espressif/brookesia_service_audio <https://components.espressif.com/components/espressif/brookesia_service_audio>`_
-- Helper header: ``#include "brookesia/service_helper/audio.hpp"``
-- Helper class: ``esp_brookesia::service::helper::Audio``
+- Helper header: ``#include "brookesia/service_helper/media/audio.hpp"``
+- Helper classes: ``esp_brookesia::service::helper::AudioPlayback``, ``AudioEncoder<0>``, ``AudioDecoder<0>``
 
 .. _service-audio-sec-01:
 

@@ -33,16 +33,16 @@ Steps to run these test cases:
 
 1. Install pytest dependencies:
    ```bash
-   ${IDF_PATH}/install.sh --enable-pytest
+   ${IDF_PATH}/install.sh --enable-ci
    ${IDF_PATH}/install.sh --enable-test-specific
    ```
 
 2. Run pytest with appropriate target and environment:
 
-   **ESP32-S3 examples:**
+   **ESP32-S3 PSRAM examples:**
    ```bash
-   # Generic environment
-   pytest examples/service/wifi --target esp32s3 --env generic
+   # Generic Octal PSRAM environment
+   pytest examples/service/wifi --target esp32s3 --env "generic,octal-psram"
 '''
 
 import pytest
@@ -58,28 +58,15 @@ def run_test(dut: Dut)-> None:
 
 
 @pytest.mark.target('esp32s3')
-@pytest.mark.env('generic')
-@pytest.mark.parametrize(
-    'target, config',
-    [
-        ('esp32s3', 'defaults'),
-    ],
-)
-@pytest.mark.timeout(TIMEOUT_S)
-def test_esp32s3(dut: Dut)-> None:
-    run_test(dut)
-
-
-@pytest.mark.target('esp32s3')
 @pytest.mark.env('generic,octal-psram')
 @pytest.mark.parametrize(
     'target, config',
     [
-        ('esp32s3', 'esp32s3_octal_psram'), ('esp32s3', 'esp32s3_octal_psram_xip'),
+        ('esp32s3', 'defaults'), ('esp32s3', 'esp32s3_psram_xip'),
     ],
 )
 @pytest.mark.timeout(TIMEOUT_S)
-def test_esp32s3_octal_psram(dut: Dut)-> None:
+def test_esp32s3_psram(dut: Dut)-> None:
     run_test(dut)
 
 

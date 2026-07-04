@@ -23,6 +23,7 @@ HEADINGS = {
         "description": "Description",
         "parameters": "Parameters",
         "items": "Items",
+        "return_value": "Return Value",
         "schema_json": "Schema JSON",
         "schema_json_summary": "Show raw JSON",
         "no_parameters": "No parameters.",
@@ -58,6 +59,7 @@ HEADINGS = {
         "description": "描述",
         "parameters": "参数",
         "items": "参数",
+        "return_value": "返回值",
         "schema_json": "Schema JSON",
         "schema_json_summary": "展开查看 JSON",
         "no_parameters": "无。",
@@ -76,7 +78,10 @@ HEADINGS = {
         "optional": "可选",
         "default": "默认值",
         "cli_command": "CLI 命令",
-        "related_text": "结构体、枚举、helper 方法以及完整 Doxygen API 请参考 :doc:`{label} <{doc}>`。",
+        "related_text": (
+            "结构体、枚举、helper 方法以及完整 Doxygen API 请参考 "
+            ":doc:`{label} <{doc}>`。"
+        ),
     },
 }
 
@@ -170,6 +175,26 @@ def _emit_schema_items(
     lines.append("")
 
 
+def _emit_return_value(
+    lines: list[str],
+    contract: dict,
+    entry: dict,
+    language: str,
+    anchor_parts: tuple[str, ...],
+) -> None:
+    return_value = entry.get("return_value")
+    if not isinstance(return_value, dict):
+        return
+
+    text = HEADINGS[language]
+    _append_section(lines, contract, text["return_value"], '"', *anchor_parts, "return-value")
+    return_type = return_value.get("type", "")
+    description = (return_value.get("description", "") or "").strip()
+    lines.append(f"- **{text['type_label']}**: ``{return_type}``")
+    lines.append(f"- **{text['description_label']}**: {description if description else text['no_description']}")
+    lines.append("")
+
+
 def _emit_schema_entries(
     lines: list[str],
     contract: dict,
@@ -207,6 +232,7 @@ def _emit_schema_entries(
 
         if entry_kind == "functions":
             _emit_schema_items(lines, contract, entry.get("parameters", []), entry_kind, language, entry_anchor_parts)
+            _emit_return_value(lines, contract, entry, language, entry_anchor_parts)
         else:
             _emit_schema_items(lines, contract, entry.get("items", []), entry_kind, language, entry_anchor_parts)
 

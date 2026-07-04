@@ -249,6 +249,30 @@ std::shared_ptr<MemoryProfiler::ProfileSnapshot> MemoryProfiler::take_snapshot(P
     return snapshot;
 }
 
+MemoryProfiler::RawHeapSnapshot MemoryProfiler::take_raw_heap_snapshot()
+{
+    RawHeapSnapshot snapshot;
+
+#if defined(ESP_PLATFORM)
+    snapshot.internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    snapshot.internal_largest = heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL);
+#   if defined(CONFIG_SPIRAM) && CONFIG_SPIRAM
+    snapshot.external_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+    snapshot.external_largest = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+#   endif
+    snapshot.cap8_free = heap_caps_get_free_size(MALLOC_CAP_8BIT);
+    snapshot.cap8_largest = heap_caps_get_largest_free_block(MALLOC_CAP_8BIT);
+    snapshot.valid = true;
+#endif
+
+    return snapshot;
+}
+
+int64_t MemoryProfiler::heap_delta(size_t current, size_t baseline)
+{
+    return static_cast<int64_t>(current) - static_cast<int64_t>(baseline);
+}
+
 void MemoryProfiler::print_snapshot(const ProfileSnapshot &snapshot)
 {
     BROOKESIA_LOG_TRACE_GUARD();

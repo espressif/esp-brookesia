@@ -1,0 +1,167 @@
+{
+    "type": "viewScreen",
+    "id": "files_header",
+    "commonProps": {
+        "clickable": false,
+        "scrollable": false
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "bar",
+            "commonProps": {
+                "scrollable": false
+            },
+            "styleRefs": [
+                "app.card"
+            ],
+            "style": {
+                "padding": "${constant.files.layout.headerPadding}"
+            },
+            "layout": {
+                "type": "grid",
+                "gridTemplateColumns": [
+                    "${constant.files.layout.headerBackColumn}",
+                    "match",
+                    "${constant.files.layout.headerCountWidth}"
+                ],
+                "gridTemplateRows": [
+                    "match"
+                ],
+                "gap": "10dp",
+                "crossAlign": "center"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.files.layout.pagePadding}",
+                "y": "${constant.files.layout.pagePadding}",
+                "width": "${expr(${env.widthDp} - ${constant.files.layout.pagePadding} * 2)}",
+                "height": "${constant.files.layout.headerHeight}"
+            },
+            "children": [
+                {
+                    "type": "button",
+                    "id": "back",
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "files.back"
+                        }
+                    ],
+                    "styleRefs": [
+                        "app.secondaryChip"
+                    ],
+                    "layout": {
+                        "type": "flex",
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "gridColumn": 0,
+                        "gridRow": 0,
+                        "width": "${constant.files.layout.headerBackSize}",
+                        "height": "${constant.files.layout.headerBackSize}",
+                        "alignSelf": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "label",
+                            "labelProps": {
+                                "text": "<"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "text",
+                    "commonProps": {
+                        "clickable": false,
+                        "scrollable": false
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "mainAlign": "center",
+                        "crossAlign": "start",
+                        "gap": "3dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "gridColumn": 1,
+                        "gridRow": 0,
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "title",
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            },
+                            "styleRefs": [
+                                "app.cardTitle"
+                            ],
+                            "style": {
+                                "fontSize": "${constant.files.font.title}"
+                            },
+                            "labelProps": {
+                                "text": "${constant.files.i18n.storage}"
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "subtitle",
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            },
+                            "styleRefs": [
+                                "app.caption"
+                            ],
+                            "labelProps": {
+                                "text": "${constant.files.i18n.volumes_subtitle}"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "count",
+                    "styleRefs": [
+                        "app.secondaryChip"
+                    ],
+                    "layout": {
+                        "type": "flex",
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "gridColumn": 2,
+                        "gridRow": 0,
+                        "width": "${constant.files.layout.headerCountWidth}",
+                        "height": "${constant.files.layout.headerCountHeight}",
+                        "alignSelf": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "label",
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            },
+                            "styleRefs": [
+                                "app.caption"
+                            ],
+                            "labelProps": {
+                                "text": "${constant.files.i18n.empty}"
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

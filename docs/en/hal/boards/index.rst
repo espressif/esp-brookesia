@@ -1,7 +1,7 @@
 .. _hal-boards-sec-00:
 
-HAL Board Support
-=================
+ESP Device Board Configuration
+==============================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -72,8 +72,8 @@ Device Types
      - Touch panel; supports CST816S, GT911, and other I2C touch controllers
    * - ``ledc_ctrl``
      - PWM backlight control via LEDC
-   * - ``fs_fat`` / ``fs_spiffs``
-     - File system storage; supports SD cards (SDMMC/SPI) and SPIFFS
+   * - ``fs_fat``
+     - Board-manager managed SD card / FATFS storage. LittleFS and flash FATFS are mounted directly by ``brookesia_hal_adaptor`` from Kconfig and partition-table settings, and do not require a ``board_devices.yaml`` entry.
    * - ``camera``
      - Camera (CSI interface)
    * - ``power_ctrl``
@@ -99,6 +99,8 @@ Peripheral Configuration
 - **GPIO**: Standalone pin configurations such as power control, amplifier enable, and LEDs
 
 ``sdkconfig.defaults.board`` contains Kconfig defaults tightly coupled to the board hardware, such as Flash size, PSRAM mode and frequency, CPU clock frequency, and audio recording format parameters for ``brookesia_hal_adaptor``.
+
+In addition to physical devices described in ``board_devices.yaml``, board defaults may enable generic HAL interfaces such as ``BoardInfoIface``, ``StorageKvIface``, and the Wi-Fi ``Basic`` / ``STA`` / ``SoftAP`` interfaces. Those implementations are configured through Kconfig rather than separate board-manager device blocks.
 
 If a driver requires a custom initialization flow, such as passing a vendor-specific register sequence to an LCD driver, it is implemented through factory callbacks in ``setup_device.c``.
 

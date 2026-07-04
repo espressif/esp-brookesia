@@ -5,64 +5,33 @@ Service Components
 
 :link_to_translation:`zh_CN:[中文]`
 
-This section documents the ESP-Brookesia service framework components. The framework consists of a service framework layer and a general-services layer. Their component hierarchy is shown below:
+This section documents the ESP-Brookesia service framework and publishable service-family components.
 
 .. only:: html
 
-   .. mermaid::
-
-      flowchart TD
-          App["App / User Code"]
-          Helper["**brookesia_service_helper**<br/>· CRTP type-safe helper base class<br/>· Function / event schema definitions<br/>· call_function / subscribe_event"]
-          Manager["**brookesia_service_manager**<br/>· Service plugin lifecycle management<br/>· Thread-safe local calls & TCP RPC remote calls<br/>· Function registry & event registry"]
-          Services["**General Services (built on service_helper)**<br/>NVS · SNTP · Wi-Fi · Audio · Device · Video · Custom"]
-
-          App -->|"call function / subscribe event"| Helper
-          Helper -->|"built on"| Manager
-          Services -->|"register as plugins"| Manager
+   .. raw:: html
+      :file: ../../_static/mermaid/en/service/index/diagram.html
 
 .. only:: latex
 
-   .. image:: ../../_static/service/index_diagram_en.png
+   .. image:: ../../_static/mermaid/en/service/index/diagram.png
       :width: 100%
 
-- ``brookesia_service_manager``: The service framework core, responsible for plugin registration, function routing, and event dispatching in both local and RPC communication modes.
-- ``brookesia_service_helper``: A CRTP-based type-safe helper layer that simplifies service function/event definition and invocation.
-- **General Services**: Concrete services implemented on top of ``service_helper``, registered into ``service_manager`` and discoverable by name from upper layers.
+.. rubric:: Component Responsibilities
 
-.. _service-index-sec-01:
+- Service Manager handles plugin lifecycle, function routing, event dispatch, and local calls.
+- Service Helper provides type-safe schemas and helper calls.
+- The service family is organized by framework, network, media, system-service, agent, expression, and emulation components.
 
-Service Framework
------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   Service Manager <manager/index>
-   Service Helper <helper/index>
-
-.. _service-index-sec-02:
-
-General Services
-----------------
+.. rubric:: Component Categories
 
 .. toctree::
    :maxdepth: 1
 
-   NVS <nvs>
-   SNTP <sntp>
-   Wi-Fi <wifi>
-   Audio <audio>
-   Device Control <device>
-   Video <video>
-   Custom <custom>
-
-.. _service-index-sec-03:
-
-Development Guide
------------------
-
-.. toctree::
-   :maxdepth: 1
-
-   Application development guide <usage>
+   Framework <framework/index>
+   Network <network/index>
+   Media <media/index>
+   System Services <system/index>
+   AI Agents <agent/index>
+   AI Expression <expression/index>
+   Emulation <emulation/index>

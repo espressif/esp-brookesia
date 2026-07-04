@@ -25,6 +25,21 @@ bool DisplayDevice::probe()
     return true;
 }
 
+std::vector<InterfaceSpec> DisplayDevice::get_interface_specs() const
+{
+    std::vector<InterfaceSpec> specs;
+#if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL
+    specs.push_back({display::PanelIface::NAME, LCD_PANEL_IMPL_NAME});
+#endif
+#if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
+    specs.push_back({display::TouchIface::NAME, LCD_TOUCH_IMPL_NAME});
+#endif
+#if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL
+    specs.push_back({display::BacklightIface::NAME, LEDC_BACKLIGHT_IMPL_NAME});
+#endif
+    return specs;
+}
+
 bool DisplayDevice::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

@@ -1,0 +1,74 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#pragma once
+
+#if defined(ESP_PLATFORM)
+#   include "sdkconfig.h"
+#endif
+
+/**
+ * @brief Default log tag used by the component.
+ */
+#define BROOKESIA_GUI_LVGL_LOG_TAG "GuiLvgl"
+
+#if !defined(BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG)
+#   if defined(CONFIG_BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG)
+#       define BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG  CONFIG_BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG
+#   else
+#       define BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG  (0)
+#   endif
+#endif
+
+#if BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG
+#   if !defined(BROOKESIA_GUI_LVGL_BACKEND_ENABLE_DEBUG_LOG)
+#       if defined(CONFIG_BROOKESIA_GUI_LVGL_BACKEND_ENABLE_DEBUG_LOG)
+#           define BROOKESIA_GUI_LVGL_BACKEND_ENABLE_DEBUG_LOG \
+                CONFIG_BROOKESIA_GUI_LVGL_BACKEND_ENABLE_DEBUG_LOG
+#       else
+#           define BROOKESIA_GUI_LVGL_BACKEND_ENABLE_DEBUG_LOG  (0)
+#       endif
+#   endif
+#   if !defined(BROOKESIA_GUI_LVGL_EVENT_ENABLE_DEBUG_LOG)
+#       if defined(CONFIG_BROOKESIA_GUI_LVGL_EVENT_ENABLE_DEBUG_LOG)
+#           define BROOKESIA_GUI_LVGL_EVENT_ENABLE_DEBUG_LOG \
+                CONFIG_BROOKESIA_GUI_LVGL_EVENT_ENABLE_DEBUG_LOG
+#       else
+#           define BROOKESIA_GUI_LVGL_EVENT_ENABLE_DEBUG_LOG  (0)
+#       endif
+#   endif
+#   if !defined(BROOKESIA_GUI_LVGL_FACTORY_ENABLE_DEBUG_LOG)
+#       if defined(CONFIG_BROOKESIA_GUI_LVGL_FACTORY_ENABLE_DEBUG_LOG)
+#           define BROOKESIA_GUI_LVGL_FACTORY_ENABLE_DEBUG_LOG \
+                CONFIG_BROOKESIA_GUI_LVGL_FACTORY_ENABLE_DEBUG_LOG
+#       else
+#           define BROOKESIA_GUI_LVGL_FACTORY_ENABLE_DEBUG_LOG  (0)
+#       endif
+#   endif
+#   if !defined(BROOKESIA_GUI_LVGL_LAYOUT_ENABLE_DEBUG_LOG)
+#       if defined(CONFIG_BROOKESIA_GUI_LVGL_LAYOUT_ENABLE_DEBUG_LOG)
+#           define BROOKESIA_GUI_LVGL_LAYOUT_ENABLE_DEBUG_LOG \
+                CONFIG_BROOKESIA_GUI_LVGL_LAYOUT_ENABLE_DEBUG_LOG
+#       else
+#           define BROOKESIA_GUI_LVGL_LAYOUT_ENABLE_DEBUG_LOG  (0)
+#       endif
+#   endif
+#   if !defined(BROOKESIA_GUI_LVGL_PROPS_ENABLE_DEBUG_LOG)
+#       if defined(CONFIG_BROOKESIA_GUI_LVGL_PROPS_ENABLE_DEBUG_LOG)
+#           define BROOKESIA_GUI_LVGL_PROPS_ENABLE_DEBUG_LOG \
+                CONFIG_BROOKESIA_GUI_LVGL_PROPS_ENABLE_DEBUG_LOG
+#       else
+#           define BROOKESIA_GUI_LVGL_PROPS_ENABLE_DEBUG_LOG  (0)
+#       endif
+#   endif
+#   if !defined(BROOKESIA_GUI_LVGL_STYLE_ENABLE_DEBUG_LOG)
+#       if defined(CONFIG_BROOKESIA_GUI_LVGL_STYLE_ENABLE_DEBUG_LOG)
+#           define BROOKESIA_GUI_LVGL_STYLE_ENABLE_DEBUG_LOG \
+                CONFIG_BROOKESIA_GUI_LVGL_STYLE_ENABLE_DEBUG_LOG
+#       else
+#           define BROOKESIA_GUI_LVGL_STYLE_ENABLE_DEBUG_LOG  (0)
+#       endif
+#   endif
+#endif // BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG

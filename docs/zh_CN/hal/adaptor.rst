@@ -1,7 +1,7 @@
 .. _hal-adaptor-sec-00:
 
-HAL 适配
-===========
+ESP 设备板级适配
+================
 
 :link_to_translation:`en:[English]`
 
@@ -13,7 +13,7 @@ HAL 适配
 概述
 ----
 
-``brookesia_hal_adaptor`` 是 ESP-Brookesia 的板级 HAL 适配实现，基于 :ref:`HAL 接口 <hal-interface-index-sec-00>` 的设备/接口模型，通过 ``esp_board_manager`` 初始化真实外设，并将 **通用信息**、 **音频**、 **显示**、 **存储**、 **电源** 等能力注册到全局 HAL 表，供上层按名称发现和使用。
+``brookesia_hal_adaptor`` 是 ESP-Brookesia 的板级 HAL 适配实现，基于 :ref:`HAL 接口 <hal-interface-index-sec-00>` 的设备/接口模型，通过 ``esp_board_manager`` 与 ESP-IDF 驱动初始化真实外设，并将 **系统**、 **网络**、 **音频**、 **显示**、 **存储**、 **电源**、 **视频**、 **Wi-Fi** 等能力注册到全局 HAL 表，供上层按名称发现和使用。
 
 .. _hal-adaptor-sec-02:
 
@@ -34,9 +34,12 @@ HAL 适配
    * - 设备类（逻辑名）
      - 注册的接口实现
      - 说明
-   * - ``GeneralDevice`` (``"General"``)
+   * - ``SystemDevice`` (``"System"``)
      - ``BoardInfoIface`` (``BOARD_INFO_IMPL_NAME``)
-     - 从板级配置读取开发板名称、芯片、版本、描述和制造商等静态信息，供上层做设备识别与信息展示。
+     - 读取静态开发板元信息，并发布系统级板级信息接口。
+   * - ``NetworkDevice`` (``"Network"``)
+     - ``SntpClientIface`` (``SNTP_CLIENT_IFACE_NAME``)、``HttpClientIface`` (``HTTP_CLIENT_IFACE_NAME``)
+     - 为 Service 提供平台 SNTP 与 HTTP/HTTPS 客户端能力。
    * - ``AudioDevice`` (``"Audio"``)
      - ``AudioCodecPlayerIface`` (``CODEC_PLAYER_IMPL_NAME``)、``AudioCodecRecorderIface`` (``CODEC_RECORDER_IMPL_NAME``)
      - 播放经板级 Audio DAC；录音经 Audio ADC。子实现可在 Kconfig 中独立关闭，并依赖板级能力符号 ``ESP_BOARD_DEV_AUDIO_CODEC_SUPPORT``。
@@ -44,11 +47,17 @@ HAL 适配
      - ``DisplayBacklightIface`` (``LEDC_BACKLIGHT_IMPL_NAME``)、``DisplayPanelIface`` (``LCD_PANEL_IMPL_NAME``)、``DisplayTouchIface`` (``LCD_TOUCH_IMPL_NAME``)
      - LEDC 背光、LCD 面板、I2C 触摸可分别开关；分别依赖 ``ESP_BOARD_DEV_LEDC_CTRL_SUPPORT``、``ESP_BOARD_DEV_DISPLAY_LCD_SUPPORT``、``ESP_BOARD_DEV_LCD_TOUCH_I2C_SUPPORT``。
    * - ``StorageDevice`` (``"Storage"``)
-     - ``StorageFsIface`` (``GENERAL_FS_IMPL_NAME``)
-     - 通用文件系统实现，支持 SPIFFS（依赖 ``ESP_BOARD_DEV_FS_SPIFFS_SUPPORT``）与 SD 卡（FATFS，依赖 ``ESP_BOARD_DEV_FS_FAT_SUPPORT``），按 Kconfig 启用。
+     - ``FileSystemIface`` (``GENERAL_FS_IMPL_NAME``)、``KeyValueIface`` (``KV_IMPL_NAME``)
+     - 通用文件系统实现支持 LittleFS、可选 SPIFFS、Flash FATFS 与 SD 卡 FATFS；KV 实现基于 ESP-IDF NVS。文件系统后端按 Kconfig 启用，其中 LittleFS 与 Flash FATFS 由 adaptor 直接挂载。
    * - ``PowerDevice`` (``"Power"``)
      - ``PowerBatteryIface`` (``BATTERY_IMPL_NAME``)
      - 电池与充电器能力实现，支持 ADC 电压估算或 AXP2101 电源管理芯片实现；可查询电量、电压、电源来源、充电状态，并在底层支持时控制充电配置。
+   * - ``VideoDevice`` (``"Video"``)
+     - ``CameraIface`` 与视频处理接口
+     - 当所选开发板暴露对应能力时，发布摄像头与视频处理接口。
+   * - ``WifiDevice`` (``"WiFi"``)
+     - ``BasicIface`` (``BASIC_IMPL_NAME``)、``StationIface`` (``STA_IMPL_NAME``)、``SoftApIface`` (``SOFTAP_IMPL_NAME``)
+     - 基于 ESP-IDF 的 Wi-Fi 后端，负责单次生命周期、STA、扫描、SoftAP 与配网动作。重试、fallback 与自动连接策略由 ``brookesia_service_wifi`` 负责。
 
 .. _hal-adaptor-sec-04:
 
@@ -64,7 +73,9 @@ HAL 适配
 API 参考
 --------
 
-.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/general/device.inc
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/system/device.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/network/device.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.inc
 
@@ -73,3 +84,7 @@ API 参考
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/video/device.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/wifi/device.inc

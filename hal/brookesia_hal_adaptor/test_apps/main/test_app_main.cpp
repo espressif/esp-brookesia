@@ -18,6 +18,8 @@
 
 using namespace esp_brookesia;
 
+int memory_leak_threshold = TEST_MEMORY_LEAK_THRESHOLD;
+
 void setUp(void)
 {
     unity_utils_record_free_mem();
@@ -26,7 +28,8 @@ void setUp(void)
 void tearDown(void)
 {
     esp_reent_cleanup();    //clean up some of the newlib's lazy allocations
-    unity_utils_evaluate_leaks_direct(TEST_MEMORY_LEAK_THRESHOLD);
+    unity_utils_evaluate_leaks_direct(memory_leak_threshold);
+    memory_leak_threshold = TEST_MEMORY_LEAK_THRESHOLD;
 }
 
 extern "C" void app_main(void)

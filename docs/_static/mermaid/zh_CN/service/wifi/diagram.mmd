@@ -1,0 +1,13 @@
+flowchart TD
+    A["**Idle**<br/>· 未初始化<br/>· 等待 Init"]
+    B["**Inited**<br/>· 驱动和配置就绪<br/>· 可启动连接流程"]
+    C["**Started**<br/>· Wi-Fi 已启动<br/>· 可发起连接"]
+    D["**Connected**<br/>· 已连接 AP<br/>· 可提供网络能力"]
+
+    A -->|"Init"| B
+    B -->|"Start"| C
+    C -->|"Connect"| D
+    D -->|"Disconnect"| C
+    C -->|"Stop"| B
+    D -->|"Stop"| B
+    B -->|"Deinit"| A
