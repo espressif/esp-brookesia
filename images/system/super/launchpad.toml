@@ -1,0 +1,3 @@
+esp_toml_version = 1.0
+firmware_images_url = "https://espressif.github.io/esp-brookesia/system/super/"
+
