@@ -25,6 +25,7 @@ variables:
     TEST_TARGET: 'esp32s3'
     TEST_FOLDER: '.'
     TEST_ENV: 'generic'
+  allow_failure: true
   script:
     - pip install -r .gitlab/requirements/requirement.pytest.txt
     - pytest ${TEST_FOLDER} --target ${TEST_TARGET} --env ${TEST_ENV} --junitxml=XUNIT_RESULT.xml

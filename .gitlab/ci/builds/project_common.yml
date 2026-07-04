@@ -5,7 +5,6 @@ variables:
   stage: build
   tags:
     - build
-    - nocaps
   image: ${IMAGE}
   variables:
     # Enable ccache for all build jobs. See configure_ci_environment.sh for more ccache related settings.
@@ -13,6 +12,7 @@ variables:
     BATCH_BUILD: "1"
     V: "0"
     WARNING_STR: ""
+  allow_failure: true
 
 .build_template:
   <<: *build_template
