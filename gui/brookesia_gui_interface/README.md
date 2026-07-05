@@ -6,7 +6,7 @@
 
 `brookesia_gui_interface` is the backend-neutral GUI document and runtime interface for ESP-Brookesia.
 
-For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/gui/interface/index.html).
+For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/gui/interface/json_ui/index.html).
 
 ## How to Use
 

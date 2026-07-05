@@ -65,7 +65,7 @@ svc_call Emote SetEmoji {"Emoji":"happy"}
 此时屏幕上应显示 `happy` 表情。可用的其它表情名称包括 `sad`、`angry`、`thinking`、`winking` 和 `idle`。
 
 > [!TIP]
-> 更多 `Emote` 相关命令，请参考 [表情 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/expression/emote.html#helper-contract-service-emote-interfaces)。
+> 更多 `Emote` 相关命令，请参考 [表情 - 服务接口](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/service/expression/emote.html#helper-contract-service-emote-interfaces)。
 
 ## 第三步：播放音频
 
