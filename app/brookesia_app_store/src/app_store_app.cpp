@@ -77,8 +77,12 @@ static constexpr const char *VIEW_MODE_LOAD_TIMER_NAME = "app_store.view_mode.lo
 static constexpr const char *TIME_SYNC_TIMEOUT_TIMER_NAME = "app_store.time_sync.timeout";
 static constexpr const char *TIME_SYNC_SUCCESS_CLOSE_TIMER_NAME = "app_store.time_sync.success_close";
 static constexpr const char *INDEX_CACHE_FILE = "index.json";
+static constexpr const char *APP_CACHE_DIR = "apps";
 static constexpr const char *DOWNLOAD_DIR = "downloads";
 static constexpr const char *ICON_DIR = "icons";
+static constexpr const char *METADATA_CACHE_FILE = "metadata.json";
+static constexpr const char *ICON_CACHE_FILE = "icon.png";
+static constexpr const char *BPK_PART_EXTENSION = ".part";
 static constexpr uint32_t INDEX_MAX_RESPONSE_SIZE = 512 * 1024;
 static constexpr uint32_t METADATA_MAX_RESPONSE_SIZE = 64 * 1024;
 static constexpr uint32_t BPK_MAX_FILE_SIZE = 64 * 1024 * 1024;
@@ -610,6 +614,26 @@ void remove_invalid_icon_file(const std::filesystem::path &path, std::string_vie
     } else if (error_code) {
         BROOKESIA_LOGW(
             "Failed to remove invalid App Store icon cache file: path(%1%), reason(%2%), error(%3%)",
+            path.generic_string(), reason, error_code.message()
+        );
+    }
+}
+
+void remove_cache_file_if_exists(const std::filesystem::path &path, std::string_view reason)
+{
+    if (path.empty()) {
+        return;
+    }
+
+    std::error_code error_code;
+    if (std::filesystem::remove(path, error_code)) {
+        BROOKESIA_LOGI(
+            "Removed App Store cache file: path(%1%), reason(%2%)",
+            path.generic_string(), reason
+        );
+    } else if (error_code) {
+        BROOKESIA_LOGW(
+            "Failed to remove App Store cache file: path(%1%), reason(%2%), error(%3%)",
             path.generic_string(), reason, error_code.message()
         );
     }

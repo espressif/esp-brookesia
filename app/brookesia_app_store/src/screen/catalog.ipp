@@ -108,8 +108,6 @@ std::expected<void, std::string> AppStoreApp::populate_entries(system::core::App
         auto ref = visible_items_[page_start + i];
         if (ref.kind == VisibleItemKind::Store) {
             entries_[ref.index].item_path = path;
-        } else if (ref.kind == VisibleItemKind::StoreLocal) {
-            local_packages_[ref.index].item_path = path;
         } else if (ref.kind == VisibleItemKind::Local) {
             local_packages_[ref.index].item_path = path;
         } else {
@@ -291,30 +289,6 @@ std::expected<void, std::string> AppStoreApp::refresh_ui(system::core::AppContex
                 state,
                 action_label,
                 action_enabled,
-                entry.icon_resource_id,
-                title
-            );
-        } else if (ref.kind == VisibleItemKind::StoreLocal && ref.index < local_packages_.size()) {
-            const auto &entry = local_packages_[ref.index];
-            if (entry.item_path.empty()) {
-                continue;
-            }
-            const auto title = localized(entry.app_names);
-            std::string detail = "Manifest: " + entry.manifest_id;
-            if (!entry.version.empty()) {
-                append_detail(detail, "Version: " + entry.version);
-            }
-            if (auto size = display_size_from_file_size(entry.file_size)) {
-                append_detail(detail, make_size_detail(*size));
-            }
-            add_item(
-                entry.item_path,
-                title,
-                tr("state.local_package"),
-                detail,
-                tr("state.local_bpk"),
-                tr("action.install"),
-                true,
                 entry.icon_resource_id,
                 title
             );
@@ -575,8 +549,6 @@ void AppStoreApp::handle_primary_action(const gui::Event &event)
     }
     if (ref->kind == VisibleItemKind::Store) {
         start_or_cancel_download(*context_, ref->index);
-    } else if (ref->kind == VisibleItemKind::StoreLocal) {
-        install_local_package(*context_, ref->index);
     } else if (ref->kind == VisibleItemKind::Local) {
         install_local_package(*context_, ref->index);
     } else {

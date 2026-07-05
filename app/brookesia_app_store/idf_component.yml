@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia native App Store app for runtime package discovery and installation.
 url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_store
 repository: https://github.com/espressif/esp-brookesia.git

@@ -225,6 +225,7 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
     if (!BROOKESIA_DESCRIBE_FROM_JSON(response_json, response)) {
         auto &entry = entries_[*index];
         entry.schema_error = tr("error.download_failed");
+        remove_cache_file_if_exists(entry.download_path, "download response parse failed");
         entry.downloading = false;
         entry.download_request_id = 0;
         entry.download_path.clear();
@@ -243,6 +244,7 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
             entry.schema_error = response.error_message;
         }
         show_download_failed_dialog(*context_, entry, entry.schema_error);
+        remove_cache_file_if_exists(entry.download_path, "download HTTP request failed");
         entry.download_request_id = 0;
         entry.download_path.clear();
         entry.downloaded = 0;
@@ -254,12 +256,38 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
         entry.total = entry.downloaded == 0 ? 100 : entry.downloaded;
     }
     entry.downloaded = entry.total;
-    const auto package_path = entry.download_path.empty() ?
-                              (download_dir(*context_) / (
-                                   safe_name(entry.package_name) + "-" +
-                                   safe_name(entry.latest_version.empty() ? "latest" : entry.latest_version) + ".bpk"
-                               )) :
+    const auto partial_path = entry.download_path.empty() ?
+                              cache_dir(*context_) / package_cache_relative_path(entry, true) :
                               entry.download_path;
+    const auto package_path = partial_path.parent_path() / package_cache_relative_path(entry, false).filename();
+    std::error_code error_code;
+    if (!std::filesystem::is_regular_file(partial_path, error_code) || error_code) {
+        entry.schema_error = tr("error.download_failed");
+        if (error_code) {
+            entry.schema_error += ": " + error_code.message();
+        }
+        show_download_failed_dialog(*context_, entry, entry.schema_error);
+        remove_cache_file_if_exists(partial_path, "partial package missing after download");
+        entry.download_path.clear();
+        entry.download_request_id = 0;
+        entry.downloaded = 0;
+        entry.total = 0;
+        (void)refresh_entry(*context_, *index);
+        return;
+    }
+    remove_cache_file_if_exists(package_path, "replace cached package after download");
+    std::filesystem::rename(partial_path, package_path, error_code);
+    if (error_code) {
+        entry.schema_error = tr("error.download_failed") + ": " + error_code.message();
+        show_download_failed_dialog(*context_, entry, entry.schema_error);
+        remove_cache_file_if_exists(partial_path, "failed package rename");
+        entry.download_path.clear();
+        entry.download_request_id = 0;
+        entry.downloaded = 0;
+        entry.total = 0;
+        (void)refresh_entry(*context_, *index);
+        return;
+    }
     entry.download_path.clear();
     entry.download_request_id = 0;
     if (message_dialog_purpose_ == MessageDialogPurpose::Download &&
@@ -307,6 +335,7 @@ void AppStoreApp::handle_request_failed(double request_id, const boost::json::ob
         entries_[*index].schema_error = tr("error.download_failed");
     }
     show_download_failed_dialog(*context_, entries_[*index], entries_[*index].schema_error);
+    remove_cache_file_if_exists(entries_[*index].download_path, "download request failed");
     entries_[*index].downloading = false;
     entries_[*index].download_request_id = 0;
     entries_[*index].download_path.clear();
@@ -347,6 +376,7 @@ void AppStoreApp::handle_request_canceled(double request_id, const boost::json::
     }
     entries_[*index].downloading = false;
     entries_[*index].download_request_id = 0;
+    remove_cache_file_if_exists(entries_[*index].download_path, "download request canceled");
     entries_[*index].download_path.clear();
     entries_[*index].downloaded = 0;
     entries_[*index].total = 0;
@@ -461,7 +491,10 @@ void AppStoreApp::handle_size_metadata_completed(size_t index, const boost::json
         return;
     }
 
-    auto result = parse_size_metadata_json(index, response.body);
+    if (context_ == nullptr) {
+        return;
+    }
+    auto result = parse_size_metadata_json(*context_, index, response.body);
     if (!result) {
         entry.size_metadata_failed = true;
         BROOKESIA_LOGW(
@@ -589,7 +622,8 @@ void AppStoreApp::handle_refresh_completed(const boost::json::object &response_j
         finish_remote_refresh_with_error(*context_, parse_result.error());
         return;
     }
-    start_refresh_icon_update(*context_);
+    finish_remote_refresh_success(*context_);
+    start_visible_icon_update(*context_);
 }
 
 void AppStoreApp::handle_refresh_failed(const boost::json::object &response_json)
@@ -629,34 +663,7 @@ void AppStoreApp::handle_refresh_canceled()
 
 void AppStoreApp::handle_refresh_icon_progress(const boost::json::object &progress_json)
 {
-    if (context_ == nullptr || refresh_icon_purpose_ != IconUpdatePurpose::RefreshVisiblePage) {
-        return;
-    }
-    const auto current_index = current_refresh_icon_index();
-    if (!current_index) {
-        return;
-    }
-
-    HttpHelper::RequestProgress progress;
-    if (!BROOKESIA_DESCRIBE_FROM_JSON(progress_json, progress)) {
-        return;
-    }
-    std::string label = tr("dialog.updating_icons_prefix") +
-                        std::to_string(refresh_icon_cursor_ + 1) + "/" +
-                        std::to_string(refresh_icon_indices_.size()) +
-                        ": " + localized(entries_[*current_index].app_names);
-    if (progress.total > 0) {
-        label += " (" + format_bytes(progress.downloaded) + " / " + format_bytes(progress.total) + ")";
-    } else if (progress.downloaded > 0) {
-        label += " (" + format_bytes(progress.downloaded) + ")";
-    }
-    update_message_dialog_if_visible(
-        *context_,
-        std::move(label),
-        {},
-        system::core::MessageDialogIcon::Information,
-        0
-    );
+    (void)progress_json;
 }
 
 void AppStoreApp::handle_refresh_icon_completed(const boost::json::object &response_json)
@@ -800,50 +807,29 @@ std::optional<AppStoreApp::VisibleItemRef> AppStoreApp::find_visible_item_by_pat
     return it->second;
 }
 
-void AppStoreApp::start_refresh_icon_update(system::core::AppContext &context)
-{
-    restart_visible_icon_update(context, IconUpdatePurpose::RefreshVisiblePage);
-}
-
 void AppStoreApp::start_visible_icon_update(system::core::AppContext &context)
 {
     if (refresh_in_progress_) {
-        if (refresh_icon_purpose_ == IconUpdatePurpose::RefreshVisiblePage) {
-            restart_visible_icon_update(context, IconUpdatePurpose::RefreshVisiblePage);
-        }
         return;
     }
-    restart_visible_icon_update(context, IconUpdatePurpose::LazyVisiblePage);
+    restart_visible_icon_update(context);
 }
 
-void AppStoreApp::restart_visible_icon_update(system::core::AppContext &context, IconUpdatePurpose purpose)
+void AppStoreApp::restart_visible_icon_update(system::core::AppContext &context)
 {
     cancel_refresh_icon_update(context);
     if (view_mode_ != ViewMode::Store || !http_available_) {
-        if (purpose == IconUpdatePurpose::RefreshVisiblePage) {
-            finish_remote_refresh_success(context);
-        }
         return;
     }
 
     refresh_icon_indices_ = build_visible_icon_indices();
     refresh_icon_cursor_ = 0;
-    refresh_icon_purpose_ = purpose;
+    refresh_icon_purpose_ = IconUpdatePurpose::LazyVisiblePage;
     if (refresh_icon_indices_.empty()) {
-        finish_refresh_icon_update(context);
+        reset_refresh_icon_state();
         return;
     }
 
-    if (refresh_icon_purpose_ == IconUpdatePurpose::RefreshVisiblePage) {
-        update_message_dialog_if_visible(
-            context,
-            tr("status.loaded_icons_prefix") + std::to_string(entries_.size()) +
-            tr("status.loaded_icons_suffix"),
-            {},
-            system::core::MessageDialogIcon::Information,
-            0
-        );
-    }
     schedule_refresh_icon_step(context);
 }
 
@@ -920,15 +906,8 @@ void AppStoreApp::advance_refresh_icon_step(system::core::AppContext &context)
 
 void AppStoreApp::finish_refresh_icon_update(system::core::AppContext &context)
 {
-    const auto purpose = refresh_icon_purpose_;
     reset_refresh_icon_state();
-    if (purpose == IconUpdatePurpose::RefreshVisiblePage) {
-        finish_remote_refresh_success(context);
-        return;
-    }
-    if (purpose == IconUpdatePurpose::LazyVisiblePage) {
-        (void)refresh_ui(context);
-    }
+    (void)refresh_ui(context);
 }
 
 std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::core::AppContext &context)
@@ -936,12 +915,7 @@ std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::
     if (refresh_icon_request_id_ != 0 || refresh_icon_purpose_ == IconUpdatePurpose::None) {
         return {};
     }
-    if (refresh_icon_purpose_ == IconUpdatePurpose::RefreshVisiblePage && !refresh_in_progress_) {
-        reset_refresh_icon_state();
-        return {};
-    }
-    if (refresh_icon_purpose_ == IconUpdatePurpose::LazyVisiblePage &&
-            (view_mode_ != ViewMode::Store || !http_available_)) {
+    if (view_mode_ != ViewMode::Store || !http_available_) {
         reset_refresh_icon_state();
         return {};
     }
@@ -962,23 +936,7 @@ std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::
         return {};
     }
 
-    if (refresh_icon_purpose_ == IconUpdatePurpose::RefreshVisiblePage) {
-        const auto label = tr("dialog.updating_icons_prefix") +
-                           std::to_string(refresh_icon_cursor_ + 1) + "/" +
-                           std::to_string(refresh_icon_indices_.size()) +
-                           ": " + localized(entry.app_names);
-        update_message_dialog_if_visible(
-            context,
-            label,
-            {},
-            system::core::MessageDialogIcon::Information,
-            0
-        );
-    }
-
-    const auto safe_package = safe_name(entry.package_name);
-    const auto relative_icon_path = std::filesystem::path(ICON_DIR) / (safe_package + ".png");
-    for (const auto &cached_path : cache_file_candidates(context, relative_icon_path)) {
+    for (const auto &cached_path : cached_icon_file_candidates(context, {entry.package_name, entry.manifest_id})) {
         std::error_code error_code;
         if (!std::filesystem::is_regular_file(cached_path, error_code) || error_code) {
             error_code.clear();
@@ -997,7 +955,7 @@ std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::
         return {};
     }
 
-    auto output = writable_cache_file(context, relative_icon_path);
+    auto output = writable_cache_file(context, icon_cache_relative_path(entry.package_name));
     if (!output) {
         BROOKESIA_LOGW("Failed to create App Store icon cache directory");
         advance_refresh_icon_step(context);
@@ -1036,12 +994,8 @@ void AppStoreApp::schedule_refresh_icon_step(system::core::AppContext &context)
 
     auto timer = context.timer().start_delayed(REFRESH_ICON_TIMER_NAME, REFRESH_ICON_STEP_DELAY_MS);
     if (!timer) {
-        if (refresh_icon_purpose_ == IconUpdatePurpose::RefreshVisiblePage) {
-            finish_remote_refresh_with_error(context, "Failed to schedule icon update: " + timer.error());
-        } else {
-            BROOKESIA_LOGW("Failed to schedule App Store visible icon update: %1%", timer.error());
-            reset_refresh_icon_state();
-        }
+        BROOKESIA_LOGW("Failed to schedule App Store visible icon update: %1%", timer.error());
+        reset_refresh_icon_state();
         return;
     }
     refresh_icon_timer_id_ = *timer;
