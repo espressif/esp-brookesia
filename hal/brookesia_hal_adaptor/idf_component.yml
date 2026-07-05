@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia HAL adaptor which provides board-side audio and LCD device implementations for brookesia_hal_interface.
 url: https://github.com/espressif/esp-brookesia/tree/master/hal/brookesia_hal_adaptor
 repository: https://github.com/espressif/esp-brookesia.git
@@ -20,6 +20,13 @@ dependencies:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_FILE_SYSTEM_IMPL} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SPIFFS} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_STORAGE_ENABLE_FILE_SYSTEM_IMPL} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE} == True
+
+  espressif/media_lib_sal:
+    version: "0.9.3"
+    matches:
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
 
   jason-mao/av_processor:
     version: "0.6.*"

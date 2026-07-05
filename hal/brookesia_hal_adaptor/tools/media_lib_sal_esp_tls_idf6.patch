@@ -1,0 +1,20 @@
+Make esp_tls_cfg_t initialization compatible with ESP-IDF 6.x.
+
+The `use_secure_element` field was removed from `esp_tls_cfg_t` in
+ESP-IDF 6.0, so it must only be initialized on 4.3.0 <= IDF < 6.0.0.
+The `crt_bundle_attach` field is still valid and keeps its >= 4.3.0 guard.
+
+--- a/port/media_lib_tls_default.c
++++ b/port/media_lib_tls_default.c
+@@ -63,8 +63,10 @@ static media_lib_tls_handle_t _tls_new(const char *hostname, int hostlen, int po
+         .timeout_ms = cfg->timeout_ms,
+         .use_global_ca_store = cfg->use_global_ca_store,
+         .skip_common_name = cfg->skip_common_name,
+-#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0))
++#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0)) && (ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0))
+         .use_secure_element = cfg->use_secure_element,
++#endif
++#if (ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(4, 3, 0))
+         .crt_bundle_attach = cfg->crt_bundle_attach,
+ #endif
+     };

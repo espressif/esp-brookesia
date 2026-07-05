@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-05
+
+### Bug Fixes:
+
+- fix(build): patch `media_lib_sal` TLS config initialization for ESP-IDF 6 compatibility.
+
 ## v0.8.0 - 2026-06-28
 
 ### Enhancements:
