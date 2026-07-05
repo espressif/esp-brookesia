@@ -21,4 +21,4 @@ auto config = system::core::make_runtime_app_config(manifest.value());
 auto app_id = runtime.load_app(config.value());
 ```
 
-包格式与验签 Kconfig（`BROOKESIA_SYSTEM_CORE_ENABLE_PACKAGE_RELEASE_VERIFY`）见 [system_core app package 规范](../../../system/brookesia_system_core/docs/app_package_spec.md)。
+包格式与验签 Kconfig（`BROOKESIA_SYSTEM_CORE_ENABLE_PACKAGE_RELEASE_VERIFY`）见 [system_core app package 规范](../../../docs/zh_CN/system/core/app_package.rst)。

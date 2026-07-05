@@ -22,6 +22,81 @@ macro(brookesia_hal_adaptor_optional_private_requires condition)
     endif()
 endmacro()
 
+# Apply a patch shipped with this component to a resolved dependency component.
+#
+# The patch is applied during the CMake configure phase and is idempotent: if it
+# is already applied it is skipped, and if it cannot be applied (e.g. an
+# incompatible upstream version) a warning is emitted instead of failing the
+# whole build.
+function(brookesia_hal_adaptor_apply_component_patch component_name patch_file target_relative_file)
+    if(NOT EXISTS "${patch_file}")
+        message(WARNING "brookesia_hal_adaptor: patch file not found, skip: ${patch_file}")
+        return()
+    endif()
+
+    # BUILD_COMPONENTS is populated during requirement expansion, before any
+    # component's CMakeLists.txt runs, so this membership check is independent of
+    # component processing order (unlike a "TARGET __idf_<name>" check). It also
+    # guarantees idf_component_get_property() can resolve the component instead of
+    # raising a FATAL_ERROR for an unknown component.
+    idf_build_get_property(_build_components BUILD_COMPONENTS)
+    if(NOT "${component_name}" IN_LIST _build_components)
+        return()
+    endif()
+
+    idf_component_get_property(_component_dir ${component_name} COMPONENT_DIR)
+    if(NOT _component_dir OR NOT EXISTS "${_component_dir}")
+        return()
+    endif()
+
+    if(NOT EXISTS "${_component_dir}/${target_relative_file}")
+        message(WARNING "brookesia_hal_adaptor: patch target not found, skip: ${_component_dir}/${target_relative_file}")
+        return()
+    endif()
+
+    if(NOT GIT_FOUND)
+        message(WARNING "brookesia_hal_adaptor: git not found, cannot patch ${component_name}")
+        return()
+    endif()
+
+    # Already applied? git apply --reverse --check succeeds only on a patched tree.
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply --reverse --check -p1 "${patch_file}"
+        WORKING_DIRECTORY "${_component_dir}"
+        RESULT_VARIABLE _reverse_check
+        OUTPUT_QUIET ERROR_QUIET
+    )
+    if(_reverse_check EQUAL 0)
+        message(STATUS "brookesia_hal_adaptor: patch already applied to ${component_name}")
+        return()
+    endif()
+
+    # Can the patch be applied cleanly to the current sources?
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply --check -p1 "${patch_file}"
+        WORKING_DIRECTORY "${_component_dir}"
+        RESULT_VARIABLE _apply_check
+        OUTPUT_QUIET ERROR_QUIET
+    )
+    if(NOT _apply_check EQUAL 0)
+        message(WARNING "brookesia_hal_adaptor: patch does not apply to ${component_name} "
+            "(possibly an incompatible version), skipping: ${patch_file}")
+        return()
+    endif()
+
+    execute_process(
+        COMMAND ${GIT_EXECUTABLE} apply -p1 "${patch_file}"
+        WORKING_DIRECTORY "${_component_dir}"
+        RESULT_VARIABLE _apply_result
+        OUTPUT_QUIET ERROR_QUIET
+    )
+    if(_apply_result EQUAL 0)
+        message(STATUS "brookesia_hal_adaptor: applied patch to ${component_name}: ${patch_file}")
+    else()
+        message(WARNING "brookesia_hal_adaptor: failed to apply patch to ${component_name}: ${patch_file}")
+    endif()
+endfunction()
+
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_NVS_FLASH FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_LITTLEFS FALSE)
@@ -166,6 +241,24 @@ idf_component_register(
     REQUIRES ${COMPONENT_REQUIRES}
     PRIV_REQUIRES ${COMPONENT_PRIV_REQUIRES}
     EMBED_TXTFILES ${COMPONENT_EMBED_TXTFILES}
+)
+
+#
+# Patch the resolved media_lib_sal component so its esp_tls usage builds on
+# ESP-IDF 6.x. The dependency may be resolved either as a local override
+# (media_lib_sal) or a managed component (espressif__media_lib_sal).
+#
+find_package(Git QUIET)
+set(BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH
+    ${COMPONENT_DIR}/tools/media_lib_sal_esp_tls_idf6.patch
+)
+brookesia_hal_adaptor_apply_component_patch(media_lib_sal
+    ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
+    port/media_lib_tls_default.c
+)
+brookesia_hal_adaptor_apply_component_patch(espressif__media_lib_sal
+    ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
+    port/media_lib_tls_default.c
 )
 
 brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER

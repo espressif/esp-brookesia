@@ -30,6 +30,9 @@ void AppStoreApp::start_or_cancel_download(system::core::AppContext &context, si
     if (entry.installed && !entry.update_available) {
         return;
     }
+    if (entry.download_url.empty() || entry.download_size == 0) {
+        apply_cached_metadata(context, entry);
+    }
     if (entry.cached && !entry.cached_package_path.empty()) {
         auto result = install_package(context, entry.cached_package_path, localized(entry.app_names));
         if (!result) {
@@ -130,15 +133,14 @@ void AppStoreApp::start_download(system::core::AppContext &context, size_t index
         return;
     }
 
-    const auto output_name = safe_name(entry.package_name) + "-" +
-                             safe_name(entry.latest_version.empty() ? "latest" : entry.latest_version) + ".bpk";
-    const auto output = (download_dir(context) / output_name).lexically_normal();
-    if (!directory_is_writable(output.parent_path())) {
+    auto output = writable_cache_file(context, package_cache_relative_path(entry, true));
+    if (!output) {
         entry.schema_error = "Failed to create download directory";
         show_download_failed_dialog(context, entry, entry.schema_error);
         (void)refresh_entry(context, index);
         return;
     }
+    remove_cache_file_if_exists(*output, "stale partial package before download");
 
     entry.downloaded = 0;
     entry.total = entry.download_size > 0 ? static_cast<uint32_t>(std::min<uint64_t>(
@@ -148,7 +150,7 @@ void AppStoreApp::start_download(system::core::AppContext &context, size_t index
     ensure_download_progress_dialog(context, entry);
 
     auto request = make_get_request(entry.download_url);
-    request.download_path = output.generic_string();
+    request.download_path = output->generic_string();
     request.max_file_size = BPK_MAX_FILE_SIZE;
     auto result = HttpHelper::call_function_sync<double>(
                       HttpHelper::FunctionId::RequestAsync,
@@ -157,19 +159,116 @@ void AppStoreApp::start_download(system::core::AppContext &context, size_t index
     if (!result) {
         entry.schema_error = "Download failed: " + result.error();
         show_download_failed_dialog(context, entry, entry.schema_error);
+        remove_cache_file_if_exists(*output, "download request submit failed");
         (void)refresh_entry(context, index);
         return;
     }
     entry.schema_error.clear();
     entry.download_request_id = static_cast<uint64_t>(*result);
     download_dialog_request_id_ = entry.download_request_id;
-    entry.download_path = output;
+    entry.download_path = *output;
     entry.downloading = true;
     entry.metadata_loading = false;
     entry.metadata_request_id = 0;
     entry.installed = false;
     ensure_download_progress_dialog(context, entry);
     (void)refresh_entry(context, index);
+}
+
+std::expected<void, std::string> AppStoreApp::apply_metadata_json_to_entry(
+    StoreEntry &entry,
+    std::string_view json,
+    bool require_download_url,
+    bool require_size,
+    bool require_identity
+) const
+{
+    boost::system::error_code error_code;
+    auto parsed = boost::json::parse(json, error_code);
+    if (error_code || !parsed.is_object()) {
+        return std::unexpected("App metadata is not a JSON object");
+    }
+
+    const auto &root = parsed.as_object();
+    const auto package_name = get_string_field(root, "package_name");
+    const auto version = get_string_field(root, "version");
+    if (require_identity && package_name.empty()) {
+        return std::unexpected("Metadata missing package_name");
+    }
+    if (!package_name.empty() && package_name != entry.package_name) {
+        return std::unexpected("Metadata package_name mismatch");
+    }
+    if (require_identity && version.empty()) {
+        return std::unexpected("Metadata missing version");
+    }
+    if (!version.empty() && !entry.latest_version.empty() && version != entry.latest_version) {
+        return std::unexpected("Metadata version mismatch");
+    }
+
+    bool updated = false;
+    auto download_url = resolve_relative_url(entry.metadata_url, get_string_field(root, "download_url"));
+    if (require_download_url && download_url.empty()) {
+        return std::unexpected("Metadata missing download_url");
+    }
+    if (!download_url.empty() && (entry.download_url.empty() || require_download_url)) {
+        entry.download_url = std::move(download_url);
+        updated = true;
+    }
+
+    if (auto size = get_size_field(root, "size_download")) {
+        entry.download_size = *size;
+        updated = true;
+    } else if (require_size) {
+        return std::unexpected("Metadata missing size_download");
+    }
+
+    const auto sha256 = get_string_field(root, "hash_sha256");
+    if (require_download_url || !sha256.empty()) {
+        entry.sha256 = sha256;
+        updated = true;
+    }
+    if (!updated && !require_download_url && !require_size) {
+        return std::unexpected("Metadata missing cacheable fields");
+    }
+    return {};
+}
+
+void AppStoreApp::apply_cached_metadata(system::core::AppContext &context, StoreEntry &entry)
+{
+    if (entry.package_name.empty() || entry.latest_version.empty()) {
+        return;
+    }
+
+    for (const auto &path : cache_file_candidates(context, metadata_cache_relative_path(entry))) {
+        const auto cached_json = read_text_file(path);
+        if (cached_json.empty()) {
+            continue;
+        }
+        auto result = apply_metadata_json_to_entry(entry, cached_json, false, false, true);
+        if (result) {
+            BROOKESIA_LOGI("Loaded App Store metadata cache: %1%", path.generic_string());
+            entry.size_metadata_failed = false;
+            return;
+        }
+        BROOKESIA_LOGW(
+            "Skip invalid App Store metadata cache: path(%1%), error(%2%)",
+            path.generic_string(), result.error()
+        );
+    }
+}
+
+void AppStoreApp::write_metadata_cache(
+    system::core::AppContext &context,
+    const StoreEntry &entry,
+    std::string_view json
+) const
+{
+    if (entry.package_name.empty() || json.empty()) {
+        return;
+    }
+    if (!write_cache_text_file(context, metadata_cache_relative_path(entry), json)) {
+        BROOKESIA_LOGW("Failed to write App Store metadata cache: package(%1%)", entry.package_name);
+    }
 }
 
 std::expected<void, std::string> AppStoreApp::parse_metadata_json(
@@ -182,36 +281,12 @@ std::expected<void, std::string> AppStoreApp::parse_metadata_json(
         return {};
     }
 
-    boost::system::error_code error_code;
-    auto parsed = boost::json::parse(json, error_code);
-    if (error_code || !parsed.is_object()) {
-        return std::unexpected("App metadata is not a JSON object");
-    }
-
     auto &entry = entries_[index];
-    const auto &root = parsed.as_object();
-    const auto package_name = get_string_field(root, "package_name");
-    const auto version = get_string_field(root, "version");
-    auto download_url = resolve_relative_url(entry.metadata_url, get_string_field(root, "download_url"));
-    if (package_name.empty()) {
-        return std::unexpected("Metadata missing package_name");
+    auto result = apply_metadata_json_to_entry(entry, json, true, false, true);
+    if (!result) {
+        return result;
     }
-    if (package_name != entry.package_name) {
-        return std::unexpected("Metadata package_name mismatch");
-    }
-    if (version.empty()) {
-        return std::unexpected("Metadata missing version");
-    }
-    if (version != entry.latest_version) {
-        return std::unexpected("Metadata version mismatch");
-    }
-    if (download_url.empty()) {
-        return std::unexpected("Metadata missing download_url");
-    }
-
-    entry.download_url = std::move(download_url);
-    entry.download_size = get_size_field(root, "size_download").value_or(0);
-    entry.sha256 = get_string_field(root, "hash_sha256");
+    write_metadata_cache(context, entry, json);
     entry.size_metadata_failed = false;
     entry.metadata_loading = false;
     entry.metadata_request_id = 0;
@@ -220,41 +295,22 @@ std::expected<void, std::string> AppStoreApp::parse_metadata_json(
     return {};
 }
 
-std::expected<void, std::string> AppStoreApp::parse_size_metadata_json(size_t index, std::string_view json)
+std::expected<void, std::string> AppStoreApp::parse_size_metadata_json(
+    system::core::AppContext &context,
+    size_t index,
+    std::string_view json
+)
 {
     if (index >= entries_.size()) {
         return {};
     }
 
-    boost::system::error_code error_code;
-    auto parsed = boost::json::parse(json, error_code);
-    if (error_code || !parsed.is_object()) {
-        return std::unexpected("App metadata is not a JSON object");
-    }
-
     auto &entry = entries_[index];
-    const auto &root = parsed.as_object();
-    const auto package_name = get_string_field(root, "package_name");
-    const auto version = get_string_field(root, "version");
-    if (!package_name.empty() && package_name != entry.package_name) {
-        return std::unexpected("Metadata package_name mismatch");
+    auto result = apply_metadata_json_to_entry(entry, json, false, true, false);
+    if (!result) {
+        return result;
     }
-    if (!version.empty() && !entry.latest_version.empty() && version != entry.latest_version) {
-        return std::unexpected("Metadata version mismatch");
-    }
-
-    auto download_url = resolve_relative_url(entry.metadata_url, get_string_field(root, "download_url"));
-    if (!download_url.empty()) {
-        entry.download_url = std::move(download_url);
-    }
-    if (auto size = get_size_field(root, "size_download")) {
-        entry.download_size = *size;
-    } else {
-        return std::unexpected("Metadata missing size_download");
-    }
-    if (auto sha256 = get_string_field(root, "hash_sha256"); !sha256.empty()) {
-        entry.sha256 = std::move(sha256);
-    }
+    write_metadata_cache(context, entry, json);
     return {};
 }
 
@@ -401,6 +457,7 @@ void AppStoreApp::cancel_download(StoreEntry &entry)
     if (!entry.downloading || entry.download_request_id == 0 || !http_available_) {
         entry.downloading = false;
         entry.download_request_id = 0;
+        remove_cache_file_if_exists(entry.download_path, "download canceled before active HTTP request");
         entry.download_path.clear();
         entry.downloaded = 0;
         entry.total = 0;
@@ -415,6 +472,7 @@ void AppStoreApp::cancel_download(StoreEntry &entry)
     }
     entry.downloading = false;
     entry.download_request_id = 0;
+    remove_cache_file_if_exists(entry.download_path, "download canceled");
     entry.download_path.clear();
     entry.downloaded = 0;
     entry.total = 0;

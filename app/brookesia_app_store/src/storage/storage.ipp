@@ -194,21 +194,47 @@ std::filesystem::path AppStoreApp::download_dir(system::core::AppContext &contex
             return dir.lexically_normal();
         }
     }
-    return (cache_dir(context) / DOWNLOAD_DIR).lexically_normal();
+    return (cache_dir(context) / APP_CACHE_DIR).lexically_normal();
 }
 
 std::vector<std::filesystem::path> AppStoreApp::download_dirs(system::core::AppContext &context) const
 {
     std::vector<std::filesystem::path> paths;
     for (const auto &dir : cache_dirs(context)) {
-        append_unique_path(paths, dir / DOWNLOAD_DIR);
+        append_unique_path(paths, dir / APP_CACHE_DIR);
     }
     return paths;
 }
 
 std::vector<std::filesystem::path> AppStoreApp::scan_download_dirs(system::core::AppContext &context) const
 {
-    auto paths = download_dirs(context);
+    std::vector<std::filesystem::path> paths;
+    std::error_code error_code;
+    for (const auto &apps_dir : download_dirs(context)) {
+        if (!std::filesystem::is_directory(apps_dir, error_code) || error_code) {
+            error_code.clear();
+            continue;
+        }
+        for (const auto &entry : std::filesystem::directory_iterator(apps_dir, error_code)) {
+            if (error_code) {
+                BROOKESIA_LOGW(
+                    "Failed to scan App Store per-app cache directory: path(%1%), error(%2%)",
+                    apps_dir.generic_string(), error_code.message()
+                );
+                error_code.clear();
+                break;
+            }
+            if (entry.is_directory(error_code) && !error_code) {
+                append_unique_path(paths, entry.path());
+            }
+            error_code.clear();
+        }
+    }
+
+    for (const auto &dir : cache_dirs(context)) {
+        append_unique_path(paths, dir / DOWNLOAD_DIR);
+    }
+
     auto public_paths = context.system_service().get_public_storage_paths();
     if (!public_paths) {
         BROOKESIA_LOGW("Failed to resolve public download directories: %1%", public_paths.error());
@@ -221,6 +247,56 @@ std::vector<std::filesystem::path> AppStoreApp::scan_download_dirs(system::core:
     for (const auto &dir : public_paths->external) {
         if (dir.available && !dir.download.empty()) {
             append_unique_path(paths, std::filesystem::path(dir.download));
+        }
+    }
+    return paths;
+}
+
+std::filesystem::path AppStoreApp::app_cache_relative_dir(std::string_view package_name) const
+{
+    return (std::filesystem::path(APP_CACHE_DIR) / safe_name(package_name)).lexically_normal();
+}
+
+std::filesystem::path AppStoreApp::app_cache_relative_file(
+    std::string_view package_name,
+    const std::filesystem::path &file_name
+) const
+{
+    return (app_cache_relative_dir(package_name) / file_name).lexically_normal();
+}
+
+std::filesystem::path AppStoreApp::metadata_cache_relative_path(const StoreEntry &entry) const
+{
+    return app_cache_relative_file(entry.package_name, METADATA_CACHE_FILE);
+}
+
+std::filesystem::path AppStoreApp::icon_cache_relative_path(std::string_view package_name) const
+{
+    return app_cache_relative_file(package_name, ICON_CACHE_FILE);
+}
+
+std::filesystem::path AppStoreApp::package_cache_relative_path(const StoreEntry &entry, bool partial) const
+{
+    auto file_name = safe_name(entry.latest_version.empty() ? "latest" : entry.latest_version) + ".bpk";
+    if (partial) {
+        file_name += BPK_PART_EXTENSION;
+    }
+    return app_cache_relative_file(entry.package_name, file_name);
+}
+
+std::vector<std::filesystem::path> AppStoreApp::cached_icon_file_candidates(
+    system::core::AppContext &context,
+    const std::vector<std::string> &keys
+) const
+{
+    std::vector<std::filesystem::path> paths;
+    for (const auto &key : keys) {
+        if (key.empty()) {
+            continue;
+        }
+        for (const auto &base_dir : cache_dirs(context)) {
+            append_unique_path(paths, base_dir / icon_cache_relative_path(key));
+            append_unique_path(paths, base_dir / ICON_DIR / (safe_name(key) + ".png"));
         }
     }
     return paths;

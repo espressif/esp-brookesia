@@ -167,6 +167,7 @@ std::expected<void, std::string> AppStoreApp::parse_index_json(
         } else if (entry.latest_version.empty()) {
             entry.schema_error = "Missing latest_version";
         }
+        apply_cached_metadata(context, entry);
         entries_.push_back(std::move(entry));
     }
     apply_installed_state();

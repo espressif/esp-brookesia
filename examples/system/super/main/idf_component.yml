@@ -73,33 +73,3 @@ dependencies:
     version: "0.8.*"
     override_path: ../../../../app/brookesia_app_files
     require: public
-
-  # # Runtime Apps
-  # espressif/brookesia_app_2048:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_2048
-  #   require: public
-  # espressif/brookesia_app_ai_chatbot:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_ai_chatbot
-  #   require: public
-  # espressif/brookesia_app_calculator:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_calculator
-  #   require: public
-  # espressif/brookesia_app_camera:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_camera
-  #   require: public
-  # espressif/brookesia_app_flappy_bird:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_flappy_bird
-  #   require: public
-  # espressif/brookesia_app_music_player:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_music_player
-  #   require: public
-  # espressif/brookesia_app_nes_emulator:
-  #   version: "*"
-  #   override_path: ../../../../../esp-brookesia-apps/general/brookesia_app_nes_emulator
-  #   require: public

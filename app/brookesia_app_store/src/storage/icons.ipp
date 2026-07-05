@@ -47,8 +47,7 @@ std::string AppStoreApp::register_cached_icon(system::core::AppContext &context,
         if (registered_icon_resource_ids_.contains(image_id)) {
             return image_id;
         }
-        const auto relative_icon_path = std::filesystem::path(ICON_DIR) / (safe_key + ".png");
-        for (const auto &icon_path : cache_file_candidates(context, relative_icon_path)) {
+        for (const auto &icon_path : cached_icon_file_candidates(context, {key})) {
             std::error_code error_code;
             if (!std::filesystem::is_regular_file(icon_path, error_code) || error_code) {
                 error_code.clear();

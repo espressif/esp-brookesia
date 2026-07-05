@@ -89,7 +89,7 @@ jobs:
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.agent-chatbot == 'true'
     runs-on: ubuntu-latest
-    container: espressif/idf:release-v5.5
+    container: espressif/idf:release-v6.0
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -155,7 +155,7 @@ jobs:
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.service-console == 'true'
     runs-on: ubuntu-latest
-    container: espressif/idf:release-v5.5
+    container: espressif/idf:release-v6.0
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -221,7 +221,7 @@ jobs:
     needs: changes
     if: github.event_name != 'pull_request' || needs.changes.outputs.system-super == 'true'
     runs-on: ubuntu-latest
-    container: espressif/idf:release-v5.5
+    container: espressif/idf:release-v6.0
     continue-on-error: true
     strategy:
       fail-fast: false
@@ -231,7 +231,7 @@ jobs:
           # Espressif boards
           #
           - espressif/esp32_p4x_function_ev
-          - espressif/esp32_s31_korvo1 # TODO: ESP32-S31 chip is not supported by Launchpad yet
+          # - espressif/esp32_s31_korvo1 # TODO: ESP32-S31 chip is not supported by Launchpad yet
     steps:
       - uses: actions/checkout@v3
         with:

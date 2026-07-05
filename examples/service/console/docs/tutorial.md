@@ -65,7 +65,7 @@ svc_call Emote SetEmoji {"Emoji":"happy"}
 You should now see the `happy` emote on the display. Other available emote names include `sad`, `angry`, `thinking`, `winking`, and `idle`.
 
 > [!TIP]
-> For more `Emote` commands, see [Emote - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/expression/emote.html#helper-contract-service-emote-interfaces).
+> For more `Emote` commands, see [Emote - Service Interfaces](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/expression/emote.html#helper-contract-service-emote-interfaces).
 
 ## Step 3: Play Audio
 

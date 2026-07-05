@@ -6,7 +6,7 @@
 
 `brookesia_gui_interface` 是 ESP-Brookesia 中与后端无关的 GUI 文档和运行时接口组件。
 
-更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/gui/interface/index.html)。
+更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/gui/interface/json_ui/index.html)。
 
 ## 如何使用
 

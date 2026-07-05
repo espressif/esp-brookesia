@@ -62,7 +62,6 @@ private:
 
     enum class VisibleItemKind {
         Store,
-        StoreLocal,
         Installed,
         Local,
     };
@@ -101,7 +100,6 @@ private:
 
     enum class IconUpdatePurpose {
         None,
-        RefreshVisiblePage,
         LazyVisiblePage,
     };
 
@@ -182,6 +180,18 @@ private:
     std::filesystem::path download_dir(system::core::AppContext &context) const;
     std::vector<std::filesystem::path> download_dirs(system::core::AppContext &context) const;
     std::vector<std::filesystem::path> scan_download_dirs(system::core::AppContext &context) const;
+    std::filesystem::path app_cache_relative_dir(std::string_view package_name) const;
+    std::filesystem::path app_cache_relative_file(
+        std::string_view package_name,
+        const std::filesystem::path &file_name
+    ) const;
+    std::filesystem::path metadata_cache_relative_path(const StoreEntry &entry) const;
+    std::filesystem::path icon_cache_relative_path(std::string_view package_name) const;
+    std::filesystem::path package_cache_relative_path(const StoreEntry &entry, bool partial) const;
+    std::vector<std::filesystem::path> cached_icon_file_candidates(
+        system::core::AppContext &context,
+        const std::vector<std::string> &keys
+    ) const;
     std::vector<std::filesystem::path> cache_file_candidates(
         system::core::AppContext &context,
         const std::filesystem::path &relative_path
@@ -228,7 +238,6 @@ private:
     bool should_fetch_icon(const StoreEntry &entry) const;
     std::vector<VisibleItemRef> build_visible_items() const;
     void clamp_list_page();
-    std::optional<size_t> find_store_entry_index_by_package(std::string_view package_name) const;
     LocalPackageAction get_local_package_action(const LocalPackageEntry &entry) const;
     void handle_primary_action(const gui::Event &event);
     void start_view_mode_load(system::core::AppContext &context, ViewMode mode);
@@ -244,7 +253,24 @@ private:
         size_t index,
         std::string_view json
     );
-    std::expected<void, std::string> parse_size_metadata_json(size_t index, std::string_view json);
+    std::expected<void, std::string> parse_size_metadata_json(
+        system::core::AppContext &context,
+        size_t index,
+        std::string_view json
+    );
+    std::expected<void, std::string> apply_metadata_json_to_entry(
+        StoreEntry &entry,
+        std::string_view json,
+        bool require_download_url,
+        bool require_size,
+        bool require_identity
+    ) const;
+    void apply_cached_metadata(system::core::AppContext &context, StoreEntry &entry);
+    void write_metadata_cache(
+        system::core::AppContext &context,
+        const StoreEntry &entry,
+        std::string_view json
+    ) const;
     std::expected<void, std::string> install_package(
         system::core::AppContext &context,
         const std::filesystem::path &path,
@@ -298,8 +324,7 @@ private:
     std::optional<size_t> find_entry_by_metadata_request(uint64_t request_id) const;
     std::optional<size_t> find_entry_by_size_metadata_request(uint64_t request_id) const;
     std::optional<VisibleItemRef> find_visible_item_by_path(std::string_view path) const;
-    void start_refresh_icon_update(system::core::AppContext &context);
-    void restart_visible_icon_update(system::core::AppContext &context, IconUpdatePurpose purpose);
+    void restart_visible_icon_update(system::core::AppContext &context);
     void cancel_refresh_icon_update(system::core::AppContext &context);
     void reset_refresh_icon_state();
     std::vector<size_t> build_visible_icon_indices() const;
