@@ -91,6 +91,38 @@ bool ServiceManager::init_internal()
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         task_scheduler_ = std::make_shared<lib_utils::TaskScheduler>(), false, "Failed to create task scheduler"
     );
+#if BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_ENABLE
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        secondary_task_scheduler_ = std::make_shared<lib_utils::TaskScheduler>(), false,
+        "Failed to create secondary task scheduler"
+    );
+#endif
+
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        manager_service_ = std::make_shared<ManagerService>(*this), false,
+        "Failed to create the built-in Manager service"
+    );
+    BROOKESIA_CHECK_EXCEPTION_RETURN(
+        utils_service_ = std::make_shared<UtilsService>(), false,
+        "Failed to create the built-in Utils service"
+    );
+    if (!add_service(manager_service_)) {
+        utils_service_.reset();
+        manager_service_.reset();
+        task_scheduler_.reset();
+        secondary_task_scheduler_.reset();
+        BROOKESIA_LOGE("Failed to add the built-in Manager service");
+        return false;
+    }
+    if (!add_service(utils_service_)) {
+        remove_service(ManagerService::get_name().data());
+        utils_service_.reset();
+        manager_service_.reset();
+        task_scheduler_.reset();
+        secondary_task_scheduler_.reset();
+        BROOKESIA_LOGE("Failed to add the built-in Utils service");
+        return false;
+    }
 
     // Initialize all registered services
     add_all_registered_services();
@@ -117,8 +149,11 @@ void ServiceManager::deinit()
 
     // Deinitialize all services
     remove_all_registered_services();
+    utils_service_.reset();
+    manager_service_.reset();
 
     task_scheduler_.reset();
+    secondary_task_scheduler_.reset();
 
     is_initialized_.store(false);
 }
@@ -143,12 +178,40 @@ bool ServiceManager::start(const lib_utils::TaskScheduler::StartConfig &config)
 
     lib_utils::FunctionGuard stop_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        stop_internal();
+        if (secondary_task_scheduler_) {
+            secondary_task_scheduler_->stop();
+        }
+        if (task_scheduler_) {
+            task_scheduler_->stop();
+        }
     });
 
     BROOKESIA_CHECK_FALSE_RETURN(task_scheduler_->start(config), false, "Failed to start task scheduler");
+#if BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_ENABLE
+    BROOKESIA_CHECK_NULL_RETURN(
+        secondary_task_scheduler_, false, "Secondary task scheduler is not available"
+    );
+    BROOKESIA_CHECK_FALSE_RETURN(
+        secondary_task_scheduler_->start(DEFAULT_SECONDARY_TASK_SCHEDULER_START_CONFIG), false,
+        "Failed to start secondary task scheduler"
+    );
+#endif
 
     is_running_.store(true);
+
+    manager_binding_ = bind(ManagerService::get_name().data());
+    if (!manager_binding_.is_valid()) {
+        is_running_.store(false);
+        BROOKESIA_LOGE("Failed to start the built-in Manager service");
+        return false;
+    }
+    utils_binding_ = bind(UtilsService::get_name().data());
+    if (!utils_binding_.is_valid()) {
+        manager_binding_.release();
+        is_running_.store(false);
+        BROOKESIA_LOGE("Failed to start the built-in Utils service");
+        return false;
+    }
 
     stop_guard.release();
 
@@ -174,7 +237,39 @@ void ServiceManager::stop_internal()
         return;
     }
 
-    // Stop task scheduler
+    // Stop Utils first so profiler callbacks finish while the shared service schedulers are still alive.
+    utils_binding_.release();
+    manager_binding_.release();
+
+    auto stop_builtin = [this](std::string_view name, const std::shared_ptr<ServiceBase> &service) {
+        bool should_stop = false;
+        {
+            boost::unique_lock lock(service_mutex_);
+            auto service_it = services_.find(name.data());
+            if ((service_it != services_.end()) && service_it->second.service &&
+                    (service_it->second.state == ServiceState::Running)) {
+                service_it->second.state = ServiceState::Stopping;
+                should_stop = true;
+            }
+        }
+        if (!should_stop) {
+            return;
+        }
+        service->stop();
+        boost::unique_lock lock(service_mutex_);
+        auto service_it = services_.find(name.data());
+        if (service_it != services_.end()) {
+            service_it->second.state = ServiceState::Stopped;
+            service_it->second.transition_cv.notify_all();
+        }
+    };
+    stop_builtin(UtilsService::get_name(), utils_service_);
+    stop_builtin(ManagerService::get_name(), manager_service_);
+
+    // Stop task schedulers
+    if (secondary_task_scheduler_) {
+        secondary_task_scheduler_->stop();
+    }
     task_scheduler_->stop();
 
     is_running_.store(false);
@@ -201,7 +296,8 @@ bool ServiceManager::add_service(std::shared_ptr<ServiceBase> service)
 
     if (!service->is_initialized()) {
         BROOKESIA_LOGI("Initializing service: %1%", name);
-        BROOKESIA_CHECK_FALSE_RETURN(service->init(task_scheduler_), false, "Failed to initialize service");
+        auto task_scheduler = get_service_task_scheduler(service->get_attributes());
+        BROOKESIA_CHECK_FALSE_RETURN(service->init(task_scheduler), false, "Failed to initialize service");
     }
 
     {
@@ -212,7 +308,7 @@ bool ServiceManager::add_service(std::shared_ptr<ServiceBase> service)
             auto &info = result.first->second;
             info.ref_count = 0;
             info.service = service;
-            info.state = ServiceState::Idle;
+            info.state = ServiceState::Stopped;
             service_init_order_.push_back(name);
         }
     }
@@ -220,6 +316,32 @@ bool ServiceManager::add_service(std::shared_ptr<ServiceBase> service)
     BROOKESIA_LOGI("Service added: %1%", name);
 
     return true;
+}
+
+std::shared_ptr<lib_utils::TaskScheduler> ServiceManager::get_service_task_scheduler(
+    const ServiceBase::Attributes &attributes
+)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (attributes.has_scheduler()) {
+        return task_scheduler_;
+    }
+
+    switch (attributes.scheduler_type) {
+    case ServiceBase::SchedulerType::Main:
+        return task_scheduler_;
+    case ServiceBase::SchedulerType::Secondary:
+#if BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_ENABLE
+        return secondary_task_scheduler_;
+#else
+        BROOKESIA_LOGE("Secondary scheduler is not enabled for service: %1%", attributes.name);
+        return nullptr;
+#endif
+    default:
+        BROOKESIA_LOGE("Unsupported scheduler type for service: %1%", attributes.name);
+        return nullptr;
+    }
 }
 
 bool ServiceManager::remove_service(const std::string &name)
@@ -232,11 +354,19 @@ bool ServiceManager::remove_service(const std::string &name)
 
     std::shared_ptr<ServiceBase> service;
     {
-        boost::lock_guard lock(service_mutex_);
+        boost::unique_lock lock(service_mutex_);
         auto service_it = services_.find(name);
         if (service_it == services_.end()) {
             BROOKESIA_LOGD("Service not found: %1%", name);
             return true;
+        }
+        while ((service_it->second.state == ServiceState::Starting) ||
+                (service_it->second.state == ServiceState::Stopping)) {
+            service_it->second.transition_cv.wait(lock);
+            service_it = services_.find(name);
+            if (service_it == services_.end()) {
+                return true;
+            }
         }
         service = service_it->second.service;
     }
@@ -308,14 +438,15 @@ ServiceBinding ServiceManager::bind(const std::string &name)
     auto &service_info = service_it->second;
     BROOKESIA_CHECK_NULL_RETURN(service_info.service, ServiceBinding(), "Service instance is null: %1%", name);
 
-    // Wait if another thread is starting the service
-    while (service_info.state == ServiceState::Starting) {
-        BROOKESIA_LOGD("Service %1% is being started by another thread, waiting...", name);
-        service_info.start_cv.wait(lock);
+    // A new bind must not overlap the previous start or stop transition.
+    while ((service_info.state == ServiceState::Starting) || (service_info.state == ServiceState::Stopping)) {
+        BROOKESIA_LOGD("Service %1% is changing state, waiting...", name);
+        service_info.transition_cv.wait(lock);
     }
 
     // Check if we need to start the service
-    bool need_start = (service_info.state == ServiceState::Idle);
+    bool need_start = (service_info.state == ServiceState::Stopped);
+    std::shared_ptr<ServiceBase> bound_service = service_info.service;
 
     if (need_start) {
         // Mark service as starting and increment ref_count
@@ -350,9 +481,9 @@ ServiceBinding ServiceManager::bind(const std::string &name)
         if (!start_success) {
             // Start failed, decrement ref_count and reset state
             service_info_after.ref_count--;
-            service_info_after.state = ServiceState::Idle;
+            service_info_after.state = ServiceState::Stopped;
             // Notify waiting threads that start failed
-            service_info_after.start_cv.notify_all();
+            service_info_after.transition_cv.notify_all();
             BROOKESIA_LOGE("Failed to start service: %1%", name);
             return ServiceBinding();
         }
@@ -360,7 +491,8 @@ ServiceBinding ServiceManager::bind(const std::string &name)
         // Start succeeded, mark as running
         service_info_after.state = ServiceState::Running;
         // Notify all waiting threads that start completed
-        service_info_after.start_cv.notify_all();
+        service_info_after.transition_cv.notify_all();
+        bound_service = service_info_after.service;
 
         if (service_info_after.ref_count == 1) {
             BROOKESIA_LOGI("Service started: %1%", name);
@@ -387,7 +519,7 @@ ServiceBinding ServiceManager::bind(const std::string &name)
     };
 
     // Return the valid binding object (including dependencies)
-    return ServiceBinding(unbind_callback, service_info.service, std::move(dependency_bindings));
+    return ServiceBinding(unbind_callback, std::move(bound_service), std::move(dependency_bindings));
 }
 
 void ServiceManager::unbind(const std::string &name)
@@ -428,9 +560,14 @@ void ServiceManager::unbind(const std::string &name)
         service_info.ref_count--;
         BROOKESIA_LOGD("Service unbound: %1% (ref_count: %2%)", name, service_info.ref_count);
 
-        // Update state if ref_count becomes 0
+        // Keep the service in Stopping until stop() has completed so a new bind cannot overlap it.
         if (service_info.ref_count == 0) {
-            service_info.state = ServiceState::Idle;
+            if (should_stop) {
+                service_info.state = ServiceState::Stopping;
+            } else {
+                service_info.state = ServiceState::Stopped;
+                service_info.transition_cv.notify_all();
+            }
         }
     }
 
@@ -439,8 +576,118 @@ void ServiceManager::unbind(const std::string &name)
     if (should_stop && service_to_stop) {
         service_to_stop->stop();
 
+        boost::unique_lock lock(service_mutex_);
+        auto service_it = services_.find(name);
+        if ((service_it != services_.end()) && (service_it->second.state == ServiceState::Stopping)) {
+            service_it->second.state = ServiceState::Stopped;
+            service_it->second.transition_cv.notify_all();
+        }
+
         BROOKESIA_LOGI("Service stopped: %1%", name);
     }
+}
+
+std::vector<std::string> ServiceManager::get_service_names() const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    boost::shared_lock lock(service_mutex_);
+    std::vector<std::string> result;
+    result.reserve(services_.size());
+    for (const auto &[name, runtime_info] : services_) {
+        if (runtime_info.service != nullptr) {
+            result.push_back(name);
+        }
+    }
+    return result;
+}
+
+std::optional<ServiceManager::ServiceInfo> ServiceManager::get_service_info(const std::string &name) const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGD("Params: name(%1%)", name);
+
+    boost::shared_lock lock(service_mutex_);
+    auto service_it = services_.find(name);
+    if ((service_it == services_.end()) || (service_it->second.service == nullptr)) {
+        return std::nullopt;
+    }
+    const auto &runtime_info = service_it->second;
+    const auto &attributes = runtime_info.service->get_attributes();
+    const bool is_builtin = (name == ManagerService::get_name()) || (name == UtilsService::get_name());
+    const auto reference_count = is_builtin && is_running() && (runtime_info.ref_count > 0)
+                                 ? runtime_info.ref_count - 1 : runtime_info.ref_count;
+    return ServiceInfo{
+        .name = name,
+        .version = attributes.version,
+        .state = runtime_info.state,
+        .reference_count = reference_count,
+        .bindable = attributes.bindable,
+        .dependencies = attributes.dependencies,
+    };
+}
+
+std::optional<ManagerService::ServiceSchemaOverview> ServiceManager::get_service_schema(
+    const std::string &name
+) const
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGD("Params: name(%1%)", name);
+
+    std::shared_ptr<ServiceBase> service;
+    std::string description;
+    {
+        boost::shared_lock lock(service_mutex_);
+        auto service_it = services_.find(name);
+        if ((service_it == services_.end()) || (service_it->second.service == nullptr)) {
+            return std::nullopt;
+        }
+        service = service_it->second.service;
+        description = service->get_attributes().description;
+    }
+
+    auto function_registry = service->get_function_registry();
+    auto event_registry = service->get_event_registry();
+    return ManagerService::ServiceSchemaOverview{
+        .name = name,
+        .description = std::move(description),
+        .function_names = function_registry ? function_registry->get_names() : std::vector<std::string>{},
+        .event_names = event_registry ? event_registry->get_names() : std::vector<std::string>{},
+    };
+}
+
+std::optional<FunctionSchema> ServiceManager::get_service_function_schema(
+    const std::string &service_name, const std::string &function_name
+) const
+{
+    std::shared_ptr<ServiceBase> service;
+    {
+        boost::shared_lock lock(service_mutex_);
+        auto service_it = services_.find(service_name);
+        if ((service_it == services_.end()) || (service_it->second.service == nullptr)) {
+            return std::nullopt;
+        }
+        service = service_it->second.service;
+    }
+    auto registry = service->get_function_registry();
+    return registry ? registry->get_schema_copy(function_name) : std::nullopt;
+}
+
+std::optional<EventSchema> ServiceManager::get_service_event_schema(
+    const std::string &service_name, const std::string &event_name
+) const
+{
+    std::shared_ptr<ServiceBase> service;
+    {
+        boost::shared_lock lock(service_mutex_);
+        auto service_it = services_.find(service_name);
+        if ((service_it == services_.end()) || (service_it->second.service == nullptr)) {
+            return std::nullopt;
+        }
+        service = service_it->second.service;
+    }
+    auto registry = service->get_event_registry();
+    return registry ? registry->get_schema_copy(event_name) : std::nullopt;
 }
 
 std::vector<std::string> ServiceManager::topological_sort(

@@ -10,6 +10,7 @@
 #include <vector>
 #include <functional>
 #include <memory>
+#include <optional>
 #include "boost/json.hpp"
 #include "boost/thread/lock_guard.hpp"
 #include "boost/thread/mutex.hpp"
@@ -82,6 +83,28 @@ public:
      * @return std::vector<FunctionSchema> Copy of the registered schemas.
      */
     std::vector<FunctionSchema> get_schemas() const;
+
+    std::optional<FunctionSchema> get_schema_copy(const std::string &func_name) const
+    {
+        boost::lock_guard lock(functions_mutex_);
+        auto it = functions_.find(func_name);
+        if (it == functions_.end()) {
+            return std::nullopt;
+        }
+        return it->second.first;
+    }
+
+    std::vector<std::string> get_names() const
+    {
+        boost::lock_guard lock(functions_mutex_);
+        std::vector<std::string> names;
+        names.reserve(functions_.size());
+        for (const auto &[name, unused] : functions_) {
+            (void)unused;
+            names.push_back(name);
+        }
+        return names;
+    }
     /**
      * @brief Export all registered function schemas as JSON.
      *

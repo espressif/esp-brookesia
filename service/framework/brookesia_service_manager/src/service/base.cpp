@@ -7,6 +7,7 @@
 #if !BROOKESIA_SERVICE_MANAGER_SERVICE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include <algorithm>
 #include <exception>
 #include <memory>
 #include "boost/chrono.hpp"
@@ -245,6 +246,10 @@ bool ServiceBase::call_functions_async(std::vector<FunctionCall> calls, Function
         } else
         {
             ScopedCallContext context_guard(call_context);
+            on_function_batch_start(calls);
+            lib_utils::FunctionGuard batch_guard([this]() {
+                on_function_batch_end();
+            });
             for (auto &call : calls) {
                 FunctionResult result;
                 BROOKESIA_CHECK_EXCEPTION_EXECUTE(result = registry->call(call.name, std::move(call.parameters)), {
@@ -298,6 +303,7 @@ FunctionResult ServiceBase::call_function_sync(
 
     // Thread-safe get the copies of resources
     std::shared_ptr<FunctionRegistry> registry;
+    std::shared_ptr<lib_utils::TaskScheduler> scheduler;
     bool require_scheduler = false;
     uint32_t effective_timeout_ms = timeout_ms;
     {
@@ -309,6 +315,7 @@ FunctionResult ServiceBase::call_function_sync(
         }), "%1%: function registry is not available", error_prefix);
 
         registry = function_registry_;
+        scheduler = task_scheduler_;
 
         auto *func_schema = registry->get_schema(name);
         BROOKESIA_CHECK_NULL_RETURN(func_schema, (FunctionResult{
@@ -323,6 +330,42 @@ FunctionResult ServiceBase::call_function_sync(
         }
     }
 
+    // Only calls already executing through this service's call strand may bypass
+    // scheduling. Calls from another group on the same scheduler must enter the target
+    // strand so they cannot overlap an in-flight call for this service.
+    if (require_scheduler && scheduler && scheduler->is_current_thread_in_group(get_call_task_group())) {
+        boost::shared_lock lock(state_mutex_);
+        FunctionResult inline_result;
+        if (is_running()) {
+            BROOKESIA_CHECK_EXCEPTION_EXECUTE(
+            inline_result = registry->call(name, std::move(parameters_map)), {
+                inline_result.success = false;
+                inline_result.error_message =
+                (boost::format("%1%: detected exception: %2%") % error_prefix % e.what()).str();
+            }, {});
+        } else {
+            inline_result.success = false;
+            inline_result.error_message = (boost::format("%1%: service is not running") % error_prefix).str();
+        }
+        return inline_result;
+    }
+
+    const bool requires_worker_wait_slot =
+        require_scheduler && scheduler && scheduler->is_current_thread_worker();
+    if (requires_worker_wait_slot && !scheduler->try_acquire_worker_wait_slot()) {
+        return FunctionResult{
+            .success = false,
+            .error_message = (boost::format(
+                                  "%1%synchronous cross-group call has no available scheduler worker"
+                              ) % error_prefix).str(),
+        };
+    }
+    lib_utils::FunctionGuard wait_slot_guard([scheduler, requires_worker_wait_slot]() {
+        if (requires_worker_wait_slot) {
+            scheduler->release_worker_wait_slot();
+        }
+    });
+
     using ResultPromise = boost::promise<FunctionResult>;
     std::shared_ptr<ResultPromise> result_promise;
     BROOKESIA_CHECK_EXCEPTION_RETURN(result_promise = std::make_shared<ResultPromise>(), (FunctionResult{
@@ -336,7 +379,7 @@ FunctionResult ServiceBase::call_function_sync(
         result_promise->set_value(std::move(result));
     };
 
-    auto async_result = call_function_async(name, std::move(parameters_map), result_handler);
+    auto async_result = call_function_async(name, std::move(parameters_map), std::move(result_handler));
     BROOKESIA_CHECK_FALSE_RETURN(async_result, (FunctionResult{
         .success = false,
         .error_message = "Failed to call function asynchronously",
@@ -516,8 +559,6 @@ bool ServiceBase::register_functions(std::vector<FunctionSchema> schemas, Functi
 
     size_t registered_count = 0;
     const size_t total_count = schemas.size();
-    // Avoid compiler warning about unused variable
-    (void)total_count;
 
     for (auto &&schema : schemas) {
         // Save name before moving (to avoid use-after-move in error logs)
@@ -538,6 +579,9 @@ bool ServiceBase::register_functions(std::vector<FunctionSchema> schemas, Functi
         registered_count++;
     }
 
+    // Avoid compiler warnings when debug logs are compiled out.
+    (void)registered_count;
+    (void)total_count;
     BROOKESIA_LOGD("[%1%] Registered %2%/%3% functions", attributes_.name, registered_count, total_count);
 
     return true;
@@ -575,8 +619,6 @@ bool ServiceBase::register_events(std::vector<EventSchema> schemas)
 
     size_t registered_count = 0;
     const size_t total_count = schemas.size();
-    // Avoid compiler warning about unused variable
-    (void)total_count;
 
     for (auto &schema : schemas) {
         // Save name before moving (to avoid use-after-move in error logs)
@@ -591,6 +633,9 @@ bool ServiceBase::register_events(std::vector<EventSchema> schemas)
         registered_count++;
     }
 
+    // Avoid compiler warnings when debug logs are compiled out.
+    (void)registered_count;
+    (void)total_count;
     BROOKESIA_LOGD("[%1%] Registered %2%/%3% events", attributes_.name, registered_count, total_count);
 
     return true;
@@ -784,6 +829,10 @@ bool ServiceBase::init_internal(std::shared_ptr<lib_utils::TaskScheduler> task_s
         return true;
     }
 
+    BROOKESIA_CHECK_FALSE_RETURN(!attributes_.name.empty(), false, "Service name is empty");
+    BROOKESIA_CHECK_FALSE_RETURN(!attributes_.description.empty(), false, "Service description is empty");
+    BROOKESIA_CHECK_FALSE_RETURN(!attributes_.version.empty(), false, "Service version is empty");
+
     lib_utils::FunctionGuard deinit_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
         deinit_internal();
@@ -811,15 +860,13 @@ bool ServiceBase::init_internal(std::shared_ptr<lib_utils::TaskScheduler> task_s
 
     BROOKESIA_CHECK_FALSE_RETURN(on_init(), false, "Failed to initialize service");
 
-    // Auto-register functions
+    // Register service-specific functions. Version metadata is queried through the built-in Manager service.
     auto function_schemas = get_function_schemas();
     auto function_handlers = get_function_handlers();
-    if (!function_schemas.empty()) {
-        BROOKESIA_CHECK_FALSE_RETURN(
-            register_functions(std::move(function_schemas), std::move(function_handlers)), false,
-            "Failed to register functions"
-        );
-    }
+    BROOKESIA_CHECK_FALSE_RETURN(
+        register_functions(std::move(function_schemas), std::move(function_handlers)), false,
+        "Failed to register functions"
+    );
 
     // Auto-register events
     auto event_schemas = get_event_schemas();

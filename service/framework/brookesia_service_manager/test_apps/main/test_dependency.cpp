@@ -37,6 +37,8 @@ BROOKESIA_TEST_CASE(test_dependency_basic_dependency_and_order, "Test Dependency
 
         ServiceA() : ServiceBase({
             .name = "ServiceA",
+            .description = "Test service.",
+            .version = "0.0.0",
         }) {}
         bool on_init() override
         {
@@ -71,6 +73,8 @@ BROOKESIA_TEST_CASE(test_dependency_basic_dependency_and_order, "Test Dependency
 
         ServiceB() : ServiceBase({
             .name = "ServiceB",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceA"}
         }) {}
         bool on_init() override
@@ -159,6 +163,8 @@ BROOKESIA_TEST_CASE(test_dependency_circular_dependency_detection, "Test Depende
     public:
         ServiceX() : ServiceBase({
             .name = "ServiceX",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceZ"}
         }) {}
         bool on_init() override
@@ -172,6 +178,8 @@ BROOKESIA_TEST_CASE(test_dependency_circular_dependency_detection, "Test Depende
     public:
         ServiceY() : ServiceBase({
             .name = "ServiceY",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceX"}
         }) {}
         bool on_init() override
@@ -185,6 +193,8 @@ BROOKESIA_TEST_CASE(test_dependency_circular_dependency_detection, "Test Depende
     public:
         ServiceZ() : ServiceBase({
             .name = "ServiceZ",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceY"}
         }) {}
         bool on_init() override
@@ -246,6 +256,8 @@ BROOKESIA_TEST_CASE(test_dependency_multi_level_chain, "Test Dependency: multi-l
 
         ServiceDepA() : ServiceBase({
             .name = "ServiceDepA",
+            .description = "Test service.",
+            .version = "0.0.0",
         }) {}
         bool on_init() override
         {
@@ -280,6 +292,8 @@ BROOKESIA_TEST_CASE(test_dependency_multi_level_chain, "Test Dependency: multi-l
 
         ServiceDepB() : ServiceBase({
             .name = "ServiceDepB",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceDepA"}
         }) {}
         bool on_init() override
@@ -315,6 +329,8 @@ BROOKESIA_TEST_CASE(test_dependency_multi_level_chain, "Test Dependency: multi-l
 
         ServiceDepC() : ServiceBase({
             .name = "ServiceDepC",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceDepB"}
         }) {}
         bool on_init() override
@@ -350,6 +366,8 @@ BROOKESIA_TEST_CASE(test_dependency_multi_level_chain, "Test Dependency: multi-l
 
         ServiceDepD() : ServiceBase({
             .name = "ServiceDepD",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceDepC"}
         }) {}
         bool on_init() override
@@ -470,6 +488,8 @@ BROOKESIA_TEST_CASE(test_dependency_diamond_dependency, "Test Dependency: diamon
 
         ServiceDiaA() : ServiceBase({
             .name = "ServiceDiaA",
+            .description = "Test service.",
+            .version = "0.0.0",
         }) {}
         bool on_init() override
         {
@@ -504,6 +524,8 @@ BROOKESIA_TEST_CASE(test_dependency_diamond_dependency, "Test Dependency: diamon
 
         ServiceDiaB() : ServiceBase({
             .name = "ServiceDiaB",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceDiaA"}
         }) {}
         bool on_init() override
@@ -539,6 +561,8 @@ BROOKESIA_TEST_CASE(test_dependency_diamond_dependency, "Test Dependency: diamon
 
         ServiceDiaC() : ServiceBase({
             .name = "ServiceDiaC",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceDiaA"}
         }) {}
         bool on_init() override
@@ -575,6 +599,8 @@ BROOKESIA_TEST_CASE(test_dependency_diamond_dependency, "Test Dependency: diamon
         ServiceDiaD()
             : ServiceBase({
             .name = "ServiceDiaD",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceDiaB", "ServiceDiaC"}
         }) {}
         bool on_init() override
@@ -692,6 +718,8 @@ BROOKESIA_TEST_CASE(test_dependency_missing_dependency_error, "Test Dependency: 
     public:
         ServiceMissing() : ServiceBase({
             .name = "ServiceMissing",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"NonExistentService"}
         }) {}
         bool on_init() override
@@ -746,6 +774,8 @@ BROOKESIA_TEST_CASE(test_dependency_complex_dependency_graph, "Test Dependency: 
 
         ServiceE1() : ServiceBase({
             .name = "ServiceE1",
+            .description = "Test service.",
+            .version = "0.0.0",
         }) {}
         bool on_init() override
         {
@@ -780,6 +810,8 @@ BROOKESIA_TEST_CASE(test_dependency_complex_dependency_graph, "Test Dependency: 
 
         ServiceE2() : ServiceBase({
             .name = "ServiceE2",
+            .description = "Test service.",
+            .version = "0.0.0",
         }) {}
         bool on_init() override
         {
@@ -814,6 +846,8 @@ BROOKESIA_TEST_CASE(test_dependency_complex_dependency_graph, "Test Dependency: 
 
         ServiceE3() : ServiceBase({
             .name = "ServiceE3",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceE1"}
         }) {}
         bool on_init() override
@@ -849,6 +883,8 @@ BROOKESIA_TEST_CASE(test_dependency_complex_dependency_graph, "Test Dependency: 
 
         ServiceE4() : ServiceBase({
             .name = "ServiceE4",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceE1", "ServiceE2"}
         }) {}
         bool on_init() override
@@ -884,6 +920,8 @@ BROOKESIA_TEST_CASE(test_dependency_complex_dependency_graph, "Test Dependency: 
 
         ServiceE5() : ServiceBase({
             .name = "ServiceE5",
+            .description = "Test service.",
+            .version = "0.0.0",
             .dependencies = {"ServiceE3", "ServiceE4"}
         }) {}
         bool on_init() override

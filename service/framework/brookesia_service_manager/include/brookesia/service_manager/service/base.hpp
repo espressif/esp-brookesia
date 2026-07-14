@@ -5,12 +5,14 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <future>
 #include <map>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <vector>
 #include "boost/thread/shared_mutex.hpp"
@@ -30,6 +32,14 @@ namespace esp_brookesia::service {
 class ServiceBase {
 public:
     friend class ServiceManager;
+
+    /**
+     * @brief Shared scheduler selected by a service when it does not own a private scheduler.
+     */
+    enum class SchedulerType {
+        Main,
+        Secondary,
+    };
 
     /**
      * @brief Map from function names to service-side handlers.
@@ -71,6 +81,8 @@ public:
         }
 
         std::string name;  ///< Service name
+        std::string description;  ///< Human-readable service description
+        std::string version;  ///< Service version
         /**
          * @brief Optional list of dependent service names, started in order.
          */
@@ -83,6 +95,11 @@ public:
          * otherwise, ServiceManager's scheduler will be used.
          */
         std::optional<lib_utils::TaskScheduler::StartConfig> task_scheduler_config = std::nullopt;
+
+        /**
+         * @brief Shared scheduler selected when `task_scheduler_config` is not configured.
+         */
+        SchedulerType scheduler_type = SchedulerType::Main;
 
         bool bindable = true;  ///< Optional: Whether the service can be bound
     };
@@ -100,6 +117,19 @@ public:
      * @brief Virtual destructor.
      */
     virtual ~ServiceBase();
+
+    /**
+     * @brief Build a dotted version string from numeric components.
+     *
+     * @param[in] major Major version number.
+     * @param[in] minor Minor version number.
+     * @param[in] patch Patch version number.
+     * @return std::string Version formatted as `major.minor.patch`.
+     */
+    static std::string make_version(uint32_t major, uint32_t minor, uint32_t patch)
+    {
+        return std::to_string(major) + "." + std::to_string(minor) + "." + std::to_string(patch);
+    }
 
     /**
      * @brief Get the function schemas list
@@ -412,6 +442,26 @@ protected:
     }
 
     /**
+     * @brief Function-batch execution start callback.
+     *
+     * Subclasses can override this hook to create state scoped to one ordered batch.
+     * The matching @c on_function_batch_end() callback is invoked before the batch task returns.
+     *
+     * @param[in] calls Function calls that will be executed in order.
+     */
+    virtual void on_function_batch_start(const std::vector<FunctionCall> &calls)
+    {
+        (void)calls;
+    }
+
+    /**
+     * @brief Function-batch execution end callback.
+     */
+    virtual void on_function_batch_end()
+    {
+    }
+
+    /**
      * @brief Get function handlers map
      *
      * Subclasses should override this method to return a map from function names to handlers
@@ -599,7 +649,10 @@ private:
     std::shared_ptr<EventRegistry> event_registry_;
 };
 
-BROOKESIA_DESCRIBE_STRUCT(ServiceBase::Attributes, (), (name, dependencies, task_scheduler_config))
+BROOKESIA_DESCRIBE_ENUM(ServiceBase::SchedulerType, Main, Secondary);
+BROOKESIA_DESCRIBE_STRUCT(
+    ServiceBase::Attributes, (), (name, description, version, dependencies, task_scheduler_config, scheduler_type)
+)
 
 // ============================================================================
 // Helper macros: Simplify FunctionHandlerMap writing

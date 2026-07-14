@@ -81,6 +81,8 @@ public:
     ServiceTest()
         : ServiceBase({
         .name = SERVICE_NAME,
+        .description = "Test service.",
+        .version = "0.0.0",
         .dependencies = {}
     })
     {}

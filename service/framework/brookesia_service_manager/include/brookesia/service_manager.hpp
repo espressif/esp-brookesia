@@ -20,6 +20,8 @@
 /* Service */
 #include "service_manager/service/base.hpp"
 #include "service_manager/service/manager.hpp"
+#include "service_manager/service/manager_service.hpp"
+#include "service_manager/service/utils_service.hpp"
 #include "service_manager/service/local_runner.hpp"
 /* Helper */
 #include "service_manager/helper/base.hpp"

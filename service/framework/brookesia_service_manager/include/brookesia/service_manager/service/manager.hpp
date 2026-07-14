@@ -7,15 +7,20 @@
 
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
-#include <map>
+#include <vector>
+
 #include "boost/thread/shared_mutex.hpp"
+
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/service_manager/macro_configs.h"
 #include "brookesia/service_manager/service/base.hpp"
+#include "brookesia/service_manager/service/manager_service.hpp"
+#include "brookesia/service_manager/service/utils_service.hpp"
 
 namespace esp_brookesia::service {
 
@@ -126,6 +131,9 @@ private:
  */
 class ServiceManager {
 public:
+    using ServiceState = ManagerService::ServiceState;
+    using ServiceInfo = ManagerService::ServiceInfo;
+
     /**
      * @brief Default worker configuration used by `start()`.
      *
@@ -179,6 +187,58 @@ public:
         make_default_task_scheduler_start_config();
 
     /**
+     * @brief Default worker configuration used by the secondary scheduler.
+     *
+     * The secondary scheduler is intended for services that need manager-owned
+     * workers with internal SRAM stacks.
+     */
+    static lib_utils::TaskScheduler::StartConfig make_default_secondary_task_scheduler_start_config()
+    {
+        lib_utils::TaskScheduler::StartConfig config{
+            .worker_configs = {},
+        };
+        lib_utils::ThreadConfig worker0;
+        worker0.name = std::string(BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NAME) + "0";
+        worker0.core_id = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_0_CORE_ID;
+        worker0.priority = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_PRIORITY;
+        worker0.stack_size = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_STACK_SIZE;
+        worker0.stack_in_ext = false;
+        config.worker_configs.push_back(worker0);
+#if BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NUM >= 2
+        lib_utils::ThreadConfig worker1;
+        worker1.name = std::string(BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NAME) + "1";
+        worker1.core_id = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_1_CORE_ID;
+        worker1.priority = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_PRIORITY;
+        worker1.stack_size = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_STACK_SIZE;
+        worker1.stack_in_ext = false;
+        config.worker_configs.push_back(worker1);
+#endif
+#if BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NUM >= 3
+        lib_utils::ThreadConfig worker2;
+        worker2.name = std::string(BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NAME) + "2";
+        worker2.core_id = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_2_CORE_ID;
+        worker2.priority = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_PRIORITY;
+        worker2.stack_size = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_STACK_SIZE;
+        worker2.stack_in_ext = false;
+        config.worker_configs.push_back(worker2);
+#endif
+#if BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NUM >= 4
+        lib_utils::ThreadConfig worker3;
+        worker3.name = std::string(BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_NAME) + "3";
+        worker3.core_id = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_3_CORE_ID;
+        worker3.priority = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_PRIORITY;
+        worker3.stack_size = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_STACK_SIZE;
+        worker3.stack_in_ext = false;
+        config.worker_configs.push_back(worker3);
+#endif
+        config.worker_poll_interval_ms = BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_WORKER_POLL_INTERVAL_MS;
+        return config;
+    }
+
+    inline static const lib_utils::TaskScheduler::StartConfig DEFAULT_SECONDARY_TASK_SCHEDULER_START_CONFIG =
+        make_default_secondary_task_scheduler_start_config();
+
+    /**
      * @brief Initialize the service manager
      *
      * @return true if initialized successfully, false otherwise
@@ -228,6 +288,40 @@ public:
     ServiceBinding bind(const std::string &name);
 
     /**
+     * @brief Get all registered service names in lexical order.
+     *
+     * @return std::vector<std::string> Registered service names.
+     */
+    std::vector<std::string> get_service_names() const;
+
+    /**
+     * @brief Get a snapshot for one registered service.
+     *
+     * @param[in] name Registered service name.
+     * @return std::optional<ServiceInfo> Snapshot, or empty when the service is not registered.
+     */
+    std::optional<ServiceInfo> get_service_info(const std::string &name) const;
+
+    /**
+     * @brief Get the metadata and member names exposed by one service.
+     */
+    std::optional<ManagerService::ServiceSchemaOverview> get_service_schema(const std::string &name) const;
+
+    /**
+     * @brief Copy one registered function schema.
+     */
+    std::optional<FunctionSchema> get_service_function_schema(
+        const std::string &service_name, const std::string &function_name
+    ) const;
+
+    /**
+     * @brief Copy one registered event schema.
+     */
+    std::optional<EventSchema> get_service_event_schema(
+        const std::string &service_name, const std::string &event_name
+    ) const;
+
+    /**
      * @brief Check if the service manager is initialized
      *
      * @return true if initialized, false otherwise
@@ -273,21 +367,13 @@ public:
 
 private:
     /**
-     * @brief Runtime state tracked for each managed service instance.
-     */
-    enum class ServiceState {
-        Idle,       ///< Service is registered but not running (`ref_count == 0`).
-        Starting,   ///< Service startup is in progress on another thread.
-        Running,    ///< Service is running and has at least one active binding.
-    };
-    /**
      * @brief Internal bookkeeping record for a managed service.
      */
-    struct ServiceInfo {
+    struct RuntimeServiceInfo {
         size_t ref_count; ///< Number of active bindings referencing the service.
         std::shared_ptr<ServiceBase> service; ///< Managed service instance.
         ServiceState state; ///< Current lifecycle state.
-        boost::condition_variable_any start_cv; ///< Signals completion of an in-flight start operation.
+        boost::condition_variable_any transition_cv; ///< Signals completion of start or stop transitions.
     };
 
     ServiceManager() = default;
@@ -296,6 +382,7 @@ private:
     void unbind(const std::string &name);
     bool init_internal();  // Internal init without lock (assumes state_mutex_ is already held)
     void stop_internal();  // Internal stop without lock (assumes state_mutex_ is already held)
+    std::shared_ptr<lib_utils::TaskScheduler> get_service_task_scheduler(const ServiceBase::Attributes &attributes);
     std::vector<std::string> topological_sort(
         const std::map<std::string, std::shared_ptr<ServiceBase>> &all_services
     );
@@ -308,10 +395,15 @@ private:
     std::atomic<bool> is_running_{false};
 
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
+    std::shared_ptr<lib_utils::TaskScheduler> secondary_task_scheduler_;
+    std::shared_ptr<ManagerService> manager_service_;
+    std::shared_ptr<UtilsService> utils_service_;
+    ServiceBinding manager_binding_;
+    ServiceBinding utils_binding_;
 
     // Service management
-    boost::shared_mutex service_mutex_;  // Use recursive mutex to support recursive bind calls
-    std::map<std::string, ServiceInfo> services_;
+    mutable boost::shared_mutex service_mutex_;
+    std::map<std::string, RuntimeServiceInfo> services_;
     std::list<std::string> service_init_order_;
 };
 
