@@ -12,6 +12,8 @@
 #include "service_helper/media/audio.hpp"
 #include "brookesia/service_manager/helper/base.hpp"
 #include "service_helper/system/device.hpp"
+#include "service_helper/framework/manager.hpp"
+#include "service_helper/framework/utils.hpp"
 #include "service_helper/media/display.hpp"
 #include "service_helper/network/http.hpp"
 #include "service_helper/emulation/nes.hpp"

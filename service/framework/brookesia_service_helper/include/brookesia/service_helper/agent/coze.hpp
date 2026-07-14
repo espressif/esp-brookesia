@@ -43,7 +43,7 @@ public:
     };
 
     /**
-     * @brief Persistent Coze agent configuration.
+     * @brief Runtime Coze agent configuration.
      */
     struct Info {
         AuthInfo authorization; ///< Authentication material.
@@ -65,7 +65,6 @@ public:
         SetActiveRobotIndex,
         GetActiveRobotIndex,
         GetRobotInfos,
-        LoadData,
         Max,
     };
 
@@ -138,14 +137,6 @@ private:
         };
     }
 
-    static service::FunctionSchema function_schema_load_data()
-    {
-        return {
-            .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::LoadData),
-            .description = "Load persisted Coze agent data.",
-        };
-    }
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the event schemas /////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -192,7 +183,6 @@ public:
                 function_schema_set_active_robot_index(),
                 function_schema_get_active_robot_index(),
                 function_schema_get_robot_infos(),
-                function_schema_load_data(),
             }
         };
         return std::span<const service::FunctionSchema>(FUNCTION_SCHEMAS);
@@ -226,7 +216,7 @@ BROOKESIA_DESCRIBE_STRUCT(
     Coze::Info, (), (authorization, robots)
 );
 BROOKESIA_DESCRIBE_ENUM(Coze::CozeEvent, InsufficientCreditsBalance, Max);
-BROOKESIA_DESCRIBE_ENUM(Coze::FunctionId, SetActiveRobotIndex, GetActiveRobotIndex, GetRobotInfos, LoadData, Max);
+BROOKESIA_DESCRIBE_ENUM(Coze::FunctionId, SetActiveRobotIndex, GetActiveRobotIndex, GetRobotInfos, Max);
 BROOKESIA_DESCRIBE_ENUM(Coze::EventId, CozeEventHappened, Max);
 BROOKESIA_DESCRIBE_ENUM(Coze::FunctionSetActiveRobotIndexParam, Index);
 BROOKESIA_DESCRIBE_ENUM(Coze::EventCozeEventHappenedParam, CozeEvent);

@@ -88,11 +88,13 @@ BROOKESIA_TEST_CASE(
     accumulate_helper<VideoEncoder<0>>(stats);
     accumulate_helper<VideoDecoder<0>>(stats);
     accumulate_helper<Manager>(stats);
+    accumulate_helper<Utils>(stats);
+    accumulate_helper<AgentManager>(stats);
     accumulate_helper<Coze>(stats);
     accumulate_helper<Openai>(stats);
     accumulate_helper<XiaoZhi>(stats);
 
-    TEST_ASSERT_EQUAL_size_t(17, stats.helper_count);
+    TEST_ASSERT_EQUAL_size_t(19, stats.helper_count);
     TEST_ASSERT_GREATER_THAN(60, stats.function_count);
     TEST_ASSERT_GREATER_THAN(20, stats.event_count);
 }
@@ -109,7 +111,9 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_EQUAL_STRING("VideoEncoder0", VideoEncoder<0>::get_name().data());
     TEST_ASSERT_EQUAL_STRING("VideoDecoder0", VideoDecoder<0>::get_name().data());
     TEST_ASSERT_EQUAL_STRING("Wifi", Wifi::get_name().data());
-    TEST_ASSERT_EQUAL_STRING("AgentManager", Manager::get_name().data());
+    TEST_ASSERT_EQUAL_STRING("Manager", Manager::get_name().data());
+    TEST_ASSERT_EQUAL_STRING("Utils", Utils::get_name().data());
+    TEST_ASSERT_EQUAL_STRING("AgentManager", AgentManager::get_name().data());
     TEST_ASSERT_EQUAL_STRING("Coze", Coze::get_name().data());
     TEST_ASSERT_EQUAL_STRING("OpenAI", Openai::get_name().data());
     TEST_ASSERT_EQUAL_STRING("XiaoZhi", XiaoZhi::get_name().data());
@@ -117,7 +121,9 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_EQUAL_STRING("Connect", BROOKESIA_DESCRIBE_ENUM_TO_STR(Wifi::GeneralAction::Connect).c_str());
     TEST_ASSERT_EQUAL_STRING("Request", BROOKESIA_DESCRIBE_ENUM_TO_STR(Http::FunctionId::Request).c_str());
     TEST_ASSERT_EQUAL_STRING("Open", BROOKESIA_DESCRIBE_ENUM_TO_STR(Video::EncoderFunctionId::Open).c_str());
-    TEST_ASSERT_EQUAL_STRING("Activate", BROOKESIA_DESCRIBE_ENUM_TO_STR(Manager::GeneralAction::Activate).c_str());
+    TEST_ASSERT_EQUAL_STRING(
+        "Activate", BROOKESIA_DESCRIBE_ENUM_TO_STR(AgentManager::GeneralAction::Activate).c_str()
+    );
 }
 
 BROOKESIA_TEST_CASE(

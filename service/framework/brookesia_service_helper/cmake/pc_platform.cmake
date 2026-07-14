@@ -11,6 +11,7 @@ if(NOT TARGET brookesia::hal_interface)
 endif()
 
 add_library(${COMPONENT_LIB} INTERFACE)
+brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_SERVICE_HELPER)
 target_compile_features(${COMPONENT_LIB} INTERFACE cxx_std_23)
 target_include_directories(${COMPONENT_LIB}
     INTERFACE
