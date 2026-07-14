@@ -50,22 +50,45 @@ menu "ESP-Brookesia: Emulation NES Configurations"
 
     menuconfig BROOKESIA_EMULATION_NES_ENABLE_WORKER
         bool "Enable dedicated workers"
-        default y
+        default n
 
     if BROOKESIA_EMULATION_NES_ENABLE_WORKER
         menu "Worker"
-            config BROOKESIA_EMULATION_NES_WORKER_NAME
-                string "Name"
-                default "SvcNESWorker"
-                help
-                    Prefix used by the NES service worker threads.
+            menu "General"
+                config BROOKESIA_EMULATION_NES_WORKER_NAME
+                    string "Name"
+                    default "SvcNES"
+                    help
+                        Prefix used by the NES service worker threads.
 
-            config BROOKESIA_EMULATION_NES_WORKER_POLL_INTERVAL_MS
-                int "Poll interval (ms)"
-                default 4
-                range 1 100
-                help
-                    Poll interval used by the NES service task scheduler workers.
+                config BROOKESIA_EMULATION_NES_WORKER_PRIORITY
+                    int "Priority"
+                    default 7
+                    range 1 25
+                    help
+                        The priority of the worker thread.
+
+                config BROOKESIA_EMULATION_NES_WORKER_STACK_SIZE
+                    int "Stack size"
+                    default 12288
+                    range 4096 65536
+                    help
+                        The stack size of the worker thread.
+
+                config BROOKESIA_EMULATION_NES_WORKER_STACK_IN_EXT
+                    bool "Stack in external memory"
+                    depends on SPIRAM
+                    default y
+                    help
+                        Whether the stack of the worker thread is in external memory. If enabled, the stack will be allocated in external memory.
+
+                config BROOKESIA_EMULATION_NES_WORKER_POLL_INTERVAL_MS
+                    int "Poll interval (ms)"
+                    default 4
+                    range 1 100
+                    help
+                        Poll interval used by the NES service task scheduler workers.
+            endmenu
 
             config BROOKESIA_EMULATION_NES_WORKER_0_CORE_ID
                 int "Core ID of Worker 0"
@@ -74,40 +97,12 @@ menu "ESP-Brookesia: Emulation NES Configurations"
                 help
                     Core affinity for Worker 0, which runs the frame task. Use -1 for no affinity.
 
-            config BROOKESIA_EMULATION_NES_WORKER_0_PRIORITY
-                int "Priority of Worker 0"
-                default 7
-                range 1 25
-                help
-                    Priority for Worker 0, which runs the frame task.
-
-            config BROOKESIA_EMULATION_NES_WORKER_0_STACK_SIZE
-                int "Stack size of Worker 0"
-                default 12288
-                range 4096 65536
-                help
-                    Stack size in bytes for Worker 0, which runs the frame task.
-
             config BROOKESIA_EMULATION_NES_WORKER_1_CORE_ID
                 int "Core ID of Worker 1"
                 default 1
                 range -1 8
                 help
                     Core affinity for Worker 1, which runs the audio feed task. Use -1 for no affinity.
-
-            config BROOKESIA_EMULATION_NES_WORKER_1_PRIORITY
-                int "Priority of Worker 1"
-                default 5
-                range 1 25
-                help
-                    Priority for Worker 1, which runs the audio feed task.
-
-            config BROOKESIA_EMULATION_NES_WORKER_1_STACK_SIZE
-                int "Stack size of Worker 1"
-                default 8192
-                range 4096 65536
-                help
-                    Stack size in bytes for Worker 1, which runs the audio feed task.
         endmenu
     endif
 

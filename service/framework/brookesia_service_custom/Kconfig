@@ -16,7 +16,7 @@ menu "ESP-Brookesia: Service Custom Configurations"
     if BROOKESIA_SERVICE_CUSTOM_ENABLE_WORKER
         config BROOKESIA_SERVICE_CUSTOM_WORKER_NAME
             string "Name"
-            default "SvcCustomWorker"
+            default "SvcCustom"
             help
                 The name of the worker thread.
 

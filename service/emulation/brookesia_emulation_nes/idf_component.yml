@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: NES emulation service for ESP-Brookesia
 url: https://github.com/espressif/esp-brookesia/tree/master/service/emulation/brookesia_emulation_nes
 dependencies:

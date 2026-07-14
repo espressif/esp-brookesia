@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-13
+
+### Enhancements:
+
+- feat(service): register a description for Manager metadata queries.
+- feat(service): register the component version for centralized Manager service queries.
+- chore(scheduler): remove the Worker suffix from default thread names on ESP and PC.
+
 ## v0.8.0 - 2026-06-28
 
 ### Enhancements:

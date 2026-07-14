@@ -22,7 +22,7 @@ menu "ESP-Brookesia: Expression Emote Configurations"
     if BROOKESIA_EXPRESSION_EMOTE_ENABLE_WORKER
         config BROOKESIA_EXPRESSION_EMOTE_WORKER_NAME
             string "Name"
-            default "EmoteWorker"
+            default "Emote"
             help
                 The name of the worker thread.
 

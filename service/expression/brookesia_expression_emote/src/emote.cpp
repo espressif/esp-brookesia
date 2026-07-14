@@ -51,6 +51,14 @@ bool Emote::native_notify_flush_finished()
     return true;
 }
 
+std::string Emote::get_component_version()
+{
+    return make_version(
+               BROOKESIA_EXPRESSION_EMOTE_VER_MAJOR, BROOKESIA_EXPRESSION_EMOTE_VER_MINOR,
+               BROOKESIA_EXPRESSION_EMOTE_VER_PATCH
+           );
+}
+
 bool Emote::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

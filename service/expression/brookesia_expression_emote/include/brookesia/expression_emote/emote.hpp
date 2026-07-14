@@ -75,11 +75,15 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using Helper = service::helper::ExpressionEmote;
 
     Emote()
         : service::ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Render and control animated emote expressions.",
+        .version = get_component_version(),
         // Emote operations must run on a thread that uses an internal SRAM stack.
 #if BROOKESIA_EXPRESSION_EMOTE_ENABLE_WORKER
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
