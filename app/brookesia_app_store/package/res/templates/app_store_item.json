@@ -2,9 +2,10 @@
     "type": "viewTemplate",
     "id": "app_store_item",
     "node": {
-        "type": "container",
+        "type": "button",
         "commonProps": {
-            "hidden": true
+            "hidden": true,
+            "pressLock": false
         },
         "bindings": {
             "commonProps.hidden": "commonProps.hidden"
@@ -15,6 +16,12 @@
         "style": {
             "padding": "0dp"
         },
+        "events": [
+            {
+                "type": "longPressed",
+                "action": "app_store.item.local.delete"
+            }
+        ],
         "layout": {
             "type": "none"
         },
@@ -27,6 +34,10 @@
             {
                 "type": "container",
                 "id": "body",
+                "commonProps": {
+                    "clickable": false,
+                    "scrollable": false
+                },
                 "style": {
                     "padding": "${constant.appStore.layout.cardPadding}"
                 },

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -82,6 +83,7 @@ private:
         Download,
         Install,
         Uninstall,
+        DeleteLocalPackage,
         TimeSyncRetry,
     };
 
@@ -98,9 +100,37 @@ private:
         Canceled,
     };
 
+    enum class PendingHttpEventType {
+        Progress,
+        Completed,
+        Failed,
+        Canceled,
+    };
+
     enum class IconUpdatePurpose {
         None,
         LazyVisiblePage,
+    };
+
+    enum class StartupLoadPhase {
+        None,
+        Prepare,
+        LoadingCache,
+    };
+
+    enum class LocalPackageScanPhase {
+        None,
+        StatDirectory,
+        ParsePackages,
+    };
+
+    enum class DeferredOperationType {
+        None,
+        Refresh,
+        InstallLocalPackage,
+        InstallPackage,
+        UninstallInstalledApp,
+        DeleteLocalPackage,
     };
 
     struct VisibleItemRef {
@@ -124,6 +154,7 @@ private:
         std::string item_path;
         std::string icon_resource_id;
         std::string icon_file_path;
+        std::string pending_icon_resource_id;
         std::filesystem::path cached_package_path;
         std::filesystem::path download_path;
         std::filesystem::path icon_download_path;
@@ -136,6 +167,8 @@ private:
         uint32_t downloaded = 0;
         uint32_t total = 0;
         std::string installed_version;
+        system::core::TimerId metadata_watchdog_timer_id = system::core::INVALID_TIMER_ID;
+        system::core::TimerId download_watchdog_timer_id = system::core::INVALID_TIMER_ID;
         bool downloading = false;
         bool metadata_loading = false;
         bool size_metadata_loading = false;
@@ -162,9 +195,63 @@ private:
         system::core::AppInfo app;
         std::string item_path;
         std::string icon_resource_id;
+        std::string pending_icon_resource_id;
     };
 
+    struct LocalPackageScanCandidate {
+        std::filesystem::path package_path;
+        uintmax_t file_size = 0;
+    };
+
+    struct PendingHttpEvent {
+        PendingHttpEventType type = PendingHttpEventType::Completed;
+        double request_id = 0;
+        boost::json::object response;
+    };
+
+    struct DeferredOperation {
+        DeferredOperationType type = DeferredOperationType::None;
+        uint64_t generation = 0;
+        ViewMode view_mode = ViewMode::Store;
+        size_t index = 0;
+        system::core::AppId app_id = system::core::INVALID_APP_ID;
+        uint64_t download_request_id = 0;
+        std::filesystem::path package_path;
+        std::string app_name;
+        std::string manifest_id;
+    };
+
+    using HttpRequestSubmitSuccessHandler = std::function<void(uint64_t)>;
+    using HttpRequestSubmitFailureHandler = std::function<void(std::string)>;
+
     std::expected<void, std::string> subscribe_actions(system::core::AppContext &context);
+    void schedule_startup_load(system::core::AppContext &context);
+    std::expected<void, std::string> process_startup_load(system::core::AppContext &context);
+    void stop_startup_load_timer(system::core::AppContext &context);
+    void cancel_startup_load(system::core::AppContext &context);
+    bool schedule_deferred_operation(system::core::AppContext &context, DeferredOperation operation);
+    bool start_deferred_operation_timer(system::core::AppContext &context);
+    void cancel_deferred_operation(system::core::AppContext &context);
+    std::expected<void, std::string> process_deferred_operation(
+        system::core::AppContext &context,
+        system::core::TimerId timer_id
+    );
+    std::expected<void, std::string> execute_deferred_operation(
+        system::core::AppContext &context,
+        DeferredOperation operation
+    );
+    std::expected<void, std::string> execute_deferred_refresh(
+        system::core::AppContext &context,
+        ViewMode requested_view_mode
+    );
+    bool start_cached_index_load_async(system::core::AppContext &context);
+    void submit_next_cached_index_load(uint64_t generation);
+    void handle_cached_index_load_result(
+        uint64_t generation,
+        std::filesystem::path path,
+        service::FunctionResult &&result
+    );
+    void finish_cached_index_load_without_cache(std::string error_message);
     void bind_http_service();
     void release_http_service();
     void bind_device_service();
@@ -179,7 +266,6 @@ private:
     std::vector<std::filesystem::path> cache_dirs(system::core::AppContext &context) const;
     std::filesystem::path download_dir(system::core::AppContext &context) const;
     std::vector<std::filesystem::path> download_dirs(system::core::AppContext &context) const;
-    std::vector<std::filesystem::path> scan_download_dirs(system::core::AppContext &context) const;
     std::filesystem::path app_cache_relative_dir(std::string_view package_name) const;
     std::filesystem::path app_cache_relative_file(
         std::string_view package_name,
@@ -211,8 +297,25 @@ private:
     void handle_storage_capacity_result(uint64_t generation, service::FunctionResult &&result);
     void refresh_installed_apps(system::core::AppContext &context);
     void apply_installed_state();
-    void scan_local_packages(system::core::AppContext &context);
-    std::expected<void, std::string> load_cached_index(system::core::AppContext &context);
+    void start_local_package_scan(system::core::AppContext &context, bool refresh_view);
+    void cancel_local_package_scan(system::core::AppContext &context);
+    void submit_next_local_package_scan_dir(uint64_t generation);
+    void handle_local_package_scan_stat_result(
+        uint64_t generation,
+        std::filesystem::path packages_dir,
+        service::FunctionResult &&result
+    );
+    void handle_local_package_scan_list_result(
+        uint64_t generation,
+        std::filesystem::path packages_dir,
+        service::FunctionResult &&result
+    );
+    void schedule_local_package_scan_step(system::core::AppContext &context);
+    std::expected<void, std::string> process_local_package_scan_step(system::core::AppContext &context);
+    void finish_local_package_scan(system::core::AppContext &context);
+    void rebuild_local_package_index();
+    void show_pending_delete_local_package_success_dialog(system::core::AppContext &context);
+    void show_remote_refresh_pending_dialog(system::core::AppContext &context);
     std::expected<void, std::string> start_remote_refresh(system::core::AppContext &context);
     std::expected<void, std::string> start_remote_refresh_request(system::core::AppContext &context);
     std::expected<void, std::string> parse_index_json(
@@ -223,6 +326,7 @@ private:
     );
     std::expected<void, std::string> populate_entries(system::core::AppContext &context);
     void clear_entry_views(system::core::AppContext &context);
+    std::string make_title_text(size_t visible_count) const;
     std::expected<void, std::string> refresh_i18n(system::core::AppContext &context);
     std::expected<void, std::string> refresh_ui(system::core::AppContext &context);
     std::expected<void, std::string> scroll_list_to_top(system::core::AppContext &context);
@@ -240,6 +344,14 @@ private:
     void clamp_list_page();
     LocalPackageAction get_local_package_action(const LocalPackageEntry &entry) const;
     void handle_primary_action(const gui::Event &event);
+    void handle_local_delete_action(const gui::Event &event);
+    void request_delete_local_package(system::core::AppContext &context, size_t index);
+    void delete_local_package(system::core::AppContext &context);
+    void delete_local_package(
+        system::core::AppContext &context,
+        const std::filesystem::path &package_path,
+        std::string package_name
+    );
     void start_view_mode_load(system::core::AppContext &context, ViewMode mode);
     std::expected<void, std::string> process_view_mode_load(system::core::AppContext &context);
     void stop_view_mode_load_timer(system::core::AppContext &context);
@@ -277,17 +389,63 @@ private:
         std::string_view name
     );
     void install_local_package(system::core::AppContext &context, size_t index);
+    void install_store_package(system::core::AppContext &context, size_t index, const std::filesystem::path &path);
+    bool schedule_package_install(
+        system::core::AppContext &context,
+        const std::filesystem::path &path,
+        std::string app_name,
+        DeferredOperationType type,
+        size_t index,
+        std::string manifest_id = {},
+        uint64_t download_request_id = 0
+    );
     void uninstall_installed_app(system::core::AppContext &context, size_t index);
+    void uninstall_installed_app(
+        system::core::AppContext &context,
+        system::core::AppId app_id,
+        std::string manifest_id,
+        std::string app_name
+    );
     void cancel_download(StoreEntry &entry);
+    void close_download_dialog_if_current(system::core::AppContext &context, uint64_t request_id);
+    void clear_download_dialog_binding_if_current(uint64_t request_id);
+    void mark_download_request_terminal(uint64_t request_id);
+    bool is_download_request_terminal(uint64_t request_id) const;
+    bool is_store_install_pending(size_t index) const;
+    bool is_local_install_pending(size_t index) const;
+    bool is_uninstall_pending(system::core::AppId app_id) const;
+    void start_metadata_watchdog(system::core::AppContext &context, StoreEntry &entry);
+    void start_download_watchdog(system::core::AppContext &context, StoreEntry &entry);
+    void stop_metadata_watchdog(StoreEntry &entry);
+    void stop_download_watchdog(StoreEntry &entry);
+    std::expected<void, std::string> process_metadata_watchdog_timeout(
+        system::core::AppContext &context,
+        system::core::TimerId timer_id
+    );
+    std::expected<void, std::string> process_download_watchdog_timeout(
+        system::core::AppContext &context,
+        system::core::TimerId timer_id
+    );
     void cancel_size_metadata_request(StoreEntry &entry);
     void cancel_size_metadata_requests();
     void show_download_preparing_dialog(system::core::AppContext &context, const StoreEntry &entry);
     void ensure_download_progress_dialog(system::core::AppContext &context, const StoreEntry &entry);
     void update_download_progress_dialog_if_current(system::core::AppContext &context, const StoreEntry &entry);
+    bool transition_download_dialog_to_install_if_current(
+        system::core::AppContext &context,
+        uint64_t request_id,
+        std::string_view app_name,
+        const std::filesystem::path &package_path
+    );
     void show_download_failed_dialog(
         system::core::AppContext &context,
         const StoreEntry &entry,
         std::string error_message
+    );
+    void show_insufficient_space_dialog(
+        system::core::AppContext &context,
+        const StoreEntry &entry,
+        uint64_t required_bytes
     );
     std::string make_download_progress_detail(const StoreEntry &entry) const;
     void cancel_remote_refresh();
@@ -302,6 +460,14 @@ private:
     void stop_refresh_result_timer(system::core::AppContext &context);
     void process_pending_refresh_result(system::core::AppContext &context);
     void handle_request_progress(double request_id, const boost::json::object &progress_json);
+    void schedule_http_event_processing(
+        system::core::AppContext &context,
+        PendingHttpEventType type,
+        double request_id,
+        const boost::json::object &response_json
+    );
+    void stop_http_event_timer(system::core::AppContext &context);
+    void process_pending_http_events(system::core::AppContext &context);
     void handle_request_completed(double request_id, const boost::json::object &response_json);
     void handle_request_failed(double request_id, const boost::json::object &response_json);
     void handle_request_canceled(double request_id, const boost::json::object &response_json);
@@ -327,13 +493,26 @@ private:
     void restart_visible_icon_update(system::core::AppContext &context);
     void cancel_refresh_icon_update(system::core::AppContext &context);
     void reset_refresh_icon_state();
-    std::vector<size_t> build_visible_icon_indices() const;
-    std::optional<size_t> current_refresh_icon_index() const;
+    void apply_pending_icon_resources(system::core::AppContext &context);
+    std::vector<VisibleItemRef> build_visible_icon_indices() const;
+    std::optional<VisibleItemRef> current_refresh_icon_ref() const;
     void advance_refresh_icon_step(system::core::AppContext &context);
     void finish_refresh_icon_update(system::core::AppContext &context);
     std::expected<void, std::string> process_refresh_icon_step(system::core::AppContext &context);
     void schedule_refresh_icon_step(system::core::AppContext &context);
     void stop_refresh_icon_timer(system::core::AppContext &context);
+    bool submit_http_request_async(
+        system::core::AppContext &context,
+        service::helper::Http::HttpRequest request,
+        HttpRequestSubmitSuccessHandler success_handler,
+        HttpRequestSubmitFailureHandler failure_handler
+    );
+    void handle_http_request_submit_result(
+        uint64_t generation,
+        HttpRequestSubmitSuccessHandler success_handler,
+        HttpRequestSubmitFailureHandler failure_handler,
+        service::FunctionResult &&result
+    );
     void begin_time_sync_wait(system::core::AppContext &context);
     void stop_time_sync_timers(system::core::AppContext &context);
     void finish_time_sync_wait_success(system::core::AppContext &context);
@@ -374,6 +553,8 @@ private:
         std::vector<system::core::MessageDialogButton> buttons = {}
     );
     void hide_message_dialog_if_visible(system::core::AppContext &context);
+    void clear_message_dialog_state();
+    bool is_message_dialog_request_not_found(std::string_view error) const;
     void handle_message_dialog_result(const system::core::MessageDialogResult &result);
     void finish_remote_refresh_with_error(system::core::AppContext &context, std::string error_message);
     void finish_remote_refresh_success(system::core::AppContext &context);
@@ -387,7 +568,7 @@ private:
     std::string tr(std::string_view key) const;
     std::string current_language() const;
 
-    class Impl;
+    struct Impl;
     std::unique_ptr<Impl> impl_;
 };
 

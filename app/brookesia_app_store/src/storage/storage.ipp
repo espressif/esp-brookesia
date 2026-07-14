@@ -95,22 +95,30 @@ void AppStoreApp::subscribe_http_events()
     auto on_progress = [this](
                            const std::string &, double request_id, const boost::json::object & progress_json
     ) {
-        handle_request_progress(request_id, progress_json);
+        if (context_ != nullptr) {
+            schedule_http_event_processing(*context_, PendingHttpEventType::Progress, request_id, progress_json);
+        }
     };
     auto on_completed = [this](
                             const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        handle_request_completed(request_id, response_json);
+        if (context_ != nullptr) {
+            schedule_http_event_processing(*context_, PendingHttpEventType::Completed, request_id, response_json);
+        }
     };
     auto on_failed = [this](
                          const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        handle_request_failed(request_id, response_json);
+        if (context_ != nullptr) {
+            schedule_http_event_processing(*context_, PendingHttpEventType::Failed, request_id, response_json);
+        }
     };
     auto on_canceled = [this](
                            const std::string &, double request_id, const boost::json::object & response_json
     ) {
-        handle_request_canceled(request_id, response_json);
+        if (context_ != nullptr) {
+            schedule_http_event_processing(*context_, PendingHttpEventType::Canceled, request_id, response_json);
+        }
     };
     auto on_general_state_changed = [this](const std::string &, const std::string & state) {
         handle_http_general_state_changed(state);
@@ -202,52 +210,6 @@ std::vector<std::filesystem::path> AppStoreApp::download_dirs(system::core::AppC
     std::vector<std::filesystem::path> paths;
     for (const auto &dir : cache_dirs(context)) {
         append_unique_path(paths, dir / APP_CACHE_DIR);
-    }
-    return paths;
-}
-
-std::vector<std::filesystem::path> AppStoreApp::scan_download_dirs(system::core::AppContext &context) const
-{
-    std::vector<std::filesystem::path> paths;
-    std::error_code error_code;
-    for (const auto &apps_dir : download_dirs(context)) {
-        if (!std::filesystem::is_directory(apps_dir, error_code) || error_code) {
-            error_code.clear();
-            continue;
-        }
-        for (const auto &entry : std::filesystem::directory_iterator(apps_dir, error_code)) {
-            if (error_code) {
-                BROOKESIA_LOGW(
-                    "Failed to scan App Store per-app cache directory: path(%1%), error(%2%)",
-                    apps_dir.generic_string(), error_code.message()
-                );
-                error_code.clear();
-                break;
-            }
-            if (entry.is_directory(error_code) && !error_code) {
-                append_unique_path(paths, entry.path());
-            }
-            error_code.clear();
-        }
-    }
-
-    for (const auto &dir : cache_dirs(context)) {
-        append_unique_path(paths, dir / DOWNLOAD_DIR);
-    }
-
-    auto public_paths = context.system_service().get_public_storage_paths();
-    if (!public_paths) {
-        BROOKESIA_LOGW("Failed to resolve public download directories: %1%", public_paths.error());
-        return paths;
-    }
-
-    if (public_paths->internal.available && !public_paths->internal.download.empty()) {
-        append_unique_path(paths, std::filesystem::path(public_paths->internal.download));
-    }
-    for (const auto &dir : public_paths->external) {
-        if (dir.available && !dir.download.empty()) {
-            append_unique_path(paths, std::filesystem::path(dir.download));
-        }
     }
     return paths;
 }
@@ -350,6 +312,7 @@ bool AppStoreApp::write_cache_text_file(
 
 void AppStoreApp::prefer_external_install_storage(system::core::AppContext &context) const
 {
+    constexpr auto target = system::core::StorageInstallTarget::External;
     const auto layout = context.system_service().get_storage_layout();
     std::string preferred_external_id;
     auto find_available_external = [&layout](std::string_view id) -> const system::core::StorageVolume * {
@@ -375,8 +338,12 @@ void AppStoreApp::prefer_external_install_storage(system::core::AppContext &cont
         }
     }
 
+    if (layout.default_install_target == target && layout.preferred_external_id == preferred_external_id) {
+        return;
+    }
+
     auto result = context.system_service().set_default_install_storage(
-                      system::core::StorageInstallTarget::External,
+                      target,
                       preferred_external_id
                   );
     if (!result) {
@@ -510,6 +477,8 @@ void AppStoreApp::handle_storage_capacity_result(uint64_t generation, service::F
         (void)refresh_ui(*context_);
         return;
     }
+    storage_free_bytes_ = capacity.free_bytes;
+    storage_capacity_known_ = true;
     storage_text_ = tr("storage.download_prefix") + download_dir(*context_).generic_string() + " | " +
                     tr("storage.free_prefix") + format_bytes(capacity.free_bytes) + " / " +
                     format_bytes(capacity.total_bytes);
@@ -531,6 +500,7 @@ void AppStoreApp::refresh_installed_apps(system::core::AppContext &context)
                 .app = app,
                 .item_path = {},
                 .icon_resource_id = {},
+                .pending_icon_resource_id = {},
             });
         }
     }
@@ -547,9 +517,6 @@ void AppStoreApp::refresh_installed_apps(system::core::AppContext &context)
     }
     );
     apply_installed_state();
-    for (auto &entry : installed_runtime_apps_) {
-        entry.icon_resource_id = register_cached_icon(context, {entry.app.manifest.id});
-    }
 }
 
 void AppStoreApp::apply_installed_state()
@@ -591,89 +558,8 @@ void AppStoreApp::apply_installed_state()
     }
 }
 
-void AppStoreApp::scan_local_packages(system::core::AppContext &context)
+void AppStoreApp::rebuild_local_package_index()
 {
-    local_packages_.clear();
-    local_package_by_manifest_id_.clear();
-    std::error_code error_code;
-    const auto writable_packages_dir = download_dir(context);
-    std::filesystem::create_directories(writable_packages_dir, error_code);
-    if (error_code) {
-        BROOKESIA_LOGW(
-            "Failed to create App Store local package directory: path(%1%), error(%2%)",
-            writable_packages_dir.generic_string(),
-            error_code.message()
-        );
-        error_code.clear();
-    }
-
-    std::unordered_set<std::string> seen_package_keys;
-    for (const auto &packages_dir : scan_download_dirs(context)) {
-        if (!std::filesystem::exists(packages_dir, error_code) || error_code) {
-            error_code.clear();
-            continue;
-        }
-        for (const auto &entry : std::filesystem::directory_iterator(packages_dir, error_code)) {
-            if (error_code) {
-                BROOKESIA_LOGW(
-                    "Failed to scan local package directory: path(%1%), error(%2%)",
-                    packages_dir.generic_string(), error_code.message()
-                );
-                error_code.clear();
-                break;
-            }
-            if (!entry.is_regular_file(error_code) || error_code || entry.path().extension() != ".bpk") {
-                error_code.clear();
-                continue;
-            }
-
-            LocalPackageEntry package;
-            package.package_path = entry.path().lexically_normal();
-            package.file_name = package.package_path.filename().generic_string();
-            package.file_size = entry.file_size(error_code);
-            if (error_code) {
-                package.file_size = 0;
-                error_code.clear();
-            }
-
-            auto manifest = system::core::read_app_package_manifest(
-                                package.package_path.generic_string(),
-                                context.system_service().get_system_type()
-                            );
-            if (!manifest) {
-                BROOKESIA_LOGW(
-                    "Skip invalid App Store local package: path(%1%), error(%2%)",
-                    package.package_path.generic_string(), manifest.error()
-                );
-                continue;
-            }
-            if (manifest->id.empty()) {
-                BROOKESIA_LOGW(
-                    "Skip App Store local package with empty manifest id: path(%1%)",
-                    package.package_path.generic_string()
-                );
-                continue;
-            }
-            package.manifest_id = manifest->id;
-            package.app_names = manifest->localized_names;
-            if (package.app_names.empty() && !manifest->name.empty()) {
-                package.app_names.emplace("en", manifest->name);
-            }
-            package.version = manifest->version;
-
-            const auto package_key = package.manifest_id + "#" + package.version;
-            if (seen_package_keys.contains(package_key)) {
-                BROOKESIA_LOGI(
-                    "Skip duplicate App Store local package: key(%1%), path(%2%)",
-                    package_key, package.package_path.generic_string()
-                );
-                continue;
-            }
-            seen_package_keys.insert(package_key);
-            local_packages_.push_back(std::move(package));
-        }
-    }
-
     apply_installed_state();
     for (auto &entry : local_packages_) {
         entry.icon_resource_id = LOCAL_BPK_ICON_ID;
@@ -722,4 +608,319 @@ void AppStoreApp::scan_local_packages(system::core::AppContext &context)
         }
     }
     apply_installed_state();
+}
+
+void AppStoreApp::start_local_package_scan(system::core::AppContext &context, bool refresh_view)
+{
+    cancel_local_package_scan(context);
+    local_package_scan_in_progress_ = true;
+    local_package_scan_refresh_view_ = refresh_view;
+    local_package_scan_phase_ = LocalPackageScanPhase::StatDirectory;
+    local_package_scan_dirs_.clear();
+    local_package_scan_candidates_.clear();
+    local_package_scan_results_.clear();
+    local_package_scan_seen_keys_.clear();
+    local_package_scan_dir_cursor_ = 0;
+    local_package_scan_candidate_cursor_ = 0;
+
+    const auto writable_packages_dir = download_dir(context);
+    if (!StorageHelper::call_function_async(
+                StorageHelper::FunctionId::FSMkdir,
+                writable_packages_dir.generic_string()
+            )) {
+        BROOKESIA_LOGW("Failed to submit App Store local package directory mkdir: %1%",
+                       writable_packages_dir.generic_string());
+    }
+
+    for (const auto &dir : download_dirs(context)) {
+        append_unique_path(local_package_scan_dirs_, dir);
+    }
+    for (const auto &dir : cache_dirs(context)) {
+        append_unique_path(local_package_scan_dirs_, dir / DOWNLOAD_DIR);
+    }
+    auto public_paths = context.system_service().get_public_storage_paths();
+    if (!public_paths) {
+        BROOKESIA_LOGW("Failed to resolve public download directories: %1%", public_paths.error());
+    } else {
+        if (public_paths->internal.available && !public_paths->internal.download.empty()) {
+            append_unique_path(local_package_scan_dirs_, std::filesystem::path(public_paths->internal.download));
+        }
+        for (const auto &dir : public_paths->external) {
+            if (dir.available && !dir.download.empty()) {
+                append_unique_path(local_package_scan_dirs_, std::filesystem::path(dir.download));
+            }
+        }
+    }
+
+    if (refresh_view) {
+        status_text_ = tr("status.loading_local_packages");
+        (void)populate_entries(context);
+    }
+
+    submit_next_local_package_scan_dir(async_generation_);
+}
+
+void AppStoreApp::cancel_local_package_scan(system::core::AppContext &context)
+{
+    if (local_package_scan_timer_id_ != system::core::INVALID_TIMER_ID) {
+        if (!context.timer().stop(local_package_scan_timer_id_)) {
+            BROOKESIA_LOGW("Failed to stop App Store local package scan timer: %1%",
+                           local_package_scan_timer_id_);
+        }
+        local_package_scan_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
+    local_package_scan_in_progress_ = false;
+    local_package_scan_refresh_view_ = false;
+    local_package_scan_phase_ = LocalPackageScanPhase::None;
+    local_package_scan_dirs_.clear();
+    local_package_scan_candidates_.clear();
+    local_package_scan_results_.clear();
+    local_package_scan_seen_keys_.clear();
+    local_package_scan_dir_cursor_ = 0;
+    local_package_scan_candidate_cursor_ = 0;
+}
+
+void AppStoreApp::submit_next_local_package_scan_dir(uint64_t generation)
+{
+    if (context_ == nullptr || generation != async_generation_ || !local_package_scan_in_progress_) {
+        return;
+    }
+
+    while (local_package_scan_dir_cursor_ < local_package_scan_dirs_.size()) {
+        const auto packages_dir = local_package_scan_dirs_[local_package_scan_dir_cursor_++];
+        auto result_handler = [this, generation, packages_dir](service::FunctionResult && result) mutable {
+            handle_local_package_scan_stat_result(generation, packages_dir, std::move(result));
+        };
+        if (StorageHelper::call_function_async(
+                    StorageHelper::FunctionId::FSStat,
+                    packages_dir.generic_string(),
+                    service::ServiceBase::FunctionResultHandler(std::move(result_handler))
+                )) {
+            return;
+        }
+        BROOKESIA_LOGW("Failed to submit App Store local package stat: %1%", packages_dir.generic_string());
+    }
+
+    local_package_scan_phase_ = LocalPackageScanPhase::ParsePackages;
+    schedule_local_package_scan_step(*context_);
+}
+
+void AppStoreApp::handle_local_package_scan_stat_result(
+    uint64_t generation,
+    std::filesystem::path packages_dir,
+    service::FunctionResult &&result
+)
+{
+    if (context_ == nullptr || generation != async_generation_ || !local_package_scan_in_progress_) {
+        return;
+    }
+
+    auto info_json = StorageHelper::process_function_result<boost::json::object>(result);
+    if (!info_json) {
+        submit_next_local_package_scan_dir(generation);
+        return;
+    }
+    StorageHelper::FileInfo info;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(*info_json, info) ||
+            !info.exists || info.type != StorageHelper::FileType::Directory) {
+        submit_next_local_package_scan_dir(generation);
+        return;
+    }
+
+    auto result_handler = [this, generation, packages_dir](service::FunctionResult && list_result) mutable {
+        handle_local_package_scan_list_result(generation, packages_dir, std::move(list_result));
+    };
+    if (!StorageHelper::call_function_async(
+                StorageHelper::FunctionId::FSList,
+                packages_dir.generic_string(),
+                service::ServiceBase::FunctionResultHandler(std::move(result_handler))
+            )) {
+        BROOKESIA_LOGW("Failed to submit App Store local package list: %1%", packages_dir.generic_string());
+        submit_next_local_package_scan_dir(generation);
+    }
+}
+
+void AppStoreApp::handle_local_package_scan_list_result(
+    uint64_t generation,
+    std::filesystem::path packages_dir,
+    service::FunctionResult &&result
+)
+{
+    if (context_ == nullptr || generation != async_generation_ || !local_package_scan_in_progress_) {
+        return;
+    }
+
+    auto entries_json = StorageHelper::process_function_result<boost::json::array>(result);
+    if (!entries_json) {
+        BROOKESIA_LOGW(
+            "Failed to scan local package directory: path(%1%), error(%2%)",
+            packages_dir.generic_string(), entries_json.error()
+        );
+        submit_next_local_package_scan_dir(generation);
+        return;
+    }
+
+    std::vector<StorageHelper::FileEntry> entries;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(*entries_json, entries)) {
+        BROOKESIA_LOGW("Failed to parse local package directory entries: %1%", packages_dir.generic_string());
+        submit_next_local_package_scan_dir(generation);
+        return;
+    }
+
+    for (const auto &entry : entries) {
+        const auto package_path = packages_dir / entry.name;
+        if (entry.info.type == StorageHelper::FileType::Directory && packages_dir.filename() == APP_CACHE_DIR) {
+            append_unique_path(local_package_scan_dirs_, package_path);
+            continue;
+        }
+        if (entry.info.type != StorageHelper::FileType::File || package_path.extension() != ".bpk") {
+            continue;
+        }
+        local_package_scan_candidates_.push_back(LocalPackageScanCandidate{
+            .package_path = package_path.lexically_normal(),
+            .file_size = entry.info.size,
+        });
+    }
+
+    submit_next_local_package_scan_dir(generation);
+}
+
+void AppStoreApp::schedule_local_package_scan_step(system::core::AppContext &context)
+{
+    if (!local_package_scan_in_progress_ ||
+            local_package_scan_timer_id_ != system::core::INVALID_TIMER_ID) {
+        return;
+    }
+
+    auto timer = context.timer().start_delayed(LOCAL_PACKAGE_SCAN_TIMER_NAME, LOCAL_PACKAGE_SCAN_STEP_DELAY_MS);
+    if (!timer) {
+        BROOKESIA_LOGW("Failed to schedule App Store local package scan step: %1%", timer.error());
+        (void)process_local_package_scan_step(context);
+        return;
+    }
+    local_package_scan_timer_id_ = *timer;
+}
+
+std::expected<void, std::string> AppStoreApp::process_local_package_scan_step(system::core::AppContext &context)
+{
+    if (!local_package_scan_in_progress_ ||
+            local_package_scan_phase_ != LocalPackageScanPhase::ParsePackages) {
+        return {};
+    }
+
+    if (local_package_scan_candidate_cursor_ >= local_package_scan_candidates_.size()) {
+        finish_local_package_scan(context);
+        return {};
+    }
+
+    const auto candidate = local_package_scan_candidates_[local_package_scan_candidate_cursor_++];
+    LocalPackageEntry package;
+    package.package_path = candidate.package_path;
+    package.file_name = package.package_path.filename().generic_string();
+    package.file_size = candidate.file_size;
+
+    auto manifest = system::core::read_app_package_manifest(
+                        package.package_path.generic_string(),
+                        context.system_service().get_system_type()
+                    );
+    if (!manifest) {
+        BROOKESIA_LOGW(
+            "Skip invalid App Store local package: path(%1%), error(%2%)",
+            package.package_path.generic_string(), manifest.error()
+        );
+        schedule_local_package_scan_step(context);
+        return {};
+    }
+    if (manifest->id.empty()) {
+        BROOKESIA_LOGW(
+            "Skip App Store local package with empty manifest id: path(%1%)",
+            package.package_path.generic_string()
+        );
+        schedule_local_package_scan_step(context);
+        return {};
+    }
+
+    package.manifest_id = manifest->id;
+    package.app_names = manifest->localized_names;
+    if (package.app_names.empty() && !manifest->name.empty()) {
+        package.app_names.emplace("en", manifest->name);
+    }
+    package.version = manifest->version;
+
+    const auto package_key = package.manifest_id + "#" + package.version;
+    if (local_package_scan_seen_keys_.contains(package_key)) {
+        BROOKESIA_LOGI(
+            "Skip duplicate App Store local package: key(%1%), path(%2%)",
+            package_key, package.package_path.generic_string()
+        );
+        schedule_local_package_scan_step(context);
+        return {};
+    }
+
+    local_package_scan_seen_keys_.insert(package_key);
+    local_package_scan_results_.push_back(std::move(package));
+    schedule_local_package_scan_step(context);
+    return {};
+}
+
+void AppStoreApp::finish_local_package_scan(system::core::AppContext &context)
+{
+    const auto refresh_view = local_package_scan_refresh_view_;
+    local_packages_ = std::move(local_package_scan_results_);
+    rebuild_local_package_index();
+
+    local_package_scan_in_progress_ = false;
+    local_package_scan_refresh_view_ = false;
+    local_package_scan_phase_ = LocalPackageScanPhase::None;
+    local_package_scan_dirs_.clear();
+    local_package_scan_candidates_.clear();
+    local_package_scan_results_.clear();
+    local_package_scan_seen_keys_.clear();
+    local_package_scan_dir_cursor_ = 0;
+    local_package_scan_candidate_cursor_ = 0;
+
+    if (refresh_view && view_mode_ == ViewMode::Local) {
+        status_text_ = tr("status.local_packages_loaded");
+        (void)populate_entries(context);
+        if (pending_delete_success_package_name_.empty()) {
+            update_message_dialog_if_visible(
+                context,
+                tr("status.local_packages_loaded"),
+                {},
+                system::core::MessageDialogIcon::Information,
+                VIEW_MODE_LOAD_COMPLETE_DIALOG_AUTO_CLOSE_MS
+            );
+        } else {
+            show_pending_delete_local_package_success_dialog(context);
+        }
+        return;
+    }
+
+    if (view_mode_ == ViewMode::Local) {
+        (void)populate_entries(context);
+    } else if (view_mode_ == ViewMode::Store || view_mode_ == ViewMode::Installed) {
+        (void)refresh_ui(context);
+    }
+    show_pending_delete_local_package_success_dialog(context);
+}
+
+void AppStoreApp::show_pending_delete_local_package_success_dialog(system::core::AppContext &context)
+{
+    if (pending_delete_success_package_name_.empty()) {
+        return;
+    }
+
+    auto package_name = std::move(pending_delete_success_package_name_);
+    auto package_path = std::move(pending_delete_success_package_path_);
+    pending_delete_success_package_name_.clear();
+    pending_delete_success_package_path_.clear();
+    status_text_ = tr("status.deleted_prefix") + package_name;
+    ensure_message_dialog(
+        context,
+        status_text_,
+        package_path.filename().generic_string(),
+        system::core::MessageDialogIcon::Information,
+        DELETE_SUCCESS_DIALOG_AUTO_CLOSE_MS,
+        MessageDialogPurpose::DeleteLocalPackage
+    );
 }

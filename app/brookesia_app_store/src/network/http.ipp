@@ -164,6 +164,10 @@ void AppStoreApp::handle_http_general_state_changed(std::string_view state_text)
 
 void AppStoreApp::handle_request_progress(double request_id, const boost::json::object &progress_json)
 {
+    const auto request_id_uint = static_cast<uint64_t>(request_id);
+    if (is_download_request_terminal(request_id_uint)) {
+        return;
+    }
     if (refresh_request_id_ != 0 && static_cast<uint64_t>(request_id) == refresh_request_id_) {
         handle_refresh_progress(progress_json);
         return;
@@ -173,15 +177,15 @@ void AppStoreApp::handle_request_progress(double request_id, const boost::json::
         return;
     }
 
-    if (find_entry_by_size_metadata_request(static_cast<uint64_t>(request_id))) {
+    if (find_entry_by_size_metadata_request(request_id_uint)) {
         return;
     }
 
-    if (find_entry_by_metadata_request(static_cast<uint64_t>(request_id))) {
+    if (find_entry_by_metadata_request(request_id_uint)) {
         return;
     }
 
-    auto index = find_entry_by_request(static_cast<uint64_t>(request_id));
+    auto index = find_entry_by_request(request_id_uint);
     if (!index || context_ == nullptr) {
         return;
     }
@@ -192,8 +196,88 @@ void AppStoreApp::handle_request_progress(double request_id, const boost::json::
     auto &entry = entries_[*index];
     entry.downloaded = progress.downloaded;
     entry.total = progress.total;
+    start_download_watchdog(*context_, entry);
     update_download_progress_dialog_if_current(*context_, entry);
     (void)refresh_entry(*context_, *index);
+}
+
+void AppStoreApp::schedule_http_event_processing(
+    system::core::AppContext &context,
+    PendingHttpEventType type,
+    double request_id,
+    const boost::json::object &response_json
+)
+{
+    bool process_now = false;
+    {
+        std::lock_guard lock(pending_http_events_mutex_);
+        pending_http_events_.push_back(PendingHttpEvent{
+            .type = type,
+            .request_id = request_id,
+            .response = response_json,
+        });
+        if (http_event_timer_id_ != system::core::INVALID_TIMER_ID) {
+            return;
+        }
+
+        // HTTP service events are emitted on SvcHttp threads. Defer heavy
+        // filesystem/UI/install work to the app task to keep the HTTP worker stack small.
+        auto timer = context.timer().start_delayed(HTTP_EVENT_TIMER_NAME, HTTP_EVENT_PROCESS_DELAY_MS);
+        if (timer) {
+            http_event_timer_id_ = *timer;
+            return;
+        }
+
+        BROOKESIA_LOGW("Failed to schedule App Store HTTP event processing: %1%", timer.error());
+        process_now = true;
+    }
+
+    if (process_now) {
+        process_pending_http_events(context);
+    }
+}
+
+void AppStoreApp::stop_http_event_timer(system::core::AppContext &context)
+{
+    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
+    {
+        std::lock_guard lock(pending_http_events_mutex_);
+        timer_id = http_event_timer_id_;
+        http_event_timer_id_ = system::core::INVALID_TIMER_ID;
+        pending_http_events_.clear();
+    }
+    if (timer_id != system::core::INVALID_TIMER_ID && !context.timer().stop(timer_id)) {
+        BROOKESIA_LOGW("Failed to stop App Store HTTP event timer: %1%", timer_id);
+    }
+}
+
+void AppStoreApp::process_pending_http_events(system::core::AppContext &context)
+{
+    (void)context;
+    std::vector<PendingHttpEvent> events;
+    {
+        std::lock_guard lock(pending_http_events_mutex_);
+        events.swap(pending_http_events_);
+    }
+
+    for (const auto &event : events) {
+        switch (event.type) {
+        case PendingHttpEventType::Progress:
+            handle_request_progress(event.request_id, event.response);
+            break;
+        case PendingHttpEventType::Completed:
+            handle_request_completed(event.request_id, event.response);
+            break;
+        case PendingHttpEventType::Failed:
+            handle_request_failed(event.request_id, event.response);
+            break;
+        case PendingHttpEventType::Canceled:
+            handle_request_canceled(event.request_id, event.response);
+            break;
+        default:
+            break;
+        }
+    }
 }
 
 void AppStoreApp::handle_request_completed(double request_id, const boost::json::object &response_json)
@@ -224,6 +308,10 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
     HttpHelper::HttpResponse response;
     if (!BROOKESIA_DESCRIBE_FROM_JSON(response_json, response)) {
         auto &entry = entries_[*index];
+        const auto failed_request_id = entry.download_request_id;
+        mark_download_request_terminal(failed_request_id);
+        clear_download_dialog_binding_if_current(failed_request_id);
+        stop_download_watchdog(entry);
         entry.schema_error = tr("error.download_failed");
         remove_cache_file_if_exists(entry.download_path, "download response parse failed");
         entry.downloading = false;
@@ -236,9 +324,12 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
         return;
     }
     auto &entry = entries_[*index];
+    stop_download_watchdog(entry);
     entry.downloading = false;
     const auto completed_request_id = entry.download_request_id;
     if (response.error != HttpHelper::ErrorCode::Ok || response.status_code < 200 || response.status_code >= 300) {
+        mark_download_request_terminal(completed_request_id);
+        clear_download_dialog_binding_if_current(completed_request_id);
         entry.schema_error = tr("error.download_failed");
         if (!response.error_message.empty()) {
             entry.schema_error = response.error_message;
@@ -260,11 +351,13 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
                               cache_dir(*context_) / package_cache_relative_path(entry, true) :
                               entry.download_path;
     const auto package_path = partial_path.parent_path() / package_cache_relative_path(entry, false).filename();
-    std::error_code error_code;
-    if (!std::filesystem::is_regular_file(partial_path, error_code) || error_code) {
+    auto partial_info = StorageHelper::fs_stat(partial_path.generic_string());
+    if (!partial_info || partial_info->type != StorageHelper::FileType::File) {
+        mark_download_request_terminal(completed_request_id);
+        clear_download_dialog_binding_if_current(completed_request_id);
         entry.schema_error = tr("error.download_failed");
-        if (error_code) {
-            entry.schema_error += ": " + error_code.message();
+        if (!partial_info) {
+            entry.schema_error += ": " + partial_info.error();
         }
         show_download_failed_dialog(*context_, entry, entry.schema_error);
         remove_cache_file_if_exists(partial_path, "partial package missing after download");
@@ -276,9 +369,11 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
         return;
     }
     remove_cache_file_if_exists(package_path, "replace cached package after download");
-    std::filesystem::rename(partial_path, package_path, error_code);
-    if (error_code) {
-        entry.schema_error = tr("error.download_failed") + ": " + error_code.message();
+    auto rename_result = StorageHelper::fs_rename(partial_path.generic_string(), package_path.generic_string());
+    if (!rename_result) {
+        mark_download_request_terminal(completed_request_id);
+        clear_download_dialog_binding_if_current(completed_request_id);
+        entry.schema_error = tr("error.download_failed") + ": " + rename_result.error();
         show_download_failed_dialog(*context_, entry, entry.schema_error);
         remove_cache_file_if_exists(partial_path, "failed package rename");
         entry.download_path.clear();
@@ -288,19 +383,26 @@ void AppStoreApp::handle_request_completed(double request_id, const boost::json:
         (void)refresh_entry(*context_, *index);
         return;
     }
+    mark_download_request_terminal(completed_request_id);
+    entry.cached = true;
+    entry.cached_package_path = package_path;
+    entry.cached_package_size = partial_info->size;
     entry.download_path.clear();
     entry.download_request_id = 0;
-    if (message_dialog_purpose_ == MessageDialogPurpose::Download &&
-            download_dialog_request_id_ == completed_request_id) {
-        download_dialog_request_id_ = 0;
+    entry.downloaded = 0;
+    entry.total = 0;
+    if (!schedule_package_install(
+        *context_,
+        package_path,
+        localized(entry.app_names),
+        DeferredOperationType::InstallPackage,
+        *index,
+        entry.package_name,
+        completed_request_id
+    )) {
+        entry.schema_error = tr("dialog.install_failed_prefix") + localized(entry.app_names);
     }
-    scan_local_packages(*context_);
-    refresh_storage_capacity(*context_);
-    auto result = install_package(*context_, package_path, localized(entry.app_names));
-    if (!result) {
-        entry.schema_error = result.error();
-        (void)refresh_entry(*context_, *index);
-    }
+    (void)refresh_entry(*context_, *index);
 }
 
 void AppStoreApp::handle_request_failed(double request_id, const boost::json::object &response_json)
@@ -328,6 +430,10 @@ void AppStoreApp::handle_request_failed(double request_id, const boost::json::ob
     if (!index || context_ == nullptr) {
         return;
     }
+    const auto request_id_uint = static_cast<uint64_t>(request_id);
+    mark_download_request_terminal(request_id_uint);
+    clear_download_dialog_binding_if_current(request_id_uint);
+    stop_download_watchdog(entries_[*index]);
     HttpHelper::HttpResponse response;
     if (BROOKESIA_DESCRIBE_FROM_JSON(response_json, response) && !response.error_message.empty()) {
         entries_[*index].schema_error = response.error_message;
@@ -369,10 +475,14 @@ void AppStoreApp::handle_request_canceled(double request_id, const boost::json::
     if (!index || context_ == nullptr) {
         return;
     }
+    stop_download_watchdog(entries_[*index]);
     const auto request_id_uint = static_cast<uint64_t>(request_id);
+    mark_download_request_terminal(request_id_uint);
     if (message_dialog_purpose_ == MessageDialogPurpose::Download &&
             download_dialog_request_id_ == request_id_uint) {
         hide_message_dialog_if_visible(*context_);
+    } else {
+        clear_download_dialog_binding_if_current(request_id_uint);
     }
     entries_[*index].downloading = false;
     entries_[*index].download_request_id = 0;
@@ -391,6 +501,7 @@ void AppStoreApp::handle_metadata_completed(size_t index, const boost::json::obj
 
     HttpHelper::HttpResponse response;
     auto &entry = entries_[index];
+    stop_metadata_watchdog(entry);
     entry.metadata_loading = false;
     entry.metadata_request_id = 0;
     if (!BROOKESIA_DESCRIBE_FROM_JSON(response_json, response)) {
@@ -430,6 +541,7 @@ void AppStoreApp::handle_metadata_failed(size_t index, const boost::json::object
 
     HttpHelper::HttpResponse response;
     auto &entry = entries_[index];
+    stop_metadata_watchdog(entry);
     if (BROOKESIA_DESCRIBE_FROM_JSON(response_json, response) && !response.error_message.empty()) {
         entry.schema_error = response.error_message;
     } else {
@@ -448,6 +560,7 @@ void AppStoreApp::handle_metadata_canceled(size_t index)
     }
 
     auto &entry = entries_[index];
+    stop_metadata_watchdog(entry);
     entry.metadata_loading = false;
     entry.metadata_request_id = 0;
     (void)refresh_entry(*context_, index);
@@ -674,13 +787,13 @@ void AppStoreApp::handle_refresh_icon_completed(const boost::json::object &respo
 
     const auto request_id = refresh_icon_request_id_;
     refresh_icon_request_id_ = 0;
-    const auto current_index = current_refresh_icon_index();
-    if (!current_index) {
+    const auto current_ref = current_refresh_icon_ref();
+    if (!current_ref || current_ref->kind != VisibleItemKind::Store) {
         schedule_refresh_icon_step(*context_);
         return;
     }
 
-    auto &entry = entries_[*current_index];
+    auto &entry = entries_[current_ref->index];
     entry.icon_request_id = 0;
     HttpHelper::HttpResponse response;
     if (!BROOKESIA_DESCRIBE_FROM_JSON(response_json, response) ||
@@ -704,7 +817,7 @@ void AppStoreApp::handle_refresh_icon_completed(const boost::json::object &respo
         }
     } else {
         entry.icon_file_path = entry.icon_download_path.generic_string();
-        auto register_result = register_icon(*context_, *current_index);
+        auto register_result = register_icon(*context_, current_ref->index);
         if (!register_result) {
             BROOKESIA_LOGW("Failed to register App Store icon: %1%", register_result.error());
         }
@@ -720,8 +833,9 @@ void AppStoreApp::handle_refresh_icon_failed(const boost::json::object &response
     }
 
     refresh_icon_request_id_ = 0;
-    if (auto current_index = current_refresh_icon_index()) {
-        auto &entry = entries_[*current_index];
+    if (auto current_ref = current_refresh_icon_ref();
+            current_ref && current_ref->kind == VisibleItemKind::Store) {
+        auto &entry = entries_[current_ref->index];
         HttpHelper::HttpResponse response;
         if (BROOKESIA_DESCRIBE_FROM_JSON(response_json, response) && !response.error_message.empty()) {
             BROOKESIA_LOGW(
@@ -747,8 +861,9 @@ void AppStoreApp::handle_refresh_icon_canceled()
     }
 
     refresh_icon_request_id_ = 0;
-    if (auto current_index = current_refresh_icon_index()) {
-        auto &entry = entries_[*current_index];
+    if (auto current_ref = current_refresh_icon_ref();
+            current_ref && current_ref->kind == VisibleItemKind::Store) {
+        auto &entry = entries_[current_ref->index];
         entry.icon_request_id = 0;
         if (!entry.icon_download_path.empty()) {
             remove_invalid_icon_file(entry.icon_download_path, "icon request canceled");
@@ -818,7 +933,7 @@ void AppStoreApp::start_visible_icon_update(system::core::AppContext &context)
 void AppStoreApp::restart_visible_icon_update(system::core::AppContext &context)
 {
     cancel_refresh_icon_update(context);
-    if (view_mode_ != ViewMode::Store || !http_available_) {
+    if (view_mode_ == ViewMode::Local) {
         return;
     }
 
@@ -836,7 +951,7 @@ void AppStoreApp::restart_visible_icon_update(system::core::AppContext &context)
 void AppStoreApp::cancel_refresh_icon_update(system::core::AppContext &context)
 {
     stop_refresh_icon_timer(context);
-    const auto current_index = current_refresh_icon_index();
+    const auto current_ref = current_refresh_icon_ref();
     if (refresh_icon_request_id_ != 0 && http_available_) {
         const auto request_id = refresh_icon_request_id_;
         if (!HttpHelper::call_function_async(
@@ -846,8 +961,8 @@ void AppStoreApp::cancel_refresh_icon_update(system::core::AppContext &context)
             BROOKESIA_LOGW("Failed to submit cancel for App Store icon request %1%", request_id);
         }
     }
-    if (current_index) {
-        auto &entry = entries_[*current_index];
+    if (current_ref && current_ref->kind == VisibleItemKind::Store && current_ref->index < entries_.size()) {
+        auto &entry = entries_[current_ref->index];
         entry.icon_request_id = 0;
         if (!entry.icon_download_path.empty()) {
             remove_invalid_icon_file(entry.icon_download_path, "icon request canceled");
@@ -865,10 +980,10 @@ void AppStoreApp::reset_refresh_icon_state()
     refresh_icon_purpose_ = IconUpdatePurpose::None;
 }
 
-std::vector<size_t> AppStoreApp::build_visible_icon_indices() const
+std::vector<AppStoreApp::VisibleItemRef> AppStoreApp::build_visible_icon_indices() const
 {
-    std::vector<size_t> indices;
-    if (view_mode_ != ViewMode::Store) {
+    std::vector<VisibleItemRef> indices;
+    if (view_mode_ == ViewMode::Local) {
         return indices;
     }
 
@@ -878,22 +993,32 @@ std::vector<size_t> AppStoreApp::build_visible_icon_indices() const
         const auto &ref = visible_items_[page_start + i];
         if (ref.kind == VisibleItemKind::Store && ref.index < entries_.size() &&
                 should_fetch_icon(entries_[ref.index])) {
-            indices.push_back(ref.index);
+            indices.push_back(ref);
+        } else if (ref.kind == VisibleItemKind::Installed && ref.index < installed_runtime_apps_.size() &&
+                   installed_runtime_apps_[ref.index].icon_resource_id.empty() &&
+                   !installed_runtime_apps_[ref.index].app.manifest.id.empty()) {
+            indices.push_back(ref);
         }
     }
     return indices;
 }
 
-std::optional<size_t> AppStoreApp::current_refresh_icon_index() const
+std::optional<AppStoreApp::VisibleItemRef> AppStoreApp::current_refresh_icon_ref() const
 {
     if (refresh_icon_cursor_ >= refresh_icon_indices_.size()) {
         return std::nullopt;
     }
-    const auto index = refresh_icon_indices_[refresh_icon_cursor_];
-    if (index >= entries_.size()) {
+    const auto ref = refresh_icon_indices_[refresh_icon_cursor_];
+    if (ref.kind == VisibleItemKind::Store && ref.index >= entries_.size()) {
         return std::nullopt;
     }
-    return index;
+    if (ref.kind == VisibleItemKind::Installed && ref.index >= installed_runtime_apps_.size()) {
+        return std::nullopt;
+    }
+    if (ref.kind == VisibleItemKind::Local) {
+        return std::nullopt;
+    }
+    return ref;
 }
 
 void AppStoreApp::advance_refresh_icon_step(system::core::AppContext &context)
@@ -906,16 +1031,18 @@ void AppStoreApp::advance_refresh_icon_step(system::core::AppContext &context)
 
 void AppStoreApp::finish_refresh_icon_update(system::core::AppContext &context)
 {
+    apply_pending_icon_resources(context);
     reset_refresh_icon_state();
     (void)refresh_ui(context);
 }
 
 std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::core::AppContext &context)
 {
+    apply_pending_icon_resources(context);
     if (refresh_icon_request_id_ != 0 || refresh_icon_purpose_ == IconUpdatePurpose::None) {
         return {};
     }
-    if (view_mode_ != ViewMode::Store || !http_available_) {
+    if (view_mode_ == ViewMode::Local) {
         reset_refresh_icon_state();
         return {};
     }
@@ -924,33 +1051,43 @@ std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::
         return {};
     }
 
-    const auto current_index = current_refresh_icon_index();
-    if (!current_index) {
+    const auto current_ref = current_refresh_icon_ref();
+    if (!current_ref) {
         advance_refresh_icon_step(context);
         return {};
     }
 
-    auto &entry = entries_[*current_index];
+    if (current_ref->kind == VisibleItemKind::Installed) {
+        auto &entry = installed_runtime_apps_[current_ref->index];
+        auto image_id = register_cached_icon(context, {entry.app.manifest.id});
+        if (!image_id.empty()) {
+            entry.pending_icon_resource_id = std::move(image_id);
+        }
+        advance_refresh_icon_step(context);
+        return {};
+    }
+
+    auto &entry = entries_[current_ref->index];
     if (!should_fetch_icon(entry)) {
         advance_refresh_icon_step(context);
         return {};
     }
 
     for (const auto &cached_path : cached_icon_file_candidates(context, {entry.package_name, entry.manifest_id})) {
-        std::error_code error_code;
-        if (!std::filesystem::is_regular_file(cached_path, error_code) || error_code) {
-            error_code.clear();
-            continue;
-        }
         if (!read_png_size(cached_path)) {
             remove_invalid_icon_file(cached_path, "cached PNG validation failed before refresh");
             continue;
         }
         entry.icon_file_path = cached_path.generic_string();
-        auto register_result = register_icon(context, *current_index);
+        auto register_result = register_icon(context, current_ref->index);
         if (!register_result) {
             BROOKESIA_LOGW("Failed to register cached App Store icon: %1%", register_result.error());
         }
+        advance_refresh_icon_step(context);
+        return {};
+    }
+
+    if (!http_available_) {
         advance_refresh_icon_step(context);
         return {};
     }
@@ -966,22 +1103,51 @@ std::expected<void, std::string> AppStoreApp::process_refresh_icon_step(system::
     auto request = make_get_request(entry.icon_url);
     request.download_path = output->generic_string();
     request.max_file_size = ICON_MAX_FILE_SIZE;
-    auto request_id = HttpHelper::call_function_sync<double>(
-                          HttpHelper::FunctionId::RequestAsync,
-                          BROOKESIA_DESCRIBE_TO_JSON(request).as_object()
-                      );
-    if (!request_id) {
+    const auto index = current_ref->index;
+    const auto output_path = *output;
+    const auto icon_url = entry.icon_url;
+    auto success_handler = [this, index, output_path](uint64_t request_id) {
+        if (context_ == nullptr || refresh_icon_purpose_ == IconUpdatePurpose::None) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for stale App Store icon request %1%", request_id);
+            }
+            return;
+        }
+        auto current_ref = current_refresh_icon_ref();
+        if (!current_ref || current_ref->kind != VisibleItemKind::Store || current_ref->index != index ||
+                index >= entries_.size()) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for stale App Store icon request %1%", request_id);
+            }
+            remove_invalid_icon_file(output_path, "stale icon request submitted");
+            return;
+        }
+        refresh_icon_request_id_ = request_id;
+        auto &entry = entries_[index];
+        entry.icon_request_id = request_id;
+        entry.icon_download_path = output_path;
+    };
+    auto failure_handler = [this, output_path, icon_url](std::string error_message) {
         BROOKESIA_LOGW(
             "Failed to submit App Store icon request: url(%1%), error(%2%)",
-            entry.icon_url, request_id.error()
+            icon_url, error_message
         );
+        remove_invalid_icon_file(output_path, "icon request submit failed");
+        if (context_ != nullptr) {
+            advance_refresh_icon_step(*context_);
+        }
+    };
+    if (!submit_http_request_async(context, std::move(request), std::move(success_handler), std::move(failure_handler))) {
+        BROOKESIA_LOGW("Failed to submit App Store icon request: url(%1%)", entry.icon_url);
         remove_invalid_icon_file(*output, "icon request submit failed");
         advance_refresh_icon_step(context);
-        return {};
     }
-    refresh_icon_request_id_ = static_cast<uint64_t>(*request_id);
-    entry.icon_request_id = refresh_icon_request_id_;
-    entry.icon_download_path = *output;
     return {};
 }
 
@@ -1008,6 +1174,67 @@ void AppStoreApp::stop_refresh_icon_timer(system::core::AppContext &context)
             BROOKESIA_LOGW("Failed to stop App Store refresh icon timer: %1%", refresh_icon_timer_id_);
         }
         refresh_icon_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
+}
+
+bool AppStoreApp::submit_http_request_async(
+    system::core::AppContext &context,
+    service::helper::Http::HttpRequest request,
+    HttpRequestSubmitSuccessHandler success_handler,
+    HttpRequestSubmitFailureHandler failure_handler
+)
+{
+    (void)context;
+    const auto generation = async_generation_;
+    auto result_handler = [
+                              this,
+                              generation,
+                              success_handler = std::move(success_handler),
+                              failure_handler = std::move(failure_handler)
+                          ](service::FunctionResult && result) mutable {
+        handle_http_request_submit_result(
+            generation,
+            std::move(success_handler),
+            std::move(failure_handler),
+            std::move(result)
+        );
+    };
+
+    return HttpHelper::call_function_async(
+               HttpHelper::FunctionId::RequestAsync,
+               BROOKESIA_DESCRIBE_TO_JSON(request).as_object(),
+               service::ServiceBase::FunctionResultHandler(std::move(result_handler))
+           );
+}
+
+void AppStoreApp::handle_http_request_submit_result(
+    uint64_t generation,
+    HttpRequestSubmitSuccessHandler success_handler,
+    HttpRequestSubmitFailureHandler failure_handler,
+    service::FunctionResult &&result
+)
+{
+    auto request_id = HttpHelper::process_function_result<double>(result);
+    if (!request_id) {
+        if (context_ != nullptr && generation == async_generation_ && failure_handler != nullptr) {
+            failure_handler(request_id.error());
+        }
+        return;
+    }
+
+    const auto id = static_cast<uint64_t>(*request_id);
+    if (context_ == nullptr || generation != async_generation_) {
+        if (!HttpHelper::call_function_async(
+                    HttpHelper::FunctionId::CancelRequest,
+                    static_cast<double>(id)
+                )) {
+            BROOKESIA_LOGW("Failed to submit cancel for stale App Store HTTP request %1%", id);
+        }
+        return;
+    }
+
+    if (success_handler != nullptr) {
+        success_handler(id);
     }
 }
 
@@ -1278,6 +1505,18 @@ system::core::MessageDialogOptions AppStoreApp::make_message_dialog_options(
     };
 }
 
+void AppStoreApp::clear_message_dialog_state()
+{
+    message_dialog_request_id_ = system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
+    message_dialog_purpose_ = MessageDialogPurpose::None;
+    download_dialog_request_id_ = 0;
+}
+
+bool AppStoreApp::is_message_dialog_request_not_found(std::string_view error) const
+{
+    return error.find("Message dialog request not found") != std::string_view::npos;
+}
+
 void AppStoreApp::ensure_message_dialog(
     system::core::AppContext &context,
     std::string text,
@@ -1288,10 +1527,14 @@ void AppStoreApp::ensure_message_dialog(
     std::vector<system::core::MessageDialogButton> buttons
 )
 {
+    const uint64_t pending_download_request_id =
+        purpose == MessageDialogPurpose::Download ? download_dialog_request_id_ : 0;
     refresh_dialog_message_ = text;
     message_dialog_purpose_ = purpose;
     if (purpose != MessageDialogPurpose::Download) {
         download_dialog_request_id_ = 0;
+    } else {
+        download_dialog_request_id_ = pending_download_request_id;
     }
     auto options = make_message_dialog_options(
                        std::move(text),
@@ -1305,20 +1548,28 @@ void AppStoreApp::ensure_message_dialog(
         if (result) {
             return;
         }
-        BROOKESIA_LOGW("Failed to update App Store message dialog: %1%", result.error());
-        message_dialog_request_id_ = system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
+        if (is_message_dialog_request_not_found(result.error())) {
+            BROOKESIA_LOGD(
+                "App Store message dialog request is no longer active, showing a new one: request_id(%1%)",
+                message_dialog_request_id_
+            );
+        } else {
+            BROOKESIA_LOGW("Failed to update App Store message dialog: %1%", result.error());
+        }
+        clear_message_dialog_state();
+        message_dialog_purpose_ = purpose;
+        download_dialog_request_id_ = pending_download_request_id;
     }
 
     auto request_id = context.system_service().show_message_dialog(
-                          std::move(options),
-    [this](const system::core::MessageDialogResult & result) {
-        handle_message_dialog_result(result);
-    }
-                      );
+        std::move(options),
+        [this](const system::core::MessageDialogResult &result) {
+            handle_message_dialog_result(result);
+        }
+    );
     if (!request_id) {
         BROOKESIA_LOGW("Failed to show App Store message dialog: %1%", request_id.error());
-        message_dialog_purpose_ = MessageDialogPurpose::None;
-        download_dialog_request_id_ = 0;
+        clear_message_dialog_state();
         return;
     }
     message_dialog_request_id_ = *request_id;
@@ -1352,28 +1603,37 @@ void AppStoreApp::update_message_dialog_if_visible(
                    );
     auto result = context.system_service().update_message_dialog(message_dialog_request_id_, std::move(options));
     if (!result) {
-        BROOKESIA_LOGW("Failed to update App Store message dialog: %1%", result.error());
-        message_dialog_request_id_ = system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
-        message_dialog_purpose_ = MessageDialogPurpose::None;
-        download_dialog_request_id_ = 0;
+        if (is_message_dialog_request_not_found(result.error())) {
+            BROOKESIA_LOGD(
+                "App Store message dialog request is no longer active, skipping update: request_id(%1%)",
+                message_dialog_request_id_
+            );
+        } else {
+            BROOKESIA_LOGW("Failed to update App Store message dialog: %1%", result.error());
+        }
+        clear_message_dialog_state();
     }
 }
 
 void AppStoreApp::hide_message_dialog_if_visible(system::core::AppContext &context)
 {
     if (message_dialog_request_id_ == system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID) {
-        message_dialog_purpose_ = MessageDialogPurpose::None;
-        download_dialog_request_id_ = 0;
+        clear_message_dialog_state();
         return;
     }
 
     auto result = context.system_service().hide_message_dialog(message_dialog_request_id_);
     if (!result) {
-        BROOKESIA_LOGW("Failed to hide App Store message dialog: %1%", result.error());
+        if (is_message_dialog_request_not_found(result.error())) {
+            BROOKESIA_LOGD(
+                "App Store message dialog request is no longer active, skipping hide: request_id(%1%)",
+                message_dialog_request_id_
+            );
+        } else {
+            BROOKESIA_LOGW("Failed to hide App Store message dialog: %1%", result.error());
+        }
     }
-    message_dialog_request_id_ = system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
-    message_dialog_purpose_ = MessageDialogPurpose::None;
-    download_dialog_request_id_ = 0;
+    clear_message_dialog_state();
 }
 
 void AppStoreApp::handle_message_dialog_result(const system::core::MessageDialogResult &result)
@@ -1383,17 +1643,26 @@ void AppStoreApp::handle_message_dialog_result(const system::core::MessageDialog
     }
 
     const auto purpose = message_dialog_purpose_;
-    message_dialog_request_id_ = system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
-    message_dialog_purpose_ = MessageDialogPurpose::None;
-    download_dialog_request_id_ = 0;
-    if (purpose != MessageDialogPurpose::TimeSyncRetry ||
-            result.button_role != system::core::MessageDialogButtonRole::Action ||
-            context_ == nullptr) {
+    clear_message_dialog_state();
+    if (context_ == nullptr) {
         return;
     }
 
-    BROOKESIA_LOGI("Retry App Store refresh from time sync timeout dialog");
-    (void)start_remote_refresh(*context_);
+    if (purpose == MessageDialogPurpose::DeleteLocalPackage) {
+        if (result.button_role == system::core::MessageDialogButtonRole::Destructive) {
+            delete_local_package(*context_);
+            return;
+        }
+        pending_delete_local_package_name_.clear();
+        pending_delete_local_package_path_.clear();
+        return;
+    }
+
+    if (purpose == MessageDialogPurpose::TimeSyncRetry &&
+            result.button_role == system::core::MessageDialogButtonRole::Action) {
+        BROOKESIA_LOGI("Retry App Store refresh from time sync timeout dialog");
+        (void)start_remote_refresh(*context_);
+    }
 }
 
 void AppStoreApp::finish_remote_refresh_with_error(

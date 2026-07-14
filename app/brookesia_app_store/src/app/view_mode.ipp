@@ -42,6 +42,10 @@ std::expected<void, std::string> AppStoreApp::process_view_mode_load(system::cor
     const auto mode = *pending_view_mode_;
     pending_view_mode_.reset();
     set_view_mode(context, mode);
+    if (mode == ViewMode::Local) {
+        return {};
+    }
+
     const auto loaded_text = mode == ViewMode::Local ?
                              tr("status.local_packages_loaded") :
                              tr("status.installed_apps_loaded");
@@ -72,9 +76,10 @@ void AppStoreApp::set_view_mode(system::core::AppContext &context, ViewMode mode
     view_mode_ = mode;
     list_page_ = 0;
     refresh_installed_apps(context);
-    if (view_mode_ == ViewMode::Local) {
-        scan_local_packages(context);
-    }
     refresh_storage_capacity(context);
+    if (view_mode_ == ViewMode::Local) {
+        start_local_package_scan(context, true);
+        return;
+    }
     (void)populate_entries(context);
 }
