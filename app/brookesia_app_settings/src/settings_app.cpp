@@ -7,18 +7,19 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cctype>
 #include <cmath>
 #include <cstdint>
 #include <expected>
 #include <filesystem>
-#include <fstream>
 #include <memory>
 #include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -32,9 +33,16 @@
 #include "brookesia/service_helper/media/display.hpp"
 #include "brookesia/service_helper/network/sntp.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
+#include "brookesia/service_helper/framework/utils.hpp"
 #include "brookesia/service_helper/network/wifi.hpp"
 
 #include "private/utils.hpp"
+
+#if BROOKESIA_APP_SETTINGS_ENABLE_PROFILE_LOG
+#   define APP_SETTINGS_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
+#else
+#   define APP_SETTINGS_PROFILE_LOGI(...) do { if (false) { BROOKESIA_LOGI(__VA_ARGS__); } } while (0)
+#endif
 
 namespace esp_brookesia::app::settings {
 namespace {
@@ -44,7 +52,10 @@ using DeviceHelper = service::helper::Device;
 using DisplayHelper = service::helper::Display;
 using SNTPHelper = service::helper::SNTP;
 using StorageHelper = service::helper::Storage;
+using UtilsHelper = service::helper::Utils;
 using WifiHelper = service::helper::Wifi;
+using SteadyClock = std::chrono::steady_clock;
+using SteadyTimePoint = SteadyClock::time_point;
 
 static constexpr const char *APP_ID = "brookesia.general.settings";
 static constexpr const char *APP_NAME = "Settings";
@@ -89,6 +100,22 @@ static constexpr const char *AVAILABLE_NETWORK_PAGER_LABEL_PATH =
     "/wifi/page/wifi_content/available_networks/list/pager/page";
 static constexpr const char *AVAILABLE_NETWORK_PAGER_NEXT_PATH =
     "/wifi/page/wifi_content/available_networks/list/pager/next";
+
+int64_t elapsed_ms_since(SteadyTimePoint started_at, SteadyTimePoint ended_at = SteadyClock::now())
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(ended_at - started_at).count();
+}
+
+void log_start_profile(const char *stage, SteadyTimePoint stage_started_at, SteadyTimePoint total_started_at)
+{
+    const auto now = SteadyClock::now();
+    APP_SETTINGS_PROFILE_LOGI(
+        "Settings start profile: stage(%1%), elapsed_ms(%2%), total_ms(%3%)",
+        stage,
+        elapsed_ms_since(stage_started_at, now),
+        elapsed_ms_since(total_started_at, now)
+    );
+}
 static constexpr const char *HOME_WIFI_VALUE_PATH = "/settings_home/page/main_list/wifi/value_box/value";
 static constexpr const char *WIFI_CONNECT_SSID_PATH = "/wifi_connect/page/network_card/ssid";
 static constexpr const char *WIFI_CONNECT_DETAIL_PATH = "/wifi_connect/page/network_card/detail";
@@ -121,9 +148,13 @@ static constexpr const char *PAGE_DISPLAY = "display";
 static constexpr const char *PAGE_MORE = "more";
 static constexpr const char *PAGE_LANGUAGE = "language";
 static constexpr const char *PAGE_TIME_ZONE = "time_zone";
+static constexpr const char *PAGE_DEBUG = "debug";
 static constexpr const char *ACTION_OPEN_HOME = "settings.open.home";
 static constexpr const char *ACTION_HEADER_BACK = "settings.header.back";
 static constexpr const char *ACTION_BACK_LANGUAGE = "settings.back.language";
+static constexpr const char *ACTION_OPEN_DEBUG = "settings.open.debug";
+static constexpr const char *ACTION_BACK_DEBUG = "settings.back.debug";
+static constexpr const char *ACTION_DEBUG_DEVICE_NAME_CLICK = "settings.debug.device_name.click";
 static constexpr const char *ACTION_OPEN_WIFI_CONNECT = "settings.open.wifi_connect";
 static constexpr const char *ACTION_BACK_WIFI_CONNECT = "settings.back.wifi_connect";
 static constexpr const char *ACTION_WIFI_PASSWORD_EDIT = "settings.wifi.password.edit";
@@ -132,6 +163,26 @@ static constexpr const char *ACTION_WIFI_CONNECT_SUBMIT = "settings.wifi.connect
 static constexpr const char *ACTION_DISPLAY_BRIGHTNESS = "settings.display.brightness";
 static constexpr const char *ACTION_SOUND_VOLUME = "settings.sound.volume";
 static constexpr const char *ACTION_SOUND_MUTE = "settings.sound.mute";
+static constexpr const char *ACTION_DEBUG_MEMORY_TOGGLE = "settings.debug.memory.toggle";
+static constexpr const char *ACTION_DEBUG_THREAD_TOGGLE = "settings.debug.thread.toggle";
+static constexpr const char *ACTION_DEBUG_GUI_TOGGLE = "settings.debug.gui.toggle";
+static constexpr const char *ACTION_DEBUG_MEMORY_SAMPLE_INTERVAL = "settings.debug.memory.sample_interval";
+static constexpr const char *ACTION_DEBUG_MEMORY_INTERNAL_FREE_PERCENT =
+    "settings.debug.memory.internal_free_percent";
+static constexpr const char *ACTION_DEBUG_MEMORY_INTERNAL_LARGEST =
+    "settings.debug.memory.internal_largest";
+static constexpr const char *ACTION_DEBUG_MEMORY_EXTERNAL_FREE_PERCENT =
+    "settings.debug.memory.external_free_percent";
+static constexpr const char *ACTION_DEBUG_MEMORY_EXTERNAL_LARGEST =
+    "settings.debug.memory.external_largest";
+static constexpr const char *ACTION_DEBUG_THREAD_PROFILING_INTERVAL =
+    "settings.debug.thread.profiling_interval";
+static constexpr const char *ACTION_DEBUG_THREAD_SAMPLING_DURATION =
+    "settings.debug.thread.sampling_duration";
+static constexpr const char *ACTION_DEBUG_THREAD_IDLE_CPU =
+    "settings.debug.thread.idle_cpu";
+static constexpr const char *ACTION_DEBUG_THREAD_STACK_HWM =
+    "settings.debug.thread.stack_hwm";
 static constexpr const char *LANGUAGE_SWITCH_TIMER_NAME = "settings.language.switch";
 static constexpr const char *THEME_SWITCH_TIMER_NAME = "settings.theme.switch";
 static constexpr const char *WIFI_SCAN_RETRY_TIMER_NAME = "settings.wifi.scan.retry";
@@ -169,11 +220,54 @@ static constexpr const char *SOUND_VOLUME_SLIDER_PATH = "/sound/page/volume_card
 static constexpr const char *SOUND_MUTE_ROW_PATH = "/sound/page/silent_card/silent_mode";
 static constexpr const char *SOUND_MUTE_TOGGLE_PATH = "/sound/page/silent_card/silent_mode/toggle";
 static constexpr const char *HOME_SOUND_VALUE_PATH = "/settings_home/page/main_list/sound/value_box/value";
+static constexpr const char *DEBUG_MEMORY_SWITCH_PATH = "/debug/page/switch_card/memory_debug/toggle";
+static constexpr const char *DEBUG_THREAD_SWITCH_ROW_PATH = "/debug/page/switch_card/thread_debug";
+static constexpr const char *DEBUG_THREAD_SWITCH_PATH = "/debug/page/switch_card/thread_debug/toggle";
+static constexpr const char *DEBUG_GUI_SWITCH_PATH = "/debug/page/switch_card/gui_debug/toggle";
+static constexpr const char *DEBUG_MEMORY_SAMPLE_ROW_PATH =
+    "/debug/page/memory_card/memory_sample_interval";
+static constexpr const char *DEBUG_MEMORY_SAMPLE_SLIDER_PATH =
+    "/debug/page/memory_card/memory_sample_interval/slider";
+static constexpr const char *DEBUG_MEMORY_INTERNAL_FREE_ROW_PATH =
+    "/debug/page/memory_card/memory_internal_free";
+static constexpr const char *DEBUG_MEMORY_INTERNAL_FREE_SLIDER_PATH =
+    "/debug/page/memory_card/memory_internal_free/slider";
+static constexpr const char *DEBUG_MEMORY_INTERNAL_LARGEST_ROW_PATH =
+    "/debug/page/memory_card/memory_internal_largest";
+static constexpr const char *DEBUG_MEMORY_INTERNAL_LARGEST_SLIDER_PATH =
+    "/debug/page/memory_card/memory_internal_largest/slider";
+static constexpr const char *DEBUG_MEMORY_EXTERNAL_FREE_ROW_PATH =
+    "/debug/page/memory_card/memory_external_free";
+static constexpr const char *DEBUG_MEMORY_EXTERNAL_FREE_SLIDER_PATH =
+    "/debug/page/memory_card/memory_external_free/slider";
+static constexpr const char *DEBUG_MEMORY_EXTERNAL_LARGEST_ROW_PATH =
+    "/debug/page/memory_card/memory_external_largest";
+static constexpr const char *DEBUG_MEMORY_EXTERNAL_LARGEST_SLIDER_PATH =
+    "/debug/page/memory_card/memory_external_largest/slider";
+static constexpr const char *DEBUG_THREAD_INTERVAL_ROW_PATH =
+    "/debug/page/thread_card/thread_interval";
+static constexpr const char *DEBUG_THREAD_INTERVAL_SLIDER_PATH =
+    "/debug/page/thread_card/thread_interval/slider";
+static constexpr const char *DEBUG_THREAD_DURATION_ROW_PATH =
+    "/debug/page/thread_card/thread_duration";
+static constexpr const char *DEBUG_THREAD_DURATION_SLIDER_PATH =
+    "/debug/page/thread_card/thread_duration/slider";
+static constexpr const char *DEBUG_THREAD_IDLE_ROW_PATH =
+    "/debug/page/thread_card/thread_idle";
+static constexpr const char *DEBUG_THREAD_IDLE_SLIDER_PATH =
+    "/debug/page/thread_card/thread_idle/slider";
+static constexpr const char *DEBUG_THREAD_STACK_ROW_PATH =
+    "/debug/page/thread_card/thread_stack";
+static constexpr const char *DEBUG_THREAD_STACK_SLIDER_PATH =
+    "/debug/page/thread_card/thread_stack/slider";
 static constexpr int SETTINGS_SWITCH_DEFER_MS = 32;
 static constexpr int WIFI_CONNECTED_SCROLL_DELAY_MS = 50;
+static constexpr int DEBUG_ENTRY_CLICK_TIMEOUT_MS = 1500;
+static constexpr size_t DEBUG_ENTRY_CLICK_COUNT = 3;
 static constexpr uint32_t DEVICE_SERVICE_TIMEOUT_MS = 500;
 static constexpr uint32_t WIFI_SERVICE_TIMEOUT_MS = 1000;
 static constexpr uint32_t SNTP_SERVICE_TIMEOUT_MS = 500;
+static constexpr uint32_t UTILS_DEBUG_SERVICE_TIMEOUT_MS = 500;
 static constexpr uint32_t WIFI_SCAN_WINDOW_MS = 10000;
 static constexpr size_t WIFI_SCAN_AP_LIMIT = 64;
 static constexpr int WIFI_SCAN_RETRY_DELAY_MS = 250;
@@ -188,9 +282,26 @@ static constexpr const char *MY_DEVICE_FALLBACK_SYSTEM_NAME = "System";
 static constexpr const char *MY_DEVICE_FALLBACK_SYSTEM_VERSION = "--";
 static constexpr const char *SETTINGS_STORAGE_NAMESPACE = "app.settings";
 static constexpr const char *WIFI_ENABLED_STORAGE_KEY = "WifiEnabled";
+static constexpr const char *DEBUG_KEY_MEMORY_ENABLED = "Debug.MemoryEnabled";
+static constexpr const char *DEBUG_KEY_THREAD_ENABLED = "Debug.ThreadEnabled";
+static constexpr const char *DEBUG_KEY_GUI_VIEW_DEBUG_ENABLED = "Debug.GuiViewDebugEnabled";
+static constexpr const char *DEBUG_KEY_MEMORY_SAMPLE_INTERVAL_MS = "Debug.MemorySampleIntervalMs";
+static constexpr const char *DEBUG_KEY_MEMORY_INTERNAL_FREE_PERCENT_THRESHOLD =
+    "Debug.MemoryInternalFreePercentThreshold";
+static constexpr const char *DEBUG_KEY_MEMORY_INTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_KB =
+    "Debug.MemoryInternalLargestFreeBlockThresholdKb";
+static constexpr const char *DEBUG_KEY_MEMORY_EXTERNAL_FREE_PERCENT_THRESHOLD =
+    "Debug.MemoryExternalFreePercentThreshold";
+static constexpr const char *DEBUG_KEY_MEMORY_EXTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_KB =
+    "Debug.MemoryExternalLargestFreeBlockThresholdKb";
+static constexpr const char *DEBUG_KEY_THREAD_PROFILING_INTERVAL_MS = "Debug.ThreadProfilingIntervalMs";
+static constexpr const char *DEBUG_KEY_THREAD_SAMPLING_DURATION_MS = "Debug.ThreadSamplingDurationMs";
+static constexpr const char *DEBUG_KEY_THREAD_IDLE_CPU_PERCENT_THRESHOLD = "Debug.ThreadIdleCpuPercentThreshold";
+static constexpr const char *DEBUG_KEY_THREAD_STACK_HIGH_WATER_MARK_THRESHOLD_BYTES =
+    "Debug.ThreadStackHighWaterMarkThresholdBytes";
 static constexpr uint32_t SETTINGS_STORAGE_TIMEOUT_MS = WIFI_SERVICE_TIMEOUT_MS;
 
-static constexpr std::array<const char *, 16> NAVIGATION_ACTIONS = {
+static constexpr std::array<const char *, 18> NAVIGATION_ACTIONS = {
     ACTION_OPEN_HOME,
     "settings.back.device",
     "settings.back.wifi",
@@ -199,6 +310,7 @@ static constexpr std::array<const char *, 16> NAVIGATION_ACTIONS = {
     "settings.back.display",
     ACTION_BACK_LANGUAGE,
     "settings.back.time_zone",
+    ACTION_BACK_DEBUG,
     "settings.open.device",
     "settings.open.wifi",
     ACTION_OPEN_WIFI_CONNECT,
@@ -207,6 +319,7 @@ static constexpr std::array<const char *, 16> NAVIGATION_ACTIONS = {
     "settings.open.more",
     "settings.open.language",
     "settings.open.time_zone",
+    ACTION_OPEN_DEBUG,
 };
 
 static constexpr std::array<const char *, 2> THEME_ACTIONS = {
@@ -222,6 +335,41 @@ static constexpr std::array<const char *, 6> TIME_ZONE_ACTIONS = {
     TIME_ZONE_OPTION_PACIFIC_ACTION,
     TIME_ZONE_OPTION_CENTRAL_EUROPE_ACTION,
 };
+
+template <size_t N>
+void append_action_subscriptions(std::vector<std::string> &actions, const std::array<const char *, N> &source)
+{
+    for (const auto *action : source) {
+        actions.emplace_back(action);
+    }
+}
+
+std::vector<std::string> make_default_action_subscriptions()
+{
+    static constexpr std::array<const char *, 11> WIFI_ACTIONS = {
+        ACTION_WIFI_PASSWORD_EDIT,
+        ACTION_WIFI_CONNECT_SUBMIT,
+        ACTION_WIFI_CONNECT_CANCEL,
+        WIFI_TOGGLE_ACTION,
+        WIFI_SCAN_ACTION,
+        WIFI_DISCONNECT_ACTION,
+        WIFI_SAVED_PREV_ACTION,
+        WIFI_SAVED_NEXT_ACTION,
+        WIFI_AVAILABLE_PREV_ACTION,
+        WIFI_AVAILABLE_NEXT_ACTION,
+        ACTION_HEADER_BACK,
+    };
+
+    std::vector<std::string> actions;
+    actions.reserve(
+        NAVIGATION_ACTIONS.size() + THEME_ACTIONS.size() + TIME_ZONE_ACTIONS.size() + WIFI_ACTIONS.size()
+    );
+    append_action_subscriptions(actions, NAVIGATION_ACTIONS);
+    append_action_subscriptions(actions, THEME_ACTIONS);
+    append_action_subscriptions(actions, TIME_ZONE_ACTIONS);
+    append_action_subscriptions(actions, WIFI_ACTIONS);
+    return actions;
+}
 
 struct NavigationTarget {
     std::string_view action;
@@ -317,7 +465,7 @@ std::string make_app_version()
            std::to_string(BROOKESIA_APP_SETTINGS_VER_PATCH);
 }
 
-static constexpr std::array<NavigationTarget, 16> NAVIGATION_TARGETS = {
+static constexpr std::array<NavigationTarget, 18> NAVIGATION_TARGETS = {
     NavigationTarget{ACTION_OPEN_HOME, PAGE_HOME},
     NavigationTarget{"settings.back.device", PAGE_HOME},
     NavigationTarget{"settings.back.wifi", PAGE_HOME},
@@ -326,6 +474,7 @@ static constexpr std::array<NavigationTarget, 16> NAVIGATION_TARGETS = {
     NavigationTarget{"settings.back.display", PAGE_HOME},
     NavigationTarget{ACTION_BACK_LANGUAGE, PAGE_MORE},
     NavigationTarget{"settings.back.time_zone", PAGE_MORE},
+    NavigationTarget{ACTION_BACK_DEBUG, PAGE_DEVICE},
     NavigationTarget{"settings.open.device", PAGE_DEVICE},
     NavigationTarget{"settings.open.wifi", PAGE_WIFI},
     NavigationTarget{ACTION_OPEN_WIFI_CONNECT, PAGE_WIFI_CONNECT},
@@ -334,6 +483,7 @@ static constexpr std::array<NavigationTarget, 16> NAVIGATION_TARGETS = {
     NavigationTarget{"settings.open.more", PAGE_MORE},
     NavigationTarget{"settings.open.language", PAGE_LANGUAGE},
     NavigationTarget{"settings.open.time_zone", PAGE_TIME_ZONE},
+    NavigationTarget{ACTION_OPEN_DEBUG, PAGE_DEBUG},
 };
 
 static constexpr std::array<TimeZoneOption, 6> TIME_ZONE_OPTIONS = {
@@ -534,6 +684,9 @@ std::string_view get_header_back_action_for_page(std::string_view page)
     }
     if (page == PAGE_TIME_ZONE) {
         return "settings.back.time_zone";
+    }
+    if (page == PAGE_DEBUG) {
+        return ACTION_BACK_DEBUG;
     }
     if (page == PAGE_DEVICE) {
         return "settings.back.device";
@@ -766,14 +919,11 @@ std::string make_resource_path(system::core::AppContext &context, std::string_vi
 
 std::expected<std::string, std::string> read_text_file(const std::string &path)
 {
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        return std::unexpected("Failed to open file: " + path);
+    auto result = StorageHelper::fs_read_text(path);
+    if (!result) {
+        return std::unexpected("Failed to read file: " + path + ", error: " + result.error());
     }
-
-    std::ostringstream stream;
-    stream << file.rdbuf();
-    return stream.str();
+    return result.value();
 }
 
 std::string json_value_to_string(const boost::json::value &value)
@@ -1045,18 +1195,14 @@ struct SettingsApp::Impl {
     std::string wifi_forget_click_suppression_ssid;
     std::string wifi_connect_password;
     std::string connected_wifi_ssid;
-    gui::ScopedConnection language_action_connection;
-    gui::ScopedConnection wifi_select_action_connection;
-    gui::ScopedConnection wifi_forget_action_connection;
-    gui::ScopedConnection brightness_action_connection;
-    gui::ScopedConnection volume_action_connection;
-    gui::ScopedConnection mute_action_connection;
+    std::vector<gui::ScopedConnection> action_handler_connections;
     service::ServiceBinding storage_service_binding;
     service::ServiceBinding device_service_binding;
     service::ServiceBinding display_service_binding;
     service::ServiceBinding audio_playback_service_binding;
     service::ServiceBinding wifi_service_binding;
     service::ServiceBinding sntp_service_binding;
+    service::ServiceBinding utils_debug_service_binding;
     std::vector<esp_brookesia::lib_utils::scoped_connection> device_event_connections;
     std::vector<esp_brookesia::lib_utils::scoped_connection> wifi_event_connections;
     std::vector<esp_brookesia::lib_utils::scoped_connection> sntp_event_connections;
@@ -1064,8 +1210,11 @@ struct SettingsApp::Impl {
     DeviceUiState device_ui_state;
     WifiUiState wifi_ui_state;
     TimeZoneUiState time_zone_ui_state;
+    DebugUiState debug_ui_state;
+    UtilsHelper::DebugCapabilities utils_debug_capabilities;
     std::vector<WifiNetworkState> saved_wifi_networks;
     std::vector<WifiNetworkState> available_wifi_networks;
+    std::vector<WifiHelper::ScanApInfo> last_wifi_scan_ap_infos;
     bool saved_wifi_networks_loaded = false;
     bool saved_wifi_networks_refreshing = false;
     bool available_wifi_rows_hidden_for_scan = false;
@@ -1088,10 +1237,13 @@ struct SettingsApp::Impl {
     std::string current_page;
     std::string current_locale;
     std::string current_theme_id;
+    size_t debug_entry_click_count = 0;
+    SteadyTimePoint debug_entry_last_click_at{};
     bool language_switch_in_progress = false;
     bool theme_switch_in_progress = false;
     bool language_loading_visible = false;
     bool theme_loading_visible = false;
+    bool utils_debug_unavailable_logged = false;
 };
 
 SettingsApp::SettingsApp()
@@ -1116,18 +1268,14 @@ SettingsApp::~SettingsApp() = default;
 #define wifi_forget_click_suppression_ssid_ impl_->wifi_forget_click_suppression_ssid
 #define wifi_connect_password_ impl_->wifi_connect_password
 #define connected_wifi_ssid_ impl_->connected_wifi_ssid
-#define language_action_connection_ impl_->language_action_connection
-#define wifi_select_action_connection_ impl_->wifi_select_action_connection
-#define wifi_forget_action_connection_ impl_->wifi_forget_action_connection
-#define brightness_action_connection_ impl_->brightness_action_connection
-#define volume_action_connection_ impl_->volume_action_connection
-#define mute_action_connection_ impl_->mute_action_connection
+#define action_handler_connections_ impl_->action_handler_connections
 #define storage_service_binding_ impl_->storage_service_binding
 #define device_service_binding_ impl_->device_service_binding
 #define display_service_binding_ impl_->display_service_binding
 #define audio_playback_service_binding_ impl_->audio_playback_service_binding
 #define wifi_service_binding_ impl_->wifi_service_binding
 #define sntp_service_binding_ impl_->sntp_service_binding
+#define utils_debug_service_binding_ impl_->utils_debug_service_binding
 #define device_event_connections_ impl_->device_event_connections
 #define wifi_event_connections_ impl_->wifi_event_connections
 #define sntp_event_connections_ impl_->sntp_event_connections
@@ -1135,8 +1283,11 @@ SettingsApp::~SettingsApp() = default;
 #define device_ui_state_ impl_->device_ui_state
 #define wifi_ui_state_ impl_->wifi_ui_state
 #define time_zone_ui_state_ impl_->time_zone_ui_state
+#define debug_ui_state_ impl_->debug_ui_state
+#define utils_debug_capabilities_ impl_->utils_debug_capabilities
 #define saved_wifi_networks_ impl_->saved_wifi_networks
 #define available_wifi_networks_ impl_->available_wifi_networks
+#define last_wifi_scan_ap_infos_ impl_->last_wifi_scan_ap_infos
 #define saved_wifi_networks_loaded_ impl_->saved_wifi_networks_loaded
 #define saved_wifi_networks_refreshing_ impl_->saved_wifi_networks_refreshing
 #define available_wifi_rows_hidden_for_scan_ impl_->available_wifi_rows_hidden_for_scan
@@ -1157,14 +1308,18 @@ SettingsApp::~SettingsApp() = default;
 #define current_page_ impl_->current_page
 #define current_locale_ impl_->current_locale
 #define current_theme_id_ impl_->current_theme_id
+#define debug_entry_click_count_ impl_->debug_entry_click_count
+#define debug_entry_last_click_at_ impl_->debug_entry_last_click_at
 #define language_switch_in_progress_ impl_->language_switch_in_progress
 #define theme_switch_in_progress_ impl_->theme_switch_in_progress
 #define language_loading_visible_ impl_->language_loading_visible
 #define theme_loading_visible_ impl_->theme_loading_visible
+#define utils_debug_unavailable_logged_ impl_->utils_debug_unavailable_logged
 
 #include "app/lifecycle.ipp"
 #include "i18n/locale.ipp"
 #include "screen/common.ipp"
+#include "screen/debug.ipp"
 #include "service/device.ipp"
 #include "service/services.ipp"
 #include "i18n/language_theme.ipp"
@@ -1186,18 +1341,14 @@ SettingsApp::~SettingsApp() = default;
 #undef wifi_forget_click_suppression_ssid_
 #undef wifi_connect_password_
 #undef connected_wifi_ssid_
-#undef language_action_connection_
-#undef wifi_select_action_connection_
-#undef wifi_forget_action_connection_
-#undef brightness_action_connection_
-#undef volume_action_connection_
-#undef mute_action_connection_
+#undef action_handler_connections_
 #undef storage_service_binding_
 #undef device_service_binding_
 #undef display_service_binding_
 #undef audio_playback_service_binding_
 #undef wifi_service_binding_
 #undef sntp_service_binding_
+#undef utils_debug_service_binding_
 #undef device_event_connections_
 #undef wifi_event_connections_
 #undef sntp_event_connections_
@@ -1205,8 +1356,11 @@ SettingsApp::~SettingsApp() = default;
 #undef device_ui_state_
 #undef wifi_ui_state_
 #undef time_zone_ui_state_
+#undef debug_ui_state_
+#undef utils_debug_capabilities_
 #undef saved_wifi_networks_
 #undef available_wifi_networks_
+#undef last_wifi_scan_ap_infos_
 #undef saved_wifi_networks_loaded_
 #undef saved_wifi_networks_refreshing_
 #undef available_wifi_rows_hidden_for_scan_
@@ -1227,9 +1381,12 @@ SettingsApp::~SettingsApp() = default;
 #undef current_page_
 #undef current_locale_
 #undef current_theme_id_
+#undef debug_entry_click_count_
+#undef debug_entry_last_click_at_
 #undef language_switch_in_progress_
 #undef theme_switch_in_progress_
 #undef language_loading_visible_
 #undef theme_loading_visible_
+#undef utils_debug_unavailable_logged_
 
 } // namespace esp_brookesia::app::settings

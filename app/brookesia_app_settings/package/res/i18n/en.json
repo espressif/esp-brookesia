@@ -3,6 +3,7 @@
         "app_name": "Settings",
         "current": "Current",
         "dark": "Dark",
+        "debug": "Debug",
         "display": "Display & brightness",
         "language": "Language",
         "language.display.en": "English",
@@ -314,6 +315,96 @@
             "path": "/time_zone/page/options_card/central_europe/title_box/title",
             "key": "labelProps.text",
             "value": "Central Europe"
+        },
+        {
+            "path": "/debug/page/switch_caption",
+            "key": "labelProps.text",
+            "value": "Debug functions"
+        },
+        {
+            "path": "/debug/page/switch_card/memory_debug/text/title",
+            "key": "labelProps.text",
+            "value": "Memory debug"
+        },
+        {
+            "path": "/debug/page/switch_card/memory_debug/text/subtitle",
+            "key": "labelProps.text",
+            "value": "SRAM / PSRAM overlay"
+        },
+        {
+            "path": "/debug/page/switch_card/thread_debug/text/title",
+            "key": "labelProps.text",
+            "value": "Thread debug"
+        },
+        {
+            "path": "/debug/page/switch_card/thread_debug/text/subtitle",
+            "key": "labelProps.text",
+            "value": "CPU / stack overlay"
+        },
+        {
+            "path": "/debug/page/switch_card/gui_debug/text/title",
+            "key": "labelProps.text",
+            "value": "GUI debug"
+        },
+        {
+            "path": "/debug/page/switch_card/gui_debug/text/subtitle",
+            "key": "labelProps.text",
+            "value": "View bounds"
+        },
+        {
+            "path": "/debug/page/memory_caption",
+            "key": "labelProps.text",
+            "value": "Memory thresholds"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_sample_interval/title",
+            "key": "labelProps.text",
+            "value": "Sample interval ms"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_internal_free/title",
+            "key": "labelProps.text",
+            "value": "SRAM free %"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_internal_largest/title",
+            "key": "labelProps.text",
+            "value": "SRAM largest KB"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_external_free/title",
+            "key": "labelProps.text",
+            "value": "PSRAM free %"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_external_largest/title",
+            "key": "labelProps.text",
+            "value": "PSRAM largest KB"
+        },
+        {
+            "path": "/debug/page/thread_caption",
+            "key": "labelProps.text",
+            "value": "Thread thresholds"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_interval/title",
+            "key": "labelProps.text",
+            "value": "Profiling interval ms"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_duration/title",
+            "key": "labelProps.text",
+            "value": "Sampling duration ms"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_idle/title",
+            "key": "labelProps.text",
+            "value": "Idle CPU %"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_stack/title",
+            "key": "labelProps.text",
+            "value": "Stack HWM bytes"
         }
     ]
 }

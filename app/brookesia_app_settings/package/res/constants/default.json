@@ -18,6 +18,8 @@
                 "navValueColumn": "76dp",
                 "chevronWidth": "22dp",
                 "sliderHeight": "28dp",
+                "debugSliderRowHeight": "118dp",
+                "debugSliderTickHeight": "18dp",
                 "switchColumnWidth": "64dp",
                 "switchWidth": "58dp",
                 "switchHeight": "30dp",

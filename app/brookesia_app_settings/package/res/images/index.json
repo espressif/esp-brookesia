@@ -3,7 +3,7 @@
     "images": [
         {
             "id": "launcher_icon",
-            "src": "launcher_icon.png",
+            "src": "launcher_icon.jpg",
             "width": 92,
             "height": 92
         },
@@ -15,31 +15,31 @@
         },
         {
             "id": "home.display",
-            "src": "icon/display.png",
+            "src": "icon/display.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "home.more",
-            "src": "icon/more.png",
+            "src": "icon/more.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "home.my_device",
-            "src": "icon/my_device.png",
+            "src": "icon/my_device.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "home.sound",
-            "src": "icon/sound.png",
+            "src": "icon/sound.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "home.wifi",
-            "src": "icon/wifi.png",
+            "src": "icon/wifi.jpg",
             "width": 42,
             "height": 42
         },
@@ -51,13 +51,13 @@
         },
         {
             "id": "more.language",
-            "src": "icon/language.png",
+            "src": "icon/language.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "more.time_zone",
-            "src": "icon/time_zone.png",
+            "src": "icon/time_zone.jpg",
             "width": 42,
             "height": 42
         }

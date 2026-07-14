@@ -1,6 +1,7 @@
 {
     "type": "viewScreen",
     "id": "wifi",
+    "mountMode": "dynamic",
     "commonProps": {
         "scrollable": false
     },

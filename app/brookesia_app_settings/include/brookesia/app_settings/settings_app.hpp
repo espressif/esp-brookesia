@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "boost/json/array.hpp"
+#include "brookesia/app_settings/macro_configs.h"
 #include "brookesia/lib_utils/signal.hpp"
 
 #include "brookesia/service_manager.hpp"
@@ -102,6 +103,27 @@ private:
         std::string state;
     };
 
+    struct DebugUiState {
+        bool memory_enabled = false;
+        bool thread_enabled = false;
+        bool gui_view_debug_enabled = false;
+        int memory_sample_interval_ms = BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_SAMPLE_INTERVAL_DEFAULT_MS;
+        int memory_internal_free_percent_threshold =
+            BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_FREE_PERCENT_THRESHOLD_DEFAULT;
+        int memory_internal_largest_free_block_threshold_kb =
+            BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_DEFAULT_KB;
+        int memory_external_free_percent_threshold =
+            BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_FREE_PERCENT_THRESHOLD_DEFAULT;
+        int memory_external_largest_free_block_threshold_kb =
+            BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_DEFAULT_KB;
+        int thread_profiling_interval_ms = BROOKESIA_APP_SETTINGS_DEBUG_THREAD_PROFILING_INTERVAL_DEFAULT_MS;
+        int thread_sampling_duration_ms = BROOKESIA_APP_SETTINGS_DEBUG_THREAD_SAMPLING_DURATION_DEFAULT_MS;
+        int thread_idle_cpu_percent_threshold =
+            BROOKESIA_APP_SETTINGS_DEBUG_THREAD_IDLE_CPU_PERCENT_THRESHOLD_DEFAULT;
+        int thread_stack_high_water_mark_threshold_bytes =
+            BROOKESIA_APP_SETTINGS_DEBUG_THREAD_STACK_HIGH_WATER_MARK_THRESHOLD_DEFAULT_BYTES;
+    };
+
     std::expected<void, std::string> subscribe_actions(system::core::AppContext &context);
     std::expected<void, std::string> apply_locale(system::core::AppContext &context);
     std::expected<void, std::string> refresh_header(system::core::AppContext &context);
@@ -132,6 +154,9 @@ private:
     void release_wifi_service();
     void bind_sntp_service();
     void release_sntp_service();
+    void bind_utils_debug_service();
+    void release_utils_debug_service();
+    void refresh_utils_debug_capabilities();
     void subscribe_sntp_events();
     void disconnect_sntp_events();
     std::expected<void, std::string> refresh_time_zone_state(system::core::AppContext &context);
@@ -140,6 +165,15 @@ private:
         system::core::AppContext &context,
         std::string_view timezone
     );
+    DebugUiState load_debug_preferences();
+    std::expected<void, std::string> save_debug_preference(std::string_view key, bool value);
+    std::expected<void, std::string> save_debug_preference(std::string_view key, int value);
+    std::expected<void, std::string> refresh_debug_state(system::core::AppContext &context);
+    std::expected<void, std::string> push_debug_config_to_utils();
+    void handle_debug_device_name_click(system::core::AppContext &context);
+    void reset_debug_entry_click_state();
+    void handle_debug_switch_event(const gui::Event &event);
+    void handle_debug_slider_event(const gui::Event &event);
     bool load_wifi_enabled_preference();
     std::expected<void, std::string> submit_wifi_enabled_preference_save(
         bool enabled,
@@ -151,6 +185,7 @@ private:
     void request_saved_wifi_networks_refresh();
     bool is_saved_wifi_ssid(std::string_view ssid) const;
     void remove_unavailable_wifi_networks_from_available_list();
+    void rebuild_available_wifi_networks();
     std::expected<void, std::string> refresh_wifi_service_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_wifi_page_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_wifi_lists(system::core::AppContext &context);
@@ -247,7 +282,7 @@ private:
     std::expected<void, std::string> submit_wifi_connect(system::core::AppContext &context);
     void cancel_wifi_keyboard_if_active(system::core::AppContext &context);
 
-    class Impl;
+    struct Impl;
     std::unique_ptr<Impl> impl_;
 };
 
