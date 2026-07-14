@@ -663,7 +663,12 @@ std::span<const service::EventSchema> SystemCoreHelper::get_event_schemas()
 SystemService::SystemService(System &system)
     : ServiceBase({
     .name = SystemCoreHelper::get_name().data(),
+    .description = "Manage System Core applications and platform operations.",
+    .version = make_version(
+        BROOKESIA_SYSTEM_CORE_VER_MAJOR, BROOKESIA_SYSTEM_CORE_VER_MINOR, BROOKESIA_SYSTEM_CORE_VER_PATCH
+    ),
     .dependencies = {
+        service::helper::Storage::get_name().data(),
         service::helper::Device::get_name().data(),
     },
 })

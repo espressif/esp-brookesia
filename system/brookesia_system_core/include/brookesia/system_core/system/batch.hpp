@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,7 @@ struct GuiBatchCommand {
         SetViewSrc,
         StopAnimation,
         StartViewAnimation,
+        ScrollTo,
         ScrollToView,
     };
 
@@ -28,6 +30,8 @@ struct GuiBatchCommand {
     std::string src;
     gui::SubscriptionId animation_id = 0;
     gui::Animation animation;
+    int32_t scroll_x = 0;
+    int32_t scroll_y = 0;
     bool animated = true;
 };
 

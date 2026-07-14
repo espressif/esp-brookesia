@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <algorithm>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -21,15 +22,28 @@
 #include "private/system/impl.hpp"
 #include "brookesia/service_manager/common.hpp"
 
+#if BROOKESIA_SYSTEM_CORE_ENABLE_PROFILE_LOG
+#   define SYSTEM_CORE_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
+#else
+#   define SYSTEM_CORE_PROFILE_LOGI(...) do { if (false) { BROOKESIA_LOGI(__VA_ARGS__); } } while (0)
+#endif
+
 namespace esp_brookesia::system::core {
 
 namespace {
 
 constexpr const char *RUNTIME_APP_ID_CALL_CONTEXT_KEY = "brookesia.system.runtime_app_id";
+using SteadyClock = std::chrono::steady_clock;
+using SteadyTimePoint = SteadyClock::time_point;
 
 bool is_runtime_service_call_context()
 {
     return service::get_current_call_context_value(RUNTIME_APP_ID_CALL_CONTEXT_KEY).has_value();
+}
+
+int64_t elapsed_ms_since(SteadyTimePoint started_at, SteadyTimePoint ended_at = SteadyClock::now())
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(ended_at - started_at).count();
 }
 
 } // namespace
@@ -39,18 +53,6 @@ namespace {
 
 std::filesystem::path normalize_filesystem_path(const std::filesystem::path &path)
 {
-    std::error_code error_code;
-    auto normalized = std::filesystem::weakly_canonical(path, error_code);
-    if (!error_code) {
-        return normalized.lexically_normal();
-    }
-
-    error_code.clear();
-    normalized = std::filesystem::absolute(path, error_code);
-    if (!error_code) {
-        return normalized.lexically_normal();
-    }
-
     return path.lexically_normal();
 }
 
@@ -271,36 +273,48 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
     record.gui_descriptor = std::move(gui_descriptor);
     record.native_app = std::move(app);
     record.context = std::make_unique<AppContext>(*this, app_id);
+    record.preload_dom = record.info.manifest.preload_dom;
     auto install_result = record.native_app->on_install(*record.context);
     if (!install_result) {
         return std::unexpected(install_result.error());
     }
     impl_->manifest_id_to_app_.emplace(record.info.manifest.id, app_id);
     auto [it, _] = impl_->apps_.emplace(app_id, std::move(record));
-    auto icon_result = impl_->run_task_sync<std::expected<void, std::string>>(
-                           SYSTEM_GUI_TASK_GROUP,
+    auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
+                                  SYSTEM_GUI_TASK_GROUP,
     [this, &it]() -> std::expected<void, std::string> {
-        return impl_->register_app_icon_resource(it->second);
+        return impl_->prepare_installed_app_gui(it->second);
     },
-    std::unexpected("Failed to post app icon registration task")
-                       );
-    if (!icon_result) {
+    std::unexpected("Failed to post app GUI install preparation task")
+                              );
+    if (!gui_prepare_result) {
+        auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
+                                   SYSTEM_GUI_TASK_GROUP,
+        [this, &it]() -> std::expected<void, std::string> {
+            impl_->rollback_installed_app_gui(it->second);
+            return {};
+        },
+        std::unexpected("Failed to post app GUI install rollback task")
+                               );
+        if (!rollback_result) {
+            BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
+        }
         impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
         impl_->apps_.erase(it);
-        return std::unexpected(icon_result.error());
+        return std::unexpected(gui_prepare_result.error());
     }
     auto hook_result = on_app_installed(it->second.info);
     if (!hook_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &it]() -> std::expected<void, std::string> {
-            impl_->unregister_app_icon_resource(it->second);
+            impl_->rollback_installed_app_gui(it->second);
             return {};
         },
-        std::unexpected("Failed to post app icon rollback task")
+        std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
-            BROOKESIA_LOGW("Failed to rollback app icon resource: %1%", rollback_result.error());
+            BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
         impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
         impl_->apps_.erase(it);
@@ -345,6 +359,7 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
     Impl::AppRecord record;
     auto normalized_manifest = manifest;
     normalized_manifest.icon_id = std::move(resource_descriptor->icon_id);
+    normalized_manifest.preload_dom = resource_descriptor->preload_dom;
     normalize_app_manifest(normalized_manifest);
     record.info = AppInfo{
         .app_id = app_id,
@@ -355,32 +370,44 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
     record.gui_descriptor = std::move(resource_descriptor->gui);
     record.info.manifest.kind = AppKind::Runtime;
     record.context = std::make_unique<AppContext>(*this, app_id);
+    record.preload_dom = record.info.manifest.preload_dom;
     impl_->manifest_id_to_app_.emplace(record.info.manifest.id, app_id);
     auto [it, _] = impl_->apps_.emplace(app_id, std::move(record));
-    auto icon_result = impl_->run_task_sync<std::expected<void, std::string>>(
-                           SYSTEM_GUI_TASK_GROUP,
+    auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
+                                  SYSTEM_GUI_TASK_GROUP,
     [this, &it]() -> std::expected<void, std::string> {
-        return impl_->register_app_icon_resource(it->second);
+        return impl_->prepare_installed_app_gui(it->second);
     },
-    std::unexpected("Failed to post app icon registration task")
-                       );
-    if (!icon_result) {
+    std::unexpected("Failed to post app GUI install preparation task")
+                              );
+    if (!gui_prepare_result) {
+        auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
+                                   SYSTEM_GUI_TASK_GROUP,
+        [this, &it]() -> std::expected<void, std::string> {
+            impl_->rollback_installed_app_gui(it->second);
+            return {};
+        },
+        std::unexpected("Failed to post app GUI install rollback task")
+                               );
+        if (!rollback_result) {
+            BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
+        }
         impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
         impl_->apps_.erase(it);
-        return std::unexpected(icon_result.error());
+        return std::unexpected(gui_prepare_result.error());
     }
     auto hook_result = on_app_installed(it->second.info);
     if (!hook_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &it]() -> std::expected<void, std::string> {
-            impl_->unregister_app_icon_resource(it->second);
+            impl_->rollback_installed_app_gui(it->second);
             return {};
         },
-        std::unexpected("Failed to post app icon rollback task")
+        std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
-            BROOKESIA_LOGW("Failed to rollback app icon resource: %1%", rollback_result.error());
+            BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
         impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
         impl_->apps_.erase(it);
@@ -463,9 +490,7 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
                               SYSTEM_GUI_TASK_GROUP,
     [this, &record]() -> std::expected<void, std::string> {
         impl_->clear_pending_gui_bindings(record.info.app_id);
-        impl_->unload_gui(record);
-        impl_->unregister_app_gui_resources(record);
-        impl_->unregister_app_icon_resource(record);
+        impl_->rollback_installed_app_gui(record);
         return {};
     },
     std::unexpected("Failed to post GUI cleanup task")
@@ -527,12 +552,25 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
     if (record.info.state == AppState::Running) {
         return {};
     }
+    const auto start_profile_started_at = SteadyClock::now();
+    auto log_start_profile = [&](const char *stage, SteadyTimePoint stage_started_at) {
+        const auto now = SteadyClock::now();
+        SYSTEM_CORE_PROFILE_LOGI(
+            "App start profile: id(%1%), manifest(%2%), stage(%3%), elapsed_ms(%4%), total_ms(%5%)",
+            app_id,
+            record.info.manifest.id,
+            stage,
+            elapsed_ms_since(stage_started_at, now),
+            elapsed_ms_since(start_profile_started_at, now)
+        );
+    };
     auto heap_before_start = heap_trace::capture();
     heap_trace::log("system.start", "before start", record.info.manifest.id, heap_before_start);
     record.info.state = AppState::Starting;
     record.info.last_error.clear();
 
     std::optional<Impl::TransientOverlayRecord> launch_transition;
+    const auto launch_transition_started_at = SteadyClock::now();
     auto transition_result = impl_->show_app_launch_transition(record, options);
     if (transition_result) {
         launch_transition = *transition_result;
@@ -543,6 +581,7 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
             transition_result.error()
         );
     }
+    log_start_profile("launch_transition", launch_transition_started_at);
     heap_trace::log(
         "system.start",
         "after launch transition",
@@ -554,16 +593,32 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         impl_->hide_transient_overlay(launch_transition);
     });
 
+    const auto gui_prepare_started_at = SteadyClock::now();
     auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
     [this, &record]() -> std::expected<void, std::string> {
+        const auto gui_profile_started_at = SteadyClock::now();
+        auto log_gui_profile = [&](const char *stage, SteadyTimePoint stage_started_at)
+        {
+            const auto now = SteadyClock::now();
+            SYSTEM_CORE_PROFILE_LOGI(
+                "App GUI prepare profile: manifest(%1%), stage(%2%), elapsed_ms(%3%), total_ms(%4%)",
+                record.info.manifest.id,
+                stage,
+                elapsed_ms_since(stage_started_at, now),
+                elapsed_ms_since(gui_profile_started_at, now)
+            );
+        };
         auto heap_before_gui = heap_trace::capture();
         heap_trace::log("system.gui", "before prepare", record.info.manifest.id, heap_before_gui);
+        const auto resource_started_at = SteadyClock::now();
         auto resource_result = impl_->register_app_gui_resources(record);
         if (!resource_result)
         {
+            log_gui_profile("resource_registration_failed", resource_started_at);
             return resource_result;
         }
+        log_gui_profile("resource_registration", resource_started_at);
         heap_trace::log(
             "system.gui",
             "after resource registration",
@@ -571,12 +626,15 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
             heap_trace::capture(),
             &heap_before_gui
         );
+        const auto root_started_at = SteadyClock::now();
         auto gui_result = impl_->ensure_gui_loaded(record);
         if (!gui_result)
         {
+            log_gui_profile("root_load_failed", root_started_at);
             impl_->unregister_app_gui_resources(record);
             return gui_result;
         }
+        log_gui_profile("root_load", root_started_at);
         heap_trace::log(
             "system.gui",
             "after root load",
@@ -586,14 +644,17 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         );
         if (record.document_id.has_value())
         {
+            const auto screen_flow_started_at = SteadyClock::now();
             for (const auto &flow_entry : record.gui_descriptor.screen_flows) {
                 auto target = map_manifest_target(record.info.manifest.kind, flow_entry);
                 if (!target) {
+                    log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
                     impl_->unload_gui(record);
                     impl_->unregister_app_gui_resources(record);
                     return std::unexpected(target.error());
                 }
                 if (!impl_->gui_runtime_->has_screen_flow(*record.document_id, flow_entry.screen_flow)) {
+                    log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
                     impl_->unload_gui(record);
                     impl_->unregister_app_gui_resources(record);
                     return std::unexpected("App GUI screen flow is not found: " + flow_entry.screen_flow);
@@ -604,6 +665,7 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                                        *target
                                    );
                 if (!flow_result) {
+                    log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
                     impl_->unload_gui(record);
                     impl_->unregister_app_gui_resources(record);
                     return flow_result;
@@ -616,11 +678,14 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                     &heap_before_gui
                 );
             }
+            log_gui_profile("screen_flow_mount", screen_flow_started_at);
         }
+        log_gui_profile("total", gui_profile_started_at);
         return {};
     },
     std::unexpected("Failed to post app GUI prepare task")
                               );
+    log_start_profile("gui_prepare", gui_prepare_started_at);
     if (!gui_prepare_result) {
         record.info.state = AppState::Error;
         record.info.last_error = gui_prepare_result.error();
@@ -634,12 +699,16 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         if (!record.native_app || !record.context) {
             start_result = std::unexpected("Native app is not available");
         } else {
+            const auto native_start_started_at = SteadyClock::now();
             start_result = record.native_app->on_start(*record.context);
+            log_start_profile("native_on_start", native_start_started_at);
         }
     } else {
         auto heap_before_runtime = heap_trace::capture();
         heap_trace::log("system.runtime", "before runtime load", record.info.manifest.id, heap_before_runtime);
+        const auto runtime_load_started_at = SteadyClock::now();
         start_result = impl_->ensure_runtime_loaded(record);
+        log_start_profile("runtime_load", runtime_load_started_at);
         heap_trace::log(
             "system.runtime",
             "after runtime load",
@@ -656,8 +725,10 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                     record.info.manifest.id,
                     heap_before_runtime_start
                 );
+                const auto runtime_start_started_at = SteadyClock::now();
                 start_result = impl_->runtime_->start_app(*record.runtime_app_id);
                 record.runtime_started = start_result.has_value();
+                log_start_profile("runtime_start_app", runtime_start_started_at);
                 heap_trace::log(
                     "system.runtime",
                     "after runtime start_app",
@@ -674,7 +745,9 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                     record.info.manifest.id,
                     heap_before_lifecycle
                 );
+                const auto runtime_lifecycle_started_at = SteadyClock::now();
                 start_result = impl_->call_runtime_lifecycle(record, LIFECYCLE_ON_START);
+                log_start_profile("runtime_lifecycle_on_start", runtime_lifecycle_started_at);
                 heap_trace::log(
                     "system.runtime",
                     "after lifecycle on_start",
@@ -708,7 +781,9 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
     }
     record.info.state = AppState::Running;
     impl_->active_app_id_ = app_id;
+    const auto started_hook_started_at = SteadyClock::now();
     auto hook_result = on_app_started(record.info);
+    log_start_profile("on_app_started_hook", started_hook_started_at);
     if (!hook_result) {
         BROOKESIA_LOGW("App started hook failed, stopping app: id(%1%), error(%2%)", app_id, hook_result.error());
         auto rollback_stop_result = stop_app(app_id);
@@ -758,7 +833,12 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
             BROOKESIA_LOGW("Failed to post delayed app heap snapshot: manifest(%1%)", manifest_id);
         }
     }
-    BROOKESIA_LOGI("App started: id(%1%), manifest(%2%)", app_id, record.info.manifest.id);
+    BROOKESIA_LOGI(
+        "App started: id(%1%), manifest(%2%), total_ms(%3%)",
+        app_id,
+        record.info.manifest.id,
+        elapsed_ms_since(start_profile_started_at)
+    );
     return {};
 }
 
@@ -853,9 +933,7 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     [this, &record]() -> std::expected<void, std::string> {
         auto heap_before_gui_cleanup = heap_trace::capture();
         heap_trace::log("system.gui", "before cleanup", record.info.manifest.id, heap_before_gui_cleanup);
-        impl_->clear_pending_gui_bindings(record.info.app_id);
-        impl_->unload_gui(record);
-        impl_->unregister_app_gui_resources(record);
+        impl_->cleanup_stopped_app_gui(record);
         heap_trace::log(
             "system.gui",
             "after cleanup",

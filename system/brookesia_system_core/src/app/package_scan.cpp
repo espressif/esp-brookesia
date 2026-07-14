@@ -11,12 +11,14 @@
 #include "private/system/impl.hpp"
 
 #include <algorithm>
+#include "brookesia/service_helper.hpp"
 #include "brookesia/system_core/app/package.hpp"
 
 namespace esp_brookesia::system::core {
 namespace {
 
 constexpr const char *UNSUPPORTED_SYSTEM_ERROR_PREFIX = "Package does not support system type";
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 bool is_unsupported_system_error(std::string_view error)
 {
@@ -35,8 +37,8 @@ std::expected<void, std::string> System::Impl::install_unpacked_apps()
         }
 
         const std::filesystem::path app_path(root);
-        std::error_code exists_error;
-        if (!std::filesystem::exists(app_path, exists_error))
+        auto root_info = service::helper::Storage::fs_stat(app_path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+        if (!root_info || !root_info->exists)
         {
             BROOKESIA_LOGI(
                 "Runtime app path does not exist, skip: root(%1%), path(%2%)",
@@ -44,21 +46,37 @@ std::expected<void, std::string> System::Impl::install_unpacked_apps()
             );
             return {};
         }
+        if (root_info->type != service::helper::Storage::FileType::Directory)
+        {
+            BROOKESIA_LOGW(
+                "Runtime app path is not a directory, skip: root(%1%), path(%2%)",
+                label, app_path.string()
+            );
+            return {};
+        }
 
         std::vector<std::filesystem::path> package_dirs;
-        std::error_code iter_error;
-        for (const auto &entry : std::filesystem::directory_iterator(app_path, iter_error))
-        {
-            if (entry.is_directory() && std::filesystem::exists(entry.path() / APP_MANIFEST_FILE)) {
-                package_dirs.push_back(entry.path());
-            }
-        }
-        if (iter_error)
+        auto entries = service::helper::Storage::fs_list(app_path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+        if (!entries)
         {
             BROOKESIA_LOGW(
                 "Runtime app directory scan failed: root(%1%), path(%2%), error(%3%)",
-                label, app_path.string(), iter_error.message()
+                label, app_path.string(), entries.error()
             );
+        } else
+        {
+            for (const auto &entry : entries.value()) {
+                if (entry.info.type != service::helper::Storage::FileType::Directory) {
+                    continue;
+                }
+                auto package_dir = app_path / entry.name;
+                auto manifest_info = service::helper::Storage::fs_stat(
+                                         (package_dir / APP_MANIFEST_FILE).generic_string(), STORAGE_FS_TIMEOUT_MS
+                                     );
+                if (manifest_info && manifest_info->exists) {
+                    package_dirs.push_back(std::move(package_dir));
+                }
+            }
         }
         std::sort(package_dirs.begin(), package_dirs.end());
 

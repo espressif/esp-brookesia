@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <limits>
 #include <map>
 #include <optional>
@@ -26,6 +25,7 @@
 #if !BROOKESIA_SYSTEM_CORE_SYSTEM_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include "brookesia/service_helper.hpp"
 #include "private/utils.hpp"
 
 namespace esp_brookesia::system::core {
@@ -41,6 +41,7 @@ constexpr uint32_t ZIP_CENTRAL_FILE_SIGNATURE = 0x02014b50U;
 constexpr uint32_t ZIP_LOCAL_FILE_SIGNATURE = 0x04034b50U;
 constexpr uint16_t ZIP_METHOD_STORE = 0;
 constexpr uint16_t ZIP_METHOD_DEFLATE = 8;
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 struct ZipEntry {
     std::string name;
@@ -61,49 +62,54 @@ bool is_embedded_vfs_path(const fs::path &path)
 
 std::expected<void, std::string> ensure_directory_tree(const fs::path &dir, std::string_view context)
 {
-    std::error_code ec;
-    fs::create_directories(dir, ec);
-    if (!ec) {
+    if (dir.empty()) {
+        return {};
+    }
+
+    auto result = service::helper::Storage::fs_mkdir(dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (result) {
         return {};
     }
 
     if (is_embedded_vfs_path(dir)) {
         return {};
     }
-
     return std::unexpected(
-               "Failed to create directory(" + std::string(context) + "): " + dir.string() + ", error: " + ec.message()
+               "Failed to create directory(" + std::string(context) + "): " + dir.string() + ", error: " +
+               result.error()
            );
 }
 
 std::expected<std::string, std::string> read_text_file(const fs::path &path)
 {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        return std::unexpected("Failed to open file: " + path.string());
+    auto result = service::helper::Storage::fs_read_text(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!result) {
+        return std::unexpected("Failed to read file: " + path.string() + ", error: " + result.error());
     }
-    return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
+    return result.value();
 }
 
 std::expected<std::vector<uint8_t>, std::string> read_binary_file(const fs::path &path)
 {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        return std::unexpected("Failed to open package file: " + path.string());
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!info) {
+        return std::unexpected("Failed to stat package file: " + path.string() + ", error: " + info.error());
+    }
+    if (!info->exists || info->type != service::helper::Storage::FileType::File) {
+        return std::unexpected("Package file does not exist or is not a regular file: " + path.string());
     }
 
-    file.seekg(0, std::ios::end);
-    const std::streamoff end_pos = file.tellg();
-    if (end_pos < 0) {
-        return std::unexpected("Failed to get package file size: " + path.string());
-    }
-    file.seekg(0, std::ios::beg);
-
-    std::vector<uint8_t> data(static_cast<size_t>(end_pos));
+    std::vector<uint8_t> data(static_cast<size_t>(info->size));
     if (!data.empty()) {
-        file.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(data.size()));
-        if (!file) {
-            return std::unexpected("Failed to read package file: " + path.string());
+        auto read_result = service::helper::Storage::fs_read(
+                               path.generic_string(), service::RawBuffer(data.data(), data.size()),
+                               STORAGE_FS_TIMEOUT_MS
+                           );
+        if (!read_result) {
+            return std::unexpected("Failed to read package file: " + path.string() + ", error: " + read_result.error());
+        }
+        if (read_result.value() != data.size()) {
+            return std::unexpected("Package file read size mismatch: " + path.string());
         }
     }
     return data;
@@ -707,13 +713,26 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
         icon_id = std::string(icon_it->value().as_string());
     }
 
+    bool preload_dom = false;
+    auto preload_dom_it = root.find("preload_dom");
+    if ((preload_dom_it != root.end()) && !preload_dom_it->value().is_null()) {
+        if (!preload_dom_it->value().is_bool()) {
+            return std::unexpected("Runtime profile.json preload_dom must be a bool");
+        }
+        preload_dom = preload_dom_it->value().as_bool();
+    }
+
     auto root_it = root.find("root");
     if ((root_it == root.end()) || root_it->value().is_null()) {
         if (auto flows_it = root.find("screen_flows"); (flows_it != root.end()) && !flows_it->value().is_null()) {
             return std::unexpected("Runtime profile.json screen_flows requires root");
         }
+        if (preload_dom) {
+            return std::unexpected("Runtime profile.json preload_dom requires root");
+        }
         return RuntimeAppResourceDescriptor{
             .icon_id = std::move(icon_id),
+            .preload_dom = preload_dom,
             .gui = {},
         };
     }
@@ -733,6 +752,7 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
     }
     return RuntimeAppResourceDescriptor{
         .icon_id = std::move(icon_id),
+        .preload_dom = preload_dom,
         .gui = AppGuiDescriptor{
             .root_kind = GuiRootKind::File,
             .root = std::move(document_root),
@@ -839,15 +859,16 @@ std::expected<AppManifest, std::string> unpack_app_package_to(
             return std::unexpected(ensure_parent_dir.error());
         }
 
-        std::ofstream output(destination, std::ios::binary);
-        if (!output) {
-            return std::unexpected("Failed to open destination file: " + destination.string());
-        }
-        if (!file_data->empty()) {
-            output.write(reinterpret_cast<const char *>(file_data->data()), static_cast<std::streamsize>(file_data->size()));
-            if (!output) {
-                return std::unexpected("Failed to write destination file: " + destination.string());
-            }
+        auto write_result = service::helper::Storage::fs_write(
+                                destination.generic_string(),
+                                service::RawBuffer(file_data->data(), file_data->size()),
+                                STORAGE_FS_TIMEOUT_MS
+                            );
+        if (!write_result) {
+            return std::unexpected(
+                       "Failed to write destination file: " + destination.string() + ", error: " +
+                       write_result.error()
+                   );
         }
     }
 

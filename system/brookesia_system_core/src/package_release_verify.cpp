@@ -11,7 +11,6 @@
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
 #include <set>
 #include <string>
 #include <string_view>
@@ -19,6 +18,7 @@
 
 #include "boost/json.hpp"
 
+#include "brookesia/service_helper.hpp"
 #include "zlib.h"
 
 #if defined(ESP_PLATFORM) && ESP_PLATFORM && defined(BROOKESIA_SYSTEM_CORE_HAVE_PACKAGE_RELEASE_VERIFY) && \
@@ -49,6 +49,7 @@ constexpr uint32_t ZIP_CENTRAL_FILE_SIGNATURE = 0x02014b50U;
 constexpr uint32_t ZIP_LOCAL_FILE_SIGNATURE = 0x04034b50U;
 constexpr uint16_t ZIP_METHOD_STORE = 0;
 constexpr uint16_t ZIP_METHOD_DEFLATE = 8;
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 struct ZipEntry {
     std::string name;
@@ -62,21 +63,25 @@ struct ZipEntry {
 
 std::expected<std::vector<uint8_t>, std::string> read_binary_file(const fs::path &path)
 {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        return std::unexpected("Failed to open file: " + path.string());
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!info) {
+        return std::unexpected("Failed to stat file: " + path.string() + ", error: " + info.error());
     }
-    file.seekg(0, std::ios::end);
-    const std::streamoff end_pos = file.tellg();
-    if (end_pos < 0) {
-        return std::unexpected("Failed to get file size: " + path.string());
+    if (!info->exists || info->type != service::helper::Storage::FileType::File) {
+        return std::unexpected("File does not exist or is not a regular file: " + path.string());
     }
-    file.seekg(0, std::ios::beg);
-    std::vector<uint8_t> data(static_cast<size_t>(end_pos));
+
+    std::vector<uint8_t> data(static_cast<size_t>(info->size));
     if (!data.empty()) {
-        file.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(data.size()));
-        if (!file) {
-            return std::unexpected("Failed to read file: " + path.string());
+        auto read_result = service::helper::Storage::fs_read(
+                               path.generic_string(), service::RawBuffer(data.data(), data.size()),
+                               STORAGE_FS_TIMEOUT_MS
+                           );
+        if (!read_result) {
+            return std::unexpected("Failed to read file: " + path.string() + ", error: " + read_result.error());
+        }
+        if (read_result.value() != data.size()) {
+            return std::unexpected("File read size mismatch: " + path.string());
         }
     }
     return data;

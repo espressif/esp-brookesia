@@ -13,6 +13,7 @@
 
 #include "boost/json.hpp"
 #include "brookesia/gui_interface.hpp"
+#include "brookesia/system_core/app/types.hpp"
 
 namespace esp_brookesia::system::core {
 
@@ -83,6 +84,14 @@ public:
         std::string_view absolute_path,
         std::string_view src
     ) const;
+    std::expected<void, std::string> preload_images(
+        gui::DocumentId document_id,
+        const std::vector<std::string> &image_ids
+    ) const;
+    std::expected<void, std::string> release_images(
+        gui::DocumentId document_id,
+        const std::vector<std::string> &image_ids
+    ) const;
     std::expected<gui::RuntimeAnimationStartResult, std::string> start_view_animation_with_result(
         gui::DocumentId document_id,
         std::string_view absolute_path,
@@ -109,6 +118,7 @@ public:
         bool reapply_loaded_documents = true
     ) const;
     std::string get_theme() const;
+    GuiThemeLanguage get_theme_language() const;
     std::expected<void, std::string> register_font_file(
         std::string_view resource_dir,
         std::string_view path

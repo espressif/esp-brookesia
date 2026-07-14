@@ -34,8 +34,11 @@ public:
         GetScreenFlowState,
         GetViewFrame,
         SetViewSrc,
+        PreloadImages,
+        ReleaseImages,
         StartViewAnimation,
         StopAnimation,
+        ScrollTo,
         ScrollToView,
         ExecuteBatch,
         Max,
@@ -79,6 +82,9 @@ public:
         Path,
         Src,
     };
+    enum class ImageIdsParam : uint8_t {
+        Ids,
+    };
     enum class AnimationParam : uint8_t {
         Path,
         Animation,
@@ -88,6 +94,12 @@ public:
     };
     enum class ScrollParam : uint8_t {
         Path,
+        Animated,
+    };
+    enum class ScrollToParam : uint8_t {
+        Path,
+        X,
+        Y,
         Animated,
     };
     enum class BatchParam : uint8_t {
@@ -121,8 +133,11 @@ BROOKESIA_DESCRIBE_ENUM(
     GetScreenFlowState,
     GetViewFrame,
     SetViewSrc,
+    PreloadImages,
+    ReleaseImages,
     StartViewAnimation,
     StopAnimation,
+    ScrollTo,
     ScrollToView,
     ExecuteBatch,
     Max
@@ -137,9 +152,11 @@ BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::CheckedParam, Path, Checked)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::CreateViewParam, TemplateId, ParentPath, InstanceId)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::ActionParam, Action)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::SourceParam, Path, Src)
+BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::ImageIdsParam, Ids)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::AnimationParam, Path, Animation)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::AnimationIdParam, AnimationId)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::ScrollParam, Path, Animated)
+BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::ScrollToParam, Path, X, Y, Animated)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::BatchParam, Commands)
 BROOKESIA_DESCRIBE_ENUM(SystemGuiHelper::ScreenFlowParam, ScreenFlow, Action)
 
@@ -166,8 +183,11 @@ private:
     service::FunctionResult get_screen_flow_state(service::FunctionParameterMap &&params);
     service::FunctionResult get_view_frame(service::FunctionParameterMap &&params);
     service::FunctionResult set_view_src(service::FunctionParameterMap &&params);
+    service::FunctionResult preload_images(service::FunctionParameterMap &&params);
+    service::FunctionResult release_images(service::FunctionParameterMap &&params);
     service::FunctionResult start_view_animation(service::FunctionParameterMap &&params);
     service::FunctionResult stop_animation(service::FunctionParameterMap &&params);
+    service::FunctionResult scroll_to(service::FunctionParameterMap &&params);
     service::FunctionResult scroll_to_view(service::FunctionParameterMap &&params);
     service::FunctionResult execute_batch(service::FunctionParameterMap &&params);
 

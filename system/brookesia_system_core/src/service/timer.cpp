@@ -75,6 +75,10 @@ std::span<const service::EventSchema> SystemTimerHelper::get_event_schemas()
 TimerService::TimerService(System &system)
     : ServiceBase({
     .name = SystemTimerHelper::get_name().data(),
+    .description = "Provide timers for System Core applications.",
+    .version = make_version(
+        BROOKESIA_SYSTEM_CORE_VER_MAJOR, BROOKESIA_SYSTEM_CORE_VER_MINOR, BROOKESIA_SYSTEM_CORE_VER_PATCH
+    ),
 })
 , system_(system)
 {}

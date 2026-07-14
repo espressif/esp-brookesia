@@ -24,6 +24,10 @@ std::vector<lib_utils::ThreadConfig> make_scheduler_worker_configs();
 std::expected<void, std::string> System::init(Config config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_SYSTEM_CORE_VER_MAJOR, BROOKESIA_SYSTEM_CORE_VER_MINOR,
+        BROOKESIA_SYSTEM_CORE_VER_PATCH
+    );
     BROOKESIA_LOGD(
         "Params: system_type(%1%), install_registered_apps(%2%), install_package_apps(%3%)",
         config.system_type, config.install_registered_apps, config.install_package_apps
@@ -34,6 +38,8 @@ std::expected<void, std::string> System::init(Config config)
 
     impl_->system_type_ = config.system_type.empty() ? BROOKESIA_SYSTEM_CORE_DEFAULT_SYSTEM_TYPE : config.system_type;
     impl_->environment_ = config.environment;
+    impl_->set_gui_theme_snapshot(impl_->environment_.theme_id);
+    impl_->set_gui_language_snapshot(impl_->environment_.language);
     impl_->task_scheduler_ = std::make_shared<lib_utils::TaskScheduler>();
     lib_utils::TaskScheduler::StartConfig scheduler_config;
     scheduler_config.worker_configs = make_scheduler_worker_configs();

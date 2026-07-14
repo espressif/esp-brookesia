@@ -8,6 +8,7 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include <filesystem>
+#include <mutex>
 
 #include "brookesia/gui_interface/parser.hpp"
 #include "private/utils.hpp"
@@ -34,6 +35,24 @@ std::expected<void, std::string> make_unavailable_error()
 }
 
 } // namespace
+
+GuiThemeLanguage System::Impl::get_gui_theme_language_snapshot() const
+{
+    std::lock_guard lock(mutex_);
+    return gui_theme_language_snapshot_;
+}
+
+void System::Impl::set_gui_theme_snapshot(std::string_view theme_id)
+{
+    std::lock_guard lock(mutex_);
+    gui_theme_language_snapshot_.theme_id = std::string(theme_id);
+}
+
+void System::Impl::set_gui_language_snapshot(std::string_view language)
+{
+    std::lock_guard lock(mutex_);
+    gui_theme_language_snapshot_.language = std::string(language);
+}
 
 SystemGuiAccess::SystemGuiAccess(System &system)
     : system_(&system)
@@ -448,6 +467,48 @@ std::expected<void, std::string> SystemGuiAccess::set_view_src(
            );
 }
 
+std::expected<void, std::string> SystemGuiAccess::preload_images(
+    gui::DocumentId document_id,
+    const std::vector<std::string> &image_ids
+) const
+{
+    if (system_ == nullptr) {
+        return make_unavailable_error();
+    }
+    return system_->impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_INPUT_TASK_GROUP,
+    [this, document_id, image_ids]() -> std::expected<void, std::string> {
+        if (!system_->impl_->gui_runtime_)
+        {
+            return std::unexpected("GUI runtime is not available");
+        }
+        return system_->impl_->gui_runtime_->preload_images(document_id, image_ids);
+    },
+    std::unexpected("Failed to post system GUI image preload task")
+           );
+}
+
+std::expected<void, std::string> SystemGuiAccess::release_images(
+    gui::DocumentId document_id,
+    const std::vector<std::string> &image_ids
+) const
+{
+    if (system_ == nullptr) {
+        return make_unavailable_error();
+    }
+    return system_->impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_INPUT_TASK_GROUP,
+    [this, document_id, image_ids]() -> std::expected<void, std::string> {
+        if (!system_->impl_->gui_runtime_)
+        {
+            return std::unexpected("GUI runtime is not available");
+        }
+        return system_->impl_->gui_runtime_->release_preloaded_images(document_id, image_ids);
+    },
+    std::unexpected("Failed to post system GUI image release task")
+           );
+}
+
 std::expected<gui::RuntimeAnimationStartResult, std::string> SystemGuiAccess::start_view_animation_with_result(
     gui::DocumentId document_id,
     std::string_view absolute_path,
@@ -638,6 +699,7 @@ std::expected<void, std::string> SystemGuiAccess::set_theme(
     if (!result) {
         return result;
     }
+    system_->impl_->set_gui_theme_snapshot(theme_id);
     auto hook_result = system_->on_theme_changed(theme_id);
     if (!hook_result) {
         BROOKESIA_LOGW("System theme changed hook failed: %1%", hook_result.error());
@@ -651,13 +713,15 @@ std::string SystemGuiAccess::get_theme() const
     if (system_ == nullptr) {
         return {};
     }
-    return system_->impl_->run_task_sync<std::string>(
-               SYSTEM_GUI_TASK_GROUP,
-    [this]() {
-        return system_->impl_->gui_runtime_ ? system_->impl_->gui_runtime_->get_theme() : std::string();
-    },
-    {}
-           );
+    return system_->impl_->get_gui_theme_language_snapshot().theme_id;
+}
+
+GuiThemeLanguage SystemGuiAccess::get_theme_language() const
+{
+    if (system_ == nullptr) {
+        return {};
+    }
+    return system_->impl_->get_gui_theme_language_snapshot();
 }
 
 std::expected<void, std::string> SystemGuiAccess::register_font_file(
@@ -828,6 +892,7 @@ std::expected<void, std::string> SystemGuiAccess::set_language(
     if (!result) {
         return result;
     }
+    system_->impl_->set_gui_language_snapshot(language);
     auto hook_result = system_->on_language_changed(language);
     if (!hook_result) {
         BROOKESIA_LOGW("System language changed hook failed: %1%", hook_result.error());
@@ -841,13 +906,7 @@ std::string SystemGuiAccess::get_language() const
     if (system_ == nullptr) {
         return {};
     }
-    return system_->impl_->run_task_sync<std::string>(
-               SYSTEM_GUI_TASK_GROUP,
-    [this]() {
-        return system_->impl_->gui_runtime_ ? system_->impl_->gui_runtime_->get_language() : std::string();
-    },
-    {}
-           );
+    return system_->impl_->get_gui_theme_language_snapshot().language;
 }
 
 } // namespace esp_brookesia::system::core

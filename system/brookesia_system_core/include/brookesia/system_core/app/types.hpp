@@ -180,9 +180,16 @@ BROOKESIA_DESCRIBE_STRUCT(AppGuiDescriptor, (), (root_kind, root, resources, scr
 
 struct RuntimeAppResourceDescriptor {
     std::string icon_id;
+    /**
+     * @brief Preload and retain this runtime app's GUI DOM when it is installed.
+     *
+     * This only loads the GUI document; it does not start lifecycle callbacks or screen flows.
+     * Enable it for apps whose launch latency is worth the extra resident PSRAM.
+     */
+    bool preload_dom = false;
     AppGuiDescriptor gui;
 };
-BROOKESIA_DESCRIBE_STRUCT(RuntimeAppResourceDescriptor, (), (icon_id, gui))
+BROOKESIA_DESCRIBE_STRUCT(RuntimeAppResourceDescriptor, (), (icon_id, preload_dom, gui))
 
 struct AppManifest {
     std::string id;
@@ -191,6 +198,13 @@ struct AppManifest {
     std::string version = "0.1.0";
     AppKind kind = AppKind::Native;
     bool visible = true;
+    /**
+     * @brief Preload and retain this app's GUI DOM when it is installed.
+     *
+     * This does not start the app or mount its screen flows. It moves JSON UI parse/load
+     * cost out of the user-visible launch path at the cost of resident GUI memory.
+     */
+    bool preload_dom = false;
     std::string icon_id;
     std::vector<std::string> supported_systems;
     std::string icon_path;
@@ -210,6 +224,7 @@ BROOKESIA_DESCRIBE_STRUCT(
         version,
         kind,
         visible,
+        preload_dom,
         icon_id,
         supported_systems,
         icon_path,
@@ -268,5 +283,11 @@ struct AppInfo {
     std::string last_error;
 };
 BROOKESIA_DESCRIBE_STRUCT(AppInfo, (), (app_id, manifest, state, last_error))
+
+struct GuiThemeLanguage {
+    std::string theme_id;
+    std::string language;
+};
+BROOKESIA_DESCRIBE_STRUCT(GuiThemeLanguage, (), (theme_id, language))
 
 } // namespace esp_brookesia::system::core
