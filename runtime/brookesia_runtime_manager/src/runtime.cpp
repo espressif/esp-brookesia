@@ -151,6 +151,10 @@ Runtime::~Runtime()
 std::expected<void, std::string> Runtime::init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_RUNTIME_MANAGER_VER_MAJOR, BROOKESIA_RUNTIME_MANAGER_VER_MINOR,
+        BROOKESIA_RUNTIME_MANAGER_VER_PATCH
+    );
     BROOKESIA_LOGD("Params: backend_count(%1%), initialized(%2%)", impl_->backends_.size(), impl_->initialized_);
     auto discover_result = impl_->discover_registered_backends();
     if (!discover_result) {

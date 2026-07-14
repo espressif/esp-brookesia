@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-13
+
+### Enhancements:
+
+- feat(logging): print the component version during backend initialization.
+
 ## v0.8.0 - 2026-06-28
 
 ### Initial Release:

@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <expected>
-#include <fstream>
 #include <map>
 #include <string>
 #include <type_traits>
@@ -15,6 +14,7 @@
 #include <vector>
 
 #include "brookesia/runtime_manager/types.hpp"
+#include "brookesia/service_helper.hpp"
 
 namespace esp_brookesia::runtime::wasm {
 
@@ -55,20 +55,24 @@ struct HostContext {
 
 inline std::expected<std::vector<uint8_t>, std::string> read_wasm_file(const std::string &path)
 {
-    std::ifstream input(path, std::ios::binary | std::ios::ate);
-    if (!input) {
-        return std::unexpected("Failed to open WASM file: " + path);
+    constexpr uint32_t storage_fs_timeout_ms = 5000;
+    auto info = service::helper::Storage::fs_stat(path, storage_fs_timeout_ms);
+    if (!info) {
+        return std::unexpected("Failed to stat WASM file: " + path + ", error: " + info.error());
     }
-
-    const auto size = input.tellg();
-    if (size <= 0) {
+    if (!info->exists || info->type != service::helper::Storage::FileType::File || info->size == 0) {
         return std::unexpected("Invalid WASM file size: " + path);
     }
 
-    std::vector<uint8_t> bytes(static_cast<size_t>(size));
-    input.seekg(0, std::ios::beg);
-    if (!input.read(reinterpret_cast<char *>(bytes.data()), static_cast<std::streamsize>(bytes.size()))) {
-        return std::unexpected("Failed to read WASM file: " + path);
+    std::vector<uint8_t> bytes(static_cast<size_t>(info->size));
+    auto read_result = service::helper::Storage::fs_read(
+                           path, service::RawBuffer(bytes.data(), bytes.size()), storage_fs_timeout_ms
+                       );
+    if (!read_result) {
+        return std::unexpected("Failed to read WASM file: " + path + ", error: " + read_result.error());
+    }
+    if (read_result.value() != bytes.size()) {
+        return std::unexpected("WASM file read size mismatch: " + path);
     }
     return bytes;
 }

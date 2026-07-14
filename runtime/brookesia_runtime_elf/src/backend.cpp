@@ -5,7 +5,6 @@
  */
 #include "brookesia/runtime_elf/backend.hpp"
 
-#include <fstream>
 #include <iterator>
 #include <map>
 #include <string>
@@ -17,6 +16,7 @@
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/runtime_elf/macro_configs.h"
 #include "brookesia/runtime_manager/detail/native_utils.hpp"
+#include "brookesia/service_helper.hpp"
 #if !BROOKESIA_RUNTIME_ELF_BACKEND_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
@@ -33,24 +33,27 @@ namespace esp_brookesia::runtime::elf {
 
 namespace {
 
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
+
 std::expected<std::vector<uint8_t>, std::string> read_binary_file(const std::string &path)
 {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return std::unexpected("Failed to open ELF app: " + path);
+    auto info = service::helper::Storage::fs_stat(path, STORAGE_FS_TIMEOUT_MS);
+    if (!info) {
+        return std::unexpected("Failed to stat ELF app: " + path + ", error: " + info.error());
     }
-
-    input.seekg(0, std::ios::end);
-    const auto size = input.tellg();
-    if (size <= 0) {
+    if (!info->exists || info->type != service::helper::Storage::FileType::File || info->size == 0) {
         return std::unexpected("ELF app is empty: " + path);
     }
-    input.seekg(0, std::ios::beg);
 
-    std::vector<uint8_t> data(static_cast<size_t>(size));
-    input.read(reinterpret_cast<char *>(data.data()), static_cast<std::streamsize>(data.size()));
-    if (!input) {
-        return std::unexpected("Failed to read ELF app: " + path);
+    std::vector<uint8_t> data(static_cast<size_t>(info->size));
+    auto read_result = service::helper::Storage::fs_read(
+                           path, service::RawBuffer(data.data(), data.size()), STORAGE_FS_TIMEOUT_MS
+                       );
+    if (!read_result) {
+        return std::unexpected("Failed to read ELF app: " + path + ", error: " + read_result.error());
+    }
+    if (read_result.value() != data.size()) {
+        return std::unexpected("ELF app read size mismatch: " + path);
     }
     return data;
 }
@@ -103,6 +106,10 @@ void Backend::set_native_modules(std::vector<NativeModule> modules)
 std::expected<void, std::string> Backend::init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_RUNTIME_ELF_VER_MAJOR, BROOKESIA_RUNTIME_ELF_VER_MINOR,
+        BROOKESIA_RUNTIME_ELF_VER_PATCH
+    );
     BROOKESIA_LOGD("Params: initialized(%1%)", impl_->initialized_);
     impl_->initialized_ = true;
     BROOKESIA_LOGD("ELF backend initialized");

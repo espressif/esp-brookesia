@@ -5,12 +5,10 @@
  */
 #include "brookesia/runtime_js/backend.hpp"
 
-#include <fstream>
 #include <map>
 #include <deque>
 #include <functional>
 #include <mutex>
-#include <sstream>
 #include <cstring>
 #include <cstdint>
 #include <string>
@@ -21,6 +19,7 @@
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/runtime_manager/detail/native_utils.hpp"
 #include "brookesia/runtime_js/macro_configs.h"
+#include "brookesia/service_helper.hpp"
 #if !BROOKESIA_RUNTIME_JS_BACKEND_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
@@ -37,6 +36,8 @@ namespace esp_brookesia::runtime::js {
 
 #if defined(BROOKESIA_RUNTIME_JS_HAS_QUICKJS)
 namespace {
+
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 constexpr size_t JS_MEMORY_LIMIT = 16 * 1024 * 1024;
 #if defined(__EMSCRIPTEN__)
@@ -130,13 +131,11 @@ void drain_microtasks(JSContext *context, AppId app_id = INVALID_APP_ID)
 
 std::expected<std::string, std::string> read_all(const std::string &path)
 {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return std::unexpected("Failed to open JavaScript app: " + path);
+    auto result = service::helper::Storage::fs_read_text(path, STORAGE_FS_TIMEOUT_MS);
+    if (!result) {
+        return std::unexpected("Failed to read JavaScript app: " + path + ", error: " + result.error());
     }
-    std::ostringstream output;
-    output << input.rdbuf();
-    return output.str();
+    return result.value();
 }
 
 std::string get_exception_string(JSContext *context)
@@ -557,6 +556,10 @@ void Backend::set_native_modules(std::vector<NativeModule> modules)
 std::expected<void, std::string> Backend::init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_RUNTIME_JS_VER_MAJOR, BROOKESIA_RUNTIME_JS_VER_MINOR,
+        BROOKESIA_RUNTIME_JS_VER_PATCH
+    );
     std::lock_guard lock(impl_->mutex_);
     BROOKESIA_LOGD("Params: initialized(%1%)", impl_->initialized_);
     if (impl_->initialized_) {
@@ -863,6 +866,10 @@ void Backend::set_native_modules(std::vector<NativeModule> modules)
 std::expected<void, std::string> Backend::init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_RUNTIME_JS_VER_MAJOR, BROOKESIA_RUNTIME_JS_VER_MINOR,
+        BROOKESIA_RUNTIME_JS_VER_PATCH
+    );
     BROOKESIA_LOGD("Params: initialized(%1%)", impl_->initialized_);
     impl_->initialized_ = true;
     BROOKESIA_LOGD("JavaScript fallback backend initialized");

@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia Lua runtime backend.
 url: https://github.com/espressif/esp-brookesia/tree/master/runtime/brookesia_runtime_lua
 repository: https://github.com/espressif/esp-brookesia.git
