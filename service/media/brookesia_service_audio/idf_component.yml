@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia Audio service which provides audio playback, encoding, decoding, volume control, and playback state management.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/media/brookesia_service_audio
 repository: https://github.com/espressif/esp-brookesia.git
@@ -15,6 +15,5 @@ dependencies:
     require: public
 
 examples:
-  - path: ../../../examples/agent/chatbot
   - path: ../../../examples/service/audio
   - path: ../../../examples/service/console

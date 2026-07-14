@@ -32,6 +32,8 @@ public:
     explicit VideoEncoder(int id)
         : ServiceBase({
         .name = std::string(helper::Video::ENCODER_NAME_PREFIX) + std::to_string(id),
+        .description = "Encode video frames for one configured output instance.",
+        .version = get_component_version(),
     })
     , id_(id)
     {}
@@ -41,6 +43,8 @@ public:
     ~VideoEncoder() = default;
 
 private:
+    static std::string get_component_version();
+
     using BaseHelper = helper::Video;
     // Use a fixed id to represent the encoder
     using Helper = helper::VideoEncoder<0>;

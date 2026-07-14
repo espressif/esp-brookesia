@@ -45,11 +45,7 @@ endif()
 
 find_package(Boost REQUIRED COMPONENTS thread system chrono json)
 
-set(component_pc_config_compile_definitions
-    BROOKESIA_SERVICE_SNTP_VER_MAJOR=${COMPONENT_VERSION_MAJOR}
-    BROOKESIA_SERVICE_SNTP_VER_MINOR=${COMPONENT_VERSION_MINOR}
-    BROOKESIA_SERVICE_SNTP_VER_PATCH=${COMPONENT_VERSION_PATCH}
-)
+set(component_pc_config_compile_definitions)
 if(BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER)
     set(BROOKESIA_SERVICE_SNTP_PLUGIN_SYMBOL service_sntp_symbol)
     list(APPEND component_pc_config_compile_definitions CONFIG_BROOKESIA_SERVICE_SNTP_ENABLE_AUTO_REGISTER=1)
@@ -70,6 +66,7 @@ add_library(${COMPONENT_LIB} STATIC
     ${COMPONENT_SRCS_C}
     ${COMPONENT_SRCS_CPP}
 )
+brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_SERVICE_SNTP)
 add_library(brookesia::service_sntp ALIAS ${COMPONENT_LIB})
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)

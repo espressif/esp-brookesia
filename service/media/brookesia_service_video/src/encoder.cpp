@@ -30,6 +30,13 @@ constexpr uint32_t OPERATION_STOP_TIMEOUT_MS = 1000;
 
 } // namespace
 
+std::string VideoEncoder::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_VIDEO_VER_MAJOR, BROOKESIA_SERVICE_VIDEO_VER_MINOR, BROOKESIA_SERVICE_VIDEO_VER_PATCH
+           );
+}
+
 bool VideoEncoder::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

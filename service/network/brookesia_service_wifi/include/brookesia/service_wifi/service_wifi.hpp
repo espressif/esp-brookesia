@@ -58,12 +58,16 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using Helper = helper::Wifi;
     using StorageHelper = helper::Storage;
 
     Wifi()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Manage Wi-Fi station, SoftAP, and connectivity state.",
+        .version = get_component_version(),
         .dependencies = {
             StorageHelper::get_name().data(),
         },
@@ -224,6 +228,11 @@ private:
     void try_load_data();
     void try_save_data(DataType type);
     void try_erase_data();
+    bool try_load_connected_ap_infos(const std::string &kv_namespace);
+    void try_migrate_legacy_connected_ap_infos(const std::string &kv_namespace);
+    bool try_save_connected_ap_info(const ConnectApInfo &ap_info);
+    void try_save_connected_ap_infos(const std::string &kv_namespace);
+    bool try_erase_connected_ap_info(std::string_view ssid);
 
     template<DataType type>
     constexpr auto &get_data()

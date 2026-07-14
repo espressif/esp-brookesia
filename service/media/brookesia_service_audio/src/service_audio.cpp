@@ -69,6 +69,13 @@ std::vector<AudioEncoder *> &get_encoder_registry()
 
 } // namespace
 
+std::string AudioPlayback::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_AUDIO_VER_MAJOR, BROOKESIA_SERVICE_AUDIO_VER_MINOR, BROOKESIA_SERVICE_AUDIO_VER_PATCH
+           );
+}
+
 bool AudioPlayback::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -632,6 +639,13 @@ void AudioPlayback::on_playback_event(AudioPlayState new_state)
     BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to post play state changed task");
 }
 
+std::string AudioEncoder::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_AUDIO_VER_MAJOR, BROOKESIA_SERVICE_AUDIO_VER_MINOR, BROOKESIA_SERVICE_AUDIO_VER_PATCH
+           );
+}
+
 bool AudioEncoder::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -1063,6 +1077,10 @@ void AudioEncoder::on_wake_end_timeout(uint32_t session_id)
 AudioDecoder::AudioDecoder(int id)
     : ServiceBase({
     .name = std::string(helper::Audio::DECODER_NAME_PREFIX) + std::to_string(id),
+    .description = "Decode and play audio for one configured output instance.",
+    .version = make_version(
+        BROOKESIA_SERVICE_AUDIO_VER_MAJOR, BROOKESIA_SERVICE_AUDIO_VER_MINOR, BROOKESIA_SERVICE_AUDIO_VER_PATCH
+    ),
 #if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
     .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
         .worker_configs = {

@@ -28,6 +28,13 @@ constexpr uint32_t DISPLAY_DRAW_TIMEOUT_MS_DEFAULT = BROOKESIA_SERVICE_DISPLAY_D
 
 } // namespace
 
+std::string VideoDecoder::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_VIDEO_VER_MAJOR, BROOKESIA_SERVICE_VIDEO_VER_MINOR, BROOKESIA_SERVICE_VIDEO_VER_PATCH
+           );
+}
+
 bool VideoDecoder::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

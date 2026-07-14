@@ -3,6 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <cstdint>
+#include <algorithm>
 #include <expected>
 #include <optional>
 #include <string_view>
@@ -23,6 +25,34 @@ namespace esp_brookesia::service::wifi {
 using StorageHelper = service::helper::Storage;
 
 namespace {
+
+static constexpr std::string_view CONNECTED_AP_STORAGE_KEY_PREFIX = "ca";
+
+uint64_t fnv1a64(std::string_view text)
+{
+    uint64_t hash = 14695981039346656037ull;
+    for (unsigned char ch : text) {
+        hash ^= ch;
+        hash *= 1099511628211ull;
+    }
+    return hash;
+}
+
+std::string to_base36(uint64_t value)
+{
+    static constexpr char DIGITS[] = "0123456789abcdefghijklmnopqrstuvwxyz";
+    if (value == 0) {
+        return "0";
+    }
+
+    std::string result;
+    while (value > 0) {
+        result.push_back(DIGITS[value % 36]);
+        value /= 36;
+    }
+    std::reverse(result.begin(), result.end());
+    return result;
+}
 
 std::expected<std::string, std::string> make_storage_namespace(std::string_view raw_namespace)
 {
@@ -52,6 +82,13 @@ std::expected<std::string, std::string> make_storage_key(std::string_view raw_ke
         BROOKESIA_LOGW("%1%", result->warning);
     }
     return result->name;
+}
+
+std::expected<std::string, std::string> make_connected_ap_storage_key(std::string_view ssid)
+{
+    auto raw_key = std::string(CONNECTED_AP_STORAGE_KEY_PREFIX);
+    raw_key += to_base36(fnv1a64(ssid));
+    return make_storage_key(raw_key);
 }
 
 std::optional<hal::wifi::BasicAction> to_basic_action(GeneralAction action)
@@ -172,6 +209,13 @@ bool is_same_ap(const ConnectApInfo &left, const ConnectApInfo &right)
 }
 
 } // namespace
+
+std::string Wifi::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_WIFI_VER_MAJOR, BROOKESIA_SERVICE_WIFI_VER_MINOR, BROOKESIA_SERVICE_WIFI_VER_PATCH
+           );
+}
 
 bool Wifi::on_init()
 {
@@ -591,7 +635,7 @@ void Wifi::try_load_data()
         auto key_result = make_storage_key(raw_key);
         if (!key_result) {
             BROOKESIA_LOGW("%1%", key_result.error());
-            return;
+            return false;
         }
         auto key = std::move(key_result.value());
         // Remove reference and const/volatile to get value type, as std::expected cannot store reference types
@@ -600,16 +644,20 @@ void Wifi::try_load_data()
         auto kv_result = StorageHelper::get_key_value<ValueType>(kv_namespace, key);
         if (!kv_result) {
             BROOKESIA_LOGD("No persisted '%1%' in Storage: %2%", raw_key, kv_result.error());
-            return;
+            return false;
         }
         // Skip saving to Storage, because the data is already loaded from Storage
         set_data<type>(kv_result.value(), false, true);
         BROOKESIA_LOGI("Loaded '%1%' from Storage", raw_key);
         BROOKESIA_LOGD("\t Value: %1%", BROOKESIA_DESCRIBE_TO_STR(kv_result.value()));
+        return true;
     };
 
     load_data_from_kv.template operator()<DataType::LastAp>();
-    load_data_from_kv.template operator()<DataType::ConnectedAps>();
+    if (!try_load_connected_ap_infos(kv_namespace) &&
+            load_data_from_kv.template operator()<DataType::ConnectedAps>()) {
+        try_migrate_legacy_connected_ap_infos(kv_namespace);
+    }
     load_data_from_kv.template operator()<DataType::ScanParams>();
     if (softap_iface_) {
         load_data_from_kv.template operator()<DataType::SoftApParams>();
@@ -655,7 +703,7 @@ void Wifi::try_save_data(DataType type)
     if (type == DataType::LastAp) {
         save_data_to_kv_function.template operator()<DataType::LastAp>();
     } else if (type == DataType::ConnectedAps) {
-        save_data_to_kv_function.template operator()<DataType::ConnectedAps>();
+        try_save_connected_ap_infos(kv_namespace);
     } else if (type == DataType::ScanParams) {
         save_data_to_kv_function.template operator()<DataType::ScanParams>();
     } else if ((type == DataType::SoftApParams) && softap_iface_) {
@@ -687,6 +735,151 @@ void Wifi::try_erase_data()
     } else {
         BROOKESIA_LOGI("Erased Storage data");
     }
+}
+
+bool Wifi::try_load_connected_ap_infos(const std::string &kv_namespace)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto entries_result = StorageHelper::kv_list(kv_namespace);
+    if (!entries_result) {
+        BROOKESIA_LOGW("Failed to list connected AP entries from Storage: %1%", entries_result.error());
+        return false;
+    }
+
+    hal::wifi::ConnectApInfoList connected_ap_infos;
+    for (const auto &entry : entries_result.value()) {
+        if (!entry.key.starts_with(CONNECTED_AP_STORAGE_KEY_PREFIX)) {
+            continue;
+        }
+
+        auto ap_result = StorageHelper::get_key_value<ConnectApInfo>(kv_namespace, entry.key);
+        if (!ap_result) {
+            BROOKESIA_LOGW("Failed to load connected AP entry '%1%': %2%", entry.key, ap_result.error());
+            continue;
+        }
+        auto ap_info = std::move(ap_result.value());
+        if (!ap_info.is_valid()) {
+            BROOKESIA_LOGW(
+                "Ignore invalid connected AP entry '%1%': %2%", entry.key, BROOKESIA_DESCRIBE_TO_STR(ap_info)
+            );
+            continue;
+        }
+        connected_ap_infos.remove_if([&ap_info](const auto & existing) {
+            return existing.ssid == ap_info.ssid;
+        });
+        connected_ap_infos.push_back(std::move(ap_info));
+    }
+
+    if (connected_ap_infos.empty()) {
+        return false;
+    }
+
+    set_data<DataType::ConnectedAps>(connected_ap_infos, false, true);
+    BROOKESIA_LOGI("Loaded '%1%' connected AP entries from Storage", connected_ap_infos.size());
+    return true;
+}
+
+void Wifi::try_migrate_legacy_connected_ap_infos(const std::string &kv_namespace)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    try_save_connected_ap_infos(kv_namespace);
+
+    auto legacy_key_result = make_storage_key(BROOKESIA_DESCRIBE_TO_STR(DataType::ConnectedAps));
+    if (!legacy_key_result) {
+        BROOKESIA_LOGW("%1%", legacy_key_result.error());
+        return;
+    }
+    auto erase_result = StorageHelper::erase_keys(kv_namespace, {legacy_key_result.value()});
+    if (!erase_result) {
+        BROOKESIA_LOGW("Failed to erase legacy ConnectedAps Storage key: %1%", erase_result.error());
+        return;
+    }
+    BROOKESIA_LOGI("Migrated legacy ConnectedAps Storage key to per-AP entries");
+}
+
+bool Wifi::try_save_connected_ap_info(const ConnectApInfo &ap_info)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!ap_info.is_valid()) {
+        return true;
+    }
+    if (!StorageHelper::is_available()) {
+        BROOKESIA_LOGD("Storage service is not available, skip");
+        return true;
+    }
+
+    auto namespace_result = make_storage_namespace(get_attributes().name);
+    BROOKESIA_CHECK_FALSE_RETURN(namespace_result, false, "%1%", namespace_result.error());
+    auto key_result = make_connected_ap_storage_key(ap_info.ssid);
+    BROOKESIA_CHECK_FALSE_RETURN(key_result, false, "%1%", key_result.error());
+    auto key = std::move(key_result.value());
+    auto result = StorageHelper::save_key_value_async(
+                      namespace_result.value(), key, ap_info,
+    [this, key, ssid = ap_info.ssid](auto &&result) mutable {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        BROOKESIA_CHECK_FALSE_EXIT(
+            result.success, "Failed to save connected AP '%1%' to Storage key '%2%': %3%",
+            ssid, key, result.error_message
+        );
+        BROOKESIA_LOGI("Saved connected AP '%1%' to Storage key '%2%'", ssid, key);
+    }
+                  );
+    BROOKESIA_CHECK_FALSE_RETURN(result, false, "Failed to save connected AP to Storage");
+    return true;
+}
+
+void Wifi::try_save_connected_ap_infos(const std::string &kv_namespace)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    for (const auto &ap_info : get_data<DataType::ConnectedAps>()) {
+        if (!ap_info.is_valid()) {
+            continue;
+        }
+        auto key_result = make_connected_ap_storage_key(ap_info.ssid);
+        if (!key_result) {
+            BROOKESIA_LOGW("%1%", key_result.error());
+            continue;
+        }
+        auto key = std::move(key_result.value());
+        auto result = StorageHelper::save_key_value_async(
+                          kv_namespace, key, ap_info,
+        [this, key, ssid = ap_info.ssid](auto &&result) mutable {
+            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+            BROOKESIA_CHECK_FALSE_EXIT(
+                result.success, "Failed to save connected AP '%1%' to Storage key '%2%': %3%",
+                ssid, key, result.error_message
+            );
+            BROOKESIA_LOGI("Saved connected AP '%1%' to Storage key '%2%'", ssid, key);
+        }
+                      );
+        if (!result) {
+            BROOKESIA_LOGW("Failed to save connected AP '%1%' to Storage", ap_info.ssid);
+        }
+    }
+}
+
+bool Wifi::try_erase_connected_ap_info(std::string_view ssid)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (ssid.empty() || !StorageHelper::is_available()) {
+        return true;
+    }
+
+    auto namespace_result = make_storage_namespace(get_attributes().name);
+    BROOKESIA_CHECK_FALSE_RETURN(namespace_result, false, "%1%", namespace_result.error());
+    auto key_result = make_connected_ap_storage_key(ssid);
+    BROOKESIA_CHECK_FALSE_RETURN(key_result, false, "%1%", key_result.error());
+    auto result = StorageHelper::erase_keys(namespace_result.value(), {key_result.value()});
+    BROOKESIA_CHECK_FALSE_RETURN(
+        result, false, "Failed to erase connected AP '%1%' from Storage: %2%", ssid, result.error()
+    );
+    BROOKESIA_LOGI("Erased connected AP '%1%' from Storage", ssid);
+    return true;
 }
 
 void Wifi::reset_data()
@@ -1256,7 +1449,7 @@ bool Wifi::mark_ap_connectable(const ConnectApInfo &ap_info, bool connectable)
         }
     }
     if (is_changed) {
-        return set_data<DataType::ConnectedAps>(connected_ap_infos);
+        return station_iface_->set_connected_ap_infos(connected_ap_infos) && try_save_connected_ap_info(ap_info);
     }
 
     return true;
@@ -1273,12 +1466,12 @@ bool Wifi::add_connected_ap_info(const ConnectApInfo &ap_info)
                 return true;
             }
             connected_ap_info = ap_info;
-            return set_data<DataType::ConnectedAps>(connected_ap_infos);
+            return station_iface_->set_connected_ap_infos(connected_ap_infos) && try_save_connected_ap_info(ap_info);
         }
     }
 
     connected_ap_infos.push_back(ap_info);
-    return set_data<DataType::ConnectedAps>(connected_ap_infos);
+    return station_iface_->set_connected_ap_infos(connected_ap_infos) && try_save_connected_ap_info(ap_info);
 }
 
 bool Wifi::remove_connected_ap_info_by_ssid(std::string_view ssid)
@@ -1310,7 +1503,8 @@ bool Wifi::remove_connected_ap_info_by_ssid(std::string_view ssid)
         return ap_info.ssid == ssid;
     });
     if (connected_ap_infos.size() != old_size) {
-        result = set_data<DataType::ConnectedAps>(connected_ap_infos) && result;
+        result = station_iface_->set_connected_ap_infos(connected_ap_infos) && result;
+        result = try_erase_connected_ap_info(ssid) && result;
     }
 
     return result;

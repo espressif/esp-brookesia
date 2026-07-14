@@ -31,7 +31,7 @@ menu "ESP-Brookesia: Service WiFi Configurations"
         menu "General"
             config BROOKESIA_SERVICE_WIFI_WORKER_NAME
                 string "Name"
-                default "SvcWifiWorker"
+                default "SvcWifi"
                 help
                     The name of the worker thread.
 

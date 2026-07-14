@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia HTTP service which provides HTTP/HTTPS client requests, resource limits, and request lifecycle events.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/network/brookesia_service_http
 repository: https://github.com/espressif/esp-brookesia.git

@@ -9,18 +9,6 @@
 #   include "sdkconfig.h"
 #endif
 
-#if !defined(BROOKESIA_SERVICE_VIDEO_VER_MAJOR)
-#   define BROOKESIA_SERVICE_VIDEO_VER_MAJOR  (0)
-#endif
-
-#if !defined(BROOKESIA_SERVICE_VIDEO_VER_MINOR)
-#   define BROOKESIA_SERVICE_VIDEO_VER_MINOR  (7)
-#endif
-
-#if !defined(BROOKESIA_SERVICE_VIDEO_VER_PATCH)
-#   define BROOKESIA_SERVICE_VIDEO_VER_PATCH  (0)
-#endif
-
 /**
  * @brief Default log tag used by the video service component.
  */

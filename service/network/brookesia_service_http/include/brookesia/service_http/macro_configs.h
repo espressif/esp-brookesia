@@ -65,7 +65,7 @@
 #       if defined(CONFIG_BROOKESIA_SERVICE_HTTP_WORKER_NAME)
 #           define BROOKESIA_SERVICE_HTTP_WORKER_NAME  CONFIG_BROOKESIA_SERVICE_HTTP_WORKER_NAME
 #       else
-#           define BROOKESIA_SERVICE_HTTP_WORKER_NAME  "SvcHttpWorker"
+#           define BROOKESIA_SERVICE_HTTP_WORKER_NAME  "SvcHttp"
 #       endif
 #   endif
 #   if !defined(BROOKESIA_SERVICE_HTTP_WORKER_PRIORITY)
