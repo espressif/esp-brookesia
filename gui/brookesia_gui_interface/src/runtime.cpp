@@ -41,10 +41,39 @@
 #include "boost/unordered/unordered_flat_map.hpp"
 #include "boost/unordered/unordered_flat_set.hpp"
 #include "boost/unordered/unordered_node_map.hpp"
+#include "brookesia/service_helper/system/storage.hpp"
+
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+#   define GUI_INTERFACE_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
+#else
+#   define GUI_INTERFACE_PROFILE_LOGI(...) do { if (false) { BROOKESIA_LOGI(__VA_ARGS__); } } while (0)
+#endif
 
 namespace esp_brookesia::gui {
 
 namespace {
+
+using StorageHelper = service::helper::Storage;
+using RuntimeProfileClock = std::chrono::steady_clock;
+
+static int64_t runtime_profile_elapsed_ms(
+    const RuntimeProfileClock::time_point &start,
+    const RuntimeProfileClock::time_point &end)
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
+
+[[maybe_unused]] static int64_t runtime_profile_elapsed_us(
+    const RuntimeProfileClock::time_point &start,
+    const RuntimeProfileClock::time_point &end)
+{
+    return std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+}
+
+static double runtime_profile_us_to_ms(int64_t value_us)
+{
+    return static_cast<double>(value_us) / 1000.0;
+}
 
 static std::string normalize_file_path(std::string_view file_path)
 {
@@ -552,17 +581,16 @@ static std::vector<std::string> normalize_dependency_files(std::vector<std::stri
     return normalized;
 }
 
-static std::unordered_map<std::string, std::filesystem::file_time_type> capture_dependency_mtimes(
+static std::unordered_map<std::string, uint64_t> capture_dependency_mtimes(
     const std::vector<std::string> &dependency_files)
 {
-    std::unordered_map<std::string, std::filesystem::file_time_type> mtimes;
+    std::unordered_map<std::string, uint64_t> mtimes;
     for (const auto &file : dependency_files) {
-        std::error_code error_code;
-        const auto timestamp = std::filesystem::last_write_time(file, error_code);
-        if (error_code) {
+        auto file_info = StorageHelper::fs_stat(file);
+        if (!file_info || !file_info->exists) {
             continue;
         }
-        mtimes.insert_or_assign(file, timestamp);
+        mtimes.insert_or_assign(file, file_info->mtime_ms);
     }
     return mtimes;
 }
@@ -733,6 +761,36 @@ public:
         PlacementApplyMask placement = PlacementApplyMask::None;
     };
 
+    struct SubtreeBuildProfile {
+        size_t nodes = 0;
+        int64_t copy_definition_us = 0;
+        int64_t initial_bindings_us = 0;
+        int64_t image_resolve_us = 0;
+        int64_t create_node_us = 0;
+        int64_t resolve_style_us = 0;
+        int64_t store_record_us = 0;
+        int64_t apply_props_us = 0;
+        int64_t apply_layout_us = 0;
+        int64_t apply_placement_us = 0;
+        int64_t apply_transform_us = 0;
+        int64_t apply_style_us = 0;
+        int64_t apply_animations_us = 0;
+        int64_t events_us = 0;
+        int64_t subscribe_bindings_us = 0;
+    };
+
+    struct PreloadedImageRecord {
+        RuntimeImageResource resource;
+        std::size_t automatic_ref_count = 0;
+        std::size_t manual_ref_count = 0;
+    };
+
+    enum class ImagePreloadOwner {
+        Automatic,
+        Manual,
+        All,
+    };
+
     struct TreeRecord {
         DocumentId document_id;
         std::string file_path;
@@ -746,14 +804,14 @@ public:
         bool live_preview_enabled = false;
         LivePreviewOptions live_preview_options;
         std::vector<std::string> dependency_files;
-        std::unordered_map<std::string, std::filesystem::file_time_type> dependency_mtimes;
+        std::unordered_map<std::string, uint64_t> dependency_mtimes;
         std::chrono::steady_clock::time_point last_live_preview_poll = std::chrono::steady_clock::time_point::min();
         boost::unordered_flat_map<std::string, ImageAsset> images;
         std::map<std::string, StyleSet> styles;
         boost::unordered_flat_map<std::string, ScreenFlow> screen_flows;
         boost::unordered_flat_map<std::string, Node> screens;
         boost::unordered_flat_map<std::string, Node> templates;
-        std::vector<RuntimeImageResource> preloaded_images;
+        std::vector<PreloadedImageRecord> preloaded_images;
         boost::unordered_flat_map<std::string, uint64_t> screen_roots;
         // MEMORY/FRAGMENTATION-CRITICAL: must be a NODE-based map, not unordered_flat_map.
         // NodeRecord is large (full Node definition + signals + vectors). A flat_map stores values
@@ -891,12 +949,21 @@ public:
             return std::unexpected("GUI backend is null");
         }
 
+        const std::string file_path = normalize_file_path(file_path_view);
+        const auto total_start = RuntimeProfileClock::now();
+        auto stage_start = total_start;
         auto validation = validate_document(document);
+        auto stage_end = RuntimeProfileClock::now();
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime load profile: file(%1%), stage(validate_document), elapsed_ms(%2%), total_ms(%3%)",
+            file_path,
+            runtime_profile_elapsed_ms(stage_start, stage_end),
+            runtime_profile_elapsed_ms(total_start, stage_end)
+        );
         if (!validation.success) {
             return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
         }
 
-        const std::string file_path = normalize_file_path(file_path_view);
         const DocumentId document_id(next_document_id_++);
 
         try {
@@ -913,6 +980,7 @@ public:
             };
             auto hp_entry = hp_snap();
 #endif
+            stage_start = RuntimeProfileClock::now();
             TreeRecord tree;
             tree.document_id = document_id;
             tree.file_path = file_path;
@@ -929,15 +997,36 @@ public:
                 current_theme = environment.theme_id;
             }
             tree.dependency_files = normalize_dependency_files(std::move(dependency_files));
-            tree.dependency_mtimes = capture_dependency_mtimes(tree.dependency_files);
+            stage_end = RuntimeProfileClock::now();
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(prepare_tree), "
+                "dependencies(%3%), elapsed_ms(%4%), total_ms(%5%)",
+                document_id.value(),
+                file_path,
+                tree.dependency_files.size(),
+                runtime_profile_elapsed_ms(stage_start, stage_end),
+                runtime_profile_elapsed_ms(total_start, stage_end)
+            );
+
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(capture_dependency_mtimes), "
+                "dependencies(%3%), hits(0), skipped(true), elapsed_ms(0), total_ms(%4%)",
+                document_id.value(),
+                file_path,
+                tree.dependency_files.size(),
+                runtime_profile_elapsed_ms(total_start, RuntimeProfileClock::now())
+            );
+
+            stage_start = RuntimeProfileClock::now();
             for (auto &image : document.images) {
                 auto image_id = image.id;
                 BROOKESIA_LOGD(
-                    "Loaded document image asset: id='%1%', src='%2%', width=%3%, height=%4%",
+                    "Loaded document image asset: id='%1%', src='%2%', width=%3%, height=%4%, preload=%5%",
                     image.id,
                     image.src,
                     image.width,
-                    image.height
+                    image.height,
+                    image.preload
                 );
                 tree.images.emplace(std::move(image_id), std::move(image));
             }
@@ -953,13 +1042,36 @@ public:
                 auto node_id = node.id;
                 tree.templates.emplace(std::move(node_id), std::move(node));
             }
+            stage_end = RuntimeProfileClock::now();
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(index_assets), "
+                "images(%3%), flows(%4%), screens(%5%), templates(%6%), elapsed_ms(%7%), total_ms(%8%)",
+                document_id.value(),
+                file_path,
+                tree.images.size(),
+                tree.screen_flows.size(),
+                tree.screens.size(),
+                tree.templates.size(),
+                runtime_profile_elapsed_ms(stage_start, stage_end),
+                runtime_profile_elapsed_ms(total_start, stage_end)
+            );
 
             trees.emplace(document_id.value(), std::move(tree));
             auto *stored_tree = resolve_tree(document_id);
             if (stored_tree == nullptr) {
                 return std::unexpected("Failed to store GUI tree");
             }
+            stage_start = RuntimeProfileClock::now();
             auto resource_validation = validate_resource_references(*stored_tree);
+            stage_end = RuntimeProfileClock::now();
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(validate_resource_references), "
+                "elapsed_ms(%3%), total_ms(%4%)",
+                document_id.value(),
+                file_path,
+                runtime_profile_elapsed_ms(stage_start, stage_end),
+                runtime_profile_elapsed_ms(total_start, stage_end)
+            );
             if (!resource_validation) {
                 unload(document_id);
                 return std::unexpected(resource_validation.error());
@@ -968,7 +1080,18 @@ public:
             auto hp_before_preload = hp_snap();
             hp_log("after tree move+validate (H_C)", hp_entry.external_free, hp_before_preload.external_free);
 #endif
+            stage_start = RuntimeProfileClock::now();
             auto preload_result = preload_tree_image_resources(*stored_tree);
+            stage_end = RuntimeProfileClock::now();
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(preload_image_resources), "
+                "preloaded(%3%), elapsed_ms(%4%), total_ms(%5%)",
+                document_id.value(),
+                file_path,
+                stored_tree->preloaded_images.size(),
+                runtime_profile_elapsed_ms(stage_start, stage_end),
+                runtime_profile_elapsed_ms(total_start, stage_end)
+            );
             if (!preload_result) {
                 unload(document_id);
                 return std::unexpected(preload_result.error());
@@ -978,9 +1101,13 @@ public:
             hp_log("after image preload (H_A)", hp_before_preload.external_free, hp_after_preload.external_free);
 #endif
 
+            const auto eager_stage_start = RuntimeProfileClock::now();
+            size_t eager_screen_count = 0;
+            size_t dynamic_screen_count = 0;
             for (const auto &[unused_id, screen] : stored_tree->screens) {
                 (void)unused_id;
                 if (screen.mount_mode == MountMode::Dynamic) {
+                    ++dynamic_screen_count;
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
                     BROOKESIA_LOGI(
                         "[HeapTrace][gui.eager_mount] screen(%1%) mode(dynamic) action(skipped)", screen.id);
@@ -991,6 +1118,8 @@ public:
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
                 auto hp_load_eager_before = hp_snap();
 #endif
+                stage_start = RuntimeProfileClock::now();
+                reset_subtree_build_profile();
                 auto root_uid = create_subtree(
                                     document_id,
                                     *stored_tree,
@@ -1007,18 +1136,50 @@ public:
                     return std::unexpected(root_uid.error());
                 }
                 stored_tree->screen_roots.emplace(screen.id, *root_uid);
+                stage_end = RuntimeProfileClock::now();
+                const auto screen_build_ms = runtime_profile_elapsed_ms(stage_start, stage_end);
+                ++eager_screen_count;
+                log_subtree_build_profile("eager_screen_build", document_id, screen.id, screen_build_ms);
+                GUI_INTERFACE_PROFILE_LOGI(
+                    "GUI runtime load profile: doc(%1%), file(%2%), stage(eager_screen_build), "
+                    "screen(%3%), elapsed_ms(%4%), total_ms(%5%)",
+                    document_id.value(),
+                    file_path,
+                    screen.id,
+                    screen_build_ms,
+                    runtime_profile_elapsed_ms(total_start, stage_end)
+                );
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
                 auto hp_load_eager_after = hp_snap();
                 hp_log((std::string("eager build screen ") + screen.id).c_str(),
                        hp_load_eager_before.external_free, hp_load_eager_after.external_free);
 #endif
             }
+            stage_end = RuntimeProfileClock::now();
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(eager_screen_build_total), "
+                "eager_screens(%3%), dynamic_screens(%4%), elapsed_ms(%5%), total_ms(%6%)",
+                document_id.value(),
+                file_path,
+                eager_screen_count,
+                dynamic_screen_count,
+                runtime_profile_elapsed_ms(eager_stage_start, stage_end),
+                runtime_profile_elapsed_ms(total_start, stage_end)
+            );
 
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_after_screens = hp_snap();
             hp_log("after eager screen build (H_B)", hp_after_preload.external_free, hp_after_screens.external_free);
             hp_log("total root load (H_A+H_B+H_C)", hp_entry.external_free, hp_after_screens.external_free);
 #endif
+            stage_end = RuntimeProfileClock::now();
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime load profile: doc(%1%), file(%2%), stage(total), elapsed_ms(%3%), total_ms(%4%)",
+                document_id.value(),
+                file_path,
+                runtime_profile_elapsed_ms(total_start, stage_end),
+                runtime_profile_elapsed_ms(total_start, stage_end)
+            );
             return document_id;
         } catch (const std::bad_alloc &) {
             unload(document_id);
@@ -1036,15 +1197,15 @@ public:
 
     std::vector<RuntimeImageResource> collect_image_resources(const TreeRecord &tree) const
     {
-        boost::unordered_flat_set<std::string> seen_keys;
+        boost::unordered_flat_map<std::string, std::size_t> resource_indices;
         std::vector<RuntimeImageResource> resources;
         resources.reserve(tree.images.size() + global_images.size());
 
-        auto append_resource = [&seen_keys, &resources](RuntimeImageResource resource) {
-            const std::string key = resource.primary_src.empty() ?
-                                    std::string("native:") + std::to_string(resource.native_src) :
-                                    std::string("file:") + resource.primary_src;
-            if (!seen_keys.insert(key).second) {
+        auto append_resource = [&resource_indices, &resources](RuntimeImageResource resource) {
+            const auto key = image_resource_cache_key(resource);
+            auto [it, inserted] = resource_indices.emplace(key, resources.size());
+            if (!inserted) {
+                resources[it->second].preload = resources[it->second].preload || resource.preload;
                 return;
             }
             resources.push_back(std::move(resource));
@@ -1058,6 +1219,7 @@ public:
                 .native_src = 0,
                 .width = image.width,
                 .height = image.height,
+                .preload = image.preload,
             });
         }
         for (const auto &[unused_id, image] : global_images) {
@@ -1067,36 +1229,108 @@ public:
         return resources;
     }
 
+    static std::string image_resource_cache_key(const RuntimeImageResource &resource)
+    {
+        return resource.primary_src.empty() ?
+               std::string("native:") + std::to_string(resource.native_src) :
+               std::string("file:") + resource.primary_src;
+    }
+
+    static bool is_same_image_resource(
+        const RuntimeImageResource &lhs,
+        const RuntimeImageResource &rhs)
+    {
+        return lhs.primary_src == rhs.primary_src && lhs.native_src == rhs.native_src;
+    }
+
+    bool should_preload_image_resource_automatically(const RuntimeImageResource &resource) const
+    {
+        return resource.preload || (backend != nullptr && backend->requires_preloaded_image_resource(resource));
+    }
+
     bool has_preloaded_image_resource(const TreeRecord &tree, const RuntimeImageResource &resource) const
     {
         return std::any_of(
                    tree.preloaded_images.begin(),
                    tree.preloaded_images.end(),
-        [&resource](const RuntimeImageResource & preloaded) {
-            return preloaded.primary_src == resource.primary_src && preloaded.native_src == resource.native_src;
+        [&resource](const PreloadedImageRecord & preloaded) {
+            return is_same_image_resource(preloaded.resource, resource) &&
+                   (preloaded.automatic_ref_count > 0 || preloaded.manual_ref_count > 0);
         }
                );
     }
 
+    bool has_automatic_preloaded_image_resource(const TreeRecord &tree, const RuntimeImageResource &resource) const
+    {
+        return std::any_of(
+                   tree.preloaded_images.begin(),
+                   tree.preloaded_images.end(),
+        [&resource](const PreloadedImageRecord & preloaded) {
+            return is_same_image_resource(preloaded.resource, resource) && preloaded.automatic_ref_count > 0;
+        }
+               );
+    }
+
+    static RuntimeImageResource make_runtime_image_resource(const Node &node)
+    {
+        const auto primary_src = node.resolved_image.primary_src.empty() ?
+                                 node.image_props.src :
+                                 node.resolved_image.primary_src;
+        return RuntimeImageResource{
+            .id = node.image_props.src,
+            .primary_src = primary_src,
+            .native_src = node.resolved_image.native_src,
+            .width = node.resolved_image.width,
+            .height = node.resolved_image.height,
+        };
+    }
+
     std::expected<void, std::string> preload_image_resource_for_tree(
         TreeRecord &tree,
-        const RuntimeImageResource &resource)
+        const RuntimeImageResource &resource,
+        ImagePreloadOwner owner)
     {
-        if (backend == nullptr || has_preloaded_image_resource(tree, resource)) {
+        if (backend == nullptr) {
             return {};
         }
+
+        auto it = std::find_if(
+                      tree.preloaded_images.begin(),
+                      tree.preloaded_images.end(),
+        [&resource](const PreloadedImageRecord & preloaded) {
+            return is_same_image_resource(preloaded.resource, resource);
+        }
+                  );
+        if (it != tree.preloaded_images.end()) {
+            if (owner == ImagePreloadOwner::Automatic) {
+                ++it->automatic_ref_count;
+            } else {
+                ++it->manual_ref_count;
+            }
+            it->resource.preload = it->resource.preload || resource.preload;
+            return {};
+        }
+
         auto result = backend->preload_image_resource(resource);
         if (!result) {
             return result;
         }
-        tree.preloaded_images.push_back(resource);
+        PreloadedImageRecord record {
+            .resource = resource,
+            .automatic_ref_count = owner == ImagePreloadOwner::Automatic ? 1U : 0U,
+            .manual_ref_count = owner == ImagePreloadOwner::Manual ? 1U : 0U,
+        };
+        tree.preloaded_images.push_back(std::move(record));
         return {};
     }
 
     std::expected<void, std::string> preload_tree_image_resources(TreeRecord &tree)
     {
         for (const auto &resource : collect_image_resources(tree)) {
-            auto result = preload_image_resource_for_tree(tree, resource);
+            if (!resource.preload) {
+                continue;
+            }
+            auto result = preload_image_resource_for_tree(tree, resource, ImagePreloadOwner::Automatic);
             if (!result) {
                 release_tree_image_resources(tree);
                 return result;
@@ -1105,7 +1339,72 @@ public:
         return {};
     }
 
-    void release_image_resource_from_tree(TreeRecord &tree, const RuntimeImageResource &resource)
+    std::expected<void, std::string> ensure_image_resource_preloaded_for_tree(
+        TreeRecord &tree,
+        const RuntimeImageResource &resource)
+    {
+        if (!should_preload_image_resource_automatically(resource) || has_preloaded_image_resource(tree, resource)) {
+            return {};
+        }
+
+        return preload_image_resource_for_tree(tree, resource, ImagePreloadOwner::Automatic);
+    }
+
+    std::expected<void, std::string> ensure_node_image_resources_preloaded(TreeRecord &tree, const Node &node)
+    {
+        if (node.type == NodeType::Image && !node.image_props.src.empty()) {
+            const auto primary_src = node.resolved_image.primary_src.empty() ?
+                                     node.image_props.src :
+                                     node.resolved_image.primary_src;
+            RuntimeImageResource resource{
+                .id = node.resolved_image.image_id.empty() ? node.image_props.src : node.resolved_image.image_id,
+                .primary_src = primary_src,
+                .native_src = node.resolved_image.native_src,
+                .width = node.resolved_image.width,
+                .height = node.resolved_image.height,
+            };
+            auto result = ensure_image_resource_preloaded_for_tree(tree, resource);
+            if (!result) {
+                return std::unexpected(
+                           "Failed to preload image resource '" + resource.id + "': " + result.error()
+                       );
+            }
+        }
+
+        if (node.type != NodeType::Keyboard) {
+            return {};
+        }
+        for (const auto &[unused_mode, layout] : node.keyboard_props.layouts) {
+            (void)unused_mode;
+            for (const auto &row : layout.rows) {
+                for (const auto &key : row) {
+                    if (key.resolved_image.primary_src.empty() && key.resolved_image.native_src == 0) {
+                        continue;
+                    }
+                    RuntimeImageResource resource{
+                        .id = key.resolved_image.image_id.empty() ? key.image : key.resolved_image.image_id,
+                        .primary_src = key.resolved_image.primary_src,
+                        .native_src = key.resolved_image.native_src,
+                        .width = key.resolved_image.width,
+                        .height = key.resolved_image.height,
+                    };
+                    auto result = ensure_image_resource_preloaded_for_tree(tree, resource);
+                    if (!result) {
+                        return std::unexpected(
+                                   "Failed to preload keyboard image resource '" + resource.id + "': " +
+                                   result.error()
+                               );
+                    }
+                }
+            }
+        }
+        return {};
+    }
+
+    void release_image_resource_from_tree(
+        TreeRecord &tree,
+        const RuntimeImageResource &resource,
+        ImagePreloadOwner owner = ImagePreloadOwner::All)
     {
         if (backend == nullptr) {
             return;
@@ -1113,25 +1412,211 @@ public:
         auto it = std::find_if(
                       tree.preloaded_images.begin(),
                       tree.preloaded_images.end(),
-        [&resource](const RuntimeImageResource & preloaded) {
-            return preloaded.primary_src == resource.primary_src && preloaded.native_src == resource.native_src;
+        [&resource](const PreloadedImageRecord & preloaded) {
+            return is_same_image_resource(preloaded.resource, resource);
         }
                   );
         if (it == tree.preloaded_images.end()) {
             return;
         }
-        backend->release_image_resource(*it);
+
+        if (owner == ImagePreloadOwner::Automatic) {
+            if (it->automatic_ref_count > 0) {
+                --it->automatic_ref_count;
+            }
+        } else if (owner == ImagePreloadOwner::All) {
+            it->automatic_ref_count = 0;
+        }
+        if (owner == ImagePreloadOwner::Manual) {
+            if (it->manual_ref_count > 0) {
+                --it->manual_ref_count;
+            }
+        } else if (owner == ImagePreloadOwner::All) {
+            it->manual_ref_count = 0;
+        }
+        if (it->automatic_ref_count > 0 || it->manual_ref_count > 0) {
+            return;
+        }
+        backend->release_image_resource(it->resource);
         tree.preloaded_images.erase(it);
+    }
+
+    bool tree_references_image_resource_except(
+        const TreeRecord &tree,
+        const NodeRecord &excluded_record,
+        std::string_view image_id,
+        const RuntimeImageResource &resource) const
+    {
+        for (const auto &[unused_uid, record] : tree.nodes) {
+            (void)unused_uid;
+            if (record.uid == excluded_record.uid) {
+                continue;
+            }
+            if (node_references_image(record.node, image_id)) {
+                return true;
+            }
+            if (record.node.type == NodeType::Image && !record.node.image_props.src.empty() &&
+                    is_same_image_resource(make_runtime_image_resource(record.node), resource)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    std::expected<void, std::string> update_image_source(
+        TreeRecord &tree,
+        NodeRecord &record,
+        std::string_view src)
+    {
+        if (record.node.type != NodeType::Image) {
+            return std::unexpected("Node is not an image");
+        }
+
+        const auto previous_src = record.node.image_props.src;
+        const auto previous_resolved_image = record.node.resolved_image;
+        const RuntimeImageResource previous_resource = make_runtime_image_resource(record.node);
+
+        record.node.image_props.src = std::string(src);
+        record.node.resolved_image = {};
+        resolve_image_source(tree, record.node);
+
+        const RuntimeImageResource next_resource = make_runtime_image_resource(record.node);
+        if (!record.node.image_props.src.empty() && should_preload_image_resource_automatically(next_resource) &&
+                !has_preloaded_image_resource(tree, next_resource)) {
+            auto preload_result =
+                preload_image_resource_for_tree(tree, next_resource, ImagePreloadOwner::Automatic);
+            if (!preload_result) {
+                record.node.image_props.src = previous_src;
+                record.node.resolved_image = previous_resolved_image;
+                return std::unexpected(
+                           "Failed to preload image resource '" + std::string(src) + "': " + preload_result.error()
+                       );
+            }
+        }
+
+        if (!previous_src.empty() && previous_src != record.node.image_props.src &&
+                !is_same_image_resource(previous_resource, next_resource) &&
+                !tree_references_image_resource_except(tree, record, previous_src, previous_resource)) {
+            release_image_resource_from_tree(tree, previous_resource, ImagePreloadOwner::Automatic);
+        }
+        return {};
     }
 
     void release_tree_image_resources(TreeRecord &tree)
     {
         if (backend != nullptr) {
-            for (const auto &resource : tree.preloaded_images) {
-                backend->release_image_resource(resource);
+            for (const auto &record : tree.preloaded_images) {
+                backend->release_image_resource(record.resource);
             }
         }
         tree.preloaded_images.clear();
+    }
+
+    std::expected<RuntimeImageResource, std::string> resolve_image_resource_by_id(
+        const TreeRecord &tree,
+        std::string_view image_id) const
+    {
+        if (image_id.empty()) {
+            return std::unexpected("Image id must not be empty");
+        }
+
+        RuntimeImageResource resource;
+        auto image_it = tree.images.find(std::string(image_id));
+        if (image_it != tree.images.end()) {
+            resource = RuntimeImageResource{
+                .id = image_it->second.id,
+                .primary_src = image_it->second.src,
+                .native_src = 0,
+                .width = image_it->second.width,
+                .height = image_it->second.height,
+                .preload = image_it->second.preload,
+            };
+        } else {
+            auto global_it = global_images.find(std::string(image_id));
+            if (global_it == global_images.end()) {
+                return std::unexpected("Image resource is not visible to this document: " + std::string(image_id));
+            }
+            resource = global_it->second;
+        }
+
+        if ((resource.width <= 0 || resource.height <= 0) && backend != nullptr) {
+            auto resolved = backend->resolve_image_resource(resource);
+            if (!resolved) {
+                return std::unexpected("Failed to resolve image resource '" + std::string(image_id) + "': " +
+                                       resolved.error());
+            }
+            resource = std::move(*resolved);
+        }
+        if (resource.width <= 0 || resource.height <= 0) {
+            return std::unexpected("Image resource size must be positive: " + std::string(image_id));
+        }
+        return resource;
+    }
+
+    std::expected<void, std::string> preload_images(DocumentId document_id, const std::vector<std::string> &image_ids)
+    {
+        auto *tree = resolve_tree(document_id);
+        if (tree == nullptr) {
+            return std::unexpected("Document not loaded");
+        }
+
+        std::vector<RuntimeImageResource> acquired_resources;
+        std::vector<std::string> refreshed_ids;
+        acquired_resources.reserve(image_ids.size());
+        refreshed_ids.reserve(image_ids.size());
+        for (const auto &image_id : image_ids) {
+            auto resource = resolve_image_resource_by_id(*tree, image_id);
+            if (!resource) {
+                for (const auto &acquired : acquired_resources) {
+                    release_image_resource_from_tree(*tree, acquired, ImagePreloadOwner::Manual);
+                }
+                return std::unexpected(resource.error());
+            }
+            auto result = preload_image_resource_for_tree(*tree, *resource, ImagePreloadOwner::Manual);
+            if (!result) {
+                for (const auto &acquired : acquired_resources) {
+                    release_image_resource_from_tree(*tree, acquired, ImagePreloadOwner::Manual);
+                }
+                return std::unexpected(result.error());
+            }
+            acquired_resources.push_back(std::move(*resource));
+            refreshed_ids.push_back(image_id);
+        }
+        boost::unordered_flat_set<std::string> refreshed;
+        for (const auto &image_id : refreshed_ids) {
+            if (refreshed.insert(image_id).second) {
+                refresh_image_references(*tree, image_id);
+            }
+        }
+        return {};
+    }
+
+    std::expected<void, std::string> release_preloaded_images(
+        DocumentId document_id,
+        const std::vector<std::string> &image_ids)
+    {
+        auto *tree = resolve_tree(document_id);
+        if (tree == nullptr) {
+            return std::unexpected("Document not loaded");
+        }
+
+        std::vector<std::pair<std::string, RuntimeImageResource>> resources;
+        resources.reserve(image_ids.size());
+        for (const auto &image_id : image_ids) {
+            auto resource = resolve_image_resource_by_id(*tree, image_id);
+            if (!resource) {
+                return std::unexpected(resource.error());
+            }
+            resources.emplace_back(image_id, std::move(*resource));
+        }
+        boost::unordered_flat_set<std::string> refreshed;
+        for (const auto &[image_id, resource] : resources) {
+            release_image_resource_from_tree(*tree, resource, ImagePreloadOwner::Manual);
+            if (refreshed.insert(image_id).second) {
+                refresh_image_references(*tree, image_id);
+            }
+        }
+        return {};
     }
 
     std::expected<void, std::string> enable_live_preview(DocumentId document_id, const LivePreviewOptions &options)
@@ -1287,15 +1772,15 @@ public:
             std::string changed_file;
             bool changed = false;
             for (const auto &dependency_file : tree.dependency_files) {
-                std::error_code error_code;
-                const auto current_mtime = std::filesystem::last_write_time(dependency_file, error_code);
-                if (error_code) {
+                auto current_info = StorageHelper::fs_stat(dependency_file);
+                if (!current_info || !current_info->exists) {
                     changed = true;
                     changed_file = dependency_file;
                     break;
                 }
                 auto previous_it = tree.dependency_mtimes.find(dependency_file);
-                if (previous_it == tree.dependency_mtimes.end() || previous_it->second != current_mtime) {
+                if (previous_it == tree.dependency_mtimes.end() ||
+                        previous_it->second != current_info->mtime_ms) {
                     changed = true;
                     changed_file = dependency_file;
                     break;
@@ -1518,6 +2003,8 @@ public:
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_dyn_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
 #endif
+            const auto dynamic_stage_start = RuntimeProfileClock::now();
+            reset_subtree_build_profile();
             auto root_uid = create_subtree(
                                 document_id,
                                 *tree,
@@ -1533,6 +2020,20 @@ public:
                 return std::unexpected(root_uid.error());
             }
             screen_root_it = tree->screen_roots.emplace(screen_id, *root_uid).first;
+            const auto dynamic_stage_end = RuntimeProfileClock::now();
+            const auto dynamic_build_ms = runtime_profile_elapsed_ms(dynamic_stage_start, dynamic_stage_end);
+            log_subtree_build_profile(
+                "dynamic_screen_build",
+                document_id,
+                screen_def_it->second.id,
+                dynamic_build_ms
+            );
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime dynamic mount profile: doc(%1%), screen(%2%), elapsed_ms(%3%)",
+                document_id.value(),
+                screen_def_it->second.id,
+                dynamic_build_ms
+            );
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_dyn_after = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
             BROOKESIA_LOGI(
@@ -1650,6 +2151,8 @@ public:
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_tdyn_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
 #endif
+            const auto dynamic_stage_start = RuntimeProfileClock::now();
+            reset_subtree_build_profile();
             auto root_uid = create_subtree(
                                 document_id,
                                 *tree,
@@ -1665,6 +2168,20 @@ public:
                 return std::unexpected(root_uid.error());
             }
             screen_root_it = tree->screen_roots.emplace(screen_id, *root_uid).first;
+            const auto dynamic_stage_end = RuntimeProfileClock::now();
+            const auto dynamic_build_ms = runtime_profile_elapsed_ms(dynamic_stage_start, dynamic_stage_end);
+            log_subtree_build_profile(
+                "dynamic_screen_build_transient",
+                document_id,
+                screen_def_it->second.id,
+                dynamic_build_ms
+            );
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime dynamic mount profile: doc(%1%), screen(%2%), transient(true), elapsed_ms(%3%)",
+                document_id.value(),
+                screen_def_it->second.id,
+                dynamic_build_ms
+            );
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_tdyn_after = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
             BROOKESIA_LOGI(
@@ -2218,7 +2735,11 @@ public:
             current_theme = environment.theme_id;
         }
         tree->dependency_files = normalize_dependency_files(parsed_document.dependency_files);
-        tree->dependency_mtimes = capture_dependency_mtimes(tree->dependency_files);
+        if (tree->live_preview_enabled) {
+            tree->dependency_mtimes = capture_dependency_mtimes(tree->dependency_files);
+        } else {
+            tree->dependency_mtimes.clear();
+        }
         tree->environment_dirty = false;
         tree->styles_dirty = false;
         tree->images.clear();
@@ -2230,8 +2751,8 @@ public:
         tree->templates.clear();
         for (const auto &image : parsed_document.document.images) {
             tree->images.emplace(image.id, image);
-            BROOKESIA_LOGD("Updated document image asset: id='%1%', src='%2%', width=%3%, height=%4%",
-                           image.id, image.src, image.width, image.height);
+            BROOKESIA_LOGD("Updated document image asset: id='%1%', src='%2%', width=%3%, height=%4%, preload=%5%",
+                           image.id, image.src, image.width, image.height, image.preload);
         }
         for (const auto &node : parsed_document.document.screens) {
             tree->screens.emplace(node.id, node);
@@ -2468,6 +2989,20 @@ public:
             reapply_styles(tree);
             tree.styles_dirty = false;
         }
+    }
+
+    size_t reapply_mounted_styles_for_all_trees()
+    {
+        current_style_revision_++;
+        size_t applied_count = 0;
+        for (auto &[unused_document_id, tree] : trees) {
+            (void)unused_document_id;
+            // Keep preloaded but unmounted documents lazy. Applying a language font switch to every
+            // retained DOM can instantiate large FreeType font caches for apps the user has not opened.
+            tree.styles_dirty = true;
+            applied_count += reapply_mounted_styles(tree);
+        }
+        return applied_count;
     }
 
     size_t reapply_mounted_styles(TreeRecord &tree)
@@ -3018,7 +3553,7 @@ public:
         }
         default_fonts_by_language.insert_or_assign(normalized_language, normalized_font_id);
         if (normalized_language == current_language) {
-            reapply_styles_for_all_trees();
+            (void)reapply_mounted_styles_for_all_trees();
         }
         return {};
     }
@@ -3030,6 +3565,41 @@ public:
             return std::nullopt;
         }
         return it->second;
+    }
+
+    void refresh_image_references(TreeRecord &tree, std::string_view image_id)
+    {
+        for (auto &[unused_uid, record] : tree.nodes) {
+            (void)unused_uid;
+            if (!node_references_image(record.node, image_id)) {
+                continue;
+            }
+            auto refreshed_node = record.node;
+            resolve_image_source(tree, refreshed_node);
+            if (record.node.type == NodeType::Image) {
+                record.node.resolved_image = refreshed_node.resolved_image;
+            } else if (record.node.type == NodeType::Keyboard) {
+                record.node.keyboard_props = std::move(refreshed_node.keyboard_props);
+            }
+            auto preload_result = ensure_node_image_resources_preloaded(tree, record.node);
+            if (!preload_result) {
+                BROOKESIA_LOGW("Failed to refresh image resource '%1%': %2%", image_id, preload_result.error());
+                continue;
+            }
+            if (backend == nullptr) {
+                continue;
+            }
+            if (record.node.type == NodeType::Image) {
+                auto apply_node = record.node;
+                if (apply_node.resolved_image.primary_src.empty() && apply_node.resolved_image.native_src == 0) {
+                    apply_node.image_props.src.clear();
+                }
+                backend->apply_props(record.handle, apply_node, PropsApplyMask::ImageSource);
+                backend->apply_placement(record.handle, record.node.placement, PlacementApplyMask::Size);
+            } else if (record.node.type == NodeType::Keyboard) {
+                backend->apply_props(record.handle, record.node, PropsApplyMask::KeyboardConfig);
+            }
+        }
     }
 
     std::expected<void, std::string> register_image(const RuntimeImageResource &resource)
@@ -3075,53 +3645,40 @@ public:
             }
         }
         std::vector<TreeRecord *> preloaded_trees;
-        for (auto *tree : affected_trees) {
-            const bool already_preloaded = has_preloaded_image_resource(*tree, resolved_resource);
-            auto preload_result = preload_image_resource_for_tree(*tree, resolved_resource);
-            if (!preload_result) {
-                for (auto *preloaded_tree : preloaded_trees) {
-                    release_image_resource_from_tree(*preloaded_tree, resolved_resource);
+        const bool new_requires_auto_preload = should_preload_image_resource_automatically(resolved_resource);
+        if (new_requires_auto_preload) {
+            for (auto *tree : affected_trees) {
+                if (has_automatic_preloaded_image_resource(*tree, resolved_resource)) {
+                    continue;
                 }
-                return std::unexpected(preload_result.error());
-            }
-            if (!already_preloaded) {
+                auto preload_result =
+                    preload_image_resource_for_tree(*tree, resolved_resource, ImagePreloadOwner::Automatic);
+                if (!preload_result) {
+                    for (auto *preloaded_tree : preloaded_trees) {
+                        release_image_resource_from_tree(
+                            *preloaded_tree, resolved_resource, ImagePreloadOwner::Automatic);
+                    }
+                    return std::unexpected(preload_result.error());
+                }
                 preloaded_trees.push_back(tree);
             }
         }
-        if (old_resource.has_value() &&
-                (old_resource->primary_src != resolved_resource.primary_src ||
-                 old_resource->native_src != resolved_resource.native_src)) {
+        const bool replaced_resource = old_resource.has_value() &&
+                                       !is_same_image_resource(*old_resource, resolved_resource);
+        const bool old_requires_auto_preload =
+            old_resource.has_value() && should_preload_image_resource_automatically(*old_resource);
+        if (replaced_resource) {
             for (auto *tree : affected_trees) {
                 release_image_resource_from_tree(*tree, *old_resource);
+            }
+        } else if (old_requires_auto_preload && !new_requires_auto_preload) {
+            for (auto *tree : affected_trees) {
+                release_image_resource_from_tree(*tree, *old_resource, ImagePreloadOwner::Automatic);
             }
         }
         global_images.insert_or_assign(resolved_resource.id, resolved_resource);
         for (auto *tree : affected_trees) {
-            for (auto &[unused_uid, record] : tree->nodes) {
-                (void)unused_uid;
-                if (!node_references_image(record.node, resolved_resource.id)) {
-                    continue;
-                }
-                auto refreshed_node = record.node;
-                resolve_image_source(*tree, refreshed_node);
-                if (record.node.type == NodeType::Image) {
-                    record.node.resolved_image = refreshed_node.resolved_image;
-                } else if (record.node.type == NodeType::Keyboard) {
-                    record.node.keyboard_props = std::move(refreshed_node.keyboard_props);
-                }
-                if (backend != nullptr) {
-                    if (record.node.type == NodeType::Image) {
-                        auto apply_node = record.node;
-                        if (apply_node.resolved_image.primary_src.empty() && apply_node.resolved_image.native_src == 0) {
-                            apply_node.image_props.src.clear();
-                        }
-                        backend->apply_props(record.handle, apply_node, PropsApplyMask::ImageSource);
-                        backend->apply_placement(record.handle, record.node.placement, PlacementApplyMask::Size);
-                    } else if (record.node.type == NodeType::Keyboard) {
-                        backend->apply_props(record.handle, record.node, PropsApplyMask::KeyboardConfig);
-                    }
-                }
-            }
+            refresh_image_references(*tree, resolved_resource.id);
         }
         return {};
     }
@@ -3138,31 +3695,7 @@ public:
         for (auto &[unused_document_id, tree] : trees) {
             (void)unused_document_id;
             release_image_resource_from_tree(tree, old_resource);
-            for (auto &[unused_uid, record] : tree.nodes) {
-                (void)unused_uid;
-                if (!node_references_image(record.node, image_id)) {
-                    continue;
-                }
-                auto refreshed_node = record.node;
-                resolve_image_source(tree, refreshed_node);
-                if (record.node.type == NodeType::Image) {
-                    record.node.resolved_image = refreshed_node.resolved_image;
-                } else if (record.node.type == NodeType::Keyboard) {
-                    record.node.keyboard_props = std::move(refreshed_node.keyboard_props);
-                }
-                if (backend != nullptr) {
-                    if (record.node.type == NodeType::Image) {
-                        auto apply_node = record.node;
-                        if (apply_node.resolved_image.primary_src.empty() && apply_node.resolved_image.native_src == 0) {
-                            apply_node.image_props.src.clear();
-                        }
-                        backend->apply_props(record.handle, apply_node, PropsApplyMask::ImageSource);
-                        backend->apply_placement(record.handle, record.node.placement, PlacementApplyMask::Size);
-                    } else if (record.node.type == NodeType::Keyboard) {
-                        backend->apply_props(record.handle, record.node, PropsApplyMask::KeyboardConfig);
-                    }
-                }
-            }
+            refresh_image_references(tree, image_id);
         }
         return true;
     }
@@ -3298,6 +3831,7 @@ public:
                 .native_src = 0,
                 .width = image.width,
                 .height = image.height,
+                .preload = image.preload,
             });
             if (result) {
                 continue;
@@ -3340,6 +3874,7 @@ public:
                 .native_src = 0,
                 .width = image.width,
                 .height = image.height,
+                .preload = image.preload,
             });
             if (result) {
                 continue;
@@ -3418,6 +3953,7 @@ public:
                 .native_src = 0,
                 .width = image.width,
                 .height = image.height,
+                .preload = image.preload,
             });
         }
 
@@ -3528,6 +4064,15 @@ public:
         return true;
     }
 
+    bool scroll_view_to(const View &view, int32_t x, int32_t y, bool animated)
+    {
+        auto *record = resolve_view_record(view);
+        if (record == nullptr || backend == nullptr) {
+            return false;
+        }
+        return backend->scroll_node_to(record->handle, x, y, animated);
+    }
+
     bool scroll_view_to_visible(const View &view, bool animated)
     {
         auto *record = resolve_view_record(view);
@@ -3593,13 +4138,15 @@ public:
         if (record == nullptr || tree == nullptr || record->node.type != NodeType::Image) {
             return false;
         }
-        const auto previous_image_width = record->node.resolved_image.width;
-        const auto previous_image_height = record->node.resolved_image.height;
         const auto previous_src = record->node.image_props.src;
         const auto previous_resolved_image = record->node.resolved_image;
-        record->node.image_props.src = std::string(src);
-        record->node.resolved_image = {};
-        resolve_image_source(*tree, record->node);
+        const auto previous_image_width = record->node.resolved_image.width;
+        const auto previous_image_height = record->node.resolved_image.height;
+        auto update_result = update_image_source(*tree, *record, src);
+        if (!update_result) {
+            BROOKESIA_LOGW("Reject image source: %1%", update_result.error());
+            return false;
+        }
         const auto resolved_src = record->node.resolved_image.primary_src.empty() ?
                                   record->node.image_props.src :
                                   record->node.resolved_image.primary_src;
@@ -3610,16 +4157,16 @@ public:
             .width = record->node.resolved_image.width,
             .height = record->node.resolved_image.height,
         };
-        if (backend != nullptr && backend->requires_preloaded_image_resource(resource)) {
-            if (!has_preloaded_image_resource(*tree, resource)) {
-                BROOKESIA_LOGW(
-                    "Reject image source because backend requires preloaded image resource: path='%1%'",
-                    resolved_src
-                );
-                record->node.image_props.src = previous_src;
-                record->node.resolved_image = previous_resolved_image;
-                return false;
-            }
+        auto preload_result = ensure_image_resource_preloaded_for_tree(*tree, resource);
+        if (!preload_result) {
+            BROOKESIA_LOGW(
+                "Reject image source because preload failed: path='%1%', error=%2%",
+                resolved_src,
+                preload_result.error()
+            );
+            record->node.image_props.src = previous_src;
+            record->node.resolved_image = previous_resolved_image;
+            return false;
         }
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         auto hp_src_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
@@ -4066,8 +4613,75 @@ public:
         return ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot().external_free;
     }
 #endif
+    SubtreeBuildProfile subtree_build_profile_;
 
 private:
+    static RuntimeProfileClock::time_point subtree_profile_now()
+    {
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        return RuntimeProfileClock::now();
+#else
+        return {};
+#endif
+    }
+
+    static void add_subtree_profile_time(
+        int64_t &bucket_us,
+        const RuntimeProfileClock::time_point &start)
+    {
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        bucket_us += runtime_profile_elapsed_us(start, RuntimeProfileClock::now());
+#else
+        (void)bucket_us;
+        (void)start;
+#endif
+    }
+
+    void reset_subtree_build_profile()
+    {
+        subtree_build_profile_ = {};
+    }
+
+    void log_subtree_build_profile(
+        std::string_view stage,
+        DocumentId document_id,
+        std::string_view root_id,
+        int64_t total_ms) const
+    {
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime subtree build profile: doc(%1%), stage(%2%), root(%3%), nodes(%4%), total_ms(%5%), "
+            "copy_definition_ms(%6%), initial_bindings_ms(%7%), image_resolve_ms(%8%), create_node_ms(%9%), "
+            "resolve_style_ms(%10%), store_record_ms(%11%)",
+            document_id.value(),
+            stage,
+            root_id,
+            subtree_build_profile_.nodes,
+            total_ms,
+            runtime_profile_us_to_ms(subtree_build_profile_.copy_definition_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.initial_bindings_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.image_resolve_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.create_node_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.resolve_style_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.store_record_us)
+        );
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime subtree build profile: doc(%1%), stage(%2%), root(%3%), apply_props_ms(%4%), "
+            "apply_layout_ms(%5%), apply_placement_ms(%6%), apply_transform_ms(%7%), apply_style_ms(%8%), "
+            "apply_animations_ms(%9%), events_ms(%10%), subscribe_bindings_ms(%11%)",
+            document_id.value(),
+            stage,
+            root_id,
+            runtime_profile_us_to_ms(subtree_build_profile_.apply_props_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.apply_layout_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.apply_placement_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.apply_transform_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.apply_style_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.apply_animations_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.events_us),
+            runtime_profile_us_to_ms(subtree_build_profile_.subscribe_bindings_us)
+        );
+    }
+
     std::expected<uint64_t, std::string> create_subtree(
         DocumentId document_id,
         TreeRecord &tree,
@@ -4083,22 +4697,37 @@ private:
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         ++dbg_create_subtree_count_;
 #endif
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        ++subtree_build_profile_.nodes;
+#endif
+        auto step_start = subtree_profile_now();
         // root_id may originate from a NodeRecord string; keep it stable while descendants are inserted.
         const std::string stable_root_id = root_id;
         Node node = definition;
         if (override_root_id.has_value()) {
             node.id = *override_root_id;
         }
+        add_subtree_profile_time(subtree_build_profile_.copy_definition_us, step_start);
 
         const auto absolute_node_path = absolute_node_path_to_string(stable_root_id, current_path);
+        step_start = subtree_profile_now();
         apply_initial_bindings(tree, node, absolute_node_path);
+        add_subtree_profile_time(subtree_build_profile_.initial_bindings_us, step_start);
+        step_start = subtree_profile_now();
         resolve_image_source(tree, node);
+        auto image_preload_result = ensure_node_image_resources_preloaded(tree, node);
+        add_subtree_profile_time(subtree_build_profile_.image_resolve_us, step_start);
+        if (!image_preload_result) {
+            return std::unexpected(image_preload_result.error());
+        }
 
         const auto parent_absolute_path = parent_absolute_path_to_string(stable_root_id, current_path);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s0 = dbg_ext_free();
 #endif
+        step_start = subtree_profile_now();
         BackendHandle handle = backend->create_node(node, parent_handle, parent_absolute_path, scope_root_absolute_path);
+        add_subtree_profile_time(subtree_build_profile_.create_node_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s1 = dbg_ext_free();
         dbg_step_create_node_ += static_cast<int64_t>(dbg_s0) - static_cast<int64_t>(dbg_s1);
@@ -4122,7 +4751,9 @@ private:
         // resolve_style_shared() only READS the node definition; compute it BEFORE we move `node` below
         // so the move can consume `node` instead of forcing a copy. It also de-duplicates the resolved
         // style across identically-styled nodes (e.g. repeated template list items).
+        step_start = subtree_profile_now();
         record.resolved_style = resolve_style_shared(tree, node);
+        add_subtree_profile_time(subtree_build_profile_.resolve_style_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s2b = dbg_ext_free();
         dbg_step_resolve_style_ += static_cast<int64_t>(dbg_s2) - static_cast<int64_t>(dbg_s2b);
@@ -4152,6 +4783,7 @@ private:
         // scan results) on PSRAM-constrained targets. To walk children, iterate `record.children`
         // (uids) and look them up in `tree.nodes`; do NOT reintroduce `record.node.children`.
         // ---------------------------------------------------------------------------------------
+        step_start = subtree_profile_now();
         record.node = std::move(node);
         record.node.children.clear();
         record.node.children.shrink_to_fit();
@@ -4172,46 +4804,63 @@ private:
         if (stored_record == nullptr) {
             return std::unexpected("Failed to store GUI node record");
         }
+        add_subtree_profile_time(subtree_build_profile_.store_record_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s3 = dbg_ext_free();
         dbg_step_store_ += static_cast<int64_t>(dbg_s2a) - static_cast<int64_t>(dbg_s3);
         dbg_step_noderecord_ += static_cast<int64_t>(dbg_s2) - static_cast<int64_t>(dbg_s3);
 #endif
 
+        step_start = subtree_profile_now();
         backend->apply_props(handle, stored_record->node);
+        add_subtree_profile_time(subtree_build_profile_.apply_props_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s4 = dbg_ext_free();
         dbg_step_apply_props_ += static_cast<int64_t>(dbg_s3) - static_cast<int64_t>(dbg_s4);
 #endif
+        step_start = subtree_profile_now();
         backend->apply_layout(handle, stored_record->node.layout);
+        add_subtree_profile_time(subtree_build_profile_.apply_layout_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s5 = dbg_ext_free();
         dbg_step_apply_layout_ += static_cast<int64_t>(dbg_s4) - static_cast<int64_t>(dbg_s5);
 #endif
+        step_start = subtree_profile_now();
         backend->apply_placement(handle, stored_record->node.placement);
+        add_subtree_profile_time(subtree_build_profile_.apply_placement_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s6 = dbg_ext_free();
         dbg_step_apply_placement_ += static_cast<int64_t>(dbg_s5) - static_cast<int64_t>(dbg_s6);
 #endif
+        step_start = subtree_profile_now();
         backend->apply_props(handle, stored_record->node, PropsApplyMask::CommonTransform);
+        add_subtree_profile_time(subtree_build_profile_.apply_transform_us, step_start);
+        step_start = subtree_profile_now();
         backend->apply_style(handle, *stored_record->resolved_style);
+        add_subtree_profile_time(subtree_build_profile_.apply_style_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s7 = dbg_ext_free();
         dbg_step_apply_style_ += static_cast<int64_t>(dbg_s6) - static_cast<int64_t>(dbg_s7);
 #endif
+        step_start = subtree_profile_now();
         backend->apply_debug_visual(handle, view_debug_enabled_);
         backend->apply_animations(handle, stored_record->node.animations);
+        add_subtree_profile_time(subtree_build_profile_.apply_animations_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s8 = dbg_ext_free();
         dbg_step_apply_anim_ += static_cast<int64_t>(dbg_s7) - static_cast<int64_t>(dbg_s8);
 #endif
+        step_start = subtree_profile_now();
         register_fast_action_routes(*stored_record);
         backend->bind_events(handle, stored_record->node.events);
+        add_subtree_profile_time(subtree_build_profile_.events_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s9 = dbg_ext_free();
         dbg_step_events_ += static_cast<int64_t>(dbg_s8) - static_cast<int64_t>(dbg_s9);
 #endif
+        step_start = subtree_profile_now();
         subscribe_bindings(document_id, *stored_record);
+        add_subtree_profile_time(subtree_build_profile_.subscribe_bindings_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         const size_t dbg_s10 = dbg_ext_free();
         dbg_step_subscribe_ += static_cast<int64_t>(dbg_s9) - static_cast<int64_t>(dbg_s10);
@@ -4492,7 +5141,7 @@ private:
     }
 
     std::expected<void, std::string> apply_binding_value(
-        const TreeRecord &tree,
+        TreeRecord &tree,
         NodeRecord &record,
         const BindingTargetInfo &target_info,
         std::string_view value)
@@ -4588,6 +5237,9 @@ private:
         case BindingTarget::ImagePropsSrc:
             if (!value.empty() && !has_image_resource(tree, std::string(value))) {
                 return std::unexpected("unknown image resource id: " + std::string(value));
+            }
+            if (record.handle.is_valid()) {
+                return update_image_source(tree, record, value);
             }
             record.node.image_props.src = std::string(value);
             break;
@@ -5199,6 +5851,11 @@ private:
             if (record.node.type == NodeType::Image && has_mask(target_info.props_mask, PropsApplyMask::ImageSource)) {
                 record.node.resolved_image = {};
                 resolve_image_source(tree, record.node);
+                auto preload_result = ensure_node_image_resources_preloaded(tree, record.node);
+                if (!preload_result) {
+                    BROOKESIA_LOGW("Failed to preload image during binding update: %1%", preload_result.error());
+                    return;
+                }
             }
             backend->apply_props(record.handle, record.node, target_info.props_mask);
             if (record.node.type == NodeType::Image && has_mask(target_info.props_mask, PropsApplyMask::ImageSource)) {
@@ -5231,6 +5888,11 @@ private:
             if (record.node.type == NodeType::Image && has_mask(masks.props, PropsApplyMask::ImageSource)) {
                 record.node.resolved_image = {};
                 resolve_image_source(tree, record.node);
+                auto preload_result = ensure_node_image_resources_preloaded(tree, record.node);
+                if (!preload_result) {
+                    BROOKESIA_LOGW("Failed to preload image during binding update: %1%", preload_result.error());
+                    return;
+                }
             }
             backend->apply_props(record.handle, record.node, masks.props);
             if (record.node.type == NodeType::Image && has_mask(masks.props, PropsApplyMask::ImageSource)) {
@@ -5436,7 +6098,7 @@ private:
 #endif
     }
 
-    void apply_initial_bindings(const TreeRecord &tree, Node &node, std::string_view absolute_path)
+    void apply_initial_bindings(TreeRecord &tree, Node &node, std::string_view absolute_path)
     {
         if (store == nullptr) {
             return;
@@ -5459,6 +6121,16 @@ private:
 
             auto value = store->get_string(tree.document_id, absolute_path, *store_key);
             if (!value.has_value()) {
+                continue;
+            }
+            if (binding_target->target == BindingTarget::ImagePropsSrc && !value->empty() &&
+                    !has_image_resource(tree, *value)) {
+                BROOKESIA_LOGD(
+                    "Skip unavailable initial image binding: node='%1%', path='%2%', value='%3%'",
+                    absolute_path,
+                    path,
+                    *value
+                );
                 continue;
             }
 
@@ -6598,18 +7270,67 @@ std::expected<DocumentId, std::string> Runtime::load_json(
 
 std::expected<DocumentId, std::string> Runtime::load_file(std::string_view path, const Environment &environment)
 {
+    const std::string path_string(path);
+    const auto total_start = RuntimeProfileClock::now();
+    auto stage_start = total_start;
     const auto parse_environment = impl_->make_parse_environment(environment);
     auto parsed_document = parse_document_file_with_metadata(path, parse_environment);
+    auto stage_end = RuntimeProfileClock::now();
     if (!parsed_document) {
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime load file profile: file(%1%), stage(parse_document_failed), elapsed_ms(%2%), "
+            "total_ms(%3%)",
+            path_string,
+            runtime_profile_elapsed_ms(stage_start, stage_end),
+            runtime_profile_elapsed_ms(total_start, stage_end)
+        );
         return std::unexpected(parsed_document.error());
     }
-    return impl_->load(
-               path,
-               std::move(parsed_document->document),
-               environment,
-               true,
-               std::move(parsed_document->dependency_files)
-           );
+
+    const auto dependency_count = parsed_document->dependency_files.size();
+    const auto image_count = parsed_document->document.images.size();
+    const auto screen_count = parsed_document->document.screens.size();
+    const auto template_count = parsed_document->document.templates.size();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI runtime load file profile: file(%1%), stage(parse_document), dependencies(%2%), images(%3%), "
+        "screens(%4%), templates(%5%), elapsed_ms(%6%), total_ms(%7%)",
+        path_string,
+        dependency_count,
+        image_count,
+        screen_count,
+        template_count,
+        runtime_profile_elapsed_ms(stage_start, stage_end),
+        runtime_profile_elapsed_ms(total_start, stage_end)
+    );
+
+    stage_start = RuntimeProfileClock::now();
+    auto result = impl_->load(
+                      path,
+                      std::move(parsed_document->document),
+                      environment,
+                      true,
+                      std::move(parsed_document->dependency_files)
+                  );
+    stage_end = RuntimeProfileClock::now();
+    if (!result) {
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime load file profile: file(%1%), stage(load_document_failed), elapsed_ms(%2%), "
+            "total_ms(%3%)",
+            path_string,
+            runtime_profile_elapsed_ms(stage_start, stage_end),
+            runtime_profile_elapsed_ms(total_start, stage_end)
+        );
+        return result;
+    }
+
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI runtime load file profile: file(%1%), doc(%2%), stage(load_document), elapsed_ms(%3%), total_ms(%4%)",
+        path_string,
+        result->value(),
+        runtime_profile_elapsed_ms(stage_start, stage_end),
+        runtime_profile_elapsed_ms(total_start, stage_end)
+    );
+    return result;
 }
 
 std::expected<void, std::string> Runtime::load_theme(const ThemeAsset &theme)
@@ -6727,6 +7448,28 @@ std::expected<void, std::string> Runtime::register_image_json(std::string_view j
 std::expected<void, std::string> Runtime::register_image_file(std::string_view path)
 {
     return impl_->register_image_file(path);
+}
+
+std::expected<void, std::string> Runtime::preload_image(DocumentId id, std::string_view image_id)
+{
+    return preload_images(id, {std::string(image_id)});
+}
+
+std::expected<void, std::string> Runtime::preload_images(DocumentId id, const std::vector<std::string> &image_ids)
+{
+    return impl_->preload_images(id, image_ids);
+}
+
+std::expected<void, std::string> Runtime::release_preloaded_image(DocumentId id, std::string_view image_id)
+{
+    return release_preloaded_images(id, {std::string(image_id)});
+}
+
+std::expected<void, std::string> Runtime::release_preloaded_images(
+    DocumentId id,
+    const std::vector<std::string> &image_ids)
+{
+    return impl_->release_preloaded_images(id, image_ids);
 }
 
 void Runtime::process_backend()
@@ -7095,6 +7838,16 @@ std::optional<ViewStateValue> Runtime::get_view_state(DocumentId id, std::string
 bool Runtime::scroll_view_to_visible(DocumentId id, std::string_view absolute_path, bool animated) const
 {
     return scroll_view_to_visible(find_view(id, absolute_path), animated);
+}
+
+bool Runtime::scroll_view_to(DocumentId id, std::string_view absolute_path, int32_t x, int32_t y, bool animated) const
+{
+    return scroll_view_to(find_view(id, absolute_path), x, y, animated);
+}
+
+bool Runtime::scroll_view_to(const View &view, int32_t x, int32_t y, bool animated) const
+{
+    return impl_->scroll_view_to(view, x, y, animated);
 }
 
 bool Runtime::scroll_view_to_visible(const View &view, bool animated) const

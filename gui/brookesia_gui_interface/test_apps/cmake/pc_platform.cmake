@@ -10,6 +10,18 @@ if(NOT TARGET brookesia::lib_utils)
         ${CMAKE_BINARY_DIR}/brookesia_lib_utils
     )
 endif()
+if(NOT TARGET brookesia::service_manager)
+    add_subdirectory(
+        ${TEST_APP_DIR}/../../../service/framework/brookesia_service_manager
+        ${CMAKE_BINARY_DIR}/brookesia_service_manager
+    )
+endif()
+if(NOT TARGET brookesia::service_helper)
+    add_subdirectory(
+        ${TEST_APP_DIR}/../../../service/framework/brookesia_service_helper
+        ${CMAKE_BINARY_DIR}/brookesia_service_helper
+    )
+endif()
 add_subdirectory(${TEST_APP_DIR}/.. ${CMAKE_BINARY_DIR}/brookesia_gui_interface)
 
 file(GLOB TEST_APP_SRCS_CPP ${TEST_APP_MAIN_DIR}/*.cpp)

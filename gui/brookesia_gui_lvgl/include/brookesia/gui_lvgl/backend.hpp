@@ -109,6 +109,7 @@ public:
     void release_image_resource(const RuntimeImageResource &resource) override;
     void process_timers() override;
     std::optional<ViewFrame> get_node_frame(BackendHandle handle) const override;
+    bool scroll_node_to(BackendHandle handle, int32_t x, int32_t y, bool animated) override;
     bool scroll_node_to_visible(BackendHandle handle, bool animated) override;
 
     bool mount_font_assets(const EspFontMountConfig &config);

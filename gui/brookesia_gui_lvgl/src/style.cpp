@@ -13,19 +13,12 @@
 #include <algorithm>
 #include <array>
 #include <cstdlib>
-#include <fstream>
-#include <cstdio>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <string_view>
 #include <unordered_set>
 #include <utility>
-
-#if BROOKESIA_GUI_LVGL_HAS_ESP_FONT_BACKEND
-#   include <cerrno>
-#   include <cstring>
-#   include <sys/stat.h>
-#endif
 
 #if LV_USE_FREETYPE
 #   if __has_include("lvgl/font/lv_freetype.h")
@@ -38,6 +31,15 @@
 #       include "lvgl/src/libs/freetype/lv_freetype.h"
 #   else
 #       error "LVGL FreeType header not found"
+#   endif
+#   if defined(LV_USE_FS_MEMFS) && LV_USE_FS_MEMFS && defined(LV_FREETYPE_USE_LVGL_PORT) && LV_FREETYPE_USE_LVGL_PORT
+#       define BROOKESIA_GUI_LVGL_USE_FREETYPE_MEMFS_PORT (1)
+#   else
+#       define BROOKESIA_GUI_LVGL_USE_FREETYPE_MEMFS_PORT (0)
+#   endif
+#   if defined(ESP_PLATFORM) && (!defined(CONFIG_SPIRAM_XIP_FROM_PSRAM) || !CONFIG_SPIRAM_XIP_FROM_PSRAM) && \
+        !BROOKESIA_GUI_LVGL_USE_FREETYPE_MEMFS_PORT
+#       error "Enable LV_USE_FS_MEMFS and LV_FREETYPE_USE_LVGL_PORT when CONFIG_SPIRAM_XIP_FROM_PSRAM is disabled"
 #   endif
 #endif
 
@@ -61,9 +63,13 @@
 #   define BROOKESIA_GUI_LVGL_HAS_IMGFONT (0)
 #endif
 
+#include "brookesia/service_helper/system/storage.hpp"
+
 namespace esp_brookesia::gui::lvgl {
 
 namespace {
+
+using StorageHelper = service::helper::Storage;
 
 constexpr lv_opa_t DEBUG_OUTLINE_OPACITY = LV_OPA_COVER;
 constexpr int32_t DEBUG_OUTLINE_WIDTH = 2;
@@ -84,9 +90,62 @@ lv_color_t get_debug_outline_color(uint32_t depth)
 #if LV_USE_FREETYPE && !BROOKESIA_GUI_LVGL_HAS_ESP_FONT_BACKEND
 bool file_exists(std::string_view path)
 {
-    std::ifstream file {std::string(path)};
+    auto info = StorageHelper::fs_stat(std::string(path));
+    return info && info->type == StorageHelper::FileType::File;
+}
+#endif
 
-    return file.good();
+#if LV_USE_FREETYPE && BROOKESIA_GUI_LVGL_USE_FREETYPE_MEMFS_PORT
+std::expected<std::shared_ptr<FontCacheEntry::FontSource>, std::string> load_font_source_from_storage(
+    BackendImpl &impl, std::string_view font_path)
+{
+    const std::string font_path_string(font_path);
+    auto cached_it = impl.font_source_cache.find(font_path_string);
+    if (cached_it != impl.font_source_cache.end()) {
+        if (auto cached_source = cached_it->second.lock(); cached_source != nullptr) {
+            return cached_source;
+        }
+        impl.font_source_cache.erase(cached_it);
+    }
+
+    auto info = StorageHelper::fs_stat(font_path_string);
+    if (!info) {
+        return std::unexpected("Failed to stat font file: " + font_path_string + ", error: " + info.error());
+    }
+    if (info->type != StorageHelper::FileType::File) {
+        return std::unexpected("Font path is not a file: " + font_path_string);
+    }
+    if (info->size == 0) {
+        return std::unexpected("Font file is empty: " + font_path_string);
+    }
+    if (info->size > static_cast<uint64_t>(std::numeric_limits<size_t>::max()) ||
+            info->size > static_cast<uint64_t>(std::numeric_limits<uint32_t>::max())) {
+        return std::unexpected("Font file is too large: " + font_path_string);
+    }
+
+    auto source = std::make_shared<FontCacheEntry::FontSource>();
+    source->data.resize(static_cast<size_t>(info->size));
+    auto read_result = StorageHelper::fs_read(
+                           font_path_string,
+                           service::RawBuffer(source->data.data(), source->data.size())
+                       );
+    if (!read_result) {
+        return std::unexpected("Failed to read font file: " + font_path_string + ", error: " + read_result.error());
+    }
+    if (read_result.value() != source->data.size()) {
+        return std::unexpected("Font file read size mismatch: " + font_path_string);
+    }
+
+    lv_fs_make_path_from_buffer(
+        &source->memfs_path,
+        static_cast<char>(LV_FS_MEMFS_LETTER),
+        source->data.data(),
+        static_cast<uint32_t>(source->data.size()),
+        nullptr
+    );
+    // Different FreeType sizes for the same path can share the immutable font bytes.
+    impl.font_source_cache[font_path_string] = source;
+    return source;
 }
 #endif
 
@@ -376,8 +435,12 @@ std::string make_font_cache_key(const ResolvedFontSpec &font_spec, int32_t font_
 }
 
 #if LV_USE_FREETYPE
-FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32_t font_size)
+FontCacheEntry *create_font_cache_entry(BackendImpl &impl, const ResolvedFontSpec &font_spec, int32_t font_size)
 {
+#if !BROOKESIA_GUI_LVGL_USE_FREETYPE_MEMFS_PORT
+    (void)impl;
+#endif
+
     if (font_spec.primary_src.empty()) {
         return nullptr;
     }
@@ -386,39 +449,81 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
     entry.cache_key = make_font_cache_key(font_spec, font_size);
 
     using FontType = lv_font_t *;
-    auto create_font = [&](std::string_view font_path) -> std::pair<FontType, void *> {
+    struct CreatedFont {
+        FontType font = nullptr;
+        void *handle = nullptr;
+        std::shared_ptr<FontCacheEntry::FontSource> source;
+    };
+    auto create_font = [&](std::string_view font_path) -> CreatedFont {
+#if BROOKESIA_GUI_LVGL_USE_FREETYPE_MEMFS_PORT
+        auto font_source = load_font_source_from_storage(impl, font_path);
+        if (!font_source)
+        {
+            log_font_warning_once(
+                "Failed to load FreeType font source from storage: path='" + std::string(font_path) +
+                "', error=" + font_source.error()
+            );
+            return {};
+        }
+
+        lv_font_info_t font_info;
+        lv_freetype_init_font_info(&font_info);
+        // LVGL FreeType copies memfs sources as lv_fs_path_ex_t, so keep the full object alive in FontCacheEntry.
+        font_info.name = reinterpret_cast<const char *>(&(*font_source)->memfs_path);
+        font_info.size = static_cast<uint32_t>(font_size);
+        font_info.render_mode = LV_FREETYPE_FONT_RENDER_MODE_BITMAP;
+        font_info.style = LV_FREETYPE_FONT_STYLE_NORMAL;
+
+        auto *font = lv_freetype_font_create_with_info(&font_info);
+        if (font == nullptr)
+        {
+            log_font_warning_once(
+                "Failed to create memory FreeType font from '" + std::string(font_path) +
+                "', fallback to built-in Montserrat"
+            );
+            return {};
+        }
+
+        log_font_info_once(
+            "Created memory FreeType font: path='" + std::string(font_path) +
+            "', size=" + std::to_string(font_size)
+        );
+        return {
+            .font = font,
+            .handle = nullptr,
+            .source = *font_source,
+        };
+#else
 #if BROOKESIA_GUI_LVGL_HAS_ESP_FONT_BACKEND
         esp_lv_adapter_ft_font_handle_t font_handle = nullptr;
         const std::string font_path_string(font_path);
-        struct stat file_stat = {};
-        const int stat_result = ::stat(font_path_string.c_str(), &file_stat);
-        if (stat_result == 0)
+        auto file_info = StorageHelper::fs_stat(font_path_string);
+        if (file_info && file_info->type == StorageHelper::FileType::File)
         {
             log_font_info_once(
                 "ESP font file stat ok: path='" + font_path_string +
-                "', size=" + std::to_string(static_cast<long long>(file_stat.st_size))
+                "', size=" + std::to_string(static_cast<unsigned long long>(file_info->size))
             );
         } else
         {
             log_font_warning_once(
                 "ESP font file stat failed: path='" + font_path_string +
-                "', errno=" + std::to_string(errno) +
-                ", reason='" + std::strerror(errno) + "'"
+                "', reason='" + (file_info ? std::string("not a file") : file_info.error()) + "'"
             );
         }
 
-        std::FILE *font_file = std::fopen(font_path_string.c_str(), "rb");
-        if (font_file != nullptr)
+        if (file_info && file_info->size > 0)
         {
-            log_font_info_once("ESP font file fopen ok: path='" + font_path_string + "'");
-            std::fclose(font_file);
-        } else
-        {
-            log_font_warning_once(
-                "ESP font file fopen failed: path='" + font_path_string +
-                "', errno=" + std::to_string(errno) +
-                ", reason='" + std::strerror(errno) + "'"
-            );
+            uint8_t probe_byte = 0;
+            auto read_result = StorageHelper::fs_read(font_path_string, service::RawBuffer(&probe_byte, 1));
+            if (read_result && read_result.value() == 1) {
+                log_font_info_once("ESP font file read probe ok: path='" + font_path_string + "'");
+            } else {
+                log_font_warning_once(
+                    "ESP font file read probe failed: path='" + font_path_string +
+                    "', reason='" + (read_result ? std::string("short read") : read_result.error()) + "'"
+                );
+            }
         }
 
         const esp_lv_adapter_ft_font_config_t font_config = ESP_LV_ADAPTER_FT_FONT_FILE_CONFIG(
@@ -432,7 +537,7 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
                 "Failed to create ESP FreeType font from '" + std::string(font_path) +
                 "', fallback to built-in Montserrat"
             );
-            return {nullptr, nullptr};
+            return {};
         }
 
         auto *font = const_cast<lv_font_t *>(esp_lv_adapter_ft_font_get(font_handle));
@@ -443,20 +548,24 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
                 "Failed to get ESP LVGL font from '" + std::string(font_path) +
                 "', fallback to built-in Montserrat"
             );
-            return {nullptr, nullptr};
+            return {};
         }
 
         log_font_info_once(
             "Created ESP FreeType font: path='" + font_path_string + "', size=" + std::to_string(font_size)
         );
-        return {font, font_handle};
+        return {
+            .font = font,
+            .handle = font_handle,
+            .source = nullptr,
+        };
 #else
         if (!file_exists(font_path))
         {
             log_font_warning_once(
                 "Font file not found: '" + std::string(font_path) + "', fallback to built-in Montserrat"
             );
-            return {nullptr, nullptr};
+            return {};
         }
 
         auto *font = lv_freetype_font_create(
@@ -477,7 +586,12 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
                 "Created PC FreeType font: path='" + std::string(font_path) + "', size=" + std::to_string(font_size)
             );
         }
-        return {font, nullptr};
+        return {
+            .font = font,
+            .handle = nullptr,
+            .source = nullptr,
+        };
+#endif
 #endif
     };
 
@@ -486,19 +600,21 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
         std::string src;
         FontType font = nullptr;
         void *handle = nullptr;
+        std::shared_ptr<FontCacheEntry::FontSource> source;
         bool is_primary = false;
     };
 
     std::vector<CandidateFont> resolved_fonts;
     resolved_fonts.reserve(1 + font_spec.fallback_srcs.size());
 
-    auto [primary_font, primary_handle] = create_font(font_spec.primary_src);
-    if (primary_font != nullptr) {
+    auto primary = create_font(font_spec.primary_src);
+    if (primary.font != nullptr) {
         resolved_fonts.push_back({
             .source_font_id = font_spec.font_id,
             .src = font_spec.primary_src,
-            .font = primary_font,
-            .handle = primary_handle,
+            .font = primary.font,
+            .handle = primary.handle,
+            .source = primary.source,
             .is_primary = true,
         });
         log_font_info_once(
@@ -508,15 +624,16 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
     }
 
     for (const auto &fallback_src : font_spec.fallback_srcs) {
-        auto [fallback_font, fallback_handle] = create_font(fallback_src);
-        if (fallback_font == nullptr) {
+        auto fallback = create_font(fallback_src);
+        if (fallback.font == nullptr) {
             continue;
         }
         resolved_fonts.push_back({
             .source_font_id = "<fallback>",
             .src = fallback_src,
-            .font = fallback_font,
-            .handle = fallback_handle,
+            .font = fallback.font,
+            .handle = fallback.handle,
+            .source = fallback.source,
             .is_primary = false,
         });
         log_font_info_once(
@@ -538,11 +655,13 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
 
     entry.chain.push_back(resolved_fonts.front().font);
     entry.platform_font_handles.push_back(resolved_fonts.front().handle);
+    entry.font_sources.push_back(resolved_fonts.front().source);
     entry.font_kinds.push_back(FontCacheEntry::FontKind::FreeType);
     for (size_t i = 1; i < resolved_fonts.size(); ++i) {
         entry.chain.back()->fallback = resolved_fonts[i].font;
         entry.chain.push_back(resolved_fonts[i].font);
         entry.platform_font_handles.push_back(resolved_fonts[i].handle);
+        entry.font_sources.push_back(resolved_fonts[i].source);
         entry.font_kinds.push_back(FontCacheEntry::FontKind::FreeType);
     }
 
@@ -551,7 +670,7 @@ FontCacheEntry *create_font_cache_entry(const ResolvedFontSpec &font_spec, int32
 #endif
 
 #if BROOKESIA_GUI_LVGL_HAS_IMGFONT
-const void *image_font_get_path_cb(
+const void *image_font_get_source_cb(
     const lv_font_t *font,
     uint32_t unicode,
     uint32_t unicode_next,
@@ -569,15 +688,16 @@ const void *image_font_get_path_cb(
         return nullptr;
     }
 
-    for (const auto &glyph : context->glyphs) {
-        if (glyph.codepoint == unicode) {
-            return glyph.src.c_str();
+    for (const auto &glyph_source : context->glyph_sources) {
+        if (glyph_source.codepoint == unicode && glyph_source.source != nullptr) {
+            return &glyph_source.source->descriptor;
         }
     }
     return nullptr;
 }
 
 FontCacheEntry *create_image_font_cache_entry(
+    BackendImpl &impl,
     const ResolvedFontSpec &font_spec,
     int32_t font_size,
     int32_t image_font_size)
@@ -591,11 +711,25 @@ FontCacheEntry *create_image_font_cache_entry(
     entry.cache_key = make_font_cache_key(font_spec, font_size, image_font_size);
 
     auto context = std::make_unique<FontCacheEntry::ImageFontContext>();
-    context->glyphs = selected_size->glyphs;
+    context->glyph_sources.reserve(selected_size->glyphs.size());
+    for (const auto &glyph : selected_size->glyphs) {
+        auto source = load_image_source(glyph.src);
+        if (!source) {
+            log_font_warning_once(
+                "Failed to load image font glyph source: font_id='" + font_spec.font_id +
+                "', src='" + glyph.src + "', error=" + source.error()
+            );
+            return nullptr;
+        }
+        context->glyph_sources.push_back(FontCacheEntry::ImageFontGlyphSource{
+            .codepoint = glyph.codepoint,
+            .source = *source,
+        });
+    }
 
     auto *image_font = lv_imgfont_create(
                            static_cast<uint16_t>(selected_size->height),
-                           image_font_get_path_cb,
+                           image_font_get_source_cb,
                            context.get()
                        );
     if (image_font == nullptr) {
@@ -621,7 +755,7 @@ FontCacheEntry *create_image_font_cache_entry(
         fallback_spec.primary_src = font_spec.fallback_srcs.front();
         fallback_spec.fallback_srcs.assign(font_spec.fallback_srcs.begin() + 1, font_spec.fallback_srcs.end());
 
-        std::unique_ptr<FontCacheEntry> fallback_entry(create_font_cache_entry(fallback_spec, font_size));
+        std::unique_ptr<FontCacheEntry> fallback_entry(create_font_cache_entry(impl, fallback_spec, font_size));
         if (fallback_entry != nullptr && !fallback_entry->chain.empty()) {
             image_font->fallback = fallback_entry->chain.front();
             entry.chain.insert(entry.chain.end(), fallback_entry->chain.begin(), fallback_entry->chain.end());
@@ -630,6 +764,11 @@ FontCacheEntry *create_image_font_cache_entry(
                 fallback_entry->platform_font_handles.begin(),
                 fallback_entry->platform_font_handles.end()
             );
+            entry.font_sources.insert(
+                entry.font_sources.end(),
+                fallback_entry->font_sources.begin(),
+                fallback_entry->font_sources.end()
+            );
             entry.font_kinds.insert(
                 entry.font_kinds.end(),
                 fallback_entry->font_kinds.begin(),
@@ -637,6 +776,7 @@ FontCacheEntry *create_image_font_cache_entry(
             );
             fallback_entry->chain.clear();
             fallback_entry->platform_font_handles.clear();
+            fallback_entry->font_sources.clear();
             fallback_entry->font_kinds.clear();
         }
     }
@@ -774,6 +914,8 @@ void release_font(BackendImpl &impl, Record &record)
                                 nullptr;
             if (font_handle != nullptr) {
                 esp_lv_adapter_ft_font_deinit(font_handle);
+            } else {
+                lv_freetype_font_delete(font);
             }
 #else
             lv_freetype_font_delete(font);
@@ -829,7 +971,9 @@ const lv_font_t *get_font(BackendImpl &impl, Record &record, const ResolvedStyle
             return cache_it->second.chain.front();
         }
 
-        std::unique_ptr<FontCacheEntry> entry(create_image_font_cache_entry(style.resolved_font, font_size, image_font_size));
+        std::unique_ptr<FontCacheEntry> entry(
+            create_image_font_cache_entry(impl, style.resolved_font, font_size, image_font_size)
+        );
         if (entry == nullptr || entry->chain.empty()) {
             log_font_warning_once(
                 "Failed to resolve imageFont for node '" + record.absolute_path + "', font_id='" +
@@ -878,9 +1022,18 @@ const lv_font_t *get_font(BackendImpl &impl, Record &record, const ResolvedStyle
         );
         return cache_it->second.chain.front();
     }
+    if (impl.failed_font_cache.contains(cache_key)) {
+        log_font_warning_once(
+            "Skip known unavailable FreeType font: font_id='" + style.resolved_font.font_id +
+            "', primary_src='" + style.resolved_font.primary_src + "', size=" + std::to_string(font_size) +
+            ", fallback to built-in Montserrat"
+        );
+        return get_builtin_font(font_size);
+    }
 
-    std::unique_ptr<FontCacheEntry> entry(create_font_cache_entry(style.resolved_font, font_size));
+    std::unique_ptr<FontCacheEntry> entry(create_font_cache_entry(impl, style.resolved_font, font_size));
     if (entry == nullptr || entry->chain.empty()) {
+        impl.failed_font_cache.insert(cache_key);
         log_font_warning_once(
             "Failed to resolve FreeType font for node '" + record.absolute_path + "', font_id='" +
             style.resolved_font.font_id + "', fallback to built-in Montserrat"

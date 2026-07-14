@@ -222,6 +222,7 @@ public:
     virtual void release_image_resource(const RuntimeImageResource &resource) = 0;
     virtual void process_timers() {}
     virtual std::optional<ViewFrame> get_node_frame(BackendHandle handle) const = 0;
+    virtual bool scroll_node_to(BackendHandle handle, int32_t x, int32_t y, bool animated) = 0;
     virtual bool scroll_node_to_visible(BackendHandle handle, bool animated) = 0;
 };
 
