@@ -75,7 +75,13 @@
                     "handleWidth": "56dp",
                     "handleHeight": "24dp",
                     "handleX": "${expr((${env.widthDp} - 56dp) / 2)}",
-                    "handleY": "${expr(${env.heightDp} - 24dp)}"
+                    "handleY": "${expr(${env.heightDp} - 24dp)}",
+                    "debugPanelMargin": "12dp",
+                    "debugOverlayOpacity": 210,
+                    "debugTitleFont": "10sp",
+                    "debugTextFont": "10sp",
+                    "debugMetricNameWidth": "42dp",
+                    "debugMetricChipHeight": "18dp"
                 }
             },
             "keyboard": {

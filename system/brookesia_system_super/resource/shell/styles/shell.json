@@ -151,6 +151,32 @@
             "opacity": 144,
             "radius": "3dp"
         },
+        "shell.debugPanel": {
+            "bgColor": "${color.bg.overlay}",
+            "borderColor": "${color.border.strong}",
+            "borderWidth": "1dp",
+            "radius": "6dp",
+            "padding": "6dp",
+            "opacity": "${constant.ui.overlay.metric.debugOverlayOpacity}"
+        },
+        "shell.debugTitle": {
+            "textColor": "#f8fafc",
+            "fontSize": "${constant.ui.overlay.metric.debugTitleFont}"
+        },
+        "shell.debugText": {
+            "textColor": "#f8fafc",
+            "fontSize": "${constant.ui.overlay.metric.debugTextFont}"
+        },
+        "shell.debugMetricChip": {
+            "bgColor": "#111827",
+            "radius": "4dp",
+            "paddingLeft": "3dp",
+            "paddingRight": "3dp"
+        },
+        "shell.debugMetricText": {
+            "textColor": "#f8fafc",
+            "fontSize": "${constant.ui.overlay.metric.debugTextFont}"
+        },
         "shell.keyboardBackdrop": {
             "bgColor": "${color.bg.overlay}",
             "opacity": 96

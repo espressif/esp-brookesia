@@ -110,7 +110,13 @@
                     "handleX": "-6dp",
                     "handleY": "${expr((${env.heightDp} - 44dp) / 2)}",
                     "loadingIconBox": "72dp",
-                    "loadingIcon": "48dp"
+                    "loadingIcon": "48dp",
+                    "debugPanelMargin": "8dp",
+                    "debugOverlayOpacity": 210,
+                    "debugTitleFont": "8sp",
+                    "debugTextFont": "8sp",
+                    "debugMetricNameWidth": "34dp",
+                    "debugMetricChipHeight": "15dp"
                 }
             },
             "keyboard": {

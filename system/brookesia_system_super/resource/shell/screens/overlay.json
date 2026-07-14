@@ -464,6 +464,708 @@
                     ]
                 }
             ]
+        },
+        {
+            "type": "container",
+            "id": "debug_panel",
+            "commonProps": {
+                "hidden": true,
+                "clickable": false,
+                "scrollable": false
+            },
+            "bindings": {
+                "commonProps.hidden": "hidden"
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "4dp"
+            },
+            "placement": {
+                "mode": "relative",
+                "align": "topRight",
+                "x": "${expr(0dp - ${constant.ui.overlay.metric.debugPanelMargin})}",
+                "y": "${constant.ui.overlay.metric.debugPanelMargin}",
+                "width": "wrap",
+                "height": "wrap"
+            },
+            "styleRefs": [
+                "shell.debugPanel"
+            ],
+            "children": [
+                {
+                    "type": "container",
+                    "id": "memory",
+                    "commonProps": {
+                        "hidden": true,
+                        "clickable": false,
+                        "scrollable": false
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "hidden"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "3dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "wrap",
+                        "height": "wrap"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "title",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "labelProps": {
+                                "text": "MEM"
+                            },
+                            "styleRefs": [
+                                "shell.debugTitle"
+                            ],
+                            "placement": {
+                                "mode": "flow"
+                            }
+                        },
+                        {
+                            "type": "container",
+                            "id": "sram",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "layout": {
+                                "type": "grid",
+                                "gridTemplateColumns": [
+                                    "${constant.ui.overlay.metric.debugMetricNameWidth}",
+                                    "wrap",
+                                    "wrap"
+                                ],
+                                "gridTemplateRows": [
+                                    "wrap"
+                                ],
+                                "gap": "4dp",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "wrap",
+                                "height": "wrap"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "name",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "labelProps": {
+                                        "text": "SRAM"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugText"
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 0,
+                                        "gridRow": 0
+                                    }
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "free",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 1,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "F N/A"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "largest",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 2,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "L N/A"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "psram",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "layout": {
+                                "type": "grid",
+                                "gridTemplateColumns": [
+                                    "${constant.ui.overlay.metric.debugMetricNameWidth}",
+                                    "wrap",
+                                    "wrap"
+                                ],
+                                "gridTemplateRows": [
+                                    "wrap"
+                                ],
+                                "gap": "4dp",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "wrap",
+                                "height": "wrap"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "name",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "labelProps": {
+                                        "text": "PSRAM"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugText"
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 0,
+                                        "gridRow": 0
+                                    }
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "free",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 1,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "F N/A"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "largest",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 2,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "L N/A"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "thread",
+                    "commonProps": {
+                        "hidden": true,
+                        "clickable": false,
+                        "scrollable": false
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "hidden"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": "3dp"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "wrap",
+                        "height": "wrap"
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "title",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "labelProps": {
+                                "text": "THREAD"
+                            },
+                            "styleRefs": [
+                                "shell.debugTitle"
+                            ],
+                            "placement": {
+                                "mode": "flow"
+                            }
+                        },
+                        {
+                            "type": "container",
+                            "id": "core0",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "layout": {
+                                "type": "grid",
+                                "gridTemplateColumns": [
+                                    "wrap",
+                                    "wrap",
+                                    "wrap"
+                                ],
+                                "gridTemplateRows": [
+                                    "wrap"
+                                ],
+                                "gap": "4dp",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "wrap",
+                                "height": "wrap"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "task",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "text"
+                                    },
+                                    "labelProps": {
+                                        "text": "C0 --"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugText"
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 0,
+                                        "gridRow": 0
+                                    }
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "cpu",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 1,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "CPU --"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "hwm",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 2,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "H --"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "core1",
+                            "commonProps": {
+                                "hidden": true,
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "hidden"
+                            },
+                            "layout": {
+                                "type": "grid",
+                                "gridTemplateColumns": [
+                                    "wrap",
+                                    "wrap",
+                                    "wrap"
+                                ],
+                                "gridTemplateRows": [
+                                    "wrap"
+                                ],
+                                "gap": "4dp",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "wrap",
+                                "height": "wrap"
+                            },
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "task",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "text"
+                                    },
+                                    "labelProps": {
+                                        "text": "C1 --"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugText"
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 0,
+                                        "gridRow": 0
+                                    }
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "cpu",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 1,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "CPU --"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "hwm",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "bindings": {
+                                        "style.bgColor": "bg"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "gridColumn": 2,
+                                        "gridRow": 0,
+                                        "width": "wrap",
+                                        "height": "${constant.ui.overlay.metric.debugMetricChipHeight}"
+                                    },
+                                    "styleRefs": [
+                                        "shell.debugMetricChip"
+                                    ],
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "text",
+                                                "style.textColor": "text_color"
+                                            },
+                                            "labelProps": {
+                                                "text": "H --"
+                                            },
+                                            "styleRefs": [
+                                                "shell.debugMetricText"
+                                            ],
+                                            "placement": {
+                                                "mode": "flow"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
         }
     ]
 }

@@ -3,6 +3,13 @@ menu "ESP-Brookesia: System Super Configurations"
         bool "Enable debug or lower level logs"
         default n
 
+    config BROOKESIA_SYSTEM_SUPER_ENABLE_PROFILE_LOG
+        bool "Enable Shell profile logs"
+        default n
+        help
+            Print Shell launch transition timing logs. Keep disabled in normal
+            builds because serial logging changes the measured launch latency.
+
     config BROOKESIA_SYSTEM_SUPER_ENABLE_STARTUP_OVERLAY
         bool "Enable startup overlay"
         default y

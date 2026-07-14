@@ -5,8 +5,11 @@
  */
 #pragma once
 
+#include <chrono>
 #include <expected>
 #include <functional>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -15,7 +18,9 @@
 
 #include "boost/json/object.hpp"
 
+#include "brookesia/system_super/macro_configs.h"
 #include "brookesia/service_manager.hpp"
+#include "brookesia/service_manager/service/utils_service.hpp"
 #include "brookesia/system_core.hpp"
 #include "brookesia/system_super/system.hpp"
 #include "private/system_constants.hpp"
@@ -61,6 +66,17 @@ public:
     void handle_message_dialog_idle();
     std::expected<void, std::string> refresh_launcher();
     std::expected<void, std::string> refresh_environment();
+
+    using DebugConfig = service::UtilsService::DebugConfig;
+    using DebugRuntimeState = service::UtilsService::DebugRuntimeState;
+    using MemoryDebugSnapshot = service::UtilsService::MemoryDebugSnapshot;
+    using ThreadDebugSnapshot = service::UtilsService::ThreadDebugSnapshot;
+
+    void apply_debug_config(const DebugConfig &config);
+    void apply_debug_state(const DebugRuntimeState &state);
+    void apply_memory_debug_snapshot(const MemoryDebugSnapshot &snapshot);
+    void apply_thread_debug_snapshot(const ThreadDebugSnapshot &snapshot);
+    DebugConfig get_debug_config_snapshot() const;
 
 private:
     struct DisplaySourceRestoreRecord {
@@ -149,6 +165,10 @@ private:
     void update_gesture_indicator_width(int32_t width);
     void animate_gesture_indicator_rebound();
     void trigger_gesture_exit();
+    void stop_debug_runtime();
+    void refresh_debug_overlay_visibility();
+    void refresh_memory_debug_box(const MemoryDebugSnapshot &snapshot);
+    void refresh_thread_debug_box(const ThreadDebugSnapshot &snapshot);
 
     System &owner_;
     core::AppContext *context_ = nullptr;
@@ -165,6 +185,7 @@ private:
     bool launch_overlay_active_ = false;
     core::TimerId launch_hold_timer_id_ = core::INVALID_TIMER_ID;
     std::optional<core::AppId> pending_launch_app_id_;
+    std::optional<std::chrono::steady_clock::time_point> launch_request_started_at_;
     std::string current_theme_id_ = SUPER_DEFAULT_THEME_ID;
     gui::SubscriptionId status_bar_animation_id_ = 0;
     gui::SubscriptionId gesture_indicator_animation_id_ = 0;
@@ -212,6 +233,9 @@ private:
     std::vector<DisplaySourceRestoreRecord> display_source_restore_records_;
     bool launcher_populated_ = false;
     std::string applied_i18n_locale_;
+    mutable std::mutex debug_mutex_;
+    DebugConfig debug_config_;
+    DebugRuntimeState debug_state_;
 };
 
 } // namespace esp_brookesia::system::super

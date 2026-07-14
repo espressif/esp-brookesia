@@ -40,6 +40,10 @@ std::expected<void, std::string> System::init()
 std::expected<void, std::string> System::init(Config config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_SYSTEM_SUPER_VER_MAJOR, BROOKESIA_SYSTEM_SUPER_VER_MINOR,
+        BROOKESIA_SYSTEM_SUPER_VER_PATCH
+    );
     config.core_config.system_type = BROOKESIA_SYSTEM_SUPER_SYSTEM_TYPE;
     config.core_config.startup_overlay.enabled = BROOKESIA_SYSTEM_SUPER_ENABLE_STARTUP_OVERLAY;
     config.core_config.startup_overlay.root_path =

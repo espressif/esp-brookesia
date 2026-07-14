@@ -14,17 +14,23 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
 
 #include "boost/json.hpp"
+#include "brookesia/service_helper.hpp"
+
+#if BROOKESIA_SYSTEM_SUPER_ENABLE_PROFILE_LOG
+#   define SYSTEM_SUPER_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
+#else
+#   define SYSTEM_SUPER_PROFILE_LOGI(...) do { if (false) { BROOKESIA_LOGI(__VA_ARGS__); } } while (0)
+#endif
 
 namespace esp_brookesia::system::super {
 namespace {
@@ -32,6 +38,14 @@ namespace {
 inline constexpr int32_t LAUNCHER_ITEM_WIDTH = 112;
 inline constexpr int32_t LAUNCHER_ITEM_HEIGHT = 112;
 inline constexpr int32_t LAUNCHER_ITEM_GAP = 18;
+inline constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
+using SteadyClock = std::chrono::steady_clock;
+using SteadyTimePoint = SteadyClock::time_point;
+
+int64_t elapsed_ms_since(SteadyTimePoint started_at, SteadyTimePoint ended_at = SteadyClock::now())
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(ended_at - started_at).count();
+}
 
 std::optional<std::string> get_launcher_instance_id(const gui::Event &event)
 {
@@ -191,26 +205,22 @@ std::optional<gui::ViewFrame> get_absolute_view_frame(core::AppContext &context,
 std::expected<std::vector<std::string>, std::string> list_theme_files(std::string_view resource_dir)
 {
     const auto theme_dir = std::filesystem::path(resource_dir) / SUPER_THEME_DIR;
-    std::error_code error_code;
-    if (!std::filesystem::exists(theme_dir, error_code) || !std::filesystem::is_directory(theme_dir, error_code)) {
+    auto dir_info = service::helper::Storage::fs_stat(theme_dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!dir_info || !dir_info->exists || dir_info->type != service::helper::Storage::FileType::Directory) {
         return std::unexpected("Shell theme directory does not exist: " + theme_dir.string());
     }
 
     std::vector<std::string> files;
-    std::filesystem::directory_iterator iterator(theme_dir, error_code);
-    if (error_code) {
-        return std::unexpected("Failed to open Shell theme directory: " + theme_dir.string());
+    auto entries = service::helper::Storage::fs_list(theme_dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!entries) {
+        return std::unexpected("Failed to scan Shell theme directory: " + theme_dir.string());
     }
-    for (const std::filesystem::directory_iterator end; iterator != end; iterator.increment(error_code)) {
-        if (error_code) {
-            return std::unexpected("Failed to scan Shell theme directory: " + theme_dir.string());
-        }
-        if (!iterator->is_regular_file(error_code) || error_code) {
-            error_code.clear();
+    for (const auto &entry : entries.value()) {
+        if (entry.info.type != service::helper::Storage::FileType::File) {
             continue;
         }
-        const auto file_name = iterator->path().filename().string();
-        if (iterator->path().extension() == ".json" && file_name != "index.json") {
+        const auto file_name = entry.name;
+        if (std::filesystem::path(file_name).extension() == ".json" && file_name != "index.json") {
             files.push_back((std::filesystem::path(SUPER_THEME_DIR) / file_name).generic_string());
         }
     }
@@ -232,26 +242,22 @@ std::vector<std::string> get_builtin_theme_files()
 std::expected<std::vector<std::string>, std::string> list_font_files(std::string_view resource_dir)
 {
     const auto font_dir = std::filesystem::path(resource_dir) / SUPER_FONT_DIR;
-    std::error_code error_code;
-    if (!std::filesystem::exists(font_dir, error_code) || !std::filesystem::is_directory(font_dir, error_code)) {
+    auto dir_info = service::helper::Storage::fs_stat(font_dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!dir_info || !dir_info->exists || dir_info->type != service::helper::Storage::FileType::Directory) {
         return std::unexpected("Shell font directory does not exist: " + font_dir.string());
     }
 
     std::vector<std::string> files;
-    std::filesystem::directory_iterator iterator(font_dir, error_code);
-    if (error_code) {
-        return std::unexpected("Failed to open Shell font directory: " + font_dir.string());
+    auto entries = service::helper::Storage::fs_list(font_dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!entries) {
+        return std::unexpected("Failed to scan Shell font directory: " + font_dir.string());
     }
-    for (const std::filesystem::directory_iterator end; iterator != end; iterator.increment(error_code)) {
-        if (error_code) {
-            return std::unexpected("Failed to scan Shell font directory: " + font_dir.string());
-        }
-        if (!iterator->is_regular_file(error_code) || error_code) {
-            error_code.clear();
+    for (const auto &entry : entries.value()) {
+        if (entry.info.type != service::helper::Storage::FileType::File) {
             continue;
         }
-        if (iterator->path().extension() == ".json") {
-            files.push_back((std::filesystem::path(SUPER_FONT_DIR) / iterator->path().filename()).generic_string());
+        if (std::filesystem::path(entry.name).extension() == ".json") {
+            files.push_back((std::filesystem::path(SUPER_FONT_DIR) / entry.name).generic_string());
         }
     }
     std::sort(files.begin(), files.end());
@@ -263,13 +269,11 @@ std::expected<std::vector<std::string>, std::string> list_font_files(std::string
 
 std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
 {
-    std::ifstream input(path, std::ios::in | std::ios::binary);
-    if (!input.is_open()) {
-        return std::unexpected("Failed to open file: " + path.string());
+    auto result = service::helper::Storage::fs_read_text(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!result) {
+        return std::unexpected("Failed to read file: " + path.string() + ", error: " + result.error());
     }
-    std::ostringstream stream;
-    stream << input.rdbuf();
-    return stream.str();
+    return result.value();
 }
 
 std::string json_value_to_string(const boost::json::value &value)
@@ -606,6 +610,12 @@ std::expected<void, std::string> ShellApp::load_fonts(core::AppContext &context)
         }
     }
 
+    const auto supported_languages = context.gui().list_supported_languages();
+    if (supported_languages.empty()) {
+        BROOKESIA_LOGI("Shell font language fallback skipped: no registered font languages");
+        return {};
+    }
+
     const auto stored_language = owner_.get_stored_gui_language_preference();
     const std::string requested_language = (stored_language.has_value() && !stored_language->empty()) ?
                                            *stored_language :
@@ -621,7 +631,7 @@ std::expected<void, std::string> ShellApp::load_fonts(core::AppContext &context)
     }
     BROOKESIA_LOGI(
         "Shell fonts registered: languages(%1%), language(%2%), default_font(%3%)",
-        context.gui().list_supported_languages(),
+        supported_languages,
         fallback->language,
         fallback->font_id
     );
@@ -630,6 +640,11 @@ std::expected<void, std::string> ShellApp::load_fonts(core::AppContext &context)
 
 std::expected<void, std::string> ShellApp::apply_language_preference(core::AppContext &context)
 {
+    if (context.gui().list_supported_languages().empty()) {
+        BROOKESIA_LOGI("System GUI language preference skipped: no registered font languages");
+        return {};
+    }
+
     auto stored_language = owner_.get_stored_gui_language_preference();
     const auto runtime_language_before = context.gui().get_language();
     const bool use_stored_language = stored_language.has_value() && !stored_language->empty();
@@ -965,8 +980,19 @@ void ShellApp::handle_launcher_event(const gui::Event &event)
     }
 
     const auto app_id = app_it->second;
+    launch_request_started_at_ = SteadyClock::now();
     auto start_app = [this, app_id]() {
+        const auto request_started_at = launch_request_started_at_;
+        const auto app_start_started_at = SteadyClock::now();
         auto result = owner_.start_app(app_id, core::System::AppStartOptions{});
+        const auto now = SteadyClock::now();
+        SYSTEM_SUPER_PROFILE_LOGI(
+            "Shell app launch profile: app_id(%1%), start_app_ms(%2%), total_ms(%3%)",
+            app_id,
+            elapsed_ms_since(app_start_started_at, now),
+            request_started_at.has_value() ? elapsed_ms_since(*request_started_at, now) : 0
+        );
+        launch_request_started_at_.reset();
         if (!result) {
             BROOKESIA_LOGW("Failed to launch app: app_id(%1%), error(%2%)", app_id, result.error());
         }

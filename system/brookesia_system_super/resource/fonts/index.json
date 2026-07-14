@@ -12,7 +12,7 @@
       {
             "id": "zh_CN",
             "kind": "file",
-            "src": "WenYuanSansSC-Regular.subset.ttf",
+            "src": "NotoSansSC-Regular.subset.ttf",
             "languages": [
                 "en",
                 "zh_CN"
