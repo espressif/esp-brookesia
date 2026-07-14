@@ -16,4 +16,4 @@ Utils helper 提供类型安全的内存与线程 profiler 控制、缓存快照
 API 参考
 --------
 
-.. include-build-file:: inc/service/framework/brookesia_service_helper/include/brookesia/service_helper/framework/utils.inc
+.. include-build-file:: inc/utils.inc

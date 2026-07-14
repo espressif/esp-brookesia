@@ -1,7 +1,7 @@
 .. _agent-helper-manager-sec-00:
 
 Agent Manager Helper
-===================
+====================
 
 :link_to_translation:`zh_CN:[中文]`
 

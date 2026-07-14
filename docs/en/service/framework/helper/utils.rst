@@ -16,4 +16,4 @@ sampling through ``get_memory_snapshot()``.
 API Reference
 -------------
 
-.. include-build-file:: inc/service/framework/brookesia_service_helper/include/brookesia/service_helper/framework/utils.inc
+.. include-build-file:: inc/utils.inc

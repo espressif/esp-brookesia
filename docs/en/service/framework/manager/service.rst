@@ -33,14 +33,14 @@ Built-In Manager Service
 
 Public header: ``#include "brookesia/service_manager/service/manager_service.hpp"``
 
-.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager_service.inc
+.. include-build-file:: inc/manager_service.inc
 
 Built-In Utils Service
 ~~~~~~~~~~~~~~~~~~~~~~
 
 Public header: ``#include "brookesia/service_manager/service/utils_service.hpp"``
 
-.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/utils_service.inc
+.. include-build-file:: inc/utils_service.inc
 
 .. _service-manager-service-sec-04:
 

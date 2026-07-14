@@ -33,14 +33,14 @@ API 参考
 
 公共头文件： ``#include "brookesia/service_manager/service/manager_service.hpp"``
 
-.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager_service.inc
+.. include-build-file:: inc/manager_service.inc
 
 内置 Utils 服务
 ~~~~~~~~~~~~~~~
 
 公共头文件： ``#include "brookesia/service_manager/service/utils_service.hpp"``
 
-.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/utils_service.inc
+.. include-build-file:: inc/utils_service.inc
 
 .. _service-manager-service-sec-04:
 

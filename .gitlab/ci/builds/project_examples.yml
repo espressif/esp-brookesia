@@ -61,7 +61,7 @@ build_examples_service_wifi:
 build_examples_system_super:
   extends:
     - .build_template_without_large_artifacts
-    - .build_idf_release_version_with_board
+    - .build_idf_release_version_for_super
     - .rules:build:examples_system_super
   variables:
     EXAMPLE_DIR: examples/system/super
