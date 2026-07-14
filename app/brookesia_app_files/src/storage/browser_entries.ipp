@@ -26,32 +26,29 @@ FileManagerApp::build_entries_for_current_location() const
 
     const auto root = current_root();
     const auto directory = (root / current_directory_).lexically_normal();
-    std::error_code error_code;
-    if (!std::filesystem::exists(directory, error_code) || !std::filesystem::is_directory(directory, error_code)) {
+    auto dir_info = StorageHelper::fs_stat(directory.generic_string());
+    if (!dir_info || dir_info->type != StorageHelper::FileType::Directory) {
         return std::unexpected("Current directory is unavailable: " + directory.generic_string());
     }
 
-    for (const auto &item : std::filesystem::directory_iterator(directory, error_code)) {
-        if (error_code) {
-            return std::unexpected("Failed to read directory: " + error_code.message());
-        }
-        const auto item_path = item.path();
-        const auto name = item_path.filename().generic_string();
+    auto entries = StorageHelper::fs_list(directory.generic_string());
+    if (!entries) {
+        return std::unexpected("Failed to read directory: " + entries.error());
+    }
+    for (const auto &item : entries.value()) {
+        const auto item_path = directory / item.name;
+        const auto name = item.name;
         if (name.empty()) {
             continue;
         }
         EntryKind kind = EntryKind::Other;
         std::string detail;
-        std::error_code stat_error;
-        if (item.is_directory(stat_error)) {
+        if (item.info.type == StorageHelper::FileType::Directory) {
             kind = EntryKind::Directory;
             detail = tr("folder");
-        } else if (item.is_regular_file(stat_error)) {
+        } else if (item.info.type == StorageHelper::FileType::File) {
             kind = EntryKind::File;
-            detail = format_size(item.file_size(stat_error));
-            if (stat_error) {
-                detail = tr("file");
-            }
+            detail = format_size(item.info.size);
         } else {
             detail = tr("other");
         }
@@ -65,9 +62,6 @@ FileManagerApp::build_entries_for_current_location() const
             .path = item_path,
             .volume_index = *current_volume_index_,
         });
-    }
-    if (error_code) {
-        return std::unexpected("Failed to list directory: " + error_code.message());
     }
 
     std::sort(next_entries.begin(), next_entries.end(), [](const Entry & lhs, const Entry & rhs) {
@@ -94,14 +88,11 @@ std::expected<void, std::string> FileManagerApp::open_entry(system::core::AppCon
         BROOKESIA_LOGI("Open File Manager item operations: path(%1%)", entry.path.generic_string());
         return show_operations(context, entry);
     }
-    std::error_code error_code;
-    const auto relative = std::filesystem::relative(entry.path, current_root(), error_code);
-    if (error_code || relative.empty()) {
-        return std::unexpected(
-                   "Failed to resolve directory: " + (error_code ? error_code.message() : entry.path.generic_string())
-               );
+    const auto relative = make_relative_path_inside_root(entry.path, current_root());
+    if (!relative || relative->empty()) {
+        return std::unexpected("Failed to resolve directory: " + entry.path.generic_string());
     }
-    current_directory_ = relative.lexically_normal();
+    current_directory_ = relative->lexically_normal();
     BROOKESIA_LOGI("Open File Manager directory: path(%1%)", entry.path.generic_string());
     return refresh_entries(context);
 }

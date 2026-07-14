@@ -9,4 +9,5 @@
 
 #define BROOKESIA_LOG_TAG BROOKESIA_APP_FILES_LOG_TAG
 #include "brookesia/lib_utils/check.hpp"
+#include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/lib_utils/log.hpp"

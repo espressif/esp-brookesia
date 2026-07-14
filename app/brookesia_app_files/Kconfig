@@ -1,0 +1,9 @@
+menu "ESP-Brookesia: Files App Configurations"
+    config BROOKESIA_APP_FILES_ENABLE_PRELOAD_DOM
+        bool "Preload Files GUI DOM"
+        default y
+        help
+            Preload and retain the Files app GUI DOM when the app is installed.
+            This moves JSON UI parse/load cost out of the user-visible launch path
+            at the cost of extra resident PSRAM.
+endmenu

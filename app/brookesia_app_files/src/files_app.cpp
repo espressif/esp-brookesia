@@ -7,20 +7,12 @@
 
 #include <algorithm>
 #include <array>
-#include <cerrno>
 #include <cctype>
 #include <cstdint>
-#include <cstring>
-#include <fstream>
 #include <iomanip>
-#include <iterator>
+#include <optional>
 #include <sstream>
-#include <system_error>
 #include <unordered_map>
-
-#include <dirent.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "boost/json.hpp"
 
@@ -49,6 +41,7 @@ static constexpr const char *ACTION_ENTRY_LONG = "files.entry.long";
 static constexpr const char *ACTION_RENAME = "files.rename";
 static constexpr const char *ACTION_DELETE = "files.delete";
 static constexpr const char *ENTRY_TEMPLATE_ID = "file_entry";
+static constexpr const char *LIST_CONTAINER_PATH = "/browser/page/list";
 static constexpr const char *LIST_PATH = "/browser/page/list/items";
 static constexpr const char *HEADER_TITLE_PATH = "/files_header/bar/text/title";
 static constexpr const char *HEADER_SUBTITLE_PATH = "/files_header/bar/text/subtitle";
@@ -60,7 +53,10 @@ static constexpr const char *OP_INFO_CHEVRON_PATH = "/operations/page/selection_
 static constexpr const char *OP_RENAME_PATH = "/operations/page/actions_card/rename";
 static constexpr const char *OP_DELETE_PATH = "/operations/page/actions_card/delete";
 static constexpr const char *INITIAL_REFRESH_TIMER_NAME = "files.initial.refresh";
+static constexpr const char *FILE_OPERATION_DIALOG_TIMER_NAME = "files.operation.dialog";
+static constexpr const char *FILE_OPERATION_COMMIT_TIMER_NAME = "files.operation.commit";
 static constexpr int INITIAL_REFRESH_DELAY_MS = 50;
+static constexpr int FILE_OPERATION_DEFER_MS = 32;
 static constexpr int MESSAGE_AUTO_CLOSE_MS = 3000;
 static constexpr size_t ENTRY_POOL_TRIM_MIN_CAPACITY = 128;
 static constexpr size_t ENTRY_POOL_TRIM_SPARE = 32;
@@ -229,67 +225,28 @@ bool path_is_same_or_child(const std::filesystem::path &path, const std::filesys
     return normalized_path == normalized_parent || normalized_path.starts_with(normalized_parent + "/");
 }
 
-std::string make_errno_error(std::string_view action, const std::filesystem::path &path)
+std::optional<std::filesystem::path> make_relative_path_inside_root(
+    const std::filesystem::path &path,
+    const std::filesystem::path &root
+)
 {
-    return std::string(action) + " '" + path.generic_string() + "': " + std::strerror(errno);
-}
-
-std::expected<std::uintmax_t, std::string> remove_path_tree_recursive(const std::filesystem::path &path)
-{
-    const auto path_text = path.generic_string();
-    struct stat info = {};
-    if (stat(path_text.c_str(), &info) != 0) {
-        if (errno == ENOENT) {
-            return 0;
-        }
-        return std::unexpected(make_errno_error("Failed to stat path", path));
+    auto normalized_root = root.lexically_normal().generic_string();
+    const auto normalized_path = path.lexically_normal().generic_string();
+    if (normalized_root.empty() || !path_is_same_or_child(normalized_path, normalized_root)) {
+        return std::nullopt;
+    }
+    if (normalized_root.size() > 1 && normalized_root.back() == '/') {
+        normalized_root.pop_back();
+    }
+    if (normalized_path == normalized_root) {
+        return {};
     }
 
-    if (!S_ISDIR(info.st_mode)) {
-        if (unlink(path_text.c_str()) != 0) {
-            return std::unexpected(make_errno_error("Failed to remove file", path));
-        }
-        return 1;
+    const auto relative_offset = normalized_root == "/" ? 1 : normalized_root.size() + 1;
+    if (relative_offset > normalized_path.size()) {
+        return std::nullopt;
     }
-
-    DIR *raw_dir = opendir(path_text.c_str());
-    if (raw_dir == nullptr) {
-        return std::unexpected(make_errno_error("Failed to open directory", path));
-    }
-
-    std::uintmax_t removed_count = 0;
-    while (true) {
-        errno = 0;
-        dirent *entry = readdir(raw_dir);
-        if (entry == nullptr) {
-            if (errno != 0) {
-                const auto error = make_errno_error("Failed to read directory", path);
-                closedir(raw_dir);
-                return std::unexpected(error);
-            }
-            break;
-        }
-
-        const std::string_view name(entry->d_name);
-        if (name == "." || name == "..") {
-            continue;
-        }
-
-        auto child_result = remove_path_tree_recursive(path / std::string(name));
-        if (!child_result) {
-            closedir(raw_dir);
-            return child_result;
-        }
-        removed_count += *child_result;
-    }
-
-    if (closedir(raw_dir) != 0) {
-        return std::unexpected(make_errno_error("Failed to close directory", path));
-    }
-    if (rmdir(path_text.c_str()) != 0) {
-        return std::unexpected(make_errno_error("Failed to remove directory", path));
-    }
-    return removed_count + 1;
+    return std::filesystem::path(normalized_path.substr(relative_offset)).lexically_normal();
 }
 
 std::expected<std::uintmax_t, std::string> remove_path_tree(const std::filesystem::path &path)
@@ -299,22 +256,26 @@ std::expected<std::uintmax_t, std::string> remove_path_tree(const std::filesyste
     }
 
     const auto path_text = path.generic_string();
-    auto removed_count = remove_path_tree_recursive(path);
-    if (!removed_count) {
+    auto before = StorageHelper::fs_stat(path_text);
+    if (!before) {
+        return std::unexpected("Failed to stat path '" + path_text + "': " + before.error());
+    }
+    auto remove_result = StorageHelper::fs_remove(path_text);
+    if (!remove_result) {
         return std::unexpected(
-                   "Failed to remove path '" + path_text + "': " + removed_count.error()
+                   "Failed to remove path '" + path_text + "': " + remove_result.error()
                );
     }
 
-    struct stat after = {};
-    if (stat(path_text.c_str(), &after) == 0) {
+    auto after = StorageHelper::fs_stat(path_text);
+    if (!after) {
+        return std::unexpected("Failed to check path after removal '" + path_text + "': " + after.error());
+    }
+    if (after->exists) {
         return std::unexpected("Failed to remove path '" + path_text + "': path still exists after removal");
     }
-    if (errno != ENOENT) {
-        return std::unexpected(make_errno_error("Failed to check path after removal", path));
-    }
 
-    return removed_count;
+    return before->exists ? 1 : 0;
 }
 
 void add_binding(
@@ -333,11 +294,8 @@ void add_binding(
 
 std::string read_text_file(const std::filesystem::path &path)
 {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return {};
-    }
-    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+    auto result = StorageHelper::fs_read_text(path.generic_string());
+    return result ? result.value() : std::string();
 }
 
 std::filesystem::path resolve_resource_dir(
@@ -447,8 +405,13 @@ struct FileManagerApp::Impl {
     system::core::AppContext *context = nullptr;
     service::ServiceBinding storage_service_binding;
     system::core::TimerId initial_refresh_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId file_operation_dialog_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId file_operation_commit_timer_id = system::core::INVALID_TIMER_ID;
     system::core::MessageDialogRequestId message_dialog_request_id =
         system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
+    system::core::MessageDialogRequestId file_operation_dialog_request_id =
+        system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
+    std::optional<PendingFileOperation> pending_file_operation;
     std::filesystem::path resource_dir;
     std::string applied_i18n_locale;
     std::unordered_map<std::string, std::string> i18n_strings;
@@ -476,7 +439,11 @@ FileManagerApp::~FileManagerApp() = default;
 #define context_ impl_->context
 #define storage_service_binding_ impl_->storage_service_binding
 #define initial_refresh_timer_id_ impl_->initial_refresh_timer_id
+#define file_operation_dialog_timer_id_ impl_->file_operation_dialog_timer_id
+#define file_operation_commit_timer_id_ impl_->file_operation_commit_timer_id
 #define message_dialog_request_id_ impl_->message_dialog_request_id
+#define file_operation_dialog_request_id_ impl_->file_operation_dialog_request_id
+#define pending_file_operation_ impl_->pending_file_operation
 #define resource_dir_ impl_->resource_dir
 #define applied_i18n_locale_ impl_->applied_i18n_locale
 #define i18n_strings_ impl_->i18n_strings
@@ -508,7 +475,11 @@ FileManagerApp::~FileManagerApp() = default;
 #undef context_
 #undef storage_service_binding_
 #undef initial_refresh_timer_id_
+#undef file_operation_dialog_timer_id_
+#undef file_operation_commit_timer_id_
 #undef message_dialog_request_id_
+#undef file_operation_dialog_request_id_
+#undef pending_file_operation_
 #undef resource_dir_
 #undef applied_i18n_locale_
 #undef i18n_strings_

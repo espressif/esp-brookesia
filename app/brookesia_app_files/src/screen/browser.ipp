@@ -74,40 +74,21 @@ std::expected<void, std::string> FileManagerApp::refresh_entries(system::core::A
         return result;
     }
     trim_entry_view_pool(context, entries_.size());
-    if (auto scroll_result = scroll_first_entry_to_top(context); !scroll_result) {
+    if (auto scroll_result = scroll_list_to_top(context); !scroll_result) {
         return scroll_result;
     }
     return {};
 }
 
-std::expected<void, std::string> FileManagerApp::scroll_first_entry_to_top(system::core::AppContext &context)
+std::expected<void, std::string> FileManagerApp::scroll_list_to_top(system::core::AppContext &context)
 {
-    if (entries_.empty()) {
+    auto result = context.gui().scroll_to(LIST_CONTAINER_PATH, 0, 0, false);
+    if (result) {
         return {};
     }
-
-    system::core::GuiBatchCommand command;
-    command.type = system::core::GuiBatchCommand::Type::ScrollToView;
-    command.path = entries_.front().view_path;
-    command.animated = false;
-
-    auto batch_result = context.gui().execute_batch({command});
-    if (!batch_result) {
-        return std::unexpected(batch_result.error());
-    }
-    if (batch_result->success) {
-        return {};
-    }
-    for (const auto &command_result : batch_result->results) {
-        if (!command_result.success) {
-            return std::unexpected(
-                       command_result.error_message.empty() ?
-                       "Failed to scroll File Manager list to first entry" :
-                       command_result.error_message
-                   );
-        }
-    }
-    return std::unexpected("Failed to scroll File Manager list to first entry");
+    return std::unexpected(
+               result.error().empty() ? "Failed to scroll File Manager list to top" : result.error()
+           );
 }
 
 std::expected<void, std::string> FileManagerApp::refresh_ui(system::core::AppContext &context)

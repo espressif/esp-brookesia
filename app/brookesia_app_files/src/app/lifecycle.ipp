@@ -16,6 +16,8 @@ system::core::AppManifest FileManagerApp::get_manifest() const
         .version = make_app_version(),
         .kind = system::core::AppKind::Native,
         .visible = true,
+        // Keep the JSON UI DOM warm by default; Kconfig lets PSRAM-constrained builds opt out.
+        .preload_dom = BROOKESIA_APP_FILES_ENABLE_PRELOAD_DOM,
         .icon_id = APP_ICON_ID,
         .supported_systems = {},
         .icon_path = APP_ICON_PATH,
@@ -86,6 +88,7 @@ std::expected<void, std::string> FileManagerApp::on_stop(system::core::AppContex
         (void)context.timer().stop(initial_refresh_timer_id_);
         initial_refresh_timer_id_ = system::core::INVALID_TIMER_ID;
     }
+    cancel_file_operation(context);
     clear_entry_views(context);
     reset_message_dialog(context);
     entry_click_connection_.disconnect();
@@ -133,6 +136,18 @@ std::expected<void, std::string> FileManagerApp::on_timer(
     if (timer_id == initial_refresh_timer_id_ && name == INITIAL_REFRESH_TIMER_NAME) {
         initial_refresh_timer_id_ = system::core::INVALID_TIMER_ID;
         return refresh_entries(context);
+    }
+    if (timer_id == file_operation_dialog_timer_id_ && name == FILE_OPERATION_DIALOG_TIMER_NAME) {
+        file_operation_dialog_timer_id_ = system::core::INVALID_TIMER_ID;
+        auto dialog_result = show_file_operation_dialog(context);
+        if (!dialog_result) {
+            BROOKESIA_LOGW("Failed to show File Manager operation dialog: %1%", dialog_result.error());
+        }
+        return schedule_file_operation_commit(context);
+    }
+    if (timer_id == file_operation_commit_timer_id_ && name == FILE_OPERATION_COMMIT_TIMER_NAME) {
+        file_operation_commit_timer_id_ = system::core::INVALID_TIMER_ID;
+        return commit_file_operation(context);
     }
     return {};
 }
