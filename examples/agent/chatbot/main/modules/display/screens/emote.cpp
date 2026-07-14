@@ -9,7 +9,7 @@
 #include "emote.hpp"
 
 using namespace esp_brookesia;
-using AgentHelper = service::helper::Manager;
+using AgentHelper = service::helper::AgentManager;
 using WifiHelper = service::helper::Wifi;
 
 ScreenEmote::ScreenEmote():
