@@ -412,6 +412,10 @@ bool Device::register_post_deinit_callback(PostDeinitCallback callback)
 bool Device::init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_HAL_INTERFACE_VER_MAJOR, BROOKESIA_HAL_INTERFACE_VER_MINOR,
+        BROOKESIA_HAL_INTERFACE_VER_PATCH
+    );
 
     if (is_initialized()) {
         BROOKESIA_LOGD("Already initialized");

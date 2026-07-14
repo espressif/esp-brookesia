@@ -11,6 +11,7 @@
 #include "private/utils.hpp"
 #include "esp_board_device.h"
 #include "ledc_backlight_impl.hpp"
+#include "brookesia/hal_adaptor/display/device.hpp"
 
 #if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL
 #include "driver/gpio.h"
@@ -20,15 +21,11 @@
 namespace esp_brookesia::hal {
 
 namespace {
-constexpr const char *DISPLAY_GROUP_ID = "display_lcd";
-}
-
 constexpr uint8_t BRIGHTNESS_DEFAULT = 0;
 constexpr uint8_t BRIGHTNESS_MIN = 0;
 constexpr uint8_t BRIGHTNESS_MAX = 100;
 constexpr bool BACKLIGHT_CONTROL_STATE_DEFAULT = false;
 
-namespace {
 periph_ledc_handle_t *get_ledc_handle(void *handle)
 {
     return reinterpret_cast<periph_ledc_handle_t *>(handle);
@@ -47,7 +44,7 @@ periph_ledc_config_t *get_ledc_config(void *config)
 
 LedcDisplayBacklightImpl::LedcDisplayBacklightImpl()
     : display::BacklightIface(display::BacklightIface::Info{
-    .group_id = DISPLAY_GROUP_ID,
+    .group_id = DisplayDevice::LCD_GROUP_ID,
 })
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

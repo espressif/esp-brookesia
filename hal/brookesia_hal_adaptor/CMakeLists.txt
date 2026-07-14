@@ -61,7 +61,7 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
 
     # Already applied? git apply --reverse --check succeeds only on a patched tree.
     execute_process(
-        COMMAND ${GIT_EXECUTABLE} apply --reverse --check -p1 "${patch_file}"
+        COMMAND ${GIT_EXECUTABLE} apply --reverse --check --ignore-space-change -p1 "${patch_file}"
         WORKING_DIRECTORY "${_component_dir}"
         RESULT_VARIABLE _reverse_check
         OUTPUT_QUIET ERROR_QUIET
@@ -73,7 +73,7 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
 
     # Can the patch be applied cleanly to the current sources?
     execute_process(
-        COMMAND ${GIT_EXECUTABLE} apply --check -p1 "${patch_file}"
+        COMMAND ${GIT_EXECUTABLE} apply --check --ignore-space-change -p1 "${patch_file}"
         WORKING_DIRECTORY "${_component_dir}"
         RESULT_VARIABLE _apply_check
         OUTPUT_QUIET ERROR_QUIET
@@ -85,7 +85,7 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
     endif()
 
     execute_process(
-        COMMAND ${GIT_EXECUTABLE} apply -p1 "${patch_file}"
+        COMMAND ${GIT_EXECUTABLE} apply --ignore-space-change -p1 "${patch_file}"
         WORKING_DIRECTORY "${_component_dir}"
         RESULT_VARIABLE _apply_result
         OUTPUT_QUIET ERROR_QUIET

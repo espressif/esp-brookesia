@@ -15,7 +15,7 @@ namespace esp_brookesia::hal {
 /**
  * @brief Board-backed backlight HAL interface (holds LEDC handle, not the device object).
  */
-class CustomDisplayBacklightImpl : public DisplayBacklightIface {
+class CustomDisplayBacklightImpl : public display::BacklightIface {
 public:
     CustomDisplayBacklightImpl();
     ~CustomDisplayBacklightImpl() override;

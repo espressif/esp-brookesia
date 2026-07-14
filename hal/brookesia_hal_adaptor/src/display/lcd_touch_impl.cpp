@@ -10,6 +10,7 @@
 #endif
 #include "private/utils.hpp"
 #include "lcd_touch_impl.hpp"
+#include "brookesia/hal_adaptor/display/device.hpp"
 
 #if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
 #include "esp_board_manager_includes.h"
@@ -18,8 +19,6 @@
 namespace esp_brookesia::hal {
 
 namespace {
-constexpr const char *DISPLAY_GROUP_ID = "display_lcd";
-
 esp_lcd_touch_handle_t get_touch_handle(void *handles)
 {
     return reinterpret_cast<dev_lcd_touch_handles_t *>(handles)->touch_handle;
@@ -48,7 +47,7 @@ display::TouchIface::Info generate_info()
         .max_points = static_cast<uint8_t>(CONFIG_ESP_LCD_TOUCH_MAX_POINTS),
         .operation_mode = GPIO_IS_VALID_GPIO(config->touch_config.int_gpio_num) ?
         display::TouchIface::OperationMode::Interrupt : display::TouchIface::OperationMode::Polling,
-        .group_id = DISPLAY_GROUP_ID,
+        .group_id = DisplayDevice::LCD_GROUP_ID,
     };
 }
 } // namespace
