@@ -76,6 +76,7 @@ add_library(${COMPONENT_LIB} STATIC
     ${COMPONENT_SRCS_C}
     ${COMPONENT_SRCS_CPP}
 )
+brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_SERVICE_STORAGE)
 add_library(brookesia::service_storage ALIAS ${COMPONENT_LIB})
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)
@@ -90,9 +91,6 @@ if(Boost_INCLUDE_DIRS)
 endif()
 target_compile_definitions(${COMPONENT_LIB}
     PRIVATE
-        BROOKESIA_SERVICE_STORAGE_VER_MAJOR=${COMPONENT_VERSION_MAJOR}
-        BROOKESIA_SERVICE_STORAGE_VER_MINOR=${COMPONENT_VERSION_MINOR}
-        BROOKESIA_SERVICE_STORAGE_VER_PATCH=${COMPONENT_VERSION_PATCH}
         ${component_pc_config_compile_definitions}
 )
 target_link_libraries(${COMPONENT_LIB}

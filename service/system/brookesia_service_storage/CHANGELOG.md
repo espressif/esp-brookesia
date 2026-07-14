@@ -1,5 +1,20 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-13
+
+### Enhancements:
+
+- feat(service): register a description for Manager metadata queries.
+- feat(storage): add file-system discovery, capacity, file operations, and stable key-value naming.
+- feat(scheduler): support manager-owned secondary workers and configurable private workers.
+- feat(service): register the component version for centralized Manager service queries.
+- chore(scheduler): remove the Worker suffix from default thread names on ESP and PC.
+
+### Bug Fixes:
+
+- fix(build): use `idf_component.yml` as the single component version source on PC.
+- fix(filesystem): reject paths outside mount roots and paths containing symbolic links.
+
 ## v0.8.0 - 2026-06-28
 
 ### Breaking Changes:
