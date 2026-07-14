@@ -56,7 +56,9 @@ public:
     }
 
 private:
-    using Helper = service::helper::Manager;
+    static std::string get_component_version();
+
+    using Helper = service::helper::AgentManager;
 
     static constexpr Helper::ChatMode DEFAULT_CHAT_MODE = static_cast<Helper::ChatMode>(
                 BROOKESIA_AGENT_MANAGER_DEFAULT_CHAT_MODE
@@ -65,6 +67,8 @@ private:
     Manager():
         service::ServiceBase(service::ServiceBase::Attributes{
         .name = Helper::get_name().data(),
+        .description = "Coordinate agent selection, lifecycle, and shared state.",
+        .version = get_component_version(),
         .dependencies = {
             service::helper::AudioEncoder<0>::get_name().data(),
             service::helper::AudioDecoder<0>::get_name().data(),

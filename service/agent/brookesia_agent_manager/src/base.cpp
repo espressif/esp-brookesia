@@ -23,7 +23,7 @@ namespace esp_brookesia::agent {
 using AudioHelper = service::helper::Audio;
 using AudioEncoderHelper = service::helper::AudioEncoder<0>;
 using AudioDecoderHelper = service::helper::AudioDecoder<0>;
-using ManagerHelper = service::helper::Manager;
+using ManagerHelper = service::helper::AgentManager;
 
 namespace {
 constexpr const char *AGENT_AUDIO_SOURCE_NAME = "Agent";

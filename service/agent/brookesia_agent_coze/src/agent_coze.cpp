@@ -14,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include "esp_mac.h"
 #include "esp_coze_chat.h"
@@ -36,7 +37,7 @@
 namespace esp_brookesia::agent {
 
 using AudioHelper = service::helper::Audio;
-using ManagerHelper = service::helper::Manager;
+using ManagerHelper = service::helper::AgentManager;
 using CozeHelper = service::helper::Coze;
 using StorageHelper = service::helper::Storage;
 
@@ -106,6 +107,13 @@ esp_coze_chat_audio_type_t get_downlink_audio_type(AudioHelper::CodecFormat code
 }
 }
 
+std::string Coze::get_component_version()
+{
+    return make_version(
+               BROOKESIA_AGENT_COZE_VER_MAJOR, BROOKESIA_AGENT_COZE_VER_MINOR, BROOKESIA_AGENT_COZE_VER_PATCH
+           );
+}
+
 bool Coze::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -122,15 +130,19 @@ bool Coze::on_activate()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-#if BROOKESIA_AGENT_COZE_ENABLE_AUTO_LOAD_DATA
     try_load_data();
-#endif
 
-    auto &info = get_data<DataType::Info>();
+    auto &info = data_info_;
     BROOKESIA_LOGD("Start with authorization info: %1%", BROOKESIA_DESCRIBE_TO_STR(info.authorization));
     BROOKESIA_LOGD("Start with robots: %1%", BROOKESIA_DESCRIBE_TO_STR(info.robots));
 
     BROOKESIA_CHECK_FALSE_RETURN(validate_info(info), false, "Invalid info");
+
+    if (get_data<DataType::BotIndex>() >= info.robots.size()) {
+        BROOKESIA_LOGW("Active robot index(%1%) out of range, reset to 0", get_data<DataType::BotIndex>());
+        set_data<DataType::BotIndex>(0);
+        try_save_data(DataType::BotIndex);
+    }
 
     auto &auth_info = info.authorization;
     std::string access_token = get_access_token(auth_info);
@@ -301,8 +313,6 @@ bool Coze::set_info(const boost::json::object &info)
 
     BROOKESIA_LOGD("Params: info(%1%)", BROOKESIA_DESCRIBE_TO_STR(info));
 
-    try_load_data();
-
     CozeInfo coze_info;
 
     auto success = BROOKESIA_DESCRIBE_FROM_JSON(info, coze_info);
@@ -312,16 +322,14 @@ bool Coze::set_info(const boost::json::object &info)
 
     BROOKESIA_CHECK_FALSE_RETURN(validate_info(coze_info), false, "Failed to validate coze info");
 
-    auto current_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(get_data<DataType::Info>());
+    auto current_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(data_info_);
     auto new_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(coze_info);
     if (current_info_str == new_info_str) {
         BROOKESIA_LOGI("Info is the same, skip setting");
         return true;
     }
 
-    set_data<DataType::Info>(std::move(coze_info));
-
-    try_save_data(DataType::Info);
+    data_info_ = std::move(coze_info);
 
     return true;
 }
@@ -330,9 +338,9 @@ bool Coze::reset_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    is_data_loaded_ = false;
+    is_bot_index_loaded_ = false;
     set_data<DataType::BotIndex>(0);
-    set_data<DataType::Info>(CozeInfo{});
+    data_info_ = CozeInfo{};
 
     try_erase_data();
 
@@ -341,21 +349,13 @@ bool Coze::reset_data()
     return true;
 }
 
-std::expected<void, std::string> Coze::function_load_data()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    is_data_loaded_ = false;
-    try_load_data();
-
-    return {};
-}
-
 std::expected<void, std::string> Coze::function_set_active_robot_index(double index)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto &robots = get_data<DataType::Info>().robots;
+    try_load_data();
+
+    auto &robots = data_info_.robots;
     if (index < 0 || index >= robots.size()) {
         return std::unexpected(
                    (boost::format("Invalid robot index: %1% (size: %2%)") % index % robots.size()).str()
@@ -368,6 +368,7 @@ std::expected<void, std::string> Coze::function_set_active_robot_index(double in
     }
 
     set_data<DataType::BotIndex>(static_cast<uint8_t>(index));
+    is_bot_index_loaded_ = true;
 
     try_save_data(DataType::BotIndex);
 
@@ -378,6 +379,8 @@ std::expected<double, std::string> Coze::function_get_active_robot_index()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    try_load_data();
+
     return static_cast<double>(get_data<DataType::BotIndex>());
 }
 
@@ -385,7 +388,7 @@ std::expected<boost::json::array, std::string> Coze::function_get_robot_infos()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    return BROOKESIA_DESCRIBE_TO_JSON(get_data<DataType::Info>().robots).as_array();
+    return BROOKESIA_DESCRIBE_TO_JSON(data_info_.robots).as_array();
 }
 
 void Coze::set_chat_listening(bool listening)
@@ -401,8 +404,8 @@ void Coze::try_load_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_data_loaded_) {
-        BROOKESIA_LOGD("Data is already loaded, skip");
+    if (is_bot_index_loaded_) {
+        BROOKESIA_LOGD("Bot index is already loaded, skip");
         return;
     }
 
@@ -421,43 +424,22 @@ void Coze::try_load_data()
     }
     auto kv_namespace = std::move(namespace_result.value());
 
-    {
-        auto raw_key = BROOKESIA_DESCRIBE_TO_STR(DataType::Info);
-        auto key_result = make_storage_key(raw_key);
-        if (!key_result) {
-            BROOKESIA_LOGW("%1%", key_result.error());
-            return;
-        }
-        auto key = std::move(key_result.value());
-        auto result = StorageHelper::get_key_value<CozeInfo>(kv_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGD("No persisted '%1%' in Storage: %2%", raw_key, result.error());
-        } else {
-            set_data<DataType::Info>(std::move(result.value()));
-            BROOKESIA_LOGI("Loaded '%1%' from Storage", raw_key);
-        }
+    auto raw_key = BROOKESIA_DESCRIBE_TO_STR(DataType::BotIndex);
+    auto key_result = make_storage_key(raw_key);
+    if (!key_result) {
+        BROOKESIA_LOGW("%1%", key_result.error());
+        return;
+    }
+    auto key = std::move(key_result.value());
+    auto result = StorageHelper::get_key_value<uint8_t>(kv_namespace, key);
+    if (!result) {
+        BROOKESIA_LOGD("No persisted '%1%' in Storage: %2%", raw_key, result.error());
+    } else {
+        set_data<DataType::BotIndex>(result.value());
+        BROOKESIA_LOGI("Loaded '%1%' from Storage", raw_key);
     }
 
-    {
-        auto raw_key = BROOKESIA_DESCRIBE_TO_STR(DataType::BotIndex);
-        auto key_result = make_storage_key(raw_key);
-        if (!key_result) {
-            BROOKESIA_LOGW("%1%", key_result.error());
-            return;
-        }
-        auto key = std::move(key_result.value());
-        auto result = StorageHelper::get_key_value<uint8_t>(kv_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGD("No persisted '%1%' in Storage: %2%", raw_key, result.error());
-        } else {
-            set_data<DataType::BotIndex>(result.value());
-            BROOKESIA_LOGI("Loaded '%1%' from Storage", raw_key);
-        }
-    }
-
-    is_data_loaded_ = true;
-
-    BROOKESIA_LOGI("Loaded all data from Storage");
+    is_bot_index_loaded_ = true;
 }
 
 void Coze::try_save_data(DataType type)
@@ -466,6 +448,11 @@ void Coze::try_save_data(DataType type)
 
     auto raw_key = BROOKESIA_DESCRIBE_TO_STR(type);
     BROOKESIA_LOGD("Params: type(%1%)", raw_key);
+
+    if (type != DataType::BotIndex) {
+        BROOKESIA_LOGE("Invalid data type for saving to Storage");
+        return;
+    }
 
     if (!StorageHelper::is_available()) {
         BROOKESIA_LOGD("Storage service is not available, skip");
@@ -478,26 +465,18 @@ void Coze::try_save_data(DataType type)
     BROOKESIA_CHECK_FALSE_EXIT(key_result, "%1%", key_result.error());
     auto kv_namespace = std::move(namespace_result.value());
     auto key = std::move(key_result.value());
-    auto save_function = [this, &kv_namespace, &key, raw_key](const auto & data_value) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        auto result = StorageHelper::save_key_value_async(kv_namespace, key, data_value,
-        [this, raw_key](auto &&result) mutable {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            BROOKESIA_CHECK_FALSE_EXIT(
-                result.success, "Failed to save %1% to Storage: %2%", raw_key, result.error_message
-            );
-            BROOKESIA_LOGI("Saved '%1%' to Storage", raw_key);
-        });
-        BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to save data to Storage");
-    };
 
-    if (type == DataType::Info) {
-        save_function(get_data<DataType::Info>());
-    } else if (type == DataType::BotIndex) {
-        save_function(get_data<DataType::BotIndex>());
-    } else {
-        BROOKESIA_LOGE("Invalid data type for saving to Storage");
-    }
+    auto save_result_handler = [this, raw_key](auto &&result) mutable {
+        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+        BROOKESIA_CHECK_FALSE_EXIT(
+            result.success, "Failed to save %1% to Storage: %2%", raw_key, result.error_message
+        );
+        BROOKESIA_LOGI("Saved '%1%' to Storage", raw_key);
+    };
+    auto result = StorageHelper::save_key_value_async(
+                      kv_namespace, key, get_data<DataType::BotIndex>(), std::move(save_result_handler)
+                  );
+    BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to save data to Storage");
 }
 
 void Coze::try_erase_data()
@@ -514,11 +493,16 @@ void Coze::try_erase_data()
 
     auto namespace_result = make_storage_namespace(get_attributes().get_name());
     BROOKESIA_CHECK_FALSE_EXIT(namespace_result, "%1%", namespace_result.error());
-    auto result = StorageHelper::erase_keys(namespace_result.value(), {}, STORAGE_ERASE_DATA_TIMEOUT_MS);
+    auto raw_key = BROOKESIA_DESCRIBE_TO_STR(DataType::BotIndex);
+    auto key_result = make_storage_key(raw_key);
+    BROOKESIA_CHECK_FALSE_EXIT(key_result, "%1%", key_result.error());
+    auto result = StorageHelper::erase_keys(
+                      namespace_result.value(), {key_result.value()}, STORAGE_ERASE_DATA_TIMEOUT_MS
+                  );
     if (!result) {
         BROOKESIA_LOGE("Failed to erase Storage data: %1%", result.error());
     } else {
-        BROOKESIA_LOGI("Erased Storage data");
+        BROOKESIA_LOGI("Erased '%1%' from Storage", raw_key);
     }
 }
 
@@ -555,6 +539,7 @@ bool Coze::validate_info(CozeInfo &info)
         }
         return false;
     }), robots.end());
+    BROOKESIA_CHECK_FALSE_RETURN(!robots.empty(), false, "No valid robot");
 
     return true;
 }

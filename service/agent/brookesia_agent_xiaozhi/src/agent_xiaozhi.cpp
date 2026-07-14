@@ -276,6 +276,14 @@ esp_err_t on_keystore_nvs_erase_all(nvs_ops_handle_t handle)
 
 } // anonymous namespace
 
+std::string XiaoZhi::get_component_version()
+{
+    return make_version(
+               BROOKESIA_AGENT_XIAOZHI_VER_MAJOR, BROOKESIA_AGENT_XIAOZHI_VER_MINOR,
+               BROOKESIA_AGENT_XIAOZHI_VER_PATCH
+           );
+}
+
 bool XiaoZhi::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

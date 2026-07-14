@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia Xiaozhi Agent which provides Xiaozhi API integration
 url: https://github.com/espressif/esp-brookesia/tree/master/service/agent/brookesia_agent_xiaozhi
 repository: https://github.com/espressif/esp-brookesia.git
@@ -19,5 +19,4 @@ dependencies:
     require: private
 
 examples:
-  - path: ../../../examples/service/console
   - path: ../../../examples/agent/chatbot

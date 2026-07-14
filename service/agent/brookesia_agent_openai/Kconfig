@@ -16,10 +16,4 @@ menu "ESP-Brookesia: Agent Openai Configurations"
     config BROOKESIA_AGENT_OPENAI_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n
-
-    config BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA
-        bool "Automatically load persisted OpenAI data on activation"
-        default y
-        help
-            Load persisted OpenAI agent data when the agent activates.
 endmenu

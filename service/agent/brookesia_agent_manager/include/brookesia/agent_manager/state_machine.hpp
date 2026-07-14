@@ -18,7 +18,7 @@ namespace esp_brookesia::agent {
 /**
  * @brief Re-exported stable and transient agent states.
  */
-using GeneralState = service::helper::Manager::GeneralState;
+using GeneralState = service::helper::AgentManager::GeneralState;
 
 /**
  * @brief Auxiliary actions used internally to finish state transitions.

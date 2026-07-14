@@ -3,6 +3,8 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <optional>
+
 #include "brookesia/agent_manager/macro_configs.h"
 #if !BROOKESIA_AGENT_MANAGER_STATE_MACHINE_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -17,13 +19,33 @@
 
 namespace esp_brookesia::agent {
 
-using ManagerHelper = service::helper::Manager;
+using ManagerHelper = service::helper::AgentManager;
 using SNTPHelper = service::helper::SNTP;
 
 constexpr uint32_t TIME_SYNC_UPDATE_INTERVAL_MS = 1000;
 
 constexpr uint32_t GENERAL_ACTION_QUEUE_DISPATCH_INTERVAL_MS = 100;
 constexpr uint32_t GENERAL_STATE_UPDATE_INTERVAL_MS = 100;
+
+namespace {
+
+std::optional<SNTPHelper::State> get_sntp_state_for_agent_time_sync()
+{
+    auto state_text = SNTPHelper::call_function_sync<std::string>(SNTPHelper::FunctionId::GetState);
+    if (!state_text) {
+        BROOKESIA_LOGW("Failed to get SNTP state before Agent time sync: %1%", state_text.error());
+        return std::nullopt;
+    }
+
+    SNTPHelper::State state = SNTPHelper::State::Max;
+    if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(*state_text, state)) {
+        BROOKESIA_LOGW("Invalid SNTP state before Agent time sync: %1%", *state_text);
+        return std::nullopt;
+    }
+    return state;
+}
+
+} // namespace
 
 class GeneralStateClass : public lib_utils::StateBase {
 public:
@@ -567,6 +589,12 @@ void StateMachine::stop()
 bool StateMachine::do_time_sync()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    auto state = get_sntp_state_for_agent_time_sync();
+    if (state && *state != SNTPHelper::State::Stopped) {
+        BROOKESIA_LOGI("SNTP already active for Agent time sync: state(%1%)", BROOKESIA_DESCRIBE_TO_STR(*state));
+        return true;
+    }
 
     auto result = SNTPHelper::call_function_sync<void>(SNTPHelper::FunctionId::Start);
     if (!result) {
