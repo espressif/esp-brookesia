@@ -43,7 +43,7 @@ Example:
 .. code-block:: json
 
    {
-       "version": "0.1.0",
+       "version": "0.1.1",
        "assets": [
            "../../shared/constants/base.json",
            "flows/main.json",
@@ -94,9 +94,9 @@ Top-Level Field Table
      - Description
    * - ``version``
      - string
-     - ``"0.1.0"``
+     - ``"0.1.1"``
      - No
-     - Protocol version; currently ``"0.1.0"`` is supported
+     - Protocol version; currently ``"0.1.1"`` is supported
    * - ``assets``
      - array<string | object>
      - ``[]``
@@ -120,7 +120,8 @@ Version
 
 - type: ``string``
 - Required: No
-- Current value: ``"0.1.0"``
+- Current value: ``"0.1.1"``
+- ``0.1.1`` adds ``imageSet.images[].preload``; old resources that omit this field behave as ``false`` and keep on-demand loading
 
 .. _gui-interface-json_ui-document-root-sec-07:
 
@@ -212,7 +213,7 @@ Example:
 .. code-block:: json
 
    {
-       "version": "0.1.0",
+       "version": "0.1.1",
        "assets": [
            "./constants/base.json",
            {

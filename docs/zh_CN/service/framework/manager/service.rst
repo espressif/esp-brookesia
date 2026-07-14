@@ -28,6 +28,20 @@ API 参考
 
 .. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager.inc
 
+内置 Manager 服务
+~~~~~~~~~~~~~~~~~
+
+公共头文件： ``#include "brookesia/service_manager/service/manager_service.hpp"``
+
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager_service.inc
+
+内置 Utils 服务
+~~~~~~~~~~~~~~~
+
+公共头文件： ``#include "brookesia/service_manager/service/utils_service.hpp"``
+
+.. include-build-file:: inc/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/utils_service.inc
+
 .. _service-manager-service-sec-04:
 
 服务本地运行器

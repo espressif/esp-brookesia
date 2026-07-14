@@ -43,7 +43,7 @@ root.json 顶层结构
 .. code-block:: json
 
    {
-       "version": "0.1.0",
+       "version": "0.1.1",
        "assets": [
            "../../shared/constants/base.json",
            "flows/main.json",
@@ -94,9 +94,9 @@ root.json 顶层结构
      - 说明
    * - ``version``
      - string
-     - ``"0.1.0"``
+     - ``"0.1.1"``
      - 否
-     - 协议版本；当前支持 ``"0.1.0"``
+     - 协议版本；当前支持 ``"0.1.1"``
    * - ``assets``
      - array<string | object>
      - ``[]``
@@ -120,7 +120,8 @@ version
 
 - 类型：``string``
 - 是否必填：否
-- 当前值：``"0.1.0"``
+- 当前值：``"0.1.1"``
+- ``0.1.1`` 新增 ``imageSet.images[].preload``；旧资源未声明该字段时按 ``false`` 处理，保持按需加载行为
 
 .. _gui-interface-json_ui-document-root-sec-07:
 
@@ -212,7 +213,7 @@ assets entry 双形态
 .. code-block:: json
 
    {
-       "version": "0.1.0",
+       "version": "0.1.1",
        "assets": [
            "./constants/base.json",
            {

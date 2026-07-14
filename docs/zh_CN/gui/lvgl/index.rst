@@ -13,8 +13,8 @@ LVGL 后端
 --------------------
 
 - LVGL 后端的工程接入
-- PNG 到 LVGL image ``.bin`` 的构建期打包
-- ``.bin`` 图片在后端中的预加载与缓存行为
+- PNG/JPEG 到 LVGL image ``.bin`` 的构建期打包
+- ``.bin``、PNG 和 JPEG 图片的运行时加载、尺寸补全、预加载与缓存行为
 
 JSON UI 协议本身见 :doc:`../interface/json_ui/index`。
 
@@ -30,11 +30,11 @@ JSON UI 协议本身见 :doc:`../interface/json_ui/index`。
      - 内容
      - 适用场景
    * - :doc:`backend`
-     - JSON UI 解析模型到 LVGL API 的映射、``.bin`` 预加载、后端 pump
+     - JSON UI 解析模型到 LVGL API 的映射、图片加载与缓存、后端 pump
      - 排查 LVGL 后端行为
    * - :doc:`image_pack`
      - ``brookesia_gui_lvgl_pack_images()``、LVGLImage.py 解析、Python 依赖
-     - 把 PNG 资源打包进 package / SPIFFS
+     - 把 PNG/JPEG 资源打包进 package / SPIFFS
 
 .. toctree::
    :maxdepth: 1
@@ -45,4 +45,5 @@ JSON UI 协议本身见 :doc:`../interface/json_ui/index`。
 
 .. note::
 
-   维护者同步检查：修改 ``cmake/image_pack.cmake`` 时同步 :doc:`image_pack`；修改 ``.bin`` 预加载、缓存策略或 JSON UI 字段映射时同步 :doc:`backend`。
+   维护者同步检查：修改 ``cmake/image_pack.cmake`` 时同步 :doc:`image_pack`；修改图片加载、预加载、缓存或
+   JSON UI 字段映射时同步 :doc:`backend`。

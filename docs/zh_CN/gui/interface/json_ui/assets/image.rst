@@ -67,8 +67,13 @@ imageSet
      - ``0``
      - 否
      - 源图高度；用于 image sizing
+   * - ``images[].preload``
+     - boolean
+     - ``false``
+     - 否
+     - 从 JSON UI ``0.1.1`` 开始支持；为 ``true`` 时，document load 阶段请求 backend 预加载该图片
 
-``images[]`` entry 不包含 ``type``。同一个 ``imageSet`` 内不能出现重复 id。
+``images[]`` 条目不包含 ``type``。同一个 ``imageSet`` 内不能出现重复 id。
 
 .. _gui-interface-json_ui-assets-image-sec-04:
 
@@ -79,6 +84,10 @@ Runtime API
 - ``unregister_image(...)``
 - ``register_image_json(...)``
 - ``register_image_file(...)``
+- ``preload_image(document_id, image_id)``
+- ``preload_images(document_id, image_ids)``
+- ``release_preloaded_image(document_id, image_id)``
+- ``release_preloaded_images(document_id, image_ids)``
 - ``list_image_resources(document_id)``
 
 ``register_image_json/file(...)`` 会注册 ``imageSet`` 中的所有图片；若其中任意一项注册失败，本次已注册的图片会回滚。
@@ -90,9 +99,20 @@ Document image 资源优先级高于 Runtime 全局 image；Runtime 全局 image
 源文件格式（backend 相关）
 ----------------------------------
 
-``src`` / ``RuntimeImageResource.primary_src`` 的具体文件格式由当前 backend 决定。``gui_interface`` 只保存图片 id、路径和尺寸，并在 document load 阶段调用 backend 的资源补全与预加载 hook。
+``src`` / ``RuntimeImageResource.primary_src`` 的具体文件格式由当前 backend 决定。``gui_interface`` 只保存图片 id、路径、尺寸和 ``preload`` 标记，并在 document load 阶段调用 backend 的资源补全与预加载 hook。
 
 若某个 backend 支持从专有图片格式中读取尺寸，``register_image(...)`` 可以在 ``width`` / ``height`` 缺失时通过 backend hook 补全。若无法补全，``width`` / ``height`` 必须显式为正数。
+
+LVGL backend 接受 LVGL ``.bin``、PNG 和 ``.jpg`` / ``.jpeg`` 源文件，并可从 ``.bin`` 与 JPEG
+header 读取尺寸。JPEG 需要启用 :doc:`../../../lvgl/backend` 中说明的平台 decoder，否则加载会返回
+明确错误。
+
+document load 阶段会预加载两类图片：
+
+- backend 要求必须预加载的格式，例如 LVGL ``.bin`` 和 JPEG
+- ``images[].preload`` 或 ``RuntimeImageResource.preload`` 为 ``true`` 的资源，例如希望提前解码的 PNG
+
+``preload: true`` 的预加载失败会导致 document load 失败并返回错误。缺省或 ``false`` 时，图片保持 backend 原有按需加载/解码行为。
 
 .. _gui-interface-json_ui-assets-image-sec-06:
 
@@ -108,7 +128,8 @@ Document image 资源优先级高于 Runtime 全局 image；Runtime 全局 image
                "id": "logo",
                "src": "../../../../../docs/_static/brookesia_logo.png",
                "width": 3409,
-               "height": 834
+               "height": 834,
+               "preload": true
            }
        ]
    }

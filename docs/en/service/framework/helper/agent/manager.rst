@@ -1,7 +1,7 @@
 .. _agent-helper-manager-sec-00:
 
-Manager Helper
-==============
+Agent Manager Helper
+===================
 
 :link_to_translation:`zh_CN:[中文]`
 
@@ -12,7 +12,7 @@ Manager Helper
 Overview
 --------
 
-Raw Doxygen API for the Manager helper: types, enums, methods, and macros.
+Raw Doxygen API for the AgentManager helper: types, enums, methods, and macros.
 
 .. _agent-helper-manager-sec-02:
 

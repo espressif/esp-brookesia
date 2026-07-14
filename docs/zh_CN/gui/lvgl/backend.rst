@@ -30,6 +30,37 @@ LVGL backend 支持 LVGL v9 image ``.bin``：
 
 构建期 PNG 转 ``.bin`` 请看 :doc:`image_pack`。
 
+.. _gui-lvgl-backend-png-preload-sec:
+
+PNG 预加载
+--------------------
+
+LVGL backend 也支持按需预加载 PNG：
+
+- 普通 PNG 缺省仍由 LVGL 在首次显示或刷新 source 时按需解码。
+- ``imageSet.images[].preload: true`` 或手动调用 ``preload_image(s)`` 时，backend 会在 GUI task 中打开 LVGL decoder，复制 decoded draw buffer，并缓存为可直接传给 ``lv_image_set_src`` 的 descriptor。
+- 同一路径按引用计数共享 decoded cache；``release_preloaded_image(s)`` 只释放手动引用，document unload 会释放 ``preload: true`` 持有的自动引用。
+- 对不支持预加载的文件格式显式返回错误；不会静默退化为 no-op。
+
+.. _gui-lvgl-backend-jpeg-preload-sec:
+
+JPEG 加载与预加载
+--------------------------------
+
+LVGL backend 支持运行时 ``.jpg`` / ``.jpeg`` 资源，扩展名不区分大小写：
+
+- backend 校验 JPEG magic 并解析 start-of-frame header，在图片尺寸缺失时补全宽高
+- 编码数据通过 Storage 读取到持有所有权的 ``LV_COLOR_FORMAT_RAW`` descriptor
+- JPEG 资源始终预加载，并按路径使用与其他编码图片 descriptor 相同的引用计数缓存，避免向 LVGL
+  传递临时存储
+- ESP 使用 ``CONFIG_ESP_LVGL_ADAPTER_ENABLE_DECODER`` 启用的 decoder；PC 和 WASM
+  使用启用了 ``LV_USE_TJPGD`` 与 ``LV_USE_FS_MEMFS`` 的 LVGL
+  TJPGD
+- decoder 缺失、JPEG header 非法、segment 截断或尺寸非法时，返回包含源路径的明确错误
+
+PNG 行为保持不变：普通 PNG 缺省仍按需解码，只有显式请求时才预加载。LVGL ``.bin`` 和 JPEG 因为需要
+长期持有编码数据 descriptor，会自动预加载。
+
 .. _gui-lvgl-backend-sec-03:
 
 Layout
