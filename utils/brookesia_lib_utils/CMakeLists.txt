@@ -12,6 +12,8 @@ set(COMPONENT_SRCS_CPP "")
 set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
 set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
 
+include(${CMAKE_CURRENT_LIST_DIR}/cmake/component_version.cmake)
+
 #
 # Lib Utils
 #

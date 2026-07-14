@@ -68,8 +68,29 @@ bool TaskScheduler::start(const StartConfig &config)
     }
     pre_execute_callbacks_[""] = config.pre_execute_callback;
     post_execute_callbacks_[""] = config.post_execute_callback;
+    worker_wait_slot_count_.store(0);
     is_running_ = true;
     return true;
+}
+
+bool TaskScheduler::is_current_thread_worker() const
+{
+    return false;
+}
+
+bool TaskScheduler::is_current_thread_in_group(const Group &group) const
+{
+    (void)group;
+    return false;
+}
+
+bool TaskScheduler::try_acquire_worker_wait_slot()
+{
+    return true;
+}
+
+void TaskScheduler::release_worker_wait_slot()
+{
 }
 
 void TaskScheduler::stop()
@@ -77,6 +98,7 @@ void TaskScheduler::stop()
     cancel_all();
     boost::lock_guard lock(mutex_);
     is_running_ = false;
+    worker_wait_slot_count_.store(0);
     pre_execute_callbacks_.clear();
     post_execute_callbacks_.clear();
 }

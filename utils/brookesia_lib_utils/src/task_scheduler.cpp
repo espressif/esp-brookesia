@@ -17,6 +17,81 @@
 
 namespace esp_brookesia::lib_utils {
 
+namespace {
+// Points to the scheduler whose worker loop is currently running on this thread (if any).
+thread_local const TaskScheduler *tls_current_worker_scheduler = nullptr;
+thread_local const TaskScheduler *tls_worker_wait_slot_scheduler = nullptr;
+thread_local size_t tls_worker_wait_slot_count = 0;
+} // namespace
+
+bool TaskScheduler::is_current_thread_worker() const
+{
+    return tls_current_worker_scheduler == this;
+}
+
+bool TaskScheduler::is_current_thread_in_group(const Group &group) const
+{
+    std::shared_ptr<boost::asio::strand<boost::asio::io_context::executor_type>> strand;
+    {
+        boost::lock_guard lock(mutex_);
+        auto strand_it = strands_.find(group);
+        if (strand_it == strands_.end()) {
+            return false;
+        }
+        strand = strand_it->second;
+    }
+    return strand->running_in_this_thread();
+}
+
+bool TaskScheduler::try_acquire_worker_wait_slot()
+{
+    if (!is_current_thread_worker()) {
+        return true;
+    }
+    if ((tls_worker_wait_slot_scheduler != nullptr) && (tls_worker_wait_slot_scheduler != this)) {
+        return false;
+    }
+
+    const auto worker_count = get_worker_count();
+    if (worker_count <= 1) {
+        return false;
+    }
+
+    auto wait_slot_count = worker_wait_slot_count_.load();
+    while (wait_slot_count < (worker_count - 1)) {
+        if (worker_wait_slot_count_.compare_exchange_weak(wait_slot_count, wait_slot_count + 1)) {
+            tls_worker_wait_slot_scheduler = this;
+            ++tls_worker_wait_slot_count;
+            return true;
+        }
+    }
+    return false;
+}
+
+void TaskScheduler::release_worker_wait_slot()
+{
+    if (!is_current_thread_worker()) {
+        return;
+    }
+
+    if ((tls_worker_wait_slot_scheduler != this) || (tls_worker_wait_slot_count == 0)) {
+        BROOKESIA_LOGW("Ignore worker wait slot release without a matching acquisition");
+        return;
+    }
+
+    auto wait_slot_count = worker_wait_slot_count_.load();
+    while (wait_slot_count > 0) {
+        if (worker_wait_slot_count_.compare_exchange_weak(wait_slot_count, wait_slot_count - 1)) {
+            --tls_worker_wait_slot_count;
+            if (tls_worker_wait_slot_count == 0) {
+                tls_worker_wait_slot_scheduler = nullptr;
+            }
+            return;
+        }
+    }
+    BROOKESIA_LOGE("Worker wait slot accounting is inconsistent");
+}
+
 TaskScheduler::~TaskScheduler()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -44,6 +119,8 @@ bool TaskScheduler::start(const StartConfig &config)
         BROOKESIA_LOGD("Already running");
         return true;
     }
+
+    worker_wait_slot_count_.store(0);
 
     lib_utils::FunctionGuard stop_guard([this, &lock]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -94,6 +171,10 @@ bool TaskScheduler::start(const StartConfig &config)
             BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
             BROOKESIA_LOGD("Worker thread (%1%) started", name);
+
+            // Mark this thread as owned by this scheduler for execution-context
+            // queries and synchronous wait-slot accounting.
+            tls_current_worker_scheduler = this;
 
             while (!boost::this_thread::interruption_requested() && !io_context_->stopped())
             {
@@ -175,6 +256,7 @@ void TaskScheduler::stop()
     }
 
     is_running_.store(false);
+    worker_wait_slot_count_.store(0);
 
     BROOKESIA_LOGD(
         "Stopped, canceled %1% tasks, statistics: %2%", task_count, BROOKESIA_DESCRIBE_TO_STR(get_statistics())
