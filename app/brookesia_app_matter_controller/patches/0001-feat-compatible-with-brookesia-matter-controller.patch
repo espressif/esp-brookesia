@@ -1,0 +1,195 @@
+From 73bf0834c1bea692ff1eff806e92fd291b800f09 Mon Sep 17 00:00:00 2001
+From: MiaoJianyu <miaojianyu@espressif.com>
+Date: Fri, 21 Aug 2026 11:38:53 +0800
+Subject: [PATCH] feat: compatible with brookesia matter controller
+
+---
+ .../app_rmaker_matter_cmd_resp.cpp            |  8 ++--
+ .../app_rmaker_matter_report_subscribe.cpp    | 11 ++++--
+ .../idf_component.yml                         |  2 +-
+ .../app_controller_op_creds_issuer.cpp        | 37 ++++++++++++++++++-
+ .../common/app_controller/idf_component.yml   |  2 +-
+ .../common/app_end_device/idf_component.yml   |  2 +-
+ 6 files changed, 50 insertions(+), 12 deletions(-)
+
+diff --git a/examples/common/rmaker_matter_controller/app_rmaker_matter_cmd_resp.cpp b/examples/common/rmaker_matter_controller/app_rmaker_matter_cmd_resp.cpp
+index 25bd888c..270f8520 100644
+--- a/examples/common/rmaker_matter_controller/app_rmaker_matter_cmd_resp.cpp
++++ b/examples/common/rmaker_matter_controller/app_rmaker_matter_cmd_resp.cpp
+@@ -30,7 +30,7 @@
+ #include <app/server/Server.h>
+ #include <lib/core/DataModelTypes.h>
+ #include <lib/core/Optional.h>
+-#include <lib/support/ScopedBuffer.h>
++#include <lib/support/ScopedMemoryBuffer.h>
+ #include <lib/support/CHIPMem.h>
+ #include <lib/core/NodeId.h>
+ #include <lib/core/TLVReader.h>
+@@ -394,7 +394,7 @@ public:
+         }
+ #ifdef CONFIG_ESP_MATTER_ENABLE_MATTER_SERVER
+         chip::Server::GetInstance().GetCASESessionManager()->FindOrEstablishSession(
+-            chip::ScopedNodeId(m_node_id, get_fabric_index()), &m_on_device_connected_cb,
++            chip::ScopedNodeId(m_node_id, controller::get_fabric_index()), &m_on_device_connected_cb,
+             &m_on_device_connection_failure_cb);
+         return ESP_OK;
+ #else
+@@ -486,7 +486,7 @@ public:
+         }
+ #ifdef CONFIG_ESP_MATTER_ENABLE_MATTER_SERVER
+         chip::Server &server = chip::Server::GetInstance();
+-        server.GetCASESessionManager()->FindOrEstablishSession(chip::ScopedNodeId(m_destination_id, get_fabric_index()),
++        server.GetCASESessionManager()->FindOrEstablishSession(chip::ScopedNodeId(m_destination_id, controller::get_fabric_index()),
+                                                                &m_on_device_connected_cb,
+                                                                &m_on_device_connection_failure_cb);
+         return ESP_OK;
+@@ -586,7 +586,7 @@ public:
+     {
+ #ifdef CONFIG_ESP_MATTER_ENABLE_MATTER_SERVER
+         chip::Server::GetInstance().GetCASESessionManager()->FindOrEstablishSession(
+-            chip::ScopedNodeId(m_node_id, get_fabric_index()), &m_on_device_connected_cb,
++            chip::ScopedNodeId(m_node_id, controller::get_fabric_index()), &m_on_device_connected_cb,
+             &m_on_device_connection_failure_cb);
+         return ESP_OK;
+ #else
+diff --git a/examples/common/rmaker_matter_controller/app_rmaker_matter_report_subscribe.cpp b/examples/common/rmaker_matter_controller/app_rmaker_matter_report_subscribe.cpp
+index 4577f02e..16f8f48d 100644
+--- a/examples/common/rmaker_matter_controller/app_rmaker_matter_report_subscribe.cpp
++++ b/examples/common/rmaker_matter_controller/app_rmaker_matter_report_subscribe.cpp
+@@ -60,13 +60,15 @@ static bool mark_online_locked(node_state_t *ns, char *rainmaker_node_id, size_t
+     return true;
+ }
+
+-static void on_subscribe_connect_failure_cb(void *context)
++static void on_subscribe_connect_failure_cb(void *context, const chip::ScopedNodeId &peerId, CHIP_ERROR error)
+ {
+     (void)context;
++    (void)peerId;
++    (void)error;
+     ESP_LOGW(TAG, "Subscribe connect failed");
+     report_msg_t refresh = {};
+     refresh.msg_type = REPORT_MSG_SUBSCRIBE_CONNECT_FAILED;
+-    refresh.node_id = 0; /* esp-matter 1.5 callback does not expose node id; retry all offline nodes. */
++    refresh.node_id = 0; /* retry all offline nodes. */
+     if (s_report_queue) {
+         xQueueSend(s_report_queue, &refresh, 0);
+     }
+@@ -126,8 +128,9 @@ static void report_online(uint64_t remote_node_id)
+ }
+
+ static void on_attribute_data_cb(uint64_t remote_node_id, const chip::app::ConcreteDataAttributePath &path,
+-                                 chip::TLV::TLVReader *data)
++                                 chip::TLV::TLVReader *data, const chip::app::StatusIB &status)
+ {
++    (void)status;
+     if (should_ignore_attribute(path.mEndpointId, path.mClusterId, path.mAttributeId)) {
+         return;
+     }
+@@ -146,7 +149,7 @@ esp_err_t app_rmaker_matter_report_subscribe_send_wildcard(uint64_t node_id)
+     attr_paths[0] = chip::app::AttributePathParams(0xFFFF, 0xFFFFFFFF, 0xFFFFFFFF);
+     subscribe_command *cmd = chip::Platform::New<subscribe_command>(node_id, std::move(attr_paths), std::move(event_paths),
+                                                                     0, 600, false, on_attribute_data_cb,
+-                                                                    nullptr, on_subscribe_done_cb,
++                                                                    nullptr, nullptr, on_subscribe_done_cb,
+                                                                     on_subscribe_connect_failure_cb);
+     if (!cmd) {
+         return ESP_ERR_NO_MEM;
+diff --git a/examples/common/rmaker_matter_controller/idf_component.yml b/examples/common/rmaker_matter_controller/idf_component.yml
+index b65ae769..c1ef66d7 100644
+--- a/examples/common/rmaker_matter_controller/idf_component.yml
++++ b/examples/common/rmaker_matter_controller/idf_component.yml
+@@ -7,6 +7,6 @@ dependencies:
+   ## cJSON moved out of core IDF in v6.0; pull it from the registry.
+   espressif/cjson: "*"
+   espressif/esp_matter:
+-    version: "~1.5.1"
++    version: "~1.6.0"
+   espressif/esp_rainmaker: "^1.0.0"
+   espressif/rmaker_user_api: "^1.1.0"
+diff --git a/examples/matter/common/app_controller/app_controller_op_creds_issuer.cpp b/examples/matter/common/app_controller/app_controller_op_creds_issuer.cpp
+index 53a11025..e01d846f 100644
+--- a/examples/matter/common/app_controller/app_controller_op_creds_issuer.cpp
++++ b/examples/matter/common/app_controller/app_controller_op_creds_issuer.cpp
+@@ -21,7 +21,7 @@
+ #include <crypto/CHIPCryptoPAL.h>
+ #include <lib/core/DataModelTypes.h>
+ #include <lib/core/NodeId.h>
+-#include <lib/support/ScopedBuffer.h>
++#include <lib/support/ScopedMemoryBuffer.h>
+ #include <lib/support/Span.h>
+
+ #define TAG "MatterController"
+@@ -59,6 +59,10 @@ public:
+                                             chip::Crypto::P256Keypair &keypair, chip::MutableByteSpan &rcac,
+                                             chip::MutableByteSpan &icac, chip::MutableByteSpan &noc) override;
+
++    esp_err_t generate_controller_noc_chain_with_csr(chip::NodeId node_id, chip::FabricId fabric,
++                                                     chip::MutableByteSpan &csr, chip::MutableByteSpan &rcac,
++                                                     chip::MutableByteSpan &icac, chip::MutableByteSpan &noc) override;
++
+     esp_err_t update_controller_noc();
+
+ private:
+@@ -156,6 +160,37 @@ esp_err_t app_controller_op_creds_issuer::generate_controller_noc_chain(chip::No
+     return ESP_OK;
+ }
+
++esp_err_t app_controller_op_creds_issuer::generate_controller_noc_chain_with_csr(
++    chip::NodeId node_id, chip::FabricId fabric,
++    chip::MutableByteSpan &csr, chip::MutableByteSpan &rcac,
++    chip::MutableByteSpan &icac, chip::MutableByteSpan &noc)
++{
++    (void)fabric;
++    // Fetch RCAC from RainMaker cloud (or NVS cache)
++    size_t rcac_len = rcac.size();
++    if (app_rmaker_matter_controller_get_stored_rcac(rcac.data(), &rcac_len) == ESP_OK) {
++        rcac.reduce_size(rcac_len);
++    } else {
++        ESP_RETURN_ON_ERROR(app_controller_fetch_matter_rcac(rcac), TAG, "Failed on fetching RCAC");
++    }
++
++    // No intermediate CA for RainMaker
++    icac.reduce_size(0);
++
++    // Issue NOC using the CSR provided by the fabric table
++    size_t noc_len = noc.size();
++    // Pass null keypair — the keypair is managed internally by the fabric table
++    // (AllocatePendingOperationalKey already generated and stored it)
++    ESP_RETURN_ON_ERROR(
++        app_rmaker_matter_controller_issue_controller_noc(
++            csr.data(), csr.size(), noc.data(), &noc_len, node_id,
++            nullptr, 0),
++        TAG, "Failed to issue controller NOC via CSR");
++    noc.reduce_size(noc_len);
++
++    return ESP_OK;
++}
++
+ esp_err_t app_controller_op_creds_issuer::update_controller_noc()
+ {
+     ScopedMemoryBufferWithSize<uint8_t> noc;
+diff --git a/examples/matter/common/app_controller/idf_component.yml b/examples/matter/common/app_controller/idf_component.yml
+index 62ae1580..dabd3026 100644
+--- a/examples/matter/common/app_controller/idf_component.yml
++++ b/examples/matter/common/app_controller/idf_component.yml
+@@ -4,4 +4,4 @@ dependencies:
+     version: "*"
+     override_path: "../../../common/rmaker_matter_controller/"
+   espressif/esp_matter:
+-    version: "~1.5.1"
++    version: "~1.6.0"
+diff --git a/examples/matter/common/app_end_device/idf_component.yml b/examples/matter/common/app_end_device/idf_component.yml
+index 1c9ffd6a..f297dec2 100644
+--- a/examples/matter/common/app_end_device/idf_component.yml
++++ b/examples/matter/common/app_end_device/idf_component.yml
+@@ -2,7 +2,7 @@ dependencies:
+   espressif/button:
+     version: "^4.1.4"
+     require: public
+-  espressif/esp_matter: "~1.5.1"
++  espressif/esp_matter: "~1.6.0"
+   espressif/led_indicator:
+     version: "^2.0.0"
+     require: public
+--
+2.34.1

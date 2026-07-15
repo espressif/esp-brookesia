@@ -1,0 +1,352 @@
+{
+    "updates": [
+        {
+            "path": "/matter_controller/stage/page_rooms/page_rooms_shell/rooms_header/rooms_title",
+            "key": "labelProps.text",
+            "value": "房间规划"
+        },
+        {
+            "path": "/matter_controller/stage/page_rooms/page_rooms_shell/rooms_header/rooms_add_btn/rooms_add_label",
+            "key": "labelProps.text",
+            "value": "添加房间"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_title",
+            "key": "labelProps.text",
+            "value": "Matter 控制器配网"
+        },
+        {
+            "path": "/matter_controller/stage/page_thread/thread_title",
+            "key": "labelProps.text",
+            "value": "Thread 拓扑"
+        },
+        {
+            "path": "/matter_controller/stage/page_thread/thread_content/thread_topo/thread_hub/thread_hub_name",
+            "key": "labelProps.text",
+            "value": "中枢"
+        },
+        {
+            "path": "/matter_controller/stage/page_thread/thread_content/thread_topo/thread_hub/thread_hub_role",
+            "key": "labelProps.text",
+            "value": "BR"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_header/room_modal_back/room_modal_back_label",
+            "key": "labelProps.text",
+            "value": "< 返回"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_header/room_modal_title",
+            "key": "labelProps.text",
+            "value": "创建房间"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_desc",
+            "key": "labelProps.text",
+            "value": "选择房间类型，并选择需要移入的设备。"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_type_label",
+            "key": "labelProps.text",
+            "value": "选择房间类型"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_devices_label",
+            "key": "labelProps.text",
+            "value": "选择设备"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_actions/room_modal_cancel/room_modal_cancel_label",
+            "key": "labelProps.text",
+            "value": "取消"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_actions/room_modal_confirm/room_modal_confirm_label",
+            "key": "labelProps.text",
+            "value": "创建房间"
+        },
+        {
+            "path": "/matter_controller/stage/modal_overlay/modal_box/modal_actions/modal_cancel/modal_cancel_label",
+            "key": "labelProps.text",
+            "value": "取消"
+        },
+        {
+            "path": "/matter_controller/header/header_identity/header_eyebrow",
+            "key": "labelProps.text",
+            "value": "MATTER 智能家居"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_devices/nav_devices_label",
+            "key": "labelProps.text",
+            "value": "设备"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_pairing/nav_pairing_label",
+            "key": "labelProps.text",
+            "value": "配网"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_network/nav_network_label",
+            "key": "labelProps.text",
+            "value": "网络"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_settings/nav_settings_label",
+            "key": "labelProps.text",
+            "value": "设置"
+        },
+        {
+            "path": "/matter_controller/stage/page_devices/page_devices_shell/devices_header/devices_heading/page_devices_title",
+            "key": "labelProps.text",
+            "value": "我的设备"
+        },
+        {
+            "path": "/matter_controller/stage/page_devices/page_devices_shell/devices_header/rooms_shortcut/rooms_shortcut_label",
+            "key": "labelProps.text",
+            "value": "房间"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_title",
+            "key": "labelProps.text",
+            "value": "网络"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_subtitle",
+            "key": "labelProps.text",
+            "value": "连接与 Matter Fabric 状态"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_wifi/wifi_title",
+            "key": "labelProps.text",
+            "value": "Wi-Fi"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_fabric/fabric_title",
+            "key": "labelProps.text",
+            "value": "Matter Fabric"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_thread/network_thread_title",
+            "key": "labelProps.text",
+            "value": "Thread 网络"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_thread/network_thread_open/network_thread_open_label",
+            "key": "labelProps.text",
+            "value": "设备拓扑图"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_health/network_health_title",
+            "key": "labelProps.text",
+            "value": "网络健康度"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_health/network_refresh/network_refresh_label",
+            "key": "labelProps.text",
+            "value": "刷新状态"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_title",
+            "key": "labelProps.text",
+            "value": "设置"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_preferences/preferences_title",
+            "key": "labelProps.text",
+            "value": "偏好设置"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_preferences/language_row/language_info/language_title",
+            "key": "labelProps.text",
+            "value": "语言"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_preferences/brightness_group/brightness_header/brightness_title",
+            "key": "labelProps.text",
+            "value": "界面亮度"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_title",
+            "key": "labelProps.text",
+            "value": "关于"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_app",
+            "key": "labelProps.text",
+            "value": "应用：Matter Controller"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_version",
+            "key": "labelProps.text",
+            "value": "UI 版本：0.2.0"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_platform",
+            "key": "labelProps.text",
+            "value": "平台：ESP Brookesia"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_btn/about_btn_label",
+            "key": "labelProps.text",
+            "value": "关于此应用"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_title",
+            "key": "labelProps.text",
+            "value": "风险操作"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_row/reset_info/reset_info_title",
+            "key": "labelProps.text",
+            "value": "恢复出厂设置"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_row/reset_info/reset_info_desc",
+            "key": "labelProps.text",
+            "value": "清除所有凭据并重置设备。"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_row/reset_btn/reset_btn_label",
+            "key": "labelProps.text",
+            "value": "重置"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_firmware/fw_title",
+            "key": "labelProps.text",
+            "value": "固件"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_firmware/fw_update_btn/fw_update_btn_label",
+            "key": "labelProps.text",
+            "value": "检查更新"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/qr_panel/qr_wrapper/qr_placeholder/qr_placeholder_title",
+            "key": "labelProps.text",
+            "value": "正在准备二维码"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/qr_panel/qr_wrapper/qr_placeholder/qr_placeholder_desc",
+            "key": "labelProps.text",
+            "value": "正在等待 BLE 配网启动"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/qr_panel/qr_scan_hint",
+            "key": "labelProps.text",
+            "value": "请使用 ESP RainMaker App 扫码"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/pairing_waiting/pairing_waiting_title",
+            "key": "labelProps.text",
+            "value": "准备连接"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/pairing_waiting/pairing_waiting_desc",
+            "key": "labelProps.text",
+            "value": "请扫描二维码，将此控制器连接到 Wi-Fi。"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/commission_success/commission_success_title",
+            "key": "labelProps.text",
+            "value": "配网成功"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/commission_success/commission_success_desc",
+            "key": "labelProps.text",
+            "value": "控制器已连接到 Wi-Fi，可以添加 Matter 设备。"
+        }
+    ],
+    "strings": {
+        "device.generic": "Matter 设备",
+        "device.living_room_light": "客厅灯",
+        "device.kitchen_plug": "厨房插座",
+        "device.study_switch": "书房开关",
+        "device.bedroom_strip": "卧室灯带",
+        "device.tv_plug": "电视插座",
+        "room.unassigned": "未分配",
+        "room.living_room": "客厅",
+        "room.kitchen": "厨房",
+        "room.study": "书房",
+        "room.bedroom": "卧室",
+        "tag.matter_light": "Matter_灯具",
+        "tag.matter_rgbcw": "Matter_RGBCW",
+        "tag.matter_plug": "Matter_插座",
+        "tag.matter_switch": "Matter_开关",
+        "slider.brightness": "亮度",
+        "slider.color_temp": "色温",
+        "slider.hue": "色相",
+        "slider.saturation": "饱和度",
+        "status.active": "活跃",
+        "status.on": "开启",
+        "status.off": "关闭",
+        "status.warm_white": "暖白",
+        "status.daylight": "日光",
+        "status.bright": "亮度 {value}%",
+        "status.cct": "色温 {value}K",
+        "status.hue": "色相 {value}°",
+        "status.saturation": "饱和度 {value}%",
+        "room.chip": "房间",
+        "room.associated_devices": "关联设备：{count}",
+        "room.current_room": "当前房间：{room}",
+        "error.room_exists": "该房间已存在。",
+        "error.room_select_device": "请至少选择一个要绑定到房间的设备。",
+        "thread.node.light.name": "客厅灯",
+        "thread.node.plug.name": "厨房插座",
+        "thread.node.type.router": "路由节点",
+        "thread.signal.strong": "信号强度：强（-58 dBm）",
+        "thread.signal.very_strong": "信号强度：非常强（-45 dBm）",
+        "modal.firmware_current.title": "固件已是最新",
+        "modal.firmware_current.message": "演示版本中没有可用的新镜像。",
+        "firmware.version_summary": "版本：v1.0.0  ·  {chip}",
+        "modal.factory_reset.title": "确认恢复出厂设置？",
+        "modal.factory_reset.message": "此操作不可撤销，所有数据都将被清除。",
+        "modal.close": "关闭",
+        "modal.confirm_erase": "确认清除",
+        "nav.dashboard": "设备面板",
+        "nav.commissioning": "设备配网",
+        "nav.network": "网络",
+        "nav.settings": "设置",
+        "nav.rooms": "房间",
+        "nav.thread": "Thread 拓扑",
+        "dashboard.device_count": "{count} 个设备",
+        "dashboard.empty.title": "暂无 Matter 设备",
+        "dashboard.empty.desc": "进入设备配网页面添加第一个设备。",
+        "network.online": "在线",
+        "network.offline": "离线",
+        "network.connected": "已连接",
+        "network.ssid.demo": "Brookesia-Home",
+        "network.signal.excellent": "优秀",
+        "network.ready": "就绪",
+        "network.commissioned": "已配网 {count} 个设备",
+        "network.available": "可用",
+        "language.english": "英语",
+        "language.chinese": "简体中文",
+        "modal.remove_device.title": "移除设备",
+        "modal.remove_device.message": "确定要移除此设备吗？此操作会将本控制器的 Matter fabric 从设备中移除。",
+        "modal.confirm_remove": "移除",
+        "modal.remove_device_failed.title": "无法移除设备",
+        "modal.remove_device_failed.message": "Matter 解配对请求未被接受，设备仍保留在列表中。",
+        "modal.network_refreshed.title": "网络状态已刷新",
+        "modal.network_refreshed.message": "演示用网络状态卡片已刷新。",
+        "modal.about.title": "Matter Controller",
+        "modal.about.message": "ESP Brookesia Matter Controller UI v0.2.0。当前版本未启用 OTA。",
+        "error.room_type_required": "请选择房间类型。",
+        "network.line.status": "状态：{value}",
+        "network.line.ssid": "SSID：{value}",
+        "network.line.signal": "信号：{value}",
+        "network.line.fabric": "Fabric：{value}",
+        "network.line.devices": "设备：{value}",
+        "network.line.border_router": "边界路由器：{value}",
+        "network.line.controller": "控制器：{value}",
+        "network.line.last_check": "上次检查：{value}",
+        "network.fabric.primary": "主要家庭",
+        "network.thread.active": "活跃",
+        "network.just_now": "刚刚",
+        "device.remove": "移除",
+        "pairing.status.broadcasting": "正在广播...",
+        "pairing.status.broadcasting_desc": "控制器广播已开启",
+        "pairing.status.commissioned": "配网成功",
+        "pairing.status.commissioned_desc": "控制器已连接到网络",
+        "thread.node.device": "设备"
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "type": "screenFlow",
+    "id": "matter_controller_main",
+    "screens": [
+        "matter_controller"
+    ],
+    "initial": "matter_controller",
+    "transitions": []
+}

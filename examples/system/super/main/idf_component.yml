@@ -9,9 +9,6 @@ dependencies:
     override_path: ../../../../hal/brookesia_hal_boards
 
   # Services
-  espressif/brookesia_service_audio:
-    version: "0.8.*"
-    override_path: ../../../../service/media/brookesia_service_audio
   espressif/brookesia_service_device:
     version: "0.8.*"
     override_path: ../../../../service/system/brookesia_service_device
@@ -30,18 +27,31 @@ dependencies:
   espressif/brookesia_service_display:
     version: "0.8.*"
     override_path: ../../../../service/media/brookesia_service_display
+  espressif/brookesia_service_audio:
+    version: "0.8.*"
+    override_path: ../../../../service/media/brookesia_service_audio
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_AUDIO} == True
   espressif/brookesia_service_video:
     version: "0.8.*"
     override_path: ../../../../service/media/brookesia_service_video
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_VIDEO} == True
   espressif/brookesia_emulation_nes:
     version: "0.8.*"
     override_path: ../../../../service/emulation/brookesia_emulation_nes
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_NES} == True
   espressif/brookesia_agent_coze:
     version: "0.8.*"
     override_path: ../../../../service/agent/brookesia_agent_coze
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_COZE} == True
   espressif/brookesia_agent_xiaozhi:
     version: "0.8.*"
     override_path: ../../../../service/agent/brookesia_agent_xiaozhi
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_XIAOZHI} == True
 
   # GUI
   espressif/brookesia_gui_lvgl:
@@ -53,6 +63,8 @@ dependencies:
     version: "0.8.*"
     override_path: ../../../../runtime/brookesia_runtime_js
     require: public
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_JS_RUNTIME} == True
 
   # System
   espressif/brookesia_system_super:
@@ -69,7 +81,34 @@ dependencies:
     version: "0.8.*"
     override_path: ../../../../app/brookesia_app_store
     require: public
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_APP_STORE} == True
   espressif/brookesia_app_files:
     version: "0.8.*"
     override_path: ../../../../app/brookesia_app_files
+    require: public
+    matches:
+      - if: $CONFIG{EXAMPLE_SUPER_ENABLE_FILES} == True
+
+  # Matter & RainMaker
+  # Keep the Component Manager solver on the checked-out ESP-Matter 1.5 SDK.
+  # The SDK's actual build components are supplied through EXTRA_COMPONENT_DIRS
+  # in the top-level CMakeLists.txt.
+  espressif/esp_matter:
+    version: "~1.6.0"
+    override_path: ../../../../../../ESP_MATTER/esp-matter_check/esp-matter
+    require: public
+
+  espressif/esp_rainmaker:
+    version: ">=1.0"
+    override_path: ../../../../../../Esp_Rainmaker/esp-rainmaker/components/esp_rainmaker
+
+  espressif/network_provisioning:
+    version: "^1.2.4"
+
+
+  # Matter Controller App
+  espressif/brookesia_app_matter_controller:
+    version: "0.8.*"
+    override_path: ../../../../app/brookesia_app_matter_controller
     require: public

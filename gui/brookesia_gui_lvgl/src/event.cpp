@@ -54,7 +54,7 @@ static void on_lvgl_event(lv_event_t *event)
         }
     }
 
-    if (context->type != EventType::ValueChanged) {
+    if (context->type != EventType::ValueChanged && context->type != EventType::Released) {
         context->impl->event_sink(backend_event);
         return;
     }
@@ -63,17 +63,23 @@ static void on_lvgl_event(lv_event_t *event)
     if (record != nullptr && record->object != nullptr) {
         switch (record->type) {
         case NodeType::TextInput:
-            backend_event.payload["text"] = lv_textarea_get_text(record->object);
+            if (context->type == EventType::ValueChanged) {
+                backend_event.payload["text"] = lv_textarea_get_text(record->object);
+            }
             break;
         case NodeType::Slider:
             backend_event.payload["value"] = lv_slider_get_value(record->object);
             break;
         case NodeType::Switch:
         case NodeType::Checkbox:
-            backend_event.payload["checked"] = lv_obj_has_state(record->object, LV_STATE_CHECKED);
+            if (context->type == EventType::ValueChanged) {
+                backend_event.payload["checked"] = lv_obj_has_state(record->object, LV_STATE_CHECKED);
+            }
             break;
         case NodeType::Dropdown:
-            backend_event.payload["selectedIndex"] = static_cast<int32_t>(lv_dropdown_get_selected(record->object));
+            if (context->type == EventType::ValueChanged) {
+                backend_event.payload["selectedIndex"] = static_cast<int32_t>(lv_dropdown_get_selected(record->object));
+            }
             break;
         case NodeType::ProgressBar:
             backend_event.payload["value"] = lv_bar_get_value(record->object);

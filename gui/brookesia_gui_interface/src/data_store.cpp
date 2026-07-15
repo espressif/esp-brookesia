@@ -163,6 +163,36 @@ void MemoryDataStore::unsubscribe(SubscriptionId id)
     impl_->connections.erase(it);
 }
 
+void MemoryDataStore::forget_signals(
+    DocumentId document_id, std::string_view absolute_path_prefix)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD(
+        "Params: document_id(%1%), absolute_path_prefix(%2%)",
+        document_id, absolute_path_prefix);
+
+    std::string normalized_path(absolute_path_prefix);
+    while (normalized_path.size() > 1 && normalized_path.back() == '/') {
+        normalized_path.pop_back();
+    }
+    const std::string base = "doc:" + std::to_string(document_id.value()) +
+                             "|path:" + normalized_path;
+    const std::string exact_path_prefix = base + "|key:";
+    const std::string child_path_prefix = base + "/";
+
+    boost::lock_guard lock(impl_->mutex);
+    for (auto it = impl_->signals.begin(); it != impl_->signals.end(); ) {
+        const bool exact_path = it->first.compare(0, exact_path_prefix.size(), exact_path_prefix) == 0;
+        const bool child_path = it->first.compare(0, child_path_prefix.size(), child_path_prefix) == 0;
+        if ((exact_path || child_path) && it->second->empty()) {
+            it = impl_->signals.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void MemoryDataStore::forget_document(DocumentId document_id)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

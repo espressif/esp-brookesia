@@ -1,0 +1,24 @@
+{
+    "version": "0.1.0",
+    "assets": [
+        "images/index.json",
+        "templates/device_card_basic.json",
+        "templates/device_card_light_dimmable.json",
+        "templates/device_card_light_color_temp.json",
+        "templates/device_card_light_extended.json",
+        "templates/thread_device_node.json",
+        "templates/room_card.json",
+        "templates/room_device_option.json",
+        "templates/modal_overlay.json",
+        "templates/room_modal.json",
+        "templates/page_devices.json",
+        "templates/page_rooms.json",
+        "templates/page_thread.json",
+        "templates/page_pairing.json",
+        "templates/page_network.json",
+        "templates/page_settings.json",
+        "screens/matter_controller.json",
+        "flows/main.json"
+    ],
+    "variants": []
+}

@@ -1,0 +1,71 @@
+{
+    "type": "viewTemplate",
+    "id": "thread_device_node",
+    "node": {
+        "type": "button",
+        "bindings": {
+            "style.bgColor": "node_bg",
+            "style.borderColor": "node_border",
+            "placement.x": "node_x",
+            "placement.y": "node_y"
+        },
+        "style": {
+            "bgColor": "#254744",
+            "borderColor": "#4ECDC4",
+            "borderWidth": 1,
+            "radius": 12,
+            "padding": 3
+        },
+        "placement": {
+            "mode": "absolute",
+            "align": "topLeft",
+            "x": 0,
+            "y": 0,
+            "width": 76,
+            "height": 62
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "mainAlign": "center",
+            "crossAlign": "center",
+            "gap": 1
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "thread_device_node_label",
+                "commonProps": {
+                    "clickable": false
+                },
+                "bindings": {
+                    "labelProps.text": "text"
+                },
+                "labelProps": {
+                    "text": "D"
+                },
+                "style": {
+                    "textColor": "#EAEAFF",
+                    "fontSize": 16
+                }
+            },
+            {
+                "type": "label",
+                "id": "thread_device_node_name",
+                "commonProps": {
+                    "clickable": false
+                },
+                "bindings": {
+                    "labelProps.text": "text"
+                },
+                "labelProps": {
+                    "text": "Device"
+                },
+                "style": {
+                    "textColor": "#EAEAFF",
+                    "fontSize": 10
+                }
+            }
+        ]
+    }
+}

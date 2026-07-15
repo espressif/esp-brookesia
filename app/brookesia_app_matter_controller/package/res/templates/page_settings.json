@@ -1,0 +1,681 @@
+{
+    "type": "viewTemplate",
+    "id": "page_settings",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "paddingLeft": 18,
+            "paddingRight": 18,
+            "paddingTop": 8,
+            "paddingBottom": 8
+        },
+        "placement": {
+            "mode": "absolute",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": 7,
+            "crossAlign": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "settings_title",
+                "labelProps": {
+                    "text": "Settings"
+                },
+                "style": {
+                    "textColor": "#EAEAFF",
+                    "fontSize": 18
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            },
+            {
+                "type": "container",
+                "id": "settings_content",
+                "commonProps": {
+                    "scrollable": true,
+                    "clickable": true
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match",
+                    "height": 1,
+                    "flexGrow": 1
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 8,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "settings_preferences",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": "wrap"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 7,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "preferences_title",
+                                "labelProps": {
+                                    "text": "Preferences"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "container",
+                                "id": "language_row",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 42
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "row",
+                                    "mainAlign": "spaceBetween",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "container",
+                                        "id": "language_info",
+                                        "commonProps": {
+                                            "scrollable": false,
+                                            "clickable": false
+                                        },
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "column",
+                                            "gap": 2
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "label",
+                                                "id": "language_title",
+                                                "labelProps": {
+                                                    "text": "Language"
+                                                },
+                                                "style": {
+                                                    "textColor": "#EAEAFF",
+                                                    "fontSize": 12
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "language_value",
+                                                "labelProps": {
+                                                    "text": "English"
+                                                },
+                                                "style": {
+                                                    "textColor": "#9292B8",
+                                                    "fontSize": 10
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "text"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "switch",
+                                        "id": "language_toggle",
+                                        "bindings": {
+                                            "toggleProps.checked": "checked"
+                                        },
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.language"
+                                            }
+                                        ],
+                                        "toggleProps": {
+                                            "checked": false
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": 44,
+                                            "height": 24
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "container",
+                                "id": "brightness_group",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 54
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "column",
+                                    "gap": 5,
+                                    "crossAlign": "stretch"
+                                },
+                                "children": [
+                                    {
+                                        "type": "container",
+                                        "id": "brightness_header",
+                                        "commonProps": {
+                                            "scrollable": false,
+                                            "clickable": false
+                                        },
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "row",
+                                            "mainAlign": "spaceBetween",
+                                            "crossAlign": "center"
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "label",
+                                                "id": "brightness_title",
+                                                "labelProps": {
+                                                    "text": "UI Brightness"
+                                                },
+                                                "style": {
+                                                    "textColor": "#EAEAFF",
+                                                    "fontSize": 12
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "brightness_value",
+                                                "labelProps": {
+                                                    "text": "80%"
+                                                },
+                                                "style": {
+                                                    "textColor": "#8B85FF",
+                                                    "fontSize": 11
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "text"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "slider",
+                                        "id": "brightness_slider",
+                                        "bindings": {
+                                            "rangeProps.value": "value"
+                                        },
+                                        "events": [
+                                            {
+                                                "type": "released",
+                                                "action": "settings.brightness"
+                                            }
+                                        ],
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": 18
+                                        },
+                                        "rangeProps": {
+                                            "min": 20,
+                                            "max": 100,
+                                            "value": 80
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "settings_about",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": "wrap"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 7,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "about_title",
+                                "labelProps": {
+                                    "text": "About"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "about_app",
+                                "labelProps": {
+                                    "text": "Application: Matter Controller"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "about_version",
+                                "labelProps": {
+                                    "text": "UI Version: 0.2.0"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "about_platform",
+                                "labelProps": {
+                                    "text": "Platform: ESP Brookesia"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "button",
+                                "id": "about_btn",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "settings.about"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#34306A",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#4A4678"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 28
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "about_btn_label",
+                                        "labelProps": {
+                                            "text": "About This App"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "settings_firmware",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": "wrap"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 7,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "fw_title",
+                                "labelProps": {
+                                    "text": "Firmware"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "fw_version_summary",
+                                "labelProps": {
+                                    "text": "Version: v1.0.0"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "button",
+                                "id": "fw_update_btn",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "settings.check_update"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#34306A",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#4A4678"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 28
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "fw_update_btn_label",
+                                        "labelProps": {
+                                            "text": "Check Update"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "settings_reset",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": "wrap"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 7,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "reset_title",
+                                "labelProps": {
+                                    "text": "Safety"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "container",
+                                "id": "reset_row",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 46
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "row",
+                                    "mainAlign": "spaceBetween",
+                                    "crossAlign": "center",
+                                    "gap": 8
+                                },
+                                "children": [
+                                    {
+                                        "type": "container",
+                                        "id": "reset_info",
+                                        "commonProps": {
+                                            "scrollable": false,
+                                            "clickable": false
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": 1,
+                                            "flexGrow": 1
+                                        },
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "column",
+                                            "gap": 2,
+                                            "crossAlign": "stretch"
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "label",
+                                                "id": "reset_info_title",
+                                                "labelProps": {
+                                                    "text": "Factory Reset"
+                                                },
+                                                "style": {
+                                                    "textColor": "#EAEAFF",
+                                                    "fontSize": 12
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "reset_info_desc",
+                                                "labelProps": {
+                                                    "text": "Erase all credentials and reset."
+                                                },
+                                                "style": {
+                                                    "textColor": "#9292B8",
+                                                    "fontSize": 10
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "button",
+                                        "id": "reset_btn",
+                                        "events": [
+                                            {
+                                                "type": "clicked",
+                                                "action": "settings.reset"
+                                            }
+                                        ],
+                                        "style": {
+                                            "bgColor": "#B94A55",
+                                            "radius": 8,
+                                            "padding": 4,
+                                            "borderWidth": 1,
+                                            "borderColor": "#4A4678"
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": 78,
+                                            "height": 30
+                                        },
+                                        "layout": {
+                                            "type": "flex",
+                                            "mainAlign": "center",
+                                            "crossAlign": "center"
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "label",
+                                                "id": "reset_btn_label",
+                                                "labelProps": {
+                                                    "text": "Reset"
+                                                },
+                                                "style": {
+                                                    "textColor": "#EAEAFF",
+                                                    "fontSize": 11
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            }
+                                        ]
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "settings_bottom_spacer",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 28
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

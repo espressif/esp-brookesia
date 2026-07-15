@@ -13,20 +13,23 @@
 
 using namespace esp_brookesia;
 
+#if CONFIG_EXAMPLE_SUPER_ENABLE_AUDIO
 using AudioPlaybackHelper = esp_brookesia::service::helper::AudioPlayback;
-using DeviceHelper = esp_brookesia::service::helper::Device;
-
 constexpr const char *AUDIO_WAKEUP_WORD_MODEL_PARTITION_LABEL = "model";
 constexpr const char *AUDIO_WAKEUP_WORD_MN_LANGUAGE = "cn";
 constexpr uint32_t AUDIO_WAKEUP_START_TIMEOUT_MS = 30000;
 constexpr uint32_t AUDIO_WAKEUP_END_TIMEOUT_MS = 10000;
+#endif
+using DeviceHelper = esp_brookesia::service::helper::Device;
 
 bool GeneralServices::init()
 {
     auto &service_manager = service::ServiceManager::get_instance();
     BROOKESIA_CHECK_FALSE_RETURN(service_manager.init(), false, "Failed to initialize service manager");
 
+#if CONFIG_EXAMPLE_SUPER_ENABLE_AUDIO
     BROOKESIA_CHECK_FALSE_RETURN(init_audio(), false, "Failed to initialize audio");
+#endif
     BROOKESIA_CHECK_FALSE_RETURN(service_manager.start(), false, "Failed to start service manager");
 
     BROOKESIA_LOGI("Service manager started successfully");
@@ -36,7 +39,7 @@ bool GeneralServices::init()
 
 bool GeneralServices::init_audio()
 {
-#if CONFIG_BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_AUDIO_PROCESSOR_IMPL
+#if CONFIG_EXAMPLE_SUPER_ENABLE_AUDIO && CONFIG_BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
     hal::AudioProcessorConfig processor_config {
         .playback = {
             .player_task = {
@@ -82,6 +85,10 @@ bool GeneralServices::init_audio()
 
 bool GeneralServices::start_audio_services()
 {
+#if !CONFIG_EXAMPLE_SUPER_ENABLE_AUDIO
+    BROOKESIA_LOGI("Audio services skipped (EXAMPLE_SUPER_ENABLE_AUDIO=n)");
+    return true;
+#else
     if (!AudioPlaybackHelper::is_available()) {
         BROOKESIA_LOGW("Audio playback service is not available");
         return true;
@@ -92,4 +99,5 @@ bool GeneralServices::start_audio_services()
     BROOKESIA_CHECK_FALSE_RETURN(playback_binding.is_valid(), false, "Failed to bind audio playback service");
 
     return true;
+#endif
 }

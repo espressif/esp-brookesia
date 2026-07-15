@@ -1,0 +1,149 @@
+{
+    "type": "viewTemplate",
+    "id": "page_rooms",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "paddingLeft": 20,
+            "paddingRight": 20,
+            "paddingTop": 20,
+            "paddingBottom": 20
+        },
+        "placement": {
+            "mode": "absolute",
+            "align": "topLeft",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": 10,
+            "crossAlign": "start"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "page_rooms_shell",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match",
+                    "height": "match"
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 10,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "rooms_header",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "mainAlign": "spaceBetween",
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "rooms_title",
+                                "labelProps": {
+                                    "text": "Room Planner"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 15
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "button",
+                                "id": "rooms_add_btn",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "rooms.add"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#8B85FF",
+                                    "textColor": "#1A1A2E",
+                                    "radius": 8,
+                                    "fontSize": 13,
+                                    "padding": 6,
+                                    "paddingLeft": 24,
+                                    "paddingRight": 14
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "wrap",
+                                    "height": "wrap"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "rooms_add_label",
+                                        "commonProps": {
+                                            "clickable": false
+                                        },
+                                        "labelProps": {
+                                            "text": "Add Room"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "rooms_list",
+                        "commonProps": {
+                            "scrollable": true,
+                            "clickable": true
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": "match"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 10,
+                            "crossAlign": "stretch"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

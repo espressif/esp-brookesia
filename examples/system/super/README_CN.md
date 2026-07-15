@@ -2,7 +2,7 @@
 
 [English Version](./README.md)
 
-本示例演示如何在 ESP-Brookesia 中启动一个完整的 System Super 产品壳。示例集成 HAL、Display/Audio/Wi-Fi/HTTP/Storage/SNTP/Video/Device 等服务、GUI LVGL 后端、JavaScript 运行时，以及内置 Settings、App Store 和 Files 应用，用于验证应用生命周期、资源打包、系统 overlay 和 launcher 流程。
+本示例演示如何在 ESP-Brookesia 中启动一个完整的 System Super 产品壳。默认面向 Matter Controller：保留 HAL、Display/Wi-Fi/HTTP/Storage/SNTP/Device、GUI LVGL、Settings 和 Matter Controller。音频/WakeNet、视频、NES、Coze、Xiaozhi、JavaScript 运行时、App Store 和 Files 默认关闭，避免进入 PSRAM XIP。
 
 ## 📑 目录
 
@@ -20,7 +20,8 @@
 ## ✨ 功能特性
 
 - 🧭 **系统壳体验**：启动 System Super Shell，展示桌面背景、状态栏、App Launcher 和系统 overlay
-- 📦 **内置应用集成**：预装 Settings、App Store 和 Files，验证 native app 安装、启动和恢复流程
+- 📦 **内置应用集成**：预装 Settings 和 Matter Controller。App Store / Files 可在 `idf.py menuconfig` → **Super Example Optional Features** 中打开
+- 🎛️ **可选组件**：音频/WakeNet、视频、NES、Coze、Xiaozhi、JavaScript 运行时按需编译。改开关后需要重新配置依赖（`idf.py fullclean && idf.py build`）
 - 🧩 **框架联动**：组合 Service Manager、GUI LVGL、Runtime Manager、System Core/Super 和 HAL 板级资源
 - 🗂️ **资源打包**：通过构建流程 stage System Super 资源、字体、图片和 LittleFS 分区
 

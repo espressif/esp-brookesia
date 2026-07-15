@@ -1,0 +1,185 @@
+{
+    "type": "viewTemplate",
+    "id": "modal_overlay",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "clickable": false,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "bgColor": "#000000",
+            "opacity": 153,
+            "radius": 0
+        },
+        "placement": {
+            "mode": "absolute",
+            "align": "topLeft",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "mainAlign": "center",
+            "crossAlign": "center"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "modal_box",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "style": {
+                    "bgColor": "#1e202b",
+                    "radius": 16,
+                    "padding": 20
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": 440,
+                    "height": "wrap"
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 16
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "modal_title",
+                        "bindings": {
+                            "labelProps.text": "text"
+                        },
+                        "labelProps": {
+                            "text": "Title"
+                        },
+                        "style": {
+                            "textColor": "#EAEAFF",
+                            "fontSize": 16
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "modal_message",
+                        "bindings": {
+                            "labelProps.text": "text",
+                            "commonProps.hidden": "msg_hidden"
+                        },
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "style": {
+                            "textColor": "#EAEAFF",
+                            "fontSize": 12
+                        }
+                    },
+                    {
+                        "type": "container",
+                        "id": "modal_actions",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "mainAlign": "end",
+                            "gap": 10
+                        },
+                        "children": [
+                            {
+                                "type": "button",
+                                "id": "modal_cancel",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "modal.cancel"
+                                    }
+                                ],
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "radius": 6,
+                                    "fontSize": 12,
+                                    "padding": 5,
+                                    "paddingLeft": 10,
+                                    "paddingRight": 10
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "wrap",
+                                    "height": "wrap"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "modal_cancel_label",
+                                        "commonProps": {
+                                            "clickable": false
+                                        },
+                                        "labelProps": {
+                                            "text": "Cancel"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "button",
+                                "id": "modal_confirm",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "modal.confirm"
+                                    }
+                                ],
+                                "bindings": {
+                                    "style.bgColor": "btn_bg"
+                                },
+                                "style": {
+                                    "bgColor": "#FF6B6B",
+                                    "textColor": "#EAEAFF",
+                                    "radius": 8,
+                                    "fontSize": 13,
+                                    "padding": 6,
+                                    "paddingLeft": 14,
+                                    "paddingRight": 14
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "wrap",
+                                    "height": "wrap"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "modal_confirm_label",
+                                        "commonProps": {
+                                            "clickable": false
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        },
+                                        "labelProps": {
+                                            "text": "OK"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

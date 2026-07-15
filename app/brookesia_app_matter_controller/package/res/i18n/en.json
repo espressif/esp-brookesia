@@ -1,0 +1,352 @@
+{
+    "updates": [
+        {
+            "path": "/matter_controller/stage/page_rooms/page_rooms_shell/rooms_header/rooms_title",
+            "key": "labelProps.text",
+            "value": "Room Planner"
+        },
+        {
+            "path": "/matter_controller/stage/page_rooms/page_rooms_shell/rooms_header/rooms_add_btn/rooms_add_label",
+            "key": "labelProps.text",
+            "value": "Add Room"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_title",
+            "key": "labelProps.text",
+            "value": "Matter Controller Commissioning"
+        },
+        {
+            "path": "/matter_controller/stage/page_thread/thread_title",
+            "key": "labelProps.text",
+            "value": "Thread Mesh Topology"
+        },
+        {
+            "path": "/matter_controller/stage/page_thread/thread_content/thread_topo/thread_hub/thread_hub_name",
+            "key": "labelProps.text",
+            "value": "Hub"
+        },
+        {
+            "path": "/matter_controller/stage/page_thread/thread_content/thread_topo/thread_hub/thread_hub_role",
+            "key": "labelProps.text",
+            "value": "BR"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_header/room_modal_back/room_modal_back_label",
+            "key": "labelProps.text",
+            "value": "< Back"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_header/room_modal_title",
+            "key": "labelProps.text",
+            "value": "Create Room"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_desc",
+            "key": "labelProps.text",
+            "value": "Choose a room type and the devices that should move into it."
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_type_label",
+            "key": "labelProps.text",
+            "value": "Select Room Type"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_devices_label",
+            "key": "labelProps.text",
+            "value": "Select Devices"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_actions/room_modal_cancel/room_modal_cancel_label",
+            "key": "labelProps.text",
+            "value": "Cancel"
+        },
+        {
+            "path": "/matter_controller/stage/room_modal/room_modal_box/room_modal_actions/room_modal_confirm/room_modal_confirm_label",
+            "key": "labelProps.text",
+            "value": "Create Room"
+        },
+        {
+            "path": "/matter_controller/stage/modal_overlay/modal_box/modal_actions/modal_cancel/modal_cancel_label",
+            "key": "labelProps.text",
+            "value": "Cancel"
+        },
+        {
+            "path": "/matter_controller/header/header_identity/header_eyebrow",
+            "key": "labelProps.text",
+            "value": "MATTER HOME"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_devices/nav_devices_label",
+            "key": "labelProps.text",
+            "value": "Dashboard"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_pairing/nav_pairing_label",
+            "key": "labelProps.text",
+            "value": "Commission"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_network/nav_network_label",
+            "key": "labelProps.text",
+            "value": "Network"
+        },
+        {
+            "path": "/matter_controller/bottom_nav/nav_settings/nav_settings_label",
+            "key": "labelProps.text",
+            "value": "Settings"
+        },
+        {
+            "path": "/matter_controller/stage/page_devices/page_devices_shell/devices_header/devices_heading/page_devices_title",
+            "key": "labelProps.text",
+            "value": "Your Devices"
+        },
+        {
+            "path": "/matter_controller/stage/page_devices/page_devices_shell/devices_header/rooms_shortcut/rooms_shortcut_label",
+            "key": "labelProps.text",
+            "value": "Rooms"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_title",
+            "key": "labelProps.text",
+            "value": "Network"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_subtitle",
+            "key": "labelProps.text",
+            "value": "Connectivity and Matter fabric status"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_wifi/wifi_title",
+            "key": "labelProps.text",
+            "value": "Wi-Fi"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_fabric/fabric_title",
+            "key": "labelProps.text",
+            "value": "Matter Fabric"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_thread/network_thread_title",
+            "key": "labelProps.text",
+            "value": "Thread Network"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_thread/network_thread_open/network_thread_open_label",
+            "key": "labelProps.text",
+            "value": "Devices Topo Map"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_health/network_health_title",
+            "key": "labelProps.text",
+            "value": "Network Health"
+        },
+        {
+            "path": "/matter_controller/stage/page_network/network_grid/network_health/network_refresh/network_refresh_label",
+            "key": "labelProps.text",
+            "value": "Refresh Status"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_title",
+            "key": "labelProps.text",
+            "value": "Settings"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_preferences/preferences_title",
+            "key": "labelProps.text",
+            "value": "Preferences"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_preferences/language_row/language_info/language_title",
+            "key": "labelProps.text",
+            "value": "Language"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_preferences/brightness_group/brightness_header/brightness_title",
+            "key": "labelProps.text",
+            "value": "UI Brightness"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_title",
+            "key": "labelProps.text",
+            "value": "About"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_app",
+            "key": "labelProps.text",
+            "value": "Application: Matter Controller"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_version",
+            "key": "labelProps.text",
+            "value": "UI Version: 0.2.0"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_platform",
+            "key": "labelProps.text",
+            "value": "Platform: ESP Brookesia"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_about/about_btn/about_btn_label",
+            "key": "labelProps.text",
+            "value": "About This App"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_title",
+            "key": "labelProps.text",
+            "value": "Safety"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_row/reset_info/reset_info_title",
+            "key": "labelProps.text",
+            "value": "Factory Reset"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_row/reset_info/reset_info_desc",
+            "key": "labelProps.text",
+            "value": "Erase all credentials and reset."
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_reset/reset_row/reset_btn/reset_btn_label",
+            "key": "labelProps.text",
+            "value": "Reset"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_firmware/fw_title",
+            "key": "labelProps.text",
+            "value": "Firmware"
+        },
+        {
+            "path": "/matter_controller/stage/page_settings/settings_content/settings_firmware/fw_update_btn/fw_update_btn_label",
+            "key": "labelProps.text",
+            "value": "Check Update"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/qr_panel/qr_wrapper/qr_placeholder/qr_placeholder_title",
+            "key": "labelProps.text",
+            "value": "Preparing QR code"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/qr_panel/qr_wrapper/qr_placeholder/qr_placeholder_desc",
+            "key": "labelProps.text",
+            "value": "Waiting for BLE provisioning"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/qr_panel/qr_scan_hint",
+            "key": "labelProps.text",
+            "value": "Scan with the ESP RainMaker app"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/pairing_waiting/pairing_waiting_title",
+            "key": "labelProps.text",
+            "value": "Ready to connect"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/pairing_waiting/pairing_waiting_desc",
+            "key": "labelProps.text",
+            "value": "Scan the QR code to connect this controller to Wi-Fi."
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/commission_success/commission_success_title",
+            "key": "labelProps.text",
+            "value": "Successfully Commissioned"
+        },
+        {
+            "path": "/matter_controller/stage/page_pairing/pairing_content/pairing_info/commission_success/commission_success_desc",
+            "key": "labelProps.text",
+            "value": "This controller is connected to Wi-Fi and ready to add Matter devices."
+        }
+    ],
+    "strings": {
+        "device.generic": "Matter Device",
+        "device.living_room_light": "Living Room Light",
+        "device.kitchen_plug": "Kitchen Plug",
+        "device.study_switch": "Study Switch",
+        "device.bedroom_strip": "Bedroom Strip",
+        "device.tv_plug": "TV Plug",
+        "room.unassigned": "Unassigned",
+        "room.living_room": "Living Room",
+        "room.kitchen": "Kitchen",
+        "room.study": "Study",
+        "room.bedroom": "Bedroom",
+        "tag.matter_light": "Matter_Light",
+        "tag.matter_rgbcw": "Matter_RGBCW",
+        "tag.matter_plug": "Matter_Plug",
+        "tag.matter_switch": "Matter_Switch",
+        "slider.brightness": "Brightness",
+        "slider.color_temp": "Color Temp",
+        "slider.hue": "Hue",
+        "slider.saturation": "Saturation",
+        "status.active": "Active",
+        "status.on": "ON",
+        "status.off": "OFF",
+        "status.warm_white": "Warm White",
+        "status.daylight": "Daylight",
+        "status.bright": "Bright {value}%",
+        "status.cct": "CCT {value}K",
+        "status.hue": "Hue {value}°",
+        "status.saturation": "Saturation {value}%",
+        "room.chip": "ROOM",
+        "room.associated_devices": "Associated devices: {count}",
+        "room.current_room": "Current room: {room}",
+        "error.room_exists": "A room with this name already exists.",
+        "error.room_select_device": "Select at least one device to bind into the room.",
+        "thread.node.light.name": "Living Room Light",
+        "thread.node.plug.name": "Kitchen Plug",
+        "thread.node.type.router": "Router Node",
+        "thread.signal.strong": "Signal strength: Strong (-58 dBm)",
+        "thread.signal.very_strong": "Signal strength: Very strong (-45 dBm)",
+        "modal.firmware_current.title": "Firmware is current",
+        "modal.firmware_current.message": "No newer image is available in this demo build.",
+        "firmware.version_summary": "Version: v1.0.0  ·  {chip}",
+        "modal.factory_reset.title": "Confirm Factory Reset?",
+        "modal.factory_reset.message": "Irreversible! All data will be erased.",
+        "modal.close": "Close",
+        "modal.confirm_erase": "Confirm Erase",
+        "nav.dashboard": "Dashboard",
+        "nav.commissioning": "Commissioning",
+        "nav.network": "Network",
+        "nav.settings": "Settings",
+        "nav.rooms": "Rooms",
+        "nav.thread": "Thread Mesh",
+        "dashboard.device_count": "{count} devices",
+        "dashboard.empty.title": "No Matter devices yet",
+        "dashboard.empty.desc": "Open Commissioning to add your first device.",
+        "network.online": "Online",
+        "network.offline": "Offline",
+        "network.connected": "Connected",
+        "network.ssid.demo": "Brookesia-Home",
+        "network.signal.excellent": "Excellent",
+        "network.ready": "Ready",
+        "network.commissioned": "{count} commissioned",
+        "network.available": "Available",
+        "language.english": "English",
+        "language.chinese": "Simplified Chinese",
+        "modal.remove_device.title": "Remove device",
+        "modal.remove_device.message": "Remove this device? This removes this controller's Matter fabric from the device.",
+        "modal.confirm_remove": "Remove",
+        "modal.remove_device_failed.title": "Could not remove device",
+        "modal.remove_device_failed.message": "The Matter unpair request was not accepted. The device remains in the list.",
+        "modal.network_refreshed.title": "Network status refreshed",
+        "modal.network_refreshed.message": "The demo connectivity cards have been refreshed.",
+        "modal.about.title": "Matter Controller",
+        "modal.about.message": "ESP Brookesia Matter Controller UI v0.2.0. OTA is not available in this build.",
+        "error.room_type_required": "Please select a room type.",
+        "network.line.status": "Status: {value}",
+        "network.line.ssid": "SSID: {value}",
+        "network.line.signal": "Signal: {value}",
+        "network.line.fabric": "Fabric: {value}",
+        "network.line.devices": "Devices: {value}",
+        "network.line.border_router": "Border Router: {value}",
+        "network.line.controller": "Controller: {value}",
+        "network.line.last_check": "Last Check: {value}",
+        "network.fabric.primary": "Primary Home",
+        "network.thread.active": "Active",
+        "network.just_now": "Just now",
+        "device.remove": "Remove",
+        "pairing.status.broadcasting": "Broadcasting...",
+        "pairing.status.broadcasting_desc": "Controller broadcast is active",
+        "pairing.status.commissioned": "Successfully Commissioned",
+        "pairing.status.commissioned_desc": "Controller is connected to the network",
+        "thread.node.device": "Device"
+    }
+}

@@ -1,0 +1,552 @@
+{
+    "type": "viewTemplate",
+    "id": "device_card_light_color_temp",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "clickable": true,
+            "scrollable": false
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden",
+            "style.borderColor": "border_color"
+        },
+        "style": {
+            "bgColor": "#252545",
+            "radius": 16,
+            "padding": 14,
+            "borderWidth": 1,
+            "borderColor": "#3A3A60"
+        },
+        "placement": {
+            "mode": "relative",
+            "width": "match",
+            "height": 202
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "mainAlign": "spaceBetween",
+            "gap": 7,
+            "crossAlign": "stretch"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "card_header",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match"
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 7,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "card_title_area",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 2,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "card_name",
+                                "labelProps": {
+                                    "text": "Matter Device"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 17
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "card_meta_row",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "gap": 7,
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "card_room",
+                                "labelProps": {
+                                    "text": "Unassigned"
+                                },
+                                "style": {
+                                    "textColor": "#8B85FF",
+                                    "fontSize": 11,
+                                    "bgColor": "#2E2E5A",
+                                    "paddingTop": 2,
+                                    "paddingBottom": 2,
+                                    "paddingLeft": 6,
+                                    "paddingRight": 6,
+                                    "radius": 6
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "card_tag",
+                                "labelProps": {
+                                    "text": "Matter"
+                                },
+                                "style": {
+                                    "textColor": "#9292B8",
+                                    "fontSize": 11,
+                                    "bgColor": "#2E2E5A",
+                                    "paddingTop": 2,
+                                    "paddingBottom": 2,
+                                    "paddingLeft": 6,
+                                    "paddingRight": 6,
+                                    "radius": 6
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "card_online",
+                                "labelProps": {
+                                    "text": "Online"
+                                },
+                                "style": {
+                                    "textColor": "#4ECDC4",
+                                    "fontSize": 11,
+                                    "bgColor": "#254744",
+                                    "paddingTop": 2,
+                                    "paddingBottom": 2,
+                                    "paddingLeft": 6,
+                                    "paddingRight": 6,
+                                    "radius": 6
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text",
+                                    "style.textColor": "color",
+                                    "style.bgColor": "status_bg"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "type": "container",
+                "id": "card_controls",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match",
+                    "height": 52
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 4,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "control_brightness",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "bindings": {
+                            "commonProps.hidden": "hidden"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 24
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "gap": 8,
+                            "mainAlign": "start",
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "control_brightness_label",
+                                "labelProps": {
+                                    "text": "Brightness"
+                                },
+                                "style": {
+                                    "textColor": "#9292B8",
+                                    "fontSize": 10
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 68
+                                }
+                            },
+                            {
+                                "type": "slider",
+                                "id": "control_brightness_slider",
+                                "commonProps": {
+                                    "scrollable": false
+                                },
+                                "bindings": {
+                                    "rangeProps.value": "value"
+                                },
+                                "events": [
+                                    {
+                                        "type": "released",
+                                        "action": "device.light_color_temp.brightness"
+                                    }
+                                ],
+                                "rangeProps": {
+                                    "min": 0,
+                                    "max": 100,
+                                    "value": 80
+                                },
+                                "style": {
+                                    "bgColor": "#3A3A60",
+                                    "borderWidth": 0,
+                                    "radius": 8,
+                                    "shadowWidth": 0,
+                                    "padding": 0
+                                },
+                                "partStyles": {
+                                    "indicator": {
+                                        "bgColor": "#6C63FF",
+                                        "borderWidth": 0,
+                                        "radius": 8
+                                    },
+                                    "knob": {
+                                        "style": {
+                                            "bgColor": "#EAEAFF",
+                                            "borderColor": "#D7DCE5",
+                                            "borderWidth": 1,
+                                            "padding": 1,
+                                            "radius": 8
+                                        },
+                                        "stateStyles": {
+                                            "pressed": {
+                                                "bgColor": "#FFFFFF"
+                                            }
+                                        }
+                                    }
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 1,
+                                    "height": 16,
+                                    "flexGrow": 1
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "control_brightness_value",
+                                "labelProps": {
+                                    "text": "80"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 10,
+                                    "textAlign": "right"
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 52
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "control_cct",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "bindings": {
+                            "commonProps.hidden": "hidden"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 24
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "gap": 8,
+                            "mainAlign": "start",
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "control_cct_label",
+                                "labelProps": {
+                                    "text": "Color Temp"
+                                },
+                                "style": {
+                                    "textColor": "#9292B8",
+                                    "fontSize": 10
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 68
+                                }
+                            },
+                            {
+                                "type": "slider",
+                                "id": "control_cct_slider",
+                                "commonProps": {
+                                    "scrollable": false
+                                },
+                                "bindings": {
+                                    "rangeProps.value": "value"
+                                },
+                                "events": [
+                                    {
+                                        "type": "released",
+                                        "action": "device.light_color_temp.cct"
+                                    }
+                                ],
+                                "rangeProps": {
+                                    "min": 27,
+                                    "max": 65,
+                                    "value": 40
+                                },
+                                "style": {
+                                    "bgColor": "#3A3A60",
+                                    "borderWidth": 0,
+                                    "radius": 8,
+                                    "shadowWidth": 0,
+                                    "padding": 0
+                                },
+                                "partStyles": {
+                                    "indicator": {
+                                        "bgColor": "#FFB86B",
+                                        "borderWidth": 0,
+                                        "radius": 8
+                                    },
+                                    "knob": {
+                                        "style": {
+                                            "bgColor": "#EAEAFF",
+                                            "borderColor": "#D7DCE5",
+                                            "borderWidth": 1,
+                                            "padding": 1,
+                                            "radius": 8
+                                        },
+                                        "stateStyles": {
+                                            "pressed": {
+                                                "bgColor": "#FFFFFF"
+                                            }
+                                        }
+                                    }
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 1,
+                                    "height": 16,
+                                    "flexGrow": 1
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "control_cct_value",
+                                "labelProps": {
+                                    "text": "40"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 10,
+                                    "textAlign": "right"
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 52
+                                }
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "type": "container",
+                "id": "card_footer",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match"
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "row",
+                    "mainAlign": "spaceBetween",
+                    "crossAlign": "center"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "card_status",
+                        "labelProps": {
+                            "text": "Off"
+                        },
+                        "style": {
+                            "textColor": "#9292B8",
+                            "fontSize": 12
+                        },
+                        "bindings": {
+                            "labelProps.text": "text",
+                            "style.textColor": "color"
+                        }
+                    },
+                    {
+                        "type": "button",
+                        "id": "card_remove_btn",
+                        "events": [
+                            {
+                                "type": "clicked",
+                                "action": "device.remove.light_color_temp"
+                            }
+                        ],
+                        "style": {
+                            "bgColor": "#452B40",
+                            "borderColor": "#75425F",
+                            "borderWidth": 1,
+                            "radius": 14,
+                            "padding": 0
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 78,
+                            "height": 28
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "mainAlign": "center",
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "card_remove_label",
+                                "labelProps": {
+                                    "text": "Remove"
+                                },
+                                "style": {
+                                    "textColor": "#FFB4C7",
+                                    "fontSize": 10
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "button",
+                        "id": "card_power_btn",
+                        "bindings": {
+                            "style.bgColor": "power_bg",
+                            "style.borderColor": "power_border"
+                        },
+                        "events": [
+                            {
+                                "type": "clicked",
+                                "action": "device.toggle.light_color_temp"
+                            }
+                        ],
+                        "style": {
+                            "bgColor": "#2E2E5A",
+                            "borderColor": "#3A3A60",
+                            "borderWidth": 1,
+                            "radius": 16,
+                            "padding": 0
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 58,
+                            "height": 32
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "mainAlign": "center",
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "card_power_label",
+                                "labelProps": {
+                                    "text": "OFF"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

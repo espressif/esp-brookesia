@@ -1,0 +1,23 @@
+version: "0.8.0"
+description: ESP-Brookesia Matter Controller app with full device control panel UI.
+url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_matter_controller
+repository: https://github.com/espressif/esp-brookesia.git
+issues: https://github.com/espressif/esp-brookesia/issues
+dependencies:
+  espressif/brookesia_gui_lvgl:
+    version: "0.8.*"
+    override_path: "../../gui/brookesia_gui_lvgl"
+    require: private
+
+  espressif/brookesia_system_core:
+    version: "0.8.*"
+    override_path: "../../system/brookesia_system_core"
+    require: public
+
+  espressif/qrcode:
+    version: "^0.2.0"
+    require: private
+
+  lvgl/lvgl:
+    version: ">=9,<10"
+    require: private

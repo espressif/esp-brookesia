@@ -2,7 +2,7 @@
 
 [中文版本](./README_CN.md)
 
-This example demonstrates how to start a complete ESP-Brookesia System Super product shell. It integrates HAL, Display/Audio/Wi-Fi/HTTP/Storage/SNTP/Video/Device services, the GUI LVGL backend, the JavaScript runtime, and the built-in Settings, App Store, and Files apps to validate app lifecycle, resource packaging, system overlay, and launcher flows.
+This example demonstrates how to start a complete ESP-Brookesia System Super product shell. The default Matter-focused build keeps HAL, Display/Wi-Fi/HTTP/Storage/SNTP/Device services, the GUI LVGL backend, Settings, and Matter Controller. Audio/WakeNet, video, NES, Coze, Xiaozhi, the JavaScript runtime, App Store, and Files are optional and off by default so they stay out of PSRAM XIP.
 
 ## 📑 Table of Contents
 
@@ -20,7 +20,8 @@ This example demonstrates how to start a complete ESP-Brookesia System Super pro
 ## ✨ Features
 
 - 🧭 **System shell experience**: Starts the System Super Shell with desktop background, status bar, App Launcher, and system overlay
-- 📦 **Built-in app integration**: Preinstalls Settings, App Store, and Files to validate native app install, launch, and restore flows
+- 📦 **Built-in app integration**: Preinstalls Settings and Matter Controller. App Store and Files can be enabled from `idf.py menuconfig` → **Super Example Optional Features**
+- 🎛️ **Optional stacks**: Audio/WakeNet, video, NES, Coze, Xiaozhi, and the JavaScript runtime are compile-time opt-in. After changing these flags, reconfigure so Component Manager re-resolves dependencies (`idf.py fullclean && idf.py build`)
 - 🧩 **Framework integration**: Combines Service Manager, GUI LVGL, Runtime Manager, System Core/Super, and HAL board resources
 - 🗂️ **Resource packaging**: Stages System Super resources, fonts, images, and the LittleFS partition through the build flow
 

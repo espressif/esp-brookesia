@@ -1,0 +1,550 @@
+{
+    "type": "viewTemplate",
+    "id": "room_modal",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "clickable": true,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "bgColor": "#10111C",
+            "radius": 0
+        },
+        "placement": {
+            "mode": "absolute",
+            "align": "topLeft",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "mainAlign": "center",
+            "crossAlign": "center"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "room_modal_box",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": true
+                },
+                "style": {
+                    "bgColor": "#1E202B",
+                    "radius": 14,
+                    "padding": 12,
+                    "borderWidth": 1,
+                    "borderColor": "#3A3A60"
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": 650,
+                    "height": 330
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 6,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "room_modal_header",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 30
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "crossAlign": "center",
+                            "gap": 10
+                        },
+                        "children": [
+                            {
+                                "type": "button",
+                                "id": "room_modal_back",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.back"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#151720",
+                                    "radius": 7,
+                                    "padding": 4,
+                                    "paddingLeft": 9,
+                                    "paddingRight": 9,
+                                    "borderWidth": 1,
+                                    "borderColor": "#3A3A60"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 66,
+                                    "height": 28
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_modal_back_label",
+                                        "labelProps": {
+                                            "text": "< Back"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "label",
+                                "id": "room_modal_title",
+                                "labelProps": {
+                                    "text": "Create Room"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 16
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "label",
+                        "id": "room_modal_desc",
+                        "labelProps": {
+                            "text": "Choose a room type and the devices that should move into it."
+                        },
+                        "style": {
+                            "textColor": "#B8B8D0",
+                            "fontSize": 11
+                        },
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "room_type_label",
+                        "labelProps": {
+                            "text": "Select Room Type"
+                        },
+                        "style": {
+                            "textColor": "#EAEAFF",
+                            "fontSize": 11
+                        },
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        }
+                    },
+                    {
+                        "type": "container",
+                        "id": "room_type_list",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 38
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "gap": 6,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "button",
+                                "id": "room_type_living_room",
+                                "bindings": {
+                                    "style.bgColor": "btn_bg",
+                                    "style.borderColor": "border_color"
+                                },
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.type.living_room"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#252545",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#3A3A60"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 1,
+                                    "height": 38,
+                                    "flexGrow": 1
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_type_name",
+                                        "labelProps": {
+                                            "text": "Living Room"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "button",
+                                "id": "room_type_kitchen",
+                                "bindings": {
+                                    "style.bgColor": "btn_bg",
+                                    "style.borderColor": "border_color"
+                                },
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.type.kitchen"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#252545",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#3A3A60"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 1,
+                                    "height": 38,
+                                    "flexGrow": 1
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_type_name",
+                                        "labelProps": {
+                                            "text": "Kitchen"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "button",
+                                "id": "room_type_study",
+                                "bindings": {
+                                    "style.bgColor": "btn_bg",
+                                    "style.borderColor": "border_color"
+                                },
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.type.study"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#252545",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#3A3A60"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 1,
+                                    "height": 38,
+                                    "flexGrow": 1
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_type_name",
+                                        "labelProps": {
+                                            "text": "Study"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "button",
+                                "id": "room_type_bedroom",
+                                "bindings": {
+                                    "style.bgColor": "btn_bg",
+                                    "style.borderColor": "border_color"
+                                },
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.type.bedroom"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#252545",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#3A3A60"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 1,
+                                    "height": 38,
+                                    "flexGrow": 1
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_type_name",
+                                        "labelProps": {
+                                            "text": "Bedroom"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "label",
+                        "id": "room_devices_label",
+                        "labelProps": {
+                            "text": "Select Devices"
+                        },
+                        "style": {
+                            "textColor": "#EAEAFF",
+                            "fontSize": 11
+                        },
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        }
+                    },
+                    {
+                        "type": "container",
+                        "id": "room_device_list",
+                        "commonProps": {
+                            "scrollable": true,
+                            "clickable": true
+                        },
+                        "style": {
+                            "bgColor": "#151720",
+                            "radius": 9,
+                            "padding": 6,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 1,
+                            "flexGrow": 1
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 6,
+                            "crossAlign": "stretch"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "room_modal_error",
+                        "commonProps": {
+                            "hidden": true
+                        },
+                        "bindings": {
+                            "labelProps.text": "text",
+                            "commonProps.hidden": "hidden"
+                        },
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "style": {
+                            "textColor": "#FF6B6B",
+                            "fontSize": 10
+                        }
+                    },
+                    {
+                        "type": "container",
+                        "id": "room_modal_actions",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": "match",
+                            "height": 32
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "row",
+                            "mainAlign": "end",
+                            "crossAlign": "center",
+                            "gap": 8
+                        },
+                        "children": [
+                            {
+                                "type": "button",
+                                "id": "room_modal_cancel",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.cancel"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#252545",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#4A4678"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 82,
+                                    "height": 30
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_modal_cancel_label",
+                                        "labelProps": {
+                                            "text": "Cancel"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "button",
+                                "id": "room_modal_confirm",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "room_modal.confirm"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#6C63FF",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#4A4678"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 110,
+                                    "height": 30
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "room_modal_confirm_label",
+                                        "labelProps": {
+                                            "text": "Create Room"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

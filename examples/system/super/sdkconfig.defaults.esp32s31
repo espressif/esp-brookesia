@@ -1,23 +1,164 @@
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
-CONFIG_SR_WN_WN9_HIESP=y
+# WakeNet is selected with EXAMPLE_SUPER_ENABLE_AUDIO, not by default.
+# CONFIG_SR_WN_WN9_HIESP is not set
 
+# Keep unused Super features and their HAL stacks out of PSRAM XIP.
+# These override esp32_s31_korvo1/sdkconfig.defaults.board.
+# CONFIG_EXAMPLE_SUPER_ENABLE_AUDIO is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_VIDEO is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_NES is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_COZE is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_XIAOZHI is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_JS_RUNTIME is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_APP_STORE is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_FILES is not set
+# CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE is not set
+# CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE is not set
+
+# ---------------------------------------------------------------------------
+# LibC: ESP-SR's prebuilt esp32s31 libraries reference POSIX `stderr`.
+# Keep Picolibc and its Newlib-header compatibility layer for ESP-Matter.
+# ---------------------------------------------------------------------------
+CONFIG_LIBC_PICOLIBC=y
+CONFIG_LIBC_PICOLIBC_NEWLIB_COMPATIBILITY=y
+
+# ---------------------------------------------------------------------------
 # Brookesia:System Super
+# ---------------------------------------------------------------------------
 CONFIG_BROOKESIA_SYSTEM_SUPER_ENABLE_APP_LAUNCH_ANIMATION=n
 
-## WiFi
-#CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
-#CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=6
-#CONFIG_ESP_WIFI_DYNAMIC_RX_MGMT_BUFFER=y
-#CONFIG_ESP_WIFI_TX_BA_WIN=16
-#CONFIG_ESP_WIFI_RX_BA_WIN=8
-#CONFIG_ESP_WIFI_IRAM_OPT=n
-#CONFIG_ESP_WIFI_RX_IRAM_OPT=n
-#CONFIG_LWIP_IRAM_OPTIMIZATION=n
-#CONFIG_LWIP_TCP_RECVMBOX_SIZE=10
-#CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE=8
-#CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=6
+# ---------------------------------------------------------------------------
+# FreeRTOS
+# ---------------------------------------------------------------------------
+CONFIG_FREERTOS_HZ=1000
+CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH=3072
+CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM=y
 
-# GUI
+# ---------------------------------------------------------------------------
+# System tasks
+# ---------------------------------------------------------------------------
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=4096
+CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=3072
+CONFIG_ESP_IPC_TASK_STACK_SIZE=2048
+
+# ---------------------------------------------------------------------------
+# BLE / NimBLE (Matter 配网必需)
+# ---------------------------------------------------------------------------
+CONFIG_BT_ENABLED=y
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=3
+CONFIG_BT_NIMBLE_MAX_BONDS=3
+CONFIG_BT_NIMBLE_MAX_CCCDS=2
+CONFIG_BT_NIMBLE_WHITELIST_SIZE=1
+CONFIG_BT_NIMBLE_GATT_MAX_PROCS=4
+CONFIG_BT_NIMBLE_ENABLE_CONN_REATTEMPT=n
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=y
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=y
+CONFIG_BT_NIMBLE_MSYS_1_BLOCK_COUNT=12
+CONFIG_BT_NIMBLE_MSYS_2_BLOCK_COUNT=8
+CONFIG_BT_NIMBLE_TRANSPORT_ACL_FROM_LL_COUNT=24
+CONFIG_BT_NIMBLE_TRANSPORT_EVT_COUNT=30
+CONFIG_BT_NIMBLE_TRANSPORT_EVT_DISCARD_COUNT=8
+CONFIG_BT_NIMBLE_SECURITY_ENABLE=y
+CONFIG_BT_NIMBLE_50_FEATURE_SUPPORT=y
+CONFIG_BT_CTRL_RUN_IN_FLASH_ONLY=y
+
+# ---------------------------------------------------------------------------
+# WiFi
+# Matter Controller/RainMaker temporarily owns the complete Wi-Fi lifecycle.
+# Disable Brookesia Wi-Fi service auto-registration so it does not create the
+# default STA netif or initialize/start esp_wifi before RainMaker provisioning.
+# ---------------------------------------------------------------------------
+CONFIG_BROOKESIA_SERVICE_WIFI_ENABLE_AUTO_REGISTER=n
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=6
+CONFIG_ESP_WIFI_STATIC_TX_BUFFER_NUM=6
+CONFIG_ESP_WIFI_DYNAMIC_RX_MGMT_BUFFER=y
+CONFIG_ESP_WIFI_TX_BA_WIN=16
+CONFIG_ESP_WIFI_RX_BA_WIN=8
+CONFIG_ESP_WIFI_IRAM_OPT=n
+CONFIG_ESP_WIFI_RX_IRAM_OPT=n
+CONFIG_ESP_WIFI_SOFTAP_SUPPORT=y
+
+# ---------------------------------------------------------------------------
+# LWIP (IPv6 required for Matter/Thread)
+# ---------------------------------------------------------------------------
+CONFIG_LWIP_IRAM_OPTIMIZATION=n
+CONFIG_LWIP_TCP_RECVMBOX_SIZE=10
+CONFIG_LWIP_TCP_ACCEPTMBOX_SIZE=8
+CONFIG_LWIP_TCP_OOSEQ_MAX_PBUFS=6
+CONFIG_LWIP_IPV6_AUTOCONFIG=y
+CONFIG_LWIP_IPV6_NUM_ADDRESSES=6
+CONFIG_LWIP_HOOK_IP6_ROUTE_DEFAULT=y
+CONFIG_LWIP_HOOK_ND6_GET_GW_DEFAULT=y
+CONFIG_LWIP_TCPIP_RECVMBOX_SIZE=16
+CONFIG_NUM_UDP_ENDPOINTS=16
+
+# ---------------------------------------------------------------------------
+# mbedTLS / TLS
+# ---------------------------------------------------------------------------
+CONFIG_MBEDTLS_TLS_CLIENT_ONLY=y
+CONFIG_MBEDTLS_HKDF_C=y
+CONFIG_MBEDTLS_EXTERNAL_MEM_ALLOC=y
+CONFIG_MBEDTLS_DYNAMIC_BUFFER=n
+CONFIG_MBEDTLS_DYNAMIC_FREE_PEER_CERT=y
+CONFIG_MBEDTLS_DYNAMIC_FREE_CONFIG_DATA=y
+CONFIG_MBEDTLS_SSL_PROTO_TLS1=n
+CONFIG_MBEDTLS_SSL_PROTO_TLS1_1=n
+CONFIG_MBEDTLS_AES_USE_INTERRUPT=n
+CONFIG_MBEDTLS_MPI_USE_INTERRUPT=n
+
+# ---------------------------------------------------------------------------
+# Matter Controller
+# ---------------------------------------------------------------------------
+CONFIG_ENABLE_CHIP_SHELL=y
+CONFIG_ESP_MATTER_CONTROLLER_ENABLE=y
+CONFIG_ENABLE_CHIP_CONTROLLER_BUILD=y
+CONFIG_ESP_MATTER_ENABLE_MATTER_SERVER=n
+CONFIG_ESP_MATTER_COMMISSIONER_ENABLE=n
+CONFIG_CUSTOM_OPERATIONAL_CREDS_ISSUER=y
+CONFIG_USE_BLE_ONLY_FOR_COMMISSIONING=n
+CONFIG_CHIP_FACTORY_NAMESPACE_PARTITION_LABEL="fctry"
+CONFIG_ENABLE_ESP32_FACTORY_DATA_PROVIDER=y
+CONFIG_ENABLE_ESP32_DEVICE_INSTANCE_INFO_PROVIDER=y
+CONFIG_ENABLE_ESP32_DEVICE_INFO_PROVIDER=y
+CONFIG_SEC_CERT_DAC_PROVIDER=y
+CONFIG_DEVICE_VENDOR_ID=0x131B
+CONFIG_DEVICE_PRODUCT_ID=0x2
+CONFIG_ESP_MATTER_ATTRIBUTE_BUFFER_LARGEST=2050
+CONFIG_MAX_EXCHANGE_CONTEXTS=40
+CONFIG_RMAKER_MTCTL_MAX_DEVICE_COUNT=32
+CONFIG_CHIP_PROJECT_CONFIG="main/matter_project_config.h"
+CONFIG_CHIP_TASK_STACK_SIZE=8192
+CONFIG_ESP_MATTER_CONSOLE_TASK_STACK=3072
+CONFIG_ESP_MATTER_MEM_ALLOC_MODE_EXTERNAL=y
+CONFIG_CHIP_MEM_ALLOC_MODE_EXTERNAL=y
+CONFIG_ESP_ALLOW_BSS_SEG_EXTERNAL_MEMORY=y
+
+# ---------------------------------------------------------------------------
+# RainMaker
+# ---------------------------------------------------------------------------
+CONFIG_ESP_RMAKER_USER_ID_CHECK=y
+CONFIG_ESP_RMAKER_NO_CLAIM=y
+CONFIG_ESP_RMAKER_USE_ESP_SECURE_CERT_MGR=y
+CONFIG_ESP_RMAKER_READ_NODE_ID_FROM_CERT_CN=y
+CONFIG_ESP_SECURE_CERT_DS_PERIPHERAL=n
+CONFIG_RMAKER_MTCTL_MEMORY_ALLOCATION_PREFER_SPIRAM=y
+CONFIG_RMAKER_MTCTL_TASK_STACK_SIZE=8192
+
+# ---------------------------------------------------------------------------
+# 网络配网
+# ---------------------------------------------------------------------------
+CONFIG_WIFI_NETWORK_COMMISSIONING_DRIVER=n
+CONFIG_THREAD_NETWORK_COMMISSIONING_DRIVER=n
+CONFIG_ENABLE_CHIPOBLE=n
+CONFIG_USE_BLE_ONLY_FOR_COMMISSIONING=n
+CONFIG_CHIP_ENABLE_PAIRING_AUTOSTART=n
+CONFIG_USE_MINIMAL_MDNS=n
+
+# ---------------------------------------------------------------------------
+# LVGL
+# ---------------------------------------------------------------------------
 CONFIG_ESP_LVGL_ADAPTER_ENABLE_FREETYPE=y
 CONFIG_LV_USE_FREETYPE=y
 CONFIG_LV_FREETYPE_USE_LVGL_PORT=y
@@ -25,3 +166,11 @@ CONFIG_LV_USE_FS_MEMFS=y
 CONFIG_LV_FS_MEMFS_LETTER=77
 CONFIG_LV_CACHE_DEF_SIZE=512000
 CONFIG_LV_IMAGE_HEADER_CACHE_DEF_CNT=16
+CONFIG_LV_USE_QRCODE=y
+CONFIG_LV_DRAW_LAYER_SIMPLE_BUF_SIZE=12288
+CONFIG_LV_DRAW_THREAD_STACK_SIZE=16384
+
+# ---------------------------------------------------------------------------
+# Linker
+# ---------------------------------------------------------------------------
+CONFIG_LINKER_WITH_LF=y

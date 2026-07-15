@@ -1,0 +1,109 @@
+{
+    "type": "viewTemplate",
+    "id": "room_device_option",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "clickable": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden",
+            "style.borderColor": "border_color"
+        },
+        "events": [
+            {
+                "type": "clicked",
+                "action": "room_modal.toggle_device"
+            }
+        ],
+        "style": {
+            "bgColor": "#252545",
+            "radius": 9,
+            "padding": 8,
+            "borderWidth": 1,
+            "borderColor": "#3A3A60"
+        },
+        "placement": {
+            "mode": "relative",
+            "width": "match",
+            "height": "wrap"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "row",
+            "mainAlign": "spaceBetween",
+            "crossAlign": "center",
+            "gap": 8
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "room_device_texts",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": 1,
+                    "flexGrow": 1
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 2,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "room_device_name",
+                        "labelProps": {
+                            "text": "Device"
+                        },
+                        "style": {
+                            "textColor": "#EAEAFF",
+                            "fontSize": 12
+                        },
+                        "bindings": {
+                            "labelProps.text": "text"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "room_device_detail",
+                        "labelProps": {
+                            "text": "Current room: Living Room"
+                        },
+                        "style": {
+                            "textColor": "#9292B8",
+                            "fontSize": 10
+                        },
+                        "bindings": {
+                            "labelProps.text": "text"
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "switch",
+                "id": "room_device_toggle",
+                "commonProps": {
+                    "clickable": false
+                },
+                "bindings": {
+                    "toggleProps.checked": "checked"
+                },
+                "toggleProps": {
+                    "checked": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": 40,
+                    "height": 20
+                }
+            }
+        ]
+    }
+}

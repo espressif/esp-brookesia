@@ -1,0 +1,65 @@
+menu "Super Example Optional Features"
+
+    config EXAMPLE_SUPER_ENABLE_AUDIO
+        bool "Audio service, AFE and WakeNet"
+        default n
+        select BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE
+        select BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_PLAYER_IMPL
+        select BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
+        select BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
+        help
+            Pull brookesia_service_audio and enable the HAL audio device,
+            including ESP-SR WakeNet / AFE. Off by default so those stacks
+            are not copied into PSRAM XIP.
+
+    config EXAMPLE_SUPER_ENABLE_VIDEO
+        bool "Video service and camera"
+        default n
+        select BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE
+        help
+            Pull brookesia_service_video and enable the HAL video/camera
+            device. Off by default to keep av_processor and camera code
+            out of PSRAM XIP.
+
+    config EXAMPLE_SUPER_ENABLE_NES
+        bool "NES emulator"
+        default n
+        select EXAMPLE_SUPER_ENABLE_AUDIO
+        help
+            Pull brookesia_emulation_nes. Also enables the audio service.
+
+    config EXAMPLE_SUPER_ENABLE_COZE
+        bool "Coze agent"
+        default n
+        select EXAMPLE_SUPER_ENABLE_AUDIO
+        help
+            Pull brookesia_agent_coze. Also enables the audio service.
+
+    config EXAMPLE_SUPER_ENABLE_XIAOZHI
+        bool "Xiaozhi agent"
+        default n
+        select EXAMPLE_SUPER_ENABLE_AUDIO
+        help
+            Pull brookesia_agent_xiaozhi. Also enables the audio service.
+
+    config EXAMPLE_SUPER_ENABLE_JS_RUNTIME
+        bool "JavaScript app runtime (QuickJS)"
+        default n
+        help
+            Pull brookesia_runtime_js and quickjs-ng. Off by default
+            because the Matter Controller path does not need JS apps.
+
+    config EXAMPLE_SUPER_ENABLE_APP_STORE
+        bool "App Store native app"
+        default n
+        help
+            Pull brookesia_app_store. Settings and Matter Controller stay
+            available when this is off.
+
+    config EXAMPLE_SUPER_ENABLE_FILES
+        bool "Files native app"
+        default n
+        help
+            Pull brookesia_app_files.
+
+endmenu

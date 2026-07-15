@@ -1,0 +1,480 @@
+{
+    "type": "viewTemplate",
+    "id": "page_network",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "paddingLeft": 18,
+            "paddingRight": 18,
+            "paddingTop": 8,
+            "paddingBottom": 10
+        },
+        "placement": {
+            "mode": "absolute",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": 6,
+            "crossAlign": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "network_title",
+                "labelProps": {
+                    "text": "Network"
+                },
+                "style": {
+                    "textColor": "#EAEAFF",
+                    "fontSize": 18
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            },
+            {
+                "type": "label",
+                "id": "network_subtitle",
+                "labelProps": {
+                    "text": "Connectivity and Matter fabric status"
+                },
+                "style": {
+                    "textColor": "#9292B8",
+                    "fontSize": 10
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            },
+            {
+                "type": "container",
+                "id": "network_grid",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match",
+                    "height": 1,
+                    "flexGrow": 1
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "rowWrap",
+                    "gap": 10,
+                    "mainAlign": "center",
+                    "crossAlign": "center"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "network_wifi",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 360,
+                            "height": 118
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 5,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "wifi_title",
+                                "labelProps": {
+                                    "text": "Wi-Fi"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "wifi_status_value",
+                                "labelProps": {
+                                    "text": "Status: Connected"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "wifi_ssid_value",
+                                "labelProps": {
+                                    "text": "SSID: Brookesia-Home"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "wifi_signal_value",
+                                "labelProps": {
+                                    "text": "Signal: Excellent"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "network_fabric",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 360,
+                            "height": 118
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 5,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "fabric_title",
+                                "labelProps": {
+                                    "text": "Matter Fabric"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "fabric_status_value",
+                                "labelProps": {
+                                    "text": "Status: Ready"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "fabric_id_value",
+                                "labelProps": {
+                                    "text": "Fabric: Primary Home"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "fabric_devices_value",
+                                "labelProps": {
+                                    "text": "Devices: 0 commissioned"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "network_thread",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 360,
+                            "height": 118
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 5,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "network_thread_title",
+                                "labelProps": {
+                                    "text": "Thread Network"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "network_thread_status_value",
+                                "labelProps": {
+                                    "text": "Status: Available"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "network_thread_role_value",
+                                "labelProps": {
+                                    "text": "Border Router: Active"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "button",
+                                "id": "network_thread_open",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "nav.thread"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#34306A",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#4A4678"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 28
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "network_thread_open_label",
+                                        "labelProps": {
+                                            "text": "Open Thread Map"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "network_health",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 12,
+                            "padding": 10,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 360,
+                            "height": 118
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "gap": 5,
+                            "crossAlign": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "network_health_title",
+                                "labelProps": {
+                                    "text": "Network Health"
+                                },
+                                "style": {
+                                    "textColor": "#EAEAFF",
+                                    "fontSize": 13
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "network_health_latency_value",
+                                "labelProps": {
+                                    "text": "Controller: Online"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "network_health_updated_value",
+                                "labelProps": {
+                                    "text": "Last Check: Just now"
+                                },
+                                "style": {
+                                    "textColor": "#C7C7E5",
+                                    "fontSize": 11
+                                },
+                                "bindings": {
+                                    "labelProps.text": "text"
+                                }
+                            },
+                            {
+                                "type": "button",
+                                "id": "network_refresh",
+                                "events": [
+                                    {
+                                        "type": "clicked",
+                                        "action": "network.refresh"
+                                    }
+                                ],
+                                "style": {
+                                    "bgColor": "#34306A",
+                                    "radius": 8,
+                                    "padding": 4,
+                                    "borderWidth": 1,
+                                    "borderColor": "#4A4678"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 28
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center"
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "network_refresh_label",
+                                        "labelProps": {
+                                            "text": "Refresh Status"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

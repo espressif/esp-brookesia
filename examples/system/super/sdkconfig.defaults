@@ -53,13 +53,28 @@ CONFIG_BROOKESIA_UTILS_THREAD_PROFILER_ENABLE_FREERTOS_CONFIG=y
 CONFIG_BROOKESIA_UTILS_LOG_ENABLE_FILE_AND_LINE=n
 CONFIG_BROOKESIA_UTILS_LOG_ENABLE_FUNCTION_NAME=n
 
-# Brookesia:Agent
-# Coze
+# Brookesia:Agent (only applied when EXAMPLE_SUPER_ENABLE_XIAOZHI=y)
 CONFIG_MBEDTLS_DYNAMIC_BUFFER=n
-# XiaoZhi
-CONFIG_XIAOZHI_AUDIO_TASK_ALLOC_DYNAMIC=y
-CONFIG_XIAOZHI_STACK_IN_PSRAM=y
-CONFIG_XIAOZHI_SYNC_SYSTEM_TIME_FROM_SERVER=n
+# CONFIG_XIAOZHI_AUDIO_TASK_ALLOC_DYNAMIC is not set
+# CONFIG_XIAOZHI_STACK_IN_PSRAM is not set
+# CONFIG_XIAOZHI_SYNC_SYSTEM_TIME_FROM_SERVER is not set
+
+# Super example optional features. Default off so unused stacks stay out of
+# PSRAM XIP. Re-enable from "Super Example Optional Features" in menuconfig,
+# then reconfigure so Component Manager re-resolves matches.
+# CONFIG_EXAMPLE_SUPER_ENABLE_AUDIO is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_VIDEO is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_NES is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_COZE is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_XIAOZHI is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_JS_RUNTIME is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_APP_STORE is not set
+# CONFIG_EXAMPLE_SUPER_ENABLE_FILES is not set
+
+# Override board sdkconfig.defaults.board audio/video so ESP-SR / camera /
+# av_processor are not compiled unless the matching example feature is on.
+# CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE is not set
+# CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE is not set
 
 # H264 (Save RAM and Flash)
 CONFIG_ESP_H264_DECODER_IRAM=n

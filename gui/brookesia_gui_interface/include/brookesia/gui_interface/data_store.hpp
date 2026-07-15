@@ -47,6 +47,9 @@ public:
         Listener listener) = 0;
     virtual void unsubscribe(SubscriptionId id) = 0;
 
+    virtual void forget_signals(
+        DocumentId /*document_id*/, std::string_view /*absolute_path_prefix*/) {}
+
     // Drop every value and signal scoped to `document_id`. Called by Runtime when a
     // document is unloaded so the store does not accumulate stale per-document state.
     // Default implementation is a no-op for backends that do not cache per-document data.
@@ -90,6 +93,7 @@ public:
         std::string_view key,
         Listener listener) override;
     void unsubscribe(SubscriptionId id) override;
+    void forget_signals(DocumentId document_id, std::string_view absolute_path_prefix) override;
     void forget_document(DocumentId document_id) override;
 
     std::size_t debug_connection_count() const override;

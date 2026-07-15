@@ -1,0 +1,468 @@
+{
+    "type": "viewScreen",
+    "id": "matter_controller",
+    "commonProps": {
+        "scrollable": false
+    },
+    "style": {
+        "bgColor": "#1A1A2E"
+    },
+    "placement": {
+        "mode": "relative",
+        "align": "topMid",
+        "width": "match",
+        "height": "match"
+    },
+    "layout": {
+        "type": "flex",
+        "flexFlow": "column",
+        "crossAlign": "stretch"
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "header",
+            "commonProps": {
+                "scrollable": false,
+                "clickable": false
+            },
+            "style": {
+                "bgColor": "#252545",
+                "paddingLeft": 20,
+                "paddingRight": 20,
+                "borderWidth": 1,
+                "borderColor": "#3A3A60"
+            },
+            "placement": {
+                "mode": "relative",
+                "width": "match",
+                "height": 58
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "row",
+                "mainAlign": "spaceBetween",
+                "crossAlign": "center"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "header_identity",
+                    "commonProps": {
+                        "scrollable": false,
+                        "clickable": false
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": 2
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "header_eyebrow",
+                            "labelProps": {
+                                "text": "MATTER HOME"
+                            },
+                            "style": {
+                                "textColor": "#8B85FF",
+                                "fontSize": 10
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text"
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "header_title",
+                            "bindings": {
+                                "labelProps.text": "text"
+                            },
+                            "labelProps": {
+                                "text": "Dashboard"
+                            },
+                            "style": {
+                                "textColor": "#EAEAFF",
+                                "fontSize": 20
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "header_clock",
+                    "commonProps": {
+                        "scrollable": false,
+                        "clickable": false
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "crossAlign": "end",
+                        "gap": 1
+                    },
+                    "children": [
+                        {
+                            "type": "label",
+                            "id": "header_time",
+                            "bindings": {
+                                "labelProps.text": "text"
+                            },
+                            "labelProps": {
+                                "text": "00:00"
+                            },
+                            "style": {
+                                "textColor": "#EAEAFF",
+                                "fontSize": 20
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "header_date",
+                            "bindings": {
+                                "labelProps.text": "text"
+                            },
+                            "labelProps": {
+                                "text": "2026/07/22"
+                            },
+                            "style": {
+                                "textColor": "#9292B8",
+                                "fontSize": 10
+                            }
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "type": "container",
+            "id": "stage",
+            "commonProps": {
+                "scrollable": false,
+                "clickable": false
+            },
+            "style": {
+                "bgColor": "#1A1A2E"
+            },
+            "placement": {
+                "mode": "relative",
+                "width": "match",
+                "height": 1,
+                "flexGrow": 1
+            }
+        },
+        {
+            "type": "container",
+            "id": "bottom_nav",
+            "commonProps": {
+                "scrollable": false,
+                "clickable": false
+            },
+            "style": {
+                "bgColor": "#252545",
+                "padding": 8,
+                "paddingLeft": 14,
+                "paddingRight": 14,
+                "borderWidth": 1,
+                "borderColor": "#3A3A60"
+            },
+            "placement": {
+                "mode": "relative",
+                "width": "match",
+                "height": 70
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "row",
+                "gap": 8,
+                "crossAlign": "stretch"
+            },
+            "children": [
+                {
+                    "type": "button",
+                    "id": "nav_devices",
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "nav.devices"
+                        }
+                    ],
+                    "bindings": {
+                        "style.bgColor": "nav_bg"
+                    },
+                    "style": {
+                        "bgColor": "#252545",
+                        "radius": 14,
+                        "padding": 8
+                    },
+                    "placement": {
+                        "mode": "relative",
+                        "width": 1,
+                        "height": "match",
+                        "flexGrow": 1
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": 4,
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "nav_devices_dot",
+                            "commonProps": {
+                                "scrollable": false,
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "style.bgColor": "dot_color"
+                            },
+                            "style": {
+                                "bgColor": "#3A3A60",
+                                "radius": 4
+                            },
+                            "placement": {
+                                "mode": "relative",
+                                "width": 8,
+                                "height": 8
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "nav_devices_label",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text",
+                                "style.textColor": "color"
+                            },
+                            "labelProps": {
+                                "text": "Dashboard"
+                            },
+                            "style": {
+                                "textColor": "#9292B8",
+                                "fontSize": 12
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "button",
+                    "id": "nav_pairing",
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "nav.pairing"
+                        }
+                    ],
+                    "bindings": {
+                        "style.bgColor": "nav_bg"
+                    },
+                    "style": {
+                        "bgColor": "#252545",
+                        "radius": 14,
+                        "padding": 8
+                    },
+                    "placement": {
+                        "mode": "relative",
+                        "width": 1,
+                        "height": "match",
+                        "flexGrow": 1
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": 4,
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "nav_pairing_dot",
+                            "commonProps": {
+                                "scrollable": false,
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "style.bgColor": "dot_color"
+                            },
+                            "style": {
+                                "bgColor": "#3A3A60",
+                                "radius": 4
+                            },
+                            "placement": {
+                                "mode": "relative",
+                                "width": 8,
+                                "height": 8
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "nav_pairing_label",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text",
+                                "style.textColor": "color"
+                            },
+                            "labelProps": {
+                                "text": "Commission"
+                            },
+                            "style": {
+                                "textColor": "#9292B8",
+                                "fontSize": 12
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "button",
+                    "id": "nav_network",
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "nav.network"
+                        }
+                    ],
+                    "bindings": {
+                        "style.bgColor": "nav_bg"
+                    },
+                    "style": {
+                        "bgColor": "#252545",
+                        "radius": 14,
+                        "padding": 8
+                    },
+                    "placement": {
+                        "mode": "relative",
+                        "width": 1,
+                        "height": "match",
+                        "flexGrow": 1
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": 4,
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "nav_network_dot",
+                            "commonProps": {
+                                "scrollable": false,
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "style.bgColor": "dot_color"
+                            },
+                            "style": {
+                                "bgColor": "#3A3A60",
+                                "radius": 4
+                            },
+                            "placement": {
+                                "mode": "relative",
+                                "width": 8,
+                                "height": 8
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "nav_network_label",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text",
+                                "style.textColor": "color"
+                            },
+                            "labelProps": {
+                                "text": "Network"
+                            },
+                            "style": {
+                                "textColor": "#9292B8",
+                                "fontSize": 12
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "button",
+                    "id": "nav_settings",
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "nav.settings"
+                        }
+                    ],
+                    "bindings": {
+                        "style.bgColor": "nav_bg"
+                    },
+                    "style": {
+                        "bgColor": "#252545",
+                        "radius": 14,
+                        "padding": 8
+                    },
+                    "placement": {
+                        "mode": "relative",
+                        "width": 1,
+                        "height": "match",
+                        "flexGrow": 1
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "gap": 4,
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "nav_settings_dot",
+                            "commonProps": {
+                                "scrollable": false,
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "style.bgColor": "dot_color"
+                            },
+                            "style": {
+                                "bgColor": "#3A3A60",
+                                "radius": 4
+                            },
+                            "placement": {
+                                "mode": "relative",
+                                "width": 8,
+                                "height": 8
+                            }
+                        },
+                        {
+                            "type": "label",
+                            "id": "nav_settings_label",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "bindings": {
+                                "labelProps.text": "labelProps.text",
+                                "style.textColor": "color"
+                            },
+                            "labelProps": {
+                                "text": "Settings"
+                            },
+                            "style": {
+                                "textColor": "#9292B8",
+                                "fontSize": 12
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

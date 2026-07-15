@@ -1,0 +1,160 @@
+{
+    "type": "viewTemplate",
+    "id": "page_thread",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "paddingLeft": 20,
+            "paddingRight": 20,
+            "paddingTop": 20,
+            "paddingBottom": 20
+        },
+        "placement": {
+            "mode": "absolute",
+            "align": "topLeft",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": 12,
+            "crossAlign": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "thread_title",
+                "labelProps": {
+                    "text": "Thread Mesh Topology"
+                },
+                "style": {
+                    "textColor": "#EAEAFF",
+                    "fontSize": 15
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match"
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            },
+            {
+                "type": "container",
+                "id": "thread_content",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match",
+                    "height": 1,
+                    "flexGrow": 1
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "row",
+                    "gap": 12,
+                    "mainAlign": "center",
+                    "crossAlign": "center"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "thread_topo",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 14,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 300,
+                            "height": "match"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "mainAlign": "center",
+                            "crossAlign": "center"
+                        },
+                        "children": [
+                            {
+                                "type": "container",
+                                "id": "thread_hub",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false
+                                },
+                                "style": {
+                                    "bgColor": "#10242d",
+                                    "radius": 30,
+                                    "borderWidth": 2,
+                                    "borderColor": "#8B85FF"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 60,
+                                    "height": 60
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "column",
+                                    "mainAlign": "center",
+                                    "crossAlign": "center",
+                                    "gap": 2
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "thread_hub_name",
+                                        "labelProps": {
+                                            "text": "Hub"
+                                        },
+                                        "style": {
+                                            "textColor": "#8B85FF",
+                                            "fontSize": 11
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "thread_hub_role",
+                                        "labelProps": {
+                                            "text": "BR"
+                                        },
+                                        "style": {
+                                            "textColor": "#9292B8",
+                                            "fontSize": 10
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

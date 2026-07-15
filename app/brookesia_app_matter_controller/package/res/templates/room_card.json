@@ -1,0 +1,97 @@
+{
+    "type": "viewTemplate",
+    "id": "room_card",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "clickable": false
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "bgColor": "#252545",
+            "radius": 12,
+            "padding": 14,
+            "borderWidth": 1,
+            "borderColor": "#3A3A60"
+        },
+        "placement": {
+            "mode": "relative",
+            "width": "match",
+            "height": "wrap"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "row",
+            "mainAlign": "spaceBetween",
+            "crossAlign": "center"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "room_texts",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "gap": 4,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "room_name",
+                        "bindings": {
+                            "labelProps.text": "text"
+                        },
+                        "labelProps": {
+                            "text": "Room"
+                        },
+                        "style": {
+                            "textColor": "#EAEAFF",
+                            "fontSize": 14
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "room_count",
+                        "bindings": {
+                            "labelProps.text": "text"
+                        },
+                        "labelProps": {
+                            "text": "Associated devices: 0"
+                        },
+                        "style": {
+                            "textColor": "#8B85FF",
+                            "fontSize": 11
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "label",
+                "id": "room_chip",
+                "labelProps": {
+                    "text": "ROOM"
+                },
+                "style": {
+                    "textColor": "#9292B8",
+                    "fontSize": 11,
+                    "bgColor": "#2E2E5A",
+                    "padding": 2,
+                    "radius": 6,
+                    "paddingLeft": 8,
+                    "paddingRight": 8
+                },
+                "bindings": {
+                    "labelProps.text": "text"
+                }
+            }
+        ]
+    }
+}

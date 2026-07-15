@@ -1,0 +1,517 @@
+{
+    "type": "viewTemplate",
+    "id": "page_pairing",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false,
+            "hidden": true
+        },
+        "bindings": {
+            "commonProps.hidden": "hidden"
+        },
+        "style": {
+            "paddingLeft": 18,
+            "paddingRight": 18,
+            "paddingTop": 10,
+            "paddingBottom": 10
+        },
+        "placement": {
+            "mode": "absolute",
+            "align": "topLeft",
+            "x": 0,
+            "y": 0,
+            "width": "match",
+            "height": "match"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": 8,
+            "crossAlign": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "pairing_title",
+                "labelProps": {
+                    "text": "Matter Controller Commissioning"
+                },
+                "style": {
+                    "textColor": "#EAEAFF",
+                    "fontSize": 15
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match"
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            },
+            {
+                "type": "container",
+                "id": "pairing_content",
+                "commonProps": {
+                    "scrollable": false,
+                    "clickable": false
+                },
+                "placement": {
+                    "mode": "relative",
+                    "width": "match",
+                    "height": 1,
+                    "flexGrow": 1
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "row",
+                    "gap": 12,
+                    "crossAlign": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "container",
+                        "id": "qr_panel",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false,
+                            "hidden": false
+                        },
+                        "bindings": {
+                            "commonProps.hidden": "hidden"
+                        },
+                        "style": {
+                            "bgColor": "#252545",
+                            "radius": 14,
+                            "padding": 12,
+                            "borderWidth": 1,
+                            "borderColor": "#3A3A60"
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 266,
+                            "height": "match"
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "mainAlign": "center",
+                            "crossAlign": "center",
+                            "gap": 8
+                        },
+                        "children": [
+                            {
+                                "type": "container",
+                                "id": "qr_wrapper",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false
+                                },
+                                "style": {
+                                    "bgColor": "#F7F7FF",
+                                    "radius": 12,
+                                    "padding": 6
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": 220,
+                                    "height": 220
+                                },
+                                "layout": {
+                                    "type": "none"
+                                },
+                                "children": [
+                                    {
+                                        "type": "container",
+                                        "id": "qr_placeholder",
+                                        "commonProps": {
+                                            "scrollable": false,
+                                            "clickable": false,
+                                            "hidden": false
+                                        },
+                                        "bindings": {
+                                            "commonProps.hidden": "hidden"
+                                        },
+                                        "style": {
+                                            "bgColor": "#F4F4FF",
+                                            "radius": 8,
+                                            "padding": 18,
+                                            "borderWidth": 1,
+                                            "borderColor": "#D7D7F0"
+                                        },
+                                        "placement": {
+                                            "mode": "absolute",
+                                            "x": 6,
+                                            "y": 6,
+                                            "width": 208,
+                                            "height": 208
+                                        },
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "column",
+                                            "mainAlign": "center",
+                                            "crossAlign": "center",
+                                            "gap": 8
+                                        },
+                                        "children": [
+                                            {
+                                                "type": "label",
+                                                "id": "qr_placeholder_mark",
+                                                "labelProps": {
+                                                    "text": "…"
+                                                },
+                                                "style": {
+                                                    "textColor": "#6C63FF",
+                                                    "fontSize": 34
+                                                },
+                                                "placement": {
+                                                    "mode": "relative",
+                                                    "width": "match"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "qr_placeholder_title",
+                                                "labelProps": {
+                                                    "text": "Preparing QR code"
+                                                },
+                                                "style": {
+                                                    "textColor": "#34345A",
+                                                    "fontSize": 12,
+                                                    "textAlign": "center"
+                                                },
+                                                "placement": {
+                                                    "mode": "relative",
+                                                    "width": "match"
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            },
+                                            {
+                                                "type": "label",
+                                                "id": "qr_placeholder_desc",
+                                                "labelProps": {
+                                                    "text": "Waiting for BLE provisioning"
+                                                },
+                                                "style": {
+                                                    "textColor": "#73739A",
+                                                    "fontSize": 10,
+                                                    "textAlign": "center"
+                                                },
+                                                "placement": {
+                                                    "mode": "relative",
+                                                    "width": "match"
+                                                },
+                                                "bindings": {
+                                                    "labelProps.text": "labelProps.text"
+                                                }
+                                            }
+                                        ]
+                                    },
+                                    {
+                                        "type": "image",
+                                        "id": "qr_image",
+                                        "commonProps": {
+                                            "clickable": false,
+                                            "hidden": true
+                                        },
+                                        "imageProps": {
+                                            "src": "",
+                                            "innerAlign": "contain"
+                                        },
+                                        "bindings": {
+                                            "imageProps.src": "imageProps.src",
+                                            "commonProps.hidden": "hidden"
+                                        },
+                                        "placement": {
+                                            "mode": "absolute",
+                                            "x": 6,
+                                            "y": 6,
+                                            "width": 208,
+                                            "height": 208
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "label",
+                                "id": "qr_scan_hint",
+                                "labelProps": {
+                                    "text": "Scan with the ESP RainMaker app"
+                                },
+                                "style": {
+                                    "textColor": "#B8B8D6",
+                                    "fontSize": 11,
+                                    "textAlign": "center"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match"
+                                },
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                }
+                            }
+                        ]
+                    },
+                    {
+                        "type": "container",
+                        "id": "pairing_info",
+                        "commonProps": {
+                            "scrollable": false,
+                            "clickable": false
+                        },
+                        "placement": {
+                            "mode": "relative",
+                            "width": 1,
+                            "height": "match",
+                            "flexGrow": 1
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "mainAlign": "center",
+                            "crossAlign": "stretch",
+                            "gap": 12
+                        },
+                        "children": [
+                            {
+                                "type": "container",
+                                "id": "pairing_status",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false,
+                                    "hidden": false
+                                },
+                                "bindings": {
+                                    "commonProps.hidden": "hidden"
+                                },
+                                "style": {
+                                    "bgColor": "#11271F",
+                                    "radius": 12,
+                                    "padding": 14,
+                                    "borderWidth": 1,
+                                    "borderColor": "#1F4E3F"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 92
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "column",
+                                    "mainAlign": "center",
+                                    "crossAlign": "stretch",
+                                    "gap": 5
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "pairing_status_title",
+                                        "labelProps": {
+                                            "text": "Broadcasting..."
+                                        },
+                                        "style": {
+                                            "textColor": "#4ECDC4",
+                                            "fontSize": 14
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "pairing_status_desc",
+                                        "labelProps": {
+                                            "text": "Controller broadcast is active"
+                                        },
+                                        "style": {
+                                            "textColor": "#B6C9C5",
+                                            "fontSize": 11
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "container",
+                                "id": "pairing_waiting",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false,
+                                    "hidden": false
+                                },
+                                "bindings": {
+                                    "commonProps.hidden": "hidden"
+                                },
+                                "style": {
+                                    "bgColor": "#1D2029",
+                                    "radius": 12,
+                                    "padding": 14,
+                                    "borderWidth": 1,
+                                    "borderColor": "#303544"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 104
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "column",
+                                    "mainAlign": "center",
+                                    "crossAlign": "stretch",
+                                    "gap": 6
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "pairing_waiting_title",
+                                        "labelProps": {
+                                            "text": "Ready to connect"
+                                        },
+                                        "style": {
+                                            "textColor": "#EAEAFF",
+                                            "fontSize": 13
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "pairing_waiting_desc",
+                                        "labelProps": {
+                                            "text": "Scan the QR code to connect this controller to Wi-Fi."
+                                        },
+                                        "style": {
+                                            "textColor": "#9292B8",
+                                            "fontSize": 11
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            },
+                            {
+                                "type": "container",
+                                "id": "commission_success",
+                                "commonProps": {
+                                    "scrollable": false,
+                                    "clickable": false,
+                                    "hidden": true
+                                },
+                                "bindings": {
+                                    "commonProps.hidden": "hidden"
+                                },
+                                "style": {
+                                    "bgColor": "#11271F",
+                                    "radius": 14,
+                                    "padding": 18,
+                                    "borderWidth": 1,
+                                    "borderColor": "#27715A"
+                                },
+                                "placement": {
+                                    "mode": "relative",
+                                    "width": "match",
+                                    "height": 164
+                                },
+                                "layout": {
+                                    "type": "flex",
+                                    "flexFlow": "column",
+                                    "mainAlign": "center",
+                                    "crossAlign": "stretch",
+                                    "gap": 8
+                                },
+                                "children": [
+                                    {
+                                        "type": "label",
+                                        "id": "commission_success_mark",
+                                        "labelProps": {
+                                            "text": "✓"
+                                        },
+                                        "style": {
+                                            "textColor": "#63D8B2",
+                                            "fontSize": 28,
+                                            "textAlign": "center"
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "commission_success_title",
+                                        "labelProps": {
+                                            "text": "Successfully Commissioned"
+                                        },
+                                        "style": {
+                                            "textColor": "#E2FFF4",
+                                            "fontSize": 16,
+                                            "textAlign": "center"
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    },
+                                    {
+                                        "type": "label",
+                                        "id": "commission_success_desc",
+                                        "labelProps": {
+                                            "text": "This controller is connected to Wi-Fi and ready to add Matter devices."
+                                        },
+                                        "style": {
+                                            "textColor": "#B6C9C5",
+                                            "fontSize": 11,
+                                            "textAlign": "center"
+                                        },
+                                        "placement": {
+                                            "mode": "relative",
+                                            "width": "match",
+                                            "height": "wrap"
+                                        },
+                                        "bindings": {
+                                            "labelProps.text": "labelProps.text"
+                                        }
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -2609,6 +2609,9 @@ public:
         }
 
         destroy_subtree(*tree, *uid);
+
+        store->forget_signals(document_id, query);
+        prune_unused_resolved_styles();
         return true;
     }
 
@@ -6985,6 +6988,17 @@ private:
 
         resolve_font_chain("default", true);
         return resolved_style;
+    }
+
+    void prune_unused_resolved_styles()
+    {
+        for (auto it = resolved_style_cache_.begin(); it != resolved_style_cache_.end(); ) {
+            if (it->second.use_count() == 1) {
+                it = resolved_style_cache_.erase(it);
+            } else {
+                ++it;
+            }
+        }
     }
 
     // Returns a shared, immutable ResolvedStyle for `node`, reusing a cached instance when another node
