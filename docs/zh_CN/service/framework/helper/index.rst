@@ -39,6 +39,8 @@
    设备控制 <device>
    表情 <emote>
    HTTP <http>
+   Manager <manager>
+   Utils <utils>
    NES <nes>
    SNTP <sntp>
    Storage <storage>

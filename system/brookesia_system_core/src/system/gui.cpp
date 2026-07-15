@@ -8,12 +8,11 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include <algorithm>
-#include <fstream>
 #include <set>
-#include <sstream>
 
 #include "boost/json.hpp"
 
+#include "brookesia/service_helper.hpp"
 #include "private/utils.hpp"
 #include "private/heap_trace.hpp"
 #include "private/system/impl.hpp"
@@ -21,6 +20,8 @@
 namespace esp_brookesia::system::core {
 
 namespace {
+
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 std::string make_binding_update_key(std::string_view absolute_path, std::string_view key)
 {
@@ -41,6 +42,8 @@ std::string gui_batch_command_name(const GuiBatchCommand &command)
         return "StopAnimation";
     case GuiBatchCommand::Type::StartViewAnimation:
         return "StartViewAnimation";
+    case GuiBatchCommand::Type::ScrollTo:
+        return "ScrollTo";
     case GuiBatchCommand::Type::ScrollToView:
         return "ScrollToView";
     default:
@@ -98,13 +101,11 @@ void collect_gui_action_strings(const boost::json::value &value, std::set<std::s
 
 std::expected<std::string, std::string> read_text_file(std::string_view path)
 {
-    std::ifstream input(std::string(path), std::ios::binary);
-    if (!input) {
-        return std::unexpected("Failed to open GUI root file: " + std::string(path));
+    auto result = service::helper::Storage::fs_read_text(std::string(path), STORAGE_FS_TIMEOUT_MS);
+    if (!result) {
+        return std::unexpected("Failed to read GUI root file: " + std::string(path) + ", error: " + result.error());
     }
-    std::ostringstream output;
-    output << input.rdbuf();
-    return output.str();
+    return result.value();
 }
 #endif
 
@@ -161,6 +162,19 @@ std::expected<GuiBatchResult, std::string> System::Impl::execute_gui_batch_now(
             }
             break;
         }
+        case GuiBatchCommand::Type::ScrollTo:
+            flush_pending_gui_bindings(app_id);
+            command_result.success = gui_runtime_->scroll_view_to(
+                                         *record.document_id,
+                                         command.path,
+                                         command.scroll_x,
+                                         command.scroll_y,
+                                         command.animated
+                                     );
+            if (!command_result.success) {
+                command_result.error_message = "Failed to scroll view";
+            }
+            break;
         case GuiBatchCommand::Type::ScrollToView:
             flush_pending_gui_bindings(app_id);
             command_result.success = gui_runtime_->scroll_view_to_visible(
@@ -570,6 +584,62 @@ std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &reco
 }
 
 
+std::expected<void, std::string> System::Impl::prepare_installed_app_gui(AppRecord &record)
+{
+    auto icon_result = register_app_icon_resource(record);
+    if (!icon_result) {
+        return icon_result;
+    }
+    if (!record.preload_dom) {
+        return {};
+    }
+
+    auto resource_result = register_app_gui_resources(record);
+    if (!resource_result) {
+        return resource_result;
+    }
+
+    return ensure_gui_loaded(record);
+}
+
+
+void System::Impl::release_app_gui_presentation(AppRecord &record)
+{
+    record.action_connections.clear();
+    record.action_connection_keys.clear();
+    if (!gui_runtime_ || !record.document_id.has_value()) {
+        return;
+    }
+
+    // preload_dom keeps the parsed document and registered resources resident
+    // between app runs; only detach the currently mounted presentation.
+    for (const auto &flow_entry : record.gui_descriptor.screen_flows) {
+        (void)gui_runtime_->stop_screen_flow(*record.document_id, flow_entry.screen_flow);
+    }
+}
+
+
+void System::Impl::cleanup_stopped_app_gui(AppRecord &record)
+{
+    clear_pending_gui_bindings(record.info.app_id);
+    if (record.preload_dom) {
+        release_app_gui_presentation(record);
+        return;
+    }
+
+    unload_gui(record);
+    unregister_app_gui_resources(record);
+}
+
+
+void System::Impl::rollback_installed_app_gui(AppRecord &record)
+{
+    unload_gui(record);
+    unregister_app_gui_resources(record);
+    unregister_app_icon_resource(record);
+}
+
+
 void System::Impl::unload_gui(AppRecord &record)
 {
     record.action_connections.clear();
@@ -770,6 +840,7 @@ bool System::gui_destroy_view(AppId app_id, std::string_view absolute_path)
             BROOKESIA_LOGW("Skip GUI destroy view: app_id(%1%), path(%2%)", app_id, absolute_path);
             return false;
         }
+        impl_->flush_pending_gui_bindings(app_id);
         return impl_->gui_runtime_->destroy_view(*record_result.value()->document_id, absolute_path);
     },
     false
@@ -778,10 +849,49 @@ bool System::gui_destroy_view(AppId app_id, std::string_view absolute_path)
 
 std::expected<void, std::string> System::Impl::subscribe_gui_action_now(AppId app_id, std::string action)
 {
+    return subscribe_gui_actions_now(app_id, std::vector<std::string> {std::move(action)});
+}
+
+gui::Runtime::ActionHandler System::Impl::make_app_action_forwarder(AppId app_id)
+{
+    return [this, app_id](const gui::Event & event) {
+        auto action = event.action;
+        auto event_path = event.path;
+        auto payload_json = boost::json::serialize(event.payload);
+        auto post_action = [
+                               this,
+                               app_id,
+                               action = std::move(action),
+                               event_path = std::move(event_path),
+                               payload_json = std::move(payload_json)
+        ]() {
+            auto result = dispatch_action(app_id, action, event_path, payload_json);
+            if (!result) {
+                BROOKESIA_LOGW(
+                    "Dispatch app action failed: app_id(%1%), action(%2%), error(%3%)",
+                    app_id, action, result.error()
+                );
+            }
+        };
+        auto post_result = post_task(SYSTEM_APP_INPUT_TASK_GROUP, std::move(post_action));
+        if (!post_result) {
+            BROOKESIA_LOGW(
+                "Post app action failed: app_id(%1%), action(%2%), error(%3%)",
+                app_id, event.action, post_result.error()
+            );
+        }
+    };
+}
+
+std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
+    AppId app_id,
+    const std::vector<std::string> &actions
+)
+{
     auto heap_before_task = heap_trace::capture();
     if constexpr (heap_trace::enabled) {
         const auto app_id_string = std::to_string(app_id);
-        const auto details = "app_id=" + app_id_string + " action=" + action;
+        const auto details = "app_id=" + app_id_string + " actions=" + std::to_string(actions.size());
         heap_trace::log_detail(
             "system.gui.action",
             "subscribe before GUI task",
@@ -798,18 +908,11 @@ std::expected<void, std::string> System::Impl::subscribe_gui_action_now(AppId ap
     if (!gui_runtime_ || !record.document_id.has_value()) {
         return std::unexpected("App GUI document is not loaded");
     }
-    if (record.action_connection_keys.contains(action)) {
-        BROOKESIA_LOGD(
-            "Skip duplicate GUI action subscription: app_id(%1%), manifest_id(%2%), action(%3%)",
-            app_id, record.info.manifest.id, action
-        );
-        return {};
-    }
     auto heap_before_connect = heap_trace::capture();
     if constexpr (heap_trace::enabled) {
         const auto details = "app_id=" + std::to_string(app_id) +
                              " manifest_id=" + record.info.manifest.id +
-                             " action=" + action +
+                             " actions=" + std::to_string(actions.size()) +
                              " action_connections=" + std::to_string(record.action_connections.size());
         heap_trace::log_detail(
             "system.gui.action",
@@ -820,61 +923,44 @@ std::expected<void, std::string> System::Impl::subscribe_gui_action_now(AppId ap
             &heap_before_task
         );
     }
-    auto connection = gui_runtime_->subscribe_event_action(
-                          *record.document_id,
-                          action,
-    [this, app_id, action](const gui::Event & event) {
-        auto event_path = event.path;
-        auto payload_json = boost::json::serialize(event.payload);
-        auto post_result = post_task(
-                               SYSTEM_APP_INPUT_TASK_GROUP,
-                               [
-                                   this,
-                                   app_id,
-                                   action,
-                                   event_path = std::move(event_path),
-                                   payload_json = std::move(payload_json)
-        ]() {
-            auto result = dispatch_action(app_id, action, event_path, payload_json);
-            if (!result) {
-                BROOKESIA_LOGW(
-                    "Dispatch app action failed: app_id(%1%), action(%2%), error(%3%)",
-                    app_id, action, result.error()
-                );
-            }
-        }
-                           );
-        if (!post_result) {
-            BROOKESIA_LOGW(
-                "Post app action failed: app_id(%1%), action(%2%), error(%3%)",
-                app_id, action, post_result.error()
+
+    std::vector<gui::ScopedConnection> new_connections;
+    std::vector<std::string> new_connection_keys;
+    new_connections.reserve(actions.size());
+    new_connection_keys.reserve(actions.size());
+    for (const auto &action : actions) {
+        if (record.action_connection_keys.contains(action)) {
+            BROOKESIA_LOGD(
+                "Skip duplicate GUI action subscription: app_id(%1%), manifest_id(%2%), action(%3%)",
+                app_id, record.info.manifest.id, action
             );
+            continue;
         }
+
+        auto connection = gui_runtime_->subscribe_event_action(
+                              *record.document_id,
+                              action,
+                              make_app_action_forwarder(app_id)
+                          );
+        if (!connection.connected()) {
+            return std::unexpected("Failed to subscribe GUI action");
+        }
+        new_connection_keys.push_back(action);
+        new_connections.push_back(std::move(connection));
     }
-                      );
+
+    record.action_connections.reserve(record.action_connections.size() + new_connections.size());
+    for (auto &connection : new_connections) {
+        record.action_connections.push_back(std::move(connection));
+    }
+    for (auto &action : new_connection_keys) {
+        record.action_connection_keys.insert(std::move(action));
+    }
+
     if constexpr (heap_trace::enabled) {
         const auto details = "app_id=" + std::to_string(app_id) +
                              " manifest_id=" + record.info.manifest.id +
-                             " action=" + action +
-                             " connected=" + std::to_string(connection.connected());
-        heap_trace::log_detail(
-            "system.gui.action",
-            "subscribe after GUI runtime connect",
-            record.info.manifest.id,
-            details,
-            heap_trace::capture(),
-            &heap_before_connect
-        );
-    }
-    if (!connection.connected()) {
-        return std::unexpected("Failed to subscribe GUI action");
-    }
-    record.action_connections.push_back(std::move(connection));
-    record.action_connection_keys.insert(action);
-    if constexpr (heap_trace::enabled) {
-        const auto details = "app_id=" + std::to_string(app_id) +
-                             " manifest_id=" + record.info.manifest.id +
-                             " action=" + action +
+                             " actions=" + std::to_string(actions.size()) +
                              " action_connections=" + std::to_string(record.action_connections.size());
         heap_trace::log_detail(
             "system.gui.action",
@@ -922,6 +1008,42 @@ std::expected<void, std::string> System::gui_subscribe_action(AppId app_id, std:
 #endif
 }
 
+std::expected<void, std::string> System::gui_subscribe_actions(AppId app_id, const std::vector<std::string> &actions)
+{
+#if defined(__EMSCRIPTEN__)
+    auto action_list = actions;
+    if (esp_brookesia::gui::wasm::post_gui_task([this, app_id, actions = std::move(action_list)]() mutable {
+    std::expected<void, std::string> result;
+    auto subscribe_actions_task = [this, app_id, actions = std::move(actions), &result]() mutable {
+            result = impl_->subscribe_gui_actions_now(app_id, actions);
+        };
+        impl_->execute_task_with_group_context(
+            SYSTEM_GUI_TASK_GROUP,
+            std::move(subscribe_actions_task)
+        );
+        if (!result)
+        {
+            BROOKESIA_LOGW(
+                "Deferred GUI actions subscribe failed: app_id(%1%), error(%2%)",
+                app_id, result.error()
+            );
+        }
+    })) {
+        return {};
+    }
+    return std::unexpected("Failed to post GUI subscribe actions task");
+#else
+    auto subscribe_actions_task = [this, app_id, actions]() mutable -> std::expected<void, std::string> {
+        return impl_->subscribe_gui_actions_now(app_id, actions);
+    };
+    return impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_TASK_GROUP,
+               std::move(subscribe_actions_task),
+               std::unexpected("Failed to post GUI subscribe actions task")
+           );
+#endif
+}
+
 gui::ScopedConnection System::gui_subscribe_action(
     AppId app_id,
     std::string_view action,
@@ -957,6 +1079,58 @@ gui::ScopedConnection System::gui_subscribe_action(
         return impl_->gui_runtime_->subscribe_event_action(*record.document_id, action, std::move(scheduled_handler));
     },
     gui::ScopedConnection {}
+           );
+}
+
+std::vector<gui::ScopedConnection> System::gui_subscribe_actions(
+    AppId app_id,
+    const std::vector<GuiActionHandlerSubscription> &subscriptions
+)
+{
+    return impl_->run_task_sync<std::vector<gui::ScopedConnection>>(
+               SYSTEM_GUI_TASK_GROUP,
+    [this, app_id, subscriptions]() mutable {
+        std::vector<gui::ScopedConnection> connections;
+        connections.reserve(subscriptions.size());
+
+        auto record_result = impl_->get_record(app_id);
+        if (!record_result)
+        {
+            return connections;
+        }
+        auto &record = *record_result.value();
+        if (!impl_->gui_runtime_ || !record.document_id.has_value())
+        {
+            return connections;
+        }
+
+        for (auto &subscription : subscriptions)
+        {
+            if (subscription.action.empty() || !subscription.handler) {
+                connections.emplace_back();
+                continue;
+            }
+            auto scheduled_handler = [this, handler = std::move(subscription.handler)](const gui::Event & event) {
+                auto event_copy = event;
+                auto post_handler = [handler, event_copy = std::move(event_copy)]() mutable {
+                    handler(event_copy);
+                };
+                auto post_result = impl_->post_task(SYSTEM_APP_INPUT_TASK_GROUP, std::move(post_handler));
+                if (!post_result) {
+                    BROOKESIA_LOGW("Post app action handler failed: %1%", post_result.error());
+                }
+            };
+            connections.push_back(
+                impl_->gui_runtime_->subscribe_event_action(
+                    *record.document_id,
+                    subscription.action,
+                    std::move(scheduled_handler)
+                )
+            );
+        }
+        return connections;
+    },
+    {}
            );
 }
 
@@ -1054,6 +1228,56 @@ std::expected<void, std::string> System::gui_set_view_src(
            );
 }
 
+std::expected<void, std::string> System::gui_preload_images(
+    AppId app_id,
+    const std::vector<std::string> &image_ids
+)
+{
+    return impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_INPUT_TASK_GROUP,
+    [this, app_id, image_ids]() -> std::expected<void, std::string> {
+        auto record_result = impl_->get_record(app_id);
+        if (!record_result)
+        {
+            return std::unexpected(record_result.error());
+        }
+        auto &record = *record_result.value();
+        if (!impl_->gui_runtime_ || !record.document_id.has_value())
+        {
+            return std::unexpected("App GUI document is not loaded");
+        }
+        impl_->flush_pending_gui_bindings(app_id);
+        return impl_->gui_runtime_->preload_images(*record.document_id, image_ids);
+    },
+    std::unexpected("Failed to post GUI image preload task")
+           );
+}
+
+std::expected<void, std::string> System::gui_release_images(
+    AppId app_id,
+    const std::vector<std::string> &image_ids
+)
+{
+    return impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_INPUT_TASK_GROUP,
+    [this, app_id, image_ids]() -> std::expected<void, std::string> {
+        auto record_result = impl_->get_record(app_id);
+        if (!record_result)
+        {
+            return std::unexpected(record_result.error());
+        }
+        auto &record = *record_result.value();
+        if (!impl_->gui_runtime_ || !record.document_id.has_value())
+        {
+            return std::unexpected("App GUI document is not loaded");
+        }
+        impl_->flush_pending_gui_bindings(app_id);
+        return impl_->gui_runtime_->release_preloaded_images(*record.document_id, image_ids);
+    },
+    std::unexpected("Failed to post GUI image release task")
+           );
+}
+
 std::expected<gui::SubscriptionId, std::string> System::gui_start_view_animation_with_id(
     AppId app_id,
     std::string_view absolute_path,
@@ -1139,6 +1363,43 @@ bool System::gui_stop_animation(AppId, gui::SubscriptionId subscription_id)
     return result.has_value();
 }
 
+std::expected<void, std::string> System::gui_scroll_to(
+    AppId app_id,
+    std::string_view absolute_path,
+    int32_t x,
+    int32_t y,
+    bool animated
+)
+{
+    return impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_INPUT_TASK_GROUP,
+               [this,
+                app_id,
+                absolute_path = std::string(absolute_path),
+                x,
+                y,
+    animated]() -> std::expected<void, std::string> {
+        auto record_result = impl_->get_record(app_id);
+        if (!record_result)
+        {
+            return std::unexpected(record_result.error());
+        }
+        auto &record = *record_result.value();
+        if (!impl_->gui_runtime_ || !record.document_id.has_value())
+        {
+            return std::unexpected("App GUI document is not loaded");
+        }
+        impl_->flush_pending_gui_bindings(app_id);
+        if (!impl_->gui_runtime_->scroll_view_to(*record.document_id, absolute_path, x, y, animated))
+        {
+            return std::unexpected("Failed to scroll view");
+        }
+        return {};
+    },
+    std::unexpected("Failed to post GUI scroll task")
+           );
+}
+
 std::expected<void, std::string> System::gui_scroll_to_view(
     AppId app_id,
     std::string_view absolute_path,
@@ -1201,19 +1462,20 @@ std::expected<GuiBatchResult, std::string> System::gui_execute_batch(
            );
 }
 
-void System::set_gui_view_debug_enabled(bool enabled)
+std::expected<void, std::string> System::set_gui_view_debug_enabled(bool enabled)
 {
-    (void)impl_->run_task_sync<bool>(
-        SYSTEM_GUI_TASK_GROUP,
-    [this, enabled]() {
-        if (!impl_->gui_runtime_) {
-            return false;
+    return impl_->run_task_sync<std::expected<void, std::string>>(
+               SYSTEM_GUI_TASK_GROUP,
+    [this, enabled]() -> std::expected<void, std::string> {
+        if (!impl_->gui_runtime_)
+        {
+            return std::unexpected("GUI runtime is not available");
         }
         impl_->gui_runtime_->set_view_debug_enabled(enabled);
-        return true;
+        return {};
     },
-    false
-    );
+    std::unexpected("Failed to post GUI view debug task")
+           );
 }
 
 bool System::is_gui_view_debug_enabled() const

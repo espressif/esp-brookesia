@@ -12,9 +12,9 @@
 namespace esp_brookesia::service::helper {
 
 /**
- * @brief Helper schema definitions for the agent-manager service.
+ * @brief Helper schema definitions for the agent manager service.
  */
-class Manager: public service::helper::Base<Manager> {
+class AgentManager: public service::helper::Base<AgentManager> {
 public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the service specific types and enumerations ///////////////////////////////
@@ -714,22 +714,22 @@ public:
 /**
  * @brief  Agent related
  */
-BROOKESIA_DESCRIBE_STRUCT(Manager::AgentOperationTimeout, (), (activate, start, sleep, wake_up, stop));
-BROOKESIA_DESCRIBE_ENUM(Manager::AgentGeneralFunction, InterruptSpeaking, Max);
-BROOKESIA_DESCRIBE_ENUM(Manager::ChatMode, RealTime, Manual, HalfDuplex, Max);
+BROOKESIA_DESCRIBE_STRUCT(AgentManager::AgentOperationTimeout, (), (activate, start, sleep, wake_up, stop));
+BROOKESIA_DESCRIBE_ENUM(AgentManager::AgentGeneralFunction, InterruptSpeaking, Max);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::ChatMode, RealTime, Manual, HalfDuplex, Max);
 BROOKESIA_DESCRIBE_ENUM(
-    Manager::AgentGeneralEvent, SpeakingStatusChanged, ListeningStatusChanged, AgentSpeakingTextGot,
+    AgentManager::AgentGeneralEvent, SpeakingStatusChanged, ListeningStatusChanged, AgentSpeakingTextGot,
     UserSpeakingTextGot, EmoteGot, Max
 );
 BROOKESIA_DESCRIBE_STRUCT(
-    Manager::AgentAttributes, (), (
+    AgentManager::AgentAttributes, (), (
         name, operation_timeout, support_general_functions, support_general_events, require_time_sync
     )
 );
-BROOKESIA_DESCRIBE_ENUM(Manager::GeneralAction, TimeSync, Activate, Start, Sleep, WakeUp, Stop, Max);
-BROOKESIA_DESCRIBE_ENUM(Manager::GeneralEvent, TimeSynced, Activated, Started, Slept, Awake, Stopped, Max);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::GeneralAction, TimeSync, Activate, Start, Sleep, WakeUp, Stop, Max);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::GeneralEvent, TimeSynced, Activated, Started, Slept, Awake, Stopped, Max);
 BROOKESIA_DESCRIBE_ENUM(
-    Manager::GeneralState, TimeSyncing, Ready, Activating, Activated, Starting, Started, Sleeping, Slept, WakingUp,
+    AgentManager::GeneralState, TimeSyncing, Ready, Activating, Activated, Starting, Started, Sleeping, Slept, WakingUp,
     Stopping, Max
 );
 
@@ -737,33 +737,33 @@ BROOKESIA_DESCRIBE_ENUM(
  * @brief  Function related
  */
 BROOKESIA_DESCRIBE_ENUM(
-    Manager::FunctionId,
+    AgentManager::FunctionId,
     GetAgentNames, GetAgentAttributes, SetAgentInfo, SetTargetAgent, GetTargetAgent, GetActiveAgent,
     TriggerGeneralAction, GetGeneralState, InterruptSpeaking, Suspend, Resume, GetSuspendStatus,
     SetChatMode, GetChatMode, ManualStartListening, ManualStopListening, GetSpeakingStatus, GetListeningStatus,
     LoadData, ResetData,
     Max
 );
-BROOKESIA_DESCRIBE_ENUM(Manager::FunctionSetAgentInfoParam, Name, Info);
-BROOKESIA_DESCRIBE_ENUM(Manager::FunctionSetChatModeParam, Mode);
-BROOKESIA_DESCRIBE_ENUM(Manager::FunctionSetTargetAgentParam, Name);
-BROOKESIA_DESCRIBE_ENUM(Manager::FunctionGetAgentAttributesParam, Name);
-BROOKESIA_DESCRIBE_ENUM(Manager::FunctionTriggerGeneralActionParam, Action);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::FunctionSetAgentInfoParam, Name, Info);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::FunctionSetChatModeParam, Mode);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::FunctionSetTargetAgentParam, Name);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::FunctionGetAgentAttributesParam, Name);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::FunctionTriggerGeneralActionParam, Action);
 
 /**
  * @brief  Event related
  */
 BROOKESIA_DESCRIBE_ENUM(
-    Manager::EventId, GeneralActionTriggered, GeneralEventHappened, SuspendStatusChanged,
+    AgentManager::EventId, GeneralActionTriggered, GeneralEventHappened, SuspendStatusChanged,
     SpeakingStatusChanged, ListeningStatusChanged, AgentSpeakingTextGot, UserSpeakingTextGot, EmoteGot, Max
 );
-BROOKESIA_DESCRIBE_ENUM(Manager::EventGeneralActionTriggeredParam, Action);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventGeneralEventHappenedParam, Event, IsUnexpected);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventSuspendStatusChangedParam, IsSuspended);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventAgentSpeakingTextGotParam, Text);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventUserSpeakingTextGotParam, Text);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventEmoteGotParam, Emote);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventSpeakingStatusChangedParam, IsSpeaking);
-BROOKESIA_DESCRIBE_ENUM(Manager::EventListeningStatusChangedParam, IsListening);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventGeneralActionTriggeredParam, Action);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventGeneralEventHappenedParam, Event, IsUnexpected);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventSuspendStatusChangedParam, IsSuspended);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventAgentSpeakingTextGotParam, Text);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventUserSpeakingTextGotParam, Text);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventEmoteGotParam, Emote);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventSpeakingStatusChangedParam, IsSpeaking);
+BROOKESIA_DESCRIBE_ENUM(AgentManager::EventListeningStatusChangedParam, IsListening);
 
 } // namespace esp_brookesia::service::helper

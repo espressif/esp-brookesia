@@ -359,6 +359,27 @@ std::expected<std::vector<GuiBatchCommand>, std::string> parse_gui_batch_command
             command.type = GuiBatchCommand::Type::StartViewAnimation;
             command.path = std::move(*path);
             command.animation = std::move(*animation);
+        } else if (*name == BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::FunctionId::ScrollTo)) {
+            auto path_name = BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::Path);
+            if (params->find(path_name) == params->end()) {
+                return std::unexpected("ScrollTo command requires Path string");
+            }
+            auto path = get_object_string(*params, path_name);
+            auto x = get_object_int(*params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::X), 0);
+            auto y = get_object_int(*params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::Y), 0);
+            auto animated = get_object_bool(
+                                *params,
+                                BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::Animated),
+                                true
+                            );
+            if (!path || !x || !y || !animated) {
+                return std::unexpected(!path ? path.error() : (!x ? x.error() : (!y ? y.error() : animated.error())));
+            }
+            command.type = GuiBatchCommand::Type::ScrollTo;
+            command.path = std::move(*path);
+            command.scroll_x = *x;
+            command.scroll_y = *y;
+            command.animated = *animated;
         } else if (*name == BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::FunctionId::ScrollToView)) {
             auto path = get_object_string(*params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollParam::Path));
             auto animated = get_object_bool(
@@ -439,6 +460,7 @@ boost::json::object app_info_to_json(const AppInfo &info, std::string_view langu
     manifest["version"] = info.manifest.version;
     manifest["kind"] = BROOKESIA_DESCRIBE_TO_STR(info.manifest.kind);
     manifest["visible"] = info.manifest.visible;
+    manifest["preload_dom"] = info.manifest.preload_dom;
     manifest["icon_id"] = info.manifest.icon_id;
     boost::json::array supported_systems;
     for (const auto &system : info.manifest.supported_systems) {

@@ -63,6 +63,7 @@ add_library(${COMPONENT_LIB} STATIC
     ${COMPONENT_SRCS_C}
     ${COMPONENT_SRCS_CPP}
 )
+brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_RUNTIME_WASM)
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)
 target_include_directories(${COMPONENT_LIB}
@@ -74,6 +75,7 @@ target_include_directories(${COMPONENT_LIB}
 target_link_libraries(${COMPONENT_LIB}
     PUBLIC
         brookesia::runtime_manager
+        brookesia::service_helper
 )
 if(BROOKESIA_RUNTIME_WASM_ENABLE_AUTO_REGISTER)
     target_link_libraries(${COMPONENT_LIB}

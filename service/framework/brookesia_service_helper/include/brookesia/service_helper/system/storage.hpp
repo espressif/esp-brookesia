@@ -8,10 +8,13 @@
 #include <array>
 #include <expected>
 #include <initializer_list>
+#include <map>
 #include <memory>
 #include <span>
+#include <string>
 #include <string_view>
 #include <type_traits>
+#include <vector>
 #include "boost/format.hpp"
 #include "boost/json.hpp"
 #include "brookesia/hal_interface/interfaces/storage/file_system.hpp"
@@ -47,6 +50,26 @@ public:
     using FileSystemInfo = StorageFileSystemInfo;
     using FileSystemCapacity = hal::storage::FileSystemIface::Capacity;
 
+    enum class FileType {
+        Missing,
+        File,
+        Directory,
+        Other,
+        Max,
+    };
+
+    struct FileInfo {
+        FileType type = FileType::Missing;
+        uint64_t size = 0;
+        uint64_t mtime_ms = 0;
+        bool exists = false;
+    };
+
+    struct FileEntry {
+        std::string name;
+        FileInfo info;
+    };
+
     struct KvNameResult {
         std::string name;
         std::string original_name;
@@ -67,6 +90,16 @@ public:
         KVErase,
         GetFileSystems,
         GetFileSystemCapacity,
+        FSStat,
+        FSList,
+        FSMkdir,
+        FSReadText,
+        FSRead,
+        FSWriteText,
+        FSWrite,
+        FSRemove,
+        FSRename,
+        FSCopyTree,
         MakeKVKey,
         MakeKVNamespace,
         Max,
@@ -117,6 +150,36 @@ public:
         MountPoint,
     };
 
+    enum class FunctionFSPathParam {
+        Path,
+    };
+
+    enum class FunctionFSReadParam {
+        Path,
+        Buffer,
+    };
+
+    enum class FunctionFSWriteTextParam {
+        Path,
+        Data,
+    };
+
+    enum class FunctionFSWriteParam {
+        Path,
+        Data,
+    };
+
+    enum class FunctionFSRenameParam {
+        From,
+        To,
+    };
+
+    enum class FunctionFSCopyTreeParam {
+        From,
+        To,
+        Overwrite,
+    };
+
     enum class FunctionMakeKVNameParam {
         Parts,
         Separator,
@@ -129,6 +192,15 @@ public:
 
 private:
     static constexpr std::string_view DEFAULT_NAMESPACE = "storage";
+    static constexpr uint32_t KV_DEFAULT_TIMEOUT_MS = 1000;
+    static constexpr uint32_t FS_DEFAULT_TIMEOUT_MS = 2000;
+    static constexpr uint32_t FS_READ_TEXT_DEFAULT_TIMEOUT_MS = 10000;
+    static constexpr uint32_t FS_READ_DEFAULT_TIMEOUT_MS = 10000;
+    static constexpr uint32_t FS_WRITE_TEXT_DEFAULT_TIMEOUT_MS = 10000;
+    static constexpr uint32_t FS_WRITE_DEFAULT_TIMEOUT_MS = 10000;
+    static constexpr uint32_t FS_REMOVE_DEFAULT_TIMEOUT_MS = 10000;
+    static constexpr uint32_t FS_RENAME_DEFAULT_TIMEOUT_MS = 10000;
+    static constexpr uint32_t FS_COPY_TREE_DEFAULT_TIMEOUT_MS = 10000;
 
     template <typename T>
     static boost::json::object make_key_value_object(const std::string &key, const T &value)
@@ -163,7 +235,7 @@ private:
                     .default_value = FunctionValue(std::string(DEFAULT_NAMESPACE))
                 }
             },
-            .default_timeout_ms = 1000,
+            .default_timeout_ms = KV_DEFAULT_TIMEOUT_MS,
             .return_value = FunctionReturnSchema{
                 .type = FunctionValueType::Array,
                 .description = (boost::format("Example: %1%")
@@ -199,7 +271,7 @@ private:
                     .type = FunctionValueType::Object
                 }
             },
-            .default_timeout_ms = 1000,
+            .default_timeout_ms = KV_DEFAULT_TIMEOUT_MS,
         };
     }
 
@@ -224,7 +296,7 @@ private:
                     .default_value = FunctionValue(boost::json::array())
                 }
             },
-            .default_timeout_ms = 1000,
+            .default_timeout_ms = KV_DEFAULT_TIMEOUT_MS,
             .return_value = FunctionReturnSchema{
                 .type = FunctionValueType::Object,
                 .description = (boost::format("Example: %1%")
@@ -256,7 +328,7 @@ private:
                     .default_value = FunctionValue(boost::json::array())
                 }
             },
-            .default_timeout_ms = 1000,
+            .default_timeout_ms = FS_DEFAULT_TIMEOUT_MS,
         };
     }
 
@@ -307,6 +379,260 @@ private:
                     .free_bytes = 768 * 1024,
                 }))).str(),
             },
+        };
+    }
+
+    static FunctionSchema function_schema_fs_stat()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSStat),
+            .description = "Get file-system path information.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSPathParam::Path),
+                    .description = "Absolute path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_DEFAULT_TIMEOUT_MS,
+            .return_value = FunctionReturnSchema{
+                .type = FunctionValueType::Object,
+                .description = (boost::format("Example: %1%")
+                % BROOKESIA_DESCRIBE_JSON_SERIALIZE((FileInfo{
+                    .type = FileType::File,
+                    .size = 16,
+                    .mtime_ms = 1000,
+                    .exists = true,
+                }))).str(),
+            },
+        };
+    }
+
+    static FunctionSchema function_schema_fs_list()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSList),
+            .description = "List direct children under a file-system directory.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSPathParam::Path),
+                    .description = "Absolute directory path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_DEFAULT_TIMEOUT_MS,
+            .return_value = FunctionReturnSchema{
+                .type = FunctionValueType::Array,
+                .description = (boost::format("Example: %1%")
+                % BROOKESIA_DESCRIBE_JSON_SERIALIZE(std::vector<FileEntry>({
+                    {
+                        .name = "file.txt",
+                        .info = FileInfo{
+                            .type = FileType::File,
+                            .size = 16,
+                            .mtime_ms = 1000,
+                            .exists = true,
+                        },
+                    },
+                }))).str(),
+            },
+        };
+    }
+
+    static FunctionSchema function_schema_fs_mkdir()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSMkdir),
+            .description = "Create a file-system directory tree.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSPathParam::Path),
+                    .description = "Absolute directory path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_DEFAULT_TIMEOUT_MS,
+        };
+    }
+
+    static FunctionSchema function_schema_fs_read_text()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSReadText),
+            .description = "Read a file-system file as text.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSPathParam::Path),
+                    .description = "Absolute file path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_READ_TEXT_DEFAULT_TIMEOUT_MS,
+            .return_value = FunctionReturnSchema{
+                .type = FunctionValueType::String,
+                .description = "File contents.",
+            },
+        };
+    }
+
+    static FunctionSchema function_schema_fs_read()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSRead),
+            .description = "Read a file-system file into a mutable raw buffer.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSReadParam::Path),
+                    .description = "Absolute file path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSReadParam::Buffer),
+                    .description = "Mutable raw destination buffer.",
+                    .type = FunctionValueType::RawBuffer,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_READ_DEFAULT_TIMEOUT_MS,
+            .return_value = FunctionReturnSchema{
+                .type = FunctionValueType::Number,
+                .description = "Number of bytes read.",
+            },
+        };
+    }
+
+    static FunctionSchema function_schema_fs_write_text()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSWriteText),
+            .description = "Write text to a file-system file.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSWriteTextParam::Path),
+                    .description = "Absolute file path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSWriteTextParam::Data),
+                    .description = "Text content to write.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_WRITE_TEXT_DEFAULT_TIMEOUT_MS,
+        };
+    }
+
+    static FunctionSchema function_schema_fs_write()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSWrite),
+            .description = "Write raw data to a file-system file.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSWriteParam::Path),
+                    .description = "Absolute file path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSWriteParam::Data),
+                    .description = "Raw source buffer.",
+                    .type = FunctionValueType::RawBuffer,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_WRITE_DEFAULT_TIMEOUT_MS,
+        };
+    }
+
+    static FunctionSchema function_schema_fs_remove()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSRemove),
+            .description = "Remove a file-system file or directory tree.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSPathParam::Path),
+                    .description = "Absolute path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_REMOVE_DEFAULT_TIMEOUT_MS,
+        };
+    }
+
+    static FunctionSchema function_schema_fs_rename()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSRename),
+            .description = "Rename or move a file-system path.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSRenameParam::From),
+                    .description = "Source absolute path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSRenameParam::To),
+                    .description = "Destination absolute path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_RENAME_DEFAULT_TIMEOUT_MS,
+        };
+    }
+
+    static FunctionSchema function_schema_fs_copy_tree()
+    {
+        return {
+            .name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSCopyTree),
+            .description = "Copy a file-system directory tree.",
+            .parameters = {
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSCopyTreeParam::From),
+                    .description = "Source absolute path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSCopyTreeParam::To),
+                    .description = "Destination absolute path under a mounted Storage file system.",
+                    .type = FunctionValueType::String,
+                },
+                {
+                    .name = BROOKESIA_DESCRIBE_TO_STR(FunctionFSCopyTreeParam::Overwrite),
+                    .description = "Overwrite existing destination files.",
+                    .type = FunctionValueType::Boolean,
+                    .default_value = FunctionValue(true),
+                }
+            },
+#if !defined(ESP_PLATFORM) || CONFIG_SPIRAM_XIP_FROM_PSRAM
+            .require_scheduler = false,
+#endif
+            .default_timeout_ms = FS_COPY_TREE_DEFAULT_TIMEOUT_MS,
         };
     }
 
@@ -407,6 +733,16 @@ public:
                 function_schema_erase(),
                 function_schema_get_file_systems(),
                 function_schema_get_file_system_capacity(),
+                function_schema_fs_stat(),
+                function_schema_fs_list(),
+                function_schema_fs_mkdir(),
+                function_schema_fs_read_text(),
+                function_schema_fs_read(),
+                function_schema_fs_write_text(),
+                function_schema_fs_write(),
+                function_schema_fs_remove(),
+                function_schema_fs_rename(),
+                function_schema_fs_copy_tree(),
                 function_schema_make_kv_key(),
                 function_schema_make_kv_namespace(),
             }
@@ -430,11 +766,9 @@ public:
     /**
      * @brief Default timeout for synchronous Storage helper calls.
      */
-    static constexpr uint32_t DEFAULT_TIMEOUT_MS = 1000;
-
     static std::expected<KvNameResult, std::string> make_kv_key(
         std::initializer_list<std::string_view> parts, std::string_view separator = ".",
-        uint32_t timeout_ms = DEFAULT_TIMEOUT_MS
+        uint32_t timeout_ms = 0
     )
     {
         return make_kv_name(FunctionId::MakeKVKey, parts, separator, timeout_ms);
@@ -442,10 +776,159 @@ public:
 
     static std::expected<KvNameResult, std::string> make_kv_namespace(
         std::initializer_list<std::string_view> parts, std::string_view separator = ".",
-        uint32_t timeout_ms = DEFAULT_TIMEOUT_MS
+        uint32_t timeout_ms = 0
     )
     {
         return make_kv_name(FunctionId::MakeKVNamespace, parts, separator, timeout_ms);
+    }
+
+    static std::expected<std::vector<EntryInfo>, std::string> kv_list(
+        const std::string &nspace, uint32_t timeout_ms = 0
+    )
+    {
+        auto binding = ServiceManager::get_instance().bind(get_name().data());
+        if (!binding.is_valid()) {
+            return std::unexpected("Failed to bind service");
+        }
+
+        auto result = call_function_sync<boost::json::array>(FunctionId::KVList, nspace, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(
+                       (boost::format("Failed to list Storage %1%: %2%") % nspace % result.error()).str()
+                   );
+        }
+
+        std::vector<EntryInfo> entries;
+        if (!BROOKESIA_DESCRIBE_FROM_JSON(result.value(), entries)) {
+            return std::unexpected(
+                       (boost::format("Failed to parse Storage KV list result: %1%") %
+                        BROOKESIA_DESCRIBE_TO_STR(result.value())).str()
+                   );
+        }
+        return entries;
+    }
+
+    static std::expected<FileInfo, std::string> fs_stat(
+        const std::string &path, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync<boost::json::object>(FunctionId::FSStat, path, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+
+        FileInfo info;
+        if (!BROOKESIA_DESCRIBE_FROM_JSON(result.value(), info)) {
+            return std::unexpected(
+                       (boost::format("Failed to parse Storage FS stat result: %1%") %
+                        BROOKESIA_DESCRIBE_TO_STR(result.value())).str()
+                   );
+        }
+        return info;
+    }
+
+    static std::expected<std::vector<FileEntry>, std::string> fs_list(
+        const std::string &path, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync<boost::json::array>(FunctionId::FSList, path, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+
+        std::vector<FileEntry> entries;
+        if (!BROOKESIA_DESCRIBE_FROM_JSON(result.value(), entries)) {
+            return std::unexpected(
+                       (boost::format("Failed to parse Storage FS list result: %1%") %
+                        BROOKESIA_DESCRIBE_TO_STR(result.value())).str()
+                   );
+        }
+        return entries;
+    }
+
+    static std::expected<void, std::string> fs_mkdir(
+        const std::string &path, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync(FunctionId::FSMkdir, path, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return {};
+    }
+
+    static std::expected<std::string, std::string> fs_read_text(
+        const std::string &path, uint32_t timeout_ms = 0
+    )
+    {
+        return call_function_sync<std::string>(FunctionId::FSReadText, path, Timeout(timeout_ms));
+    }
+
+    static std::expected<size_t, std::string> fs_read(
+        const std::string &path, const RawBuffer &buffer, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync<double>(FunctionId::FSRead, path, buffer, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return static_cast<size_t>(result.value());
+    }
+
+    static std::expected<void, std::string> fs_write_text(
+        const std::string &path, const std::string &data, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync(FunctionId::FSWriteText, path, data, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return {};
+    }
+
+    static std::expected<void, std::string> fs_write(
+        const std::string &path, const RawBuffer &data, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync(FunctionId::FSWrite, path, data, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return {};
+    }
+
+    static std::expected<void, std::string> fs_remove(
+        const std::string &path, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync(FunctionId::FSRemove, path, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return {};
+    }
+
+    static std::expected<void, std::string> fs_rename(
+        const std::string &from, const std::string &to, uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync(FunctionId::FSRename, from, to, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return {};
+    }
+
+    static std::expected<void, std::string> fs_copy_tree(
+        const std::string &from, const std::string &to, bool overwrite = true,
+        uint32_t timeout_ms = 0
+    )
+    {
+        auto result = call_function_sync(FunctionId::FSCopyTree, from, to, overwrite, Timeout(timeout_ms));
+        if (!result) {
+            return std::unexpected(result.error());
+        }
+        return {};
     }
 
     /**
@@ -478,7 +961,7 @@ public:
      */
     template <typename T>
     static std::expected<void, std::string> save_key_value(
-        const std::string &nspace, const std::string &key, const T &value, uint32_t timeout_ms = DEFAULT_TIMEOUT_MS
+        const std::string &nspace, const std::string &key, const T &value, uint32_t timeout_ms = 0
     )
     {
         auto binding = ServiceManager::get_instance().bind(get_name().data());
@@ -569,7 +1052,7 @@ public:
      */
     template <typename T>
     static std::expected<T, std::string> get_key_value(
-        const std::string &nspace, const std::string &key, uint32_t timeout_ms = DEFAULT_TIMEOUT_MS
+        const std::string &nspace, const std::string &key, uint32_t timeout_ms = 0
     )
     {
         auto binding = ServiceManager::get_instance().bind(get_name().data());
@@ -640,7 +1123,7 @@ public:
      * @return std::expected<void, std::string> The result of the operation
      */
     static std::expected<void, std::string> erase_keys(
-        const std::string &nspace, const std::vector<std::string> &keys = {}, uint32_t timeout_ms = DEFAULT_TIMEOUT_MS
+        const std::string &nspace, const std::vector<std::string> &keys = {}, uint32_t timeout_ms = 0
     )
     {
         auto binding = ServiceManager::get_instance().bind(get_name().data());
@@ -666,7 +1149,7 @@ public:
 private:
     static std::expected<KvNameResult, std::string> make_kv_name(
         FunctionId function_id, std::initializer_list<std::string_view> parts, std::string_view separator,
-        uint32_t timeout_ms
+        uint32_t timeout_ms = 0
     )
     {
         boost::json::array parts_json;
@@ -697,10 +1180,14 @@ private:
 /////////////////////////// The following are the describe macros //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 BROOKESIA_DESCRIBE_STRUCT(StorageFileSystemInfo, (), (fs_type, medium_type, mount_point, supports_directories));
+BROOKESIA_DESCRIBE_ENUM(Storage::FileType, Missing, File, Directory, Other, Max);
+BROOKESIA_DESCRIBE_STRUCT(Storage::FileInfo, (), (type, size, mtime_ms, exists));
+BROOKESIA_DESCRIBE_STRUCT(Storage::FileEntry, (), (name, info));
 BROOKESIA_DESCRIBE_STRUCT(Storage::KvNameResult, (), (name, original_name, hashed, warning));
 BROOKESIA_DESCRIBE_ENUM(
-    Storage::FunctionId, KVList, KVSet, KVGet, KVErase, GetFileSystems, GetFileSystemCapacity, MakeKVKey,
-    MakeKVNamespace, Max
+    Storage::FunctionId, KVList, KVSet, KVGet, KVErase, GetFileSystems, GetFileSystemCapacity, FSStat, FSList,
+    FSMkdir, FSReadText, FSRead, FSWriteText, FSWrite, FSRemove, FSRename, FSCopyTree, MakeKVKey, MakeKVNamespace,
+    Max
 );
 BROOKESIA_DESCRIBE_ENUM(Storage::EventId, Max);
 BROOKESIA_DESCRIBE_ENUM(Storage::FunctionKVListParam, Nspace);
@@ -708,6 +1195,12 @@ BROOKESIA_DESCRIBE_ENUM(Storage::FunctionKVSetParam, Nspace, KeyValuePairs);
 BROOKESIA_DESCRIBE_ENUM(Storage::FunctionKVGetParam, Nspace, Keys);
 BROOKESIA_DESCRIBE_ENUM(Storage::FunctionKVEraseParam, Nspace, Keys);
 BROOKESIA_DESCRIBE_ENUM(Storage::FunctionGetFileSystemCapacityParam, MountPoint);
+BROOKESIA_DESCRIBE_ENUM(Storage::FunctionFSPathParam, Path);
+BROOKESIA_DESCRIBE_ENUM(Storage::FunctionFSReadParam, Path, Buffer);
+BROOKESIA_DESCRIBE_ENUM(Storage::FunctionFSWriteTextParam, Path, Data);
+BROOKESIA_DESCRIBE_ENUM(Storage::FunctionFSWriteParam, Path, Data);
+BROOKESIA_DESCRIBE_ENUM(Storage::FunctionFSRenameParam, From, To);
+BROOKESIA_DESCRIBE_ENUM(Storage::FunctionFSCopyTreeParam, From, To, Overwrite);
 BROOKESIA_DESCRIBE_ENUM(Storage::FunctionMakeKVNameParam, Parts, Separator);
 
 } // namespace esp_brookesia::service::helper

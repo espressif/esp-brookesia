@@ -67,6 +67,11 @@ Field Table
      - ``0``
      - No
      - Source image height; used for image sizing
+   * - ``images[].preload``
+     - boolean
+     - ``false``
+     - No
+     - Supported since JSON UI ``0.1.1``; when ``true``, requests backend preload during document load
 
 An ``images[]`` entry does not contain ``type``. Duplicate ids cannot appear within one ``imageSet``.
 
@@ -79,6 +84,10 @@ Runtime API
 - ``unregister_image(...)``
 - ``register_image_json(...)``
 - ``register_image_file(...)``
+- ``preload_image(document_id, image_id)``
+- ``preload_images(document_id, image_ids)``
+- ``release_preloaded_image(document_id, image_id)``
+- ``release_preloaded_images(document_id, image_ids)``
 - ``list_image_resources(document_id)``
 
 ``register_image_json/file(...)`` registers all images in an ``imageSet``; if any one fails to register, the images registered this time are rolled back.
@@ -90,9 +99,20 @@ Document image resources take priority over Runtime global images; Runtime globa
 Source File Format (Backend Related)
 ------------------------------------------------------------------------
 
-The concrete file format of ``src`` / ``RuntimeImageResource.primary_src`` is decided by the current backend. ``gui_interface`` only stores the image id, path, and size, and calls the backend's resource-completion and preload hooks during the document load phase.
+The concrete file format of ``src`` / ``RuntimeImageResource.primary_src`` is decided by the current backend. ``gui_interface`` only stores the image id, path, size, and ``preload`` flag, and calls the backend's resource-completion and preload hooks during the document load phase.
 
 If a backend supports reading dimensions from a proprietary image format, ``register_image(...)`` can complete ``width`` / ``height`` through a backend hook when they are missing. If they cannot be completed, ``width`` / ``height`` must be explicitly positive.
+
+The LVGL backend accepts LVGL ``.bin``, PNG, and ``.jpg`` / ``.jpeg`` sources. It reads dimensions from ``.bin`` and
+JPEG headers. JPEG requires the platform decoder documented in :doc:`../../../lvgl/backend`; otherwise loading
+fails with an explicit error.
+
+The document load stage preloads two kinds of images:
+
+- formats that the backend requires to be preloaded, such as LVGL ``.bin`` and JPEG
+- resources whose ``images[].preload`` or ``RuntimeImageResource.preload`` is ``true``, such as PNGs that should be decoded early
+
+If ``preload: true`` fails, document load fails with an error. When omitted or ``false``, the image keeps the backend's existing on-demand load/decode behavior.
 
 .. _gui-interface-json_ui-assets-image-sec-06:
 
@@ -108,7 +128,8 @@ Example
                "id": "logo",
                "src": "../../../../../docs/_static/brookesia_logo.png",
                "width": 3409,
-               "height": 834
+               "height": 834,
+               "preload": true
            }
        ]
    }

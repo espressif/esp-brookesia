@@ -201,6 +201,14 @@ struct Display::TouchInterruptBridge {
 #endif
 };
 
+std::string Display::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_DISPLAY_VER_MAJOR, BROOKESIA_SERVICE_DISPLAY_VER_MINOR,
+               BROOKESIA_SERVICE_DISPLAY_VER_PATCH
+           );
+}
+
 bool Display::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

@@ -124,26 +124,7 @@ std::expected<void, std::string> SettingsApp::sync_wifi_network_section(
         return {};
     }
 
-    system::core::GuiBatchCommand command;
-    command.type = system::core::GuiBatchCommand::Type::SetBindings;
-    command.binding_updates = std::move(updates);
-    auto batch_result = context.gui().execute_batch({command});
-    if (!batch_result) {
-        return std::unexpected(batch_result.error());
-    }
-    if (!batch_result->success) {
-        for (const auto &command_result : batch_result->results) {
-            if (!command_result.success) {
-                return std::unexpected(
-                           command_result.error_message.empty() ?
-                           "Failed to refresh Wi-Fi network bindings" :
-                           command_result.error_message
-                       );
-            }
-        }
-        return std::unexpected("Failed to refresh Wi-Fi network bindings");
-    }
-    return {};
+    return context.gui().set_binding_values(updates);
 }
 
 void SettingsApp::clear_wifi_networks(system::core::AppContext &context)
@@ -275,6 +256,10 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_page_state(system::co
 
 std::expected<void, std::string> SettingsApp::refresh_wifi_lists(system::core::AppContext &context)
 {
+    if (current_page_ != PAGE_WIFI) {
+        return {};
+    }
+
     const bool wifi_content_hidden = !wifi_ui_state_.service_ready || !wifi_ui_state_.enabled;
     const bool hide_available_rows_for_scan = available_wifi_rows_hidden_for_scan_ &&
             (wifi_ui_state_.scanning || !available_wifi_scan_results_ready_);
@@ -745,6 +730,7 @@ std::expected<void, std::string> SettingsApp::disconnect_wifi(system::core::AppC
         return save_result;
     }
     available_wifi_networks_.clear();
+    last_wifi_scan_ap_infos_.clear();
     reset_available_wifi_scan_visibility();
     wifi_scan_stop_after_first_result_ = false;
     wifi_ui_state_.enabled = false;
@@ -948,6 +934,7 @@ void SettingsApp::handle_wifi_forget_event(const gui::Event &event)
                 ++item;
             }
         }
+        rebuild_available_wifi_networks();
         if (auto list_result = refresh_wifi_lists(*context_); !list_result) {
             BROOKESIA_LOGW("Failed to refresh Wi-Fi lists after forgetting AP: %1%", list_result.error());
         }
@@ -976,6 +963,7 @@ std::expected<void, std::string> SettingsApp::open_wifi_connect(
         return result;
     }
     current_page_ = PAGE_WIFI_CONNECT;
+    clear_wifi_networks(context);
     result = refresh_header(context);
     if (!result) {
         return result;
@@ -1119,6 +1107,18 @@ std::expected<void, std::string> SettingsApp::submit_wifi_connect(system::core::
     if (!result) {
         return result;
     }
+    result = refresh_wifi_page_state(context);
+    if (!result) {
+        return result;
+    }
+    result = refresh_wifi_lists(context);
+    if (!result) {
+        return result;
+    }
+    result = refresh_wifi_summary_state(context);
+    if (!result) {
+        return result;
+    }
     schedule_wifi_connected_card_scroll(context);
     return {};
 }
@@ -1249,6 +1249,7 @@ void SettingsApp::handle_wifi_scan_ap_infos_updated(const boost::json::array &ap
         wifi_scan_stop_after_first_result_ = false;
         cancel_wifi_scan_retry_timer(*context_);
         wifi_scan_retry_remaining_ = 0;
+        last_wifi_scan_ap_infos_.clear();
         available_wifi_networks_.clear();
         reset_available_wifi_scan_visibility();
         if (auto list_result = refresh_wifi_lists(*context_); !list_result) {
@@ -1271,48 +1272,8 @@ void SettingsApp::handle_wifi_scan_ap_infos_updated(const boost::json::array &ap
         return;
     }
 
-    available_wifi_networks_.clear();
-    available_wifi_page_ = 0;
-    for (size_t i = 0; i < ap_infos.size(); ++i) {
-        const auto &ap = ap_infos[i];
-        if (ap.ssid.empty()) {
-            continue;
-        }
-        if (!wifi_ui_state_.connected_ssid.empty() && ap.ssid == wifi_ui_state_.connected_ssid) {
-            continue;
-        }
-        if (is_saved_wifi_ssid(ap.ssid)) {
-            continue;
-        }
-        const auto signal_level = BROOKESIA_DESCRIBE_ENUM_TO_NUM(ap.signal_level);
-        const auto signal_text = get_wifi_signal_text(signal_level);
-        const auto security_text = ap.is_locked ? localized_text(current_locale_, "wifi_secured_network") :
-                                   localized_text(current_locale_, "wifi_open_network");
-        const auto band_text = get_wifi_band_text(ap.channel);
-        std::string detail = security_text;
-        if (!signal_text.empty()) {
-            detail += " / ";
-            detail += signal_text;
-        }
-        // The dedicated band chip node was removed from wifi_network_item to cut per-row memory; the
-        // band is now folded into the detail line so the information is still shown.
-        if (!band_text.empty()) {
-            detail += " / ";
-            detail += band_text;
-        }
-        available_wifi_networks_.push_back(WifiNetworkState{
-            .parent = AVAILABLE_NETWORK_PARENT,
-            .id = make_wifi_instance_id("available", ap.ssid, i),
-            .ssid = ap.ssid,
-            .detail = detail,
-            .band = band_text,
-            .password = "",
-            .saved = false,
-            .locked = ap.is_locked,
-            .signal_level = signal_level,
-            .channel = ap.channel,
-        });
-    }
+    last_wifi_scan_ap_infos_ = std::move(ap_infos);
+    rebuild_available_wifi_networks();
 
     available_wifi_scan_results_ready_ = true;
     if (!wifi_ui_state_.scanning) {

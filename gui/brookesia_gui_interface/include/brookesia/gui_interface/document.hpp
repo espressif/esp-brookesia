@@ -20,7 +20,7 @@
 
 namespace esp_brookesia::gui {
 
-inline constexpr std::string_view CURRENT_DOCUMENT_VERSION = "0.1.0";
+inline constexpr std::string_view CURRENT_DOCUMENT_VERSION = "0.1.1";
 
 struct Environment {
     int32_t width_px = 320;
@@ -357,6 +357,7 @@ struct ImageAsset {
     std::string src;
     int32_t width = 0;
     int32_t height = 0;
+    bool preload = false;
 };
 
 struct ThemeAsset {
@@ -392,6 +393,7 @@ struct RuntimeImageResource {
     uintptr_t native_src = 0;
     int32_t width = 0;
     int32_t height = 0;
+    bool preload = false;
 };
 
 struct GuiDisplayInfo {
@@ -615,7 +617,7 @@ BROOKESIA_DESCRIBE_STRUCT(StyleSet, (), (style, state_styles, part_styles))
 BROOKESIA_DESCRIBE_STRUCT(ImageFontGlyph, (), (codepoint, src))
 BROOKESIA_DESCRIBE_STRUCT(ImageFontSize, (), (height, glyphs))
 BROOKESIA_DESCRIBE_STRUCT(FontAsset, (), (id, kind, src, languages, fallbacks, height, glyphs, sizes))
-BROOKESIA_DESCRIBE_STRUCT(ImageAsset, (), (id, src, width, height))
+BROOKESIA_DESCRIBE_STRUCT(ImageAsset, (), (id, src, width, height, preload))
 BROOKESIA_DESCRIBE_STRUCT(ThemeAsset, (), (id, colors, styles))
 BROOKESIA_DESCRIBE_STRUCT(StyleAsset, (), (styles))
 BROOKESIA_DESCRIBE_STRUCT(ScreenFlowTransition, (), (from, action, to))
@@ -626,7 +628,7 @@ BROOKESIA_DESCRIBE_STRUCT(
     (id, kind, primary_src, languages, fallback_ids, native_fonts, image_font_height, image_font_glyphs,
      image_font_sizes)
 )
-BROOKESIA_DESCRIBE_STRUCT(RuntimeImageResource, (), (id, primary_src, native_src, width, height))
+BROOKESIA_DESCRIBE_STRUCT(RuntimeImageResource, (), (id, primary_src, native_src, width, height, preload))
 BROOKESIA_DESCRIBE_STRUCT(GuiDisplayInfo, (), (id, width_px, height_px, is_default))
 BROOKESIA_DESCRIBE_STRUCT(MountTarget, (), (display_id, layer, mount_mode, z_order))
 BROOKESIA_DESCRIBE_STRUCT(

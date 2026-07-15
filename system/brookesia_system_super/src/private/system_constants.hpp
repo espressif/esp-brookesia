@@ -98,6 +98,52 @@ inline constexpr const char *SUPER_GESTURE_INDICATOR_PATH =
     BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/gesture_indicator";
 inline constexpr const char *SUPER_GESTURE_INDICATOR_BAR_PATH =
     BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/gesture_indicator/bar";
+inline constexpr const char *SUPER_DEBUG_PANEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel";
+inline constexpr const char *SUPER_DEBUG_MEMORY_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory";
+inline constexpr const char *SUPER_DEBUG_MEMORY_SRAM_FREE_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/sram/free";
+inline constexpr const char *SUPER_DEBUG_MEMORY_SRAM_FREE_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/sram/free/label";
+inline constexpr const char *SUPER_DEBUG_MEMORY_SRAM_LARGEST_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/sram/largest";
+inline constexpr const char *SUPER_DEBUG_MEMORY_SRAM_LARGEST_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/sram/largest/label";
+inline constexpr const char *SUPER_DEBUG_MEMORY_PSRAM_FREE_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/psram/free";
+inline constexpr const char *SUPER_DEBUG_MEMORY_PSRAM_FREE_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/psram/free/label";
+inline constexpr const char *SUPER_DEBUG_MEMORY_PSRAM_LARGEST_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/psram/largest";
+inline constexpr const char *SUPER_DEBUG_MEMORY_PSRAM_LARGEST_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/memory/psram/largest/label";
+inline constexpr const char *SUPER_DEBUG_THREAD_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE0_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core0";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE0_TASK_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core0/task";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE0_CPU_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core0/cpu";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE0_CPU_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core0/cpu/label";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE0_HWM_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core0/hwm";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE0_HWM_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core0/hwm/label";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE1_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core1";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE1_TASK_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core1/task";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE1_CPU_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core1/cpu";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE1_CPU_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core1/cpu/label";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE1_HWM_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core1/hwm";
+inline constexpr const char *SUPER_DEBUG_THREAD_CORE1_HWM_LABEL_PATH =
+    BROOKESIA_SYSTEM_SUPER_PATH_OVERLAY "/debug_panel/thread/core1/hwm/label";
 inline constexpr const char *SUPER_APP_MODAL_PATH = BROOKESIA_SYSTEM_SUPER_PATH_APP_MODAL;
 inline constexpr const char *SUPER_APP_MODAL_LAUNCH_PATH = BROOKESIA_SYSTEM_SUPER_PATH_APP_MODAL_LAUNCH;
 inline constexpr const char *SUPER_APP_MODAL_LOADING_PATH = BROOKESIA_SYSTEM_SUPER_PATH_APP_MODAL_LOADING;

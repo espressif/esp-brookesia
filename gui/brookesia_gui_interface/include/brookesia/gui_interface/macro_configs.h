@@ -38,6 +38,25 @@
 #   endif
 #endif
 
+/**
+ * @brief Enable parser/runtime stage timing logs.
+ *
+ * This switch is separate from memory tracing so startup timing can be
+ * diagnosed without heap snapshots. Memory tracing implies profile logging.
+ */
+#if !defined(BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG)
+#       define BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG  CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+#   else
+#       define BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG  (0)
+#   endif
+#endif
+
+#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE && !BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+#   undef BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+#   define BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG  (1)
+#endif
+
 #if BROOKESIA_GUI_INTERFACE_ENABLE_DEBUG_LOG
 #   if !defined(BROOKESIA_GUI_INTERFACE_DATA_STORE_ENABLE_DEBUG_LOG)
 #       if defined(CONFIG_BROOKESIA_GUI_INTERFACE_DATA_STORE_ENABLE_DEBUG_LOG)

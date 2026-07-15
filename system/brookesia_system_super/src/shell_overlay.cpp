@@ -26,6 +26,12 @@
 #include <utility>
 #include <vector>
 
+#if BROOKESIA_SYSTEM_SUPER_ENABLE_PROFILE_LOG
+#   define SYSTEM_SUPER_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
+#else
+#   define SYSTEM_SUPER_PROFILE_LOGI(...) do { if (false) { BROOKESIA_LOGI(__VA_ARGS__); } } while (0)
+#endif
+
 namespace esp_brookesia::system::super {
 namespace {
 
@@ -33,6 +39,13 @@ inline constexpr const char *SUPER_GUI_DISPLAY_SOURCE_ROLE = "gui";
 using DisplayHelper = service::helper::Display;
 using SNTPHelper = service::helper::SNTP;
 using WifiHelper = service::helper::Wifi;
+using SteadyClock = std::chrono::steady_clock;
+using SteadyTimePoint = SteadyClock::time_point;
+
+int64_t elapsed_ms_since(SteadyTimePoint started_at, SteadyTimePoint ended_at = SteadyClock::now())
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(ended_at - started_at).count();
+}
 
 struct WifiStatusState {
     bool visible = false;
@@ -452,11 +465,13 @@ std::expected<void, std::string> ShellApp::mount_overlay(core::AppContext &conte
     refresh_wifi_status();
     subscribe_sntp_events();
     (void)configure_display_gesture();
+    apply_debug_config(get_debug_config_snapshot());
     return refresh_system_ui_bindings();
 }
 
 void ShellApp::unmount_overlay()
 {
+    stop_debug_runtime();
     disconnect_overlay_actions();
     disconnect_display_gesture();
     release_sntp_service_binding();
@@ -1601,10 +1616,12 @@ void ShellApp::cancel_pending_launch()
     }
     launch_hold_timer_id_ = core::INVALID_TIMER_ID;
     pending_launch_app_id_.reset();
+    launch_request_started_at_.reset();
 }
 
 void ShellApp::start_app_after_launch(core::AppId app_id)
 {
+    const auto request_started_at = launch_request_started_at_;
     pending_launch_app_id_.reset();
     launch_hold_timer_id_ = core::INVALID_TIMER_ID;
     if (!launch_overlay_active_) {
@@ -1622,8 +1639,17 @@ void ShellApp::start_app_after_launch(core::AppId app_id)
         BROOKESIA_LOGW("Failed to prepare app modal before app start: %1%", modal_result.error());
     }
 
+    const auto app_start_started_at = SteadyClock::now();
     auto result = owner_.start_app(app_id, core::System::AppStartOptions{});
+    const auto app_start_ended_at = SteadyClock::now();
     finish_launch_overlay();
+    SYSTEM_SUPER_PROFILE_LOGI(
+        "Shell app launch profile: app_id(%1%), pre_start_ms(%2%), start_app_ms(%3%), total_ms(%4%)",
+        app_id,
+        request_started_at.has_value() ? elapsed_ms_since(*request_started_at, app_start_started_at) : 0,
+        elapsed_ms_since(app_start_started_at, app_start_ended_at),
+        request_started_at.has_value() ? elapsed_ms_since(*request_started_at, app_start_ended_at) : 0
+    );
     if (!result) {
         BROOKESIA_LOGW("Failed to launch app: app_id(%1%), error(%2%)", app_id, result.error());
     }
@@ -1693,12 +1719,19 @@ void ShellApp::schedule_app_start_after_launch(core::AppId app_id)
 {
     const auto hold_ms = SUPER_APP_LAUNCH_ANIMATION_ENABLED ? SUPER_APP_LAUNCH_POST_COMPLETE_HOLD_MS :
                          std::max(SUPER_APP_LAUNCH_POST_COMPLETE_HOLD_MS, SUPER_APP_LAUNCH_NO_ANIMATION_MIN_HOLD_MS);
+    if (!launch_request_started_at_.has_value()) {
+        launch_request_started_at_ = SteadyClock::now();
+    }
     if (hold_ms <= 0 || context_ == nullptr) {
         start_app_after_launch(app_id);
         return;
     }
 
-    cancel_pending_launch();
+    if (launch_hold_timer_id_ != core::INVALID_TIMER_ID) {
+        (void)context_->timer().stop(launch_hold_timer_id_);
+    }
+    launch_hold_timer_id_ = core::INVALID_TIMER_ID;
+    pending_launch_app_id_.reset();
     pending_launch_app_id_ = app_id;
     auto timer = context_->timer().start_delayed(
                      SUPER_APP_LAUNCH_HOLD_TIMER_NAME,
@@ -1710,6 +1743,12 @@ void ShellApp::schedule_app_start_after_launch(core::AppId app_id)
         return;
     }
     launch_hold_timer_id_ = *timer;
+    SYSTEM_SUPER_PROFILE_LOGI(
+        "Shell app launch profile: app_id(%1%), wait_before_start_ms(%2%), hold_ms(%3%)",
+        app_id,
+        launch_request_started_at_.has_value() ? elapsed_ms_since(*launch_request_started_at_) : 0,
+        hold_ms
+    );
 }
 
 std::expected<void, std::string> ShellApp::show_loading(core::AppId app_id)

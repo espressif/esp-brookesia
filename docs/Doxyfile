@@ -69,6 +69,8 @@ INPUT = \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/http.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/emulation/nes.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/sntp.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/framework/manager.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/framework/utils.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/system/storage.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/video.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/wifi.hpp \
@@ -78,6 +80,8 @@ INPUT = \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/definition.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/function/registry.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/base.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager_service.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/utils_service.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/local_runner.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/service/manager.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager.hpp \

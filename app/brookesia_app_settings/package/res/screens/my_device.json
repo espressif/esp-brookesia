@@ -122,6 +122,16 @@
                 {
                     "type": "container",
                     "id": "summary_card",
+                    "commonProps": {
+                        "clickable": true,
+                        "scrollable": false
+                    },
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "settings.debug.device_name.click"
+                        }
+                    ],
                     "styleRefs": [
                         "app.card"
                     ],

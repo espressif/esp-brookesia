@@ -30,6 +30,16 @@ menu "ESP-Brookesia: System Core Configurations"
             SRAM, PSRAM and 8-bit heap free/largest-block values without changing app
             behavior.
 
+    config BROOKESIA_SYSTEM_CORE_ENABLE_PROFILE_LOG
+        bool "Enable app lifecycle profile logs"
+        default y if BROOKESIA_SYSTEM_HEAP_TRACE_APP_START
+        default n
+        help
+            Print phase-by-phase timing logs around app start and GUI prepare
+            paths. This is useful for latency diagnosis, but should stay
+            disabled in normal builds because log formatting and serial output
+            perturb app launch timing.
+
     config BROOKESIA_SYSTEM_CORE_RUNTIME_ASYNC_DEBUG_PROBE
         bool "Enable runtime async debug probe"
         default n
@@ -92,7 +102,7 @@ menu "ESP-Brookesia: System Core Configurations"
         menu "General"
             config BROOKESIA_SYSTEM_CORE_WORKER_NAME_PREFIX
                 string "Name prefix"
-                default "SystemWorker"
+                default "System"
                 help
                     The name prefix of system task scheduler worker threads.
                     The worker index is appended to this prefix.
@@ -120,7 +130,7 @@ menu "ESP-Brookesia: System Core Configurations"
 
             config BROOKESIA_SYSTEM_CORE_WORKER_POLL_INTERVAL_MS
                 int "Poll interval (ms)"
-                default 5
+                default 2
                 range 1 10
                 help
                     The system task scheduler worker poll interval.

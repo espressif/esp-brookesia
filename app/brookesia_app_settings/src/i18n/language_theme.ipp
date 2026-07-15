@@ -178,12 +178,13 @@ std::expected<void, std::string> SettingsApp::commit_language_switch(
     const auto previous_locale = current_locale_;
     current_locale_ = normalized_locale;
     const auto runtime_language = make_runtime_language(current_locale_);
-    auto language_result = context.gui().set_language(runtime_language, true);
+    // Settings applies its own i18n bindings below; avoid reloading other preloaded app DOMs on every language switch.
+    auto language_result = context.gui().set_language(runtime_language, false);
     if (!language_result) {
         BROOKESIA_LOGW("Failed to set Settings runtime language: %1%", language_result.error());
         current_locale_ = previous_locale;
         const auto rollback_language = make_runtime_language(current_locale_);
-        if (auto rollback_result = context.gui().set_language(rollback_language, true);
+        if (auto rollback_result = context.gui().set_language(rollback_language, false);
                 !rollback_result) {
             BROOKESIA_LOGW("Failed to roll back Settings runtime language: %1%", rollback_result.error());
         }
@@ -193,7 +194,7 @@ std::expected<void, std::string> SettingsApp::commit_language_switch(
     auto result = apply_locale(context);
     if (!result) {
         current_locale_ = previous_locale;
-        if (auto rollback_result = context.gui().set_language(make_runtime_language(current_locale_), true);
+        if (auto rollback_result = context.gui().set_language(make_runtime_language(current_locale_), false);
                 !rollback_result) {
             BROOKESIA_LOGW("Failed to roll back Settings runtime language: %1%", rollback_result.error());
         }

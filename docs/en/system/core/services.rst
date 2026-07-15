@@ -106,6 +106,9 @@ GUI Service
    * - ``SetViewSrc``
      - ``Path``, ``Src``
      - Switch the image resource id of an image view
+   * - ``PreloadImages`` / ``ReleaseImages``
+     - ``Ids``
+     - Manually preload or release image cache by image ids visible to the current app document
    * - ``StartViewAnimation`` / ``StopAnimation``
      - ``Path``/``Animation`` or ``AnimationId``
      - Start or stop a view runtime animation
@@ -127,10 +130,10 @@ To reduce input latency, the core splits GUI operations into two kinds:
      - ``SetBinding``, ``SetBindings``
      - Merged into the regular binding flush, last value wins
    * - Input-sensitive updates
-     - ``ExecuteBatch``, ``SetViewSrc``, ``StartViewAnimation``, ``StopAnimation``
+     - ``ExecuteBatch``, ``SetViewSrc``, ``PreloadImages``, ``ReleaseImages``, ``StartViewAnimation``, ``StopAnimation``
      - Enter ``SystemGuiInput``, prioritized over the regular binding flush
 
-Most mutating functions are asynchronous: a success return means the request was accepted, not that LVGL finished drawing; query functions return after synchronously entering the GUI task. ``ExecuteBatch`` is for multi-step updates that need strict ordering and low scheduling overhead, such as "stop the old animation, set bindings, then start a new animation from the current position":
+Most mutating functions are asynchronous: a success return means the request was accepted, not that LVGL finished drawing; query functions and ``PreloadImages`` / ``ReleaseImages`` return after synchronously entering the GUI task. ``PreloadImages`` only accepts image ids visible to the caller document, not file paths. ``ExecuteBatch`` is for multi-step updates that need strict ordering and low scheduling overhead, such as "stop the old animation, set bindings, then start a new animation from the current position":
 
 .. code-block:: json
 

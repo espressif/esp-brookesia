@@ -16,7 +16,7 @@ menu "ESP-Brookesia: Service Audio Configurations"
     if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
         config BROOKESIA_SERVICE_AUDIO_WORKER_NAME
             string "Name"
-            default "SvcAudioWorker"
+            default "SvcAudio"
             help
                 The name of the worker thread.
 

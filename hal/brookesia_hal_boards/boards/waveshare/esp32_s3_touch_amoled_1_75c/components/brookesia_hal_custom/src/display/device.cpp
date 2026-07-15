@@ -27,7 +27,7 @@ bool CustomDisplayDevice::probe()
 std::vector<InterfaceSpec> CustomDisplayDevice::get_interface_specs() const
 {
     return {
-        {DisplayBacklightIface::NAME, DISPLAY_BACKLIGHT_IMPL_NAME},
+        {display::BacklightIface::NAME, DISPLAY_BACKLIGHT_IMPL_NAME},
     };
 }
 

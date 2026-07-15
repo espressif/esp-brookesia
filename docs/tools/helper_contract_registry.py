@@ -384,7 +384,7 @@ HELPER_CONTRACTS: list[Contract] = [
         },
         "include_header": "brookesia/service_helper/agent/manager.hpp",
         "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/agent/manager.hpp",
-        "helper_type": "esp_brookesia::service::helper::Manager",
+        "helper_type": "esp_brookesia::service::helper::AgentManager",
         "api_reference_doc": "/service/framework/helper/agent/manager",
         "page_doc": "/service/agent/manager/index",
         "schema_sections": [

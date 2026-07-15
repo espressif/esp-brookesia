@@ -53,6 +53,8 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using Helper = helper::AudioPlayback;
     using StorageHelper = helper::Storage;
     enum class PlaylistPhase : uint8_t {
@@ -69,6 +71,8 @@ private:
     AudioPlayback()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Manage audio playback and playlist operations.",
+        .version = get_component_version(),
         .dependencies = {
             StorageHelper::get_name().data(),
         },
@@ -215,6 +219,8 @@ public:
     explicit AudioEncoder(int id)
         : ServiceBase({
         .name = std::string(helper::Audio::ENCODER_NAME_PREFIX) + std::to_string(id),
+        .description = "Capture and encode audio for one configured input instance.",
+        .version = get_component_version(),
 #if BROOKESIA_SERVICE_AUDIO_ENABLE_WORKER
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
             .worker_configs = {
@@ -249,6 +255,8 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using BaseHelper = helper::Audio;
     using Helper = helper::AudioEncoder<0>;
 

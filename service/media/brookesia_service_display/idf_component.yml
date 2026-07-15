@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia Display service which arbitrates LCD drawing sources and routes frames to HAL panels.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/media/brookesia_service_display
 repository: https://github.com/espressif/esp-brookesia.git

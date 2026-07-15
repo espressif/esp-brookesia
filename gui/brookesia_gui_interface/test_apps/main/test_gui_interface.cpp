@@ -19,7 +19,7 @@ using namespace esp_brookesia::gui;
 namespace {
 
 constexpr std::string_view ROOT_JSON = R"({
-    "version": "0.1.0",
+    "version": "0.1.1",
     "assets": [
         {
             "type": "viewScreen",
@@ -53,6 +53,46 @@ constexpr std::string_view ROOT_JSON = R"({
                         "width": "wrap",
                         "height": "1dp",
                         "flexGrow": 1
+                    }
+                }
+            ]
+        }
+    ]
+})";
+
+constexpr std::string_view IMAGE_BINDING_JSON = R"({
+    "version": "0.1.1",
+    "assets": [
+        {
+            "type": "viewScreen",
+            "id": "image_screen",
+            "children": [
+                {
+                    "type": "image",
+                    "id": "icon_a",
+                    "bindings": {
+                        "imageProps.src": "src_a"
+                    },
+                    "imageProps": {
+                        "src": ""
+                    },
+                    "placement": {
+                        "width": "32dp",
+                        "height": "32dp"
+                    }
+                },
+                {
+                    "type": "image",
+                    "id": "icon_b",
+                    "bindings": {
+                        "imageProps.src": "src_b"
+                    },
+                    "imageProps": {
+                        "src": ""
+                    },
+                    "placement": {
+                        "width": "32dp",
+                        "height": "32dp"
                     }
                 }
             ]
@@ -218,6 +258,11 @@ public:
         return {};
     }
 
+    bool requires_preloaded_image_resource(const RuntimeImageResource &resource) const override
+    {
+        return resource.native_src == 0 && !resource.primary_src.empty();
+    }
+
     void release_image_resource(const RuntimeImageResource &resource) override
     {
         released_image_ids_.push_back(resource.id);
@@ -229,6 +274,16 @@ public:
             return std::nullopt;
         }
         return ViewFrame{.x = 1, .y = 2, .width = 100, .height = 40};
+    }
+
+    bool scroll_node_to(BackendHandle handle, int32_t x, int32_t y, bool animated) override
+    {
+        scroll_to_count_++;
+        last_scroll_to_handle_ = handle;
+        last_scroll_x_ = x;
+        last_scroll_y_ = y;
+        last_scroll_animated_ = animated;
+        return handle.is_valid();
     }
 
     bool scroll_node_to_visible(BackendHandle handle, bool animated) override
@@ -261,9 +316,49 @@ public:
         return start_animation_count_;
     }
 
+    size_t props_apply_count() const
+    {
+        return props_apply_count_;
+    }
+
+    const std::vector<RuntimeImageResource> &preloaded_images() const
+    {
+        return images_;
+    }
+
+    const std::vector<std::string> &released_image_ids() const
+    {
+        return released_image_ids_;
+    }
+
     bool debug_visual_enabled() const
     {
         return debug_visual_enabled_;
+    }
+
+    size_t scroll_to_count() const
+    {
+        return scroll_to_count_;
+    }
+
+    BackendHandle last_scroll_to_handle() const
+    {
+        return last_scroll_to_handle_;
+    }
+
+    int32_t last_scroll_x() const
+    {
+        return last_scroll_x_;
+    }
+
+    int32_t last_scroll_y() const
+    {
+        return last_scroll_y_;
+    }
+
+    bool last_scroll_animated() const
+    {
+        return last_scroll_animated_;
     }
 
 private:
@@ -285,7 +380,12 @@ private:
     size_t style_apply_count_ = 0;
     size_t animation_apply_count_ = 0;
     size_t start_animation_count_ = 0;
+    size_t scroll_to_count_ = 0;
     size_t scroll_count_ = 0;
+    BackendHandle last_scroll_to_handle_;
+    int32_t last_scroll_x_ = 0;
+    int32_t last_scroll_y_ = 0;
+    bool last_scroll_animated_ = true;
     bool debug_visual_enabled_ = false;
 };
 
@@ -300,7 +400,7 @@ BROOKESIA_TEST_CASE(
     Environment environment;
     auto parsed = parse_document(ROOT_JSON, "test", environment);
     TEST_ASSERT_TRUE(parsed.has_value());
-    TEST_ASSERT_EQUAL_STRING("0.1.0", parsed->version.c_str());
+    TEST_ASSERT_EQUAL_STRING("0.1.1", parsed->version.c_str());
     TEST_ASSERT_EQUAL_size_t(1, parsed->screens.size());
     TEST_ASSERT_EQUAL_STRING("test_screen", parsed->screens.front().id.c_str());
     TEST_ASSERT_EQUAL_INT32(0, parsed->screens.front().children.front().placement.flex_grow);
@@ -308,6 +408,26 @@ BROOKESIA_TEST_CASE(
 
     auto validation = validate_document(parsed.value());
     TEST_ASSERT_TRUE(validation.success);
+
+    auto images = parse_image_asset_set_json(R"({
+        "type": "imageSet",
+        "images": [
+            {"id": "lazy", "src": "lazy.png", "width": 10, "height": 10},
+            {"id": "eager", "src": "eager.png", "width": 20, "height": 20, "preload": true}
+        ]
+    })", "test/images");
+    TEST_ASSERT_TRUE(images.has_value());
+    TEST_ASSERT_EQUAL_size_t(2, images->size());
+    TEST_ASSERT_FALSE(images->at(0).preload);
+    TEST_ASSERT_TRUE(images->at(1).preload);
+
+    auto invalid_images = parse_image_asset_set_json(R"({
+        "type": "imageSet",
+        "images": [
+            {"id": "bad", "src": "bad.png", "width": 10, "height": 10, "preload": "yes"}
+        ]
+    })", "test/images");
+    TEST_ASSERT_FALSE(invalid_images.has_value());
 
     auto invalid = parsed.value();
     invalid.version = "999.0.0";
@@ -392,7 +512,121 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(animation_completed);
     TEST_ASSERT_EQUAL_size_t(1, backend_ptr->start_animation_count());
 
+    TEST_ASSERT_TRUE(runtime.scroll_view_to(document_id.value(), "/test_screen/title", 0, 0, false));
+    TEST_ASSERT_EQUAL_size_t(1, backend_ptr->scroll_to_count());
+    TEST_ASSERT_EQUAL(title_handle.value(), backend_ptr->last_scroll_to_handle().value());
+    TEST_ASSERT_EQUAL_INT32(0, backend_ptr->last_scroll_x());
+    TEST_ASSERT_EQUAL_INT32(0, backend_ptr->last_scroll_y());
+    TEST_ASSERT_FALSE(backend_ptr->last_scroll_animated());
+
     TEST_ASSERT_TRUE(runtime.scroll_view_to_visible(document_id.value(), "/test_screen/title", false));
     TEST_ASSERT_TRUE(runtime.unmount_screen(document_id.value(), "/test_screen"));
+    TEST_ASSERT_TRUE(runtime.unload(document_id.value()));
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_preloads_dynamic_bound_image_sources,
+    "GUI interface runtime preloads image resources introduced by binding updates",
+    "[gui][interface][runtime]"
+)
+{
+    auto backend = std::make_unique<MockBackend>();
+    auto *backend_ptr = backend.get();
+    Runtime runtime(std::move(backend));
+
+    Environment environment;
+    auto document_id = runtime.load_json("test/images.json", IMAGE_BINDING_JSON, "test", environment);
+    TEST_ASSERT_TRUE(document_id.has_value());
+    auto mounted = runtime.mount_screen(document_id.value(), "/image_screen");
+    TEST_ASSERT_TRUE(mounted.has_value());
+
+    auto register_result = runtime.register_image(RuntimeImageResource{
+        .id = "dynamic_icon",
+        .primary_src = "dynamic.png",
+        .native_src = 0,
+        .width = 32,
+        .height = 32,
+    });
+    TEST_ASSERT_TRUE(register_result.has_value());
+    TEST_ASSERT_EQUAL_size_t(0, backend_ptr->preloaded_images().size());
+
+    const auto props_before = backend_ptr->props_apply_count();
+    runtime.set_binding_values(document_id.value(), {
+        BindingValueUpdate{
+            .absolute_path = "/image_screen/icon_a",
+            .key = "src_a",
+            .value = "dynamic_icon",
+        },
+        BindingValueUpdate{
+            .absolute_path = "/image_screen/icon_b",
+            .key = "src_b",
+            .value = "dynamic_icon",
+        },
+    });
+
+    TEST_ASSERT_EQUAL_size_t(1, backend_ptr->preloaded_images().size());
+    TEST_ASSERT_EQUAL_STRING("dynamic_icon", backend_ptr->preloaded_images().front().id.c_str());
+    TEST_ASSERT_GREATER_THAN(props_before, backend_ptr->props_apply_count());
+    TEST_ASSERT_EQUAL_STRING(
+        "dynamic_icon",
+        runtime.find_view(document_id.value(), "/image_screen/icon_a").as_image().src().c_str()
+    );
+    TEST_ASSERT_EQUAL_STRING(
+        "dynamic_icon",
+        runtime.find_view(document_id.value(), "/image_screen/icon_b").as_image().src().c_str()
+    );
+
+    runtime.set_binding_values(document_id.value(), {
+        BindingValueUpdate{
+            .absolute_path = "/image_screen/icon_a",
+            .key = "src_a",
+            .value = "",
+        },
+    });
+    TEST_ASSERT_EQUAL_size_t(0, backend_ptr->released_image_ids().size());
+
+    runtime.set_binding_values(document_id.value(), {
+        BindingValueUpdate{
+            .absolute_path = "/image_screen/icon_b",
+            .key = "src_b",
+            .value = "",
+        },
+    });
+    TEST_ASSERT_EQUAL_size_t(1, backend_ptr->released_image_ids().size());
+    TEST_ASSERT_EQUAL_STRING("dynamic_icon", backend_ptr->released_image_ids().front().c_str());
+    TEST_ASSERT_TRUE(runtime.unload(document_id.value()));
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_preloads_set_view_src_image_sources,
+    "GUI interface runtime preloads image resources introduced by set_view_src",
+    "[gui][interface][runtime]"
+)
+{
+    auto backend = std::make_unique<MockBackend>();
+    auto *backend_ptr = backend.get();
+    Runtime runtime(std::move(backend));
+
+    Environment environment;
+    auto document_id = runtime.load_json("test/images.json", IMAGE_BINDING_JSON, "test", environment);
+    TEST_ASSERT_TRUE(document_id.has_value());
+    auto mounted = runtime.mount_screen(document_id.value(), "/image_screen");
+    TEST_ASSERT_TRUE(mounted.has_value());
+
+    auto register_result = runtime.register_image(RuntimeImageResource{
+        .id = "set_icon",
+        .primary_src = "set.png",
+        .native_src = 0,
+        .width = 40,
+        .height = 40,
+    });
+    TEST_ASSERT_TRUE(register_result.has_value());
+
+    auto image = runtime.find_view(document_id.value(), "/image_screen/icon_a").as_image();
+    TEST_ASSERT_TRUE(image.valid());
+    TEST_ASSERT_TRUE(image.set_src("set_icon"));
+    TEST_ASSERT_EQUAL_size_t(1, backend_ptr->preloaded_images().size());
+    TEST_ASSERT_EQUAL_STRING("set_icon", backend_ptr->preloaded_images().front().id.c_str());
+    TEST_ASSERT_EQUAL_STRING("set_icon", image.src().c_str());
     TEST_ASSERT_TRUE(runtime.unload(document_id.value()));
 }

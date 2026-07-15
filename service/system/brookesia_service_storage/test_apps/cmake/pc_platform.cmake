@@ -27,7 +27,7 @@ add_subdirectory(${TEST_APP_DIR}/.. ${CMAKE_BINARY_DIR}/brookesia_service_storag
 
 if(NOT TARGET brookesia::hal_linux)
     add_subdirectory(
-        ${TEST_APP_DIR}/../../../hal/brookesia_hal_linux
+        ${TEST_APP_DIR}/../../../../hal/brookesia_hal_linux
         ${CMAKE_BINARY_DIR}/brookesia_hal_linux
     )
 endif()

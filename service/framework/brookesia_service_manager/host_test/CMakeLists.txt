@@ -8,6 +8,11 @@ if(NOT TARGET brookesia::lib_utils)
         ${CMAKE_BINARY_DIR}/brookesia_lib_utils
     )
 endif()
+
+set(
+    BROOKESIA_SERVICE_MANAGER_PC_COMPILE_DEFINITIONS
+    CONFIG_BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_ENABLE=1
+)
 add_subdirectory(.. brookesia_service_manager)
 
 add_executable(brookesia_service_manager_host_test
@@ -17,6 +22,11 @@ add_executable(brookesia_service_manager_host_test
 target_link_libraries(brookesia_service_manager_host_test
     PRIVATE
         brookesia::service_manager
+)
+
+target_compile_definitions(brookesia_service_manager_host_test
+    PRIVATE
+        CONFIG_BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_ENABLE=1
 )
 
 set_target_properties(brookesia_service_manager_host_test PROPERTIES

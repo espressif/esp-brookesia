@@ -57,6 +57,13 @@ std::expected<std::string, std::string> make_storage_key(std::string_view raw_ke
 
 } // namespace
 
+std::string SNTP::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_SNTP_VER_MAJOR, BROOKESIA_SERVICE_SNTP_VER_MINOR, BROOKESIA_SERVICE_SNTP_VER_PATCH
+           );
+}
+
 bool SNTP::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

@@ -11,36 +11,58 @@ menu "ESP-Brookesia: Service Storage Configurations"
 
     menu "Worker"
         depends on BROOKESIA_SERVICE_MANAGER_WORKER_STACK_IN_EXT
+        depends on !BROOKESIA_SERVICE_MANAGER_SECONDARY_SCHEDULER_ENABLE
 
-        config BROOKESIA_SERVICE_STORAGE_WORKER_NAME
-            string "Name"
-            default "SvcStorageWorker"
-            help
-                The name of the worker thread.
+        menu "General"
+            config BROOKESIA_SERVICE_STORAGE_WORKER_NAME
+                string "Name"
+                default "SvcStorage"
+                help
+                    The base name of the worker thread. Each worker thread is
+                    suffixed with its index (e.g. SvcStorage0, SvcStorage1).
 
-        config BROOKESIA_SERVICE_STORAGE_WORKER_CORE_ID
-            int "Core ID"
-            default -1
-            help
-                The core ID of the worker thread. `-1` means the core ID is not specified.
+            config BROOKESIA_SERVICE_STORAGE_WORKER_PRIORITY
+                int "Priority"
+                default 10
+                help
+                    The priority of the worker thread.
 
-        config BROOKESIA_SERVICE_STORAGE_WORKER_PRIORITY
-            int "Priority"
-            default 5
-            help
-                The priority of the worker thread.
+            config BROOKESIA_SERVICE_STORAGE_WORKER_STACK_SIZE
+                int "Stack size"
+                default 7168
+                help
+                    The stack size of the worker thread.
 
-        config BROOKESIA_SERVICE_STORAGE_WORKER_STACK_SIZE
-            int "Stack size"
-            default 6144
-            help
-                The stack size of the worker thread.
+            config BROOKESIA_SERVICE_STORAGE_WORKER_POLL_INTERVAL_MS
+                int "Poll interval (ms)"
+                default 10
+                range 1 10
+                help
+                    The interval of the worker poll.
+        endmenu
 
-        config BROOKESIA_SERVICE_STORAGE_WORKER_POLL_INTERVAL_MS
-            int "Poll interval (ms)"
-            default 10
-            range 1 10
+        config BROOKESIA_SERVICE_STORAGE_WORKER_NUM
+            int "Number of workers"
+            default 1 if CONFIG_SPIRAM_XIP_FROM_PSRAM
+            default 2 if !CONFIG_SPIRAM_XIP_FROM_PSRAM
+            range 1 2
             help
-                The interval of the worker poll.
+                The number of workers.
+
+        config BROOKESIA_SERVICE_STORAGE_WORKER_0_CORE_ID
+            int "Core ID of Worker 0"
+            range -1 1
+            default 0
+            help
+                The core ID of Worker 0. `-1` means the core ID is not specified.
+
+        if BROOKESIA_SERVICE_STORAGE_WORKER_NUM >= 2
+            config BROOKESIA_SERVICE_STORAGE_WORKER_1_CORE_ID
+                int "Core ID of Worker 1"
+                range -1 1
+                default 1
+                help
+                    The core ID of Worker 1. `-1` means the core ID is not specified.
+        endif
     endmenu
 endmenu

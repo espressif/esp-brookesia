@@ -13,12 +13,14 @@
 #include "private/system/impl.hpp"
 
 #include "brookesia/gui_interface/parser.hpp"
+#include "brookesia/service_helper.hpp"
 
 namespace esp_brookesia::system::core {
 namespace {
 
 constexpr const char *APP_ICON_IMAGE_DIR = "images";
 constexpr const char *IMAGE_DESCRIPTOR_EXTENSION = ".json";
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 bool append_unique_path(std::vector<std::filesystem::path> &paths, const std::filesystem::path &path)
 {
@@ -99,6 +101,37 @@ std::vector<std::filesystem::path> make_icon_search_dirs(
     return dirs;
 }
 
+std::expected<void, std::string> collect_image_descriptor_paths(
+    const std::filesystem::path &dir,
+    std::vector<std::filesystem::path> &paths
+)
+{
+    auto dir_info = service::helper::Storage::fs_stat(dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!dir_info || !dir_info->exists || dir_info->type != service::helper::Storage::FileType::Directory) {
+        return {};
+    }
+
+    auto entries = service::helper::Storage::fs_list(dir.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!entries) {
+        return std::unexpected(entries.error());
+    }
+    for (const auto &entry : entries.value()) {
+        auto entry_path = dir / entry.name;
+        if (entry.info.type == service::helper::Storage::FileType::Directory) {
+            auto child_result = collect_image_descriptor_paths(entry_path, paths);
+            if (!child_result) {
+                return child_result;
+            }
+            continue;
+        }
+        if (entry.info.type == service::helper::Storage::FileType::File &&
+                entry_path.extension() == IMAGE_DESCRIPTOR_EXTENSION) {
+            paths.push_back(std::move(entry_path));
+        }
+    }
+    return {};
+}
+
 std::optional<std::filesystem::path> find_icon_descriptor_path(
     const AppManifest &manifest,
     const std::filesystem::path &resource_dir
@@ -109,37 +142,24 @@ std::optional<std::filesystem::path> find_icon_descriptor_path(
     }
 
     for (const auto &dir : make_icon_search_dirs(manifest, resource_dir)) {
-        std::error_code ec;
-        if (!std::filesystem::is_directory(dir, ec)) {
+        std::vector<std::filesystem::path> descriptor_paths;
+        auto collect_result = collect_image_descriptor_paths(dir, descriptor_paths);
+        if (!collect_result) {
+            BROOKESIA_LOGW("Failed to scan app icon directory: path(%1%), error(%2%)", dir.string(), collect_result.error());
             continue;
         }
-
-        std::filesystem::recursive_directory_iterator it(
-            dir,
-            std::filesystem::directory_options::skip_permission_denied,
-            ec
-        );
-        const std::filesystem::recursive_directory_iterator end;
-        while (!ec && it != end) {
-            const auto &entry = *it;
-            if (entry.is_regular_file(ec) && entry.path().extension() == IMAGE_DESCRIPTOR_EXTENSION) {
-                auto images = gui::parse_image_asset_set_file(entry.path().generic_string());
-                if (!images) {
-                    it.increment(ec);
-                    continue;
-                }
-                auto matches_icon_id = [&manifest](const gui::ImageAsset & image) {
-                    return image.id == manifest.icon_id;
-                };
-                const auto matched = std::find_if(images->begin(), images->end(), matches_icon_id);
-                if (matched != images->end()) {
-                    return entry.path();
-                }
+        for (const auto &path : descriptor_paths) {
+            auto images = gui::parse_image_asset_set_file(path.generic_string());
+            if (!images) {
+                continue;
             }
-            it.increment(ec);
-        }
-        if (ec) {
-            BROOKESIA_LOGW("Failed to scan app icon directory: path(%1%), error(%2%)", dir.string(), ec.message());
+            auto matches_icon_id = [&manifest](const gui::ImageAsset & image) {
+                return image.id == manifest.icon_id;
+            };
+            const auto matched = std::find_if(images->begin(), images->end(), matches_icon_id);
+            if (matched != images->end()) {
+                return path;
+            }
         }
     }
     return std::nullopt;

@@ -244,6 +244,47 @@ public:
     }
 
     /**
+     * @brief Check whether the calling thread is one of this scheduler's worker threads.
+     *
+     * @return `true` when invoked from a worker thread owned by this scheduler.
+     *
+     * @note Useful to detect re-entrant synchronous calls that would otherwise deadlock a
+     *       serialized or single-worker scheduler by blocking the very thread that must
+     *       execute the posted task.
+     */
+    bool is_current_thread_worker() const;
+
+    /**
+     * @brief Check whether the calling thread is executing through a task group's strand.
+     *
+     * @param[in] group Group name.
+     * @return `true` when invoked from the configured strand for the group, or `false` when
+     *         the group has no strand or the calling thread is outside that strand.
+     *
+     * @note Child groups configured with a parent group share the same strand and therefore
+     *       report the same execution context.
+     */
+    bool is_current_thread_in_group(const Group &group) const;
+
+    /**
+     * @brief Try to reserve scheduler capacity while the current worker blocks for a result.
+     *
+     * At most `worker_count - 1` scheduler workers may hold a wait slot, leaving one worker
+     * available to execute queued work. Calls from non-worker threads succeed without
+     * consuming a slot.
+     *
+     * @return `true` when the caller may block, or `false` when no worker can be reserved.
+     */
+    bool try_acquire_worker_wait_slot();
+
+    /**
+     * @brief Release a worker wait slot acquired by the current scheduler worker.
+     *
+     * Calls from non-worker threads are ignored.
+     */
+    void release_worker_wait_slot();
+
+    /**
      * @brief Configure execution behavior for a task group.
      *
      * @param[in] group Group name.
@@ -587,6 +628,7 @@ private:
     std::atomic<TaskId> failed_tasks_{0};
     std::atomic<TaskId> canceled_tasks_{0};
     std::atomic<TaskId> suspended_tasks_{0};
+    std::atomic<size_t> worker_wait_slot_count_{0};
     std::map<Group, PreExecuteCallback> pre_execute_callbacks_;   ///< Per-group pre-execute callbacks; key "" = global.
     std::map<Group, PostExecuteCallback> post_execute_callbacks_; ///< Per-group post-execute callbacks; key "" = global.
 };

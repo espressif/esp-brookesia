@@ -95,6 +95,13 @@ public:
     bool unregister_image(std::string_view id);
     std::expected<void, std::string> register_image_json(std::string_view json, std::string_view base_dir = {});
     std::expected<void, std::string> register_image_file(std::string_view path);
+    std::expected<void, std::string> preload_image(DocumentId id, std::string_view image_id);
+    std::expected<void, std::string> preload_images(DocumentId id, const std::vector<std::string> &image_ids);
+    std::expected<void, std::string> release_preloaded_image(DocumentId id, std::string_view image_id);
+    std::expected<void, std::string> release_preloaded_images(
+        DocumentId id,
+        const std::vector<std::string> &image_ids
+    );
     void process_backend();
     void set_view_debug_enabled(bool enabled);
     bool is_view_debug_enabled() const;
@@ -158,6 +165,14 @@ public:
     std::vector<RuntimeImageResource> list_image_resources(DocumentId id) const;
     std::optional<ViewStateValue> get_view_state(const View &view, ViewStateKind kind) const;
     std::optional<ViewStateValue> get_view_state(DocumentId id, std::string_view absolute_path, ViewStateKind kind) const;
+    bool scroll_view_to(
+        DocumentId id,
+        std::string_view absolute_path,
+        int32_t x,
+        int32_t y,
+        bool animated = true
+    ) const;
+    bool scroll_view_to(const View &view, int32_t x, int32_t y, bool animated = true) const;
     bool scroll_view_to_visible(DocumentId id, std::string_view absolute_path, bool animated = true) const;
     bool scroll_view_to_visible(const View &view, bool animated = true) const;
     void set_binding_value(

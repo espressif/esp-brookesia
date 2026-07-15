@@ -27,10 +27,10 @@ menu "ESP-Brookesia: Service HTTP Configurations"
         menu "General"
             config BROOKESIA_SERVICE_HTTP_WORKER_NAME
                 string "Name"
-                default "SvcHttpWorker"
+                default "SvcHttp"
                 help
                     The base name of the worker thread. Each worker thread is
-                    suffixed with its index (e.g. SvcHttpWorker0, SvcHttpWorker1).
+                    suffixed with its index (e.g. SvcHttp0, SvcHttp1).
 
             config BROOKESIA_SERVICE_HTTP_WORKER_PRIORITY
                 int "Priority"

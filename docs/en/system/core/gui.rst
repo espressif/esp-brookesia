@@ -93,6 +93,8 @@ A ``System`` subclass obtains the ``SystemGuiAccess`` facade through the protect
 - ``get_constant_value(document_id, path)``
 - ``set_text(document_id, path, text)``
 - ``set_view_src(document_id, path, src)``
+- ``preload_images(document_id, image_ids)``
+- ``release_images(document_id, image_ids)``
 - ``start_view_animation_with_result(document_id, path, animation, completed_handler)``
 - ``stop_animation(subscription_id)``
 - ``subscribe_action(document_id, action, handler)``
@@ -110,7 +112,9 @@ A transient screen is a system-only overlay capability: it mounts a screen to th
 Debug and Live Preview
 ----------------------
 
-``System::Config::enable_gui_view_debug`` sets the initial view debug state of the GUI runtime. At runtime the C++ side can toggle it via ``System::set_gui_view_debug_enabled()`` or ``AppGuiRuntime::set_view_debug_enabled()``, affecting all loaded nodes in the current runtime.
+``System::Config::enable_gui_view_debug`` sets the initial view debug state of the GUI runtime. A trusted native
+app can toggle it through ``AppGuiRuntime::set_view_debug_enabled()``. The call affects all loaded nodes and returns
+an error when the system task or GUI runtime is unavailable.
 
 ``System::Config::enable_gui_live_preview`` is off by default. When on, the core auto-calls ``gui::Runtime::enable_live_preview()`` for a file-backed document after ``load_file()`` succeeds, and the ``SystemGui`` task periodically calls ``poll_live_preview()``. A ``load_json()`` or JSON string document has no source file to poll, so it is not auto-enabled.
 

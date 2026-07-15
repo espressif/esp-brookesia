@@ -39,6 +39,8 @@ Module Overview
    Device Control <device>
    Emote <emote>
    HTTP <http>
+   Manager <manager>
+   Utils <utils>
    NES <nes>
    SNTP <sntp>
    Storage <storage>

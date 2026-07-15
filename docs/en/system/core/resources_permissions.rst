@@ -30,6 +30,8 @@ The ``start_app()`` order is: register app GUI resources first, then load the GU
 
 If an image ``primary_src`` points to an LVGL ``.bin`` file, ``gui::Runtime`` notifies the backend to preload that file when loading the GUI document. Preloading happens before node creation, so a missing file or invalid header for ``${image.xxx}`` fails app start and enters the error path, instead of surfacing on the first display or binding flush.
 
+On-demand formats such as PNG are not preloaded by default; they enter the backend decoded cache only when ``imageSet.images[].preload: true`` is set or when the app explicitly requests it by image id through ``SystemGui.PreloadImages`` / ``context.gui().preload_images(...)``. A runtime app can only pass image ids visible to its own document, not arbitrary file paths.
+
 .. _system-core-resources_permissions-sec-04:
 
 Unregistration Timing
@@ -53,7 +55,7 @@ Runtime Package File Resources
 
 A runtime app prefers the file resources in its package, the ``<runtime.resource_dir>/profile.json`` descriptor, and the JSON UI document referenced by ``root``. A regular runtime app cannot register native LVGL image/font resources or operate the runtime global resource table through a service.
 
-The ``imageSet`` JSON in a runtime package can also reference ``.bin`` files; such files are likewise preloaded during the document load stage.
+The ``imageSet`` JSON in a runtime package can also reference ``.bin`` files; such files are likewise preloaded during the document load stage. If a PNG entry declares ``preload: true``, it is also decoded and cached during document load.
 
 .. _system-core-resources_permissions-sec-07:
 

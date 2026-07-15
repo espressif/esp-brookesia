@@ -3,13 +3,13 @@
     "images": [
         {
             "id": "launcher_icon",
-            "src": "launcher_icon.png",
+            "src": "launcher_icon.jpg",
             "width": 92,
             "height": 92
         },
         {
             "id": "app_store.icon.bpk",
-            "src": "bpk.png",
+            "src": "bpk.jpg",
             "width": 42,
             "height": 42
         },

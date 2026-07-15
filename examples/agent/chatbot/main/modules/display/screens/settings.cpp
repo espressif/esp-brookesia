@@ -13,7 +13,7 @@
 #include "settings.hpp"
 
 using namespace esp_brookesia;
-using AgentHelper = service::helper::Manager;
+using AgentHelper = service::helper::AgentManager;
 using WifiHelper = service::helper::Wifi;
 using DeviceHelper = service::helper::Device;
 using DisplayHelper = service::helper::Display;

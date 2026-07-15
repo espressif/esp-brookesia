@@ -13,6 +13,7 @@
 
 #include <array>
 #include <utility>
+#include <variant>
 
 namespace esp_brookesia::system::core {
 
@@ -25,6 +26,55 @@ FunctionSchema with_return(FunctionSchema schema, FunctionValueType return_type,
         .description = std::move(return_description),
     };
     return schema;
+}
+
+std::expected<int32_t, std::string> get_int_param_or(
+    const FunctionParameterMap &params,
+    std::string_view name,
+    int32_t default_value
+)
+{
+    auto it = params.find(std::string(name));
+    if (it == params.end()) {
+        return default_value;
+    }
+    const auto *value = std::get_if<double>(&it->second);
+    if (value == nullptr) {
+        return std::unexpected("Parameter must be number: " + std::string(name));
+    }
+    return static_cast<int32_t>(*value);
+}
+
+std::expected<bool, std::string> get_bool_param_or(
+    const FunctionParameterMap &params,
+    std::string_view name,
+    bool default_value
+)
+{
+    auto it = params.find(std::string(name));
+    if (it == params.end()) {
+        return default_value;
+    }
+    const auto *value = std::get_if<bool>(&it->second);
+    if (value == nullptr) {
+        return std::unexpected("Parameter must be bool: " + std::string(name));
+    }
+    return *value;
+}
+
+std::expected<std::vector<std::string>, std::string> parse_string_array(
+    const boost::json::array &array,
+    std::string_view name)
+{
+    std::vector<std::string> values;
+    values.reserve(array.size());
+    for (const auto &value : array) {
+        if (!value.is_string()) {
+            return std::unexpected("Array parameter must contain strings only: " + std::string(name));
+        }
+        values.emplace_back(value.as_string().c_str());
+    }
+    return values;
 }
 
 } // namespace
@@ -166,6 +216,30 @@ std::span<const service::FunctionSchema> SystemGuiHelper::get_function_schemas()
                 },
                 .require_scheduler = false,
             },
+            {
+                .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::PreloadImages),
+                .description = "Decode and cache caller app GUI image resources by id",
+                .parameters = {
+                    {
+                        BROOKESIA_DESCRIBE_TO_STR(ImageIdsParam::Ids),
+                        "Image resource id array",
+                        FunctionValueType::Array,
+                    },
+                },
+                .require_scheduler = false,
+            },
+            {
+                .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ReleaseImages),
+                .description = "Release manually preloaded caller app GUI image resources by id",
+                .parameters = {
+                    {
+                        BROOKESIA_DESCRIBE_TO_STR(ImageIdsParam::Ids),
+                        "Image resource id array",
+                        FunctionValueType::Array,
+                    },
+                },
+                .require_scheduler = false,
+            },
             with_return({
                 .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartViewAnimation),
                 .description = "Start a view animation in the caller app GUI document",
@@ -183,6 +257,32 @@ std::span<const service::FunctionSchema> SystemGuiHelper::get_function_schemas()
                         BROOKESIA_DESCRIBE_TO_STR(AnimationIdParam::AnimationId),
                         "Animation subscription id",
                         FunctionValueType::Number,
+                    },
+                },
+                .require_scheduler = false,
+            },
+            {
+                .name = BROOKESIA_DESCRIBE_TO_STR(FunctionId::ScrollTo),
+                .description = "Scroll a view to an absolute scroll offset",
+                .parameters = {
+                    {BROOKESIA_DESCRIBE_TO_STR(ScrollToParam::Path), "View absolute path", FunctionValueType::String},
+                    {
+                        BROOKESIA_DESCRIBE_TO_STR(ScrollToParam::X),
+                        "Scroll X offset",
+                        FunctionValueType::Number,
+                        service::FunctionValue(0),
+                    },
+                    {
+                        BROOKESIA_DESCRIBE_TO_STR(ScrollToParam::Y),
+                        "Scroll Y offset",
+                        FunctionValueType::Number,
+                        service::FunctionValue(0),
+                    },
+                    {
+                        BROOKESIA_DESCRIBE_TO_STR(ScrollToParam::Animated),
+                        "Whether to animate scrolling",
+                        FunctionValueType::Boolean,
+                        service::FunctionValue(true),
                     },
                 },
                 .require_scheduler = false,
@@ -233,6 +333,10 @@ std::span<const service::EventSchema> SystemGuiHelper::get_event_schemas()
 GuiService::GuiService(System &system)
     : ServiceBase({
     .name = SystemGuiHelper::get_name().data(),
+    .description = "Expose System Core GUI operations to applications.",
+    .version = make_version(
+        BROOKESIA_SYSTEM_CORE_VER_MAJOR, BROOKESIA_SYSTEM_CORE_VER_MINOR, BROOKESIA_SYSTEM_CORE_VER_PATCH
+    ),
 })
 , system_(system)
 {}
@@ -338,6 +442,18 @@ service::ServiceBase::FunctionHandlerMap GuiService::get_function_handlers()
             }
         },
         {
+            BROOKESIA_DESCRIBE_TO_STR(FunctionId::PreloadImages), [this](FunctionParameterMap &&params)
+            {
+                return preload_images(std::move(params));
+            }
+        },
+        {
+            BROOKESIA_DESCRIBE_TO_STR(FunctionId::ReleaseImages), [this](FunctionParameterMap &&params)
+            {
+                return release_images(std::move(params));
+            }
+        },
+        {
             BROOKESIA_DESCRIBE_TO_STR(FunctionId::StartViewAnimation), [this](FunctionParameterMap &&params)
             {
                 return start_view_animation(std::move(params));
@@ -347,6 +463,12 @@ service::ServiceBase::FunctionHandlerMap GuiService::get_function_handlers()
             BROOKESIA_DESCRIBE_TO_STR(FunctionId::StopAnimation), [this](FunctionParameterMap &&params)
             {
                 return stop_animation(std::move(params));
+            }
+        },
+        {
+            BROOKESIA_DESCRIBE_TO_STR(FunctionId::ScrollTo), [this](FunctionParameterMap &&params)
+            {
+                return scroll_to(std::move(params));
             }
         },
         {
@@ -617,6 +739,40 @@ FunctionResult GuiService::set_view_src(FunctionParameterMap &&params)
     return service::ServiceBase::to_function_result(system_.gui_set_view_src(*app_id, *path, *src));
 }
 
+FunctionResult GuiService::preload_images(FunctionParameterMap &&params)
+{
+    auto app_id = system_.get_current_runtime_app_owner();
+    if (!app_id) {
+        return make_error(app_id.error());
+    }
+    auto ids_array = get_array_param(params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ImageIdsParam::Ids));
+    if (!ids_array) {
+        return make_error(ids_array.error());
+    }
+    auto ids = parse_string_array(*ids_array, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ImageIdsParam::Ids));
+    if (!ids) {
+        return make_error(ids.error());
+    }
+    return service::ServiceBase::to_function_result(system_.gui_preload_images(*app_id, *ids));
+}
+
+FunctionResult GuiService::release_images(FunctionParameterMap &&params)
+{
+    auto app_id = system_.get_current_runtime_app_owner();
+    if (!app_id) {
+        return make_error(app_id.error());
+    }
+    auto ids_array = get_array_param(params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ImageIdsParam::Ids));
+    if (!ids_array) {
+        return make_error(ids_array.error());
+    }
+    auto ids = parse_string_array(*ids_array, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ImageIdsParam::Ids));
+    if (!ids) {
+        return make_error(ids.error());
+    }
+    return service::ServiceBase::to_function_result(system_.gui_release_images(*app_id, *ids));
+}
+
 FunctionResult GuiService::start_view_animation(FunctionParameterMap &&params)
 {
     auto app_id = system_.get_current_runtime_app_owner();
@@ -669,6 +825,26 @@ FunctionResult GuiService::scroll_to_view(FunctionParameterMap &&params)
         return make_error(!path ? path.error() : animated.error());
     }
     return service::ServiceBase::to_function_result(system_.gui_scroll_to_view(*app_id, *path, *animated));
+}
+
+FunctionResult GuiService::scroll_to(FunctionParameterMap &&params)
+{
+    auto app_id = system_.get_current_runtime_app_owner();
+    if (!app_id) {
+        return make_error(app_id.error());
+    }
+    auto path = get_string_param(params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::Path));
+    auto x = get_int_param_or(params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::X), 0);
+    auto y = get_int_param_or(params, BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::Y), 0);
+    auto animated = get_bool_param_or(
+                        params,
+                        BROOKESIA_DESCRIBE_TO_STR(SystemGuiHelper::ScrollToParam::Animated),
+                        true
+                    );
+    if (!path || !x || !y || !animated) {
+        return make_error(!path ? path.error() : (!x ? x.error() : (!y ? y.error() : animated.error())));
+    }
+    return service::ServiceBase::to_function_result(system_.gui_scroll_to(*app_id, *path, *x, *y, *animated));
 }
 
 FunctionResult GuiService::execute_batch(FunctionParameterMap &&params)

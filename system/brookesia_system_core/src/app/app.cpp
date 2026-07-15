@@ -14,10 +14,13 @@
 #include "brookesia/system_core/app/iapp.hpp"
 #include "brookesia/system_core/app/package.hpp"
 #include "brookesia/system_core/system/system.hpp"
+#include "brookesia/service_helper.hpp"
 #include "private/filesystem.hpp"
 
 namespace esp_brookesia::system::core {
 namespace {
+
+constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 bool is_safe_app_directory_name(std::string_view name)
 {
@@ -49,15 +52,14 @@ std::expected<void, std::string> remove_path_tree_if_exists(
     std::string_view label
 )
 {
-    std::error_code error_code;
-    const bool exists = std::filesystem::exists(path, error_code);
-    if (error_code) {
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!info) {
         return std::unexpected(
                    "Failed to check " + std::string(label) + " '" + path.generic_string() +
-                   "': " + error_code.message()
+                   "': " + info.error()
                );
     }
-    if (!exists) {
+    if (!info->exists) {
         return {};
     }
     auto remove_result = remove_path_tree(path, label);
@@ -73,100 +75,29 @@ std::expected<void, std::string> merge_directory_contents(
     bool overwrite_existing
 )
 {
-    std::error_code error_code;
-    if (!std::filesystem::exists(source, error_code)) {
-        if (error_code) {
-            return std::unexpected(
-                       "Failed to check source directory '" + source.generic_string() + "': " +
-                       error_code.message()
-                   );
-        }
+    auto source_info = service::helper::Storage::fs_stat(source.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!source_info) {
+        return std::unexpected(
+                   "Failed to check source directory '" + source.generic_string() + "': " +
+                   source_info.error()
+               );
+    }
+    if (!source_info->exists) {
         return {};
     }
-    if (!std::filesystem::is_directory(source, error_code)) {
+    if (source_info->type != service::helper::Storage::FileType::Directory) {
         return std::unexpected("Source is not a directory: " + source.generic_string());
     }
-    if (error_code) {
-        return std::unexpected(
-                   "Failed to inspect source directory '" + source.generic_string() + "': " +
-                   error_code.message()
-               );
-    }
 
-    std::filesystem::create_directories(destination, error_code);
-    if (error_code) {
-        return std::unexpected(
-                   "Failed to create destination directory '" + destination.generic_string() + "': " +
-                   error_code.message()
-               );
-    }
-
-    std::filesystem::recursive_directory_iterator iterator(
-        source,
-        std::filesystem::directory_options::skip_permission_denied,
-        error_code
-    );
-    if (error_code) {
-        return std::unexpected(
-                   "Failed to iterate source directory '" + source.generic_string() + "': " +
-                   error_code.message()
-               );
-    }
-
-    const std::filesystem::recursive_directory_iterator end;
-    for (; iterator != end; iterator.increment(error_code)) {
-        if (error_code) {
-            return std::unexpected(
-                       "Failed to iterate source directory '" + source.generic_string() + "': " +
-                       error_code.message()
-                   );
-        }
-        const auto relative_path = iterator->path().lexically_relative(source);
-        const auto target_path = destination / relative_path;
-        if (iterator->is_directory(error_code)) {
-            if (error_code) {
-                return std::unexpected(
-                           "Failed to inspect directory '" + iterator->path().generic_string() + "': " +
-                           error_code.message()
+    auto copy_result = service::helper::Storage::fs_copy_tree(
+                           source.generic_string(), destination.generic_string(), overwrite_existing,
+                           STORAGE_FS_TIMEOUT_MS
                        );
-            }
-            std::filesystem::create_directories(target_path, error_code);
-            if (error_code) {
-                return std::unexpected(
-                           "Failed to create directory '" + target_path.generic_string() + "': " +
-                           error_code.message()
-                       );
-            }
-            continue;
-        }
-
-        if (!iterator->is_regular_file(error_code)) {
-            if (error_code) {
-                return std::unexpected(
-                           "Failed to inspect file '" + iterator->path().generic_string() + "': " +
-                           error_code.message()
-                       );
-            }
-            continue;
-        }
-
-        std::filesystem::create_directories(target_path.parent_path(), error_code);
-        if (error_code) {
-            return std::unexpected(
-                       "Failed to create directory '" + target_path.parent_path().generic_string() + "': " +
-                       error_code.message()
-                   );
-        }
-        const auto copy_options = overwrite_existing ?
-                                  std::filesystem::copy_options::overwrite_existing :
-                                  std::filesystem::copy_options::skip_existing;
-        std::filesystem::copy_file(iterator->path(), target_path, copy_options, error_code);
-        if (error_code) {
-            return std::unexpected(
-                       "Failed to copy file '" + iterator->path().generic_string() + "' to '" +
-                       target_path.generic_string() + "': " + error_code.message()
-                   );
-        }
+    if (!copy_result) {
+        return std::unexpected(
+                   "Failed to copy directory '" + source.generic_string() + "' to '" +
+                   destination.generic_string() + "': " + copy_result.error()
+               );
     }
     return {};
 }
@@ -177,14 +108,14 @@ std::expected<void, std::string> replace_directory_contents(
     std::string_view label
 )
 {
-    std::error_code error_code;
-    if (!std::filesystem::exists(source, error_code)) {
-        if (error_code) {
-            return std::unexpected(
-                       "Failed to check " + std::string(label) + " '" + source.generic_string() +
-                       "': " + error_code.message()
-                   );
-        }
+    auto source_info = service::helper::Storage::fs_stat(source.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!source_info) {
+        return std::unexpected(
+                   "Failed to check " + std::string(label) + " '" + source.generic_string() +
+                   "': " + source_info.error()
+               );
+    }
+    if (!source_info->exists) {
         return {};
     }
     auto remove_result = remove_path_tree_if_exists(destination, label);
@@ -400,6 +331,14 @@ std::expected<void, std::string> AppGuiRuntime::subscribe_action(std::string_vie
     return system_->gui_subscribe_action(app_id_, action);
 }
 
+std::expected<void, std::string> AppGuiRuntime::subscribe_actions(const std::vector<std::string> &actions) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    return system_->gui_subscribe_actions(app_id_, actions);
+}
+
 gui::ScopedConnection AppGuiRuntime::subscribe_action(
     std::string_view action,
     std::function<void(const gui::Event &)> handler
@@ -409,6 +348,16 @@ gui::ScopedConnection AppGuiRuntime::subscribe_action(
         return {};
     }
     return system_->gui_subscribe_action(app_id_, action, std::move(handler));
+}
+
+std::vector<gui::ScopedConnection> AppGuiRuntime::subscribe_actions(
+    const std::vector<GuiActionHandlerSubscription> &subscriptions
+) const
+{
+    if (system_ == nullptr) {
+        return {};
+    }
+    return system_->gui_subscribe_actions(app_id_, subscriptions);
 }
 
 std::expected<void, std::string> AppGuiRuntime::trigger_screen_flow(
@@ -437,6 +386,30 @@ std::optional<gui::ViewFrame> AppGuiRuntime::get_view_frame(std::string_view abs
     return system_->gui_get_view_frame(app_id_, absolute_path);
 }
 
+std::expected<void, std::string> AppGuiRuntime::scroll_to(
+    std::string_view absolute_path,
+    int32_t x,
+    int32_t y,
+    bool animated
+) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    return system_->gui_scroll_to(app_id_, absolute_path, x, y, animated);
+}
+
+std::expected<void, std::string> AppGuiRuntime::scroll_to_view(
+    std::string_view absolute_path,
+    bool animated
+) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    return system_->gui_scroll_to_view(app_id_, absolute_path, animated);
+}
+
 std::expected<void, std::string> AppGuiRuntime::set_view_src(
     std::string_view absolute_path,
     std::string_view src
@@ -446,6 +419,36 @@ std::expected<void, std::string> AppGuiRuntime::set_view_src(
         return std::unexpected("System is not available");
     }
     return system_->gui_set_view_src(app_id_, absolute_path, src);
+}
+
+std::expected<void, std::string> AppGuiRuntime::preload_image(std::string_view image_id) const
+{
+    return preload_images({std::string(image_id)});
+}
+
+std::expected<void, std::string> AppGuiRuntime::preload_images(
+    const std::vector<std::string> &image_ids
+) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    return system_->gui_preload_images(app_id_, image_ids);
+}
+
+std::expected<void, std::string> AppGuiRuntime::release_preloaded_image(std::string_view image_id) const
+{
+    return release_preloaded_images({std::string(image_id)});
+}
+
+std::expected<void, std::string> AppGuiRuntime::release_preloaded_images(
+    const std::vector<std::string> &image_ids
+) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    return system_->gui_release_images(app_id_, image_ids);
 }
 
 std::expected<gui::SubscriptionId, std::string> AppGuiRuntime::start_view_animation_with_id(
@@ -477,11 +480,12 @@ bool AppGuiRuntime::stop_animation(gui::SubscriptionId subscription_id) const
     return (system_ != nullptr) && system_->gui_stop_animation(app_id_, subscription_id);
 }
 
-void AppGuiRuntime::set_view_debug_enabled(bool enabled) const
+std::expected<void, std::string> AppGuiRuntime::set_view_debug_enabled(bool enabled) const
 {
-    if (system_ != nullptr) {
-        system_->set_gui_view_debug_enabled(enabled);
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
     }
+    return system_->set_gui_view_debug_enabled(enabled);
 }
 
 bool AppGuiRuntime::is_view_debug_enabled() const
@@ -536,6 +540,14 @@ std::string AppGuiRuntime::get_theme() const
         return {};
     }
     return system_->system_gui().get_theme();
+}
+
+GuiThemeLanguage AppGuiRuntime::get_theme_language() const
+{
+    if (system_ == nullptr || !is_native_system_app()) {
+        return {};
+    }
+    return system_->system_gui().get_theme_language();
 }
 
 std::expected<void, std::string> AppGuiRuntime::register_font_file(
@@ -805,6 +817,50 @@ std::expected<gui::RuntimeAnimationStartResult, std::string> AppGuiRuntime::star
            );
 }
 
+std::expected<void, std::string> AppGuiRuntime::preload_image(
+    gui::DocumentId document_id,
+    std::string_view image_id
+) const
+{
+    return preload_images(document_id, {std::string(image_id)});
+}
+
+std::expected<void, std::string> AppGuiRuntime::preload_images(
+    gui::DocumentId document_id,
+    const std::vector<std::string> &image_ids
+) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    if (!is_native_system_app()) {
+        return std::unexpected("Only native system apps can preload system GUI images");
+    }
+    return system_->system_gui().preload_images(document_id, image_ids);
+}
+
+std::expected<void, std::string> AppGuiRuntime::release_preloaded_image(
+    gui::DocumentId document_id,
+    std::string_view image_id
+) const
+{
+    return release_preloaded_images(document_id, {std::string(image_id)});
+}
+
+std::expected<void, std::string> AppGuiRuntime::release_preloaded_images(
+    gui::DocumentId document_id,
+    const std::vector<std::string> &image_ids
+) const
+{
+    if (system_ == nullptr) {
+        return std::unexpected("System is not available");
+    }
+    if (!is_native_system_app()) {
+        return std::unexpected("Only native system apps can release system GUI images");
+    }
+    return system_->system_gui().release_images(document_id, image_ids);
+}
+
 bool AppGuiRuntime::is_native_system_app() const
 {
     if (system_ == nullptr || app_id_ == INVALID_APP_ID) {
@@ -1048,11 +1104,10 @@ std::expected<AppId, std::string> SystemApi::install_runtime_app_package(
         app_root = app_root_result->lexically_normal();
     }
 
-    std::error_code error_code;
-    std::filesystem::create_directories(app_root, error_code);
-    if (error_code) {
+    auto app_root_result = service::helper::Storage::fs_mkdir(app_root.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!app_root_result) {
         return std::unexpected(
-                   "Failed to create app root '" + app_root.generic_string() + "': " + error_code.message()
+                   "Failed to create app root '" + app_root.generic_string() + "': " + app_root_result.error()
                );
     }
 
@@ -1108,12 +1163,14 @@ std::expected<AppId, std::string> SystemApi::install_runtime_app_package(
         }
     }
 
-    std::filesystem::rename(staged_app_dir, install_dir, error_code);
-    if (error_code) {
+    auto rename_result = service::helper::Storage::fs_rename(
+                             staged_app_dir.generic_string(), install_dir.generic_string(), STORAGE_FS_TIMEOUT_MS
+                         );
+    if (!rename_result) {
         cleanup_staging();
         return std::unexpected(
                    "Failed to move staged runtime app to final directory '" + install_dir.generic_string() +
-                   "': " + error_code.message()
+                   "': " + rename_result.error()
                );
     }
     cleanup_staging();

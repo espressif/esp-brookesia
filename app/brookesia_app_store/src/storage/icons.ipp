@@ -31,9 +31,9 @@ std::expected<void, std::string> AppStoreApp::register_icon(system::core::AppCon
     if (!result) {
         return result;
     }
-    entries_[index].icon_resource_id = image_id;
+    entries_[index].pending_icon_resource_id = image_id;
     registered_icon_resource_ids_.insert(image_id);
-    return refresh_entry(context, index);
+    return {};
 }
 
 std::string AppStoreApp::register_cached_icon(system::core::AppContext &context, const std::vector<std::string> &keys)
@@ -48,11 +48,6 @@ std::string AppStoreApp::register_cached_icon(system::core::AppContext &context,
             return image_id;
         }
         for (const auto &icon_path : cached_icon_file_candidates(context, {key})) {
-            std::error_code error_code;
-            if (!std::filesystem::is_regular_file(icon_path, error_code) || error_code) {
-                error_code.clear();
-                continue;
-            }
             auto size = read_png_size(icon_path.generic_string());
             if (!size) {
                 remove_invalid_icon_file(icon_path, "cached PNG validation failed before register");
@@ -84,11 +79,42 @@ void AppStoreApp::unregister_icons(system::core::AppContext &context)
     registered_icon_resource_ids_.clear();
     for (auto &entry : entries_) {
         entry.icon_resource_id.clear();
+        entry.pending_icon_resource_id.clear();
     }
     for (auto &entry : local_packages_) {
         entry.icon_resource_id.clear();
     }
     for (auto &entry : installed_runtime_apps_) {
         entry.icon_resource_id.clear();
+        entry.pending_icon_resource_id.clear();
+    }
+}
+
+void AppStoreApp::apply_pending_icon_resources(system::core::AppContext &context)
+{
+    bool refresh_all = false;
+    for (size_t i = 0; i < entries_.size(); ++i) {
+        auto &entry = entries_[i];
+        if (entry.pending_icon_resource_id.empty()) {
+            continue;
+        }
+        entry.icon_resource_id = std::move(entry.pending_icon_resource_id);
+        entry.pending_icon_resource_id.clear();
+        if (!entry.item_path.empty()) {
+            (void)refresh_entry(context, i);
+        }
+    }
+
+    for (auto &entry : installed_runtime_apps_) {
+        if (entry.pending_icon_resource_id.empty()) {
+            continue;
+        }
+        entry.icon_resource_id = std::move(entry.pending_icon_resource_id);
+        entry.pending_icon_resource_id.clear();
+        refresh_all = true;
+    }
+
+    if (refresh_all) {
+        (void)refresh_ui(context);
     }
 }

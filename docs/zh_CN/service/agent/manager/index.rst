@@ -7,7 +7,7 @@
 
 - 组件注册表： `espressif/brookesia_agent_manager <https://components.espressif.com/components/espressif/brookesia_agent_manager>`_
 - 辅助头文件： ``#include "brookesia/service_helper/agent/manager.hpp"``
-- 辅助类： ``esp_brookesia::service::helper::Manager``
+- 辅助类： ``esp_brookesia::service::helper::AgentManager``
 
 .. _agent-manager-index-sec-01:
 

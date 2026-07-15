@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia Storage service which provides namespace-based key-value storage management.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/system/brookesia_service_storage
 repository: https://github.com/espressif/esp-brookesia.git

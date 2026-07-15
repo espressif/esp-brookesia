@@ -8,11 +8,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <deque>
 #include <iomanip>
-#include <fstream>
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <sstream>
 #include <unordered_set>
@@ -48,6 +49,7 @@ static constexpr const char *ACTION_TAB_STORE = "app_store.tab.store";
 static constexpr const char *ACTION_TAB_LOCAL = "app_store.tab.local";
 static constexpr const char *ACTION_TAB_INSTALLED = "app_store.tab.installed";
 static constexpr const char *ACTION_PRIMARY = "app_store.item.primary";
+static constexpr const char *ACTION_LOCAL_DELETE = "app_store.item.local.delete";
 static constexpr const char *ACTION_PAGE_PREV = "app_store.page.prev";
 static constexpr const char *ACTION_PAGE_NEXT = "app_store.page.next";
 static constexpr const char *ITEM_TEMPLATE_ID = "app_store_item";
@@ -72,8 +74,14 @@ static constexpr const char *TAB_INSTALLED_LABEL_PATH = "/app_store/page/header/
 static constexpr const char *REFRESH_ICON_TIMER_NAME = "app_store.refresh.icon_step";
 static constexpr const char *SIZE_METADATA_TIMER_NAME = "app_store.size_metadata.step";
 static constexpr const char *REFRESH_REQUEST_TIMEOUT_TIMER_NAME = "app_store.refresh.request_timeout";
+static constexpr const char *METADATA_WATCHDOG_TIMER_NAME = "app_store.metadata.timeout";
+static constexpr const char *DOWNLOAD_WATCHDOG_TIMER_NAME = "app_store.download.stall_timeout";
 static constexpr const char *REFRESH_RESULT_TIMER_NAME = "app_store.refresh.result";
+static constexpr const char *HTTP_EVENT_TIMER_NAME = "app_store.http.event";
+static constexpr const char *STARTUP_LOAD_TIMER_NAME = "app_store.startup.load";
 static constexpr const char *VIEW_MODE_LOAD_TIMER_NAME = "app_store.view_mode.load";
+static constexpr const char *DEFERRED_OPERATION_TIMER_NAME = "app_store.operation.defer";
+static constexpr const char *LOCAL_PACKAGE_SCAN_TIMER_NAME = "app_store.local_package.scan_step";
 static constexpr const char *TIME_SYNC_TIMEOUT_TIMER_NAME = "app_store.time_sync.timeout";
 static constexpr const char *TIME_SYNC_SUCCESS_CLOSE_TIMER_NAME = "app_store.time_sync.success_close";
 static constexpr const char *INDEX_CACHE_FILE = "index.json";
@@ -86,6 +94,10 @@ static constexpr const char *BPK_PART_EXTENSION = ".part";
 static constexpr uint32_t INDEX_MAX_RESPONSE_SIZE = 512 * 1024;
 static constexpr uint32_t METADATA_MAX_RESPONSE_SIZE = 64 * 1024;
 static constexpr uint32_t BPK_MAX_FILE_SIZE = 64 * 1024 * 1024;
+// Extra free space (bytes) required beyond the package size before starting a
+// download, covering filesystem block/metadata overhead so writing the package
+// does not exhaust the volume.
+static constexpr uint64_t DOWNLOAD_FREE_SPACE_MARGIN_BYTES = 256 * 1024;
 static constexpr uint32_t ICON_MAX_FILE_SIZE = 1024 * 1024;
 static constexpr int HTTP_TIMEOUT_MS = 15000;
 static constexpr int ENABLED_OPACITY = 255;
@@ -98,10 +110,17 @@ static constexpr int REFRESH_ICON_STEP_DELAY_MS = 1;
 static constexpr int SIZE_METADATA_STEP_DELAY_MS = 1;
 static constexpr int SIZE_METADATA_RETRY_DELAY_MS = 250;
 static constexpr int REFRESH_REQUEST_TIMEOUT_EXTRA_MS = 1000;
+static constexpr int METADATA_REQUEST_TIMEOUT_EXTRA_MS = 1000;
+static constexpr int DOWNLOAD_STALL_TIMEOUT_MS = 30000;
+static constexpr int HTTP_EVENT_PROCESS_DELAY_MS = 1;
+static constexpr int STARTUP_LOAD_DELAY_MS = 1;
 static constexpr int VIEW_MODE_LOAD_DELAY_MS = 1;
+static constexpr int DEFERRED_OPERATION_DELAY_MS = 1;
+static constexpr int LOCAL_PACKAGE_SCAN_STEP_DELAY_MS = 1;
 static constexpr int VIEW_MODE_LOAD_COMPLETE_DIALOG_AUTO_CLOSE_MS = 700;
 static constexpr int INSTALL_SUCCESS_DIALOG_AUTO_CLOSE_MS = 1500;
 static constexpr int UNINSTALL_SUCCESS_DIALOG_AUTO_CLOSE_MS = 1500;
+static constexpr int DELETE_SUCCESS_DIALOG_AUTO_CLOSE_MS = 1500;
 static constexpr int TIME_SYNC_WAIT_TIMEOUT_MS = 10000;
 static constexpr int TIME_SYNC_SUCCESS_CLOSE_MS = 1000;
 
@@ -192,26 +211,18 @@ std::string safe_name(std::string_view value)
 
 std::string read_text_file(const std::filesystem::path &path)
 {
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return {};
-    }
-    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+    auto result = StorageHelper::fs_read_text(path.generic_string());
+    return result ? result.value() : std::string();
 }
 
 bool write_text_file(const std::filesystem::path &path, std::string_view text)
 {
-    std::error_code error_code;
-    std::filesystem::create_directories(path.parent_path(), error_code);
-    if (error_code) {
+    auto parent_result = StorageHelper::fs_mkdir(path.parent_path().generic_string());
+    if (!parent_result) {
         return false;
     }
-    std::ofstream output(path, std::ios::binary | std::ios::trunc);
-    if (!output) {
-        return false;
-    }
-    output.write(text.data(), static_cast<std::streamsize>(text.size()));
-    return static_cast<bool>(output);
+    auto result = StorageHelper::fs_write_text(path.generic_string(), std::string(text));
+    return result.has_value();
 }
 
 void append_unique_path(std::vector<std::filesystem::path> &paths, std::filesystem::path path)
@@ -232,25 +243,8 @@ void append_unique_path(std::vector<std::filesystem::path> &paths, std::filesyst
 
 bool directory_is_writable(const std::filesystem::path &path)
 {
-    std::error_code error_code;
-    std::filesystem::create_directories(path, error_code);
-    if (error_code) {
-        return false;
-    }
-
-    const auto probe_path = path / ".app_store_write_probe";
-    {
-        std::ofstream output(probe_path, std::ios::binary | std::ios::trunc);
-        if (!output) {
-            return false;
-        }
-        output << "ok";
-        if (!output) {
-            return false;
-        }
-    }
-    std::filesystem::remove(probe_path, error_code);
-    return true;
+    auto mkdir_result = StorageHelper::fs_mkdir(path.generic_string());
+    return mkdir_result.has_value();
 }
 
 bool is_http_time_syncing_error(std::string_view error)
@@ -563,22 +557,14 @@ std::vector<std::string> get_string_array_field(const boost::json::object &objec
 
 std::optional<std::pair<int32_t, int32_t>> read_png_size(const std::filesystem::path &path)
 {
-    std::error_code error_code;
-    if (!std::filesystem::is_regular_file(path, error_code) || error_code) {
-        return std::nullopt;
-    }
-    const auto file_size = std::filesystem::file_size(path, error_code);
-    if (error_code || file_size < 24) {
+    auto info = StorageHelper::fs_stat(path.generic_string());
+    if (!info || info->type != StorageHelper::FileType::File || info->size < 24) {
         return std::nullopt;
     }
 
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return std::nullopt;
-    }
     unsigned char header[24] = {};
-    input.read(reinterpret_cast<char *>(header), sizeof(header));
-    if (input.gcount() != static_cast<std::streamsize>(sizeof(header))) {
+    auto read_result = StorageHelper::fs_read(path.generic_string(), service::RawBuffer(header, sizeof(header)));
+    if (!read_result || read_result.value() != sizeof(header)) {
         return std::nullopt;
     }
     static constexpr unsigned char PNG_MAGIC[] = {0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n'};
@@ -605,16 +591,20 @@ std::optional<std::pair<int32_t, int32_t>> read_png_size(const std::filesystem::
 
 void remove_invalid_icon_file(const std::filesystem::path &path, std::string_view reason)
 {
-    std::error_code error_code;
-    if (std::filesystem::remove(path, error_code)) {
+    auto info = StorageHelper::fs_stat(path.generic_string());
+    if (!info || !info->exists) {
+        return;
+    }
+    auto remove_result = StorageHelper::fs_remove(path.generic_string());
+    if (remove_result) {
         BROOKESIA_LOGW(
             "Removed invalid App Store icon cache file: path(%1%), reason(%2%)",
             path.generic_string(), reason
         );
-    } else if (error_code) {
+    } else {
         BROOKESIA_LOGW(
             "Failed to remove invalid App Store icon cache file: path(%1%), reason(%2%), error(%3%)",
-            path.generic_string(), reason, error_code.message()
+            path.generic_string(), reason, remove_result.error()
         );
     }
 }
@@ -625,16 +615,20 @@ void remove_cache_file_if_exists(const std::filesystem::path &path, std::string_
         return;
     }
 
-    std::error_code error_code;
-    if (std::filesystem::remove(path, error_code)) {
+    auto info = StorageHelper::fs_stat(path.generic_string());
+    if (!info || !info->exists) {
+        return;
+    }
+    auto remove_result = StorageHelper::fs_remove(path.generic_string());
+    if (remove_result) {
         BROOKESIA_LOGI(
             "Removed App Store cache file: path(%1%), reason(%2%)",
             path.generic_string(), reason
         );
-    } else if (error_code) {
+    } else {
         BROOKESIA_LOGW(
             "Failed to remove App Store cache file: path(%1%), reason(%2%), error(%3%)",
-            path.generic_string(), reason, error_code.message()
+            path.generic_string(), reason, remove_result.error()
         );
     }
 }
@@ -773,41 +767,66 @@ struct AppStoreApp::Impl {
     service::ServiceBinding storage_binding;
     std::vector<esp_brookesia::lib_utils::scoped_connection> http_event_connections;
     gui::ScopedConnection primary_action_connection;
+    gui::ScopedConnection local_delete_action_connection;
     std::vector<StoreEntry> entries;
     std::vector<LocalPackageEntry> local_packages;
     std::vector<InstalledAppEntry> installed_runtime_apps;
     std::vector<std::string> entry_paths;
     std::vector<VisibleItemRef> visible_items;
-    std::vector<size_t> refresh_icon_indices;
+    std::vector<VisibleItemRef> refresh_icon_indices;
+    std::vector<std::filesystem::path> startup_cache_candidates;
+    std::vector<std::filesystem::path> local_package_scan_dirs;
+    std::vector<LocalPackageScanCandidate> local_package_scan_candidates;
+    std::vector<LocalPackageEntry> local_package_scan_results;
+    std::vector<PendingHttpEvent> pending_http_events;
     std::unordered_map<std::string, VisibleItemRef> instance_to_entry;
     std::unordered_map<std::string, size_t> local_package_by_manifest_id;
     std::unordered_set<std::string> installed_manifest_ids;
     std::unordered_map<std::string, std::string> installed_version_by_manifest_id;
     std::unordered_set<std::string> registered_icon_resource_ids;
+    std::unordered_set<std::string> local_package_scan_seen_keys;
+    std::unordered_set<uint64_t> terminal_download_request_ids;
     std::string applied_i18n_locale;
     std::unordered_map<std::string, std::string> i18n_strings;
     std::string status_text;
     std::string storage_text;
     std::string refresh_dialog_message;
+    std::string pending_delete_local_package_name;
+    std::string pending_delete_success_package_name;
+    std::filesystem::path pending_delete_local_package_path;
+    std::filesystem::path pending_delete_success_package_path;
+    std::string startup_cache_last_error;
     ViewMode view_mode = ViewMode::Store;
+    StartupLoadPhase startup_load_phase = StartupLoadPhase::None;
+    LocalPackageScanPhase local_package_scan_phase = LocalPackageScanPhase::None;
     size_t list_slot_count = 0;
     size_t list_page = 0;
+    size_t startup_cache_cursor = 0;
+    size_t local_package_scan_dir_cursor = 0;
+    size_t local_package_scan_candidate_cursor = 0;
     system::core::MessageDialogRequestId message_dialog_request_id =
         system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID;
     system::core::TimerId refresh_icon_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId size_metadata_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId startup_load_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId view_mode_load_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId deferred_operation_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId local_package_scan_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId refresh_request_timeout_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId refresh_result_timer_id = system::core::INVALID_TIMER_ID;
+    system::core::TimerId http_event_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId time_sync_timeout_timer_id = system::core::INVALID_TIMER_ID;
     system::core::TimerId time_sync_success_close_timer_id = system::core::INVALID_TIMER_ID;
     std::optional<service::helper::Http::GeneralState> http_general_state;
     std::optional<ViewMode> pending_view_mode;
+    std::deque<DeferredOperation> pending_deferred_operations;
     MessageDialogPurpose message_dialog_purpose = MessageDialogPurpose::None;
     PendingRefreshResultType pending_refresh_result_type = PendingRefreshResultType::None;
     IconUpdatePurpose refresh_icon_purpose = IconUpdatePurpose::None;
     std::optional<boost::json::object> pending_refresh_result_response;
     uint64_t async_generation = 0;
+    uint64_t storage_free_bytes = 0;
+    bool storage_capacity_known = false;
     uint64_t refresh_request_id = 0;
     uint64_t refresh_icon_request_id = 0;
     uint64_t download_dialog_request_id = 0;
@@ -820,6 +839,10 @@ struct AppStoreApp::Impl {
     bool storage_match_warning_logged = false;
     bool time_sync_waiting = false;
     bool processing_pending_refresh_result = false;
+    bool startup_cache_load_in_progress = false;
+    bool local_package_scan_in_progress = false;
+    bool local_package_scan_refresh_view = false;
+    std::mutex pending_http_events_mutex;
 };
 
 AppStoreApp::AppStoreApp()
@@ -835,40 +858,65 @@ AppStoreApp::~AppStoreApp() = default;
 #define storage_binding_ impl_->storage_binding
 #define http_event_connections_ impl_->http_event_connections
 #define primary_action_connection_ impl_->primary_action_connection
+#define local_delete_action_connection_ impl_->local_delete_action_connection
 #define entries_ impl_->entries
 #define local_packages_ impl_->local_packages
 #define installed_runtime_apps_ impl_->installed_runtime_apps
 #define entry_paths_ impl_->entry_paths
 #define visible_items_ impl_->visible_items
 #define refresh_icon_indices_ impl_->refresh_icon_indices
+#define startup_cache_candidates_ impl_->startup_cache_candidates
+#define local_package_scan_dirs_ impl_->local_package_scan_dirs
+#define local_package_scan_candidates_ impl_->local_package_scan_candidates
+#define local_package_scan_results_ impl_->local_package_scan_results
+#define pending_http_events_ impl_->pending_http_events
 #define instance_to_entry_ impl_->instance_to_entry
 #define local_package_by_manifest_id_ impl_->local_package_by_manifest_id
 #define installed_manifest_ids_ impl_->installed_manifest_ids
 #define installed_version_by_manifest_id_ impl_->installed_version_by_manifest_id
 #define registered_icon_resource_ids_ impl_->registered_icon_resource_ids
+#define local_package_scan_seen_keys_ impl_->local_package_scan_seen_keys
+#define terminal_download_request_ids_ impl_->terminal_download_request_ids
 #define applied_i18n_locale_ impl_->applied_i18n_locale
 #define i18n_strings_ impl_->i18n_strings
 #define status_text_ impl_->status_text
 #define storage_text_ impl_->storage_text
 #define refresh_dialog_message_ impl_->refresh_dialog_message
+#define pending_delete_local_package_name_ impl_->pending_delete_local_package_name
+#define pending_delete_success_package_name_ impl_->pending_delete_success_package_name
+#define pending_delete_local_package_path_ impl_->pending_delete_local_package_path
+#define pending_delete_success_package_path_ impl_->pending_delete_success_package_path
+#define startup_cache_last_error_ impl_->startup_cache_last_error
 #define view_mode_ impl_->view_mode
+#define startup_load_phase_ impl_->startup_load_phase
+#define local_package_scan_phase_ impl_->local_package_scan_phase
 #define list_slot_count_ impl_->list_slot_count
 #define list_page_ impl_->list_page
+#define startup_cache_cursor_ impl_->startup_cache_cursor
+#define local_package_scan_dir_cursor_ impl_->local_package_scan_dir_cursor
+#define local_package_scan_candidate_cursor_ impl_->local_package_scan_candidate_cursor
 #define message_dialog_request_id_ impl_->message_dialog_request_id
 #define refresh_icon_timer_id_ impl_->refresh_icon_timer_id
 #define size_metadata_timer_id_ impl_->size_metadata_timer_id
+#define startup_load_timer_id_ impl_->startup_load_timer_id
 #define view_mode_load_timer_id_ impl_->view_mode_load_timer_id
+#define deferred_operation_timer_id_ impl_->deferred_operation_timer_id
+#define local_package_scan_timer_id_ impl_->local_package_scan_timer_id
 #define refresh_request_timeout_timer_id_ impl_->refresh_request_timeout_timer_id
 #define refresh_result_timer_id_ impl_->refresh_result_timer_id
+#define http_event_timer_id_ impl_->http_event_timer_id
 #define time_sync_timeout_timer_id_ impl_->time_sync_timeout_timer_id
 #define time_sync_success_close_timer_id_ impl_->time_sync_success_close_timer_id
 #define http_general_state_ impl_->http_general_state
 #define pending_view_mode_ impl_->pending_view_mode
+#define pending_deferred_operations_ impl_->pending_deferred_operations
 #define message_dialog_purpose_ impl_->message_dialog_purpose
 #define pending_refresh_result_type_ impl_->pending_refresh_result_type
 #define refresh_icon_purpose_ impl_->refresh_icon_purpose
 #define pending_refresh_result_response_ impl_->pending_refresh_result_response
 #define async_generation_ impl_->async_generation
+#define storage_free_bytes_ impl_->storage_free_bytes
+#define storage_capacity_known_ impl_->storage_capacity_known
 #define refresh_request_id_ impl_->refresh_request_id
 #define refresh_icon_request_id_ impl_->refresh_icon_request_id
 #define download_dialog_request_id_ impl_->download_dialog_request_id
@@ -881,6 +929,10 @@ AppStoreApp::~AppStoreApp() = default;
 #define storage_match_warning_logged_ impl_->storage_match_warning_logged
 #define time_sync_waiting_ impl_->time_sync_waiting
 #define processing_pending_refresh_result_ impl_->processing_pending_refresh_result
+#define startup_cache_load_in_progress_ impl_->startup_cache_load_in_progress
+#define local_package_scan_in_progress_ impl_->local_package_scan_in_progress
+#define local_package_scan_refresh_view_ impl_->local_package_scan_refresh_view
+#define pending_http_events_mutex_ impl_->pending_http_events_mutex
 
 #include "app/lifecycle.ipp"
 #include "app/view_mode.ipp"
@@ -901,40 +953,65 @@ AppStoreApp::~AppStoreApp() = default;
 #undef storage_binding_
 #undef http_event_connections_
 #undef primary_action_connection_
+#undef local_delete_action_connection_
 #undef entries_
 #undef local_packages_
 #undef installed_runtime_apps_
 #undef entry_paths_
 #undef visible_items_
 #undef refresh_icon_indices_
+#undef startup_cache_candidates_
+#undef local_package_scan_dirs_
+#undef local_package_scan_candidates_
+#undef local_package_scan_results_
+#undef pending_http_events_
 #undef instance_to_entry_
 #undef local_package_by_manifest_id_
 #undef installed_manifest_ids_
 #undef installed_version_by_manifest_id_
 #undef registered_icon_resource_ids_
+#undef local_package_scan_seen_keys_
+#undef terminal_download_request_ids_
 #undef applied_i18n_locale_
 #undef i18n_strings_
 #undef status_text_
 #undef storage_text_
 #undef refresh_dialog_message_
+#undef pending_delete_local_package_name_
+#undef pending_delete_success_package_name_
+#undef pending_delete_local_package_path_
+#undef pending_delete_success_package_path_
+#undef startup_cache_last_error_
 #undef view_mode_
+#undef startup_load_phase_
+#undef local_package_scan_phase_
 #undef list_slot_count_
 #undef list_page_
+#undef startup_cache_cursor_
+#undef local_package_scan_dir_cursor_
+#undef local_package_scan_candidate_cursor_
 #undef message_dialog_request_id_
 #undef refresh_icon_timer_id_
 #undef size_metadata_timer_id_
+#undef startup_load_timer_id_
 #undef view_mode_load_timer_id_
+#undef deferred_operation_timer_id_
+#undef local_package_scan_timer_id_
 #undef refresh_request_timeout_timer_id_
 #undef refresh_result_timer_id_
+#undef http_event_timer_id_
 #undef time_sync_timeout_timer_id_
 #undef time_sync_success_close_timer_id_
 #undef http_general_state_
 #undef pending_view_mode_
+#undef pending_deferred_operations_
 #undef message_dialog_purpose_
 #undef pending_refresh_result_type_
 #undef refresh_icon_purpose_
 #undef pending_refresh_result_response_
 #undef async_generation_
+#undef storage_free_bytes_
+#undef storage_capacity_known_
 #undef refresh_request_id_
 #undef refresh_icon_request_id_
 #undef download_dialog_request_id_
@@ -947,5 +1024,9 @@ AppStoreApp::~AppStoreApp() = default;
 #undef storage_match_warning_logged_
 #undef time_sync_waiting_
 #undef processing_pending_refresh_result_
+#undef startup_cache_load_in_progress_
+#undef local_package_scan_in_progress_
+#undef local_package_scan_refresh_view_
+#undef pending_http_events_mutex_
 
 } // namespace esp_brookesia::app::app_store

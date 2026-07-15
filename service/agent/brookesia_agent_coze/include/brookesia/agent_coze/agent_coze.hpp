@@ -41,10 +41,9 @@ public:
 ////////////////////////// The following are the agent specific attributes /////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     /**
-     * @brief Persisted Coze data items managed by the agent.
+     * @brief Persisted Coze runtime data items managed by the agent.
      */
     enum class DataType {
-        Info,
         BotIndex,
         Max,
     };
@@ -58,13 +57,13 @@ public:
             .start = 5000,
         },
         .support_general_functions = {
-            service::helper::Manager::AgentGeneralFunction::InterruptSpeaking,
+            service::helper::AgentManager::AgentGeneralFunction::InterruptSpeaking,
         },
         .support_general_events = {
-            service::helper::Manager::AgentGeneralEvent::SpeakingStatusChanged,
-            service::helper::Manager::AgentGeneralEvent::ListeningStatusChanged,
-            service::helper::Manager::AgentGeneralEvent::AgentSpeakingTextGot,
-            service::helper::Manager::AgentGeneralEvent::EmoteGot,
+            service::helper::AgentManager::AgentGeneralEvent::SpeakingStatusChanged,
+            service::helper::AgentManager::AgentGeneralEvent::ListeningStatusChanged,
+            service::helper::AgentManager::AgentGeneralEvent::AgentSpeakingTextGot,
+            service::helper::AgentManager::AgentGeneralEvent::EmoteGot,
         },
         .require_time_sync = true,
     };
@@ -108,8 +107,14 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     Coze()
-        : Base(DEFAULT_AGENT_ATTRIBUTES, DEFAULT_AUDIO_CONFIG)
+        : Base(
+              DEFAULT_AGENT_ATTRIBUTES,
+              get_component_version(),
+              DEFAULT_AUDIO_CONFIG
+          )
     {
     }
     ~Coze() = default;
@@ -140,7 +145,6 @@ private:
     std::expected<void, std::string> function_set_active_robot_index(double index);
     std::expected<double, std::string> function_get_active_robot_index();
     std::expected<boost::json::array, std::string> function_get_robot_infos();
-    std::expected<void, std::string> function_load_data();
 
     std::vector<service::FunctionSchema> get_function_schemas() override
     {
@@ -166,10 +170,6 @@ private:
             BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
                 service::helper::Coze, service::helper::Coze::FunctionId::GetRobotInfos,
                 function_get_robot_infos()
-            ),
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
-                service::helper::Coze, service::helper::Coze::FunctionId::LoadData,
-                function_load_data()
             )
         };
     }
@@ -218,9 +218,7 @@ private:
     template<DataType type>
     constexpr auto &get_data()
     {
-        if constexpr (type == DataType::Info) {
-            return data_info_;
-        } else if constexpr (type == DataType::BotIndex) {
+        if constexpr (type == DataType::BotIndex) {
             return active_robot_index_;
         } else {
             static_assert(false, "Invalid data type");
@@ -229,9 +227,7 @@ private:
     template<DataType type>
     void set_data(const auto &data)
     {
-        if constexpr (type == DataType::Info) {
-            data_info_ = data;
-        } else if constexpr (type == DataType::BotIndex) {
+        if constexpr (type == DataType::BotIndex) {
             active_robot_index_ = data;
         } else {
             static_assert(false, "Invalid data type");
@@ -253,7 +249,7 @@ private:
     static std::string get_access_token(const CozeAuthInfo &auth_info);
     static std::string get_emote(std::string_view data);
 
-    bool is_data_loaded_ = false;
+    bool is_bot_index_loaded_ = false;
     uint8_t active_robot_index_ = 0;
     CozeInfo data_info_{};
 
@@ -265,6 +261,6 @@ private:
     lib_utils::TaskScheduler::TaskId speaking_text_task_id_ = 0;
 };
 
-BROOKESIA_DESCRIBE_ENUM(Coze::DataType, Info, BotIndex, Max);
+BROOKESIA_DESCRIBE_ENUM(Coze::DataType, BotIndex, Max);
 
 } // namespace esp_brookesia::agent

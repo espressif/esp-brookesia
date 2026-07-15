@@ -36,19 +36,19 @@ struct AudioConfig {
 /**
  * @brief Re-exported general agent actions supported by the manager helper.
  */
-using GeneralAction = service::helper::Manager::GeneralAction;
+using GeneralAction = service::helper::AgentManager::GeneralAction;
 /**
  * @brief Re-exported general agent events emitted by the manager helper.
  */
-using GeneralEvent = service::helper::Manager::GeneralEvent;
+using GeneralEvent = service::helper::AgentManager::GeneralEvent;
 /**
  * @brief Re-exported metadata that describes an agent implementation.
  */
-using AgentAttributes = service::helper::Manager::AgentAttributes;
+using AgentAttributes = service::helper::AgentManager::AgentAttributes;
 /**
  * @brief Re-exported chat-mode enumeration.
  */
-using ChatMode = service::helper::Manager::ChatMode;
+using ChatMode = service::helper::AgentManager::ChatMode;
 
 /**
  * @brief Bit positions stored in `GeneralStateFlags`.
@@ -117,12 +117,18 @@ protected:
      * @brief Construct an agent base with metadata, audio settings, and service dependencies.
      *
      * @param[in] attributes Public agent metadata.
+     * @param[in] version Agent component version.
      * @param[in] audio_config Audio configuration used by the agent.
      * @param[in] service_config Additional service dependencies beyond the audio service.
      */
-    Base(const AgentAttributes &attributes, const AudioConfig &audio_config, const ServiceConfig &service_config = {})
+    Base(
+        const AgentAttributes &attributes, const std::string &version, const AudioConfig &audio_config,
+        const ServiceConfig &service_config = {}
+    )
         : ServiceBase(Attributes{
         .name = attributes.name.data(),
+        .description = "Provide conversational agent capabilities for " + attributes.name + ".",
+        .version = version,
         .dependencies = [ & ]()
         {
             std::vector<std::string> deps = {
@@ -241,7 +247,7 @@ protected:
     }
 
     /**
-     * @brief Update agent-specific persistent configuration.
+     * @brief Update agent-specific runtime configuration.
      *
      * @param[in] info JSON object with implementation-defined contents.
      * @return true if the information is accepted.
@@ -253,7 +259,7 @@ protected:
     }
 
     /**
-     * @brief Reset agent-specific persisted state.
+     * @brief Reset agent-specific runtime state.
      *
      * @return true if the reset succeeds.
      */

@@ -22,6 +22,11 @@ namespace esp_brookesia::system::core {
 
 class System;
 
+struct GuiActionHandlerSubscription {
+    std::string action;
+    std::function<void(const gui::Event &)> handler;
+};
+
 class AppGuiRuntime {
 public:
     AppGuiRuntime() = default;
@@ -46,9 +51,13 @@ public:
     ) const;
     bool destroy_view(std::string_view absolute_path) const;
     std::expected<void, std::string> subscribe_action(std::string_view action) const;
+    std::expected<void, std::string> subscribe_actions(const std::vector<std::string> &actions) const;
     gui::ScopedConnection subscribe_action(
         std::string_view action,
         std::function<void(const gui::Event &)> handler
+    ) const;
+    std::vector<gui::ScopedConnection> subscribe_actions(
+        const std::vector<GuiActionHandlerSubscription> &subscriptions
     ) const;
     std::expected<void, std::string> trigger_screen_flow(
         std::string_view screen_flow,
@@ -56,10 +65,24 @@ public:
     ) const;
     std::optional<std::string> get_screen_flow_state(std::string_view screen_flow) const;
     std::optional<gui::ViewFrame> get_view_frame(std::string_view absolute_path) const;
+    std::expected<void, std::string> scroll_to(
+        std::string_view absolute_path,
+        int32_t x,
+        int32_t y,
+        bool animated = true
+    ) const;
+    std::expected<void, std::string> scroll_to_view(
+        std::string_view absolute_path,
+        bool animated = true
+    ) const;
     std::expected<void, std::string> set_view_src(
         std::string_view absolute_path,
         std::string_view src
     ) const;
+    std::expected<void, std::string> preload_image(std::string_view image_id) const;
+    std::expected<void, std::string> preload_images(const std::vector<std::string> &image_ids) const;
+    std::expected<void, std::string> release_preloaded_image(std::string_view image_id) const;
+    std::expected<void, std::string> release_preloaded_images(const std::vector<std::string> &image_ids) const;
     std::expected<gui::SubscriptionId, std::string> start_view_animation_with_id(
         std::string_view absolute_path,
         const gui::Animation &animation,
@@ -71,7 +94,7 @@ public:
         gui::Runtime::AnimationCompletedHandler completed_handler = {}
     ) const;
     bool stop_animation(gui::SubscriptionId subscription_id) const;
-    void set_view_debug_enabled(bool enabled) const;
+    std::expected<void, std::string> set_view_debug_enabled(bool enabled) const;
     bool is_view_debug_enabled() const;
     std::expected<void, std::string> enable_live_preview(const gui::LivePreviewOptions &options = {}) const;
     bool disable_live_preview() const;
@@ -84,6 +107,7 @@ public:
         bool reapply_loaded_documents = true
     ) const;
     std::string get_theme() const;
+    GuiThemeLanguage get_theme_language() const;
     std::expected<void, std::string> register_font_file(
         std::string_view resource_dir,
         std::string_view path
@@ -157,6 +181,19 @@ public:
         std::string_view absolute_path,
         const gui::Animation &animation,
         gui::Runtime::AnimationCompletedHandler completed_handler = {}
+    ) const;
+    std::expected<void, std::string> preload_image(gui::DocumentId document_id, std::string_view image_id) const;
+    std::expected<void, std::string> preload_images(
+        gui::DocumentId document_id,
+        const std::vector<std::string> &image_ids
+    ) const;
+    std::expected<void, std::string> release_preloaded_image(
+        gui::DocumentId document_id,
+        std::string_view image_id
+    ) const;
+    std::expected<void, std::string> release_preloaded_images(
+        gui::DocumentId document_id,
+        const std::vector<std::string> &image_ids
     ) const;
 
 private:

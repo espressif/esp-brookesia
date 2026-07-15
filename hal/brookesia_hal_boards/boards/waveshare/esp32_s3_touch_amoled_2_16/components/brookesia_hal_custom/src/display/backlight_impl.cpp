@@ -13,6 +13,7 @@
 #include "esp_board_device.h"
 #include "esp_board_manager_includes.h"
 #include "backlight_impl.hpp"
+#include "brookesia/hal_adaptor/display/device.hpp"
 
 #define LCD_OPCODE_WRITE_CMD (0x02ULL)
 
@@ -30,7 +31,9 @@ esp_lcd_panel_io_handle_t get_io_handle(void *handles)
 } // namespace
 
 CustomDisplayBacklightImpl::CustomDisplayBacklightImpl()
-    : DisplayBacklightIface()
+    : display::BacklightIface(display::BacklightIface::Info{
+    .group_id = DisplayDevice::LCD_GROUP_ID,
+})
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 

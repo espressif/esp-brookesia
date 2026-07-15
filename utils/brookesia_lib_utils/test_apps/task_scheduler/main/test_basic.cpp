@@ -76,6 +76,85 @@ TEST_CASE("Test basic start and stop", "[utils][task_scheduler][basic][start_sto
     TEST_ASSERT_FALSE(scheduler.is_running());
 }
 
+TEST_CASE("Test single worker cannot reserve a wait slot", "[utils][task_scheduler][wait_slot][single]")
+{
+    TaskScheduler scheduler;
+    TEST_ASSERT_TRUE(scheduler.start());
+
+    std::promise<bool> result_promise;
+    auto result_future = result_promise.get_future();
+    TEST_ASSERT_TRUE(scheduler.post([&]() {
+        result_promise.set_value(scheduler.try_acquire_worker_wait_slot());
+    }));
+    TEST_ASSERT_FALSE(result_future.get());
+    TEST_ASSERT_TRUE(scheduler.wait_all(1000));
+    scheduler.stop();
+}
+
+TEST_CASE("Test worker wait slot keeps one worker available", "[utils][task_scheduler][wait_slot][capacity]")
+{
+    TaskScheduler scheduler;
+    TEST_ASSERT_TRUE(scheduler.start(TEST_SCHEDULER_CONFIG_TWO_THREADS));
+    TEST_ASSERT_TRUE(scheduler.try_acquire_worker_wait_slot());
+    scheduler.release_worker_wait_slot();
+
+    std::atomic<bool> release_first{false};
+    std::promise<bool> first_promise;
+    auto first_future = first_promise.get_future();
+    TEST_ASSERT_TRUE(scheduler.post([&]() {
+        const bool acquired = scheduler.try_acquire_worker_wait_slot();
+        first_promise.set_value(acquired);
+        while (!release_first.load()) {
+            boost::this_thread::sleep_for(boost::chrono::milliseconds(1));
+        }
+        if (acquired) {
+            scheduler.release_worker_wait_slot();
+        }
+    }));
+    TEST_ASSERT_TRUE(first_future.get());
+
+    std::promise<bool> second_promise;
+    auto second_future = second_promise.get_future();
+    TEST_ASSERT_TRUE(scheduler.post([&]() {
+        scheduler.release_worker_wait_slot();
+        second_promise.set_value(scheduler.try_acquire_worker_wait_slot());
+    }));
+    TEST_ASSERT_FALSE(second_future.get());
+
+    release_first.store(true);
+    TEST_ASSERT_TRUE(scheduler.wait_all(1000));
+    scheduler.stop();
+}
+
+TEST_CASE("Test worker wait slots reset after restart", "[utils][task_scheduler][wait_slot][restart]")
+{
+    TaskScheduler scheduler;
+    TEST_ASSERT_TRUE(scheduler.start(TEST_SCHEDULER_CONFIG_TWO_THREADS));
+
+    std::promise<bool> first_promise;
+    auto first_future = first_promise.get_future();
+    TEST_ASSERT_TRUE(scheduler.post([&]() {
+        first_promise.set_value(scheduler.try_acquire_worker_wait_slot());
+    }));
+    TEST_ASSERT_TRUE(first_future.get());
+    TEST_ASSERT_TRUE(scheduler.wait_all(1000));
+    scheduler.stop();
+
+    TEST_ASSERT_TRUE(scheduler.start(TEST_SCHEDULER_CONFIG_TWO_THREADS));
+    std::promise<bool> second_promise;
+    auto second_future = second_promise.get_future();
+    TEST_ASSERT_TRUE(scheduler.post([&]() {
+        const bool acquired = scheduler.try_acquire_worker_wait_slot();
+        second_promise.set_value(acquired);
+        if (acquired) {
+            scheduler.release_worker_wait_slot();
+        }
+    }));
+    TEST_ASSERT_TRUE(second_future.get());
+    TEST_ASSERT_TRUE(scheduler.wait_all(1000));
+    scheduler.stop();
+}
+
 TEST_CASE("Test post immediate task", "[utils][task_scheduler][basic][post]")
 {
     BROOKESIA_LOGI("=== TaskScheduler Post Immediate Task Test ===");

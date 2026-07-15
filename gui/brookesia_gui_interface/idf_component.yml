@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia backend-neutral GUI document and runtime interface.
 url: https://github.com/espressif/esp-brookesia/tree/master/gui/brookesia_gui_interface
 repository: https://github.com/espressif/esp-brookesia.git
@@ -8,3 +8,8 @@ dependencies:
     version: "0.8.*"
     override_path: ../../utils/brookesia_lib_utils
     require: public
+
+  espressif/brookesia_service_helper:
+    version: "0.8.*"
+    override_path: ../../service/framework/brookesia_service_helper
+    require: private

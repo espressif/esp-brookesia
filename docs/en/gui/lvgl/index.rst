@@ -13,8 +13,8 @@ Scope
 --------------------
 
 - Project integration of the LVGL backend
-- Build-time packaging of PNG into LVGL image ``.bin``
-- Preloading and caching behavior of ``.bin`` images in the backend
+- Build-time packaging of PNG/JPEG into LVGL image ``.bin``
+- Runtime loading, metadata completion, preloading, and caching of ``.bin``, PNG, and JPEG images
 
 For the JSON UI protocol itself, see :doc:`../interface/json_ui/index`.
 
@@ -30,11 +30,11 @@ Documents in This Group
      - Content
      - When to use
    * - :doc:`backend`
-     - Mapping from the resolved JSON UI model to the LVGL API, ``.bin`` preload, backend pump
+     - Mapping from the resolved JSON UI model to the LVGL API, image loading and caching, backend pump
      - Troubleshooting LVGL backend behavior
    * - :doc:`image_pack`
      - ``brookesia_gui_lvgl_pack_images()``, LVGLImage.py parsing, Python dependencies
-     - Packaging PNG resources into package / SPIFFS
+     - Packaging PNG/JPEG resources into package / SPIFFS
 
 .. toctree::
    :maxdepth: 1
@@ -45,4 +45,5 @@ Documents in This Group
 
 .. note::
 
-   Maintainer sync check: when editing ``cmake/image_pack.cmake``, sync :doc:`image_pack`; when changing ``.bin`` preload, caching strategy, or JSON UI field mapping, sync :doc:`backend`.
+   Maintainer sync check: when editing ``cmake/image_pack.cmake``, sync :doc:`image_pack`; when changing image
+   loading, preloading, caching, or JSON UI field mapping, sync :doc:`backend`.

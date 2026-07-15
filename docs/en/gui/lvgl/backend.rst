@@ -30,6 +30,37 @@ LVGL backend supports LVGL v9 image ``.bin``:
 
 For build-time PNG-to-``.bin`` conversion, see :doc:`image_pack`.
 
+.. _gui-lvgl-backend-png-preload-sec:
+
+PNG Preload
+--------------------
+
+The LVGL backend also supports explicit PNG preload:
+
+- ordinary PNG files still use LVGL's on-demand decode path by default when first shown or when the source changes
+- when ``imageSet.images[].preload: true`` is set or ``preload_image(s)`` is called manually, the backend opens the LVGL decoder in the GUI task, copies the decoded draw buffer, and caches it as a descriptor that can be passed directly to ``lv_image_set_src``
+- the decoded cache is shared by path with reference counting; ``release_preloaded_image(s)`` releases only manual references, while document unload releases automatic references held by ``preload: true``
+- unsupported preload formats return an explicit error instead of silently becoming no-ops
+
+.. _gui-lvgl-backend-jpeg-preload-sec:
+
+JPEG Loading and Preload
+--------------------------------
+
+The LVGL backend supports runtime ``.jpg`` / ``.jpeg`` resources with case-insensitive extensions:
+
+- the backend validates the JPEG magic and parses a start-of-frame header to complete missing image dimensions
+- encoded bytes are read through Storage into an owned ``LV_COLOR_FORMAT_RAW`` descriptor
+- JPEG resources are always preloaded and shared by path through the same reference-counted cache as other encoded
+  image descriptors, so LVGL never receives temporary storage
+- ESP uses the decoder enabled by ``CONFIG_ESP_LVGL_ADAPTER_ENABLE_DECODER``; PC and WASM use LVGL TJPGD with
+  ``LV_USE_TJPGD`` and ``LV_USE_FS_MEMFS`` enabled
+- a missing decoder, invalid JPEG header, truncated segment, or invalid dimensions returns an explicit error that
+  includes the source path
+
+PNG behavior is unchanged: ordinary PNG resources remain on-demand unless explicitly preloaded. LVGL ``.bin`` and
+JPEG resources are preloaded automatically because their descriptors must retain owned encoded data.
+
 .. _gui-lvgl-backend-sec-03:
 
 Layout

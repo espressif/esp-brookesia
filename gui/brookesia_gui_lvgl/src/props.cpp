@@ -4,20 +4,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <algorithm>
-#include <cerrno>
 #include <cmath>
-#include <cstdio>
 #include <cstdint>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
-#include <sys/stat.h>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "private/types.hpp"
 #include "port/private/threading.hpp"
@@ -28,14 +24,18 @@
 #if defined(__EMSCRIPTEN__)
 #include "brookesia/gui_interface/wasm/gui_task_queue.hpp"
 #endif
+#include "brookesia/service_helper/system/storage.hpp"
 #include "private/utils.hpp"
 
 namespace esp_brookesia::gui::lvgl {
 
 namespace {
 
+using StorageHelper = service::helper::Storage;
+
 static bool is_lvgl_bin_path(std::string_view path);
-static void log_image_file_diagnostics_once(std::string_view path);
+static bool is_png_path(std::string_view path);
+static bool is_jpeg_path(std::string_view path);
 
 class ThreadLockGuard {
 public:
@@ -390,7 +390,7 @@ static void apply_keyboard_default_item_styles(Record &record)
     }
 }
 
-static const void *keyboard_key_image_src(BackendImpl &impl, Record &record, const KeyboardKey &key)
+static const void *keyboard_key_image_src(BackendImpl &impl, const KeyboardKey &key)
 {
     if (key.resolved_image.native_src != 0) {
         return reinterpret_cast<const void *>(key.resolved_image.native_src);
@@ -399,12 +399,12 @@ static const void *keyboard_key_image_src(BackendImpl &impl, Record &record, con
         return nullptr;
     }
     if (!is_lvgl_bin_path(key.resolved_image.primary_src)) {
-        auto &src_storage = record.keyboard_image_src_storages[key.resolved_image.image_id];
-        if (src_storage == nullptr || *src_storage != key.resolved_image.primary_src) {
-            src_storage = std::make_shared<std::string>(key.resolved_image.primary_src);
+        auto decoded_cache_it = impl.decoded_image_cache.find(key.resolved_image.primary_src);
+        if (decoded_cache_it != impl.decoded_image_cache.end() && decoded_cache_it->second.source != nullptr) {
+            return &decoded_cache_it->second.source->descriptor;
         }
-        log_image_file_diagnostics_once(*src_storage);
-        return src_storage->c_str();
+        BROOKESIA_LOGW("Keyboard key image source is not preloaded: %1%", key.resolved_image.primary_src);
+        return nullptr;
     }
 
     auto cache_it = impl.binary_image_cache.find(key.resolved_image.primary_src);
@@ -427,7 +427,7 @@ static bool draw_keyboard_key_image(
         return false;
     }
 
-    const auto *src = keyboard_key_image_src(impl, record, key);
+    const auto *src = keyboard_key_image_src(impl, key);
     if (src == nullptr || key.resolved_image.width <= 0 || key.resolved_image.height <= 0) {
         return false;
     }
@@ -553,7 +553,6 @@ static void apply_keyboard_layouts(BackendImpl &impl, Record &record, const Keyb
     record.keyboard_allowed_modes = props.allowed_modes;
     record.keyboard_icon_size = props.icon_size.mode == SizeMode::Fixed ? std::max<int32_t>(0, props.icon_size.value) : 0;
     record.keyboard_key_fill_areas.clear();
-    record.keyboard_image_src_storages.clear();
     record.keyboard_key_styles.clear();
     const auto &key_styles = props.resolved_key_styles.empty() ? props.key_styles : props.resolved_key_styles;
     for (const auto &[style_class, style] : key_styles) {
@@ -568,7 +567,8 @@ static void apply_keyboard_layouts(BackendImpl &impl, Record &record, const Keyb
             continue;
         }
 
-        auto &storage = record.keyboard_layouts[*index];
+        auto storage_owner = std::make_shared<Record::KeyboardLayoutStorage>();
+        auto &storage = *storage_owner;
         storage.labels.clear();
         storage.keys.clear();
         storage.map.clear();
@@ -607,6 +607,8 @@ static void apply_keyboard_layouts(BackendImpl &impl, Record &record, const Keyb
             storage.map.data(),
             storage.controls.data()
         );
+        record.keyboard_layouts[*index] = storage;
+        impl.keyboard_layout_backing_store.push_back(std::move(storage_owner));
     }
 
     if (!record.keyboard_event_registered) {
@@ -777,6 +779,59 @@ static bool frame_view_matches(
            record.frame_view_height == height;
 }
 
+static bool copy_frame_view_buffer_to_shadow(
+    Record &record,
+    const esp_brookesia::service::Display::BufferOutputView &output,
+    std::optional<esp_brookesia::service::Display::FrameInfo> frame = std::nullopt
+)
+{
+    if (output.info.width == 0 || output.info.height == 0 || output.stride_bytes == 0 ||
+            output.buffer.data_ptr == nullptr) {
+        return false;
+    }
+
+    const uint64_t data_size = static_cast<uint64_t>(output.stride_bytes) * output.info.height;
+    if (data_size > std::numeric_limits<size_t>::max()) {
+        return false;
+    }
+    if (record.frame_view_shadow_buffer.size() != static_cast<size_t>(data_size)) {
+        record.frame_view_shadow_buffer.assign(static_cast<size_t>(data_size), 0);
+    }
+    if (record.frame_view_shadow_buffer.empty()) {
+        return false;
+    }
+
+    const auto descriptor_format = to_frame_color_format(output.info.pixel_format);
+    const size_t bytes_per_pixel = descriptor_format.has_value() ? frame_view_bytes_per_pixel(*descriptor_format) : 0;
+    const auto *source = output.buffer.to_const_ptr<uint8_t>();
+    auto *target = record.frame_view_shadow_buffer.data();
+    if (source == nullptr || target == nullptr || bytes_per_pixel == 0) {
+        return false;
+    }
+
+    if (!frame.has_value() || frame->pixel_format != output.info.pixel_format ||
+            frame->x >= output.info.width || frame->y >= output.info.height ||
+            frame->width == 0 || frame->height == 0 ||
+            frame->width > output.info.width - frame->x ||
+            frame->height > output.info.height - frame->y) {
+        std::memcpy(target, source, static_cast<size_t>(data_size));
+        return true;
+    }
+
+    const size_t row_bytes = static_cast<size_t>(frame->width) * bytes_per_pixel;
+    const size_t x_offset = static_cast<size_t>(frame->x) * bytes_per_pixel;
+    if (frame->x == 0 && frame->y == 0 && frame->width == output.info.width &&
+            frame->height == output.info.height && row_bytes == output.stride_bytes) {
+        std::memcpy(target, source, static_cast<size_t>(data_size));
+        return true;
+    }
+    for (uint32_t row = 0; row < frame->height; ++row) {
+        const size_t offset = (static_cast<size_t>(frame->y) + row) * output.stride_bytes + x_offset;
+        std::memcpy(target + offset, source + offset, row_bytes);
+    }
+    return true;
+}
+
 static void clear_frame_view_image(Record &record)
 {
     record.frame_view_frame_connection.disconnect();
@@ -784,6 +839,7 @@ static void clear_frame_view_image(Record &record)
     record.frame_view_width = 0;
     record.frame_view_height = 0;
     record.frame_view_descriptor = {};
+    record.frame_view_shadow_buffer.clear();
     if (record.object != nullptr && lv_obj_is_valid(record.object)) {
         lv_image_set_src(record.object, nullptr);
     }
@@ -828,6 +884,12 @@ static bool set_frame_view_image(
         return false;
     }
 
+    if (!copy_frame_view_buffer_to_shadow(record, output)) {
+        BROOKESIA_LOGE("Failed to copy FrameView output buffer for node '%1%'", record.absolute_path);
+        clear_frame_view_image(record);
+        return false;
+    }
+
     record.frame_view_descriptor = {};
     record.frame_view_descriptor.header.magic = LV_IMAGE_HEADER_MAGIC;
     record.frame_view_descriptor.header.cf = *lv_format;
@@ -836,13 +898,47 @@ static bool set_frame_view_image(
     record.frame_view_descriptor.header.h = output.info.height;
     record.frame_view_descriptor.header.stride = static_cast<uint32_t>(output.stride_bytes);
     record.frame_view_descriptor.data_size = static_cast<uint32_t>(data_size);
-    record.frame_view_descriptor.data = output.buffer.to_const_ptr<uint8_t>();
+    record.frame_view_descriptor.data = record.frame_view_shadow_buffer.data();
 
     lv_image_set_src(record.object, &record.frame_view_descriptor);
     record.frame_view_width = static_cast<int32_t>(output.info.width);
     record.frame_view_height = static_cast<int32_t>(output.info.height);
     record.frame_view_ready = true;
     return true;
+}
+
+static void refresh_frame_view_shadow(
+    BackendImpl &impl,
+    BackendHandle handle,
+    std::string_view output_name,
+    const esp_brookesia::service::Display::FrameInfo &frame
+)
+{
+    using DisplayService = esp_brookesia::service::Display;
+
+    ThreadLockGuard lock;
+    auto *record = impl.find_record(handle);
+    if (record == nullptr || record->object == nullptr || !lv_obj_is_valid(record->object) ||
+            !record->frame_view_ready || record->frame_view_output_name != output_name) {
+        return;
+    }
+
+    auto output = DisplayService::get_instance().get_buffer_output(output_name);
+    if (!output) {
+        BROOKESIA_LOGD("FrameView output shadow copy skipped: output='%1%', error='%2%'",
+                       output_name, output.error());
+        return;
+    }
+    if (!copy_frame_view_buffer_to_shadow(*record, *output, frame)) {
+        BROOKESIA_LOGW("FrameView output shadow copy failed: output='%1%'", output_name);
+        return;
+    }
+    auto *shadow_data = record->frame_view_shadow_buffer.data();
+    if (record->frame_view_descriptor.data != shadow_data) {
+        record->frame_view_descriptor.data = shadow_data;
+        lv_image_set_src(record->object, &record->frame_view_descriptor);
+    }
+    lv_obj_invalidate(record->object);
 }
 
 static void connect_frame_view_frame_signal(BackendImpl &impl, Record &record)
@@ -852,26 +948,18 @@ static void connect_frame_view_frame_signal(BackendImpl &impl, Record &record)
     record.frame_view_frame_connection.disconnect();
     const auto handle = record.handle;
     const auto output_name = record.frame_view_output_name;
-    auto frame_presented_callback = [&impl, handle](const std::string &, const DisplayService::FrameInfo &) {
+    auto frame_presented_callback = [&impl, handle, output_name](
+                                        const std::string &, const DisplayService::FrameInfo & frame
+    ) {
 #if defined(__EMSCRIPTEN__)
-        auto queued = esp_brookesia::gui::wasm::post_gui_task([&impl, handle]() {
-            ThreadLockGuard lock;
-            auto *record = impl.find_record(handle);
-            if (record == nullptr || record->object == nullptr || !lv_obj_is_valid(record->object)) {
-                return;
-            }
-            lv_obj_invalidate(record->object);
+        auto queued = esp_brookesia::gui::wasm::post_gui_task([&impl, handle, output_name, frame]() {
+            refresh_frame_view_shadow(impl, handle, output_name, frame);
         });
         if (!queued) {
             BROOKESIA_LOGW("Failed to queue wasm FrameView invalidate");
         }
 #else
-        ThreadLockGuard lock;
-        auto *record = impl.find_record(handle);
-        if (record == nullptr || record->object == nullptr || !lv_obj_is_valid(record->object)) {
-            return;
-        }
-        lv_obj_invalidate(record->object);
+        refresh_frame_view_shadow(impl, handle, output_name, frame);
 #endif
     };
     record.frame_view_frame_connection =
@@ -1031,51 +1119,17 @@ static void apply_canvas(Record &record, const Node &node)
     }
 }
 
-static void log_image_file_diagnostics_once(std::string_view path)
-{
-    static std::unordered_set<std::string> checked_paths;
-
-    if (path.empty()) {
-        return;
-    }
-
-    std::string path_string(path);
-    const auto [unused_it, inserted] = checked_paths.emplace(path_string);
-    if (!inserted) {
-        return;
-    }
-
-    struct stat file_stat {};
-    errno = 0;
-    if (::stat(path_string.c_str(), &file_stat) != 0) {
-        BROOKESIA_LOGW(
-            "Image file stat failed: path='%1%', errno=%2%, reason='%3%'",
-            path_string,
-            errno,
-            std::strerror(errno)
-        );
-        return;
-    }
-
-    errno = 0;
-    std::FILE *image_file = std::fopen(path_string.c_str(), "rb");
-    if (image_file == nullptr) {
-        BROOKESIA_LOGW(
-            "Image file fopen failed: path='%1%', errno=%2%, reason='%3%'",
-            path_string,
-            errno,
-            std::strerror(errno)
-        );
-        return;
-    }
-    std::fclose(image_file);
-
-    BROOKESIA_LOGD("Image file is readable: path='%1%', size=%2%", path_string, file_stat.st_size);
-}
-
 static uint16_t read_le16(const std::vector<uint8_t> &data, size_t offset)
 {
     return static_cast<uint16_t>(data[offset]) | (static_cast<uint16_t>(data[offset + 1]) << 8);
+}
+
+static uint32_t read_be32(const uint8_t *data)
+{
+    return (static_cast<uint32_t>(data[0]) << 24) |
+           (static_cast<uint32_t>(data[1]) << 16) |
+           (static_cast<uint32_t>(data[2]) << 8) |
+           static_cast<uint32_t>(data[3]);
 }
 
 static bool is_lvgl_bin_path(std::string_view path)
@@ -1083,25 +1137,205 @@ static bool is_lvgl_bin_path(std::string_view path)
     return path.ends_with(".bin") || path.ends_with(".BIN");
 }
 
+static bool is_png_path(std::string_view path)
+{
+    return path.ends_with(".png") || path.ends_with(".PNG");
+}
+
+static bool is_jpeg_path(std::string_view path)
+{
+    return path.ends_with(".jpg") || path.ends_with(".JPG") ||
+           path.ends_with(".jpeg") || path.ends_with(".JPEG");
+}
+
+static bool is_jpeg_decoder_available()
+{
+#if defined(ESP_PLATFORM)
+#   if defined(CONFIG_ESP_LVGL_ADAPTER_ENABLE_DECODER) && CONFIG_ESP_LVGL_ADAPTER_ENABLE_DECODER
+    return true;
+#   else
+    return false;
+#   endif
+#else
+#   if defined(LV_USE_TJPGD) && LV_USE_TJPGD && defined(LV_USE_FS_MEMFS) && LV_USE_FS_MEMFS
+    return true;
+#   else
+    return false;
+#   endif
+#endif
+}
+
+static std::expected<lv_image_header_t, std::string> make_png_image_header(
+    const uint8_t *data, size_t data_size, const std::string &path
+)
+{
+    static constexpr size_t PNG_HEADER_SIZE = 24;
+    static constexpr uint8_t PNG_MAGIC[] = {0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a};
+
+    if (data_size < PNG_HEADER_SIZE) {
+        return std::unexpected("PNG image is too small: " + path);
+    }
+    if (std::memcmp(data, PNG_MAGIC, sizeof(PNG_MAGIC)) != 0) {
+        return std::unexpected("Invalid PNG image magic: " + path);
+    }
+
+    const auto width = read_be32(data + 16);
+    const auto height = read_be32(data + 20);
+    if (width == 0 || height == 0 ||
+            width > static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
+            height > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+        return std::unexpected("Invalid PNG image dimensions: " + path);
+    }
+
+    lv_image_header_t header {};
+    header.magic = LV_IMAGE_HEADER_MAGIC;
+    header.cf = LV_COLOR_FORMAT_RAW_ALPHA;
+    header.flags = 0;
+    header.w = static_cast<int32_t>(width);
+    header.h = static_cast<int32_t>(height);
+    header.stride = 0;
+    header.reserved_2 = 0;
+    return header;
+}
+
+static std::expected<lv_image_header_t, std::string> read_png_image_header(const std::string &path)
+{
+    static constexpr size_t PNG_HEADER_SIZE = 24;
+
+    uint8_t header_data[PNG_HEADER_SIZE] {};
+    auto read_result = StorageHelper::fs_read(path, service::RawBuffer(header_data, sizeof(header_data)));
+    if (!read_result) {
+        return std::unexpected("Failed to read PNG image header: " + path + ", error: " + read_result.error());
+    }
+    if (read_result.value() != sizeof(header_data)) {
+        return std::unexpected("PNG image header read size mismatch: " + path);
+    }
+    return make_png_image_header(header_data, sizeof(header_data), path);
+}
+
+static bool is_jpeg_start_of_frame_marker(uint8_t marker)
+{
+    switch (marker) {
+    case 0xc0:
+    case 0xc1:
+    case 0xc2:
+    case 0xc3:
+    case 0xc5:
+    case 0xc6:
+    case 0xc7:
+    case 0xc9:
+    case 0xca:
+    case 0xcb:
+    case 0xcd:
+    case 0xce:
+    case 0xcf:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static std::expected<lv_image_header_t, std::string> make_jpeg_image_header(
+    const uint8_t *data, size_t data_size, const std::string &path
+)
+{
+    static constexpr size_t JPEG_MINIMUM_SIZE = 4;
+    static constexpr uint8_t JPEG_MARKER_PREFIX = 0xff;
+    static constexpr uint8_t JPEG_START_OF_IMAGE = 0xd8;
+    static constexpr uint8_t JPEG_START_OF_SCAN = 0xda;
+    static constexpr uint8_t JPEG_END_OF_IMAGE = 0xd9;
+
+    if (data_size < JPEG_MINIMUM_SIZE || data[0] != JPEG_MARKER_PREFIX || data[1] != JPEG_START_OF_IMAGE) {
+        return std::unexpected("Invalid JPEG image magic: " + path);
+    }
+
+    size_t offset = 2;
+    while (offset < data_size) {
+        while (offset < data_size && data[offset] != JPEG_MARKER_PREFIX) {
+            ++offset;
+        }
+        while (offset < data_size && data[offset] == JPEG_MARKER_PREFIX) {
+            ++offset;
+        }
+        if (offset >= data_size) {
+            break;
+        }
+
+        const uint8_t marker = data[offset++];
+        if (marker == JPEG_END_OF_IMAGE || marker == JPEG_START_OF_SCAN) {
+            break;
+        }
+        if (marker == 0x00 || marker == JPEG_START_OF_IMAGE || marker == 0x01 ||
+                (marker >= 0xd0 && marker <= 0xd7)) {
+            continue;
+        }
+        if (offset + 2 > data_size) {
+            return std::unexpected("Truncated JPEG image segment: " + path);
+        }
+
+        const size_t segment_size = (static_cast<size_t>(data[offset]) << 8) | data[offset + 1];
+        if (segment_size < 2 || segment_size > data_size - offset) {
+            return std::unexpected("Invalid JPEG image segment size: " + path);
+        }
+        if (is_jpeg_start_of_frame_marker(marker)) {
+            if (segment_size < 7) {
+                return std::unexpected("Invalid JPEG image frame header: " + path);
+            }
+            const uint32_t height = (static_cast<uint32_t>(data[offset + 3]) << 8) | data[offset + 4];
+            const uint32_t width = (static_cast<uint32_t>(data[offset + 5]) << 8) | data[offset + 6];
+            if (width == 0 || height == 0) {
+                return std::unexpected("Invalid JPEG image dimensions: " + path);
+            }
+
+            lv_image_header_t header {};
+            header.magic = LV_IMAGE_HEADER_MAGIC;
+            header.cf = LV_COLOR_FORMAT_RAW;
+            header.flags = 0;
+            header.w = static_cast<int32_t>(width);
+            header.h = static_cast<int32_t>(height);
+            header.stride = 0;
+            header.reserved_2 = 0;
+            return header;
+        }
+        offset += segment_size;
+    }
+    return std::unexpected("JPEG image frame header is not found: " + path);
+}
+
+static std::expected<std::vector<uint8_t>, std::string> read_storage_file_bytes(
+    const std::string &path, std::string_view format_name
+)
+{
+    auto content = StorageHelper::fs_read_text(path);
+    if (!content) {
+        return std::unexpected(
+                   "Failed to read " + std::string(format_name) + " image file: " + path +
+                   ", error: " + content.error()
+               );
+    }
+    if (content->size() > static_cast<size_t>(std::numeric_limits<uint32_t>::max())) {
+        return std::unexpected(std::string(format_name) + " image is too large: " + path);
+    }
+
+    std::vector<uint8_t> data(content->size());
+    if (!content->empty()) {
+        std::memcpy(data.data(), content->data(), content->size());
+    }
+    return data;
+}
+
 static std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_binary_image_source(const std::string &path)
 {
-    std::ifstream file(path, std::ios::binary);
-    if (!file) {
-        return std::unexpected("Failed to open LVGL image bin file: " + path);
+    auto data = read_storage_file_bytes(path, "LVGL bin");
+    if (!data) {
+        return std::unexpected(data.error());
     }
-    file.seekg(0, std::ios::end);
-    const auto file_size = file.tellg();
-    if (file_size < 12) {
+    if (data->size() < 12) {
         return std::unexpected("Invalid LVGL image bin size: " + path);
     }
-    file.seekg(0, std::ios::beg);
 
     auto source = std::make_shared<BinaryImageSource>();
-    source->data.resize(static_cast<size_t>(file_size));
-    file.read(reinterpret_cast<char *>(source->data.data()), static_cast<std::streamsize>(source->data.size()));
-    if (!file) {
-        return std::unexpected("Failed to read LVGL image bin file: " + path);
-    }
+    source->data = std::move(data.value());
     if (source->data[0] != LV_IMAGE_HEADER_MAGIC) {
         return std::unexpected("Invalid LVGL image bin magic: " + path);
     }
@@ -1120,71 +1354,237 @@ static std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_binar
     return source;
 }
 
+static std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_encoded_png_image_source(
+    const std::string &path)
+{
+    auto data = read_storage_file_bytes(path, "PNG");
+    if (!data) {
+        return std::unexpected(data.error());
+    }
+
+    auto source = std::make_shared<BinaryImageSource>();
+    source->data = std::move(data.value());
+
+    auto header = make_png_image_header(source->data.data(), source->data.size(), path);
+    if (!header) {
+        return std::unexpected(header.error());
+    }
+
+    source->descriptor.header = *header;
+    source->descriptor.data_size = static_cast<uint32_t>(source->data.size());
+    source->descriptor.data = source->data.data();
+    source->descriptor.reserved = nullptr;
+    source->descriptor.reserved_2 = nullptr;
+    return source;
+}
+
+static std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_encoded_jpeg_image_source(
+    const std::string &path)
+{
+    if (!is_jpeg_decoder_available()) {
+        return std::unexpected("JPEG image decoder is not available: " + path);
+    }
+
+    auto data = read_storage_file_bytes(path, "JPEG");
+    if (!data) {
+        return std::unexpected(data.error());
+    }
+
+    auto source = std::make_shared<BinaryImageSource>();
+    source->data = std::move(data.value());
+
+    auto header = make_jpeg_image_header(source->data.data(), source->data.size(), path);
+    if (!header) {
+        return std::unexpected(header.error());
+    }
+
+    source->descriptor.header = *header;
+    source->descriptor.data_size = static_cast<uint32_t>(source->data.size());
+    source->descriptor.data = source->data.data();
+    source->descriptor.reserved = nullptr;
+    source->descriptor.reserved_2 = nullptr;
+    return source;
+}
+
 } // namespace
+
+std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_image_source(std::string_view path)
+{
+    std::string path_string(path);
+    if (is_lvgl_bin_path(path_string)) {
+        return load_binary_image_source(path_string);
+    }
+    if (is_png_path(path_string)) {
+        return load_encoded_png_image_source(path_string);
+    }
+    if (is_jpeg_path(path_string)) {
+        return load_encoded_jpeg_image_source(path_string);
+    }
+    return std::unexpected("Unsupported image source format: " + path_string);
+}
 
 std::expected<RuntimeImageResource, std::string> resolve_image_resource(RuntimeImageResource resource)
 {
-    if (resource.native_src != 0 || !is_lvgl_bin_path(resource.primary_src) ||
-            (resource.width > 0 && resource.height > 0)) {
+    if (resource.native_src != 0 || (resource.width > 0 && resource.height > 0)) {
         return resource;
     }
 
-    auto source = load_binary_image_source(resource.primary_src);
-    if (!source) {
-        return std::unexpected(source.error());
+    if (is_lvgl_bin_path(resource.primary_src)) {
+        auto source = load_binary_image_source(resource.primary_src);
+        if (!source) {
+            return std::unexpected(source.error());
+        }
+
+        resource.width = static_cast<int32_t>((*source)->descriptor.header.w);
+        resource.height = static_cast<int32_t>((*source)->descriptor.header.h);
+        return resource;
     }
 
-    resource.width = static_cast<int32_t>((*source)->descriptor.header.w);
-    resource.height = static_cast<int32_t>((*source)->descriptor.header.h);
-    return resource;
+    if (is_png_path(resource.primary_src)) {
+        auto header = read_png_image_header(resource.primary_src);
+        if (!header) {
+            return std::unexpected(header.error());
+        }
+        resource.width = header->w;
+        resource.height = header->h;
+        return resource;
+    }
+
+    if (is_jpeg_path(resource.primary_src)) {
+        auto source = load_encoded_jpeg_image_source(resource.primary_src);
+        if (!source) {
+            return std::unexpected(source.error());
+        }
+        resource.width = static_cast<int32_t>((*source)->descriptor.header.w);
+        resource.height = static_cast<int32_t>((*source)->descriptor.header.h);
+        return resource;
+    }
+
+    return std::unexpected("Unsupported image metadata format: " + resource.primary_src);
 }
 
 bool requires_preloaded_image_resource(const RuntimeImageResource &resource)
 {
-    return resource.native_src == 0 && is_lvgl_bin_path(resource.primary_src);
+    return resource.native_src == 0 &&
+           (is_lvgl_bin_path(resource.primary_src) || is_png_path(resource.primary_src) ||
+            is_jpeg_path(resource.primary_src));
 }
 
 std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const RuntimeImageResource &resource)
 {
-    if (resource.native_src != 0 || !is_lvgl_bin_path(resource.primary_src)) {
+    if (resource.native_src != 0) {
         return {};
     }
 
-    auto cache_it = impl.binary_image_cache.find(resource.primary_src);
-    if (cache_it != impl.binary_image_cache.end()) {
-        ++cache_it->second.ref_count;
+    if (is_lvgl_bin_path(resource.primary_src)) {
+        auto cache_it = impl.binary_image_cache.find(resource.primary_src);
+        if (cache_it != impl.binary_image_cache.end()) {
+            ++cache_it->second.ref_count;
+            return {};
+        }
+
+        auto source = load_binary_image_source(resource.primary_src);
+        if (!source) {
+            return std::unexpected(source.error());
+        }
+
+        impl.binary_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
+            .source = *source,
+            .ref_count = 1,
+        });
+        BROOKESIA_LOGD("Preloaded LVGL image bin: path='%1%'", resource.primary_src);
         return {};
     }
 
-    auto source = load_binary_image_source(resource.primary_src);
-    if (!source) {
-        return std::unexpected(source.error());
+    if (is_png_path(resource.primary_src)) {
+        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        if (cache_it != impl.decoded_image_cache.end()) {
+            ++cache_it->second.ref_count;
+            return {};
+        }
+
+        auto source = load_encoded_png_image_source(resource.primary_src);
+        if (!source) {
+            return std::unexpected(source.error());
+        }
+
+        impl.decoded_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
+            .source = *source,
+            .ref_count = 1,
+        });
+        BROOKESIA_LOGD("Preloaded PNG image source: path='%1%'", resource.primary_src);
+        return {};
     }
 
-    impl.binary_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
-        .source = *source,
-        .ref_count = 1,
-    });
-    BROOKESIA_LOGD("Preloaded LVGL image bin: path='%1%'", resource.primary_src);
-    return {};
+    if (is_jpeg_path(resource.primary_src)) {
+        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        if (cache_it != impl.decoded_image_cache.end()) {
+            ++cache_it->second.ref_count;
+            return {};
+        }
+
+        auto source = load_encoded_jpeg_image_source(resource.primary_src);
+        if (!source) {
+            return std::unexpected(source.error());
+        }
+
+        impl.decoded_image_cache.emplace(resource.primary_src, BinaryImageCacheEntry{
+            .source = *source,
+            .ref_count = 1,
+        });
+        BROOKESIA_LOGD("Preloaded JPEG image source: path='%1%'", resource.primary_src);
+        return {};
+    }
+
+    return std::unexpected("Unsupported image preload format: " + resource.primary_src);
 }
 
 void release_image_resource(BackendImpl &impl, const RuntimeImageResource &resource)
 {
-    if (resource.native_src != 0 || !is_lvgl_bin_path(resource.primary_src)) {
+    if (resource.native_src != 0) {
         return;
     }
 
-    auto cache_it = impl.binary_image_cache.find(resource.primary_src);
-    if (cache_it == impl.binary_image_cache.end()) {
+    if (is_lvgl_bin_path(resource.primary_src)) {
+        auto cache_it = impl.binary_image_cache.find(resource.primary_src);
+        if (cache_it == impl.binary_image_cache.end()) {
+            return;
+        }
+        if (cache_it->second.ref_count > 1) {
+            --cache_it->second.ref_count;
+            return;
+        }
+        impl.binary_image_cache.erase(cache_it);
+        BROOKESIA_LOGD("Released LVGL image bin: path='%1%'", resource.primary_src);
         return;
     }
-    if (cache_it->second.ref_count > 1) {
-        --cache_it->second.ref_count;
+
+    if (is_png_path(resource.primary_src)) {
+        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        if (cache_it == impl.decoded_image_cache.end()) {
+            return;
+        }
+        if (cache_it->second.ref_count > 1) {
+            --cache_it->second.ref_count;
+            return;
+        }
+        impl.decoded_image_cache.erase(cache_it);
+        BROOKESIA_LOGD("Released PNG image source: path='%1%'", resource.primary_src);
         return;
     }
-    impl.binary_image_cache.erase(cache_it);
-    BROOKESIA_LOGD("Released LVGL image bin: path='%1%'", resource.primary_src);
+
+    if (is_jpeg_path(resource.primary_src)) {
+        auto cache_it = impl.decoded_image_cache.find(resource.primary_src);
+        if (cache_it == impl.decoded_image_cache.end()) {
+            return;
+        }
+        if (cache_it->second.ref_count > 1) {
+            --cache_it->second.ref_count;
+            return;
+        }
+        impl.decoded_image_cache.erase(cache_it);
+        BROOKESIA_LOGD("Released JPEG image source: path='%1%'", resource.primary_src);
+    }
 }
 
 static void apply_image_source(BackendImpl &impl, Record &record, const Node &node)
@@ -1212,21 +1612,19 @@ static void apply_image_source(BackendImpl &impl, Record &record, const Node &no
                 BROOKESIA_LOGW("LVGL image bin was not preloaded: path='%1%'", next_image_src);
             }
         } else {
-            record.image_binary_src.reset();
-        }
-        if (record.image_binary_src != nullptr) {
-            record.image_src_storage.reset();
-        } else if (source_changed || record.image_src_storage == nullptr) {
-            if (is_lvgl_bin_path(next_image_src)) {
-                record.image_src_storage.reset();
+            auto cache_it = impl.decoded_image_cache.find(next_image_src);
+            if (cache_it != impl.decoded_image_cache.end()) {
+                record.image_binary_src = cache_it->second.source;
             } else {
-                record.image_src_storage = std::make_shared<std::string>(next_image_src);
+                record.image_binary_src.reset();
             }
+        }
+        if (record.image_binary_src == nullptr && source_changed) {
+            BROOKESIA_LOGW("Image source is not preloaded: path='%1%'", next_image_src);
         }
         record.image_src = next_image_src;
     } else {
         record.image_src = next_image_src;
-        record.image_src_storage.reset();
         record.image_binary_src.reset();
     }
     record.image_width = node.resolved_image.width;
@@ -1236,11 +1634,6 @@ static void apply_image_source(BackendImpl &impl, Record &record, const Node &no
         image_src = reinterpret_cast<const void *>(record.image_native_src);
     } else if (record.image_binary_src != nullptr) {
         image_src = static_cast<const void *>(&record.image_binary_src->descriptor);
-    } else if (record.image_src_storage != nullptr) {
-        image_src = static_cast<const void *>(record.image_src_storage->c_str());
-    }
-    if (record.image_native_src == 0 && !is_lvgl_bin_path(record.image_src)) {
-        log_image_file_diagnostics_once(record.image_src);
     }
     BROOKESIA_LOGD(
         "Applying image source: node='%1%', requested_src='%2%', resolved_src='%3%', native_src=%4%, width=%5%, height=%6%",

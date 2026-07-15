@@ -32,6 +32,8 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using Helper = helper::Http;
     using HttpRequest = Helper::HttpRequest;
     using HttpResponse = Helper::HttpResponse;
@@ -113,6 +115,8 @@ private:
     Http()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Manage HTTP requests and transfer progress.",
+        .version = get_component_version(),
 #if BROOKESIA_SERVICE_HTTP_ENABLE_WORKER
         .task_scheduler_config = make_default_task_scheduler_start_config(),
 #endif

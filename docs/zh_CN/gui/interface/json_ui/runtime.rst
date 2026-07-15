@@ -303,7 +303,8 @@ flow。document 可同时运行多个 flow；``unload(...)`` 或 ``update(...)``
 - 图片查询继续按 ``document_id`` 返回该 document 当前可见的图片资源，包含 document ``imageSet`` 和 Runtime 全局 image
 - Runtime 全局 image 可在 ``load_file()`` 前注册，document 中的 ``${image.<id>}`` 会在加载校验阶段解析到该资源
 - ``register_image(...)`` 在未显式填写尺寸时，会请求 backend 尝试通过图片 metadata 补全 ``width`` / ``height``
-- document 加载阶段会通过 backend preload hook 预加载当前 document ``imageSet`` 和 Runtime 全局 image；缺失或格式无效会让 ``load_file()`` / ``load_json()`` 失败，而不是延迟到首次显示时失败
+- document 加载阶段只会预加载 backend 必须预加载的资源，以及 ``preload: true`` 的 document/global image；预加载失败会让 ``load_file()`` / ``load_json()`` 失败，而不是延迟到首次显示时失败
+- ``preload_image(s)`` 可按当前 document 可见 image id 手动预加载资源；``release_preloaded_image(s)`` 只释放手动引用，不会释放 ``preload: true`` 持有的自动引用
 - ``unregister_image(id)`` 会从 Runtime 全局 image 表移除对应资源，并释放 backend 对该 image 的预加载引用
 - 同名 image 资源优先使用 document ``imageSet``，再回退到 Runtime 全局 image
 

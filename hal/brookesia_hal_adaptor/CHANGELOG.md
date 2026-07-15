@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.8.2 - 2026-07-13
+
+### Enhancements:
+
+- feat(display): share the LCD group identifier across panel, touch, and backlight adaptors.
+
+### Bug Fixes:
+
+- fix(storage): roll back LittleFS and flash FATFS mounts when capacity queries fail.
+- fix(build): tolerate whitespace-only differences while checking managed component patches.
+
 ## v0.8.1 - 2026-07-05
 
 ### Bug Fixes:

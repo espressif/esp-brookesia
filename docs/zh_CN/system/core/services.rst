@@ -106,6 +106,9 @@ GUI 服务
    * - ``SetViewSrc``
      - ``Path``、``Src``
      - 切换 image view 的图片资源 id
+   * - ``PreloadImages`` / ``ReleaseImages``
+     - ``Ids``
+     - 按当前 app document 可见 image id 手动预加载或释放图片缓存
    * - ``StartViewAnimation`` / ``StopAnimation``
      - ``Path``/``Animation`` 或 ``AnimationId``
      - 启动或停止 view 运行时动画
@@ -127,10 +130,10 @@ GUI 服务
      - ``SetBinding``、``SetBindings``
      - 合并到普通 binding flush，最后值胜出
    * - 输入敏感更新
-     - ``ExecuteBatch``、``SetViewSrc``、``StartViewAnimation``、``StopAnimation``
+     - ``ExecuteBatch``、``SetViewSrc``、``PreloadImages``、``ReleaseImages``、``StartViewAnimation``、``StopAnimation``
      - 进入 ``SystemGuiInput``，优先于普通 binding flush
 
-变更类函数大多是异步语义，返回成功表示请求已被接收，不代表 LVGL 已完成绘制；查询类函数会同步进入 GUI task 后返回。``ExecuteBatch`` 用于需要严格顺序和低调度开销的多步更新，例如“停止旧动画、设置 binding、再从当前坐标启动新动画”：
+变更类函数大多是异步语义，返回成功表示请求已被接收，不代表 LVGL 已完成绘制；查询类函数以及 ``PreloadImages`` / ``ReleaseImages`` 会同步进入 GUI task 后返回。``PreloadImages`` 只接受调用方 document 可见的 image id，不能传文件路径。``ExecuteBatch`` 用于需要严格顺序和低调度开销的多步更新，例如“停止旧动画、设置 binding、再从当前坐标启动新动画”：
 
 .. code-block:: json
 

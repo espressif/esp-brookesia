@@ -73,7 +73,7 @@ menu "ESP-Brookesia: Agent Manager Configurations"
     if BROOKESIA_AGENT_MANAGER_ENABLE_WORKER
         config BROOKESIA_AGENT_MANAGER_WORKER_NAME
             string "Name"
-            default "AgentMgrWorker"
+            default "AgentMgr"
             help
                 The name of the worker thread.
 

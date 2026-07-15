@@ -35,6 +35,17 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             This is a profiling aid only; keep it disabled in production builds
             because the extra snapshots and logging add CPU and log overhead.
 
+    config BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        bool "Enable parser/runtime profile logs"
+        default y if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+        default n
+        help
+            When enabled, the GUI parser and runtime emit stage-by-stage timing
+            logs while loading JSON UI documents and building views. This is
+            useful for startup latency diagnosis, but should stay disabled in
+            normal builds because log formatting and serial output perturb the
+            timings being measured.
+
     menuconfig BROOKESIA_GUI_INTERFACE_ENABLE_EXAMPLES
         bool "Enable JSON-UI example suite"
         default y

@@ -8,15 +8,13 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-
-#include "brookesia/lib_utils/task_scheduler.hpp"
+#include "sdkconfig.h"
 #include "brookesia/service_helper/media/display.hpp"
 #include "brookesia/service_manager.hpp"
 
 class Display {
 public:
     using GestureData = esp_brookesia::service::helper::Display::TouchGestureConfig;
-    using GestureInfo = esp_brookesia::service::helper::Display::TouchGestureInfo;
 
     static Display &get_instance()
     {
@@ -25,8 +23,7 @@ public:
     }
 
     struct Config {
-        std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler;
-        int lvgl_task_core = 0;
+        int lvgl_task_core_id = CONFIG_BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_INIT_THREAD_CORE_ID;
         GestureData gesture_data{};
     };
 
@@ -59,15 +56,12 @@ private:
     bool start_lvgl_display_source(int core_id);
     bool set_active_lvgl_source();
     bool start_gesture();
-    void handle_touch_gesture_event(const std::string &event_name, const GestureInfo &info);
 
-    std::shared_ptr<esp_brookesia::lib_utils::TaskScheduler> task_scheduler_;
     esp_brookesia::service::ServiceBinding display_service_binding_;
-    esp_brookesia::service::EventRegistry::SignalConnection gesture_event_connection_;
     std::string display_output_name_;
     uint32_t display_output_id_ = 0;
     uint32_t display_width_ = 0;
     uint32_t display_height_ = 0;
-    bool display_backlight_on_off_supported_ = false;
+    bool display_backlight_supported_ = false;
     GestureData gesture_data_{};
 };

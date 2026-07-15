@@ -8,6 +8,7 @@
 #include <map>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include "boost/json.hpp"
 #include "brookesia/lib_utils/signal.hpp"
@@ -86,6 +87,28 @@ public:
      * @return std::vector<EventSchema> Copy of the registered schemas.
      */
     std::vector<EventSchema> get_schemas() const;
+
+    std::optional<EventSchema> get_schema_copy(const std::string &event_name) const
+    {
+        boost::lock_guard lock(event_infos_mutex_);
+        auto it = event_infos_.find(event_name);
+        if (it == event_infos_.end()) {
+            return std::nullopt;
+        }
+        return std::get<0>(it->second);
+    }
+
+    std::vector<std::string> get_names() const
+    {
+        boost::lock_guard lock(event_infos_mutex_);
+        std::vector<std::string> names;
+        names.reserve(event_infos_.size());
+        for (const auto &[name, unused] : event_infos_) {
+            (void)unused;
+            names.push_back(name);
+        }
+        return names;
+    }
     /**
      * @brief Export all registered event schemas as JSON.
      *
@@ -121,6 +144,13 @@ public:
      * @return Signal* Pointer to the signal, or `nullptr` if the event does not exist.
      */
     Signal *get_signal(const std::string &event_name);
+
+    bool has_subscribers(const std::string &event_name) const
+    {
+        boost::lock_guard lock(event_infos_mutex_);
+        auto it = event_infos_.find(event_name);
+        return (it != event_infos_.end()) && (std::get<1>(it->second)->num_slots() > 0);
+    }
 
 private:
     using EventInfo = std::tuple<EventSchema, std::unique_ptr<Signal>>;

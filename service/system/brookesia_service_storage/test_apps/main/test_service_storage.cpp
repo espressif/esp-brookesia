@@ -3,9 +3,11 @@
  *
  * SPDX-License-Identifier: CC0-1.0
  */
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <set>
+#include <vector>
 
 #include "boost/json.hpp"
 #include "brookesia/lib_utils.hpp"
@@ -240,6 +242,228 @@ BROOKESIA_TEST_CASE(file_system_queries, "Test ServiceStorage - file system quer
     );
     TEST_ASSERT_TRUE_MESSAGE(capacity.total_bytes >= capacity.free_bytes, "Invalid file system capacity");
 }
+
+BROOKESIA_TEST_CASE(file_system_operations, "Test ServiceStorage - file system operations", "[service][storage][fs]")
+{
+    BROOKESIA_TIME_PROFILER_SCOPE("test_service_storage_fs_operations");
+    BROOKESIA_LOGI("=== Test ServiceStorage - file system operations ===");
+
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
+    lib_utils::FunctionGuard shutdown_guard([]() {
+        shutdown();
+    });
+
+    const std::string base_path = "/littlefs/storage_fs_api_test";
+    const std::string nested_path = base_path + "/nested";
+    const std::string text_path = nested_path + "/hello.txt";
+    const std::string raw_path = nested_path + "/raw.bin";
+    const std::string renamed_path = nested_path + "/hello_renamed.txt";
+    const std::string copied_path = base_path + "_copy";
+
+    (void)storage_helper::fs_remove(base_path);
+    (void)storage_helper::fs_remove(copied_path);
+
+    auto mkdir_result = storage_helper::fs_mkdir(nested_path);
+    TEST_ASSERT_TRUE_MESSAGE(mkdir_result.has_value(), mkdir_result ? "mkdir ok" : mkdir_result.error().c_str());
+
+    auto write_text_result = storage_helper::fs_write_text(text_path, "hello-storage");
+    TEST_ASSERT_TRUE_MESSAGE(
+        write_text_result.has_value(),
+        write_text_result ? "write text ok" : write_text_result.error().c_str()
+    );
+
+    auto stat_result = storage_helper::fs_stat(text_path);
+    TEST_ASSERT_TRUE_MESSAGE(stat_result.has_value(), stat_result ? "stat ok" : stat_result.error().c_str());
+    TEST_ASSERT_TRUE_MESSAGE(stat_result->exists, "Text file should exist");
+    TEST_ASSERT_TRUE_MESSAGE(stat_result->type == storage_helper::FileType::File, "Text path should be a file");
+    TEST_ASSERT_EQUAL(static_cast<size_t>(13), static_cast<size_t>(stat_result->size));
+
+    auto read_text_result = storage_helper::fs_read_text(text_path);
+    TEST_ASSERT_TRUE_MESSAGE(
+        read_text_result.has_value(),
+        read_text_result ? "read text ok" : read_text_result.error().c_str()
+    );
+    TEST_ASSERT_EQUAL_STRING("hello-storage", read_text_result->c_str());
+
+    std::vector<uint8_t> write_data(8192);
+    for (size_t i = 0; i < write_data.size(); ++i) {
+        write_data[i] = static_cast<uint8_t>(i & 0xff);
+    }
+    auto write_raw_result = storage_helper::fs_write(
+                                raw_path,
+                                service::RawBuffer(write_data.data(), write_data.size())
+                            );
+    TEST_ASSERT_TRUE_MESSAGE(
+        write_raw_result.has_value(),
+        write_raw_result ? "write raw ok" : write_raw_result.error().c_str()
+    );
+
+    std::vector<uint8_t> read_data(write_data.size());
+    auto read_raw_result = storage_helper::fs_read(
+                               raw_path,
+                               service::RawBuffer(read_data.data(), read_data.size())
+                           );
+    TEST_ASSERT_TRUE_MESSAGE(
+        read_raw_result.has_value(),
+        read_raw_result ? "read raw ok" : read_raw_result.error().c_str()
+    );
+    TEST_ASSERT_EQUAL(write_data.size(), read_raw_result.value());
+    TEST_ASSERT_TRUE_MESSAGE(read_data == write_data, "Raw file contents should roundtrip");
+
+    auto list_result = storage_helper::fs_list(nested_path);
+    TEST_ASSERT_TRUE_MESSAGE(list_result.has_value(), list_result ? "list ok" : list_result.error().c_str());
+    const auto has_text_file = std::any_of(list_result->begin(), list_result->end(), [](const auto & entry) {
+        return entry.name == "hello.txt";
+    });
+    const auto has_raw_file = std::any_of(list_result->begin(), list_result->end(), [](const auto & entry) {
+        return entry.name == "raw.bin";
+    });
+    TEST_ASSERT_TRUE_MESSAGE(has_text_file, "List should include text file");
+    TEST_ASSERT_TRUE_MESSAGE(has_raw_file, "List should include raw file");
+
+    auto rename_result = storage_helper::fs_rename(text_path, renamed_path);
+    TEST_ASSERT_TRUE_MESSAGE(rename_result.has_value(), rename_result ? "rename ok" : rename_result.error().c_str());
+    auto renamed_stat = storage_helper::fs_stat(renamed_path);
+    TEST_ASSERT_TRUE_MESSAGE(
+        renamed_stat.has_value() && renamed_stat->exists,
+        renamed_stat ? "renamed stat ok" : renamed_stat.error().c_str()
+    );
+
+    auto copy_result = storage_helper::fs_copy_tree(base_path, copied_path);
+    TEST_ASSERT_TRUE_MESSAGE(copy_result.has_value(), copy_result ? "copy tree ok" : copy_result.error().c_str());
+    auto copied_stat = storage_helper::fs_stat(copied_path + "/nested/raw.bin");
+    TEST_ASSERT_TRUE_MESSAGE(
+        copied_stat.has_value() && copied_stat->exists,
+        copied_stat ? "copied raw stat ok" : copied_stat.error().c_str()
+    );
+
+    auto relative_result = storage_helper::fs_stat("relative/path");
+    TEST_ASSERT_FALSE_MESSAGE(relative_result.has_value(), "Relative path should be rejected");
+    auto escape_result = storage_helper::fs_stat("/littlefs/../outside");
+    TEST_ASSERT_FALSE_MESSAGE(escape_result.has_value(), "Parent path escape should be rejected");
+
+    auto remove_result = storage_helper::fs_remove(base_path);
+    TEST_ASSERT_TRUE_MESSAGE(remove_result.has_value(), remove_result ? "remove ok" : remove_result.error().c_str());
+    auto remove_copy_result = storage_helper::fs_remove(copied_path);
+    TEST_ASSERT_TRUE_MESSAGE(
+        remove_copy_result.has_value(),
+        remove_copy_result ? "remove copy ok" : remove_copy_result.error().c_str()
+    );
+}
+
+#if !defined(ESP_PLATFORM)
+BROOKESIA_TEST_CASE(
+    file_system_path_security,
+    "Test ServiceStorage - PC path containment and symbolic link rejection",
+    "[service][storage][pc][security]"
+)
+{
+    namespace fs = std::filesystem;
+
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
+    lib_utils::FunctionGuard shutdown_guard([]() {
+        shutdown();
+    });
+
+    const fs::path base_path = "/littlefs/storage_fs_security_test";
+    const fs::path source_path = base_path / "source.txt";
+    const fs::path link_path = base_path / "sdcard_link";
+    const fs::path escaped_path = "/sdcard/storage_fs_symlink_escape.txt";
+    std::error_code error_code;
+    fs::remove_all(base_path, error_code);
+    error_code.clear();
+    fs::remove(escaped_path, error_code);
+    error_code.clear();
+    fs::create_directories(base_path, error_code);
+    TEST_ASSERT_FALSE_MESSAGE(static_cast<bool>(error_code), "Failed to create path-security test directory");
+    {
+        std::ofstream source_stream(source_path, std::ios::trunc);
+        TEST_ASSERT_TRUE_MESSAGE(static_cast<bool>(source_stream), "Failed to create path-security source file");
+        source_stream << "security-source";
+    }
+    fs::create_directory_symlink("/sdcard", link_path, error_code);
+    TEST_ASSERT_FALSE_MESSAGE(static_cast<bool>(error_code), "Failed to create path-security symbolic link");
+
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_stat(link_path.generic_string()).has_value(),
+        "Stat should reject a symbolic link path"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_read_text((link_path / "outside.txt").generic_string()).has_value(),
+        "Read should reject a symbolic link component"
+    );
+
+    auto storage_service = service_manager.get_service(storage_helper::get_name().data());
+    TEST_ASSERT_NOT_NULL_MESSAGE(storage_service.get(), "Storage service should be registered");
+    const auto read_text_name = BROOKESIA_DESCRIBE_ENUM_TO_STR(storage_helper::FunctionId::FSReadText);
+    const auto path_param_name = BROOKESIA_DESCRIBE_TO_STR(storage_helper::FunctionFSPathParam::Path);
+    auto batch_result = storage_service->call_functions_sync({
+        {
+            .name = read_text_name,
+            .parameters = {{path_param_name, source_path.generic_string()}},
+        },
+        {
+            .name = read_text_name,
+            .parameters = {{path_param_name, (link_path / "outside.txt").generic_string()}},
+        },
+    });
+    TEST_ASSERT_FALSE_MESSAGE(batch_result.success, "Batch read should reject a symbolic link component");
+    TEST_ASSERT_TRUE_MESSAGE(batch_result.results.size() == 2, "Batch read should report the failed item");
+    TEST_ASSERT_TRUE_MESSAGE(batch_result.results[0].success, "Batch read should accept the regular source path");
+    TEST_ASSERT_FALSE_MESSAGE(batch_result.results[1].success, "Batch read should reject the symbolic link path");
+
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_write_text((link_path / escaped_path.filename()).generic_string(), "escaped").has_value(),
+        "Write should reject a symbolic link component"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_mkdir((link_path / "new_directory").generic_string()).has_value(),
+        "Mkdir should reject a symbolic link component"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_remove(link_path.generic_string()).has_value(),
+        "Remove should reject a symbolic link path"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_rename(
+            source_path.generic_string(), (link_path / "renamed.txt").generic_string()
+        ).has_value(),
+        "Rename should reject a symbolic link destination"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_copy_tree(
+            source_path.generic_string(), (link_path / "copied.txt").generic_string()
+        ).has_value(),
+        "Copy should reject a symbolic link destination"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_copy_tree(link_path.generic_string(), (base_path / "copy").generic_string()).has_value(),
+        "Copy should reject a symbolic link source"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_list(base_path.generic_string()).has_value(),
+        "List should reject symbolic links found while enumerating"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(fs::exists(escaped_path), "Rejected write escaped the mounted file system");
+
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_stat("/littlefs_sibling/outside.txt").has_value(),
+        "A similar string prefix must not pass mount containment"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(
+        storage_helper::fs_stat("/etc/passwd").has_value(),
+        "An absolute path outside mounted file systems must be rejected"
+    );
+
+    error_code.clear();
+    fs::remove(link_path, error_code);
+    TEST_ASSERT_FALSE_MESSAGE(static_cast<bool>(error_code), "Failed to remove path-security symbolic link");
+    auto remove_result = storage_helper::fs_remove(base_path.generic_string());
+    TEST_ASSERT_TRUE_MESSAGE(
+        remove_result.has_value(), remove_result ? "remove ok" : remove_result.error().c_str()
+    );
+}
+#endif
 
 BROOKESIA_TEST_CASE(list_functionality, "Test ServiceStorage - list functionality", "[service][storage][list]")
 {

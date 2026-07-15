@@ -303,7 +303,8 @@ Notes:
 - an image query still returns, by ``document_id``, the document's currently visible image resources, including the document ``imageSet`` and Runtime global images
 - a Runtime global image can be registered before ``load_file()``; a ``${image.<id>}`` in the document resolves to it during load validation
 - when size is not given explicitly, ``register_image(...)`` asks the backend to complete ``width`` / ``height`` from image metadata
-- during document load, the backend preload hook preloads the current document ``imageSet`` and Runtime global images; missing or invalid formats fail ``load_file()`` / ``load_json()`` rather than deferring failure to first display
+- during document load, only backend-required resources and document/global images with ``preload: true`` are preloaded; preload failures fail ``load_file()`` / ``load_json()`` rather than deferring failure to first display
+- ``preload_image(s)`` can manually preload resources by image id visible to the current document; ``release_preloaded_image(s)`` releases only manual references, not automatic references held by ``preload: true``
 - ``unregister_image(id)`` removes the resource from the Runtime global image table and releases the backend's preload reference to that image
 - for image resources with the same name, the document ``imageSet`` is preferred, then the Runtime global image
 

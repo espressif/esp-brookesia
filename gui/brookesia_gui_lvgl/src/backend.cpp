@@ -48,6 +48,22 @@ public:
     ThreadLockGuard &operator=(const ThreadLockGuard &) = delete;
 };
 
+void detach_keyboard_globals(Record &record)
+{
+    if (record.type != NodeType::Keyboard || record.object == nullptr || !lv_obj_is_valid(record.object)) {
+        return;
+    }
+
+    static const char *const EMPTY_MAP[] = {""};
+    static const lv_buttonmatrix_ctrl_t EMPTY_CONTROLS[] = {static_cast<lv_buttonmatrix_ctrl_t>(0)};
+
+    lv_keyboard_set_textarea(record.object, nullptr);
+    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_TEXT_LOWER, EMPTY_MAP, EMPTY_CONTROLS);
+    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_TEXT_UPPER, EMPTY_MAP, EMPTY_CONTROLS);
+    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_NUMBER, EMPTY_MAP, EMPTY_CONTROLS);
+    lv_keyboard_set_map(record.object, LV_KEYBOARD_MODE_SPECIAL, EMPTY_MAP, EMPTY_CONTROLS);
+}
+
 } // namespace
 
 BackendImpl::BackendImpl()
@@ -239,6 +255,13 @@ void BackendImpl::destroy_node(BackendHandle handle)
     collect_subtree_handles(handle, subtree_handles);
 
     mounted_targets.erase(handle.value());
+
+    for (auto handle_value : subtree_handles) {
+        auto record_it = records.find(handle_value);
+        if (record_it != records.end()) {
+            detach_keyboard_globals(record_it->second);
+        }
+    }
 
     if (it->second.object != nullptr) {
         if (lv_obj_is_valid(it->second.object)) {
@@ -753,6 +776,28 @@ bool BackendImpl::scroll_node_to_visible(BackendHandle handle, bool animated)
     return true;
 }
 
+bool BackendImpl::scroll_node_to(BackendHandle handle, int32_t x, int32_t y, bool animated)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    ThreadLockGuard lock;
+
+    BROOKESIA_LOGD("Params: handle(%1%), x(%2%), y(%3%), animated(%4%)", handle, x, y, animated);
+
+    auto *record = find_record(handle);
+    if (record == nullptr || record->object == nullptr || !lv_obj_is_valid(record->object)) {
+        return false;
+    }
+
+    lv_obj_t *screen = lv_obj_get_screen(record->object);
+    if (screen != nullptr && lv_obj_is_valid(screen)) {
+        lv_obj_update_layout(screen);
+    }
+    lv_obj_update_layout(record->object);
+    lv_obj_scroll_to(record->object, x, y, animated ? LV_ANIM_ON : LV_ANIM_OFF);
+    return true;
+}
+
 bool BackendImpl::mount_font_assets(const EspFontMountConfig &config)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -833,6 +878,7 @@ bool BackendImpl::mount_font_assets(const EspFontMountConfig &config)
         .assets_handle = assets_handle,
         .fs_handle = fs_handle,
     });
+    failed_font_cache.clear();
     return true;
 #else
     (void)config;
@@ -879,6 +925,7 @@ bool BackendImpl::unmount_font_assets(char fs_letter)
         success = (mmap_assets_del(static_cast<mmap_assets_handle_t>(mount_it->second.assets_handle)) == ESP_OK) && success;
     }
     font_asset_mounts.erase(mount_it);
+    failed_font_cache.clear();
     return success;
 #else
     (void)fs_letter;
@@ -931,6 +978,7 @@ bool BackendImpl::register_font_resource_from_file(const EspFontRegistrationConf
         resource.native_fonts = existing_resource_it->second.native_fonts;
     }
     font_resources.insert_or_assign(resource.id, std::move(resource));
+    failed_font_cache.clear();
     return true;
 }
 
@@ -993,6 +1041,7 @@ bool BackendImpl::register_font_resource(const FontRegistrationConfig &config)
         return lhs.native_size < rhs.native_size;
     }
     );
+    failed_font_cache.clear();
     return true;
 }
 
@@ -1014,6 +1063,7 @@ bool BackendImpl::register_font_resource(const RuntimeFontResource &resource)
             return false;
         }
         font_resources.insert_or_assign(resource.id, resource);
+        failed_font_cache.clear();
         return true;
     }
 
@@ -1044,6 +1094,7 @@ bool BackendImpl::register_font_resource(const RuntimeFontResource &resource)
     if (!resource.native_fonts.empty()) {
         stored_resource.native_fonts = resource.native_fonts;
     }
+    failed_font_cache.clear();
     return true;
 }
 
@@ -1455,6 +1506,15 @@ bool Backend::scroll_node_to_visible(BackendHandle handle, bool animated)
     BROOKESIA_LOGD("Params: handle(%1%), animated(%2%)", handle, animated);
 
     return impl_->scroll_node_to_visible(handle, animated);
+}
+
+bool Backend::scroll_node_to(BackendHandle handle, int32_t x, int32_t y, bool animated)
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    BROOKESIA_LOGD("Params: handle(%1%), x(%2%), y(%3%), animated(%4%)", handle, x, y, animated);
+
+    return impl_->scroll_node_to(handle, x, y, animated);
 }
 
 bool Backend::mount_font_assets(const EspFontMountConfig &config)

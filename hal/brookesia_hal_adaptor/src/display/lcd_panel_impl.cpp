@@ -9,6 +9,7 @@
 #endif
 #include "private/utils.hpp"
 #include "lcd_panel_impl.hpp"
+#include "brookesia/hal_adaptor/display/device.hpp"
 
 #if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL
 #include <cstring>
@@ -35,7 +36,6 @@
 namespace esp_brookesia::hal {
 
 namespace {
-constexpr const char *DISPLAY_GROUP_ID = "display_lcd";
 constexpr const char *LCD_PANEL_INIT_THREAD_NAME = "HalLcdInit";
 constexpr size_t LCD_PANEL_INIT_THREAD_STACK_SIZE = 8192;
 
@@ -132,7 +132,7 @@ display::PanelIface::Info generate_info()
     display::PanelIface::Info info{};
     info.h_res = config->lcd_width;
     info.v_res = config->lcd_height;
-    info.group_id = DISPLAY_GROUP_ID;
+    info.group_id = DisplayDevice::LCD_GROUP_ID;
     auto pixel_bits = config->bits_per_pixel;
     switch (pixel_bits) {
     case 16:

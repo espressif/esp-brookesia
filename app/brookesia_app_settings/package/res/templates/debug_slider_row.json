@@ -1,0 +1,215 @@
+{
+    "type": "viewTemplate",
+    "id": "debug_slider_row",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false
+        },
+        "bindings": {
+            "commonProps.disabled": "disabled",
+            "style.opacity": "opacity"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": "8dp"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.settings.layout.debugSliderRowHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "title",
+                "styleRefs": [
+                    "app.cardTitle"
+                ],
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                },
+                "labelProps": {
+                    "text": "Slider"
+                },
+                "placement": {
+                    "mode": "flow"
+                }
+            },
+            {
+                "type": "slider",
+                "id": "slider",
+                "rangeProps": {
+                    "min": 0,
+                    "max": 100,
+                    "step": 1,
+                    "value": 50
+                },
+                "bindings": {
+                    "commonProps.disabled": "disabled",
+                    "rangeProps.min": "min",
+                    "rangeProps.max": "max",
+                    "rangeProps.step": "step",
+                    "rangeProps.value": "value"
+                },
+                "styleRefs": [
+                    "app.slider"
+                ],
+                "placement": {
+                    "mode": "flow",
+                    "height": "${constant.settings.layout.sliderHeight}",
+                    "width": "match",
+                    "alignSelf": "stretch"
+                }
+            },
+            {
+                "type": "container",
+                "id": "ticks",
+                "layout": {
+                    "type": "grid",
+                    "gridTemplateColumns": [
+                        "match",
+                        "match",
+                        "match",
+                        "match",
+                        "match"
+                    ],
+                    "gridTemplateRows": [
+                        "match"
+                    ],
+                    "crossAlign": "center"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "height": "${constant.settings.layout.debugSliderTickHeight}",
+                    "width": "match",
+                    "alignSelf": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "tick0",
+                        "styleRefs": [
+                            "app.caption"
+                        ],
+                        "style": {
+                            "fontSize": "${constant.settings.font.small}",
+                            "textAlign": "left"
+                        },
+                        "bindings": {
+                            "labelProps.text": "tick0"
+                        },
+                        "labelProps": {
+                            "text": "0"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 0,
+                            "gridRow": 0,
+                            "width": "match",
+                            "alignSelf": "stretch"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "tick1",
+                        "styleRefs": [
+                            "app.caption"
+                        ],
+                        "style": {
+                            "fontSize": "${constant.settings.font.small}",
+                            "textAlign": "center"
+                        },
+                        "bindings": {
+                            "labelProps.text": "tick1"
+                        },
+                        "labelProps": {
+                            "text": "25"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 1,
+                            "gridRow": 0,
+                            "width": "match",
+                            "alignSelf": "stretch"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "tick2",
+                        "styleRefs": [
+                            "app.caption"
+                        ],
+                        "style": {
+                            "fontSize": "${constant.settings.font.small}",
+                            "textAlign": "center"
+                        },
+                        "bindings": {
+                            "labelProps.text": "tick2"
+                        },
+                        "labelProps": {
+                            "text": "50"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 2,
+                            "gridRow": 0,
+                            "width": "match",
+                            "alignSelf": "stretch"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "tick3",
+                        "styleRefs": [
+                            "app.caption"
+                        ],
+                        "style": {
+                            "fontSize": "${constant.settings.font.small}",
+                            "textAlign": "center"
+                        },
+                        "bindings": {
+                            "labelProps.text": "tick3"
+                        },
+                        "labelProps": {
+                            "text": "75"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 3,
+                            "gridRow": 0,
+                            "width": "match",
+                            "alignSelf": "stretch"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "tick4",
+                        "styleRefs": [
+                            "app.caption"
+                        ],
+                        "style": {
+                            "fontSize": "${constant.settings.font.small}",
+                            "textAlign": "right"
+                        },
+                        "bindings": {
+                            "labelProps.text": "tick4"
+                        },
+                        "labelProps": {
+                            "text": "100"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 4,
+                            "gridRow": 0,
+                            "width": "match",
+                            "alignSelf": "stretch"
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}

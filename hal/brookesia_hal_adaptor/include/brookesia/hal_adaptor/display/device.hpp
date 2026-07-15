@@ -15,7 +15,6 @@
 #include <string>
 #include <utility>
 #include "brookesia/hal_interface/device.hpp"
-#include "brookesia/hal_interface/interfaces/display/backlight.hpp"
 
 namespace esp_brookesia::hal {
 
@@ -34,6 +33,8 @@ public:
     static constexpr const char *LCD_PANEL_IMPL_NAME = "Display:LcdPanel";
     /** @brief Registry key for the LCD touch HAL implementation (`"Display:LcdTouch"`). */
     static constexpr const char *LCD_TOUCH_IMPL_NAME = "Display:LcdTouch";
+    /** @brief Group ID. */
+    static constexpr const char *LCD_GROUP_ID = "display_lcd";
 
     DisplayDevice(const DisplayDevice &) = delete;
     DisplayDevice &operator=(const DisplayDevice &) = delete;

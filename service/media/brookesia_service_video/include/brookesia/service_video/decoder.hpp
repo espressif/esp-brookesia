@@ -29,6 +29,8 @@ public:
     VideoDecoder(size_t id)
         : ServiceBase({
         .name = std::string(helper::Video::DECODER_NAME_PREFIX) + std::to_string(id),
+        .description = "Decode video streams for one configured output instance.",
+        .version = get_component_version(),
     })
     , id_(id)
     {}
@@ -38,6 +40,8 @@ public:
     ~VideoDecoder() = default;
 
 private:
+    static std::string get_component_version();
+
     using BaseHelper = helper::Video;
     // Use a fixed id to represent the decoder
     using Helper = helper::VideoDecoder<0>;

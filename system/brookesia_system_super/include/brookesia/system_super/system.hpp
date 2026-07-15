@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 
+#include "brookesia/service_manager.hpp"
 #include "brookesia/system_core.hpp"
 #include "brookesia/system_super/macro_configs.h"
 
@@ -107,6 +108,7 @@ protected:
 private:
     std::expected<void, std::string> prepare_shell_fonts();
     std::expected<void, std::string> prepare_shell_themes();
+    void start_sntp_if_needed();
     std::expected<void, std::string> open_shell_page(ShellPage page);
     std::expected<void, std::string> open_app_launcher();
     std::expected<void, std::string> open_quick_control();
@@ -123,6 +125,11 @@ private:
 
     core::AppId shell_app_id_ = core::INVALID_APP_ID;
     std::shared_ptr<ShellApp> shell_app_;
+    service::ServiceBinding utils_service_binding_;
+    service::EventRegistry::SignalConnection utils_debug_state_connection_;
+    service::EventRegistry::SignalConnection utils_memory_snapshot_connection_;
+    service::EventRegistry::SignalConnection utils_thread_snapshot_connection_;
+    service::ServiceBinding sntp_service_binding_;
     ShellPage pending_shell_page_ = ShellPage::AppLauncher;
     bool stopping_ = false;
     bool shell_fonts_prepared_ = false;

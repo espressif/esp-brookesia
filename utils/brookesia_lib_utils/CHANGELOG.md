@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-13
+
+### Enhancements:
+
+- feat(cmake): add shared helpers for parsing and defining component versions.
+- feat(task_scheduler): expose worker and serialized group execution-context queries.
+- feat(task_scheduler): reserve worker capacity for nested synchronous service calls.
+
 ## v0.8.0 - 2026-06-28
 
 ### Enhancements:

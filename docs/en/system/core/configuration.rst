@@ -36,7 +36,7 @@ ESP platform configuration lives in ``system/brookesia_system_core/Kconfig``.
      - ``y``
      - Enable service module debug log once the master switch is on
    * - ``BROOKESIA_SYSTEM_CORE_WORKER_NAME_PREFIX``
-     - ``SystemWorker``
+     - ``System``
      - System task scheduler worker thread name prefix
    * - ``BROOKESIA_SYSTEM_CORE_WORKER_PRIORITY``
      - ``10``
@@ -106,7 +106,7 @@ PC platform configuration lives in ``system/brookesia_system_core/cmake/pc_platf
      - ``100``
      - Maximum ``z_order`` a PC runtime app manifest may request
    * - ``BROOKESIA_SYSTEM_CORE_PC_CONFIG_WORKER_NAME_PREFIX``
-     - ``SystemWorker``
+     - ``System``
      - PC worker thread name prefix
    * - ``BROOKESIA_SYSTEM_CORE_PC_CONFIG_WORKER_PRIORITY``
      - ``10``

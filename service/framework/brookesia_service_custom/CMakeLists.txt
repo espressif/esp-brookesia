@@ -8,10 +8,6 @@ set(COMPONENT_SRCS_CPP "")
 set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
 set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
 set(COMPONENT_SRCS_COMPILE_OPTIONS "")
-set(COMPONENT_VERSION_MAJOR 0)
-set(COMPONENT_VERSION_MINOR 7)
-set(COMPONENT_VERSION_PATCH 2)
-
 #
 # Service
 #
@@ -43,9 +39,6 @@ if(ESP_PLATFORM)
 else()
     set(COMPONENT_LIB brookesia_service_custom)
     set(component_pc_config_compile_definitions
-        BROOKESIA_SERVICE_CUSTOM_VER_MAJOR=${COMPONENT_VERSION_MAJOR}
-        BROOKESIA_SERVICE_CUSTOM_VER_MINOR=${COMPONENT_VERSION_MINOR}
-        BROOKESIA_SERVICE_CUSTOM_VER_PATCH=${COMPONENT_VERSION_PATCH}
     )
 
     option(
@@ -103,6 +96,7 @@ else()
         ${COMPONENT_SRCS_C}
         ${COMPONENT_SRCS_CPP}
     )
+    brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_SERVICE_CUSTOM)
     add_library(brookesia::service_custom ALIAS ${COMPONENT_LIB})
 
     target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)

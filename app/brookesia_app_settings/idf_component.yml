@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia C++ settings app for the system-core app contract.
 url: https://github.com/espressif/esp-brookesia/tree/master/app/brookesia_app_settings
 repository: https://github.com/espressif/esp-brookesia.git

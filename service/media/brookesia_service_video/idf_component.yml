@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia video service for local capture encoding (H.264, MJPEG, RGB/YUV) and compressed-stream decoding to pixel formats.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/media/brookesia_service_video
 repository: https://github.com/espressif/esp-brookesia.git

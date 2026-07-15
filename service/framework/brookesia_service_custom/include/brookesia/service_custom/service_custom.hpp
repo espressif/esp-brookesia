@@ -92,9 +92,13 @@ public:
     std::vector<EventSchema> get_event_schemas() override;
 
 private:
+    static std::string get_component_version();
+
     CustomService()
         : ServiceBase({
         .name = CustomServiceName,
+        .description = "Expose application-defined functions and events.",
+        .version = get_component_version(),
 #if BROOKESIA_SERVICE_CUSTOM_ENABLE_WORKER
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
             .worker_configs = {

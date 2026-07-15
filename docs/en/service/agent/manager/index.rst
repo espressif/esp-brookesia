@@ -7,7 +7,7 @@ Agent Manager
 
 - Component registry: `espressif/brookesia_agent_manager <https://components.espressif.com/components/espressif/brookesia_agent_manager>`_
 - Helper header: ``#include "brookesia/service_helper/agent/manager.hpp"``
-- Helper class: ``esp_brookesia::service::helper::Manager``
+- Helper class: ``esp_brookesia::service::helper::AgentManager``
 
 .. _agent-manager-index-sec-01:
 

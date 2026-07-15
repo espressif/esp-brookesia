@@ -9,25 +9,6 @@ set(COMPONENT_SRCS_C_COMPILE_FLAGS "")
 set(COMPONENT_SRCS_CPP_COMPILE_FLAGS "")
 set(BROOKESIA_SYSTEM_CORE_COMPONENT_DIR "${COMPONENT_DIR}" CACHE INTERNAL "brookesia_system_core component dir")
 
-file(
-    STRINGS "${COMPONENT_DIR}/idf_component.yml" component_version_line
-    REGEX "^[ \t]*version:[ \t]*\"?[0-9]+\\.[0-9]+\\.[0-9]+\"?[ \t]*$"
-)
-if(NOT component_version_line)
-    message(FATAL_ERROR "Failed to parse brookesia_system_core version from idf_component.yml")
-endif()
-list(GET component_version_line 0 component_version_line)
-string(
-    REGEX REPLACE
-    "^[ \t]*version:[ \t]*\"?([0-9]+)\\.([0-9]+)\\.([0-9]+)\"?[ \t]*$"
-    "\\1;\\2;\\3"
-    component_version_parts
-    "${component_version_line}"
-)
-list(GET component_version_parts 0 COMPONENT_VERSION_MAJOR)
-list(GET component_version_parts 1 COMPONENT_VERSION_MINOR)
-list(GET component_version_parts 2 COMPONENT_VERSION_PATCH)
-
 file(GLOB_RECURSE SYSTEM_CORE_SRCS_C ${COMPONENT_SRC_DIR}/*.c)
 file(GLOB_RECURSE SYSTEM_CORE_SRCS_CPP ${COMPONENT_SRC_DIR}/*.cpp)
 list(APPEND COMPONENT_SRCS_C ${SYSTEM_CORE_SRCS_C})

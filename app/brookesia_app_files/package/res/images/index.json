@@ -3,67 +3,67 @@
     "images": [
         {
             "id": "launcher_icon",
-            "src": "launcher_icon.png",
+            "src": "launcher_icon.jpg",
             "width": 92,
             "height": 92
         },
         {
             "id": "files.icon.driver",
-            "src": "icon/driver.png",
+            "src": "icon/driver.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.directory",
-            "src": "icon/directory.png",
+            "src": "icon/directory.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.file",
-            "src": "icon/file.png",
+            "src": "icon/file.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.image",
-            "src": "icon/image.png",
+            "src": "icon/image.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.doc",
-            "src": "icon/doc.png",
+            "src": "icon/doc.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.bpk",
-            "src": "icon/bpk.png",
+            "src": "icon/bpk.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.audio",
-            "src": "icon/audio.png",
+            "src": "icon/audio.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.video",
-            "src": "icon/video.png",
+            "src": "icon/video.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.rename",
-            "src": "icon/rename.png",
+            "src": "icon/rename.jpg",
             "width": 42,
             "height": 42
         },
         {
             "id": "files.icon.delete",
-            "src": "icon/delete.png",
+            "src": "icon/delete.jpg",
             "width": 42,
             "height": 42
         }

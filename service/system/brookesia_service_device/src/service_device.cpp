@@ -18,9 +18,20 @@
 
 namespace esp_brookesia::service {
 
+std::string Device::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_DEVICE_VER_MAJOR, BROOKESIA_SERVICE_DEVICE_VER_MINOR, BROOKESIA_SERVICE_DEVICE_VER_PATCH
+           );
+}
+
 bool Device::on_init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_SERVICE_DEVICE_VER_MAJOR, BROOKESIA_SERVICE_DEVICE_VER_MINOR,
+        BROOKESIA_SERVICE_DEVICE_VER_PATCH
+    );
 
     BROOKESIA_LOGI("Initialized");
 

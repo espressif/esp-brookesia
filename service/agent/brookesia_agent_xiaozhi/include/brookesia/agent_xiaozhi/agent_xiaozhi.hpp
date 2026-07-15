@@ -35,14 +35,14 @@ public:
             .wake_up = 5000,
         },
         .support_general_functions = {
-            service::helper::Manager::AgentGeneralFunction::InterruptSpeaking,
+            service::helper::AgentManager::AgentGeneralFunction::InterruptSpeaking,
         },
         .support_general_events = {
-            service::helper::Manager::AgentGeneralEvent::SpeakingStatusChanged,
-            service::helper::Manager::AgentGeneralEvent::ListeningStatusChanged,
-            service::helper::Manager::AgentGeneralEvent::AgentSpeakingTextGot,
-            service::helper::Manager::AgentGeneralEvent::UserSpeakingTextGot,
-            service::helper::Manager::AgentGeneralEvent::EmoteGot,
+            service::helper::AgentManager::AgentGeneralEvent::SpeakingStatusChanged,
+            service::helper::AgentManager::AgentGeneralEvent::ListeningStatusChanged,
+            service::helper::AgentManager::AgentGeneralEvent::AgentSpeakingTextGot,
+            service::helper::AgentManager::AgentGeneralEvent::UserSpeakingTextGot,
+            service::helper::AgentManager::AgentGeneralEvent::EmoteGot,
         },
     };
     /**
@@ -98,8 +98,14 @@ public:
 private:
     using Helper = service::helper::XiaoZhi;
 
+    static std::string get_component_version();
+
     XiaoZhi()
-        : Base(DEFAULT_AGENT_ATTRIBUTES, DEFAULT_AUDIO_CONFIG)
+        : Base(
+              DEFAULT_AGENT_ATTRIBUTES,
+              get_component_version(),
+              DEFAULT_AUDIO_CONFIG
+          )
     {
     }
     ~XiaoZhi() = default;

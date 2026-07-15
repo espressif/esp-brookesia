@@ -82,13 +82,12 @@ void FileManagerApp::set_current_directory_from_absolute_path(const std::filesys
         return;
     }
 
-    std::error_code error_code;
-    auto relative = std::filesystem::relative(target, root, error_code);
-    if (error_code || relative.empty() || relative == ".") {
+    auto relative = make_relative_path_inside_root(target, root);
+    if (!relative || relative->empty() || *relative == ".") {
         current_directory_.clear();
         return;
     }
-    current_directory_ = relative.lexically_normal();
+    current_directory_ = relative->lexically_normal();
 }
 
 void FileManagerApp::rebase_current_directory_after_move(
@@ -129,14 +128,15 @@ void FileManagerApp::recover_current_directory_after_remove(const std::filesyste
         return;
     }
 
-    std::error_code error_code;
     auto fallback = removed_normalized.parent_path().lexically_normal();
-    while (path_is_same_or_child(fallback, root) && fallback != root &&
-            !std::filesystem::is_directory(fallback, error_code)) {
-        error_code.clear();
+    auto is_directory = [](const std::filesystem::path & path) {
+        auto info = StorageHelper::fs_stat(path.generic_string());
+        return info && info->type == StorageHelper::FileType::Directory;
+    };
+    while (path_is_same_or_child(fallback, root) && fallback != root && !is_directory(fallback)) {
         fallback = fallback.parent_path().lexically_normal();
     }
-    if (!path_is_same_or_child(fallback, root) || !std::filesystem::is_directory(fallback, error_code)) {
+    if (!path_is_same_or_child(fallback, root) || !is_directory(fallback)) {
         current_directory_.clear();
         return;
     }

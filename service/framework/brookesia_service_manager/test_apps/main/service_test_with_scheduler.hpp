@@ -81,6 +81,8 @@ public:
     ServiceTestWithScheduler()
         : ServiceBase({
         .name = SERVICE_NAME,
+        .description = "Test service.",
+        .version = "0.0.0",
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{}
     })
     {}

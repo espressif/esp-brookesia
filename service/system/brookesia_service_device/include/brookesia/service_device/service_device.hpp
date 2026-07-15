@@ -35,6 +35,8 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using Helper = helper::Device;
     using BoardInfo = Helper::BoardInfo;
     using CameraDeviceInfos = Helper::CameraDeviceInfos;
@@ -56,6 +58,8 @@ private:
     Device()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Expose board capabilities and device controls.",
+        .version = get_component_version(),
 #if BROOKESIA_SERVICE_DEVICE_ENABLE_WORKER
         .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
             .worker_configs = {

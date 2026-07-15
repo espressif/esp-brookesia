@@ -26,7 +26,7 @@
 
 using namespace esp_brookesia;
 
-using AgentHelper = esp_brookesia::service::helper::Manager;
+using AgentHelper = esp_brookesia::service::helper::AgentManager;
 using CozeHelper = esp_brookesia::service::helper::Coze;
 using OpenaiHelper = esp_brookesia::service::helper::Openai;
 using XiaoZhiHelper = esp_brookesia::service::helper::XiaoZhi;

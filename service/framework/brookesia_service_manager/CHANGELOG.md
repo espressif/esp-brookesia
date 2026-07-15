@@ -1,5 +1,30 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-13
+
+### Breaking Changes:
+
+- break(service): require every service to register a non-empty version.
+- break(service): require every service to register a non-empty description.
+- break(service): remove per-service `GetVersion`; query versions through the built-in Manager service.
+- break(manager): replace bulk service info and full-schema queries with layered metadata APIs.
+- break(debug): move profiler APIs and events from Manager to the built-in Utils service.
+
+### Enhancements:
+
+- feat(build): use `idf_component.yml` as the single component version source on PC.
+- feat(manager): add sorted service names, runtime information, and layered schema queries.
+- feat(utils): add profiler controls, cached snapshots, update events, and immediate memory sampling.
+- feat(scheduler): add configurable secondary workers for services that require internal stacks.
+- chore(scheduler): remove the Worker suffix from default thread names on ESP and PC.
+- feat(service): expose stopped, starting, running, and stopping states with reference counts.
+
+### Bug Fixes:
+
+- fix(service): keep nested synchronous calls serialized in the target service call group.
+- fix(service): prevent service start and stop operations from overlapping.
+- fix(service): fail nested cross-service calls quickly before synchronous waits exhaust all workers.
+
 ## v0.8.0 - 2026-06-28
 
 ### Enhancements:

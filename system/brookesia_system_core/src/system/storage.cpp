@@ -14,7 +14,8 @@
 #include <algorithm>
 #include <cctype>
 #include <expected>
-#include <fstream>
+#include <mutex>
+#include <optional>
 #include <set>
 #include <string_view>
 
@@ -38,11 +39,16 @@ constexpr const char *DEFAULT_INTERNAL_ID = "internal";
 constexpr const char *STORAGE_KV_NAMESPACE = "brookesia.system.storage";
 constexpr const char *STORAGE_KV_DEFAULT_INSTALL_TARGET = "DefaultInstallTarget";
 constexpr const char *STORAGE_KV_PREFERRED_EXTERNAL_ID = "PreferredExternalId";
-constexpr uint32_t STORAGE_KV_TIMEOUT_MS = 500;
+
+struct StoragePreferenceKvNames {
+    std::string nspace;
+    std::string default_target_key;
+    std::string preferred_external_key;
+};
 
 std::expected<std::string, std::string> make_storage_kv_namespace(std::string_view raw_namespace)
 {
-    auto result = service::helper::Storage::make_kv_namespace({raw_namespace}, ".", STORAGE_KV_TIMEOUT_MS);
+    auto result = service::helper::Storage::make_kv_namespace({raw_namespace}, ".");
     if (!result) {
         return std::unexpected("Failed to make storage KV namespace '" + std::string(raw_namespace) + "': " +
                                result.error());
@@ -55,7 +61,7 @@ std::expected<std::string, std::string> make_storage_kv_namespace(std::string_vi
 
 std::expected<std::string, std::string> make_storage_kv_key(std::string_view raw_key)
 {
-    auto result = service::helper::Storage::make_kv_key({raw_key}, ".", STORAGE_KV_TIMEOUT_MS);
+    auto result = service::helper::Storage::make_kv_key({raw_key}, ".");
     if (!result) {
         return std::unexpected("Failed to make storage KV key '" + std::string(raw_key) + "': " + result.error());
     }
@@ -65,18 +71,39 @@ std::expected<std::string, std::string> make_storage_kv_key(std::string_view raw
     return result->name;
 }
 
+std::expected<StoragePreferenceKvNames, std::string> get_storage_preference_kv_names()
+{
+    static std::mutex mutex;
+    static std::optional<StoragePreferenceKvNames> cached_names;
+
+    std::lock_guard lock(mutex);
+    if (cached_names.has_value()) {
+        return *cached_names;
+    }
+
+    auto namespace_result = make_storage_kv_namespace(STORAGE_KV_NAMESPACE);
+    if (!namespace_result) {
+        return std::unexpected(namespace_result.error());
+    }
+    auto default_target_key = make_storage_kv_key(STORAGE_KV_DEFAULT_INSTALL_TARGET);
+    if (!default_target_key) {
+        return std::unexpected(default_target_key.error());
+    }
+    auto preferred_external_key = make_storage_kv_key(STORAGE_KV_PREFERRED_EXTERNAL_ID);
+    if (!preferred_external_key) {
+        return std::unexpected(preferred_external_key.error());
+    }
+
+    cached_names = StoragePreferenceKvNames{
+        .nspace = std::move(namespace_result.value()),
+        .default_target_key = std::move(default_target_key.value()),
+        .preferred_external_key = std::move(preferred_external_key.value()),
+    };
+    return *cached_names;
+}
+
 std::filesystem::path normalize_path(const std::filesystem::path &path)
 {
-    std::error_code error_code;
-    auto normalized = std::filesystem::weakly_canonical(path, error_code);
-    if (!error_code) {
-        return normalized.lexically_normal();
-    }
-    error_code.clear();
-    normalized = std::filesystem::absolute(path, error_code);
-    if (!error_code) {
-        return normalized.lexically_normal();
-    }
     return path.lexically_normal();
 }
 
@@ -244,11 +271,13 @@ std::optional<hal::storage::FileSystemIface::Info> storage_info_from_json(const 
 
 std::expected<void, std::string> create_dir(const std::filesystem::path &path)
 {
-    std::error_code error_code;
-    std::filesystem::create_directories(path, error_code);
-    if (error_code) {
+    if (path.empty()) {
+        return {};
+    }
+    auto result = service::helper::Storage::fs_mkdir(path.generic_string());
+    if (!result) {
         return std::unexpected(
-                   "Failed to create directory '" + path.generic_string() + "': " + error_code.message()
+                   "Failed to create directory '" + path.generic_string() + "': " + result.error()
                );
     }
     return {};
@@ -399,50 +428,54 @@ std::filesystem::path base_path_for_kind(
     }
 }
 
-StorageFileInfo make_file_info(const std::filesystem::path &path)
+StorageFileType storage_file_type_from_service(service::helper::Storage::FileType type)
 {
-    std::error_code error_code;
-    if (!std::filesystem::exists(path, error_code)) {
-        return StorageFileInfo{};
+    switch (type) {
+    case service::helper::Storage::FileType::File:
+        return StorageFileType::File;
+    case service::helper::Storage::FileType::Directory:
+        return StorageFileType::Directory;
+    case service::helper::Storage::FileType::Other:
+        return StorageFileType::Other;
+    case service::helper::Storage::FileType::Missing:
+    case service::helper::Storage::FileType::Max:
+    default:
+        return StorageFileType::Missing;
     }
-    StorageFileInfo info;
-    info.exists = true;
-    if (std::filesystem::is_regular_file(path, error_code)) {
-        info.type = StorageFileType::File;
-        info.size = std::filesystem::file_size(path, error_code);
-        if (error_code) {
-            info.size = 0;
-        }
-    } else if (std::filesystem::is_directory(path, error_code)) {
-        info.type = StorageFileType::Directory;
-    } else {
-        info.type = StorageFileType::Other;
+}
+
+StorageFileInfo storage_file_info_from_service(const service::helper::Storage::FileInfo &info)
+{
+    return StorageFileInfo{
+        .type = storage_file_type_from_service(info.type),
+        .size = info.size,
+        .exists = info.exists,
+    };
+}
+
+std::expected<StorageFileInfo, std::string> make_file_info(const std::filesystem::path &path)
+{
+    auto result = service::helper::Storage::fs_stat(path.generic_string());
+    if (!result) {
+        return std::unexpected(
+                   "Failed to stat storage path '" + path.generic_string() + "': " + result.error()
+               );
     }
-    return info;
+    return storage_file_info_from_service(result.value());
 }
 
 void load_storage_preferences(StorageConfig &config)
 {
     using StorageHelper = service::helper::Storage;
 
-    auto namespace_result = make_storage_kv_namespace(STORAGE_KV_NAMESPACE);
-    if (!namespace_result) {
-        BROOKESIA_LOGW("Skip loading storage preferences: %1%", namespace_result.error());
-        return;
-    }
-    auto default_target_key = make_storage_kv_key(STORAGE_KV_DEFAULT_INSTALL_TARGET);
-    auto preferred_external_key = make_storage_kv_key(STORAGE_KV_PREFERRED_EXTERNAL_ID);
-    if (!default_target_key || !preferred_external_key) {
-        BROOKESIA_LOGW(
-            "Skip loading storage preferences: default_target_key(%1%), preferred_external_key(%2%)",
-            default_target_key ? "ok" : default_target_key.error(),
-            preferred_external_key ? "ok" : preferred_external_key.error()
-        );
+    auto kv_names = get_storage_preference_kv_names();
+    if (!kv_names) {
+        BROOKESIA_LOGW("Skip loading storage preferences: %1%", kv_names.error());
         return;
     }
 
     if (auto target = StorageHelper::get_key_value<std::string>(
-                          namespace_result.value(), default_target_key.value(), STORAGE_KV_TIMEOUT_MS
+                          kv_names->nspace, kv_names->default_target_key
                       )) {
         StorageInstallTarget parsed_target = StorageInstallTarget::Auto;
         if (BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE(*target, parsed_target)) {
@@ -453,7 +486,7 @@ void load_storage_preferences(StorageConfig &config)
     }
 
     if (auto preferred = StorageHelper::get_key_value<std::string>(
-                             namespace_result.value(), preferred_external_key.value(), STORAGE_KV_TIMEOUT_MS
+                             kv_names->nspace, kv_names->preferred_external_key
                          )) {
         config.preferred_external_id = *preferred;
     }
@@ -466,33 +499,23 @@ std::expected<void, std::string> save_storage_preferences(
 {
     using StorageHelper = service::helper::Storage;
 
-    auto namespace_result = make_storage_kv_namespace(STORAGE_KV_NAMESPACE);
-    if (!namespace_result) {
-        return std::unexpected(namespace_result.error());
-    }
-    auto default_target_key = make_storage_kv_key(STORAGE_KV_DEFAULT_INSTALL_TARGET);
-    if (!default_target_key) {
-        return std::unexpected(default_target_key.error());
-    }
-    auto preferred_external_key = make_storage_kv_key(STORAGE_KV_PREFERRED_EXTERNAL_ID);
-    if (!preferred_external_key) {
-        return std::unexpected(preferred_external_key.error());
+    auto kv_names = get_storage_preference_kv_names();
+    if (!kv_names) {
+        return std::unexpected(kv_names.error());
     }
 
     auto target_result = StorageHelper::save_key_value(
-                             namespace_result.value(),
-                             default_target_key.value(),
-                             storage_install_target_to_string(target),
-                             STORAGE_KV_TIMEOUT_MS
+                             kv_names->nspace,
+                             kv_names->default_target_key,
+                             storage_install_target_to_string(target)
                          );
     if (!target_result) {
         return std::unexpected(target_result.error());
     }
     auto preferred_result = StorageHelper::save_key_value(
-                                namespace_result.value(),
-                                preferred_external_key.value(),
-                                preferred_external_id,
-                                STORAGE_KV_TIMEOUT_MS
+                                kv_names->nspace,
+                                kv_names->preferred_external_key,
+                                preferred_external_id
                             );
     if (!preferred_result) {
         return std::unexpected(preferred_result.error());
@@ -506,6 +529,10 @@ std::expected<void, std::string> System::Impl::initialize_storage_layout()
 {
     using StorageHelper = service::helper::Storage;
 
+    {
+        std::lock_guard lock(mutex_);
+        app_storage_paths_cache_.clear();
+    }
     load_storage_preferences(config_.storage);
 
     std::vector<StorageVolume> discovered;
@@ -660,6 +687,15 @@ std::expected<AppStoragePaths, std::string> System::Impl::ensure_app_storage_pat
         return std::unexpected("App manifest id is not a safe storage directory name: " + std::string(manifest_id));
     }
 
+    const std::string manifest_key(manifest_id);
+    {
+        std::lock_guard lock(mutex_);
+        auto cached = app_storage_paths_cache_.find(manifest_key);
+        if (cached != app_storage_paths_cache_.end()) {
+            return cached->second;
+        }
+    }
+
     AppStoragePaths paths;
     paths.internal = make_app_dirs(storage_layout_.internal, manifest_id);
     if (paths.internal.available) {
@@ -686,6 +722,10 @@ std::expected<AppStoragePaths, std::string> System::Impl::ensure_app_storage_pat
             }
         }
         paths.external.push_back(std::move(dirs));
+    }
+    {
+        std::lock_guard lock(mutex_);
+        app_storage_paths_cache_[manifest_key] = paths;
     }
     return paths;
 }
@@ -827,6 +867,10 @@ std::expected<void, std::string> System::set_default_install_storage(
             return std::unexpected("Preferred external storage volume is not available: " + preferred_external_id);
         }
     }
+    if (impl_->storage_layout_.default_install_target == target &&
+            impl_->storage_layout_.preferred_external_id == preferred_external_id) {
+        return {};
+    }
     impl_->storage_layout_.default_install_target = target;
     impl_->storage_layout_.preferred_external_id = std::move(preferred_external_id);
     impl_->config_.storage.default_install_target = target;
@@ -834,6 +878,10 @@ std::expected<void, std::string> System::set_default_install_storage(
     auto save_result = save_storage_preferences(target, impl_->storage_layout_.preferred_external_id);
     if (!save_result) {
         return std::unexpected("Failed to persist storage install preference: " + save_result.error());
+    }
+    {
+        std::lock_guard lock(impl_->mutex_);
+        impl_->app_storage_paths_cache_.clear();
     }
     return {};
 }
@@ -892,21 +940,18 @@ std::expected<std::vector<StorageFileEntry>, std::string> System::storage_list(
         return std::unexpected(path.error());
     }
     std::vector<StorageFileEntry> entries;
-    std::error_code error_code;
-    if (!std::filesystem::exists(*path, error_code)) {
-        return entries;
+    auto service_entries = service::helper::Storage::fs_list(path->generic_string());
+    if (!service_entries) {
+        return std::unexpected(
+                   "Failed to list storage path '" + path->generic_string() + "': " + service_entries.error()
+               );
     }
-    if (!std::filesystem::is_directory(*path, error_code)) {
-        return std::unexpected("Storage list path is not a directory: " + path->generic_string());
-    }
-    for (const auto &entry : std::filesystem::directory_iterator(*path, error_code)) {
+    entries.reserve(service_entries->size());
+    for (const auto &entry : service_entries.value()) {
         entries.push_back(StorageFileEntry{
-            .name = entry.path().filename().generic_string(),
-            .info = make_file_info(entry.path()),
+            .name = entry.name,
+            .info = storage_file_info_from_service(entry.info),
         });
-    }
-    if (error_code) {
-        return std::unexpected("Failed to list storage path '" + path->generic_string() + "': " + error_code.message());
     }
     std::sort(entries.begin(), entries.end(), [](const auto & left, const auto & right) {
         return left.name < right.name;
@@ -947,11 +992,11 @@ std::expected<std::string, std::string> System::storage_read(
     if (!path) {
         return std::unexpected(path.error());
     }
-    std::ifstream stream(*path, std::ios::binary);
-    if (!stream.is_open()) {
-        return std::unexpected("Failed to open storage file for read: " + path->generic_string());
+    auto result = service::helper::Storage::fs_read_text(path->generic_string());
+    if (!result) {
+        return std::unexpected("Failed to read storage file '" + path->generic_string() + "': " + result.error());
     }
-    return std::string(std::istreambuf_iterator<char>(stream), std::istreambuf_iterator<char>());
+    return result.value();
 }
 
 std::expected<void, std::string> System::storage_write(
@@ -968,13 +1013,9 @@ std::expected<void, std::string> System::storage_write(
     if (!parent_result) {
         return std::unexpected(parent_result.error());
     }
-    std::ofstream stream(*path, std::ios::binary | std::ios::trunc);
-    if (!stream.is_open()) {
-        return std::unexpected("Failed to open storage file for write: " + path->generic_string());
-    }
-    stream.write(data.data(), static_cast<std::streamsize>(data.size()));
-    if (!stream.good()) {
-        return std::unexpected("Failed to write storage file: " + path->generic_string());
+    auto result = service::helper::Storage::fs_write_text(path->generic_string(), std::string(data));
+    if (!result) {
+        return std::unexpected("Failed to write storage file '" + path->generic_string() + "': " + result.error());
     }
     return {};
 }
@@ -988,10 +1029,9 @@ std::expected<void, std::string> System::storage_remove(
     if (!path) {
         return std::unexpected(path.error());
     }
-    std::error_code error_code;
-    std::filesystem::remove_all(*path, error_code);
-    if (error_code) {
-        return std::unexpected("Failed to remove storage path '" + path->generic_string() + "': " + error_code.message());
+    auto result = service::helper::Storage::fs_remove(path->generic_string());
+    if (!result) {
+        return std::unexpected("Failed to remove storage path '" + path->generic_string() + "': " + result.error());
     }
     return {};
 }
@@ -1014,12 +1054,11 @@ std::expected<void, std::string> System::storage_rename(
     if (!parent_result) {
         return std::unexpected(parent_result.error());
     }
-    std::error_code error_code;
-    std::filesystem::rename(*from_path, *to_path, error_code);
-    if (error_code) {
+    auto result = service::helper::Storage::fs_rename(from_path->generic_string(), to_path->generic_string());
+    if (!result) {
         return std::unexpected(
                    "Failed to rename storage path '" + from_path->generic_string() + "' to '" +
-                   to_path->generic_string() + "': " + error_code.message()
+                   to_path->generic_string() + "': " + result.error()
                );
     }
     return {};

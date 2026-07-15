@@ -24,6 +24,9 @@ void AppStoreApp::start_or_cancel_download(system::core::AppContext &context, si
         (void)refresh_entry(context, index);
         return;
     }
+    if (is_store_install_pending(index)) {
+        return;
+    }
     if (entry.metadata_loading) {
         return;
     }
@@ -34,11 +37,7 @@ void AppStoreApp::start_or_cancel_download(system::core::AppContext &context, si
         apply_cached_metadata(context, entry);
     }
     if (entry.cached && !entry.cached_package_path.empty()) {
-        auto result = install_package(context, entry.cached_package_path, localized(entry.app_names));
-        if (!result) {
-            entry.schema_error = result.error();
-            (void)refresh_entry(context, index);
-        }
+        install_store_package(context, index, entry.cached_package_path);
         return;
     }
     if (entry.download_url.empty()) {
@@ -62,24 +61,49 @@ void AppStoreApp::start_metadata_request(system::core::AppContext &context, size
     show_download_preparing_dialog(context, entry);
     auto request = make_get_request(entry.metadata_url);
     request.max_response_size = METADATA_MAX_RESPONSE_SIZE;
-    auto result = HttpHelper::call_function_sync<double>(
-                      HttpHelper::FunctionId::RequestAsync,
-                      BROOKESIA_DESCRIBE_TO_JSON(request).as_object()
-                  );
-    if (!result) {
-        entry.schema_error = "Metadata request failed: " + result.error();
-        show_download_failed_dialog(context, entry, entry.schema_error);
-        (void)refresh_entry(context, index);
-        return;
-    }
-
     entry.schema_error.clear();
-    entry.metadata_request_id = static_cast<uint64_t>(*result);
-    download_dialog_request_id_ = entry.metadata_request_id;
+    entry.metadata_request_id = 0;
     entry.metadata_loading = true;
     entry.downloaded = 0;
     entry.total = 0;
+    start_metadata_watchdog(context, entry);
     (void)refresh_entry(context, index);
+
+    auto success_handler = [this, index](uint64_t request_id) {
+        if (context_ == nullptr || index >= entries_.size() || !entries_[index].metadata_loading ||
+                entries_[index].metadata_request_id != 0) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for stale metadata request %1%", request_id);
+            }
+            return;
+        }
+        auto &entry = entries_[index];
+        entry.metadata_request_id = request_id;
+        download_dialog_request_id_ = request_id;
+        (void)refresh_entry(*context_, index);
+    };
+    auto failure_handler = [this, index](std::string error_message) {
+        if (context_ == nullptr || index >= entries_.size() || !entries_[index].metadata_loading ||
+                entries_[index].metadata_request_id != 0) {
+            return;
+        }
+        auto &entry = entries_[index];
+        entry.metadata_loading = false;
+        entry.schema_error = "Metadata request failed: " + error_message;
+        stop_metadata_watchdog(entry);
+        show_download_failed_dialog(*context_, entry, entry.schema_error);
+        (void)refresh_entry(*context_, index);
+    };
+    if (!submit_http_request_async(context, std::move(request), std::move(success_handler), std::move(failure_handler))) {
+        entry.metadata_loading = false;
+        entry.schema_error = "Metadata request failed: submit failed";
+        stop_metadata_watchdog(entry);
+        show_download_failed_dialog(context, entry, entry.schema_error);
+        (void)refresh_entry(context, index);
+    }
 }
 
 bool AppStoreApp::start_size_metadata_request(system::core::AppContext &context, size_t index)
@@ -94,31 +118,51 @@ bool AppStoreApp::start_size_metadata_request(system::core::AppContext &context,
 
     auto request = make_get_request(entry.metadata_url);
     request.max_response_size = METADATA_MAX_RESPONSE_SIZE;
-    auto result = HttpHelper::call_function_sync<double>(
-                      HttpHelper::FunctionId::RequestAsync,
-                      BROOKESIA_DESCRIBE_TO_JSON(request).as_object()
-                  );
-    if (!result) {
-        if (result.error().find("Too many concurrent HTTP requests") != std::string::npos) {
+    entry.size_metadata_request_id = 0;
+    entry.size_metadata_loading = true;
+    entry.size_metadata_failed = false;
+
+    auto success_handler = [this, index](uint64_t request_id) {
+        if (context_ == nullptr || index >= entries_.size() || !entries_[index].size_metadata_loading ||
+                entries_[index].size_metadata_request_id != 0) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for stale size metadata request %1%", request_id);
+            }
+            return;
+        }
+        entries_[index].size_metadata_request_id = request_id;
+    };
+    auto failure_handler = [this, index](std::string error_message) {
+        if (context_ == nullptr || index >= entries_.size() || !entries_[index].size_metadata_loading ||
+                entries_[index].size_metadata_request_id != 0) {
+            return;
+        }
+        auto &entry = entries_[index];
+        entry.size_metadata_loading = false;
+        if (error_message.find("Too many concurrent HTTP requests") != std::string::npos) {
             BROOKESIA_LOGD(
                 "Delay App Store size metadata request: package(%1%), error(%2%)",
-                entry.package_name, result.error()
+                entry.package_name, error_message
             );
-            schedule_size_metadata_step(context, SIZE_METADATA_RETRY_DELAY_MS);
-            return true;
+            schedule_size_metadata_step(*context_, SIZE_METADATA_RETRY_DELAY_MS);
+            return;
         }
 
         entry.size_metadata_failed = true;
         BROOKESIA_LOGW(
             "Failed to start App Store size metadata request: package(%1%), error(%2%)",
-            entry.package_name, result.error()
+            entry.package_name, error_message
         );
+    };
+    if (!submit_http_request_async(context, std::move(request), std::move(success_handler), std::move(failure_handler))) {
+        entry.size_metadata_loading = false;
+        entry.size_metadata_failed = true;
+        BROOKESIA_LOGW("Failed to submit App Store size metadata request: package(%1%)", entry.package_name);
         return false;
     }
-
-    entry.size_metadata_request_id = static_cast<uint64_t>(*result);
-    entry.size_metadata_loading = true;
-    entry.size_metadata_failed = false;
     return true;
 }
 
@@ -131,6 +175,19 @@ void AppStoreApp::start_download(system::core::AppContext &context, size_t index
     if ((entry.installed && !entry.update_available) || entry.package_name.empty() || entry.download_url.empty() ||
             entry.schema_error == "manifest_id must match package_name") {
         return;
+    }
+
+    if (storage_capacity_known_ && entry.download_size > 0) {
+        const uint64_t required_bytes = entry.download_size + DOWNLOAD_FREE_SPACE_MARGIN_BYTES;
+        if (storage_free_bytes_ < required_bytes) {
+            BROOKESIA_LOGW(
+                "Skip App Store download due to insufficient space: package(%1%), required(%2%), free(%3%)",
+                entry.package_name, required_bytes, storage_free_bytes_
+            );
+            show_insufficient_space_dialog(context, entry, required_bytes);
+            (void)refresh_entry(context, index);
+            return;
+        }
     }
 
     auto output = writable_cache_file(context, package_cache_relative_path(entry, true));
@@ -147,32 +204,71 @@ void AppStoreApp::start_download(system::core::AppContext &context, size_t index
                       entry.download_size,
                       std::numeric_limits<uint32_t>::max()
                   )) : 0;
-    ensure_download_progress_dialog(context, entry);
+    show_download_preparing_dialog(context, entry);
 
     auto request = make_get_request(entry.download_url);
     request.download_path = output->generic_string();
     request.max_file_size = BPK_MAX_FILE_SIZE;
-    auto result = HttpHelper::call_function_sync<double>(
-                      HttpHelper::FunctionId::RequestAsync,
-                      BROOKESIA_DESCRIBE_TO_JSON(request).as_object()
-                  );
-    if (!result) {
-        entry.schema_error = "Download failed: " + result.error();
-        show_download_failed_dialog(context, entry, entry.schema_error);
-        remove_cache_file_if_exists(*output, "download request submit failed");
-        (void)refresh_entry(context, index);
-        return;
-    }
     entry.schema_error.clear();
-    entry.download_request_id = static_cast<uint64_t>(*result);
-    download_dialog_request_id_ = entry.download_request_id;
+    entry.download_request_id = 0;
     entry.download_path = *output;
     entry.downloading = true;
     entry.metadata_loading = false;
     entry.metadata_request_id = 0;
     entry.installed = false;
     ensure_download_progress_dialog(context, entry);
+    start_download_watchdog(context, entry);
     (void)refresh_entry(context, index);
+
+    const auto output_path = *output;
+    auto success_handler = [this, index, output_path](uint64_t request_id) {
+        if (context_ == nullptr || index >= entries_.size() || !entries_[index].downloading ||
+                entries_[index].download_request_id != 0 || entries_[index].download_path != output_path) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for stale download request %1%", request_id);
+            }
+            remove_cache_file_if_exists(output_path, "stale download request submitted");
+            return;
+        }
+        auto &entry = entries_[index];
+        entry.download_request_id = request_id;
+        terminal_download_request_ids_.erase(request_id);
+        download_dialog_request_id_ = request_id;
+        start_download_watchdog(*context_, entry);
+        ensure_download_progress_dialog(*context_, entry);
+        (void)refresh_entry(*context_, index);
+    };
+    auto failure_handler = [this, index, output_path](std::string error_message) {
+        if (context_ == nullptr || index >= entries_.size() || !entries_[index].downloading ||
+                entries_[index].download_request_id != 0 || entries_[index].download_path != output_path) {
+            remove_cache_file_if_exists(output_path, "download request submit failed");
+            return;
+        }
+        auto &entry = entries_[index];
+        entry.downloading = false;
+        entry.schema_error = "Download failed: " + error_message;
+        stop_download_watchdog(entry);
+        show_download_failed_dialog(*context_, entry, entry.schema_error);
+        remove_cache_file_if_exists(output_path, "download request submit failed");
+        entry.download_path.clear();
+        entry.downloaded = 0;
+        entry.total = 0;
+        (void)refresh_entry(*context_, index);
+    };
+    if (!submit_http_request_async(context, std::move(request), std::move(success_handler), std::move(failure_handler))) {
+        entry.downloading = false;
+        entry.schema_error = "Download failed: submit failed";
+        stop_download_watchdog(entry);
+        show_download_failed_dialog(context, entry, entry.schema_error);
+        remove_cache_file_if_exists(*output, "download request submit failed");
+        entry.download_path.clear();
+        entry.downloaded = 0;
+        entry.total = 0;
+        (void)refresh_entry(context, index);
+    }
 }
 
 std::expected<void, std::string> AppStoreApp::apply_metadata_json_to_entry(
@@ -321,15 +417,6 @@ std::expected<void, std::string> AppStoreApp::install_package(
 )
 {
     const std::string app_name(name);
-    ensure_message_dialog(
-        context,
-        tr("dialog.installing_prefix") + app_name,
-        path.filename().generic_string(),
-        system::core::MessageDialogIcon::Information,
-        0,
-        MessageDialogPurpose::Install
-    );
-
     prefer_external_install_storage(context);
     auto result = context.system_service().install_runtime_app_package(path.generic_string(), true);
     if (!result) {
@@ -351,7 +438,7 @@ std::expected<void, std::string> AppStoreApp::install_package(
     }
 
     refresh_installed_apps(context);
-    scan_local_packages(context);
+    start_local_package_scan(context, false);
     refresh_storage_capacity(context);
     status_text_ = tr("status.installed_prefix") + app_name;
     ensure_message_dialog(
@@ -371,15 +458,94 @@ void AppStoreApp::install_local_package(system::core::AppContext &context, size_
     if (index >= local_packages_.size()) {
         return;
     }
+    if (is_local_install_pending(index)) {
+        return;
+    }
     auto &entry = local_packages_[index];
     if (get_local_package_action(entry) == LocalPackageAction::None) {
         return;
     }
-    auto result = install_package(context, entry.package_path, localized(entry.app_names));
-    if (!result) {
-        entry.schema_error = result.error();
-        (void)refresh_ui(context);
+    schedule_package_install(
+        context,
+        entry.package_path,
+        localized(entry.app_names),
+        DeferredOperationType::InstallLocalPackage,
+        index,
+        entry.manifest_id
+    );
+    (void)refresh_ui(context);
+}
+
+void AppStoreApp::install_store_package(
+    system::core::AppContext &context,
+    size_t index,
+    const std::filesystem::path &path
+)
+{
+    if (index >= entries_.size()) {
+        return;
     }
+    if (is_store_install_pending(index)) {
+        return;
+    }
+    schedule_package_install(
+        context,
+        path,
+        localized(entries_[index].app_names),
+        DeferredOperationType::InstallPackage,
+        index,
+        entries_[index].package_name,
+        entries_[index].download_request_id
+    );
+    (void)refresh_entry(context, index);
+}
+
+bool AppStoreApp::schedule_package_install(
+    system::core::AppContext &context,
+    const std::filesystem::path &path,
+    std::string app_name,
+    DeferredOperationType type,
+    size_t index,
+    std::string manifest_id,
+    uint64_t download_request_id
+)
+{
+    if (download_request_id == 0 ||
+            !transition_download_dialog_to_install_if_current(context, download_request_id, app_name, path)) {
+        ensure_message_dialog(
+            context,
+            tr("dialog.installing_prefix") + app_name,
+            path.filename().generic_string(),
+            system::core::MessageDialogIcon::Information,
+            0,
+            MessageDialogPurpose::Install
+        );
+    }
+    const auto install_failed_text = tr("dialog.install_failed_prefix") + app_name;
+    auto scheduled = schedule_deferred_operation(
+        context,
+        DeferredOperation{
+            .type = type,
+            .index = index,
+            .download_request_id = download_request_id,
+            .package_path = path,
+            .app_name = std::move(app_name),
+            .manifest_id = std::move(manifest_id),
+        }
+    );
+    if (!scheduled) {
+        BROOKESIA_LOGW("Failed to queue App Store package install: path(%1%)", path.generic_string());
+        ensure_message_dialog(
+            context,
+            install_failed_text,
+            path.filename().generic_string(),
+            system::core::MessageDialogIcon::Warning,
+            0,
+            MessageDialogPurpose::Install
+        );
+        return false;
+    }
+    return true;
 }
 
 void AppStoreApp::uninstall_installed_app(system::core::AppContext &context, size_t index)
@@ -401,7 +567,25 @@ void AppStoreApp::uninstall_installed_app(system::core::AppContext &context, siz
         0,
         MessageDialogPurpose::Uninstall
     );
+    DeferredOperation operation;
+    operation.type = DeferredOperationType::UninstallInstalledApp;
+    operation.index = index;
+    operation.app_id = app_id;
+    operation.app_name = app_name;
+    operation.manifest_id = manifest_id;
+    if (!schedule_deferred_operation(context, std::move(operation))) {
+        BROOKESIA_LOGW("Failed to queue App Store uninstall: id(%1%)", manifest_id);
+    }
+    (void)populate_entries(context);
+}
 
+void AppStoreApp::uninstall_installed_app(
+    system::core::AppContext &context,
+    system::core::AppId app_id,
+    std::string manifest_id,
+    std::string app_name
+)
+{
     auto result = context.system_service().uninstall_app(app_id);
     if (!result) {
         BROOKESIA_LOGW("Failed to uninstall runtime app: id(%1%), error(%2%)", manifest_id, result.error());
@@ -424,7 +608,7 @@ void AppStoreApp::uninstall_installed_app(system::core::AppContext &context, siz
     }
 
     refresh_installed_apps(context);
-    scan_local_packages(context);
+    start_local_package_scan(context, false);
     refresh_storage_capacity(context);
     status_text_ = tr("status.uninstalled_prefix") + app_name;
     ensure_message_dialog(
@@ -438,8 +622,43 @@ void AppStoreApp::uninstall_installed_app(system::core::AppContext &context, siz
     (void)populate_entries(context);
 }
 
+bool AppStoreApp::is_store_install_pending(size_t index) const
+{
+    return std::any_of(
+        pending_deferred_operations_.begin(),
+        pending_deferred_operations_.end(),
+        [index](const DeferredOperation &operation) {
+            return operation.type == DeferredOperationType::InstallPackage && operation.index == index;
+        }
+    );
+}
+
+bool AppStoreApp::is_local_install_pending(size_t index) const
+{
+    return std::any_of(
+        pending_deferred_operations_.begin(),
+        pending_deferred_operations_.end(),
+        [index](const DeferredOperation &operation) {
+            return operation.type == DeferredOperationType::InstallLocalPackage && operation.index == index;
+        }
+    );
+}
+
+bool AppStoreApp::is_uninstall_pending(system::core::AppId app_id) const
+{
+    return std::any_of(
+        pending_deferred_operations_.begin(),
+        pending_deferred_operations_.end(),
+        [app_id](const DeferredOperation &operation) {
+            return operation.type == DeferredOperationType::UninstallInstalledApp && operation.app_id == app_id;
+        }
+    );
+}
+
 void AppStoreApp::cancel_download(StoreEntry &entry)
 {
+    stop_metadata_watchdog(entry);
+    stop_download_watchdog(entry);
     cancel_size_metadata_request(entry);
 
     if (entry.metadata_loading && entry.metadata_request_id != 0 && http_available_) {
@@ -464,6 +683,7 @@ void AppStoreApp::cancel_download(StoreEntry &entry)
         return;
     }
     const auto request_id = entry.download_request_id;
+    mark_download_request_terminal(request_id);
     if (!HttpHelper::call_function_async(
                 HttpHelper::FunctionId::CancelRequest,
                 static_cast<double>(request_id)
@@ -476,6 +696,169 @@ void AppStoreApp::cancel_download(StoreEntry &entry)
     entry.download_path.clear();
     entry.downloaded = 0;
     entry.total = 0;
+}
+
+void AppStoreApp::close_download_dialog_if_current(system::core::AppContext &context, uint64_t request_id)
+{
+    if (request_id == 0 || message_dialog_purpose_ != MessageDialogPurpose::Download ||
+            download_dialog_request_id_ != request_id) {
+        return;
+    }
+    hide_message_dialog_if_visible(context);
+}
+
+void AppStoreApp::clear_download_dialog_binding_if_current(uint64_t request_id)
+{
+    if (request_id != 0 && message_dialog_purpose_ == MessageDialogPurpose::Download &&
+            download_dialog_request_id_ == request_id) {
+        download_dialog_request_id_ = 0;
+    }
+}
+
+void AppStoreApp::mark_download_request_terminal(uint64_t request_id)
+{
+    if (request_id != 0) {
+        terminal_download_request_ids_.insert(request_id);
+    }
+}
+
+bool AppStoreApp::is_download_request_terminal(uint64_t request_id) const
+{
+    return request_id != 0 && terminal_download_request_ids_.contains(request_id);
+}
+
+void AppStoreApp::start_metadata_watchdog(system::core::AppContext &context, StoreEntry &entry)
+{
+    stop_metadata_watchdog(entry);
+    const uint64_t delay_ms = static_cast<uint64_t>(HTTP_TIMEOUT_MS) * 2U + METADATA_REQUEST_TIMEOUT_EXTRA_MS;
+    const int timer_delay_ms = static_cast<int>(
+                                   std::min<uint64_t>(delay_ms, static_cast<uint64_t>(std::numeric_limits<int>::max()))
+                               );
+    auto timer = context.timer().start_delayed(METADATA_WATCHDOG_TIMER_NAME, timer_delay_ms);
+    if (!timer) {
+        BROOKESIA_LOGW("Failed to schedule App Store metadata watchdog: %1%", timer.error());
+        return;
+    }
+    entry.metadata_watchdog_timer_id = *timer;
+}
+
+void AppStoreApp::start_download_watchdog(system::core::AppContext &context, StoreEntry &entry)
+{
+    stop_download_watchdog(entry);
+    auto timer = context.timer().start_delayed(DOWNLOAD_WATCHDOG_TIMER_NAME, DOWNLOAD_STALL_TIMEOUT_MS);
+    if (!timer) {
+        BROOKESIA_LOGW("Failed to schedule App Store download watchdog: %1%", timer.error());
+        return;
+    }
+    entry.download_watchdog_timer_id = *timer;
+}
+
+void AppStoreApp::stop_metadata_watchdog(StoreEntry &entry)
+{
+    if (entry.metadata_watchdog_timer_id == system::core::INVALID_TIMER_ID) {
+        return;
+    }
+    if (context_ != nullptr && !context_->timer().stop(entry.metadata_watchdog_timer_id)) {
+        BROOKESIA_LOGW("Failed to stop App Store metadata watchdog: %1%", entry.metadata_watchdog_timer_id);
+    }
+    entry.metadata_watchdog_timer_id = system::core::INVALID_TIMER_ID;
+}
+
+void AppStoreApp::stop_download_watchdog(StoreEntry &entry)
+{
+    if (entry.download_watchdog_timer_id == system::core::INVALID_TIMER_ID) {
+        return;
+    }
+    if (context_ != nullptr && !context_->timer().stop(entry.download_watchdog_timer_id)) {
+        BROOKESIA_LOGW("Failed to stop App Store download watchdog: %1%", entry.download_watchdog_timer_id);
+    }
+    entry.download_watchdog_timer_id = system::core::INVALID_TIMER_ID;
+}
+
+std::expected<void, std::string> AppStoreApp::process_metadata_watchdog_timeout(
+    system::core::AppContext &context,
+    system::core::TimerId timer_id
+)
+{
+    for (size_t i = 0; i < entries_.size(); ++i) {
+        auto &entry = entries_[i];
+        if (entry.metadata_watchdog_timer_id != timer_id) {
+            continue;
+        }
+
+        entry.metadata_watchdog_timer_id = system::core::INVALID_TIMER_ID;
+        if (!entry.metadata_loading) {
+            return {};
+        }
+        const auto request_id = entry.metadata_request_id;
+        BROOKESIA_LOGW(
+            "App Store metadata request timeout: package(%1%), request_id(%2%)",
+            entry.package_name, request_id
+        );
+        if (request_id != 0 && http_available_) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for timed out metadata request %1%", request_id);
+            }
+        }
+        entry.schema_error = tr("error.metadata_request_timeout");
+        entry.metadata_loading = false;
+        entry.metadata_request_id = 0;
+        entry.downloaded = 0;
+        entry.total = 0;
+        show_download_failed_dialog(context, entry, entry.schema_error);
+        return refresh_entry(context, i);
+    }
+
+    BROOKESIA_LOGW("Ignore stale App Store metadata watchdog timer: timer_id(%1%)", timer_id);
+    return {};
+}
+
+std::expected<void, std::string> AppStoreApp::process_download_watchdog_timeout(
+    system::core::AppContext &context,
+    system::core::TimerId timer_id
+)
+{
+    for (size_t i = 0; i < entries_.size(); ++i) {
+        auto &entry = entries_[i];
+        if (entry.download_watchdog_timer_id != timer_id) {
+            continue;
+        }
+
+        entry.download_watchdog_timer_id = system::core::INVALID_TIMER_ID;
+        if (!entry.downloading) {
+            return {};
+        }
+        const auto request_id = entry.download_request_id;
+        BROOKESIA_LOGW(
+            "App Store download stalled: package(%1%), request_id(%2%)",
+            entry.package_name, request_id
+        );
+        if (request_id != 0 && http_available_) {
+            if (!HttpHelper::call_function_async(
+                        HttpHelper::FunctionId::CancelRequest,
+                        static_cast<double>(request_id)
+                    )) {
+                BROOKESIA_LOGW("Failed to submit cancel for stalled download request %1%", request_id);
+            }
+        }
+        entry.schema_error = tr("error.download_timeout");
+        mark_download_request_terminal(request_id);
+        clear_download_dialog_binding_if_current(request_id);
+        entry.downloading = false;
+        entry.download_request_id = 0;
+        remove_cache_file_if_exists(entry.download_path, "download stalled");
+        entry.download_path.clear();
+        entry.downloaded = 0;
+        entry.total = 0;
+        show_download_failed_dialog(context, entry, entry.schema_error);
+        return refresh_entry(context, i);
+    }
+
+    BROOKESIA_LOGW("Ignore stale App Store download watchdog timer: timer_id(%1%)", timer_id);
+    return {};
 }
 
 void AppStoreApp::cancel_size_metadata_request(StoreEntry &entry)
@@ -502,6 +885,7 @@ void AppStoreApp::cancel_size_metadata_requests()
 
 void AppStoreApp::show_download_preparing_dialog(system::core::AppContext &context, const StoreEntry &entry)
 {
+    download_dialog_request_id_ = entry.metadata_request_id;
     ensure_message_dialog(
         context,
         tr("dialog.download_preparing_prefix") + localized(entry.app_names),
@@ -514,9 +898,10 @@ void AppStoreApp::show_download_preparing_dialog(system::core::AppContext &conte
 
 void AppStoreApp::ensure_download_progress_dialog(system::core::AppContext &context, const StoreEntry &entry)
 {
-    if (entry.download_request_id != 0) {
-        download_dialog_request_id_ = entry.download_request_id;
+    if (entry.download_request_id == 0) {
+        return;
     }
+    download_dialog_request_id_ = entry.download_request_id;
     ensure_message_dialog(
         context,
         tr("dialog.downloading_prefix") + localized(entry.app_names),
@@ -548,6 +933,29 @@ void AppStoreApp::update_download_progress_dialog_if_current(
     );
 }
 
+bool AppStoreApp::transition_download_dialog_to_install_if_current(
+    system::core::AppContext &context,
+    uint64_t request_id,
+    std::string_view app_name,
+    const std::filesystem::path &package_path
+)
+{
+    if (request_id == 0 || message_dialog_purpose_ != MessageDialogPurpose::Download ||
+            download_dialog_request_id_ != request_id) {
+        return false;
+    }
+
+    ensure_message_dialog(
+        context,
+        tr("dialog.installing_prefix") + std::string(app_name),
+        package_path.filename().generic_string(),
+        system::core::MessageDialogIcon::Information,
+        0,
+        MessageDialogPurpose::Install
+    );
+    return true;
+}
+
 void AppStoreApp::show_download_failed_dialog(
     system::core::AppContext &context,
     const StoreEntry &entry,
@@ -555,13 +963,37 @@ void AppStoreApp::show_download_failed_dialog(
 )
 {
     const auto request_id = entry.download_request_id != 0 ? entry.download_request_id : entry.metadata_request_id;
-    if (request_id != 0) {
+    download_dialog_request_id_ = 0;
+    if (request_id != 0 && !is_download_request_terminal(request_id)) {
         download_dialog_request_id_ = request_id;
     }
     ensure_message_dialog(
         context,
         tr("dialog.download_failed_prefix") + localized(entry.app_names),
         std::move(error_message),
+        system::core::MessageDialogIcon::Warning,
+        0,
+    MessageDialogPurpose::Download, {
+        system::core::MessageDialogButton{
+            .text = tr("action.close"),
+            .role = system::core::MessageDialogButtonRole::Reject,
+        },
+    }
+    );
+}
+
+void AppStoreApp::show_insufficient_space_dialog(
+    system::core::AppContext &context,
+    const StoreEntry &entry,
+    uint64_t required_bytes
+)
+{
+    download_dialog_request_id_ = 0;
+    ensure_message_dialog(
+        context,
+        tr("dialog.insufficient_space_prefix") + localized(entry.app_names),
+        tr("dialog.insufficient_space_required_prefix") + format_bytes(required_bytes) +
+        tr("dialog.insufficient_space_available_prefix") + format_bytes(storage_free_bytes_),
         system::core::MessageDialogIcon::Warning,
         0,
     MessageDialogPurpose::Download, {

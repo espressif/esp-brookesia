@@ -50,7 +50,7 @@
 #      if defined(CONFIG_BROOKESIA_SERVICE_DEVICE_WORKER_NAME)
 #          define BROOKESIA_SERVICE_DEVICE_WORKER_NAME  CONFIG_BROOKESIA_SERVICE_DEVICE_WORKER_NAME
 #      else
-#          define BROOKESIA_SERVICE_DEVICE_WORKER_NAME  "SvcDeviceWorker"
+#          define BROOKESIA_SERVICE_DEVICE_WORKER_NAME  "SvcDevice"
 #      endif
 #   endif
 

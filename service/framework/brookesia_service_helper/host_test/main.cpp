@@ -20,7 +20,7 @@ using brookesia_host::append_helper_schema_dump;
 int main()
 {
     boost::json::array helpers;
-    helpers.reserve(17);
+    helpers.reserve(19);
     std::size_t total_function_count = 0;
     std::size_t total_event_count = 0;
     std::size_t helper_error_count = 0;
@@ -67,6 +67,10 @@ int main()
         VideoDecoder<0>::get_name(), VideoDecoder<0>::get_function_schemas, VideoDecoder<0>::get_event_schemas
     );
     append_dump_with_guard(Manager::get_name(), Manager::get_function_schemas, Manager::get_event_schemas);
+    append_dump_with_guard(Utils::get_name(), Utils::get_function_schemas, Utils::get_event_schemas);
+    append_dump_with_guard(
+        AgentManager::get_name(), AgentManager::get_function_schemas, AgentManager::get_event_schemas
+    );
     append_dump_with_guard(Coze::get_name(), Coze::get_function_schemas, Coze::get_event_schemas);
     append_dump_with_guard(Openai::get_name(), Openai::get_function_schemas, Openai::get_event_schemas);
     append_dump_with_guard(XiaoZhi::get_name(), XiaoZhi::get_function_schemas, XiaoZhi::get_event_schemas);

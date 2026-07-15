@@ -332,6 +332,19 @@ bool StorageFileSystemImpl::init_littlefs()
     auto init_func = [&ret, &config]() {
         BROOKESIA_LOG_TRACE_GUARD();
         ret = esp_vfs_littlefs_register(&config);
+        BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to register LittleFS");
+        lib_utils::FunctionGuard deinit_guard([]() {
+            esp_vfs_littlefs_unregister(BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_PARTITION_LABEL);
+        });
+
+        size_t total_size = 0;
+        size_t used_size = 0;
+        ret = esp_littlefs_info(
+                  BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_PARTITION_LABEL, &total_size, &used_size
+              );
+        BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get LittleFS partition information");
+        BROOKESIA_LOGI("LittleFS partition size: total: %1%, used: %2%", total_size, used_size);
+        deinit_guard.release();
     };
     if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         // Since initializing LittleFS operates on Flash,
@@ -344,16 +357,6 @@ bool StorageFileSystemImpl::init_littlefs()
         init_func();
     }
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize LittleFS");
-    lib_utils::FunctionGuard deinit_guard([this]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        esp_vfs_littlefs_unregister(BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_PARTITION_LABEL);
-    });
-
-    size_t total_size = 0;
-    size_t used_size = 0;
-    ret = esp_littlefs_info(BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_PARTITION_LABEL, &total_size, &used_size);
-    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get LittleFS partition information");
-    BROOKESIA_LOGI("LittleFS partition size: total: %1%, used: %2%", total_size, used_size);
 
     add_entry(Info {
         .fs_type = FileSystemType::LittleFS,
@@ -362,8 +365,6 @@ bool StorageFileSystemImpl::init_littlefs()
         .root_path = BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_BASE_PATH,
         .supports_directories = true,
     }, BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_LITTLEFS_PARTITION_LABEL);
-
-    deinit_guard.release();
 
     return true;
 }
@@ -396,6 +397,28 @@ bool StorageFileSystemImpl::init_fatfs_flash()
                   &config,
                   &fatfs_flash_wl_handle_
               );
+        BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to mount flash FATFS");
+        lib_utils::FunctionGuard deinit_guard([this]() {
+            if (fatfs_flash_wl_handle_ == WL_INVALID_HANDLE) {
+                return;
+            }
+            esp_vfs_fat_spiflash_unmount_rw_wl(
+                BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_BASE_PATH, fatfs_flash_wl_handle_
+            );
+            fatfs_flash_wl_handle_ = WL_INVALID_HANDLE;
+        });
+
+        uint64_t total_size = 0;
+        uint64_t free_size = 0;
+        ret = esp_vfs_fat_info(
+                  BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_BASE_PATH, &total_size, &free_size
+              );
+        BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get flash FATFS partition information");
+        BROOKESIA_LOGI(
+            "Flash FATFS partition size: total: %1%, used: %2%, free: %3%",
+            total_size, total_size - free_size, free_size
+        );
+        deinit_guard.release();
     };
     if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         // Since initializing flash FATFS operates on Flash, use an SRAM stack when needed.
@@ -407,26 +430,6 @@ bool StorageFileSystemImpl::init_fatfs_flash()
         init_func();
     }
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize flash FATFS");
-    lib_utils::FunctionGuard deinit_guard([this]() {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        if (fatfs_flash_wl_handle_ != WL_INVALID_HANDLE) {
-            esp_vfs_fat_spiflash_unmount_rw_wl(
-                BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_BASE_PATH, fatfs_flash_wl_handle_
-            );
-            fatfs_flash_wl_handle_ = WL_INVALID_HANDLE;
-        }
-    });
-
-    uint64_t total_size = 0;
-    uint64_t free_size = 0;
-    ret = esp_vfs_fat_info(
-              BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_BASE_PATH, &total_size, &free_size
-          );
-    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get flash FATFS partition information");
-    BROOKESIA_LOGI(
-        "Flash FATFS partition size: total: %1%, used: %2%, free: %3%",
-        total_size, total_size - free_size, free_size
-    );
 
     add_entry(Info {
         .fs_type = FileSystemType::FATFS,
@@ -435,8 +438,6 @@ bool StorageFileSystemImpl::init_fatfs_flash()
         .root_path = BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_BASE_PATH,
         .supports_directories = true,
     }, BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_FLASH_PARTITION_LABEL);
-
-    deinit_guard.release();
 
     return true;
 }

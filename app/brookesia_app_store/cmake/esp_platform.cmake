@@ -60,8 +60,17 @@ target_compile_definitions(${COMPONENT_LIB}
 )
 
 set(app_store_package_id "brookesia.general.app_store")
-idf_component_get_property(brookesia_system_core_dir brookesia_system_core COMPONENT_DIR)
-include(${brookesia_system_core_dir}/cmake/runtime_app_stage.cmake)
+if(DEFINED BROOKESIA_SYSTEM_CORE_COMPONENT_DIR AND NOT "${BROOKESIA_SYSTEM_CORE_COMPONENT_DIR}" STREQUAL "")
+    set(brookesia_system_core_dir "${BROOKESIA_SYSTEM_CORE_COMPONENT_DIR}")
+else()
+    idf_build_get_property(build_components BUILD_COMPONENTS)
+    if("espressif__brookesia_system_core" IN_LIST build_components)
+        idf_component_get_property(brookesia_system_core_dir espressif__brookesia_system_core COMPONENT_DIR)
+    else()
+        idf_component_get_property(brookesia_system_core_dir brookesia_system_core COMPONENT_DIR)
+    endif()
+endif()
+include("${brookesia_system_core_dir}/cmake/runtime_app_stage.cmake")
 brookesia_system_core_get_esp_runtime_app_stage_root(app_store_stage_root)
 brookesia_stage_runtime_app_package(
     PACKAGE_ID "${app_store_package_id}"

@@ -20,6 +20,7 @@ add_library(${COMPONENT_LIB} STATIC
     ${COMPONENT_SRCS_C}
     ${COMPONENT_SRCS_CPP}
 )
+brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_HAL_INTERFACE)
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_20)
 target_include_directories(${COMPONENT_LIB}

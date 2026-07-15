@@ -14,6 +14,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "boost/unordered/unordered_flat_map.hpp"
@@ -124,7 +125,6 @@ struct Record {
     lv_style_t debug_style {};
     bool debug_style_initialized = false;
     std::string image_src;
-    std::shared_ptr<std::string> image_src_storage;
     std::shared_ptr<BinaryImageSource> image_binary_src;
     uintptr_t image_native_src = 0;
     int32_t image_width = 0;
@@ -138,6 +138,7 @@ struct Record {
     FrameViewProps frame_view_props;
     std::string frame_view_output_name;
     std::vector<uint8_t> frame_view_buffer;
+    std::vector<uint8_t> frame_view_shadow_buffer;
     lv_image_dsc_t frame_view_descriptor {};
     int32_t frame_view_width = 0;
     int32_t frame_view_height = 0;
@@ -156,7 +157,6 @@ struct Record {
     std::vector<std::string> keyboard_allowed_modes;
     std::unordered_map<std::string, KeyboardKeyStyle> keyboard_key_styles;
     std::unordered_map<uint32_t, lv_area_t> keyboard_key_fill_areas;
-    std::unordered_map<std::string, std::shared_ptr<std::string>> keyboard_image_src_storages;
     int32_t keyboard_icon_size = 0;
     std::string keyboard_target_path;
     lv_obj_t *keyboard_target_object = nullptr;
@@ -179,14 +179,23 @@ struct FontCacheEntry {
     std::string cache_key;
     std::vector<lv_font_t *> chain;
     std::vector<void *> platform_font_handles;
+    struct FontSource {
+        std::vector<uint8_t> data;
+        lv_fs_path_ex_t memfs_path {};
+    };
     enum class FontKind {
         FreeType,
         ImageFont,
     };
+    struct ImageFontGlyphSource {
+        uint32_t codepoint = 0;
+        std::shared_ptr<BinaryImageSource> source;
+    };
     struct ImageFontContext {
-        std::vector<ImageFontGlyph> glyphs;
+        std::vector<ImageFontGlyphSource> glyph_sources;
     };
     std::vector<FontKind> font_kinds;
+    std::vector<std::shared_ptr<FontSource>> font_sources;
     std::vector<std::unique_ptr<ImageFontContext>> image_font_contexts;
     std::size_t ref_count = 0;
 };
@@ -261,6 +270,7 @@ public:
     std::expected<RuntimeImageResource, std::string> resolve_image_resource(RuntimeImageResource resource) const;
     bool requires_preloaded_image_resource(const RuntimeImageResource &resource) const;
     void process_timers();
+    bool scroll_node_to(BackendHandle handle, int32_t x, int32_t y, bool animated);
     bool scroll_node_to_visible(BackendHandle handle, bool animated);
     bool mount_image_assets(const EspImageMountConfig &config);
     bool unmount_image_assets(char fs_letter);
@@ -276,8 +286,12 @@ public:
     boost::unordered_flat_map<NodeType, Creator, EnumHash> creators;
     std::unordered_map<BackendHandle::Value, Record> records;
     std::unordered_map<std::string, FontCacheEntry> font_cache;
+    std::unordered_map<std::string, std::weak_ptr<FontCacheEntry::FontSource>> font_source_cache;
+    std::unordered_set<std::string> failed_font_cache;
     std::unordered_map<std::string, RuntimeFontResource> font_resources;
     std::unordered_map<std::string, BinaryImageCacheEntry> binary_image_cache;
+    std::unordered_map<std::string, BinaryImageCacheEntry> decoded_image_cache;
+    std::vector<std::shared_ptr<Record::KeyboardLayoutStorage>> keyboard_layout_backing_store;
     std::unordered_map<char, FontAssetsMountRecord> font_asset_mounts;
     std::unordered_map<char, ImageAssetsMountRecord> image_asset_mounts;
     std::unordered_map<BackendHandle::Value, MountTarget> mounted_targets;
@@ -299,6 +313,7 @@ std::expected<void, std::string> preload_image_resource(BackendImpl &impl, const
 void release_image_resource(BackendImpl &impl, const RuntimeImageResource &resource);
 std::expected<RuntimeImageResource, std::string> resolve_image_resource(RuntimeImageResource resource);
 bool requires_preloaded_image_resource(const RuntimeImageResource &resource);
+std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_image_source(std::string_view path);
 void apply_props(BackendImpl &impl, Record &record, const Node &node, PropsApplyMask mask);
 void refresh_frame_view(BackendImpl &impl, Record &record, FrameViewProps props);
 void release_frame_view(Record &record);

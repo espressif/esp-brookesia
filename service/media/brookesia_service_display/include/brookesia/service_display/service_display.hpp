@@ -197,6 +197,8 @@ public:
     );
 
 private:
+    static std::string get_component_version();
+
     struct AsyncFrame {
         uint32_t frame_id = 0;
         uint32_t source_id = 0;
@@ -266,6 +268,8 @@ private:
     Display()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Manage display outputs, touch inputs, and backlight controls.",
+        .version = get_component_version(),
         .dependencies = {
             helper::Storage::get_name().data(),
         },

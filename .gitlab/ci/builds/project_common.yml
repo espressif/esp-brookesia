@@ -116,3 +116,16 @@ variables:
       - IMAGE: "espressif/idf:latest"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+
+.build_idf_release_version_for_super:
+  parallel:
+    matrix:
+      - IMAGE: "espressif/idf:release-v6.0"
+        EXAMPLE_TARGET: "esp32s3"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: "espressif/idf:release-v6.0"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: "espressif/idf:latest"
+        EXAMPLE_TARGET: "esp32s31"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="

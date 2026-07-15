@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstdio>
 #include <exception>
+#include <optional>
 #include <vector>
 #include "boost/json.hpp"
 #if !defined(__EMSCRIPTEN__)
@@ -47,6 +48,24 @@ uint32_t get_effective_limit(uint32_t request_limit, uint32_t default_limit)
 {
     return request_limit > 0 ? request_limit : default_limit;
 }
+
+#if BROOKESIA_SERVICE_HTTP_REQUIRE_TIME_SYNC
+std::optional<SNTPHelper::State> get_sntp_state_for_http_startup()
+{
+    auto state_text = SNTPHelper::call_function_sync<std::string>(SNTPHelper::FunctionId::GetState);
+    if (!state_text) {
+        BROOKESIA_LOGW("Failed to get SNTP state before HTTP startup time sync: %1%", state_text.error());
+        return std::nullopt;
+    }
+
+    SNTPHelper::State state = SNTPHelper::State::Max;
+    if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(*state_text, state)) {
+        BROOKESIA_LOGW("Invalid SNTP state before HTTP startup time sync: %1%", *state_text);
+        return std::nullopt;
+    }
+    return state;
+}
+#endif
 
 boost::json::object http_response_to_json(const helper::Http::HttpResponse &response)
 {
@@ -90,6 +109,13 @@ bool should_retry_status(const helper::Http::HttpRequest &request, int status_co
 }
 
 } // namespace
+
+std::string Http::get_component_version()
+{
+    return make_version(
+               BROOKESIA_SERVICE_HTTP_VER_MAJOR, BROOKESIA_SERVICE_HTTP_VER_MINOR, BROOKESIA_SERVICE_HTTP_VER_PATCH
+           );
+}
 
 bool Http::on_init()
 {
@@ -715,6 +741,22 @@ bool Http::start_time_sync_if_available(bool &started)
     auto binding = ServiceManager::get_instance().bind(SNTPHelper::get_name().data());
     BROOKESIA_CHECK_FALSE_RETURN(binding.is_valid(), false, "Failed to bind SNTP service");
     sntp_binding_ = std::move(binding);
+
+    auto state = get_sntp_state_for_http_startup();
+    if (state) {
+        if (*state == SNTPHelper::State::Synced) {
+            BROOKESIA_LOGI("SNTP already synced, skip HTTP startup time sync start");
+            return true;
+        }
+        if (*state == SNTPHelper::State::CheckingNetwork || *state == SNTPHelper::State::Syncing) {
+            BROOKESIA_LOGI(
+                "SNTP already active, wait for HTTP startup time sync: state(%1%)",
+                BROOKESIA_DESCRIBE_TO_STR(*state)
+            );
+            started = true;
+            return true;
+        }
+    }
 
     auto start_result = SNTPHelper::call_function_sync<void>(SNTPHelper::FunctionId::Start);
     BROOKESIA_CHECK_FALSE_RETURN(start_result, false, "Failed to start SNTP: %1%", start_result.error());

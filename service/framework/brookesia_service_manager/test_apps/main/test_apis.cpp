@@ -29,6 +29,8 @@ public:
     TestService()
         : ServiceBase({
         .name = SERVICE_NAME,
+        .description = "Test service.",
+        .version = "0.0.0",
     })
     {
         total_instances_++;
@@ -315,6 +317,63 @@ BROOKESIA_TEST_CASE(test_apis_bind_non_existent_service, "Test APIs: bind non-ex
     auto binding = service_manager.bind("NonExistentService");
     TEST_ASSERT_FALSE(binding.is_valid());
 
+    service_manager.stop();
+    service_manager.deinit();
+}
+
+BROOKESIA_TEST_CASE(
+    test_apis_builtin_manager_service,
+    "Test APIs: built-in Manager service information",
+    "[brookesia][service][api][manager]"
+)
+{
+    TEST_ASSERT_TRUE(service_manager.init());
+    TEST_ASSERT_TRUE(service_manager.start());
+
+    auto test_service = service_manager.get_service(TestService::SERVICE_NAME);
+    TEST_ASSERT_NOT_NULL(test_service);
+    auto version_result = test_service->call_function_sync("GetVersion", FunctionParameterMap{});
+    TEST_ASSERT_FALSE(version_result.success);
+
+    auto binding = service_manager.bind(ManagerService::get_name().data());
+    TEST_ASSERT_TRUE(binding.is_valid());
+    auto manager_service = binding.get_service();
+    TEST_ASSERT_NOT_NULL(manager_service);
+
+    auto info_result = manager_service->call_function_sync(
+                           BROOKESIA_DESCRIBE_TO_STR(ManagerService::FunctionId::GetServiceInfo),
+    FunctionParameterMap{{
+            BROOKESIA_DESCRIBE_TO_STR(
+                ManagerService::FunctionGetServiceInfoParam::Name
+            ),
+            std::string(TestService::SERVICE_NAME),
+        }}
+                       );
+    TEST_ASSERT_TRUE(info_result.success);
+    TEST_ASSERT_TRUE(info_result.has_data());
+    TEST_ASSERT_TRUE(std::holds_alternative<boost::json::object>(*info_result.data));
+
+    ManagerService::ServiceInfo info;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(std::get<boost::json::object>(*info_result.data), info));
+    TEST_ASSERT_EQUAL_STRING(TestService::SERVICE_NAME, info.name.c_str());
+    TEST_ASSERT_EQUAL_STRING("0.0.0", info.version.c_str());
+    TEST_ASSERT_EQUAL(
+        static_cast<int>(ManagerService::ServiceState::Stopped), static_cast<int>(info.state)
+    );
+    TEST_ASSERT_EQUAL(0, info.reference_count);
+
+    auto names_result = manager_service->call_function_sync(
+                            BROOKESIA_DESCRIBE_TO_STR(ManagerService::FunctionId::GetServiceNames),
+                            FunctionParameterMap{}
+                        );
+    TEST_ASSERT_TRUE(names_result.success);
+    TEST_ASSERT_TRUE(names_result.has_data());
+    TEST_ASSERT_TRUE(std::holds_alternative<boost::json::array>(*names_result.data));
+    std::vector<std::string> names;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(std::get<boost::json::array>(*names_result.data), names));
+    TEST_ASSERT_GREATER_OR_EQUAL(2, names.size());
+
+    binding.release();
     service_manager.stop();
     service_manager.deinit();
 }

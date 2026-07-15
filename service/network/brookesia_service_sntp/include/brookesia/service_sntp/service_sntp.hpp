@@ -53,6 +53,8 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     using Helper = helper::SNTP;
     using StorageHelper = helper::Storage;
     using State = Helper::State;
@@ -60,6 +62,8 @@ private:
     SNTP()
         : ServiceBase({
         .name = Helper::get_name().data(),
+        .description = "Synchronize system time through SNTP.",
+        .version = get_component_version(),
         .dependencies = {
             StorageHelper::get_name().data(),
         },

@@ -93,6 +93,8 @@ system-only GUI
 - ``get_constant_value(document_id, path)``
 - ``set_text(document_id, path, text)``
 - ``set_view_src(document_id, path, src)``
+- ``preload_images(document_id, image_ids)``
+- ``release_images(document_id, image_ids)``
 - ``start_view_animation_with_result(document_id, path, animation, completed_handler)``
 - ``stop_animation(subscription_id)``
 - ``subscribe_action(document_id, action, handler)``
@@ -110,7 +112,9 @@ Transient screen 是 system-only overlay 能力：它把 screen 挂到目标 lay
 Debug 与 Live Preview
 ---------------------
 
-``System::Config::enable_gui_view_debug`` 用于设置 GUI runtime 初始 view debug 状态。运行期间 C++ 侧可通过 ``System::set_gui_view_debug_enabled()`` 或 ``AppGuiRuntime::set_view_debug_enabled()`` 切换，作用于当前 runtime 中已加载的所有节点。
+``System::Config::enable_gui_view_debug`` 用于设置 GUI runtime 初始 view debug 状态。可信原生应用可通过
+``AppGuiRuntime::set_view_debug_enabled()`` 切换，作用于当前 runtime 中已加载的所有节点；system task 或
+GUI runtime 不可用时返回明确错误。
 
 ``System::Config::enable_gui_live_preview`` 默认关闭。开启后，core 会在 ``load_file()`` 成功后自动为 file-backed document 调用 ``gui::Runtime::enable_live_preview()``，并由 ``SystemGui`` task 定期调用 ``poll_live_preview()``。``load_json()`` 或 JSON string document 没有可轮询的源文件，因此不会自动开启。
 

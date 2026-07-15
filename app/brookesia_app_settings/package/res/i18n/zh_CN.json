@@ -3,6 +3,7 @@
         "app_name": "设置",
         "current": "当前",
         "dark": "深色",
+        "debug": "调试",
         "display": "显示与亮度",
         "language": "语言",
         "language.display.en": "English",
@@ -314,6 +315,96 @@
             "path": "/time_zone/page/options_card/central_europe/title_box/title",
             "key": "labelProps.text",
             "value": "中欧"
+        },
+        {
+            "path": "/debug/page/switch_caption",
+            "key": "labelProps.text",
+            "value": "调试功能"
+        },
+        {
+            "path": "/debug/page/switch_card/memory_debug/text/title",
+            "key": "labelProps.text",
+            "value": "内存调试"
+        },
+        {
+            "path": "/debug/page/switch_card/memory_debug/text/subtitle",
+            "key": "labelProps.text",
+            "value": "SRAM / PSRAM 浮层"
+        },
+        {
+            "path": "/debug/page/switch_card/thread_debug/text/title",
+            "key": "labelProps.text",
+            "value": "线程调试"
+        },
+        {
+            "path": "/debug/page/switch_card/thread_debug/text/subtitle",
+            "key": "labelProps.text",
+            "value": "CPU / 栈浮层"
+        },
+        {
+            "path": "/debug/page/switch_card/gui_debug/text/title",
+            "key": "labelProps.text",
+            "value": "GUI 调试"
+        },
+        {
+            "path": "/debug/page/switch_card/gui_debug/text/subtitle",
+            "key": "labelProps.text",
+            "value": "视图边界"
+        },
+        {
+            "path": "/debug/page/memory_caption",
+            "key": "labelProps.text",
+            "value": "内存阈值"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_sample_interval/title",
+            "key": "labelProps.text",
+            "value": "采样间隔 ms"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_internal_free/title",
+            "key": "labelProps.text",
+            "value": "SRAM 剩余 %"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_internal_largest/title",
+            "key": "labelProps.text",
+            "value": "SRAM 最大块 KB"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_external_free/title",
+            "key": "labelProps.text",
+            "value": "PSRAM 剩余 %"
+        },
+        {
+            "path": "/debug/page/memory_card/memory_external_largest/title",
+            "key": "labelProps.text",
+            "value": "PSRAM 最大块 KB"
+        },
+        {
+            "path": "/debug/page/thread_caption",
+            "key": "labelProps.text",
+            "value": "线程阈值"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_interval/title",
+            "key": "labelProps.text",
+            "value": "分析间隔 ms"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_duration/title",
+            "key": "labelProps.text",
+            "value": "采样时长 ms"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_idle/title",
+            "key": "labelProps.text",
+            "value": "Idle CPU %"
+        },
+        {
+            "path": "/debug/page/thread_card/thread_stack/title",
+            "key": "labelProps.text",
+            "value": "栈 HWM 字节"
         }
     ]
 }

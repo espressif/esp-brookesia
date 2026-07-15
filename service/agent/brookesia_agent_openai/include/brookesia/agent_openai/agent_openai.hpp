@@ -15,7 +15,7 @@
 namespace esp_brookesia::agent {
 
 /**
- * @brief Re-exported persistent configuration type for the OpenAI agent.
+ * @brief Re-exported runtime configuration type for the OpenAI agent.
  */
 using OpenaiInfo = service::helper::Openai::Info;
 
@@ -27,14 +27,6 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////// The following are the agent specific attributes /////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    /**
-     * @brief Persisted OpenAI data items managed by the agent.
-     */
-    enum class DataType {
-        Info,
-        Max,
-    };
-
     /**
      * @brief Default metadata advertised by the OpenAI agent.
      */
@@ -88,8 +80,14 @@ public:
     }
 
 private:
+    static std::string get_component_version();
+
     Openai()
-        : Base(DEFAULT_AGENT_ATTRIBUTES, DEFAULT_AUDIO_CONFIG)
+        : Base(
+              DEFAULT_AGENT_ATTRIBUTES,
+              get_component_version(),
+              DEFAULT_AUDIO_CONFIG
+          )
     {
     }
     ~Openai() = default;
@@ -111,7 +109,6 @@ private:
     bool on_encoder_data_ready(const uint8_t *data, size_t data_size) override;
     bool set_info(const boost::json::object &info) override;
     bool reset_data() override;
-    std::expected<void, std::string> function_load_data();
 
     std::vector<service::FunctionSchema> get_function_schemas() override
     {
@@ -125,39 +122,12 @@ private:
     }
     service::ServiceBase::FunctionHandlerMap get_function_handlers() override
     {
-        return {
-            BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
-                service::helper::Openai, service::helper::Openai::FunctionId::LoadData,
-                function_load_data()
-            )
-        };
+        return {};
     }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////// The following are the agent specific interfaces ////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    template<DataType type>
-    constexpr auto &get_data()
-    {
-        if constexpr (type == DataType::Info) {
-            return data_info_;
-        } else {
-            static_assert(false, "Invalid data type");
-        }
-    }
-    template<DataType type>
-    void set_data(auto &&data)
-    {
-        if constexpr (type == DataType::Info) {
-            data_info_ = std::forward<decltype(data)>(data);
-        } else {
-            static_assert(false, "Invalid data type");
-        }
-    }
-    void try_load_data();
-    void try_save_data(DataType type);
-    void try_erase_data();
-
     bool validate_info(OpenaiInfo &info);
 
     bool is_openai_initialized() const
@@ -172,13 +142,10 @@ private:
     bool on_audio_data(uint8_t *data, int len);
     bool on_audio_event(int event, uint8_t *data);
 
-    bool is_data_loaded_ = false;
     OpenaiInfo data_info_{};
 
     bool is_openai_initialized_ = false;
     bool is_openai_started_ = false;
 };
-
-BROOKESIA_DESCRIBE_ENUM(Openai::DataType, Info, Max);
 
 } // namespace esp_brookesia::agent

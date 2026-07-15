@@ -19,7 +19,7 @@
 
 namespace esp_brookesia::agent {
 
-using ManagerHelper = service::helper::Manager;
+using ManagerHelper = service::helper::AgentManager;
 using StorageHelper = service::helper::Storage;
 using AudioHelper = service::helper::Audio;
 
@@ -58,6 +58,13 @@ std::expected<std::string, std::string> make_storage_key(std::string_view raw_ke
 }
 
 } // namespace
+
+std::string Manager::get_component_version()
+{
+    return make_version(
+               BROOKESIA_AGENT_MANAGER_VER_MAJOR, BROOKESIA_AGENT_MANAGER_VER_MINOR, BROOKESIA_AGENT_MANAGER_VER_PATCH
+           );
+}
 
 bool Manager::on_init()
 {

@@ -30,6 +30,8 @@ system core 支持两类 GUI 资源：原生应用在 ``start_app()`` 时通过 
 
 若 image ``primary_src`` 指向 LVGL ``.bin`` 文件，``gui::Runtime`` 会在加载 GUI document 时通知 backend 预加载该文件。预加载发生在节点创建前，因此 ``${image.xxx}`` 缺文件或 header 无效会让 app start 失败并进入错误路径，而不是在第一次显示或 binding 刷新时才暴露。
 
+PNG 等按需格式不会默认预加载；只有 ``imageSet.images[].preload: true`` 或 app 通过 ``SystemGui.PreloadImages`` / ``context.gui().preload_images(...)`` 按 image id 显式请求时才会进入 backend decoded cache。runtime app 只能传自身 document 可见的 image id，不能传任意文件路径。
+
 .. _system-core-resources_permissions-sec-04:
 
 反注册时机
@@ -53,7 +55,7 @@ Runtime package 文件资源
 
 运行时应用优先使用 package 中的文件资源、``<runtime.resource_dir>/profile.json`` descriptor 和 ``root`` 指向的 JSON UI document。普通运行时应用不能注册 Native LVGL image/font 资源，也不能通过 service 操作 runtime 全局资源表。
 
-Runtime package 中的 ``imageSet`` JSON 也可以引用 ``.bin`` 文件；这类文件同样在 document load 阶段预加载。
+Runtime package 中的 ``imageSet`` JSON 也可以引用 ``.bin`` 文件；这类文件同样在 document load 阶段预加载。若 PNG 条目声明 ``preload: true``，也会在 document load 阶段提前解码并缓存。
 
 .. _system-core-resources_permissions-sec-07:
 

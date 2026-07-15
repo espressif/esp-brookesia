@@ -119,6 +119,7 @@ add_library(${COMPONENT_LIB} STATIC
     ${COMPONENT_SRCS_C}
     ${COMPONENT_SRCS_CPP}
 )
+brookesia_define_component_version(${COMPONENT_LIB} ${COMPONENT_DIR} BROOKESIA_GUI_LVGL)
 
 target_compile_features(${COMPONENT_LIB} PUBLIC cxx_std_23)
 target_include_directories(${COMPONENT_LIB}
@@ -132,6 +133,7 @@ target_link_libraries(${COMPONENT_LIB}
         brookesia::gui_interface
         brookesia::lib_utils
         brookesia::service_display
+        brookesia::service_helper
         lvgl
 )
 if(EMSCRIPTEN)

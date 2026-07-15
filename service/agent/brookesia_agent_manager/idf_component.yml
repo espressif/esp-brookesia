@@ -1,4 +1,4 @@
-version: "0.8.0"
+version: "0.8.1"
 description: ESP-Brookesia Agent Manager which provides agent lifecycle management, state machine control, and agent operations.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/agent/brookesia_agent_manager
 repository: https://github.com/espressif/esp-brookesia.git
@@ -18,3 +18,6 @@ dependencies:
     version: "0.8.*"
     override_path: ../../framework/brookesia_service_helper
     require: public
+
+examples:
+  - path: ../../../examples/agent/chatbot

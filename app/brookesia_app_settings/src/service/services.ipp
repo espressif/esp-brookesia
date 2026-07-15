@@ -360,18 +360,81 @@ bool SettingsApp::is_saved_wifi_ssid(std::string_view ssid) const
 
 void SettingsApp::remove_unavailable_wifi_networks_from_available_list()
 {
+    rebuild_available_wifi_networks();
+}
+
+void SettingsApp::rebuild_available_wifi_networks()
+{
     available_wifi_networks_.erase(
-        std::remove_if(
-            available_wifi_networks_.begin(),
-            available_wifi_networks_.end(),
-    [this](const auto & network) {
-        return network.ssid.empty() ||
-               (!wifi_ui_state_.connected_ssid.empty() && network.ssid == wifi_ui_state_.connected_ssid) ||
-               is_saved_wifi_ssid(network.ssid);
-    }
-        ),
-    available_wifi_networks_.end()
+        std::remove_if(available_wifi_networks_.begin(), available_wifi_networks_.end(), [](const auto &network) {
+            return network.ssid.empty();
+        }),
+        available_wifi_networks_.end()
     );
+
+    const auto connected_state = BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected);
+    const bool should_filter_target_ssid = wifi_ui_state_.general_state == connected_state ||
+                                           wifi_ui_state_.connecting;
+    std::vector<WifiHelper::ScanApInfo> best_ap_infos;
+    for (const auto &ap : last_wifi_scan_ap_infos_) {
+        if (ap.ssid.empty()) {
+            continue;
+        }
+        if (should_filter_target_ssid && !wifi_ui_state_.connected_ssid.empty() &&
+                ap.ssid == wifi_ui_state_.connected_ssid) {
+            continue;
+        }
+        if (is_saved_wifi_ssid(ap.ssid)) {
+            continue;
+        }
+
+        auto existing = std::find_if(best_ap_infos.begin(), best_ap_infos.end(), [&ap](const auto &candidate) {
+            return candidate.ssid == ap.ssid;
+        });
+        if (existing == best_ap_infos.end()) {
+            best_ap_infos.push_back(ap);
+            continue;
+        }
+
+        const auto existing_signal_level = BROOKESIA_DESCRIBE_ENUM_TO_NUM(existing->signal_level);
+        const auto signal_level = BROOKESIA_DESCRIBE_ENUM_TO_NUM(ap.signal_level);
+        if (signal_level > existing_signal_level ||
+                (signal_level == existing_signal_level && ap.rssi > existing->rssi)) {
+            *existing = ap;
+        }
+    }
+
+    available_wifi_networks_.clear();
+    available_wifi_page_ = 0;
+    for (size_t i = 0; i < best_ap_infos.size(); ++i) {
+        const auto &ap = best_ap_infos[i];
+        const auto signal_level = BROOKESIA_DESCRIBE_ENUM_TO_NUM(ap.signal_level);
+        const auto signal_text = get_wifi_signal_text(signal_level);
+        const auto security_text = ap.is_locked ? localized_text(current_locale_, "wifi_secured_network") :
+                                   localized_text(current_locale_, "wifi_open_network");
+        const auto band_text = get_wifi_band_text(ap.channel);
+        std::string detail = security_text;
+        if (!signal_text.empty()) {
+            detail += " / ";
+            detail += signal_text;
+        }
+        if (!band_text.empty()) {
+            detail += " / ";
+            detail += band_text;
+        }
+        available_wifi_networks_.push_back(WifiNetworkState{
+            .parent = AVAILABLE_NETWORK_PARENT,
+            .id = make_wifi_instance_id("available", ap.ssid, i),
+            .ssid = ap.ssid,
+            .detail = detail,
+            .band = band_text,
+            .password = "",
+            .saved = false,
+            .locked = ap.is_locked,
+            .signal_level = signal_level,
+            .channel = ap.channel,
+        });
+    }
 }
 
 void SettingsApp::request_saved_wifi_networks_refresh()
@@ -397,14 +460,16 @@ void SettingsApp::request_saved_wifi_networks_refresh()
         std::vector<WifiHelper::ConnectApInfo> saved_aps;
         std::vector<WifiNetworkState> next_saved_networks;
         if (BROOKESIA_DESCRIBE_FROM_JSON(saved_json, saved_aps)) {
+            std::unordered_set<std::string> seen_ssids;
             for (size_t i = 0; i < saved_aps.size(); ++i) {
                 const auto &ap = saved_aps[i];
-                if (ap.ssid.empty()) {
+                if (ap.ssid.empty() || seen_ssids.contains(ap.ssid)) {
                     continue;
                 }
+                seen_ssids.insert(ap.ssid);
                 next_saved_networks.push_back(WifiNetworkState{
                     .parent = SAVED_NETWORK_PARENT,
-                    .id = make_wifi_instance_id("saved", ap.ssid, i),
+                    .id = make_wifi_instance_id("saved", ap.ssid, next_saved_networks.size()),
                     .ssid = ap.ssid,
                     .detail = localized_text(current_locale_, "wifi_saved_secured_network"),
                     .band = "",
@@ -586,6 +651,7 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_service_state(system:
         wifi_ui_state_.connected_ssid.clear();
         hide_wifi_connected_card();
         available_wifi_networks_.clear();
+        last_wifi_scan_ap_infos_.clear();
         reset_available_wifi_scan_visibility();
         auto result = refresh_wifi_page_state(context);
         if (!result) {
@@ -616,6 +682,10 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_service_state(system:
         sync_wifi_connected_card_from_service_state();
         if (auto page_result = refresh_wifi_page_state(*context_); !page_result) {
             BROOKESIA_LOGW("Failed to refresh Wi-Fi page after state update: %1%", page_result.error());
+        }
+        rebuild_available_wifi_networks();
+        if (auto list_result = refresh_wifi_lists(*context_); !list_result) {
+            BROOKESIA_LOGW("Failed to refresh Wi-Fi lists after state update: %1%", list_result.error());
         }
         if (auto summary_result = refresh_wifi_summary_state(*context_); !summary_result) {
             BROOKESIA_LOGW("Failed to refresh Wi-Fi summary after state update: %1%", summary_result.error());

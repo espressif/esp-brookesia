@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.8.1 - 2026-07-13
+
+### Breaking Changes:
+
+- break(agent): remove obsolete persisted-data loading functions from Coze and OpenAI helpers.
+- break(agent): rename the Agent Manager helper to `AgentManager`.
+- break(debug): replace the SuperDebug helper and contract with the Utils profiler service.
+- break(helper): move Manager to `framework/manager.hpp` and AgentManager to `agent/manager.hpp`.
+
+### Enhancements:
+
+- feat(build): use `idf_component.yml` as the single component version source.
+- feat(manager): add typed service metadata and layered schema queries.
+- feat(utils): add typed profiler controls, events, cached snapshots, and immediate memory sampling.
+- feat(storage): add file operations, capacity queries, and stable key-value naming helpers.
+
 ## v0.8.0 - 2026-06-28
 
 ### Enhancements:

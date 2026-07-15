@@ -126,6 +126,23 @@ std::expected<void, std::string> AppStoreApp::populate_entries(system::core::App
     start_visible_icon_update(context);
     return {};
 }
+
+std::string AppStoreApp::make_title_text(size_t visible_count) const
+{
+    auto title = tr("title.format");
+    const auto replace_all = [](std::string &value, std::string_view from, std::string_view to) {
+        size_t pos = 0;
+        while ((pos = value.find(from, pos)) != std::string::npos) {
+            value.replace(pos, from.size(), to);
+            pos += to.size();
+        }
+    };
+    replace_all(title, "{title}", tr("screen.title"));
+    replace_all(title, "{count}", std::to_string(visible_count));
+    replace_all(title, "{suffix}", visible_count == 1 ? tr("title.app_suffix") : tr("title.apps_suffix"));
+    return title;
+}
+
 std::expected<void, std::string> AppStoreApp::refresh_ui(system::core::AppContext &context)
 {
     if (auto i18n_result = refresh_i18n(context); !i18n_result) {
@@ -138,8 +155,7 @@ std::expected<void, std::string> AppStoreApp::refresh_ui(system::core::AppContex
         updates,
         TITLE_PATH,
         "title",
-        tr("screen.title") + " · " + std::to_string(visible_count) +
-        (visible_count == 1 ? tr("title.app_suffix") : tr("title.apps_suffix"))
+        make_title_text(visible_count)
     );
     std::string status = status_text_;
     if (visible_count == 0) {
@@ -248,7 +264,8 @@ std::expected<void, std::string> AppStoreApp::refresh_ui(system::core::AppContex
                                       !entry.package_name.empty() && !entry.latest_version.empty() &&
                                       (!entry.metadata_url.empty() || !entry.download_url.empty()) &&
                                       entry.schema_error != "manifest_id must match package_name";
-            const auto action_enabled = !entry.metadata_loading && (entry.downloading || can_install || can_download);
+            const auto action_enabled = !is_store_install_pending(ref.index) && !entry.metadata_loading &&
+                                        (entry.downloading || can_install || can_download);
             int progress = 0;
             if (entry.downloading) {
                 progress = entry.total > 0 ?
@@ -323,7 +340,7 @@ std::expected<void, std::string> AppStoreApp::refresh_ui(system::core::AppContex
                 detail,
                 state,
                 action_label,
-                local_action != LocalPackageAction::None,
+                local_action != LocalPackageAction::None && !is_local_install_pending(ref.index),
                 entry.icon_resource_id,
                 title
             );
@@ -356,7 +373,7 @@ std::expected<void, std::string> AppStoreApp::refresh_ui(system::core::AppContex
                 detail,
                 tr("state.installed"),
                 tr("action.uninstall"),
-                true,
+                !is_uninstall_pending(entry.app.app_id),
                 entry.icon_resource_id,
                 title
             );
@@ -554,4 +571,114 @@ void AppStoreApp::handle_primary_action(const gui::Event &event)
     } else {
         uninstall_installed_app(*context_, ref->index);
     }
+}
+
+void AppStoreApp::handle_local_delete_action(const gui::Event &event)
+{
+    if (context_ == nullptr) {
+        return;
+    }
+    auto ref = find_visible_item_by_path(event.path);
+    if (!ref || ref->kind != VisibleItemKind::Local) {
+        return;
+    }
+    request_delete_local_package(*context_, ref->index);
+}
+
+void AppStoreApp::request_delete_local_package(system::core::AppContext &context, size_t index)
+{
+    if (index >= local_packages_.size()) {
+        return;
+    }
+    const auto &entry = local_packages_[index];
+    if (entry.package_path.empty()) {
+        return;
+    }
+
+    pending_delete_local_package_name_ = localized(entry.app_names);
+    if (pending_delete_local_package_name_.empty()) {
+        pending_delete_local_package_name_ = entry.file_name;
+    }
+    pending_delete_local_package_path_ = entry.package_path;
+    ensure_message_dialog(
+        context,
+        tr("dialog.delete_local_package_title"),
+        pending_delete_local_package_name_,
+        system::core::MessageDialogIcon::Warning,
+        0,
+        MessageDialogPurpose::DeleteLocalPackage,
+        {
+            system::core::MessageDialogButton{
+                .text = tr("action.delete"),
+                .role = system::core::MessageDialogButtonRole::Destructive,
+            },
+            system::core::MessageDialogButton{
+                .text = tr("action.close"),
+                .role = system::core::MessageDialogButtonRole::Reject,
+            },
+        }
+    );
+}
+
+void AppStoreApp::delete_local_package(system::core::AppContext &context)
+{
+    if (pending_delete_local_package_path_.empty()) {
+        return;
+    }
+
+    auto package_path = pending_delete_local_package_path_;
+    auto package_name = pending_delete_local_package_name_.empty() ?
+                        package_path.filename().generic_string() :
+                        pending_delete_local_package_name_;
+    pending_delete_local_package_name_.clear();
+    pending_delete_local_package_path_.clear();
+
+    ensure_message_dialog(
+        context,
+        tr("dialog.deleting_local_package_prefix") + package_name,
+        package_path.filename().generic_string(),
+        system::core::MessageDialogIcon::Information,
+        0,
+        MessageDialogPurpose::DeleteLocalPackage
+    );
+    DeferredOperation operation;
+    operation.type = DeferredOperationType::DeleteLocalPackage;
+    operation.package_path = std::move(package_path);
+    operation.app_name = std::move(package_name);
+    if (!schedule_deferred_operation(context, std::move(operation))) {
+        BROOKESIA_LOGW("Failed to queue App Store local package delete");
+    }
+}
+
+void AppStoreApp::delete_local_package(
+    system::core::AppContext &context,
+    const std::filesystem::path &package_path,
+    std::string package_name
+)
+{
+    auto remove_result = StorageHelper::fs_remove(package_path.generic_string());
+    if (!remove_result) {
+        status_text_ = tr("status.delete_failed_prefix") + package_name;
+        ensure_message_dialog(
+            context,
+            status_text_,
+            remove_result.error(),
+            system::core::MessageDialogIcon::Warning,
+            0,
+            MessageDialogPurpose::None,
+            {
+                system::core::MessageDialogButton{
+                    .text = tr("action.close"),
+                    .role = system::core::MessageDialogButtonRole::Reject,
+                },
+            }
+        );
+        (void)refresh_ui(context);
+        return;
+    }
+
+    pending_delete_success_package_name_ = std::move(package_name);
+    pending_delete_success_package_path_ = package_path;
+    start_local_package_scan(context, true);
+    refresh_storage_capacity(context);
 }

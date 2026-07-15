@@ -24,16 +24,24 @@ struct DisplaySourceConfig {
     std::string source_name = std::string(DISPLAY_SOURCE_NAME);
     std::string source_role = std::string(DISPLAY_SOURCE_ROLE);
     std::string output_name;
-    uint32_t frame_timeout_ms = 6000;
-    int task_core_id = 0;
-    int task_priority = 6;
-    uint32_t tick_period_ms = 5;
-    uint32_t task_min_delay_ms = 10;
-    uint32_t task_max_delay_ms = 100;
-    int task_stack_size = 40 * 1024;
-    bool stack_in_psram = true;
-    uint16_t buffer_height = 20;
-    bool require_double_buffer = false;
+    uint32_t frame_timeout_ms = static_cast<uint32_t>(
+                                    BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_FRAME_TIMEOUT_MS
+                                );
+    int task_core_id = BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TASK_CORE_ID;
+    int task_priority = BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TASK_PRIORITY;
+    uint32_t tick_period_ms = static_cast<uint32_t>(
+                                  BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TICK_PERIOD_MS
+                              );
+    uint32_t task_min_delay_ms = static_cast<uint32_t>(
+                                     BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TASK_MIN_DELAY_MS
+                                 );
+    uint32_t task_max_delay_ms = static_cast<uint32_t>(
+                                     BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TASK_MAX_DELAY_MS
+                                 );
+    int task_stack_size = BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TASK_STACK_SIZE;
+    bool stack_in_psram = (BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_TASK_STACK_IN_PSRAM != 0);
+    uint16_t buffer_height = static_cast<uint16_t>(BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_BUFFER_HEIGHT);
+    bool require_double_buffer = (BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_DEFAULT_REQUIRE_DOUBLE_BUFFER != 0);
 };
 
 class DisplaySourceImpl;

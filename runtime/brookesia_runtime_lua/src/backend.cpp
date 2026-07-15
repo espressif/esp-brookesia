@@ -141,6 +141,10 @@ void Backend::set_native_modules(std::vector<NativeModule> modules)
 std::expected<void, std::string> Backend::init()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    BROOKESIA_LOGI(
+        "Version: %1%.%2%.%3%", BROOKESIA_RUNTIME_LUA_VER_MAJOR, BROOKESIA_RUNTIME_LUA_VER_MINOR,
+        BROOKESIA_RUNTIME_LUA_VER_PATCH
+    );
     BROOKESIA_LOGD("Params: initialized(%1%)", impl_->initialized_);
     impl_->initialized_ = true;
     BROOKESIA_LOGD("Lua backend initialized");

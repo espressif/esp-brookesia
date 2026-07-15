@@ -26,6 +26,70 @@ menu "ESP-Brookesia: GUI LVGL Configurations"
         select LV_USE_GESTURE_RECOGNITION
         default y
 
+    menu "Display Source Adapter"
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_FRAME_TIMEOUT_MS
+            int "Frame timeout (ms)"
+            default 6000
+            help
+                Default timeout used when presenting LVGL frames through the Display service.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TASK_CORE_ID
+            int "Task core ID"
+            range -1 1
+            default 0
+            help
+                Default core ID of the LVGL adapter task. `-1` means the core ID is not specified.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TASK_PRIORITY
+            int "Task priority"
+            default 6
+            help
+                Default priority of the LVGL adapter task.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TICK_PERIOD_MS
+            int "Tick period (ms)"
+            default 5
+            help
+                Default LVGL adapter tick period.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TASK_MIN_DELAY_MS
+            int "Task minimum delay (ms)"
+            default 5
+            help
+                Default minimum delay of the LVGL adapter task loop.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TASK_MAX_DELAY_MS
+            int "Task maximum delay (ms)"
+            default 100
+            help
+                Default maximum delay of the LVGL adapter task loop.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TASK_STACK_SIZE
+            int "Task stack size"
+            default 40960
+            help
+                Default stack size of the LVGL adapter task.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_TASK_STACK_IN_PSRAM
+            bool "Task stack in PSRAM"
+            depends on SPIRAM
+            default y
+            help
+                Whether the LVGL adapter task stack is allocated from PSRAM by default.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_BUFFER_HEIGHT
+            int "Buffer height"
+            default 20
+            help
+                Default LVGL display draw buffer height.
+
+        config BROOKESIA_GUI_LVGL_DISPLAY_SOURCE_REQUIRE_DOUBLE_BUFFER
+            bool "Require double buffer"
+            default n
+            help
+                Whether the LVGL display source requires double buffering by default.
+    endmenu
+
     menuconfig BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
         default n

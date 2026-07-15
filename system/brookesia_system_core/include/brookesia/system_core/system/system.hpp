@@ -259,7 +259,7 @@ public:
         const StorageFileLocation &to
     );
 
-    void set_gui_view_debug_enabled(bool enabled);
+    std::expected<void, std::string> set_gui_view_debug_enabled(bool enabled);
     bool is_gui_view_debug_enabled() const;
     std::expected<void, std::string> enable_app_gui_live_preview(
         AppId app_id,
@@ -298,10 +298,15 @@ public:
     );
     bool gui_destroy_view(AppId app_id, std::string_view absolute_path);
     std::expected<void, std::string> gui_subscribe_action(AppId app_id, std::string_view action);
+    std::expected<void, std::string> gui_subscribe_actions(AppId app_id, const std::vector<std::string> &actions);
     gui::ScopedConnection gui_subscribe_action(
         AppId app_id,
         std::string_view action,
         std::function<void(const gui::Event &)> handler
+    );
+    std::vector<gui::ScopedConnection> gui_subscribe_actions(
+        AppId app_id,
+        const std::vector<GuiActionHandlerSubscription> &subscriptions
     );
     std::expected<void, std::string> gui_trigger_screen_flow(
         AppId app_id,
@@ -314,6 +319,14 @@ public:
         AppId app_id,
         std::string_view absolute_path,
         std::string_view src
+    );
+    std::expected<void, std::string> gui_preload_images(
+        AppId app_id,
+        const std::vector<std::string> &image_ids
+    );
+    std::expected<void, std::string> gui_release_images(
+        AppId app_id,
+        const std::vector<std::string> &image_ids
     );
     std::expected<gui::SubscriptionId, std::string> gui_start_view_animation_with_id(
         AppId app_id,
@@ -328,6 +341,13 @@ public:
         gui::Runtime::AnimationCompletedHandler completed_handler = {}
     );
     bool gui_stop_animation(AppId app_id, gui::SubscriptionId subscription_id);
+    std::expected<void, std::string> gui_scroll_to(
+        AppId app_id,
+        std::string_view absolute_path,
+        int32_t x,
+        int32_t y,
+        bool animated = true
+    );
     std::expected<void, std::string> gui_scroll_to_view(
         AppId app_id,
         std::string_view absolute_path,

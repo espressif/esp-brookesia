@@ -10,7 +10,8 @@
         "display",
         "more",
         "language",
-        "time_zone"
+        "time_zone",
+        "debug"
     ],
     "initial": "settings_home",
     "transitions": [
@@ -93,6 +94,16 @@
             "from": [],
             "action": "settings.back.time_zone",
             "to": "more"
+        },
+        {
+            "from": [],
+            "action": "settings.open.debug",
+            "to": "debug"
+        },
+        {
+            "from": [],
+            "action": "settings.back.debug",
+            "to": "my_device"
         }
     ]
 }

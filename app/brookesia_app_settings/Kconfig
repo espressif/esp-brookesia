@@ -7,6 +7,14 @@ menu "ESP-Brookesia: Settings App Configurations"
             Number of saved or scanned Wi-Fi access point rows shown per page in Settings.
             Scan results are kept as a full list and paged in the UI.
 
+    config BROOKESIA_APP_SETTINGS_ENABLE_PRELOAD_DOM
+        bool "Preload Settings GUI DOM"
+        default y
+        help
+            Preload and retain the Settings app GUI DOM when the app is installed.
+            This moves JSON UI parse/load cost out of the user-visible launch path
+            at the cost of extra resident PSRAM.
+
     config BROOKESIA_APP_SETTINGS_ENABLE_MEMORY_TRACE
         bool "Enable Settings memory/heap trace logs (profiling)"
         default n
@@ -14,4 +22,150 @@ menu "ESP-Brookesia: Settings App Configurations"
             When enabled, the Settings app emits [HeapTrace] logs while populating the
             Wi-Fi network lists (e.g. settings.sync_wifi slot accounting). Profiling aid
             only; keep disabled in production builds.
+
+    config BROOKESIA_APP_SETTINGS_ENABLE_PROFILE_LOG
+        bool "Enable Settings app profile logs"
+        default y if BROOKESIA_APP_SETTINGS_ENABLE_MEMORY_TRACE
+        default n
+        help
+            When enabled, the Settings app emits stage-by-stage startup timing logs.
+            Keep disabled in production builds because serial logging perturbs launch
+            latency and adds noise to normal operation.
+
+    menu "Debug page parameter ranges"
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_SAMPLE_INTERVAL_MIN_MS
+            int "Memory sample interval minimum (ms)"
+            range 1 60000
+            default 500
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_SAMPLE_INTERVAL_DEFAULT_MS
+            int "Memory sample interval default (ms)"
+            range 1 60000
+            default 1000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_SAMPLE_INTERVAL_MAX_MS
+            int "Memory sample interval maximum (ms)"
+            range 1 60000
+            default 10000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_FREE_PERCENT_THRESHOLD_MIN
+            int "SRAM free threshold minimum (%)"
+            range 1 99
+            default 1
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_FREE_PERCENT_THRESHOLD_DEFAULT
+            int "SRAM free threshold default (%)"
+            range 1 99
+            default 10
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_FREE_PERCENT_THRESHOLD_MAX
+            int "SRAM free threshold maximum (%)"
+            range 1 99
+            default 80
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_MIN_KB
+            int "SRAM largest free block threshold minimum (KB)"
+            range 1 1048576
+            default 1
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_DEFAULT_KB
+            int "SRAM largest free block threshold default (KB)"
+            range 1 1048576
+            default 10
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_INTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_MAX_KB
+            int "SRAM largest free block threshold maximum (KB)"
+            range 1 1048576
+            default 512
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_FREE_PERCENT_THRESHOLD_MIN
+            int "PSRAM free threshold minimum (%)"
+            range 1 99
+            default 1
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_FREE_PERCENT_THRESHOLD_DEFAULT
+            int "PSRAM free threshold default (%)"
+            range 1 99
+            default 20
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_FREE_PERCENT_THRESHOLD_MAX
+            int "PSRAM free threshold maximum (%)"
+            range 1 99
+            default 80
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_MIN_KB
+            int "PSRAM largest free block threshold minimum (KB)"
+            range 1 1048576
+            default 1
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_DEFAULT_KB
+            int "PSRAM largest free block threshold default (KB)"
+            range 1 1048576
+            default 500
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_MEMORY_EXTERNAL_LARGEST_FREE_BLOCK_THRESHOLD_MAX_KB
+            int "PSRAM largest free block threshold maximum (KB)"
+            range 1 1048576
+            default 4096
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_PROFILING_INTERVAL_MIN_MS
+            int "Thread profiling interval minimum (ms)"
+            range 1 60000
+            default 1000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_PROFILING_INTERVAL_DEFAULT_MS
+            int "Thread profiling interval default (ms)"
+            range 1 60000
+            default 5000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_PROFILING_INTERVAL_MAX_MS
+            int "Thread profiling interval maximum (ms)"
+            range 1 60000
+            default 20000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_SAMPLING_DURATION_MIN_MS
+            int "Thread sampling duration minimum (ms)"
+            range 1 60000
+            default 100
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_SAMPLING_DURATION_DEFAULT_MS
+            int "Thread sampling duration default (ms)"
+            range 1 60000
+            default 1000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_SAMPLING_DURATION_MAX_MS
+            int "Thread sampling duration maximum (ms)"
+            range 1 60000
+            default 5000
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_IDLE_CPU_PERCENT_THRESHOLD_MIN
+            int "Thread idle CPU threshold minimum (%)"
+            range 1 99
+            default 1
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_IDLE_CPU_PERCENT_THRESHOLD_DEFAULT
+            int "Thread idle CPU threshold default (%)"
+            range 1 99
+            default 1
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_IDLE_CPU_PERCENT_THRESHOLD_MAX
+            int "Thread idle CPU threshold maximum (%)"
+            range 1 99
+            default 50
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_STACK_HIGH_WATER_MARK_THRESHOLD_MIN_BYTES
+            int "Thread stack high water mark threshold minimum (bytes)"
+            range 1 1048576
+            default 64
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_STACK_HIGH_WATER_MARK_THRESHOLD_DEFAULT_BYTES
+            int "Thread stack high water mark threshold default (bytes)"
+            range 1 1048576
+            default 128
+
+        config BROOKESIA_APP_SETTINGS_DEBUG_THREAD_STACK_HIGH_WATER_MARK_THRESHOLD_MAX_BYTES
+            int "Thread stack high water mark threshold maximum (bytes)"
+            range 1 1048576
+            default 8192
+    endmenu
 endmenu

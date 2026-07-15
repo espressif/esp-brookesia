@@ -13,7 +13,11 @@
 #if !BROOKESIA_SYSTEM_SUPER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
+#include "brookesia/service_helper/network/sntp.hpp"
+#include "brookesia/service_helper/framework/utils.hpp"
+#include "brookesia/service_manager.hpp"
 #include "brookesia/system_super/system.hpp"
+#include "brookesia/service_helper/system/storage.hpp"
 #include "private/font_language.hpp"
 #include "private/utils.hpp"
 #include "private/shell_app.hpp"
@@ -21,6 +25,49 @@
 
 namespace esp_brookesia::system::super {
 namespace {
+
+using SNTPHelper = service::helper::SNTP;
+using UtilsHelper = service::helper::Utils;
+using UtilsService = service::UtilsService;
+
+inline constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
+
+template <typename Value>
+std::optional<Value> parse_utils_event_object(
+    const service::EventItemMap &items, const std::string &item_name
+)
+{
+    auto item = items.find(item_name);
+    if ((item == items.end()) || !std::holds_alternative<boost::json::object>(item->second)) {
+        return std::nullopt;
+    }
+    Value value;
+    if (!BROOKESIA_DESCRIBE_FROM_JSON(std::get<boost::json::object>(item->second), value)) {
+        return std::nullopt;
+    }
+    return value;
+}
+
+void synchronize_shell_debug_snapshot(const std::weak_ptr<ShellApp> &weak_shell_app)
+{
+    auto shell_app = weak_shell_app.lock();
+    if (shell_app == nullptr) {
+        return;
+    }
+    auto snapshot = UtilsHelper::get_debug_snapshot();
+    if (!snapshot) {
+        BROOKESIA_LOGW("Failed to synchronize Utils debug snapshot: %1%", snapshot.error());
+        return;
+    }
+    shell_app->apply_debug_config(snapshot->config);
+    shell_app->apply_debug_state(snapshot->state);
+    if (snapshot->memory) {
+        shell_app->apply_memory_debug_snapshot(*snapshot->memory);
+    }
+    if (snapshot->thread) {
+        shell_app->apply_thread_debug_snapshot(*snapshot->thread);
+    }
+}
 
 std::string make_share_resource_dir(const System &system)
 {
@@ -55,6 +102,22 @@ std::string make_preload_theme_id(const std::optional<std::string> &stored_theme
     return SUPER_DEFAULT_THEME_ID;
 }
 
+std::optional<SNTPHelper::State> get_sntp_state()
+{
+    auto state_text = SNTPHelper::call_function_sync<std::string>(SNTPHelper::FunctionId::GetState);
+    if (!state_text) {
+        BROOKESIA_LOGW("Failed to get SNTP state before Super startup sync: %1%", state_text.error());
+        return std::nullopt;
+    }
+
+    SNTPHelper::State state = SNTPHelper::State::Max;
+    if (!BROOKESIA_DESCRIBE_STR_TO_ENUM(*state_text, state)) {
+        BROOKESIA_LOGW("Invalid SNTP state before Super startup sync: %1%", *state_text);
+        return std::nullopt;
+    }
+    return state;
+}
+
 } // namespace
 
 std::expected<void, std::string> System::prepare_shell_fonts()
@@ -66,9 +129,9 @@ std::expected<void, std::string> System::prepare_shell_fonts()
 
     const auto share_dir = make_share_resource_dir(*this);
     const auto font_index = std::filesystem::path(share_dir) / make_font_index_relative_path();
-    std::error_code error_code;
-    if (!std::filesystem::exists(font_index, error_code) ||
-            !std::filesystem::is_regular_file(font_index, error_code)) {
+    auto font_index_info = service::helper::Storage::fs_stat(font_index.generic_string(), STORAGE_FS_TIMEOUT_MS);
+    if (!font_index_info || !font_index_info->exists ||
+            font_index_info->type != service::helper::Storage::FileType::File) {
 #if BROOKESIA_SYSTEM_SUPER_ENABLE_RESOURCE_FONT_COPY
         return std::unexpected("Shell font index does not exist: " + font_index.generic_string());
 #else
@@ -76,7 +139,6 @@ std::expected<void, std::string> System::prepare_shell_fonts()
             "Super shell fonts skipped because built-in font resource staging is disabled: %1%",
             font_index.generic_string()
         );
-        shell_fonts_prepared_ = true;
         return {};
 #endif
     }
@@ -147,6 +209,37 @@ std::expected<void, std::string> System::prepare_shell_themes()
     return {};
 }
 
+void System::start_sntp_if_needed()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!SNTPHelper::is_available()) {
+        BROOKESIA_LOGW("SNTP service is not available, skip Super startup time sync");
+        return;
+    }
+
+    if (!sntp_service_binding_.is_valid()) {
+        sntp_service_binding_ = service::ServiceManager::get_instance().bind(SNTPHelper::get_name().data());
+        if (!sntp_service_binding_.is_valid()) {
+            BROOKESIA_LOGW("Failed to bind SNTP service for Super startup time sync");
+            return;
+        }
+    }
+
+    auto state = get_sntp_state();
+    if (state && *state != SNTPHelper::State::Stopped) {
+        BROOKESIA_LOGI("SNTP already active for Super startup: state(%1%)", BROOKESIA_DESCRIBE_TO_STR(*state));
+        return;
+    }
+
+    auto start_result = SNTPHelper::call_function_sync<void>(SNTPHelper::FunctionId::Start);
+    if (!start_result) {
+        BROOKESIA_LOGW("Failed to start SNTP for Super startup time sync: %1%", start_result.error());
+        return;
+    }
+    BROOKESIA_LOGI("SNTP started by Super startup");
+}
+
 std::expected<void, std::string> System::on_prepare_startup_overlay()
 {
     return {};
@@ -176,6 +269,59 @@ std::expected<void, std::string> System::on_init()
         }
         shell_app_id_ = *result;
     }
+    utils_service_binding_ = service::ServiceManager::get_instance().bind(UtilsHelper::get_name().data());
+    if (!utils_service_binding_.is_valid()) {
+        return std::unexpected("Failed to bind Utils service for debug events");
+    }
+
+    const std::weak_ptr<ShellApp> weak_shell_app = shell_app_;
+    utils_debug_state_connection_ = UtilsHelper::subscribe_event(
+                                        UtilsHelper::EventId::DebugStateChanged,
+    [weak_shell_app](const std::string &, const service::EventItemMap & items) {
+        auto shell_app = weak_shell_app.lock();
+        auto state = parse_utils_event_object<UtilsService::DebugRuntimeState>(
+                         items, BROOKESIA_DESCRIBE_TO_STR(UtilsService::EventDebugStateChangedItem::State)
+                     );
+        if (shell_app && state) {
+            shell_app->apply_debug_state(*state);
+        }
+    }
+                                    );
+    utils_memory_snapshot_connection_ = UtilsHelper::subscribe_event(
+                                            UtilsHelper::EventId::MemoryDebugSnapshotUpdated,
+    [weak_shell_app](const std::string &, const service::EventItemMap & items) {
+        auto shell_app = weak_shell_app.lock();
+        auto snapshot = parse_utils_event_object<UtilsService::MemoryDebugSnapshot>(
+                            items,
+                            BROOKESIA_DESCRIBE_TO_STR(UtilsService::EventMemoryDebugSnapshotUpdatedItem::Snapshot)
+                        );
+        if (shell_app && snapshot) {
+            if (auto latest = UtilsHelper::get_debug_snapshot(); latest) {
+                shell_app->apply_debug_config(latest->config);
+                shell_app->apply_debug_state(latest->state);
+            }
+            shell_app->apply_memory_debug_snapshot(*snapshot);
+        }
+    }
+                                        );
+    utils_thread_snapshot_connection_ = UtilsHelper::subscribe_event(
+                                            UtilsHelper::EventId::ThreadDebugSnapshotUpdated,
+    [weak_shell_app](const std::string &, const service::EventItemMap & items) {
+        auto shell_app = weak_shell_app.lock();
+        auto snapshot = parse_utils_event_object<UtilsService::ThreadDebugSnapshot>(
+                            items,
+                            BROOKESIA_DESCRIBE_TO_STR(UtilsService::EventThreadDebugSnapshotUpdatedItem::Snapshot)
+                        );
+        if (shell_app && snapshot) {
+            if (auto latest = UtilsHelper::get_debug_snapshot(); latest) {
+                shell_app->apply_debug_config(latest->config);
+                shell_app->apply_debug_state(latest->state);
+            }
+            shell_app->apply_thread_debug_snapshot(*snapshot);
+        }
+    }
+                                        );
+    synchronize_shell_debug_snapshot(weak_shell_app);
 
     BROOKESIA_LOGI("Super system initialized");
     return {};
@@ -193,6 +339,7 @@ std::expected<void, std::string> System::on_start()
             return result;
         }
     }
+    start_sntp_if_needed();
     BROOKESIA_LOGI("Super shell started");
     return {};
 }
@@ -200,10 +347,16 @@ std::expected<void, std::string> System::on_start()
 void System::on_stop()
 {
     stopping_ = true;
+    sntp_service_binding_.release();
 }
 
 void System::on_deinit()
 {
+    sntp_service_binding_.release();
+    utils_debug_state_connection_.disconnect();
+    utils_memory_snapshot_connection_.disconnect();
+    utils_thread_snapshot_connection_.disconnect();
+    utils_service_binding_.release();
     shell_app_.reset();
     shell_app_id_ = core::INVALID_APP_ID;
     pending_shell_page_ = ShellPage::AppLauncher;
@@ -315,14 +468,21 @@ void System::on_app_stop_failed(const core::AppInfo &app, std::string_view reaso
 
 std::expected<void, std::string> System::on_language_changed(std::string_view language)
 {
-    auto fallback = apply_font_language_fallback(
-                        system_gui(),
-                        language,
-                        SUPER_DEFAULT_FONT_ID,
-                        false
-                    );
-    if (!fallback) {
-        BROOKESIA_LOGW("Failed to apply Shell font language fallback after language change: %1%", fallback.error());
+    auto &gui_access = system_gui();
+    if (gui_access.list_supported_languages().empty()) {
+        BROOKESIA_LOGW(
+            "Skip Shell font language fallback after language change: no registered font languages"
+        );
+    } else {
+        auto fallback = apply_font_language_fallback(
+                            gui_access,
+                            language,
+                            SUPER_DEFAULT_FONT_ID,
+                            false
+                        );
+        if (!fallback) {
+            BROOKESIA_LOGW("Failed to apply Shell font language fallback after language change: %1%", fallback.error());
+        }
     }
     if (!shell_app_) {
         return {};

@@ -15,10 +15,12 @@
 #include <cmath>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
-#include <fstream>
 #include <iterator>
+#include <map>
 #include <optional>
 #include <sstream>
 #include <unordered_set>
@@ -28,10 +30,31 @@
 #include "boost/json.hpp"
 #include "boost/unordered/unordered_flat_map.hpp"
 #include "boost/unordered/unordered_flat_set.hpp"
+#include "brookesia/service_helper/system/storage.hpp"
+#include "brookesia/service_manager/service/manager.hpp"
+
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+#   define GUI_INTERFACE_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
+#else
+#   define GUI_INTERFACE_PROFILE_LOGI(...) do { if (false) { BROOKESIA_LOGI(__VA_ARGS__); } } while (0)
+#endif
 
 namespace esp_brookesia::gui {
 
 namespace {
+
+using StorageHelper = service::helper::Storage;
+using ParserProfileClock = std::chrono::steady_clock;
+using FileTextMap = std::map<std::string, std::string>;
+
+constexpr uint32_t STORAGE_BATCH_READ_TEXT_TIMEOUT_MS = 10000;
+
+static int64_t parser_profile_elapsed_ms(
+    const ParserProfileClock::time_point &start,
+    const ParserProfileClock::time_point &end)
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+}
 
 using VariantValue = std::variant<double, std::string, bool>;
 
@@ -85,6 +108,14 @@ struct RootAssetEntry {
     boost::json::value value;
     std::filesystem::path base_dir;
     std::string source_label;
+};
+
+struct PendingRootAssetEntry {
+    boost::json::value value;
+    std::filesystem::path path;
+    std::filesystem::path base_dir;
+    std::string source_label;
+    bool file_backed = false;
 };
 
 struct ResolvedAssetEntry {
@@ -531,33 +562,131 @@ static std::expected<std::string, std::string> read_text_file(const std::filesys
 
     BROOKESIA_LOGD("Params: path(%1%)", path.string());
 
-    std::ifstream input(path, std::ios::binary);
-    if (!input.is_open()) {
-        BROOKESIA_LOGE("Failed to open file: '%1%'", path.string());
-        return std::unexpected("Failed to open file: " + path.string());
+    const auto start = ParserProfileClock::now();
+    auto result = StorageHelper::fs_read_text(path.generic_string());
+    const auto end = ParserProfileClock::now();
+    if (!result) {
+        BROOKESIA_LOGE("Failed to read file: '%1%', error: %2%", path.string(), result.error());
+        return std::unexpected("Failed to read file: " + path.string() + ", error: " + result.error());
     }
 
-    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser file profile: file(%1%), stage(read_text), bytes(%2%), elapsed_ms(%3%)",
+        path.string(),
+        result->size(),
+        parser_profile_elapsed_ms(start, end)
+    );
+    return result.value();
 }
 
-static std::expected<boost::json::value, std::string> parse_json_file(const std::filesystem::path &path)
+static std::expected<FileTextMap, std::string> read_text_files(
+    const std::vector<std::filesystem::path> &paths)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
-    BROOKESIA_LOGD("Params: path(%1%)", path.string());
-
-    auto text = read_text_file(path);
-    if (!text) {
-        return std::unexpected(text.error());
+    if (paths.empty()) {
+        return FileTextMap();
+    }
+    if (paths.size() == 1) {
+        auto text = read_text_file(paths.front());
+        if (!text) {
+            return std::unexpected(text.error());
+        }
+        return FileTextMap({{paths.front().generic_string(), std::move(text.value())}});
     }
 
+    // Keep all flash file I/O on the Storage service worker while avoiding a dedicated batch FS API.
+    auto storage_service = service::ServiceManager::get_instance().get_service(StorageHelper::get_name().data());
+    if (!storage_service) {
+        return std::unexpected("Storage service not found");
+    }
+
+    std::vector<std::string> path_strings;
+    path_strings.reserve(paths.size());
+    std::vector<service::FunctionCall> calls;
+    calls.reserve(paths.size());
+    const std::string read_text_function_name = BROOKESIA_DESCRIBE_ENUM_TO_STR(StorageHelper::FunctionId::FSReadText);
+    const std::string path_param_name = BROOKESIA_DESCRIBE_TO_STR(StorageHelper::FunctionFSPathParam::Path);
+    for (const auto &path : paths) {
+        auto path_string = path.generic_string();
+        calls.push_back({
+            .name = read_text_function_name,
+            .parameters = {
+                {path_param_name, path_string},
+            },
+        });
+        path_strings.push_back(std::move(path_string));
+    }
+
+    const auto start = ParserProfileClock::now();
+    auto result = storage_service->call_functions_sync(std::move(calls), STORAGE_BATCH_READ_TEXT_TIMEOUT_MS);
+    const auto end = ParserProfileClock::now();
+
+    if (result.results.size() > path_strings.size()) {
+        return std::unexpected(
+                   "Storage FS batch read returned " + std::to_string(result.results.size()) +
+                   " result(s) for " + std::to_string(path_strings.size()) + " file(s)"
+               );
+    }
+
+    FileTextMap files;
+    size_t total_bytes = 0;
+    for (size_t i = 0; i < result.results.size(); i++) {
+        auto &call_result = result.results[i];
+        const auto &path_string = path_strings[i];
+        if (!call_result.success) {
+            return std::unexpected(
+                       "Failed to read file: " + path_string + ", error: " + call_result.error_message
+                   );
+        }
+        if (!call_result.data.has_value()) {
+            return std::unexpected("Storage FS batch read returned no data for path '" + path_string + "'");
+        }
+        auto *text = std::get_if<std::string>(&call_result.data.value());
+        if (text == nullptr) {
+            return std::unexpected("Storage FS batch read returned non-string data for path '" + path_string + "'");
+        }
+        total_bytes += text->size();
+        files.emplace(path_string, std::move(*text));
+    }
+
+    if (!result.success) {
+        return std::unexpected("Storage FS batch read failed without per-file error");
+    }
+    if (files.size() != path_strings.size()) {
+        return std::unexpected(
+                   "Storage FS batch read returned " + std::to_string(files.size()) +
+                   " result(s) for " + std::to_string(path_strings.size()) + " file(s)"
+               );
+    }
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser file batch profile: files(%1%), bytes(%2%), elapsed_ms(%3%)",
+        files.size(),
+        total_bytes,
+        parser_profile_elapsed_ms(start, end)
+    );
+    return files;
+}
+
+static std::expected<boost::json::value, std::string> parse_json_text(
+    const std::filesystem::path &path,
+    const std::string &text)
+{
+    const auto start = ParserProfileClock::now();
     boost::system::error_code error_code;
-    boost::json::value value = boost::json::parse(*text, error_code);
+    boost::json::value value = boost::json::parse(text, error_code);
+    const auto end = ParserProfileClock::now();
     if (error_code) {
         BROOKESIA_LOGE("Failed to parse JSON file '%1%': %2%", path.string(), error_code.message());
         return std::unexpected("Failed to parse JSON file '" + path.string() + "': " + error_code.message());
     }
 
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser file profile: file(%1%), stage(parse_json), bytes(%2%), elapsed_ms(%3%)",
+        path.string(),
+        text.size(),
+        parser_profile_elapsed_ms(start, end)
+    );
     return value;
 }
 
@@ -589,6 +718,30 @@ static std::string normalize_object_key(std::string_view key)
     return normalized;
 }
 
+static std::optional<std::string> make_camel_case_key(std::string_view key)
+{
+    if (key.find('_') == std::string_view::npos) {
+        return std::nullopt;
+    }
+
+    std::string camel;
+    camel.reserve(key.size());
+    bool uppercase_next = false;
+    for (const auto ch : key) {
+        if (ch == '_') {
+            uppercase_next = true;
+            continue;
+        }
+        if (uppercase_next) {
+            camel.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+            uppercase_next = false;
+        } else {
+            camel.push_back(ch);
+        }
+    }
+    return camel;
+}
+
 static bool is_valid_color_literal(std::string_view color)
 {
     if (color.empty()) {
@@ -611,6 +764,12 @@ static boost::json::object::const_iterator find_key(const boost::json::object &o
     if (it != object.end()) {
         return it;
     }
+    if (auto camel_key = make_camel_case_key(key); camel_key.has_value()) {
+        it = object.find(*camel_key);
+        if (it != object.end()) {
+            return it;
+        }
+    }
 
     for (auto current = object.begin(); current != object.end(); ++current) {
         if (normalize_object_key(current->key()) == key) {
@@ -626,6 +785,12 @@ static boost::json::object::iterator find_key(boost::json::object &object, std::
     auto it = object.find(key);
     if (it != object.end()) {
         return it;
+    }
+    if (auto camel_key = make_camel_case_key(key); camel_key.has_value()) {
+        it = object.find(*camel_key);
+        if (it != object.end()) {
+            return it;
+        }
     }
 
     for (auto current = object.begin(); current != object.end(); ++current) {
@@ -663,29 +828,26 @@ static std::expected<void, std::string> append_root_asset_entries(
         return std::unexpected("Field '" + std::string(key) + "' must be an array");
     }
 
+    std::vector<PendingRootAssetEntry> pending_entries;
+    std::vector<std::filesystem::path> file_paths;
     size_t inline_index = 0;
     for (const auto &entry : value->as_array()) {
         if (entry.is_string()) {
             const auto path = resolve_path(base_dir, entry.as_string().c_str());
-            if (!loaded_paths.insert(path.string()).second) {
+            const auto path_string = path.generic_string();
+            if (!loaded_paths.insert(path_string).second) {
                 continue;
             }
             if (dependency_files != nullptr) {
-                dependency_files->push_back(path.string());
+                dependency_files->push_back(path_string);
             }
-
-            auto asset_value = parse_json_file(path);
-            if (!asset_value) {
-                return std::unexpected(asset_value.error());
-            }
-            if (!asset_value->is_object()) {
-                return std::unexpected("Asset file must contain a JSON object: " + path.string());
-            }
-
-            ordered_entries.push_back(RootAssetEntry{
-                .value = std::move(*asset_value),
+            file_paths.push_back(path);
+            pending_entries.push_back(PendingRootAssetEntry{
+                .value = {},
+                .path = path,
                 .base_dir = path.parent_path(),
-                .source_label = path.string(),
+                .source_label = path_string,
+                .file_backed = true,
             });
             continue;
         }
@@ -696,12 +858,50 @@ static std::expected<void, std::string> append_root_asset_entries(
                    );
         }
 
-        ordered_entries.push_back(RootAssetEntry{
+        pending_entries.push_back(PendingRootAssetEntry{
             .value = entry,
+            .path = {},
             .base_dir = base_dir,
             .source_label = std::string(inline_entry_label) + " #" + std::to_string(inline_index),
+            .file_backed = false,
         });
         ++inline_index;
+    }
+
+    auto file_texts = read_text_files(file_paths);
+    if (!file_texts) {
+        return std::unexpected(file_texts.error());
+    }
+
+    for (auto &pending_entry : pending_entries) {
+        if (!pending_entry.file_backed) {
+            ordered_entries.push_back(RootAssetEntry{
+                .value = std::move(pending_entry.value),
+                .base_dir = std::move(pending_entry.base_dir),
+                .source_label = std::move(pending_entry.source_label),
+            });
+            continue;
+        }
+
+        const auto path_string = pending_entry.path.generic_string();
+        auto text_it = file_texts->find(path_string);
+        if (text_it == file_texts->end()) {
+            return std::unexpected("Storage FS batch read did not return asset file: " + path_string);
+        }
+
+        auto asset_value = parse_json_text(pending_entry.path, text_it->second);
+        if (!asset_value) {
+            return std::unexpected(asset_value.error());
+        }
+        if (!asset_value->is_object()) {
+            return std::unexpected("Asset file must contain a JSON object: " + path_string);
+        }
+
+        ordered_entries.push_back(RootAssetEntry{
+            .value = std::move(*asset_value),
+            .base_dir = std::move(pending_entry.base_dir),
+            .source_label = std::move(pending_entry.source_label),
+        });
     }
 
     return {};
@@ -4868,12 +5068,19 @@ static std::expected<ImageAsset, std::string> parse_image_asset(
     }
     image.height = *height;
 
+    auto preload = parse_bool_field(object, "preload", image.preload);
+    if (!preload) {
+        return std::unexpected(preload.error());
+    }
+    image.preload = *preload;
+
     BROOKESIA_LOGD(
-        "Parsed image asset: id='%1%', src='%2%', width=%3%, height=%4%",
+        "Parsed image asset: id='%1%', src='%2%', width=%3%, height=%4%, preload=%5%",
         image.id,
         image.src,
         image.width,
-        image.height
+        image.height,
+        image.preload
     );
 
     return image;
@@ -5265,8 +5472,11 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         json.size(), base_dir, environment
     );
 
+    const auto total_start = ParserProfileClock::now();
+    auto stage_start = total_start;
     boost::system::error_code error_code;
     boost::json::value json_value = boost::json::parse(json, error_code);
+    auto stage_end = ParserProfileClock::now();
     if (error_code) {
         BROOKESIA_LOGE("Failed to parse GUI JSON: %1%", error_code.message());
         return std::unexpected("Failed to parse GUI JSON: " + error_code.message());
@@ -5274,6 +5484,13 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     if (!json_value.is_object()) {
         return std::unexpected("GUI root document must be a JSON object");
     }
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(parse_root_json), bytes(%2%), elapsed_ms(%3%), total_ms(%4%)",
+        base_dir,
+        json.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
     const auto &root_object = json_value.as_object();
     const auto version = parse_string_field(root_object, "version", std::string(CURRENT_DOCUMENT_VERSION));
@@ -5301,6 +5518,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         return std::unexpected("Root field 'screenFlow' is no longer supported; add a screenFlow asset to assets[]");
     }
 
+    stage_start = ParserProfileClock::now();
     auto append_result = append_root_asset_entries(
                              root_object,
                              "assets",
@@ -5393,7 +5611,18 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
             }
         }
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(load_asset_entries), assets(%2%), dependencies(%3%), "
+        "elapsed_ms(%4%), total_ms(%5%)",
+        base_dir,
+        asset_entries.size(),
+        parsed_document.dependency_files.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     for (auto &asset_entry : asset_entries) {
         const auto &asset_object = asset_entry.value.as_object();
         auto asset_type = parse_string_field(asset_object, "type");
@@ -5426,7 +5655,16 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     }
 
     document.constants = constants;
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(resolve_constants), assets(%2%), elapsed_ms(%3%), total_ms(%4%)",
+        base_dir,
+        asset_entries.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     std::vector<ResolvedAssetEntry> resolved_assets;
     for (const auto &asset_entry : asset_entries) {
         const auto &asset_object = asset_entry.value.as_object();
@@ -5455,7 +5693,17 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
             .type = *asset_type,
         });
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(resolve_assets), resolved_assets(%2%), elapsed_ms(%3%), "
+        "total_ms(%4%)",
+        base_dir,
+        resolved_assets.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     for (const auto &asset_entry : resolved_assets) {
         const auto &resolved_asset_object = asset_entry.value.as_object();
 
@@ -5489,7 +5737,17 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
                    );
         }
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(parse_image_assets), images(%2%), elapsed_ms(%3%), "
+        "total_ms(%4%)",
+        base_dir,
+        document.images.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     for (const auto &asset_entry : resolved_assets) {
         const auto &resolved_asset_object = asset_entry.value.as_object();
         if (asset_entry.type != "styleSet") {
@@ -5512,7 +5770,16 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
             document.styles.insert_or_assign(std::move(key), std::move(style));
         }
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(parse_style_assets), styles(%2%), elapsed_ms(%3%), total_ms(%4%)",
+        base_dir,
+        document.styles.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     InteractionTemplateRawMap raw_interactions;
     for (const auto &asset_entry : resolved_assets) {
         const auto &resolved_asset_object = asset_entry.value.as_object();
@@ -5544,7 +5811,17 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
             return std::unexpected("Duplicate interactionTemplate id: " + *id);
         }
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(parse_interaction_templates), interactions(%2%), "
+        "elapsed_ms(%3%), total_ms(%4%)",
+        base_dir,
+        raw_interactions.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     TemplateRawMap raw_templates;
     for (const auto &asset_entry : resolved_assets) {
         const auto &resolved_asset_object = asset_entry.value.as_object();
@@ -5615,7 +5892,18 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         }
         document.templates.push_back(std::move(*node));
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(parse_templates), raw_templates(%2%), templates(%3%), "
+        "elapsed_ms(%4%), total_ms(%5%)",
+        base_dir,
+        raw_templates.size(),
+        document.templates.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     for (const auto &asset_entry : resolved_assets) {
         const auto &resolved_asset_object = asset_entry.value.as_object();
         if (asset_entry.type == "imageSet" || asset_entry.type == "interactionTemplate" ||
@@ -5657,12 +5945,44 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         }
         document.screens.push_back(std::move(*node));
     }
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(parse_flows_screens), flows(%2%), screens(%3%), "
+        "elapsed_ms(%4%), total_ms(%5%)",
+        base_dir,
+        document.screen_flows.size(),
+        document.screens.size(),
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
 
+    stage_start = ParserProfileClock::now();
     auto validation = validate_document(document);
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(validate_document), elapsed_ms(%2%), total_ms(%3%)",
+        base_dir,
+        parser_profile_elapsed_ms(stage_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
     if (!validation.success) {
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
     }
 
+    stage_end = ParserProfileClock::now();
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser profile: base_dir(%1%), stage(total), dependencies(%2%), images(%3%), styles(%4%), "
+        "templates(%5%), flows(%6%), screens(%7%), elapsed_ms(%8%), total_ms(%9%)",
+        base_dir,
+        parsed_document.dependency_files.size(),
+        document.images.size(),
+        document.styles.size(),
+        document.templates.size(),
+        document.screen_flows.size(),
+        document.screens.size(),
+        parser_profile_elapsed_ms(total_start, stage_end),
+        parser_profile_elapsed_ms(total_start, stage_end)
+    );
     return parsed_document;
 }
 
@@ -5763,7 +6083,7 @@ std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     if (!text) {
         return std::unexpected(text.error());
     }
-    BROOKESIA_LOGI("Parsing GUI root file '%1%'", file_path.string());
+    GUI_INTERFACE_PROFILE_LOGI("Parsing GUI root file '%1%'", file_path.string());
     std::vector<std::string> dependency_files;
     dependency_files.push_back(file_path.string());
     return parse_document_impl(*text, file_path.parent_path().string(), environment, std::move(dependency_files));

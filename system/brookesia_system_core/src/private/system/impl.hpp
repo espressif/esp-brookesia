@@ -72,6 +72,7 @@ public:
         std::map<TimerId, TimerRecord> timers;
         bool runtime_loaded = false;
         bool runtime_started = false;
+        bool preload_dom = false;
     };
 
     struct PendingTimer {
@@ -184,13 +185,19 @@ public:
     );
     void flush_pending_gui_bindings(AppId app_id);
     void clear_pending_gui_bindings(AppId app_id);
+    gui::Runtime::ActionHandler make_app_action_forwarder(AppId app_id);
     std::expected<void, std::string> subscribe_gui_action_now(AppId app_id, std::string action);
+    std::expected<void, std::string> subscribe_gui_actions_now(AppId app_id, const std::vector<std::string> &actions);
 
     std::expected<AppRecord *, std::string> get_record(AppId app_id);
     std::expected<const AppRecord *, std::string> get_record(AppId app_id) const;
 
     std::expected<void, std::string> ensure_runtime_initialized();
     std::expected<void, std::string> ensure_gui_loaded(AppRecord &record);
+    std::expected<void, std::string> prepare_installed_app_gui(AppRecord &record);
+    void release_app_gui_presentation(AppRecord &record);
+    void cleanup_stopped_app_gui(AppRecord &record);
+    void rollback_installed_app_gui(AppRecord &record);
     void unload_gui(AppRecord &record);
     std::expected<void, std::string> enable_live_preview_for_document(
         gui::DocumentId document_id,
@@ -234,6 +241,9 @@ public:
     void load_gui_preferences();
     void persist_gui_theme_preference(std::string_view theme_id);
     void persist_gui_language_preference(std::string_view language);
+    GuiThemeLanguage get_gui_theme_language_snapshot() const;
+    void set_gui_theme_snapshot(std::string_view theme_id);
+    void set_gui_language_snapshot(std::string_view language);
     std::expected<void, std::string> ensure_standard_storage_dirs();
     std::expected<AppStoragePaths, std::string> ensure_app_storage_paths(std::string_view manifest_id);
     std::expected<std::filesystem::path, std::string> get_default_install_apps_root() const;
@@ -260,6 +270,12 @@ public:
     System &owner_;
     mutable std::mutex mutex_;
     mutable std::mutex timer_mutex_;
+    // Serializes all access to AppRecord::timers. Held across the timer
+    // registration + map insertion so a delayed/periodic timer that fires
+    // immediately (on the timer/app task) cannot observe the map before the
+    // entry is inserted, and to prevent concurrent map mutation from HTTP/
+    // worker threads and the app task.
+    mutable std::recursive_mutex timer_map_mutex_;
     mutable std::mutex gui_binding_mutex_;
     mutable std::recursive_mutex app_callback_mutex_;
     mutable std::recursive_mutex gui_runtime_mutex_;
@@ -291,6 +307,11 @@ public:
     std::set<gui::DocumentId::Value> live_preview_document_ids_;
     std::optional<lib_utils::TaskScheduler::TaskId> live_preview_poll_task_id_;
     StorageLayout storage_layout_;
+    std::map<std::string, AppStoragePaths> app_storage_paths_cache_;
+    GuiThemeLanguage gui_theme_language_snapshot_ {
+        .theme_id = "default",
+        .language = "en",
+    };
     std::optional<std::string> stored_theme_id_;
     std::optional<std::string> stored_language_;
     AppId next_app_id_ = 1;

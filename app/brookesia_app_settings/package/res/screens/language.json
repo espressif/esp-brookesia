@@ -1,6 +1,7 @@
 {
     "type": "viewScreen",
     "id": "language",
+    "mountMode": "dynamic",
     "commonProps": {
         "scrollable": false
     },

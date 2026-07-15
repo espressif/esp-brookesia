@@ -92,6 +92,18 @@ private:
         size_t volume_index = 0;
     };
 
+    enum class FileOperationKind {
+        Rename,
+        Delete,
+    };
+
+    struct PendingFileOperation {
+        FileOperationKind kind = FileOperationKind::Rename;
+        EntryKind entry_kind = EntryKind::Other;
+        std::filesystem::path source_path;
+        std::filesystem::path destination_path;
+    };
+
     std::expected<void, std::string> subscribe_actions(system::core::AppContext &context);
     void bind_storage_service();
     void release_storage_service();
@@ -103,7 +115,7 @@ private:
     std::expected<void, std::string> ensure_entry_view_capacity(system::core::AppContext &context, size_t count);
     void trim_entry_view_pool(system::core::AppContext &context, size_t visible_count);
     std::expected<void, std::string> refresh_entries(system::core::AppContext &context);
-    std::expected<void, std::string> scroll_first_entry_to_top(system::core::AppContext &context);
+    std::expected<void, std::string> scroll_list_to_top(system::core::AppContext &context);
     std::expected<void, std::string> refresh_ui(system::core::AppContext &context);
     std::expected<void, std::string> navigate_back(system::core::AppContext &context);
     std::expected<void, std::string> open_entry(system::core::AppContext &context, const Entry &entry);
@@ -111,6 +123,15 @@ private:
     std::expected<void, std::string> hide_operations(system::core::AppContext &context);
     void request_rename(system::core::AppContext &context);
     void request_delete(system::core::AppContext &context);
+    std::expected<void, std::string> schedule_file_operation(
+        system::core::AppContext &context,
+        PendingFileOperation operation
+    );
+    std::expected<void, std::string> schedule_file_operation_commit(system::core::AppContext &context);
+    std::expected<void, std::string> commit_file_operation(system::core::AppContext &context);
+    std::expected<void, std::string> show_file_operation_dialog(system::core::AppContext &context);
+    void hide_file_operation_dialog(system::core::AppContext &context);
+    void cancel_file_operation(system::core::AppContext &context);
     void show_message(
         system::core::AppContext &context,
         std::string text,
@@ -135,7 +156,7 @@ private:
     std::string tr(std::string_view key) const;
     std::string current_language() const;
 
-    class Impl;
+    struct Impl;
     std::unique_ptr<Impl> impl_;
 };
 

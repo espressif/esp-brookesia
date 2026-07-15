@@ -289,6 +289,62 @@ def run_fonttools_subset(
     subprocess.run(cmd, check=True)
 
 
+def select_complex_noncommon_chars(
+    *,
+    chars: Iterable[str],
+    font_path: Path,
+    font_number: int,
+    common_chars: set[str],
+    max_points: int,
+) -> set[str]:
+    """Return CJK Han chars that are complex (many strokes) and not common.
+
+    Glyph outline complexity is measured as the number of coordinate points in
+    the glyph, resolved from the given font. Point count is used as a proxy for
+    stroke count: the more strokes a character has, the more points its outline
+    needs, and the more bytes it occupies in the font's glyf table.
+
+    A character is selected for removal only when all of the following hold:
+      - it is a CJK Han character;
+      - it is not in common_chars;
+      - the font provides a glyph for it;
+      - its glyph point count is greater than max_points.
+    """
+    if not font_path.exists():
+        die(f"font file not found: {font_path}")
+
+    try:
+        from fontTools.ttLib import TTFont
+    except ImportError:
+        die(
+            "fontTools is required for --drop-complex-noncommon. "
+            "Install it with: pip install fonttools"
+        )
+
+    font = TTFont(str(font_path), fontNumber=font_number, lazy=True)
+    cmap = font.getBestCmap()
+    if cmap is None:
+        die(f"font has no usable unicode cmap: {font_path}")
+    glyf = font["glyf"]
+
+    removed: set[str] = set()
+    for ch in chars:
+        if ch in common_chars or not is_cjk_han(ch):
+            continue
+        glyph_name = cmap.get(ord(ch))
+        if glyph_name is None:
+            continue
+        glyph = glyf[glyph_name]
+        if glyph.numberOfContours <= 0:
+            continue
+        coords, _end_pts, _flags = glyph.getCoordinates(glyf)
+        if len(coords) > max_points:
+            removed.add(ch)
+
+    font.close()
+    return removed
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -402,6 +458,49 @@ def parse_args() -> argparse.Namespace:
         help="Append a newline to output files.",
     )
 
+    # Optional: drop many-stroke, non-common CJK chars to shrink the font.
+    parser.add_argument(
+        "--drop-complex-noncommon",
+        action="store_true",
+        help=(
+            "Remove many-stroke, non-common CJK characters to shrink the font.\n"
+            "Requires --font-path and fontTools. A character is removed only when\n"
+            "it is a CJK Han char, is NOT in the common set (see --common-level),\n"
+            "and its glyph outline point count exceeds --complex-max-points.\n"
+            "Point count is a proxy for stroke count (higher = more strokes)."
+        ),
+    )
+    parser.add_argument(
+        "--common-level",
+        default="l1",
+        help=(
+            "GB level whose chars are treated as common and always kept when\n"
+            "--drop-complex-noncommon is used. Default: l1 (GB2312 level-1,\n"
+            "about 3755 common chars). Accepts none/l1/l2/gbk."
+        ),
+    )
+    parser.add_argument(
+        "--common-file",
+        action="append",
+        type=Path,
+        default=[],
+        help=(
+            "Extra file(s) of characters that are always kept (protected from\n"
+            "complexity removal), for example Brookesia UI strings.\n"
+            "Can be specified multiple times."
+        ),
+    )
+    parser.add_argument(
+        "--complex-max-points",
+        type=int,
+        default=100,
+        help=(
+            "Glyph outline point-count threshold for --drop-complex-noncommon.\n"
+            "Non-common CJK chars whose glyph has more points than this value\n"
+            "are removed. Lower value removes more chars. Default: 100."
+        ),
+    )
+
     # Optional fonttools subset step.
     parser.add_argument(
         "--font-path",
@@ -499,6 +598,26 @@ def main() -> None:
     # Manual exclude is applied last and therefore wins.
     keep_chars -= exclude_chars
 
+    complex_removed: set[str] = set()
+    complex_common_level: str | None = None
+    if args.drop_complex_noncommon:
+        if not args.font_path:
+            die("--drop-complex-noncommon requires --font-path")
+        complex_common_level = normalize_gb_level(args.common_level)
+        common_chars = build_gb_chars(complex_common_level)
+        common_chars |= read_chars_from_many(
+            args.common_file,
+            ignore_whitespace=ignore_whitespace,
+        )
+        complex_removed = select_complex_noncommon_chars(
+            chars=keep_chars,
+            font_path=args.font_path,
+            font_number=args.font_number,
+            common_chars=common_chars,
+            max_points=args.complex_max_points,
+        )
+        keep_chars -= complex_removed
+
     removed_chars = source_chars - keep_chars
     added_outside_source = keep_chars - source_chars
 
@@ -524,6 +643,12 @@ def main() -> None:
         "exclude_char_count": len(exclude_chars),
         "strict_source": bool(args.strict_source),
         "basic_symbols_enabled": not args.no_basic_symbols,
+        "drop_complex_noncommon": bool(args.drop_complex_noncommon),
+        "complex_common_level": complex_common_level,
+        "complex_max_points": (
+            args.complex_max_points if args.drop_complex_noncommon else None
+        ),
+        "complex_removed_count": len(complex_removed),
     }
 
     if stats_path:
@@ -538,6 +663,11 @@ def main() -> None:
     print(f"  GB level             : {gb_level}")
     print(f"  kept chars           : {stats['kept_count']}")
     print(f"  removed chars        : {stats['removed_count']}")
+    if args.drop_complex_noncommon:
+        print(
+            f"  complex removed      : {len(complex_removed)}"
+            f" (non-common Han, points > {args.complex_max_points})"
+        )
     print(f"  added outside source : {stats['added_outside_source_count']}")
     print(f"  build dir            : {build_dir}")
     print(f"  output               : {output_path}")

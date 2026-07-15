@@ -1406,22 +1406,27 @@ private:
 Nes::Nes()
     : service::ServiceBase({
     .name = Helper::get_name().data(),
+    .description = "Run NES emulation and expose emulator controls.",
+    .version = service::ServiceBase::make_version(
+        BROOKESIA_EMULATION_NES_VER_MAJOR, BROOKESIA_EMULATION_NES_VER_MINOR,
+        BROOKESIA_EMULATION_NES_VER_PATCH
+    ),
 #if BROOKESIA_EMULATION_NES_ENABLE_WORKER
     .task_scheduler_config = lib_utils::TaskScheduler::StartConfig{
         .worker_configs = {
             lib_utils::ThreadConfig{
                 .name = BROOKESIA_EMULATION_NES_WORKER_NAME "0",
                 .core_id = BROOKESIA_EMULATION_NES_WORKER_0_CORE_ID,
-                .priority = BROOKESIA_EMULATION_NES_WORKER_0_PRIORITY,
-                .stack_size = BROOKESIA_EMULATION_NES_WORKER_0_STACK_SIZE,
-                .stack_in_ext = false,
+                .priority = BROOKESIA_EMULATION_NES_WORKER_PRIORITY,
+                .stack_size = BROOKESIA_EMULATION_NES_WORKER_STACK_SIZE,
+                .stack_in_ext = BROOKESIA_EMULATION_NES_WORKER_STACK_IN_EXT,
             },
             lib_utils::ThreadConfig{
                 .name = BROOKESIA_EMULATION_NES_WORKER_NAME "1",
                 .core_id = BROOKESIA_EMULATION_NES_WORKER_1_CORE_ID,
-                .priority = BROOKESIA_EMULATION_NES_WORKER_1_PRIORITY,
-                .stack_size = BROOKESIA_EMULATION_NES_WORKER_1_STACK_SIZE,
-                .stack_in_ext = false,
+                .priority = BROOKESIA_EMULATION_NES_WORKER_PRIORITY,
+                .stack_size = BROOKESIA_EMULATION_NES_WORKER_STACK_SIZE,
+                .stack_in_ext = BROOKESIA_EMULATION_NES_WORKER_STACK_IN_EXT,
             },
         },
         .worker_poll_interval_ms = BROOKESIA_EMULATION_NES_WORKER_POLL_INTERVAL_MS,

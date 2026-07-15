@@ -1,6 +1,7 @@
 {
     "type": "viewScreen",
     "id": "time_zone",
+    "mountMode": "dynamic",
     "commonProps": {
         "scrollable": false
     },

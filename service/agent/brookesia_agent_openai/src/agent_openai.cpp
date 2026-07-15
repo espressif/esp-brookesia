@@ -4,10 +4,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <expected>
-#include <random>
-#include <string_view>
-#include "boost/format.hpp"
-#include "boost/thread.hpp"
+#include <functional>
+#include <utility>
 #include "cJSON.h"
 #include "esp_peer.h"
 #include "brookesia/agent_openai/macro_configs.h"
@@ -15,10 +13,8 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include "private/utils.hpp"
-#include "brookesia/lib_utils/thread_config.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
-#include "brookesia/service_helper/system/storage.hpp"
 #include "brookesia/agent_manager/manager.hpp"
 #include "brookesia/agent_openai/agent_openai.hpp"
 #include "openai.h"
@@ -26,43 +22,12 @@
 
 namespace esp_brookesia::agent {
 
-using StorageHelper = service::helper::Storage;
-
-constexpr uint32_t STORAGE_ERASE_DATA_TIMEOUT_MS = 100;
-
-namespace {
-
-std::expected<std::string, std::string> make_storage_namespace(std::string_view raw_namespace)
+std::string Openai::get_component_version()
 {
-    auto result = StorageHelper::make_kv_namespace({raw_namespace});
-    if (!result) {
-        return std::unexpected(
-                   (boost::format("Failed to make OpenAI Storage namespace '%1%': %2%") %
-                    raw_namespace % result.error()).str()
-               );
-    }
-    if (result->hashed) {
-        BROOKESIA_LOGW("%1%", result->warning);
-    }
-    return result->name;
+    return make_version(
+               BROOKESIA_AGENT_OPENAI_VER_MAJOR, BROOKESIA_AGENT_OPENAI_VER_MINOR, BROOKESIA_AGENT_OPENAI_VER_PATCH
+           );
 }
-
-std::expected<std::string, std::string> make_storage_key(std::string_view raw_key)
-{
-    auto result = StorageHelper::make_kv_key({raw_key});
-    if (!result) {
-        return std::unexpected(
-                   (boost::format("Failed to make OpenAI Storage key '%1%': %2%") %
-                    raw_key % result.error()).str()
-               );
-    }
-    if (result->hashed) {
-        BROOKESIA_LOGW("%1%", result->warning);
-    }
-    return result->name;
-}
-
-} // namespace
 
 bool Openai::on_init()
 {
@@ -80,11 +45,7 @@ bool Openai::on_activate()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-#if BROOKESIA_AGENT_OPENAI_ENABLE_AUTO_LOAD_DATA
-    try_load_data();
-#endif
-
-    auto &info = get_data<DataType::Info>();
+    auto &info = data_info_;
     BROOKESIA_LOGD("Start with info: %1%", BROOKESIA_DESCRIBE_TO_STR(info));
 
     BROOKESIA_CHECK_FALSE_RETURN(validate_info(info), false, "Invalid info");
@@ -184,8 +145,6 @@ bool Openai::set_info(const boost::json::object &info)
 
     BROOKESIA_LOGD("Params: info(%1%)", BROOKESIA_DESCRIBE_TO_STR(info));
 
-    try_load_data();
-
     OpenaiInfo openai_info;
 
     auto success = BROOKESIA_DESCRIBE_FROM_JSON(info, openai_info);
@@ -193,7 +152,7 @@ bool Openai::set_info(const boost::json::object &info)
         success, false, "Failed to deserialize openai info: %1%", BROOKESIA_DESCRIBE_TO_STR(info)
     );
 
-    auto current_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(get_data<DataType::Info>());
+    auto current_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(data_info_);
     auto new_info_str = BROOKESIA_DESCRIBE_JSON_SERIALIZE(openai_info);
     if (current_info_str == new_info_str) {
         BROOKESIA_LOGI("Info is the same, skip setting");
@@ -202,9 +161,7 @@ bool Openai::set_info(const boost::json::object &info)
 
     BROOKESIA_CHECK_FALSE_RETURN(validate_info(openai_info), false, "Invalid info");
 
-    set_data<DataType::Info>(std::move(openai_info));
-
-    try_save_data(DataType::Info);
+    data_info_ = std::move(openai_info);
 
     return true;
 }
@@ -213,130 +170,11 @@ bool Openai::reset_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    is_data_loaded_ = false;
-    set_data<DataType::Info>(OpenaiInfo{});
-
-    try_erase_data();
+    data_info_ = OpenaiInfo{};
 
     BROOKESIA_LOGI("Reset all data");
 
     return true;
-}
-
-std::expected<void, std::string> Openai::function_load_data()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    is_data_loaded_ = false;
-    try_load_data();
-
-    return {};
-}
-
-void Openai::try_load_data()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (is_data_loaded_) {
-        BROOKESIA_LOGD("Data is already loaded, skip");
-        return;
-    }
-
-    if (!StorageHelper::is_available()) {
-        BROOKESIA_LOGD("Storage service is not available, skip");
-        return;
-    }
-
-    auto binding = service::ServiceManager::get_instance().bind(StorageHelper::get_name().data());
-    BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind Storage service");
-
-    auto namespace_result = make_storage_namespace(get_attributes().get_name());
-    if (!namespace_result) {
-        BROOKESIA_LOGW("%1%", namespace_result.error());
-        return;
-    }
-    auto kv_namespace = std::move(namespace_result.value());
-
-    {
-        auto raw_key = BROOKESIA_DESCRIBE_TO_STR(DataType::Info);
-        auto key_result = make_storage_key(raw_key);
-        if (!key_result) {
-            BROOKESIA_LOGW("%1%", key_result.error());
-            return;
-        }
-        auto key = std::move(key_result.value());
-        auto result = StorageHelper::get_key_value<OpenaiInfo>(kv_namespace, key);
-        if (!result) {
-            BROOKESIA_LOGD("No persisted '%1%' in Storage: %2%", raw_key, result.error());
-        } else {
-            set_data<DataType::Info>(std::move(result.value()));
-            BROOKESIA_LOGI("Loaded '%1%' from Storage", raw_key);
-        }
-    }
-
-    is_data_loaded_ = true;
-
-    BROOKESIA_LOGI("Loaded all data from Storage");
-}
-
-void Openai::try_save_data(DataType type)
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    auto raw_key = BROOKESIA_DESCRIBE_TO_STR(type);
-    BROOKESIA_LOGD("Params: type(%1%)", raw_key);
-
-    if (!StorageHelper::is_available()) {
-        BROOKESIA_LOGD("Storage service is not available, skip");
-        return;
-    }
-
-    auto namespace_result = make_storage_namespace(get_attributes().get_name());
-    BROOKESIA_CHECK_FALSE_EXIT(namespace_result, "%1%", namespace_result.error());
-    auto key_result = make_storage_key(raw_key);
-    BROOKESIA_CHECK_FALSE_EXIT(key_result, "%1%", key_result.error());
-    auto kv_namespace = std::move(namespace_result.value());
-    auto key = std::move(key_result.value());
-    auto save_function = [this, &kv_namespace, &key, raw_key](const auto & data_value) {
-        BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        auto result = StorageHelper::save_key_value_async(kv_namespace, key, data_value,
-        [this, raw_key](auto &&result) mutable {
-            BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-            BROOKESIA_CHECK_FALSE_EXIT(
-                result.success, "Failed to save %1% to Storage: %2%", raw_key, result.error_message
-            );
-            BROOKESIA_LOGI("Saved '%1%' to Storage", raw_key);
-        });
-        BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to save data to Storage");
-    };
-
-    if (type == DataType::Info) {
-        save_function(get_data<DataType::Info>());
-    } else {
-        BROOKESIA_LOGE("Invalid data type for saving to Storage");
-    }
-}
-
-void Openai::try_erase_data()
-{
-    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-
-    if (!StorageHelper::is_available()) {
-        BROOKESIA_LOGD("Storage service is not available, skip");
-        return;
-    }
-
-    auto binding = service::ServiceManager::get_instance().bind(StorageHelper::get_name().data());
-    BROOKESIA_CHECK_FALSE_EXIT(binding.is_valid(), "Failed to bind Storage service");
-
-    auto namespace_result = make_storage_namespace(get_attributes().get_name());
-    BROOKESIA_CHECK_FALSE_EXIT(namespace_result, "%1%", namespace_result.error());
-    auto result = StorageHelper::erase_keys(namespace_result.value(), {}, STORAGE_ERASE_DATA_TIMEOUT_MS);
-    if (!result) {
-        BROOKESIA_LOGE("Failed to erase Storage data: %1%", result.error());
-    } else {
-        BROOKESIA_LOGI("Erased Storage data");
-    }
 }
 
 bool Openai::validate_info(OpenaiInfo &info)
