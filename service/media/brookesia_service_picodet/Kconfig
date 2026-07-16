@@ -1,0 +1,18 @@
+menu "ESP-Brookesia: Service PicoDet Configurations"
+
+    config BROOKESIA_SERVICE_PICODET_ENABLE_DEBUG_LOG
+        bool "Enable debug log"
+        default n
+        help
+            Enable verbose debug logging for the PicoDet service.
+
+    config BROOKESIA_SERVICE_PICODET_FILE_IO_THREAD_STACK_SIZE
+        int "File IO thread stack size (bytes)"
+        default 8192
+        help
+            Stack size of the short-lived internal-RAM thread used for filesystem access
+            (model load, image read). Flash reads disable the flash cache and require a
+            cache-safe stack, so this thread is spawned when the calling worker's stack
+            lives in PSRAM. Inference itself does not use this thread.
+
+endmenu

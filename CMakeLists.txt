@@ -17,6 +17,7 @@ option(BROOKESIA_BUILD_SERVICE_DEVICE "Build brookesia_service_device for PC" OF
 option(BROOKESIA_BUILD_SERVICE_AUDIO "Build brookesia_service_audio for PC" OFF)
 option(BROOKESIA_BUILD_SERVICE_WIFI "Build brookesia_service_wifi for PC" OFF)
 option(BROOKESIA_BUILD_SERVICE_DISPLAY "Build brookesia_service_display for PC" OFF)
+option(BROOKESIA_BUILD_SERVICE_PICODET "Build brookesia_service_picodet for PC" OFF)
 option(BROOKESIA_BUILD_SERVICE_VIDEO "Build brookesia_service_video for PC" OFF)
 option(BROOKESIA_BUILD_EMULATION_NES "Build brookesia_emulation_nes for PC" OFF)
 option(BROOKESIA_BUILD_GUI_INTERFACE "Build brookesia_gui_interface for PC" ON)
@@ -68,6 +69,7 @@ set(BROOKESIA_SUPPORTED_COMPONENTS
     brookesia_service_audio
     brookesia_service_wifi
     brookesia_service_display
+    brookesia_service_picodet
     brookesia_service_video
     brookesia_emulation_nes
     brookesia_gui_interface
@@ -217,6 +219,15 @@ if(BROOKESIA_BUILD_SERVICE_DISPLAY)
 
     message(STATUS "Brookesia: enabling brookesia::service_display")
     add_subdirectory(service/media/brookesia_service_display)
+endif()
+
+if(BROOKESIA_BUILD_SERVICE_PICODET)
+    if(NOT TARGET brookesia::service_helper)
+        message(FATAL_ERROR "brookesia_service_picodet requires brookesia_service_helper to be enabled")
+    endif()
+
+    message(STATUS "Brookesia: enabling brookesia::service_picodet")
+    add_subdirectory(service/media/brookesia_service_picodet)
 endif()
 
 if(BROOKESIA_BUILD_SERVICE_VIDEO)

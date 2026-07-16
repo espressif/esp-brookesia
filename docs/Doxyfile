@@ -61,10 +61,14 @@ INPUT = \
     $(PROJECT_PATH)/service/media/brookesia_service_display/include/brookesia/service_display/service_display.hpp \
     $(PROJECT_PATH)/service/media/brookesia_service_display/include/brookesia/service_display/types.hpp \
     $(PROJECT_PATH)/service/media/brookesia_service_display/include/brookesia/service_display.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_picodet/include/brookesia/service_picodet/detector.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_picodet/include/brookesia/service_picodet/service.hpp \
+    $(PROJECT_PATH)/service/media/brookesia_service_picodet/include/brookesia/service_picodet.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/audio.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_manager/include/brookesia/service_manager/helper/base.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/system/device.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/display.hpp \
+    $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/media/picodet.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/expression/emote.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/network/http.hpp \
     $(PROJECT_PATH)/service/framework/brookesia_service_helper/include/brookesia/service_helper/emulation/nes.hpp \

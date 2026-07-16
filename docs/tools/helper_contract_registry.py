@@ -88,6 +88,32 @@ HELPER_CONTRACTS: list[Contract] = [
     },
     {
         "category": "service",
+        "slug": "picodet",
+        "title": {"en": "PicoDet", "zh_CN": "PicoDet"},
+        "omit_overview": True,
+        "interface_title": {"en": "Service Interfaces", "zh_CN": "服务接口"},
+        "interface_as_parent": True,
+        "overview": {
+            "en": "The PicoDet contract exposes model lifecycle, image detection, and frame-stream attachment.",
+            "zh_CN": "PicoDet 合约提供模型生命周期、图片检测和帧流接入接口。",
+        },
+        "include_header": "brookesia/service_helper/media/picodet.hpp",
+        "header_path": "service/framework/brookesia_service_helper/include/brookesia/service_helper/media/picodet.hpp",
+        "helper_type": "esp_brookesia::service::helper::PicoDet",
+        "api_reference_doc": "/service/framework/helper/picodet",
+        "page_doc": "/service/picodet",
+        "schema_sections": [
+            {
+                "key": "main",
+                "title": {"en": "Contract Schema", "zh_CN": "接口 Schema"},
+                "functions_accessor": "get_function_schemas()",
+                "events_accessor": "get_event_schemas()",
+            }
+        ],
+        "implementations": [],
+    },
+    {
+        "category": "service",
         "slug": "http",
         "title": {"en": "HTTP", "zh_CN": "HTTP"},
         "omit_overview": True,

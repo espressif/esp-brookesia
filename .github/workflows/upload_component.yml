@@ -41,6 +41,7 @@ jobs:
             service/framework/brookesia_service_manager;
             service/media/brookesia_service_audio;
             service/media/brookesia_service_display;
+            service/media/brookesia_service_picodet;
             service/media/brookesia_service_video;
             service/network/brookesia_service_http;
             service/network/brookesia_service_sntp;
