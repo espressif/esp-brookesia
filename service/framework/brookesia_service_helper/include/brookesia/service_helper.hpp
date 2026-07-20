@@ -15,6 +15,7 @@
 #include "service_helper/framework/manager.hpp"
 #include "service_helper/framework/utils.hpp"
 #include "service_helper/media/display.hpp"
+#include "service_helper/media/picodet.hpp"
 #include "service_helper/network/http.hpp"
 #include "service_helper/emulation/nes.hpp"
 #include "service_helper/system/storage.hpp"

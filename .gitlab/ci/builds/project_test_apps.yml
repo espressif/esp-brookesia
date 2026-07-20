@@ -117,6 +117,14 @@ build_test_apps_brookesia_service_display:
     - .rules:build:test_apps_brookesia_service_display
   variables:
     EXAMPLE_DIR: service/media/brookesia_service_display/test_apps
+# brookesia_service_picodet
+build_test_apps_brookesia_service_picodet:
+  extends:
+    - .build_template
+    - .build_idf_release_version_general
+    - .rules:build:test_apps_brookesia_service_picodet
+  variables:
+    EXAMPLE_DIR: service/media/brookesia_service_picodet/test_apps
 # brookesia_service_http
 build_test_apps_brookesia_service_http:
   extends:

@@ -5,11 +5,12 @@ Media Services
 
 :link_to_translation:`zh_CN:[中文]`
 
-Audio, display, and video services.
+Audio, display, object-detection, and video services.
 
 .. toctree::
    :maxdepth: 1
 
    Audio <../audio>
    Display <../display>
+   PicoDet <../picodet>
    Video <../video>

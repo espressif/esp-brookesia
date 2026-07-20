@@ -36,6 +36,7 @@
    Helper 基类 <base>
    音频 <audio>
    显示 <display>
+   PicoDet <picodet>
    设备控制 <device>
    表情 <emote>
    HTTP <http>

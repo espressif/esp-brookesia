@@ -349,6 +349,16 @@
   - "service/media/brookesia_service_display/README*.md"
   - "service/media/brookesia_service_display/CHANGELOG.md"
   - "service/media/brookesia_service_display/docs/**/*"
+# brookesia_service_picodet
+.patterns-component_brookesia_service_picodet:
+  - "service/media/brookesia_service_picodet/include/**/*"
+  - "service/media/brookesia_service_picodet/src/**/*"
+  - "service/media/brookesia_service_picodet/CMakeLists.txt"
+  - "service/media/brookesia_service_picodet/idf_component.yml"
+  - "service/media/brookesia_service_picodet/Kconfig"
+  - "service/media/brookesia_service_picodet/README*.md"
+  - "service/media/brookesia_service_picodet/CHANGELOG.md"
+  - "service/media/brookesia_service_picodet/docs/**/*"
 # brookesia_service_helper
 .patterns-component_brookesia_service_helper:
   - "service/framework/brookesia_service_helper/include/**/*"
@@ -574,6 +584,9 @@
 # brookesia_service_display
 .patterns-test_apps_brookesia_service_display:
   - "service/media/brookesia_service_display/test_apps/**/*"
+# brookesia_service_picodet
+.patterns-test_apps_brookesia_service_picodet:
+  - "service/media/brookesia_service_picodet/test_apps/**/*"
 # brookesia_service_http
 .patterns-test_apps_brookesia_service_http:
   - "service/network/brookesia_service_http/test_apps/**/*"

@@ -1,0 +1,16 @@
+## IDF Component Manager Manifest File
+dependencies:
+  joltwallet/littlefs:
+    version: "~=1.20.0"
+
+  espressif/brookesia_lib_utils:
+    override_path: ../../../../../utils/brookesia_lib_utils
+
+  espressif/brookesia_service_helper:
+    override_path: ../../../../framework/brookesia_service_helper
+
+  espressif/brookesia_service_manager:
+    override_path: ../../../../framework/brookesia_service_manager
+
+  espressif/brookesia_service_picodet:
+    override_path: ../..

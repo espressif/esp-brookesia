@@ -1,0 +1,17 @@
+{
+    "model_file": "model.espdl",
+    "input": { "width": 224, "height": 224 },
+    "preprocess": {
+        "mean": [0, 0, 0],
+        "std": [255, 255, 255],
+        "rgb_swap": false,
+        "letterbox_color": [114, 114, 114]
+    },
+    "postprocess": {
+        "score_thr": 0.6,
+        "nms_thr": 0.7,
+        "top_k": 10,
+        "strides": [[8, 8, 4, 4], [16, 16, 8, 8], [32, 32, 16, 16]]
+    },
+    "labels": ["cat"]
+}

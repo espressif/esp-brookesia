@@ -283,6 +283,24 @@ target_test_apps_brookesia_service_display:
     TEST_TARGET: ${IDF_TARGET}
     TEST_FOLDER: service/media/brookesia_service_display/test_apps
     TEST_ENV: ${ENV_TAG}
+# brookesia_service_picodet
+target_test_apps_brookesia_service_picodet:
+  extends:
+    - .target_test_template
+    - .rules:build:test_apps_brookesia_service_picodet
+  needs:
+    - job: "build_test_apps_brookesia_service_picodet"
+      artifacts: true
+      optional: true
+  parallel:
+    matrix: !reference [.target_test_idf_target_version_general_psram_default_matrix]
+  tags:
+    - ${IDF_TARGET}
+    - ${ENV_TAG}
+  variables:
+    TEST_TARGET: ${IDF_TARGET}
+    TEST_FOLDER: service/media/brookesia_service_picodet/test_apps
+    TEST_ENV: ${ENV_TAG}
 # brookesia_service_http
 target_test_apps_brookesia_service_http:
   extends:

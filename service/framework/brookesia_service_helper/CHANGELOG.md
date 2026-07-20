@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.2 - 2026-07-20
+
+### Enhancements:
+
+- feat(picodet): add typed helper contracts for the PicoDet service.
+
 ## v0.8.1 - 2026-07-13
 
 ### Breaking Changes:
