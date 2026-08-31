@@ -9,6 +9,7 @@
 #endif
 #include "private/utils.hpp"
 #include "private/heap_trace.hpp"
+#include "private/app/service_requirement.hpp"
 #include "private/runtime/call_context.hpp"
 #include "private/runtime/host_bridge.hpp"
 #include "private/runtime/service_json.hpp"
@@ -24,11 +25,15 @@
 #include <optional>
 #include <set>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 
 #include "brookesia/service_manager/service/manager.hpp"
 #include "brookesia/service_manager/event/registry.hpp"
+#include "brookesia/system_core/service/gui.hpp"
+#include "brookesia/system_core/service/system.hpp"
+#include "brookesia/system_core/service/timer.hpp"
 
 namespace esp_brookesia::system::core {
 namespace {
@@ -42,6 +47,13 @@ using NativeValue = runtime::NativeValue;
 
 constexpr const char *STORAGE_PATH_MARKER_KEY = "$brookesiaStoragePath";
 constexpr const char *STORAGE_URL_MARKER_KEY = "$brookesiaStorageUrl";
+
+bool is_implicitly_allowed_service(std::string_view service_name)
+{
+    return (service_name == SystemCoreHelper::get_name()) ||
+           (service_name == SystemGuiHelper::get_name()) ||
+           (service_name == SystemTimerHelper::get_name());
+}
 
 bool get_string_arg(const NativeArgs &args, std::size_t index, std::string &value)
 {
@@ -218,6 +230,21 @@ public:
         bool completed = false;
     };
 
+    enum class ServiceAccessFailureReason : uint8_t {
+        ManifestNotRegistered,
+        NotDeclared,
+        RequirementUnavailable,
+    };
+
+    struct ServiceAccessFailure {
+        ServiceAccessFailureReason reason = ServiceAccessFailureReason::ManifestNotRegistered;
+        std::string manifest_id;
+        std::string service_name;
+        std::string required_version;
+        std::string local_version;
+        std::string detail;
+    };
+
     explicit Impl(std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge)
         : Impl(std::move(function_bridge), nullptr, {}, {})
     {}
@@ -268,6 +295,8 @@ public:
     bool consume_app_finish_request(RuntimeAppId id);
     void release_app_resources(RuntimeAppId id);
     void release_all_app_resources();
+    void register_app_manifest(RuntimeAppId id, AppManifest manifest);
+    void unregister_app_manifest(RuntimeAppId id);
     std::expected<void, std::string> resolve_storage_path_markers(RuntimeAppId app_id, boost::json::value &value);
     std::expected<service::FunctionParameterMap, std::string> parse_params_with_storage_paths(
         RuntimeAppId app_id,
@@ -277,6 +306,14 @@ public:
         RuntimeAppId app_id,
         std::string_view calls_json
     );
+    std::expected<void, ServiceAccessFailure> check_service_access(
+        RuntimeAppId app_id,
+        const std::string &service_name,
+        const service::ServiceManager &manager
+    );
+    static std::string get_service_access_failure_reason(const ServiceAccessFailure &failure);
+    static std::string format_service_access_failure(const ServiceAccessFailure &failure);
+    static void log_service_access_failure(RuntimeAppId app_id, const ServiceAccessFailure &failure);
 
     std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge_;
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
@@ -288,6 +325,7 @@ public:
     std::map<uint64_t, std::shared_ptr<AsyncCallRecord>> async_calls_;
     std::map<RuntimeAppId, std::set<int64_t>> app_services_;
     std::map<RuntimeAppId, std::set<int64_t>> app_subscriptions_;
+    std::map<RuntimeAppId, AppManifest> app_manifests_;
     std::set<RuntimeAppId> finish_requests_;
     int64_t next_handle_id_ = 1;
     uint64_t next_async_call_id_ = 1;
@@ -429,6 +467,20 @@ void SystemHostBridge::Impl::release_all_app_resources()
         release_app_resources(id);
     }
     function_bridge_->release_all_app_contexts();
+    std::lock_guard lock(mutex_);
+    app_manifests_.clear();
+}
+
+void SystemHostBridge::Impl::register_app_manifest(RuntimeAppId id, AppManifest manifest)
+{
+    std::lock_guard lock(mutex_);
+    app_manifests_.insert_or_assign(id, std::move(manifest));
+}
+
+void SystemHostBridge::Impl::unregister_app_manifest(RuntimeAppId id)
+{
+    std::lock_guard lock(mutex_);
+    app_manifests_.erase(id);
 }
 
 std::expected<void, std::string> SystemHostBridge::Impl::resolve_storage_path_markers(
@@ -524,8 +576,112 @@ std::expected<std::vector<service::FunctionCall>, std::string> SystemHostBridge:
     return parse_function_calls(boost::json::serialize(parsed));
 }
 
+std::expected<void, SystemHostBridge::Impl::ServiceAccessFailure>
+SystemHostBridge::Impl::check_service_access(
+    RuntimeAppId app_id,
+    const std::string &service_name,
+    const service::ServiceManager &manager
+)
+{
+    std::string manifest_id;
+    std::optional<AppManifestService> requirement;
+    {
+        std::lock_guard lock(mutex_);
+        auto manifest_it = app_manifests_.find(app_id);
+        if (manifest_it == app_manifests_.end()) {
+            return std::unexpected(ServiceAccessFailure{
+                .reason = ServiceAccessFailureReason::ManifestNotRegistered,
+                .manifest_id = {},
+                .service_name = service_name,
+                .required_version = {},
+                .local_version = {},
+                .detail = {},
+            });
+        }
+        manifest_id = manifest_it->second.id;
+        for (const auto &item : manifest_it->second.services) {
+            if (item.name == service_name) {
+                requirement = item;
+                break;
+            }
+        }
+    }
+
+    if (!requirement) {
+        if (is_implicitly_allowed_service(service_name)) {
+            return {};
+        }
+        return std::unexpected(ServiceAccessFailure{
+            .reason = ServiceAccessFailureReason::NotDeclared,
+            .manifest_id = std::move(manifest_id),
+            .service_name = service_name,
+            .required_version = {},
+            .local_version = {},
+            .detail = {},
+        });
+    }
+
+    auto failure = detail::evaluate_service_requirement(*requirement, manager);
+    if (!failure) {
+        return {};
+    }
+
+    return std::unexpected(ServiceAccessFailure{
+        .reason = ServiceAccessFailureReason::RequirementUnavailable,
+        .manifest_id = std::move(manifest_id),
+        .service_name = service_name,
+        .required_version = requirement->version,
+        .local_version = failure->registered ? failure->local_version : "<none>",
+        .detail = failure->reason,
+    });
+}
+
+std::string SystemHostBridge::Impl::get_service_access_failure_reason(
+    const ServiceAccessFailure &failure
+)
+{
+    switch (failure.reason) {
+    case ServiceAccessFailureReason::ManifestNotRegistered:
+        return "runtime app manifest is not registered";
+    case ServiceAccessFailureReason::NotDeclared:
+        return "service is not declared in app manifest";
+    case ServiceAccessFailureReason::RequirementUnavailable:
+        return failure.detail;
+    }
+    return "unknown service access failure";
+}
+
+std::string SystemHostBridge::Impl::format_service_access_failure(
+    const ServiceAccessFailure &failure
+)
+{
+    return "Service unavailable: " + failure.service_name + " (" +
+           get_service_access_failure_reason(failure) + ")";
+}
+
+void SystemHostBridge::Impl::log_service_access_failure(
+    RuntimeAppId app_id,
+    const ServiceAccessFailure &failure
+)
+{
+    BROOKESIA_LOGW(
+        "Service unavailable: phase(call), manifest(%1%), runtime_app_id(%2%), rpc(%3%), "
+        "required_version(%4%), local_version(%5%), reason(%6%)",
+        failure.manifest_id.empty() ? "<none>" : failure.manifest_id,
+        app_id,
+        failure.service_name,
+        failure.required_version.empty() ? "<none>" : failure.required_version,
+        failure.local_version.empty() ? "<none>" : failure.local_version,
+        get_service_access_failure_reason(failure)
+    );
+}
+
 NativeResult SystemHostBridge::Impl::service_available(const NativeArgs &args)
 {
+    auto app_id = function_bridge_->get_current_app_id();
+    if (!app_id) {
+        return std::unexpected(app_id.error());
+    }
     std::string service_name;
     if (!get_string_arg(args, 0, service_name)) {
         return std::unexpected("brookesia.service_available(name) requires a service name");
@@ -533,6 +689,10 @@ NativeResult SystemHostBridge::Impl::service_available(const NativeArgs &args)
     auto &manager = service::ServiceManager::get_instance();
     if (!manager.is_initialized() && !manager.init()) {
         return std::unexpected("Failed to initialize service manager");
+    }
+    auto access_result = check_service_access(app_id.value(), service_name, manager);
+    if (!access_result) {
+        return NativeValue{false};
     }
     return NativeValue{manager.get_service(service_name) != nullptr};
 }
@@ -552,6 +712,11 @@ NativeResult SystemHostBridge::Impl::start_service(const NativeArgs &args)
     auto &manager = service::ServiceManager::get_instance();
     if (!manager.is_running() && (!manager.init() || !manager.start())) {
         return std::unexpected("Failed to start service manager");
+    }
+    auto access_result = check_service_access(app_id.value(), service_name, manager);
+    if (!access_result) {
+        log_service_access_failure(app_id.value(), access_result.error());
+        return std::unexpected(format_service_access_failure(access_result.error()));
     }
 
     auto heap_before_start_service = heap_trace::capture();
@@ -1020,6 +1185,11 @@ NativeResult SystemHostBridge::Impl::call_service_function(const NativeArgs &arg
     if (!manager.is_initialized() && !manager.init()) {
         return std::unexpected("Failed to initialize service manager");
     }
+    auto access_result = check_service_access(app_id.value(), service_name, manager);
+    if (!access_result) {
+        log_service_access_failure(app_id.value(), access_result.error());
+        return std::unexpected(format_service_access_failure(access_result.error()));
+    }
     auto service = manager.get_service(service_name);
     if (!service) {
         return std::unexpected("Service not found: " + service_name);
@@ -1085,6 +1255,12 @@ void SystemHostBridge::Impl::call_service_function_async(const NativeArgs &args,
     auto &manager = service::ServiceManager::get_instance();
     if (!manager.is_initialized() && !manager.init()) {
         complete_error("Failed to initialize service manager");
+        return;
+    }
+    auto access_result = check_service_access(app_id.value(), service_name, manager);
+    if (!access_result) {
+        log_service_access_failure(app_id.value(), access_result.error());
+        complete_error(format_service_access_failure(access_result.error()));
         return;
     }
     auto service = manager.get_service(service_name);
@@ -1173,6 +1349,11 @@ NativeResult SystemHostBridge::Impl::call_service_functions(const NativeArgs &ar
     auto &manager = service::ServiceManager::get_instance();
     if (!manager.is_initialized() && !manager.init()) {
         return std::unexpected("Failed to initialize service manager");
+    }
+    auto access_result = check_service_access(app_id.value(), service_name, manager);
+    if (!access_result) {
+        log_service_access_failure(app_id.value(), access_result.error());
+        return std::unexpected(format_service_access_failure(access_result.error()));
     }
     auto service = manager.get_service(service_name);
     if (!service) {
@@ -1276,6 +1457,11 @@ NativeResult SystemHostBridge::Impl::subscribe_service_event(const NativeArgs &a
     auto &manager = service::ServiceManager::get_instance();
     if (!manager.is_initialized() && !manager.init()) {
         return std::unexpected("Failed to initialize service manager");
+    }
+    auto access_result = check_service_access(app_id.value(), service_name, manager);
+    if (!access_result) {
+        log_service_access_failure(app_id.value(), access_result.error());
+        return std::unexpected(format_service_access_failure(access_result.error()));
     }
     auto service = manager.get_service(service_name);
     if (!service) {
@@ -1612,6 +1798,16 @@ void SystemHostBridge::release_app_resources(runtime::AppId id)
 void SystemHostBridge::release_all_app_resources()
 {
     impl_->release_all_app_resources();
+}
+
+void SystemHostBridge::register_app_manifest(runtime::AppId id, AppManifest manifest)
+{
+    impl_->register_app_manifest(id, std::move(manifest));
+}
+
+void SystemHostBridge::unregister_app_manifest(runtime::AppId id)
+{
+    impl_->unregister_app_manifest(id);
 }
 
 } // namespace esp_brookesia::system::core

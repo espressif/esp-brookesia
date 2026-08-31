@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.8.4 - 2026-08-31
+
+### Breaking Changes:
+
+- break(runtime): require declarations for every non-system service RPC used by runtime apps.
+
+### Enhancements:
+
+- feat(app): parse service dependencies and expose them through app information.
+- feat(app): block runtime package installation or app startup when declared services are unavailable.
+- feat(runtime): reject undeclared named service access outside the three system RPCs.
+
+### Documentation:
+
+- docs(app): document service declarations, version compatibility, and runtime enforcement.
+
 ## v0.8.3 - 2026-08-04
 
 ### Enhancements:

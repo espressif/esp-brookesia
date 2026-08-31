@@ -13,6 +13,7 @@
 
 #include "brookesia/lib_utils/task_scheduler.hpp"
 #include "brookesia/runtime_manager.hpp"
+#include "brookesia/system_core/app/types.hpp"
 #include "brookesia/system_core/system/storage.hpp"
 
 namespace esp_brookesia::system::core {
@@ -47,6 +48,8 @@ public:
     bool consume_app_finish_request(runtime::AppId id) override;
     void release_app_resources(runtime::AppId id) override;
     void release_all_app_resources() override;
+    void register_app_manifest(runtime::AppId id, AppManifest manifest);
+    void unregister_app_manifest(runtime::AppId id);
 
 private:
     class Impl;

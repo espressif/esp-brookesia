@@ -51,7 +51,13 @@ Example ``manifest.json``:
        "entry": "app/app.lua",
        "resource_dir": "res",
        "arguments": []
-     }
+     },
+     "services": [
+       {
+         "name": "Storage",
+         "version": "0.8.1"
+       }
+     ]
    }
 
 .. _system-core-app_package-sec-03:
@@ -92,6 +98,28 @@ The ``runtime`` object:
      - Relative path of the app resource directory
    * - ``arguments``
      - String array of runtime startup arguments
+
+The optional top-level ``services`` array declares the service RPCs required by a runtime app:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Description
+   * - ``name``
+     - Stable, case-sensitive RPC name, for example ``Storage``; use the exact value returned by the service helper's ``get_name()``
+   * - ``version``
+     - Minimum compatible service version in numeric ``MAJOR.MINOR.PATCH`` format
+
+A local service version is compatible only when its major and minor versions equal the declared values and its patch version is greater than or equal to the declared patch. For example, local versions ``0.8.2`` and ``0.8.3`` satisfy a requirement for ``0.8.1``, while ``0.9.0`` does not. All declared services are required dependencies.
+
+The ``component`` field may be present as metadata for external tools, but system_core silently ignores it: the field is not parsed, validated, stored, reported, or used for matching. Core service matching uses only ``name`` and ``version``.
+
+When installing a ``.bpk`` or starting an app, system_core checks every declared service for registration and version compatibility. An undeclared service cannot be discovered before the app tries to use it, so the HostBridge also enforces declarations at call time. ``service_available()`` returns ``false`` for an undeclared service, and other named service operations return an error without invoking the service.
+
+The exact RPC names ``SystemCore``, ``SystemGui``, and ``SystemTimer`` are implicitly allowed and do not need declarations. Matching is case-sensitive; variants such as ``systemcore`` are not implicitly allowed. A missing ``services`` field or an empty array means that a runtime app can call only these three implicit system RPCs.
+
+This enforcement applies to runtime apps that access services through the HostBridge. Native apps are trusted firmware code and their direct C++ service access is not restricted by the manifest.
 
 .. _system-core-app_package-sec-04:
 

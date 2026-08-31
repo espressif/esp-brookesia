@@ -8,6 +8,10 @@
 
 For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/framework/helper/index.html).
 
+## Stable RPC Names
+
+The value returned by each helper's `get_name()` is a stable, case-sensitive public RPC identifier. Applications must use this exact value for service calls and the `services[].name` field in `manifest.json`. Changing an existing RPC name is a breaking API change and requires an explicit compatibility or migration plan; do not rename it during ordinary refactoring.
+
 ## DataFlow Helper
 
 The `DataFlow` helper provides typed control-plane access to provider discovery, operation ownership, lifecycle, and source routing. Native frame and audio-buffer access remains available through the typed C++ operation interfaces.
