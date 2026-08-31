@@ -179,10 +179,10 @@ class HostStorageService final: public ServiceBase {
 public:
     HostStorageService()
         : ServiceBase(Attributes{
-            .name = std::string(StorageHelper::get_name()),
-            .description = "Host filesystem service for System gate integration tests.",
-            .version = "0.8.2",
-        })
+        .name = std::string(StorageHelper::get_name()),
+        .description = "Host filesystem service for System gate integration tests.",
+        .version = "0.8.2",
+    })
     {}
 
     int get_mutation_count() const
@@ -238,11 +238,11 @@ protected:
         auto get_file_systems = [](FunctionParameterMap &&) {
             return make_success(boost::json::array{});
         };
-        auto fs_stat = [](FunctionParameterMap &&parameters) {
+        auto fs_stat = [](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             return path == nullptr ? make_error("Missing Path") : make_success(make_file_info(*path));
         };
-        auto fs_list = [](FunctionParameterMap &&parameters) {
+        auto fs_list = [](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             if (path == nullptr) {
                 return make_error("Missing Path");
@@ -257,7 +257,7 @@ protected:
             }
             return error ? make_error(error.message()) : make_success(std::move(entries));
         };
-        auto fs_mkdir = [this](FunctionParameterMap &&parameters) {
+        auto fs_mkdir = [this](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             if (path == nullptr) {
                 return make_error("Missing Path");
@@ -267,7 +267,7 @@ protected:
             std::filesystem::create_directories(*path, error);
             return error ? make_error(error.message()) : make_success();
         };
-        auto fs_read_text = [](FunctionParameterMap &&parameters) {
+        auto fs_read_text = [](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             if (path == nullptr) {
                 return make_error("Missing Path");
@@ -282,7 +282,7 @@ protected:
             };
             return make_success(std::move(contents));
         };
-        auto fs_read = [this](FunctionParameterMap &&parameters) {
+        auto fs_read = [this](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             const auto *buffer = get_parameter<RawBuffer>(parameters, "Buffer");
             if (path == nullptr || buffer == nullptr || buffer->to_ptr<uint8_t>() == nullptr) {
@@ -307,7 +307,7 @@ protected:
             }
             return make_success(static_cast<double>(read_count));
         };
-        auto fs_write_text = [this](FunctionParameterMap &&parameters) {
+        auto fs_write_text = [this](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             const auto *data = get_parameter<std::string>(parameters, "Data");
             if (path == nullptr || data == nullptr) {
@@ -318,7 +318,7 @@ protected:
             output << *data;
             return output ? make_success() : make_error("Failed to write file: " + *path);
         };
-        auto fs_write = [this](FunctionParameterMap &&parameters) {
+        auto fs_write = [this](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             const auto *data = get_parameter<RawBuffer>(parameters, "Data");
             if (path == nullptr || data == nullptr) {
@@ -332,7 +332,7 @@ protected:
             );
             return output ? make_success() : make_error("Failed to write file: " + *path);
         };
-        auto fs_remove = [this](FunctionParameterMap &&parameters) {
+        auto fs_remove = [this](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
             if (path == nullptr) {
                 return make_error("Missing Path");
@@ -342,7 +342,7 @@ protected:
             std::filesystem::remove_all(*path, error);
             return error ? make_error(error.message()) : make_success();
         };
-        auto fs_rename = [this](FunctionParameterMap &&parameters) {
+        auto fs_rename = [this](FunctionParameterMap && parameters) {
             const auto *from = get_parameter<std::string>(parameters, "From");
             const auto *to = get_parameter<std::string>(parameters, "To");
             if (from == nullptr || to == nullptr) {
@@ -353,7 +353,7 @@ protected:
             std::filesystem::rename(*from, *to, error);
             return error ? make_error(error.message()) : make_success();
         };
-        auto fs_copy_tree = [this](FunctionParameterMap &&parameters) {
+        auto fs_copy_tree = [this](FunctionParameterMap && parameters) {
             const auto *from = get_parameter<std::string>(parameters, "From");
             const auto *to = get_parameter<std::string>(parameters, "To");
             const auto *overwrite = get_parameter<bool>(parameters, "Overwrite");
@@ -369,7 +369,7 @@ protected:
             std::filesystem::copy(*from, *to, options, error);
             return error ? make_error(error.message()) : make_success();
         };
-        auto make_kv_name = [](FunctionParameterMap &&parameters) {
+        auto make_kv_name = [](FunctionParameterMap && parameters) {
             const auto *parts = get_parameter<boost::json::array>(parameters, "Parts");
             const auto *separator = get_parameter<std::string>(parameters, "Separator");
             if (parts == nullptr || separator == nullptr) {
@@ -448,10 +448,10 @@ class HostDeviceService final: public ServiceBase {
 public:
     HostDeviceService()
         : ServiceBase(Attributes{
-            .name = std::string(DeviceHelper::get_name()),
-            .description = "Host device dependency for System gate integration tests.",
-            .version = "0.8.2",
-        })
+        .name = std::string(DeviceHelper::get_name()),
+        .description = "Host device dependency for System gate integration tests.",
+        .version = "0.8.2",
+    })
     {}
 };
 
@@ -466,7 +466,8 @@ public:
         manifest.services = {{
                 .name = std::string(MISSING_RPC_NAME),
                 .version = "1.0.0",
-            }};
+            }
+        };
         return manifest;
     }
 
@@ -646,7 +647,7 @@ bool create_manifest_only_bpk(const std::filesystem::path &path, std::string_vie
 std::optional<AppInfo> find_app(const System &system, std::string_view manifest_id)
 {
     const auto apps = system.list_apps();
-    const auto it = std::find_if(apps.begin(), apps.end(), [manifest_id](const auto &app) {
+    const auto it = std::find_if(apps.begin(), apps.end(), [manifest_id](const auto & app) {
         return app.manifest.id == manifest_id;
     });
     return it == apps.end() ? std::nullopt : std::optional<AppInfo>(*it);
@@ -685,9 +686,9 @@ bool run_tests()
 {
     TemporaryDirectory temporary_directory;
     if (!require(
-            temporary_directory.is_valid(),
-            "Failed to create integration test directory: " + temporary_directory.get_error()
-        ) ||
+                temporary_directory.is_valid(),
+                "Failed to create integration test directory: " + temporary_directory.get_error()
+            ) ||
             !require(
                 create_staged_runtime_app(temporary_directory.get_path()),
                 "Failed to create staged runtime app"
@@ -779,16 +780,16 @@ bool run_tests()
     auto native_app = std::make_shared<LifecycleProbeApp>();
     auto native_install = system.install_app(native_app);
     passed &= require(
-        native_install.has_value(),
-        native_install ? "" : "Native app install failed: " + native_install.error()
-    );
+                  native_install.has_value(),
+                  native_install ? "" : "Native app install failed: " + native_install.error()
+              );
     passed &= require(native_app->get_install_count() == 1, "Native app install lifecycle was not called");
     if (native_install) {
         auto native_start = system.start_app(*native_install);
         passed &= require(
-            native_start.has_value(),
-            native_start ? "" : "Trusted native app start failed: " + native_start.error()
-        );
+                      native_start.has_value(),
+                      native_start ? "" : "Trusted native app start failed: " + native_start.error()
+                  );
         passed &= require(native_app->get_start_count() == 1, "Trusted native app did not execute on_start");
     }
 
@@ -844,7 +845,7 @@ bool run_tests()
             passed &= require(
                           retained_app->manifest.version == "1.0.0",
                           "BPK install gate changed the existing app version"
-            );
+                      );
         }
     }
 
@@ -856,39 +857,39 @@ bool run_tests()
         R"(","version":"0.8.1"}]})";
     const auto changed_bpk_path = temporary_directory.get_path() / "changed-after-check.bpk";
     passed &= require(
-        create_manifest_only_bpk(changed_bpk_path, compatible_replacement_manifest),
-        "Failed to create initially compatible BPK"
-    );
+                  create_manifest_only_bpk(changed_bpk_path, compatible_replacement_manifest),
+                  "Failed to create initially compatible BPK"
+              );
     storage->replace_file_after_next_read(changed_bpk_path, bpk_path);
 
     const int staged_mutations_before = storage->get_mutation_count();
     auto changed_package_install = system.install_runtime_app_package(changed_bpk_path.generic_string(), true);
     passed &= require(
-        !changed_package_install.has_value(),
-        "BPK changed to incompatible services after the first check unexpectedly installed"
-    );
+                  !changed_package_install.has_value(),
+                  "BPK changed to incompatible services after the first check unexpectedly installed"
+              );
     if (!changed_package_install) {
         passed &= require(
-            changed_package_install.error().find(MISSING_RPC_NAME) != std::string::npos,
-            "Staged manifest recheck error omitted the changed missing RPC"
-        );
+                      changed_package_install.error().find(MISSING_RPC_NAME) != std::string::npos,
+                      "Staged manifest recheck error omitted the changed missing RPC"
+                  );
     }
     passed &= require(
-        storage->get_mutation_count() > staged_mutations_before,
-        "Changed BPK was rejected before reaching the staged manifest recheck"
-    );
+                  storage->get_mutation_count() > staged_mutations_before,
+                  "Changed BPK was rejected before reaching the staged manifest recheck"
+              );
     passed &= require(
-        std::filesystem::exists(retained_file),
-        "Staged manifest recheck removed an existing app file"
-    );
+                  std::filesystem::exists(retained_file),
+                  "Staged manifest recheck removed an existing app file"
+              );
     if (staged_app) {
         const auto retained_app = system.get_app(staged_app->app_id);
         passed &= require(retained_app.has_value(), "Staged manifest recheck removed the existing app record");
         if (retained_app) {
             passed &= require(
-                retained_app->manifest.version == "1.0.0",
-                "Staged manifest recheck replaced the existing app version"
-            );
+                          retained_app->manifest.version == "1.0.0",
+                          "Staged manifest recheck replaced the existing app version"
+                      );
         }
     }
 

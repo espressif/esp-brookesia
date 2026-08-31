@@ -73,10 +73,10 @@ public:
         std::string version = "0.8.3"
     )
         : ServiceBase(Attributes{
-            .name = std::move(name),
-            .description = "SystemHostBridge service requirement host test.",
-            .version = std::move(version),
-        })
+        .name = std::move(name),
+        .description = "SystemHostBridge service requirement host test.",
+        .version = std::move(version),
+    })
     {}
 
     int get_call_count() const
@@ -107,11 +107,13 @@ public:
         return {{
                 .name = "changed",
                 .description = "Test event.",
-                .items = {EventItemSchema{
-                    .name = "value",
-                    .description = "Test value.",
-                    .type = EventItemType::String,
-                }},
+                .items = {
+                    EventItemSchema{
+                        .name = "value",
+                        .description = "Test value.",
+                        .type = EventItemType::String,
+                    }
+                },
                 .require_scheduler = false,
             }};
     }
@@ -144,10 +146,10 @@ class HostStorageService final: public ServiceBase {
 public:
     HostStorageService()
         : ServiceBase(Attributes{
-            .name = "Storage",
-            .description = "Host-only text file reader for package parser tests.",
-            .version = "0.0.0",
-        })
+        .name = "Storage",
+        .description = "Host-only text file reader for package parser tests.",
+        .version = "0.0.0",
+    })
     {}
 
     std::vector<FunctionSchema> get_function_schemas() override
@@ -155,11 +157,13 @@ public:
         return {{
                 .name = "FSReadText",
                 .description = "Read a host text file.",
-                .parameters = {FunctionParameterSchema{
-                    .name = "Path",
-                    .description = "Host file path.",
-                    .type = FunctionValueType::String,
-                }},
+                .parameters = {
+                    FunctionParameterSchema{
+                        .name = "Path",
+                        .description = "Host file path.",
+                        .type = FunctionValueType::String,
+                    }
+                },
                 .require_scheduler = false,
                 .return_value = esp_brookesia::service::FunctionReturnSchema{
                     .type = FunctionValueType::String,
@@ -171,16 +175,18 @@ public:
 protected:
     FunctionHandlerMap get_function_handlers() override
     {
-        auto read_text_handler = [](FunctionParameterMap &&parameters) -> FunctionResult {
+        auto read_text_handler = [](FunctionParameterMap && parameters) -> FunctionResult {
             const auto path_it = parameters.find("Path");
-            if (path_it == parameters.end()) {
+            if (path_it == parameters.end())
+            {
                 return FunctionResult{
                     .success = false,
                     .error_message = "Missing Path",
                 };
             }
             const auto *path = std::get_if<std::string>(&path_it->second);
-            if (path == nullptr) {
+            if (path == nullptr)
+            {
                 return FunctionResult{
                     .success = false,
                     .error_message = "Path is not a string",
@@ -188,7 +194,8 @@ protected:
             }
 
             std::ifstream input(*path, std::ios::binary);
-            if (!input.is_open()) {
+            if (!input.is_open())
+            {
                 return FunctionResult{
                     .success = false,
                     .error_message = "Failed to open host file: " + *path,
@@ -388,9 +395,9 @@ bool verify_manifest_parser()
 {
     TemporaryDirectory temporary_directory;
     if (!require(
-            temporary_directory.is_valid(),
-            "Failed to create package parser temporary directory: " + temporary_directory.get_error()
-        )) {
+                temporary_directory.is_valid(),
+                "Failed to create package parser temporary directory: " + temporary_directory.get_error()
+            )) {
         return false;
     }
 
@@ -533,13 +540,14 @@ bool verify_requirement_evaluator(ServiceManager &manager)
 
     auto case_failures = evaluate_service_requirements(
                              make_manifest(
-                                 "case-sensitive",
-                                 {AppManifestService{
-                                     .name = "requirementtestrpc",
-                                     .version = "0.8.1",
-                                 }}
+    "case-sensitive", {
+        AppManifestService{
+            .name = "requirementtestrpc",
+            .version = "0.8.1",
+        }
+    }
                              ),
-                             manager
+    manager
                          );
     if (!require(case_failures.size() == 1, "Case-mismatched RPC name was accepted") ||
             !require(!case_failures[0].registered, "Case-mismatched RPC name matched a local service")) {
@@ -548,13 +556,14 @@ bool verify_requirement_evaluator(ServiceManager &manager)
 
     auto missing_failures = evaluate_service_requirements(
                                 make_manifest(
-                                    "missing",
-                                    {AppManifestService{
-                                        .name = "MissingRpc",
-                                        .version = "1.0.0",
-                                    }}
+    "missing", {
+        AppManifestService{
+            .name = "MissingRpc",
+            .version = "1.0.0",
+        }
+    }
                                 ),
-                                manager
+    manager
                             );
     if (!require(missing_failures.size() == 1, "Missing RPC requirement was accepted") ||
             !require(!missing_failures[0].registered, "Missing RPC was reported as registered")) {
@@ -563,13 +572,14 @@ bool verify_requirement_evaluator(ServiceManager &manager)
 
     auto invalid_local_failures = evaluate_service_requirements(
                                       make_manifest(
-                                          "invalid-local-version",
-                                          {AppManifestService{
-                                              .name = std::string(INVALID_VERSION_RPC_NAME),
-                                              .version = "0.8.1",
-                                          }}
+    "invalid-local-version", {
+        AppManifestService{
+            .name = std::string(INVALID_VERSION_RPC_NAME),
+            .version = "0.8.1",
+        }
+    }
                                       ),
-                                      manager
+    manager
                                   );
     const auto invalid_required = is_service_version_compatible("invalid", "0.8.3");
     return require(!invalid_required.has_value(), "Invalid required version was accepted") &&
@@ -659,10 +669,10 @@ bool verify_named_call_paths_rejected(
     }
 
     auto sync_result = call_native(
-        modules,
-        "call_service_function",
-        {rpc, std::string("touch"), std::string("{}")}
-    );
+                           modules,
+                           "call_service_function",
+    {rpc, std::string("touch"), std::string("{}")}
+                       );
     if (!require_unavailable_error(sync_result, label + " call_service_function", expected_reason)) {
         return false;
     }
@@ -674,13 +684,13 @@ bool verify_named_call_paths_rejected(
     }
     int callback_count = 0;
     std::optional<NativeResult> async_result;
-    auto async_callback = [&callback_count, &async_result](NativeResult &&result) {
+    auto async_callback = [&callback_count, &async_result](NativeResult && result) {
         ++callback_count;
         async_result.emplace(std::move(result));
     };
     async_function->async_function(
-        {rpc, std::string("touch"), std::string("{}")},
-        std::move(async_callback)
+    {rpc, std::string("touch"), std::string("{}")},
+    std::move(async_callback)
     );
     if (!require(callback_count == 1, label + " async call did not complete exactly once") ||
             !require(async_result.has_value(), label + " async call returned no result") ||
@@ -693,22 +703,21 @@ bool verify_named_call_paths_rejected(
     }
 
     auto batch_result = call_native(
-        modules,
-        "call_service_functions",
-        {
-            rpc,
-            std::string(R"([{"name":"touch","params":{}}])"),
-        }
-    );
+                            modules,
+    "call_service_functions", {
+        rpc,
+        std::string(R"([{"name":"touch","params":{}}])"),
+    }
+                        );
     if (!require_unavailable_error(batch_result, label + " call_service_functions", expected_reason)) {
         return false;
     }
 
     auto subscription = call_native(
-        modules,
-        "subscribe_service_event",
-        {rpc, std::string("changed")}
-    );
+                            modules,
+                            "subscribe_service_event",
+    {rpc, std::string("changed")}
+                        );
     if (!require_unavailable_error(subscription, label + " subscribe_service_event", expected_reason)) {
         return false;
     }
@@ -794,10 +803,10 @@ bool verify_implicit_system_services(
 
         const int calls_before = service->get_call_count();
         auto called = call_native(
-            modules,
-            "call_function",
-            {*started, std::string("touch"), std::string("{}")}
-        );
+                          modules,
+                          "call_function",
+        {*started, std::string("touch"), std::string("{}")}
+                      );
         if (!require(called.has_value(), rpc_name + " handle call failed") ||
                 !require(service->get_call_count() == (calls_before + 1), rpc_name + " handler did not run")) {
             return false;
@@ -839,11 +848,12 @@ bool verify_explicit_system_service_version(
     bridge.register_app_manifest(
         APP_ID,
         make_manifest(
-            "explicit-system-version",
-            {AppManifestService{
-                .name = std::string(SystemCoreHelper::get_name()),
-                .version = "0.8.4",
-            }}
+    "explicit-system-version", {
+        AppManifestService{
+            .name = std::string(SystemCoreHelper::get_name()),
+            .version = "0.8.4",
+        }
+    }
         )
     );
     return verify_named_call_paths_rejected(
@@ -879,20 +889,20 @@ bool verify_handle_ownership(SystemHostBridge &bridge, RequirementTestService &s
 
     const int calls_before = service.get_call_count();
     auto owner_call = call_native(
-        owner_modules,
-        "call_function",
-        {*started, std::string("touch"), std::string("{}")}
-    );
+                          owner_modules,
+                          "call_function",
+    {*started, std::string("touch"), std::string("{}")}
+                      );
     if (!require(owner_call.has_value(), "Handle owner could not call its service") ||
             !require(service.get_call_count() == (calls_before + 1), "Handle owner call did not execute")) {
         return false;
     }
 
     auto other_call = call_native(
-        other_modules,
-        "call_function",
-        {*started, std::string("touch"), std::string("{}")}
-    );
+                          other_modules,
+                          "call_function",
+    {*started, std::string("touch"), std::string("{}")}
+                      );
     if (!require(!other_call.has_value(), "Another app called a foreign service handle") ||
             !require(
                 other_call.error().find("does not belong") != std::string::npos,
@@ -948,11 +958,12 @@ bool verify_missing_service_probe(SystemHostBridge &bridge)
     bridge.register_app_manifest(
         APP_ID,
         make_manifest(
-            "missing-service",
-            {AppManifestService{
-                .name = "MissingRpc",
-                .version = "1.0.0",
-            }}
+    "missing-service", {
+        AppManifestService{
+            .name = "MissingRpc",
+            .version = "1.0.0",
+        }
+    }
         )
     );
     const auto modules = bridge.get_modules_for_app(APP_ID);
@@ -986,7 +997,7 @@ bool run_tests()
                                     std::string(SystemTimerHelper::get_name())
                                 );
     auto case_mismatched_system_service = std::make_shared<RequirementTestService>(
-                                              std::string(CASE_MISMATCHED_SYSTEM_RPC_NAME)
+            std::string(CASE_MISMATCHED_SYSTEM_RPC_NAME)
                                           );
     const std::array system_services{
         system_core_service,
@@ -1015,7 +1026,7 @@ bool run_tests()
     int event_dispatch_count = 0;
     auto event_dispatcher = [&event_dispatch_count](AppId, std::string, std::string, std::string) {
         ++event_dispatch_count;
-        return std::expected<void, std::string>{};
+        return std::expected<void, std::string> {};
     };
     auto function_bridge = std::make_shared<esp_brookesia::runtime::RuntimeFunctionBridge>();
     SystemHostBridge bridge(
