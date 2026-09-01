@@ -1,0 +1,8 @@
+version: "0.1.0"
+description: ESP-Mosaico USB CDC console and software-assisted download support
+license: Apache-2.0
+
+dependencies:
+  espressif/esp_tinyusb:
+    version: "^2.0.1~1"
+    require: private

@@ -177,6 +177,12 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                 help
                     Enable debug or lower level logs for the battery AXP2101.
 
+            config BROOKESIA_HAL_ADAPTOR_BATTERY_BQ27220_IMPL_ENABLE_DEBUG_LOG
+                bool "Battery BQ27220"
+                default n
+                help
+                    Enable debug or lower level logs for the battery BQ27220.
+
             config BROOKESIA_HAL_ADAPTOR_BATTERY_ADC_IMPL_ENABLE_DEBUG_LOG
                 bool "Battery ADC"
                 default n
@@ -532,6 +538,35 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                         Maximum number of files that can be open at the same time.
             endif
 
+            config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+                bool "SPI NAND (FATFS)"
+                depends on ESP_BOARD_DEV_CUSTOM_SUPPORT
+                default n
+                help
+                    Enable a FATFS filesystem backed by a Board Manager SPI NAND custom device.
+
+            if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH
+                    string "SPI NAND FATFS base path"
+                    default "/nand"
+                    help
+                        Base path used to mount the SPI NAND FATFS filesystem.
+
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_FORMAT_IF_MOUNT_FAILED
+                    bool "Format SPI NAND FATFS if mount failed"
+                    default n
+                    help
+                        Format the SPI NAND filesystem when mount fails. Keep this disabled in
+                        production images to avoid erasing existing data.
+
+                config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_MAX_FILES
+                    int "SPI NAND FATFS max open files"
+                    default 4
+                    range 1 16
+                    help
+                        Maximum number of files that can be open at the same time.
+            endif
+
             config BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
                 bool "SD card (FATFS)"
                 depends on ESP_BOARD_DEV_FS_FAT_SUPPORT
@@ -569,6 +604,11 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                     bool "AXP2101"
                     help
                         Enable the battery AXP2101.
+
+                config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_BQ27220
+                    bool "BQ27220"
+                    help
+                        Enable the battery BQ27220 voltage monitor.
 
                 config BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_ADC
                     bool "ADC"

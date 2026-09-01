@@ -12,6 +12,9 @@
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH
 #include "wear_levelling.h"
 #endif
+#if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+#include "esp_blockdev.h"
+#endif
 
 namespace esp_brookesia::hal {
 
@@ -39,6 +42,9 @@ private:
     bool init_fatfs_flash();
     void deinit_fatfs_flash();
 
+    bool init_fatfs_nand();
+    void deinit_fatfs_nand();
+
     bool init_sdcard();
     void deinit_sdcard();
 
@@ -46,6 +52,10 @@ private:
 
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH
     wl_handle_t fatfs_flash_wl_handle_ = WL_INVALID_HANDLE;
+#endif
+#if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+    esp_blockdev_handle_t fatfs_nand_bdl_handle_ = nullptr;
+    bool fatfs_nand_device_initialized_ = false;
 #endif
 };
 

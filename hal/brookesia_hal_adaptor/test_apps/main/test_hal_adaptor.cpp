@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: CC0-1.0
  */
+#include <cstdio>
 #include <cstring>
 #include <string>
 #include <string_view>
@@ -10,6 +11,9 @@
 #include "unity.h"
 #include "brookesia/hal_interface.hpp"
 #include "brookesia/hal_adaptor.hpp"
+#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0)
+#include "brookesia/hal_custom/display/device.hpp"
+#endif
 
 #ifndef BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE
 #   define BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE  (0)
@@ -52,6 +56,9 @@
 #endif
 #ifndef BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY
 #   define BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY  (0)
+#endif
+#ifndef BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_BQ27220
+#   define BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_BQ27220  (0)
 #endif
 #ifndef BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE
 #   define BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE  (0)
@@ -245,6 +252,18 @@ TEST_CASE("HAL adaptor: acquire display interfaces", "[hal][adaptor]")
     TEST_ASSERT_TRUE(static_cast<bool>(touch));
 #endif
 
+#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0)
+    auto command_backlight = hal::acquire_interface<hal::display::BacklightIface>(
+                                 hal::CustomDisplayDevice::DISPLAY_BACKLIGHT_IMPL_NAME
+                             );
+    TEST_ASSERT_TRUE(static_cast<bool>(command_backlight));
+    TEST_ASSERT_TRUE(command_backlight->set_brightness(25));
+    uint8_t brightness = 0;
+    TEST_ASSERT_TRUE(command_backlight->get_brightness(brightness));
+    TEST_ASSERT_EQUAL_UINT8(25, brightness);
+    TEST_ASSERT_TRUE(command_backlight->set_brightness(100));
+#endif
+
 #if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LEDC_BACKLIGHT_IMPL
     auto backlight = hal::acquire_interface<hal::display::BacklightIface>(hal::DisplayDevice::LEDC_BACKLIGHT_IMPL_NAME);
     TEST_ASSERT_TRUE(static_cast<bool>(backlight));
@@ -299,7 +318,21 @@ TEST_CASE("HAL adaptor: acquire audio and power interfaces", "[hal][adaptor]")
 #if BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY
     auto battery = hal::acquire_interface<hal::power::BatteryIface>(hal::PowerDevice::BATTERY_IMPL_NAME);
     TEST_ASSERT_TRUE(static_cast<bool>(battery));
-    TEST_ASSERT_TRUE(battery->get_info().is_valid());
+    TEST_ASSERT_FALSE(battery->get_info().name.empty());
+    TEST_ASSERT_FALSE(battery->get_info().abilities.empty());
+#   if BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_BQ27220
+    TEST_ASSERT_EQUAL_size_t(1, battery->get_info().abilities.size());
+    TEST_ASSERT_TRUE(battery->get_info().has_ability(hal::power::BatteryIface::Ability::Voltage));
+    hal::power::BatteryIface::State battery_state;
+    TEST_ASSERT_TRUE(battery->get_state(battery_state));
+    if (battery_state.is_present) {
+        TEST_ASSERT_TRUE(battery_state.voltage_mv.has_value());
+        printf("BQ27220 battery voltage: %lu mV\n", static_cast<unsigned long>(*battery_state.voltage_mv));
+    } else {
+        TEST_ASSERT_FALSE(battery_state.voltage_mv.has_value());
+        printf("BQ27220 battery is not present\n");
+    }
+#   endif
 #endif
 }
 

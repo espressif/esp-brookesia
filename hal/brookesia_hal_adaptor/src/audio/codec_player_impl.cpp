@@ -59,10 +59,6 @@ AudioCodecPlayerImpl::~AudioCodecPlayerImpl()
         auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit codec DAC"); });
     }
-    if (is_pa_control_valid_internal()) {
-        auto ret = esp_board_periph_deinit(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL);
-        BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit PA control GPIO"); });
-    }
 }
 
 bool AudioCodecPlayerImpl::open(const audio::CodecPlayerIface::Config &config)

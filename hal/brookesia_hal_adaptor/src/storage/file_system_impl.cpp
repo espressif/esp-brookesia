@@ -18,8 +18,10 @@
 #include "private/utils.hpp"
 #include "brookesia/lib_utils/thread_config.hpp"
 #include "brookesia/lib_utils/function_guard.hpp"
+#include "private/board_custom_device_bridges.h"
 #include "file_system_impl.hpp"
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SPIFFS || \
+    BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND || \
     BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
 #include "esp_board_manager_includes.h"
 #endif
@@ -30,6 +32,7 @@
 #include "esp_littlefs.h"
 #endif
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH || \
+    BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND || \
     BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
 #include "esp_vfs_fat.h"
 #endif
@@ -41,6 +44,10 @@
 
 namespace esp_brookesia::hal {
 namespace {
+
+#if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+constexpr const char *FATFS_NAND_DEVICE_NAME = "fs_nand";
+#endif
 
 std::string get_capacity_root_path(const storage::FileSystemIface::Info &info)
 {
@@ -157,6 +164,9 @@ StorageFileSystemImpl::StorageFileSystemImpl()
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH
     BROOKESIA_CHECK_FALSE_EXECUTE(init_fatfs_flash(), {}, { BROOKESIA_LOGE("Failed to initialize flash FATFS"); });
 #endif
+#if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+    BROOKESIA_CHECK_FALSE_EXECUTE(init_fatfs_nand(), {}, { BROOKESIA_LOGE("Failed to initialize SPI NAND FATFS"); });
+#endif
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
     BROOKESIA_CHECK_FALSE_EXECUTE(init_sdcard(), {}, { BROOKESIA_LOGE("Failed to initialize SD card"); });
 #endif
@@ -172,6 +182,9 @@ StorageFileSystemImpl::~StorageFileSystemImpl()
 #endif
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH
     deinit_fatfs_flash();
+#endif
+#if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+    deinit_fatfs_nand();
 #endif
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
     deinit_sdcard();
@@ -222,6 +235,7 @@ bool StorageFileSystemImpl::get_capacity(const char *mount_point, Capacity &capa
         }
 #endif
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_FLASH || \
+BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND || \
 BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
         case FileSystemType::FATFS: {
             uint64_t total_size = 0;
@@ -455,6 +469,109 @@ void StorageFileSystemImpl::deinit_fatfs_flash()
                );
     fatfs_flash_wl_handle_ = WL_INVALID_HANDLE;
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinitialize flash FATFS"); });
+}
+#endif
+
+#if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
+bool StorageFileSystemImpl::init_fatfs_nand()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!esp_board_manager_check_name(FATFS_NAND_DEVICE_NAME)) {
+        BROOKESIA_LOGW("SPI NAND device not found, skip");
+        return false;
+    }
+    BROOKESIA_CHECK_NULL_RETURN(fs_nand_get_bdl_handle, false, "SPI NAND BDL API is unavailable");
+
+    auto ret = esp_board_manager_init_device_by_name(FATFS_NAND_DEVICE_NAME);
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SPI NAND device");
+    lib_utils::FunctionGuard deinit_guard([]() {
+        auto deinit_ret = esp_board_manager_deinit_device_by_name(FATFS_NAND_DEVICE_NAME);
+        BROOKESIA_CHECK_ESP_ERR_EXECUTE(
+            deinit_ret, {}, { BROOKESIA_LOGE("Failed to release SPI NAND after initialization failure"); }
+        );
+    });
+
+    void *device_handle = nullptr;
+    ret = esp_board_manager_get_device_handle(FATFS_NAND_DEVICE_NAME, &device_handle);
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SPI NAND device handle");
+    BROOKESIA_CHECK_NULL_RETURN(device_handle, false, "SPI NAND device handle is null");
+
+    esp_blockdev_handle_t bdl_handle = nullptr;
+    ret = fs_nand_get_bdl_handle(device_handle, &bdl_handle);
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SPI NAND BDL handle");
+    BROOKESIA_CHECK_NULL_RETURN(bdl_handle, false, "SPI NAND BDL handle is null");
+
+    const esp_vfs_fat_mount_config_t config = {
+        .format_if_mount_failed =
+        BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_FORMAT_IF_MOUNT_FAILED,
+        .max_files = BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_MAX_FILES,
+        .allocation_unit_size = 0,
+        .disk_status_check_enable = false,
+        .use_one_fat = false,
+        .read_only = false,
+    };
+    ret = esp_vfs_fat_bdl_mount(
+              BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH, bdl_handle, &config
+          );
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to mount SPI NAND FATFS");
+    lib_utils::FunctionGuard unmount_guard([bdl_handle]() {
+        auto unmount_ret = esp_vfs_fat_bdl_unmount(
+                               BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH, bdl_handle
+                           );
+        BROOKESIA_CHECK_ESP_ERR_EXECUTE(
+            unmount_ret, {}, { BROOKESIA_LOGE("Failed to unmount SPI NAND after initialization failure"); }
+        );
+    });
+
+    uint64_t total_size = 0;
+    uint64_t free_size = 0;
+    ret = esp_vfs_fat_info(
+              BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH, &total_size, &free_size
+          );
+    BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SPI NAND FATFS information");
+
+    fatfs_nand_bdl_handle_ = bdl_handle;
+    fatfs_nand_device_initialized_ = true;
+    add_entry(Info {
+        .fs_type = FileSystemType::FATFS,
+        .medium_type = MediumType::Flash,
+        .mount_point = BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH,
+        .root_path = BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH,
+        .supports_directories = true,
+    }, "");
+
+    BROOKESIA_LOGI(
+        "SPI NAND FATFS size: total: %1%, used: %2%, free: %3%",
+        total_size, total_size - free_size, free_size
+    );
+    unmount_guard.release();
+    deinit_guard.release();
+    return true;
+}
+
+void StorageFileSystemImpl::deinit_fatfs_nand()
+{
+    BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+
+    if (!fatfs_nand_device_initialized_ || (fatfs_nand_bdl_handle_ == nullptr)) {
+        return;
+    }
+
+    auto ret = esp_vfs_fat_bdl_unmount(
+                   BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_BASE_PATH, fatfs_nand_bdl_handle_
+               );
+    BROOKESIA_CHECK_ESP_ERR_EXECUTE(
+        ret, {}, { BROOKESIA_LOGE("Failed to unmount SPI NAND FATFS"); }
+    );
+
+    ret = esp_board_manager_deinit_device_by_name(FATFS_NAND_DEVICE_NAME);
+    BROOKESIA_CHECK_ESP_ERR_EXECUTE(
+        ret, {}, { BROOKESIA_LOGE("Failed to deinitialize SPI NAND device"); }
+    );
+
+    fatfs_nand_bdl_handle_ = nullptr;
+    fatfs_nand_device_initialized_ = false;
 }
 #endif
 
