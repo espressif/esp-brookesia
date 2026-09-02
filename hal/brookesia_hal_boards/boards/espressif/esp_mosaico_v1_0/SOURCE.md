@@ -5,12 +5,11 @@ The hardware assignments and initialization behavior for board power
 display (`setup_device.c`), and SPI NAND (`fs_nand.c`) are adapted from the
 ESP-Mosaico BSP at commit `bef99672e411101489ed19c40527cca1c1dd5bb1`:
 
-- Repository: <https://github.com/esp-mosaico/esp-mosaico-bsp>
+- Repository: [https://github.com/esp-mosaico/esp-mosaico-bsp](https://github.com/esp-mosaico/esp-mosaico-bsp)
 - Source area: `components/esp-mosaico-bsp`
 
 The code was reorganized around ESP Board Manager device dependencies,
-reference-counted peripheral handles, and reverse-order failure cleanup. It
-does not depend on the BSP repository at build time.
+reference-counted peripheral handles, and reverse-order failure cleanup.
 
 The BQ27220 implementation is a new read-only Board Manager bridge using only
 the standard BatteryStatus and Voltage registers; it does not migrate the BSP
@@ -21,8 +20,7 @@ APIs available in the selected ESP-IDF environment. Its DTR/RTS restart
 behavior and 50 ms restart delay follow the Apache-2.0-licensed ESP-IDF ROM CDC
 console implementation. ESP32-S31 does not currently expose the equivalent ROM
 CDC console or a public restart-to-download API, so the S31 force-download bit
-is isolated inside this board-only component. No ESP-Mosaico BSP repository is
-required at build time.
+is isolated inside this board-only component.
 
 USB hardware routing was checked against the public
 [ESP-Mosaico CoreBoard V1.0 schematic](https://dl.espressif.com/AE/SCH_SCH_ESP-Mosaico_CoreBoard_V1_0_2026-08-18.pdf)
