@@ -144,7 +144,7 @@ ESP-Brookesia 提供了多个示例工程。部分示例支持在线烧录，可
 
    - **选择目标芯片**：
 
-      以 ``examples/service/wifi`` 为例，该工程仅依赖芯片自身的 Wi-Fi 外设能力，因此只需选择目标芯片（如 ``esp32s3``）：
+      以 ``examples/service/wifi`` 为例，该工程仅依赖芯片自身的 Wi-Fi 外设能力，因此只需选择目标芯片 (如 ``esp32s3``)：
 
       .. code-block:: bash
 
@@ -152,7 +152,7 @@ ESP-Brookesia 提供了多个示例工程。部分示例支持在线烧录，可
 
    - **选择目标开发板**：
 
-      以 ``examples/service/console`` 为例，该工程依赖开发板上的音频外设，因此需要先选择目标开发板（如 ``esp_vocat_board_v1_2``）：
+      以 ``examples/service/console`` 为例，该工程依赖开发板上的音频外设，因此需要先选择目标开发板 (如 ``esp_vocat_board_v1_2``)：
 
       .. code-block:: bash
 
@@ -191,3 +191,14 @@ ESP-Brookesia 提供了多个示例工程。部分示例支持在线烧录，可
         idf.py -p <PORT> monitor
 
 更多示例请见 `examples/ <https://github.com/espressif/esp-brookesia/tree/master/examples>`__ 目录，具体使用方法可参考各示例目录下的 README 文件。
+
+.. _getting-started-host-tools:
+
+主机侧应用工具链
+----------------
+
+上面的固件示例使用 ESP-IDF。 **运行时应用** (``.bpk``) 在主机上构建：
+
+- CLI（init、build、WASM 仿真、打包、部署）：:ref:`system-toolkit-sec-00`
+- Agent IDE 插件（Cursor、Claude Code、Codex、MCP）：:ref:`plugin-sec-00`
+

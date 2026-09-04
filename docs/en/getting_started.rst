@@ -191,3 +191,14 @@ The typical build and flash steps for an example project are as follows:
         idf.py -p <PORT> monitor
 
 More examples are available under `examples/ <https://github.com/espressif/esp-brookesia/tree/master/examples>`__. For detailed usage instructions, refer to the README file in each example directory.
+
+.. _getting-started-host-tools:
+
+Host App Toolchain
+------------------
+
+Firmware examples above use ESP-IDF. **Runtime apps** (``.bpk``) are built on the host:
+
+- CLI (init, build, WASM simulate, pack, deploy): :ref:`system-toolkit-sec-00`
+- Agent IDE plugin (Cursor, Claude Code, Codex, MCP): :ref:`plugin-sec-00`
+
