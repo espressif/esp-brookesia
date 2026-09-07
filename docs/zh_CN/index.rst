@@ -109,13 +109,14 @@ ESP-Brookesia 是面向 AIoT 与 HMI 产品开发的全栈式开发平台。它�
 
 .. rubric:: AI 辅助开发与应用生态
 
-- **AI 开发验证闭环**：AI Workflow 与 PC Validation 形成开发验证闭环，开发者审查、调整并补充后生成可发布 App
+- **AI 开发验证闭环**：AI Workflow 与 PC Validation 形成开发验证闭环，开发者审查、调整并补充后生成可发布 App。
 - **发布与分发链路**：随后 App 进入 Upload & Publish、App Store 和 Device Runtime 链路，完成发布、发现、下载、安装和运行。
 
 .. toctree::
    :hidden:
 
    快速开始 <getting_started>
+   应用开发插件 <plugin>
    工具组件 <utils/index>
    硬件组件 <hal/index>
    服务组件 <service/index>

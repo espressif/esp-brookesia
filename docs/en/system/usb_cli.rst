@@ -24,6 +24,8 @@ The install command also installs the ``pyserial`` dependency. After installatio
 
    brookesia-usb --help
 
+``brookesia deploy`` in :ref:`system-toolkit-sec-00` wraps this CLI to install a built ``.bpk``.
+
 .. _system-usb-cli-sec-02:
 
 Devices and Ports

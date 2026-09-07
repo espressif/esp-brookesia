@@ -116,6 +116,7 @@ The overall ESP-Brookesia architecture is shown below:
    :hidden:
 
    Getting Started <getting_started>
+   App Dev Plugin <plugin>
    Utils Components <utils/index>
    Hardware Components <hal/index>
    Service Components <service/index>

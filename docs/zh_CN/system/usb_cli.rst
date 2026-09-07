@@ -24,6 +24,8 @@ USB CLI 需要 Python 3.9 或更高版本，可从 `PyPI <https://pypi.org/proje
 
    brookesia-usb --help
 
+:ref:`system-toolkit-sec-00` 中的 ``brookesia deploy`` 会调用本 CLI 安装已构建的 ``.bpk``。
+
 .. _system-usb-cli-sec-02:
 
 设备和端口
