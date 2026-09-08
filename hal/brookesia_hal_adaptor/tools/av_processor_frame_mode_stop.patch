@@ -1,0 +1,117 @@
+Fix frame-mode video capture shutdown and source cleanup in av_processor 0.6.x.
+
+Frame mode owns an active esp_capture handle without setting is_running. Treat
+that handle as active so video_capture_stop() and video_capture_close() both
+tear the pipeline down through the public stop path. The V4L2 source returned
+by esp_capture_new_video_v4l2_src() is caller-owned, so release it after the
+capture pipeline closes and on every failed start path without destroying the
+persistent stream-mode queue objects.
+
+--- a/src/video_processor.c
++++ b/src/video_processor.c
+@@ -124,7 +124,7 @@
+     SAFE_CLEANUP(render->event_group, vEventGroupDelete);
+ }
+
+-static void video_capture_cleanup(video_capture_t *capture)
++static void video_capture_pipeline_cleanup(video_capture_t *capture)
+ {
+     if (!capture) {
+         return;
+@@ -133,13 +133,26 @@
+         esp_capture_stop(capture->capture);
+         SAFE_CLEANUP(capture->capture, esp_capture_close);
+     }
++    for (int i = 0; i < DEFAULT_VID_MAX_PATH; i++) {
++        capture->sink[i] = NULL;
++    }
++    capture->capture_thread = NULL;
++    SAFE_CLEANUP(capture->vid_src, esp_gmf_oal_free);
++    capture->aud_src = NULL;
++}
++
++static void video_capture_cleanup(video_capture_t *capture)
++{
++    if (!capture) {
++        return;
++    }
++    video_capture_pipeline_cleanup(capture);
+     if (capture->config.stream_mode && capture->frame_queue) {
+         SAFE_CLEANUP(capture->frame_queue, vQueueDelete);
+     }
+     if (capture->config.stream_mode && capture->event_group) {
+         SAFE_CLEANUP(capture->event_group, vEventGroupDelete);
+     }
+-    capture->vid_src = NULL;
+ }
+
+ static esp_capture_video_src_if_t *create_video_source(void *cam_config)
+@@ -510,6 +523,7 @@
+         ret = capture->vid_src->set_fixed_caps(capture->vid_src, &fixed_caps);
+         if (ret != ESP_CAPTURE_ERR_OK) {
+             ESP_LOGE(TAG, "Failed to set source fixed caps, ret: 0x%x", ret);
++            video_capture_pipeline_cleanup(capture);
+             return ret;
+         }
+         ESP_LOGI(TAG, "Video source fixed caps: format=%d, size=%ux%u, fps=auto",
+@@ -523,6 +537,7 @@
+     ret = esp_capture_open(&capture_cfg, &capture->capture);
+     if (ret != ESP_CAPTURE_ERR_OK || capture->capture == NULL) {
+         ESP_LOGE(TAG, "Fail to create capture");
++        video_capture_pipeline_cleanup(capture);
+         return ESP_ERR_NO_MEM;
+     }
+     for (int i = 0; i < capture->config.sink_num; i++) {
+@@ -530,14 +545,14 @@
+         ret = esp_capture_sink_setup(capture->capture, i, &sink_cfg, &capture->sink[i]);
+         if (ret != ESP_CAPTURE_ERR_OK || capture->sink[i] == NULL) {
+             ESP_LOGE(TAG, "Failed to setup capture sink %d", i);
+-            video_capture_cleanup(capture);
++            video_capture_pipeline_cleanup(capture);
+             return ESP_FAIL;
+         }
+     }
+     ret = esp_capture_start(capture->capture);
+     if (ret != ESP_CAPTURE_ERR_OK) {
+         ESP_LOGE(TAG, "Failed to start capture");
+-        video_capture_cleanup(capture);
++        video_capture_pipeline_cleanup(capture);
+         return ESP_FAIL;
+     }
+
+@@ -549,7 +564,7 @@
+         if (ret_thread != 0) {
+             ESP_LOGE(TAG, "Failed to create capture worker thread");
+             capture->is_running = false;
+-            video_capture_cleanup(capture);
++            video_capture_pipeline_cleanup(capture);
+             return ESP_FAIL;
+         }
+     }
+@@ -563,7 +578,7 @@
+         ESP_LOGE(TAG, "Invalid capture handle");
+         return ESP_ERR_INVALID_ARG;
+     }
+-    if (!capture->is_running) {
++    if (!capture->is_running && capture->capture == NULL) {
+         ESP_LOGW(TAG, "Video capture is not running");
+         return ESP_OK;
+     }
+@@ -597,7 +612,7 @@
+         capture->sink[i] = NULL;
+     }
+     capture->capture_thread = NULL;
+-    capture->vid_src = NULL;
++    SAFE_CLEANUP(capture->vid_src, esp_gmf_oal_free);
+     capture->aud_src = NULL;
+
+     if (ret == ESP_OK) {
+@@ -613,7 +628,7 @@
+         ESP_LOGE(TAG, "Invalid capture handle");
+         return;
+     }
+-    if (capture->is_running) {
++    if (capture->is_running || capture->capture) {
+         video_capture_stop(handle);
+     }
+     video_capture_cleanup(capture);

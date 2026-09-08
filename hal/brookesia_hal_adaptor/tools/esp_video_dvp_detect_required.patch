@@ -1,0 +1,25 @@
+Fail DVP video init when no camera sensor was actually detected.
+
+esp_video treats a missing sensor as ESP_OK so multi-sensor scans can continue,
+but Board Manager then reports /dev/video2 success and the HAL open hits ENOENT.
+
+--- a/src/esp_video_init.c
++++ b/src/esp_video_init.c
+@@ -1060,6 +1060,16 @@
+         }
+ #endif /* CONFIG_ESP_VIDEO_ENABLE_SPI_VIDEO_DEVICE */
+     }
+
++#if CONFIG_ESP_VIDEO_ENABLE_DVP_VIDEO_DEVICE
++    if ((flags & ESP_VIDEO_INIT_FLAGS_DVP) &&
++            !(s_video_device_inited_flags & ESP_VIDEO_INIT_FLAGS_DVP) &&
++            (config->dvp != NULL)) {
++        ESP_LOGE(TAG, "No DVP camera sensor was detected");
++        ret = ESP_ERR_NOT_FOUND;
++        goto fail1;
++    }
++#endif
++
+ #if CONFIG_ESP_VIDEO_ENABLE_HW_H264_VIDEO_DEVICE
+     if (flags & ESP_VIDEO_INIT_FLAGS_H264) {
+         if (!(s_video_device_inited_flags & ESP_VIDEO_INIT_FLAGS_H264)) {

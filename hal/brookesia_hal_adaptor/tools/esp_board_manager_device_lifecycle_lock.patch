@@ -1,0 +1,66 @@
+Serialize esp_board_manager 0.5.x device lifecycle operations.
+
+Device initialization and deinitialization recursively update shared handles and
+reference counts without internal locking. Protect the full dependency walk
+with one recursive process-wide lock so expansion scanning and camera clients
+cannot initialize or release overlapping dependency trees concurrently.
+
+--- a/src/esp_board_device.c
++++ b/src/esp_board_device.c
+@@ -8,6 +8,7 @@
+ #include <stdlib.h>
+ #include <stdio.h>
+ #include <string.h>
++#include <sys/lock.h>
+ #include "freertos/FreeRTOS.h"
+ #include "esp_system.h"
+ #include "esp_log.h"
+@@ -20,10 +21,12 @@
+ #endif  /* CONFIG_ESP_BOARD_DEV_POWER_CTRL_SUPPORT */
+
+ static const char *TAG = "BOARD_DEVICE";
++static _lock_t s_device_lifecycle_lock;
+
+ extern const esp_board_device_desc_t g_esp_board_devices[];
+ extern esp_board_device_handle_t g_esp_board_device_handles[];
+
++static esp_err_t esp_board_device_init_internal(const char *name);
+ static esp_err_t esp_board_device_deinit_internal(const char *name, bool ignore_dep_check);
+
+ typedef struct cfg_override_node {
+@@ -124,6 +127,14 @@
+
+ esp_err_t esp_board_device_init(const char *name)
+ {
++    _lock_acquire_recursive(&s_device_lifecycle_lock);
++    esp_err_t ret = esp_board_device_init_internal(name);
++    _lock_release_recursive(&s_device_lifecycle_lock);
++    return ret;
++}
++
++static esp_err_t esp_board_device_init_internal(const char *name)
++{
+     ESP_BOARD_RETURN_ON_FALSE(name, ESP_BOARD_ERR_DEVICE_INVALID_ARG, TAG, "name is null");
+     esp_err_t ret = ESP_OK;
+     /* Find device descriptor */
+@@ -155,7 +166,7 @@
+
+     /* First-time initialization: initialize dependencies first */
+     for (int i = 0; i < desc->depends_on_num; i++) {
+-        ret = esp_board_device_init(desc->depends_on[i]);
++        ret = esp_board_device_init_internal(desc->depends_on[i]);
+         if (ret != ESP_OK) {
+             ESP_LOGE(TAG, "Failed to init dependency %s for device %s", desc->depends_on[i], name);
+             handle->ref_count--;
+@@ -391,7 +402,10 @@
+
+ esp_err_t esp_board_device_deinit(const char *name)
+ {
+-    return esp_board_device_deinit_internal(name, false);
++    _lock_acquire_recursive(&s_device_lifecycle_lock);
++    esp_err_t ret = esp_board_device_deinit_internal(name, false);
++    _lock_release_recursive(&s_device_lifecycle_lock);
++    return ret;
+ }
+
+ esp_err_t esp_board_device_show(const char *name)

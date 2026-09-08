@@ -1,0 +1,170 @@
+Make esp_video 2.4.x DVP deinitialization retry-safe.
+
+Reserve the DVP video object before deleting SCCB, the sensor, or the common
+video object. The global/object lock order closes the open-vs-destroy race, and
+the staged teardown makes every completed cleanup step idempotent on a later
+Board Manager retry.
+
+--- a/private_include/esp_video.h
++++ b/private_include/esp_video.h
+@@ -83,6 +83,7 @@
+     uint8_t reference;                      /*!< video device open reference count */
+
+     uint8_t inited : 1;                     /*!< video device is initialized */
++    uint8_t destroying : 1;                 /*!< video device is being destroyed */
+ };
+
+ /**
+@@ -392,6 +393,18 @@
+ struct esp_video *esp_video_device_get_object(const char *name);
+
+ /**
++ * @brief Prevent new opens before destroying a video object.
++ *
++ * @param name The video object name
++ *
++ * @return
++ *      - ESP_OK if no open reference exists
++ *      - ESP_ERR_NOT_ALLOWED if the device is open
++ *      - Others if failed
++ */
++esp_err_t esp_video_device_prepare_destroy(const char *name);
++
++/**
+  * @brief Get video stream object pointer by stream type.
+  *
+  * @param video  Video object
+--- a/src/esp_video.c
++++ b/src/esp_video.c
+@@ -308,6 +308,36 @@
+     return NULL;
+ }
+
++esp_err_t esp_video_device_prepare_destroy(const char *name)
++{
++    struct esp_video *video;
++
++    _lock_acquire(&s_video_lock);
++    SLIST_FOREACH(video, &s_video_list, node) {
++        if (!strcmp(video->dev_name, name)) {
++            break;
++        }
++    }
++    if (!video) {
++        _lock_release(&s_video_lock);
++        ESP_LOGE(TAG, "Not find video=%s", name);
++        return ESP_ERR_INVALID_ARG;
++    }
++
++    xSemaphoreTake(video->mutex, portMAX_DELAY);
++    if (video->reference != 0) {
++        xSemaphoreGive(video->mutex);
++        _lock_release(&s_video_lock);
++        ESP_LOGE(TAG, "video device %s is opened", name);
++        return ESP_ERR_NOT_ALLOWED;
++    }
++    video->destroying = 1;
++    xSemaphoreGive(video->mutex);
++    _lock_release(&s_video_lock);
++
++    return ESP_OK;
++}
++
+ #if CONFIG_ESP_VIDEO_CHECK_PARAMETERS
+ /**
+  * @brief Check if video is valid
+@@ -512,17 +542,25 @@
+             break;
+         }
+     }
+-    _lock_release(&s_video_lock);
+
+     if (!found) {
++        _lock_release(&s_video_lock);
+         ESP_LOGE(TAG, "Not find video=%s", name);
+         return ESP_ERR_INVALID_ARG;
+     }
+
+     xSemaphoreTake(video->mutex, portMAX_DELAY);
+
++    if (video->destroying) {
++        xSemaphoreGive(video->mutex);
++        _lock_release(&s_video_lock);
++        ESP_LOGE(TAG, "video device %s is being destroyed", name);
++        return ESP_ERR_INVALID_STATE;
++    }
++
+     assert(video->reference < UINT8_MAX);
+     video->reference++;
++    _lock_release(&s_video_lock);
+     if (video->reference > 1) {
+         goto exit_0;
+     }
+--- a/src/esp_video_init.c
++++ b/src/esp_video_init.c
+@@ -27,6 +27,7 @@
+ #include "esp_cam_motor_detect.h"
+ #endif
+ #include "esp_cam_sensor_xclk.h"
++#include "esp_video.h"
+ #include "esp_video_init.h"
+ #include "esp_video_device_internal.h"
+ #if CONFIG_ESP_VIDEO_ENABLE_DVP_VIDEO_DEVICE
+@@ -577,6 +578,16 @@
+ #endif /* CONFIG_ESP_VIDEO_ENABLE_MIPI_CSI_VIDEO_DEVICE */
+
+ #if CONFIG_ESP_VIDEO_ENABLE_DVP_VIDEO_DEVICE
++typedef struct dvp_video_destroy_state {
++    esp_cam_sensor_device_t *sensor;
++    bool prepared;
++    bool sccb_deleted;
++    bool sensor_deleted;
++    bool video_deleted;
++} dvp_video_destroy_state_t;
++
++static dvp_video_destroy_state_t s_dvp_destroy_state;
++
+ static esp_err_t init_dvp_clk_func(void *priv)
+ {
+     esp_err_t ret = ESP_OK;
+@@ -610,15 +621,34 @@
+
+ static esp_err_t destroy_dvp_video_device(void)
+ {
+-    esp_video_cam_t cam;
+     int dvp_ctlr_id = 0;
+
+-    ESP_RETURN_ON_ERROR(esp_video_device_common_get_video_cam(DVP_NAME, &cam), TAG, "Failed to get DVP video device camera");
+-    ESP_RETURN_ON_FALSE(cam.sensor, ESP_ERR_INVALID_STATE, TAG, "DVP sensor is NULL");
+-    ESP_RETURN_ON_ERROR(esp_sccb_del_i2c_io(cam.sensor->sccb_handle), TAG, "Failed to delete SCCB device");
+-    ESP_RETURN_ON_ERROR(destroy_cam_device(cam.sensor), TAG, "Failed to delete DVP sensor");
+-    ESP_RETURN_ON_ERROR(esp_video_destroy_dvp_video_device(), TAG, "Failed to destroy DVP video device");
++    if (!s_dvp_destroy_state.sensor) {
++        esp_video_cam_t cam;
++        ESP_RETURN_ON_ERROR(esp_video_device_common_get_video_cam(DVP_NAME, &cam), TAG,
++                            "Failed to get DVP video device camera");
++        ESP_RETURN_ON_FALSE(cam.sensor, ESP_ERR_INVALID_STATE, TAG, "DVP sensor is NULL");
++        s_dvp_destroy_state.sensor = cam.sensor;
++    }
++    if (!s_dvp_destroy_state.prepared) {
++        ESP_RETURN_ON_ERROR(esp_video_device_prepare_destroy(DVP_NAME), TAG, "DVP video device is still open");
++        s_dvp_destroy_state.prepared = true;
++    }
++    if (!s_dvp_destroy_state.sccb_deleted) {
++        ESP_RETURN_ON_ERROR(esp_sccb_del_i2c_io(s_dvp_destroy_state.sensor->sccb_handle), TAG,
++                            "Failed to delete SCCB device");
++        s_dvp_destroy_state.sccb_deleted = true;
++    }
++    if (!s_dvp_destroy_state.sensor_deleted) {
++        ESP_RETURN_ON_ERROR(destroy_cam_device(s_dvp_destroy_state.sensor), TAG, "Failed to delete DVP sensor");
++        s_dvp_destroy_state.sensor_deleted = true;
++    }
++    if (!s_dvp_destroy_state.video_deleted) {
++        ESP_RETURN_ON_ERROR(esp_video_destroy_dvp_video_device(), TAG, "Failed to destroy DVP video device");
++        s_dvp_destroy_state.video_deleted = true;
++    }
+     ESP_RETURN_ON_ERROR(esp_cam_ctlr_dvp_deinit(dvp_ctlr_id), TAG, "Failed to deinit DVP port");
++    memset(&s_dvp_destroy_state, 0, sizeof(s_dvp_destroy_state));
+
+     return ESP_OK;
+ }

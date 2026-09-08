@@ -205,6 +205,7 @@
 .patterns-component_brookesia_hal_adaptor:
   - "hal/brookesia_hal_adaptor/include/**/*"
   - "hal/brookesia_hal_adaptor/src/**/*"
+  - "hal/brookesia_hal_adaptor/tools/**/*"
   - "hal/brookesia_hal_adaptor/CMakeLists.txt"
   - "hal/brookesia_hal_adaptor/idf_component.yml"
   - "hal/brookesia_hal_adaptor/Kconfig"

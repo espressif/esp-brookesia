@@ -1,0 +1,50 @@
+Make DVP camera shutdown retryable in esp_board_manager 0.5.x.
+
+The generic camera device currently hides subtype deinitialization failures, and
+the DVP subtype frees its handle and I2C reference even when esp_video_deinit()
+fails.  Propagate DVP failures and retain its resources so the HAL adaptor can
+retry without restoring the shared Mosaico expansion pins too early.
+
+--- a/devices/dev_camera/dev_camera.c
++++ b/devices/dev_camera/dev_camera.c
+@@ -5,6 +5,8 @@
+  * See LICENSE file for details.
+  */
+
++#include <string.h>
++
+ #include "esp_log.h"
+ #include "dev_camera.h"
+ #include "esp_board_device.h"
+@@ -54,7 +56,11 @@ int dev_camera_deinit(void *device_handle)
+             int ret = desc->deinit_func(device_handle);
+             if (ret != 0) {
+                 ESP_LOGE(TAG, "Sub device '%s' deinit failed with error: %d", cfg->sub_type, ret);
+-                // Continue with cleanup even if deinit failed
++                // DVP keeps its handle and peripheral reference on failure, so
++                // preserve the Board Manager device reference for a safe retry.
++                if (strcmp(cfg->sub_type, "dvp") == 0) {
++                    return ret;
++                }
+             } else {
+                 ESP_LOGI(TAG, "Sub device '%s' deinitialized successfully", cfg->sub_type);
+             }
+--- a/devices/dev_camera/dev_camera_sub_dvp.c
++++ b/devices/dev_camera/dev_camera_sub_dvp.c
+@@ -74,6 +74,7 @@ int dev_camera_sub_dvp_deinit(void *device_handle)
+     esp_err_t ret = esp_video_deinit();
+     if (ret != ESP_OK) {
+         ESP_LOGE(TAG, "Failed to deinitialize DVP camera: %s", esp_err_to_name(ret));
++        return -1;
+     }
+
+     dev_camera_config_t *cfg = NULL;
+@@ -82,7 +83,7 @@ int dev_camera_sub_dvp_deinit(void *device_handle)
+         esp_board_periph_unref_handle(cfg->sub_cfg.dvp.i2c_name);
+     }
+     free(device_handle);
+-    return ret == ESP_OK ? 0 : -1;
++    return 0;
+ }
+
+ ESP_BOARD_SUBTYPE_ENTRY_IMPLEMENT(camera, dvp, dev_camera_sub_dvp_init, dev_camera_sub_dvp_deinit);

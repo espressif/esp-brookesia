@@ -1,0 +1,44 @@
+Keep peripheral ownership retry-safe in esp_board_manager 0.5.x.
+
+Board Manager decrements a peripheral reference before calling its low-level
+deinitializer, but does not restore that reference on failure. Preserve the live
+handle/reference pair so board-specific rollback code can safely retry cleanup.
+
+--- a/src/esp_board_periph.c
++++ b/src/esp_board_periph.c
+@@ -229,6 +229,11 @@ esp_err_t esp_board_periph_deinit(const char *name)
+         return ESP_OK;
+     }
+
++    if (list->ref_count == 0) {
++        ESP_LOGE(TAG, "Peripheral %s has a handle but no reference", name);
++        return ESP_ERR_INVALID_STATE;
++    }
++
+     /* Decrement reference count */
+     list->ref_count--;
+     ESP_LOGI(TAG, "Deinit peripheral %s ref_count: %d", name, list->ref_count);
+@@ -236,12 +241,20 @@ esp_err_t esp_board_periph_deinit(const char *name)
+     /* Only deinitialize if ref_count reaches 0 */
+     if (list->ref_count == 0) {
+         /* Check if deinit function exists */
+-        ESP_BOARD_RETURN_ON_FALSE(handle->deinit, ESP_BOARD_ERR_PERIPH_NO_INIT, TAG,
+-                                  "No deinit function for periph: %s", name);
++        if (handle->deinit == NULL) {
++            list->ref_count++;
++            ESP_LOGE(TAG, "No deinit function for periph: %s", name);
++            return ESP_BOARD_ERR_PERIPH_NO_INIT;
++        }
+
+         /* Deinitialize peripheral */
+         esp_err_t ret = handle->deinit(list->periph_handle);
+-        ESP_BOARD_RETURN_ON_ERROR(ret, TAG, "Failed to deinit periph: %s", name);
++        if (ret != ESP_OK) {
++            /* Keep ownership of the live handle so the caller can retry. */
++            list->ref_count++;
++            ESP_LOGE(TAG, "Failed to deinit periph: %s", name);
++            return ret;
++        }
+
+         list->periph_handle = NULL;
+     } else {
