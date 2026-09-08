@@ -82,7 +82,7 @@ ESP 设备板级适配
 
 状态包括 ``Unknown``、``Empty``、``Invalid``、``Unsupported``、``Ready``、``Active`` 和 ``Error``。只识别模块不会初始化硬件。板级 provider 负责自身的检测协议和资源占用/释放，通用层负责共同的状态、查询、事件和生命周期契约。
 
-Device Service 通过 ``GetExpansionModuleInfos`` 和 ``ExpansionModuleChanged`` 为不应直接访问 HAL 的应用提供能力。各开发板的具体支持范围和热插拔限制记录在对应板级文档中；参见 :doc:`ESP-Mosaico V1.0 <boards/esp_mosaico_v1_0>`。
+Device Service 通过 ``GetExpansionModuleInfos`` 和 ``ExpansionModuleChanged`` 为不应直接访问 HAL 的应用提供能力。各开发板的具体支持范围和热插拔限制记录在对应板级文档中；参见 :ref:`Brookesia 适配说明 <hal-boards-espressif-mosaico>`。
 
 .. _hal-adaptor-sec-05:
 

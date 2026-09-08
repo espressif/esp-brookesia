@@ -82,7 +82,7 @@ When enabled, ``hal::expansion::ModuleManagerIface`` is available as ``Expansion
 
 The states are ``Unknown``, ``Empty``, ``Invalid``, ``Unsupported``, ``Ready``, ``Active``, and ``Error``. Identification alone does not initialize a module. A board provider owns its detection protocol and resource claim/release implementation, while the generic layer owns the common state, query, event, and lifetime contracts.
 
-The Device Service exposes ``GetExpansionModuleInfos`` and ``ExpansionModuleChanged`` for applications that should not access HAL directly. Board-specific support and hot-plug limitations are documented with the board; see :doc:`ESP-Mosaico V1.0 <boards/esp_mosaico_v1_0>`.
+The Device Service exposes ``GetExpansionModuleInfos`` and ``ExpansionModuleChanged`` for applications that should not access HAL directly. Board-specific support and hot-plug limitations are documented with the board; see :ref:`Brookesia Adaptation Guide <hal-boards-espressif-mosaico>`.
 
 .. _hal-adaptor-sec-05:
 
