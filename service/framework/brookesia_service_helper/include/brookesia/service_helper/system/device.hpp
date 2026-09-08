@@ -15,6 +15,7 @@
 #include "brookesia/hal_interface/interface.hpp"
 #include "brookesia/hal_interface/interfaces/display/panel.hpp"
 #include "brookesia/hal_interface/interfaces/display/touch.hpp"
+#include "brookesia/hal_interface/interfaces/expansion/module_manager.hpp"
 #include "brookesia/hal_interface/interfaces/network/connectivity.hpp"
 #include "brookesia/hal_interface/interfaces/system/board_info.hpp"
 #include "brookesia/hal_interface/interfaces/power/battery.hpp"
@@ -64,6 +65,11 @@ public:
     using CameraDeviceInfos = std::vector<hal::video::CameraIface::DeviceInfo>;
 
     /**
+     * @brief Expansion module information list.
+     */
+    using ExpansionModuleInfos = std::vector<hal::expansion::ModuleInfo>;
+
+    /**
      * @brief Current network connectivity snapshot.
      */
     struct NetworkConnectivityInfo {
@@ -88,19 +94,16 @@ public:
         GetPowerBatteryChargeConfig,
         SetPowerBatteryChargeConfig,
         SetPowerBatteryChargingEnabled,
+        GetExpansionModuleInfos,
         Max,
     };
 
     enum class EventId {
         PowerBatteryStateChanged,
         PowerBatteryChargeConfigChanged,
+        ExpansionModuleChanged,
         Max,
     };
-
-
-
-
-
 private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the static schema specifications ////////////////////////////////////////
@@ -227,6 +230,18 @@ private:
                 .description = "Enable or disable battery charging.",
                 .parameters = SET_POWER_BATTERY_CHARGING_ENABLED_PARAMETERS,
             },
+            {
+                .name = "GetExpansionModuleInfos",
+                .description = "Get stable expansion module states for all slots.",
+                .parameters = EMPTY_PARAMETERS,
+                .default_timeout_ms = 2000,
+                .return_value = FunctionReturnSpec{
+                    .type = FunctionValueType::Array,
+                    .description =
+                    R"(Example: [{"provider":"mosaico","slot":"left","type":"camera",)"
+                    R"("board_id":7,"board_name":"OV3640 Camera","generation":1,"state":"Ready"}])",
+                },
+            },
         }
     };
     static_assert(FUNCTION_SPECS.size() == static_cast<size_t>(FunctionId::Max));
@@ -234,6 +249,15 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the event schema specifications //////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    inline static constexpr std::array<EventItemSpec, 1> EXPANSION_MODULE_CHANGED_ITEMS = {{
+            {
+                .name = "Module",
+                .description = "Current stable expansion module snapshot.",
+                .type = EventItemType::Object,
+            },
+        }
+    };
+
     inline static constexpr std::array<EventItemSpec, 1> POWER_BATTERY_STATE_CHANGED_ITEMS = {{
             {
                 .name = "State",
@@ -262,6 +286,11 @@ private:
                 .name = "PowerBatteryChargeConfigChanged",
                 .description = "Emitted when the power battery charge configuration changes.",
                 .items = POWER_BATTERY_CHARGE_CONFIG_CHANGED_ITEMS,
+            },
+            {
+                .name = "ExpansionModuleChanged",
+                .description = "Emitted when a stable expansion module state changes.",
+                .items = EXPANSION_MODULE_CHANGED_ITEMS,
             },
         }
     };
@@ -299,13 +328,13 @@ public:
 BROOKESIA_DESCRIBE_ENUM(
     Device::FunctionId, GetCapabilities, GetBoardInfo, GetCameraDeviceInfos, GetNetworkConnectivityInfo,
     GetPowerBatteryInfo, GetPowerBatteryState, GetPowerBatteryChargeConfig, SetPowerBatteryChargeConfig,
-    SetPowerBatteryChargingEnabled, Max
+    SetPowerBatteryChargingEnabled, GetExpansionModuleInfos, Max
 );
 BROOKESIA_DESCRIBE_STRUCT(
     Device::NetworkConnectivityInfo, (), (instance_name, status, state, network_ready, internet_ready)
 );
 BROOKESIA_DESCRIBE_ENUM(
-    Device::EventId, PowerBatteryStateChanged, PowerBatteryChargeConfigChanged, Max
+    Device::EventId, PowerBatteryStateChanged, PowerBatteryChargeConfigChanged, ExpansionModuleChanged, Max
 );
 
 } // namespace esp_brookesia::service::helper

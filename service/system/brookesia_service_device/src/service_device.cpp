@@ -42,7 +42,9 @@ void Device::on_deinit()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    stop_expansion_module_events();
     stop_power_battery_polling();
+    expansion_.events_requested = false;
     power_.cached_state.reset();
     power_.cached_charge_config.reset();
     power_.polling_requested = false;
@@ -55,6 +57,13 @@ bool Device::on_start()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (hal::has_interface(hal::expansion::ModuleManagerIface::NAME) &&
+            !ensure_expansion_manager_iface()) {
+        BROOKESIA_LOGW("Failed to acquire expansion module manager interface");
+    }
+    if (expansion_.events_requested && !start_expansion_module_events()) {
+        BROOKESIA_LOGW("Failed to start expansion module event forwarding");
+    }
     power_.cached_state.reset();
     power_.cached_charge_config.reset();
     if (power_.polling_requested) {
@@ -68,6 +77,7 @@ void Device::on_stop()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    stop_expansion_module_events();
     stop_power_battery_polling();
     power_.cached_state.reset();
     power_.cached_charge_config.reset();
@@ -125,6 +135,10 @@ ServiceBase::FunctionHandlerMap Device::get_function_handlers()
             Helper, Helper::FunctionId::SetPowerBatteryChargingEnabled, bool,
             function_set_power_battery_charging_enabled(PARAM)
         ),
+        BROOKESIA_SERVICE_HELPER_FUNC_HANDLER_0(
+            Helper, Helper::FunctionId::GetExpansionModuleInfos,
+            function_get_expansion_module_infos()
+        ),
     };
 }
 
@@ -148,6 +162,7 @@ void Device::reset_interfaces()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    expansion_.manager_iface.reset();
     power_.battery_iface.reset();
 }
 
