@@ -8,14 +8,18 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 
+#include <atomic>
 #include <cstring>
 #include <new>
 #include <utility>
 
 #include "boost/format.hpp"
+#include "esp_log.h"
+#include "esp_timer.h"
 #include "impl/esp_capture_video_v4l2_src.h"
 #include "video_processor.h"
 #include "brookesia/lib_utils/function_guard.hpp"
+#include "camera_impl.hpp"
 #include "private/utils.hpp"
 #include "encoder_impl.hpp"
 #include "processor_type_converter.hpp"
@@ -27,8 +31,19 @@ namespace esp_brookesia::hal {
 constexpr size_t SINK_NUM_MAX = 1;
 constexpr uint8_t V4L2_BUFFER_COUNT_DEFAULT = 2;
 
+namespace {
+
+struct FrameCallbackContext {
+    const VideoEncoderImpl *encoder;
+    const FrameCallbackContext *previous;
+};
+
+thread_local const FrameCallbackContext *current_frame_callback_context = nullptr;
+
+} // namespace
+
 static bool prepare_v4l2_camera_config(
-    const video::EncoderConfig &encoder_cfg, const std::string &default_device_path, void *&camera_config,
+    const video::EncoderConfig &encoder_cfg, const std::string &device_path, void *&camera_config,
     std::string &error_message
 );
 static void delete_v4l2_camera_config(void *&camera_config);
@@ -52,10 +67,17 @@ bool VideoEncoderImpl::open(
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_opened()) {
+    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+
+    if (capture_handle_ != nullptr) {
         set_error(error_message, "Encoder is already opened, please close it first");
         return false;
     }
+#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+    if (!release_camera_session(error_message)) {
+        return false;
+    }
+#endif
 
     auto sink_num = config.sinks.size();
     if ((sink_num == 0) || (sink_num > SINK_NUM_MAX)) {
@@ -66,8 +88,55 @@ bool VideoEncoderImpl::open(
         return false;
     }
 
+    bool has_explicit_device_path = false;
+    std::string device_path = default_device_path_;
+    if (config.source.has_value() && config.source->device_path.has_value() &&
+            !config.source->device_path->empty()) {
+        device_path = config.source->device_path.value();
+        has_explicit_device_path = true;
+    }
+
+#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+    if (VideoCameraDeviceSession::is_board_camera_declared()) {
+        bool should_open_board_camera = !has_explicit_device_path;
+        if (has_explicit_device_path) {
+            std::string declared_device_path;
+            should_open_board_camera = VideoCameraDeviceSession::get_declared_device_path(declared_device_path) &&
+                                       (device_path == declared_device_path);
+        }
+        if (should_open_board_camera) {
+            auto board_camera_session = std::make_unique<VideoCameraDeviceSession>();
+            std::string session_error;
+            if (board_camera_session->open(session_error)) {
+                if (!has_explicit_device_path) {
+                    device_path = board_camera_session->get_device_path();
+                    camera_session_ = std::move(board_camera_session);
+                } else if (device_path == board_camera_session->get_device_path()) {
+                    camera_session_ = std::move(board_camera_session);
+                }
+            } else {
+                std::string cleanup_error;
+                if (!board_camera_session->close(&cleanup_error)) {
+                    session_error += "; " + cleanup_error;
+                    // Preserve ownership so the next open()/close() can retry
+                    // the Board Manager and expansion-runtime cleanup.
+                    camera_session_ = std::move(board_camera_session);
+                }
+                set_error(error_message, std::move(session_error));
+                return false;
+            }
+        }
+    }
+#endif
+
     std::string error;
-    if (!prepare_v4l2_camera_config(config, default_device_path_, camera_config_, error)) {
+    if (!prepare_v4l2_camera_config(config, device_path, camera_config_, error)) {
+#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+        std::string cleanup_error;
+        if (!release_camera_session(&cleanup_error)) {
+            error += "; " + cleanup_error;
+        }
+#endif
         set_error(error_message, error);
         return false;
     }
@@ -81,6 +150,12 @@ bool VideoEncoderImpl::open(
     capture_handle_ = video_capture_open(&capture_cfg);
     if (!capture_handle_) {
         delete_v4l2_camera_config(camera_config_);
+#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+        std::string cleanup_error;
+        if (!release_camera_session(&cleanup_error)) {
+            BROOKESIA_LOGE("Failed to release camera session after capture open failure: %1%", cleanup_error);
+        }
+#endif
         set_error(error_message, "Failed to open video capture");
         return false;
     }
@@ -95,6 +170,25 @@ void VideoEncoderImpl::close()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (is_in_frame_callback()) {
+        BROOKESIA_LOGE(
+            "Cannot close encoder synchronously from its frame callback; close it after the callback returns"
+        );
+        return;
+    }
+
+    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+    stop_accepting_frame_operations();
+
+    if (is_started_) {
+        const auto ret = video_capture_stop(VideoProcessorTypeConverter::to_capture_handle(capture_handle_));
+        if (ret != ESP_OK) {
+            BROOKESIA_LOGW(
+                "Video capture stopped with a cleanup error during close: %1%", esp_err_to_name(ret)
+            );
+        }
+        is_started_ = false;
+    }
     if (capture_handle_ != nullptr) {
         video_capture_close(VideoProcessorTypeConverter::to_capture_handle(capture_handle_));
         capture_handle_ = nullptr;
@@ -103,17 +197,25 @@ void VideoEncoderImpl::close()
     stream_callback_ = nullptr;
     config_ = {};
     delete_v4l2_camera_config(camera_config_);
+#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+    std::string cleanup_error;
+    if (!release_camera_session(&cleanup_error)) {
+        BROOKESIA_LOGE("Failed to release camera session during encoder close: %1%", cleanup_error);
+    }
+#endif
 }
 
 bool VideoEncoderImpl::start(std::string *error_message)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_opened()) {
+    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+
+    if (capture_handle_ == nullptr) {
         set_error(error_message, "Encoder is not opened, please open it first");
         return false;
     }
-    if (is_started()) {
+    if (is_started_) {
         return true;
     }
 
@@ -124,6 +226,7 @@ bool VideoEncoderImpl::start(std::string *error_message)
     }
 
     is_started_ = true;
+    start_accepting_frame_operations();
 
     return true;
 }
@@ -132,17 +235,45 @@ bool VideoEncoderImpl::stop(std::string *error_message)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    (void)error_message;
-    set_error(error_message, "This function is not implemented yet");
+    if (is_in_frame_callback()) {
+        set_error(
+            error_message,
+            "Cannot stop encoder synchronously from its frame callback; stop it after the callback returns"
+        );
+        return false;
+    }
 
-    return false;
+    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+    if (capture_handle_ == nullptr) {
+        set_error(error_message, "Encoder is not opened, please open it first");
+        return false;
+    }
+    if (!is_started_) {
+        return true;
+    }
+
+    stop_accepting_frame_operations();
+
+    auto ret = video_capture_stop(VideoProcessorTypeConverter::to_capture_handle(capture_handle_));
+    // video_capture_stop tears down its capture pipeline even when cleanup reports an error.
+    is_started_ = false;
+    if (ret != ESP_OK) {
+        set_error(
+            error_message,
+            (boost::format("Video capture stopped with a cleanup error: %1%") % esp_err_to_name(ret)).str()
+        );
+        return false;
+    }
+
+    return true;
 }
 
 bool VideoEncoderImpl::fetch_frame(size_t sink_index, FrameCallback callback, std::string *error_message)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_started()) {
+    std::unique_lock lifecycle_lock(lifecycle_mutex_);
+    if (!is_started_) {
         set_error(error_message, "Encoder is not started, please start it first");
         return false;
     }
@@ -158,6 +289,14 @@ bool VideoEncoderImpl::fetch_frame(size_t sink_index, FrameCallback callback, st
         );
         return false;
     }
+
+    if (!begin_frame_operation()) {
+        set_error(error_message, "Encoder is stopping");
+        return false;
+    }
+    lib_utils::FunctionGuard frame_operation_guard([this]() {
+        end_frame_operation();
+    });
 
     esp_capture_stream_frame_t frame = {
         .stream_type = ESP_CAPTURE_STREAM_TYPE_VIDEO,
@@ -184,7 +323,17 @@ bool VideoEncoderImpl::fetch_frame(size_t sink_index, FrameCallback callback, st
         });
     });
 
+    lifecycle_lock.unlock();
+
     if (callback) {
+        const FrameCallbackContext callback_context = {
+            .encoder = this,
+            .previous = current_frame_callback_context,
+        };
+        current_frame_callback_context = &callback_context;
+        lib_utils::FunctionGuard callback_guard([&callback_context]() {
+            current_frame_callback_context = callback_context.previous;
+        });
         callback(sink_index, config_.sinks[sink_index], frame.data, frame.size);
     }
 
@@ -193,27 +342,112 @@ bool VideoEncoderImpl::fetch_frame(size_t sink_index, FrameCallback callback, st
 
 void VideoEncoderImpl::on_capture_frame(int sink_index, void *frame)
 {
+    if (!begin_frame_operation()) {
+        return;
+    }
+    lib_utils::FunctionGuard frame_operation_guard([this]() {
+        end_frame_operation();
+    });
+
     auto *video_frame = static_cast<esp_capture_stream_frame_t *>(frame);
     BROOKESIA_CHECK_NULL_EXIT(video_frame, "Invalid video frame");
     BROOKESIA_CHECK_OUT_RANGE_EXIT(sink_index, 0, config_.sinks.size() - 1, "Invalid sink index: %1%", sink_index);
 
     if (stream_callback_) {
+        const FrameCallbackContext callback_context = {
+            .encoder = this,
+            .previous = current_frame_callback_context,
+        };
+        current_frame_callback_context = &callback_context;
+        lib_utils::FunctionGuard callback_guard([&callback_context]() {
+            current_frame_callback_context = callback_context.previous;
+        });
         stream_callback_(sink_index, config_.sinks[sink_index], video_frame->data, video_frame->size);
     }
 }
 
+bool VideoEncoderImpl::is_opened() const
+{
+    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+    return capture_handle_ != nullptr;
+}
+
+bool VideoEncoderImpl::is_started() const
+{
+    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+    return is_started_;
+}
+
+bool VideoEncoderImpl::begin_frame_operation()
+{
+    std::lock_guard lock(frame_operation_mutex_);
+    if (!accepting_frame_operations_) {
+        return false;
+    }
+    ++active_frame_operations_;
+    return true;
+}
+
+void VideoEncoderImpl::end_frame_operation()
+{
+    std::lock_guard lock(frame_operation_mutex_);
+    if (active_frame_operations_ > 0) {
+        --active_frame_operations_;
+    }
+    frame_operation_cv_.notify_all();
+}
+
+void VideoEncoderImpl::stop_accepting_frame_operations()
+{
+    std::unique_lock lock(frame_operation_mutex_);
+    accepting_frame_operations_ = false;
+    frame_operation_cv_.wait(lock, [this]() {
+        return active_frame_operations_ == 0;
+    });
+}
+
+void VideoEncoderImpl::start_accepting_frame_operations()
+{
+    std::lock_guard lock(frame_operation_mutex_);
+    accepting_frame_operations_ = true;
+}
+
+bool VideoEncoderImpl::is_in_frame_callback() const
+{
+    for (auto *context = current_frame_callback_context; context != nullptr; context = context->previous) {
+        if (context->encoder == this) {
+            return true;
+        }
+    }
+    return false;
+}
+
+#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+bool VideoEncoderImpl::release_camera_session(std::string *error_message)
+{
+    if (!camera_session_) {
+        return true;
+    }
+
+    std::string cleanup_error;
+    if (!camera_session_->close(&cleanup_error)) {
+        set_error(error_message, std::move(cleanup_error));
+        return false;
+    }
+
+    camera_session_.reset();
+    return true;
+}
+#endif
+
 static bool prepare_v4l2_camera_config(
-    const video::EncoderConfig &encoder_cfg, const std::string &default_device_path, void *&camera_config,
+    const video::EncoderConfig &encoder_cfg, const std::string &device_path, void *&camera_config,
     std::string &error_message
 )
 {
-    auto device_path = default_device_path;
     auto buffer_count = V4L2_BUFFER_COUNT_DEFAULT;
     if (encoder_cfg.source.has_value()) {
         auto &source = encoder_cfg.source.value();
-        if (source.device_path.has_value() && !source.device_path.value().empty()) {
-            device_path = source.device_path.value();
-        }
         if (source.v4l2_buffer_count.has_value()) {
             buffer_count = source.v4l2_buffer_count.value();
         }

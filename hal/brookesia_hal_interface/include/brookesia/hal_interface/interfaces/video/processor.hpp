@@ -128,8 +128,10 @@ public:
     virtual ~EncoderIface() = default;
 
     virtual bool open(const EncoderConfig &config, FrameCallback callback, std::string *error_message) = 0;
+    /** @note Do not call synchronously from @ref FrameCallback; invoke it after the callback returns. */
     virtual void close() = 0;
     virtual bool start(std::string *error_message) = 0;
+    /** @note Do not call synchronously from @ref FrameCallback; implementations may reject the call. */
     virtual bool stop(std::string *error_message) = 0;
     virtual bool fetch_frame(size_t sink_index, FrameCallback callback, std::string *error_message) = 0;
     virtual bool is_opened() const = 0;

@@ -190,6 +190,20 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                     Enable debug or lower level logs for the battery ADC.
         endmenu
 
+        menu "Expansion"
+            config BROOKESIA_HAL_ADAPTOR_EXPANSION_DEVICE_ENABLE_DEBUG_LOG
+                bool "Device"
+                default n
+                help
+                    Enable debug or lower level logs for the expansion device.
+
+            config BROOKESIA_HAL_ADAPTOR_EXPANSION_MANAGER_ENABLE_DEBUG_LOG
+                bool "Module manager"
+                default n
+                help
+                    Enable debug or lower level logs for the expansion module manager.
+        endmenu
+
     endif
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_SYSTEM_DEVICE
@@ -351,6 +365,16 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             default y
             help
                 Enable the video camera discovery implementation.
+
+        config BROOKESIA_HAL_ADAPTOR_VIDEO_CAMERA_REQUIRES_EXPANSION_RUNTIME
+            bool "Camera depends on an expansion module"
+            default n
+            depends on BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
+            depends on BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
+            help
+                Retain expansion scanning before Board Manager initializes the camera.
+                Enable this only when the board camera dependency claims a hot-pluggable
+                expansion slot, such as the ESP-Mosaico camera module.
 
         menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
             bool "Encoder"
@@ -688,6 +712,38 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
                         Battery voltage mapped to 100 percent when estimating the battery percentage from ADC voltage.
             endif
         endif
+    endif
+
+    menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
+        bool "Expansion Modules"
+        default n
+        help
+            Enable generic hot-pluggable expansion module discovery and ownership.
+            A board-specific provider must be registered before the HAL manager can
+            be acquired.
+
+    if BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
+        config BROOKESIA_HAL_ADAPTOR_EXPANSION_SCAN_INTERVAL_MS
+            int "Scan interval (ms)"
+            default 300
+            range 10 60000
+            help
+                Interval between physical expansion slot samples.
+
+        config BROOKESIA_HAL_ADAPTOR_EXPANSION_SCAN_DEBOUNCE_COUNT
+            int "Stable sample count"
+            default 3
+            range 1 16
+            help
+                Number of consecutive identical samples required before publishing
+                a new stable slot state.
+
+        config BROOKESIA_HAL_ADAPTOR_EXPANSION_SCAN_TASK_STACK_SIZE
+            int "Scan task stack size"
+            default 6144
+            range 4096 32768
+            help
+                Stack size of the expansion scanner worker task.
     endif
 
     menuconfig BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE

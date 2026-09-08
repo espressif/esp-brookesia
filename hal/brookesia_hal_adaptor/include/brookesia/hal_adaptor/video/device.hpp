@@ -50,9 +50,6 @@ private:
     bool init_decoders();
     bool init_cameras();
     std::string get_default_encoder_device_path(size_t id) const;
-
-    std::vector<std::string> camera_device_paths_;
-    bool camera_device_initialized_ = false;
 };
 
 } // namespace esp_brookesia::hal
