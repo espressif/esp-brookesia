@@ -34,8 +34,11 @@
 
 - `esp32_p4x_function_ev`
 - `esp32_s31_korvo1`
+- `esp_mosaico_v1_0`
 
 硬件资源通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理。
+
+在 ESP-Mosaico 上，扩展模块是可选功能，System Super 启动不依赖扩展模块。当前支持的模块和摄像头预览限制请参见 [ESP-Mosaico V1.0 板级指南](../../../docs/zh_CN/hal/boards/esp_mosaico_v1_0.rst)。
 
 > [!TIP]
 > 示例支持使用 SD Card 作为外部存储卷，请在上电前将 SD Card 插入开发板。

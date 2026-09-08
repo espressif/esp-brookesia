@@ -13,6 +13,82 @@ devices:
       ramp_frequency_hz: 100000
       ramp_time_ms: 50
 
+  - name: expansion_module_manager
+    chip: mosaico_module_manager
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [board_power]
+    dependencies:
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
+    config:
+      frequency_hz: 100000
+      timeout_ms: 100
+      left_address_gpio_num: 14
+      left_address_level: 0
+      left_eeprom_address: 0x50
+      right_address_gpio_num: 39
+      right_address_level: 1
+      right_eeprom_address: 0x51
+    peripherals:
+      - name: i2c_master
+
+  # Independent lifetime pin held by the common expansion runtime. Keeping it
+  # separate from camera_slot_claim lets either consumer release first without
+  # tearing down the shared scanner.
+  - name: expansion_runtime_pin
+    chip: mosaico_expansion_runtime_pin
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [expansion_module_manager]
+    dependencies:
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
+
+  - name: camera_slot_claim
+    chip: mosaico_camera_slot
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [expansion_module_manager]
+    config:
+      slot: 0
+      expected_board_type: 0x07
+      flash_gpio_num: 34
+      flash_off_level: 1
+      settle_time_ms: 20
+
+  - name: camera
+    type: camera
+    sub_type: dvp
+    version: default
+    init_skip: true
+    depends_on: [camera_slot_claim]
+    config:
+      dvp_config:
+        reset_io: 53
+        pwdn_io: 48
+        vsync_io: 55
+        data_width: CAM_CTLR_DATA_WIDTH_8
+        de_io: 19
+        pclk_io: 17
+        xclk_io: -1
+        xclk_freq: 0
+        data_io:
+          data_io_0: 16
+          data_io_1: 15
+          data_io_2: 33
+          data_io_3: 4
+          data_io_4: 14
+          data_io_5: 12
+          data_io_6: 18
+          data_io_7: 13
+    peripherals:
+      - name: i2c_master
+        frequency: 100000
+
   - name: audio_codec_power
     chip: mosaico_codec_power
     type: custom

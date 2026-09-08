@@ -13,7 +13,7 @@ ESP 设备板级适配
 概述
 ----
 
-``brookesia_hal_adaptor`` 是 ESP-Brookesia 的板级 HAL 适配实现，基于 :ref:`HAL 接口 <hal-interface-index-sec-00>` 的设备/接口模型，通过 ``esp_board_manager`` 与 ESP-IDF 驱动初始化真实外设，并将 **系统**、 **网络**、 **音频**、 **显示**、 **存储**、 **电源**、 **视频**、 **Wi-Fi** 等能力注册到全局 HAL 表，供上层按名称发现和使用。
+``brookesia_hal_adaptor`` 是 ESP-Brookesia 的板级 HAL 适配实现，基于 :ref:`HAL 接口 <hal-interface-index-sec-00>` 的设备/接口模型，通过 ``esp_board_manager`` 与 ESP-IDF 驱动初始化真实外设，并将 **系统**、 **网络**、 **音频**、 **显示**、 **存储**、 **电源**、 **视频**、 **扩展模块**、 **Wi-Fi** 等能力注册到全局 HAL 表，供上层按名称发现和使用。
 
 .. _hal-adaptor-sec-02:
 
@@ -55,6 +55,9 @@ ESP 设备板级适配
    * - ``VideoDevice`` (``"Video"``)
      - ``CameraIface`` 与视频处理接口
      - 当所选开发板暴露对应能力时，发布摄像头与视频处理接口。
+   * - ``ExpansionDevice`` (``"Expansion"``)
+     - ``expansion::ModuleManagerIface`` (``"ExpansionModuleManager"``)
+     - 可选发布稳定的扩展插槽状态、查询与变更事件；具体模块由板级 provider 识别和占用。
    * - ``WifiDevice`` (``"WiFi"``)
      - ``BasicIface`` (``BASIC_IMPL_NAME``)、``StationIface`` (``STA_IMPL_NAME``)、``SoftApIface`` (``SOFTAP_IMPL_NAME``)
      - 基于 ESP-IDF 的 Wi-Fi 后端，负责单次生命周期、STA、扫描、SoftAP 与配网动作。重试、fallback 与自动连接策略由 ``brookesia_service_wifi`` 负责。
@@ -67,6 +70,19 @@ ESP 设备板级适配
 各设备与子接口可在 ``menuconfig`` 的 **ESP-Brookesia: Hal Adaptor Configurations** 中独立开启或关闭；默认能力参数（音量范围、录音格式、背光亮度范围、电池低电量阈值、ADC 电压换算参数等）也可在 ``menuconfig`` 中调整，由 ``macro_configs.h`` 映射为编译宏供实现使用。
 
 若需在初始化前覆盖默认能力参数，可在对应设备单例上调用 ``set_codec_player_info``、``set_codec_recorder_info`` 或 ``set_ledc_backlight_info``。初始化完成后再调用通常不会生效。
+
+.. _hal-adaptor-expansion-modules:
+
+扩展模块支持
+^^^^^^^^^^^^^^^^
+
+``CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES`` 控制通用扩展框架。该选项默认关闭，因此没有扩展硬件的开发板不会创建扩展设备、provider、扫描器或后台任务。具备扩展能力的开发板可以通过板级默认配置开启。
+
+开启后，``hal::expansion::ModuleManagerIface`` 以 ``Expansion:ModuleManager:0`` 名称提供。``get_module_infos()`` 返回 ``ModuleInfo`` 快照，内容包含 provider、插槽、类型、板级身份、generation 和 ``ModuleState``。``add_event_listener()`` 与 ``remove_event_listener()`` 用于订阅稳定变化；回调会收到更新后的完整快照。
+
+状态包括 ``Unknown``、``Empty``、``Invalid``、``Unsupported``、``Ready``、``Active`` 和 ``Error``。只识别模块不会初始化硬件。板级 provider 负责自身的检测协议和资源占用/释放，通用层负责共同的状态、查询、事件和生命周期契约。
+
+Device Service 通过 ``GetExpansionModuleInfos`` 和 ``ExpansionModuleChanged`` 为不应直接访问 HAL 的应用提供能力。各开发板的具体支持范围和热插拔限制记录在对应板级文档中；参见 :doc:`ESP-Mosaico V1.0 <boards/esp_mosaico_v1_0>`。
 
 .. _hal-adaptor-sec-05:
 
@@ -86,5 +102,9 @@ API 参考
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/video/device.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/device.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/module_provider.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/wifi/device.inc

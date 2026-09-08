@@ -11,6 +11,20 @@ ESP-Mosaico BSP at commit `bef99672e411101489ed19c40527cca1c1dd5bb1`:
 The code was reorganized around ESP Board Manager device dependencies,
 reference-counted peripheral handles, and reverse-order failure cleanup.
 
+The Mosaico expansion-module EEPROM descriptor and discovery behavior, along
+with the OV3640 camera slot mapping and initialization parameters, are adapted
+from the following areas of the same Apache-2.0-licensed BSP revision:
+
+- `components/mosaico_module_mgr`
+- `components/mosaico_module_camera`
+- `components/esp-mosaico-bsp/onboard/subboard.c`
+
+Only the Mosaico provider uses this BSP-derived hardware knowledge. The generic
+ESP-Brookesia expansion-module contract and runtime are new code and contain no
+Mosaico pin, EEPROM, or camera assumptions. All required implementation code
+is kept in this repository; neither configuration nor build downloads or links
+against the ESP-Mosaico BSP repository.
+
 The BQ27220 implementation is a new read-only Board Manager bridge using only
 the standard BatteryStatus and Voltage registers; it does not migrate the BSP
 fuel-gauge configuration or sealing logic.

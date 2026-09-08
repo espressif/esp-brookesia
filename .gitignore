@@ -56,6 +56,7 @@ flake8_output.txt
 
 # esp-idf default build directory name
 build
+build_*/
 **/bin/
 _build
 build_esp*/

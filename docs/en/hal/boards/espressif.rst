@@ -125,6 +125,26 @@ Espressif Boards
        | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
        | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
        | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
+   * - :doc:`esp_mosaico_v1_0 <esp_mosaico_v1_0>`
+     - - *ESP32-S31*
+       - *Wi-Fi*
+       - *Flash 16MB*
+       - *PSRAM 16MB*
+       - *Expansion slots*
+     - `ESP-Mosaico V1.0 <https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s31/esp-mosaico/user_guide.html>`_
+     - | :cpp:class:`AudioCodecPlayer <esp_brookesia::hal::audio::CodecPlayerIface>`
+       | :cpp:class:`AudioCodecRecorder <esp_brookesia::hal::audio::CodecRecorderIface>`
+       | :cpp:class:`DisplayPanel <esp_brookesia::hal::display::PanelIface>`
+       | :cpp:class:`DisplayTouch <esp_brookesia::hal::display::TouchIface>`
+       | :cpp:class:`DisplayBacklight <esp_brookesia::hal::display::BacklightIface>`
+       | :cpp:class:`PowerBattery <esp_brookesia::hal::power::BatteryIface>`
+       | :cpp:class:`StorageFs <esp_brookesia::hal::storage::FileSystemIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::storage::KeyValueIface>`
+       | :cpp:class:`expansion::ModuleManagerIface <esp_brookesia::hal::expansion::ModuleManagerIface>`
+       | :cpp:class:`Camera <esp_brookesia::hal::video::CameraIface>` (optional module)
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::wifi::BasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::wifi::StationIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::wifi::SoftApIface>`
    * - ``esp_sensair_shuttle``
      - - *ESP32-C5*
        - *Wi-Fi*
@@ -140,3 +160,8 @@ Espressif Boards
        | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
        | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
        | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
+
+.. toctree::
+   :hidden:
+
+   ESP-Mosaico V1.0 <esp_mosaico_v1_0>
