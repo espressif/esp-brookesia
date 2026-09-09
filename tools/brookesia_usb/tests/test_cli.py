@@ -2,7 +2,7 @@ import json
 import types
 import unittest
 
-from brookesia_usb_cli import cli
+from brookesia_usb import cli
 
 
 class FakeSerial:
@@ -220,8 +220,10 @@ class CliTests(unittest.TestCase):
             device="/dev/ttyUSB0", vid=0x10C4, pid=0xEA60, description="CP210x USB to UART Bridge", interface=None, hwid=""
         )
         original_loader = cli._serial_module
-        cli._serial_module = lambda: (types.SimpleNamespace(Serial=lambda *args, **kwargs: UartFakeSerial()),
-                                    types.SimpleNamespace(comports=lambda: [uart_port]))
+        cli._serial_module = lambda: (
+            types.SimpleNamespace(Serial=lambda *args, **kwargs: UartFakeSerial()),
+            types.SimpleNamespace(comports=lambda: [uart_port]),
+        )
         try:
             self.assertEqual(cli.discover_control_port(timeout=1.0), "/dev/ttyUSB0")
         finally:
@@ -289,8 +291,10 @@ class CliTests(unittest.TestCase):
                 pass
 
         original_loader = cli._serial_module
-        cli._serial_module = lambda: (types.SimpleNamespace(Serial=lambda *args, **kwargs: FirstWorksSecondTimeoutSerial()),
-                                    types.SimpleNamespace(comports=lambda: [uart_port1, uart_port2]))
+        cli._serial_module = lambda: (
+            types.SimpleNamespace(Serial=lambda *args, **kwargs: FirstWorksSecondTimeoutSerial()),
+            types.SimpleNamespace(comports=lambda: [uart_port1, uart_port2]),
+        )
         try:
             # Should select the first port that works
             self.assertEqual(cli.discover_control_port(timeout=1.0), "/dev/ttyUSB0")
@@ -332,6 +336,58 @@ class CliTests(unittest.TestCase):
         try:
             with self.assertRaises(RuntimeError) as cm:
                 cli.discover_control_port(timeout=1.0)
+            self.assertTrue(str(cm.exception).startswith("busy:"), str(cm.exception))
+        finally:
+            cli._serial_module = original_loader
+
+    def test_discovery_keeps_busy_when_later_serial_jtag_candidate_times_out(self):
+        usj_ports = [
+            types.SimpleNamespace(
+                device="/dev/ttyACM0", vid=0x303A, pid=0x1001,
+                description="USB JTAG/serial", interface=None, hwid=""
+            ),
+            types.SimpleNamespace(
+                device="/dev/ttyACM1", vid=0x303A, pid=0x1001,
+                description="USB JTAG/serial", interface=None, hwid=""
+            ),
+        ]
+        serials = [BusySerial(), TimeoutSerial()]
+
+        def make_serial(*args, **kwargs):
+            return serials.pop(0)
+
+        original_loader = cli._serial_module
+        cli._serial_module = lambda: (
+            types.SimpleNamespace(Serial=make_serial),
+            types.SimpleNamespace(comports=lambda: usj_ports),
+        )
+        try:
+            with self.assertRaises(RuntimeError) as cm:
+                cli.discover_control_port(timeout=0.05)
+            self.assertTrue(str(cm.exception).startswith("busy:"), str(cm.exception))
+        finally:
+            cli._serial_module = original_loader
+
+    def test_discovery_keeps_busy_when_later_uart_candidate_times_out(self):
+        uart_port1 = types.SimpleNamespace(
+            device="/dev/ttyUSB0", vid=0x10C4, pid=0xEA60, description="CP210x USB to UART Bridge", interface=None, hwid=""
+        )
+        uart_port2 = types.SimpleNamespace(
+            device="/dev/ttyUSB1", vid=0x1A86, pid=0x7523, description="CH340 USB to UART Bridge", interface=None, hwid=""
+        )
+        serials = [BusySerial(), TimeoutSerial()]
+
+        def make_serial(*args, **kwargs):
+            return serials.pop(0)
+
+        original_loader = cli._serial_module
+        cli._serial_module = lambda: (
+            types.SimpleNamespace(Serial=make_serial),
+            types.SimpleNamespace(comports=lambda: [uart_port1, uart_port2]),
+        )
+        try:
+            with self.assertRaises(RuntimeError) as cm:
+                cli.discover_control_port(timeout=0.05)
             self.assertTrue(str(cm.exception).startswith("busy:"), str(cm.exception))
         finally:
             cli._serial_module = original_loader

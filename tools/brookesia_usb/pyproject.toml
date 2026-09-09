@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brookesia-usb"
+version = "0.1.1"
+description = "Host CLI for the ESP-Brookesia USB service over USB Serial/JTAG or UART"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Espressif Systems (Shanghai) Co., Ltd." }]
+requires-python = ">=3.9"
+dependencies = ["pyserial>=3.5"]
+keywords = ["esp-brookesia", "usb", "serial-jtag", "uart", "cli"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Hardware",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=8", "flake8>=5"]
+
+[project.urls]
+Homepage = "https://github.com/espressif/esp-brookesia"
+Repository = "https://github.com/espressif/esp-brookesia.git"
+Issues = "https://github.com/espressif/esp-brookesia/issues"
+Documentation = "https://docs.espressif.com/projects/esp-brookesia/en/latest/system/usb_cli.html"
+
+[project.scripts]
+brookesia-usb = "brookesia_usb.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

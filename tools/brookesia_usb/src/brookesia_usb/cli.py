@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .protocol import (
     PROTOCOL_VERSION,
     BinaryFrame,
@@ -267,6 +268,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--port", help="USJ or USB-UART device; omitted means auto-discovery (USJ first, then USB-UART)")
     parser.add_argument("--baudrate", type=int, default=115200, help="Baud rate for UART transport (ignored for USJ)")
     parser.add_argument("--timeout", type=float, default=10.0)
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("devices")
@@ -318,6 +320,10 @@ def run_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def is_busy_error(error: Exception) -> bool:
+    return isinstance(error, RuntimeError) and str(error).startswith("busy:")
+
+
 def discover_control_port(baudrate: int = 115200, timeout: float = 1.0, probe: bool = True) -> str:
     _, list_ports = _serial_module()
     ports = list(list_ports.comports())
@@ -339,7 +345,7 @@ def discover_control_port(baudrate: int = 115200, timeout: float = 1.0, probe: b
 
         # USB Serial/JTAG is a single CDC port. Probe the protocol after filtering
         # the hardware identity instead of assuming a ttyACM index.
-        last_error: Exception | None = None
+        busy_error: Exception | None = None
         for port in usj_candidates:
             try:
                 with UsbClient(port.device, baudrate, timeout) as client:
@@ -347,10 +353,11 @@ def discover_control_port(baudrate: int = 115200, timeout: float = 1.0, probe: b
                     if response.get("transport") == "serial_jtag":
                         return port.device
             except (OSError, RuntimeError, TimeoutError) as error:
-                last_error = error
+                if busy_error is None and is_busy_error(error):
+                    busy_error = error
                 continue
-        if isinstance(last_error, RuntimeError) and str(last_error).startswith("busy:"):
-            raise last_error
+        if busy_error is not None:
+            raise busy_error
         # If all USJ candidates failed, fall through to USB-UART phase
 
     # Phase 2: Fallback to USB-UART candidates
@@ -363,7 +370,7 @@ def discover_control_port(baudrate: int = 115200, timeout: float = 1.0, probe: b
             raise RuntimeError("cannot find an ESP32 USB Serial/JTAG or USB-UART port")
 
     # Probe UART candidates with hello, accepting either transport type
-    last_error: Exception | None = None
+    busy_error: Exception | None = None
     for port in uart_candidates:
         try:
             with UsbClient(port.device, baudrate, timeout) as client:
@@ -371,10 +378,11 @@ def discover_control_port(baudrate: int = 115200, timeout: float = 1.0, probe: b
                 if response.get("transport") in ("serial_jtag", "uart"):
                     return port.device
         except (OSError, RuntimeError, TimeoutError) as error:
-            last_error = error
+            if busy_error is None and is_busy_error(error):
+                busy_error = error
             continue
-    if isinstance(last_error, RuntimeError) and str(last_error).startswith("busy:"):
-        raise last_error
+    if busy_error is not None:
+        raise busy_error
     raise RuntimeError("cannot find Brookesia on any serial port; pass --port explicitly")
 
 

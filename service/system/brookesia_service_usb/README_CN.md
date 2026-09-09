@@ -6,7 +6,7 @@
 
 `brookesia_service_usb` 为支持的 ESP 目标提供串行传输的独占主机控制能力：USB Serial/JTAG CDC 通道，或面向只引出 USB 转串口桥的板子的 UART。
 
-该服务提供类型化状态与传输事件、JSON 服务调用、文件上传和 BPK 运行时应用安装。主机协议与 CLI 请参考 [`brookesia_usb_cli`](../../../tools/brookesia_usb_cli/README_CN.md)。
+该服务提供类型化状态与传输事件、JSON 服务调用、文件上传和 BPK 运行时应用安装。主机协议与 CLI 请参考 [`brookesia_usb`](../../../tools/brookesia_usb/README_CN.md)。
 
 ## 环境要求
 

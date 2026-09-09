@@ -12,16 +12,17 @@ Serial Command-Line Tool
 Install
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The USB CLI requires Python 3.9 or newer and can be installed online from `PyPI <https://pypi.org/project/brookesia-usb-cli/>`__:
+The USB CLI requires Python 3.9 or newer and can be installed online from `PyPI <https://pypi.org/project/brookesia-usb/>`__:
 
 .. code-block:: bash
 
-   python -m pip install brookesia-usb-cli
+   python -m pip install brookesia-usb
 
-The install command also installs the ``pyserial`` dependency. After installation, view the command help:
+The install command also installs the ``pyserial`` dependency. After installation, check the version and view the command help:
 
 .. code-block:: bash
 
+   brookesia-usb --version
    brookesia-usb --help
 
 ``brookesia deploy`` in :ref:`system-toolkit-sec-00` wraps this CLI to install a built ``.bpk``.
@@ -43,8 +44,11 @@ The CLI selects a port automatically and verifies the device with the ``hello`` 
 Discovery order:
 
 1. Enumerate serial ports.
-2. Prefer USB Serial/JTAG candidates (Espressif VID/PID or a matching port description) and probe them with ``hello``.
-3. If no Serial/JTAG candidate answers, probe USB-to-UART candidates (``/dev/ttyUSB*`` and non-Serial/JTAG ACM ports) with ``hello``.
+2. If exactly one USB Serial/JTAG candidate (Espressif VID/PID or a matching port description) is present, it is used directly and is not probed during discovery; the protocol ``hello`` runs once when the command executes.
+3. If several USB Serial/JTAG candidates are present, each is probed with ``hello`` until one reports the ``serial_jtag`` transport.
+4. If no USB Serial/JTAG candidate is present, or all of them fail the probe, USB-to-UART candidates (``/dev/ttyUSB*`` and non-Serial/JTAG ACM ports) are probed, accepting either the ``serial_jtag`` or ``uart`` transport.
+
+If a single USB Serial/JTAG port is present but is not the target device (for example when both the USJ cable and the USB-to-UART bridge are connected), the CLI selects it and reports an error; pass ``--port`` to select the port the device actually uses.
 
 The common connection options can also be specified explicitly:
 

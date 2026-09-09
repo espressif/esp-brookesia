@@ -10,7 +10,7 @@ for boards that only route a USB-to-UART bridge.
 
 It exposes typed service status and transfer events, JSON service calls, file
 uploads, and BPK runtime app installation. The host protocol and CLI are
-documented in [`brookesia_usb_cli`](../../../tools/brookesia_usb_cli/README.md).
+documented in [`brookesia_usb`](../../../tools/brookesia_usb/README.md).
 
 ## Environment Requirements
 

@@ -116,6 +116,7 @@ From `v0.7`, ESP-Brookesia is componentized. Projects are recommended to obtain 
 | --- | --- | --- |
 | [brookesia_service_storage](https://components.espressif.com/components/espressif/brookesia_service_storage) | Storage service providing namespace-based key-value storage management | [![Component Registry](https://components.espressif.com/components/espressif/brookesia_service_storage/badge.svg)](https://components.espressif.com/components/espressif/brookesia_service_storage) |
 | [brookesia_service_device](https://components.espressif.com/components/espressif/brookesia_service_device) | Device service providing app-layer access to device control, status query, and protocol interfaces | [![Component Registry](https://components.espressif.com/components/espressif/brookesia_service_device/badge.svg)](https://components.espressif.com/components/espressif/brookesia_service_device) |
+| [brookesia_service_usb](https://components.espressif.com/components/espressif/brookesia_service_usb) | USB service providing host control, file transfer, and BPK app installation over USB Serial/JTAG or UART | [![Component Registry](https://components.espressif.com/components/espressif/brookesia_service_usb/badge.svg)](https://components.espressif.com/components/espressif/brookesia_service_usb) |
 
 #### Agent and Expression Services
 

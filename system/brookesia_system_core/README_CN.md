@@ -14,7 +14,7 @@
 不支持的 manifest 字段会打印 warning，但不会阻止软件包安装。
 
 配置和使用方式请参考 [USB service 文档](../../service/system/brookesia_service_usb/README_CN.md)
-以及 [主机 CLI 文档](../../tools/brookesia_usb_cli/README_CN.md)。
+以及 [主机 CLI 文档](../../tools/brookesia_usb/README_CN.md)。
 
 ## 如何使用
 

@@ -12,16 +12,17 @@ Serial/JTAG USB CLI
 安装
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-USB CLI 需要 Python 3.9 或更高版本，可从 `PyPI <https://pypi.org/project/brookesia-usb-cli/>`__ 在线安装：
+USB CLI 需要 Python 3.9 或更高版本，可从 `PyPI <https://pypi.org/project/brookesia-usb/>`__ 在线安装：
 
 .. code-block:: bash
 
-   python -m pip install brookesia-usb-cli
+   python -m pip install brookesia-usb
 
-安装命令会自动安装 ``pyserial`` 依赖。安装完成后可以查看命令帮助：
+安装命令会自动安装 ``pyserial`` 依赖。安装完成后可以查看版本和命令帮助：
 
 .. code-block:: bash
 
+   brookesia-usb --version
    brookesia-usb --help
 
 :ref:`system-toolkit-sec-00` 中的 ``brookesia deploy`` 会调用本 CLI 安装已构建的 ``.bpk``。
@@ -43,8 +44,11 @@ CLI 会自动选择端口并通过 ``hello`` 命令验证设备：优先 USB Ser
 发现顺序：
 
 1. 枚举串口。
-2. 优先 USB Serial/JTAG 候选（Espressif VID/PID 或端口描述匹配），并用 ``hello`` 探测。
-3. 若无 Serial/JTAG 候选应答，则探测 USB 转 UART 候选（``/dev/ttyUSB*`` 及非 Serial/JTAG 的 ACM 端口）。
+2. 若存在**恰好一个** USB Serial/JTAG 候选（Espressif VID/PID 或端口描述匹配），直接使用该端口，不在发现阶段探测；``hello`` 在命令执行时只做一次。
+3. 若存在**多个** USB Serial/JTAG 候选，逐个用 ``hello`` 探测，直到有一个回报 ``serial_jtag`` 传输。
+4. 若无 USB Serial/JTAG 候选，或其候选全部探测失败，则探测 USB 转 UART 候选（``/dev/ttyUSB*`` 及非 Serial/JTAG 的 ACM 端口），接受 ``serial_jtag`` 或 ``uart`` 传输。
+
+若只存在一个 USB Serial/JTAG 端口但它并非目标设备（例如 USJ 线缆和 USB 转 UART 桥同时插着），CLI 会选中它并报错；请用 ``--port`` 显式指定实际设备所在的端口。
 
 也可以显式指定常用连接参数：
 

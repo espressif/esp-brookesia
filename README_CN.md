@@ -116,6 +116,7 @@ ESP-Brookesia 自 `v0.7` 版本起采用组件化管理，建议项目通过组�
 | --- | --- | --- |
 | [brookesia_service_storage](https://components.espressif.com/components/espressif/brookesia_service_storage) | Storage 服务，提供基于命名空间的键值对存储管理 | [![Component Registry](https://components.espressif.com/components/espressif/brookesia_service_storage/badge.svg)](https://components.espressif.com/components/espressif/brookesia_service_storage) |
 | [brookesia_service_device](https://components.espressif.com/components/espressif/brookesia_service_device) | 设备服务，提供应用层对设备控制、状态查询和协议接口的访问 | [![Component Registry](https://components.espressif.com/components/espressif/brookesia_service_device/badge.svg)](https://components.espressif.com/components/espressif/brookesia_service_device) |
+| [brookesia_service_usb](https://components.espressif.com/components/espressif/brookesia_service_usb) | USB 服务，通过 USB Serial/JTAG 或 UART 提供主机控制、文件传输和 BPK 应用安装 | [![Component Registry](https://components.espressif.com/components/espressif/brookesia_service_usb/badge.svg)](https://components.espressif.com/components/espressif/brookesia_service_usb) |
 
 #### 智能体与表达服务
 
