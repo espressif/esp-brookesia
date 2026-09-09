@@ -13,6 +13,7 @@
 
 #if BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY && BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_BQ27220
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 
 namespace esp_brookesia::hal {
 
@@ -71,7 +72,7 @@ BatteryBq27220Impl::~BatteryBq27220Impl()
     boost::lock_guard<boost::mutex> lock(mutex_);
 
     if (device_initialized_) {
-        auto ret = esp_board_manager_deinit_device_by_name(BQ27220_FUEL_GAUGE_NAME);
+        auto ret = brookesia_hal_board_manager_deinit_device_by_name(BQ27220_FUEL_GAUGE_NAME);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit BQ27220 fuel gauge"); });
         device_initialized_ = false;
         device_handle_ = nullptr;
@@ -138,22 +139,23 @@ bool BatteryBq27220Impl::set_charging_enabled(bool enabled)
 
 bool BatteryBq27220Impl::setup_fuel_gauge()
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_CHECK_NULL_RETURN(
         bq27220_fuel_gauge_get_snapshot, false, "BQ27220 fuel gauge snapshot API is unavailable"
     );
 
-    if (!esp_board_manager_check_name(BQ27220_FUEL_GAUGE_NAME)) {
+    if (!brookesia_hal_board_manager_check_name(BQ27220_FUEL_GAUGE_NAME)) {
         BROOKESIA_LOGW("BQ27220 fuel gauge device not found, skip");
         return false;
     }
 
-    auto ret = esp_board_manager_init_device_by_name(BQ27220_FUEL_GAUGE_NAME);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(BQ27220_FUEL_GAUGE_NAME);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init BQ27220 fuel gauge");
     device_initialized_ = true;
 
-    ret = esp_board_manager_get_device_handle(BQ27220_FUEL_GAUGE_NAME, &device_handle_);
+    ret = brookesia_hal_board_manager_get_device_handle(BQ27220_FUEL_GAUGE_NAME, &device_handle_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get BQ27220 fuel gauge handle");
     BROOKESIA_CHECK_NULL_RETURN(device_handle_, false, "Failed to get BQ27220 fuel gauge handle");
 

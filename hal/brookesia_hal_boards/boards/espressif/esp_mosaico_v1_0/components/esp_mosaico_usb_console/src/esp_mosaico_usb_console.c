@@ -5,6 +5,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -20,7 +21,7 @@
 #include "soc/soc.h"
 #include "tinyusb.h"
 #include "tinyusb_cdc_acm.h"
-#include "tinyusb_console.h"
+#include "vfs_tinyusb.h"
 #include "tinyusb_default_config.h"
 #include "esp_mosaico_usb_console.h"
 
@@ -32,6 +33,10 @@
 #define USB_SYSTEM_RESET_DELAY_MS       (10)
 #define USB_FLUSH_TIMEOUT_MS            (20)
 #define USB_REENUMERATION_DELAY_MS      (20)
+#define STRINGIFY_VALUE(value)          #value
+#define STRINGIFY(value)                STRINGIFY_VALUE(value)
+#define UART_CONSOLE_PATH               "/dev/uart/" STRINGIFY(CONFIG_ESP_CONSOLE_UART_NUM)
+#define CONSOLE_STREAM_COUNT            (3)
 
 typedef enum {
     USB_RESTART_NONE,
@@ -47,9 +52,23 @@ static bool reset_armed;
 static esp_timer_handle_t restart_timer;
 static TaskHandle_t restart_task_handle;
 static UsbRestartType pending_restart;
+static esp_err_t terminal_error;
+
+typedef struct {
+    FILE *shared[CONSOLE_STREAM_COUNT];
+    FILE *uart_reserve[CONSOLE_STREAM_COUNT];
+    bool switched[CONSOLE_STREAM_COUNT];
+    bool invalid[CONSOLE_STREAM_COUNT];
+    bool vfs_registered;
+} console_streams_t;
+
+static console_streams_t console_streams;
 
 static void auto_init_task(void *arg);
-static void cleanup_after_init_failure(bool driver_installed, bool cdc_initialized);
+static esp_err_t prepare_console_streams(void);
+static esp_err_t restore_console_streams(void);
+static void replace_failed_stream(size_t index);
+static esp_err_t cleanup_after_init_failure(bool driver_installed, bool cdc_initialized);
 static void cleanup_before_restart(void);
 static void device_event_callback(tinyusb_event_t *event, void *arg);
 static void line_state_changed_callback(int interface, cdcacm_event_t *event);
@@ -64,6 +83,11 @@ esp_err_t esp_mosaico_usb_console_init(void)
     esp_err_t ret;
 
     portENTER_CRITICAL(&state_lock);
+    if (terminal_error != ESP_OK) {
+        const esp_err_t error = terminal_error;
+        portEXIT_CRITICAL(&state_lock);
+        return error;
+    }
     if (initialized) {
         portEXIT_CRITICAL(&state_lock);
         return ESP_OK;
@@ -129,7 +153,7 @@ esp_err_t esp_mosaico_usb_console_init(void)
     }
     cdc_initialized = true;
 
-    ret = tinyusb_console_init(TINYUSB_CDC_ACM_0);
+    ret = prepare_console_streams();
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to redirect console to USB CDC: %s", esp_err_to_name(ret));
         goto fail;
@@ -142,11 +166,19 @@ esp_err_t esp_mosaico_usb_console_init(void)
     initializing = false;
     portEXIT_CRITICAL(&state_lock);
 
-    ESP_LOGI(TAG, "USB CDC console ready");
+    ESP_LOGI(TAG, "USB CDC console ready; reset reason=%d", (int)esp_reset_reason());
     return ESP_OK;
 
-fail:
-    cleanup_after_init_failure(driver_installed, cdc_initialized);
+fail: {
+        const esp_err_t cleanup_ret = cleanup_after_init_failure(driver_installed, cdc_initialized);
+        if (cleanup_ret != ESP_OK) {
+            portENTER_CRITICAL(&state_lock);
+            terminal_error = cleanup_ret;
+            portEXIT_CRITICAL(&state_lock);
+            ESP_LOGE(TAG, "USB console rollback is incomplete; manual restart required: %s",
+                     esp_err_to_name(cleanup_ret));
+        }
+    }
     portENTER_CRITICAL(&state_lock);
     initializing = false;
     portEXIT_CRITICAL(&state_lock);
@@ -159,18 +191,121 @@ static void auto_init_task(void *arg)
 
     const esp_err_t ret = esp_mosaico_usb_console_init();
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "USB CDC unavailable; keeping the configured IDF console: %s", esp_err_to_name(ret));
+        ESP_LOGW(TAG, "USB CDC initialization failed: %s", esp_err_to_name(ret));
     }
     vTaskDelete(NULL);
 }
 
-static void cleanup_after_init_failure(bool driver_installed, bool cdc_initialized)
+static esp_err_t prepare_console_streams(void)
 {
-    if (cdc_initialized) {
-        (void)tinyusb_cdcacm_deinit(TINYUSB_CDC_ACM_0);
+    const char *modes[CONSOLE_STREAM_COUNT] = {"r", "w", "w"};
+    FILE *usb_probe[CONSOLE_STREAM_COUNT] = {NULL};
+    console_streams.shared[0] = stdin;
+    console_streams.shared[1] = stdout;
+    console_streams.shared[2] = stderr;
+
+    esp_err_t ret = esp_vfs_tusb_cdc_register(TINYUSB_CDC_ACM_0, NULL);
+    if (ret != ESP_OK) {
+        return ret;
     }
-    if (driver_installed) {
-        (void)tinyusb_driver_uninstall();
+    console_streams.vfs_registered = true;
+
+    /* Allocate every prospective stream before touching shared stdio. Keep
+     * UART streams reserved so a failed freopen never needs another fopen. */
+    for (size_t i = 0; i < CONSOLE_STREAM_COUNT; i++) {
+        console_streams.uart_reserve[i] = fopen(UART_CONSOLE_PATH, modes[i]);
+        if (console_streams.uart_reserve[i] == NULL) {
+            ret = ESP_ERR_NO_MEM;
+            break;
+        }
+        usb_probe[i] = fopen(VFS_TUSB_PATH_DEFAULT, modes[i]);
+        if (usb_probe[i] == NULL) {
+            ret = ESP_FAIL;
+            break;
+        }
+    }
+    for (size_t i = 0; i < CONSOLE_STREAM_COUNT; i++) {
+        if (usb_probe[i] != NULL) {
+            if ((fclose(usb_probe[i]) != 0) && (ret == ESP_OK)) {
+                ret = ESP_FAIL;
+            }
+        }
+    }
+    if (ret != ESP_OK) {
+        return ret;
+    }
+
+    /* IDF tasks share FILE objects. Pointer assignment alone would redirect
+     * only this task, so successful switching must preserve those objects. */
+    for (size_t i = 0; i < CONSOLE_STREAM_COUNT; i++) {
+        if (freopen(VFS_TUSB_PATH_DEFAULT, modes[i], console_streams.shared[i]) == NULL) {
+            replace_failed_stream(i);
+            return ESP_FAIL;
+        }
+        console_streams.switched[i] = true;
+    }
+    return ESP_OK;
+}
+
+static void replace_failed_stream(size_t index)
+{
+    /* freopen closes the original stream on failure. Never pass that FILE
+     * to another stdio operation. Existing tasks may still hold its pointer;
+     * restoring them atomically is not possible through public stdio APIs. */
+    console_streams.invalid[index] = true;
+    console_streams.switched[index] = false;
+    FILE *fallback = console_streams.uart_reserve[index];
+    console_streams.uart_reserve[index] = NULL;
+    if (index == 0) {
+        stdin = fallback;
+    } else if (index == 1) {
+        stdout = fallback;
+    } else {
+        stderr = fallback;
+    }
+}
+
+static esp_err_t restore_console_streams(void)
+{
+    const char *modes[CONSOLE_STREAM_COUNT] = {"r", "w", "w"};
+    esp_err_t ret = ESP_OK;
+    for (size_t i = 0; i < CONSOLE_STREAM_COUNT; i++) {
+        if (console_streams.switched[i]) {
+            if (freopen(UART_CONSOLE_PATH, modes[i], console_streams.shared[i]) == NULL) {
+                replace_failed_stream(i);
+            } else {
+                console_streams.switched[i] = false;
+            }
+        }
+        if (console_streams.invalid[i]) {
+            ret = ESP_ERR_INVALID_STATE;
+        }
+        if (console_streams.uart_reserve[i] != NULL) {
+            /* fclose consumes a stream even if flushing reports an error. */
+            if ((fclose(console_streams.uart_reserve[i]) != 0) && (ret == ESP_OK)) {
+                ret = ESP_FAIL;
+            }
+            console_streams.uart_reserve[i] = NULL;
+        }
+    }
+    if ((ret == ESP_OK) && console_streams.vfs_registered) {
+        ret = esp_vfs_tusb_cdc_unregister(NULL);
+        if (ret == ESP_OK) {
+            console_streams.vfs_registered = false;
+        }
+    }
+    return ret;
+}
+
+static esp_err_t cleanup_after_init_failure(bool driver_installed, bool cdc_initialized)
+{
+    esp_err_t ret = restore_console_streams();
+    /* An incomplete stdio rollback must keep its VFS/CDC dependencies alive. */
+    if ((ret == ESP_OK) && cdc_initialized) {
+        ret = tinyusb_cdcacm_deinit(TINYUSB_CDC_ACM_0);
+    }
+    if ((ret == ESP_OK) && driver_installed) {
+        ret = tinyusb_driver_uninstall();
     }
 #if CONFIG_BSP_USB_AUTO_DOWNLOAD
     if (restart_timer != NULL) {
@@ -182,17 +317,18 @@ static void cleanup_after_init_failure(bool driver_installed, bool cdc_initializ
         restart_task_handle = NULL;
     }
 #endif
+    return ret;
 }
 
 static void cleanup_before_restart(void)
 {
     (void)tinyusb_cdcacm_write_flush(TINYUSB_CDC_ACM_0, pdMS_TO_TICKS(USB_FLUSH_TIMEOUT_MS));
-#if CONFIG_ESP_CONSOLE_UART
-    (void)tinyusb_console_deinit(TINYUSB_CDC_ACM_0);
-#endif
-    (void)tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_LINE_STATE_CHANGED);
-    (void)tinyusb_cdcacm_deinit(TINYUSB_CDC_ACM_0);
-    (void)tinyusb_driver_uninstall();
+    if (restore_console_streams() == ESP_OK) {
+        (void)tinyusb_cdcacm_unregister_callback(TINYUSB_CDC_ACM_0, CDC_EVENT_LINE_STATE_CHANGED);
+        if (tinyusb_cdcacm_deinit(TINYUSB_CDC_ACM_0) == ESP_OK) {
+            (void)tinyusb_driver_uninstall();
+        }
+    }
 
     // Give the host a visible detach interval before the ROM downloader enumerates.
     vTaskDelay(pdMS_TO_TICKS(USB_REENUMERATION_DELAY_MS));
@@ -268,6 +404,8 @@ static void restart_task(void *arg)
         initialized = false;
         portEXIT_CRITICAL(&state_lock);
 
+        ESP_LOGW(TAG, "Host requested USB %s via DTR/RTS",
+                 restart_type == USB_RESTART_BOOTLOADER ? "download" : "restart");
         cleanup_before_restart();
 
         // ESP32-S31 has no public restart-to-download API in the selected IDF.

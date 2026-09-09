@@ -25,12 +25,13 @@
 #include "esp_system.h"
 #include "esp_timer.h"
 #include "esp_board_device.h"
-#include "esp_board_manager.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_board_manager_defs.h"
 #include "esp_video_device.h"
 #include "dev_camera.h"
 #include "driver/gpio.h"
 #include "brookesia/lib_utils/function_guard.hpp"
+#include "brookesia/hal_interface/lifecycle.h"
 #include "camera_impl.hpp"
 #include "private/utils.hpp"
 #if BROOKESIA_HAL_ADAPTOR_VIDEO_CAMERA_REQUIRES_EXPANSION_RUNTIME
@@ -50,11 +51,20 @@ namespace {
 std::mutex camera_board_manager_mutex;
 
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
-constexpr size_t DEVICE_DEINIT_RETRY_COUNT = 3;
+// A failed final deinit outlives whichever discovery/encoder interface initiated
+// it. No allocation or destructor retry is needed to transfer the remaining pin.
+struct PendingCameraCleanup {
+    bool camera_initialized = false;
+    bool expansion_runtime_retained = false;
+    uint64_t generation = 0;
+};
+
+PendingCameraCleanup pending_camera_cleanup;
+uint64_t next_cleanup_generation = 1;
 
 std::optional<video::EncoderSinkFormat> map_v4l2_pixelformat(uint32_t pixelformat);
 std::vector<video::EncoderSinkFormat> enumerate_supported_formats(const char *device_path);
-bool deinit_board_device_with_retry(const char *device_name, std::string *error_message);
+bool deinit_board_camera(std::string *error_message);
 #endif
 
 } // namespace
@@ -70,7 +80,8 @@ VideoCameraDeviceSession::~VideoCameraDeviceSession()
 bool VideoCameraDeviceSession::is_board_camera_declared()
 {
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
-    return esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_CAMERA);
+    detail::LifecycleGuard lifecycle_guard;
+    return brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_CAMERA);
 #else
     return false;
 #endif
@@ -79,8 +90,9 @@ bool VideoCameraDeviceSession::is_board_camera_declared()
 bool VideoCameraDeviceSession::get_declared_device_path(std::string &device_path)
 {
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
+    detail::LifecycleGuard lifecycle_guard;
     void *config_ptr = nullptr;
-    auto ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_CAMERA, &config_ptr);
+    auto ret = brookesia_hal_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_CAMERA, &config_ptr);
     if ((ret != ESP_OK) || (config_ptr == nullptr)) {
         return false;
     }
@@ -112,11 +124,24 @@ bool VideoCameraDeviceSession::open(std::string &error_message)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     std::lock_guard lock(camera_board_manager_mutex);
+    {
+        detail::LifecycleGuard lifecycle_guard;
+        if (!recover_pending_cleanup_locked(error_message)) {
+            return false;
+        }
+    }
     if (!retain_expansion_runtime(error_message)) {
         return false;
     }
 
-    const bool result = open_locked(error_message);
+    bool result;
+    {
+        // Keep init, handle lookup, node validation and rollback one BM transaction.
+        // A board's claim dependency may wait for scan readiness. Its scan path
+        // must use already-owned hardware without acquiring this lifecycle gate.
+        detail::LifecycleGuard lifecycle_guard;
+        result = open_locked(error_message);
+    }
     if (!result && !camera_initialized_) {
         release_expansion_runtime();
     }
@@ -139,7 +164,7 @@ bool VideoCameraDeviceSession::open_locked(std::string &error_message)
         close_locked(nullptr);
     });
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_CAMERA);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_CAMERA);
     if (ret != ESP_OK) {
         error_message = std::string("Failed to initialize board camera: ") + esp_err_to_name(ret);
         return false;
@@ -147,7 +172,7 @@ bool VideoCameraDeviceSession::open_locked(std::string &error_message)
     camera_initialized_ = true;
 
     dev_camera_handle_t *camera_handle = nullptr;
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_CAMERA, reinterpret_cast<void **>(&camera_handle));
+    ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_CAMERA, reinterpret_cast<void **>(&camera_handle));
     if (ret != ESP_OK) {
         error_message = std::string("Failed to get board camera handle: ") + esp_err_to_name(ret);
         return false;
@@ -165,7 +190,14 @@ bool VideoCameraDeviceSession::open_locked(std::string &error_message)
                          device_path_ % open_errno).str();
         return false;
     }
-    ::close(camera_fd);
+    if (::close(camera_fd) != 0) {
+        const int close_errno = errno;
+        error_message = (boost::format("Failed to close board camera probe %1% (errno=%2%)") %
+                         device_path_ % close_errno).str();
+        // IDF VFS unregisters this descriptor even when the driver's close fails.
+        // Never retry the descriptor; let board cleanup preserve any live video owner.
+        return false;
+    }
 
     rollback_guard.release();
     BROOKESIA_LOGI("Board camera session opened: %1%", device_path_);
@@ -181,8 +213,11 @@ bool VideoCameraDeviceSession::close(std::string *error_message)
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     std::lock_guard lock(camera_board_manager_mutex);
-    if (!close_locked(error_message)) {
-        return false;
+    {
+        detail::LifecycleGuard lifecycle_guard;
+        if (!close_locked(error_message)) {
+            return false;
+        }
     }
     release_expansion_runtime();
     return true;
@@ -191,14 +226,56 @@ bool VideoCameraDeviceSession::close(std::string *error_message)
 bool VideoCameraDeviceSession::close_locked(std::string *error_message)
 {
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
+    if (pending_cleanup_generation_ != 0) {
+        if (pending_camera_cleanup.camera_initialized &&
+                (pending_camera_cleanup.generation == pending_cleanup_generation_)) {
+            if (error_message) {
+                *error_message = "Camera cleanup is pending; a subsequent open must recover it";
+            }
+            return false;
+        }
+        pending_cleanup_generation_ = 0;
+    }
     if (camera_initialized_) {
-        if (!deinit_board_device_with_retry(ESP_BOARD_DEVICE_NAME_CAMERA, error_message)) {
+        if (!deinit_board_camera(error_message)) {
+            // The DVP callback retains its wrapper on errors. It either permits
+            // video cleanup on a later open, or returns a latched terminal error
+            // without touching an ambiguously consumed I2C handle again.
+            pending_camera_cleanup.camera_initialized = true;
+            pending_camera_cleanup.expansion_runtime_retained = expansion_runtime_retained_;
+            pending_camera_cleanup.generation = next_cleanup_generation++;
+            if (next_cleanup_generation == 0) {
+                ++next_cleanup_generation;
+            }
+            pending_cleanup_generation_ = pending_camera_cleanup.generation;
+            camera_initialized_ = false;
+            expansion_runtime_retained_ = false;
+            device_path_.clear();
             return false;
         }
         camera_initialized_ = false;
     }
 #endif
     device_path_.clear();
+    return true;
+}
+
+bool VideoCameraDeviceSession::recover_pending_cleanup_locked(std::string &error_message)
+{
+#ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
+    if (pending_camera_cleanup.camera_initialized) {
+        if (!deinit_board_camera(&error_message)) {
+            return false;
+        }
+        // Transfer the existing runtime consumer instead of briefly stopping
+        // scanning between recovery and this session's new camera initialization.
+        expansion_runtime_retained_ = pending_camera_cleanup.expansion_runtime_retained;
+        pending_camera_cleanup = {};
+    }
+    pending_cleanup_generation_ = 0;
+#else
+    (void)error_message;
+#endif
     return true;
 }
 
@@ -242,30 +319,17 @@ std::vector<VideoCameraImpl::DeviceInfo> VideoCameraImpl::get_device_infos() con
     std::vector<DeviceInfo> devices;
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
     std::string error_message;
-    if (pending_cleanup_session_) {
-        if (!pending_cleanup_session_->close(&error_message)) {
-            BROOKESIA_LOGW("Pending camera discovery cleanup still failed: %1%", error_message);
-            return devices;
-        }
-        pending_cleanup_session_.reset();
-    }
-
-    auto session = std::make_unique<VideoCameraDeviceSession>();
-    if (!session->open(error_message)) {
-        std::string cleanup_error;
-        if (!session->close(&cleanup_error)) {
-            BROOKESIA_LOGW("Camera discovery rollback failed: %1%", cleanup_error);
-            pending_cleanup_session_ = std::move(session);
-        }
+    VideoCameraDeviceSession session;
+    if (!session.open(error_message)) {
         BROOKESIA_LOGD("Camera discovery skipped: %1%", error_message);
         return devices;
     }
 
-    auto supported_formats = enumerate_supported_formats(session->get_device_path().c_str());
+    auto supported_formats = enumerate_supported_formats(session.get_device_path().c_str());
     devices.push_back({
         .id = 0,
         .name = ESP_BOARD_DEVICE_NAME_CAMERA,
-        .device_path = session->get_device_path(),
+        .device_path = session.get_device_path(),
         .supported_formats = std::move(supported_formats),
     });
     BROOKESIA_LOGI(
@@ -273,9 +337,8 @@ std::vector<VideoCameraImpl::DeviceInfo> VideoCameraImpl::get_device_infos() con
         devices.back().device_path, devices.back().supported_formats.size()
     );
 
-    if (!session->close(&error_message)) {
+    if (!session.close(&error_message)) {
         BROOKESIA_LOGW("Camera discovery cleanup failed: %1%", error_message);
-        pending_cleanup_session_ = std::move(session);
         devices.clear();
     }
 #else
@@ -287,23 +350,14 @@ std::vector<VideoCameraImpl::DeviceInfo> VideoCameraImpl::get_device_infos() con
 #ifdef CONFIG_ESP_BOARD_DEV_CAMERA_SUPPORT
 namespace {
 
-bool deinit_board_device_with_retry(const char *device_name, std::string *error_message)
+bool deinit_board_camera(std::string *error_message)
 {
-    esp_err_t ret = ESP_FAIL;
-    for (size_t attempt = 0; attempt < DEVICE_DEINIT_RETRY_COUNT; attempt++) {
-        ret = esp_board_manager_deinit_device_by_name(device_name);
-        if (ret == ESP_OK) {
-            return true;
-        }
-        BROOKESIA_LOGW(
-            "Failed to deinitialize board device %1% (attempt %2%/%3%): %4%",
-            device_name, attempt + 1, DEVICE_DEINIT_RETRY_COUNT, esp_err_to_name(ret)
-        );
+    const auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_CAMERA);
+    if (ret == ESP_OK) {
+        return true;
     }
-
     if (error_message != nullptr) {
-        *error_message = (boost::format("Failed to deinitialize board device %1% after %2% attempts: %3%") %
-                          device_name % DEVICE_DEINIT_RETRY_COUNT % esp_err_to_name(ret)).str();
+        *error_message = std::string("Failed to deinitialize board camera: ") + esp_err_to_name(ret);
     }
     return false;
 }

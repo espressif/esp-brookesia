@@ -24,6 +24,7 @@
     BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND || \
     BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #endif
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SPIFFS
 #include "esp_spiffs.h"
@@ -278,7 +279,7 @@ bool StorageFileSystemImpl::init_spiffs()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS)) {
         BROOKESIA_LOGW("SPIFFS device not found, skip");
         return false;
     }
@@ -286,7 +287,7 @@ bool StorageFileSystemImpl::init_spiffs()
     esp_err_t ret = ESP_OK;
     auto init_func = [&ret]() {
         BROOKESIA_LOG_TRACE_GUARD();
-        ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+        ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
     };
     if (!lib_utils::ThreadConfig::check_stack_cache_safe()) {
         // Since initializing SPIFFS operates on Flash,
@@ -301,15 +302,15 @@ bool StorageFileSystemImpl::init_spiffs()
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SPIFFS");
     lib_utils::FunctionGuard deinit_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+        brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
     });
 
     dev_fs_spiffs_config_t *cfg = NULL;
-    ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_FS_SPIFFS, reinterpret_cast<void **>(&cfg));
+    ret = brookesia_hal_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_FS_SPIFFS, reinterpret_cast<void **>(&cfg));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SPIFFS configuration");
     BROOKESIA_CHECK_NULL_RETURN(cfg, false, "Failed to get SPIFFS configuration");
 
-    esp_board_device_show(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    brookesia_hal_board_device_show(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
 
     add_entry(Info {
         .fs_type = FileSystemType::SPIFFS,
@@ -327,7 +328,7 @@ void StorageFileSystemImpl::deinit_spiffs()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
+    auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SPIFFS);
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinitialize SPIFFS"); });
 }
 #endif
@@ -475,25 +476,26 @@ void StorageFileSystemImpl::deinit_fatfs_flash()
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
 bool StorageFileSystemImpl::init_fatfs_nand()
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(FATFS_NAND_DEVICE_NAME)) {
+    if (!brookesia_hal_board_manager_check_name(FATFS_NAND_DEVICE_NAME)) {
         BROOKESIA_LOGW("SPI NAND device not found, skip");
         return false;
     }
     BROOKESIA_CHECK_NULL_RETURN(fs_nand_get_bdl_handle, false, "SPI NAND BDL API is unavailable");
 
-    auto ret = esp_board_manager_init_device_by_name(FATFS_NAND_DEVICE_NAME);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(FATFS_NAND_DEVICE_NAME);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SPI NAND device");
     lib_utils::FunctionGuard deinit_guard([]() {
-        auto deinit_ret = esp_board_manager_deinit_device_by_name(FATFS_NAND_DEVICE_NAME);
+        auto deinit_ret = brookesia_hal_board_manager_deinit_device_by_name(FATFS_NAND_DEVICE_NAME);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(
             deinit_ret, {}, { BROOKESIA_LOGE("Failed to release SPI NAND after initialization failure"); }
         );
     });
 
     void *device_handle = nullptr;
-    ret = esp_board_manager_get_device_handle(FATFS_NAND_DEVICE_NAME, &device_handle);
+    ret = brookesia_hal_board_manager_get_device_handle(FATFS_NAND_DEVICE_NAME, &device_handle);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SPI NAND device handle");
     BROOKESIA_CHECK_NULL_RETURN(device_handle, false, "SPI NAND device handle is null");
 
@@ -565,7 +567,7 @@ void StorageFileSystemImpl::deinit_fatfs_nand()
         ret, {}, { BROOKESIA_LOGE("Failed to unmount SPI NAND FATFS"); }
     );
 
-    ret = esp_board_manager_deinit_device_by_name(FATFS_NAND_DEVICE_NAME);
+    ret = brookesia_hal_board_manager_deinit_device_by_name(FATFS_NAND_DEVICE_NAME);
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(
         ret, {}, { BROOKESIA_LOGE("Failed to deinitialize SPI NAND device"); }
     );
@@ -578,26 +580,27 @@ void StorageFileSystemImpl::deinit_fatfs_nand()
 #if BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD
 bool StorageFileSystemImpl::init_sdcard()
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD)) {
         BROOKESIA_LOGW("SD card device not found, skip");
         return false;
     }
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to initialize SD card");
     lib_utils::FunctionGuard deinit_guard([this]() {
         BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-        esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
+        brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     });
 
     dev_fs_fat_config_t *cfg = NULL;
-    ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_FS_SDCARD, reinterpret_cast<void **>(&cfg));
+    ret = brookesia_hal_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_FS_SDCARD, reinterpret_cast<void **>(&cfg));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get SD card configuration");
     BROOKESIA_CHECK_NULL_RETURN(cfg, false, "Failed to get SD card configuration");
 
-    esp_board_device_show(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
+    brookesia_hal_board_device_show(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
 
     add_entry(Info {
         .fs_type = FileSystemType::FATFS,
@@ -616,7 +619,7 @@ void StorageFileSystemImpl::deinit_sdcard()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
+    auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_FS_SDCARD);
     BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinitialize SD card"); });
 }
 #endif

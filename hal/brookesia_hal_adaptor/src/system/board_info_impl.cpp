@@ -13,6 +13,7 @@
 
 #if BROOKESIA_HAL_ADAPTOR_SYSTEM_ENABLE_BOARD_INFO_IMPL
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 
 namespace esp_brookesia::hal {
 
@@ -25,7 +26,7 @@ std::string to_string_or_empty(const char *value)
 system::BoardInfoIface::Info generate_info()
 {
     esp_board_info_t board_info = {};
-    auto ret = esp_board_manager_get_board_info(&board_info);
+    auto ret = brookesia_hal_board_manager_get_board_info(&board_info);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, {}, "Failed to get board info");
 
     return system::BoardInfoIface::Info {

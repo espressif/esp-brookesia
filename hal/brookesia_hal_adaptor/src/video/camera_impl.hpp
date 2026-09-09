@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -25,7 +26,6 @@ public:
 
 private:
     mutable std::mutex discovery_mutex_;
-    mutable std::unique_ptr<VideoCameraDeviceSession> pending_cleanup_session_;
 };
 
 class VideoCameraDeviceSession {
@@ -49,11 +49,13 @@ public:
 private:
     bool open_locked(std::string &error_message);
     bool close_locked(std::string *error_message);
+    bool recover_pending_cleanup_locked(std::string &error_message);
     bool retain_expansion_runtime(std::string &error_message);
     void release_expansion_runtime();
 
     bool camera_initialized_ = false;
     bool expansion_runtime_retained_ = false;
+    uint64_t pending_cleanup_generation_ = 0;
     std::string device_path_;
 };
 

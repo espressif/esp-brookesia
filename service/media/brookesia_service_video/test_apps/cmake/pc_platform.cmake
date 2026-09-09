@@ -6,19 +6,19 @@ set(
 
 if(NOT TARGET brookesia::lib_utils)
     add_subdirectory(
-        ${TEST_APP_DIR}/../../../utils/brookesia_lib_utils
+        ${TEST_APP_DIR}/../../../../utils/brookesia_lib_utils
         ${CMAKE_BINARY_DIR}/brookesia_lib_utils
     )
 endif()
 if(NOT TARGET brookesia::service_manager)
     add_subdirectory(
-        /../../../framework/brookesia_service_manager
+        ${TEST_APP_DIR}/../../../framework/brookesia_service_manager
         ${CMAKE_BINARY_DIR}/brookesia_service_manager
     )
 endif()
 if(NOT TARGET brookesia::service_helper)
     add_subdirectory(
-        /../../../framework/brookesia_service_helper
+        ${TEST_APP_DIR}/../../../framework/brookesia_service_helper
         ${CMAKE_BINARY_DIR}/brookesia_service_helper
     )
 endif()
@@ -28,16 +28,19 @@ file(GLOB TEST_APP_SRCS_CPP ${TEST_APP_MAIN_DIR}/*.cpp)
 add_executable(test_brookesia_service_video ${TEST_APP_SRCS_CPP})
 
 find_package(Boost COMPONENTS unit_test_framework QUIET)
-if(Boost_unit_test_framework_FOUND)
+if(Boost_unit_test_framework_FOUND AND NOT Boost_USE_STATIC_LIBS)
     target_link_libraries(test_brookesia_service_video PRIVATE Boost::unit_test_framework)
     target_compile_definitions(test_brookesia_service_video PRIVATE BOOST_TEST_DYN_LINK)
 else()
-    if("${BROOKESIA_TEST_BOOST_ROOT}" STREQUAL "")
+    if(NOT Boost_unit_test_framework_FOUND AND "${BROOKESIA_TEST_BOOST_ROOT}" STREQUAL "")
         message(FATAL_ERROR "Boost.Test not found. Set BROOKESIA_TEST_BOOST_ROOT to an esp-boost/src path.")
     endif()
-    target_include_directories(test_brookesia_service_video PRIVATE ${BROOKESIA_TEST_BOOST_ROOT})
+    if(NOT "${BROOKESIA_TEST_BOOST_ROOT}" STREQUAL "")
+        target_include_directories(test_brookesia_service_video PRIVATE ${BROOKESIA_TEST_BOOST_ROOT})
+    endif()
     target_compile_definitions(test_brookesia_service_video PRIVATE
         BROOKESIA_LIB_UTILS_TEST_ADAPTER_USE_INCLUDED_BOOST_TEST=1
+        BOOST_TEST_ALTERNATIVE_INIT_API=1
     )
 endif()
 

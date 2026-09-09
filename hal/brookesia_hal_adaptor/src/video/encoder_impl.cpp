@@ -69,6 +69,10 @@ bool VideoEncoderImpl::open(
 
     std::lock_guard lifecycle_lock(lifecycle_mutex_);
 
+    if (is_stopping_) {
+        set_error(error_message, "Encoder is stopping");
+        return false;
+    }
     if (capture_handle_ != nullptr) {
         set_error(error_message, "Encoder is already opened, please close it first");
         return false;
@@ -115,13 +119,6 @@ bool VideoEncoderImpl::open(
                     camera_session_ = std::move(board_camera_session);
                 }
             } else {
-                std::string cleanup_error;
-                if (!board_camera_session->close(&cleanup_error)) {
-                    session_error += "; " + cleanup_error;
-                    // Preserve ownership so the next open()/close() can retry
-                    // the Board Manager and expansion-runtime cleanup.
-                    camera_session_ = std::move(board_camera_session);
-                }
                 set_error(error_message, std::move(session_error));
                 return false;
             }
@@ -177,10 +174,19 @@ void VideoEncoderImpl::close()
         return;
     }
 
-    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+    std::unique_lock lifecycle_lock(lifecycle_mutex_);
+    lifecycle_cv_.wait(lifecycle_lock, [this]() {
+        return !is_stopping_;
+    });
+    is_stopping_ = true;
+    const bool was_started = is_started_;
+    is_started_ = false;
     stop_accepting_frame_operations();
+    lifecycle_lock.unlock();
+    wait_for_frame_operations();
+    lifecycle_lock.lock();
 
-    if (is_started_) {
+    if (was_started) {
         const auto ret = video_capture_stop(VideoProcessorTypeConverter::to_capture_handle(capture_handle_));
         if (ret != ESP_OK) {
             BROOKESIA_LOGW(
@@ -203,6 +209,8 @@ void VideoEncoderImpl::close()
         BROOKESIA_LOGE("Failed to release camera session during encoder close: %1%", cleanup_error);
     }
 #endif
+    is_stopping_ = false;
+    lifecycle_cv_.notify_all();
 }
 
 bool VideoEncoderImpl::start(std::string *error_message)
@@ -211,6 +219,10 @@ bool VideoEncoderImpl::start(std::string *error_message)
 
     std::lock_guard lifecycle_lock(lifecycle_mutex_);
 
+    if (is_stopping_) {
+        set_error(error_message, "Encoder is stopping");
+        return false;
+    }
     if (capture_handle_ == nullptr) {
         set_error(error_message, "Encoder is not opened, please open it first");
         return false;
@@ -243,7 +255,10 @@ bool VideoEncoderImpl::stop(std::string *error_message)
         return false;
     }
 
-    std::lock_guard lifecycle_lock(lifecycle_mutex_);
+    std::unique_lock lifecycle_lock(lifecycle_mutex_);
+    lifecycle_cv_.wait(lifecycle_lock, [this]() {
+        return !is_stopping_;
+    });
     if (capture_handle_ == nullptr) {
         set_error(error_message, "Encoder is not opened, please open it first");
         return false;
@@ -252,11 +267,17 @@ bool VideoEncoderImpl::stop(std::string *error_message)
         return true;
     }
 
+    is_stopping_ = true;
+    is_started_ = false;
     stop_accepting_frame_operations();
+    lifecycle_lock.unlock();
+    wait_for_frame_operations();
+    lifecycle_lock.lock();
 
     auto ret = video_capture_stop(VideoProcessorTypeConverter::to_capture_handle(capture_handle_));
     // video_capture_stop tears down its capture pipeline even when cleanup reports an error.
-    is_started_ = false;
+    is_stopping_ = false;
+    lifecycle_cv_.notify_all();
     if (ret != ESP_OK) {
         set_error(
             error_message,
@@ -399,8 +420,15 @@ void VideoEncoderImpl::end_frame_operation()
 
 void VideoEncoderImpl::stop_accepting_frame_operations()
 {
-    std::unique_lock lock(frame_operation_mutex_);
+    std::lock_guard lock(frame_operation_mutex_);
     accepting_frame_operations_ = false;
+}
+
+void VideoEncoderImpl::wait_for_frame_operations()
+{
+    // The caller has already disabled new frames and released lifecycle_mutex_.
+    // In-flight user callbacks may query the encoder before returning their frame.
+    std::unique_lock lock(frame_operation_mutex_);
     frame_operation_cv_.wait(lock, [this]() {
         return active_frame_operations_ == 0;
     });
@@ -430,12 +458,15 @@ bool VideoEncoderImpl::release_camera_session(std::string *error_message)
     }
 
     std::string cleanup_error;
-    if (!camera_session_->close(&cleanup_error)) {
+    const bool result = camera_session_->close(&cleanup_error);
+    // A failed camera close has handed its retained resources to the persistent
+    // camera owner. Destroying this interface must not immediately retry deinit.
+    camera_session_.reset();
+    if (!result) {
         set_error(error_message, std::move(cleanup_error));
         return false;
     }
 
-    camera_session_.reset();
     return true;
 }
 #endif

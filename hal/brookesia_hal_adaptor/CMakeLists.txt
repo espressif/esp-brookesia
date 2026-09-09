@@ -114,6 +114,26 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
     endif()
 endfunction()
 
+# A cached dependency can still contain a retired workaround. Do not silently
+# build it, or overwrite source edits which are not owned by this component.
+function(brookesia_hal_adaptor_check_retired_patch component_name relative_file marker)
+    idf_build_get_property(_build_components BUILD_COMPONENTS)
+    if(NOT "${component_name}" IN_LIST _build_components)
+        return()
+    endif()
+    idf_component_get_property(_component_dir ${component_name} COMPONENT_DIR)
+    if(EXISTS "${_component_dir}/${relative_file}")
+        file(READ "${_component_dir}/${relative_file}" _source)
+        string(FIND "${_source}" "${marker}" _marker_position)
+        if(NOT _marker_position EQUAL -1)
+            message(FATAL_ERROR
+                "brookesia_hal_adaptor: retired workaround found in ${_component_dir}/${relative_file}. "
+                "Reverse the exact previous patch, or restore this dependency from its locked version; "
+                "unrecognized source edits will not be overwritten.")
+        endif()
+    endif()
+endfunction()
+
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_NVS_FLASH FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_LITTLEFS FALSE)
@@ -273,6 +293,7 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_BT_DEVICE)
         ${COMPONENT_DIR}/src/bluetooth/a2dp_sink.cpp
     )
     set(BROOKESIA_HAL_ADAPTOR_NEEDS_BT_STACK TRUE)
+    set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER TRUE)
     if(CONFIG_BT_CONTROLLER_ENABLED AND CONFIG_BT_CLASSIC_ENABLED AND CONFIG_BT_BLUEDROID_ENABLED AND CONFIG_BT_A2DP_ENABLE AND
        CONFIG_ESP_BT_AUDIO_GMF_IO_SUPPORT)
         set(BROOKESIA_HAL_ADAPTOR_NEEDS_BT_AUDIO TRUE)
@@ -289,6 +310,10 @@ endif()
 
 if(BROOKESIA_HAL_ADAPTOR_NEEDS_NVS_FLASH)
     brookesia_hal_adaptor_append_sources(${COMPONENT_DIR}/src/private/nvs_flash_manager.cpp)
+endif()
+
+if(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER)
+    brookesia_hal_adaptor_append_sources(${COMPONENT_DIR}/src/private/board_manager.cpp)
 endif()
 
 #
@@ -309,16 +334,30 @@ idf_component_register(
 # (media_lib_sal) or a managed component (espressif__media_lib_sal).
 #
 find_package(Git QUIET)
+foreach(_prefix "" "espressif__")
+    brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_board_manager
+        src/esp_board_device.c "s_device_lifecycle_lock")
+    brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_video
+        src/esp_video_init.c "No DVP camera sensor was detected")
+    brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_video
+        src/esp_video_init.c "sccb_i2c_log_level")
+    foreach(_sensor ov3640 sc101iot)
+        brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_cam_sensor
+            sensors/${_sensor}/${_sensor}.c "ESP_LOGD(TAG, \"Get sensor ID failed\")")
+    endforeach()
+endforeach()
 set(BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH
     ${COMPONENT_DIR}/tools/media_lib_sal_esp_tls_idf6.patch
 )
 brookesia_hal_adaptor_apply_component_patch(media_lib_sal
     ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
     port/media_lib_tls_default.c
+    REQUIRED
 )
 brookesia_hal_adaptor_apply_component_patch(espressif__media_lib_sal
     ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
     port/media_lib_tls_default.c
+    REQUIRED
 )
 
 if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
@@ -341,27 +380,9 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
     )
 endif()
 
-if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES)
-    # Board Manager 0.5.x does not serialize recursive device dependency
-    # lifecycle operations. Expansion scanning and camera clients can otherwise
-    # race while updating shared handles and reference counts.
-    set(BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_DEVICE_LOCK_PATCH
-        ${COMPONENT_DIR}/tools/esp_board_manager_device_lifecycle_lock.patch
-    )
-    brookesia_hal_adaptor_apply_component_patch(esp_board_manager
-        ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_DEVICE_LOCK_PATCH}
-        src/esp_board_device.c
-        REQUIRED
-    )
-    brookesia_hal_adaptor_apply_component_patch(espressif__esp_board_manager
-        ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_DEVICE_LOCK_PATCH}
-        src/esp_board_device.c
-        REQUIRED
-    )
-
-    # The same release path loses its live peripheral reference when a
-    # low-level deinitializer fails. Expansion providers need that reference
-    # for retryable reverse-order cleanup.
+if(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER)
+    # A failed low-level teardown may already consume its handle. Quarantine
+    # the peripheral instead of restoring a reference to an uncertain pointer.
     set(BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_PERIPH_PATCH
         ${COMPONENT_DIR}/tools/esp_board_manager_periph_deinit_retry.patch
     )
@@ -391,19 +412,6 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
     )
     brookesia_hal_adaptor_apply_component_patch(espressif__esp_video
         ${BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_PATCH}
-        src/esp_video_init.c
-        REQUIRED
-    )
-    set(BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_DETECT_REQUIRED_PATCH
-        ${COMPONENT_DIR}/tools/esp_video_dvp_detect_required.patch
-    )
-    brookesia_hal_adaptor_apply_component_patch(esp_video
-        ${BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_DETECT_REQUIRED_PATCH}
-        src/esp_video_init.c
-        REQUIRED
-    )
-    brookesia_hal_adaptor_apply_component_patch(espressif__esp_video
-        ${BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_DETECT_REQUIRED_PATCH}
         src/esp_video_init.c
         REQUIRED
     )

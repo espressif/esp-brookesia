@@ -10,7 +10,6 @@
 
 #include "esp_err.h"
 #include "esp_log.h"
-#include "esp_timer.h"
 #include "gen_board_device_custom.h"
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
@@ -22,6 +21,29 @@ static const char *TAG = "MOSAICO_EXPANSION";
 typedef struct {
     bool initialized;
 } expansion_module_manager_handle_t;
+
+/* BM custom teardown discards its wrapper even on error. The manager and this
+ * wrapper therefore live for the board lifetime and retain pending ownership. */
+static expansion_module_manager_handle_t manager_handle;
+static esp_err_t cleanup_error;
+
+esp_err_t esp_mosaico_expansion_cleanup_error(void)
+{
+    return cleanup_error;
+}
+
+esp_err_t esp_mosaico_expansion_cleanup(void)
+{
+#if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
+    cleanup_error = esp_mosaico_expansion_manager_deinit();
+    if (cleanup_error == ESP_OK) {
+        manager_handle.initialized = false;
+    }
+    return cleanup_error;
+#else
+    return ESP_ERR_NOT_SUPPORTED;
+#endif
+}
 
 static int expansion_module_manager_init(void *config, int cfg_size, void **device_handle)
 {
@@ -39,9 +61,12 @@ static int expansion_module_manager_init(void *config, int cfg_size, void **devi
         return ESP_ERR_INVALID_ARG;
     }
 
-    expansion_module_manager_handle_t *handle = calloc(1, sizeof(*handle));
-    if (handle == NULL) {
-        return ESP_ERR_NO_MEM;
+    expansion_module_manager_handle_t *handle = &manager_handle;
+    if (cleanup_error != ESP_OK) {
+        esp_err_t ret = esp_mosaico_expansion_cleanup();
+        if (ret != ESP_OK) {
+            return ret;
+        }
     }
 
     const esp_mosaico_expansion_manager_config_t mosaico_config = {
@@ -63,7 +88,6 @@ static int expansion_module_manager_init(void *config, int cfg_size, void **devi
     };
     esp_err_t ret = esp_mosaico_expansion_manager_init(&mosaico_config);
     if (ret != ESP_OK) {
-        free(handle);
         return ret;
     }
 
@@ -83,14 +107,7 @@ static int expansion_module_manager_deinit(void *device_handle)
     }
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
-    expansion_module_manager_handle_t *handle = device_handle;
-    esp_err_t ret = esp_mosaico_expansion_manager_deinit();
-    if (ret != ESP_OK) {
-        return ret;
-    }
-    handle->initialized = false;
-    free(handle);
-    return ESP_OK;
+    return esp_mosaico_expansion_cleanup();
 #else
     return ESP_ERR_NOT_SUPPORTED;
 #endif

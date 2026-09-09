@@ -1,28 +1,25 @@
-Make DVP camera shutdown retryable in esp_board_manager 0.5.x.
+Preserve DVP ownership and report staged cleanup errors in Board Manager 0.5.15.
 
-The generic camera device currently hides subtype deinitialization failures, and
-the DVP subtype frees its handle and I2C reference even when esp_video_deinit()
-fails.  Propagate DVP failures and retain its resources so the HAL adaptor can
-retry without restoring the shared Mosaico expansion pins too early.
+Video-close errors are retryable. Once video has closed, release its I2C reference
+exactly once; uncertain peripheral failures become terminal and retain the camera
+wrapper and slot dependencies. Generic camera error propagation changes DVP only.
 
 --- a/devices/dev_camera/dev_camera.c
 +++ b/devices/dev_camera/dev_camera.c
-@@ -5,6 +5,8 @@
+@@ -5,6 +5,7 @@
   * See LICENSE file for details.
   */
 
 +#include <string.h>
-+
  #include "esp_log.h"
  #include "dev_camera.h"
  #include "esp_board_device.h"
-@@ -54,7 +56,11 @@ int dev_camera_deinit(void *device_handle)
+@@ -56,7 +57,10 @@
              int ret = desc->deinit_func(device_handle);
              if (ret != 0) {
                  ESP_LOGE(TAG, "Sub device '%s' deinit failed with error: %d", cfg->sub_type, ret);
 -                // Continue with cleanup even if deinit failed
-+                // DVP keeps its handle and peripheral reference on failure, so
-+                // preserve the Board Manager device reference for a safe retry.
++                // DVP retains its wrapper and dependencies until cleanup completes.
 +                if (strcmp(cfg->sub_type, "dvp") == 0) {
 +                    return ret;
 +                }
@@ -31,20 +28,103 @@ retry without restoring the shared Mosaico expansion pins too early.
              }
 --- a/devices/dev_camera/dev_camera_sub_dvp.c
 +++ b/devices/dev_camera/dev_camera_sub_dvp.c
-@@ -74,6 +74,7 @@ int dev_camera_sub_dvp_deinit(void *device_handle)
-     esp_err_t ret = esp_video_deinit();
-     if (ret != ESP_OK) {
-         ESP_LOGE(TAG, "Failed to deinitialize DVP camera: %s", esp_err_to_name(ret));
-+        return -1;
+@@ -6,6 +6,7 @@
+  */
+
+ #include <string.h>
++#include <stdbool.h>
+ #include "esp_log.h"
+ #include "esp_video_init.h"
+ #include "dev_camera.h"
+@@ -15,6 +16,14 @@
+ #include "esp_video_device.h"
+
+ static const char *TAG = "DEV_CAMERA_SUB_DVP";
++
++/* Keep stage and ownership private; dev_camera_handle_t remains unchanged. */
++typedef struct {
++    dev_camera_handle_t base;
++    const char *i2c_name;
++    bool video_closed;
++    esp_err_t cleanup_error;
++} dvp_camera_runtime_t;
+
+ int dev_camera_sub_dvp_init(void *cfg, int cfg_size, void **device_handle)
+ {
+@@ -44,7 +53,7 @@
+     const esp_video_init_config_t cam_config = {
+         .dvp = &s_dvp_config,
+     };
+-    dev_camera_handle_t *handle = calloc(1, sizeof(dev_camera_handle_t));
++    dvp_camera_runtime_t *handle = calloc(1, sizeof(*handle));
+     if (handle == NULL) {
+         ESP_LOGE(TAG, "Failed to allocate memory");
+         goto cleanup;
+@@ -56,34 +65,50 @@
+         goto cleanup;
      }
 
-     dev_camera_config_t *cfg = NULL;
-@@ -82,7 +83,7 @@ int dev_camera_sub_dvp_deinit(void *device_handle)
-         esp_board_periph_unref_handle(cfg->sub_cfg.dvp.i2c_name);
+-    handle->dev_path = ESP_VIDEO_DVP_DEVICE_NAME;
++    handle->base.dev_path = ESP_VIDEO_DVP_DEVICE_NAME;
++    handle->i2c_name = config->sub_cfg.dvp.i2c_name;
+     *device_handle = handle;
+-    ESP_LOGI(TAG, "DVP camera initialized successfully, dev_path: %s", handle->dev_path);
++    ESP_LOGI(TAG, "DVP camera initialized successfully, dev_path: %s", handle->base.dev_path);
+     return 0;
+ cleanup:
+-    esp_board_periph_unref_handle(config->sub_cfg.dvp.i2c_name);
++    ret = esp_board_periph_unref_handle(config->sub_cfg.dvp.i2c_name);
++    if (ret != ESP_OK) {
++        ESP_LOGE(TAG, "DVP init rollback failed; I2C isolated: %s", esp_err_to_name(ret));
++    }
+     return -1;
+ }
+
+ int dev_camera_sub_dvp_deinit(void *device_handle)
+ {
+-    dev_camera_handle_t *handle = (dev_camera_handle_t *)device_handle;
+-    ESP_LOGI(TAG, "Deinitializing DVP camera...");
+-
+-    // Deinitialize DVP camera
+-    // In the current version of esp_video(1.4.0), it will deinit all cameras that have been initialized
+-    esp_err_t ret = esp_video_deinit();
+-    if (ret != ESP_OK) {
+-        ESP_LOGE(TAG, "Failed to deinitialize DVP camera: %s", esp_err_to_name(ret));
++    dvp_camera_runtime_t *handle = (dvp_camera_runtime_t *)device_handle;
++    if (!handle) {
++        return ESP_ERR_INVALID_ARG;
++    }
++    if (handle->cleanup_error != ESP_OK) {
++        return handle->cleanup_error;
      }
-     free(device_handle);
+
+-    dev_camera_config_t *cfg = NULL;
+-    esp_board_device_get_config_by_handle(handle, (void **)&cfg);
+-    if (cfg) {
+-        esp_board_periph_unref_handle(cfg->sub_cfg.dvp.i2c_name);
++    /* An open video descriptor keeps the camera and slot dependencies alive.
++     * Completed stages must not run again on a later cleanup attempt. */
++    if (!handle->video_closed) {
++        esp_err_t ret = esp_video_deinit();
++        if (ret != ESP_OK) {
++            ESP_LOGE(TAG, "Failed to deinitialize DVP video: %s", esp_err_to_name(ret));
++            return ret;
++        }
++        handle->video_closed = true;
+     }
+-    free(device_handle);
 -    return ret == ESP_OK ? 0 : -1;
-+    return 0;
++
++    esp_err_t ret = esp_board_periph_unref_handle(handle->i2c_name);
++    if (ret != ESP_OK) {
++        /* The peripheral wrapper isolates an uncertain release. Preserve this
++         * owner and its device dependencies, but never touch the driver again. */
++        handle->cleanup_error = ret;
++        ESP_LOGE(TAG, "DVP peripheral cleanup failed; restart required: %s", esp_err_to_name(ret));
++        return ret;
++    }
++    free(handle);
++    return ESP_OK;
  }
 
  ESP_BOARD_SUBTYPE_ENTRY_IMPLEMENT(camera, dvp, dev_camera_sub_dvp_init, dev_camera_sub_dvp_deinit);

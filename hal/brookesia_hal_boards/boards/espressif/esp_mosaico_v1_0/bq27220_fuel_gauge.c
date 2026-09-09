@@ -7,7 +7,7 @@
 #include "bq27220_fuel_gauge.h"
 #include "driver/i2c_master.h"
 #include "esp_bit_defs.h"
-#include "esp_board_periph.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "gen_board_device_custom.h"
@@ -24,7 +24,15 @@ enum {
 typedef struct {
     i2c_master_dev_handle_t i2c_device;
     const char *peripheral_name;
+    bool peripheral_referenced;
+    bool cleanup_started;
+    esp_err_t peripheral_error;
 } bq27220_handle_t;
+
+static bq27220_handle_t *pending_cleanup;
+static esp_err_t last_cleanup_error;
+
+static esp_err_t cleanup_handle(bq27220_handle_t *handle);
 
 static esp_err_t bq27220_read_u16(
     i2c_master_dev_handle_t device, uint8_t register_address, uint16_t *value
@@ -49,6 +57,9 @@ esp_err_t bq27220_fuel_gauge_get_snapshot(
     }
 
     bq27220_handle_t *handle = device_handle;
+    if (handle->cleanup_started || handle->i2c_device == NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
     uint16_t battery_status = 0;
     uint16_t voltage_mv = 0;
     esp_err_t ret = bq27220_read_u16(handle->i2c_device, BQ27220_REG_BATTERY_STATUS, &battery_status);
@@ -68,6 +79,25 @@ esp_err_t bq27220_fuel_gauge_get_snapshot(
     return ESP_OK;
 }
 
+bool bq27220_fuel_gauge_cleanup_pending(void)
+{
+    return pending_cleanup != NULL;
+}
+
+esp_err_t bq27220_fuel_gauge_cleanup_error(void)
+{
+    return last_cleanup_error;
+}
+
+esp_err_t bq27220_fuel_gauge_cleanup(void)
+{
+    if (pending_cleanup == NULL) {
+        return ESP_OK;
+    }
+    last_cleanup_error = cleanup_handle(pending_cleanup);
+    return last_cleanup_error;
+}
+
 static int bq27220_fuel_gauge_init(void *config, int cfg_size, void **device_handle)
 {
     if (config == NULL || device_handle == NULL ||
@@ -75,6 +105,12 @@ static int bq27220_fuel_gauge_init(void *config, int cfg_size, void **device_han
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
+    *device_handle = NULL;
+    esp_err_t ret = bq27220_fuel_gauge_cleanup();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    last_cleanup_error = ESP_OK;
 
     const dev_custom_bq27220_fuel_gauge_config_t *fuel_gauge_config = config;
     bq27220_handle_t *handle = calloc(1, sizeof(*handle));
@@ -84,11 +120,12 @@ static int bq27220_fuel_gauge_init(void *config, int cfg_size, void **device_han
     handle->peripheral_name = fuel_gauge_config->peripheral_name;
 
     i2c_master_bus_handle_t i2c_bus = NULL;
-    esp_err_t ret = esp_board_periph_ref_handle(handle->peripheral_name, (void **)&i2c_bus);
+    ret = brookesia_hal_board_periph_ref_handle(handle->peripheral_name, (void **)&i2c_bus);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to acquire I2C bus: %s", esp_err_to_name(ret));
         goto fail;
     }
+    handle->peripheral_referenced = true;
 
     const i2c_device_config_t i2c_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -98,25 +135,23 @@ static int bq27220_fuel_gauge_init(void *config, int cfg_size, void **device_han
     ret = i2c_master_bus_add_device(i2c_bus, &i2c_config, &handle->i2c_device);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to add BQ27220 to I2C bus: %s", esp_err_to_name(ret));
-        goto fail_unref;
+        goto fail;
     }
 
     bq27220_fuel_gauge_snapshot_t snapshot = {};
     ret = bq27220_fuel_gauge_get_snapshot(handle, &snapshot);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to probe BQ27220: %s", esp_err_to_name(ret));
-        goto fail_remove_device;
+        goto fail;
     }
 
     *device_handle = handle;
     return ESP_OK;
 
-fail_remove_device:
-    i2c_master_bus_rm_device(handle->i2c_device);
-fail_unref:
-    esp_board_periph_unref_handle(handle->peripheral_name);
 fail:
-    free(handle);
+    handle->cleanup_started = true;
+    pending_cleanup = handle;
+    (void)bq27220_fuel_gauge_cleanup();
     return ret;
 }
 
@@ -127,14 +162,37 @@ static int bq27220_fuel_gauge_deinit(void *device_handle)
     }
 
     bq27220_handle_t *handle = device_handle;
-    esp_err_t ret = i2c_master_bus_rm_device(handle->i2c_device);
-    esp_err_t unref_ret = esp_board_periph_unref_handle(handle->peripheral_name);
-    free(handle);
+    handle->cleanup_started = true;
+    /* The BM custom dispatcher consumes its reference even when cleanup fails. */
+    pending_cleanup = handle;
+    return bq27220_fuel_gauge_cleanup();
+}
 
-    if (ret != ESP_OK) {
-        return ret;
+static esp_err_t cleanup_handle(bq27220_handle_t *handle)
+{
+    if (handle->peripheral_error != ESP_OK) {
+        return handle->peripheral_error;
     }
-    return unref_ret;
+    if (handle->i2c_device != NULL) {
+        esp_err_t ret = i2c_master_bus_rm_device(handle->i2c_device);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "BQ27220 I2C device is still attached: %s", esp_err_to_name(ret));
+            return ret;
+        }
+        handle->i2c_device = NULL;
+    }
+    if (handle->peripheral_referenced) {
+        handle->peripheral_referenced = false;
+        esp_err_t ret = brookesia_hal_board_periph_unref_handle(handle->peripheral_name);
+        if (ret != ESP_OK) {
+            handle->peripheral_error = ret;
+            ESP_LOGE(TAG, "BQ27220 I2C release outcome is unknown; restart required: %s", esp_err_to_name(ret));
+            return ret;
+        }
+    }
+    pending_cleanup = NULL;
+    free(handle);
+    return ESP_OK;
 }
 
 CUSTOM_DEVICE_IMPLEMENT(bq27220_fuel_gauge, bq27220_fuel_gauge_init, bq27220_fuel_gauge_deinit);

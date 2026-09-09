@@ -11,6 +11,13 @@ CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP=y
 
 # Mosaico USB CDC console and software-assisted download
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+# DVP D2 shares GPIO33 with USB Serial/JTAG. The console uses TinyUSB instead.
+CONFIG_ESP_CONSOLE_SECONDARY_NONE=y
+CONFIG_BROOKESIA_SERVICE_USB_ENABLE_AUTO_REGISTER=n
+CONFIG_BROOKESIA_SYSTEM_CORE_ENABLE_USB_BRIDGE=n
+# Console, UART, null, sockets, TinyUSB, LittleFS, NAND and video need VFS slots.
+# Leave headroom for additional devices in applications such as System Super.
+CONFIG_VFS_MAX_COUNT=12
 CONFIG_BSP_USB_CONSOLE=y
 CONFIG_BSP_USB_CONSOLE_AUTO_INIT=y
 CONFIG_BSP_USB_AUTO_DOWNLOAD=y

@@ -14,11 +14,10 @@
 
 #include "driver/i2c_master.h"
 #include "esp_bit_defs.h"
-#include "esp_board_periph.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_check.h"
 #include "esp_log.h"
 #include "esp_system.h"
-#include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "freertos/task.h"
@@ -46,6 +45,7 @@ typedef struct {
     bool scan_paused;
     bool address_restore_pending;
     bool camera_resource_claimed;
+    esp_err_t peripheral_error;
     bool usj_pad_was_enabled;
     bool usj_clock_was_enabled;
     uint32_t usj_interrupt_mask;
@@ -69,6 +69,7 @@ static esp_err_t attach_eeprom_device(esp_mosaico_expansion_slot_t slot);
 static esp_err_t restore_manager_resources(void);
 static esp_err_t detach_eeprom_devices(void);
 static esp_err_t cleanup_failed_init_resources(void);
+static esp_err_t release_i2c_peripheral(void);
 static esp_err_t sample_slot_locked(esp_mosaico_expansion_slot_t slot);
 static bool slot_info_changed(const esp_mosaico_expansion_info_t *old_info,
                               const esp_mosaico_expansion_info_t *new_info);
@@ -176,6 +177,9 @@ esp_err_t esp_mosaico_expansion_manager_init(const esp_mosaico_expansion_manager
     ESP_RETURN_ON_FALSE(config->frequency_hz > 0, ESP_ERR_INVALID_ARG, TAG, "I2C frequency is invalid");
     ESP_RETURN_ON_FALSE(config->timeout_ms > 0, ESP_ERR_INVALID_ARG, TAG, "I2C timeout is invalid");
 
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     if (manager.initialized) {
         return ESP_OK;
     }
@@ -215,7 +219,7 @@ esp_err_t esp_mosaico_expansion_manager_init(const esp_mosaico_expansion_manager
         manager.slots[i].eeprom_address = manager.config.slots[i].eeprom_address;
     }
 
-    esp_err_t ret = esp_board_periph_ref_handle(manager.config.i2c_name, (void **)&manager.i2c_bus);
+    esp_err_t ret = brookesia_hal_board_periph_ref_handle(manager.config.i2c_name, (void **)&manager.i2c_bus);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Acquire I2C peripheral failed: %s", esp_err_to_name(ret));
         goto fail_cleanup;
@@ -262,6 +266,9 @@ fail_cleanup:
 
 esp_err_t esp_mosaico_expansion_manager_deinit(void)
 {
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     if (!manager.initialized) {
         return cleanup_failed_init_resources();
     }
@@ -312,12 +319,9 @@ esp_err_t esp_mosaico_expansion_manager_deinit(void)
         return first_error;
     }
 
-    if (manager.i2c_bus != NULL) {
-        esp_err_t ret = esp_board_periph_unref_handle(manager.config.i2c_name);
-        if (ret != ESP_OK) {
-            return ret;
-        }
-        manager.i2c_bus = NULL;
+    const esp_err_t release_ret = release_i2c_peripheral();
+    if (release_ret != ESP_OK) {
+        return release_ret;
     }
 
     manager.initialized = false;
@@ -345,6 +349,9 @@ bool esp_mosaico_expansion_manager_cleanup_pending(void)
 
 esp_err_t esp_mosaico_expansion_manager_recover(void)
 {
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     ESP_RETURN_ON_FALSE(manager.initialized, ESP_ERR_INVALID_STATE, TAG, "Manager is not initialized");
 
     xSemaphoreTake(manager.lock, portMAX_DELAY);
@@ -481,12 +488,18 @@ esp_err_t esp_mosaico_expansion_release(esp_mosaico_expansion_slot_t slot,
 
 esp_err_t esp_mosaico_expansion_restore_address_selects(void)
 {
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     ESP_RETURN_ON_FALSE(manager.initialized, ESP_ERR_INVALID_STATE, TAG, "Manager is not initialized");
     return configure_all_address_selects();
 }
 
 esp_err_t esp_mosaico_camera_slot_acquire(const esp_mosaico_camera_slot_config_t *config)
 {
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     ESP_RETURN_ON_FALSE(config != NULL, ESP_ERR_INVALID_ARG, TAG, "Camera slot config is null");
     ESP_RETURN_ON_FALSE(config->slot == ESP_MOSAICO_EXPANSION_SLOT_LEFT, ESP_ERR_NOT_SUPPORTED, TAG,
                         "Camera is supported in the left slot only");
@@ -559,6 +572,9 @@ esp_err_t esp_mosaico_camera_slot_acquire(const esp_mosaico_camera_slot_config_t
 
 esp_err_t esp_mosaico_camera_slot_release(esp_mosaico_expansion_slot_t slot)
 {
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     ESP_RETURN_ON_FALSE(slot == ESP_MOSAICO_EXPANSION_SLOT_LEFT, ESP_ERR_NOT_SUPPORTED, TAG,
                         "Camera is supported in the left slot only");
     ESP_RETURN_ON_FALSE(manager.initialized, ESP_ERR_INVALID_STATE, TAG, "Manager is not initialized");
@@ -737,6 +753,9 @@ static esp_err_t detach_eeprom_devices(void)
 
 static esp_err_t cleanup_failed_init_resources(void)
 {
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
     if (!manager.context_valid) {
         return ESP_OK;
     }
@@ -755,13 +774,9 @@ static esp_err_t cleanup_failed_init_resources(void)
         }
     }
 
-    if (manager.i2c_bus != NULL) {
-        const esp_err_t ret = esp_board_periph_unref_handle(manager.config.i2c_name);
-        if (ret == ESP_OK) {
-            manager.i2c_bus = NULL;
-        } else if (first_error == ESP_OK) {
-            first_error = ret;
-        }
+    const esp_err_t release_ret = release_i2c_peripheral();
+    if (release_ret != ESP_OK) {
+        return release_ret;
     }
 
     if (first_error != ESP_OK) {
@@ -771,6 +786,28 @@ static esp_err_t cleanup_failed_init_resources(void)
     vSemaphoreDelete(manager.lock);
     memset(&manager, 0, sizeof(manager));
     return ESP_OK;
+}
+
+static esp_err_t release_i2c_peripheral(void)
+{
+    if (manager.peripheral_error != ESP_OK) {
+        return manager.peripheral_error;
+    }
+    if (manager.i2c_bus == NULL) {
+        return ESP_OK;
+    }
+
+    /* Bus deinit errors do not guarantee that the driver handle survived.
+     * Retire our cached pointer before release and never retry an unknown owner. */
+    manager.i2c_bus = NULL;
+    const esp_err_t ret = brookesia_hal_board_periph_unref_handle(manager.config.i2c_name);
+    if (ret != ESP_OK) {
+        manager.peripheral_error = ret;
+        manager.cleanup_pending = true;
+        manager.scan_paused = true;
+        ESP_LOGE(TAG, "I2C release outcome is unknown; restart required: %s", esp_err_to_name(ret));
+    }
+    return ret;
 }
 
 static esp_err_t sample_slot_locked(esp_mosaico_expansion_slot_t slot)

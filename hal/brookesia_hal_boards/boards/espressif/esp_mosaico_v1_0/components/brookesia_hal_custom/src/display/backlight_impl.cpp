@@ -13,6 +13,7 @@
 #include "brookesia/hal_adaptor/display/device.hpp"
 #include "esp_board_device.h"
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_lcd_co5300.h"
 
 namespace esp_brookesia::hal {
@@ -35,17 +36,18 @@ CustomDisplayBacklightImpl::CustomDisplayBacklightImpl()
     .group_id = DisplayDevice::LCD_GROUP_ID,
 })
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     boost::lock_guard<boost::mutex> lock(mutex_);
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
     if (ret != ESP_OK) {
         BROOKESIA_LOGE("Failed to init display LCD: %1%", esp_err_to_name(ret));
         return;
     }
     display_ref_held_ = true;
 
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &handles_);
+    ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &handles_);
     if (ret != ESP_OK || handles_ == nullptr) {
         BROOKESIA_LOGE("Failed to get display LCD handles");
         release_display_ref_internal();
@@ -105,7 +107,7 @@ void CustomDisplayBacklightImpl::release_display_ref_internal()
         return;
     }
 
-    auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+    auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
     if (ret != ESP_OK) {
         BROOKESIA_LOGW("Failed to release display LCD reference: %1%", esp_err_to_name(ret));
     }

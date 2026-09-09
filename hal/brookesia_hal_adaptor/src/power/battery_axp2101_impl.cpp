@@ -14,6 +14,7 @@
 
 #if BROOKESIA_HAL_ADAPTOR_POWER_ENABLE_BATTERY && BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_AXP2101
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 
 extern "C" esp_err_t power_manager_get_battery_state(
     void *device_handle, power_manager_battery_state_t *state
@@ -130,7 +131,7 @@ BatteryAxp2101Impl::~BatteryAxp2101Impl()
     boost::lock_guard<boost::mutex> lock(mutex_);
 
     if (device_initialized_) {
-        auto ret = esp_board_manager_deinit_device_by_name(AXP2101_POWER_MANAGER_NAME);
+        auto ret = brookesia_hal_board_manager_deinit_device_by_name(AXP2101_POWER_MANAGER_NAME);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit AXP2101 power manager"); });
         device_initialized_ = false;
         device_handle_ = nullptr;
@@ -244,20 +245,21 @@ bool BatteryAxp2101Impl::set_charging_enabled(bool enabled)
 
 bool BatteryAxp2101Impl::setup_power_manager()
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_CHECK_NULL_RETURN(power_manager_get_battery_state, false, "AXP2101 power manager battery API is unavailable");
 
-    if (!esp_board_manager_check_name(AXP2101_POWER_MANAGER_NAME)) {
+    if (!brookesia_hal_board_manager_check_name(AXP2101_POWER_MANAGER_NAME)) {
         BROOKESIA_LOGW("AXP2101 power manager device not found, skip");
         return false;
     }
 
-    auto ret = esp_board_manager_init_device_by_name(AXP2101_POWER_MANAGER_NAME);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(AXP2101_POWER_MANAGER_NAME);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init AXP2101 power manager");
     device_initialized_ = true;
 
-    ret = esp_board_manager_get_device_handle(AXP2101_POWER_MANAGER_NAME, &device_handle_);
+    ret = brookesia_hal_board_manager_get_device_handle(AXP2101_POWER_MANAGER_NAME, &device_handle_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get AXP2101 power manager handle");
     BROOKESIA_CHECK_NULL_RETURN(device_handle_, false, "Failed to get AXP2101 power manager handle");
 

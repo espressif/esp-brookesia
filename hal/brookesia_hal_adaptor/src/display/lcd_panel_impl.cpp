@@ -10,9 +10,12 @@
 #include "private/utils.hpp"
 #include "lcd_panel_impl.hpp"
 #include "brookesia/hal_adaptor/display/device.hpp"
+#include "brookesia/hal_adaptor/board_manager.h"
 
 #if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_PANEL_IMPL
+#include <condition_variable>
 #include <cstring>
+#include <mutex>
 
 #include "boost/thread.hpp"
 #include "esp_attr.h"
@@ -25,6 +28,7 @@
 #include "freertos/semphr.h"
 
 #include "brookesia/lib_utils/thread_config.hpp"
+#include "brookesia/hal_interface/lifecycle.h"
 
 #if CONFIG_SOC_LCD_RGB_SUPPORTED
 #include "esp_lcd_panel_rgb.h"
@@ -100,13 +104,13 @@ uint8_t get_frame_buffer_count_from_config(const dev_display_lcd_config_t *confi
 
 display::PanelIface::BusType get_bus_type()
 {
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
         BROOKESIA_LOGW("LCD panel device not found");
         return display::PanelIface::BusType::Max;
     }
 
     dev_display_lcd_config_t *config = nullptr;
-    auto ret = esp_board_manager_get_device_config(
+    auto ret = brookesia_hal_board_manager_get_device_config(
                    ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, reinterpret_cast<void **>(&config)
                );
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, display::PanelIface::BusType::Max, "Failed to get LCD config");
@@ -117,13 +121,13 @@ display::PanelIface::BusType get_bus_type()
 
 display::PanelIface::Info generate_info()
 {
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
         BROOKESIA_LOGW("LCD panel device not found");
         return {};
     }
 
     dev_display_lcd_config_t *config = nullptr;
-    auto ret = esp_board_manager_get_device_config(
+    auto ret = brookesia_hal_board_manager_get_device_config(
                    ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, reinterpret_cast<void **>(&config)
                );
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, {}, "Failed to get LCD config");
@@ -237,7 +241,7 @@ LcdDisplayPanelImpl::LcdDisplayPanelImpl()
 
     BROOKESIA_CHECK_FALSE_EXIT(get_info().is_valid(), "Invalid panel information");
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
         BROOKESIA_LOGW("LCD panel device not found, skip");
         return;
     }
@@ -245,10 +249,16 @@ LcdDisplayPanelImpl::LcdDisplayPanelImpl()
     esp_err_t ret = ESP_OK;
     auto init_func = [&]() {
         BROOKESIA_LOG_TRACE_GUARD();
-        ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+        detail::LifecycleGuard lifecycle_guard;
+        ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+        if (ret == ESP_OK) {
+            device_initialized_ = true;
+            ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &handles_);
+        }
     };
 
     const auto bus_type = get_bus_type();
+    bus_type_ = bus_type;
     if ((bus_type == display::PanelIface::BusType::Generic) &&
             (BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_PANEL_INIT_THREAD_CORE_ID >= 0)) {
         BROOKESIA_THREAD_CONFIG_GUARD({
@@ -272,9 +282,6 @@ LcdDisplayPanelImpl::LcdDisplayPanelImpl()
 
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to init LCD panel");
 
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &handles_);
-    BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get handles");
-
     sync_done_ = xSemaphoreCreateBinary();
     BROOKESIA_CHECK_NULL_EXIT(sync_done_, "Failed to create draw sync semaphore");
 }
@@ -285,6 +292,7 @@ LcdDisplayPanelImpl::~LcdDisplayPanelImpl()
 
     {
         boost::lock_guard<boost::mutex> lock(mutex_);
+        drain_spi_transfers_locked();
         disable_event_dispatcher_locked();
     }
 
@@ -293,8 +301,9 @@ LcdDisplayPanelImpl::~LcdDisplayPanelImpl()
         sync_done_ = nullptr;
     }
 
-    if (esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
-        auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+    if (device_initialized_) {
+        detail::LifecycleGuard lifecycle_guard;
+        auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD"); });
     }
 }
@@ -346,7 +355,7 @@ bool LcdDisplayPanelImpl::draw_bitmap_sync(
         return draw_bitmap(x1, y1, x2, y2, data);
     }
 
-    BROOKESIA_CHECK_NULL_RETURN(sync_done_, draw_bitmap(x1, y1, x2, y2, data), "Draw sync semaphore is not available");
+    BROOKESIA_CHECK_NULL_RETURN(sync_done_, false, "Draw sync semaphore is not available");
 
     bool success = false;
     {
@@ -372,6 +381,11 @@ bool LcdDisplayPanelImpl::draw_bitmap_sync(
                     BROOKESIA_LOGE("Timed out waiting for LCD draw completion");
                 }
             }
+            if (!success) {
+                // A failed submission can still have queued some SPI chunks. The caller
+                // must not recycle its pixels until those transfers have completed.
+                drain_spi_transfers_locked();
+            }
 
             portENTER_CRITICAL(&event_lock_);
             sync_waiting_ = false;
@@ -381,6 +395,37 @@ bool LcdDisplayPanelImpl::draw_bitmap_sync(
     }
 
     return success;
+}
+
+void LcdDisplayPanelImpl::drain_spi_transfers_locked()
+{
+    if (!is_valid_internal() || (bus_type_ != display::PanelIface::BusType::Generic)) {
+        return;
+    }
+
+    // This backend maps Generic to Board Manager's SPI subtype. A commandless
+    // parameter transfer drains queued color DMA without touching the panel.
+    const auto ret = esp_lcd_panel_io_tx_param(get_io_handle(handles_), -1, nullptr, 0);
+    if (ret != ESP_OK) {
+        BROOKESIA_LOGE(
+            "Cannot drain LCD transfers: %1%. Keeping the panel and pixel buffer alive until a manual restart",
+            esp_err_to_name(ret)
+        );
+        // There is no cancellation/ownership result in the borrowed-buffer API.
+        // Returning here could free live DMA memory; leave this terminal fault
+        // suspended instead of retrying transfers or restarting the device.
+        std::mutex wait_mutex;
+        std::condition_variable wait_cv;
+        std::unique_lock wait_lock(wait_mutex);
+        wait_cv.wait(wait_lock, []() {
+            return false;
+        });
+    }
+    // A partial submission can finish without the final-chunk callback. With
+    // the queue empty, future waits can start from a consistent sequence.
+    portENTER_CRITICAL(&event_lock_);
+    completed_draw_seq_ = submitted_draw_seq_;
+    portEXIT_CRITICAL(&event_lock_);
 }
 
 bool LcdDisplayPanelImpl::dispatch_event_from_isr(EventType event)
@@ -631,13 +676,13 @@ bool LcdDisplayPanelImpl::get_driver_specific(DriverSpecific &specific)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD)) {
         BROOKESIA_LOGW("LCD panel device not found");
         return false;
     }
 
     dev_display_lcd_config_t *config = nullptr;
-    auto ret = esp_board_manager_get_device_config(
+    auto ret = brookesia_hal_board_manager_get_device_config(
                    ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, reinterpret_cast<void **>(&config)
                );
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get LCD config");

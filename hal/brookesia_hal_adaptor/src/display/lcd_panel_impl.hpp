@@ -60,6 +60,7 @@ private:
     bool disable_event_dispatcher_locked();
     bool has_event_listener_locked() const;
     bool submit_draw_bitmap_locked(uint32_t x1, uint32_t y1, uint32_t x2, uint32_t y2, const uint8_t *data);
+    void drain_spi_transfers_locked();
 
     static bool add_event_listener_trampoline(
         void *ctx, EventCallback callback, void *user_ctx, uint32_t *listener_id
@@ -68,6 +69,8 @@ private:
 
     mutable boost::mutex mutex_;
     void *handles_ = nullptr;
+    bool device_initialized_ = false;
+    display::PanelIface::BusType bus_type_ = display::PanelIface::BusType::Max;
     SemaphoreHandle_t sync_done_ = nullptr;
     bool sync_waiting_ = false;
     bool event_dispatcher_enabled_ = false;

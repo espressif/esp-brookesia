@@ -33,6 +33,7 @@ private:
     bool begin_frame_operation();
     void end_frame_operation();
     void stop_accepting_frame_operations();
+    void wait_for_frame_operations();
     void start_accepting_frame_operations();
     bool is_in_frame_callback() const;
     void on_capture_frame(int sink_index, void *frame);
@@ -45,9 +46,11 @@ private:
     video::EncoderConfig config_{};
     FrameCallback stream_callback_;
     bool is_started_ = false;
+    bool is_stopping_ = false;
     void *capture_handle_ = nullptr;
     void *camera_config_ = nullptr;
     mutable std::mutex lifecycle_mutex_;
+    std::condition_variable lifecycle_cv_;
     std::mutex frame_operation_mutex_;
     std::condition_variable frame_operation_cv_;
     size_t active_frame_operations_ = 0;

@@ -158,13 +158,17 @@ public:
      * should override this method and only return after the transfer completion signal has been observed, or after
      * @p timeout_ms expires. When @p timeout_ms is `0`, the call only submits the draw and does not wait for a
      * completion signal.
+     * A backend that drains pending transfers before a failed return can exceed this wait budget to keep the
+     * borrowed input buffer safe. The Board Manager SPI backend uses this behavior: after a nonzero-timeout call
+     * returns, it no longer uses the input buffer, including when the call reports failure. An unrecoverable drain
+     * failure keeps the operation suspended until a manual restart.
      *
      * @param[in] x1 Left coordinate.
      * @param[in] y1 Top coordinate.
      * @param[in] x2 Right coordinate (exclusive).
      * @param[in] y2 Bottom coordinate (exclusive).
      * @param[in] data Pixel buffer pointer.
-     * @param[in] timeout_ms Maximum time to wait in milliseconds. `0` means no wait.
+     * @param[in] timeout_ms Completion wait budget in milliseconds, excluding backend safety draining. `0` means no wait.
      * @return `true` on completion or no-wait submission; otherwise `false`.
      */
     virtual bool draw_bitmap_sync(

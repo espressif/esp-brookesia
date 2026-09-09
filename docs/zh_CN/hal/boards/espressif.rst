@@ -141,8 +141,8 @@
        | :cpp:class:`PowerBattery <esp_brookesia::hal::power::BatteryIface>`
        | :cpp:class:`StorageFs <esp_brookesia::hal::storage::FileSystemIface>`
        | :cpp:class:`StorageKv <esp_brookesia::hal::storage::KeyValueIface>`
-       | :cpp:class:`expansion::ModuleManagerIface <esp_brookesia::hal::expansion::ModuleManagerIface>`
-       | :cpp:class:`Camera <esp_brookesia::hal::video::CameraIface>`（可选模块）
+       | :cpp:class:`ExpansionModuleManager <esp_brookesia::hal::expansion::ModuleManagerIface>`
+       | :cpp:class:`Camera <esp_brookesia::hal::video::CameraIface>` （可选模块）
        | :cpp:class:`WifiBasic <esp_brookesia::hal::wifi::BasicIface>`
        | :cpp:class:`WifiSta <esp_brookesia::hal::wifi::StationIface>`
        | :cpp:class:`WifiSoftAp <esp_brookesia::hal::wifi::SoftApIface>`
@@ -165,101 +165,74 @@
 .. _hal-boards-espressif-mosaico:
 
 ESP-Mosaico V1.0 适配说明
-----------------------------------------
+-------------------------
 
-概述
-^^^^
+``esp_mosaico_v1_0`` 支持 ESP-Mosaico V1.0 核心板的 Wi-Fi、480 x 480 显示与触摸、音频播放与录制、电池电压查询、LittleFS/NVS 和 NAND FATFS。摄像头通过可选扩展模块提供，模块未插入或不受支持时不影响核心板启动。
 
-``esp_mosaico_v1_0`` 配置支持 ESP-Mosaico V1.0 核心板及其可选扩展模块插槽。核心板支持包括系统与网络功能、Wi-Fi、480 x 480 显示与触摸、音频播放与录制、电池电压、内部 LittleFS/NVS 以及外部 NAND FATFS。
+配置与使用
+^^^^^^^^^^
 
-扩展模块与核心板设备分开发现。模块未插入或暂不支持都不会阻止核心板或 System Super 启动。
-
-扩展模块配置
-^^^^^^^^^^^^^^^^
-
-扩展模块功能由 ``Component config > ESP-Brookesia: Hal Adaptor Configurations > Expansion Modules`` 下的 ``CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES`` 控制。由于很多开发板没有扩展插槽，通用默认值为关闭；ESP-Mosaico 板级默认值为开启。
-
-已有工程的 ``sdkconfig`` 优先于板级默认值。更新板级包后，旧配置仍可能保持 Expansion、Video、Camera、DVP 或摄像头传感器关闭。验证摄像头前请优先使用干净的默认 ``sdkconfig``，并在 ``menuconfig`` 中确认这些选项。Board Manager 0.5.x 不会向非默认 ``SDKCONFIG`` 路径自动注入 ``board_manager.defaults``；这类构建必须在 ``SDKCONFIG_DEFAULTS`` 中显式包含 ``components/gen_bmgr_codes/board_manager.defaults``。
-
-使用本地 ESP-IDF 环境，并在构建前生成板级配置：
+在示例工程目录中生成板级配置并编译。通用操作步骤请参考 :ref:`快速入门 - 如何使用示例工程 <getting-started-example-projects>`。
 
 .. code-block:: console
 
-   idf.py --preview gen-bmgr-config -b esp_mosaico_v1_0
+   idf.py gen-bmgr-config -b esp_mosaico_v1_0
    idf.py --preview set-target esp32s31
-   idf.py --preview menuconfig
-   idf.py --preview build
+   idf.py build
 
-检测与生命周期
-^^^^^^^^^^^^^^
+板级默认配置包含以下设置：
 
-扩展功能开启后，Mosaico provider 会每隔 300 ms 读取当前可安全扫描插槽的身份 EEPROM。结果必须连续三次保持一致，因此插入、拔出或身份变化通常会在约 0.9 秒后发布。
+- **扩展模块**：启用 ``CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES``，以及 Camera、DVP、OV3640 和 SC101IOT 驱动。
+- **摄像头释放**：``CONFIG_BROOKESIA_HAL_ADAPTOR_VIDEO_KEEP_DEVICE_INITIALIZED_ON_RELEASE=n``，最后一个会话关闭后释放摄像头设备。
+- **设备注册容量**：``CONFIG_VFS_MAX_COUNT=12``，供控制台、网络、文件系统和视频设备同时使用。
+- **USB 控制台**：启用 TinyUSB CDC 和自动下载；关闭 USB Serial/JTAG 辅助控制台、USB Service 自动注册及 System Core USB 文件传输桥接。
+- **NAND**：启用 FATFS 并挂载到 ``/nand``；``CONFIG_BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_FORMAT_IF_MOUNT_FAILED=n``，挂载失败时不会自动格式化。
 
-公开的 ``hal::expansion::ModuleManagerIface`` 注册为 ``Expansion:ModuleManager:0``。``get_module_infos()`` 返回稳定的插槽快照，``add_event_listener()`` 和 ``remove_event_listener()`` 管理变更通知。Device Service 通过 ``GetExpansionModuleInfos`` 提供同样的信息，并发布 ``ExpansionModuleChanged`` 事件。
+.. note::
 
-每个插槽会报告以下状态之一：
+   已有工程的 ``sdkconfig`` 优先于板级默认配置。更新开发板配置后，请通过 ``idf.py menuconfig`` 确认相关选项。使用 Board Manager 0.5.x 且指定非默认 ``SDKCONFIG`` 路径时，需在 ``SDKCONFIG_DEFAULTS`` 中包含 ``components/gen_bmgr_codes/board_manager.defaults``。
 
-.. list-table::
-   :widths: 24 76
-   :header-rows: 1
+扩展模块
+^^^^^^^^
 
-   * - 状态
-     - 含义
-   * - ``Unknown``
-     - 插槽尚未得到稳定的扫描结果。
-   * - ``Empty``
-     - 插槽中没有模块 EEPROM 应答。
-   * - ``Invalid``
-     - EEPROM 有应答，但描述信息为空、格式错误或 CRC 无效。Provider 不会猜测模块类型。
-   * - ``Unsupported``
-     - 描述信息有效，但模块类型或所选插槽没有可用驱动。
-   * - ``Ready``
-     - 已插入受支持的模块，可以打开。
-   * - ``Active``
-     - 客户端已占用模块，对应硬件资源已初始化。
-   * - ``Error``
-     - 扫描、占用或释放硬件时发生运行错误。
-
-扫描只负责识别模块，不会初始化模块的功能硬件。只有匹配的 HAL 使用者打开模块时才会占用并初始化，最后一个客户端关闭后归还资源。
-
-已支持的扩展模块
-^^^^^^^^^^^^^^^^^^^^
+Mosaico 每隔 300 ms 扫描可用插槽，连续三次得到相同结果后更新模块状态。扫描用于识别模块，功能硬件在对应 HAL 接口打开时初始化。
 
 .. list-table::
-   :widths: 24 14 20 42
+   :widths: 25 15 60
    :header-rows: 1
 
    * - 模块
      - 插槽
-     - 结果
-     - 当前支持范围
-   * - 摄像头模块
+     - 支持范围
+   * - OV3640 摄像头
      - 左槽
-     - ``Ready`` / ``Active``
-     - 通过 Camera HAL 和 Video 进行取流。传感器在运行时探测：OV3640 输出原生 RGB565、640 x 480、7 fps，SC101IOT 输出 YUV422、640 x 480、15 fps。
+     - RGB565，640 x 480，7 fps；通过 Camera HAL 和 Video 接口取流。
+   * - SC101IOT 摄像头
+     - 左槽
+     - YUV422，640 x 480，15 fps；通过 Camera HAL 和 Video 接口取流。
    * - 摄像头模块
      - 右槽
-     - ``Unsupported``
-     - 右槽不具备必要的映射，因此不初始化摄像头驱动。
-   * - 其他有效模块描述信息
+     - 报告 ``Unsupported``，不初始化驱动。
+   * - 其他有效模块
      - 任意
-     - ``Unsupported``
-     - 仅检测并报告；其他模块驱动将分别增加。
+     - 识别模块信息并报告 ``Unsupported``。
 
-热插拔行为与限制
-^^^^^^^^^^^^^^^^
+通过 ``Expansion:ModuleManager:0`` 查询和订阅插槽状态；应用也可使用 Device Service 的 ``GetExpansionModuleInfos`` 和 ``ExpansionModuleChanged``。状态定义和异步回调约定请参考 :ref:`扩展模块支持 <hal-adaptor-expansion-modules>`。
 
-- 摄像头已插入但未打开时，两个插槽都会继续扫描。
-- 打开摄像头后，由于摄像头数据信号复用了 Mosaico EEPROM 地址选择引脚，两个插槽都会暂停扫描。
-- 关闭摄像头会恢复共享引脚并立即触发一次扫描，随后恢复定期扫描。
-- 暂不支持取流过程中拔出摄像头。拔出前请先关闭摄像头。
-- 当前不包含全屏 480 x 480 裁剪、旋转、缩放和 System Super 摄像头预览体验。
+使用注意事项
+^^^^^^^^^^^^
 
-实现边界
-^^^^^^^^
+- **共享引脚**：摄像头打开期间，两个插槽都会暂停扫描。摄像头成功关闭且共享引脚恢复后，重新扫描并恢复定期检测。
+- **模块插拔**：拔出摄像头前应先关闭摄像头，不支持取流过程中拔出模块。
+- **USB 通道**：GPIO33 同时用于 DVP D2 和 USB Serial/JTAG，不能与摄像头同时使用。板载 TinyUSB CDC 控制台使用独立通道；USB Service 尚不支持通过该通道传输文件。控制台初始化失败时，可恢复的错误会回退到 UART；无法恢复的标准流切换错误需要手动重启。
+- **应用存储**：NAND 可通过 HAL/Storage Service 访问。System Core 尚未自动将 ``/nand`` 纳入应用存储列表，App Store 显示其当前缓存目录所在分区的容量。
+- **错误恢复**：摄像头清理失败时应检查错误日志；Encoder HAL 的 ``close()`` 没有返回值。只有摄像头资源和共享引脚恢复后才会继续扫描；无法确认外设释放状态时需要手动重启。参见 :ref:`生命周期与错误处理 <hal-adaptor-lifecycle>`。
 
-通用 adaptor 层负责可选扩展能力、稳定模块状态、查询与事件契约、驱动 provider 注册以及占用生命期，不了解 Mosaico EEPROM 地址、插槽引脚或摄像头传感器初始化。
+``hal/brookesia_hal_adaptor/test_apps`` 提供摄像头重复启停、扩展扫描恢复和 NAND 文件读写测试，可通过板载 USB 控制台选择用例。``examples/system/super`` 用于运行完整系统示例。
 
-Mosaico 板级实现负责双槽 EEPROM 发现、描述信息验证、资源仲裁、插槽兼容性和摄像头插槽映射。随后摄像头通过已占用的模块 lease 使用现有通用 Camera HAL 与 Video 通路。
+实现与依赖
+^^^^^^^^^^
 
-Mosaico 实现参考并改造自 Apache-2.0 许可的 `ESP-Mosaico BSP <https://github.com/esp-mosaico/esp-mosaico-bsp>`_ 提交 ``bef99672e411101489ed19c40527cca1c1dd5bb1``。所需代码均保存在本地，构建该开发板时不依赖或下载该仓库。
+Mosaico 板级代码负责插槽识别、引脚复用和外设配置，上层使用通用 HAL 与 Service 接口。依赖兼容性说明见 :ref:`依赖补丁 <hal-adaptor-dependency-patches>`。
+
+硬件配置与部分初始化代码参考 Apache-2.0 许可的 `ESP-Mosaico BSP <https://github.com/esp-mosaico/esp-mosaico-bsp>`_。源码来源记录在 ``hal/brookesia_hal_boards/boards/espressif/esp_mosaico_v1_0/SOURCE.md``，构建所需代码均包含在 Brookesia 仓库中。

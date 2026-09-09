@@ -70,6 +70,11 @@ public:
     /**
      * @brief Subscribe to stable slot-state changes.
      *
+     * Callbacks are serialized asynchronously on an event worker independent of scanning.
+     * A callback receives the snapshot captured at the transition; newer state may already
+     * be available from get_module_infos(). Callbacks may wait for scans or claim modules.
+     * The application must keep captured objects alive until their listener is removed.
+     *
      * @return Non-zero listener id on success, or zero when the callback is empty.
      */
     virtual EventListenerId add_event_listener(EventListener listener) = 0;
@@ -77,8 +82,9 @@ public:
     /**
      * @brief Remove a previously registered listener.
      *
-     * When called outside the listener, return waits for any in-flight callback
-     * to finish. A listener may remove itself; its current invocation then
+     * When called outside the event worker, return waits for any in-flight callback
+     * to finish. Queued invocations that have not entered the callback are suppressed.
+     * A listener may remove itself or another listener; its current invocation then
      * completes normally, and no later invocation is made.
      */
     virtual bool remove_event_listener(EventListenerId id) = 0;

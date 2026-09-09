@@ -15,6 +15,10 @@ and renamed accordingly.
 Normalize UYVY before optional YUV420 conversion so that both output paths
 receive the YUYV order expected by the converter.
 
+Also retire a failed-open descriptor to -1 after closing it. Format rejection
+must not leave fd=0 for a later close to accidentally close standard input,
+and the same source must remain reusable after failed negotiation.
+
 --- a/impl/capture_video_src/capture_video_v4l2_src.c
 +++ b/impl/capture_video_src/capture_video_v4l2_src.c
 @@ -52,6 +52,8 @@
@@ -34,7 +38,7 @@ receive the YUYV order expected by the converter.
              return ESP_CAPTURE_FMT_ID_YUV422;
          default:
              return ESP_CAPTURE_FMT_ID_NONE;
-@@ -96,6 +99,20 @@
+@@ -96,6 +99,21 @@
      }
  }
 
@@ -52,10 +56,11 @@ receive the YUYV order expected by the converter.
 +    }
 +    return get_v4l2_type(codec);
 +}
-
++
  static void v4l2_extra_setting(v4l2_src_t *v4l2)
  {
-@@ -130,6 +147,8 @@
+     struct timeval timeout;
+@@ -129,6 +147,8 @@
              break;
          }
          v4l2->format_count = 0;
@@ -64,7 +69,7 @@ receive the YUYV order expected by the converter.
          for (int i = 0; 1; i++) {
              struct v4l2_fmtdesc fmtdesc = {
                  .index = i,
-@@ -139,6 +158,11 @@
+@@ -138,6 +158,11 @@
                  break;
              }
              esp_capture_format_id_t format = get_codec_type(fmtdesc.pixelformat);
@@ -76,7 +81,21 @@ receive the YUYV order expected by the converter.
              if (format == ESP_CAPTURE_FMT_ID_NONE) {
                  continue;
              }
-@@ -273,7 +297,7 @@
+@@ -165,10 +190,10 @@
+         ESP_LOGI(TAG, "Success to open camera");
+         return 0;
+     } while (0);
+-    if (v4l2->fd > 0) {
++    if (v4l2->fd >= 0) {
+         close(v4l2->fd);
+-        v4l2->fd = 0;
+-    }
++    }
++    v4l2->fd = -1;
+     return ESP_CAPTURE_ERR_NO_RESOURCES;
+ }
+
+@@ -272,7 +297,7 @@
          return ESP_CAPTURE_ERR_NOT_SUPPORTED;
      }
      esp_capture_video_info_t match_info = *vid_info;
@@ -85,7 +104,7 @@ receive the YUYV order expected by the converter.
      if (ret != ESP_CAPTURE_ERR_OK) {
          return ESP_CAPTURE_ERR_NOT_SUPPORTED;
      }
-@@ -349,7 +373,7 @@
+@@ -348,7 +373,7 @@
              .fmt.pix.width = vid_info->width,
              .fmt.pix.height = vid_info->height,
          };
@@ -94,7 +113,7 @@ receive the YUYV order expected by the converter.
          int ret;
          if ((ret = ioctl(v4l2->fd, VIDIOC_S_FMT, &format)) != 0) {
              ESP_LOGE(TAG, "Failed to set format codec %x %x ret %d", (int)vid_info->format_id, (int)format.fmt.pix.pixelformat, ret);
-@@ -440,7 +464,8 @@
+@@ -439,7 +464,8 @@
      }
  }
 
@@ -104,7 +123,7 @@ receive the YUYV order expected by the converter.
  {
      int pixels = w * h;
      uint16_t *src16 = (uint16_t *)src;
-@@ -470,6 +495,9 @@
+@@ -469,6 +495,9 @@
      frame->data = v4l2->fb_buffer[buf.index];
      frame->size = buf.bytesused;
      v4l2->v4l2_buf[buf.index] = buf;
@@ -114,7 +133,7 @@ receive the YUYV order expected by the converter.
      if (v4l2->need_convert_420) {
          xSemaphoreTake(v4l2->yuv420_lock, portMAX_DELAY);
          convert_yuv420(v4l2->nego_result.width, v4l2->nego_result.height,
-@@ -478,7 +506,7 @@
+@@ -477,7 +506,7 @@
          frame->data = v4l2->yuv420_cache;
          frame->size = frame->size * 3 / 4;
      } else if (v4l2->need_rgb565_convert) {

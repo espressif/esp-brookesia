@@ -14,6 +14,7 @@
 #include "brookesia/hal_adaptor/expansion/module_provider.hpp"
 #include "brookesia/hal_custom/expansion/mosaico_module_manager.h"
 #include "esp_board_manager.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_err.h"
 
 namespace esp_brookesia::hal::expansion {
@@ -101,14 +102,19 @@ public:
 
     std::expected<void, std::string> start() override
     {
+        esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
         if (started_) {
-            return {};
+            void *handle = nullptr;
+            if ((brookesia_hal_board_manager_get_device_handle(RUNTIME_PIN_DEVICE_NAME, &handle) == ESP_OK) && handle) {
+                return {};
+            }
+            started_ = false;
         }
 
         /* This child device owns a separate manager dependency reference for
          * exactly as long as the common expansion runtime is active. It avoids
          * borrowing camera_slot_claim's shorter-lived dependency reference. */
-        const esp_err_t ret = esp_board_manager_init_device_by_name(RUNTIME_PIN_DEVICE_NAME);
+        const esp_err_t ret = brookesia_hal_board_manager_init_device_by_name(RUNTIME_PIN_DEVICE_NAME);
         if (ret != ESP_OK) {
             return std::unexpected(make_error("Initialize expansion runtime pin", ret));
         }
@@ -118,11 +124,18 @@ public:
 
     std::expected<void, std::string> stop() override
     {
+        esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
         if (!started_) {
             return {};
         }
-        const esp_err_t ret = esp_board_manager_deinit_device_by_name(RUNTIME_PIN_DEVICE_NAME);
+        const esp_err_t ret = brookesia_hal_board_manager_deinit_device_by_name(RUNTIME_PIN_DEVICE_NAME);
         if (ret != ESP_OK) {
+            // A dependency cleanup error may be reported after BM consumed the
+            // runtime pin. Keep started_ only when that pin still exists, so a
+            // later start cannot skip pending cleanup and falsely enable scans.
+            void *handle = nullptr;
+            started_ = (brookesia_hal_board_manager_get_device_handle(RUNTIME_PIN_DEVICE_NAME, &handle) == ESP_OK) &&
+                       (handle != nullptr);
             return std::unexpected(make_error("Release expansion runtime pin", ret));
         }
         started_ = false;

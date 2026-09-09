@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
-#include "esp_board_periph.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_err.h"
 #include "esp_log.h"
 #include "fs_nand.h"
@@ -23,7 +23,18 @@ typedef struct {
     const char *peripheral_name;
     gpio_num_t hold_gpio_num;
     gpio_num_t wp_gpio_num;
+    bool peripheral_referenced;
+    bool hold_pin_owned;
+    bool wp_pin_owned;
+    bool cleanup_started;
+    esp_err_t peripheral_error;
+    esp_err_t consumed_error;
 } fs_nand_handle_t;
+
+static fs_nand_handle_t *pending_cleanup;
+static esp_err_t last_cleanup_error;
+
+static esp_err_t cleanup_handle(fs_nand_handle_t *handle);
 
 static esp_err_t configure_protect_pins(gpio_num_t hold_gpio_num, gpio_num_t wp_gpio_num)
 {
@@ -50,12 +61,32 @@ esp_err_t fs_nand_get_bdl_handle(void *device_handle, esp_blockdev_handle_t *out
         return ESP_ERR_INVALID_ARG;
     }
 
+    *out_handle = NULL;
     fs_nand_handle_t *handle = device_handle;
-    if (handle->bdl_handle == NULL) {
+    if (handle->cleanup_started || handle->bdl_handle == NULL) {
         return ESP_ERR_INVALID_STATE;
     }
     *out_handle = handle->bdl_handle;
     return ESP_OK;
+}
+
+bool fs_nand_cleanup_pending(void)
+{
+    return pending_cleanup != NULL;
+}
+
+esp_err_t fs_nand_cleanup_error(void)
+{
+    return last_cleanup_error;
+}
+
+esp_err_t fs_nand_cleanup(void)
+{
+    if (pending_cleanup == NULL) {
+        return ESP_OK;
+    }
+    last_cleanup_error = cleanup_handle(pending_cleanup);
+    return last_cleanup_error;
 }
 
 static int fs_nand_init(void *config, int cfg_size, void **device_handle)
@@ -71,6 +102,12 @@ static int fs_nand_init(void *config, int cfg_size, void **device_handle)
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
+    *device_handle = NULL;
+    esp_err_t ret = fs_nand_cleanup();
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    last_cleanup_error = ESP_OK;
 
     const dev_custom_fs_nand_config_t *nand_config = config;
     fs_nand_handle_t *handle = calloc(1, sizeof(*handle));
@@ -80,20 +117,22 @@ static int fs_nand_init(void *config, int cfg_size, void **device_handle)
     handle->peripheral_name = nand_config->peripheral_name;
     handle->hold_gpio_num = nand_config->hold_gpio_num;
     handle->wp_gpio_num = nand_config->wp_gpio_num;
+    handle->hold_pin_owned = true;
+    handle->wp_pin_owned = true;
 
-    esp_err_t cleanup_ret;
-    esp_err_t ret = configure_protect_pins(handle->hold_gpio_num, handle->wp_gpio_num);
+    ret = configure_protect_pins(handle->hold_gpio_num, handle->wp_gpio_num);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to release NAND HOLD/WP: %s", esp_err_to_name(ret));
-        goto fail_reset_pins;
+        goto fail;
     }
 
     periph_spi_handle_t *spi_bus = NULL;
-    ret = esp_board_periph_ref_handle(handle->peripheral_name, (void **)&spi_bus);
+    ret = brookesia_hal_board_periph_ref_handle(handle->peripheral_name, (void **)&spi_bus);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to acquire NAND SPI bus: %s", esp_err_to_name(ret));
-        goto fail_reset_pins;
+        goto fail;
     }
+    handle->peripheral_referenced = true;
 
     const spi_device_interface_config_t spi_config = {
         .clock_speed_hz = nand_config->clock_speed_hz,
@@ -105,7 +144,7 @@ static int fs_nand_init(void *config, int cfg_size, void **device_handle)
     ret = spi_bus_add_device(spi_bus->spi_port, &spi_config, &handle->spi_device);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to add NAND to SPI bus: %s", esp_err_to_name(ret));
-        goto fail_unref;
+        goto fail;
     }
 
     spi_nand_flash_config_t flash_config = {
@@ -117,35 +156,16 @@ static int fs_nand_init(void *config, int cfg_size, void **device_handle)
     ret = spi_nand_flash_init_with_layers(&flash_config, &handle->bdl_handle);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "Failed to initialize NAND BDL layers: %s", esp_err_to_name(ret));
-        goto fail_remove_device;
+        goto fail;
     }
 
     *device_handle = handle;
     return ESP_OK;
 
-fail_remove_device:
-    cleanup_ret = spi_bus_remove_device(handle->spi_device);
-    if (cleanup_ret != ESP_OK) {
-        /* Keep the SPI bus referenced while it still owns the device. */
-        ESP_LOGE(TAG, "Failed to remove NAND SPI device during rollback: %s", esp_err_to_name(cleanup_ret));
-        goto fail_reset_pins;
-    }
-    handle->spi_device = NULL;
-fail_unref:
-    cleanup_ret = esp_board_periph_unref_handle(handle->peripheral_name);
-    if (cleanup_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to release NAND SPI peripheral during rollback: %s", esp_err_to_name(cleanup_ret));
-    }
-fail_reset_pins:
-    cleanup_ret = gpio_reset_pin(handle->hold_gpio_num);
-    if (cleanup_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to reset NAND HOLD GPIO during rollback: %s", esp_err_to_name(cleanup_ret));
-    }
-    cleanup_ret = gpio_reset_pin(handle->wp_gpio_num);
-    if (cleanup_ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to reset NAND WP GPIO during rollback: %s", esp_err_to_name(cleanup_ret));
-    }
-    free(handle);
+fail:
+    handle->cleanup_started = true;
+    pending_cleanup = handle;
+    (void)fs_nand_cleanup();
     return ret;
 #endif
 }
@@ -157,57 +177,74 @@ static int fs_nand_deinit(void *device_handle)
     }
 
     fs_nand_handle_t *handle = device_handle;
+    handle->cleanup_started = true;
+    /* BM 0.5.15 forgets a custom handle even if deinit fails. Keep its owner here. */
+    pending_cleanup = handle;
+    return fs_nand_cleanup();
+}
 
-    /*
-     * Board Manager consumes custom device handles even when their deinit
-     * callback reports an error. BDL release also consumes its handle regardless
-     * of its return value. Cleanup is therefore best-effort and must not report
-     * failure after this wrapper is freed.
-     */
+static esp_err_t cleanup_handle(fs_nand_handle_t *handle)
+{
+    if (handle->peripheral_error != ESP_OK) {
+        return handle->peripheral_error;
+    }
+
     if (handle->bdl_handle != NULL) {
         esp_blockdev_handle_t bdl_handle = handle->bdl_handle;
         esp_err_t ret = bdl_handle->ops->sync(bdl_handle);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to sync NAND BDL during deinit: %s", esp_err_to_name(ret));
+            handle->consumed_error = ret;
         }
+        /* BDL release consumes its handle even on error; never call it twice. */
         handle->bdl_handle = NULL;
         ret = bdl_handle->ops->release(bdl_handle);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to release NAND BDL: %s", esp_err_to_name(ret));
+            if (handle->consumed_error == ESP_OK) {
+                handle->consumed_error = ret;
+            }
         }
     }
 
-    bool can_release_peripheral = true;
     if (handle->spi_device != NULL) {
         esp_err_t ret = spi_bus_remove_device(handle->spi_device);
         if (ret != ESP_OK) {
             ESP_LOGE(TAG, "Failed to remove NAND SPI device: %s", esp_err_to_name(ret));
-            can_release_peripheral = false;
-        } else {
-            handle->spi_device = NULL;
+            return ret;
         }
+        handle->spi_device = NULL;
     }
 
-    esp_err_t ret = ESP_OK;
-    if (can_release_peripheral) {
-        ret = esp_board_periph_unref_handle(handle->peripheral_name);
+    if (handle->peripheral_referenced) {
+        /* A failing bus deinit may already have consumed the underlying handle. */
+        handle->peripheral_referenced = false;
+        esp_err_t ret = brookesia_hal_board_periph_unref_handle(handle->peripheral_name);
         if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "Failed to release NAND SPI peripheral: %s", esp_err_to_name(ret));
+            handle->peripheral_error = ret;
+            ESP_LOGE(TAG, "NAND SPI release outcome is unknown; restart required: %s", esp_err_to_name(ret));
+            return ret;
         }
-    } else {
-        ESP_LOGE(TAG, "Keeping NAND SPI peripheral referenced because its device is still active");
     }
 
-    ret = gpio_reset_pin(handle->hold_gpio_num);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to reset NAND HOLD GPIO: %s", esp_err_to_name(ret));
+    if (handle->hold_pin_owned) {
+        esp_err_t ret = gpio_reset_pin(handle->hold_gpio_num);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        handle->hold_pin_owned = false;
     }
-    ret = gpio_reset_pin(handle->wp_gpio_num);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to reset NAND WP GPIO: %s", esp_err_to_name(ret));
+    if (handle->wp_pin_owned) {
+        esp_err_t ret = gpio_reset_pin(handle->wp_gpio_num);
+        if (ret != ESP_OK) {
+            return ret;
+        }
+        handle->wp_pin_owned = false;
     }
+    const esp_err_t result = handle->consumed_error;
+    pending_cleanup = NULL;
     free(handle);
-    return ESP_OK;
+    return result;
 }
 
 CUSTOM_DEVICE_IMPLEMENT(fs_nand, fs_nand_init, fs_nand_deinit);

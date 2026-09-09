@@ -22,6 +22,15 @@ esp_err_t bq27220_fuel_gauge_get_snapshot(
     void *device_handle, bq27220_fuel_gauge_snapshot_t *snapshot
 );
 
+/** @brief Report whether failed initialization or deinitialization still owns resources. */
+bool bq27220_fuel_gauge_cleanup_pending(void);
+
+/** @brief Finish pending cleanup; an unknown peripheral release result requires a restart. */
+esp_err_t bq27220_fuel_gauge_cleanup(void);
+
+/** @brief Return the most recent cleanup result, including errors hidden by Board Manager. */
+esp_err_t bq27220_fuel_gauge_cleanup_error(void);
+
 #ifdef __cplusplus
 }
 #endif

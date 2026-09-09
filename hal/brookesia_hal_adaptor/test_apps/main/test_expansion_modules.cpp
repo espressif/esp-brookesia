@@ -329,6 +329,9 @@ void run_expansion_runtime_scenario()
     }
     TEST_ASSERT_GREATER_OR_EQUAL_size_t(before_ready + 3, ready_event_scan_count.load());
 
+    // A listener blocked on the event worker must not occupy the scan worker.
+    const bool scans_progressed_while_callback_blocked = fake->wait_for_scan_count(fake->scan_count() + 1);
+
     auto ready = get_fake_info(*manager);
     TEST_ASSERT_TRUE(ready.has_value());
     TEST_ASSERT_EQUAL_STRING(FAKE_MODULE_TYPE, ready->type.c_str());
@@ -344,20 +347,30 @@ void run_expansion_runtime_scenario()
     TEST_ASSERT_EQUAL_size_t(claims_before_stale, fake->claim_count());
 
     hal::expansion::ModuleLease lease;
+    std::atomic<bool> claim_finished = false;
     std::thread claim_thread([&]() {
         lease = hal::expansion::claim_module(
                     ready->provider, ready->slot, ready->generation, &error_message
                 );
+        claim_finished = true;
+        serialized_listener_condition.notify_all();
     });
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    bool claim_finished_while_callback_blocked = false;
     bool active_seen_while_ready_blocked = false;
     {
-        std::lock_guard lock(serialized_listener_mutex);
+        std::unique_lock lock(serialized_listener_mutex);
+        claim_finished_while_callback_blocked = serialized_listener_condition.wait_for(
+        lock, std::chrono::milliseconds(2000), [&]() {
+            return claim_finished.load();
+        }
+                                                );
         active_seen_while_ready_blocked = active_callback_seen.load();
         allow_ready_callback_exit = true;
     }
     serialized_listener_condition.notify_all();
     claim_thread.join();
+    TEST_ASSERT_TRUE(scans_progressed_while_callback_blocked);
+    TEST_ASSERT_TRUE(claim_finished_while_callback_blocked);
     TEST_ASSERT_FALSE(active_seen_while_ready_blocked);
     TEST_ASSERT_TRUE(static_cast<bool>(lease));
     TEST_ASSERT_EQUAL(hal::expansion::ModuleState::Active, lease.get_info().state);
@@ -369,8 +382,12 @@ void run_expansion_runtime_scenario()
     size_t observed_ready_sequence = 0;
     size_t observed_active_sequence = 0;
     {
-        std::lock_guard lock(serialized_listener_mutex);
-        active_callback_did_run = active_callback_seen.load();
+        std::unique_lock lock(serialized_listener_mutex);
+        active_callback_did_run = serialized_listener_condition.wait_for(
+        lock, std::chrono::milliseconds(2000), [&]() {
+            return active_callback_seen.load();
+        }
+                                  );
         observed_ready_sequence = ready_callback_sequence;
         observed_active_sequence = active_callback_sequence;
     }
@@ -577,12 +594,9 @@ void run_expansion_runtime_scenario()
             });
         }
 
-        std::string stop_race_claim_error;
-        auto stop_race_lease = hal::expansion::claim_module(
-                                   info.provider, info.slot, info.generation,
-                                   &stop_race_claim_error
-                               );
-        stop_race_claim_succeeded = static_cast<bool>(stop_race_lease);
+        // Scanning has stopped independently of this callback. A request can
+        // inspect that state without needing the releasing caller to finish us.
+        stop_race_claim_succeeded = hal::expansion::request_rescan();
         {
             std::lock_guard lock(stop_race_mutex);
             stop_race_callback_finished = true;
@@ -613,20 +627,31 @@ void run_expansion_runtime_scenario()
         external_release_started = true;
         manager.reset();
         external_release_finished = true;
+        stop_race_condition.notify_all();
     });
     while (!external_release_started.load()) {
         std::this_thread::yield();
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    const bool external_release_finished_before_callback = external_release_finished.load();
+    bool external_release_finished_before_callback = false;
     {
-        std::lock_guard lock(stop_race_mutex);
+        std::unique_lock lock(stop_race_mutex);
+        external_release_finished_before_callback = stop_race_condition.wait_for(
+        lock, std::chrono::milliseconds(2000), [&]() {
+            return external_release_finished.load();
+        }
+                );
         allow_stop_race_claim = true;
     }
     stop_race_condition.notify_all();
     external_release_thread.join();
+    {
+        std::unique_lock lock(stop_race_mutex);
+        stop_race_condition.wait_for(lock, std::chrono::milliseconds(2000), [&]() {
+            return stop_race_callback_finished;
+        });
+    }
 
-    TEST_ASSERT_FALSE(external_release_finished_before_callback);
+    TEST_ASSERT_TRUE(external_release_finished_before_callback);
     TEST_ASSERT_TRUE(stop_race_callback_finished);
     TEST_ASSERT_FALSE(stop_race_claim_succeeded.load());
     TEST_ASSERT_TRUE(external_release_finished.load());

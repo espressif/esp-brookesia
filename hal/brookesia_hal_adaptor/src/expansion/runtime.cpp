@@ -126,6 +126,7 @@ public:
         if (pending_stop_scheduler_) {
             complete_runtime_stop(pending_stop_scheduler_, pending_stop_providers_);
         }
+        stop_scheduler_noexcept(event_scheduler_);
     }
 
     struct ProviderEntry {
@@ -147,7 +148,7 @@ public:
 
     struct ListenerRecord {
         ModuleManagerIface::EventListener callback;
-        size_t pending_count = 0;
+        size_t active_count = 0;
         bool removed = false;
     };
 
@@ -285,6 +286,10 @@ public:
             return false;
         } catch (...) {
             set_error(error_message, "Failed to prepare expansion runtime");
+            return false;
+        }
+
+        if (!start_event_scheduler(error_message)) {
             return false;
         }
 
@@ -452,7 +457,7 @@ public:
 
         stopping_ = true;
         stopping_scheduler_ = scheduler;
-        if (scheduler && (scheduler->is_current_thread_worker() || (current_event_dispatcher == this))) {
+        if (scheduler && scheduler->is_current_thread_worker()) {
             try {
                 auto thread_config = lib_utils::ThreadConfig::get_applied_config();
                 thread_config.name = "ExpansionStop";
@@ -529,7 +534,7 @@ public:
             return true;
         }
         event_cv_.wait(lock, [&]() {
-            return listener->pending_count == 0;
+            return listener->active_count == 0;
         });
         return true;
     }
@@ -633,7 +638,7 @@ public:
             queue_events(claim_succeeded ? success_events : failure_events);
         }
 
-        drain_events_noexcept();
+        request_event_dispatch();
         return claim_succeeded ? std::move(prepared_lease) : std::nullopt;
     }
 
@@ -731,18 +736,16 @@ public:
             queue_event(record->stable);
         }
 
-        // Releasing a lease always restores scanning immediately. The fresh result
-        // is still published only after the normal three-sample debounce.
+        // Resume on the scan worker: release may be called inside a Board Manager
+        // transaction, so it must not synchronously enter a provider scan.
         try {
-            scan_all_once();
+            request_rescan();
         } catch (const std::exception &e) {
             log_warning_noexcept("Failed to rescan after releasing expansion module", e.what());
         } catch (...) {
             log_warning_noexcept("Failed to rescan after releasing expansion module");
         }
-        // scan_all_once() may return early while another active lease keeps all
-        // scanning paused; the queued Unknown event must still be delivered.
-        drain_events_noexcept();
+        request_event_dispatch();
         return provider_success;
     }
 
@@ -762,6 +765,66 @@ public:
     }
 
 private:
+    bool start_event_scheduler(std::string *error_message)
+    {
+        if (event_scheduler_) {
+            return true;
+        }
+
+        std::shared_ptr<lib_utils::TaskScheduler> scheduler;
+        const auto dispatch_callback = [this]() -> bool {
+            drain_events_noexcept();
+            return true;
+        };
+        try {
+            scheduler = std::make_shared<lib_utils::TaskScheduler>();
+            const lib_utils::TaskScheduler::StartConfig config{
+                .worker_configs = {{
+                        .name = "ExpansionEvents",
+                        .stack_size = BROOKESIA_HAL_ADAPTOR_EXPANSION_SCAN_TASK_STACK_SIZE,
+                    }
+                },
+            };
+            // A periodic wake also services retained events if a one-shot post
+            // fails. This scheduler is independent of scan start/stop cycles.
+            if (scheduler->start(config) && scheduler->post_periodic(
+                        dispatch_callback, BROOKESIA_HAL_ADAPTOR_EXPANSION_SCAN_INTERVAL_MS)) {
+                std::lock_guard lock(event_mutex_);
+                event_scheduler_ = std::move(scheduler);
+                return true;
+            }
+        } catch (const std::exception &e) {
+            set_detailed_error(error_message, "Failed to start expansion event scheduler: ", e.what());
+        } catch (...) {
+            set_error(error_message, "Failed to start expansion event scheduler");
+        }
+        stop_scheduler_noexcept(scheduler);
+        set_error(error_message, "Failed to start expansion event scheduler");
+        return false;
+    }
+
+    void request_event_dispatch() noexcept
+    {
+        try {
+            std::shared_ptr<lib_utils::TaskScheduler> scheduler;
+            {
+                std::lock_guard lock(event_mutex_);
+                if (event_queue_.empty()) {
+                    return;
+                }
+                scheduler = event_scheduler_;
+            }
+            if (scheduler) {
+                const auto dispatch_callback = [this]() {
+                    drain_events_noexcept();
+                };
+                scheduler->post(dispatch_callback);
+            }
+        } catch (...) {
+            log_warning_noexcept("Expansion event wake failed; queued events await the periodic wake");
+        }
+    }
+
     bool wait_for_runtime_stop(
         std::unique_lock<std::mutex> &lifecycle_lock, std::string *error_message = nullptr
     )
@@ -814,10 +877,8 @@ private:
             }
         } stopper_guard(this);
 
-        // Never hold lifecycle_mutex_ while waiting for an in-flight callback
-        // or scheduler worker. Those callbacks may attempt a lifecycle action;
-        // stopping_ makes that action fail immediately in this execution context.
-        quiesce_runtime_events();
+        // Event listeners have their own worker and may acquire camera or device
+        // locks held by the releasing caller. Stopping scans never waits for them.
         finish_runtime_stop(scheduler, providers);
 
         {
@@ -826,17 +887,6 @@ private:
             stopping_ = false;
         }
         lifecycle_cv_.notify_all();
-    }
-
-    void quiesce_runtime_events()
-    {
-        // A scan publishes its events before releasing operation_mutex_. Once
-        // this barrier passes, drain_events() either follows that scan or helps
-        // it drain the same ordered queue.
-        {
-            std::lock_guard operation_lock(operation_mutex_);
-        }
-        drain_events();
     }
 
     void finish_runtime_stop(
@@ -991,7 +1041,7 @@ private:
             queue_events(events);
         }
 
-        drain_events();
+        request_event_dispatch();
     }
 
     void queue_event(const ModuleInfo &event) noexcept
@@ -1035,9 +1085,6 @@ private:
             .info = event,
             .listeners = std::move(listeners),
         });
-        for (const auto &listener : event_queue_.back().listeners) {
-            ++listener->pending_count;
-        }
     }
 
     void drain_events_noexcept() noexcept
@@ -1057,9 +1104,8 @@ private:
             return;
         }
 
-        // Only one thread drains callbacks. Reentrant state changes append to the
-        // same queue and are picked up by the outer dispatcher.
-        std::lock_guard dispatch_lock(event_dispatch_mutex_);
+        // Only the dedicated single-worker scheduler enters this function.
+        // Reentrant state changes append to the same ordered queue.
         struct DispatcherGuard {
             explicit DispatcherGuard(const void *dispatcher)
             {
@@ -1093,6 +1139,9 @@ private:
                 {
                     std::lock_guard lock(event_mutex_);
                     should_invoke = !listener->removed;
+                    if (should_invoke) {
+                        ++listener->active_count;
+                    }
                 }
                 if (should_invoke) {
                     try {
@@ -1106,8 +1155,8 @@ private:
 
                 {
                     std::lock_guard lock(event_mutex_);
-                    if (listener->pending_count > 0) {
-                        --listener->pending_count;
+                    if (should_invoke) {
+                        --listener->active_count;
                     }
                 }
                 event_cv_.notify_all();
@@ -1121,7 +1170,6 @@ private:
     std::mutex operation_mutex_;
     std::condition_variable state_cv_;
     std::mutex event_mutex_;
-    std::mutex event_dispatch_mutex_;
     std::condition_variable event_cv_;
     std::map<std::string, ProviderEntry> providers_;
     std::map<SlotKey, SlotRecord> slots_;
@@ -1129,6 +1177,7 @@ private:
     std::deque<QueuedEvent> event_queue_;
     ModuleManagerIface::EventListenerId next_listener_id_ = 1;
     std::shared_ptr<lib_utils::TaskScheduler> scheduler_;
+    std::shared_ptr<lib_utils::TaskScheduler> event_scheduler_;
     std::shared_ptr<lib_utils::TaskScheduler> stopping_scheduler_;
     std::shared_ptr<lib_utils::TaskScheduler> pending_stop_scheduler_;
     std::vector<std::shared_ptr<ModuleProvider>> active_providers_;
