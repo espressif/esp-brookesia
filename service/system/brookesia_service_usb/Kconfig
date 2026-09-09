@@ -44,7 +44,7 @@ menu "ESP-Brookesia: Service USB Configurations"
 
     config BROOKESIA_SERVICE_USB_SERIAL_JTAG_RX_BUFFER_SIZE
         int "Serial/JTAG RX buffer size"
-        default 4096
+        default 32768
         range 128 65536
         help
             RX ring-buffer size used when the service owns the Serial/JTAG
