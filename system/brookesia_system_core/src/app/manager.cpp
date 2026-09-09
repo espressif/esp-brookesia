@@ -19,6 +19,7 @@
 #endif
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/system_core/app/package.hpp"
+#include "private/app/service_requirement.hpp"
 #include "private/filesystem.hpp"
 #include "private/utils.hpp"
 #include "private/heap_trace.hpp"
@@ -174,6 +175,30 @@ void show_lifecycle_error_dialog(
             "Failed to show lifecycle error dialog: app_id(%1%), lifecycle(%2%), error(%3%)",
             info.app_id,
             lifecycle,
+            dialog_result.error()
+        );
+    }
+}
+
+void show_service_requirement_error_dialog(System &system, const AppInfo &info, std::string_view error)
+{
+    MessageDialogOptions options{
+        .text = "Unable to start " + get_lifecycle_app_name(info),
+        .informative_text = std::string(error),
+        .icon = MessageDialogIcon::Warning,
+        .buttons = {
+            MessageDialogButton{
+                .text = "Close",
+                .role = MessageDialogButtonRole::Accept,
+            },
+        },
+        .auto_close_ms = 0,
+    };
+    auto dialog_result = system.show_system_message_dialog(std::move(options));
+    if (!dialog_result) {
+        BROOKESIA_LOGW(
+            "Failed to show service requirement dialog: app_id(%1%), error(%2%)",
+            info.app_id,
             dialog_result.error()
         );
     }
@@ -582,6 +607,33 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
     auto &record = *record_result.value();
     if (record.info.state == AppState::Running) {
         return {};
+    }
+
+    if (record.info.manifest.kind == AppKind::Runtime) {
+        const auto service_failures = detail::evaluate_service_requirements(
+                                          record.info.manifest,
+                                          service::ServiceManager::get_instance()
+                                      );
+        if (!service_failures.empty()) {
+            const auto error = detail::format_service_requirement_failures(service_failures);
+            record.info.last_error = error;
+            for (const auto &failure : service_failures) {
+                const auto local_version = failure.registered ? failure.local_version : "<none>";
+                BROOKESIA_LOGW(
+                    "App service requirement failed: phase(start), app_id(%1%), manifest(%2%), rpc(%3%), "
+                    "required_version(%4%), local_version(%5%), reason(%6%)",
+                    app_id,
+                    record.info.manifest.id,
+                    failure.requirement.name,
+                    failure.requirement.version,
+                    local_version,
+                    failure.reason
+                );
+            }
+            on_app_start_failed(record.info, error);
+            show_service_requirement_error_dialog(*this, record.info, error);
+            return std::unexpected(error);
+        }
     }
 
     const auto start_profile_started_at = SteadyClock::now();

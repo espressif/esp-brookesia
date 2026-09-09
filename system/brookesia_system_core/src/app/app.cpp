@@ -15,6 +15,8 @@
 #include "brookesia/system_core/app/package.hpp"
 #include "brookesia/system_core/system/system.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
+#include "brookesia/service_manager/service/manager.hpp"
+#include "private/app/service_requirement.hpp"
 #include "private/filesystem.hpp"
 
 namespace esp_brookesia::system::core {
@@ -45,6 +47,35 @@ std::string make_unique_install_directory_name(std::string_view app_id)
 {
     const auto now = std::chrono::steady_clock::now().time_since_epoch().count();
     return std::string(app_id) + "-" + std::to_string(now);
+}
+
+std::expected<void, std::string> check_runtime_app_service_requirements(
+    const AppManifest &manifest,
+    std::string_view phase
+)
+{
+    const auto failures = detail::evaluate_service_requirements(
+                              manifest,
+                              service::ServiceManager::get_instance()
+                          );
+    if (failures.empty()) {
+        return {};
+    }
+
+    for (const auto &failure : failures) {
+        const auto local_version = failure.registered ? failure.local_version : "<none>";
+        BROOKESIA_LOGW(
+            "App service requirement failed: phase(%1%), manifest(%2%), rpc(%3%), "
+            "required_version(%4%), local_version(%5%), reason(%6%)",
+            phase,
+            manifest.id,
+            failure.requirement.name,
+            failure.requirement.version,
+            local_version,
+            failure.reason
+        );
+    }
+    return std::unexpected(detail::format_service_requirement_failures(failures));
 }
 
 std::expected<void, std::string> remove_path_tree_if_exists(
@@ -1130,6 +1161,11 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
         return std::unexpected("Runtime app package is already installed: " + package_manifest->id);
     }
 
+    auto service_requirement_result = check_runtime_app_service_requirements(*package_manifest, "install");
+    if (!service_requirement_result) {
+        return std::unexpected(service_requirement_result.error());
+    }
+
     std::filesystem::path app_root;
     std::filesystem::path old_app_dir;
     if (installed) {
@@ -1184,6 +1220,11 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
                    "Runtime app package manifest changed while unpacking: " + package_manifest->id +
                    " -> " + unpacked_manifest->id
                );
+    }
+    service_requirement_result = check_runtime_app_service_requirements(*unpacked_manifest, "install");
+    if (!service_requirement_result) {
+        cleanup_staging();
+        return std::unexpected(service_requirement_result.error());
     }
     auto descriptor_result = read_runtime_app_resource_descriptor(*unpacked_manifest);
     if (!descriptor_result) {

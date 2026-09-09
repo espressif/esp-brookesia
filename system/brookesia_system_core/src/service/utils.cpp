@@ -467,6 +467,14 @@ boost::json::object app_info_to_json(const AppInfo &info, std::string_view langu
         supported_systems.emplace_back(system);
     }
     manifest["supported_systems"] = std::move(supported_systems);
+    boost::json::array services;
+    for (const auto &service : info.manifest.services) {
+        services.emplace_back(boost::json::object{
+            {"name", service.name},
+            {"version", service.version},
+        });
+    }
+    manifest["services"] = std::move(services);
     manifest["icon_path"] = info.manifest.icon_path;
 
     boost::json::object root;

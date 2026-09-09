@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -14,6 +15,7 @@
 #include <limits>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,6 +28,7 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include "brookesia/service_helper/system/storage.hpp"
+#include "private/app/service_requirement.hpp"
 #include "private/utils.hpp"
 
 namespace esp_brookesia::system::core {
@@ -495,6 +498,66 @@ void warn_unknown_manifest_fields(
     }
 }
 
+std::expected<std::vector<AppManifestService>, std::string> get_manifest_services(
+    const boost::json::object &root
+)
+{
+    std::vector<AppManifestService> services;
+    auto services_it = root.find("services");
+    if (services_it == root.end()) {
+        return services;
+    }
+    if (!services_it->value().is_array()) {
+        return std::unexpected("manifest.services must be an array");
+    }
+
+    std::set<std::string> service_names;
+    size_t index = 0;
+    for (const auto &item : services_it->value().as_array()) {
+        const std::string owner = "services[" + std::to_string(index) + "]";
+        if (!item.is_object()) {
+            return std::unexpected("manifest." + owner + " must be an object");
+        }
+
+        const auto &service = item.as_object();
+        warn_unknown_manifest_fields(service, owner, std::array<std::string_view, 3> {
+            "name",
+            "component",
+            "version",
+        });
+        auto name = get_required_string(service, owner, "name");
+        auto version = get_required_string(service, owner, "version");
+        if (!name || !version) {
+            return std::unexpected(
+                       !name ? name.error() :
+                       version.error()
+                   );
+        }
+        const auto is_blank = [](std::string_view value) {
+            return std::all_of(value.begin(), value.end(), [](unsigned char character) {
+                return std::isspace(character) != 0;
+            });
+        };
+        if (is_blank(*name)) {
+            return std::unexpected("manifest." + owner + ".name must not be blank");
+        }
+        auto parsed_version = detail::parse_service_version(*version);
+        if (!parsed_version) {
+            return std::unexpected("manifest." + owner + ".version " + parsed_version.error());
+        }
+        if (!service_names.emplace(*name).second) {
+            return std::unexpected("manifest.services contains duplicate name: " + *name);
+        }
+
+        services.emplace_back(AppManifestService{
+            .name = std::move(*name),
+            .version = std::move(*version),
+        });
+        ++index;
+    }
+    return services;
+}
+
 std::expected<GuiAppLayer, std::string> parse_gui_app_layer(std::string_view layer)
 {
     GuiAppLayer parsed = GuiAppLayer::AppDefault;
@@ -606,9 +669,10 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
     if (!runtime) {
         return std::unexpected(runtime.error());
     }
-    warn_unknown_manifest_fields(root, "json", std::array<std::string_view, 2> {
+    warn_unknown_manifest_fields(root, "json", std::array<std::string_view, 3> {
         "package",
         "runtime",
+        "services",
     });
     warn_unknown_manifest_fields(**package, "package", std::array<std::string_view, 5> {
         "id",
@@ -629,11 +693,12 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
     auto localized_names = get_optional_localized_names(**package, "package", "name");
     auto visible = get_optional_bool(**package, "package", "visible", true);
     auto systems = get_optional_string_array(**package, "package", "systems");
+    auto services = get_manifest_services(root);
     auto runtime_type_string = get_required_string(**runtime, "runtime", "type");
     auto entry = get_required_string(**runtime, "runtime", "entry");
     auto resource_dir = get_optional_string(**runtime, "runtime", "resource_dir");
     auto arguments = get_optional_string_array(**runtime, "runtime", "arguments");
-    if (!id || !version || !localized_names || !visible || !systems ||
+    if (!id || !version || !localized_names || !visible || !systems || !services ||
             !runtime_type_string || !entry || !resource_dir || !arguments) {
         return std::unexpected(
                    !id ? id.error() :
@@ -641,6 +706,7 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
                    !localized_names ? localized_names.error() :
                    !visible ? visible.error() :
                    !systems ? systems.error() :
+                   !services ? services.error() :
                    !runtime_type_string ? runtime_type_string.error() :
                    !entry ? entry.error() :
                    !resource_dir ? resource_dir.error() :
@@ -674,6 +740,7 @@ std::expected<AppManifest, std::string> parse_manifest_to_app_manifest(
     manifest.entry = *entry;
     manifest.resource_dir = *resource_dir;
     manifest.arguments = *arguments;
+    manifest.services = std::move(*services);
 
     return manifest;
 }

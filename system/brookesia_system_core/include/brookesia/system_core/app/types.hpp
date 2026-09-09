@@ -191,6 +191,12 @@ struct RuntimeAppResourceDescriptor {
 };
 BROOKESIA_DESCRIBE_STRUCT(RuntimeAppResourceDescriptor, (), (icon_id, preload_dom, gui))
 
+struct AppManifestService {
+    std::string name;
+    std::string version;
+};
+BROOKESIA_DESCRIBE_STRUCT(AppManifestService, (), (name, version))
+
 struct AppManifest {
     std::string id;
     std::string name;
@@ -213,6 +219,7 @@ struct AppManifest {
     std::string entry;
     std::string resource_dir;
     std::vector<std::string> arguments;
+    std::vector<AppManifestService> services = {};
 };
 BROOKESIA_DESCRIBE_STRUCT(
     AppManifest,
@@ -232,7 +239,8 @@ BROOKESIA_DESCRIBE_STRUCT(
         app_path,
         entry,
         resource_dir,
-        arguments
+        arguments,
+        services
     )
 )
 

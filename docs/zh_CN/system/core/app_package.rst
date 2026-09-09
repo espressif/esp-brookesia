@@ -51,7 +51,13 @@ App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runt
        "entry": "app/app.lua",
        "resource_dir": "res",
        "arguments": []
-     }
+     },
+     "services": [
+       {
+         "name": "Storage",
+         "version": "0.8.1"
+       }
+     ]
    }
 
 .. _system-core-app_package-sec-03:
@@ -92,6 +98,28 @@ Manifest 字段
      - app 资源目录相对路径
    * - ``arguments``
      - runtime 启动参数字符串数组
+
+可选的顶层 ``services`` 数组声明 runtime app 所需的 service RPC：
+
+.. list-table::
+   :header-rows: 1
+
+   * - 字段
+     - 说明
+   * - ``name``
+     - 稳定且区分大小写的 RPC 名，例如 ``Storage``；必须使用 service helper 的 ``get_name()`` 返回的精确值
+   * - ``version``
+     - 数字 ``MAJOR.MINOR.PATCH`` 格式的最低兼容 service 版本
+
+本地 service 的 major 和 minor 必须与声明值相同，并且本地 patch 必须大于或等于声明的 patch，才视为版本兼容。例如，本地版本 ``0.8.2`` 和 ``0.8.3`` 均满足 ``0.8.1`` 的依赖，而 ``0.9.0`` 不满足。所有声明的 service 都是必要依赖。
+
+``component`` 字段可以作为外部工具的元数据保留，但 system_core 会静默忽略它：不会解析、校验、保存、输出或用于匹配。Core 仅使用 ``name`` 和 ``version`` 匹配 service。
+
+安装 ``.bpk`` 或启动 app 时，system_core 会检查每个已声明 service 是否已注册以及版本是否兼容。App 真正尝试使用 service 前无法发现漏声明，因此 HostBridge 还会在调用时强制检查声明。对于未声明的 service，``service_available()`` 返回 ``false``，其他按名称执行的 service 操作返回错误且不会调用该 service。
+
+精确 RPC 名 ``SystemCore``、``SystemGui`` 和 ``SystemTimer`` 默认允许，无需声明。匹配区分大小写，``systemcore`` 等变体不会被默认允许。缺少 ``services`` 字段或数组为空，表示 runtime app 只能调用这三个默认允许的系统 RPC。
+
+上述约束适用于通过 HostBridge 访问 service 的 runtime app。Native app 属于可信固件代码，其直接使用 C++ service 接口的行为不受 manifest 限制。
 
 .. _system-core-app_package-sec-04:
 

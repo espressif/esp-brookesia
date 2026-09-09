@@ -104,6 +104,7 @@ std::expected<void, std::string> System::Impl::ensure_runtime_loaded(AppRecord &
             return std::unexpected(load_result.error());
         }
         record.runtime_app_id = *load_result;
+        host_bridge_->register_app_manifest(*record.runtime_app_id, record.info.manifest);
         runtime_to_app_.emplace(*record.runtime_app_id, record.info.app_id);
         record.runtime_loaded = true;
     }
@@ -120,6 +121,7 @@ void System::Impl::unload_runtime(AppRecord &record)
     if (!unload_result) {
         BROOKESIA_LOGW("Failed to unload runtime app: %1%", unload_result.error());
     }
+    host_bridge_->unregister_app_manifest(*record.runtime_app_id);
     runtime_to_app_.erase(*record.runtime_app_id);
     record.runtime_app_id.reset();
     record.runtime_loaded = false;
