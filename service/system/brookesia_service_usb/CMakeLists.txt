@@ -8,10 +8,12 @@ idf_component_register(
     SRCS
         src/protocol.cpp
         src/service_usb.cpp
+        src/transport_serial_jtag.cpp
+        src/transport_uart.cpp
     INCLUDE_DIRS include
     PRIV_INCLUDE_DIRS src
     REQUIRES brookesia_service_helper
-    PRIV_REQUIRES esp_driver_usb_serial_jtag mbedtls
+    PRIV_REQUIRES mbedtls esp_driver_uart esp_driver_usb_serial_jtag
 )
 
 if(CONFIG_BROOKESIA_SERVICE_USB_ENABLE_AUTO_REGISTER)

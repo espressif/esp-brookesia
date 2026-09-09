@@ -45,6 +45,44 @@ per-read and write timeout in seconds, with a default of `10`:
 brookesia-usb --port /dev/ttyACM0 --baudrate 115200 --timeout 10 status
 ```
 
+## USB-UART Support
+
+The CLI also supports USB-UART bridges (CP210x, CH340, FTDI, etc.) for devices
+that only expose a USB-to-UART connection instead of native USB Serial/JTAG.
+When a USB-UART device is used, the `--baudrate` parameter becomes significant
+and must match the device's console baud rate.
+
+Auto-discovery follows this order:
+1. USB Serial/JTAG devices (VID:PID 0x303A:0x1001 or descriptive match)
+2. USB-UART devices (common bridge VID:PID pairs or ttyUSB*/ttyACM* ports)
+
+When a command needs a control session, the CLI sends `hello`, validates
+`protocol_version: 1`, `transport` in `{"serial_jtag", "uart"}`, and
+`session: "exclusive"`, then sends `goodbye` when it exits. Logs already in the
+input buffer are discarded before `hello`; device logs are suppressed during
+the control session so they cannot corrupt file frames.
+
+When using USB-UART, note that:
+- The `--baudrate` option must match the device's console baud rate
+- Close `idf.py monitor` or other terminal programs before using the CLI
+- The CLI does not automatically retry after disconnection
+- Transport type can be verified via `brookesia-usb status` (look for the
+  "transport" field in the JSON output)
+
+To select the port explicitly, use `/dev/ttyACM0` (or the path reported by
+`devices`):
+
+```bash
+brookesia-usb --port /dev/ttyACM0 status
+```
+
+For USB-UART devices, specify the appropriate port (e.g., `/dev/ttyUSB0`) and
+matching baud rate:
+
+```bash
+brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 status
+```
+
 When a command needs a control session, the CLI sends `hello`, validates
 `protocol_version: 1`, `transport: "serial_jtag"`, and
 `session: "exclusive"`, then sends `goodbye` when it exits. Logs already in the

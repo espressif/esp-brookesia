@@ -72,6 +72,7 @@ public:
     struct Status {
         PortState port_state = PortState::Disabled;
         bool serial_jtag_connected = false;
+        std::string transport;
         SessionState session_state = SessionState::Idle;
         bool logs_suppressed = false;
         uint32_t active_request_id = 0;
@@ -228,7 +229,7 @@ BROOKESIA_DESCRIBE_ENUM(
 )
 BROOKESIA_DESCRIBE_ENUM(Usb::HostCommand, PutFile, InstallBpk, Max)
 BROOKESIA_DESCRIBE_STRUCT(
-    Usb::Status, (), (port_state, serial_jtag_connected, session_state, logs_suppressed, active_request_id,
+    Usb::Status, (), (port_state, serial_jtag_connected, transport, session_state, logs_suppressed, active_request_id,
                       max_frame_payload)
 )
 BROOKESIA_DESCRIBE_STRUCT(

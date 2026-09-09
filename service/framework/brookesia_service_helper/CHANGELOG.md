@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.5 - 2026-09-10
+
+### Enhancements:
+
+- feat(usb): report the active transport in `Usb::Status`.
+
 ## v0.8.4 - 2026-08-04
 
 ### Enhancements:
