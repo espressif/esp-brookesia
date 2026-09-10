@@ -8,6 +8,7 @@
 #include <chrono>
 #include <expected>
 #include <functional>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -27,6 +28,8 @@
 #include "private/system_constants.hpp"
 
 namespace esp_brookesia::system::super {
+
+class ExpansionNotifications;
 
 class ShellApp final: public core::IApp {
 public:
@@ -130,6 +133,9 @@ private:
     void stop_message_dialog_auto_close_timer();
     void reset_message_dialog_state();
     void finish_message_dialog(int32_t button_index, core::MessageDialogCloseReason reason);
+    void start_expansion_notifications();
+    void stop_expansion_notifications();
+    void process_expansion_notifications();
     std::expected<void, std::string> populate_launcher(core::AppContext &context);
     void disconnect_launcher_actions();
     void disconnect_overlay_actions();
@@ -237,6 +243,11 @@ private:
     std::vector<DisplaySourceRestoreRecord> display_source_restore_records_;
     bool launcher_populated_ = false;
     std::string applied_i18n_locale_;
+    std::shared_ptr<ExpansionNotifications> expansion_notifications_;
+    service::ServiceBinding expansion_service_binding_;
+    service::EventRegistry::SignalConnection expansion_event_connection_;
+    core::TimerId expansion_notification_timer_id_ = core::INVALID_TIMER_ID;
+    std::map<std::pair<std::string, std::string>, core::MessageDialogRequestId> expansion_dialogs_;
     mutable std::mutex debug_mutex_;
     DebugConfig debug_config_;
     DebugRuntimeState debug_state_;

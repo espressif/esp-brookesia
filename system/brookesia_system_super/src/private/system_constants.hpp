@@ -233,6 +233,7 @@ inline constexpr const char *SUPER_ACTION_MESSAGE_DIALOG_SHOW =
 inline constexpr const char *SUPER_ACTION_MESSAGE_DIALOG_HIDE =
     BROOKESIA_SYSTEM_SUPER_ACTION_MESSAGE_DIALOG_PREFIX "hide";
 inline constexpr const char *SUPER_MESSAGE_DIALOG_TIMEOUT_TIMER_NAME = "super.message_dialog.timeout";
+inline constexpr const char *SUPER_EXPANSION_NOTIFICATION_TIMER_NAME = "super.expansion.notification";
 inline constexpr const char *SUPER_GESTURE_EXIT_HOLD_TIMER_NAME = "super.gesture.exit_hold";
 inline constexpr const char *SUPER_STATUS_PEEK_AUTO_HIDE_TIMER_NAME = "super.status.peek_auto_hide";
 inline constexpr const char *SUPER_STATUS_CLOCK_TIMER_NAME = "super.status.clock";

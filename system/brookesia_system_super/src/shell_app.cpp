@@ -139,12 +139,14 @@ std::expected<void, std::string> ShellApp::on_start(core::AppContext &context)
         context_ = nullptr;
         return result;
     }
+    start_expansion_notifications();
     return {};
 }
 
 std::expected<void, std::string> ShellApp::on_stop(core::AppContext &context)
 {
     (void)context;
+    stop_expansion_notifications();
     disconnect_launcher_actions();
     launcher_instance_to_app_.clear();
     launcher_populated_ = false;
@@ -165,6 +167,10 @@ std::expected<void, std::string> ShellApp::on_timer(
 )
 {
     (void)context;
+    if (name == SUPER_EXPANSION_NOTIFICATION_TIMER_NAME && timer_id == expansion_notification_timer_id_) {
+        process_expansion_notifications();
+        return {};
+    }
     if (name == SUPER_MESSAGE_DIALOG_TIMEOUT_TIMER_NAME && timer_id == message_dialog_auto_close_timer_id_) {
         message_dialog_auto_close_timer_id_ = core::INVALID_TIMER_ID;
         finish_message_dialog(-1, core::MessageDialogCloseReason::Timeout);
