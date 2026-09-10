@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#if !defined(ESP_PLATFORM)
 #include <memory>
 #include <optional>
 #include <span>
@@ -115,7 +116,9 @@ private:
 
 class MockDisplayService : public service::ServiceBase {
 public:
-    MockDisplayService() : ServiceBase({.name = "VideoDisplayTest", .description = "Mock preview output", .version = "0.0.0"}) {}
+    MockDisplayService()
+        : ServiceBase({.name = "VideoDisplayTest", .description = "Mock preview output", .version = "0.0.0"})
+    {}
 };
 
 dataflow::VisualOutputInfo make_output()
@@ -341,3 +344,4 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(presented_pixels == captured_pixels);
     TEST_ASSERT_EQUAL_size_t(1, present_count);
 }
+#endif

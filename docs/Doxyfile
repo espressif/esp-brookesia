@@ -23,6 +23,8 @@ INPUT = \
     $(PROJECT_PATH)/service/expression/brookesia_expression_emote/include/brookesia/expression_emote.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/audio/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/module_provider.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/network/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.hpp \
