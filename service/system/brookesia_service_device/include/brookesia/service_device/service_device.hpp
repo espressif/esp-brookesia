@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 #include "boost/json.hpp"
+#include "boost/thread/mutex.hpp"
 #include "brookesia/hal_interface/interface.hpp"
 #include "brookesia/hal_interface/interfaces/expansion/module_manager.hpp"
 #include "brookesia/hal_interface/interfaces/network/connectivity.hpp"
@@ -58,8 +59,10 @@ private:
     };
 
     struct ExpansionState {
+        boost::mutex mutex;
         hal::expansion::ModuleManagerIface::EventListenerId listener_id = 0;
         bool events_requested = false;
+        bool events_enabled = false;
         hal::InterfaceHandle<hal::expansion::ModuleManagerIface> manager_iface;
     };
 
@@ -109,9 +112,9 @@ private:
 
     Capabilities get_capabilities() const;
 
-    bool ensure_expansion_manager_iface();
+    bool ensure_expansion_manager_iface_locked();
     void request_expansion_module_events();
-    bool start_expansion_module_events();
+    bool start_expansion_module_events_locked();
     void stop_expansion_module_events();
     bool publish_expansion_module_changed(const hal::expansion::ModuleInfo &module);
     bool ensure_power_battery_iface();

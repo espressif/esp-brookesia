@@ -8,6 +8,9 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 
+#include <utility>
+
+#include "boost/thread/lock_guard.hpp"
 #include "brookesia/hal_interface/interface.hpp"
 #include "brookesia/hal_interface/interfaces/expansion/module_manager.hpp"
 #include "brookesia/service_device/service_device.hpp"
@@ -19,14 +22,15 @@ std::expected<boost::json::array, std::string> Device::function_get_expansion_mo
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!ensure_expansion_manager_iface()) {
+    boost::lock_guard lock(expansion_.mutex);
+    if (!ensure_expansion_manager_iface_locked()) {
         return std::unexpected("Expansion module manager interface is not available");
     }
 
     return BROOKESIA_DESCRIBE_TO_JSON(expansion_.manager_iface->get_module_infos()).as_array();
 }
 
-bool Device::ensure_expansion_manager_iface()
+bool Device::ensure_expansion_manager_iface_locked()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -46,17 +50,18 @@ void Device::request_expansion_module_events()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    boost::lock_guard lock(expansion_.mutex);
     expansion_.events_requested = true;
-    if (!is_running()) {
-        BROOKESIA_LOGD("Device service is not running yet, defer expansion module events");
+    if (!expansion_.events_enabled) {
+        BROOKESIA_LOGD("Expansion event forwarding is inactive, defer request");
         return;
     }
-    if (!start_expansion_module_events()) {
+    if (!start_expansion_module_events_locked()) {
         BROOKESIA_LOGW("Failed to start expansion module event forwarding after request");
     }
 }
 
-bool Device::start_expansion_module_events()
+bool Device::start_expansion_module_events_locked()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -64,15 +69,17 @@ bool Device::start_expansion_module_events()
         return true;
     }
     BROOKESIA_CHECK_FALSE_RETURN(
-        ensure_expansion_manager_iface(), false, "Failed to acquire expansion module manager interface"
+        ensure_expansion_manager_iface_locked(), false, "Failed to acquire expansion module manager interface"
     );
 
-    expansion_.listener_id = expansion_.manager_iface->add_event_listener(
-    [this](const hal::expansion::ModuleInfo & module) {
+    auto on_module = [this](const hal::expansion::ModuleInfo & module) {
+        // Only enqueue the service event here. Removal waits for this callback,
+        // so it must not acquire expansion_.mutex or invoke subscribers inline.
         if (!publish_expansion_module_changed(module)) {
             BROOKESIA_LOGW("Failed to publish expansion module changed event");
         }
-    });
+    };
+    expansion_.listener_id = expansion_.manager_iface->add_event_listener(std::move(on_module));
     BROOKESIA_CHECK_FALSE_RETURN(
         expansion_.listener_id != 0, false, "Failed to register expansion module event listener"
     );
@@ -84,6 +91,10 @@ void Device::stop_expansion_module_events()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    boost::lock_guard lock(expansion_.mutex);
+    // ServiceBase still reports running during on_stop(). Block new listeners
+    // before removing the old one, including concurrent subscription requests.
+    expansion_.events_enabled = false;
     if (expansion_.listener_id == 0) {
         return;
     }

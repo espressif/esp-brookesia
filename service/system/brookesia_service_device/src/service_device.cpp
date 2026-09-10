@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "boost/json.hpp"
+#include "boost/thread/lock_guard.hpp"
 #include "brookesia/lib_utils/plugin.hpp"
 #include "brookesia/service_device/macro_configs.h"
 #if !BROOKESIA_SERVICE_DEVICE_ENABLE_DEBUG_LOG
@@ -44,7 +45,10 @@ void Device::on_deinit()
 
     stop_expansion_module_events();
     stop_power_battery_polling();
-    expansion_.events_requested = false;
+    {
+        boost::lock_guard lock(expansion_.mutex);
+        expansion_.events_requested = false;
+    }
     power_.cached_state.reset();
     power_.cached_charge_config.reset();
     power_.polling_requested = false;
@@ -57,12 +61,16 @@ bool Device::on_start()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (hal::has_interface(hal::expansion::ModuleManagerIface::NAME) &&
-            !ensure_expansion_manager_iface()) {
-        BROOKESIA_LOGW("Failed to acquire expansion module manager interface");
-    }
-    if (expansion_.events_requested && !start_expansion_module_events()) {
-        BROOKESIA_LOGW("Failed to start expansion module event forwarding");
+    {
+        boost::lock_guard lock(expansion_.mutex);
+        expansion_.events_enabled = true;
+        if (hal::has_interface(hal::expansion::ModuleManagerIface::NAME) &&
+                !ensure_expansion_manager_iface_locked()) {
+            BROOKESIA_LOGW("Failed to acquire expansion module manager interface");
+        }
+        if (expansion_.events_requested && !start_expansion_module_events_locked()) {
+            BROOKESIA_LOGW("Failed to start expansion module event forwarding");
+        }
     }
     power_.cached_state.reset();
     power_.cached_charge_config.reset();
@@ -162,7 +170,10 @@ void Device::reset_interfaces()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    expansion_.manager_iface.reset();
+    {
+        boost::lock_guard lock(expansion_.mutex);
+        expansion_.manager_iface.reset();
+    }
     power_.battery_iface.reset();
 }
 
