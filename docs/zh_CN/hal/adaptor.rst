@@ -176,8 +176,10 @@ API 参考
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/video/device.inc
 
+.. include-build-file:: inc/module_manager.inc
+
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/device.inc
 
-.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/module_provider.inc
+.. include-build-file:: inc/module_provider.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/wifi/device.inc

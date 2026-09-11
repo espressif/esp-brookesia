@@ -38,6 +38,7 @@ INPUT = \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/backlight.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/panel.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/touch.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/expansion/module_manager.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/connectivity.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/http_client.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/sntp_client.hpp \
