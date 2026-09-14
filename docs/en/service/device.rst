@@ -19,7 +19,7 @@ Overview
 Typical usage:
 
 - Application code calls functions or subscribes to events through ``service::helper::Device``.
-- HAL adaptor and board components provide low-level interfaces such as ``AudioCodecPlayerIface``, ``DisplayBacklightIface``, ``StorageFsIface``, ``PowerBatteryIface``, and ``ProtocolSntpIface``.
+- HAL adaptor and board components provide low-level interfaces such as ``AudioCodecPlayerIface``, ``DisplayBacklightIface``, ``StorageFsIface``, ``PowerBatteryIface``, ``expansion::ModuleManagerIface``, and ``ProtocolSntpIface``.
 - ``brookesia_service_device`` sits in between to validate parameters, cache state, publish events, and persist selected application-level state.
 
 Therefore, applications usually do not need to hold HAL interface pointers directly unless they need low-level or board-specific behavior.
@@ -54,6 +54,8 @@ Common capabilities:
      - Get mounted file-system information.
    * - ``PowerBatteryIface``
      - Get battery information, state, and charge configuration; control charging when supported.
+   * - ``expansion::ModuleManagerIface``
+     - Get stable expansion-slot and module identity, availability, and active state.
    * - ``ProtocolSntpIface``
      - Configure NTP servers and timezone, start or stop SNTP, and query time-sync state.
 
@@ -84,6 +86,7 @@ Status-query functions read static information or runtime state:
 - **Audio state**: get target player volume percentage and mute state.
 - **Storage state**: get mounted file systems and mount points.
 - **Battery state**: get battery capabilities, voltage, percentage, charge state, low/critical flags, and charge configuration when supported.
+- **Expansion-module state**: call ``GetExpansionModuleInfos`` to get stable snapshots for all provider slots.
 - **SNTP state**: get configured NTP servers, timezone, and whether system time has synchronized.
 
 .. _service-device-sec-06:
@@ -99,8 +102,9 @@ The service publishes events when cached state changes. Applications can subscri
 - ``AudioPlayerMuteChanged``
 - ``PowerBatteryStateChanged``
 - ``PowerBatteryChargeConfigChanged``
+- ``ExpansionModuleChanged``
 
-Battery state is polled from HAL at the configured interval, and an event is published when the snapshot changes.
+Battery state is polled from HAL at the configured interval, and an event is published when the snapshot changes. ``ExpansionModuleChanged`` carries the complete stable snapshot received from HAL after module insertion, removal, support, or active-state changes.
 
 .. _service-device-sec-07:
 
@@ -124,6 +128,7 @@ Usage Recommendations
 
 - Initialize required HAL devices before starting ``ServiceManager`` and the Device service.
 - Query ``GetCapabilities`` before invoking optional control functions.
+- Use ``GetExpansionModuleInfos`` for the initial slot state, then subscribe to ``ExpansionModuleChanged`` instead of repeatedly polling from application code.
 - Enable the HAL General SNTP implementation when time synchronization is required.
 - Call ``StartSntp`` explicitly after networking has been configured; Device service prepares SNTP but does not auto-start synchronization.
 - For UI and Agent tool calls, prefer Device service as the application-layer entry point to HAL instead of depending on board-specific HAL implementations directly.

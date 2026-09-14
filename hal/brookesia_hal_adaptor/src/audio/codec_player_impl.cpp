@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <utility>
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "private/utils.hpp"
 #include "codec_player_impl.hpp"
 
@@ -56,12 +57,8 @@ AudioCodecPlayerImpl::~AudioCodecPlayerImpl()
     close();
 
     if (is_codec_valid_internal()) {
-        auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC);
+        auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit codec DAC"); });
-    }
-    if (is_pa_control_valid_internal()) {
-        auto ret = esp_board_periph_deinit(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL);
-        BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit PA control GPIO"); });
     }
 }
 
@@ -154,17 +151,18 @@ bool AudioCodecPlayerImpl::write_data(const uint8_t *data, size_t size)
 
 bool AudioCodecPlayerImpl::setup_codec()
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC)) {
         BROOKESIA_LOGW("Audio DAC device not found, skip");
         return false;
     }
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_DAC);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to init codec DAC");
 
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_AUDIO_DAC, &codec_handles_);
+    ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_AUDIO_DAC, &codec_handles_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get handles");
     BROOKESIA_CHECK_NULL_RETURN(codec_handles_, false, "Failed to get handles");
 
@@ -175,17 +173,17 @@ bool AudioCodecPlayerImpl::setup_pa_control()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL)) {
         BROOKESIA_LOGW("PA control GPIO not found, skip");
         return true;
     }
 
-    auto ret = esp_board_manager_get_periph_handle(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL, &pa_control_handle_);
+    auto ret = brookesia_hal_board_manager_get_periph_handle(ESP_BOARD_PERIPH_NAME_GPIO_PA_CONTROL, &pa_control_handle_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get PA control GPIO handle");
     BROOKESIA_CHECK_NULL_RETURN(pa_control_handle_, false, "Failed to get PA control GPIO handle");
 
     dev_audio_codec_config_t *config = nullptr;
-    ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_AUDIO_DAC, reinterpret_cast<void **>(&config));
+    ret = brookesia_hal_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_AUDIO_DAC, reinterpret_cast<void **>(&config));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get audio DAC config");
     BROOKESIA_CHECK_NULL_RETURN(config, false, "Failed to get audio DAC config");
 

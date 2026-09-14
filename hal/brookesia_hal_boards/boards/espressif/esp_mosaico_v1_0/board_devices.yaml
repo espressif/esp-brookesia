@@ -1,0 +1,232 @@
+# ESP-Mosaico v1.0 core-board devices
+devices:
+  - name: board_power
+    chip: mosaico_power
+    type: custom
+    version: default
+    dependencies:
+      esp_mosaico_usb_console:
+        override_path: "${BOARD_PATH}/components/esp_mosaico_usb_console"
+    config:
+      vcc_gpio_num: 60
+      shutdown_gpio_num: 57
+      ramp_frequency_hz: 100000
+      ramp_time_ms: 50
+
+  - name: expansion_module_manager
+    chip: mosaico_module_manager
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [board_power]
+    dependencies:
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
+    config:
+      frequency_hz: 100000
+      timeout_ms: 100
+      left_address_gpio_num: 14
+      left_address_level: 0
+      left_eeprom_address: 0x50
+      right_address_gpio_num: 39
+      right_address_level: 1
+      right_eeprom_address: 0x51
+    peripherals:
+      - name: i2c_master
+
+  # Independent lifetime pin held by the common expansion runtime. Keeping it
+  # separate from camera_slot_claim lets either consumer release first without
+  # tearing down the shared scanner.
+  - name: expansion_runtime_pin
+    chip: mosaico_expansion_runtime_pin
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [expansion_module_manager]
+    dependencies:
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
+
+  - name: camera_slot_claim
+    chip: mosaico_camera_slot
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [expansion_module_manager]
+    config:
+      slot: 0
+      expected_board_type: 0x07
+      flash_gpio_num: 34
+      flash_off_level: 1
+      settle_time_ms: 20
+
+  - name: camera
+    type: camera
+    sub_type: dvp
+    version: default
+    init_skip: true
+    depends_on: [camera_slot_claim]
+    config:
+      dvp_config:
+        reset_io: 53
+        pwdn_io: 48
+        vsync_io: 55
+        data_width: CAM_CTLR_DATA_WIDTH_8
+        de_io: 19
+        pclk_io: 17
+        xclk_io: -1
+        xclk_freq: 0
+        data_io:
+          data_io_0: 16
+          data_io_1: 15
+          data_io_2: 33
+          data_io_3: 4
+          data_io_4: 14
+          data_io_5: 12
+          data_io_6: 18
+          data_io_7: 13
+    peripherals:
+      - name: i2c_master
+        frequency: 100000
+
+  - name: audio_codec_power
+    chip: mosaico_codec_power
+    type: custom
+    version: default
+    depends_on: [board_power]
+    config:
+      codec_gpio_num: 56
+      settle_time_ms: 10
+
+  - name: bq27220_fuel_gauge
+    chip: bq27220
+    type: custom
+    version: default
+    init_skip: true
+    config:
+      i2c_addr: 0x55
+      frequency: 400000
+    peripherals:
+      - name: i2c_master
+
+  - name: fs_nand
+    chip: spi_nand
+    type: custom
+    version: default
+    init_skip: true
+    depends_on: [board_power]
+    dependencies:
+      espressif/spi_nand_flash: "1.4.2"
+    config:
+      cs_gpio_num: 23
+      hold_gpio_num: 24
+      wp_gpio_num: 25
+      clock_speed_hz: 40000000
+      queue_size: 10
+      gc_factor: 0
+    peripherals:
+      - name: spi_nand
+
+  - name: audio_dac
+    chip: es8311
+    type: audio_codec
+    version: default
+    depends_on: [audio_codec_power]
+    config:
+      adc_enabled: false
+      dac_enabled: true
+      dac_max_channel: 1
+      dac_channel_mask: "1"
+      mclk_enabled: true
+    peripherals:
+      - name: gpio_pa_control
+        gain: 6
+        active_level: 1
+      - name: i2s_audio_out
+      - name: i2c_master
+        address: 0x32
+        frequency: 400000
+
+  - name: audio_adc
+    chip: es8311
+    type: audio_codec
+    version: default
+    depends_on: [audio_codec_power]
+    config:
+      adc_enabled: true
+      dac_enabled: false
+      adc_max_channel: 2
+      adc_channel_mask: "11"
+      adc_channel_labels: [RE, FC]
+      adc_init_gain: 36
+      mclk_enabled: true
+    peripherals:
+      - name: i2s_audio_in
+      - name: i2c_master
+        address: 0x32
+        frequency: 400000
+
+  - name: display_lcd
+    chip: co5300
+    type: display_lcd
+    sub_type: spi
+    version: default
+    depends_on: [board_power]
+    dependencies:
+      espressif/esp_lcd_co5300:
+        version: "2.2.0"
+        override_path: "${BOARD_PATH}/components/esp_lcd_co5300"
+      brookesia_hal_custom:
+        override_path: "${BOARD_PATH}/components/brookesia_hal_custom"
+    config:
+      x_max: 480
+      y_max: 480
+      need_reset: true
+      bits_per_pixel: 16
+      io_spi_config:
+        cs_gpio_num: 50
+        dc_gpio_num: -1
+        spi_mode: 0
+        pclk_hz: 40000000
+        trans_queue_depth: 10
+        lcd_cmd_bits: 32
+        lcd_param_bits: 8
+        flags:
+          quad_mode: true
+          psram_dma_direct: true
+      lcd_panel_config:
+        reset_gpio_num: 42
+        rgb_ele_order: LCD_RGB_ELEMENT_ORDER_RGB
+        bits_per_pixel: 16
+        vendor_config: NULL
+    peripherals:
+      - name: spi_display
+
+  - name: lcd_touch
+    chip: cst9217
+    type: lcd_touch
+    sub_type: i2c
+    version: default
+    depends_on: [board_power]
+    dependencies:
+      waveshare/esp_lcd_touch_cst9217: "^1.0.4"
+    config:
+      io_i2c_config:
+        lcd_cmd_bits: 8
+        scl_speed_hz: 400000
+        transaction_timeout_ms: 100
+      touch_config:
+        x_max: 479
+        y_max: 479
+        rst_gpio_num: -1
+        int_gpio_num: 6
+        levels:
+          reset: 0
+          interrupt: 0
+        flags:
+          swap_xy: false
+          mirror_x: false
+          mirror_y: false
+    peripherals:
+      - name: i2c_master
+        i2c_addr: [0xB4]

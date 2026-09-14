@@ -20,6 +20,7 @@
 #include "interfaces/display/backlight.hpp"
 #include "interfaces/display/panel.hpp"
 #include "interfaces/display/touch.hpp"
+#include "interfaces/expansion/module_manager.hpp"
 #include "interfaces/network/connectivity.hpp"
 #include "interfaces/network/http_client.hpp"
 #include "interfaces/network/sntp_client.hpp"

@@ -7,6 +7,7 @@
 #include <string>
 #include <utility>
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "brookesia/hal_adaptor/macro_configs.h"
 #if !BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_IMPL_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -49,19 +50,20 @@ audio::CodecRecorderIface::Info generate_info()
 AudioCodecRecorderImpl::AudioCodecRecorderImpl(std::optional<audio::CodecRecorderIface::Info> info)
     : audio::CodecRecorderIface(info.has_value() ? info.value() : generate_info())
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: info(%1%)", get_info());
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC)) {
         BROOKESIA_LOGW("Audio ADC device not found, skip");
         return;
     }
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to init codec ADC");
 
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_AUDIO_ADC, &handles_);
+    ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_AUDIO_ADC, &handles_);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get handles");
     BROOKESIA_CHECK_NULL_EXIT(handles_, "Failed to get handles");
 }
@@ -72,8 +74,8 @@ AudioCodecRecorderImpl::~AudioCodecRecorderImpl()
 
     close();
 
-    if (esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC)) {
-        esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
+    if (brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC)) {
+        brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_AUDIO_ADC);
     }
 }
 

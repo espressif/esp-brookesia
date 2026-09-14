@@ -128,8 +128,18 @@ public:
     virtual ~EncoderIface() = default;
 
     virtual bool open(const EncoderConfig &config, FrameCallback callback, std::string *error_message) = 0;
+    /**
+     * @brief Stop capture and release the encoder after outstanding frame callbacks finish.
+     * @note Frame callbacks may query is_opened()/is_started() while another thread closes the encoder.
+     * Do not call close synchronously or destroy the encoder from its own FrameCallback.
+     */
     virtual void close() = 0;
     virtual bool start(std::string *error_message) = 0;
+    /**
+     * @brief Stop accepting frames and wait for outstanding frame callbacks to finish.
+     * @note Frame callbacks may query encoder state during stop. Do not call stop synchronously
+     * from the encoder's own FrameCallback; implementations may reject that call.
+     */
     virtual bool stop(std::string *error_message) = 0;
     virtual bool fetch_frame(size_t sink_index, FrameCallback callback, std::string *error_message) = 0;
     virtual bool is_opened() const = 0;

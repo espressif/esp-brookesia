@@ -141,6 +141,10 @@ void Device::on_event_subscribed(const std::string &event_name)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (event_name == BROOKESIA_DESCRIBE_TO_STR(Helper::EventId::ExpansionModuleChanged)) {
+        request_expansion_module_events();
+        return;
+    }
     if ((event_name != BROOKESIA_DESCRIBE_TO_STR(Helper::EventId::PowerBatteryStateChanged)) &&
             (event_name != BROOKESIA_DESCRIBE_TO_STR(Helper::EventId::PowerBatteryChargeConfigChanged))) {
         return;

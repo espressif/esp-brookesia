@@ -10,6 +10,7 @@
 #include "private/utils.hpp"
 #include "brookesia/hal_adaptor/power/device.hpp"
 #include "battery_axp2101_impl.hpp"
+#include "battery_bq27220_impl.hpp"
 #include "battery_adc_impl.hpp"
 
 namespace esp_brookesia::hal {
@@ -67,6 +68,19 @@ bool PowerDevice::init_battery()
         std::shared_ptr<BatteryAxp2101Impl> iface = nullptr;
         BROOKESIA_CHECK_EXCEPTION_RETURN(
             iface = std::make_shared<BatteryAxp2101Impl>(), false, "Failed to create AXP2101 battery interface"
+        );
+        if (iface->is_valid()) {
+            interfaces_.emplace(BATTERY_IMPL_NAME, iface);
+            has_valid_iface = true;
+        }
+    }
+#endif
+
+#if BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_IMPL_BQ27220
+    {
+        std::shared_ptr<BatteryBq27220Impl> iface = nullptr;
+        BROOKESIA_CHECK_EXCEPTION_RETURN(
+            iface = std::make_shared<BatteryBq27220Impl>(), false, "Failed to create BQ27220 battery interface"
         );
         if (iface->is_valid()) {
             interfaces_.emplace(BATTERY_IMPL_NAME, iface);

@@ -137,6 +137,9 @@ private:
     uint32_t display_draw_timeout_ms_ = 0;
     uint32_t display_sink_index_ = 0;
     uint32_t display_present_warning_count_ = 0;
+    std::unique_ptr<uint8_t[]> display_present_buffer_;
+    size_t display_present_capacity_ = 0;
+    bool display_activate_pending_ = false;
     bool publish_sink_event_ = true;
 };
 

@@ -1,0 +1,32 @@
+menu "ESP-Mosaico USB Console"
+
+    config BSP_USB_CONSOLE
+        bool "Enable the USB CDC console"
+        depends on IDF_TARGET_ESP32S31 && ESP_CONSOLE_UART
+        select TINYUSB_CDC_ENABLED
+        default y
+        help
+            Start one TinyUSB CDC ACM interface on the onboard USB 2.0
+            High-Speed Type-C port and redirect the application standard
+            streams to it. UART0 remains available for early boot output and
+            as the fallback when USB initialization fails.
+
+    config BSP_USB_CONSOLE_AUTO_INIT
+        bool "Initialize the USB CDC console automatically"
+        depends on BSP_USB_CONSOLE
+        default y
+        help
+            Schedule USB CDC initialization before app_main runs. Disable this
+            only when the application needs to call
+            esp_mosaico_usb_console_init() itself.
+
+    config BSP_USB_AUTO_DOWNLOAD
+        bool "Enable software-assisted automatic download"
+        depends on BSP_USB_CONSOLE
+        default y
+        help
+            Monitor the CDC DTR/RTS sequence used by esptool and restart the
+            ESP32-S31 into its ROM downloader. Manual BOOT download remains the
+            recovery path when the running application cannot initialize USB.
+
+endmenu

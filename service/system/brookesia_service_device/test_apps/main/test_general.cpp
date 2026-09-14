@@ -59,6 +59,34 @@ BROOKESIA_TEST_CASE(
 }
 
 BROOKESIA_TEST_CASE(
+    test_servicedevice_board_general_expansion_module_infos_smoke_test,
+    "ServiceDevice board: expansion module infos smoke test", "[service][device][board][general][expansion]"
+)
+{
+    TEST_ASSERT_TRUE_MESSAGE(test_apps::service_device::board::startup(), "Failed to startup");
+    lib_utils::FunctionGuard shutdown_guard([]() {
+        test_apps::service_device::board::shutdown();
+    });
+
+    auto capabilities = test_apps::service_device::board::get_capabilities();
+    if (!test_apps::service_device::board::has_capability(
+                capabilities, hal::expansion::ModuleManagerIface::NAME)) {
+        test_apps::service_device::board::shutdown();
+        shutdown_guard.release();
+        TEST_IGNORE_MESSAGE("Expansion module manager interface is not available on this board");
+        return;
+    }
+
+    auto infos_result = DeviceHelper::call_function_sync<boost::json::array>(
+                            DeviceHelper::FunctionId::GetExpansionModuleInfos
+                        );
+    TEST_ASSERT_TRUE(infos_result.has_value());
+
+    DeviceHelper::ExpansionModuleInfos infos;
+    TEST_ASSERT_TRUE(BROOKESIA_DESCRIBE_FROM_JSON(infos_result.value(), infos));
+}
+
+BROOKESIA_TEST_CASE(
     test_servicedevice_board_general_network_connectivity_infos_smoke_test,
     "ServiceDevice board: general network connectivity infos smoke test", "[service][device][board][general]"
 )

@@ -82,3 +82,14 @@ close
 --------------------
 
 ``ShellApp::unmount_overlay()`` 会断开 overlay action connections、断开 Display/Wi-Fi event connections、停止 system bar/gesture indicator/clock timer。Shell app stop 后由 core 停止 manifest 中的 ``overlay`` flow 并卸载 ``/overlay``，Shell 主 document 由 core 在 Shell app stop 时统一 unload。
+
+.. _system-super-overlay-sec-07:
+
+扩展板提示
+--------------------
+
+当 Device service 提供扩展板发现能力时，Shell 会在识别到扩展板和确认扩展板拔出后显示 message dialog。系统启动时已连接的扩展板也会显示识别提示。弹窗包含板名称和插槽位置，文案随系统语言切换，点击“确定”或等待 3 秒后关闭。身份有效但暂不支持的扩展板会额外显示不支持说明。
+
+扩展板提示与其他 message dialog 共用系统队列。同一插槽再次变化时，会更新该插槽尚未关闭的提示，避免显示过时信息。摄像头打开、关闭引起的占用和扫描恢复状态不会重复触发识别提示。
+
+提示时机取决于底层确认的扫描结果。ESP-Mosaico 使用摄像头期间会暂停左右插槽扫描，此时拔出的扩展板要等摄像头释放、扫描恢复后才会提示。Shell 停止时会取消订阅、停止提示定时器并关闭剩余扩展板提示。

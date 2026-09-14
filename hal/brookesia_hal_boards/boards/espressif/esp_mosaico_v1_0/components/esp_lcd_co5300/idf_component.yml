@@ -1,0 +1,7 @@
+version: "2.2.0"
+description: ESP LCD CO5300 (SPI/QSPI/MIPI-DSI) with Sleep In and Deep Standby support
+license: Apache-2.0
+
+dependencies:
+  idf: ">=5.4"
+  cmake_utilities: "0.*"

@@ -19,7 +19,7 @@
 典型使用方式是：
 
 - 应用层只通过 ``service::helper::Device`` 调用函数或订阅事件。
-- HAL adaptor/board 负责提供底层 ``AudioCodecPlayerIface``、``DisplayBacklightIface``、``StorageFsIface``、``PowerBatteryIface``、``ProtocolSntpIface`` 等接口。
+- HAL adaptor/board 负责提供底层 ``AudioCodecPlayerIface``、``DisplayBacklightIface``、``StorageFsIface``、``PowerBatteryIface``、``expansion::ModuleManagerIface``、``ProtocolSntpIface`` 等接口。
 - ``brookesia_service_device`` 在中间完成参数校验、状态缓存、事件发布，以及部分状态持久化。
 
 因此，应用代码通常不需要直接持有 HAL interface 指针，除非需要访问非常底层或板级私有能力。
@@ -54,6 +54,8 @@
      - 获取已挂载文件系统列表
    * - ``PowerBatteryIface``
      - 获取电池信息、状态和充电配置，支持时可控制充电
+   * - ``expansion::ModuleManagerIface``
+     - 获取稳定的扩展插槽、模块身份、可用状态和活动状态
    * - ``ProtocolSntpIface``
      - 配置 NTP 服务器和时区，启动或停止 SNTP，并查询时间同步状态
 
@@ -84,6 +86,7 @@
 - **音频状态**：读取当前目标音量百分比和静音状态。
 - **存储状态**：读取已挂载文件系统及其挂载点。
 - **电池状态**：读取电池能力信息、电压、电量百分比、充电状态、低电量/严重低电量状态等。
+- **扩展模块状态**：调用 ``GetExpansionModuleInfos`` 获取所有 provider 插槽的稳定快照。
 - **SNTP 状态**：读取配置的 NTP 服务器、时区，以及系统时间是否已经同步。
 
 .. _service-device-sec-06:
@@ -99,8 +102,9 @@
 - ``AudioPlayerMuteChanged``
 - ``PowerBatteryStateChanged``
 - ``PowerBatteryChargeConfigChanged``
+- ``ExpansionModuleChanged``
 
-其中电池状态会按配置周期轮询 HAL，检测到快照变化后发布事件。
+其中电池状态会按配置周期轮询 HAL，检测到快照变化后发布事件。``ExpansionModuleChanged`` 会在模块插入、拔出、支持状态或活动状态变化稳定后，携带 HAL 提供的完整快照。
 
 .. _service-device-sec-07:
 
@@ -124,6 +128,7 @@
 
 - 在应用启动阶段先初始化所需 HAL 设备，再启动 ``ServiceManager`` 和 Device 服务。
 - 调用控制接口前先通过 ``GetCapabilities`` 判断能力是否存在。
+- 先用 ``GetExpansionModuleInfos`` 取得初始插槽状态，再订阅 ``ExpansionModuleChanged``，避免应用层重复轮询。
 - 需要时间同步时启用 HAL General SNTP 实现。
 - 网络配置完成后显式调用 ``StartSntp``；Device 服务会准备 SNTP，但不会自动开始同步。
 - 对 UI 和 Agent 工具调用，优先使用 Device 服务作为访问 HAL 的入口，避免业务层直接依赖具体板级 HAL 实现。

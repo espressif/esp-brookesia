@@ -1,0 +1,35 @@
+{
+    "type": "constant",
+    "data": {
+        "appStore": {
+            "layout": {
+                "pagePadding": "12dp",
+                "pageGap": "10dp",
+                "headerButtonWidth": "96dp",
+                "headerGap": "8dp",
+                "tabHeight": "28dp",
+                "tabButtonWidth": "80dp",
+                "tabGap": "6dp",
+                "cardPadding": "10dp",
+                "cardGap": "8dp",
+                "itemHeight": "96dp",
+                "itemRadius": "10dp",
+                "iconColumnWidth": "56dp",
+                "iconBoxSize": "56dp",
+                "iconSize": "44dp",
+                "actionColumnWidth": "96dp",
+                "actionButtonHeight": "34dp",
+                "deleteWidth": "68dp"
+            },
+            "font": {
+                "title": "24sp",
+                "itemTitle": "16sp",
+                "body": "12sp",
+                "caption": "11sp",
+                "fallback": "26sp",
+                "button": "13sp",
+                "tab": "12sp"
+            }
+        }
+    }
+}

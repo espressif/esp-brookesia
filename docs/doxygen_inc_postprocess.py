@@ -10,6 +10,10 @@ Patches:
 - ``hal_interface/device.hpp``: appends namespace-level free functions, the
   ``InterfaceSpec`` type alias, and the ``IsDevice`` concept that gen-dxd.py
   skips (it only emits ``doxygenclass`` directives for file-level entities).
+- ``hal_adaptor/expansion/module_provider.hpp``: drops the registration macro
+  define, whose preprocessor replacement Sphinx cannot parse as C++. The
+  generated file is ``inc/module_provider.inc`` because that header name is
+  unique in the Doxyfile INPUT list.
 - Breathe XML (``xml_in/*.xml``): strips C++20 constructs that the Sphinx 4.x
   C++ domain parser cannot handle (``requires`` constraint clauses and
   designated-/brace-initializer default member values), which would otherwise
@@ -91,6 +95,20 @@ def _patch_log_inc(build_dir: str) -> None:
     patched = content.replace(".. doxygendefine:: _BROOKESIA_LOG_GNU_NOCLONE\n", "")
     if patched != content:
         with open(log_inc, "w", encoding="utf-8") as f:
+            f.write(patched)
+
+
+def _patch_expansion_module_provider_inc(build_dir: str) -> None:
+    provider_inc = os.path.join(build_dir, "inc", "module_provider.inc")
+    if not os.path.isfile(provider_inc):
+        return
+    with open(provider_inc, encoding="utf-8") as f:
+        content = f.read()
+    patched = content.replace(
+        ".. doxygendefine:: ESP_BROOKESIA_HAL_EXPANSION_REGISTER_PROVIDER\n", ""
+    )
+    if patched != content:
+        with open(provider_inc, "w", encoding="utf-8") as f:
             f.write(patched)
 
 
@@ -233,6 +251,7 @@ def _on_defines_generated(app, _defines) -> None:
     _patch_base_inc(build_dir)
     _patch_interface_inc(build_dir)
     _patch_log_inc(build_dir)
+    _patch_expansion_module_provider_inc(build_dir)
     _patch_device_inc(build_dir)
 
 

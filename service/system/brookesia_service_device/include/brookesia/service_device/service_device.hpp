@@ -12,7 +12,9 @@
 #include <string>
 #include <vector>
 #include "boost/json.hpp"
+#include "boost/thread/mutex.hpp"
 #include "brookesia/hal_interface/interface.hpp"
+#include "brookesia/hal_interface/interfaces/expansion/module_manager.hpp"
 #include "brookesia/hal_interface/interfaces/network/connectivity.hpp"
 #include "brookesia/hal_interface/interfaces/system/board_info.hpp"
 #include "brookesia/hal_interface/interfaces/power/battery.hpp"
@@ -41,6 +43,7 @@ private:
     using BoardInfo = Helper::BoardInfo;
     using CameraDeviceInfos = Helper::CameraDeviceInfos;
     using Capabilities = Helper::Capabilities;
+    using ExpansionModuleInfos = Helper::ExpansionModuleInfos;
     using NetworkConnectivityInfo = Helper::NetworkConnectivityInfo;
     using NetworkConnectivityInfos = Helper::NetworkConnectivityInfos;
     using PowerBatteryChargeConfig = Helper::PowerBatteryChargeConfig;
@@ -53,6 +56,14 @@ private:
         std::optional<PowerBatteryState> cached_state;
         std::optional<PowerBatteryChargeConfig> cached_charge_config;
         hal::InterfaceHandle<hal::power::BatteryIface> battery_iface;
+    };
+
+    struct ExpansionState {
+        boost::mutex mutex;
+        hal::expansion::ModuleManagerIface::EventListenerId listener_id = 0;
+        bool events_requested = false;
+        bool events_enabled = false;
+        hal::InterfaceHandle<hal::expansion::ModuleManagerIface> manager_iface;
     };
 
     Device()
@@ -87,6 +98,7 @@ private:
     std::expected<boost::json::array, std::string> function_get_capabilities();
     std::expected<boost::json::object, std::string> function_get_board_info();
     std::expected<boost::json::array, std::string> function_get_camera_device_infos();
+    std::expected<boost::json::array, std::string> function_get_expansion_module_infos();
     std::expected<boost::json::array, std::string> function_get_network_connectivity_info();
     std::expected<boost::json::object, std::string> function_get_power_battery_info();
     std::expected<boost::json::object, std::string> function_get_power_battery_state();
@@ -100,6 +112,11 @@ private:
 
     Capabilities get_capabilities() const;
 
+    bool ensure_expansion_manager_iface_locked();
+    void request_expansion_module_events();
+    bool start_expansion_module_events_locked();
+    void stop_expansion_module_events();
+    bool publish_expansion_module_changed(const hal::expansion::ModuleInfo &module);
     bool ensure_power_battery_iface();
     void reset_interfaces();
     void request_power_battery_polling();
@@ -113,6 +130,7 @@ private:
         const PowerBatteryChargeConfig &lhs, const PowerBatteryChargeConfig &rhs
     );
 
+    ExpansionState expansion_;
     PowerState power_;
 };
 

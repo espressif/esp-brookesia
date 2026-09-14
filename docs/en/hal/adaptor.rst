@@ -13,7 +13,7 @@ ESP Device Board Adaptation
 Overview
 --------
 
-``brookesia_hal_adaptor`` is the board-level HAL adaptor of ESP-Brookesia. Based on the device/interface model in :ref:`HAL Interface <hal-interface-index-sec-00>`, it initialises real peripherals via ``esp_board_manager`` and ESP-IDF drivers, then registers **system**, **network**, **audio**, **display**, **storage**, **power**, **video**, and **Wi-Fi** capabilities into the global HAL table for upper layers to discover by name.
+``brookesia_hal_adaptor`` is the board-level HAL adaptor of ESP-Brookesia. Based on the device/interface model in :ref:`HAL Interface <hal-interface-index-sec-00>`, it initialises real peripherals via ``esp_board_manager`` and ESP-IDF drivers, then registers **system**, **network**, **audio**, **display**, **storage**, **power**, **video**, **expansion module**, and **Wi-Fi** capabilities into the global HAL table for upper layers to discover by name.
 
 .. _hal-adaptor-sec-02:
 
@@ -55,6 +55,9 @@ The component ships multiple board-level devices, each registered as a singleton
    * - ``VideoDevice`` (``"Video"``)
      - ``CameraIface`` and video processor interfaces
      - Publishes camera and video processing interfaces when the selected board exposes them.
+   * - ``ExpansionDevice`` (``"Expansion"``)
+     - ``expansion::ModuleManagerIface`` (``"ExpansionModuleManager"``)
+     - Optionally publishes stable expansion-slot state, queries, and change events. Board-specific providers identify and claim the actual modules.
    * - ``WifiDevice`` (``"WiFi"``)
      - ``BasicIface`` (``BASIC_IMPL_NAME``), ``StationIface`` (``STA_IMPL_NAME``), ``SoftApIface`` (``SOFTAP_IMPL_NAME``)
      - ESP-IDF Wi-Fi backend for single-shot lifecycle, STA, scan, SoftAP, and provisioning actions. Retry, fallback, and auto-connect policy are owned by ``brookesia_service_wifi``.
@@ -64,9 +67,95 @@ The component ships multiple board-level devices, each registered as a singleton
 Configuration
 ^^^^^^^^^^^^^
 
-Each device and sub-interface can be enabled or disabled individually under **ESP-Brookesia: Hal Adaptor Configurations** in ``menuconfig``; default capability parameters (volume range, recording format, backlight range, battery low-level thresholds, ADC voltage conversion parameters, etc.) are also adjustable there, and are mapped to compile-time macros by ``macro_configs.h``.
+Each device and sub-interface can be enabled or disabled individually under **ESP-Brookesia: Hal Adaptor Configurations** in ``menuconfig``; default capability parameters (volume range, recording format, backlight range, battery low-level thresholds, ADC voltage conversion parameters, etc.) are also adjustable in ``menuconfig``, and are mapped to compile-time macros by ``macro_configs.h``.
 
 To override default capability parameters before initialisation, call ``set_codec_player_info``, ``set_codec_recorder_info``, or ``set_ledc_backlight_info`` on the corresponding device singleton. Calls after initialisation typically have no effect.
+
+.. _hal-adaptor-expansion-modules:
+
+Expansion Module Support
+^^^^^^^^^^^^^^^^^^^^^^^^
+
+``CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES`` controls the generic expansion framework. It defaults to disabled, so boards without expansion hardware do not create an expansion device, provider, scanner, or background task. A capable board may enable the option in its board defaults.
+
+When enabled, ``hal::expansion::ModuleManagerIface`` is available as ``Expansion:ModuleManager:0``. ``get_module_infos()`` returns ``ModuleInfo`` snapshots containing the provider, slot, type, board identity, generation, and ``ModuleState``. ``add_event_listener()`` and ``remove_event_listener()`` subscribe to stable changes; callbacks receive the complete updated snapshot.
+
+Module states are defined as follows:
+
+.. list-table::
+   :widths: 24 76
+   :header-rows: 1
+
+   * - State
+     - Meaning
+   * - ``Unknown``
+     - No stable scan result is available yet.
+   * - ``Empty``
+     - No module is detected in the slot.
+   * - ``Invalid``
+     - The module descriptor is invalid.
+   * - ``Unsupported``
+     - The descriptor is valid, but the module type or slot is unsupported.
+   * - ``Ready``
+     - The module is ready to open.
+   * - ``Active``
+     - The module is claimed.
+   * - ``Error``
+     - Detection or a resource operation failed.
+
+Scanning only identifies modules; functional hardware is initialized when the corresponding HAL interface is opened. The board implementation handles detection protocols and resource ownership, while the generic layer provides state queries and events.
+
+When using the event interfaces:
+
+- Events are delivered asynchronously in order. Claim and release operations do not invoke user callbacks inline.
+- Keep callbacks short and do not wait for other event callbacks.
+- Removing a listener cancels callbacks that have not started and waits for a running callback to finish; a listener may also remove itself from its callback.
+- Subscribe before reading state snapshots, and use each slot's ``generation`` to ignore older events.
+
+The Device Service exposes ``GetExpansionModuleInfos`` and ``ExpansionModuleChanged`` for applications that should not access HAL directly. Board-specific support and hot-plug limitations are documented with the board; see :ref:`Brookesia Adaptation Guide <hal-boards-espressif-mosaico>`.
+
+.. _hal-adaptor-lifecycle:
+
+Lifecycle and Error Handling
+----------------------------
+
+Brookesia serializes the Board Manager calls it manages. Third-party code that calls Board Manager directly is outside this guarantee and should avoid accessing the same device concurrently with HAL operations.
+
+- **Camera**: Opening checks that the video device is available and attempts to release resources acquired by a failed attempt. Cleanup failures are logged; HAL retains responsibility for unfinished cleanup after interface destruction.
+- **Frame callbacks**: Encoder state queries are allowed. Call ``stop()`` and ``close()`` from another task. During a stop or close operation, ``open()`` and ``start()`` fail.
+- **Recoverable errors**: When resources remain valid, cleanup can continue during a later open operation.
+- **Uncertain release state**: The affected peripheral is isolated and the original error is retained. Its handle cannot be acquired or released again until a manual restart.
+- **SPI drawing**: After a synchronous draw fails or times out, it still waits for submitted DMA transfers to finish. The actual return time can therefore exceed the configured timeout. If the transfers cannot be drained safely, the call remains blocked until a manual restart.
+
+.. _hal-adaptor-dependency-patches:
+
+Dependency Patches
+------------------
+
+The component applies patches from ``hal/brookesia_hal_adaptor/tools`` according to the enabled features and dependency components. The Mosaico integration uses Board Manager 0.5.15; other dependency versions are managed by component manifests and the project's dependency lock file.
+
+.. list-table::
+   :widths: 50 50
+   :header-rows: 1
+
+   * - Patch
+     - Purpose
+   * - ``esp_board_manager_periph_deinit_retry``
+     - Isolate handles after an uncertain peripheral release to prevent double release or reuse.
+   * - ``esp_board_manager_dvp_camera_deinit``
+     - Report camera close errors and release video and I2C resources in order.
+   * - ``esp_video_dvp_deinit_order``
+     - Check whether the video device is still open before destroying its sensor.
+   * - ``av_processor_frame_mode_stop``
+     - Stop the capture pipeline in frame mode.
+   * - ``esp_capture_v4l2_uyvy_support``
+     - Support UYVY/YUYV format negotiation and cleanup after negotiation failure.
+   * - ``media_lib_sal_esp_tls_idf6``
+     - Adapt to the ESP-IDF 6 TLS interface.
+
+.. note::
+
+   Configuration fails if a required patch cannot be applied or an incompatible older patch is detected. Check dependency versions and local changes; when restoring a dependency, use the version recorded in the lock file.
 
 .. _hal-adaptor-sec-05:
 
@@ -86,5 +175,11 @@ API Reference
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/video/device.inc
+
+.. include-build-file:: inc/module_manager.inc
+
+.. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/device.inc
+
+.. include-build-file:: inc/module_provider.inc
 
 .. include-build-file:: inc/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/wifi/device.inc

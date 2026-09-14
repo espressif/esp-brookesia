@@ -89,14 +89,7 @@ void VideoDevice::on_deinit()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-#if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL
-    if (camera_device_initialized_) {
-        VideoCameraImpl::deinit_devices();
-        camera_device_initialized_ = false;
-    }
-#endif
     interfaces_.clear();
-    camera_device_paths_.clear();
 }
 
 bool VideoDevice::init_encoders()
@@ -154,17 +147,9 @@ bool VideoDevice::init_cameras()
         return true;
     }
 
-    auto device_infos = VideoCameraImpl::discover_device_infos(camera_device_initialized_);
-    camera_device_paths_.clear();
-    for (const auto &info : device_infos) {
-        if (!info.device_path.empty()) {
-            camera_device_paths_.push_back(info.device_path);
-        }
-    }
-
     std::shared_ptr<VideoCameraImpl> iface = nullptr;
     BROOKESIA_CHECK_EXCEPTION_RETURN(
-        iface = std::make_shared<VideoCameraImpl>(std::move(device_infos)), false,
+        iface = std::make_shared<VideoCameraImpl>(), false,
         "Failed to create video camera interface"
     );
     interfaces_.emplace(std::move(iface_name), std::move(iface));
@@ -175,9 +160,6 @@ bool VideoDevice::init_cameras()
 
 std::string VideoDevice::get_default_encoder_device_path(size_t id) const
 {
-    if (id < camera_device_paths_.size()) {
-        return camera_device_paths_[id];
-    }
     return make_default_device_path(id);
 }
 

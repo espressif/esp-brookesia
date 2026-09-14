@@ -82,3 +82,14 @@ Unmounting
 --------------------
 
 ``ShellApp::unmount_overlay()`` disconnects the overlay action connections, disconnects the Display/Wi-Fi event connections, and stops the system bar/gesture indicator/clock timer. After the Shell app stops, the core stops the ``overlay`` flow in the manifest and unloads ``/overlay``, and the Shell main document is unloaded by the core when the Shell app stops.
+
+.. _system-super-overlay-sec-07:
+
+Expansion Board Notifications
+-----------------------------
+
+When the Device service provides expansion discovery, the Shell shows a message dialog when a board is identified or its removal is confirmed. Boards already connected at startup also receive a detection notification. The dialog contains the board name and slot, follows the system language, and closes when the user selects OK or after 3 seconds. Boards with a valid identity but no supported implementation include an additional explanation.
+
+Expansion notifications share the system queue with other message dialogs. Another change in the same slot updates its outstanding notification to avoid displaying stale information. Camera ownership changes and scanning recovery do not trigger duplicate detection notifications.
+
+Notification timing depends on confirmed scan results. ESP-Mosaico pauses scanning of both slots while the camera is in use, so boards removed during capture are reported after the camera is released and scanning resumes. Stopping the Shell disconnects the subscription, stops the notification timer, and closes outstanding expansion notifications.

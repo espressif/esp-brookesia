@@ -23,6 +23,8 @@ INPUT = \
     $(PROJECT_PATH)/service/expression/brookesia_expression_emote/include/brookesia/expression_emote.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/audio/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/display/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/device.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/expansion/module_provider.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/network/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/power/device.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_adaptor/include/brookesia/hal_adaptor/storage/device.hpp \
@@ -36,6 +38,7 @@ INPUT = \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/backlight.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/panel.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/display/touch.hpp \
+    $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/expansion/module_manager.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/connectivity.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/http_client.hpp \
     $(PROJECT_PATH)/hal/brookesia_hal_interface/include/brookesia/hal_interface/interfaces/network/sntp_client.hpp \

@@ -19,7 +19,7 @@ Overview
 - **Plugin-based registration**: device and interface implementations are registered in a registry and resolved by name at runtime, avoiding hard-coded implementation types in application code
 - **Probing and lifecycle**: each device is first probed for availability before initialisation; batch and per-name single-device init/deinit are supported symmetrically
 - **Global discovery**: devices can be resolved by plugin name or device logical name; interfaces can be enumerated globally by type or retrieved by name from within a device
-- **Built-in HAL declarations**: abstract definitions for common audio, display, storage, network, video, system, and Wi-Fi interfaces; concrete behaviour is provided by the adaptor layer
+- **Built-in HAL declarations**: abstract definitions for common audio, display, storage, network, video, expansion-module, system, and Wi-Fi interfaces; concrete behaviour is provided by the adaptor layer
 
 .. _hal-interface-index-sec-02:
 
@@ -80,7 +80,7 @@ When multiple devices co-exist, it is recommended to add a device-distinguishing
 Built-In Capability Scope
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-The headers provide abstract definitions of common HAL interfaces, covering board information, battery and charger control, audio codec playback and recording, display panel, touch and backlight, storage filesystem and key-value discovery, network connectivity/HTTP/SNTP, video camera and processing, and Wi-Fi control interfaces. They describe static information, capability parameters, and virtual interface contracts; register operations, bus configuration, connection policy, and timing are handled by the board-level adaptor, service layer, or other components.
+The headers provide abstract definitions of common HAL interfaces, covering board information, battery and charger control, audio codec playback and recording, display panel, touch and backlight, storage filesystem and key-value discovery, network connectivity/HTTP/SNTP, video camera and processing, expansion-module discovery, and Wi-Fi control interfaces. They describe static information, capability parameters, and virtual interface contracts; register operations, bus configuration, connection policy, and timing are handled by the board-level adaptor, service layer, or other components.
 
 The following interface headers can be included at once via ``brookesia/hal_interface/interfaces.hpp``, or together with the device base class via the aggregation entry ``brookesia/hal_interface.hpp``:
 
@@ -102,6 +102,8 @@ The following interface headers can be included at once via ``brookesia/hal_inte
      - ``DisplayPanelIface``
    * - ``display/touch.hpp``
      - ``DisplayTouchIface``
+   * - ``expansion/module_manager.hpp``
+     - ``expansion::ModuleManagerIface``
    * - ``network/connectivity.hpp``
      - ``ConnectivityIface``
    * - ``network/http_client.hpp``
@@ -144,6 +146,7 @@ The component provides the following interface classes:
 - ``DisplayBacklightIface``
 - ``DisplayPanelIface``
 - ``DisplayTouchIface``
+- ``expansion::ModuleManagerIface``
 - ``ConnectivityIface``
 - ``HttpClientIface``
 - ``SntpClientIface``

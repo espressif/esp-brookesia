@@ -1,0 +1,144 @@
+Support DVP sensors that only expose UYVY in esp_capture 0.8.4.
+
+ESP_CAPTURE_FMT_ID_YUV422 means YUYV to everything downstream, so a sensor that
+only offers V4L2_PIX_FMT_UYVY is dropped during enumeration and negotiation ends
+with "No supported format". One Mosaico CameraBoard variant carries an SC101IOT
+whose 640x480 mode is UYVY only, and unlike MIPI-CSI the DVP controller performs
+no byte swapping of its own.
+
+Recognise UYVY, remember which of the two orders the device enumerated, request
+that order in VIDIOC_S_FMT, and swap the 16-bit words after capture so the rest
+of the pipeline still sees YUYV. Devices offering YUYV keep using it untouched.
+The existing RGB565 endianness helper does exactly this swap, so it is reused
+and renamed accordingly.
+
+Normalize UYVY before optional YUV420 conversion so that both output paths
+receive the YUYV order expected by the converter.
+
+Also retire a failed-open descriptor to -1 after closing it. Format rejection
+must not leave fd=0 for a later close to accidentally close standard input,
+and the same source must remain reusable after failed negotiation.
+
+--- a/impl/capture_video_src/capture_video_v4l2_src.c
++++ b/impl/capture_video_src/capture_video_v4l2_src.c
+@@ -52,6 +52,8 @@
+     uint8_t                     use_fixed_caps : 1;
+     uint8_t                     need_convert_420 : 1;
+     uint8_t                     need_rgb565_convert : 1;
++    uint8_t                     has_yuyv : 1;
++    uint8_t                     has_uyvy : 1;
+     SemaphoreHandle_t           yuv420_lock;
+     uint8_t                    *yuv420_cache;
+     uint8_t                    *src_buffer;
+@@ -71,6 +73,7 @@
+         case V4L2_PIX_FMT_RGB565X:
+             return ESP_CAPTURE_FMT_ID_RGB565_BE;
+         case V4L2_PIX_FMT_YUYV:
++        case V4L2_PIX_FMT_UYVY:
+             return ESP_CAPTURE_FMT_ID_YUV422;
+         default:
+             return ESP_CAPTURE_FMT_ID_NONE;
+@@ -96,6 +99,21 @@
+     }
+ }
+
++/* ESP_CAPTURE_FMT_ID_YUV422 means YUYV downstream, so a device that only offers
++ * UYVY has to be captured as UYVY and byte swapped afterwards. */
++static bool yuv422_needs_swap(v4l2_src_t *v4l2)
++{
++    return v4l2->has_uyvy && !v4l2->has_yuyv;
++}
++
++static uint32_t get_v4l2_pixel_format(v4l2_src_t *v4l2, esp_capture_format_id_t codec)
++{
++    if ((codec == ESP_CAPTURE_FMT_ID_YUV422) && yuv422_needs_swap(v4l2)) {
++        return V4L2_PIX_FMT_UYVY;
++    }
++    return get_v4l2_type(codec);
++}
++
+ static void v4l2_extra_setting(v4l2_src_t *v4l2)
+ {
+     struct timeval timeout;
+@@ -129,6 +147,8 @@
+             break;
+         }
+         v4l2->format_count = 0;
++        v4l2->has_yuyv = 0;
++        v4l2->has_uyvy = 0;
+         for (int i = 0; 1; i++) {
+             struct v4l2_fmtdesc fmtdesc = {
+                 .index = i,
+@@ -138,6 +158,11 @@
+                 break;
+             }
+             esp_capture_format_id_t format = get_codec_type(fmtdesc.pixelformat);
++            if (fmtdesc.pixelformat == V4L2_PIX_FMT_YUYV) {
++                v4l2->has_yuyv = 1;
++            } else if (fmtdesc.pixelformat == V4L2_PIX_FMT_UYVY) {
++                v4l2->has_uyvy = 1;
++            }
+             if (format == ESP_CAPTURE_FMT_ID_NONE) {
+                 continue;
+             }
+@@ -165,10 +190,10 @@
+         ESP_LOGI(TAG, "Success to open camera");
+         return 0;
+     } while (0);
+-    if (v4l2->fd > 0) {
++    if (v4l2->fd >= 0) {
+         close(v4l2->fd);
+-        v4l2->fd = 0;
+-    }
++    }
++    v4l2->fd = -1;
+     return ESP_CAPTURE_ERR_NO_RESOURCES;
+ }
+
+@@ -272,7 +297,7 @@
+         return ESP_CAPTURE_ERR_NOT_SUPPORTED;
+     }
+     esp_capture_video_info_t match_info = *vid_info;
+-    esp_capture_err_t ret = v4l2_match_resolution(v4l2, get_v4l2_type(vid_info->format_id), vid_info, &match_info);
++    esp_capture_err_t ret = v4l2_match_resolution(v4l2, get_v4l2_pixel_format(v4l2, vid_info->format_id), vid_info, &match_info);
+     if (ret != ESP_CAPTURE_ERR_OK) {
+         return ESP_CAPTURE_ERR_NOT_SUPPORTED;
+     }
+@@ -348,7 +373,7 @@
+             .fmt.pix.width = vid_info->width,
+             .fmt.pix.height = vid_info->height,
+         };
+-        format.fmt.pix.pixelformat = get_v4l2_type(vid_info->format_id);
++        format.fmt.pix.pixelformat = get_v4l2_pixel_format(v4l2, vid_info->format_id);
+         int ret;
+         if ((ret = ioctl(v4l2->fd, VIDIOC_S_FMT, &format)) != 0) {
+             ESP_LOGE(TAG, "Failed to set format codec %x %x ret %d", (int)vid_info->format_id, (int)format.fmt.pix.pixelformat, ret);
+@@ -439,7 +464,8 @@
+     }
+ }
+
+-static void convert_rgb565(uint32_t w, uint32_t h, uint8_t *src)
++/* Swaps the bytes of every 16-bit word: RGB565 endianness, and UYVY <-> YUYV. */
++static void swap_short16(uint32_t w, uint32_t h, uint8_t *src)
+ {
+     int pixels = w * h;
+     uint16_t *src16 = (uint16_t *)src;
+@@ -469,6 +495,9 @@
+     frame->data = v4l2->fb_buffer[buf.index];
+     frame->size = buf.bytesused;
+     v4l2->v4l2_buf[buf.index] = buf;
++    if ((v4l2->nego_result.format_id == ESP_CAPTURE_FMT_ID_YUV422) && yuv422_needs_swap(v4l2)) {
++        swap_short16(v4l2->nego_result.width, v4l2->nego_result.height, frame->data);
++    }
+     if (v4l2->need_convert_420) {
+         xSemaphoreTake(v4l2->yuv420_lock, portMAX_DELAY);
+         convert_yuv420(v4l2->nego_result.width, v4l2->nego_result.height,
+@@ -477,7 +506,7 @@
+         frame->data = v4l2->yuv420_cache;
+         frame->size = frame->size * 3 / 4;
+     } else if (v4l2->need_rgb565_convert) {
+-        convert_rgb565(v4l2->nego_result.width, v4l2->nego_result.height, frame->data);
++        swap_short16(v4l2->nego_result.width, v4l2->nego_result.height, frame->data);
+     }
+     return ESP_CAPTURE_ERR_OK;
+ }

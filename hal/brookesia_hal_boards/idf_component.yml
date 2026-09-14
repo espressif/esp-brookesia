@@ -6,7 +6,7 @@ issues: https://github.com/espressif/esp-brookesia/issues
 
 dependencies:
   espressif/esp_board_manager:
-    version: "0.5.*"
+    version: ">=0.5.15,<0.6"
     require: public
 
 examples:

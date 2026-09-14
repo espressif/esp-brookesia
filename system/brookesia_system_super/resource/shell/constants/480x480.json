@@ -1,0 +1,39 @@
+{
+    "type": "constant",
+    "data": {
+        "ui": {
+            "content": {
+                "metric": {
+                    "x": "16dp",
+                    "width": "${expr(${env.widthDp} - 32dp)}"
+                }
+            },
+            "overlay": {
+                "metric": {
+                    "statusPaddingX": "12dp",
+                    "statusLeftWidth": "220dp",
+                    "statusTitleWidth": "140dp",
+                    "statusRightWidth": "140dp"
+                }
+            },
+            "keyboard": {
+                "iconSize": "22dp",
+                "marginX": "6dp",
+                "inputY": "6dp",
+                "marginBottom": "6dp",
+                "panelHeight": "280dp",
+                "inputHeight": "34dp",
+                "inputFontSize": "18sp",
+                "keyFontSize": "18sp",
+                "eyeButtonSize": "30dp",
+                "eyeIconSize": "20dp",
+                "popoverHeight": "52dp",
+                "keyboardHeight": "228dp"
+            },
+            "messageDialog": {
+                "padding": "16dp",
+                "contentWidth": "336dp"
+            }
+        }
+    }
+}

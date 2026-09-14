@@ -10,6 +10,8 @@
 #include "brookesia/hal_adaptor/bluetooth/ble/device.hpp"
 #include "brookesia/hal_adaptor/bluetooth/device.hpp"
 #include "brookesia/hal_adaptor/display/device.hpp"
+#include "brookesia/hal_adaptor/expansion/device.hpp"
+#include "brookesia/hal_adaptor/expansion/module_provider.hpp"
 #include "brookesia/hal_adaptor/network/device.hpp"
 #include "brookesia/hal_adaptor/power/device.hpp"
 #include "brookesia/hal_adaptor/storage/device.hpp"

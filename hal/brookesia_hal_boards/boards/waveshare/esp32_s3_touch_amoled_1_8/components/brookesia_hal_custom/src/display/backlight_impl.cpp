@@ -12,6 +12,7 @@
 #include "esp_lcd_panel_ops.h"
 #include "esp_board_device.h"
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "backlight_impl.hpp"
 #include "brookesia/hal_adaptor/display/device.hpp"
 
@@ -35,14 +36,15 @@ CustomDisplayBacklightImpl::CustomDisplayBacklightImpl()
     .group_id = DisplayDevice::LCD_GROUP_ID,
 })
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     boost::lock_guard<boost::mutex> lock(mutex_);
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to init display LCD");
 
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &handles_);
+    ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_DISPLAY_LCD, &handles_);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get handles");
     BROOKESIA_CHECK_NULL_EXIT(handles_, "Failed to get handles");
 

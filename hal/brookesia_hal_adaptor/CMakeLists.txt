@@ -26,12 +26,21 @@ endmacro()
 # Apply a patch shipped with this component to a resolved dependency component.
 #
 # The patch is applied during the CMake configure phase and is idempotent: if it
-# is already applied it is skipped, and if it cannot be applied (e.g. an
-# incompatible upstream version) a warning is emitted instead of failing the
-# whole build.
+# is already applied it is skipped. Pass REQUIRED as the fourth argument when
+# building without the patch would produce a firmware with incorrect behavior.
 function(brookesia_hal_adaptor_apply_component_patch component_name patch_file target_relative_file)
+    set(_patch_required FALSE)
+    if(ARGC GREATER 3 AND "${ARGV3}" STREQUAL "REQUIRED")
+        set(_patch_required TRUE)
+    endif()
+
+    set(_patch_failure_level WARNING)
+    if(_patch_required)
+        set(_patch_failure_level FATAL_ERROR)
+    endif()
+
     if(NOT EXISTS "${patch_file}")
-        message(WARNING "brookesia_hal_adaptor: patch file not found, skip: ${patch_file}")
+        message(${_patch_failure_level} "brookesia_hal_adaptor: patch file not found: ${patch_file}")
         return()
     endif()
 
@@ -47,16 +56,20 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
 
     idf_component_get_property(_component_dir ${component_name} COMPONENT_DIR)
     if(NOT _component_dir OR NOT EXISTS "${_component_dir}")
+        if(_patch_required)
+            message(FATAL_ERROR "brookesia_hal_adaptor: cannot resolve required patch component: ${component_name}")
+        endif()
         return()
     endif()
 
     if(NOT EXISTS "${_component_dir}/${target_relative_file}")
-        message(WARNING "brookesia_hal_adaptor: patch target not found, skip: ${_component_dir}/${target_relative_file}")
+        message(${_patch_failure_level}
+            "brookesia_hal_adaptor: patch target not found: ${_component_dir}/${target_relative_file}")
         return()
     endif()
 
     if(NOT GIT_FOUND)
-        message(WARNING "brookesia_hal_adaptor: git not found, cannot patch ${component_name}")
+        message(${_patch_failure_level} "brookesia_hal_adaptor: git not found, cannot patch ${component_name}")
         return()
     endif()
 
@@ -65,7 +78,8 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
         COMMAND ${GIT_EXECUTABLE} apply --reverse --check --ignore-space-change -p1 "${patch_file}"
         WORKING_DIRECTORY "${_component_dir}"
         RESULT_VARIABLE _reverse_check
-        OUTPUT_QUIET ERROR_QUIET
+        OUTPUT_VARIABLE _reverse_out
+        ERROR_VARIABLE _reverse_err
     )
     if(_reverse_check EQUAL 0)
         message(STATUS "brookesia_hal_adaptor: patch already applied to ${component_name}")
@@ -77,11 +91,12 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
         COMMAND ${GIT_EXECUTABLE} apply --check --ignore-space-change -p1 "${patch_file}"
         WORKING_DIRECTORY "${_component_dir}"
         RESULT_VARIABLE _apply_check
-        OUTPUT_QUIET ERROR_QUIET
+        OUTPUT_VARIABLE _apply_out
+        ERROR_VARIABLE _apply_err
     )
     if(NOT _apply_check EQUAL 0)
-        message(WARNING "brookesia_hal_adaptor: patch does not apply to ${component_name} "
-            "(possibly an incompatible version), skipping: ${patch_file}")
+        message(${_patch_failure_level} "brookesia_hal_adaptor: patch does not apply to ${component_name} "
+            "(possibly an incompatible version): ${patch_file}")
         return()
     endif()
 
@@ -94,7 +109,28 @@ function(brookesia_hal_adaptor_apply_component_patch component_name patch_file t
     if(_apply_result EQUAL 0)
         message(STATUS "brookesia_hal_adaptor: applied patch to ${component_name}: ${patch_file}")
     else()
-        message(WARNING "brookesia_hal_adaptor: failed to apply patch to ${component_name}: ${patch_file}")
+        message(${_patch_failure_level}
+            "brookesia_hal_adaptor: failed to apply patch to ${component_name}: ${patch_file}")
+    endif()
+endfunction()
+
+# A cached dependency can still contain a retired workaround. Do not silently
+# build it, or overwrite source edits which are not owned by this component.
+function(brookesia_hal_adaptor_check_retired_patch component_name relative_file marker)
+    idf_build_get_property(_build_components BUILD_COMPONENTS)
+    if(NOT "${component_name}" IN_LIST _build_components)
+        return()
+    endif()
+    idf_component_get_property(_component_dir ${component_name} COMPONENT_DIR)
+    if(EXISTS "${_component_dir}/${relative_file}")
+        file(READ "${_component_dir}/${relative_file}" _source)
+        string(FIND "${_source}" "${marker}" _marker_position)
+        if(NOT _marker_position EQUAL -1)
+            message(FATAL_ERROR
+                "brookesia_hal_adaptor: retired workaround found in ${_component_dir}/${relative_file}. "
+                "Reverse the exact previous patch, or restore this dependency from its locked version; "
+                "unrecognized source edits will not be overwritten.")
+        endif()
     endif()
 endfunction()
 
@@ -103,6 +139,7 @@ set(BROOKESIA_HAL_ADAPTOR_NEEDS_NVS_FLASH FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_LITTLEFS FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_SPIFFS FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_FATFS FALSE)
+set(BROOKESIA_HAL_ADAPTOR_NEEDS_ESP_BLOCKDEV FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_WEAR_LEVELLING FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_WIFI_STACK FALSE)
 set(BROOKESIA_HAL_ADAPTOR_NEEDS_BLE_STACK FALSE)
@@ -207,6 +244,11 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_STORAGE_DEVICE)
             set(BROOKESIA_HAL_ADAPTOR_NEEDS_FATFS TRUE)
             set(BROOKESIA_HAL_ADAPTOR_NEEDS_WEAR_LEVELLING TRUE)
         endif()
+        if(CONFIG_BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND)
+            set(BROOKESIA_HAL_ADAPTOR_NEEDS_FATFS TRUE)
+            set(BROOKESIA_HAL_ADAPTOR_NEEDS_ESP_BLOCKDEV TRUE)
+            set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER TRUE)
+        endif()
         if(CONFIG_BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_SDCARD)
             set(BROOKESIA_HAL_ADAPTOR_NEEDS_FATFS TRUE)
             set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER TRUE)
@@ -222,6 +264,11 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE)
     file(GLOB_RECURSE POWER_SRCS_CPP ${COMPONENT_DIR}/src/power/*.cpp)
     brookesia_hal_adaptor_append_sources(${POWER_SRCS_CPP})
     set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER TRUE)
+endif()
+
+if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES)
+    file(GLOB_RECURSE EXPANSION_SRCS_CPP ${COMPONENT_DIR}/src/expansion/*.cpp)
+    brookesia_hal_adaptor_append_sources(${EXPANSION_SRCS_CPP})
 endif()
 
 if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_WIFI_DEVICE)
@@ -246,6 +293,7 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_BT_DEVICE)
         ${COMPONENT_DIR}/src/bluetooth/a2dp_sink.cpp
     )
     set(BROOKESIA_HAL_ADAPTOR_NEEDS_BT_STACK TRUE)
+    set(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER TRUE)
     if(CONFIG_BT_CONTROLLER_ENABLED AND CONFIG_BT_CLASSIC_ENABLED AND CONFIG_BT_BLUEDROID_ENABLED AND CONFIG_BT_A2DP_ENABLE AND
        CONFIG_ESP_BT_AUDIO_GMF_IO_SUPPORT)
         set(BROOKESIA_HAL_ADAPTOR_NEEDS_BT_AUDIO TRUE)
@@ -262,6 +310,10 @@ endif()
 
 if(BROOKESIA_HAL_ADAPTOR_NEEDS_NVS_FLASH)
     brookesia_hal_adaptor_append_sources(${COMPONENT_DIR}/src/private/nvs_flash_manager.cpp)
+endif()
+
+if(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER)
+    brookesia_hal_adaptor_append_sources(${COMPONENT_DIR}/src/private/board_manager.cpp)
 endif()
 
 #
@@ -282,17 +334,120 @@ idf_component_register(
 # (media_lib_sal) or a managed component (espressif__media_lib_sal).
 #
 find_package(Git QUIET)
+foreach(_prefix "" "espressif__")
+    brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_board_manager
+        src/esp_board_device.c "s_device_lifecycle_lock")
+    brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_video
+        src/esp_video_init.c "No DVP camera sensor was detected")
+    brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_video
+        src/esp_video_init.c "sccb_i2c_log_level")
+    foreach(_sensor ov3640 sc101iot)
+        brookesia_hal_adaptor_check_retired_patch(${_prefix}esp_cam_sensor
+            sensors/${_sensor}/${_sensor}.c "ESP_LOGD(TAG, \"Get sensor ID failed\")")
+    endforeach()
+endforeach()
 set(BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH
     ${COMPONENT_DIR}/tools/media_lib_sal_esp_tls_idf6.patch
 )
 brookesia_hal_adaptor_apply_component_patch(media_lib_sal
     ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
     port/media_lib_tls_default.c
+    REQUIRED
 )
 brookesia_hal_adaptor_apply_component_patch(espressif__media_lib_sal
     ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
     port/media_lib_tls_default.c
+    REQUIRED
 )
+
+if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
+   CONFIG_BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL)
+    # av_processor 0.6.x only considers stream mode "running", so its public
+    # stop API otherwise leaves a frame-mode capture pipeline open. Keep the
+    # workaround local until the dependency release contains the fix.
+    set(BROOKESIA_HAL_ADAPTOR_AV_PROCESSOR_PATCH
+        ${COMPONENT_DIR}/tools/av_processor_frame_mode_stop.patch
+    )
+    brookesia_hal_adaptor_apply_component_patch(av_processor
+        ${BROOKESIA_HAL_ADAPTOR_AV_PROCESSOR_PATCH}
+        src/video_processor.c
+        REQUIRED
+    )
+    brookesia_hal_adaptor_apply_component_patch(jason-mao__av_processor
+        ${BROOKESIA_HAL_ADAPTOR_AV_PROCESSOR_PATCH}
+        src/video_processor.c
+        REQUIRED
+    )
+endif()
+
+if(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER)
+    # A failed low-level teardown may already consume its handle. Quarantine
+    # the peripheral instead of restoring a reference to an uncertain pointer.
+    set(BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_PERIPH_PATCH
+        ${COMPONENT_DIR}/tools/esp_board_manager_periph_deinit_retry.patch
+    )
+    brookesia_hal_adaptor_apply_component_patch(esp_board_manager
+        ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_PERIPH_PATCH}
+        src/esp_board_periph.c
+        REQUIRED
+    )
+    brookesia_hal_adaptor_apply_component_patch(espressif__esp_board_manager
+        ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_PERIPH_PATCH}
+        src/esp_board_periph.c
+        REQUIRED
+    )
+endif()
+
+if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
+   CONFIG_BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL)
+    # Make the esp_video 2.4.x DVP teardown staged and retryable, including the
+    # open-file check that must run before SCCB and sensor destruction.
+    set(BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_PATCH
+        ${COMPONENT_DIR}/tools/esp_video_dvp_deinit_order.patch
+    )
+    brookesia_hal_adaptor_apply_component_patch(esp_video
+        ${BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_PATCH}
+        src/esp_video_init.c
+        REQUIRED
+    )
+    brookesia_hal_adaptor_apply_component_patch(espressif__esp_video
+        ${BROOKESIA_HAL_ADAPTOR_ESP_VIDEO_DVP_PATCH}
+        src/esp_video_init.c
+        REQUIRED
+    )
+    # esp_capture 0.8.4 only recognises YUYV for YUV422, so a DVP sensor that
+    # exposes UYVY alone (the SC101IOT CameraBoard variant) fails negotiation.
+    set(BROOKESIA_HAL_ADAPTOR_ESP_CAPTURE_UYVY_PATCH
+        ${COMPONENT_DIR}/tools/esp_capture_v4l2_uyvy_support.patch
+    )
+    brookesia_hal_adaptor_apply_component_patch(esp_capture
+        ${BROOKESIA_HAL_ADAPTOR_ESP_CAPTURE_UYVY_PATCH}
+        impl/capture_video_src/capture_video_v4l2_src.c
+        REQUIRED
+    )
+    brookesia_hal_adaptor_apply_component_patch(espressif__esp_capture
+        ${BROOKESIA_HAL_ADAPTOR_ESP_CAPTURE_UYVY_PATCH}
+        impl/capture_video_src/capture_video_v4l2_src.c
+        REQUIRED
+    )
+
+    # esp_board_manager 0.5.x hides DVP camera shutdown failures and releases
+    # resources that are still in use. Mosaico needs a retryable close before
+    # restoring the expansion-slot address pins.
+    set(BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_CAMERA_PATCH
+        ${COMPONENT_DIR}/tools/esp_board_manager_dvp_camera_deinit.patch
+    )
+    brookesia_hal_adaptor_apply_component_patch(esp_board_manager
+        ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_CAMERA_PATCH}
+        devices/dev_camera/dev_camera.c
+        REQUIRED
+    )
+    brookesia_hal_adaptor_apply_component_patch(espressif__esp_board_manager
+        ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_CAMERA_PATCH}
+        devices/dev_camera/dev_camera.c
+        REQUIRED
+    )
+endif()
 
 brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER
     esp_board_manager
@@ -308,6 +463,7 @@ brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_LITT
     joltwallet__littlefs
 )
 brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_FATFS fatfs)
+brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_ESP_BLOCKDEV esp_blockdev)
 brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_WEAR_LEVELLING wear_levelling)
 brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_NVS_FLASH nvs_flash)
 brookesia_hal_adaptor_optional_private_requires(BROOKESIA_HAL_ADAPTOR_NEEDS_WIFI_STACK
@@ -443,4 +599,12 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE)
         BROOKESIA_HAL_ADAPTOR_POWER_DEVICE_PLUGIN_SYMBOL=${BROOKESIA_HAL_ADAPTOR_POWER_DEVICE_PLUGIN_SYMBOL}
     )
     target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${BROOKESIA_HAL_ADAPTOR_POWER_DEVICE_PLUGIN_SYMBOL}")
+endif()
+
+if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES)
+    set(BROOKESIA_HAL_ADAPTOR_EXPANSION_DEVICE_PLUGIN_SYMBOL expansion_device_symbol)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE
+        BROOKESIA_HAL_ADAPTOR_EXPANSION_DEVICE_PLUGIN_SYMBOL=${BROOKESIA_HAL_ADAPTOR_EXPANSION_DEVICE_PLUGIN_SYMBOL}
+    )
+    target_link_libraries(${COMPONENT_LIB} PRIVATE "-u ${BROOKESIA_HAL_ADAPTOR_EXPANSION_DEVICE_PLUGIN_SYMBOL}")
 endif()

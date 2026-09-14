@@ -125,6 +125,27 @@ Espressif Boards
        | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
        | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
        | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
+   * - ``esp_mosaico_v1_0``
+     - - *ESP32-S31*
+       - *Wi-Fi*
+       - *Flash 16MB*
+       - *PSRAM 16MB*
+       - *Expansion slots*
+     - | `Official User Guide <https://docs.espressif.com/projects/esp-dev-kits/en/latest/esp32s31/esp-mosaico/user_guide.html>`_
+       | :ref:`Brookesia Adaptation Guide <hal-boards-espressif-mosaico>`
+     - | :cpp:class:`AudioCodecPlayer <esp_brookesia::hal::audio::CodecPlayerIface>`
+       | :cpp:class:`AudioCodecRecorder <esp_brookesia::hal::audio::CodecRecorderIface>`
+       | :cpp:class:`DisplayPanel <esp_brookesia::hal::display::PanelIface>`
+       | :cpp:class:`DisplayTouch <esp_brookesia::hal::display::TouchIface>`
+       | :cpp:class:`DisplayBacklight <esp_brookesia::hal::display::BacklightIface>`
+       | :cpp:class:`PowerBattery <esp_brookesia::hal::power::BatteryIface>`
+       | :cpp:class:`StorageFs <esp_brookesia::hal::storage::FileSystemIface>`
+       | :cpp:class:`StorageKv <esp_brookesia::hal::storage::KeyValueIface>`
+       | :cpp:class:`ExpansionModuleManager <esp_brookesia::hal::expansion::ModuleManagerIface>`
+       | :cpp:class:`Camera <esp_brookesia::hal::video::CameraIface>` (optional module)
+       | :cpp:class:`WifiBasic <esp_brookesia::hal::wifi::BasicIface>`
+       | :cpp:class:`WifiSta <esp_brookesia::hal::wifi::StationIface>`
+       | :cpp:class:`WifiSoftAp <esp_brookesia::hal::wifi::SoftApIface>`
    * - ``esp_sensair_shuttle``
      - - *ESP32-C5*
        - *Wi-Fi*
@@ -140,3 +161,78 @@ Espressif Boards
        | :cpp:class:`WifiBasic <esp_brookesia::hal::WifiBasicIface>`
        | :cpp:class:`WifiSta <esp_brookesia::hal::WifiStaIface>`
        | :cpp:class:`WifiSoftAp <esp_brookesia::hal::WifiSoftApIface>`
+
+.. _hal-boards-espressif-mosaico:
+
+ESP-Mosaico V1.0 Adaptation Guide
+---------------------------------
+
+``esp_mosaico_v1_0`` supports Wi-Fi, a 480 x 480 display with touch, audio playback and recording, battery voltage queries, LittleFS/NVS, and NAND FATFS on the ESP-Mosaico V1.0 CoreBoard. A camera is available through an optional expansion module. Missing or unsupported modules do not prevent the core board from starting.
+
+Configuration and Usage
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Generate the board configuration and build from the example project directory. For the general workflow, see :ref:`Getting Started - How to Use Example Projects <getting-started-example-projects>`.
+
+.. code-block:: console
+
+   idf.py gen-bmgr-config -b esp_mosaico_v1_0
+   idf.py --preview set-target esp32s31
+   idf.py build
+
+The board defaults include the following settings:
+
+- **Expansion modules**: Enable ``CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES`` together with the Camera, DVP, OV3640, and SC101IOT drivers.
+- **Camera release**: Set ``CONFIG_BROOKESIA_HAL_ADAPTOR_VIDEO_KEEP_DEVICE_INITIALIZED_ON_RELEASE=n`` to release the camera device when the last session closes.
+- **Device registration capacity**: Set ``CONFIG_VFS_MAX_COUNT=12`` to accommodate the console, networking, filesystems, and video devices.
+- **USB console**: Enable TinyUSB CDC and automatic download; disable the USB Serial/JTAG secondary console, USB Service auto-registration, and the System Core USB file-transfer bridge.
+- **NAND**: Enable FATFS at ``/nand`` with ``CONFIG_BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_FATFS_NAND_FORMAT_IF_MOUNT_FAILED=n`` to keep automatic formatting disabled on mount failure.
+
+.. note::
+
+   An existing project's ``sdkconfig`` takes precedence over board defaults. After updating the board configuration, check the relevant options in ``idf.py menuconfig``. With Board Manager 0.5.x and a non-default ``SDKCONFIG`` path, include ``components/gen_bmgr_codes/board_manager.defaults`` in ``SDKCONFIG_DEFAULTS``.
+
+Expansion Modules
+^^^^^^^^^^^^^^^^^
+
+Mosaico scans available slots every 300 ms and updates module state after three consecutive matching results. Scanning identifies modules; functional hardware is initialized when the corresponding HAL interface is opened.
+
+.. list-table::
+   :widths: 25 15 60
+   :header-rows: 1
+
+   * - Module
+     - Slot
+     - Support
+   * - OV3640 camera
+     - Left
+     - RGB565, 640 x 480, 7 fps; capture through the Camera HAL and Video interfaces.
+   * - SC101IOT camera
+     - Left
+     - YUV422, 640 x 480, 15 fps; capture through the Camera HAL and Video interfaces.
+   * - Camera module
+     - Right
+     - Reports ``Unsupported`` without initializing a driver.
+   * - Other valid modules
+     - Any
+     - Identifies the module and reports ``Unsupported``.
+
+Use ``Expansion:ModuleManager:0`` to query and subscribe to slot state. Applications can also use the Device Service's ``GetExpansionModuleInfos`` and ``ExpansionModuleChanged``. For state definitions and asynchronous callback behavior, see :ref:`Expansion Module Support <hal-adaptor-expansion-modules>`.
+
+Usage Notes
+^^^^^^^^^^^
+
+- **Shared pins**: Both slots stop scanning while the camera is open. After the camera closes successfully and the shared pins are restored, scanning restarts and periodic detection resumes.
+- **Module removal**: Close the camera before unplugging it. Removing a module while streaming is not supported.
+- **USB channels**: GPIO33 is shared by DVP D2 and USB Serial/JTAG, so Serial/JTAG cannot operate with the camera. The onboard TinyUSB CDC console uses a separate channel; USB Service does not yet support file transfers over this channel. Recoverable console initialization failures fall back to UART; an unrecoverable standard-stream switch requires a manual restart.
+- **Application storage**: NAND is accessible through HAL/Storage Service. System Core does not yet include ``/nand`` automatically in the application storage list. App Store displays the capacity of the partition containing its current cache directory.
+- **Error recovery**: Check the error logs if camera cleanup fails; Encoder HAL ``close()`` has no return value. Scanning resumes only after camera resources and shared pins are restored. An uncertain peripheral release requires a manual restart; see :ref:`Lifecycle and Error Handling <hal-adaptor-lifecycle>`.
+
+``hal/brookesia_hal_adaptor/test_apps`` provides repeated camera lifecycle, expansion scanning recovery, and NAND file read/write tests, selectable through the onboard USB console. ``examples/system/super`` runs the complete system example.
+
+Implementation and Dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The Mosaico board code handles slot identification, pin sharing, and peripheral configuration. Upper layers use the generic HAL and Service interfaces. For dependency compatibility, see :ref:`Dependency Patches <hal-adaptor-dependency-patches>`.
+
+Hardware configuration and parts of the initialization code are adapted from the Apache-2.0-licensed `ESP-Mosaico BSP <https://github.com/esp-mosaico/esp-mosaico-bsp>`_. Source provenance is recorded in ``hal/brookesia_hal_boards/boards/espressif/esp_mosaico_v1_0/SOURCE.md``. All code required to build the board is included in the Brookesia repository.

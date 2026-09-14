@@ -1,0 +1,55 @@
+{
+    "type": "constant",
+    "data": {
+        "settings": {
+            "layout": {
+                "pageX": "12dp",
+                "pageY": "48dp",
+                "pageWidth": "${expr(${env.widthDp} - 24dp)}",
+                "pageHeight": "${expr(${env.heightDp} - 56dp)}",
+                "pageGap": "10dp",
+                "cardGap": "8dp",
+                "cardRadius": "16dp",
+                "cardPadding": "12dp",
+                "rowHeight": "54dp",
+                "smallRowHeight": "46dp",
+                "iconSize": "32dp",
+                "navIconColumn": "40dp",
+                "navValueColumn": "96dp",
+                "menuValueColumn": "96dp",
+                "chevronWidth": "20dp",
+                "sliderHeight": "26dp",
+                "debugSliderRowHeight": "110dp",
+                "debugSliderTickHeight": "16dp",
+                "switchColumnWidth": "60dp",
+                "switchWidth": "54dp",
+                "switchHeight": "28dp",
+                "headerHeight": "44dp",
+                "headerSideWidth": "52dp",
+                "headerBackSize": "38dp",
+                "headerIconSize": "26dp",
+                "themeModeCardWidth": "match",
+                "themeModeCardHeight": "116dp",
+                "themePreviewWidth": "140dp",
+                "themePreviewHeight": "52dp",
+                "wifiMetaColumn": "40dp",
+                "wifiRefreshColumnWidth": "40dp",
+                "wifiRefreshSize": "32dp",
+                "wifiHeaderHeight": "32dp",
+                "wifiStatusCardHeight": "64dp",
+                "wifiConnectedHeight": "72dp",
+                "wifiRowHeight": "60dp",
+                "wifiPasswordLabelColumn": "124dp",
+                "wifiConnectActionWidth": "96dp"
+            },
+            "font": {
+                "hero": "32sp",
+                "title": "24sp",
+                "section": "16sp",
+                "body": "16sp",
+                "caption": "12sp",
+                "small": "11sp"
+            }
+        }
+    }
+}

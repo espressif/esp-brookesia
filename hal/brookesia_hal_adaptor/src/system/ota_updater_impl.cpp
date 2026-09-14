@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "brookesia/hal_adaptor/board_manager.h"
 #include <array>
 #include <cstdio>
 #include <exception>
@@ -70,7 +71,7 @@ system::OtaUpdaterIface::TargetIdentity OtaUpdaterAdaptorIface::get_target_ident
 
 #if defined(CONFIG_ESP_BOARD_NAME)
     esp_board_info_t board_info = {};
-    auto ret = esp_board_manager_get_board_info(&board_info);
+    auto ret = brookesia_hal_board_manager_get_board_info(&board_info);
     if (ret == ESP_OK) {
         last_error_.clear();
         return {

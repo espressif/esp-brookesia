@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <chrono>
 #include <limits>
+#include <new>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -118,9 +119,21 @@ std::expected<void, std::string> VideoEncoder::function_open(const boost::json::
     if (!encoder_iface->open(hal_encoder_cfg, std::move(callback), &error_message)) {
         return std::unexpected(error_message.empty() ? "Failed to open video encoder" : error_message);
     }
+    lib_utils::FunctionGuard encoder_cleanup_guard([&encoder_iface]() {
+        encoder_iface->close();
+    });
+
+    if (display_activate_pending_ && display_operation_) {
+        auto active_result = display_operation_->set_active_source(display_output_name_);
+        if (!active_result) {
+            return std::unexpected("Failed to activate visual data-flow source: " + active_result.error());
+        }
+        display_activate_pending_ = false;
+    }
 
     encoder_cfg_ = encoder_cfg;
     encoder_iface_ = std::move(encoder_handle);
+    encoder_cleanup_guard.release();
     display_cleanup_guard.release();
 
     return {};
@@ -397,10 +410,7 @@ std::expected<void, std::string> VideoEncoder::setup_display_output(BaseHelper::
         return std::unexpected("Failed to request visual data-flow output: " + request_result.error());
     }
     if (display_cfg.activate_source) {
-        auto active_result = display_operation->set_active_source(output_it->output.name);
-        if (!active_result) {
-            return std::unexpected("Failed to activate visual data-flow source: " + active_result.error());
-        }
+        display_activate_pending_ = true;
     }
 
     display_operation_ = std::move(display_operation);
@@ -413,6 +423,21 @@ std::expected<void, std::string> VideoEncoder::setup_display_output(BaseHelper::
                                VISUAL_DRAW_TIMEOUT_MS_DEFAULT : display_cfg.draw_timeout_ms;
     display_sink_index_ = display_cfg.sink_index;
     display_present_warning_count_ = 0;
+    const size_t bytes_per_pixel = display_pixel_format_ == dataflow::VisualPixelFormat::RGB565 ? 2U : 3U;
+    const size_t pixel_count = static_cast<size_t>(sink.width) * sink.height;
+    if (pixel_count > std::numeric_limits<size_t>::max() / bytes_per_pixel) {
+        clear_display_output();
+        return std::unexpected("Video encoder Display frame size exceeds the addressable range");
+    }
+    display_present_capacity_ = pixel_count * bytes_per_pixel;
+    if ((display_byte_order_ == dataflow::VisualByteOrder::Swap16) &&
+            (display_pixel_format_ == dataflow::VisualPixelFormat::RGB565)) {
+        display_present_buffer_.reset(new (std::nothrow) uint8_t[display_present_capacity_]);
+        if (display_present_buffer_ == nullptr) {
+            clear_display_output();
+            return std::unexpected("Failed to allocate video encoder Display present buffer");
+        }
+    }
     publish_sink_event_ = display_cfg.publish_sink_event;
     operation_cleanup_guard.release();
 
@@ -441,6 +466,9 @@ void VideoEncoder::clear_display_output()
     display_draw_timeout_ms_ = 0;
     display_sink_index_ = 0;
     display_present_warning_count_ = 0;
+    display_present_buffer_.reset();
+    display_present_capacity_ = 0;
+    display_activate_pending_ = false;
     publish_sink_event_ = true;
 }
 
@@ -451,27 +479,32 @@ void VideoEncoder::on_encoder_frame(
 {
     if (display_operation_ && display_operation_->is_available() && (sink_index == display_sink_index_) &&
             (data != nullptr) && (size > 0)) {
-        const uint8_t *present_data = data;
-        if ((display_byte_order_ == dataflow::VisualByteOrder::Swap16) &&
-                (display_pixel_format_ == dataflow::VisualPixelFormat::RGB565) && ((size % 2) == 0)) {
-            auto *pixels = const_cast<uint8_t *>(data);
-            for (size_t i = 0; i < size; i += 2) {
-                const uint8_t tmp = pixels[i];
-                pixels[i] = pixels[i + 1];
-                pixels[i + 1] = tmp;
+        auto result = dataflow::VisualPresentResult::DroppedInvalidFrame;
+        const auto &display_sink = encoder_cfg_.sinks[display_sink_index_];
+        if ((size == display_present_capacity_) && (sink_info.width == display_sink.width) &&
+                (sink_info.height == display_sink.height)) {
+            const uint8_t *present_data = data;
+            if (display_present_buffer_) {
+                // The capture pipeline and event subscribers share the original frame.
+                auto *pixels = display_present_buffer_.get();
+                for (size_t i = 0; i < size; i += 2) {
+                    pixels[i] = data[i + 1];
+                    pixels[i + 1] = data[i];
+                }
+                present_data = pixels;
             }
-            present_data = pixels;
+            dataflow::VisualFrameInfo frame = {
+                .x = display_x_,
+                .y = display_y_,
+                .width = sink_info.width,
+                .height = sink_info.height,
+                .pixel_format = display_pixel_format_,
+            };
+            result = display_operation_->present_frame_sync(
+                         display_output_name_, frame, std::span<const uint8_t>(present_data, size),
+                         display_draw_timeout_ms_
+                     );
         }
-        dataflow::VisualFrameInfo frame = {
-            .x = display_x_,
-            .y = display_y_,
-            .width = sink_info.width,
-            .height = sink_info.height,
-            .pixel_format = display_pixel_format_,
-        };
-        auto result = display_operation_->present_frame_sync(
-                          display_output_name_, frame, std::span<const uint8_t>(present_data, size), display_draw_timeout_ms_
-                      );
         if ((result != dataflow::VisualPresentResult::Presented) &&
                 (result != dataflow::VisualPresentResult::DroppedNotActive)) {
             if ((display_present_warning_count_++ % 30) == 0) {

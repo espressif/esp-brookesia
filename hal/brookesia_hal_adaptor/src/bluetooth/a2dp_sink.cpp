@@ -47,6 +47,7 @@
 #include "esp_audio_simple_dec_default.h"
 #include "esp_board_manager.h"
 #include "esp_board_manager_defs.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "dev_audio_codec.h"
 
 #if CONFIG_AUDIO_SIMPLE_PLAYER_RESAMPLE_DEST_RATE
@@ -297,7 +298,7 @@ private:
     bool init_output_locked()
     {
         dev_audio_codec_handles_t *handles = nullptr;
-        if (esp_board_manager_get_device_handle(
+        if (brookesia_hal_board_manager_get_device_handle(
                     ESP_BOARD_DEVICE_NAME_AUDIO_DAC, reinterpret_cast<void **>(&handles)) != ESP_OK ||
                 handles == nullptr || handles->codec_dev == nullptr) {
             return false;

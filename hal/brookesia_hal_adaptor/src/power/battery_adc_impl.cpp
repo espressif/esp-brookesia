@@ -19,6 +19,7 @@
 #include "esp_adc/adc_cali_scheme.h"
 #include "esp_adc/adc_oneshot.h"
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 
 namespace esp_brookesia::hal {
 
@@ -37,12 +38,12 @@ constexpr int ADC_REF_VOLTAGE_MV = BROOKESIA_HAL_ADAPTOR_POWER_BATTERY_ADC_REF_V
 
 bool is_charge_adc_config_available()
 {
-    if (!esp_board_manager_check_name(ADC_BATTERY_CHARGE_NAME)) {
+    if (!brookesia_hal_board_manager_check_name(ADC_BATTERY_CHARGE_NAME)) {
         return false;
     }
 
     void *config = nullptr;
-    return esp_board_periph_get_config(ADC_BATTERY_CHARGE_NAME, &config) == ESP_OK;
+    return brookesia_hal_board_periph_get_config(ADC_BATTERY_CHARGE_NAME, &config) == ESP_OK;
 }
 
 power::BatteryIface::Info generate_info()
@@ -153,12 +154,12 @@ BatteryAdcImpl::~BatteryAdcImpl()
         voltage_adc_cali_scheme_ = CalibrationScheme::None;
     }
     if (charge_adc_handle_ != nullptr) {
-        auto ret = esp_board_periph_unref_handle(ADC_BATTERY_CHARGE_NAME);
+        auto ret = brookesia_hal_board_periph_unref_handle(ADC_BATTERY_CHARGE_NAME);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to unref charge ADC"); });
         charge_adc_handle_ = nullptr;
     }
     if (voltage_adc_handle_ != nullptr) {
-        auto ret = esp_board_periph_unref_handle(ADC_BATTERY_VOLTAGE_NAME);
+        auto ret = brookesia_hal_board_periph_unref_handle(ADC_BATTERY_VOLTAGE_NAME);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to unref voltage ADC"); });
         voltage_adc_handle_ = nullptr;
     }
@@ -231,16 +232,16 @@ bool BatteryAdcImpl::setup_voltage_adc()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ADC_BATTERY_VOLTAGE_NAME)) {
+    if (!brookesia_hal_board_manager_check_name(ADC_BATTERY_VOLTAGE_NAME)) {
         BROOKESIA_LOGW("Battery voltage ADC periph not found, skip");
         return false;
     }
 
-    auto ret = esp_board_periph_ref_handle(ADC_BATTERY_VOLTAGE_NAME, &voltage_adc_handle_);
+    auto ret = brookesia_hal_board_periph_ref_handle(ADC_BATTERY_VOLTAGE_NAME, &voltage_adc_handle_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to ref battery voltage ADC");
     BROOKESIA_CHECK_NULL_RETURN(voltage_adc_handle_, false, "Failed to get battery voltage ADC handle");
 
-    ret = esp_board_periph_get_config(ADC_BATTERY_VOLTAGE_NAME, &voltage_adc_config_);
+    ret = brookesia_hal_board_periph_get_config(ADC_BATTERY_VOLTAGE_NAME, &voltage_adc_config_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get battery voltage ADC config");
     BROOKESIA_CHECK_NULL_RETURN(voltage_adc_config_, false, "Failed to get battery voltage ADC config");
 
@@ -258,18 +259,18 @@ bool BatteryAdcImpl::setup_charge_adc()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!esp_board_manager_check_name(ADC_BATTERY_CHARGE_NAME)) {
+    if (!brookesia_hal_board_manager_check_name(ADC_BATTERY_CHARGE_NAME)) {
         BROOKESIA_LOGW("Battery charge ADC periph not found, skip");
         return false;
     }
 
-    auto ret = esp_board_periph_ref_handle(ADC_BATTERY_CHARGE_NAME, &charge_adc_handle_);
+    auto ret = brookesia_hal_board_periph_ref_handle(ADC_BATTERY_CHARGE_NAME, &charge_adc_handle_);
     if (ret != ESP_OK) {
         return false;
     }
     BROOKESIA_CHECK_NULL_RETURN(charge_adc_handle_, false, "Failed to get battery charge ADC handle");
 
-    ret = esp_board_periph_get_config(ADC_BATTERY_CHARGE_NAME, &charge_adc_config_);
+    ret = brookesia_hal_board_periph_get_config(ADC_BATTERY_CHARGE_NAME, &charge_adc_config_);
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, false, "Failed to get battery charge ADC config");
     BROOKESIA_CHECK_NULL_RETURN(charge_adc_config_, false, "Failed to get battery charge ADC config");
 

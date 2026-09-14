@@ -34,8 +34,11 @@ This example currently supports the following development boards:
 
 - `esp32_p4x_function_ev`
 - `esp32_s31_korvo1`
+- `esp_mosaico_v1_0`
 
 Hardware resources are managed through the [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) component.
+
+On ESP-Mosaico, expansion modules are optional and are not required to start System Super. See the [ESP-Mosaico V1.0 adaptation guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/hal/boards/espressif.html#hal-boards-espressif-mosaico) for the currently supported modules and camera-preview limitations.
 
 > [!TIP]
 > This example supports using an SD Card as an external storage volume. Please insert the SD Card before powering on the board.

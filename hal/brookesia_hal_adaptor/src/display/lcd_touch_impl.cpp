@@ -14,6 +14,7 @@
 
 #if BROOKESIA_HAL_ADAPTOR_DISPLAY_ENABLE_LCD_TOUCH_IMPL
 #include "esp_board_manager_includes.h"
+#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_lcd_touch.h"
 
 namespace esp_brookesia::hal {
@@ -31,13 +32,13 @@ esp_lcd_panel_io_handle_t get_io_handle(void *handles)
 
 display::TouchIface::Info generate_info()
 {
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
         BROOKESIA_LOGW("LCD touch device not found");
         return {};
     }
 
     dev_lcd_touch_config_t *config = nullptr;
-    auto ret = esp_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, reinterpret_cast<void **>(&config));
+    auto ret = brookesia_hal_board_manager_get_device_config(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, reinterpret_cast<void **>(&config));
     BROOKESIA_CHECK_ESP_ERR_RETURN(ret, {}, "Failed to get LCD touch config");
     BROOKESIA_CHECK_NULL_RETURN(config, {}, "Failed to get LCD touch config");
 
@@ -55,21 +56,22 @@ display::TouchIface::Info generate_info()
 I2cDisplayTouchImpl::I2cDisplayTouchImpl()
     : display::TouchIface(generate_info())
 {
+    esp_brookesia::hal::detail::LifecycleGuard lifecycle_guard;
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     BROOKESIA_LOGD("Params: info(%1%)", get_info());
 
     BROOKESIA_CHECK_FALSE_EXIT(get_info().is_valid(), "Invalid touch information");
 
-    if (!esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
+    if (!brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
         BROOKESIA_LOGW("LCD touch device not found, skip");
         return;
     }
 
-    auto ret = esp_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
+    auto ret = brookesia_hal_board_manager_init_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to init LCD touch");
 
-    ret = esp_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, &handles_);
+    ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, &handles_);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get handles");
 }
 
@@ -79,8 +81,8 @@ I2cDisplayTouchImpl::~I2cDisplayTouchImpl()
 
     register_interrupt_handler(nullptr, nullptr);
 
-    if (esp_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
-        auto ret = esp_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
+    if (brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
+        auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(ret, {}, { BROOKESIA_LOGE("Failed to deinit LCD touch"); });
     }
 }
