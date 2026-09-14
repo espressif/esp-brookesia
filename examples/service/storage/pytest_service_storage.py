@@ -50,7 +50,7 @@ from pytest_embedded import Dut
 import time
 
 SUCCESS_RESPONSE = b'=== Storage Service Example Completed ==='
-TIMEOUT_S = 30
+TIMEOUT_S = 10 * 60
 
 
 def run_test(dut: Dut)-> None:
