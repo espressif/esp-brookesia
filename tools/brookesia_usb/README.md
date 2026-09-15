@@ -1,55 +1,72 @@
 # Brookesia USB CLI
 
-`brookesia-usb` controls the ESP-Brookesia USB service through the single CDC-ACM
-channel provided by the USB Serial/JTAG controller. The protocol
-version is `1`. The CLI does not require `/dev/ttyACM1`.
+`brookesia-usb` controls the ESP-Brookesia USB service over a single serial
+transport: the CDC-ACM channel of USB Serial/JTAG, or a UART for boards that
+only expose a USB-to-UART bridge. The protocol version is `1`.
 
 ## Install
 
-From this directory, install the CLI into the active Python environment:
-
 ```bash
-python -m pip install -e .
+python -m pip install brookesia-usb
 ```
 
-The only host dependency is `pyserial`.
+The install pulls in `pyserial`. Check the installed version:
+
+```bash
+brookesia-usb --version
+```
 
 ## Port selection
 
-The CLI automatically selects an Espressif USB Serial/JTAG device by USB
-identity and then verifies the device with the protocol `hello` command:
+The CLI discovers the port automatically and verifies the device with the
+protocol `hello` command. It prefers USB Serial/JTAG and falls back to a
+USB-to-UART bridge when no Serial/JTAG port is present:
+
+1. If exactly one USB Serial/JTAG candidate (Espressif VID:PID `0x303A:0x1001`
+   or a matching port description) is present, it is used directly and is not
+   probed during discovery; the protocol `hello` runs once when the command
+   executes.
+2. If several USB Serial/JTAG candidates are present, each is probed with
+   `hello` until one reports the `serial_jtag` transport.
+3. If no USB Serial/JTAG candidate is present, or all of them fail the probe,
+   USB-to-UART candidates (common bridge VID:PID pairs, `/dev/ttyUSB*`, or
+   non-Serial/JTAG `/dev/ttyACM*`) are probed, accepting either the
+   `serial_jtag` or `uart` transport.
+
+If a single USB Serial/JTAG port is present but is not the target device (for
+example when both the USJ cable and the USB-to-UART bridge are connected), the
+CLI selects it and reports an error; pass `--port` to select the port the
+device actually uses.
 
 ```bash
 brookesia-usb devices
 brookesia-usb status
-```
-
-When exactly one matching Serial/JTAG port is present, the CLI selects it
-directly and performs `hello` only once for the requested command. When several
-matching boards are present, discovery probes them using the configured
-timeout. This avoids leaving a stale exclusive session when an application is
-busy during startup.
-
-To select the port explicitly, use `/dev/ttyACM0` (or the path reported by
-`devices`):
-
-```bash
 brookesia-usb --port /dev/ttyACM0 status
+brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 status
 ```
 
-The `--baudrate` option is accepted for pyserial compatibility; USB Serial/JTAG
-does not use a physical baud rate. The default is `115200`. `--timeout` is the
-per-read and write timeout in seconds, with a default of `10`:
+- `--port`: Serial/JTAG (`/dev/ttyACM*`) or USB-to-UART (`/dev/ttyUSB*`) path.
+  Omitted means automatic discovery.
+- `--baudrate`: ignored for USB Serial/JTAG, which has no physical baud rate.
+  For a UART transport it must match the device console baud rate (for example
+  `CONFIG_ESP_CONSOLE_UART_BAUDRATE`). Default `115200`.
+- `--timeout`: per-read and write timeout in seconds. Default `10`.
 
-```bash
-brookesia-usb --port /dev/ttyACM0 --baudrate 115200 --timeout 10 status
-```
+When several matching devices are present, pass `--port` explicitly using a path
+reported by `devices`. A single Serial/JTAG CDC configuration normally exposes
+only `/dev/ttyACM0`; the absence of `/dev/ttyACM1` is expected.
 
-When a command needs a control session, the CLI sends `hello`, validates
-`protocol_version: 1`, `transport: "serial_jtag"`, and
-`session: "exclusive"`, then sends `goodbye` when it exits. Logs already in the
-input buffer are discarded before `hello`; device logs are suppressed during
-the control session so they cannot corrupt file frames.
+Opening a USB-to-UART port resets the device, so the CLI retries `hello` until
+the service is ready. Close `idf.py monitor`, minicom, or any other program that
+reads the same port before running a command.
+
+## Control sessions
+
+Commands that need a control session send `hello` and validate protocol version
+`1`, the transport reported by the device (`serial_jtag` or `uart`), and the
+`exclusive` session state, then send `goodbye` on exit. Device logs are
+suppressed for the duration of the session so they cannot corrupt JSON responses
+or file frames.
 
 ## Commands
 
@@ -184,3 +201,36 @@ CDC channel and cannot safely multiplex competing readers.
 
 The absence of `/dev/ttyACM1` is expected for the Serial-JTAG single-CDC
 configuration.
+
+## Development
+
+Install from a source checkout together with the test extras, then run the lint
+and unit tests:
+
+```bash
+python -m pip install -e "tools/brookesia_usb[test]"
+python -m flake8 --config=.flake8 tools/brookesia_usb/src tools/brookesia_usb/tests
+python -m pytest tools/brookesia_usb/tests
+```
+
+## Release
+
+The package is published manually with `twine`.
+
+1. Bump `version` in `tools/brookesia_usb/pyproject.toml`.
+2. Build and validate the distribution:
+
+   ```bash
+   python -m pip install --upgrade build twine
+   python -m build tools/brookesia_usb
+   python -m twine check tools/brookesia_usb/dist/*
+   ```
+
+3. Upload with a PyPI API token (or an interactive prompt):
+
+   ```bash
+   python -m twine upload tools/brookesia_usb/dist/*
+   ```
+
+4. Tag the release, for example `usb-cli-v0.2.0`.
+

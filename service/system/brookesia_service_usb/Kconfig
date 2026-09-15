@@ -1,18 +1,15 @@
 menu "ESP-Brookesia: Service USB Configurations"
-    depends on SOC_USB_SERIAL_JTAG_SUPPORTED
 
     config BROOKESIA_SERVICE_USB_ENABLE_AUTO_REGISTER
         bool "Enable automatic plugin registration"
         default y if USJ_ENABLE_USB_SERIAL_JTAG
-        default n if !USJ_ENABLE_USB_SERIAL_JTAG
-        select USJ_NO_AUTO_LS_ON_CONNECTION if PM_ENABLE && ESP_CONSOLE_USB_SERIAL_JTAG_ENABLED \
-            && !SOC_USB_SERIAL_JTAG_SUPPORT_LIGHT_SLEEP
+        default y if BROOKESIA_SERVICE_USB_TRANSPORT_UART
+        default n
         help
             Automatically register the USB service with ServiceManager.
 
-            The service uses the fixed-function USB Serial/JTAG CDC port.
-            Applications must reserve the Serial/JTAG RX stream for the
-            service while a host control session is active.
+            The service uses the USB Serial/JTAG CDC port or UART port for host
+            control session.
 
     menuconfig BROOKESIA_SERVICE_USB_ENABLE_DEBUG_LOG
         bool "Enable debug or lower level logs"
@@ -43,16 +40,17 @@ menu "ESP-Brookesia: Service USB Configurations"
         default 8
         range 2 64
         help
-            Number of Serial/JTAG RX messages buffered before the protocol
-            worker handles them.
+            Number of USB RX messages buffered before the protocol worker handles them.
 
     config BROOKESIA_SERVICE_USB_SERIAL_JTAG_RX_BUFFER_SIZE
         int "Serial/JTAG RX buffer size"
-        default 4096
+        default 32768
         range 128 65536
         help
             RX ring-buffer size used when the service owns the Serial/JTAG
             driver. The console-installed driver keeps its own configuration.
+            A large buffer absorbs host bursts while the RX pump task is
+            briefly delayed, which matters at USB Serial/JTAG speed.
 
     config BROOKESIA_SERVICE_USB_SERIAL_JTAG_TX_BUFFER_SIZE
         int "Serial/JTAG TX buffer size"
@@ -62,10 +60,66 @@ menu "ESP-Brookesia: Service USB Configurations"
             TX ring-buffer size used when the service owns the Serial/JTAG
             driver. The console-installed driver keeps its own configuration.
 
+    choice BROOKESIA_SERVICE_USB_TRANSPORT
+        prompt "Host control transport"
+        default BROOKESIA_SERVICE_USB_TRANSPORT_SERIAL_JTAG if SOC_USB_SERIAL_JTAG_SUPPORTED
+        default BROOKESIA_SERVICE_USB_TRANSPORT_UART
+        help
+            Transport used by the host control protocol. USB Serial/JTAG is
+            the default on targets that expose it. Select UART for boards
+            that only route a USB-to-UART bridge.
+
+        config BROOKESIA_SERVICE_USB_TRANSPORT_SERIAL_JTAG
+            bool "USB Serial/JTAG (CDC-ACM)"
+            depends on SOC_USB_SERIAL_JTAG_SUPPORTED
+
+        config BROOKESIA_SERVICE_USB_TRANSPORT_UART
+            bool "UART (shares the console port)"
+    endchoice
+
+    if BROOKESIA_SERVICE_USB_TRANSPORT_UART
+
+        config BROOKESIA_SERVICE_USB_UART_PORT
+            int "UART port number"
+            default 0
+            range 0 1 if (SOC_UART_HP_NUM <= 2)
+            range 0 2 if (SOC_UART_HP_NUM <= 3)
+            range 0 4 if (SOC_UART_HP_NUM <= 5)
+            help
+                ESP-IDF uart_port_t. Port 0 is the usual USB-to-UART console
+                port on Espressif dev boards. The upper bound follows the
+                target's HP UART count; the runtime check against UART_NUM_MAX
+                remains as a fallback.
+
+        config BROOKESIA_SERVICE_USB_UART_BAUDRATE
+            int "UART baud rate"
+            default 921600
+            help
+                Ignored when the selected port is the console UART; the
+                service then uses CONFIG_ESP_CONSOLE_UART_BAUDRATE to keep
+                console logs readable at the same rate.
+
+        config BROOKESIA_SERVICE_USB_UART_RX_BUFFER_SIZE
+            int "UART RX ring buffer size"
+            default 16384
+            range 1024 65536
+            help
+                Must be large enough to absorb one protocol frame if the
+                periodic RX pump is delayed. Default matches the default
+                frame payload size.
+
+        config BROOKESIA_SERVICE_USB_UART_TX_BUFFER_SIZE
+            int "UART TX ring buffer size"
+            default 4096
+            range 1024 65536
+
+    endif
+
     config BROOKESIA_SERVICE_USB_COMMAND_TIMEOUT_MS
         int "Service call timeout"
         default 30000
         range 100 600000
         help
             Default timeout for service calls received from the USB host.
+
 endmenu

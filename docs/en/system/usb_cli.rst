@@ -5,23 +5,24 @@ Serial Command-Line Tool
 
 :link_to_translation:`zh_CN:[中文]`
 
-``brookesia-usb`` controls the ESP-Brookesia USB service through the single CDC-ACM channel provided by USB Serial/JTAG. The protocol version is ``1``.
+``brookesia-usb`` controls the ESP-Brookesia USB service over a single serial transport: the CDC-ACM channel provided by USB Serial/JTAG, or a UART (typically the board's USB-to-UART bridge). The protocol version is ``1``.
 
 .. _system-usb-cli-sec-01:
 
 Install
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The USB CLI requires Python 3.9 or newer and can be installed online from `PyPI <https://pypi.org/project/brookesia-usb-cli/>`__:
+The USB CLI requires Python 3.9 or newer and can be installed online from `PyPI <https://pypi.org/project/brookesia-usb/>`__:
 
 .. code-block:: bash
 
-   python -m pip install brookesia-usb-cli
+   python -m pip install brookesia-usb
 
-The install command also installs the ``pyserial`` dependency. After installation, view the command help:
+The install command also installs the ``pyserial`` dependency. After installation, check the version and view the command help:
 
 .. code-block:: bash
 
+   brookesia-usb --version
    brookesia-usb --help
 
 ``brookesia deploy`` in :ref:`system-toolkit-sec-00` wraps this CLI to install a built ``.bpk``.
@@ -31,34 +32,49 @@ The install command also installs the ``pyserial`` dependency. After installatio
 Devices and Ports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The CLI selects a port automatically by the Espressif USB Serial/JTAG device identity and verifies it with the ``hello`` command:
+The CLI selects a port automatically and verifies the device with the ``hello`` command. It prefers USB Serial/JTAG and falls back to a USB-to-UART bridge when no Serial/JTAG port is present:
 
 .. code-block:: bash
 
    brookesia-usb devices
    brookesia-usb status
    brookesia-usb --port /dev/ttyACM0 status
+   brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 status
+
+Discovery order:
+
+1. Enumerate serial ports.
+2. If exactly one USB Serial/JTAG candidate (Espressif VID/PID or a matching port description) is present, it is used directly and is not probed during discovery; the protocol ``hello`` runs once when the command executes.
+3. If several USB Serial/JTAG candidates are present, each is probed with ``hello`` until one reports the ``serial_jtag`` transport.
+4. If no USB Serial/JTAG candidate is present, or all of them fail the probe, USB-to-UART candidates (``/dev/ttyUSB*`` and non-Serial/JTAG ACM ports) are probed, accepting either the ``serial_jtag`` or ``uart`` transport.
+
+If a single USB Serial/JTAG port is present but is not the target device (for example when both the USJ cable and the USB-to-UART bridge are connected), the CLI selects it and reports an error; pass ``--port`` to select the port the device actually uses.
 
 The common connection options can also be specified explicitly:
 
 .. code-block:: bash
 
    brookesia-usb --port /dev/ttyACM0 --baudrate 115200 --timeout 10 status
+   brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 --timeout 10 status
 
-- ``--port``: USB Serial/JTAG device path; if omitted, discover a matching ACM port.
-- ``--baudrate``: retained for pyserial compatibility; USB Serial/JTAG has no physical baud rate and defaults to ``115200``.
+- ``--port``: Serial/JTAG device path (``/dev/ttyACM*``) or USB-to-UART device path (``/dev/ttyUSB*``); if omitted, discovery runs automatically.
+- ``--baudrate``: ignored for USB Serial/JTAG, which has no physical baud rate. For a UART transport it must match the device console baud rate (for example ``CONFIG_ESP_CONSOLE_UART_BAUDRATE``); the default is ``115200``.
 - ``--timeout``: per-read and write timeout in seconds, defaulting to ``10``.
 
 When multiple matching devices are present, pass ``--port`` explicitly using a path reported by ``devices``. A single Serial/JTAG CDC configuration normally exposes only ``/dev/ttyACM0``; the absence of ``/dev/ttyACM1`` is expected.
+
+Boards that only route a USB-to-UART bridge expose the control transport on the same port as the console. The device time-multiplexes the port: console logs are emitted while idle, and are suppressed for the duration of a control session. This requires the device firmware to select the UART transport; USB Serial/JTAG remains the default on boards that expose it.
 
 .. _system-usb-cli-sec-03:
 
 Control Sessions and Security
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Commands that require a control session send ``hello`` and validate protocol version ``1``, the ``serial_jtag`` transport, and the ``exclusive`` session state before sending ``goodbye`` on exit.
+Commands that require a control session send ``hello`` and validate protocol version ``1``, the transport reported by the device (``serial_jtag`` or ``uart``), and the ``exclusive`` session state before sending ``goodbye`` on exit.
 
-Device logs are suppressed during the control session so they cannot corrupt JSON responses or file frames. USB Serial/JTAG shares its CDC channel with flashing, JTAG debugging, and console logs; close ``idf.py monitor``, minicom, or any other program reading the same serial device before running a command.
+Device logs are suppressed during the control session so they cannot corrupt JSON responses or file frames. USB Serial/JTAG shares its CDC channel with flashing, JTAG debugging, and console logs; a UART transport shares its port with the console output. Close ``idf.py monitor``, minicom, or any other program reading the same serial device before running a command.
+
+On a UART transport, a device without USB Serial/JTAG uses the same port for firmware download, console logs, and control sessions, but not at the same time: flashing runs in ROM download mode before the application starts, and log output is suppressed while a control session is active.
 
 The USB connection is treated as a trusted physical control boundary, while protocol, path, size, checksum, and service-argument validation still apply.
 
@@ -157,11 +173,17 @@ The CLI returns ``0`` after a successful operation and ``1`` for transport, prot
 - ``install_failed``: System Core rejected or failed to install the package.
 - ``timeout`` / ``aborted``: the operation timed out or was cancelled.
 
-If the device is not found, check the USB Serial/JTAG Type-C data cable and list system devices:
+If the device is not found, check the USB data cable and list system devices:
 
 .. code-block:: bash
 
-   ls /dev/ttyACM*
+   ls /dev/ttyACM* /dev/ttyUSB*
    brookesia-usb devices
 
-After confirming that no other program owns the CDC channel, pass the device path explicitly with ``--port``.
+After confirming that no other program owns the serial port, pass the device path explicitly with ``--port``.
+
+Additional UART transport checks:
+
+- ``hello`` times out or returns invalid data: the ``--baudrate`` value does not match the device console baud rate. Align them and retry.
+- The port is busy: close ``idf.py monitor``, minicom, or any other reader of the same port. The control session and the console cannot read the UART at the same time.
+- Firmware download and BPK installation are naturally time-separated: flashing uses the ROM download mode while the application is not running, so no conflict occurs.

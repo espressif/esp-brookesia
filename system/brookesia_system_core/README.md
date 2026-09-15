@@ -17,7 +17,7 @@ Unsupported manifest fields are reported as warnings and do not prevent a
 package from being installed.
 
 See the [USB service documentation](../../service/system/brookesia_service_usb/README.md)
-and the [host CLI documentation](../../tools/brookesia_usb_cli/README.md) for
+and the [host CLI documentation](../../tools/brookesia_usb/README.md) for
 configuration and usage details.
 
 ## How to Use

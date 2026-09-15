@@ -2,7 +2,7 @@ import hashlib
 import io
 import unittest
 
-from brookesia_usb_cli.protocol import (
+from brookesia_usb.protocol import (
     BinaryFrame,
     FrameType,
     PROTOCOL_VERSION,

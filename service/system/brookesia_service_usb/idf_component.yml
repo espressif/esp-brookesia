@@ -1,10 +1,10 @@
-version: "0.8.0"
-description: ESP-Brookesia USB Serial/JTAG host-control and file-transfer service.
+version: "0.8.1"
+description: ESP-Brookesia host-control and file-transfer service over USB Serial/JTAG or UART.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/system/brookesia_service_usb
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
   espressif/brookesia_service_helper:
-    version: "0.8.*"
+    version: ">=0.8.5"
     override_path: ../../framework/brookesia_service_helper
     require: public

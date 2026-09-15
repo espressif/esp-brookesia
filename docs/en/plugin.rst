@@ -94,8 +94,8 @@ Optional dependencies (installer can prompt):
      - WASM ``mode=canvas`` screenshots and pixel compare (~150MB)
    * - ``curl``
      - Local simulator HTTP probes (``/api/health``, ``/api/screenshot``)
-   * - ``brookesia-usb-cli``
-     - ``brookesia_deploy`` / ``brookesia_device_status``; needs **USB Serial/JTAG** (e.g. ``/dev/ttyACM0``), not a plain USB-UART bridge
+   * - ``brookesia-usb``
+     - ``brookesia_deploy`` / ``brookesia_device_status``; needs **USB Serial/JTAG** (e.g. ``/dev/ttyACM0``) or a UART console port
 
 Common installer flags:
 
@@ -104,7 +104,7 @@ Common installer flags:
    brookesia-plugin --help
    brookesia-plugin deps --yes          # toolkit + missing deps only; no MCP rewrite
    brookesia-plugin --yes cursor        # non-interactive install for Agent ``cursor`` (Agent id required)
-   brookesia-plugin --yes-usb-cli       # install brookesia-usb-cli
+   brookesia-plugin --yes-usb-cli       # install brookesia-usb
    brookesia-plugin --npx               # force MCP launch via npx
    brookesia-plugin --local             # force absolute local MCP path (faster / offline)
 
@@ -241,9 +241,11 @@ This is not Figma MCP and not screenshot-to-UI.
 
 ``brookesia_deploy`` uses :ref:`system-usb-cli-sec-00` (``brookesia-usb install``):
 
-- Firmware must enable the USB CDC / USB service.
-- The host port must be **USB Serial/JTAG** (often ``/dev/ttyACM0``).
-- With only a **USB-UART bridge** (e.g. CP2102 ``/dev/ttyUSB0``), ``brookesia_deploy`` **does not work**; use littlefs staging or SD/network install instead.
+- Firmware must enable the USB service with either the **USB Serial/JTAG** or the **UART** transport.
+- The host port can be **USB Serial/JTAG** (often ``/dev/ttyACM0``) or a **USB-UART bridge** (e.g. CP2102 ``/dev/ttyUSB0``).
+  ``brookesia-usb`` discovers the port automatically, preferring USB Serial/JTAG and falling back to USB-UART.
+- On the device, the console and the USB service transport must be paired to the **same physical port** (see the System Super example README); otherwise logs and deploy use different cables.
+- A UART transport shares the console port: close ``idf.py monitor``, minicom, or any other reader of that port before running a control command.
 - Leave ~1–2 s between ``deploy`` and ``device_status``: the USB control session is exclusive and back-to-back calls may return busy.
 
 .. _plugin-sec-05:

@@ -59,6 +59,24 @@
 
 请参考 [ESP-Brookesia 编程指南 - 如何使用示例工程](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-example-projects)。
 
+### Console 与主机控制端口配对
+
+USB service 的主机控制（BPK 安装、文件传输）与 console 日志输出必须使用同一个物理端口，这样主机才能通过一根线既与设备通信又读取日志。这两个配置项互相独立，必须成对切换：
+
+| 端口 | Console | USB service 传输 |
+| --- | --- | --- |
+| USB 转 UART 桥（UART0） | `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` | `CONFIG_BROOKESIA_SERVICE_USB_TRANSPORT_UART=y`、`..._UART_PORT=0` |
+| USB Serial/JTAG (USJ) | `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` | `CONFIG_BROOKESIA_SERVICE_USB_TRANSPORT_SERIAL_JTAG=y` |
+
+`examples/system/super/sdkconfig.defaults.esp32p4` 与 `sdkconfig.defaults.esp32s31` 中同时提供两种 profile，只需启用其中一组。两目标的默认值不同：
+
+- **ESP32-P4** 默认使用 **USB Serial/JTAG**，与 P4 function 板默认配置及 CI target test 环境一致。当主机通过板载 USB 转 UART 桥连接时，改为 USB 转 UART profile。
+- **ESP32-S31**（Korvo1）默认使用 **USB 转 UART**，与板级默认的 UART0 console 一致。
+
+ESP32-P4 同时引出两种端口，目前需在编译期选择；运行期自动识别尚未实现。
+
+`brookesia-usb` 主机 CLI 会自动发现端口，切换 profile 后主机侧无需改动。
+
 ## ⚡ 构建性能
 
 示例默认构建完整依赖集，同时启用 ccache，并限制第一方 Brookesia C++ target 和 `esp-boost` 的并发编译 edge 数量；这些模板密集型编译单元通常具有最高的编译器峰值内存。相同的调优机制也用于所有第一方 example 和 test app。
@@ -111,6 +129,10 @@ python3 tools/analyze_build.py build
 **无法通过手势退出普通应用**
 
 确认 Display service 已正常启动并上报触摸手势，且手势从屏幕底部边缘开始向上滑动。
+
+**USB 转 UART 桥上看不到应用日志**
+
+Bootloader 的 ROM 阶段始终从 UART0 输出，但第二阶段 bootloader 与应用从所配置的 console 输出。若 console 设为 USB Serial/JTAG，则在 USB 转 UART 桥上只能看到 ROM banner，之后便没有输出。这通常意味着 console 与主机控制传输被配对到了不同端口：请启用 [Console 与主机控制端口配对](#console-与主机控制端口配对) 中的 USB 转 UART profile。
 
 ## 💬 技术支持与反馈
 

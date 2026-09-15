@@ -94,8 +94,8 @@
      - WASM ``mode=canvas`` 截图、像素对比（约 150MB）
    * - ``curl``
      - 本地仿真器 HTTP 探测 (``/api/health``、``/api/screenshot``)
-   * - ``brookesia-usb-cli``
-     - ``brookesia_deploy`` / ``brookesia_device_status``；需 **USB Serial/JTAG** (如 ``/dev/ttyACM0``)，不是普通 USB 转 UART
+   * - ``brookesia-usb``
+     - ``brookesia_deploy`` / ``brookesia_device_status``；需 **USB Serial/JTAG** (如 ``/dev/ttyACM0``) 或 UART 控制台端口
 
 常用安装器参数：
 
@@ -104,7 +104,7 @@
    brookesia-plugin --help
    brookesia-plugin deps --yes          # 只装/升 toolkit 与缺失依赖，不配 MCP
    brookesia-plugin --yes cursor        # 非交互安装到 Agent ``cursor`` (必须带 Agent id)
-   brookesia-plugin --yes-usb-cli       # 自动安装 brookesia-usb-cli
+   brookesia-plugin --yes-usb-cli       # 自动安装 brookesia-usb
    brookesia-plugin --npx               # 强制 MCP 用 npx 启动
    brookesia-plugin --local             # 强制 MCP 用本地绝对路径（更快 / 离线）
 
@@ -241,9 +241,11 @@ Agent 应优先调用这些工具，而不是在 shell 里手写一长串等价�
 
 ``brookesia_deploy`` 使用 :ref:`system-usb-cli-sec-00` (``brookesia-usb install``)：
 
-- 固件需启用 USB CDC / USB service。
-- 主机口必须是 **USB Serial/JTAG** (常见 ``/dev/ttyACM0``)。
-- 仅有 **USB 转 UART** (如 CP2102 的 ``/dev/ttyUSB0``) 时，``brookesia_deploy`` **不可用**；应改用 littlefs 预置或 SD/网络安装。
+- 固件需启用 USB service，并选择 **USB Serial/JTAG** 或 **UART** 传输。
+- 主机口可以是 **USB Serial/JTAG** (常见 ``/dev/ttyACM0``)，也可以是 **USB 转 UART** 桥 (如 CP2102 的 ``/dev/ttyUSB0``)。
+  ``brookesia-usb`` 会自动发现端口：优先 USB Serial/JTAG，无 USJ 时回退 USB 转 UART。
+- 设备侧 console 与 USB service 传输必须配对到 **同一个物理端口**，参见 System Super 示例 README；否则日志与部署会走不同的线。
+- UART 传输与控制台共用串口：运行控制命令前请关闭 ``idf.py monitor``、minicom 或其他正在读取该端口的程序。
 - ``deploy`` 与 ``device_status`` 之间建议间隔约 1–2 秒：USB 控制会话是独占的，紧跟调用可能 busy。
 
 .. _plugin-sec-05:

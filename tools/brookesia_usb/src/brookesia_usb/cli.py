@@ -9,6 +9,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from . import __version__
 from .protocol import (
     PROTOCOL_VERSION,
     BinaryFrame,
@@ -23,6 +24,10 @@ from .protocol import (
 SERIAL_JTAG_VID = 0x303A
 SERIAL_JTAG_PID = 0x1001
 MIN_DISCOVERY_TIMEOUT_SECONDS = 3.0
+HELLO_ATTEMPT_TIMEOUT_SECONDS = 1.0
+HELLO_RETRY_DEADLINE_SECONDS = 30.0
+HELLO_MAX_ATTEMPTS = 30
+TRANSFER_FINALIZE_TIMEOUT_SECONDS = 120.0
 
 
 def _serial_module():
@@ -52,7 +57,13 @@ def list_devices() -> int:
 class UsbClient:
     def __init__(self, port: str, baudrate: int, timeout: float) -> None:
         serial, _ = _serial_module()
+        self.port = port
         self.serial = serial.Serial(port, baudrate=baudrate, timeout=timeout, write_timeout=timeout)
+        try:
+            self.serial.dtr = False
+            self.serial.rts = False
+        except (OSError, AttributeError):
+            pass
         self.timeout = timeout
         self.request_id = 1
         self.session_active = False
@@ -107,16 +118,41 @@ class UsbClient:
                 return response
 
     def hello(self) -> dict[str, Any]:
-        self.serial.reset_input_buffer()
-        self._hello_request_pending = True
-        request_id = self.write_command("hello")
-        response = self.wait_for(request_id, "hello", "error")
+        original_timeout = self.serial.timeout
+        deadline = time.monotonic() + max(self.timeout, HELLO_RETRY_DEADLINE_SECONDS)
+        response: dict[str, Any] | None = None
+        try:
+            self.serial.timeout = min(original_timeout, HELLO_ATTEMPT_TIMEOUT_SECONDS)
+            attempts = 0
+            while response is None:
+                attempts += 1
+                self.serial.reset_input_buffer()
+                self._hello_request_pending = True
+                request_id = self.write_command("hello")
+                try:
+                    response = self.wait_for(request_id, "hello", "error")
+                except TimeoutError:
+                    if time.monotonic() >= deadline or attempts >= HELLO_MAX_ATTEMPTS:
+                        raise
+                    continue
+                if response.get("ok") is False and response.get("error_code") == "busy":
+                    if attempts == 1:
+                        self._hello_request_pending = False
+                        self._raise_for_error(response)
+                    if time.monotonic() >= deadline or attempts >= HELLO_MAX_ATTEMPTS:
+                        self._hello_request_pending = False
+                        self._raise_for_error(response)
+                    self._send_pending_hello_cleanup()
+                    response = None
+        finally:
+            self.serial.timeout = original_timeout
         self._hello_request_pending = False
         self._raise_for_error(response)
         if response.get("protocol_version") != PROTOCOL_VERSION:
             raise RuntimeError("unsupported USB protocol version")
-        if response.get("transport") != "serial_jtag":
-            raise RuntimeError("device is not using the USB Serial/JTAG transport")
+        transport = response.get("transport")
+        if transport not in ("serial_jtag", "uart"):
+            raise RuntimeError(f"device is not using a supported transport (got {transport!r})")
         if response.get("session") != "exclusive":
             raise RuntimeError("device does not provide an exclusive control session")
         self.session_active = True
@@ -192,7 +228,12 @@ class UsbClient:
         except KeyboardInterrupt:
             self.cancel_transfer(request_id)
             raise
-        response = self.wait_for(request_id, "done", "error")
+        original_timeout = self.serial.timeout
+        self.serial.timeout = max(original_timeout, TRANSFER_FINALIZE_TIMEOUT_SECONDS)
+        try:
+            response = self.wait_for(request_id, "done", "error")
+        finally:
+            self.serial.timeout = original_timeout
         self._raise_for_error(response)
         return response
 
@@ -224,9 +265,10 @@ class UsbClient:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="brookesia-usb")
-    parser.add_argument("--port", help="USB Serial/JTAG device; omitted means discover the matching ACM port")
-    parser.add_argument("--baudrate", type=int, default=115200)
+    parser.add_argument("--port", help="USJ or USB-UART device; omitted means auto-discovery (USJ first, then USB-UART)")
+    parser.add_argument("--baudrate", type=int, default=115200, help="Baud rate for UART transport (ignored for USJ)")
     parser.add_argument("--timeout", type=float, default=10.0)
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("devices")
@@ -278,39 +320,70 @@ def run_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def is_busy_error(error: Exception) -> bool:
+    return isinstance(error, RuntimeError) and str(error).startswith("busy:")
+
+
 def discover_control_port(baudrate: int = 115200, timeout: float = 1.0, probe: bool = True) -> str:
     _, list_ports = _serial_module()
     ports = list(list_ports.comports())
     if not ports:
         raise RuntimeError("no serial ports found")
-    candidates = sorted((port for port in ports if is_serial_jtag_port(port)), key=lambda item: item.device)
-    if not candidates:
-        raise RuntimeError("cannot find an ESP32 USB Serial/JTAG port")
-    # A single VID/PID-matched port is sufficient to select the transport. Do
-    # the protocol hello only once in run_main(), using the user's normal
-    # timeout, so discovery cannot create a stale exclusive session.
-    if len(candidates) == 1:
-        return candidates[0].device
-    if not probe:
-        if len(candidates) != 1:
-            raise RuntimeError("multiple USB Serial/JTAG ports found; pass --port explicitly")
-        return candidates[0].device
 
-    # USB Serial/JTAG is a single CDC port. Probe the protocol after filtering
-    # the hardware identity instead of assuming a ttyACM index.
-    last_error: Exception | None = None
-    for port in candidates:
+    # Phase 1: Try USJ candidates first (existing behavior)
+    usj_candidates = sorted((port for port in ports if is_serial_jtag_port(port)), key=lambda item: item.device)
+    if usj_candidates:
+        # A single VID/PID-matched port is sufficient to select the transport. Do
+        # the protocol hello only once in run_main(), using the user's normal
+        # timeout, so discovery cannot create a stale exclusive session.
+        if len(usj_candidates) == 1:
+            return usj_candidates[0].device
+        if not probe:
+            if len(usj_candidates) != 1:
+                raise RuntimeError("multiple USB Serial/JTAG ports found; pass --port explicitly")
+            return usj_candidates[0].device
+
+        # USB Serial/JTAG is a single CDC port. Probe the protocol after filtering
+        # the hardware identity instead of assuming a ttyACM index.
+        busy_error: Exception | None = None
+        for port in usj_candidates:
+            try:
+                with UsbClient(port.device, baudrate, timeout) as client:
+                    response = client.hello()
+                    if response.get("transport") == "serial_jtag":
+                        return port.device
+            except (OSError, RuntimeError, TimeoutError) as error:
+                if busy_error is None and is_busy_error(error):
+                    busy_error = error
+                continue
+        if busy_error is not None:
+            raise busy_error
+        # If all USJ candidates failed, fall through to USB-UART phase
+
+    # Phase 2: Fallback to USB-UART candidates
+    uart_candidates = sorted((port for port in ports if is_usb_uart_port(port) and not is_serial_jtag_port(port)), key=lambda item: item.device)
+    if not uart_candidates:
+        if usj_candidates:
+            # We had USJ candidates but they all failed the hello probe
+            raise RuntimeError("cannot find Brookesia on the USB Serial/JTAG port; pass --port explicitly")
+        else:
+            raise RuntimeError("cannot find an ESP32 USB Serial/JTAG or USB-UART port")
+
+    # Probe UART candidates with hello, accepting either transport type
+    busy_error: Exception | None = None
+    for port in uart_candidates:
         try:
             with UsbClient(port.device, baudrate, timeout) as client:
                 response = client.hello()
-                if response.get("transport") == "serial_jtag":
+                if response.get("transport") in ("serial_jtag", "uart"):
                     return port.device
         except (OSError, RuntimeError, TimeoutError) as error:
-            last_error = error
+            if busy_error is None and is_busy_error(error):
+                busy_error = error
             continue
-    if isinstance(last_error, RuntimeError) and str(last_error).startswith("busy:"):
-        raise last_error
-    raise RuntimeError("cannot find Brookesia on the USB Serial/JTAG port; pass --port explicitly")
+    if busy_error is not None:
+        raise busy_error
+    raise RuntimeError("cannot find Brookesia on any serial port; pass --port explicitly")
 
 
 def is_serial_jtag_port(port: Any) -> bool:
@@ -318,6 +391,25 @@ def is_serial_jtag_port(port: Any) -> bool:
         return True
     description = f"{port.description or ''} {port.interface or ''} {port.hwid or ''}".lower()
     return any(marker in description for marker in ("usb_jtag", "usb serial/jtag", "serial/jtag"))
+
+
+def is_usb_uart_port(port: Any) -> bool:
+    if is_serial_jtag_port(port):
+        return False
+    usb_uart_vid_pid = {
+        (0x10C4, 0xEA60),  # CP210x
+        (0x1A86, 0x7523),  # CH340
+        (0x0403, 0x6001),  # FTDI
+        (0x0403, 0x6010),  # FTDI
+        (0x0403, 0x6011),  # FTDI
+        (0x0403, 0x6014),  # FTDI
+        (0x067B, 0x2303),  # Prolific
+    }
+    if port.vid is not None and port.pid is not None:
+        if (port.vid, port.pid) in usb_uart_vid_pid:
+            return True
+    device = getattr(port, "device", "") or ""
+    return device.startswith("/dev/ttyUSB") or device.startswith("/dev/ttyACM")
 
 
 def main() -> int:

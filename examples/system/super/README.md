@@ -59,6 +59,33 @@ Please refer to the following documentation:
 
 Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects).
 
+### Console and Host-Control Port Pairing
+
+The USB service host control (BPK install, file transfer) and the console log
+output must use the same physical port, so that the host talks to the device and
+reads its logs over one cable. The two settings are independent Kconfig options
+and must always be switched together:
+
+| Port | Console | USB service transport |
+| --- | --- | --- |
+| USB-to-UART bridge (UART0) | `CONFIG_ESP_CONSOLE_UART_DEFAULT=y` | `CONFIG_BROOKESIA_SERVICE_USB_TRANSPORT_UART=y`, `..._UART_PORT=0` |
+| USB Serial/JTAG (USJ) | `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` | `CONFIG_BROOKESIA_SERVICE_USB_TRANSPORT_SERIAL_JTAG=y` |
+
+The per-target `sdkconfig.defaults.esp32p4` and `sdkconfig.defaults.esp32s31`
+files contain both profiles; enable exactly one. The default differs per target:
+
+- **ESP32-P4** defaults to **USB Serial/JTAG**, matching the P4 function board
+  defaults and the CI target-test environments. Switch to the USB-to-UART
+  profile when the host connects through the on-board USB-to-UART bridge.
+- **ESP32-S31** (Korvo1) defaults to **USB-to-UART**, matching the board's
+  default UART0 console.
+
+The ESP32-P4 exposes both ports, so the port must currently be selected at build
+time; runtime auto-detection is not implemented yet.
+
+The `brookesia-usb` host CLI auto-discovers the port, so no host change is
+needed when the pairing is switched.
+
 ## ⚡ Build Performance
 
 The example builds the complete dependency set by default. It enables ccache and limits simultaneous compile edges for first-party Brookesia C++ targets and `esp-boost`, whose template-heavy translation units have the highest peak compiler memory use. The same tuning is available to all first-party examples and test apps.
@@ -111,6 +138,15 @@ Confirm that `brookesia_system_super`, `brookesia_system_core`, `brookesia_gui_l
 **Cannot exit a foreground app with the gesture**
 
 Confirm that the Display service has started and reports touch gestures, and that the gesture starts at the bottom edge and moves upward.
+
+**No application logs on the USB-to-UART bridge**
+
+The bootloader ROM always prints on UART0, but the second-stage bootloader and
+the application print on the configured console. If the console is set to USB
+Serial/JTAG, a monitor on the USB-to-UART bridge shows only the ROM banner and
+then goes silent. This usually means the console and the host-control transport
+are paired to different ports: enable the USB-to-UART profile described in
+[Console and Host-Control Port Pairing](#console-and-host-control-port-pairing).
 
 ## 💬 Technical Support and Feedback
 

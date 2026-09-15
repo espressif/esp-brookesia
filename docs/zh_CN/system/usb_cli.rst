@@ -5,23 +5,24 @@ Serial/JTAG USB CLI
 
 :link_to_translation:`en:[English]`
 
-``brookesia-usb`` 通过 USB Serial/JTAG 提供的单个 CDC-ACM 通道控制 ESP-Brookesia USB service，协议版本为 ``1``。
+``brookesia-usb`` 通过单一串行传输控制 ESP-Brookesia USB service：USB Serial/JTAG 提供的 CDC-ACM 通道，或 UART（通常为板载 USB 转串口桥）。协议版本为 ``1``。
 
 .. _system-usb-cli-sec-01:
 
 安装
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-USB CLI 需要 Python 3.9 或更高版本，可从 `PyPI <https://pypi.org/project/brookesia-usb-cli/>`__ 在线安装：
+USB CLI 需要 Python 3.9 或更高版本，可从 `PyPI <https://pypi.org/project/brookesia-usb/>`__ 在线安装：
 
 .. code-block:: bash
 
-   python -m pip install brookesia-usb-cli
+   python -m pip install brookesia-usb
 
-安装命令会自动安装 ``pyserial`` 依赖。安装完成后可以查看命令帮助：
+安装命令会自动安装 ``pyserial`` 依赖。安装完成后可以查看版本和命令帮助：
 
 .. code-block:: bash
 
+   brookesia-usb --version
    brookesia-usb --help
 
 :ref:`system-toolkit-sec-00` 中的 ``brookesia deploy`` 会调用本 CLI 安装已构建的 ``.bpk``。
@@ -31,34 +32,49 @@ USB CLI 需要 Python 3.9 或更高版本，可从 `PyPI <https://pypi.org/proje
 设备和端口
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-CLI 会根据 Espressif USB Serial/JTAG 设备标识自动选择端口，并通过 ``hello`` 命令验证设备：
+CLI 会自动选择端口并通过 ``hello`` 命令验证设备：优先 USB Serial/JTAG，当不存在 Serial/JTAG 端口时回退到 USB 转 UART 桥：
 
 .. code-block:: bash
 
    brookesia-usb devices
    brookesia-usb status
    brookesia-usb --port /dev/ttyACM0 status
+   brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 status
+
+发现顺序：
+
+1. 枚举串口。
+2. 若存在**恰好一个** USB Serial/JTAG 候选（Espressif VID/PID 或端口描述匹配），直接使用该端口，不在发现阶段探测；``hello`` 在命令执行时只做一次。
+3. 若存在**多个** USB Serial/JTAG 候选，逐个用 ``hello`` 探测，直到有一个回报 ``serial_jtag`` 传输。
+4. 若无 USB Serial/JTAG 候选，或其候选全部探测失败，则探测 USB 转 UART 候选（``/dev/ttyUSB*`` 及非 Serial/JTAG 的 ACM 端口），接受 ``serial_jtag`` 或 ``uart`` 传输。
+
+若只存在一个 USB Serial/JTAG 端口但它并非目标设备（例如 USJ 线缆和 USB 转 UART 桥同时插着），CLI 会选中它并报错；请用 ``--port`` 显式指定实际设备所在的端口。
 
 也可以显式指定常用连接参数：
 
 .. code-block:: bash
 
    brookesia-usb --port /dev/ttyACM0 --baudrate 115200 --timeout 10 status
+   brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 --timeout 10 status
 
-- ``--port``：USB Serial/JTAG 设备路径；省略时自动发现匹配的 ACM 端口。
-- ``--baudrate``：为兼容 pyserial 保留，USB Serial/JTAG 不使用物理波特率，默认值为 ``115200``。
+- ``--port``：Serial/JTAG 设备路径（``/dev/ttyACM*``）或 USB 转 UART 设备路径（``/dev/ttyUSB*``）；省略时自动发现。
+- ``--baudrate``：USB Serial/JTAG 不使用物理波特率，该参数被忽略；UART 传输时必须与设备控制台波特率一致（例如 ``CONFIG_ESP_CONSOLE_UART_BAUDRATE``），默认值为 ``115200``。
 - ``--timeout``：每次读写的超时时间，单位为秒，默认值为 ``10``。
 
 如果存在多个匹配设备，请使用 ``devices`` 输出的路径显式指定 ``--port``。单个 Serial/JTAG CDC 配置通常只提供 ``/dev/ttyACM0``，不存在 ``/dev/ttyACM1`` 并不表示设备异常。
+
+只引出 USB 转 UART 桥的板子，控制传输与控制台日志共用同一端口。设备会时分复用该端口：空闲时输出控制台日志，控制会话期间日志被抑制。这要求设备固件选择 UART 传输；引出 USB Serial/JTAG 的板子默认仍使用 Serial/JTAG。
 
 .. _system-usb-cli-sec-03:
 
 控制会话和安全
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-需要控制会话的命令会发送 ``hello``，检查协议版本 ``1``、``serial_jtag`` 传输类型和 ``exclusive`` 会话状态，并在退出时发送 ``goodbye``。
+需要控制会话的命令会发送 ``hello``，检查协议版本 ``1``、设备回报的传输类型（``serial_jtag`` 或 ``uart``）和 ``exclusive`` 会话状态，并在退出时发送 ``goodbye``。
 
-设备日志会在控制会话期间被抑制，避免干扰 JSON 响应和文件帧。USB Serial/JTAG 的 CDC 通道同时用于刷写、JTAG 调试和控制台日志，请在执行命令前关闭 ``idf.py monitor``、minicom 或其他读取同一串口的程序。
+设备日志会在控制会话期间被抑制，避免干扰 JSON 响应和文件帧。USB Serial/JTAG 的 CDC 通道同时用于刷写、JTAG 调试和控制台日志；UART 传输则与控制台输出共用端口。请在执行命令前关闭 ``idf.py monitor``、minicom 或其他读取同一串口的程序。
+
+在 UART 传输下，没有 USB Serial/JTAG 的设备会用同一端口完成固件下载、控制台日志和控制会话，但三者不同时进行：刷写运行在应用启动前的 ROM 下载模式，控制会话活动期间日志输出被抑制。
 
 USB 连接属于受信任的物理控制边界，但仍会执行协议、路径、大小、校验和服务参数验证。
 
@@ -157,11 +173,17 @@ CLI 会计算文件大小和 SHA-256 摘要，通过 CRC 保护的二进制帧�
 - ``install_failed``：System Core 拒绝或未能安装软件包。
 - ``timeout`` / ``aborted``：超时或传输被取消。
 
-如果找不到设备，请先检查 USB Serial/JTAG Type-C 数据线和系统设备列表：
+如果找不到设备，请先检查 USB 数据线和系统设备列表：
 
 .. code-block:: bash
 
-   ls /dev/ttyACM*
+   ls /dev/ttyACM* /dev/ttyUSB*
    brookesia-usb devices
 
-确认没有其他程序占用同一 CDC 通道后，再使用 ``--port`` 显式指定设备路径。
+确认没有其他程序占用同一串口后，再使用 ``--port`` 显式指定设备路径。
+
+UART 传输的额外检查：
+
+- ``hello`` 超时或返回无效数据：``--baudrate`` 与设备控制台波特率不一致。对齐后重试。
+- 端口被占用：关闭 ``idf.py monitor``、minicom 或其他读取同一端口的程序。控制会话与控制台不能同时读取 UART。
+- 固件下载与 BPK 安装天然分时：刷写使用 ROM 下载模式（应用未运行），因此不会冲突。

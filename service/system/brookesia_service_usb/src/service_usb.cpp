@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "boost/json.hpp"
-#include "driver/usb_serial_jtag.h"
+#include "transport.hpp"
 #include "freertos/FreeRTOS.h"
 #include "freertos/queue.h"
 #include "mbedtls/md.h"
@@ -48,12 +48,12 @@ using FrameType = usb_internal::FrameType;
 using BinaryFrame = usb_internal::BinaryFrame;
 
 constexpr size_t COMMAND_BUFFER_LIMIT = 4096;
-constexpr size_t SERIAL_JTAG_READ_SIZE = 512;
-constexpr size_t SERIAL_JTAG_READ_BUDGET = 8;
+constexpr size_t TRANSPORT_READ_SIZE = 512;
+constexpr size_t TRANSPORT_READ_BUDGET = 8;
 
 struct RxMessage {
     size_t size = 0;
-    uint8_t data[SERIAL_JTAG_READ_SIZE] = {};
+    uint8_t data[TRANSPORT_READ_SIZE] = {};
 };
 
 std::optional<std::string> get_string(const boost::json::object &object, std::string_view name)
@@ -190,6 +190,7 @@ class Usb::Impl {
 public:
     explicit Impl(Usb &owner)
         : owner_(owner)
+        , transport_(usb_internal::make_transport())
     {
     }
 
@@ -206,21 +207,10 @@ public:
         rx_queue_ = xQueueCreate(BROOKESIA_SERVICE_USB_RX_QUEUE_LENGTH, sizeof(RxMessage));
         BROOKESIA_CHECK_NULL_RETURN(rx_queue_, false, "Failed to create USB RX queue");
 
-        if (!usb_serial_jtag_is_driver_installed()) {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
-            usb_serial_jtag_driver_config_t serial_jtag_config = {
-                .tx_buffer_size = BROOKESIA_SERVICE_USB_SERIAL_JTAG_TX_BUFFER_SIZE,
-                .rx_buffer_size = BROOKESIA_SERVICE_USB_SERIAL_JTAG_RX_BUFFER_SIZE,
-            };
-#pragma GCC diagnostic pop
-            const auto result = usb_serial_jtag_driver_install(&serial_jtag_config);
-            if (result != ESP_OK) {
-                BROOKESIA_LOGE("Failed to install USB Serial/JTAG driver: %s", esp_err_to_name(result));
-                stop();
-                return false;
-            }
-            driver_owned_ = true;
+        if (auto err = transport_->install(); err != ESP_OK) {
+            BROOKESIA_LOGE("Failed to install transport: %s", esp_err_to_name(err));
+            stop();
+            return false;
         }
 
         scheduler_ = std::move(scheduler);
@@ -242,13 +232,14 @@ public:
         {
             std::lock_guard lock(mutex_);
             status_.port_state = Helper::PortState::Ready;
-            status_.serial_jtag_connected = usb_serial_jtag_is_connected();
+            status_.serial_jtag_connected = transport_->is_connected();
             status_.session_state = Helper::SessionState::Idle;
             status_.logs_suppressed = false;
             status_.max_frame_payload = BROOKESIA_SERVICE_USB_FRAME_PAYLOAD_SIZE;
+            status_.transport = transport_->name();
         }
         publish_port_state();
-        BROOKESIA_LOGI("USB Serial/JTAG service ready");
+        BROOKESIA_LOGI("USB service ready");
         return true;
     }
 
@@ -267,19 +258,18 @@ public:
             rx_queue_ = nullptr;
         }
 
-        release_log_suppression();
-        if (driver_owned_) {
-            (void)usb_serial_jtag_driver_uninstall();
-            driver_owned_ = false;
-        }
+        transport_->uninstall();
 
-        std::lock_guard lock(mutex_);
-        status_.port_state = Helper::PortState::Disabled;
-        status_.serial_jtag_connected = false;
-        status_.session_state = Helper::SessionState::Idle;
-        status_.logs_suppressed = false;
-        status_.active_request_id = 0;
-        transfer_status_ = {};
+        release_log_suppression();
+        {
+            std::lock_guard lock(mutex_);
+            status_.port_state = Helper::PortState::Disabled;
+            status_.serial_jtag_connected = false;
+            status_.session_state = Helper::SessionState::Idle;
+            status_.logs_suppressed = false;
+            status_.active_request_id = 0;
+            transfer_status_ = {};
+        }
     }
 
     bool register_bridge(Usb::HostCommandHandler handler)
@@ -415,21 +405,21 @@ private:
         publish_port_state();
     }
 
-    void poll_serial_jtag()
+    void poll_transport()
     {
         if (rx_queue_ == nullptr) {
             return;
         }
-        for (size_t read_count = 0; read_count < SERIAL_JTAG_READ_BUDGET; ++read_count) {
+        for (size_t read_count = 0; read_count < TRANSPORT_READ_BUDGET; ++read_count) {
             RxMessage message;
-            const int rx_size = usb_serial_jtag_read_bytes(message.data, sizeof(message.data), 0);
+            const int rx_size = transport_->read(message.data, sizeof(message.data));
             if (rx_size <= 0) {
                 return;
             }
             message.size = static_cast<size_t>(rx_size);
             if (xQueueSend(rx_queue_, &message, 0) != pdTRUE) {
                 if (transfer_) {
-                    fail_transfer("bad_frame", "Serial/JTAG RX queue is full");
+                    fail_transfer("bad_frame", "Transport RX queue is full");
                 }
                 return;
             }
@@ -438,7 +428,7 @@ private:
 
     void update_connection_state()
     {
-        const bool connected = usb_serial_jtag_is_connected();
+        const bool connected = transport_->is_connected();
         bool changed = false;
         {
             std::lock_guard lock(mutex_);
@@ -471,7 +461,7 @@ private:
         }
         check_transfer_timeout();
         check_session_timeout();
-        poll_serial_jtag();
+        poll_transport();
         if (rx_queue_ == nullptr) {
             return;
         }
@@ -563,7 +553,9 @@ private:
             const auto line_end = std::find(rx_buffer_.begin(), rx_buffer_.end(), static_cast<uint8_t>('\n'));
             if (line_end == rx_buffer_.end()) {
                 if (rx_buffer_.size() > COMMAND_BUFFER_LIMIT) {
-                    send_error(0, "invalid_command", "command line is too long");
+                    if (transport_->name() != std::string_view("uart")) {
+                        send_error(0, "invalid_command", "command line is too long");
+                    }
                     rx_buffer_.clear();
                 }
                 return;
@@ -575,6 +567,9 @@ private:
             }
             auto command = usb_internal::parse_command_line(line);
             if (!command) {
+                if (transport_->name() == std::string_view("uart")) {
+                    continue;
+                }
                 send_error(0, "invalid_command", command.error());
                 continue;
             }
@@ -620,7 +615,7 @@ private:
             session_last_activity_ = std::chrono::steady_clock::now();
             auto response = make_response("hello", *request_id, true);
             response["protocol_version"] = BROOKESIA_SERVICE_USB_PROTOCOL_VERSION;
-            response["transport"] = BROOKESIA_SERVICE_USB_TRANSPORT;
+            response["transport"] = transport_->name();
             response["session"] = BROOKESIA_SERVICE_USB_SESSION_MODE;
             response["control_cdc"] = 0;
             response["max_frame_payload"] = BROOKESIA_SERVICE_USB_FRAME_PAYLOAD_SIZE;
@@ -1041,24 +1036,21 @@ private:
     void send_json(const boost::json::object &response)
     {
         const auto serialized = boost::json::serialize(response) + "\n";
-        std::lock_guard tx_lock(serial_jtag_tx_mutex_);
+        std::lock_guard tx_lock(transport_tx_mutex_);
         size_t offset = 0;
         while (offset < serialized.size()) {
-            const int written = usb_serial_jtag_write_bytes(
-                                    serialized.data() + offset,
+            const int written = transport_->write(
+                                    reinterpret_cast<const uint8_t *>(serialized.data()) + offset,
                                     serialized.size() - offset,
-                                    pdMS_TO_TICKS(1000)
+                                    1000
                                 );
             if (written <= 0) {
-                BROOKESIA_LOGW("Serial/JTAG response write failed at %1%/%2% bytes", offset, serialized.size());
+                BROOKESIA_LOGW("Transport response write failed at %1%/%2% bytes", offset, serialized.size());
                 return;
             }
             offset += static_cast<size_t>(written);
         }
-        const auto flush_result = usb_serial_jtag_wait_tx_done(pdMS_TO_TICKS(1000));
-        if (flush_result != ESP_OK) {
-            BROOKESIA_LOGW("Serial/JTAG response flush failed: %s", esp_err_to_name(flush_result));
-        }
+        transport_->wait_tx_done(1000);
     }
 
     void publish_port_state()
@@ -1099,11 +1091,11 @@ private:
 
     Usb &owner_;
     mutable std::mutex mutex_;
-    std::mutex serial_jtag_tx_mutex_;
+    std::mutex transport_tx_mutex_;
     std::shared_ptr<lib_utils::TaskScheduler> scheduler_;
     lib_utils::TaskScheduler::TaskId pump_task_id_ = 0;
     QueueHandle_t rx_queue_ = nullptr;
-    bool driver_owned_ = false;
+    std::unique_ptr<usb_internal::Transport> transport_;
     bool log_suppression_active_ = false;
     vprintf_like_t previous_vprintf_ = nullptr;
     bool disconnect_pending_ = false;
@@ -1127,7 +1119,7 @@ Usb &Usb::get_instance()
 Usb::Usb()
     : ServiceBase({
     .name = Helper::get_name().data(),
-    .description = "Expose the USB Serial/JTAG CDC port for host commands and file transfers.",
+    .description = "Expose the USB control port for host commands and file transfers.",
     .version = get_component_version(),
     .dependencies = {},
     .scheduler_type = SchedulerType::Main,
