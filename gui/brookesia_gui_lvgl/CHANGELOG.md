@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.5 - 2026-09-17
+
+### Bug Fixes:
+
+- fix(deps): pin LVGL 9 so CI does not pick Open/10 `#warning` headers.
+
 ## v0.8.4 - 2026-08-25
 
 ### Bug Fixes:

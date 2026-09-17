@@ -1,4 +1,4 @@
-version: "0.8.4"
+version: "0.8.5"
 description: ESP-Brookesia LVGL backend and image packaging helpers for GUI documents.
 url: https://github.com/espressif/esp-brookesia/tree/master/gui/brookesia_gui_lvgl
 repository: https://github.com/espressif/esp-brookesia.git
@@ -32,3 +32,9 @@ dependencies:
   espressif/esp_lvgl_adapter:
     version: "0.6.*"
     require: private
+
+  # Adapter allows <10; pin 9.x so CI does not resolve LVGL Open, whose #warning
+  # stubs fail ESP-IDF -Werror=cpp.
+  lvgl/lvgl:
+    version: ">=9.2,<10"
+    require: public
