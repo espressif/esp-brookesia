@@ -33,8 +33,8 @@ dependencies:
     version: "0.6.*"
     require: private
 
-  # Adapter allows <10; pin 9.x so CI does not resolve LVGL Open, whose #warning
-  # stubs fail ESP-IDF -Werror=cpp.
+  # Keep the registry on 9.5.x. Newer Open/10 packages emit #warning stubs that
+  # ESP-IDF treats as -Werror=cpp, and they still fail to build lv_ftsystem.c.
   lvgl/lvgl:
-    version: ">=9.2,<10"
+    version: "9.5.0"
     require: public

@@ -50,3 +50,6 @@ dependencies:
   espressif/brookesia_gui_lvgl:
     version: "0.8.*"
     override_path: ../../../../gui/brookesia_gui_lvgl
+  # Exact 9.5.0: newer 9.x registry builds use the Open tree and break FreeType.
+  lvgl/lvgl:
+    version: "9.5.0"

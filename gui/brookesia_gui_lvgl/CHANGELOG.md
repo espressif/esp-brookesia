@@ -4,7 +4,7 @@
 
 ### Bug Fixes:
 
-- fix(deps): pin LVGL 9 so CI does not pick Open/10 `#warning` headers.
+- fix(deps): pin LVGL 9.5.0 and build its FreeType port with internal headers.
 
 ## v0.8.4 - 2026-08-25
 
