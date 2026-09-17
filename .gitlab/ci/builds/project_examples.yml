@@ -7,6 +7,7 @@ build_examples_agent_chatbot:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_for_chatbot
     - .rules:build:examples_agent_chatbot
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/agent/chatbot
 
@@ -19,6 +20,7 @@ build_examples_service_audio:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_with_board
     - .rules:build:examples_service_audio
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/service/audio
 # service/console
@@ -27,6 +29,7 @@ build_examples_service_console:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_with_board
     - .rules:build:examples_service_console
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/service/console
 # service/http
@@ -63,5 +66,6 @@ build_examples_system_super:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_for_super
     - .rules:build:examples_system_super
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/system/super
