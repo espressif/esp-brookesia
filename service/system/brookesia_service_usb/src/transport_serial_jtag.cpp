@@ -10,7 +10,9 @@
 #include "transport.hpp"
 
 #include "driver/usb_serial_jtag.h"
+#include "esp_private/periph_ctrl.h"
 #include "freertos/FreeRTOS.h"
+#include "hal/usb_serial_jtag_ll.h"
 
 #include "brookesia/service_usb/macro_configs.h"
 
@@ -37,6 +39,17 @@ public:
             .rx_buffer_size = BROOKESIA_SERVICE_USB_SERIAL_JTAG_RX_BUFFER_SIZE,
         };
 #pragma GCC diagnostic pop
+
+        // A CPU reset can leave peripheral interrupt enables behind. The driver handles only RX/TX;
+        // mask all inherited enables before it installs its ISR, leaving raw status for SOF monitoring.
+#if !SOC_RCC_IS_INDEPENDENT
+        PERIPH_RCC_ATOMIC() {
+            usb_serial_jtag_ll_enable_bus_clock(true);
+        }
+#else
+        usb_serial_jtag_ll_enable_bus_clock(true);
+#endif
+        usb_serial_jtag_ll_disable_intr_mask(USB_SERIAL_JTAG_LL_INTR_MASK);
 
         const esp_err_t result = usb_serial_jtag_driver_install(&config);
         if (result != ESP_OK) {

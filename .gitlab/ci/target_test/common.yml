@@ -15,7 +15,7 @@ variables:
     when: always
     paths:
       - XUNIT_RESULT.xml
-      - pytest_embedded_log/
+      - pytest_log/
     reports:
       junit: XUNIT_RESULT.xml
     expire_in: 4 days
