@@ -1,5 +1,6 @@
 pytest
 pytest-embedded-idf
 pytest-embedded-serial-esp
+esptool==5.4.0
 pytest-rerunfailures
 pytest-timeout

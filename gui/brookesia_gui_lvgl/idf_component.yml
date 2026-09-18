@@ -1,4 +1,4 @@
-version: "0.8.4"
+version: "0.8.5"
 description: ESP-Brookesia LVGL backend and image packaging helpers for GUI documents.
 url: https://github.com/espressif/esp-brookesia/tree/master/gui/brookesia_gui_lvgl
 repository: https://github.com/espressif/esp-brookesia.git
@@ -32,3 +32,9 @@ dependencies:
   espressif/esp_lvgl_adapter:
     version: "0.6.*"
     require: private
+
+  # Keep the registry on 9.5.x. Newer Open/10 packages emit #warning stubs that
+  # ESP-IDF treats as -Werror=cpp, and they still fail to build lv_ftsystem.c.
+  lvgl/lvgl:
+    version: "9.5.0"
+    require: public

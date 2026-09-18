@@ -239,6 +239,8 @@
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_storage]
     - if: !reference [.patterns-if-dev-push, if]
+      changes: !reference [.patterns-component_brookesia_service_usb]
+    - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_video]
     - if: !reference [.patterns-if-dev-push, if]
       changes: !reference [.patterns-component_brookesia_service_wifi]
