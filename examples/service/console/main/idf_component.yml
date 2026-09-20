@@ -4,7 +4,7 @@ dependencies:
   espressif/esp_video:
     version: "2.4.1"
     rules:
-      - if: "target == esp32s3"
+      - if: "target in [esp32s3, esp32c5]"
 
   # Hal
   espressif/brookesia_hal_adaptor:
