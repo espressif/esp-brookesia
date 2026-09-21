@@ -55,10 +55,17 @@ dependencies:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
 
+  # Keep av_processor's transitive video dependency on the validated release series,
+  # including audio-only boards where the HAL camera is disabled.
   espressif/esp_video:
     version: "2.4.*"
+    rules:
+      - if: "target in [esp32p4, esp32s3, esp32c3, esp32c5, esp32c6, esp32c61, esp32s31]"
     matches:
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
 
   # Remote WiFi support for ESP32-P4
   espressif/esp_wifi_remote:

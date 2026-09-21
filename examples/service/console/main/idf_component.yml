@@ -1,11 +1,5 @@
 ## IDF Component Manager Manifest File
 dependencies:
-  # Pin transitive video dependencies even when the HAL camera is disabled.
-  espressif/esp_video:
-    version: "2.4.1"
-    rules:
-      - if: "target in [esp32s3, esp32c5]"
-
   # Hal
   espressif/brookesia_hal_adaptor:
     version: "0.8.*"
