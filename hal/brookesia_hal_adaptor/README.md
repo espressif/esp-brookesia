@@ -20,3 +20,9 @@ Please refer to the following documentation:
 ### Add to Your Project
 
 Please refer to [ESP-Brookesia Programming Guide - How to Obtain and Use Components](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-component-usage).
+
+## Extending Board Support
+
+A custom device may still hold resources after initialization or release fails. Board adaptors can register cleanup callbacks for HAL to invoke on later release requests. Applications using an existing board do not need to register these callbacks themselves.
+
+When adding a device, see the [cleanup registration interface](include/brookesia/hal_adaptor/board_manager.h) for registration and callback requirements.

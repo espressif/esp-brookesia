@@ -10,7 +10,7 @@
 #include "esp_err.h"
 #include "esp_log.h"
 #include "esp_system.h"
-#include "gen_board_device_custom.h"
+#include "brookesia/hal_custom/board/power.h"
 
 static const char *TAG = "MOSAICO_POWER";
 
@@ -19,14 +19,77 @@ typedef struct {
     gpio_num_t shutdown_gpio_num;
 } board_power_handle_t;
 
+static esp_err_t configure_output(gpio_num_t gpio_num, gpio_mode_t mode, uint32_t level);
+static esp_err_t ramp_vcc_on(gpio_num_t gpio_num, uint32_t frequency_hz, uint32_t ramp_time_ms);
+
+esp_err_t esp_mosaico_power_init(const esp_mosaico_power_config_t *config, void **device_handle)
+{
+    if (config == NULL || device_handle == NULL) {
+        ESP_LOGE(TAG, "Invalid arguments");
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    const esp_mosaico_power_config_t *power_config = config;
+    board_power_handle_t *handle = calloc(1, sizeof(*handle));
+    if (handle == NULL) {
+        return ESP_ERR_NO_MEM;
+    }
+    handle->vcc_gpio_num = power_config->vcc_gpio_num;
+    handle->shutdown_gpio_num = power_config->shutdown_gpio_num;
+
+    esp_err_t ret = configure_output(handle->shutdown_gpio_num, GPIO_MODE_OUTPUT_OD, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to release shutdown control: %s", esp_err_to_name(ret));
+        goto fail;
+    }
+    ret = configure_output(handle->vcc_gpio_num, GPIO_MODE_OUTPUT, 1);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to keep VCC rail off: %s", esp_err_to_name(ret));
+        goto fail;
+    }
+    ret = ramp_vcc_on(
+              handle->vcc_gpio_num, power_config->ramp_frequency_hz, power_config->ramp_time_ms
+          );
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to ramp VCC rail: %s", esp_err_to_name(ret));
+        goto fail;
+    }
+
+    *device_handle = handle;
+    return ESP_OK;
+
+fail:
+    configure_output(handle->vcc_gpio_num, GPIO_MODE_OUTPUT, 1);
+    configure_output(handle->shutdown_gpio_num, GPIO_MODE_OUTPUT_OD, 1);
+    free(handle);
+    return ret;
+}
+
+esp_err_t esp_mosaico_power_deinit(void *device_handle)
+{
+    if (device_handle == NULL) {
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    board_power_handle_t *handle = device_handle;
+    esp_err_t ret = configure_output(handle->vcc_gpio_num, GPIO_MODE_OUTPUT, 1);
+    esp_err_t shutdown_ret = configure_output(handle->shutdown_gpio_num, GPIO_MODE_OUTPUT_OD, 1);
+    free(handle);
+
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    return shutdown_ret;
+}
+
 static esp_err_t configure_output(gpio_num_t gpio_num, gpio_mode_t mode, uint32_t level)
 {
     const gpio_config_t output_config = {
         .pin_bit_mask = 1ULL << gpio_num,
-        .mode = mode,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
+                             .mode = mode,
+                             .pull_up_en = GPIO_PULLUP_DISABLE,
+                             .pull_down_en = GPIO_PULLDOWN_DISABLE,
+                             .intr_type = GPIO_INTR_DISABLE,
     };
     esp_err_t ret = gpio_reset_pin(gpio_num);
     if (ret != ESP_OK) {
@@ -141,66 +204,3 @@ cleanup:
     }
     return ret;
 }
-
-static int board_power_init(void *config, int cfg_size, void **device_handle)
-{
-    if (config == NULL || device_handle == NULL ||
-            cfg_size != (int)sizeof(dev_custom_board_power_config_t)) {
-        ESP_LOGE(TAG, "Invalid arguments");
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    const dev_custom_board_power_config_t *power_config = config;
-    board_power_handle_t *handle = calloc(1, sizeof(*handle));
-    if (handle == NULL) {
-        return ESP_ERR_NO_MEM;
-    }
-    handle->vcc_gpio_num = power_config->vcc_gpio_num;
-    handle->shutdown_gpio_num = power_config->shutdown_gpio_num;
-
-    esp_err_t ret = configure_output(handle->shutdown_gpio_num, GPIO_MODE_OUTPUT_OD, 1);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to release shutdown control: %s", esp_err_to_name(ret));
-        goto fail;
-    }
-    ret = configure_output(handle->vcc_gpio_num, GPIO_MODE_OUTPUT, 1);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to keep VCC rail off: %s", esp_err_to_name(ret));
-        goto fail;
-    }
-    ret = ramp_vcc_on(
-              handle->vcc_gpio_num, power_config->ramp_frequency_hz, power_config->ramp_time_ms
-          );
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Failed to ramp VCC rail: %s", esp_err_to_name(ret));
-        goto fail;
-    }
-
-    *device_handle = handle;
-    return ESP_OK;
-
-fail:
-    configure_output(handle->vcc_gpio_num, GPIO_MODE_OUTPUT, 1);
-    configure_output(handle->shutdown_gpio_num, GPIO_MODE_OUTPUT_OD, 1);
-    free(handle);
-    return ret;
-}
-
-static int board_power_deinit(void *device_handle)
-{
-    if (device_handle == NULL) {
-        return ESP_ERR_INVALID_ARG;
-    }
-
-    board_power_handle_t *handle = device_handle;
-    esp_err_t ret = configure_output(handle->vcc_gpio_num, GPIO_MODE_OUTPUT, 1);
-    esp_err_t shutdown_ret = configure_output(handle->shutdown_gpio_num, GPIO_MODE_OUTPUT_OD, 1);
-    free(handle);
-
-    if (ret != ESP_OK) {
-        return ret;
-    }
-    return shutdown_ret;
-}
-
-CUSTOM_DEVICE_IMPLEMENT(board_power, board_power_init, board_power_deinit);

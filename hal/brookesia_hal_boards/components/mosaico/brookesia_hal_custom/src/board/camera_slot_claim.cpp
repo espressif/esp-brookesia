@@ -4,15 +4,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sdkconfig.h"
-
 #include <new>
 #include <string>
 #include <utility>
 
-#include "esp_err.h"
 #include "esp_log.h"
-#include "gen_board_device_custom.h"
+#include "brookesia/hal_custom/macro_configs.h"
+#include "brookesia/hal_custom/board/expansion.h"
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
 #include "brookesia/hal_adaptor/expansion/module_provider.hpp"
@@ -28,27 +26,22 @@ struct CameraSlotClaimHandle {
     esp_brookesia::hal::expansion::ModuleLease lease;
 };
 
-bool is_expected_config(const dev_custom_camera_slot_claim_config_t &config)
-{
-    return (config.slot == ESP_MOSAICO_CAMERA_SLOT) &&
-           (config.expected_board_type == ESP_MOSAICO_CAMERA_BOARD_TYPE) &&
-           (config.flash_gpio_num == ESP_MOSAICO_CAMERA_FLASH_GPIO_NUM) &&
-           (config.flash_off_level == ESP_MOSAICO_CAMERA_FLASH_OFF_LEVEL) &&
-           (config.settle_time_ms == ESP_MOSAICO_CAMERA_SETTLE_TIME_MS);
-}
+static bool is_expected_config(const esp_mosaico_camera_slot_claim_config_t &config);
 #endif
 
-int camera_slot_claim_init(void *config, int cfg_size, void **device_handle)
+} // namespace
+
+esp_err_t esp_mosaico_camera_slot_claim_init(
+    const esp_mosaico_camera_slot_claim_config_t *config, void **device_handle
+)
 {
-    if ((config == nullptr) || (device_handle == nullptr) ||
-            (cfg_size != static_cast<int>(sizeof(dev_custom_camera_slot_claim_config_t)))) {
+    if ((config == nullptr) || (device_handle == nullptr)) {
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
-    const auto &slot_config = *static_cast<const dev_custom_camera_slot_claim_config_t *>(config);
-    if (!is_expected_config(slot_config)) {
+    if (!is_expected_config(*config)) {
         ESP_LOGE(TAG, "Camera slot configuration does not match the Mosaico wiring");
         return ESP_ERR_INVALID_ARG;
     }
@@ -77,7 +70,7 @@ int camera_slot_claim_init(void *config, int cfg_size, void **device_handle)
 #endif
 }
 
-int camera_slot_claim_deinit(void *device_handle)
+esp_err_t esp_mosaico_camera_slot_claim_deinit(void *device_handle)
 {
     if (device_handle == nullptr) {
         return ESP_ERR_INVALID_ARG;
@@ -99,6 +92,17 @@ int camera_slot_claim_deinit(void *device_handle)
 #endif
 }
 
-} // namespace
+namespace {
 
-CUSTOM_DEVICE_IMPLEMENT(camera_slot_claim, camera_slot_claim_init, camera_slot_claim_deinit);
+#if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
+static bool is_expected_config(const esp_mosaico_camera_slot_claim_config_t &config)
+{
+    return (config.slot == static_cast<int32_t>(ESP_MOSAICO_CAMERA_SLOT)) &&
+           (config.expected_board_type == static_cast<int32_t>(ESP_MOSAICO_CAMERA_BOARD_TYPE)) &&
+           (config.flash_gpio_num == static_cast<int32_t>(ESP_MOSAICO_CAMERA_FLASH_GPIO_NUM)) &&
+           (config.flash_off_level == static_cast<int32_t>(ESP_MOSAICO_CAMERA_FLASH_OFF_LEVEL)) &&
+           (config.settle_time_ms == static_cast<int32_t>(ESP_MOSAICO_CAMERA_SETTLE_TIME_MS));
+}
+#endif
+
+} // namespace

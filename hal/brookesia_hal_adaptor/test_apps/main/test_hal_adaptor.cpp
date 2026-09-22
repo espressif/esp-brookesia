@@ -17,7 +17,14 @@
 #include "freertos/task.h"
 #include "brookesia/hal_interface.hpp"
 #include "brookesia/hal_adaptor.hpp"
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0)
+
+#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) || defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_2)
+#   define BROOKESIA_HAL_TEST_MOSAICO_BOARD (1)
+#else
+#   define BROOKESIA_HAL_TEST_MOSAICO_BOARD (0)
+#endif
+
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD
 #include "esp_board_device.h"
 #include "brookesia/hal_adaptor/board_manager.h"
 #include "brookesia/hal_custom/display/device.hpp"
@@ -115,48 +122,99 @@ bool has_interface_info(
     return false;
 }
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL && BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
 constexpr const char *MOSAICO_CAMERA_DEVICE_PATH = "/dev/video2";
 constexpr uint16_t MOSAICO_CAMERA_WIDTH = 640;
 constexpr uint16_t MOSAICO_CAMERA_HEIGHT = 480;
-constexpr uint8_t MOSAICO_CAMERA_FPS = 7;
 constexpr size_t MOSAICO_CAMERA_FRAME_SIZE =
     static_cast<size_t>(MOSAICO_CAMERA_WIDTH) * MOSAICO_CAMERA_HEIGHT * sizeof(uint16_t);
 constexpr size_t MOSAICO_CAMERA_HEAP_TOLERANCE = 4096;
 
-hal::video::EncoderConfig make_mosaico_camera_config()
+bool make_mosaico_camera_config(
+    const hal::video::CameraIface::DeviceInfo &camera_info,
+    hal::video::EncoderConfig &config, std::string &error_message
+)
 {
-    return {
+    using Format = hal::video::EncoderSinkFormat;
+    Format source_format = Format::Max;
+    uint8_t fps = 0;
+    // Camera discovery exposes formats, not timing. These rates match the VGA
+    // modes enabled for OV3640 and SC101IOT by both Mosaico board defaults.
+    if (std::find(camera_info.supported_formats.begin(), camera_info.supported_formats.end(),
+                  Format::RGB565) != camera_info.supported_formats.end()) {
+        source_format = Format::RGB565;
+        fps = 7;
+    } else if (std::find(camera_info.supported_formats.begin(), camera_info.supported_formats.end(),
+                         Format::YUV422) != camera_info.supported_formats.end()) {
+        source_format = Format::YUV422;
+        fps = 15;
+    } else {
+        error_message = "Mosaico camera exposes neither RGB565 nor YUV422";
+        return false;
+    }
+
+    // Keep native output so lifecycle checks do not depend on color conversion.
+    config = {
         .sinks = {{
-                .format = hal::video::EncoderSinkFormat::RGB565,
+                .format = source_format,
                 .width = MOSAICO_CAMERA_WIDTH,
                 .height = MOSAICO_CAMERA_HEIGHT,
-                .fps = MOSAICO_CAMERA_FPS,
+                .fps = fps,
             }
         },
         .enable_stream_mode = false,
         .source = hal::video::EncoderSourceConfig{
-            .fixed_format = hal::video::EncoderSinkFormat::RGB565,
+            .device_path = camera_info.device_path,
+            .fixed_format = source_format,
             .fixed_width = MOSAICO_CAMERA_WIDTH,
             .fixed_height = MOSAICO_CAMERA_HEIGHT,
             .v4l2_buffer_count = 2,
         },
     };
+    return true;
+}
+
+bool query_mosaico_camera_config(hal::video::EncoderConfig &config, std::string &error_message)
+{
+    auto camera = hal::acquire_interface<hal::video::CameraIface>(hal::VideoDevice::get_camera_iface_name(0));
+    if (!camera) {
+        error_message = "Failed to acquire camera discovery interface";
+        return false;
+    }
+    const auto device_infos = camera->get_device_infos();
+    auto matches_device = [](const auto & info) {
+        return info.device_path == MOSAICO_CAMERA_DEVICE_PATH;
+    };
+    const auto camera_info = std::find_if(device_infos.begin(), device_infos.end(), matches_device);
+    if (camera_info == device_infos.end()) {
+        error_message = "No usable camera was discovered; inspect preceding errors and the left-slot module";
+        return false;
+    }
+    if (!make_mosaico_camera_config(*camera_info, config, error_message)) {
+        return false;
+    }
+    printf("Mosaico camera: source/sink=%s, %ux%u, %u fps\n",
+           *config.source->fixed_format == hal::video::EncoderSinkFormat::RGB565 ? "RGB565" : "YUV422",
+           static_cast<unsigned>(MOSAICO_CAMERA_WIDTH), static_cast<unsigned>(MOSAICO_CAMERA_HEIGHT),
+           static_cast<unsigned>(config.sinks.front().fps));
+    return true;
 }
 
 bool run_mosaico_camera_cycle(
-    hal::video::EncoderIface &encoder, std::string &error_message, size_t &frame_size
+    hal::video::EncoderIface &encoder, const hal::video::EncoderConfig &config,
+    std::string &error_message, size_t &frame_size
 )
 {
     error_message.clear();
     bool frame_valid = false;
-    const auto config = make_mosaico_camera_config();
+    const auto &expected_sink = config.sinks.front();
     auto callback = [&](size_t sink_index, const hal::video::EncoderSinkInfo & sink_info,
     const uint8_t *data, size_t size) {
         frame_size = size;
         frame_valid = (sink_index == 0) &&
-                      (sink_info.format == hal::video::EncoderSinkFormat::RGB565) &&
+                      (sink_info.format == expected_sink.format) &&
+                      (sink_info.fps == expected_sink.fps) &&
                       (sink_info.width == MOSAICO_CAMERA_WIDTH) &&
                       (sink_info.height == MOSAICO_CAMERA_HEIGHT) &&
                       (data != nullptr) && (size == MOSAICO_CAMERA_FRAME_SIZE);
@@ -174,7 +232,7 @@ bool run_mosaico_camera_cycle(
         return false;
     }
     if (!frame_valid) {
-        error_message = "Unexpected first RGB565 frame metadata or size: " + std::to_string(frame_size);
+        error_message = "Unexpected first camera frame metadata or size: " + std::to_string(frame_size);
         encoder.close();
         return false;
     }
@@ -195,7 +253,7 @@ bool run_mosaico_camera_cycle(
     }
     encoder.close();
     if (!frame_valid) {
-        error_message = "Unexpected restarted RGB565 frame metadata or size: " + std::to_string(frame_size);
+        error_message = "Unexpected restarted camera frame metadata or size: " + std::to_string(frame_size);
         return false;
     }
     if (encoder.is_opened() || encoder.is_started()) {
@@ -226,7 +284,7 @@ size_t memory_loss(size_t before, size_t after)
 #endif
 
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0)
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD
 // Unity assertions use longjmp and skip C++ destructors. Hardware checks must
 // return normally and destroy their result before the final Unity assertion.
 void check_mosaico_test(std::string (*test)(), std::string (*warmup)())
@@ -247,7 +305,7 @@ void check_mosaico_test(std::string (*test)(), std::string (*warmup)())
 }
 #endif
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
 std::string check_mosaico_nand()
 {
@@ -289,7 +347,7 @@ std::string check_mosaico_nand()
 }
 #endif
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL && BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL && \
     BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
 std::string check_mosaico_expansion_lifecycle()
@@ -300,7 +358,11 @@ std::string check_mosaico_expansion_lifecycle()
     }
 
     std::string error_message;
-    if (!encoder->open(make_mosaico_camera_config(), {}, &error_message)) {
+    hal::video::EncoderConfig config;
+    if (!query_mosaico_camera_config(config, error_message)) {
+        return error_message;
+    }
+    if (!encoder->open(config, {}, &error_message)) {
         encoder->close();
         encoder.reset();
         return "Camera open failed (left-slot module required): " + error_message;
@@ -372,39 +434,23 @@ std::string check_mosaico_expansion_lifecycle()
 }
 #endif
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL && BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
 std::string check_mosaico_camera_lifecycle()
 {
-    auto camera = hal::acquire_interface<hal::video::CameraIface>(hal::VideoDevice::get_camera_iface_name(0));
     auto encoder = hal::acquire_interface<hal::video::EncoderIface>(hal::VideoDevice::get_encoder_iface_name(0));
-    if (!camera) {
-        return "Check failed: static_cast<bool>(camera)";
-    }
     if (!encoder) {
         return "Check failed: static_cast<bool>(encoder)";
     }
 
-    auto device_infos = camera->get_device_infos();
-    const auto camera_info = std::find_if(device_infos.begin(), device_infos.end(), [](const auto & info) {
-        return info.device_path == MOSAICO_CAMERA_DEVICE_PATH;
-    });
-    if (camera_info == device_infos.end()) {
-        device_infos.clear();
-        device_infos.shrink_to_fit();
-        camera.reset();
-        encoder.reset();
-        return "No usable camera was discovered; inspect preceding errors and the left-slot module";
-    }
-    if (std::find(camera_info->supported_formats.begin(), camera_info->supported_formats.end(),
-                  hal::video::EncoderSinkFormat::RGB565) == camera_info->supported_formats.end()) {
-        return "This test requires an RGB565 camera; adapt source configuration for a YUV-only sensor";
-    }
-
     std::string error_message;
+    hal::video::EncoderConfig config;
+    if (!query_mosaico_camera_config(config, error_message)) {
+        return error_message;
+    }
     size_t frame_size = 0;
     for (size_t i = 0; i < 3; i++) {
-        if (!run_mosaico_camera_cycle(*encoder, error_message, frame_size)) {
+        if (!run_mosaico_camera_cycle(*encoder, config, error_message, frame_size)) {
             return error_message.empty() ? "Camera lifecycle cycle failed" : error_message;
         }
     }
@@ -415,7 +461,7 @@ std::string check_mosaico_camera_lifecycle()
     const UBaseType_t tasks_before = uxTaskGetNumberOfTasks();
 
     for (size_t i = 0; i < 25; i++) {
-        if (!run_mosaico_camera_cycle(*encoder, error_message, frame_size)) {
+        if (!run_mosaico_camera_cycle(*encoder, config, error_message, frame_size)) {
             return error_message.empty() ? "Camera lifecycle cycle failed" : error_message;
         }
         if ((i + 1) % 5 == 0) {
@@ -429,7 +475,7 @@ std::string check_mosaico_camera_lifecycle()
     const UBaseType_t tasks_middle = uxTaskGetNumberOfTasks();
 
     for (size_t i = 0; i < 25; i++) {
-        if (!run_mosaico_camera_cycle(*encoder, error_message, frame_size)) {
+        if (!run_mosaico_camera_cycle(*encoder, config, error_message, frame_size)) {
             return error_message.empty() ? "Camera lifecycle cycle failed" : error_message;
         }
         if ((i + 1) % 5 == 0) {
@@ -502,7 +548,7 @@ std::string check_mosaico_camera_lifecycle()
 }
 #endif
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL && BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
 std::string warmup_mosaico_camera()
 {
@@ -511,9 +557,13 @@ std::string warmup_mosaico_camera()
         return "Failed to acquire camera encoder";
     }
     std::string error;
+    hal::video::EncoderConfig config;
+    if (!query_mosaico_camera_config(config, error)) {
+        return error;
+    }
     size_t frame_size = 0;
     printf("Mosaico camera: warmup, followed by 50 measured lifecycle cycles\n");
-    if (!run_mosaico_camera_cycle(*encoder, error, frame_size)) {
+    if (!run_mosaico_camera_cycle(*encoder, config, error, frame_size)) {
         return error.empty() ? "Camera warmup failed; inspect preceding initialization errors" : error;
     }
     return {};
@@ -668,7 +718,7 @@ TEST_CASE("HAL adaptor: acquire display interfaces", "[hal][adaptor]")
     TEST_ASSERT_TRUE(static_cast<bool>(touch));
 #endif
 
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0)
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD
     auto command_backlight = hal::acquire_interface<hal::display::BacklightIface>(
                                  hal::CustomDisplayDevice::DISPLAY_BACKLIGHT_IMPL_NAME
                              );
@@ -718,7 +768,7 @@ TEST_CASE("HAL adaptor: acquire storage interfaces", "[hal][adaptor]")
 
 TEST_CASE("HAL adaptor: Mosaico NAND is mounted and preserves file data", "[hal][adaptor][storage][mosaico]")
 {
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_STORAGE_FILE_SYSTEM_ENABLE_FATFS_NAND
     check_mosaico_test(check_mosaico_nand, check_mosaico_nand);
 #else
@@ -784,7 +834,7 @@ TEST_CASE("HAL adaptor: acquire video interfaces", "[hal][adaptor]")
 
 TEST_CASE("HAL adaptor: Mosaico expansion runtime outlives video", "[hal][adaptor][video][expansion][mosaico]")
 {
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL && BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL && \
     BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
     check_mosaico_test(check_mosaico_expansion_lifecycle, check_mosaico_expansion_lifecycle);
@@ -795,7 +845,7 @@ TEST_CASE("HAL adaptor: Mosaico expansion runtime outlives video", "[hal][adapto
 
 TEST_CASE("HAL adaptor: Mosaico camera frame and repeated lifecycle", "[hal][adaptor][video][mosaico]")
 {
-#if defined(CONFIG_ESP_BOARD_ESP_MOSAICO_V1_0) && \
+#if BROOKESIA_HAL_TEST_MOSAICO_BOARD && \
     BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL && BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
     memory_leak_threshold = static_cast<int>(MOSAICO_CAMERA_HEAP_TOLERANCE);
     check_mosaico_test(check_mosaico_camera_lifecycle, warmup_mosaico_camera);

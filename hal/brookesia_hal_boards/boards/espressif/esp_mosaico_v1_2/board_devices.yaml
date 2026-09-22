@@ -1,4 +1,4 @@
-# ESP-Mosaico v1.0 core-board devices
+# ESP-Mosaico v1.2 core-board devices
 devices:
   - name: board_power
     chip: mosaico_power
@@ -32,7 +32,7 @@ devices:
       right_address_level: 1
       right_eeprom_address: 0x51
     peripherals:
-      - name: i2c_master
+      - name: i2c_expansion
 
   # Independent lifetime pin held by the common expansion runtime. Keeping it
   # separate from camera_slot_claim lets either consumer release first without
@@ -86,16 +86,15 @@ devices:
           data_io_6: 18
           data_io_7: 13
     peripherals:
-      - name: i2c_master
+      - name: i2c_expansion
         frequency: 100000
 
-  - name: audio_codec_power
-    chip: mosaico_codec_power
+  - name: audio_codec_ready
+    chip: mosaico_codec_ready
     type: custom
     version: default
     depends_on: [board_power]
     config:
-      codec_gpio_num: 56
       settle_time_ms: 10
 
   - name: bq27220_fuel_gauge
@@ -131,7 +130,7 @@ devices:
     chip: es8311
     type: audio_codec
     version: default
-    depends_on: [audio_codec_power]
+    depends_on: [audio_codec_ready]
     config:
       adc_enabled: false
       dac_enabled: true
@@ -151,7 +150,7 @@ devices:
     chip: es8311
     type: audio_codec
     version: default
-    depends_on: [audio_codec_power]
+    depends_on: [audio_codec_ready]
     config:
       adc_enabled: true
       dac_enabled: false
@@ -195,7 +194,7 @@ devices:
           quad_mode: true
           psram_dma_direct: true
       lcd_panel_config:
-        reset_gpio_num: 42
+        reset_gpio_num: 44
         rgb_ele_order: LCD_RGB_ELEMENT_ORDER_RGB
         bits_per_pixel: 16
         vendor_config: NULL
@@ -203,18 +202,23 @@ devices:
       - name: spi_display
 
   - name: lcd_touch
-    chip: cst9217
+    chip: cst9220
     type: lcd_touch
     sub_type: i2c
     version: default
     depends_on: [board_power]
     dependencies:
-      waveshare/esp_lcd_touch_cst9217: "^1.0.4"
+      espressif/esp_lcd_touch_cst9220: "0.1.0"
     config:
       io_i2c_config:
+        control_phase_bytes: 1
+        dc_bit_offset: 0
         lcd_cmd_bits: 8
+        lcd_param_bits: 8
         scl_speed_hz: 400000
         transaction_timeout_ms: 100
+        flags:
+          disable_control_phase: true
       touch_config:
         x_max: 479
         y_max: 479

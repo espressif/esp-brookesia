@@ -27,8 +27,10 @@ def main():
     if args.suite in ('core', 'all'):
         from lifecycle.suite import run as run_lifecycle
         from board_cleanup import run as run_board_cleanup
+        from cleanup_dispatch.suite import run as run_cleanup_dispatch
 
-        print('Running core regressions: lifecycle and Mosaico cleanup', flush=True)
+        print('Running core regressions: lifecycle, cleanup dispatch and Mosaico cleanup', flush=True)
+        run_cleanup_dispatch()
         run_lifecycle()
         run_board_cleanup()
     if args.suite in ('dependencies', 'all'):

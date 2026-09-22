@@ -17,6 +17,43 @@ extern "C" {
 typedef struct esp_board_info esp_board_info_t;
 
 /**
+ * @brief Device-owned cleanup retained after Board Manager consumes its handle.
+ *
+ * Both callbacks run under the HAL lifecycle lock. get_error() only observes the
+ * last cleanup result; it must not release resources. retry() finishes cleanup
+ * whose ownership the device retained, preserving errors that require a restart.
+ * The facade invokes retry() on an explicit device-release request only when
+ * get_error() reports a failure and Board Manager cannot return a live handle.
+ * Whole-manager deinitialization queries errors without invoking retry().
+ * Neither callback may initialize/deinitialize Board Manager devices or wait for
+ * work that needs the lifecycle lock.
+ */
+typedef struct {
+    const char *device_name;              /*!< Board Manager device name; must have static storage duration. */
+    esp_err_t (*get_error)(void);         /*!< Return ESP_OK when no cleanup error remains. */
+    esp_err_t (*retry)(void);             /*!< Retry retained cleanup without repeating consumed releases. */
+} brookesia_hal_board_device_cleanup_t;
+
+/**
+ * @brief Register device cleanup before the first HAL Board Manager init/deinit.
+ *
+ * The descriptor is copied; its name and callbacks must remain valid for the
+ * firmware lifetime. An identical registration is idempotent. Registrations
+ * persist across Board Manager restarts and cannot be replaced or removed.
+ * Register during startup, including on paths where device initialization may
+ * subsequently fail. Registration may allocate; cleanup dispatch does not.
+ * For automatic startup registration, use BROOKESIA_PLUGIN_REGISTER_PRE_MAIN_FUNCTION
+ * and preserve its registrar symbol with a linker -u option. Handle registration
+ * failure before starting devices; error returns do not depend on the check policy.
+ *
+ * @param[in] cleanup Descriptor with a nonempty name and both callbacks.
+ * @return ESP_OK on success, ESP_ERR_INVALID_ARG for an incomplete descriptor,
+ *         ESP_ERR_INVALID_STATE for a conflicting or late registration, or
+ *         ESP_ERR_NO_MEM when the descriptor cannot be retained.
+ */
+esp_err_t brookesia_hal_board_manager_register_device_cleanup(const brookesia_hal_board_device_cleanup_t *cleanup);
+
+/**
  * @brief Board Manager operations serialized by the shared HAL lifecycle lock.
  *
  * Hold the lifecycle lock around compound init/get transactions. This facade

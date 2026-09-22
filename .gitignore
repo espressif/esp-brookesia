@@ -107,3 +107,8 @@ sdkconfig.bmgr_board.old
 
 # Local planning notes (not part of upstream docs)
 docs/commits_rpk_runtime_feature.md
+
+# Local Codex/skill working documents; keep published project docs trackable.
+/.codex/
+/CONTEXT.md
+/CONTEXT-MAP.md

@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sdkconfig.h"
+#include <stdbool.h>
+#include <stddef.h>
 
-#include <stdlib.h>
-
-#include "esp_err.h"
 #include "esp_log.h"
-#include "gen_board_device_custom.h"
+#include "brookesia/hal_custom/macro_configs.h"
+#include "brookesia/hal_custom/board/expansion.h"
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
 #include "brookesia/hal_custom/expansion/mosaico_module_manager.h"
@@ -18,6 +17,7 @@
 
 static const char *TAG = "MOSAICO_EXPANSION";
 
+#if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
 typedef struct {
     bool initialized;
 } expansion_module_manager_handle_t;
@@ -25,6 +25,7 @@ typedef struct {
 /* BM custom teardown discards its wrapper even on error. The manager and this
  * wrapper therefore live for the board lifetime and retain pending ownership. */
 static expansion_module_manager_handle_t manager_handle;
+#endif
 static esp_err_t cleanup_error;
 
 esp_err_t esp_mosaico_expansion_cleanup_error(void)
@@ -45,18 +46,18 @@ esp_err_t esp_mosaico_expansion_cleanup(void)
 #endif
 }
 
-static int expansion_module_manager_init(void *config, int cfg_size, void **device_handle)
+esp_err_t esp_mosaico_expansion_module_manager_init(
+    const esp_mosaico_expansion_module_manager_config_t *config, void **device_handle
+)
 {
-    if ((config == NULL) || (device_handle == NULL) ||
-            (cfg_size != (int)sizeof(dev_custom_expansion_module_manager_config_t))) {
+    if ((config == NULL) || (device_handle == NULL)) {
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
-    const dev_custom_expansion_module_manager_config_t *manager_config = config;
-    if ((manager_config->peripheral_count != 1) || (manager_config->peripheral_name == NULL) ||
-            (manager_config->frequency_hz <= 0) || (manager_config->timeout_ms <= 0)) {
+    if ((config->peripheral_count != 1) || (config->peripheral_name == NULL) ||
+            (config->frequency_hz <= 0) || (config->timeout_ms <= 0)) {
         ESP_LOGE(TAG, "Invalid expansion manager configuration");
         return ESP_ERR_INVALID_ARG;
     }
@@ -70,19 +71,19 @@ static int expansion_module_manager_init(void *config, int cfg_size, void **devi
     }
 
     const esp_mosaico_expansion_manager_config_t mosaico_config = {
-        .i2c_name = manager_config->peripheral_name,
-        .frequency_hz = manager_config->frequency_hz,
-        .timeout_ms = manager_config->timeout_ms,
+        .i2c_name = config->peripheral_name,
+        .frequency_hz = config->frequency_hz,
+        .timeout_ms = config->timeout_ms,
         .slots = {
             [ESP_MOSAICO_EXPANSION_SLOT_LEFT] = {
-                .address_gpio_num = manager_config->left_address_gpio_num,
-                .address_level = manager_config->left_address_level,
-                .eeprom_address = manager_config->left_eeprom_address,
+                .address_gpio_num = config->left_address_gpio_num,
+                .address_level = config->left_address_level,
+                .eeprom_address = config->left_eeprom_address,
             },
             [ESP_MOSAICO_EXPANSION_SLOT_RIGHT] = {
-                .address_gpio_num = manager_config->right_address_gpio_num,
-                .address_level = manager_config->right_address_level,
-                .eeprom_address = manager_config->right_eeprom_address,
+                .address_gpio_num = config->right_address_gpio_num,
+                .address_level = config->right_address_level,
+                .eeprom_address = config->right_eeprom_address,
             },
         },
     };
@@ -100,7 +101,7 @@ static int expansion_module_manager_init(void *config, int cfg_size, void **devi
 #endif
 }
 
-static int expansion_module_manager_deinit(void *device_handle)
+esp_err_t esp_mosaico_expansion_module_manager_deinit(void *device_handle)
 {
     if (device_handle == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -112,7 +113,3 @@ static int expansion_module_manager_deinit(void *device_handle)
     return ESP_ERR_NOT_SUPPORTED;
 #endif
 }
-
-CUSTOM_DEVICE_IMPLEMENT(
-    expansion_module_manager, expansion_module_manager_init, expansion_module_manager_deinit
-);

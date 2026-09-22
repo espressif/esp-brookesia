@@ -80,7 +80,9 @@ menu "ESP-Brookesia: Service WiFi Configurations"
             menu "General"
                 config BROOKESIA_SERVICE_WIFI_HAL_WAIT_EVENT_INITED_TIMEOUT_MS
                     int "Wait event inited timeout (ms)"
-                    default 8000 if ESP_HOSTED_ENABLED
+                    # ESP_HOSTED_ENABLED may be unavailable during the initial dependency scan.
+                    # Keep the P4 default stable before esp_hosted is resolved.
+                    default 8000 if IDF_TARGET_ESP32P4 || ESP_HOSTED_ENABLED
                     default 2000
                     range 100 30000
                     help

@@ -4,13 +4,12 @@
  */
 
 #include <stdlib.h>
-#include "bq27220_fuel_gauge.h"
 #include "driver/i2c_master.h"
 #include "esp_bit_defs.h"
-#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "gen_board_device_custom.h"
+#include "brookesia/hal_adaptor/board_manager.h"
+#include "brookesia/hal_custom/board/fuel_gauge.h"
 
 static const char *TAG = "MOSAICO_BQ27220";
 
@@ -36,17 +35,7 @@ static esp_err_t cleanup_handle(bq27220_handle_t *handle);
 
 static esp_err_t bq27220_read_u16(
     i2c_master_dev_handle_t device, uint8_t register_address, uint16_t *value
-)
-{
-    uint8_t data[2] = {};
-    esp_err_t ret = i2c_master_transmit_receive(
-                        device, &register_address, sizeof(register_address), data, sizeof(data), BQ27220_I2C_TIMEOUT_MS
-                    );
-    if (ret == ESP_OK) {
-        *value = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
-    }
-    return ret;
-}
+);
 
 esp_err_t bq27220_fuel_gauge_get_snapshot(
     void *device_handle, bq27220_fuel_gauge_snapshot_t *snapshot
@@ -98,10 +87,9 @@ esp_err_t bq27220_fuel_gauge_cleanup(void)
     return last_cleanup_error;
 }
 
-static int bq27220_fuel_gauge_init(void *config, int cfg_size, void **device_handle)
+esp_err_t esp_mosaico_fuel_gauge_init(const esp_mosaico_fuel_gauge_config_t *config, void **device_handle)
 {
-    if (config == NULL || device_handle == NULL ||
-            cfg_size != (int)sizeof(dev_custom_bq27220_fuel_gauge_config_t)) {
+    if (config == NULL || device_handle == NULL) {
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
@@ -112,7 +100,7 @@ static int bq27220_fuel_gauge_init(void *config, int cfg_size, void **device_han
     }
     last_cleanup_error = ESP_OK;
 
-    const dev_custom_bq27220_fuel_gauge_config_t *fuel_gauge_config = config;
+    const esp_mosaico_fuel_gauge_config_t *fuel_gauge_config = config;
     bq27220_handle_t *handle = calloc(1, sizeof(*handle));
     if (handle == NULL) {
         return ESP_ERR_NO_MEM;
@@ -155,7 +143,7 @@ fail:
     return ret;
 }
 
-static int bq27220_fuel_gauge_deinit(void *device_handle)
+esp_err_t esp_mosaico_fuel_gauge_deinit(void *device_handle)
 {
     if (device_handle == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -195,4 +183,16 @@ static esp_err_t cleanup_handle(bq27220_handle_t *handle)
     return ESP_OK;
 }
 
-CUSTOM_DEVICE_IMPLEMENT(bq27220_fuel_gauge, bq27220_fuel_gauge_init, bq27220_fuel_gauge_deinit);
+static esp_err_t bq27220_read_u16(
+    i2c_master_dev_handle_t device, uint8_t register_address, uint16_t *value
+)
+{
+    uint8_t data[2] = {};
+    esp_err_t ret = i2c_master_transmit_receive(
+                        device, &register_address, sizeof(register_address), data, sizeof(data), BQ27220_I2C_TIMEOUT_MS
+                    );
+    if (ret == ESP_OK) {
+        *value = (uint16_t)data[0] | ((uint16_t)data[1] << 8);
+    }
+    return ret;
+}

@@ -30,18 +30,21 @@
 
 ### 硬件要求
 
-本示例当前仅支持以下开发板：
+本示例提供以下开发板配置：
 
 - `esp32_p4x_function_ev`
 - `esp32_s31_korvo1`
 - `esp_mosaico_v1_0`
+- `esp_mosaico_v1_2`（初步适配，部分验证范围见下方指南）
 
 硬件资源通过 [brookesia_hal_boards](https://components.espressif.com/components/espressif/brookesia_hal_boards) 组件管理。
 
-在 ESP-Mosaico 上，扩展模块是可选功能，System Super 启动不依赖扩展模块。当前支持的模块和摄像头预览限制请参见 [ESP-Mosaico V1.0 适配说明](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/espressif.html#hal-boards-espressif-mosaico)。
+在 ESP-Mosaico 上，扩展模块是可选功能，System Super 启动不依赖扩展模块。请按 CoreBoard 硬件版本选择配置；模块支持范围和限制请参见 [V1.0 适配说明](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/espressif.html#hal-boards-espressif-mosaico) 或 [V1.2 适配说明](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/boards/espressif.html#hal-boards-espressif-mosaico-v1-2)。V1.2 CDC 控制台交互已验证，但当前样板触发自动下载后 USB 断开且未重新枚举。默认设置为 `CONFIG_BSP_USB_AUTO_DOWNLOAD=n` 和 `CONFIG_ESPTOOLPY_BEFORE_NORESET=y`，已有 `sdkconfig` 需同步调整，烧录前通过 BOOT 手动进入 ROM 下载模式。V1.2 启动日志已出现 `=== System Example Completed ===`，当前样板的桌面显示、基本触摸交互和亮度滑杆拖动已人工确认正常。My Device 信息和附近 Wi-Fi 热点扫描也已确认正常，运行日志记录了网络校时成功。指南另列明已验证的设备初始化、NAND 文件操作与重挂载，以及 SC101IOT 50 轮启停取帧。音质、摄像头实际帧率与图像质量及 NAND 文件数据断电持久化仍待验证。NAND FATFS 已通过 HAL/Storage Service 接入，尚不能作为可选的应用安装位置。
+
+V1.2 默认将 HTTP/TLS 路径所用的 mbedTLS/PSA SHA/AES 配置为软件实现（`CONFIG_MBEDTLS_HARDWARE_SHA=n`、`CONFIG_MBEDTLS_HARDWARE_AES=n`），支持 LCD、NAND、摄像头和 HTTPS 共存；已有 V1.2 `sdkconfig` 也需关闭这两项。实机跟踪显示 App Store 的 HTTPS 活动持续占用剩余 AXI GDMA RX 通道，阻止 Camera 重新打开。TLS 和签名验证仍启用，CPU 工作量可能增加。直接硬件加密调用仍然存在，加密媒体共存尚未验证。修复版固件的 Camera 正常预览已由用户人工确认。实际下载安装应用后的复测未单独记录。
 
 > [!TIP]
-> 示例支持使用 SD Card 作为外部存储卷，请在上电前将 SD Card 插入开发板。
+> 对于配有 SD Card 插槽的开发板，示例支持使用 SD Card 作为外部存储卷，请在上电前将 SD Card 插入开发板。
 > 使用 SD Card 后，"应用市场" 等应用会默认将其作为存储或特定文件的扫描目录，因此推荐使用其来扩展系统存储空间。
 
 ### 开发环境
@@ -60,6 +63,8 @@
 请参考 [ESP-Brookesia 编程指南 - 如何使用示例工程](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-example-projects)。
 
 ### Console 与主机控制端口配对
+
+ESP-Mosaico 使用板级 TinyUSB CDC 控制台，板级默认配置关闭 USB Service 和 System Core USB bridge。下述 UART 与 USB Serial/JTAG profile 不提供通过 Mosaico 板载 TinyUSB CDC 端口进行的主机控制。
 
 USB service 的主机控制（BPK 安装、文件传输）与 console 日志输出必须使用同一个物理端口，这样主机才能通过一根线既与设备通信又读取日志。这两个配置项互相独立，必须成对切换：
 

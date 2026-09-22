@@ -4,14 +4,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include "sdkconfig.h"
-
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "esp_err.h"
 #include "esp_log.h"
-#include "gen_board_device_custom.h"
+#include "brookesia/hal_custom/macro_configs.h"
+#include "brookesia/hal_custom/board/expansion.h"
 
 #if CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES
 #include "brookesia/hal_custom/expansion/mosaico_module_manager.h"
@@ -23,10 +21,9 @@ typedef struct {
     bool initialized;
 } expansion_runtime_pin_handle_t;
 
-static int expansion_runtime_pin_init(void *config, int cfg_size, void **device_handle)
+esp_err_t esp_mosaico_expansion_runtime_pin_init(void **device_handle)
 {
-    if ((config == NULL) || (device_handle == NULL) ||
-            (cfg_size != (int)sizeof(dev_custom_expansion_runtime_pin_config_t))) {
+    if (device_handle == NULL) {
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
@@ -63,7 +60,7 @@ static int expansion_runtime_pin_init(void *config, int cfg_size, void **device_
 #endif
 }
 
-static int expansion_runtime_pin_deinit(void *device_handle)
+esp_err_t esp_mosaico_expansion_runtime_pin_deinit(void *device_handle)
 {
     if (device_handle == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -78,5 +75,3 @@ static int expansion_runtime_pin_deinit(void *device_handle)
     return ESP_ERR_NOT_SUPPORTED;
 #endif
 }
-
-CUSTOM_DEVICE_IMPLEMENT(expansion_runtime_pin, expansion_runtime_pin_init, expansion_runtime_pin_deinit);

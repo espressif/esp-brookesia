@@ -18,6 +18,8 @@ python3 hal/brookesia_hal_adaptor/test_apps/host/run.py --suite core
 
 This is the default suite for developers to run locally; it is not connected to CI. It covers ordered expansion events, callback removal, camera/encoder concurrency, failed cleanup ownership, and NAND/BQ27220/USB initialization rollback.
 
+It also exercises the real Board Manager facade with arbitrary cleanup names, error/retry dispatch without allocation, and Mosaico startup registration retained from a static archive. Registration failures are checked under all three error-handling policies, with assertions both enabled and disabled.
+
 ## Dependency Regressions
 
 Configure the firmware project normally so its dependencies and required patches are available, then run:
