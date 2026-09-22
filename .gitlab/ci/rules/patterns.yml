@@ -215,6 +215,7 @@
 # brookesia_hal_boards
 .patterns-component_brookesia_hal_boards:
   - "hal/brookesia_hal_boards/boards/**/*"
+  - "hal/brookesia_hal_boards/components/**/*"
   - "hal/brookesia_hal_boards/CMakeLists.txt"
   - "hal/brookesia_hal_boards/idf_component.yml"
   - "hal/brookesia_hal_boards/README*.md"

@@ -1,0 +1,5 @@
+board: esp_mosaico_v1_2
+chip: esp32s31
+version: 1.0.0
+description: "ESP-Mosaico v1.2 core board"
+manufacturer: "ESPRESSIF"

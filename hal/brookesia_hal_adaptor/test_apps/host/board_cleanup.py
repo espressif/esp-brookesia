@@ -15,8 +15,8 @@ import tempfile
 import unittest
 
 
-BOARD = pathlib.Path(__file__).resolve().parents[4] / 'hal/brookesia_hal_boards/boards/espressif/esp_mosaico_v1_0'
-CUSTOM = BOARD / 'components/brookesia_hal_custom'
+MOSAICO = pathlib.Path(__file__).resolve().parents[4] / 'hal/brookesia_hal_boards/components/mosaico'
+CUSTOM = MOSAICO / 'brookesia_hal_custom'
 
 STUB = r'''
 #pragma once
@@ -42,7 +42,6 @@ typedef int esp_err_t;
 #define ESP_LOGI(tag, ...) ((void)(tag))
 #define ESP_RETURN_ON_FALSE(a, e, ...) do { if (!(a)) return (e); } while (0)
 #define ESP_RETURN_ON_ERROR(a, ...) do { int e = (a); if (e) return e; } while (0)
-#define CUSTOM_DEVICE_IMPLEMENT(...)
 #define CONFIG_NAND_FLASH_ENABLE_BDL 1
 #define CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_EXPANSION_MODULES 1
 #define SOC_USB_SERIAL_JTAG_SUPPORTED 0
@@ -73,12 +72,6 @@ struct blockdev_ops {
 };
 struct blockdev { struct blockdev_ops *ops; };
 typedef struct { void *device_handle; int gc_factor, io_mode, flags; } spi_nand_flash_config_t;
-typedef struct {
-    const char *peripheral_name;
-    int hold_gpio_num, wp_gpio_num, cs_gpio_num, clock_speed_hz, queue_size, gc_factor;
-} dev_custom_fs_nand_config_t;
-typedef struct { const char *peripheral_name; int i2c_addr, frequency; } dev_custom_bq27220_fuel_gauge_config_t;
-typedef struct { int unused; } dev_custom_expansion_runtime_pin_config_t;
 typedef void *i2c_master_dev_handle_t;
 typedef void *i2c_master_bus_handle_t;
 typedef struct { int dev_addr_length, device_address, scl_speed_hz; } i2c_device_config_t;
@@ -151,7 +144,7 @@ int main(int argc, char **argv)
     void *handle = NULL;
     CONFIG config = CONFIG_VALUE;
     if (scenario == 0) {
-        assert(INIT(&config, sizeof(config), &handle) == ESP_OK);
+        assert(INIT(&config, &handle) == ESP_OK);
         remove_failures = 1;
         assert(DEINIT(handle) == ESP_ERR_TIMEOUT);
         assert(PENDING() && children == 1 && unrefs == 0);
@@ -163,14 +156,14 @@ int main(int argc, char **argv)
     } else if (scenario == 1) {
         PROBE_FAILURE = ESP_FAIL;
         remove_failures = 1;
-        assert(INIT(&config, sizeof(config), &handle) == ESP_FAIL && handle == NULL);
+        assert(INIT(&config, &handle) == ESP_FAIL && handle == NULL);
         assert(PENDING() && children == 1 && unrefs == 0);
         PROBE_FAILURE = ESP_OK;
-        assert(INIT(&config, sizeof(config), &handle) == ESP_OK);
+        assert(INIT(&config, &handle) == ESP_OK);
         assert(refs == 2 && unrefs == 1 && children == 1);
         assert(DEINIT(handle) == ESP_OK && unrefs == 2);
     } else if (scenario == 2 || scenario == 3) {
-        assert(INIT(&config, sizeof(config), &handle) == ESP_OK);
+        assert(INIT(&config, &handle) == ESP_OK);
         unref_failure = ESP_ERR_INVALID_STATE;
         unref_consumes = scenario == 3;
         assert(DEINIT(handle) == ESP_ERR_INVALID_STATE);
@@ -179,10 +172,10 @@ int main(int argc, char **argv)
         int before = removes;
         assert(CLEANUP() == ESP_ERR_INVALID_STATE);
         handle = (void *)1;
-        assert(INIT(&config, sizeof(config), &handle) == ESP_ERR_INVALID_STATE && handle == NULL);
+        assert(INIT(&config, &handle) == ESP_ERR_INVALID_STATE && handle == NULL);
         assert(unrefs == 1 && refs == 1 && removes == before);
     } else if (scenario == 4) {
-        assert(INIT(&config, sizeof(config), &handle) == ESP_OK);
+        assert(INIT(&config, &handle) == ESP_OK);
         bdl_release_failure = ESP_FAIL;
         remove_failures = 1;
         assert(DEINIT(handle) == ESP_ERR_TIMEOUT && bdl_releases == 1);
@@ -190,10 +183,10 @@ int main(int argc, char **argv)
         assert(!PENDING() && bdl_releases == 1 && unrefs == 1);
         assert(ERROR() == ESP_FAIL && CLEANUP() == ESP_OK && ERROR() == ESP_FAIL);
         bdl_release_failure = ESP_OK;
-        assert(INIT(&config, sizeof(config), &handle) == ESP_OK && ERROR() == ESP_OK);
+        assert(INIT(&config, &handle) == ESP_OK && ERROR() == ESP_OK);
         assert(DEINIT(handle) == ESP_OK);
     } else if (scenario == 5) {
-        assert(INIT(&config, sizeof(config), &handle) == ESP_OK);
+        assert(INIT(&config, &handle) == ESP_OK);
         reset_failure = ESP_FAIL;
         assert(DEINIT(handle) == ESP_FAIL && PENDING());
         reset_failure = ESP_OK;
@@ -341,6 +334,12 @@ static FILE *fake_freopen(const char *p, const char *m, FILE *f)
     }
     s->usb = usb; return f;
 }
+static int fake_setvbuf(FILE *f, char *buffer, int mode, size_t size)
+{
+    fake_file_t *s = (fake_file_t *)f;
+    assert(s->live && buffer == NULL && mode == _IOLBF && size == BUFSIZ);
+    return 0;
+}
 #undef stdin
 #undef stdout
 #undef stderr
@@ -350,6 +349,7 @@ static FILE *fake_freopen(const char *p, const char *m, FILE *f)
 #define fopen fake_fopen
 #define fclose fake_fclose
 #define freopen fake_freopen
+#define setvbuf fake_setvbuf
 static int tinyusb_driver_install(const tinyusb_config_t *c)
 { (void)c; assert(!usb_live); installs++; if (driver_failure) return ESP_FAIL; usb_live = 1; return 0; }
 static int tinyusb_driver_uninstall(void)
@@ -430,7 +430,7 @@ class MosaicoCleanupTest(unittest.TestCase):
         headers = [
             'driver/gpio.h', 'driver/spi_master.h', 'driver/i2c_master.h',
             'brookesia/hal_adaptor/board_manager.h', 'esp_bit_defs.h', 'esp_blockdev.h',
-            'esp_err.h', 'esp_log.h', 'gen_board_device_custom.h', 'periph_spi.h',
+            'esp_err.h', 'esp_log.h', 'periph_spi.h',
             'spi_nand_flash.h', 'esp_check.h', 'esp_system.h', 'esp_timer.h',
             'freertos/FreeRTOS.h', 'freertos/semphr.h', 'freertos/task.h',
             'hal/usb_serial_jtag_ll.h', 'soc/soc_caps.h', 'sdkconfig.h',
@@ -440,27 +440,30 @@ class MosaicoCleanupTest(unittest.TestCase):
             header.parent.mkdir(parents=True, exist_ok=True)
             header.write_text('#include "stub.h"\n')
         for name in ('fs_nand', 'bq27220_fuel_gauge'):
+            api_name = 'esp_mosaico_nand' if name == 'fs_nand' else 'esp_mosaico_fuel_gauge'
             defines = f'''
-                #define INIT {name}_init
-                #define DEINIT {name}_deinit
+                #define INIT {api_name}_init
+                #define DEINIT {api_name}_deinit
                 #define PENDING {name}_cleanup_pending
                 #define CLEANUP {name}_cleanup
                 #define ERROR {name}_cleanup_error
-                #define CONFIG dev_custom_{name}_config_t
+                #define CONFIG {api_name}_config_t
             '''
             if name == 'fs_nand':
                 defines += '''
                     #define PROBE_FAILURE bdl_init_failure
-                    #define CONFIG_VALUE {"spi", 3, 4, 5, 1000000, 1, 4}
+                    #define CONFIG_VALUE {.peripheral_name = "spi", .cs_gpio_num = 5, \\
+                        .hold_gpio_num = 3, .wp_gpio_num = 4, .clock_speed_hz = 1000000, \\
+                        .queue_size = 1, .gc_factor = 4}
                 '''
             else:
                 defines += '''
                     #define PROBE_FAILURE probe_failure
-                    #define CONFIG_VALUE {"i2c", 0x55, 400000}
+                    #define CONFIG_VALUE {.peripheral_name = "i2c", .i2c_addr = 0x55, .frequency = 400000}
                 '''
-            cls.compile(name, f'#include "{BOARD / (name + ".c")}"\n' + defines + DRIVER_MAIN)
+            cls.compile(name, f'#include "{CUSTOM / "src/board" / (name + ".c")}"\n' + defines + DRIVER_MAIN)
         cls.compile('manager', f'#include "{CUSTOM / "src/expansion/mosaico_module_manager.c"}"\n' + MANAGER_MAIN)
-        usb = BOARD / 'components/esp_mosaico_usb_console'
+        usb = MOSAICO / 'esp_mosaico_usb_console'
         for name in ('esp_private/startup_internal.h', 'esp_task.h', 'hal/wdt_hal.h',
                      'soc/lp_system_reg.h', 'soc/rtc.h', 'soc/soc.h', 'tinyusb.h',
                      'tinyusb_cdc_acm.h', 'tinyusb_default_config.h', 'vfs_tinyusb.h'):

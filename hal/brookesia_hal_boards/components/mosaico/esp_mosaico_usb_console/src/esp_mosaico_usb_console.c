@@ -65,6 +65,7 @@ typedef struct {
 static console_streams_t console_streams;
 
 static void auto_init_task(void *arg);
+static esp_err_t configure_console_stream_buffering(FILE *stream, size_t index);
 static esp_err_t prepare_console_streams(void);
 static esp_err_t restore_console_streams(void);
 static void replace_failed_stream(size_t index);
@@ -196,6 +197,15 @@ static void auto_init_task(void *arg)
     vTaskDelete(NULL);
 }
 
+static esp_err_t configure_console_stream_buffering(FILE *stream, size_t index)
+{
+    /* Reopening output streams may reset IDF's line buffering to full buffering. */
+    if ((index != 0) && (setvbuf(stream, NULL, _IOLBF, BUFSIZ) != 0)) {
+        return ESP_FAIL;
+    }
+    return ESP_OK;
+}
+
 static esp_err_t prepare_console_streams(void)
 {
     const char *modes[CONSOLE_STREAM_COUNT] = {"r", "w", "w"};
@@ -216,6 +226,10 @@ static esp_err_t prepare_console_streams(void)
         console_streams.uart_reserve[i] = fopen(UART_CONSOLE_PATH, modes[i]);
         if (console_streams.uart_reserve[i] == NULL) {
             ret = ESP_ERR_NO_MEM;
+            break;
+        }
+        ret = configure_console_stream_buffering(console_streams.uart_reserve[i], i);
+        if (ret != ESP_OK) {
             break;
         }
         usb_probe[i] = fopen(VFS_TUSB_PATH_DEFAULT, modes[i]);
@@ -243,6 +257,10 @@ static esp_err_t prepare_console_streams(void)
             return ESP_FAIL;
         }
         console_streams.switched[i] = true;
+        ret = configure_console_stream_buffering(console_streams.shared[i], i);
+        if (ret != ESP_OK) {
+            return ret;
+        }
     }
     return ESP_OK;
 }
@@ -275,6 +293,10 @@ static esp_err_t restore_console_streams(void)
                 replace_failed_stream(i);
             } else {
                 console_streams.switched[i] = false;
+                const esp_err_t buffer_ret = configure_console_stream_buffering(console_streams.shared[i], i);
+                if ((buffer_ret != ESP_OK) && (ret == ESP_OK)) {
+                    ret = buffer_ret;
+                }
             }
         }
         if (console_streams.invalid[i]) {

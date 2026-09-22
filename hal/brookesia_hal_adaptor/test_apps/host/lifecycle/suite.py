@@ -43,7 +43,7 @@ def run():
             target.write_text(contents)
         adaptor = root / "hal/brookesia_hal_adaptor"
         utils = root / "utils/brookesia_lib_utils"
-        mosaico = root / "hal/brookesia_hal_boards/boards/espressif/esp_mosaico_v1_0/components/brookesia_hal_custom"
+        mosaico = root / "hal/brookesia_hal_boards/components/mosaico/brookesia_hal_custom"
         sources = [here / "test_main.cpp", here / "test_mosaico_provider.cpp", adaptor / "src/expansion/runtime.cpp",
                    adaptor / "src/video/camera_impl.cpp", adaptor / "src/video/encoder_impl.cpp",
                    utils / "src/task_scheduler.cpp", utils / "src/task_scheduler_facade.cpp",

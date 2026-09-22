@@ -20,3 +20,9 @@
 ### 添加到工程
 
 请参考 [ESP-Brookesia 编程指南 - 如何获取和使用组件](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-component-usage)。
+
+## 扩展板级适配
+
+自定义设备在初始化或释放失败后，可能仍持有需要清理的资源。板级适配可以注册清理回调，由 HAL 在后续释放请求中调用。使用已有板型的应用无需自行注册。
+
+新增设备适配时，请参阅[设备清理注册接口](include/brookesia/hal_adaptor/board_manager.h)，了解注册方式和回调要求。

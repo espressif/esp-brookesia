@@ -7,13 +7,12 @@
 #include <stdlib.h>
 #include "driver/gpio.h"
 #include "driver/spi_master.h"
-#include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_err.h"
 #include "esp_log.h"
-#include "fs_nand.h"
-#include "gen_board_device_custom.h"
 #include "periph_spi.h"
 #include "spi_nand_flash.h"
+#include "brookesia/hal_adaptor/board_manager.h"
+#include "brookesia/hal_custom/board/nand.h"
 
 static const char *TAG = "MOSAICO_NAND";
 
@@ -36,24 +35,7 @@ static esp_err_t last_cleanup_error;
 
 static esp_err_t cleanup_handle(fs_nand_handle_t *handle);
 
-static esp_err_t configure_protect_pins(gpio_num_t hold_gpio_num, gpio_num_t wp_gpio_num)
-{
-    const gpio_config_t output_config = {
-        .pin_bit_mask = (1ULL << hold_gpio_num) | (1ULL << wp_gpio_num),
-        .mode = GPIO_MODE_OUTPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    esp_err_t ret = gpio_config(&output_config);
-    if (ret == ESP_OK) {
-        ret = gpio_set_level(hold_gpio_num, 1);
-    }
-    if (ret == ESP_OK) {
-        ret = gpio_set_level(wp_gpio_num, 1);
-    }
-    return ret;
-}
+static esp_err_t configure_protect_pins(gpio_num_t hold_gpio_num, gpio_num_t wp_gpio_num);
 
 esp_err_t fs_nand_get_bdl_handle(void *device_handle, esp_blockdev_handle_t *out_handle)
 {
@@ -89,16 +71,15 @@ esp_err_t fs_nand_cleanup(void)
     return last_cleanup_error;
 }
 
-static int fs_nand_init(void *config, int cfg_size, void **device_handle)
+esp_err_t esp_mosaico_nand_init(const esp_mosaico_nand_config_t *config, void **device_handle)
 {
 #if !CONFIG_NAND_FLASH_ENABLE_BDL
     (void)config;
-    (void)cfg_size;
     (void)device_handle;
     ESP_LOGE(TAG, "NAND BDL support is disabled");
     return ESP_ERR_NOT_SUPPORTED;
 #else
-    if (config == NULL || device_handle == NULL || cfg_size != (int)sizeof(dev_custom_fs_nand_config_t)) {
+    if (config == NULL || device_handle == NULL) {
         ESP_LOGE(TAG, "Invalid arguments");
         return ESP_ERR_INVALID_ARG;
     }
@@ -109,7 +90,7 @@ static int fs_nand_init(void *config, int cfg_size, void **device_handle)
     }
     last_cleanup_error = ESP_OK;
 
-    const dev_custom_fs_nand_config_t *nand_config = config;
+    const esp_mosaico_nand_config_t *nand_config = config;
     fs_nand_handle_t *handle = calloc(1, sizeof(*handle));
     if (handle == NULL) {
         return ESP_ERR_NO_MEM;
@@ -170,7 +151,7 @@ fail:
 #endif
 }
 
-static int fs_nand_deinit(void *device_handle)
+esp_err_t esp_mosaico_nand_deinit(void *device_handle)
 {
     if (device_handle == NULL) {
         return ESP_ERR_INVALID_ARG;
@@ -247,4 +228,21 @@ static esp_err_t cleanup_handle(fs_nand_handle_t *handle)
     return result;
 }
 
-CUSTOM_DEVICE_IMPLEMENT(fs_nand, fs_nand_init, fs_nand_deinit);
+static esp_err_t configure_protect_pins(gpio_num_t hold_gpio_num, gpio_num_t wp_gpio_num)
+{
+    const gpio_config_t output_config = {
+        .pin_bit_mask = (1ULL << hold_gpio_num) | (1ULL << wp_gpio_num),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE,
+    };
+    esp_err_t ret = gpio_config(&output_config);
+    if (ret == ESP_OK) {
+        ret = gpio_set_level(hold_gpio_num, 1);
+    }
+    if (ret == ESP_OK) {
+        ret = gpio_set_level(wp_gpio_num, 1);
+    }
+    return ret;
+}
