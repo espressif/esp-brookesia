@@ -245,6 +245,14 @@
   - "gui/brookesia_gui_interface/README*.md"
   - "gui/brookesia_gui_interface/CHANGELOG.md"
   - "gui/brookesia_gui_interface/docs/**/*"
+# brookesia_gui_gsp
+.patterns-component_brookesia_gui_gsp:
+  - "gui/brookesia_gui_gsp/include/**/*"
+  - "gui/brookesia_gui_gsp/src/**/*"
+  - "gui/brookesia_gui_gsp/CMakeLists.txt"
+  - "gui/brookesia_gui_gsp/idf_component.yml"
+  - "gui/brookesia_gui_gsp/Kconfig"
+  - "gui/brookesia_gui_gsp/README*.md"
 # brookesia_gui_lvgl
 .patterns-component_brookesia_gui_lvgl:
   - "gui/brookesia_gui_lvgl/include/**/*"
@@ -748,6 +756,13 @@
   - "examples/service/wifi/partitions*.csv"
   - "examples/service/wifi/pytest_*.py"
   - "examples/service/wifi/sdkconfig.*"
+# gui/gsp_basic
+.patterns-examples_gui_gsp_basic:
+  - "examples/gui/gsp_basic/main/**/*"
+  - "examples/gui/gsp_basic/CMakeLists.txt"
+  - "examples/gui/gsp_basic/idf_ext.py"
+  - "examples/gui/gsp_basic/partitions*.csv"
+  - "examples/gui/gsp_basic/sdkconfig.*"
 # system/super
 .patterns-examples_system_super:
   - "examples/system/super/main/**/*"

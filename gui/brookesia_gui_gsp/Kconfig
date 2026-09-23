@@ -1,0 +1,9 @@
+menu "ESP-Brookesia: GUI GSP Configurations"
+
+    config BROOKESIA_GUI_GSP_ENABLE_DEBUG_LOG
+        bool "Enable debug log for the GSP GUI adapter"
+        default n
+        help
+            Enable trace and debug logs for GSP session start and stop.
+
+endmenu

@@ -12,6 +12,23 @@ build_examples_agent_chatbot:
     EXAMPLE_DIR: examples/agent/chatbot
 
 #
+# GUI
+#
+# gui/gsp_basic — ESP32-P4 Function EV, GSP firmware only
+build_examples_gui_gsp_basic:
+  extends:
+    - .build_template_without_large_artifacts
+    - .rules:build:examples_gui_gsp_basic
+  parallel:
+    matrix:
+      - IMAGE: "espressif/idf:release-v6.0"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.esp32_p4_function_ev="
+  timeout: 3 hour
+  variables:
+    EXAMPLE_DIR: examples/gui/gsp_basic
+
+#
 # Service
 #
 # service/audio

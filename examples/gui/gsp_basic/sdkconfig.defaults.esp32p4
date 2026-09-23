@@ -1,0 +1,5 @@
+# The attached Function EV reports chip revision v3.1. Shared board defaults
+# select the pre-v3 GSP library for older CI chips; this example links the
+# v3-or-later library. Applied after board_manager.defaults so it wins.
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n
+CONFIG_ESP32P4_REV_MIN_301=y
