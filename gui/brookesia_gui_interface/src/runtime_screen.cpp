@@ -162,56 +162,14 @@ std::expected<View, std::string> Runtime::Impl::mount_screen(
         return std::unexpected("Screen not found: " + normalized_path);
     }
 
+    auto root_uid = ensure_screen_built(document_id, *tree, screen_id);
+    if (!root_uid) {
+        return std::unexpected(root_uid.error());
+    }
+    (void)root_uid;
     auto screen_root_it = tree->screen_roots.find(screen_id);
     if (screen_root_it == tree->screen_roots.end()) {
-        if (screen_def_it->second.mount_mode != MountMode::Dynamic) {
-            return std::unexpected("Screen root not found: " + normalized_path);
-        }
-
-        refresh_global_fonts_from_backend();
-
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-        auto hp_dyn_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
-#endif
-        const auto dynamic_stage_start = RuntimeProfileClock::now();
-        reset_subtree_build_profile();
-        auto root_uid = create_subtree(
-                            document_id,
-                            *tree,
-                            screen_def_it->second,
-                            BackendHandle(),
-                            0,
-                            screen_def_it->second.id,
-                            Path(),
-                            "/" + screen_def_it->second.id,
-                            std::nullopt
-                        );
-        if (!root_uid) {
-            return std::unexpected(root_uid.error());
-        }
-        screen_root_it = tree->screen_roots.emplace(screen_id, *root_uid).first;
-        const auto dynamic_stage_end = RuntimeProfileClock::now();
-        const auto dynamic_build_ms = runtime_profile_elapsed_ms(dynamic_stage_start, dynamic_stage_end);
-        log_subtree_build_profile(
-            "dynamic_screen_build",
-            document_id,
-            screen_def_it->second.id,
-            dynamic_build_ms
-        );
-        GUI_INTERFACE_PROFILE_LOGI(
-            "GUI runtime dynamic mount profile: doc(%1%), screen(%2%), elapsed_ms(%3%)",
-            document_id.value(),
-            screen_def_it->second.id,
-            dynamic_build_ms
-        );
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-        auto hp_dyn_after = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
-        BROOKESIA_LOGI(
-            "[HeapTrace][gui.dynamic_mount] screen(%1%) built_on_navigation psram_delta(%2%)",
-            screen_def_it->second.id,
-            static_cast<int64_t>(hp_dyn_after.external_free) -
-            static_cast<int64_t>(hp_dyn_before.external_free));
-#endif
+        return std::unexpected("Screen root not found: " + normalized_path);
     }
 
     auto normalized_target = normalize_mount_target(target);
@@ -309,55 +267,14 @@ std::expected<TransientMountId, std::string> Runtime::Impl::push_transient_scree
         return std::unexpected("Screen not found: " + normalized_path);
     }
 
+    auto root_uid = ensure_screen_built(document_id, *tree, screen_id);
+    if (!root_uid) {
+        return std::unexpected(root_uid.error());
+    }
+    (void)root_uid;
     auto screen_root_it = tree->screen_roots.find(screen_id);
     if (screen_root_it == tree->screen_roots.end()) {
-        if (screen_def_it->second.mount_mode != MountMode::Dynamic) {
-            return std::unexpected("Screen root not found: " + normalized_path);
-        }
-
-        refresh_global_fonts_from_backend();
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-        auto hp_tdyn_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
-#endif
-        const auto dynamic_stage_start = RuntimeProfileClock::now();
-        reset_subtree_build_profile();
-        auto root_uid = create_subtree(
-                            document_id,
-                            *tree,
-                            screen_def_it->second,
-                            BackendHandle(),
-                            0,
-                            screen_def_it->second.id,
-                            Path(),
-                            "/" + screen_def_it->second.id,
-                            std::nullopt
-                        );
-        if (!root_uid) {
-            return std::unexpected(root_uid.error());
-        }
-        screen_root_it = tree->screen_roots.emplace(screen_id, *root_uid).first;
-        const auto dynamic_stage_end = RuntimeProfileClock::now();
-        const auto dynamic_build_ms = runtime_profile_elapsed_ms(dynamic_stage_start, dynamic_stage_end);
-        log_subtree_build_profile(
-            "dynamic_screen_build_transient",
-            document_id,
-            screen_def_it->second.id,
-            dynamic_build_ms
-        );
-        GUI_INTERFACE_PROFILE_LOGI(
-            "GUI runtime dynamic mount profile: doc(%1%), screen(%2%), transient(true), elapsed_ms(%3%)",
-            document_id.value(),
-            screen_def_it->second.id,
-            dynamic_build_ms
-        );
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-        auto hp_tdyn_after = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
-        BROOKESIA_LOGI(
-            "[HeapTrace][gui.dynamic_mount] screen(%1%) built_on_transient psram_delta(%2%)",
-            screen_def_it->second.id,
-            static_cast<int64_t>(hp_tdyn_after.external_free) -
-            static_cast<int64_t>(hp_tdyn_before.external_free));
-#endif
+        return std::unexpected("Screen root not found: " + normalized_path);
     }
 
     auto normalized_target = normalize_mount_target(target);

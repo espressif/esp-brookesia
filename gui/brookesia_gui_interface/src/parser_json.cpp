@@ -4,8 +4,173 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/parser_impl.hpp"
+#include "private/gui_json_storage.hpp"
+
+#include <fstream>
+#include <iterator>
+#include <map>
+#include <optional>
+#include <system_error>
 
 namespace esp_brookesia::gui::parser_detail {
+
+namespace {
+
+bool can_read_text_on_caller()
+{
+#if !defined(ESP_PLATFORM)
+    return true;
+#elif defined(CONFIG_SPIRAM_XIP_FROM_PSRAM) && CONFIG_SPIRAM_XIP_FROM_PSRAM
+    return true;
+#else
+    return false;
+#endif
+}
+
+std::expected<std::string, std::string> read_text_file_local(const std::filesystem::path &path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return std::unexpected("Failed to open file: " + path.generic_string());
+    }
+
+    std::string text;
+    std::error_code size_error;
+    const auto expected_size = std::filesystem::file_size(path, size_error);
+    if (!size_error) {
+        text.reserve(static_cast<size_t>(expected_size));
+    }
+    text.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+    if (input.bad()) {
+        return std::unexpected("Failed to read file: " + path.generic_string());
+    }
+    return text;
+}
+
+std::expected<std::string, std::string> read_text_file_prefix_local(
+    const std::filesystem::path &path, size_t max_bytes)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input) {
+        return std::unexpected("Failed to open file: " + path.generic_string());
+    }
+    std::string text(max_bytes, '\0');
+    input.read(text.data(), static_cast<std::streamsize>(max_bytes));
+    if (input.bad()) {
+        return std::unexpected("Failed to read file: " + path.generic_string());
+    }
+    text.resize(static_cast<size_t>(input.gcount()));
+    return text;
+}
+
+bool is_screens_asset_path(const std::filesystem::path &path)
+{
+    return path.parent_path().filename() == "screens";
+}
+
+std::optional<std::string> extract_json_string_field(std::string_view text, std::string_view key)
+{
+    const std::string needle = "\"" + std::string(key) + "\"";
+    const auto key_pos = text.find(needle);
+    if (key_pos == std::string_view::npos) {
+        return std::nullopt;
+    }
+    auto pos = key_pos + needle.size();
+    while (pos < text.size() && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' ||
+                                 text[pos] == '\r')) {
+        ++pos;
+    }
+    if (pos >= text.size() || text[pos] != ':') {
+        return std::nullopt;
+    }
+    ++pos;
+    while (pos < text.size() && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' ||
+                                 text[pos] == '\r')) {
+        ++pos;
+    }
+    if (pos >= text.size() || text[pos] != '"') {
+        return std::nullopt;
+    }
+    ++pos;
+    std::string value;
+    while (pos < text.size() && text[pos] != '"') {
+        if (text[pos] == '\\' && pos + 1 < text.size()) {
+            value.push_back(text[pos + 1]);
+            pos += 2;
+            continue;
+        }
+        value.push_back(text[pos]);
+        ++pos;
+    }
+    if (pos >= text.size()) {
+        return std::nullopt;
+    }
+    return value;
+}
+
+std::optional<RootAssetEntry> try_defer_view_screen_file(const PendingRootAssetEntry &pending)
+{
+    if (!pending.file_backed || !is_screens_asset_path(pending.path)) {
+        return std::nullopt;
+    }
+#if !defined(ESP_PLATFORM)
+    return std::nullopt;
+#else
+    if (!can_read_text_on_caller()) {
+        return std::nullopt;
+    }
+
+    auto prefix = read_text_file_prefix_local(pending.path, 2048);
+    if (!prefix) {
+        return std::nullopt;
+    }
+    const auto type = extract_json_string_field(*prefix, "type");
+    if (!type || *type != "viewScreen") {
+        return std::nullopt;
+    }
+    auto id = extract_json_string_field(*prefix, "id");
+    if (!id || id->empty()) {
+        id = pending.path.stem().string();
+    }
+    MountMode mount_mode = MountMode::Eager;
+    auto mount_text = extract_json_string_field(*prefix, "mountMode");
+    if (!mount_text) {
+        mount_text = extract_json_string_field(*prefix, "mount_mode");
+    }
+    if (mount_text) {
+        MountMode parsed {};
+        if (BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE(*mount_text, parsed)) {
+            mount_mode = parsed;
+        }
+    }
+
+    boost::json::object stub(make_gui_json_storage());
+    stub.emplace("type", "viewScreen");
+    stub.emplace("id", *id);
+    if (mount_mode == MountMode::Dynamic) {
+        stub.emplace("mountMode", "dynamic");
+    }
+
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser file profile: file(%1%), stage(peek_view_screen), id(%2%), mount(%3%), prefix_bytes(%4%)",
+        pending.path.generic_string(),
+        *id,
+        mount_mode == MountMode::Dynamic ? "dynamic" : "eager",
+        prefix->size()
+    );
+
+    return RootAssetEntry{
+        .value = stub,
+        .base_dir = pending.base_dir,
+        .source_label = pending.source_label,
+        .deferred_view_screen = true,
+        .deferred_path = pending.path,
+        .peeked_mount_mode = mount_mode,
+    };
+#endif
+}
+
+} // namespace
 
 std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
 {
@@ -14,7 +179,18 @@ std::expected<std::string, std::string> read_text_file(const std::filesystem::pa
     BROOKESIA_LOGD("Params: path(%1%)", path.string());
 
     const auto start = ParserProfileClock::now();
-    auto result = StorageHelper::fs_read_text(path.generic_string());
+    std::expected<std::string, std::string> result = std::unexpected("Failed to read file");
+    const char *via = "storage";
+    if (can_read_text_on_caller()) {
+        via = "local";
+        result = read_text_file_local(path);
+        if (!result) {
+            via = "storage";
+            result = StorageHelper::fs_read_text(path.generic_string());
+        }
+    } else {
+        result = StorageHelper::fs_read_text(path.generic_string());
+    }
     const auto end = ParserProfileClock::now();
     if (!result) {
         BROOKESIA_LOGE("Failed to read file: '%1%', error: %2%", path.string(), result.error());
@@ -22,12 +198,64 @@ std::expected<std::string, std::string> read_text_file(const std::filesystem::pa
     }
 
     GUI_INTERFACE_PROFILE_LOGI(
-        "GUI parser file profile: file(%1%), stage(read_text), bytes(%2%), elapsed_ms(%3%)",
+        "GUI parser file profile: file(%1%), stage(read_text), bytes(%2%), elapsed_ms(%3%), via(%4%)",
         path.string(),
         result->size(),
-        parser_profile_elapsed_ms(start, end)
+        parser_profile_elapsed_ms(start, end),
+        via
     );
     return std::move(result).value();
+}
+
+std::expected<std::vector<std::string>, std::string> read_text_files(const std::vector<std::filesystem::path> &paths)
+{
+    std::vector<std::string> contents;
+    contents.reserve(paths.size());
+    if (paths.empty()) {
+        return contents;
+    }
+
+    const auto start = ParserProfileClock::now();
+    const char *via = "storage_batch";
+    if (can_read_text_on_caller()) {
+        via = "local";
+        for (const auto &path : paths) {
+            auto one = read_text_file_local(path);
+            if (!one) {
+                via = "storage_batch";
+                contents.clear();
+                break;
+            }
+            contents.push_back(std::move(*one));
+        }
+    }
+    if (contents.size() != paths.size()) {
+        std::vector<std::string> path_strings;
+        path_strings.reserve(paths.size());
+        for (const auto &path : paths) {
+            path_strings.push_back(path.generic_string());
+        }
+        auto batch = StorageHelper::fs_read_text_many(path_strings);
+        if (!batch) {
+            return std::unexpected(batch.error());
+        }
+        contents = std::move(*batch);
+        via = "storage_batch";
+    }
+    const auto end = ParserProfileClock::now();
+
+    size_t total_bytes = 0;
+    for (const auto &text : contents) {
+        total_bytes += text.size();
+    }
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI parser file profile: stage(read_text_batch), files(%1%), bytes(%2%), elapsed_ms(%3%), via(%4%)",
+        paths.size(),
+        total_bytes,
+        parser_profile_elapsed_ms(start, end),
+        via
+    );
+    return contents;
 }
 
 std::expected<boost::json::value, std::string> parse_json_text(
@@ -36,7 +264,7 @@ std::expected<boost::json::value, std::string> parse_json_text(
 {
     const auto start = ParserProfileClock::now();
     boost::system::error_code error_code;
-    boost::json::value value = boost::json::parse(text, error_code);
+    boost::json::value value = boost::json::parse(text, error_code, make_gui_json_storage());
     const auto end = ParserProfileClock::now();
     if (error_code) {
         BROOKESIA_LOGE("Failed to parse JSON file '%1%': %2%", path.string(), error_code.message());
@@ -228,22 +456,54 @@ std::expected<void, std::string> append_root_asset_entries(
         ++inline_index;
     }
 
-    for (auto &pending_entry : pending_entries) {
+    std::vector<std::optional<RootAssetEntry>> deferred_slots(pending_entries.size());
+    std::vector<std::filesystem::path> file_paths;
+    file_paths.reserve(pending_entries.size());
+    for (size_t i = 0; i < pending_entries.size(); ++i) {
+        const auto &pending_entry = pending_entries[i];
+        if (!pending_entry.file_backed) {
+            continue;
+        }
+        if (auto deferred = try_defer_view_screen_file(pending_entry); deferred) {
+            deferred_slots[i] = std::move(*deferred);
+            continue;
+        }
+        file_paths.push_back(pending_entry.path);
+    }
+
+    std::vector<std::string> file_texts;
+    if (!file_paths.empty()) {
+        auto batch = read_text_files(file_paths);
+        if (!batch) {
+            return std::unexpected(batch.error());
+        }
+        file_texts = std::move(*batch);
+        if (file_texts.size() != file_paths.size()) {
+            return std::unexpected("GUI parser read_text_batch size mismatch");
+        }
+    }
+
+    size_t file_index = 0;
+    for (size_t i = 0; i < pending_entries.size(); ++i) {
+        auto &pending_entry = pending_entries[i];
+        if (deferred_slots[i].has_value()) {
+            ordered_entries.push_back(std::move(*deferred_slots[i]));
+            continue;
+        }
         if (!pending_entry.file_backed) {
             ordered_entries.push_back(RootAssetEntry{
                 .value = std::move(pending_entry.value),
                 .base_dir = std::move(pending_entry.base_dir),
                 .source_label = std::move(pending_entry.source_label),
+                .deferred_view_screen = false,
+                .deferred_path = {},
+                .peeked_mount_mode = MountMode::Eager,
             });
             continue;
         }
 
-        auto file_text = read_text_file(pending_entry.path);
-        if (!file_text) {
-            return std::unexpected(file_text.error());
-        }
-
-        auto asset_value = parse_json_text(pending_entry.path, *file_text);
+        auto asset_value = parse_json_text(pending_entry.path, file_texts[file_index]);
+        ++file_index;
         if (!asset_value) {
             return std::unexpected(asset_value.error());
         }
@@ -257,6 +517,9 @@ std::expected<void, std::string> append_root_asset_entries(
             .value = std::move(*asset_value),
             .base_dir = std::move(pending_entry.base_dir),
             .source_label = std::move(pending_entry.source_label),
+            .deferred_view_screen = false,
+            .deferred_path = {},
+            .peeked_mount_mode = MountMode::Eager,
         });
     }
 
@@ -301,6 +564,27 @@ void merge_json(boost::json::value &destination, const boost::json::value &sourc
     }
 
     destination = source;
+}
+
+void merge_json(boost::json::value &destination, boost::json::value &&source)
+{
+    if (destination.is_object() && source.is_object()) {
+        auto &destination_object = destination.as_object();
+        auto &source_object = source.as_object();
+        for (auto it = source_object.begin(); it != source_object.end();) {
+            auto dest_it = destination_object.find(it->key());
+            if (dest_it == destination_object.end()) {
+                destination_object.emplace(it->key(), std::move(it->value()));
+                it = source_object.erase(it);
+            } else {
+                merge_json(dest_it->value(), std::move(it->value()));
+                it = source_object.erase(it);
+            }
+        }
+        return;
+    }
+
+    destination = std::move(source);
 }
 
 std::string join_json_path(std::string_view prefix, std::string_view key)

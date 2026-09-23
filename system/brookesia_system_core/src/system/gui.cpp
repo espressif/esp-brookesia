@@ -495,7 +495,7 @@ bool System::Impl::ensure_live_preview_poll_started()
 }
 
 
-std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &record)
+std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &record, bool enable_idle_warm)
 {
     const auto &descriptor = record.gui_descriptor;
     if (descriptor.root_kind == GuiRootKind::None) {
@@ -505,18 +505,24 @@ std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &reco
         return std::unexpected("GUI runtime is not available");
     }
     if (!record.document_id.has_value()) {
+        gui::DocumentLoadOptions load_options;
+        load_options.defer_non_entry_eager_screens = true;
+        load_options.build_entry_screens = enable_idle_warm;
+        load_options.schedule_idle_warm = enable_idle_warm;
         std::expected<gui::DocumentId, std::string> load_result = std::unexpected("Invalid GUI root");
         if (descriptor.root_kind == GuiRootKind::File) {
             load_result = gui_runtime_->load_file(
                               resolve_app_resource_path(record.info.manifest, descriptor.root),
-                              environment_
+                              environment_,
+                              load_options
                           );
         } else if (descriptor.root_kind == GuiRootKind::JsonString) {
             load_result = gui_runtime_->load_json(
                               record.info.manifest.id,
                               descriptor.root,
                               resolve_app_resource_dir(record.info.manifest),
-                              environment_
+                              environment_,
+                              load_options
                           );
         }
         if (!load_result) {
@@ -536,6 +542,8 @@ std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &reco
                 return std::unexpected(preview_result.error());
             }
         }
+    } else if (enable_idle_warm) {
+        gui_runtime_->request_idle_screen_warm(*record.document_id);
     }
 #if defined(__EMSCRIPTEN__)
     if (record.info.manifest.kind != AppKind::Native && record.document_id.has_value() &&
@@ -600,7 +608,8 @@ std::expected<void, std::string> System::Impl::prepare_installed_app_gui(AppReco
         return resource_result;
     }
 
-    return ensure_gui_loaded(record);
+    // preload_dom: parse + register resources only; defer all Eager screen builds until StartApp.
+    return ensure_gui_loaded(record, false);
 }
 
 

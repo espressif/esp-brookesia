@@ -33,6 +33,7 @@
 #include <unordered_set>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "boost/json.hpp"
 #include "boost/unordered/unordered_flat_map.hpp"
@@ -111,6 +112,9 @@ struct RootAssetEntry {
     boost::json::value value;
     std::filesystem::path base_dir;
     std::string source_label;
+    bool deferred_view_screen = false;
+    std::filesystem::path deferred_path;
+    MountMode peeked_mount_mode = MountMode::Eager;
 };
 
 struct PendingRootAssetEntry {
@@ -126,6 +130,9 @@ struct ResolvedAssetEntry {
     std::filesystem::path base_dir;
     std::string source_label;
     std::string type;
+    bool deferred_view_screen = false;
+    std::filesystem::path deferred_path;
+    MountMode peeked_mount_mode = MountMode::Eager;
 };
 
 using TemplateRawMap = boost::unordered_flat_map<std::string, boost::json::object>;
@@ -561,6 +568,8 @@ private:
 
 std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
 ;
+std::expected<std::vector<std::string>, std::string> read_text_files(const std::vector<std::filesystem::path> &paths)
+;
 
 std::expected<boost::json::value, std::string> parse_json_text(
     const std::filesystem::path &path,
@@ -604,6 +613,9 @@ std::expected<std::vector<std::string>, std::string> parse_string_array(
 ;
 
 void merge_json(boost::json::value &destination, const boost::json::value &source)
+;
+
+void merge_json(boost::json::value &destination, boost::json::value &&source)
 ;
 
 bool is_reference_string(std::string_view text);

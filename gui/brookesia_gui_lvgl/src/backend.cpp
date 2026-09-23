@@ -83,6 +83,30 @@ void detach_keyboard_globals(Record &record)
 
 } // namespace
 
+bool BackendImpl::is_staged_object(const lv_obj_t *object) const
+{
+    if (staging_root == nullptr || object == nullptr) {
+        return false;
+    }
+    for (auto *current = object; current != nullptr; current = lv_obj_get_parent(current)) {
+        if (current == staging_root || current == staging_screen) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void BackendImpl::refresh_relative_placements_for_record(const Record &record)
+{
+    // Building under staging must not re-layout the active display on every apply_* —
+    // that was causing continuous flicker during idle screen warm / eager builds.
+    if (is_staged_object(record.object)) {
+        relative_refresh_deferred = true;
+        return;
+    }
+    lvgl::refresh_relative_placements(*this);
+}
+
 BackendImpl::BackendImpl()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -90,7 +114,9 @@ BackendImpl::BackendImpl()
     ThreadLockGuard lock;
 
     register_default_creators(*this);
-    staging_root = lv_obj_create(lv_screen_active());
+    // Detached screen so warm/build trees never invalidate the active display tree.
+    staging_screen = lv_obj_create(nullptr);
+    staging_root = lv_obj_create(staging_screen);
     lv_obj_add_flag(staging_root, LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_size(staging_root, 0, 0);
 
@@ -121,7 +147,11 @@ BackendImpl::~BackendImpl()
         destroy_node(root_it->second.handle);
     }
 
-    if ((staging_root != nullptr) && lv_obj_is_valid(staging_root)) {
+    if ((staging_screen != nullptr) && lv_obj_is_valid(staging_screen)) {
+        lv_obj_delete(staging_screen);
+        staging_screen = nullptr;
+        staging_root = nullptr;
+    } else if ((staging_root != nullptr) && lv_obj_is_valid(staging_root)) {
         lv_obj_delete(staging_root);
         staging_root = nullptr;
     }
@@ -376,7 +406,7 @@ void BackendImpl::apply_props(BackendHandle handle, const Node &node, PropsApply
     }
 
     lvgl::apply_props(*this, *record, node, mask);
-    lvgl::refresh_relative_placements(*this);
+    refresh_relative_placements_for_record(*record);
 }
 
 std::expected<void, std::string> BackendImpl::preload_image_resource(const RuntimeImageResource &resource)
@@ -447,7 +477,7 @@ void BackendImpl::apply_layout(BackendHandle handle, const Layout &layout, Layou
     }
 
     lvgl::apply_layout(*record, layout, mask);
-    lvgl::refresh_relative_placements(*this);
+    refresh_relative_placements_for_record(*record);
 }
 
 void BackendImpl::apply_placement(BackendHandle handle, const Placement &placement, PlacementApplyMask mask)
@@ -473,7 +503,7 @@ void BackendImpl::apply_placement(BackendHandle handle, const Placement &placeme
     }
     if (mask == PlacementApplyMask::All || has_mask(mask, PlacementApplyMask::Size) ||
             has_mask(mask, PlacementApplyMask::Align) || has_mask(mask, PlacementApplyMask::RelativeTo)) {
-        lvgl::refresh_relative_placements(*this);
+        refresh_relative_placements_for_record(*record);
     }
 }
 
@@ -491,7 +521,7 @@ void BackendImpl::apply_style(BackendHandle handle, const ResolvedStyle &style, 
     }
 
     lvgl::apply_style(*this, *record, style, mask);
-    lvgl::refresh_relative_placements(*this);
+    refresh_relative_placements_for_record(*record);
 }
 
 void BackendImpl::apply_debug_visual(BackendHandle handle, bool enabled)
@@ -693,6 +723,9 @@ bool BackendImpl::mount_screen(BackendHandle handle, const MountTarget &target)
         .mount_mode = target.mount_mode,
         .z_order = target.z_order,
     });
+    // Flush any relative placement work deferred while the tree lived under staging.
+    relative_refresh_deferred = false;
+    lvgl::refresh_relative_placements(*this);
     return true;
 }
 

@@ -397,8 +397,15 @@ public:
     std::unordered_map<std::string, DisplayRegistration> displays;
     std::string default_display_id;
     IBackend::EventSink event_sink;
+    /** Never-loaded LVGL screen; keeps warm/build trees off the active display. */
+    lv_obj_t *staging_screen = nullptr;
     lv_obj_t *staging_root = nullptr;
+    /** Set when relative refresh was skipped for staged (unmounted) nodes. */
+    bool relative_refresh_deferred = false;
     BackendHandle::Value next_handle = 1;
+
+    bool is_staged_object(const lv_obj_t *object) const;
+    void refresh_relative_placements_for_record(const Record &record);
 };
 
 std::optional<uint32_t> parse_color(std::string_view color);

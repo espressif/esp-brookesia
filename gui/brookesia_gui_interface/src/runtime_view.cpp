@@ -360,6 +360,9 @@ std::expected<void, std::string> Runtime::Impl::update(
     tree->theme_sensitive = parsed_document.document.theme_sensitive;
     tree->constants = parsed_document.document.constants;
     tree->styles = parsed_document.document.styles;
+    tree->deferred_screen_files = parsed_document.deferred_screen_files;
+    tree->view_template_json = parsed_document.view_template_json;
+    tree->interaction_template_json = parsed_document.interaction_template_json;
     advance_style_revision();
     tree->environment = make_effective_environment(environment);
     tree->dependency_files = normalize_dependency_files(parsed_document.dependency_files);

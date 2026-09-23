@@ -120,6 +120,16 @@ constexpr PropsApplyMask operator|(PropsApplyMask lhs, PropsApplyMask rhs)
     return static_cast<PropsApplyMask>(static_cast<uint64_t>(lhs) | static_cast<uint64_t>(rhs));
 }
 
+constexpr PropsApplyMask operator&(PropsApplyMask lhs, PropsApplyMask rhs)
+{
+    return static_cast<PropsApplyMask>(static_cast<uint64_t>(lhs) & static_cast<uint64_t>(rhs));
+}
+
+constexpr PropsApplyMask operator~(PropsApplyMask mask)
+{
+    return static_cast<PropsApplyMask>(~static_cast<uint64_t>(mask));
+}
+
 constexpr StyleApplyMask operator|(StyleApplyMask lhs, StyleApplyMask rhs)
 {
     return static_cast<StyleApplyMask>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));

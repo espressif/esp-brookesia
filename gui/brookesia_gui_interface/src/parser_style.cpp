@@ -19,24 +19,28 @@ std::expected<Style, std::string> parse_style_object(
 
     auto parse_optional_string = [&](std::string_view key) -> std::expected<std::optional<std::string>, std::string> {
         const auto *value = find_child_value(style_object, key);
-        if (value == nullptr) {
-            return std::optional<std::string>{};
+        if (value == nullptr)
+        {
+            return std::optional<std::string> {};
         }
         auto parsed = parse_string_field(style_object, key, "");
-        if (!parsed) {
+        if (!parsed)
+        {
             return std::unexpected(parsed.error());
         }
         return std::optional<std::string>(*parsed);
     };
 
     auto parse_optional_scaled = [&](std::string_view key, std::string_view unit, float scale)
-        -> std::expected<std::optional<int32_t>, std::string> {
+    -> std::expected<std::optional<int32_t>, std::string> {
         const auto *value = find_child_value(style_object, key);
-        if (value == nullptr) {
-            return std::optional<int32_t>{};
+        if (value == nullptr)
+        {
+            return std::optional<int32_t> {};
         }
         auto parsed = parse_scaled_value(value, key, unit, scale);
-        if (!parsed) {
+        if (!parsed)
+        {
             return std::unexpected(parsed.error());
         }
         return std::optional<int32_t>(*parsed);
@@ -44,11 +48,13 @@ std::expected<Style, std::string> parse_style_object(
 
     auto parse_optional_int = [&](std::string_view key) -> std::expected<std::optional<int32_t>, std::string> {
         const auto *value = find_child_value(style_object, key);
-        if (value == nullptr) {
-            return std::optional<int32_t>{};
+        if (value == nullptr)
+        {
+            return std::optional<int32_t> {};
         }
         auto parsed = parse_int_field(style_object, key, 0);
-        if (!parsed) {
+        if (!parsed)
+        {
             return std::unexpected(parsed.error());
         }
         return std::optional<int32_t>(*parsed);

@@ -49,6 +49,19 @@ struct RuntimeAnimationStartResult {
     int32_t resolved_to = 0;
 };
 
+/** Controls Eager screen construction during document load (see json_ui_memory_optimization.md §8.2). */
+struct DocumentLoadOptions {
+    /** Build only entry Eager screens at load; remaining Eager screens warm on idle or first mount. */
+    bool defer_non_entry_eager_screens = true;
+    /** When true, also build entry Eager screens during load. False = parse/resources only (preload_dom). */
+    bool build_entry_screens = true;
+    /** When deferring, schedule one-by-one idle warm on the GUI task group (if configured). */
+    bool schedule_idle_warm = true;
+};
+BROOKESIA_DESCRIBE_STRUCT(
+    DocumentLoadOptions, (), (defer_non_entry_eager_screens, build_entry_screens, schedule_idle_warm)
+)
+
 class Runtime {
 public:
     using ActionHandler = std::function<void(const Event &)>;
@@ -65,10 +78,28 @@ public:
     std::expected<DocumentId, std::string> load(
         std::string_view root_path, const Document &document, const Environment &environment
     );
+    std::expected<DocumentId, std::string> load(
+        std::string_view root_path,
+        const Document &document,
+        const Environment &environment,
+        const DocumentLoadOptions &options
+    );
     std::expected<DocumentId, std::string> load_json(
         std::string_view root_path, std::string_view json, std::string_view base_dir, const Environment &environment
     );
+    std::expected<DocumentId, std::string> load_json(
+        std::string_view root_path,
+        std::string_view json,
+        std::string_view base_dir,
+        const Environment &environment,
+        const DocumentLoadOptions &options
+    );
     std::expected<DocumentId, std::string> load_file(std::string_view path, const Environment &environment);
+    std::expected<DocumentId, std::string> load_file(
+        std::string_view path, const Environment &environment, const DocumentLoadOptions &options
+    );
+    /** Start or resume idle warm of deferred Eager screens for a loaded document. */
+    void request_idle_screen_warm(DocumentId id);
     std::expected<void, std::string> load_theme(const ThemeAsset &theme);
     std::expected<void, std::string> load_theme_json(std::string_view json, std::string_view base_dir = {});
     std::expected<void, std::string> load_theme_file(std::string_view path);
