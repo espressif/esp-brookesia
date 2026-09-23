@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/parser_impl.hpp"
+#include "private/gui_json_storage.hpp"
 
 namespace esp_brookesia::gui::parser_detail {
 
@@ -454,7 +455,7 @@ std::expected<ThemeAsset, std::string> parse_theme_asset(
         return std::unexpected("Theme asset field 'colors' is no longer supported; use constant data.colors");
     }
 
-    boost::json::value constants((boost::json::object()));
+    boost::json::value constants(boost::json::object(), make_gui_json_storage());
     boost::unordered_flat_set<std::string> loaded_paths;
     auto merge_result = append_and_merge_theme_constant_assets(
                             object,

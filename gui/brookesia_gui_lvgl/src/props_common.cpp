@@ -88,8 +88,18 @@ int32_t resolve_pivot_value(const PivotValue &pivot, int32_t size)
     return pivot.value;
 }
 
+bool is_identity_common_transform(const CommonProps &props)
+{
+    // Matches CommonProps defaults and LVGL's default local transform (angle 0, zoom 256, pivot 0,0).
+    return props.angle == 0 && props.zoom == 256 && !props.pivot_x.percent && props.pivot_x.value == 0 &&
+           !props.pivot_y.percent && props.pivot_y.value == 0;
+}
+
 void apply_common_transform(Record &record, const CommonProps &props)
 {
+    if (is_identity_common_transform(props)) {
+        return;
+    }
     lv_obj_update_layout(record.object);
     const auto width = lv_obj_get_width(record.object);
     const auto height = lv_obj_get_height(record.object);

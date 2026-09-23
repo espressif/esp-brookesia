@@ -189,25 +189,25 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
                            &part_style.state_styles[target_info.style_state];
         }
     }
-    auto set_style_string = [&](std::optional<std::string> Style::*field, std::string field_value) {
+    auto set_style_string = [&](void (Style::*setter)(std::optional<std::string>), std::string field_value) {
         if (stores_base_style_override) {
             record.set_style_override(target, std::move(field_value));
         } else {
-            (target_style->*field) = std::move(field_value);
+            (target_style->*setter)(std::move(field_value));
         }
     };
-    auto set_style_number = [&](std::optional<int32_t> Style::*field, int32_t field_value) {
+    auto set_style_number = [&](void (Style::*setter)(std::optional<int32_t>), int32_t field_value) {
         if (stores_base_style_override) {
             record.set_style_override(target, field_value);
         } else {
-            (target_style->*field) = field_value;
+            (target_style->*setter)(field_value);
         }
     };
-    auto set_style_bool = [&](std::optional<bool> Style::*field, bool field_value) {
+    auto set_style_bool = [&](void (Style::*setter)(std::optional<bool>), bool field_value) {
         if (stores_base_style_override) {
             record.set_style_override(target, static_cast<int32_t>(field_value));
         } else {
-            (target_style->*field) = field_value;
+            (target_style->*setter)(field_value);
         }
     };
     switch (target) {
@@ -376,7 +376,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::bg_color, *color);
+        set_style_string(&Style::set_bg_color, *color);
         break;
     }
     case BindingTarget::StyleBgGradientColor: {
@@ -384,21 +384,21 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::bg_gradient_color, *color);
+        set_style_string(&Style::set_bg_gradient_color, *color);
         break;
     }
     case BindingTarget::StyleBgGradientDirection:
         if (value != "none" && value != "horizontal" && value != "vertical") {
             return std::unexpected("invalid style.bgGradientDirection");
         }
-        set_style_string(&Style::bg_gradient_direction, std::string(value));
+        set_style_string(&Style::set_bg_gradient_direction, std::string(value));
         break;
     case BindingTarget::StyleTextColor: {
         auto color = resolve_color_binding_value(tree, value);
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::text_color, *color);
+        set_style_string(&Style::set_text_color, *color);
         break;
     }
     case BindingTarget::StyleBorderColor: {
@@ -406,7 +406,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::border_color, *color);
+        set_style_string(&Style::set_border_color, *color);
         break;
     }
     case BindingTarget::StyleLineColor: {
@@ -414,7 +414,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::line_color, *color);
+        set_style_string(&Style::set_line_color, *color);
         break;
     }
     case BindingTarget::StyleArcColor: {
@@ -422,7 +422,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::arc_color, *color);
+        set_style_string(&Style::set_arc_color, *color);
         break;
     }
     case BindingTarget::StyleArcGradientColor: {
@@ -430,7 +430,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::arc_gradient_color, *color);
+        set_style_string(&Style::set_arc_gradient_color, *color);
         break;
     }
     case BindingTarget::StyleImageRecolor: {
@@ -438,7 +438,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::image_recolor, *color);
+        set_style_string(&Style::set_image_recolor, *color);
         break;
     }
     case BindingTarget::StyleFont:
@@ -448,14 +448,14 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!has_font_resource(tree, std::string(value))) {
             return std::unexpected("unknown font resource id: " + std::string(value));
         }
-        set_style_string(&Style::font, std::string(value));
+        set_style_string(&Style::set_font, std::string(value));
         break;
     case BindingTarget::StyleShadowColor: {
         auto color = resolve_color_binding_value(tree, value);
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::shadow_color, *color);
+        set_style_string(&Style::set_shadow_color, *color);
         break;
     }
     case BindingTarget::StyleBgMainStop:
@@ -471,21 +471,21 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
             return std::unexpected(parsed.error());
         }
         if (target == BindingTarget::StyleBgMainStop) {
-            set_style_number(&Style::bg_main_stop, *parsed);
+            set_style_number(&Style::set_bg_main_stop, *parsed);
         } else if (target == BindingTarget::StyleBgGradientStop) {
-            set_style_number(&Style::bg_gradient_stop, *parsed);
+            set_style_number(&Style::set_bg_gradient_stop, *parsed);
         } else if (target == BindingTarget::StyleBgGradientOpacity) {
-            set_style_number(&Style::bg_gradient_opacity, *parsed);
+            set_style_number(&Style::set_bg_gradient_opacity, *parsed);
         } else if (target == BindingTarget::StyleOpacity) {
-            set_style_number(&Style::opacity, *parsed);
+            set_style_number(&Style::set_opacity, *parsed);
         } else if (target == BindingTarget::StyleImageOpacity) {
-            set_style_number(&Style::image_opacity, *parsed);
+            set_style_number(&Style::set_image_opacity, *parsed);
         } else if (target == BindingTarget::StyleImageRecolorOpacity) {
-            set_style_number(&Style::image_recolor_opacity, *parsed);
+            set_style_number(&Style::set_image_recolor_opacity, *parsed);
         } else if (target == BindingTarget::StyleArcOpacity) {
-            set_style_number(&Style::arc_opacity, *parsed);
+            set_style_number(&Style::set_arc_opacity, *parsed);
         } else {
-            set_style_number(&Style::arc_gradient_segments, *parsed);
+            set_style_number(&Style::set_arc_gradient_segments, *parsed);
         }
         break;
     }
@@ -533,34 +533,34 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         }
         switch (target) {
         case BindingTarget::StyleBorderWidth:
-            set_style_number(&Style::border_width, *parsed);
+            set_style_number(&Style::set_border_width, *parsed);
             break;
-        case BindingTarget::StyleRadius: set_style_number(&Style::radius, *parsed); break;
+        case BindingTarget::StyleRadius: set_style_number(&Style::set_radius, *parsed); break;
         case BindingTarget::StylePadding:
-            set_style_number(&Style::padding, *parsed);
+            set_style_number(&Style::set_padding, *parsed);
             break;
         case BindingTarget::StylePaddingLeft:
-            set_style_number(&Style::padding_left, *parsed);
+            set_style_number(&Style::set_padding_left, *parsed);
             break;
         case BindingTarget::StylePaddingRight:
-            set_style_number(&Style::padding_right, *parsed);
+            set_style_number(&Style::set_padding_right, *parsed);
             break;
         case BindingTarget::StylePaddingTop:
-            set_style_number(&Style::padding_top, *parsed);
+            set_style_number(&Style::set_padding_top, *parsed);
             break;
         case BindingTarget::StylePaddingBottom:
-            set_style_number(&Style::padding_bottom, *parsed);
+            set_style_number(&Style::set_padding_bottom, *parsed);
             break;
-        case BindingTarget::StyleMargin: set_style_number(&Style::margin, *parsed); break;
-        case BindingTarget::StyleMarginLeft: set_style_number(&Style::margin_left, *parsed); break;
-        case BindingTarget::StyleMarginRight: set_style_number(&Style::margin_right, *parsed); break;
-        case BindingTarget::StyleMarginTop: set_style_number(&Style::margin_top, *parsed); break;
-        case BindingTarget::StyleMarginBottom: set_style_number(&Style::margin_bottom, *parsed); break;
-        case BindingTarget::StyleShadowWidth: set_style_number(&Style::shadow_width, *parsed); break;
-        case BindingTarget::StyleShadowOffsetX: set_style_number(&Style::shadow_offset_x, *parsed); break;
-        case BindingTarget::StyleShadowOffsetY: set_style_number(&Style::shadow_offset_y, *parsed); break;
-        case BindingTarget::StyleLineWidth: set_style_number(&Style::line_width, *parsed); break;
-        case BindingTarget::StyleArcWidth: set_style_number(&Style::arc_width, *parsed); break;
+        case BindingTarget::StyleMargin: set_style_number(&Style::set_margin, *parsed); break;
+        case BindingTarget::StyleMarginLeft: set_style_number(&Style::set_margin_left, *parsed); break;
+        case BindingTarget::StyleMarginRight: set_style_number(&Style::set_margin_right, *parsed); break;
+        case BindingTarget::StyleMarginTop: set_style_number(&Style::set_margin_top, *parsed); break;
+        case BindingTarget::StyleMarginBottom: set_style_number(&Style::set_margin_bottom, *parsed); break;
+        case BindingTarget::StyleShadowWidth: set_style_number(&Style::set_shadow_width, *parsed); break;
+        case BindingTarget::StyleShadowOffsetX: set_style_number(&Style::set_shadow_offset_x, *parsed); break;
+        case BindingTarget::StyleShadowOffsetY: set_style_number(&Style::set_shadow_offset_y, *parsed); break;
+        case BindingTarget::StyleLineWidth: set_style_number(&Style::set_line_width, *parsed); break;
+        case BindingTarget::StyleArcWidth: set_style_number(&Style::set_arc_width, *parsed); break;
         default: break;
         }
         break;
@@ -578,7 +578,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
-        set_style_number(&Style::font_size, *parsed);
+        set_style_number(&Style::set_font_size, *parsed);
         break;
     }
     case BindingTarget::StyleImageFontSize: {
@@ -594,7 +594,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
-        set_style_number(&Style::image_font_size, *parsed);
+        set_style_number(&Style::set_image_font_size, *parsed);
         break;
     }
     case BindingTarget::StyleArcRounded: {
@@ -602,7 +602,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
-        set_style_bool(&Style::arc_rounded, *parsed);
+        set_style_bool(&Style::set_arc_rounded, *parsed);
         break;
     }
     case BindingTarget::LayoutType: {

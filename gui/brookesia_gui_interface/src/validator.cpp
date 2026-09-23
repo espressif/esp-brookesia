@@ -164,46 +164,46 @@ static void validate_style(const Style &style, std::string_view owner, std::vect
         }
     };
 
-    validate_optional_color(style.bg_color, "bg_color");
-    validate_optional_color(style.bg_gradient_color, "bg_gradient_color");
-    validate_optional_color(style.text_color, "text_color");
-    validate_optional_color(style.border_color, "border_color");
-    validate_optional_color(style.line_color, "line_color");
-    validate_optional_color(style.arc_color, "arc_color");
-    validate_optional_color(style.arc_gradient_color, "arc_gradient_color");
-    validate_optional_color(style.shadow_color, "shadow_color");
-    validate_optional_color(style.image_recolor, "image_recolor");
+    validate_optional_color(style.bg_color(), "bg_color");
+    validate_optional_color(style.bg_gradient_color(), "bg_gradient_color");
+    validate_optional_color(style.text_color(), "text_color");
+    validate_optional_color(style.border_color(), "border_color");
+    validate_optional_color(style.line_color(), "line_color");
+    validate_optional_color(style.arc_color(), "arc_color");
+    validate_optional_color(style.arc_gradient_color(), "arc_gradient_color");
+    validate_optional_color(style.shadow_color(), "shadow_color");
+    validate_optional_color(style.image_recolor(), "image_recolor");
 
-    if (style.bg_gradient_direction.has_value() && !is_valid_gradient_direction(*style.bg_gradient_direction)) {
-        errors.push_back(std::string(owner) + " has invalid bg_gradient_direction: " + *style.bg_gradient_direction);
+    if (style.bg_gradient_direction().has_value() && !is_valid_gradient_direction(*style.bg_gradient_direction())) {
+        errors.push_back(std::string(owner) + " has invalid bg_gradient_direction: " + *style.bg_gradient_direction());
     }
-    if (style.bg_main_stop.has_value() && (*style.bg_main_stop < 0 || *style.bg_main_stop > 255)) {
+    if (style.bg_main_stop().has_value() && (*style.bg_main_stop() < 0 || *style.bg_main_stop() > 255)) {
         errors.push_back(std::string(owner) + " has invalid bg_main_stop");
     }
-    if (style.bg_gradient_stop.has_value() && (*style.bg_gradient_stop < 0 || *style.bg_gradient_stop > 255)) {
+    if (style.bg_gradient_stop().has_value() && (*style.bg_gradient_stop() < 0 || *style.bg_gradient_stop() > 255)) {
         errors.push_back(std::string(owner) + " has invalid bg_gradient_stop");
     }
-    if (style.bg_gradient_opacity.has_value() && (*style.bg_gradient_opacity < 0 || *style.bg_gradient_opacity > 255)) {
+    if (style.bg_gradient_opacity().has_value() && (*style.bg_gradient_opacity() < 0 || *style.bg_gradient_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid bg_gradient_opacity");
     }
-    if (style.opacity.has_value() && (*style.opacity < 0 || *style.opacity > 255)) {
+    if (style.opacity().has_value() && (*style.opacity() < 0 || *style.opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid opacity");
     }
-    if (style.image_opacity.has_value() && (*style.image_opacity < 0 || *style.image_opacity > 255)) {
+    if (style.image_opacity().has_value() && (*style.image_opacity() < 0 || *style.image_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid image_opacity");
     }
-    if (style.image_recolor_opacity.has_value() &&
-            (*style.image_recolor_opacity < 0 || *style.image_recolor_opacity > 255)) {
+    if (style.image_recolor_opacity().has_value() &&
+            (*style.image_recolor_opacity() < 0 || *style.image_recolor_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid image_recolor_opacity");
     }
-    if (style.image_font_size.has_value() && *style.image_font_size <= 0) {
+    if (style.image_font_size().has_value() && *style.image_font_size() <= 0) {
         errors.push_back(std::string(owner) + " has invalid image_font_size");
     }
-    if (style.arc_opacity.has_value() && (*style.arc_opacity < 0 || *style.arc_opacity > 255)) {
+    if (style.arc_opacity().has_value() && (*style.arc_opacity() < 0 || *style.arc_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid arc_opacity");
     }
-    if (style.arc_gradient_segments.has_value() &&
-            (*style.arc_gradient_segments < 2 || *style.arc_gradient_segments > 128)) {
+    if (style.arc_gradient_segments().has_value() &&
+            (*style.arc_gradient_segments() < 2 || *style.arc_gradient_segments() > 128)) {
         errors.push_back(std::string(owner) + " has invalid arc_gradient_segments");
     }
 }
@@ -216,13 +216,13 @@ static void validate_state_styles(
             errors.push_back(std::string(owner) + " has unsupported stateStyles state: " + state_name);
             continue;
         }
-        if (style.font.has_value()) {
+        if (style.font().has_value()) {
             errors.push_back(std::string(owner) + " stateStyles." + state_name + " must not set font");
         }
-        if (style.font_size.has_value()) {
+        if (style.font_size().has_value()) {
             errors.push_back(std::string(owner) + " stateStyles." + state_name + " must not set fontSize");
         }
-        if (style.image_font_size.has_value()) {
+        if (style.image_font_size().has_value()) {
             errors.push_back(std::string(owner) + " stateStyles." + state_name + " must not set imageFontSize");
         }
         validate_style(style, std::string(owner) + " stateStyles." + state_name, errors);
@@ -238,13 +238,13 @@ static void validate_style_set(const StyleSet &style_set, std::string_view owner
             errors.push_back(std::string(owner) + " has unsupported partStyles part: " + part_name);
             continue;
         }
-        if (part_style.style.font.has_value()) {
+        if (part_style.style.font().has_value()) {
             errors.push_back(std::string(owner) + " partStyles." + part_name + " must not set font");
         }
-        if (part_style.style.font_size.has_value()) {
+        if (part_style.style.font_size().has_value()) {
             errors.push_back(std::string(owner) + " partStyles." + part_name + " must not set fontSize");
         }
-        if (part_style.style.image_font_size.has_value()) {
+        if (part_style.style.image_font_size().has_value()) {
             errors.push_back(std::string(owner) + " partStyles." + part_name + " must not set imageFontSize");
         }
         validate_style(part_style.style, std::string(owner) + " partStyles." + part_name, errors);
@@ -427,13 +427,13 @@ static void validate_node(
             errors.push_back("Node '" + node.id + "' has unsupported partStyles part: " + part_name);
             continue;
         }
-        if (part_style.style.font.has_value()) {
+        if (part_style.style.font().has_value()) {
             errors.push_back("Node '" + node.id + "' partStyles." + part_name + " must not set font");
         }
-        if (part_style.style.font_size.has_value()) {
+        if (part_style.style.font_size().has_value()) {
             errors.push_back("Node '" + node.id + "' partStyles." + part_name + " must not set fontSize");
         }
-        if (part_style.style.image_font_size.has_value()) {
+        if (part_style.style.image_font_size().has_value()) {
             errors.push_back("Node '" + node.id + "' partStyles." + part_name + " must not set imageFontSize");
         }
         validate_style(part_style.style, "Node '" + node.id + "' partStyles." + part_name, errors);

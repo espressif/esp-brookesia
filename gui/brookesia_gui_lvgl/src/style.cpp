@@ -164,8 +164,8 @@ const lv_font_t *get_font(BackendImpl &impl, Record &record, const ResolvedStyle
     release_font(impl, record);
     const auto absolute_path = impl.build_absolute_path(record);
 
-    const auto font_size = style.style.font_size.value_or(16);
-    const auto image_font_size = style.style.image_font_size.value_or(0);
+    const auto font_size = style.style.font_size().value_or(16);
+    const auto image_font_size = style.style.image_font_size().value_or(0);
     if (!style.resolved_font.native_fonts.empty()) {
         const auto *native_variant = select_native_font_variant(style.resolved_font, font_size);
         if (native_variant != nullptr) {
@@ -238,7 +238,7 @@ const lv_font_t *get_font(BackendImpl &impl, Record &record, const ResolvedStyle
     if (style.resolved_font.primary_src.empty()) {
         log_font_info_once(
             "Using built-in LVGL font: node='" + absolute_path + "', requested_font_id='" +
-            style.style.font.value_or("") + "', size=" + std::to_string(font_size)
+            style.style.font().value_or("") + "', size=" + std::to_string(font_size)
         );
         return get_builtin_font(font_size);
     }

@@ -1030,26 +1030,26 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(state.has_value());
     const auto *style = std::get_if<Style>(&state.value());
     TEST_ASSERT_NOT_NULL(style);
-    TEST_ASSERT_TRUE(style->opacity.has_value());
-    TEST_ASSERT_EQUAL_INT32(123, *style->opacity);
-    TEST_ASSERT_TRUE(style->bg_color.has_value());
-    TEST_ASSERT_EQUAL_STRING("#102030", style->bg_color->c_str());
-    TEST_ASSERT_TRUE(style->radius.has_value());
-    TEST_ASSERT_EQUAL_INT32(5, *style->radius);
+    TEST_ASSERT_TRUE(style->opacity().has_value());
+    TEST_ASSERT_EQUAL_INT32(123, *style->opacity());
+    TEST_ASSERT_TRUE(style->bg_color().has_value());
+    TEST_ASSERT_EQUAL_STRING("#102030", style->bg_color()->c_str());
+    TEST_ASSERT_TRUE(style->radius().has_value());
+    TEST_ASSERT_EQUAL_INT32(5, *style->radius());
 
     const auto panel_handle = backend_ptr->handle_for_path("/binding_screen/panel");
     const auto *resolved_style = backend_ptr->style_for_handle(panel_handle);
     TEST_ASSERT_NOT_NULL(resolved_style);
     TEST_ASSERT_EQUAL_STRING(
-        "#405060", resolved_style->state_styles.at("pressed").bg_color->c_str()
+        "#405060", resolved_style->state_styles.at("pressed").bg_color()->c_str()
     );
-    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width);
+    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width());
     TEST_ASSERT_EQUAL_STRING(
-        "#708090", resolved_style->part_styles.at("indicator").style.text_color->c_str()
+        "#708090", resolved_style->part_styles.at("indicator").style.text_color()->c_str()
     );
     TEST_ASSERT_EQUAL_STRING(
         "#A0B0C0",
-        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color->c_str()
+        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color()->c_str()
     );
 
     runtime.set_binding_values(document_id.value(), {
@@ -1062,18 +1062,18 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(state.has_value());
     style = std::get_if<Style>(&state.value());
     TEST_ASSERT_NOT_NULL(style);
-    TEST_ASSERT_EQUAL_STRING("#112233", style->bg_color->c_str());
-    TEST_ASSERT_EQUAL_INT32(201, *style->opacity);
-    TEST_ASSERT_EQUAL_INT32(5, *style->radius);
+    TEST_ASSERT_EQUAL_STRING("#112233", style->bg_color()->c_str());
+    TEST_ASSERT_EQUAL_INT32(201, *style->opacity());
+    TEST_ASSERT_EQUAL_INT32(5, *style->radius());
     resolved_style = backend_ptr->style_for_handle(panel_handle);
     TEST_ASSERT_NOT_NULL(resolved_style);
     TEST_ASSERT_EQUAL_STRING(
-        "#445566", resolved_style->state_styles.at("pressed").bg_color->c_str()
+        "#445566", resolved_style->state_styles.at("pressed").bg_color()->c_str()
     );
-    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width);
+    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width());
     TEST_ASSERT_EQUAL_STRING(
         "#ABCDEF",
-        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color->c_str()
+        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color()->c_str()
     );
 
     state = runtime.get_view_state(document_id.value(), "/binding_screen/panel", ViewStateKind::Layout);
@@ -1754,10 +1754,10 @@ BROOKESIA_TEST_CASE(
 
     ThemeAsset first_theme;
     first_theme.id = "test.first";
-    first_theme.styles["label"].style.text_color = "#111111";
+    first_theme.styles["label"].style.set_text_color("#111111");
     ThemeAsset second_theme;
     second_theme.id = "test.second";
-    second_theme.styles["label"].style.text_color = "#222222";
+    second_theme.styles["label"].style.set_text_color("#222222");
     TEST_ASSERT_TRUE(runtime.load_theme(first_theme).has_value());
     TEST_ASSERT_TRUE(runtime.load_theme(second_theme).has_value());
 
@@ -1787,8 +1787,8 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(first_handle.is_valid());
     const auto *first_style = backend_ptr->style_for_handle(first_handle);
     TEST_ASSERT_NOT_NULL(first_style);
-    TEST_ASSERT_TRUE(first_style->style.text_color.has_value());
-    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color->c_str());
+    TEST_ASSERT_TRUE(first_style->style.text_color().has_value());
+    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color()->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_en", first_style->resolved_font.font_id.c_str());
     const auto *first_style_source = backend_ptr->style_source_for_handle(first_handle);
     TEST_ASSERT_NOT_NULL(first_style_source);
@@ -1797,7 +1797,7 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(runtime.set_theme("test.second", true).has_value());
     TEST_ASSERT_TRUE(runtime.set_language("zh", true).has_value());
     TEST_ASSERT_EQUAL_size_t(style_apply_count, backend_ptr->style_apply_count());
-    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color->c_str());
+    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color()->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_en", first_style->resolved_font.font_id.c_str());
 
     // A node instantiated lazily in an already-loaded document must retain that document's
@@ -1810,8 +1810,8 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(old_document_row_handle.is_valid());
     const auto *old_document_row_style = backend_ptr->style_for_handle(old_document_row_handle);
     TEST_ASSERT_NOT_NULL(old_document_row_style);
-    TEST_ASSERT_TRUE(old_document_row_style->style.text_color.has_value());
-    TEST_ASSERT_EQUAL_STRING("#111111", old_document_row_style->style.text_color->c_str());
+    TEST_ASSERT_TRUE(old_document_row_style->style.text_color().has_value());
+    TEST_ASSERT_EQUAL_STRING("#111111", old_document_row_style->style.text_color()->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_en", old_document_row_style->resolved_font.font_id.c_str());
     // The screen label and template label are different definitions with the same fully resolved
     // style. Runtime must share the immutable result rather than retaining two 708-byte copies.
@@ -1826,8 +1826,8 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_NOT_EQUAL(first_handle.value(), second_handle.value());
     const auto *second_style = backend_ptr->style_for_handle(second_handle);
     TEST_ASSERT_NOT_NULL(second_style);
-    TEST_ASSERT_TRUE(second_style->style.text_color.has_value());
-    TEST_ASSERT_EQUAL_STRING("#222222", second_style->style.text_color->c_str());
+    TEST_ASSERT_TRUE(second_style->style.text_color().has_value());
+    TEST_ASSERT_EQUAL_STRING("#222222", second_style->style.text_color()->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_zh", second_style->resolved_font.font_id.c_str());
     TEST_ASSERT_TRUE(first_style_source != backend_ptr->style_source_for_handle(second_handle));
 

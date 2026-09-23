@@ -261,49 +261,489 @@ struct Placement {
 };
 
 struct Style {
-    std::optional<std::string> bg_color;
-    std::optional<std::string> bg_gradient_color;
-    std::optional<std::string> bg_gradient_direction;
-    std::optional<std::string> text_color;
-    std::optional<std::string> border_color;
-    std::optional<std::string> line_color;
-    std::optional<std::string> arc_color;
-    std::optional<std::string> arc_gradient_color;
-    std::optional<std::string> font;
-    std::optional<int32_t> bg_main_stop;
-    std::optional<int32_t> bg_gradient_stop;
-    std::optional<int32_t> bg_gradient_opacity;
-    std::optional<int32_t> border_width;
-    std::optional<int32_t> radius;
-    std::optional<int32_t> padding;
-    std::optional<int32_t> padding_left;
-    std::optional<int32_t> padding_right;
-    std::optional<int32_t> padding_top;
-    std::optional<int32_t> padding_bottom;
-    std::optional<int32_t> margin;
-    std::optional<int32_t> margin_left;
-    std::optional<int32_t> margin_right;
-    std::optional<int32_t> margin_top;
-    std::optional<int32_t> margin_bottom;
-    std::optional<int32_t> shadow_width;
-    std::optional<int32_t> shadow_offset_x;
-    std::optional<int32_t> shadow_offset_y;
-    std::optional<std::string> shadow_color;
-    std::optional<int32_t> opacity;
-    std::optional<int32_t> line_width;
-    std::optional<int32_t> image_opacity;
-    std::optional<std::string> image_recolor;
-    std::optional<int32_t> image_recolor_opacity;
-    std::optional<int32_t> font_size;
-    std::optional<int32_t> image_font_size;
-    std::optional<TextAlign> text_align;
-    std::optional<int32_t> arc_width;
-    std::optional<int32_t> arc_opacity;
-    std::optional<int32_t> arc_gradient_segments;
-    std::optional<bool> arc_rounded;
-    std::optional<bool> clip_corner;
+    enum class PropId : uint8_t {
+        BgColor = 0,
+        BgGradientColor,
+        BgGradientDirection,
+        TextColor,
+        BorderColor,
+        LineColor,
+        ArcColor,
+        ArcGradientColor,
+        Font,
+        BgMainStop,
+        BgGradientStop,
+        BgGradientOpacity,
+        BorderWidth,
+        Radius,
+        Padding,
+        PaddingLeft,
+        PaddingRight,
+        PaddingTop,
+        PaddingBottom,
+        Margin,
+        MarginLeft,
+        MarginRight,
+        MarginTop,
+        MarginBottom,
+        ShadowWidth,
+        ShadowOffsetX,
+        ShadowOffsetY,
+        ShadowColor,
+        Opacity,
+        LineWidth,
+        ImageOpacity,
+        ImageRecolor,
+        ImageRecolorOpacity,
+        FontSize,
+        ImageFontSize,
+        TextAlignValue,
+        ArcWidth,
+        ArcOpacity,
+        ArcGradientSegments,
+        ArcRounded,
+        ClipCorner,
+    };
 
-    bool operator==(const Style &) const = default;
+    using PropValue = std::variant<std::string, int32_t, bool, TextAlign>;
+
+    struct Prop {
+        PropId id = PropId::BgColor;
+        PropValue value;
+    };
+
+    bool empty() const
+    {
+        return props_.empty();
+    }
+
+    size_t size() const
+    {
+        return props_.size();
+    }
+
+    const std::vector<Prop> &props() const
+    {
+        return props_;
+    }
+
+    void clear()
+    {
+        props_.clear();
+    }
+
+    void merge_from(const Style &source)
+    {
+        for (const auto &prop : source.props_) {
+            set_prop(prop.id, prop.value);
+        }
+    }
+
+    template <typename T>
+    std::optional<T> get(PropId id) const
+    {
+        for (const auto &prop : props_) {
+            if (prop.id != id) {
+                continue;
+            }
+            if (const auto *value = std::get_if<T>(&prop.value)) {
+                return *value;
+            }
+            return std::nullopt;
+        }
+        return std::nullopt;
+    }
+
+    template <typename T>
+    void set(PropId id, std::optional<T> value)
+    {
+        if (!value.has_value()) {
+            erase(id);
+            return;
+        }
+        set_prop(id, PropValue(std::move(*value)));
+    }
+
+    std::optional<std::string> bg_color() const
+    {
+        return get<std::string>(PropId::BgColor);
+    }
+    void set_bg_color(std::optional<std::string> value)
+    {
+        set(PropId::BgColor, std::move(value));
+    }
+    std::optional<std::string> bg_gradient_color() const
+    {
+        return get<std::string>(PropId::BgGradientColor);
+    }
+    void set_bg_gradient_color(std::optional<std::string> value)
+    {
+        set(PropId::BgGradientColor, std::move(value));
+    }
+    std::optional<std::string> bg_gradient_direction() const
+    {
+        return get<std::string>(PropId::BgGradientDirection);
+    }
+    void set_bg_gradient_direction(std::optional<std::string> value)
+    {
+        set(PropId::BgGradientDirection, std::move(value));
+    }
+    std::optional<std::string> text_color() const
+    {
+        return get<std::string>(PropId::TextColor);
+    }
+    void set_text_color(std::optional<std::string> value)
+    {
+        set(PropId::TextColor, std::move(value));
+    }
+    std::optional<std::string> border_color() const
+    {
+        return get<std::string>(PropId::BorderColor);
+    }
+    void set_border_color(std::optional<std::string> value)
+    {
+        set(PropId::BorderColor, std::move(value));
+    }
+    std::optional<std::string> line_color() const
+    {
+        return get<std::string>(PropId::LineColor);
+    }
+    void set_line_color(std::optional<std::string> value)
+    {
+        set(PropId::LineColor, std::move(value));
+    }
+    std::optional<std::string> arc_color() const
+    {
+        return get<std::string>(PropId::ArcColor);
+    }
+    void set_arc_color(std::optional<std::string> value)
+    {
+        set(PropId::ArcColor, std::move(value));
+    }
+    std::optional<std::string> arc_gradient_color() const
+    {
+        return get<std::string>(PropId::ArcGradientColor);
+    }
+    void set_arc_gradient_color(std::optional<std::string> value)
+    {
+        set(PropId::ArcGradientColor, std::move(value));
+    }
+    std::optional<std::string> font() const
+    {
+        return get<std::string>(PropId::Font);
+    }
+    void set_font(std::optional<std::string> value)
+    {
+        set(PropId::Font, std::move(value));
+    }
+    std::optional<int32_t> bg_main_stop() const
+    {
+        return get<int32_t>(PropId::BgMainStop);
+    }
+    void set_bg_main_stop(std::optional<int32_t> value)
+    {
+        set(PropId::BgMainStop, value);
+    }
+    std::optional<int32_t> bg_gradient_stop() const
+    {
+        return get<int32_t>(PropId::BgGradientStop);
+    }
+    void set_bg_gradient_stop(std::optional<int32_t> value)
+    {
+        set(PropId::BgGradientStop, value);
+    }
+    std::optional<int32_t> bg_gradient_opacity() const
+    {
+        return get<int32_t>(PropId::BgGradientOpacity);
+    }
+    void set_bg_gradient_opacity(std::optional<int32_t> value)
+    {
+        set(PropId::BgGradientOpacity, value);
+    }
+    std::optional<int32_t> border_width() const
+    {
+        return get<int32_t>(PropId::BorderWidth);
+    }
+    void set_border_width(std::optional<int32_t> value)
+    {
+        set(PropId::BorderWidth, value);
+    }
+    std::optional<int32_t> radius() const
+    {
+        return get<int32_t>(PropId::Radius);
+    }
+    void set_radius(std::optional<int32_t> value)
+    {
+        set(PropId::Radius, value);
+    }
+    std::optional<int32_t> padding() const
+    {
+        return get<int32_t>(PropId::Padding);
+    }
+    void set_padding(std::optional<int32_t> value)
+    {
+        set(PropId::Padding, value);
+    }
+    std::optional<int32_t> padding_left() const
+    {
+        return get<int32_t>(PropId::PaddingLeft);
+    }
+    void set_padding_left(std::optional<int32_t> value)
+    {
+        set(PropId::PaddingLeft, value);
+    }
+    std::optional<int32_t> padding_right() const
+    {
+        return get<int32_t>(PropId::PaddingRight);
+    }
+    void set_padding_right(std::optional<int32_t> value)
+    {
+        set(PropId::PaddingRight, value);
+    }
+    std::optional<int32_t> padding_top() const
+    {
+        return get<int32_t>(PropId::PaddingTop);
+    }
+    void set_padding_top(std::optional<int32_t> value)
+    {
+        set(PropId::PaddingTop, value);
+    }
+    std::optional<int32_t> padding_bottom() const
+    {
+        return get<int32_t>(PropId::PaddingBottom);
+    }
+    void set_padding_bottom(std::optional<int32_t> value)
+    {
+        set(PropId::PaddingBottom, value);
+    }
+    std::optional<int32_t> margin() const
+    {
+        return get<int32_t>(PropId::Margin);
+    }
+    void set_margin(std::optional<int32_t> value)
+    {
+        set(PropId::Margin, value);
+    }
+    std::optional<int32_t> margin_left() const
+    {
+        return get<int32_t>(PropId::MarginLeft);
+    }
+    void set_margin_left(std::optional<int32_t> value)
+    {
+        set(PropId::MarginLeft, value);
+    }
+    std::optional<int32_t> margin_right() const
+    {
+        return get<int32_t>(PropId::MarginRight);
+    }
+    void set_margin_right(std::optional<int32_t> value)
+    {
+        set(PropId::MarginRight, value);
+    }
+    std::optional<int32_t> margin_top() const
+    {
+        return get<int32_t>(PropId::MarginTop);
+    }
+    void set_margin_top(std::optional<int32_t> value)
+    {
+        set(PropId::MarginTop, value);
+    }
+    std::optional<int32_t> margin_bottom() const
+    {
+        return get<int32_t>(PropId::MarginBottom);
+    }
+    void set_margin_bottom(std::optional<int32_t> value)
+    {
+        set(PropId::MarginBottom, value);
+    }
+    std::optional<int32_t> shadow_width() const
+    {
+        return get<int32_t>(PropId::ShadowWidth);
+    }
+    void set_shadow_width(std::optional<int32_t> value)
+    {
+        set(PropId::ShadowWidth, value);
+    }
+    std::optional<int32_t> shadow_offset_x() const
+    {
+        return get<int32_t>(PropId::ShadowOffsetX);
+    }
+    void set_shadow_offset_x(std::optional<int32_t> value)
+    {
+        set(PropId::ShadowOffsetX, value);
+    }
+    std::optional<int32_t> shadow_offset_y() const
+    {
+        return get<int32_t>(PropId::ShadowOffsetY);
+    }
+    void set_shadow_offset_y(std::optional<int32_t> value)
+    {
+        set(PropId::ShadowOffsetY, value);
+    }
+    std::optional<std::string> shadow_color() const
+    {
+        return get<std::string>(PropId::ShadowColor);
+    }
+    void set_shadow_color(std::optional<std::string> value)
+    {
+        set(PropId::ShadowColor, std::move(value));
+    }
+    std::optional<int32_t> opacity() const
+    {
+        return get<int32_t>(PropId::Opacity);
+    }
+    void set_opacity(std::optional<int32_t> value)
+    {
+        set(PropId::Opacity, value);
+    }
+    std::optional<int32_t> line_width() const
+    {
+        return get<int32_t>(PropId::LineWidth);
+    }
+    void set_line_width(std::optional<int32_t> value)
+    {
+        set(PropId::LineWidth, value);
+    }
+    std::optional<int32_t> image_opacity() const
+    {
+        return get<int32_t>(PropId::ImageOpacity);
+    }
+    void set_image_opacity(std::optional<int32_t> value)
+    {
+        set(PropId::ImageOpacity, value);
+    }
+    std::optional<std::string> image_recolor() const
+    {
+        return get<std::string>(PropId::ImageRecolor);
+    }
+    void set_image_recolor(std::optional<std::string> value)
+    {
+        set(PropId::ImageRecolor, std::move(value));
+    }
+    std::optional<int32_t> image_recolor_opacity() const
+    {
+        return get<int32_t>(PropId::ImageRecolorOpacity);
+    }
+    void set_image_recolor_opacity(std::optional<int32_t> value)
+    {
+        set(PropId::ImageRecolorOpacity, value);
+    }
+    std::optional<int32_t> font_size() const
+    {
+        return get<int32_t>(PropId::FontSize);
+    }
+    void set_font_size(std::optional<int32_t> value)
+    {
+        set(PropId::FontSize, value);
+    }
+    std::optional<int32_t> image_font_size() const
+    {
+        return get<int32_t>(PropId::ImageFontSize);
+    }
+    void set_image_font_size(std::optional<int32_t> value)
+    {
+        set(PropId::ImageFontSize, value);
+    }
+    std::optional<TextAlign> text_align() const
+    {
+        return get<TextAlign>(PropId::TextAlignValue);
+    }
+    void set_text_align(std::optional<TextAlign> value)
+    {
+        set(PropId::TextAlignValue, value);
+    }
+    std::optional<int32_t> arc_width() const
+    {
+        return get<int32_t>(PropId::ArcWidth);
+    }
+    void set_arc_width(std::optional<int32_t> value)
+    {
+        set(PropId::ArcWidth, value);
+    }
+    std::optional<int32_t> arc_opacity() const
+    {
+        return get<int32_t>(PropId::ArcOpacity);
+    }
+    void set_arc_opacity(std::optional<int32_t> value)
+    {
+        set(PropId::ArcOpacity, value);
+    }
+    std::optional<int32_t> arc_gradient_segments() const
+    {
+        return get<int32_t>(PropId::ArcGradientSegments);
+    }
+    void set_arc_gradient_segments(std::optional<int32_t> value)
+    {
+        set(PropId::ArcGradientSegments, value);
+    }
+    std::optional<bool> arc_rounded() const
+    {
+        return get<bool>(PropId::ArcRounded);
+    }
+    void set_arc_rounded(std::optional<bool> value)
+    {
+        set(PropId::ArcRounded, value);
+    }
+    std::optional<bool> clip_corner() const
+    {
+        return get<bool>(PropId::ClipCorner);
+    }
+    void set_clip_corner(std::optional<bool> value)
+    {
+        set(PropId::ClipCorner, value);
+    }
+
+    bool operator==(const Style &other) const
+    {
+        if (props_.size() != other.props_.size()) {
+            return false;
+        }
+        for (const auto &prop : props_) {
+            bool matched = false;
+            for (const auto &other_prop : other.props_) {
+                if (other_prop.id == prop.id && other_prop.value == prop.value) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool operator!=(const Style &other) const
+    {
+        return !(*this == other);
+    }
+
+private:
+    std::vector<Prop> props_;
+
+    void erase(PropId id)
+    {
+        for (auto it = props_.begin(); it != props_.end(); ++it) {
+            if (it->id == id) {
+                props_.erase(it);
+                return;
+            }
+        }
+    }
+
+    void set_prop(PropId id, PropValue value)
+    {
+        for (auto &prop : props_) {
+            if (prop.id == id) {
+                prop.value = std::move(value);
+                return;
+            }
+        }
+        Prop prop;
+        prop.id = id;
+        prop.value = std::move(value);
+        props_.push_back(std::move(prop));
+    }
 };
 
 using StateStyleMap = std::map<std::string, Style>;
@@ -617,15 +1057,7 @@ BROOKESIA_DESCRIBE_STRUCT(
     (mode, width, height, aspect_ratio, x, y, align, relative_to,
      grid_column, grid_row, grid_column_span, grid_row_span, align_self, flex_grow)
 )
-BROOKESIA_DESCRIBE_STRUCT(
-    Style, (),
-    (bg_color, bg_gradient_color, bg_gradient_direction, text_color, border_color, line_color, arc_color,
-     arc_gradient_color, font, bg_main_stop, bg_gradient_stop, bg_gradient_opacity, border_width, radius, padding,
-     padding_left, padding_right, padding_top, padding_bottom, margin, margin_left, margin_right, margin_top,
-     margin_bottom, shadow_width, shadow_offset_x, shadow_offset_y, shadow_color, opacity, line_width, image_opacity,
-     image_recolor, image_recolor_opacity, font_size, image_font_size, text_align, arc_width, arc_opacity,
-     arc_gradient_segments, arc_rounded, clip_corner)
-)
+// Style is stored sparsely (only written properties). Reflection dumps use Style::props().
 BROOKESIA_DESCRIBE_STRUCT(PartStyleSet, (), (style, state_styles))
 BROOKESIA_DESCRIBE_STRUCT(StyleSet, (), (style, state_styles, part_styles))
 BROOKESIA_DESCRIBE_STRUCT(ImageFontGlyph, (), (codepoint, src))
