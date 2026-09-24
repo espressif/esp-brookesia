@@ -98,6 +98,14 @@ bool is_identity_common_transform(const CommonProps &props)
 void apply_common_transform(Record &record, const CommonProps &props)
 {
     if (is_identity_common_transform(props)) {
+        if (!record.local_transform_applied) {
+            return;
+        }
+        lv_obj_set_style_transform_pivot_x(record.object, 0, LV_PART_MAIN);
+        lv_obj_set_style_transform_pivot_y(record.object, 0, LV_PART_MAIN);
+        lv_obj_set_style_transform_scale(record.object, LV_SCALE_NONE, LV_PART_MAIN);
+        lv_obj_set_style_transform_rotation(record.object, 0, LV_PART_MAIN);
+        record.local_transform_applied = false;
         return;
     }
     lv_obj_update_layout(record.object);
@@ -107,6 +115,7 @@ void apply_common_transform(Record &record, const CommonProps &props)
     lv_obj_set_style_transform_pivot_y(record.object, resolve_pivot_value(props.pivot_y, height), LV_PART_MAIN);
     lv_obj_set_style_transform_scale(record.object, std::max<int32_t>(1, props.zoom), LV_PART_MAIN);
     lv_obj_set_style_transform_rotation(record.object, props.angle * 10, LV_PART_MAIN);
+    record.local_transform_applied = true;
 }
 
 void apply_common_flags(Record &record, const CommonProps &props)

@@ -1057,7 +1057,87 @@ BROOKESIA_DESCRIBE_STRUCT(
     (mode, width, height, aspect_ratio, x, y, align, relative_to,
      grid_column, grid_row, grid_column_span, grid_row_span, align_self, flex_grow)
 )
-// Style is stored sparsely (only written properties). Reflection dumps use Style::props().
+} // namespace esp_brookesia::gui
+
+namespace esp_brookesia::lib_utils {
+
+template <>
+inline boost::json::value describe_to_json<esp_brookesia::gui::Style>(const esp_brookesia::gui::Style &style)
+{
+    const auto prop_name = [](esp_brookesia::gui::Style::PropId id) {
+        using PropId = esp_brookesia::gui::Style::PropId;
+        switch (id) {
+        case PropId::BgColor: return "bg_color";
+        case PropId::BgGradientColor: return "bg_gradient_color";
+        case PropId::BgGradientDirection: return "bg_gradient_direction";
+        case PropId::TextColor: return "text_color";
+        case PropId::BorderColor: return "border_color";
+        case PropId::LineColor: return "line_color";
+        case PropId::ArcColor: return "arc_color";
+        case PropId::ArcGradientColor: return "arc_gradient_color";
+        case PropId::Font: return "font";
+        case PropId::BgMainStop: return "bg_main_stop";
+        case PropId::BgGradientStop: return "bg_gradient_stop";
+        case PropId::BgGradientOpacity: return "bg_gradient_opacity";
+        case PropId::BorderWidth: return "border_width";
+        case PropId::Radius: return "radius";
+        case PropId::Padding: return "padding";
+        case PropId::PaddingLeft: return "padding_left";
+        case PropId::PaddingRight: return "padding_right";
+        case PropId::PaddingTop: return "padding_top";
+        case PropId::PaddingBottom: return "padding_bottom";
+        case PropId::Margin: return "margin";
+        case PropId::MarginLeft: return "margin_left";
+        case PropId::MarginRight: return "margin_right";
+        case PropId::MarginTop: return "margin_top";
+        case PropId::MarginBottom: return "margin_bottom";
+        case PropId::ShadowWidth: return "shadow_width";
+        case PropId::ShadowOffsetX: return "shadow_offset_x";
+        case PropId::ShadowOffsetY: return "shadow_offset_y";
+        case PropId::ShadowColor: return "shadow_color";
+        case PropId::Opacity: return "opacity";
+        case PropId::LineWidth: return "line_width";
+        case PropId::ImageOpacity: return "image_opacity";
+        case PropId::ImageRecolor: return "image_recolor";
+        case PropId::ImageRecolorOpacity: return "image_recolor_opacity";
+        case PropId::FontSize: return "font_size";
+        case PropId::ImageFontSize: return "image_font_size";
+        case PropId::TextAlignValue: return "text_align";
+        case PropId::ArcWidth: return "arc_width";
+        case PropId::ArcOpacity: return "arc_opacity";
+        case PropId::ArcGradientSegments: return "arc_gradient_segments";
+        case PropId::ArcRounded: return "arc_rounded";
+        case PropId::ClipCorner: return "clip_corner";
+        }
+        return "Unknown";
+    };
+
+    boost::json::object object;
+    for (const auto &prop : style.props()) {
+        const auto value = std::visit([](const auto & item) {
+            return describe_to_json(item);
+        }, prop.value);
+        object.emplace(prop_name(prop.id), value);
+    }
+    return object;
+}
+
+template <>
+inline void describe_output_member<esp_brookesia::gui::Style>(
+    std::ostringstream &oss, const char *name, const esp_brookesia::gui::Style &style, const DescribeOutputFormat &fmt)
+{
+    if (fmt.quote_field_names) {
+        oss << "\"" << fmt.field_prefix << name << "\"";
+    } else {
+        oss << fmt.field_prefix << name;
+    }
+    oss << fmt.name_value_separator << describe_json_value_to_string(describe_to_json(style), fmt);
+}
+
+} // namespace esp_brookesia::lib_utils
+
+namespace esp_brookesia::gui {
+
 BROOKESIA_DESCRIBE_STRUCT(PartStyleSet, (), (style, state_styles))
 BROOKESIA_DESCRIBE_STRUCT(StyleSet, (), (style, state_styles, part_styles))
 BROOKESIA_DESCRIBE_STRUCT(ImageFontGlyph, (), (codepoint, src))

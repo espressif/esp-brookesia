@@ -57,7 +57,8 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
 );
 std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::string_view path,
-    const Environment &environment
+    const Environment &environment,
+    bool allow_defer
 );
 std::expected<Document, std::string> parse_document_file(std::string_view path, const Environment &environment);
 

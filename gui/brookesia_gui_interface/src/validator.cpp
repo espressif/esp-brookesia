@@ -878,4 +878,45 @@ ValidationResult validate_document(const Document &document)
     return result;
 }
 
+ValidationResult validate_screen_node(
+    const Node &screen,
+    const std::vector<const Node *> &siblings,
+    const std::vector<const Node *> &templates)
+{
+    ValidationResult result;
+    if (screen.type != NodeType::Screen) {
+        result.errors.push_back("Top-level screen definitions must use node type 'Screen'");
+    }
+
+    boost::unordered_flat_set<std::string> font_ids;
+    boost::unordered_flat_map<std::string, std::string> action_owners;
+    auto seed_action_owners = [&](const Node * node) {
+        if (node == nullptr || node->id == screen.id) {
+            return;
+        }
+        std::vector<std::string> ignored;
+        boost::unordered_flat_map<std::string, std::vector<std::string>> view_paths;
+        std::vector<std::string> current_path;
+        for (const auto &child : node->children) {
+            build_view_path_index(child, current_path, view_paths, ignored);
+        }
+        validate_node(*node, font_ids, view_paths, action_owners, {}, ignored);
+    };
+    for (const Node *sibling : siblings) {
+        seed_action_owners(sibling);
+    }
+    for (const Node *node : templates) {
+        seed_action_owners(node);
+    }
+
+    boost::unordered_flat_map<std::string, std::vector<std::string>> view_paths;
+    std::vector<std::string> current_path;
+    for (const auto &child : screen.children) {
+        build_view_path_index(child, current_path, view_paths, result.errors);
+    }
+    validate_node(screen, font_ids, view_paths, action_owners, {}, result.errors);
+    result.success = result.errors.empty();
+    return result;
+}
+
 } // namespace esp_brookesia::gui

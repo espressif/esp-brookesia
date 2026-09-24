@@ -42,7 +42,8 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment,
-    std::vector<std::string> dependency_files)
+    std::vector<std::string> dependency_files,
+    bool allow_defer)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -587,14 +588,20 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
                    );
         }
         const bool is_entry = entry_screen_ids.empty() ? eager_parsed_screens == 0 : entry_screen_ids.contains(*id);
-        const bool keep_deferred = asset_entry->deferred_view_screen && !is_entry;
+        const bool defer_non_entry = allow_defer && !is_entry;
+        const bool keep_deferred = asset_entry->deferred_view_screen &&
+                                   (defer_non_entry || asset_entry->peeked_mount_mode == MountMode::Dynamic);
         if (keep_deferred) {
-            Node stub;
-            stub.type = NodeType::Screen;
-            stub.id = *id;
-            stub.mount_mode = asset_entry->peeked_mount_mode;
-            parsed_document.deferred_screen_files.emplace(*id, asset_entry->deferred_path.generic_string());
-            document.screens.push_back(std::move(stub));
+            auto node = parse_one_view_screen(*asset_entry);
+            if (!node) {
+                return std::unexpected(
+                           "Failed to parse viewScreen asset '" + asset_entry->source_label + "': " + node.error()
+                       );
+            }
+            parsed_document.deferred_screen_files.emplace(
+                node->id, asset_entry->deferred_path.generic_string()
+            );
+            document.screens.push_back(std::move(*node));
             ++deferred_screens;
             asset_entry->value = boost::json::value(nullptr);
             continue;
@@ -649,6 +656,17 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     if (!validation.success) {
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
     }
+    for (auto &screen : document.screens) {
+        if (!parsed_document.deferred_screen_files.contains(screen.id)) {
+            continue;
+        }
+        const auto mount_mode = screen.mount_mode;
+        const auto screen_id = screen.id;
+        screen = Node {};
+        screen.type = NodeType::Screen;
+        screen.id = screen_id;
+        screen.mount_mode = mount_mode;
+    }
 
     stage_end = ParserProfileClock::now();
     GUI_INTERFACE_PROFILE_LOGI(
@@ -670,7 +688,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
 std::expected<Document, std::string> parse_document(
     std::string_view json, std::string_view base_dir, const Environment &environment)
 {
-    auto parsed_document = parse_document_impl(json, base_dir, environment, {});
+    auto parsed_document = parse_document_impl(json, base_dir, environment, {}, false);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
@@ -765,7 +783,8 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
 
 std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::string_view path,
-    const Environment &environment)
+    const Environment &environment,
+    bool allow_defer)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -779,12 +798,21 @@ std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     GUI_INTERFACE_PROFILE_LOGI("Parsing GUI root file '%1%'", file_path.string());
     std::vector<std::string> dependency_files;
     dependency_files.push_back(file_path.string());
-    return parse_document_impl(*text, file_path.parent_path().string(), environment, std::move(dependency_files));
+    return parse_document_impl(
+               *text, file_path.parent_path().string(), environment, std::move(dependency_files), allow_defer);
 }
 
 std::expected<Document, std::string> parse_document_file(std::string_view path, const Environment &environment)
 {
-    auto parsed_document = parse_document_file_with_metadata(path, environment);
+    const std::filesystem::path file_path = std::filesystem::path(path).lexically_normal();
+    auto text = read_text_file(file_path);
+    if (!text) {
+        return std::unexpected(text.error());
+    }
+    std::vector<std::string> dependency_files;
+    dependency_files.push_back(file_path.string());
+    auto parsed_document = parse_document_impl(
+                               *text, file_path.parent_path().string(), environment, std::move(dependency_files), false);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }

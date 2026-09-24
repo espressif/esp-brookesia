@@ -141,6 +141,12 @@ bool Runtime::Impl::unsubscribe_subscription(SubscriptionId subscription_id)
 }
 Runtime::Impl::~Impl()
 {
+    for (auto &[unused_id, tree] : trees) {
+        (void)unused_id;
+        if (tree.idle_warm_token) {
+            tree.idle_warm_token->store(false);
+        }
+    }
     std::vector<DocumentId::Value> document_ids;
     document_ids.reserve(trees.size());
     for (const auto &[document_id, unused_tree] : trees) {
@@ -207,6 +213,7 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         stage_start = RuntimeProfileClock::now();
         TreeRecord tree;
         tree.document_id = document_id;
+        tree.load_options = options;
         tree.file_path = file_path;
         tree.file_backed = file_backed;
         tree.environment_dependencies = document.environment_dependencies;
@@ -901,6 +908,7 @@ bool Runtime::Impl::unload(DocumentId document_id)
         (void)unsubscribe_subscription(animation_it->second);
         event_animation_ids_.erase(key);
     }
+    stop_idle_screen_warm(tree_it->second);
     unload_partial_tree(tree_it->second);
     release_tree_image_resources(tree_it->second);
     trees.erase(tree_it);
@@ -1011,7 +1019,8 @@ void Runtime::Impl::poll_live_preview(Runtime *runtime)
         }
 
         const auto parse_environment = make_parse_environment(tree.environment);
-        auto parsed_document = parse_document_file_with_metadata(tree.file_path, parse_environment);
+        const bool allow_defer = tree.load_options.defer_non_entry_eager_screens || !tree.load_options.build_entry_screens;
+        auto parsed_document = parse_document_file_with_metadata(tree.file_path, parse_environment, allow_defer);
         if (!parsed_document) {
             BROOKESIA_LOGW(
                 "Live preview parse failed: document_id=%1%, root='%2%', error=%3%",

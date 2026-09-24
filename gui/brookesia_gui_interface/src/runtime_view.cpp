@@ -254,7 +254,12 @@ std::expected<void, std::string> Runtime::Impl::update(
     }
     effective_environment = make_effective_environment(std::move(effective_environment));
     const auto parse_environment = make_parse_environment(effective_environment);
-    auto parsed_document = parse_document_file_with_metadata(file_path, parse_environment);
+    DocumentLoadOptions load_options;
+    if (const auto *tree = resolve_tree_const(document_id); tree != nullptr) {
+        load_options = tree->load_options;
+    }
+    const bool allow_defer = load_options.defer_non_entry_eager_screens || !load_options.build_entry_screens;
+    auto parsed_document = parse_document_file_with_metadata(file_path, parse_environment, allow_defer);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
@@ -293,7 +298,12 @@ std::expected<void, std::string> Runtime::Impl::update(
     }
     stop_screen_flows_for_document(document_id);
 
-    std::vector<std::string> instantiated_dynamic_screens;
+    boost::unordered_flat_set<std::string> built_before_update;
+    built_before_update.reserve(tree->screen_roots.size());
+    for (const auto &[screen_id, unused_uid] : tree->screen_roots) {
+        (void)unused_uid;
+        built_before_update.insert(screen_id);
+    }
     std::vector<NodeStateSnapshot> state_snapshots;
     std::vector<MountedScreenRef> mounted_refs;
     for (const auto &[unused_target_key, mounted_ref] : mounted_screens_) {
@@ -303,14 +313,6 @@ std::expected<void, std::string> Runtime::Impl::update(
         }
     }
     pop_transient_screens_for_document(document_id);
-
-    for (const auto &[screen_id, uid] : tree->screen_roots) {
-        auto screen_it = tree->screens.find(screen_id);
-        if (screen_it != tree->screens.end() && screen_it->second.mount_mode == MountMode::Dynamic) {
-            instantiated_dynamic_screens.push_back("/" + screen_id);
-        }
-        (void)uid;
-    }
 
     for (const auto &[uid, record] : tree->nodes) {
         (void)uid;
@@ -403,73 +405,43 @@ std::expected<void, std::string> Runtime::Impl::update(
         return std::unexpected(preload_result.error());
     }
 
-    // Preserve the document order while keeping every NodeRecord definition pointer anchored
-    // in TreeRecord. parsed_document is temporary and cannot own runtime definitions.
-    for (const auto &parsed_screen : parsed_document.document.screens) {
-        const auto screen_it = tree->screens.find(parsed_screen.id);
-        if (screen_it == tree->screens.end()) {
-            return std::unexpected("Updated screen definition not found: " + parsed_screen.id);
+    // Rebuild only screens that load() would have built, plus screens that already existed.
+    // Unbuilt screens that load() deferred stay in the idle-warm queue.
+    tree->pending_warm_screens.clear();
+    tree->idle_warm_scheduled = false;
+    boost::unordered_flat_set<std::string> entry_screen_ids;
+    for (const auto &[unused_id, flow] : tree->screen_flows) {
+        (void)unused_id;
+        if (!flow.initial.empty()) {
+            entry_screen_ids.insert(flow.initial);
         }
-        const auto &screen = screen_it->second;
-        if (screen.mount_mode == MountMode::Dynamic) {
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-            BROOKESIA_LOGI(
-                "[HeapTrace][gui.eager_mount] screen(%1%) mode(dynamic) action(skipped)", screen.id);
-#endif
-            continue;
-        }
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-        auto hp_eager_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
-#endif
-        auto root_uid = create_subtree(
-                            document_id,
-                            *tree,
-                            screen,
-                            BackendHandle(),
-                            0,
-                            screen.id,
-                            Path(),
-                            "/" + screen.id,
-                            std::nullopt
-                        );
-        if (!root_uid) {
-            return std::unexpected(root_uid.error());
-        }
-        tree->screen_roots.emplace(screen.id, *root_uid);
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-        auto hp_eager_after = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
-        BROOKESIA_LOGI(
-            "[HeapTrace][gui.eager_mount] screen(%1%) mode(eager) action(built) psram_delta(%2%)",
-            screen.id,
-            static_cast<int64_t>(hp_eager_after.external_free) -
-            static_cast<int64_t>(hp_eager_before.external_free));
-#endif
     }
-
-    for (const auto &screen_path : instantiated_dynamic_screens) {
-        const auto screen_id = trim_slashes(screen_path);
-        if (tree->screen_roots.contains(screen_id) || !tree->screens.contains(screen_id)) {
-            continue;
+    if (entry_screen_ids.empty() && !parsed_document.document.screens.empty()) {
+        entry_screen_ids.insert(parsed_document.document.screens.front().id);
+    }
+    for (const auto &[screen_id, screen] : tree->screens) {
+        const bool was_built = built_before_update.contains(screen_id);
+        if (screen.mount_mode == MountMode::Dynamic) {
+            if (!was_built) {
+                continue;
+            }
+        } else {
+            const bool is_entry = entry_screen_ids.contains(screen.id);
+            const bool defer_screen =
+                !tree->load_options.build_entry_screens ||
+                (tree->load_options.defer_non_entry_eager_screens && !is_entry);
+            if (defer_screen && !was_built) {
+                tree->pending_warm_screens.push_back(screen_id);
+                continue;
+            }
         }
-        const auto &screen = tree->screens.at(screen_id);
-        if (screen.mount_mode != MountMode::Dynamic) {
-            continue;
-        }
-        auto root_uid = create_subtree(
-                            document_id,
-                            *tree,
-                            screen,
-                            BackendHandle(),
-                            0,
-                            screen.id,
-                            Path(),
-                            "/" + screen.id,
-                            std::nullopt
-                        );
+        auto root_uid = ensure_screen_built(document_id, *tree, screen_id);
         if (!root_uid) {
             return std::unexpected(root_uid.error());
         }
-        tree->screen_roots.emplace(screen.id, *root_uid);
+    }
+    if (tree->load_options.schedule_idle_warm && !tree->pending_warm_screens.empty()) {
+        request_idle_screen_warm(document_id);
     }
 
     for (const auto &snapshot : instance_snapshots) {

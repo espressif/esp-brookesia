@@ -68,44 +68,74 @@ bool is_screens_asset_path(const std::filesystem::path &path)
     return path.parent_path().filename() == "screens";
 }
 
-std::optional<std::string> extract_json_string_field(std::string_view text, std::string_view key)
+bool is_json_whitespace(char ch)
 {
-    const std::string needle = "\"" + std::string(key) + "\"";
-    const auto key_pos = text.find(needle);
-    if (key_pos == std::string_view::npos) {
+    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
+}
+
+std::optional<std::string> read_json_string(std::string_view text, size_t open_quote, size_t *end)
+{
+    if (open_quote >= text.size() || text[open_quote] != '"') {
         return std::nullopt;
     }
-    auto pos = key_pos + needle.size();
-    while (pos < text.size() && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' ||
-                                 text[pos] == '\r')) {
-        ++pos;
-    }
-    if (pos >= text.size() || text[pos] != ':') {
-        return std::nullopt;
-    }
-    ++pos;
-    while (pos < text.size() && (text[pos] == ' ' || text[pos] == '\t' || text[pos] == '\n' ||
-                                 text[pos] == '\r')) {
-        ++pos;
-    }
-    if (pos >= text.size() || text[pos] != '"') {
-        return std::nullopt;
-    }
-    ++pos;
     std::string value;
-    while (pos < text.size() && text[pos] != '"') {
+    for (size_t pos = open_quote + 1; pos < text.size(); ++pos) {
         if (text[pos] == '\\' && pos + 1 < text.size()) {
             value.push_back(text[pos + 1]);
-            pos += 2;
+            pos += 1;
             continue;
         }
+        if (text[pos] == '"') {
+            if (end != nullptr) {
+                *end = pos;
+            }
+            return value;
+        }
         value.push_back(text[pos]);
-        ++pos;
     }
-    if (pos >= text.size()) {
-        return std::nullopt;
+    return std::nullopt;
+}
+
+std::optional<std::string> extract_json_string_field(std::string_view text, std::string_view key)
+{
+    int depth = 0;
+    for (size_t pos = 0; pos < text.size(); ++pos) {
+        const char ch = text[pos];
+        if (ch == '"') {
+            size_t token_end = pos;
+            auto token = read_json_string(text, pos, &token_end);
+            if (!token) {
+                return std::nullopt;
+            }
+            pos = token_end;
+            if (depth != 1 || *token != key) {
+                continue;
+            }
+            size_t after = token_end + 1;
+            while (after < text.size() && is_json_whitespace(text[after])) {
+                ++after;
+            }
+            if (after >= text.size() || text[after] != ':') {
+                continue;
+            }
+            ++after;
+            while (after < text.size() && is_json_whitespace(text[after])) {
+                ++after;
+            }
+            if (after >= text.size() || text[after] != '"') {
+                return std::nullopt;
+            }
+            return read_json_string(text, after, nullptr);
+        }
+        if (ch == '{' || ch == '[') {
+            ++depth;
+            continue;
+        }
+        if ((ch == '}' || ch == ']') && depth > 0) {
+            --depth;
+        }
     }
-    return value;
+    return std::nullopt;
 }
 
 std::optional<RootAssetEntry> try_defer_view_screen_file(const PendingRootAssetEntry &pending)
@@ -120,22 +150,32 @@ std::optional<RootAssetEntry> try_defer_view_screen_file(const PendingRootAssetE
         return std::nullopt;
     }
 
-    auto prefix = read_text_file_prefix_local(pending.path, 2048);
+    constexpr size_t peek_bytes = 2048;
+    auto prefix = read_text_file_prefix_local(pending.path, peek_bytes);
     if (!prefix) {
         return std::nullopt;
     }
+    const auto contains_reference = [](std::string_view value) {
+        return value.find("${") != std::string_view::npos;
+    };
     const auto type = extract_json_string_field(*prefix, "type");
-    if (!type || *type != "viewScreen") {
+    if (!type || *type != "viewScreen" || contains_reference(*type)) {
         return std::nullopt;
     }
     auto id = extract_json_string_field(*prefix, "id");
-    if (!id || id->empty()) {
-        id = pending.path.stem().string();
+    if (!id || id->empty() || contains_reference(*id)) {
+        return std::nullopt;
     }
     MountMode mount_mode = MountMode::Eager;
     auto mount_text = extract_json_string_field(*prefix, "mountMode");
     if (!mount_text) {
         mount_text = extract_json_string_field(*prefix, "mount_mode");
+    }
+    if (mount_text && contains_reference(*mount_text)) {
+        return std::nullopt;
+    }
+    if (!mount_text && prefix->size() == peek_bytes) {
+        return std::nullopt;
     }
     if (mount_text) {
         MountMode parsed {};
@@ -234,6 +274,10 @@ std::expected<std::vector<std::string>, std::string> read_text_files(const std::
         path_strings.reserve(paths.size());
         for (const auto &path : paths) {
             path_strings.push_back(path.generic_string());
+        }
+        auto storage_binding = service::ServiceManager::get_instance().bind(StorageHelper::get_name().data());
+        if (!storage_binding.is_valid()) {
+            return std::unexpected("Failed to bind service");
         }
         auto batch = StorageHelper::fs_read_text_many(path_strings);
         if (!batch) {

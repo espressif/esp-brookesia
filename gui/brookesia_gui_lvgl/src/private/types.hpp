@@ -250,6 +250,7 @@ struct Record {
     bool style_initialized = false;
     bool hidden = false;
     bool is_top_level_screen = false;
+    bool local_transform_applied = false;
 };
 
 BROOKESIA_DESCRIBE_STRUCT(

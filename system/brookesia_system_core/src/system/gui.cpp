@@ -230,8 +230,9 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
         return {};
     }
 
-    auto heap_before_enqueue = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_enqueue {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_enqueue = heap_trace::capture();
         const auto app_id_string = std::to_string(app_id);
         const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
         heap_trace::log_detail(
@@ -265,7 +266,7 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
         pending_update_count = buffer.updates.size();
         pending_index_count = buffer.indexes.size();
     }
-    if constexpr (heap_trace::enabled) {
+    if constexpr (heap_trace::detail_enabled) {
         const auto app_id_string = std::to_string(app_id);
         const auto details = "app_id=" + app_id_string +
                              " pending_updates=" + std::to_string(pending_update_count) +
@@ -301,8 +302,9 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
 
 void System::Impl::flush_pending_gui_bindings(AppId app_id)
 {
-    auto heap_before_flush = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_flush {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_flush = heap_trace::capture();
         const auto app_id_string = std::to_string(app_id);
         heap_trace::log_detail(
             "system.gui.binding",
@@ -325,7 +327,7 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
     }
 
     if (!updates.empty()) {
-        if constexpr (heap_trace::enabled) {
+        if constexpr (heap_trace::detail_enabled) {
             const auto app_id_string = std::to_string(app_id);
             const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
             heap_trace::log_detail(
@@ -343,7 +345,7 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
         } else {
             gui_runtime_->set_binding_values(*record_result.value()->document_id, updates);
         }
-        if constexpr (heap_trace::enabled) {
+        if constexpr (heap_trace::detail_enabled) {
             const auto app_id_string = std::to_string(app_id);
             const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
             heap_trace::log_detail(
@@ -898,8 +900,9 @@ std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
     const std::vector<std::string> &actions
 )
 {
-    auto heap_before_task = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_task {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_task = heap_trace::capture();
         const auto app_id_string = std::to_string(app_id);
         const auto details = "app_id=" + app_id_string + " actions=" + std::to_string(actions.size());
         heap_trace::log_detail(
@@ -918,8 +921,9 @@ std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
     if (!gui_runtime_ || !record.document_id.has_value()) {
         return std::unexpected("App GUI document is not loaded");
     }
-    auto heap_before_connect = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_connect {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_connect = heap_trace::capture();
         const auto details = "app_id=" + std::to_string(app_id) +
                              " manifest_id=" + record.info.manifest.id +
                              " actions=" + std::to_string(actions.size()) +
@@ -967,7 +971,7 @@ std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
         record.action_connection_keys.insert(std::move(action));
     }
 
-    if constexpr (heap_trace::enabled) {
+    if constexpr (heap_trace::detail_enabled) {
         const auto details = "app_id=" + std::to_string(app_id) +
                              " manifest_id=" + record.info.manifest.id +
                              " actions=" + std::to_string(actions.size()) +

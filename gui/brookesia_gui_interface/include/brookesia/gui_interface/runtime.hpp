@@ -51,8 +51,11 @@ struct RuntimeAnimationStartResult {
 
 /** Controls Eager screen construction during document load (see json_ui_memory_optimization.md §8.2). */
 struct DocumentLoadOptions {
-    /** Build only entry Eager screens at load; remaining Eager screens warm on idle or first mount. */
-    bool defer_non_entry_eager_screens = true;
+    /**
+     * When false (default), load builds every Eager screen, matching mountMode "eager".
+     * System passes true so non-entry screens stay unbuilt until idle warm or first mount.
+     */
+    bool defer_non_entry_eager_screens = false;
     /** When true, also build entry Eager screens during load. False = parse/resources only (preload_dom). */
     bool build_entry_screens = true;
     /** When deferring, schedule one-by-one idle warm on the GUI task group (if configured). */

@@ -1428,7 +1428,10 @@ public:
         boost::unordered_flat_map<std::string, uint64_t> screen_roots;
         // Eager screens not built during load; warmed on idle or first mount.
         std::vector<std::string> pending_warm_screens;
+        DocumentLoadOptions load_options;
         bool idle_warm_scheduled = false;
+        lib_utils::TaskScheduler::TaskId idle_warm_task_id = 0;
+        std::shared_ptr<std::atomic<bool>> idle_warm_token;
         std::map<std::string, std::string> deferred_screen_files;
         std::map<std::string, std::string> view_template_json;
         std::map<std::string, std::string> interaction_template_json;
@@ -2101,6 +2104,9 @@ private:
     ;
 
     void schedule_idle_screen_warm(DocumentId document_id)
+    ;
+
+    void stop_idle_screen_warm(TreeRecord &tree)
     ;
 
     void warm_one_pending_screen(DocumentId document_id)

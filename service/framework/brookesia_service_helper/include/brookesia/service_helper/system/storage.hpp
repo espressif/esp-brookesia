@@ -757,7 +757,11 @@ public:
             return contents;
         }
 
-        auto service = ServiceManager::get_instance().get_service(get_name().data());
+        auto binding = ServiceManager::get_instance().bind(get_name().data());
+        if (!binding.is_valid()) {
+            return std::unexpected("Failed to bind service");
+        }
+        auto service = binding.get_service();
         if (!service) {
             return std::unexpected("Service not found");
         }

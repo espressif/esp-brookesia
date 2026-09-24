@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/runtime_impl.hpp"
+#include "brookesia/gui_interface/validator.hpp"
 
 namespace esp_brookesia::gui {
 
@@ -377,6 +378,7 @@ void Runtime::Impl::unload_partial_tree(TreeRecord &tree)
     tree.nodes.clear();
     tree.interaction_records.clear();
     tree.screen_roots.clear();
+    stop_idle_screen_warm(tree);
     tree.pending_warm_screens.clear();
     tree.idle_warm_scheduled = false;
 }
@@ -433,6 +435,34 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
         if (!parsed_screen) {
             return std::unexpected(parsed_screen.error());
         }
+        const auto &stub = screen_def_it->second;
+        if (parsed_screen->id != stub.id || parsed_screen->mount_mode != stub.mount_mode) {
+            return std::unexpected(
+                       "Deferred screen '" + screen_id + "' id or mountMode does not match its file"
+                   );
+        }
+        std::vector<const Node *> siblings;
+        siblings.reserve(tree.screens.size());
+        for (const auto &[other_id, other] : tree.screens) {
+            if (other_id == screen_id || tree.deferred_screen_files.contains(other_id)) {
+                continue;
+            }
+            siblings.push_back(&other);
+        }
+        std::vector<const Node *> templates;
+        templates.reserve(tree.templates.size());
+        for (const auto &[unused_id, node] : tree.templates) {
+            (void)unused_id;
+            templates.push_back(&node);
+        }
+        auto validation = validate_screen_node(*parsed_screen, siblings, templates);
+        if (!validation.success) {
+            return std::unexpected(validation.errors.empty() ? "Invalid GUI screen" : validation.errors.front());
+        }
+        auto resource_validation = validate_node_resource_references(tree, *parsed_screen, "/" + screen_id);
+        if (!resource_validation) {
+            return std::unexpected(resource_validation.error());
+        }
         screen_def_it->second = std::move(*parsed_screen);
         tree.deferred_screen_files.erase(deferred_it);
         if (tree.deferred_screen_files.empty()) {
@@ -453,6 +483,9 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
 #endif
     const auto build_stage_start = RuntimeProfileClock::now();
     reset_subtree_build_profile();
+    // The screen root is the first UID this call allocates. A later child failure
+    // still leaves that root, and its descendants, in the tree.
+    const NodeUid expected_root_uid = tree.next_uid;
     auto root_uid = create_subtree(
                         document_id,
                         tree,
@@ -465,6 +498,9 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
                         std::nullopt
                     );
     if (!root_uid) {
+        if (find_node_record(tree, expected_root_uid) != nullptr) {
+            destroy_subtree(tree, expected_root_uid);
+        }
         return std::unexpected(root_uid.error());
     }
     tree.screen_roots.emplace(screen_id, *root_uid);
@@ -532,26 +568,59 @@ void Runtime::Impl::schedule_idle_screen_warm(DocumentId document_id)
         return;
     }
 
+    if (tree->idle_warm_task_id != 0) {
+        stop_idle_screen_warm(*tree);
+        if (tree->pending_warm_screens.empty()) {
+            return;
+        }
+    }
+    auto token = std::make_shared<std::atomic<bool>>(true);
+    tree->idle_warm_token = token;
     tree->idle_warm_scheduled = true;
+    lib_utils::TaskScheduler::TaskId task_id = 0;
     const bool posted = task_config.task_scheduler->post_delayed(
-    [this, document_id]() {
+    [this, document_id, token]() {
+        if (!token->load()) {
+            return;
+        }
+        if (auto *warm_tree = resolve_tree(document_id)) {
+            warm_tree->idle_warm_task_id = 0;
+        }
         warm_one_pending_screen(document_id);
     },
     kIdleScreenWarmDelayMs,
-    nullptr,
+    &task_id,
     task_config.gui_group
                         );
     if (!posted) {
+        token->store(false);
         tree->idle_warm_scheduled = false;
+        tree->idle_warm_task_id = 0;
         BROOKESIA_LOGW("Failed to schedule idle screen warm for doc(%1%)", document_id.value());
         return;
     }
+    tree->idle_warm_task_id = task_id;
     GUI_INTERFACE_PROFILE_LOGI(
         "GUI runtime idle warm scheduled: doc(%1%), pending(%2%), delay_ms(%3%)",
         document_id.value(),
         tree->pending_warm_screens.size(),
         kIdleScreenWarmDelayMs
     );
+}
+
+void Runtime::Impl::stop_idle_screen_warm(TreeRecord &tree)
+{
+    if (tree.idle_warm_token) {
+        tree.idle_warm_token->store(false);
+    }
+    const auto task_id = tree.idle_warm_task_id;
+    tree.idle_warm_task_id = 0;
+    tree.idle_warm_scheduled = false;
+    if (task_id == 0 || task_config.task_scheduler == nullptr) {
+        return;
+    }
+    task_config.task_scheduler->cancel(task_id);
+    (void)task_config.task_scheduler->wait(task_id);
 }
 
 void Runtime::Impl::warm_one_pending_screen(DocumentId document_id)
@@ -704,8 +773,10 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
     const bool is_dynamic =
         screen_def_it != tree.screens.end() && screen_def_it->second.mount_mode == MountMode::Dynamic;
     if (is_dynamic) {
-        // Keep recently used Dynamic screens alive for fast remount (LRU capacity 2).
-        remember_dynamic_screen_keep_alive(tree.document_id, screen_id);
+        const auto root_uid = mounted_it->second;
+        destroy_subtree(tree, root_uid);
+        tree.screen_roots.erase(screen_id);
+        forget_dynamic_screen_keep_alive(tree.document_id, screen_id);
     }
     return result;
 }
