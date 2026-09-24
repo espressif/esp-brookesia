@@ -508,6 +508,8 @@ std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &reco
     }
     if (!record.document_id.has_value()) {
         gui::DocumentLoadOptions load_options;
+        // Non-entry Eager screens stay unbuilt until idle warm / first mount / path API access.
+        // find_view and create_view materialize the owning Eager screen on demand.
         load_options.defer_non_entry_eager_screens = true;
         load_options.build_entry_screens = enable_idle_warm;
         load_options.schedule_idle_warm = enable_idle_warm;

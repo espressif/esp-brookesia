@@ -33,10 +33,17 @@ extern "C" void app_main(void)
 
 namespace {
 
+#if defined(BOOST_TEST_ALTERNATIVE_INIT_API)
 bool init_unit_test()
 {
     return true;
 }
+#else
+boost::unit_test::test_suite *init_unit_test(int, char **)
+{
+    return nullptr;
+}
+#endif
 
 } // namespace
 

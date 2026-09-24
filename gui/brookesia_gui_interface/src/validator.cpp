@@ -311,12 +311,29 @@ static void build_view_path_index(
     }
 }
 
+static std::string make_action_owner(
+    std::string_view scope_id,
+    const std::vector<std::string> &current_view_path,
+    const std::string &node_id)
+{
+    // Roots use their own id (screen/template). Children keep relative_to's relative path, but
+    // prefix the owning screen/template so cross-screen duplicates are distinct owners.
+    if (current_view_path.empty()) {
+        return node_id;
+    }
+    if (scope_id.empty()) {
+        return join_view_path(current_view_path);
+    }
+    return std::string(scope_id) + "." + join_view_path(current_view_path);
+}
+
 static void validate_node(
     const Node &node,
     const boost::unordered_flat_set<std::string> &font_ids,
     const boost::unordered_flat_map<std::string, std::vector<std::string>> &view_paths,
     boost::unordered_flat_map<std::string, std::string> &action_owners,
     std::vector<std::string> current_view_path,
+    std::string_view action_scope_id,
     std::vector<std::string> &errors)
 {
     BROOKESIA_LOG_TRACE_GUARD();
@@ -544,7 +561,7 @@ static void validate_node(
             errors.push_back("Node '" + node.id + "' has invalid event type");
         }
         if (!event.action.empty()) {
-            const auto owner = current_view_path.empty() ? node.id : join_view_path(current_view_path);
+            const auto owner = make_action_owner(action_scope_id, current_view_path, node.id);
             auto [it, inserted] = action_owners.emplace(event.action, owner);
             if (!inserted && it->second != owner) {
                 errors.push_back(
@@ -606,7 +623,9 @@ static void validate_node(
         if (!child.id.empty()) {
             child_view_path.push_back(child.id);
         }
-        validate_node(child, font_ids, view_paths, action_owners, std::move(child_view_path), errors);
+        validate_node(
+            child, font_ids, view_paths, action_owners, std::move(child_view_path), action_scope_id, errors
+        );
     }
 }
 
@@ -755,7 +774,7 @@ ValidationResult validate_document(const Document &document)
         for (const auto &child : screen.children) {
             build_view_path_index(child, current_path, view_paths, result.errors);
         }
-        validate_node(screen, font_ids, view_paths, action_owners, {}, result.errors);
+        validate_node(screen, font_ids, view_paths, action_owners, {}, screen.id, result.errors);
     }
 
     for (const auto &node : document.templates) {
@@ -770,7 +789,7 @@ ValidationResult validate_document(const Document &document)
         for (const auto &child : node.children) {
             build_view_path_index(child, current_path, view_paths, result.errors);
         }
-        validate_node(node, font_ids, view_paths, action_owners, {}, result.errors);
+        validate_node(node, font_ids, view_paths, action_owners, {}, node.id, result.errors);
     }
 
     boost::unordered_flat_set<std::string> screen_flow_ids;
@@ -900,7 +919,7 @@ ValidationResult validate_screen_node(
         for (const auto &child : node->children) {
             build_view_path_index(child, current_path, view_paths, ignored);
         }
-        validate_node(*node, font_ids, view_paths, action_owners, {}, ignored);
+        validate_node(*node, font_ids, view_paths, action_owners, {}, node->id, ignored);
     };
     for (const Node *sibling : siblings) {
         seed_action_owners(sibling);
@@ -914,7 +933,7 @@ ValidationResult validate_screen_node(
     for (const auto &child : screen.children) {
         build_view_path_index(child, current_path, view_paths, result.errors);
     }
-    validate_node(screen, font_ids, view_paths, action_owners, {}, result.errors);
+    validate_node(screen, font_ids, view_paths, action_owners, {}, screen.id, result.errors);
     result.success = result.errors.empty();
     return result;
 }

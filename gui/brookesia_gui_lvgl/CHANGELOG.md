@@ -1,5 +1,12 @@
 # ChangeLog
 
+## Unreleased
+
+### Enhancements:
+
+- feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
+- feat(props): skip redundant common transform defaults when applying local LVGL transform props.
+
 ## v0.8.5 - 2026-09-17
 
 ### Bug Fixes:

@@ -5,8 +5,8 @@
  */
 #pragma once
 
-#include <algorithm>
 #include <array>
+#include <cstdint>
 #include <expected>
 #include <initializer_list>
 #include <map>
@@ -778,10 +778,13 @@ public:
 
         uint32_t batch_timeout_ms = timeout_ms;
         if (batch_timeout_ms == 0) {
-            batch_timeout_ms = std::max(
-                                   FS_READ_TEXT_DEFAULT_TIMEOUT_MS,
-                                   static_cast<uint32_t>(paths.size()) * 1000u
-                               );
+            // call_functions_sync runs FSReadText calls sequentially under one timeout.
+            const auto timeout_product =
+                static_cast<uint64_t>(paths.size()) *
+                static_cast<uint64_t>(FS_READ_TEXT_DEFAULT_TIMEOUT_MS);
+            batch_timeout_ms = (timeout_product > UINT32_MAX)
+                               ? UINT32_MAX
+                               : static_cast<uint32_t>(timeout_product);
         }
         auto batch = service->call_functions_sync(std::move(calls), batch_timeout_ms);
         if (!batch.success || batch.results.size() != paths.size()) {
@@ -796,18 +799,18 @@ public:
         }
 
         for (size_t i = 0; i < batch.results.size(); ++i) {
-            const auto &item = batch.results[i];
+            auto &item = batch.results[i];
             if (!item.success || !item.data.has_value()) {
                 return std::unexpected(
                            "Failed to read file: " + paths[i] +
                            (item.error_message.empty() ? "" : (", error: " + item.error_message))
                        );
             }
-            const auto *text = std::get_if<std::string>(&(*item.data));
+            auto *text = std::get_if<std::string>(&(*item.data));
             if (text == nullptr) {
                 return std::unexpected("Storage FSReadText result is not text: " + paths[i]);
             }
-            contents.push_back(*text);
+            contents.push_back(std::move(*text));
         }
         return contents;
     }

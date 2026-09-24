@@ -163,10 +163,7 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
     const Environment &environment,
     bool file_backed,
     std::vector<std::string> dependency_files,
-    DocumentLoadOptions options,
-    std::map<std::string, std::string> deferred_screen_files,
-    std::map<std::string, std::string> view_template_json,
-    std::map<std::string, std::string> interaction_template_json)
+    DocumentLoadOptions options)
 {
     if (backend == nullptr) {
         return std::unexpected("GUI backend is null");
@@ -293,9 +290,6 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
             runtime_profile_elapsed_ms(total_start, stage_end)
         );
 
-        tree.deferred_screen_files = std::move(deferred_screen_files);
-        tree.view_template_json = std::move(view_template_json);
-        tree.interaction_template_json = std::move(interaction_template_json);
         trees.emplace(document_id.value(), std::move(tree));
         auto *stored_tree = resolve_tree(document_id);
         if (stored_tree == nullptr) {
@@ -891,7 +885,6 @@ bool Runtime::Impl::unload(DocumentId document_id)
 
     pop_transient_screens_for_document(document_id);
     stop_screen_flows_for_document(document_id);
-    clear_dynamic_screen_keep_alive_for_document(document_id);
     const auto event_animation_prefix = std::to_string(document_id.value()) + '\x1f';
     std::vector<std::string> event_animation_keys;
     for (const auto &[key, unused_subscription_id] : event_animation_ids_) {
@@ -1019,8 +1012,7 @@ void Runtime::Impl::poll_live_preview(Runtime *runtime)
         }
 
         const auto parse_environment = make_parse_environment(tree.environment);
-        const bool allow_defer = tree.load_options.defer_non_entry_eager_screens || !tree.load_options.build_entry_screens;
-        auto parsed_document = parse_document_file_with_metadata(tree.file_path, parse_environment, allow_defer);
+        auto parsed_document = parse_document_file_with_metadata(tree.file_path, parse_environment);
         if (!parsed_document) {
             BROOKESIA_LOGW(
                 "Live preview parse failed: document_id=%1%, root='%2%', error=%3%",

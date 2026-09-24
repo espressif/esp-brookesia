@@ -6,7 +6,6 @@
 #pragma once
 
 #include <expected>
-#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -19,19 +18,7 @@ namespace esp_brookesia::gui {
 struct ParsedDocument {
     Document document;
     std::vector<std::string> dependency_files;
-    // Non-entry viewScreen files under screens/; materialized on first build/warm.
-    std::map<std::string, std::string> deferred_screen_files;
-    std::map<std::string, std::string> view_template_json;
-    std::map<std::string, std::string> interaction_template_json;
 };
-
-std::expected<Node, std::string> parse_view_screen_file(
-    std::string_view path,
-    const boost::json::value &constants,
-    const Environment &environment,
-    const std::map<std::string, std::string> &view_template_json,
-    const std::map<std::string, std::string> &interaction_template_json
-);
 
 std::expected<Document, std::string> parse_document(
     std::string_view json, std::string_view base_dir, const Environment &environment
@@ -57,8 +44,7 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
 );
 std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::string_view path,
-    const Environment &environment,
-    bool allow_defer
+    const Environment &environment
 );
 std::expected<Document, std::string> parse_document_file(std::string_view path, const Environment &environment);
 

@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/runtime_impl.hpp"
-#include "brookesia/gui_interface/validator.hpp"
 
 namespace esp_brookesia::gui {
 
@@ -282,7 +281,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
 #endif
 
     step_start = subtree_profile_now();
-    // Defer CommonTransform until after layout/placement so percent pivots use final size.
+    // Defer CommonTransform until after layout/placement/style so percent pivots use final size.
     // apply_props(All) would apply transform once here and again below.
     backend->apply_props(handle, node, PropsApplyMask::All & ~PropsApplyMask::CommonTransform);
     add_subtree_profile_time(subtree_build_profile_.apply_props_us, step_start);
@@ -305,15 +304,15 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     dbg_step_apply_placement_ += static_cast<int64_t>(dbg_s5) - static_cast<int64_t>(dbg_s6);
 #endif
     step_start = subtree_profile_now();
-    backend->apply_props(handle, node, PropsApplyMask::CommonTransform);
-    add_subtree_profile_time(subtree_build_profile_.apply_transform_us, step_start);
-    step_start = subtree_profile_now();
     backend->apply_style(handle, *stored_record->resolved_style);
     add_subtree_profile_time(subtree_build_profile_.apply_style_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     const size_t dbg_s7 = dbg_ext_free();
     dbg_step_apply_style_ += static_cast<int64_t>(dbg_s6) - static_cast<int64_t>(dbg_s7);
 #endif
+    step_start = subtree_profile_now();
+    backend->apply_props(handle, node, PropsApplyMask::CommonTransform);
+    add_subtree_profile_time(subtree_build_profile_.apply_transform_us, step_start);
     step_start = subtree_profile_now();
     backend->apply_debug_visual(handle, view_debug_enabled_);
     backend->apply_animations(handle, node.animations);
@@ -398,83 +397,12 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
 {
     auto screen_root_it = tree.screen_roots.find(screen_id);
     if (screen_root_it != tree.screen_roots.end()) {
-        const bool keep_alive_hit = std::any_of(
-                                        dynamic_screen_keep_alive_.begin(),
-                                        dynamic_screen_keep_alive_.end(),
-        [document_id, &screen_id](const DynamicScreenKeepAliveEntry & entry) {
-            return entry.document_id == document_id.value() && entry.screen_id == screen_id;
-        }
-                                    );
-        forget_dynamic_screen_keep_alive(document_id, screen_id);
-        if (keep_alive_hit) {
-            GUI_INTERFACE_PROFILE_LOGI(
-                "GUI runtime dynamic keep-alive hit: doc(%1%), screen(%2%), cache(%3%)",
-                document_id.value(),
-                screen_id,
-                dynamic_screen_keep_alive_.size()
-            );
-        }
         return screen_root_it->second;
     }
 
     auto screen_def_it = tree.screens.find(screen_id);
     if (screen_def_it == tree.screens.end()) {
         return std::unexpected("Screen not found: /" + screen_id);
-    }
-
-    auto deferred_it = tree.deferred_screen_files.find(screen_id);
-    if (deferred_it != tree.deferred_screen_files.end()) {
-        const auto materialize_start = RuntimeProfileClock::now();
-        auto parsed_screen = parse_view_screen_file(
-                                 deferred_it->second,
-                                 tree.constants,
-                                 tree.environment,
-                                 tree.view_template_json,
-                                 tree.interaction_template_json
-                             );
-        if (!parsed_screen) {
-            return std::unexpected(parsed_screen.error());
-        }
-        const auto &stub = screen_def_it->second;
-        if (parsed_screen->id != stub.id || parsed_screen->mount_mode != stub.mount_mode) {
-            return std::unexpected(
-                       "Deferred screen '" + screen_id + "' id or mountMode does not match its file"
-                   );
-        }
-        std::vector<const Node *> siblings;
-        siblings.reserve(tree.screens.size());
-        for (const auto &[other_id, other] : tree.screens) {
-            if (other_id == screen_id || tree.deferred_screen_files.contains(other_id)) {
-                continue;
-            }
-            siblings.push_back(&other);
-        }
-        std::vector<const Node *> templates;
-        templates.reserve(tree.templates.size());
-        for (const auto &[unused_id, node] : tree.templates) {
-            (void)unused_id;
-            templates.push_back(&node);
-        }
-        auto validation = validate_screen_node(*parsed_screen, siblings, templates);
-        if (!validation.success) {
-            return std::unexpected(validation.errors.empty() ? "Invalid GUI screen" : validation.errors.front());
-        }
-        auto resource_validation = validate_node_resource_references(tree, *parsed_screen, "/" + screen_id);
-        if (!resource_validation) {
-            return std::unexpected(resource_validation.error());
-        }
-        screen_def_it->second = std::move(*parsed_screen);
-        tree.deferred_screen_files.erase(deferred_it);
-        if (tree.deferred_screen_files.empty()) {
-            tree.view_template_json.clear();
-            tree.interaction_template_json.clear();
-        }
-        GUI_INTERFACE_PROFILE_LOGI(
-            "GUI runtime screen build profile: doc(%1%), screen(%2%), stage(materialize_deferred), elapsed_ms(%3%)",
-            document_id.value(),
-            screen_id,
-            runtime_profile_elapsed_ms(materialize_start, RuntimeProfileClock::now())
-        );
     }
 
     refresh_global_fonts_from_backend();
@@ -505,7 +433,6 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
     }
     tree.screen_roots.emplace(screen_id, *root_uid);
     remove_pending_warm_screen(tree, screen_id);
-    forget_dynamic_screen_keep_alive(document_id, screen_id);
     const auto build_stage_end = RuntimeProfileClock::now();
     const auto build_ms = runtime_profile_elapsed_ms(build_stage_start, build_stage_end);
     const char *profile_stage =
@@ -530,10 +457,47 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
     return *root_uid;
 }
 
+std::expected<void, std::string> Runtime::Impl::ensure_eager_screen_built_for_path(
+    DocumentId document_id,
+    TreeRecord &tree,
+    std::string_view normalized_absolute_path)
+{
+    const auto trimmed = trim_slashes(normalized_absolute_path);
+    if (trimmed.empty()) {
+        return {};
+    }
+    const auto slash = trimmed.find('/');
+    const std::string screen_id(
+        (slash == std::string_view::npos) ? trimmed : trimmed.substr(0, slash)
+    );
+    if (tree.screen_roots.contains(screen_id)) {
+        return {};
+    }
+    auto screen_it = tree.screens.find(screen_id);
+    if (screen_it == tree.screens.end()) {
+        return {};
+    }
+    // Dynamic screens stay mount-driven; path APIs must not recreate them after unmount.
+    if (screen_it->second.mount_mode == MountMode::Dynamic) {
+        return {};
+    }
+    auto built = ensure_screen_built(document_id, tree, screen_id);
+    if (!built) {
+        return std::unexpected(built.error());
+    }
+    return {};
+}
+
 void Runtime::Impl::request_idle_screen_warm(DocumentId document_id)
 {
     auto *tree = resolve_tree(document_id);
-    if (tree == nullptr || tree->pending_warm_screens.empty()) {
+    if (tree == nullptr) {
+        return;
+    }
+    // Explicit warm request opts the document back into idle warm after preload_dom
+    // (schedule_idle_warm=false), so later update()/refresh can re-schedule pending screens.
+    tree->load_options.schedule_idle_warm = true;
+    if (tree->pending_warm_screens.empty()) {
         return;
     }
     GUI_INTERFACE_PROFILE_LOGI(
@@ -663,98 +627,6 @@ void Runtime::Impl::warm_one_pending_screen(DocumentId document_id)
     }
 }
 
-void Runtime::Impl::remember_dynamic_screen_keep_alive(DocumentId document_id, const std::string &screen_id)
-{
-    forget_dynamic_screen_keep_alive(document_id, screen_id);
-    dynamic_screen_keep_alive_.push_back(DynamicScreenKeepAliveEntry{
-        .document_id = document_id.value(),
-        .screen_id = screen_id,
-        .sequence = next_dynamic_keep_alive_sequence_++,
-    });
-    GUI_INTERFACE_PROFILE_LOGI(
-        "GUI runtime dynamic keep-alive keep: doc(%1%), screen(%2%), cache(%3%)",
-        document_id.value(),
-        screen_id,
-        dynamic_screen_keep_alive_.size()
-    );
-    evict_dynamic_screen_keep_alive_overflow();
-}
-
-void Runtime::Impl::forget_dynamic_screen_keep_alive(DocumentId document_id, std::string_view screen_id)
-{
-    dynamic_screen_keep_alive_.erase(
-        std::remove_if(
-            dynamic_screen_keep_alive_.begin(),
-            dynamic_screen_keep_alive_.end(),
-    [document_id, screen_id](const DynamicScreenKeepAliveEntry & entry) {
-        return entry.document_id == document_id.value() && entry.screen_id == screen_id;
-    }
-        ),
-    dynamic_screen_keep_alive_.end()
-    );
-}
-
-void Runtime::Impl::evict_dynamic_screen_keep_alive_overflow()
-{
-    while (dynamic_screen_keep_alive_.size() > kDynamicScreenKeepAliveLimit) {
-        auto oldest_it = std::min_element(
-                             dynamic_screen_keep_alive_.begin(),
-                             dynamic_screen_keep_alive_.end(),
-        [](const DynamicScreenKeepAliveEntry & lhs, const DynamicScreenKeepAliveEntry & rhs) {
-            return lhs.sequence < rhs.sequence;
-        }
-                         );
-        if (oldest_it == dynamic_screen_keep_alive_.end()) {
-            break;
-        }
-        const DocumentId document_id(oldest_it->document_id);
-        const std::string screen_id = oldest_it->screen_id;
-        dynamic_screen_keep_alive_.erase(oldest_it);
-        auto *tree = resolve_tree(document_id);
-        if (tree == nullptr) {
-            continue;
-        }
-        auto screen_root_it = tree->screen_roots.find(screen_id);
-        if (screen_root_it == tree->screen_roots.end()) {
-            continue;
-        }
-        // Skip eviction while the screen is still mounted.
-        bool still_mounted = false;
-        const auto absolute_path = "/" + screen_id;
-        for (const auto &[unused_key, mounted_ref] : mounted_screens_) {
-            (void)unused_key;
-            if (mounted_ref.document_id == document_id && mounted_ref.absolute_path == absolute_path) {
-                still_mounted = true;
-                break;
-            }
-        }
-        if (still_mounted) {
-            continue;
-        }
-        destroy_subtree(*tree, screen_root_it->second);
-        tree->screen_roots.erase(screen_id);
-        GUI_INTERFACE_PROFILE_LOGI(
-            "GUI runtime dynamic keep-alive evict: doc(%1%), screen(%2%)",
-            document_id.value(),
-            screen_id
-        );
-    }
-}
-
-void Runtime::Impl::clear_dynamic_screen_keep_alive_for_document(DocumentId document_id)
-{
-    dynamic_screen_keep_alive_.erase(
-        std::remove_if(
-            dynamic_screen_keep_alive_.begin(),
-            dynamic_screen_keep_alive_.end(),
-    [document_id](const DynamicScreenKeepAliveEntry & entry) {
-        return entry.document_id == document_id.value();
-    }
-        ),
-    dynamic_screen_keep_alive_.end()
-    );
-}
-
 bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view absolute_path)
 {
     const auto screen_id = trim_slashes(absolute_path);
@@ -776,7 +648,6 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
         const auto root_uid = mounted_it->second;
         destroy_subtree(tree, root_uid);
         tree.screen_roots.erase(screen_id);
-        forget_dynamic_screen_keep_alive(tree.document_id, screen_id);
     }
     return result;
 }

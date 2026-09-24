@@ -1,5 +1,12 @@
 # ChangeLog
 
+## Unreleased
+
+### Enhancements:
+
+- feat(gui): load app documents with deferred non-entry Eager screen builds and idle warm.
+- feat(gui): keep `preload_dom` parse-only at install; StartApp relies on Runtime on-demand materialization for path APIs.
+
 ## v0.8.4 - 2026-08-31
 
 ### Breaking Changes:

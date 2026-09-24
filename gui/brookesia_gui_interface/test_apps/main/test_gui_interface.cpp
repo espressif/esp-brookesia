@@ -109,6 +109,55 @@ constexpr std::string_view IMAGE_BINDING_JSON = R"({
     ]
 })";
 
+constexpr std::string_view DEFERRED_EAGER_SCREENS_JSON = R"({
+    "version": "0.1.1",
+    "assets": [
+        {
+            "type": "viewScreen",
+            "id": "home",
+            "children": [
+                {
+                    "type": "label",
+                    "id": "title",
+                    "labelProps": { "text": "Home" }
+                },
+                {
+                    "type": "container",
+                    "id": "list"
+                }
+            ]
+        },
+        {
+            "type": "viewScreen",
+            "id": "settings",
+            "children": [
+                {
+                    "type": "label",
+                    "id": "title",
+                    "labelProps": { "text": "Settings" }
+                }
+            ]
+        },
+        {
+            "type": "viewTemplate",
+            "id": "badge",
+            "node": {
+                "type": "label",
+                "labelProps": { "text": "Badge" }
+            }
+        },
+        {
+            "type": "screenFlow",
+            "id": "main",
+            "screens": [ "home", "settings" ],
+            "initial": "home",
+            "transitions": [
+                { "from": [], "action": "open_settings", "to": "settings" }
+            ]
+        }
+    ]
+})";
+
 constexpr std::string_view DYNAMIC_SCREEN_JSON = R"({
     "version": "0.1.1",
     "assets": [
@@ -1470,6 +1519,52 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_EQUAL_STRING("Definition text", right.text().c_str());
 
     TEST_ASSERT_TRUE(runtime.unmount_screen(document_id.value(), "/dynamic_screen"));
+    TEST_ASSERT_TRUE(runtime.unload(document_id.value()));
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_find_view_materializes_deferred_eager_screens,
+    "GUI interface materializes deferred Eager screens on find_view and create_view",
+    "[gui][interface][runtime][memory]"
+)
+{
+    auto backend = std::make_unique<MockBackend>();
+    auto *backend_ptr = backend.get();
+    Runtime runtime(std::move(backend));
+
+    Environment environment;
+    DocumentLoadOptions options;
+    options.defer_non_entry_eager_screens = true;
+    options.build_entry_screens = false;
+    options.schedule_idle_warm = false;
+    auto document_id = runtime.load_json(
+                           "test/deferred_eager_screens.json",
+                           DEFERRED_EAGER_SCREENS_JSON,
+                           "test",
+                           environment,
+                           options
+                       );
+    TEST_ASSERT_TRUE(document_id.has_value());
+
+    // Preload-style load leaves every Eager screen unbuilt until path access.
+    TEST_ASSERT_FALSE(backend_ptr->handle_for_path("/home/title").is_valid());
+    TEST_ASSERT_FALSE(backend_ptr->handle_for_path("/settings/title").is_valid());
+
+    auto home_title = runtime.find_view(document_id.value(), "/home/title").as_label();
+    TEST_ASSERT_TRUE(home_title.valid());
+    TEST_ASSERT_EQUAL_STRING("Home", home_title.text().c_str());
+    TEST_ASSERT_TRUE(backend_ptr->handle_for_path("/home/title").is_valid());
+    TEST_ASSERT_FALSE(backend_ptr->handle_for_path("/settings/title").is_valid());
+
+    auto settings_title = runtime.find_view(document_id.value(), "/settings/title").as_label();
+    TEST_ASSERT_TRUE(settings_title.valid());
+    TEST_ASSERT_EQUAL_STRING("Settings", settings_title.text().c_str());
+    TEST_ASSERT_TRUE(backend_ptr->handle_for_path("/settings/title").is_valid());
+
+    auto badge = runtime.create_view(document_id.value(), "badge", "/home/list", "one");
+    TEST_ASSERT_TRUE(badge.has_value());
+    TEST_ASSERT_TRUE(backend_ptr->handle_for_path("/home/list/one").is_valid());
+
     TEST_ASSERT_TRUE(runtime.unload(document_id.value()));
 }
 

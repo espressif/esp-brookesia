@@ -33,6 +33,17 @@ View Runtime::Impl::find_view(Runtime *runtime, DocumentId document_id, std::str
         return View();
     }
 
+    // Path-based APIs (System gui_set_*/create_view) may run before idle warm finishes.
+    if (auto ensure = ensure_eager_screen_built_for_path(document_id, *tree, query); !ensure) {
+        BROOKESIA_LOGW(
+            "Failed to materialize Eager screen for find_view: document_id=%1%, path='%2%', error=%3%",
+            document_id,
+            query,
+            ensure.error()
+        );
+        return View();
+    }
+
     if (auto uid = resolve_any_uid(*tree, query)) {
         auto *record = find_node_record_const(*tree, *uid);
         if (record != nullptr) {
@@ -91,6 +102,10 @@ std::expected<View, std::string> Runtime::Impl::create_view(
     const auto instance_name = trim_slashes(instance_id);
     if (instance_name.empty() || instance_name.find('/') != std::string::npos) {
         return std::unexpected("Instance id must be a single path segment");
+    }
+
+    if (auto ensure = ensure_eager_screen_built_for_path(document_id, *tree, parent_query); !ensure) {
+        return std::unexpected(ensure.error());
     }
 
     auto parent_uid = resolve_any_uid(*tree, parent_query);
@@ -190,6 +205,12 @@ bool Runtime::Impl::destroy_view(DocumentId document_id, std::string_view absolu
     }
 
     const auto query = normalize_absolute_path(absolute_path);
+    // Materialize deferred Eager screens first so a failed delete cannot leave a static
+    // node that later reappears via find_view / create_view on-demand build.
+    if (auto ensure = ensure_eager_screen_built_for_path(document_id, *tree, query); !ensure) {
+        return false;
+    }
+
     auto uid = resolve_any_uid(*tree, query);
     if (!uid.has_value()) {
         return false;
@@ -254,12 +275,7 @@ std::expected<void, std::string> Runtime::Impl::update(
     }
     effective_environment = make_effective_environment(std::move(effective_environment));
     const auto parse_environment = make_parse_environment(effective_environment);
-    DocumentLoadOptions load_options;
-    if (const auto *tree = resolve_tree_const(document_id); tree != nullptr) {
-        load_options = tree->load_options;
-    }
-    const bool allow_defer = load_options.defer_non_entry_eager_screens || !load_options.build_entry_screens;
-    auto parsed_document = parse_document_file_with_metadata(file_path, parse_environment, allow_defer);
+    auto parsed_document = parse_document_file_with_metadata(file_path, parse_environment);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
@@ -362,9 +378,6 @@ std::expected<void, std::string> Runtime::Impl::update(
     tree->theme_sensitive = parsed_document.document.theme_sensitive;
     tree->constants = parsed_document.document.constants;
     tree->styles = parsed_document.document.styles;
-    tree->deferred_screen_files = parsed_document.deferred_screen_files;
-    tree->view_template_json = parsed_document.view_template_json;
-    tree->interaction_template_json = parsed_document.interaction_template_json;
     advance_style_revision();
     tree->environment = make_effective_environment(environment);
     tree->dependency_files = normalize_dependency_files(parsed_document.dependency_files);

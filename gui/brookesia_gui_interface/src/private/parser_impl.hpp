@@ -112,9 +112,6 @@ struct RootAssetEntry {
     boost::json::value value;
     std::filesystem::path base_dir;
     std::string source_label;
-    bool deferred_view_screen = false;
-    std::filesystem::path deferred_path;
-    MountMode peeked_mount_mode = MountMode::Eager;
 };
 
 struct PendingRootAssetEntry {
@@ -130,9 +127,6 @@ struct ResolvedAssetEntry {
     std::filesystem::path base_dir;
     std::string source_label;
     std::string type;
-    bool deferred_view_screen = false;
-    std::filesystem::path deferred_path;
-    MountMode peeked_mount_mode = MountMode::Eager;
 };
 
 using TemplateRawMap = boost::unordered_flat_map<std::string, boost::json::object>;

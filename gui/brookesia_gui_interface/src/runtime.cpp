@@ -66,8 +66,7 @@ std::expected<DocumentId, std::string> Runtime::load_file(
     const auto total_start = RuntimeProfileClock::now();
     auto stage_start = total_start;
     const auto parse_environment = impl_->make_parse_environment(environment);
-    const bool allow_defer = options.defer_non_entry_eager_screens || !options.build_entry_screens;
-    auto parsed_document = parse_document_file_with_metadata(path, parse_environment, allow_defer);
+    auto parsed_document = parse_document_file_with_metadata(path, parse_environment);
     auto stage_end = RuntimeProfileClock::now();
     if (!parsed_document) {
         GUI_INTERFACE_PROFILE_LOGI(
@@ -103,10 +102,7 @@ std::expected<DocumentId, std::string> Runtime::load_file(
                       environment,
                       true,
                       std::move(parsed_document->dependency_files),
-                      options,
-                      std::move(parsed_document->deferred_screen_files),
-                      std::move(parsed_document->view_template_json),
-                      std::move(parsed_document->interaction_template_json)
+                      options
                   );
     stage_end = RuntimeProfileClock::now();
     if (!result) {

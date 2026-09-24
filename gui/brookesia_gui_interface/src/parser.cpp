@@ -6,8 +6,6 @@
 #include "private/parser_impl.hpp"
 #include "private/gui_json_storage.hpp"
 
-#include <map>
-
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
 #include "brookesia/lib_utils/memory_profiler.hpp"
 #endif
@@ -42,8 +40,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment,
-    std::vector<std::string> dependency_files,
-    bool allow_defer)
+    std::vector<std::string> dependency_files)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -279,9 +276,6 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
             .base_dir = std::move(asset_entry.base_dir),
             .source_label = std::move(asset_entry.source_label),
             .type = *asset_type,
-            .deferred_view_screen = asset_entry.deferred_view_screen,
-            .deferred_path = std::move(asset_entry.deferred_path),
-            .peeked_mount_mode = asset_entry.peeked_mount_mode,
         });
         asset_entry.value = boost::json::value(nullptr);
     }
@@ -535,78 +529,20 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         view_screen_assets.push_back(&asset_entry);
     }
 
-    boost::unordered_flat_set<std::string> entry_screen_ids;
-    for (const auto &flow : document.screen_flows) {
-        if (!flow.initial.empty()) {
-            entry_screen_ids.insert(flow.initial);
-        }
-    }
-
     auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry) -> std::expected<Node, std::string> {
-        boost::json::value loaded_value;
-        const boost::json::object *screen_object = &asset_entry.value.as_object();
-        if (asset_entry.deferred_view_screen)
-        {
-            auto text = read_text_file(asset_entry.deferred_path);
-            if (!text) {
-                return std::unexpected(text.error());
-            }
-            auto parsed_json = parse_json_text(asset_entry.deferred_path, *text);
-            if (!parsed_json) {
-                return std::unexpected(parsed_json.error());
-            }
-            auto replace_result = substitute_references(*parsed_json, document.constants, environment);
-            if (!replace_result) {
-                return std::unexpected(replace_result.error());
-            }
-            loaded_value = std::move(*parsed_json);
-            if (!loaded_value.is_object()) {
-                return std::unexpected(
-                           "Asset file must contain a JSON object: " + asset_entry.deferred_path.generic_string()
-                       );
-            }
-            screen_object = &loaded_value.as_object();
-        }
         std::vector<std::string> template_stack;
         return parse_view_node(
-                   *screen_object,
-                   environment,
-                   raw_templates,
-                   raw_interactions,
-                   template_stack,
-                   NodeType::Screen
-               );
+            asset_entry.value.as_object(),
+            environment,
+            raw_templates,
+            raw_interactions,
+            template_stack,
+            NodeType::Screen
+        );
     };
 
-    size_t eager_parsed_screens = 0;
-    size_t deferred_screens = 0;
+    size_t parsed_screens = 0;
     for (auto *asset_entry : view_screen_assets) {
-        auto id = parse_string_field(asset_entry->value.as_object(), "id");
-        if (!id) {
-            return std::unexpected(
-                       "Failed to parse viewScreen asset '" + asset_entry->source_label + "': " + id.error()
-                   );
-        }
-        const bool is_entry = entry_screen_ids.empty() ? eager_parsed_screens == 0 : entry_screen_ids.contains(*id);
-        const bool defer_non_entry = allow_defer && !is_entry;
-        const bool keep_deferred = asset_entry->deferred_view_screen &&
-                                   (defer_non_entry || asset_entry->peeked_mount_mode == MountMode::Dynamic);
-        if (keep_deferred) {
-            auto node = parse_one_view_screen(*asset_entry);
-            if (!node) {
-                return std::unexpected(
-                           "Failed to parse viewScreen asset '" + asset_entry->source_label + "': " + node.error()
-                       );
-            }
-            parsed_document.deferred_screen_files.emplace(
-                node->id, asset_entry->deferred_path.generic_string()
-            );
-            document.screens.push_back(std::move(*node));
-            ++deferred_screens;
-            asset_entry->value = boost::json::value(nullptr);
-            continue;
-        }
-
         auto node = parse_one_view_screen(*asset_entry);
         if (!node) {
             return std::unexpected(
@@ -614,17 +550,8 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
                    );
         }
         document.screens.push_back(std::move(*node));
-        ++eager_parsed_screens;
+        ++parsed_screens;
         asset_entry->value = boost::json::value(nullptr);
-    }
-    if (!parsed_document.deferred_screen_files.empty()) {
-        for (const auto &[template_id, template_object] : raw_templates) {
-            parsed_document.view_template_json.emplace(template_id, boost::json::serialize(template_object));
-        }
-        for (const auto &[interaction_id, interaction_object] : raw_interactions) {
-            parsed_document.interaction_template_json.emplace(
-                interaction_id, boost::json::serialize(interaction_object));
-        }
     }
     resolved_assets.clear();
     resolved_assets.shrink_to_fit();
@@ -633,12 +560,11 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     stage_end = ParserProfileClock::now();
     GUI_INTERFACE_PROFILE_LOGI(
         "GUI parser profile: base_dir(%1%), stage(parse_flows_screens), flows(%2%), screens(%3%), "
-        "eager_parsed(%4%), deferred_files(%5%), elapsed_ms(%6%), total_ms(%7%)",
+        "parsed(%4%), elapsed_ms(%5%), total_ms(%6%)",
         base_dir,
         document.screen_flows.size(),
         document.screens.size(),
-        eager_parsed_screens,
-        deferred_screens,
+        parsed_screens,
         parser_profile_elapsed_ms(stage_start, stage_end),
         parser_profile_elapsed_ms(total_start, stage_end)
     );
@@ -655,17 +581,6 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     );
     if (!validation.success) {
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
-    }
-    for (auto &screen : document.screens) {
-        if (!parsed_document.deferred_screen_files.contains(screen.id)) {
-            continue;
-        }
-        const auto mount_mode = screen.mount_mode;
-        const auto screen_id = screen.id;
-        screen = Node {};
-        screen.type = NodeType::Screen;
-        screen.id = screen_id;
-        screen.mount_mode = mount_mode;
     }
 
     stage_end = ParserProfileClock::now();
@@ -688,7 +603,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
 std::expected<Document, std::string> parse_document(
     std::string_view json, std::string_view base_dir, const Environment &environment)
 {
-    auto parsed_document = parse_document_impl(json, base_dir, environment, {}, false);
+    auto parsed_document = parse_document_impl(json, base_dir, environment, {});
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
@@ -783,8 +698,7 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
 
 std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::string_view path,
-    const Environment &environment,
-    bool allow_defer)
+    const Environment &environment)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -799,7 +713,7 @@ std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::vector<std::string> dependency_files;
     dependency_files.push_back(file_path.string());
     return parse_document_impl(
-               *text, file_path.parent_path().string(), environment, std::move(dependency_files), allow_defer);
+               *text, file_path.parent_path().string(), environment, std::move(dependency_files));
 }
 
 std::expected<Document, std::string> parse_document_file(std::string_view path, const Environment &environment)
@@ -812,83 +726,11 @@ std::expected<Document, std::string> parse_document_file(std::string_view path, 
     std::vector<std::string> dependency_files;
     dependency_files.push_back(file_path.string());
     auto parsed_document = parse_document_impl(
-                               *text, file_path.parent_path().string(), environment, std::move(dependency_files), false);
+                               *text, file_path.parent_path().string(), environment, std::move(dependency_files));
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
     return parsed_document->document;
-}
-
-static std::expected<TemplateRawMap, std::string> restore_template_map(
-    const std::map<std::string, std::string> &json_by_id)
-{
-    TemplateRawMap restored;
-    for (const auto &[id, text] : json_by_id) {
-        boost::system::error_code error_code;
-        auto value = boost::json::parse(text, error_code, make_gui_json_storage());
-        if (error_code || !value.is_object()) {
-            return std::unexpected("Failed to restore viewTemplate '" + id + "'");
-        }
-        restored.emplace(id, value.as_object());
-    }
-    return restored;
-}
-
-static std::expected<InteractionTemplateRawMap, std::string> restore_interaction_map(
-    const std::map<std::string, std::string> &json_by_id)
-{
-    InteractionTemplateRawMap restored;
-    for (const auto &[id, text] : json_by_id) {
-        boost::system::error_code error_code;
-        auto value = boost::json::parse(text, error_code, make_gui_json_storage());
-        if (error_code || !value.is_object()) {
-            return std::unexpected("Failed to restore interactionTemplate '" + id + "'");
-        }
-        restored.emplace(id, value.as_object());
-    }
-    return restored;
-}
-
-std::expected<Node, std::string> parse_view_screen_file(
-    std::string_view path,
-    const boost::json::value &constants,
-    const Environment &environment,
-    const std::map<std::string, std::string> &view_template_json,
-    const std::map<std::string, std::string> &interaction_template_json)
-{
-    const std::filesystem::path file_path = std::filesystem::path(path).lexically_normal();
-    auto text = parser_detail::read_text_file(file_path);
-    if (!text) {
-        return std::unexpected(text.error());
-    }
-    auto parsed_json = parser_detail::parse_json_text(file_path, *text);
-    if (!parsed_json) {
-        return std::unexpected(parsed_json.error());
-    }
-    auto replace_result = parser_detail::substitute_references(*parsed_json, constants, environment);
-    if (!replace_result) {
-        return std::unexpected(replace_result.error());
-    }
-    if (!parsed_json->is_object()) {
-        return std::unexpected("ViewScreen file must contain a JSON object: " + file_path.generic_string());
-    }
-    auto templates = restore_template_map(view_template_json);
-    if (!templates) {
-        return std::unexpected(templates.error());
-    }
-    auto interactions = restore_interaction_map(interaction_template_json);
-    if (!interactions) {
-        return std::unexpected(interactions.error());
-    }
-    std::vector<std::string> template_stack;
-    return parser_detail::parse_view_node(
-               parsed_json->as_object(),
-               environment,
-               *templates,
-               *interactions,
-               template_stack,
-               NodeType::Screen
-           );
 }
 
 } // namespace esp_brookesia::gui

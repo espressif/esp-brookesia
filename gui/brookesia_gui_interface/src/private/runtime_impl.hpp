@@ -1432,9 +1432,6 @@ public:
         bool idle_warm_scheduled = false;
         lib_utils::TaskScheduler::TaskId idle_warm_task_id = 0;
         std::shared_ptr<std::atomic<bool>> idle_warm_token;
-        std::map<std::string, std::string> deferred_screen_files;
-        std::map<std::string, std::string> view_template_json;
-        std::map<std::string, std::string> interaction_template_json;
         // MEMORY/FRAGMENTATION-CRITICAL: must be a NODE-based map, not unordered_flat_map.
         // NodeRecord is large (full Node definition + signals + vectors). A flat_map stores values
         // inline in one contiguous table, so every rehash (on each doubling threshold) must reallocate
@@ -1515,10 +1512,7 @@ public:
         const Environment &environment,
         bool file_backed = false,
         std::vector<std::string> dependency_files = {},
-        DocumentLoadOptions options = {},
-        std::map<std::string, std::string> deferred_screen_files = {},
-        std::map<std::string, std::string> view_template_json = {},
-        std::map<std::string, std::string> interaction_template_json = {})
+        DocumentLoadOptions options = {})
     ;
 
     std::vector<RuntimeImageResource> collect_image_resources(const TreeRecord &tree) const
@@ -2009,17 +2003,8 @@ public:
     boost::unordered_flat_map<DocumentId::Value, TreeRecord> trees;
     std::unordered_map<std::string, MountedScreenRef> mounted_screens_;
     std::unordered_map<TransientMountId::Value, TransientScreenRef> transient_screens_;
-    // Recently unmounted Dynamic screens kept alive for fast remount (capacity 2).
-    struct DynamicScreenKeepAliveEntry {
-        DocumentId::Value document_id = 0;
-        std::string screen_id;
-        uint64_t sequence = 0;
-    };
-    static constexpr size_t kDynamicScreenKeepAliveLimit = 2;
     /** Space out warm builds so GUI refresh is not starved (was 16ms). */
     static constexpr int kIdleScreenWarmDelayMs = 300;
-    std::vector<DynamicScreenKeepAliveEntry> dynamic_screen_keep_alive_;
-    uint64_t next_dynamic_keep_alive_sequence_ = 1;
     DocumentId::Value next_document_id_ = 1;
     TransientMountId::Value next_transient_mount_id_ = 1;
     uint64_t next_mounted_screen_sequence_ = 1;
@@ -2097,6 +2082,17 @@ private:
         const std::string &screen_id)
     ;
 
+    /**
+     * Materialize the Eager screen that owns @p normalized_absolute_path when it is still
+     * pending (install/preload / build-lazy). Dynamic screens are left mount-driven so
+     * find_view after unmount stays empty.
+     */
+    std::expected<void, std::string> ensure_eager_screen_built_for_path(
+        DocumentId document_id,
+        TreeRecord &tree,
+        std::string_view normalized_absolute_path)
+    ;
+
     void remove_pending_warm_screen(TreeRecord &tree, std::string_view screen_id)
     ;
 
@@ -2110,18 +2106,6 @@ private:
     ;
 
     void warm_one_pending_screen(DocumentId document_id)
-    ;
-
-    void remember_dynamic_screen_keep_alive(DocumentId document_id, const std::string &screen_id)
-    ;
-
-    void forget_dynamic_screen_keep_alive(DocumentId document_id, std::string_view screen_id)
-    ;
-
-    void evict_dynamic_screen_keep_alive_overflow()
-    ;
-
-    void clear_dynamic_screen_keep_alive_for_document(DocumentId document_id)
     ;
 
     void unload_partial_tree(TreeRecord &tree)

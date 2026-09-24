@@ -5,6 +5,8 @@
  */
 #pragma once
 
+#include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -337,31 +339,6 @@ struct Style {
         for (const auto &prop : source.props_) {
             set_prop(prop.id, prop.value);
         }
-    }
-
-    template <typename T>
-    std::optional<T> get(PropId id) const
-    {
-        for (const auto &prop : props_) {
-            if (prop.id != id) {
-                continue;
-            }
-            if (const auto *value = std::get_if<T>(&prop.value)) {
-                return *value;
-            }
-            return std::nullopt;
-        }
-        return std::nullopt;
-    }
-
-    template <typename T>
-    void set(PropId id, std::optional<T> value)
-    {
-        if (!value.has_value()) {
-            erase(id);
-            return;
-        }
-        set_prop(id, PropValue(std::move(*value)));
     }
 
     std::optional<std::string> bg_color() const
@@ -720,6 +697,34 @@ struct Style {
 
 private:
     std::vector<Prop> props_;
+
+    template <typename T>
+    std::optional<T> get(PropId id) const
+    {
+        for (const auto &prop : props_) {
+            if (prop.id != id) {
+                continue;
+            }
+            // PropId found: type must match the Style accessor that stores it.
+            const auto *value = std::get_if<T>(&prop.value);
+            assert(value != nullptr);
+            if (value == nullptr) {
+                return std::nullopt;
+            }
+            return *value;
+        }
+        return std::nullopt;
+    }
+
+    template <typename T>
+    void set(PropId id, std::optional<T> value)
+    {
+        if (!value.has_value()) {
+            erase(id);
+            return;
+        }
+        set_prop(id, PropValue(std::move(*value)));
+    }
 
     void erase(PropId id)
     {
@@ -1113,7 +1118,11 @@ inline boost::json::value describe_to_json<esp_brookesia::gui::Style>(const esp_
     };
 
     boost::json::object object;
-    for (const auto &prop : style.props()) {
+    auto props = style.props();
+    std::sort(props.begin(), props.end(), [](const auto & lhs, const auto & rhs) {
+        return lhs.id < rhs.id;
+    });
+    for (const auto &prop : props) {
         const auto value = std::visit([](const auto & item) {
             return describe_to_json(item);
         }, prop.value);

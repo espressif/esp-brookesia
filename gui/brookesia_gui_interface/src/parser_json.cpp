@@ -16,6 +16,11 @@ namespace esp_brookesia::gui::parser_detail {
 
 namespace {
 
+// Bound how many root-asset files one Storage batch holds. Do not also cap by
+// byte size: that needs file_size() on the caller, and on ESP without PSRAM XIP
+// flash metadata I/O from a PSRAM stack asserts esp_task_stack_is_sane_cache_disabled.
+constexpr size_t kRootAssetReadBatchMaxFiles = 8;
+
 bool can_read_text_on_caller()
 {
 #if !defined(ESP_PLATFORM)
@@ -45,169 +50,6 @@ std::expected<std::string, std::string> read_text_file_local(const std::filesyst
         return std::unexpected("Failed to read file: " + path.generic_string());
     }
     return text;
-}
-
-std::expected<std::string, std::string> read_text_file_prefix_local(
-    const std::filesystem::path &path, size_t max_bytes)
-{
-    std::ifstream input(path, std::ios::binary);
-    if (!input) {
-        return std::unexpected("Failed to open file: " + path.generic_string());
-    }
-    std::string text(max_bytes, '\0');
-    input.read(text.data(), static_cast<std::streamsize>(max_bytes));
-    if (input.bad()) {
-        return std::unexpected("Failed to read file: " + path.generic_string());
-    }
-    text.resize(static_cast<size_t>(input.gcount()));
-    return text;
-}
-
-bool is_screens_asset_path(const std::filesystem::path &path)
-{
-    return path.parent_path().filename() == "screens";
-}
-
-bool is_json_whitespace(char ch)
-{
-    return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
-}
-
-std::optional<std::string> read_json_string(std::string_view text, size_t open_quote, size_t *end)
-{
-    if (open_quote >= text.size() || text[open_quote] != '"') {
-        return std::nullopt;
-    }
-    std::string value;
-    for (size_t pos = open_quote + 1; pos < text.size(); ++pos) {
-        if (text[pos] == '\\' && pos + 1 < text.size()) {
-            value.push_back(text[pos + 1]);
-            pos += 1;
-            continue;
-        }
-        if (text[pos] == '"') {
-            if (end != nullptr) {
-                *end = pos;
-            }
-            return value;
-        }
-        value.push_back(text[pos]);
-    }
-    return std::nullopt;
-}
-
-std::optional<std::string> extract_json_string_field(std::string_view text, std::string_view key)
-{
-    int depth = 0;
-    for (size_t pos = 0; pos < text.size(); ++pos) {
-        const char ch = text[pos];
-        if (ch == '"') {
-            size_t token_end = pos;
-            auto token = read_json_string(text, pos, &token_end);
-            if (!token) {
-                return std::nullopt;
-            }
-            pos = token_end;
-            if (depth != 1 || *token != key) {
-                continue;
-            }
-            size_t after = token_end + 1;
-            while (after < text.size() && is_json_whitespace(text[after])) {
-                ++after;
-            }
-            if (after >= text.size() || text[after] != ':') {
-                continue;
-            }
-            ++after;
-            while (after < text.size() && is_json_whitespace(text[after])) {
-                ++after;
-            }
-            if (after >= text.size() || text[after] != '"') {
-                return std::nullopt;
-            }
-            return read_json_string(text, after, nullptr);
-        }
-        if (ch == '{' || ch == '[') {
-            ++depth;
-            continue;
-        }
-        if ((ch == '}' || ch == ']') && depth > 0) {
-            --depth;
-        }
-    }
-    return std::nullopt;
-}
-
-std::optional<RootAssetEntry> try_defer_view_screen_file(const PendingRootAssetEntry &pending)
-{
-    if (!pending.file_backed || !is_screens_asset_path(pending.path)) {
-        return std::nullopt;
-    }
-#if !defined(ESP_PLATFORM)
-    return std::nullopt;
-#else
-    if (!can_read_text_on_caller()) {
-        return std::nullopt;
-    }
-
-    constexpr size_t peek_bytes = 2048;
-    auto prefix = read_text_file_prefix_local(pending.path, peek_bytes);
-    if (!prefix) {
-        return std::nullopt;
-    }
-    const auto contains_reference = [](std::string_view value) {
-        return value.find("${") != std::string_view::npos;
-    };
-    const auto type = extract_json_string_field(*prefix, "type");
-    if (!type || *type != "viewScreen" || contains_reference(*type)) {
-        return std::nullopt;
-    }
-    auto id = extract_json_string_field(*prefix, "id");
-    if (!id || id->empty() || contains_reference(*id)) {
-        return std::nullopt;
-    }
-    MountMode mount_mode = MountMode::Eager;
-    auto mount_text = extract_json_string_field(*prefix, "mountMode");
-    if (!mount_text) {
-        mount_text = extract_json_string_field(*prefix, "mount_mode");
-    }
-    if (mount_text && contains_reference(*mount_text)) {
-        return std::nullopt;
-    }
-    if (!mount_text && prefix->size() == peek_bytes) {
-        return std::nullopt;
-    }
-    if (mount_text) {
-        MountMode parsed {};
-        if (BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE(*mount_text, parsed)) {
-            mount_mode = parsed;
-        }
-    }
-
-    boost::json::object stub(make_gui_json_storage());
-    stub.emplace("type", "viewScreen");
-    stub.emplace("id", *id);
-    if (mount_mode == MountMode::Dynamic) {
-        stub.emplace("mountMode", "dynamic");
-    }
-
-    GUI_INTERFACE_PROFILE_LOGI(
-        "GUI parser file profile: file(%1%), stage(peek_view_screen), id(%2%), mount(%3%), prefix_bytes(%4%)",
-        pending.path.generic_string(),
-        *id,
-        mount_mode == MountMode::Dynamic ? "dynamic" : "eager",
-        prefix->size()
-    );
-
-    return RootAssetEntry{
-        .value = stub,
-        .base_dir = pending.base_dir,
-        .source_label = pending.source_label,
-        .deferred_view_screen = true,
-        .deferred_path = pending.path,
-        .peeked_mount_mode = mount_mode,
-    };
-#endif
 }
 
 } // namespace
@@ -249,42 +91,48 @@ std::expected<std::string, std::string> read_text_file(const std::filesystem::pa
 
 std::expected<std::vector<std::string>, std::string> read_text_files(const std::vector<std::filesystem::path> &paths)
 {
-    std::vector<std::string> contents;
-    contents.reserve(paths.size());
+    std::vector<std::string> contents(paths.size());
     if (paths.empty()) {
         return contents;
     }
 
     const auto start = ParserProfileClock::now();
     const char *via = "storage_batch";
+    std::vector<size_t> missing;
+    missing.reserve(paths.size());
     if (can_read_text_on_caller()) {
         via = "local";
-        for (const auto &path : paths) {
-            auto one = read_text_file_local(path);
+        for (size_t i = 0; i < paths.size(); ++i) {
+            auto one = read_text_file_local(paths[i]);
             if (!one) {
-                via = "storage_batch";
-                contents.clear();
-                break;
+                missing.push_back(i);
+                continue;
             }
-            contents.push_back(std::move(*one));
+            contents[i] = std::move(*one);
+        }
+    } else {
+        for (size_t i = 0; i < paths.size(); ++i) {
+            missing.push_back(i);
         }
     }
-    if (contents.size() != paths.size()) {
+    if (!missing.empty()) {
         std::vector<std::string> path_strings;
-        path_strings.reserve(paths.size());
-        for (const auto &path : paths) {
-            path_strings.push_back(path.generic_string());
+        path_strings.reserve(missing.size());
+        for (const size_t index : missing) {
+            path_strings.push_back(paths[index].generic_string());
         }
-        auto storage_binding = service::ServiceManager::get_instance().bind(StorageHelper::get_name().data());
-        if (!storage_binding.is_valid()) {
-            return std::unexpected("Failed to bind service");
-        }
+        // fs_read_text_many binds Storage itself; only retry paths that failed locally.
         auto batch = StorageHelper::fs_read_text_many(path_strings);
         if (!batch) {
             return std::unexpected(batch.error());
         }
-        contents = std::move(*batch);
-        via = "storage_batch";
+        if (batch->size() != missing.size()) {
+            return std::unexpected("GUI parser read_text_batch size mismatch");
+        }
+        for (size_t i = 0; i < missing.size(); ++i) {
+            contents[missing[i]] = std::move((*batch)[i]);
+        }
+        via = (missing.size() == paths.size()) ? "storage_batch" : "local+storage";
     }
     const auto end = ParserProfileClock::now();
 
@@ -500,71 +348,90 @@ std::expected<void, std::string> append_root_asset_entries(
         ++inline_index;
     }
 
-    std::vector<std::optional<RootAssetEntry>> deferred_slots(pending_entries.size());
-    std::vector<std::filesystem::path> file_paths;
-    file_paths.reserve(pending_entries.size());
-    for (size_t i = 0; i < pending_entries.size(); ++i) {
-        const auto &pending_entry = pending_entries[i];
-        if (!pending_entry.file_backed) {
-            continue;
-        }
-        if (auto deferred = try_defer_view_screen_file(pending_entry); deferred) {
-            deferred_slots[i] = std::move(*deferred);
-            continue;
-        }
-        file_paths.push_back(pending_entry.path);
-    }
-
-    std::vector<std::string> file_texts;
-    if (!file_paths.empty()) {
-        auto batch = read_text_files(file_paths);
-        if (!batch) {
-            return std::unexpected(batch.error());
-        }
-        file_texts = std::move(*batch);
-        if (file_texts.size() != file_paths.size()) {
-            return std::unexpected("GUI parser read_text_batch size mismatch");
-        }
-    }
-
-    size_t file_index = 0;
-    for (size_t i = 0; i < pending_entries.size(); ++i) {
-        auto &pending_entry = pending_entries[i];
-        if (deferred_slots[i].has_value()) {
-            ordered_entries.push_back(std::move(*deferred_slots[i]));
-            continue;
-        }
+    // On Storage-worker paths (no caller-local FS), prefetch file assets in
+    // file-count batches. Size/stat stays off the caller. On PC / PSRAM XIP,
+    // keep one-file-at-a-time. Inline entries keep their original relative order.
+    const bool use_storage_batches = !can_read_text_on_caller();
+    size_t pending_index = 0;
+    while (pending_index < pending_entries.size()) {
+        auto &pending_entry = pending_entries[pending_index];
         if (!pending_entry.file_backed) {
             ordered_entries.push_back(RootAssetEntry{
                 .value = std::move(pending_entry.value),
                 .base_dir = std::move(pending_entry.base_dir),
                 .source_label = std::move(pending_entry.source_label),
-                .deferred_view_screen = false,
-                .deferred_path = {},
-                .peeked_mount_mode = MountMode::Eager,
             });
+            ++pending_index;
             continue;
         }
 
-        auto asset_value = parse_json_text(pending_entry.path, file_texts[file_index]);
-        ++file_index;
-        if (!asset_value) {
-            return std::unexpected(asset_value.error());
-        }
-        if (!asset_value->is_object()) {
-            return std::unexpected(
-                       "Asset file must contain a JSON object: " + pending_entry.path.generic_string()
-                   );
+        if (!use_storage_batches) {
+            auto one = read_text_file(pending_entry.path);
+            if (!one) {
+                return std::unexpected(one.error());
+            }
+            std::string text = std::move(*one);
+            auto asset_value = parse_json_text(pending_entry.path, text);
+            text.clear();
+            text.shrink_to_fit();
+            if (!asset_value) {
+                return std::unexpected(asset_value.error());
+            }
+            if (!asset_value->is_object()) {
+                return std::unexpected(
+                           "Asset file must contain a JSON object: " + pending_entry.path.generic_string()
+                       );
+            }
+            ordered_entries.push_back(RootAssetEntry{
+                .value = std::move(*asset_value),
+                .base_dir = std::move(pending_entry.base_dir),
+                .source_label = std::move(pending_entry.source_label),
+            });
+            ++pending_index;
+            continue;
         }
 
-        ordered_entries.push_back(RootAssetEntry{
-            .value = std::move(*asset_value),
-            .base_dir = std::move(pending_entry.base_dir),
-            .source_label = std::move(pending_entry.source_label),
-            .deferred_view_screen = false,
-            .deferred_path = {},
-            .peeked_mount_mode = MountMode::Eager,
-        });
+        std::vector<std::filesystem::path> batch_paths;
+        std::vector<size_t> batch_indices;
+        while (pending_index < pending_entries.size() && pending_entries[pending_index].file_backed) {
+            if (batch_paths.size() >= kRootAssetReadBatchMaxFiles) {
+                break;
+            }
+            batch_paths.push_back(pending_entries[pending_index].path);
+            batch_indices.push_back(pending_index);
+            ++pending_index;
+        }
+
+        // read_text_files uses StorageHelper::fs_read_text_many on this path.
+        auto batch = read_text_files(batch_paths);
+        if (!batch) {
+            return std::unexpected(batch.error());
+        }
+        if (batch->size() != batch_paths.size()) {
+            return std::unexpected("GUI parser read_text_batch size mismatch");
+        }
+
+        for (size_t batch_offset = 0; batch_offset < batch_indices.size(); ++batch_offset) {
+            auto &file_entry = pending_entries[batch_indices[batch_offset]];
+            std::string text = std::move((*batch)[batch_offset]);
+            auto asset_value = parse_json_text(file_entry.path, text);
+            text.clear();
+            text.shrink_to_fit();
+            if (!asset_value) {
+                return std::unexpected(asset_value.error());
+            }
+            if (!asset_value->is_object()) {
+                return std::unexpected(
+                           "Asset file must contain a JSON object: " + file_entry.path.generic_string()
+                       );
+            }
+            ordered_entries.push_back(RootAssetEntry{
+                .value = std::move(*asset_value),
+                .base_dir = std::move(file_entry.base_dir),
+                .source_label = std::move(file_entry.source_label),
+            });
+        }
+        batch->clear();
     }
 
     return {};
