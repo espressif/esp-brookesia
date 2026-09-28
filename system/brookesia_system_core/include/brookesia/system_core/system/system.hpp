@@ -91,6 +91,12 @@ public:
 
         /** GUI backend implementation used by the system runtime. */
         std::unique_ptr<gui::IBackend> gui_backend;
+        /**
+         * Panel and touch for a GSP session. Leave both null for LVGL.
+         * They stay in use until the session has stopped.
+         */
+        void *gsp_panel = nullptr;
+        void *gsp_touch = nullptr;
         /** GUI and platform environment exposed to apps. */
         gui::Environment environment;
         /** Storage roots and install target policy. */

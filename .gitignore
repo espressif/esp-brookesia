@@ -57,6 +57,7 @@ flake8_output.txt
 # esp-idf default build directory name
 build
 build_*/
+build-*/
 **/bin/
 _build
 build_esp*/
@@ -64,6 +65,7 @@ build_linux*/
 size_info.txt
 sdkconfig
 sdkconfig.old
+sdkconfig.lvgl
 
 # lock files for examples and components
 dependencies.lock

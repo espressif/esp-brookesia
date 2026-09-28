@@ -184,3 +184,7 @@ examples/system/perf_eval:
 examples/gui/gsp_basic:
   enable:
     - if: IDF_TARGET == "esp32p4"
+# system/gsp_app — ESP32-P4 Function EV, revision v3.1
+examples/system/gsp_app:
+  enable:
+    - if: IDF_TARGET == "esp32p4"

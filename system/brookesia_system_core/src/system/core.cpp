@@ -30,6 +30,13 @@ System::System()
 System::~System()
 {
     deinit();
+    if ((impl_ != nullptr) && impl_->any_gsp_session_running()) {
+        BROOKESIA_LOGE(
+            "GSP session is still running; display and touch devices stay owned"
+        );
+        impl_->abandon_system_references();
+        impl_.release();
+    }
 }
 
 SystemInfo System::on_get_system_info() const

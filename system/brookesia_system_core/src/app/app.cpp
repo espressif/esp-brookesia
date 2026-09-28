@@ -1388,6 +1388,16 @@ AppGuiDescriptor IApp::get_gui_descriptor() const
     return {};
 }
 
+std::span<const std::byte> IApp::gui_bundle() const
+{
+    return {};
+}
+
+const void *IApp::gui_runtime_config() const
+{
+    return nullptr;
+}
+
 std::expected<void, std::string> IApp::on_install(AppContext &)
 {
     return {};

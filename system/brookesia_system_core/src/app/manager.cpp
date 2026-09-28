@@ -115,6 +115,15 @@ std::expected<gui::MountTarget, std::string> map_manifest_target(AppKind kind, c
 
 std::expected<void, std::string> validate_gui_descriptor(AppKind kind, const AppGuiDescriptor &descriptor)
 {
+    if (descriptor.root_kind == GuiRootKind::GspBundle) {
+        if (!descriptor.screen_flows.empty()) {
+            return std::unexpected("GSP bundle GUI does not use JSON screen flows");
+        }
+        if (!descriptor.root.empty()) {
+            return std::unexpected("GSP bundle GUI does not use a JSON root path");
+        }
+        return {};
+    }
     if ((descriptor.root_kind == GuiRootKind::None) && !descriptor.screen_flows.empty()) {
         return std::unexpected("App GUI descriptor without a root cannot declare screen flows");
     }
@@ -357,16 +366,19 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+            return impl_->rollback_installed_app_gui(it->second);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       gui_prepare_result.error() +
+                       "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(gui_prepare_result.error());
     }
     auto hook_result = on_app_installed(it->second.info);
@@ -374,16 +386,18 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+            return impl_->rollback_installed_app_gui(it->second);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       hook_result.error() + "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(hook_result.error());
     }
     BROOKESIA_LOGI("Native app installed: id(%1%), manifest(%2%)", app_id, it->second.info.manifest.id);
@@ -450,16 +464,19 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+            return impl_->rollback_installed_app_gui(it->second);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       gui_prepare_result.error() +
+                       "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(gui_prepare_result.error());
     }
     auto hook_result = on_app_installed(it->second.info);
@@ -467,16 +484,18 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &it]() -> std::expected<void, std::string> {
-            impl_->rollback_installed_app_gui(it->second);
-            return {};
+            return impl_->rollback_installed_app_gui(it->second);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
         if (!rollback_result) {
             BROOKESIA_LOGW("Failed to rollback app GUI resources: %1%", rollback_result.error());
         }
-        impl_->manifest_id_to_app_.erase(it->second.info.manifest.id);
-        impl_->apps_.erase(it);
+        if (!impl_->discard_app_record(app_id)) {
+            return std::unexpected(
+                       hook_result.error() + "; app record kept because the GSP session is still running"
+                   );
+        }
         return std::unexpected(hook_result.error());
     }
     BROOKESIA_LOGI("Runtime app installed: id(%1%), manifest(%2%)", app_id, manifest.id);
@@ -530,6 +549,16 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
             return stop_result;
         }
     }
+    auto gsp_stopped = impl_->run_task_sync<std::expected<void, std::string>>(
+                           SYSTEM_GUI_TASK_GROUP,
+    [this, &record]() {
+        return impl_->stop_gsp_session(record);
+    },
+    std::unexpected("Failed to post GSP stop task")
+                       );
+    if (!gsp_stopped || impl_->gsp_session_running(record)) {
+        return gsp_stopped ? std::unexpected("GSP session is still running") : gsp_stopped;
+    }
     const auto uninstalled_app = record.info;
     release_runtime_dataflow_operations(record.runtime_app_id);
     if (record.native_app && record.context) {
@@ -546,13 +575,22 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
                               SYSTEM_GUI_TASK_GROUP,
     [this, &record]() -> std::expected<void, std::string> {
         impl_->clear_pending_gui_bindings(record.info.app_id);
-        impl_->rollback_installed_app_gui(record);
+        auto rolled_back = impl_->rollback_installed_app_gui(record);
+        if (!rolled_back)
+        {
+            return rolled_back;
+        }
         return {};
     },
     std::unexpected("Failed to post GUI cleanup task")
                           );
-    if (!cleanup_result) {
-        BROOKESIA_LOGW("Failed to cleanup app GUI while uninstalling app: %1%", cleanup_result.error());
+    if (!cleanup_result || impl_->gsp_session_running(record)) {
+        if (!cleanup_result) {
+            BROOKESIA_LOGW("Failed to cleanup app GUI while uninstalling app: %1%", cleanup_result.error());
+        }
+        if (impl_->gsp_session_running(record)) {
+            return cleanup_result ? std::unexpected("GSP session is still running") : cleanup_result;
+        }
     }
     if (record.info.manifest.kind == AppKind::Runtime) {
         if (record.info.manifest.app_path.empty()) {
@@ -570,8 +608,9 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
             return std::unexpected(remove_result.error());
         }
     }
-    impl_->manifest_id_to_app_.erase(record.info.manifest.id);
-    impl_->apps_.erase(app_id);
+    if (!impl_->discard_app_record(app_id)) {
+        return std::unexpected("GSP session is still running");
+    }
     if (impl_->active_app_id_ == app_id) {
         impl_->active_app_id_ = INVALID_APP_ID;
     }
@@ -733,13 +772,19 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                 auto target = map_manifest_target(record.info.manifest.kind, flow_entry);
                 if (!target) {
                     log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
-                    impl_->unload_gui(record);
+                    auto unloaded = impl_->unload_gui(record);
+                    if (!unloaded) {
+                        return unloaded;
+                    }
                     impl_->unregister_app_gui_resources(record);
                     return std::unexpected(target.error());
                 }
                 if (!impl_->gui_runtime_->has_screen_flow(*record.document_id, flow_entry.screen_flow)) {
                     log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
-                    impl_->unload_gui(record);
+                    auto unloaded = impl_->unload_gui(record);
+                    if (!unloaded) {
+                        return unloaded;
+                    }
                     impl_->unregister_app_gui_resources(record);
                     return std::unexpected("App GUI screen flow is not found: " + flow_entry.screen_flow);
                 }
@@ -750,7 +795,10 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                                    );
                 if (!flow_result) {
                     log_gui_profile("screen_flow_mount_failed", screen_flow_started_at);
-                    impl_->unload_gui(record);
+                    auto unloaded = impl_->unload_gui(record);
+                    if (!unloaded) {
+                        return unloaded;
+                    }
                     impl_->unregister_app_gui_resources(record);
                     return flow_result;
                 }
@@ -854,7 +902,11 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
                                    SYSTEM_GUI_TASK_GROUP,
         [this, &record]() -> std::expected<void, std::string> {
             impl_->clear_pending_gui_bindings(record.info.app_id);
-            impl_->unload_gui(record);
+            auto unloaded = impl_->unload_gui(record);
+            if (!unloaded)
+            {
+                return unloaded;
+            }
             impl_->unregister_app_gui_resources(record);
             return {};
         },
@@ -1003,6 +1055,11 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     [this, &record]() -> std::expected<void, std::string> {
         auto heap_before_gui_cleanup = heap_trace::capture();
         heap_trace::log("system.gui", "before cleanup", record.info.manifest.id, heap_before_gui_cleanup);
+        auto gsp_stop = impl_->stop_gsp_session(record);
+        if (!gsp_stop)
+        {
+            return gsp_stop;
+        }
         impl_->cleanup_stopped_app_gui(record);
         heap_trace::log(
             "system.gui",
@@ -1016,7 +1073,10 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     std::unexpected("Failed to post app GUI cleanup task")
                           );
     if (!cleanup_result) {
-        BROOKESIA_LOGW("Failed to cleanup app GUI while stopping app: %1%", cleanup_result.error());
+        record.info.state = AppState::Error;
+        record.info.last_error = cleanup_result.error();
+        BROOKESIA_LOGE("App GUI cleanup failed; GSP resources stay owned: %1%", cleanup_result.error());
+        return cleanup_result;
     }
     if (!stop_result) {
         record.info.state = AppState::Error;

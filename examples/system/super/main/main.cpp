@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "sdkconfig.h"
 #include "private/utils.hpp"
 #include "boost/chrono.hpp"
 #include "boost/thread.hpp"
@@ -37,7 +38,14 @@ extern "C" void app_main(void)
         static std::unique_ptr<system::super::System> system_instance;
         system_instance = std::make_unique<system::super::System>();
 
-        /* Configure system */
+        /* This example always starts the LVGL desktop. */
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+        BROOKESIA_LOGE(
+            "This example only supports the LVGL GUI backend. Select LVGL under "
+            "ESP-Brookesia: System Core Configurations -> GUI backend"
+        );
+        return;
+#endif
         system::super::System::Config config;
         config.core_config.gui_backend = std::make_unique<gui::lvgl::Backend>();
         config.core_config.environment = {

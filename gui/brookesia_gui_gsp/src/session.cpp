@@ -24,7 +24,7 @@ namespace esp_brookesia::gui::gsp {
 
 namespace {
 
-constexpr uint32_t RENDER_TASK_STACK_SIZE = 24576;
+constexpr uint32_t RENDER_TASK_STACK_SIZE = 49152;
 constexpr int STOP_ATTEMPTS = 3;
 
 esp_display_present_panel_t panel_type_from_bus(hal::display::PanelIface::BusType bus_type, bool &swap_bytes)

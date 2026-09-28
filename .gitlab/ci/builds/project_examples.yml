@@ -28,6 +28,23 @@ build_examples_gui_gsp_basic:
   variables:
     EXAMPLE_DIR: examples/gui/gsp_basic
 
+# system/gsp_app — ESP32-P4 Function EV, default GSP plus LVGL desktop
+build_examples_system_gsp_app:
+  extends:
+    - .build_template_without_large_artifacts
+    - .rules:build:examples_system_gsp_app
+  parallel:
+    matrix:
+      - IMAGE: "espressif/idf:release-v6.0"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.esp32_p4_function_ev="
+      - IMAGE: "espressif/idf:release-v6.0"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.lvgl="
+  timeout: 3 hour
+  variables:
+    EXAMPLE_DIR: examples/system/gsp_app
+
 #
 # Service
 #

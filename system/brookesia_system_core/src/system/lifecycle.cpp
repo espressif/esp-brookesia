@@ -120,6 +120,12 @@ std::expected<void, std::string> System::init(Config config)
         impl_->gui_runtime_->set_view_debug_enabled(config.enable_gui_view_debug);
     }
     impl_->config_ = std::move(config);
+    impl_->gsp_panel_ = impl_->config_.gsp_panel;
+    impl_->gsp_touch_ = impl_->config_.gsp_touch;
+    auto held_devices = impl_->hold_gsp_display_devices();
+    if (!held_devices) {
+        return held_devices;
+    }
     auto storage_path_resolver = [this](
                                      runtime::AppId runtime_app_id,
                                      const StorageFileLocation & location
@@ -414,25 +420,43 @@ void System::deinit()
         if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
             auto stop_result = stop_app(record.info.app_id);
             if (!stop_result) {
-                BROOKESIA_LOGW(
+                BROOKESIA_LOGE(
                     "Failed to stop app while deinitializing system: app_id(%1%), error(%2%)",
                     record.info.app_id,
                     stop_result.error()
                 );
             }
         }
+        const AppId app_id = record.info.app_id;
+        auto *record_ptr = &record;
+        auto gsp_stopped = impl_->run_task_sync<std::expected<void, std::string>>(
+                               SYSTEM_GUI_TASK_GROUP,
+        [this, record_ptr]() {
+            return impl_->stop_gsp_session(*record_ptr);
+        },
+        std::unexpected("Failed to post GSP stop task")
+                           );
+        if (!gsp_stopped || impl_->gsp_session_running(record)) {
+            BROOKESIA_LOGE(
+                "GSP stop failed while deinitializing system; keeping the app record: app_id(%1%)",
+                app_id
+            );
+            continue;
+        }
         if (record.native_app && record.context) {
             record.native_app->on_uninstall(*record.context);
         }
         impl_->cancel_app_timers(record);
         impl_->unload_runtime(record);
-        const AppId app_id = record.info.app_id;
-        auto *record_ptr = &record;
         auto cleanup_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
         [this, record_ptr, app_id]() -> std::expected<void, std::string> {
             impl_->clear_pending_gui_bindings(app_id);
-            impl_->unload_gui(*record_ptr);
+            auto unloaded = impl_->unload_gui(*record_ptr);
+            if (!unloaded)
+            {
+                return unloaded;
+            }
             impl_->unregister_app_gui_resources(*record_ptr);
             impl_->unregister_app_icon_resource(*record_ptr);
             return {};
@@ -440,6 +464,14 @@ void System::deinit()
         std::unexpected("Failed to post app GUI cleanup task")
                               );
         if (!cleanup_result) {
+            if (impl_->gsp_session_running(record)) {
+                BROOKESIA_LOGE(
+                    "Failed to cleanup app GUI while deinitializing system; keeping the app record: app_id(%1%), error(%2%)",
+                    app_id,
+                    cleanup_result.error()
+                );
+                continue;
+            }
             BROOKESIA_LOGW(
                 "Failed to cleanup app GUI while deinitializing system: app_id(%1%), error(%2%)",
                 app_id,
@@ -447,6 +479,14 @@ void System::deinit()
             );
         }
     }
+    if (impl_->any_gsp_session_running()) {
+        BROOKESIA_LOGE(
+            "GSP stop failed; system stays initialized so stop can be retried. "
+            "Display and touch devices stay owned until stop succeeds"
+        );
+        return;
+    }
+    impl_->release_gsp_display_devices();
     impl_->apps_.clear();
     impl_->manifest_id_to_app_.clear();
     impl_->image_resource_owners_.clear();
@@ -487,6 +527,39 @@ void System::deinit()
     on_deinit();
     impl_->initialized_ = false;
     BROOKESIA_LOGI("System core deinitialized");
+}
+
+void System::Impl::abandon_system_references()
+{
+    detach_gsp_callbacks();
+    system_service_binding_.release();
+    gui_service_binding_.release();
+    timer_service_binding_.release();
+#if defined(ESP_PLATFORM) && CONFIG_BROOKESIA_SYSTEM_CORE_ENABLE_USB_BRIDGE
+    usb_service_binding_.release();
+    service::Usb::get_instance().clear_service_call_bridge();
+    service::Usb::get_instance().clear_host_command_bridge();
+#endif
+    auto &service_manager = service::ServiceManager::get_instance();
+    service_manager.remove_service(BROOKESIA_SYSTEM_CORE_TIMER_SERVICE_NAME);
+    service_manager.remove_service(BROOKESIA_SYSTEM_CORE_GUI_SERVICE_NAME);
+    service_manager.remove_service(BROOKESIA_SYSTEM_CORE_SERVICE_NAME);
+    timer_service_.reset();
+    gui_service_.reset();
+    system_service_.reset();
+    if (runtime_) {
+        runtime_->deinit();
+        runtime_.reset();
+    }
+    host_bridge_.reset();
+    runtime_function_bridge_.reset();
+    gui_runtime_.reset();
+    gui_thread_guard_.reset();
+    if (task_scheduler_) {
+        task_scheduler_->stop();
+        task_scheduler_.reset();
+    }
+    runtime_initialized_ = false;
 }
 
 void System::process_timers()

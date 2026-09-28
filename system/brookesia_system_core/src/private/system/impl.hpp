@@ -5,12 +5,11 @@
  */
 #pragma once
 
-#include <cstddef>
-#include "brookesia/system_core/macro_configs.h"
 #include <atomic>
+#include <chrono>
+#include <cstddef>
 #include <cstdint>
 #include <expected>
-#include <chrono>
 #include <filesystem>
 #include <map>
 #include <memory>
@@ -21,6 +20,17 @@
 #include <string_view>
 #include <vector>
 
+#include "brookesia/system_core/macro_configs.h"
+
+#if __has_include("sdkconfig.h")
+#   include "sdkconfig.h"
+#endif
+#ifndef CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   define CONFIG_BROOKESIA_GUI_BACKEND_GSP 0
+#endif
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   include "brookesia/gui_gsp/app_host.hpp"
+#endif
 #include "boost/json.hpp"
 #include "boost/thread/future.hpp"
 #if defined(__EMSCRIPTEN__)
@@ -77,6 +87,20 @@ public:
         bool runtime_loaded = false;
         bool runtime_started = false;
         bool preload_dom = false;
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+        struct GspCallbackGate {
+            std::mutex mutex;
+            Impl *impl = nullptr;
+        };
+        struct GspEventTarget {
+            std::shared_ptr<GspCallbackGate> gate;
+            AppId app_id = INVALID_APP_ID;
+            std::atomic<uint64_t> *epoch = nullptr;
+        };
+        std::unique_ptr<gui::gsp::AppHost> gsp_host;
+        std::unique_ptr<std::atomic<uint64_t>> gsp_epoch;
+        GspEventTarget gsp_event_target{};
+#endif
     };
 
     struct PendingTimer {
@@ -203,11 +227,24 @@ public:
 
     std::expected<void, std::string> ensure_runtime_initialized();
     std::expected<void, std::string> ensure_gui_loaded(AppRecord &record, bool enable_idle_warm = true);
+    std::expected<void, std::string> ensure_gsp_loaded(AppRecord &record);
+    std::expected<void, std::string> stop_gsp_session(AppRecord &record);
+    bool gsp_session_running(const AppRecord &record) const;
+    bool any_gsp_session_running() const;
+    std::expected<void, std::string> hold_gsp_display_devices();
+    void release_gsp_display_devices();
+    void detach_gsp_callbacks();
+    void abandon_system_references();
+    bool discard_app_record(AppId app_id);
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    void dispatch_gsp_event(AppId app_id, const esp_gsp_event_t *event, uint64_t epoch);
+    static void forward_gsp_event(esp_gsp_handle_t gsp, const esp_gsp_event_t *event, void *user_ctx);
+#endif
     std::expected<void, std::string> prepare_installed_app_gui(AppRecord &record);
     void release_app_gui_presentation(AppRecord &record);
     void cleanup_stopped_app_gui(AppRecord &record);
-    void rollback_installed_app_gui(AppRecord &record);
-    void unload_gui(AppRecord &record);
+    std::expected<void, std::string> rollback_installed_app_gui(AppRecord &record);
+    std::expected<void, std::string> unload_gui(AppRecord &record);
     std::expected<void, std::string> enable_live_preview_for_document(
         gui::DocumentId document_id,
         const gui::LivePreviewOptions &options
@@ -294,6 +331,12 @@ public:
     std::string system_type_ = BROOKESIA_SYSTEM_CORE_DEFAULT_SYSTEM_TYPE;
     gui::Environment environment_;
     std::unique_ptr<gui::Runtime> gui_runtime_;
+    void *gsp_panel_ = nullptr;
+    void *gsp_touch_ = nullptr;
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    hal::InterfaceHandle<hal::display::PanelIface> gsp_panel_owner_;
+    hal::InterfaceHandle<hal::display::TouchIface> gsp_touch_owner_;
+#endif
     std::optional<gui::IBackend::ThreadGuard> gui_thread_guard_;
     std::shared_ptr<SystemHostBridge> host_bridge_;
     std::shared_ptr<runtime::RuntimeFunctionBridge> runtime_function_bridge_;

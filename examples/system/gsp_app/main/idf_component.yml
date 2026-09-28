@@ -1,0 +1,47 @@
+dependencies:
+  espressif/brookesia_system_core:
+    version: "0.8.*"
+    override_path: ../../../../system/brookesia_system_core
+    require: public
+
+  espressif/brookesia_service_device:
+    version: "0.8.*"
+    override_path: ../../../../service/system/brookesia_service_device
+
+  espressif/brookesia_hal_adaptor:
+    version: "0.8.*"
+    override_path: ../../../../hal/brookesia_hal_adaptor
+
+  espressif/brookesia_hal_boards:
+    version: "0.8.*"
+    override_path: ../../../../hal/brookesia_hal_boards
+
+  espressif/brookesia_gui_gsp:
+    version: "0.8.*"
+    override_path: ../../../../gui/brookesia_gui_gsp
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
+
+  espressif/brookesia_gui_lvgl:
+    version: "0.8.*"
+    override_path: ../../../../gui/brookesia_gui_lvgl
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
+
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../../../service/media/brookesia_service_display
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
+
+  espressif/brookesia_system_super:
+    version: "0.8.*"
+    override_path: ../../../../system/brookesia_system_super
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
+
+  espressif/brookesia_app_settings:
+    version: "0.8.*"
+    override_path: ../../../../app/brookesia_app_settings
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True

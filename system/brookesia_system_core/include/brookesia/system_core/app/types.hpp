@@ -145,8 +145,9 @@ enum class GuiRootKind {
     None,
     File,
     JsonString,
+    GspBundle,
 };
-BROOKESIA_DESCRIBE_ENUM(GuiRootKind, None, File, JsonString)
+BROOKESIA_DESCRIBE_ENUM(GuiRootKind, None, File, JsonString, GspBundle)
 
 enum class GuiAppLayer {
     AppDefault,

@@ -249,6 +249,8 @@
 .patterns-component_brookesia_gui_gsp:
   - "gui/brookesia_gui_gsp/include/**/*"
   - "gui/brookesia_gui_gsp/src/**/*"
+  - "gui/brookesia_gui_gsp/cmake/**/*"
+  - "gui/brookesia_gui_gsp/project_include.cmake"
   - "gui/brookesia_gui_gsp/CMakeLists.txt"
   - "gui/brookesia_gui_gsp/idf_component.yml"
   - "gui/brookesia_gui_gsp/Kconfig"
@@ -763,6 +765,15 @@
   - "examples/gui/gsp_basic/idf_ext.py"
   - "examples/gui/gsp_basic/partitions*.csv"
   - "examples/gui/gsp_basic/sdkconfig.*"
+# system/gsp_app
+.patterns-examples_system_gsp_app:
+  - "examples/system/gsp_app/main/**/*"
+  - "examples/system/gsp_app/CMakeLists.txt"
+  - "examples/system/gsp_app/idf_ext.py"
+  - "examples/system/gsp_app/gsp_dma2d_idf60.h"
+  - "examples/system/gsp_app/partitions*.csv"
+  - "examples/system/gsp_app/sdkconfig.*"
+  - "examples/system/gsp_app/README*.md"
 # system/super
 .patterns-examples_system_super:
   - "examples/system/super/main/**/*"

@@ -69,10 +69,19 @@ class CustomApp(CMakeApp):
 
     def get_board_name_from_sdkconfig(self, sdkconfig_path: str) -> str:
         board_name = ''
-        sdkconfig_path = Path(sdkconfig_path).name
-        if sdkconfig_path.startswith('sdkconfig.ci.board.'):
-            board_name = sdkconfig_path[len('sdkconfig.ci.board.'):]
-        return board_name
+        sdkconfig_name = Path(sdkconfig_path).name
+        if sdkconfig_name.startswith('sdkconfig.ci.board.'):
+            board_name = sdkconfig_name[len('sdkconfig.ci.board.'):]
+        if board_name:
+            return board_name
+        try:
+            for line in Path(sdkconfig_path).read_text(encoding='utf-8').splitlines():
+                marker = '# ci-board:'
+                if line.strip().startswith(marker):
+                    return line.split(':', 1)[1].strip()
+        except OSError:
+            return ''
+        return ''
 
     def clear_project_generated_files(self):
         proj_path = Path(self.work_dir).absolute()
@@ -87,8 +96,11 @@ class CustomApp(CMakeApp):
 
     def _pre_hook(self):
         board_name = ''
-        if self.is_board_manager_project() and len(self.sdkconfig_files) > 1:
-            board_name = self.get_board_name_from_sdkconfig(self.sdkconfig_files[1])
+        if self.is_board_manager_project():
+            for sdkconfig_path in self.sdkconfig_files:
+                board_name = self.get_board_name_from_sdkconfig(sdkconfig_path)
+                if board_name:
+                    break
         print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board:'
               f'{board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
         self.clear_project_generated_files()

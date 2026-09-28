@@ -1,0 +1,10 @@
+menu "Brookesia system GSP example"
+
+    config BROOKESIA_EXAMPLE_SYSTEM_GSP_APP
+        bool
+        default y
+        select BROOKESIA_SYSTEM_CORE_ENABLE_GSP_BACKEND
+        help
+            This example can run GSP, so menuconfig includes that choice.
+
+endmenu
