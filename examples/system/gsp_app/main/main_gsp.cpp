@@ -378,7 +378,7 @@ void run_main()
         return;
     }
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
-    if (!probe_launcher_round_trip()) {
+    if (!probe_launcher_round_trip(*panel)) {
         BROOKESIA_LOGE("Wi-Fi probe launcher round trip FAILED");
         return;
     }

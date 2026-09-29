@@ -30,6 +30,10 @@ idf_component_register(
     PRIV_REQUIRES ${probe_requires}
 )
 
+if(CONFIG_BROOKESIA_LVGL_HW_PROBE)
+    idf_component_optional_requires(PRIVATE lvgl lvgl__lvgl esp_lcd)
+endif()
+
 if(CONFIG_BROOKESIA_GSP_WIFI_PROBE)
     foreach(symbol IN ITEMS esp_wifi_scan_get_ap_num esp_wifi_scan_get_ap_records esp_event_post
             esp_gsp_component_set_text)

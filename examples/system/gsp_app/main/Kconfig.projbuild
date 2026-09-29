@@ -17,4 +17,14 @@ menu "Brookesia system GSP example"
             This temporarily changes Wi-Fi state and restores it on success.
             Leave disabled for normal use.
 
+    config BROOKESIA_LVGL_HW_PROBE
+        bool "Run LVGL hardware acceptance probe at startup"
+        depends on BROOKESIA_GUI_BACKEND_LVGL
+        select LV_USE_OBJ_NAME
+        default n
+        help
+            Exercise the desktop, Settings, brightness, and Wi-Fi through
+            injected touch input. Capture screens and log heap use over
+            20 measured cycles. Leave disabled for normal use.
+
 endmenu

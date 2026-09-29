@@ -28,6 +28,7 @@ namespace {
 
 constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
 std::string make_binding_update_key(std::string_view absolute_path, std::string_view key)
 {
     std::string update_key(absolute_path);
@@ -35,6 +36,7 @@ std::string make_binding_update_key(std::string_view absolute_path, std::string_
     update_key.append(key);
     return update_key;
 }
+#endif
 
 std::string gui_batch_command_name(const GuiBatchCommand &command)
 {
@@ -230,6 +232,11 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
     std::vector<gui::BindingValueUpdate> updates
 )
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)updates;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     if (updates.empty()) {
         return {};
     }
@@ -301,6 +308,7 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
         }
     }
     return post_result;
+#endif
 }
 
 
@@ -1044,6 +1052,12 @@ std::expected<void, std::string> System::gui_set_text(
     std::string_view text
 )
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)absolute_path;
+    (void)text;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     return impl_->run_task_sync<std::expected<void, std::string>>(
                SYSTEM_GUI_TASK_GROUP,
                [this, app_id, absolute_path = std::string(absolute_path), text = std::string(text)]()
@@ -1068,10 +1082,17 @@ std::expected<void, std::string> System::gui_set_text(
     },
     std::unexpected("Failed to post GUI text task")
            );
+#endif
 }
 
 std::expected<void, std::string> System::gui_set_value(AppId app_id, std::string_view absolute_path, int32_t value)
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)absolute_path;
+    (void)value;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     return impl_->post_gui_task(
     [this, app_id, absolute_path = std::string(absolute_path), value]() {
         auto record_result = impl_->get_record(app_id);
@@ -1096,10 +1117,17 @@ std::expected<void, std::string> System::gui_set_value(AppId app_id, std::string
                        app_id, absolute_path);
     }
            );
+#endif
 }
 
 std::expected<void, std::string> System::gui_set_checked(AppId app_id, std::string_view absolute_path, bool checked)
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)absolute_path;
+    (void)checked;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     return impl_->post_gui_task(
     [this, app_id, absolute_path = std::string(absolute_path), checked]() {
         auto record_result = impl_->get_record(app_id);
@@ -1124,6 +1152,7 @@ std::expected<void, std::string> System::gui_set_checked(AppId app_id, std::stri
                        app_id, absolute_path);
     }
            );
+#endif
 }
 
 std::expected<gui::View, std::string> System::gui_create_view(
@@ -1507,6 +1536,11 @@ std::optional<std::string> System::gui_get_screen_flow_state(AppId app_id, std::
 
 std::optional<gui::ViewFrame> System::gui_get_view_frame(AppId app_id, std::string_view absolute_path) const
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)absolute_path;
+    return std::nullopt;
+#else
     return impl_->run_task_sync<std::optional<gui::ViewFrame>>(
                SYSTEM_GUI_TASK_GROUP,
     [this, app_id, absolute_path = std::string(absolute_path)]() -> std::optional<gui::ViewFrame> {
@@ -1534,6 +1568,7 @@ std::optional<gui::ViewFrame> System::gui_get_view_frame(AppId app_id, std::stri
     },
     std::nullopt
            );
+#endif
 }
 
 std::expected<void, std::string> System::gui_set_view_src(
@@ -1542,6 +1577,12 @@ std::expected<void, std::string> System::gui_set_view_src(
     std::string_view src
 )
 {
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    (void)app_id;
+    (void)absolute_path;
+    (void)src;
+    return std::unexpected("JSON GUI is unavailable with the GSP backend");
+#else
     return impl_->post_gui_input_task(
     [this, app_id, absolute_path = std::string(absolute_path), src = std::string(src)]() {
         auto record_result = impl_->get_record(app_id);
@@ -1555,6 +1596,7 @@ std::expected<void, std::string> System::gui_set_view_src(
         }
     }
            );
+#endif
 }
 
 std::expected<void, std::string> System::gui_preload_images(

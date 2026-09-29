@@ -96,6 +96,7 @@ std::expected<void, std::string> System::init(Config config)
     if (!impl_->configure_task_groups()) {
         return std::unexpected("Failed to configure system task groups");
     }
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
     if (config.gui_backend) {
         const bool should_lock_gui_thread = impl_->gui_thread_guard_.has_value() &&
                                             impl_->gui_thread_guard_->lock &&
@@ -119,6 +120,7 @@ std::expected<void, std::string> System::init(Config config)
                               );
         impl_->gui_runtime_->set_view_debug_enabled(config.enable_gui_view_debug);
     }
+#endif
     impl_->config_ = std::move(config);
     impl_->gsp_panel_ = impl_->config_.gsp_panel;
     impl_->gsp_touch_ = impl_->config_.gsp_touch;

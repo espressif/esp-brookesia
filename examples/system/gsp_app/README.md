@@ -41,6 +41,10 @@ idf.py -p <PORT> -b 921600 flash
 
 Both choices use `partitions_16m.csv`. The LVGL options in `sdkconfig.defaults` apply after LVGL is selected.
 
+Both interfaces use the same capability configuration. Audio processing and video encoding/decoding are disabled by default because this example does not use them. The board's audio codec and camera support remain available for hardware discovery in Settings.
+
+For an existing checkout with an older `sdkconfig`, disable **Audio Device → Audio Processor**, **Video Device → Encoder**, and **Video Device → Decoder** under **ESP-Brookesia: Hal Adaptor Configurations** in menuconfig. These settings remain in effect when switching interfaces.
+
 ## Try it
 
 After the memory log, the screen shows **Brookesia** and a **Settings** button.
@@ -95,5 +99,7 @@ Rebuild and flash. The probe changes the brightness, then writes the previous pe
 For Wi-Fi acceptance testing, enable **Run Settings Wi-Fi hardware acceptance probe at startup** under **Brookesia system GSP example** in menuconfig. The probe uses real scans and simulated touches to exercise refresh, scan cancellation, reopening, and Wi-Fi toggles, and logs memory over 20 measured cycles after warmup. Disable it for normal use.
 
 The probe also injects empty and failed scan outcomes and sample multilingual names to check the corresponding screens. These labeled cases are synthetic; the subsequent refreshes and repeated scans use nearby networks.
+
+For LVGL, the same example menu provides **Run LVGL hardware acceptance probe at startup**. It checks desktop navigation, Settings, brightness, Wi-Fi, and hardware discovery, captures screens, and records memory over 20 cycles. Both acceptance probes are disabled by default.
 
 Look at the panel to confirm the screens. The serial log records the service and the memory numbers.

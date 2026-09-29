@@ -248,11 +248,20 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
     if (!probe_wait(first_scan_ready)) {
         return false;
     }
+    std::puts("WIFI_CASE,nearby");
     probe_frame(panel);
     if (probe_enabled("next")) {
-        if (!probe_click(900, 522) || !probe_enabled("previous") || !probe_click(110, 522)) {
+        if (!probe_click(900, 522) || !probe_enabled("previous")) {
             return false;
         }
+        std::puts("WIFI_CASE,next_page");
+        probe_frame(panel);
+        if (!probe_click(110, 522)) {
+            return false;
+        }
+        std::puts("WIFI_PAGINATION_PASS");
+    } else {
+        std::puts("WIFI_PAGINATION_SKIPPED,not_enough_networks");
     }
     if (!probe_fault_case(wifi_probe_hooks::Fault::Empty, "empty", wifi_probe_hooks::Status::Empty,
                           results, empty_results, panel) ||
@@ -327,8 +336,8 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
         std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
     std::printf("WIFI_PROBE_PASS,%d,%lld,%lld\n", MEASURED_CYCLES,
-                static_cast<long long>(last.internal_free) - baseline.internal_free,
-                static_cast<long long>(last.psram_free) - baseline.psram_free);
+                static_cast<long long>(last.internal_free) - static_cast<long long>(baseline.internal_free),
+                static_cast<long long>(last.psram_free) - static_cast<long long>(baseline.psram_free));
     if (!initially_enabled) {
         if (!probe_click(140, 108)) {
             return false;
@@ -348,6 +357,35 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
         return false;
     }
     BROOKESIA_LOGI("Wi-Fi probe brightness regression: %1%", brightness);
+    uint32_t output_id = 0;
+    int saved_brightness = 0;
+    if (!prepare_backlight(output_id, saved_brightness)) {
+        return false;
+    }
+    lib_utils::FunctionGuard restore_brightness([&]() {
+        (void)set_backlight_brightness(output_id, saved_brightness);
+    });
+    if (!probe_click(saved_brightness < 50 ? 558 : 238, 393)) {
+        return false;
+    }
+    const auto brightness_changed = [&]() {
+        int32_t value = -1;
+        const auto level = DisplayHelper::call_function_sync<double>(
+                               DisplayHelper::FunctionId::GetBacklightBrightness,
+                               static_cast<double>(output_id), service::helper::Timeout(SERVICE_TIMEOUT_MS)
+                           );
+        return level && esp_gsp_component_get_value(probe_handle(), probe_key("brightness_slider"), &value) ==
+               ESP_GSP_OK && value != saved_brightness && value == static_cast<int>(*level);
+    };
+    if (!probe_wait(brightness_changed)) {
+        return false;
+    }
+    std::puts("WIFI_CASE,brightness");
+    probe_frame(panel);
+    if (!set_backlight_brightness(output_id, saved_brightness)) {
+        return false;
+    }
+    std::printf("WIFI_BRIGHTNESS_PASS,restored=%d\n", saved_brightness);
     if (!probe_click(60, 37)) {
         return false;
     }
@@ -362,11 +400,20 @@ bool probe_has_component(std::string_view name)
     return handle && esp_gsp_component_get_info(handle, probe_key(name), &info) == ESP_GSP_OK;
 }
 
-bool probe_launcher_round_trip()
+bool probe_launcher_round_trip(hal::display::PanelIface &panel)
 {
+    std::puts("WIFI_CASE,launcher");
+    probe_frame(panel);
     for (int cycle = 0; cycle < 2; ++cycle) {
         if (!probe_has_component("open_settings") || !probe_click(200, 366) ||
-                !probe_has_component("open_wifi") || !probe_click(920, 37) ||
+                !probe_has_component("open_wifi")) {
+            return false;
+        }
+        if (cycle == 0) {
+            std::puts("WIFI_CASE,settings_home");
+            probe_frame(panel);
+        }
+        if (!probe_click(920, 37) ||
                 !probe_has_component("open_settings")) {
             return false;
         }

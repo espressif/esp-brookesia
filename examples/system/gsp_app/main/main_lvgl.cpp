@@ -15,6 +15,10 @@
 #include "modules/display.hpp"
 #include "modules/general_services.hpp"
 
+#if CONFIG_BROOKESIA_LVGL_HW_PROBE
+#   include "lvgl_probe.ipp"
+#endif
+
 namespace {
 
 void run_main()
@@ -52,6 +56,11 @@ void run_main()
         return;
     }
     BROOKESIA_LOGI("LVGL system started");
+#if CONFIG_BROOKESIA_LVGL_HW_PROBE
+    if (!esp_brookesia::gsp_app::lvgl_probe::run(*system_instance, display)) {
+        BROOKESIA_LOGE("LVGL hardware probe FAILED");
+    }
+#endif
 }
 
 } // namespace

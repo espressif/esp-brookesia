@@ -37,11 +37,15 @@
 #include "brookesia/gui_interface/wasm/gui_task_queue.hpp"
 #endif
 #include "brookesia/service_manager/service/manager.hpp"
+#include "brookesia/system_core/macro_configs.h"
 #include "brookesia/system_core/service/gui.hpp"
 #include "brookesia/system_core/service/system.hpp"
 #include "brookesia/system_core/service/timer.hpp"
 #include "brookesia/system_core/system/system.hpp"
 #include "private/runtime/host_bridge.hpp"
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+#   include "private/system/json_gui_unavailable.hpp"
+#endif
 
 namespace esp_brookesia::system::core {
 
@@ -330,7 +334,11 @@ public:
     Config config_;
     std::string system_type_ = BROOKESIA_SYSTEM_CORE_DEFAULT_SYSTEM_TYPE;
     gui::Environment environment_;
+#if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
     std::unique_ptr<gui::Runtime> gui_runtime_;
+#else
+    std::unique_ptr<JsonGuiUnavailable> gui_runtime_;
+#endif
     void *gsp_panel_ = nullptr;
     void *gsp_touch_ = nullptr;
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP

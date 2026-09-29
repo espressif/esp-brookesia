@@ -41,6 +41,10 @@ idf.py -p <PORT> -b 921600 flash
 
 两种选择都使用 `partitions_16m.csv`。`sdkconfig.defaults` 里的 LVGL 选项在选中 LVGL 之后生效。
 
+两种界面使用同一套能力配置。示例未使用音频处理和视频编解码，因此默认关闭这些能力。板卡的基础音频 codec 和摄像头支持仍然保留，供 Settings 查询硬件信息。
+
+如果已有旧的 `sdkconfig`，请在 menuconfig 的 **ESP-Brookesia: Hal Adaptor Configurations** 中关闭 **Audio Device → Audio Processor**、**Video Device → Encoder** 和 **Video Device → Decoder**。之后切换界面时，这些设置会继续保留。
+
 ## 实际操作
 
 内存日志结束后，屏幕上是 **Brookesia** 和一个 **Settings** 按钮。
@@ -95,5 +99,7 @@ constexpr bool RUN_BRIGHTNESS_PROBE = true;
 如需执行 Wi-Fi 验收，在 menuconfig 的 **Brookesia system GSP example** 下开启 **Run Settings Wi-Fi hardware acceptance probe at startup**。探针使用真实扫描和模拟触摸，覆盖刷新、取消扫描、重新进入及 Wi-Fi 开关，并在预热后记录 20 轮内存数据。正常使用时请关闭此选项。
 
 探针还会注入空结果、扫描失败和多语言名称样例，检查对应页面。这些带有标记的用例是合成数据；随后的刷新和循环扫描使用附近的真实热点。
+
+选择 LVGL 后，同一示例菜单提供 **Run LVGL hardware acceptance probe at startup**。它检查桌面导航、Settings、亮度、Wi-Fi 和硬件信息查询，采集画面并记录 20 轮内存数据。两种验收探针默认都关闭。
 
 请在屏幕上确认显示效果。串口日志记录服务状态和内存数据。
