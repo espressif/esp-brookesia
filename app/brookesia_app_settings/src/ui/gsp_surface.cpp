@@ -43,6 +43,48 @@ std::expected<void, std::string> require_handle(esp_gsp_handle_t &handle)
 
 class GspSettingsSurface: public SettingsSurface {
 public:
+    std::expected<void, std::string> set_wifi(
+        system::core::AppContext &, const WifiPageView &view
+    ) override
+    {
+        esp_gsp_handle_t handle = nullptr;
+        auto ready = require_handle(handle);
+        if (!ready) {
+            return ready;
+        }
+        const auto set_text = [handle](uint32_t key, const std::string & text) {
+            return esp_gsp_component_set_text(handle, key, text.c_str()) == ESP_GSP_OK;
+        };
+        const auto set_enabled = [handle](uint32_t key, bool enabled) {
+            return esp_gsp_component_set_enabled(handle, key, enabled) == ESP_GSP_OK;
+        };
+        if (!set_text(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_STATUS, view.status) ||
+                !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_CONNECTION_STATUS, view.connection) ||
+                !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_PAGINATION, view.pagination) ||
+                !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, view.enabled ? "Wi-Fi: On" : "Wi-Fi: Off") ||
+                !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, view.toggle_enabled) ||
+                !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_REFRESH, view.refresh_enabled) ||
+                !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_PREVIOUS, view.previous_enabled) ||
+                !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_NEXT, view.next_enabled)) {
+            return std::unexpected("Failed to update Wi-Fi controls");
+        }
+        static constexpr std::array<uint32_t, WIFI_PAGE_ROW_COUNT> ssid_keys = {
+            GSP_SETTINGS_WIFI_OBJ_KEY_SSID_0, GSP_SETTINGS_WIFI_OBJ_KEY_SSID_1,
+            GSP_SETTINGS_WIFI_OBJ_KEY_SSID_2, GSP_SETTINGS_WIFI_OBJ_KEY_SSID_3, GSP_SETTINGS_WIFI_OBJ_KEY_SSID_4,
+        };
+        static constexpr std::array<uint32_t, WIFI_PAGE_ROW_COUNT> detail_keys = {
+            GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_0, GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_1,
+            GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_2, GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_3, GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_4,
+        };
+        for (size_t row = 0; row < WIFI_PAGE_ROW_COUNT; ++row) {
+            if (!set_text(ssid_keys[row], view.rows[row].ssid) ||
+                    !set_text(detail_keys[row], view.rows[row].detail)) {
+                return std::unexpected("Failed to update Wi-Fi network row");
+            }
+        }
+        return {};
+    }
+
     std::expected<void, std::string> show_page(
         system::core::AppContext &,
         std::string_view page
@@ -58,12 +100,15 @@ public:
             scene = GSP_SETTINGS_SCENE_SETTINGS_HOME;
         } else if (page == detail::PAGE_DISPLAY) {
             scene = GSP_SETTINGS_SCENE_SETTINGS_DISPLAY;
+        } else if (page == detail::PAGE_WIFI) {
+            scene = GSP_SETTINGS_SCENE_SETTINGS_WIFI;
         } else {
             return std::unexpected("Unsupported settings page");
         }
         if (esp_gsp_goto_scene(handle, scene, ESP_GSP_NO_TRANSITION) != ESP_GSP_OK) {
             return std::unexpected("Failed to show the Settings page");
         }
+        page_ = page;
         const auto flushed = esp_gsp_flush(handle, 500);
         if (flushed != ESP_GSP_OK) {
             return std::unexpected("Failed to settle the Settings page: " + std::to_string(static_cast<int>(flushed)));
@@ -82,8 +127,9 @@ public:
         if (!ready) {
             return ready;
         }
-        const auto title_key = show_back ? GSP_SETTINGS_DISPLAY_OBJ_KEY_HEADER_TITLE
-                               : GSP_SETTINGS_HOME_OBJ_KEY_HEADER_TITLE;
+        const auto title_key = page_ == detail::PAGE_WIFI ? GSP_SETTINGS_WIFI_OBJ_KEY_HEADER_TITLE :
+                               show_back ? GSP_SETTINGS_DISPLAY_OBJ_KEY_HEADER_TITLE :
+                               GSP_SETTINGS_HOME_OBJ_KEY_HEADER_TITLE;
         if (esp_gsp_component_set_text(handle, title_key, std::string(title).c_str()) != ESP_GSP_OK) {
             return std::unexpected("Failed to update the Settings title");
         }
@@ -132,6 +178,8 @@ public:
         }
         return {};
     }
+private:
+    std::string page_;
 };
 
 std::unique_ptr<SettingsSurface> make_gsp_settings_surface()
@@ -198,6 +246,42 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
     const std::string text(action);
     if (std::sscanf(text.c_str(), "%u:%u:%u", &scene, &id, &arg) != 3) {
         return std::unexpected("Unrecognized GSP action");
+    }
+    if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME && current_page_ != detail::PAGE_HOME) ||
+            (scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY && current_page_ != detail::PAGE_DISPLAY) ||
+            (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI && current_page_ != detail::PAGE_WIFI)) {
+        return {};
+    }
+    if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_WIFI)) {
+        auto shown = surface_->show_page(context, detail::PAGE_WIFI);
+        if (!shown) {
+            return shown;
+        }
+        current_page_ = detail::PAGE_WIFI;
+        return open_wifi_page(context);
+    }
+    if (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI) {
+        if (id == GSP_SETTINGS_WIFI_ACT_ID_HEADER_BACK) {
+            close_wifi_page(context);
+            auto shown = surface_->show_page(context, detail::PAGE_HOME);
+            if (!shown) {
+                return shown;
+            }
+            current_page_ = detail::PAGE_HOME;
+            return refresh_header(context);
+        }
+        if (id == GSP_SETTINGS_WIFI_ACT_ID_WIFI_TOGGLE) {
+            return toggle_wifi_page(context);
+        }
+        if (id == GSP_SETTINGS_WIFI_ACT_ID_REFRESH) {
+            return scan_wifi_page(context);
+        }
+        if (id == GSP_SETTINGS_WIFI_ACT_ID_PREVIOUS && available_wifi_page_ > 0) {
+            --available_wifi_page_;
+        } else if (id == GSP_SETTINGS_WIFI_ACT_ID_NEXT) {
+            ++available_wifi_page_;
+        }
+        return render_wifi_page(context);
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_HEADER_EXIT)) {
         return context.system_service().stop_app(context.app_id());

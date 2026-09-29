@@ -73,6 +73,7 @@ struct esp_gsp_esp_lcd_config_t {
     esp_lcd_touch_handle_t touch = nullptr;
     esp_gsp_touch_input_mode_t touch_input_mode = ESP_GSP_TOUCH_INPUT_POLLING;
     uint32_t task_stack_size = 0;
+    uint32_t task_stack_size_freetype = 0;
     bool task_stack_psram = false;
 };
 

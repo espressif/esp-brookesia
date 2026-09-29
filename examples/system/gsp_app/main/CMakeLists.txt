@@ -15,6 +15,10 @@ elseif(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
         "${CMAKE_CURRENT_LIST_DIR}/main_gsp.cpp"
         "${CMAKE_CURRENT_LIST_DIR}/launcher_app.cpp"
     )
+    if(CONFIG_BROOKESIA_GSP_WIFI_PROBE)
+        list(APPEND SRCS "${CMAKE_CURRENT_LIST_DIR}/wifi_probe_hooks.cpp")
+        set(probe_requires esp_event esp_wifi)
+    endif()
 else()
     # The first dependency scan runs before sdkconfig exists.
     set(SRCS "${CMAKE_CURRENT_LIST_DIR}/main_pending.cpp")
@@ -23,7 +27,15 @@ endif()
 idf_component_register(
     SRCS ${SRCS}
     INCLUDE_DIRS "." ${EXTRA_INCLUDE_DIRS}
+    PRIV_REQUIRES ${probe_requires}
 )
+
+if(CONFIG_BROOKESIA_GSP_WIFI_PROBE)
+    foreach(symbol IN ITEMS esp_wifi_scan_get_ap_num esp_wifi_scan_get_ap_records esp_event_post
+            esp_gsp_component_set_text)
+        target_link_options(${COMPONENT_LIB} INTERFACE "LINKER:--wrap=${symbol}")
+    endforeach()
+endif()
 
 # Storage is a plugin. Reference its registrar so SystemCore can bind it.
 target_link_libraries(${COMPONENT_LIB} PRIVATE "-u service_storage_symbol" "-u service_device_symbol")

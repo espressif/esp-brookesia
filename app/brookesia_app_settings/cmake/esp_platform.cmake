@@ -39,7 +39,9 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
         SCENES
             "${COMPONENT_DIR}/gsp/settings_home_1024.json"
             "${COMPONENT_DIR}/gsp/settings_display_1024.json"
+            "${COMPONENT_DIR}/gsp/settings_wifi_1024.json"
         PIXEL_FORMAT rgb565
+        DYNAMIC_FONT "${COMPONENT_DIR}/gsp/fonts/DroidSansFallback-CommonChinese.ttf"
         SYMBOL settings
     )
 endif()

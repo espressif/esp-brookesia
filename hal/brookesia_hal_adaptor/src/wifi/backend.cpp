@@ -635,9 +635,12 @@ bool WifiEspBackend::start()
 
         std::function<void()> task_func;
         if (base == WIFI_EVENT) {
-            task_func = [hal, id = static_cast<uint8_t>(id)]() {
+            // Copy the outcome before posting; some remote backends omit the event payload.
+            const bool scan_failed = id == WIFI_EVENT_SCAN_DONE && data &&
+                                     static_cast<const wifi_event_sta_scan_done_t *>(data)->status != 0;
+            task_func = [hal, id = static_cast<uint8_t>(id), scan_failed]() {
                 BROOKESIA_LOG_TRACE_GUARD();
-                BROOKESIA_CHECK_FALSE_EXIT(hal->on_wifi_event(id), "Process WiFi event failed");
+                BROOKESIA_CHECK_FALSE_EXIT(hal->on_wifi_event(id, scan_failed), "Process WiFi event failed");
             };
         } else if (base == IP_EVENT) {
             task_func = [hal, id = static_cast<uint8_t>(id)]() {
@@ -1527,7 +1530,7 @@ bool WifiEspBackend::set_last_connected_ap_info(const wifi::ConnectApInfo &ap_in
     return true;
 }
 
-bool WifiEspBackend::on_wifi_event(uint8_t event)
+bool WifiEspBackend::on_wifi_event(uint8_t event, bool scan_failed)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
@@ -1577,10 +1580,13 @@ bool WifiEspBackend::on_wifi_event(uint8_t event)
                 (running_action == wifi::GeneralAction::Deinit) || is_general_event_ready(wifi::GeneralEvent::Deinited)) {
             break;
         }
-        // Update scan AP infos
-        BROOKESIA_CHECK_FALSE_EXECUTE(update_scan_ap_infos(), {}, {
-            BROOKESIA_LOGE("Update scan AP infos failed");
-        });
+        if (!scan_failed) {
+            BROOKESIA_CHECK_FALSE_EXECUTE(update_scan_ap_infos(), {}, {
+                BROOKESIA_LOGE("Update scan AP infos failed");
+            });
+        } else {
+            BROOKESIA_LOGW("Wi-Fi scan failed");
+        }
         if (one_shot_scan) {
             notify_scan_state_changed(false);
         }
@@ -1670,7 +1676,8 @@ bool WifiEspBackend::update_scan_ap_infos()
     BROOKESIA_CHECK_ESP_ERR_RETURN(esp_wifi_scan_get_ap_num(&actual_ap_count), false, "Get AP number failed");
 
     if (actual_ap_count == 0) {
-        BROOKESIA_LOGD("No AP found, skip");
+        // An empty result is a successful scan, distinct from a stop or failure.
+        notify_scan_ap_infos_updated({});
         return true;
     }
 

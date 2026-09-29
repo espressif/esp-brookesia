@@ -255,6 +255,23 @@ void SettingsApp::apply_wifi_enabled_preference_to_service()
         return;
     }
 
+    if (settings_uses_gsp_backend()) {
+        auto state = WifiHelper::call_function_sync<std::string>(
+                         WifiHelper::FunctionId::GetGeneralState, service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
+                     );
+        if (state && is_wifi_started_state(*state) != wifi_ui_state_.enabled) {
+            auto result = WifiHelper::call_function_sync(
+                              WifiHelper::FunctionId::TriggerGeneralAction,
+                              wifi_ui_state_.enabled ? "Start" : "Stop",
+                              service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
+                          );
+            if (!result) {
+                BROOKESIA_LOGW("Failed to restore Wi-Fi preference: %1%", result.error());
+            }
+        }
+        return;
+    }
+
     const auto preferred_enabled = wifi_ui_state_.enabled;
     const auto generation = wifi_operation_generation_;
     const auto state_handler = [this, preferred_enabled, generation](service::FunctionResult && result) {
@@ -394,8 +411,8 @@ void SettingsApp::rebuild_available_wifi_networks()
     );
 
     const auto connected_state = BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralState::Connected);
-    const bool should_filter_target_ssid = wifi_ui_state_.general_state == connected_state ||
-                                           wifi_ui_state_.connecting;
+    const bool should_filter_target_ssid = !settings_uses_gsp_backend() &&
+                                          (wifi_ui_state_.general_state == connected_state || wifi_ui_state_.connecting);
     std::vector<WifiHelper::ScanApInfo> best_ap_infos;
     for (const auto &ap : last_wifi_scan_ap_infos_) {
         if (ap.ssid.empty()) {
@@ -405,7 +422,7 @@ void SettingsApp::rebuild_available_wifi_networks()
                 ap.ssid == wifi_ui_state_.connected_ssid) {
             continue;
         }
-        if (is_saved_wifi_ssid(ap.ssid)) {
+        if (!settings_uses_gsp_backend() && is_saved_wifi_ssid(ap.ssid)) {
             continue;
         }
 
@@ -454,6 +471,7 @@ void SettingsApp::rebuild_available_wifi_networks()
             .locked = ap.is_locked,
             .signal_level = signal_level,
             .channel = ap.channel,
+            .rssi = ap.rssi,
         });
     }
 }

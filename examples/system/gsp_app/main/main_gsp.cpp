@@ -6,6 +6,7 @@
 #define BROOKESIA_LOG_TAG "GspApp"
 #include "brookesia/lib_utils/log.hpp"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstdint>
@@ -31,6 +32,14 @@
 #include "brookesia/system_core.hpp"
 #include "esp_heap_caps.h"
 #include "launcher_app.hpp"
+
+#if CONFIG_BROOKESIA_GSP_WIFI_PROBE
+#   include "brookesia/gui_gsp/app_host.hpp"
+#   include "brookesia/service_helper/network/wifi.hpp"
+#   include "esp_gsp_debug.h"
+#   include "esp_lcd_mipi_dsi.h"
+#   include "wifi_probe_hooks.hpp"
+#endif
 
 namespace esp_brookesia::gsp_app {
 
@@ -217,6 +226,10 @@ bool run_brightness_probe(uint32_t output_id, int saved_brightness)
     return true;
 }
 
+#if CONFIG_BROOKESIA_GSP_WIFI_PROBE
+#   include "wifi_probe.ipp"
+#endif
+
 void run_main()
 {
     static auto panel = hal::acquire_interface<hal::display::PanelIface>(hal::DisplayDevice::LCD_PANEL_IMPL_NAME);
@@ -319,6 +332,13 @@ void run_main()
         BROOKESIA_LOGI("Brightness probe is off; persisted brightness stays %1%", brightness);
     }
 
+#if CONFIG_BROOKESIA_GSP_WIFI_PROBE
+    if (!run_wifi_probe(system_instance, shell_state.settings_id, *panel)) {
+        BROOKESIA_LOGE("Wi-Fi probe FAILED");
+        return;
+    }
+#endif
+
     for (int cycle = 1; cycle <= WARMUP_CYCLES; ++cycle) {
         if (!run_app(system_instance, shell_state.settings_id, "settings", true) ||
                 !run_app(system_instance, shell_state.settings_id, "settings", false)) {
@@ -357,6 +377,12 @@ void run_main()
     if (!run_app(system_instance, shell_state.launcher_id, "launcher", true)) {
         return;
     }
+#if CONFIG_BROOKESIA_GSP_WIFI_PROBE
+    if (!probe_launcher_round_trip()) {
+        BROOKESIA_LOGE("Wi-Fi probe launcher round trip FAILED");
+        return;
+    }
+#endif
     BROOKESIA_LOGI("Interactive launcher is running. Confirm the panel visually; serial logs do not prove the picture");
     while (true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));

@@ -17,10 +17,13 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "private/settings_surface.hpp"
 
+#include "boost/thread/mutex.hpp"
+#include "boost/thread/lock_guard.hpp"
 #include "boost/json/array.hpp"
 #include "boost/json/value.hpp"
 
@@ -283,6 +286,11 @@ inline constexpr uint32_t DEVICE_SERVICE_TIMEOUT_MS = 500;
 inline constexpr uint32_t WIFI_SERVICE_TIMEOUT_MS = 1000;
 inline constexpr uint32_t SNTP_SERVICE_TIMEOUT_MS = 500;
 inline constexpr uint32_t UTILS_DEBUG_SERVICE_TIMEOUT_MS = 500;
+inline constexpr const char *WIFI_PAGE_TIMER_NAME = "settings.wifi.page";
+inline constexpr int WIFI_PAGE_POLL_INTERVAL_MS = 100;
+inline constexpr int WIFI_STATE_POLL_INTERVAL_MS = 1000;
+inline constexpr int WIFI_TOGGLE_TIMEOUT_MS = 15000;
+inline constexpr int WIFI_SCAN_SETTLE_TIMEOUT_MS = 2000;
 inline constexpr uint32_t WIFI_SCAN_WINDOW_MS = 10000;
 inline constexpr size_t WIFI_SCAN_AP_LIMIT = 64;
 inline constexpr int WIFI_SCAN_RETRY_DELAY_MS = 250;
@@ -499,6 +507,28 @@ struct BrightnessCallbackState {
     system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
 };
 
+// Each page visit owns a separate mailbox. Service callbacks never retain the App or GUI.
+struct WifiPageMailbox {
+    boost::mutex mutex;
+    bool open = true;
+    bool state_changed = false;
+    bool scan_started = false;
+    bool scan_stopped = false;
+    std::optional<boost::json::array> scan_results;
+};
+
+struct WifiPageState {
+    std::shared_ptr<WifiPageMailbox> mailbox;
+    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
+    detail::SteadyTimePoint next_state_read{};
+    detail::SteadyTimePoint deadline{};
+    std::optional<bool> toggle_target;
+    bool scan_requested = false;
+    bool scan_received = false;
+    bool scan_owned = false;
+    std::string error;
+};
+
 struct SettingsApp::Impl {
     system::core::AppContext *context = nullptr;
     std::vector<std::string> dynamic_wifi_paths;
@@ -529,6 +559,7 @@ struct SettingsApp::Impl {
     uint64_t wifi_operation_generation = 0;
     DeviceUiState device_ui_state;
     WifiUiState wifi_ui_state;
+    WifiPageState wifi_page;
     TimeZoneUiState time_zone_ui_state;
     DebugUiState debug_ui_state;
     detail::UtilsHelper::DebugCapabilities utils_debug_capabilities;
@@ -599,6 +630,7 @@ struct SettingsApp::Impl {
 #define wifi_operation_generation_ impl_->wifi_operation_generation
 #define device_ui_state_ impl_->device_ui_state
 #define wifi_ui_state_ impl_->wifi_ui_state
+#define wifi_page_ impl_->wifi_page
 #define time_zone_ui_state_ impl_->time_zone_ui_state
 #define debug_ui_state_ impl_->debug_ui_state
 #define utils_debug_capabilities_ impl_->utils_debug_capabilities

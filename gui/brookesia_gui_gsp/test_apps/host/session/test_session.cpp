@@ -80,6 +80,9 @@ void test_start_stop_round_trip()
     assert(last_bundle_size == 5);
     assert(last_lcd.display.hw.panel_type == ESP_DISPLAY_PRESENT_PANEL_IO);
     assert(last_lcd.touch_input_mode == ESP_GSP_TOUCH_INPUT_POLLING);
+    // Dynamic fonts must not select a smaller renderer stack.
+    assert(last_lcd.task_stack_size > 0);
+    assert(last_lcd.task_stack_size_freetype >= last_lcd.task_stack_size);
     esp_gsp_event_t event{.marker = 7};
     event_callback(session.handle(), &event, event_ctx);
     assert(seen == 7);

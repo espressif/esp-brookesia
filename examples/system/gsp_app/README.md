@@ -2,11 +2,11 @@
 
 [中文](./README_CN.md)
 
-This example runs on the ESP32-P4 Function EV Board, on the 1024×600 screen. It opens a launcher. From there you can open Settings and change the screen brightness.
+This example runs on the ESP32-P4 Function EV Board, on the 1024×600 screen. It opens a launcher. From there you can open Settings, adjust screen brightness, and discover nearby Wi-Fi networks.
 
 The interface is chosen in menuconfig:
 
-- **GSP**, the default. Launcher, Settings home, and the brightness page.
+- **GSP**, the default. Launcher, Settings home, brightness, and Wi-Fi discovery.
 - **LVGL**. The existing desktop and the original Settings screens.
 
 The project is set up for ESP32-P4 revision v3.1.
@@ -56,9 +56,19 @@ Settings
 
 **Back** returns to the Settings home page. **Exit** returns to the launcher. Opening Settings again keeps the brightness you set.
 
-Wi-Fi, sound, language, and theme are on the page and marked **Unavailable**. A line under the list says they are not in this version.
+Sound, language, and theme remain marked **Unavailable**.
 
 With LVGL, the board shows the startup screen and then the desktop. Open Settings from there. Brightness uses the same display service.
+
+## Wi-Fi
+
+Open **Settings → Wi-Fi**. Turn Wi-Fi on to scan nearby networks. Use **Refresh** to scan again and **Previous / Next** to browse the results. The page shows each network's security, signal level, and RSSI, together with the current connection status.
+
+**Back** returns to Settings. Leaving during a scan cancels that scan; reopening the page reads the current service state and starts a fresh scan when Wi-Fi is on. Turning Wi-Fi off also disconnects the current network. The switch preference is saved across restarts.
+
+Password entry and connection controls are not available yet. The Wi-Fi service can still reconnect to networks it already knows, and those connections appear on the page.
+
+The P4 board uses its Wi-Fi companion chip through ESP-Hosted. If the service is unavailable, check the board configuration and companion firmware. A failed scan can be retried with **Refresh**; an empty result means no named networks were found.
 
 ## Brightness
 
@@ -81,5 +91,9 @@ constexpr bool RUN_BRIGHTNESS_PROBE = true;
 ```
 
 Rebuild and flash. The probe changes the brightness, then writes the previous percent back before the memory log.
+
+For Wi-Fi acceptance testing, enable **Run Settings Wi-Fi hardware acceptance probe at startup** under **Brookesia system GSP example** in menuconfig. The probe uses real scans and simulated touches to exercise refresh, scan cancellation, reopening, and Wi-Fi toggles, and logs memory over 20 measured cycles after warmup. Disable it for normal use.
+
+The probe also injects empty and failed scan outcomes and sample multilingual names to check the corresponding screens. These labeled cases are synthetic; the subsequent refreshes and repeated scans use nearby networks.
 
 Look at the panel to confirm the screens. The serial log records the service and the memory numbers.

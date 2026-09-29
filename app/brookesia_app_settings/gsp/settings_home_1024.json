@@ -57,26 +57,19 @@
       "radius": 24
     },
     {
-      "type": "label",
+      "type": "button",
       "parent_name": "home_card",
-      "x": 24,
-      "y": 22,
-      "w": 420,
-      "h": 36,
+      "name": "open_wifi",
+      "x": 12,
+      "y": 8,
+      "w": 892,
+      "h": 66,
       "text": "Wi-Fi",
       "font_size": 24,
-      "fg_color": "#C7C7CC"
-    },
-    {
-      "type": "label",
-      "parent_name": "home_card",
-      "x": 560,
-      "y": 22,
-      "w": 330,
-      "h": 36,
-      "text": "Unavailable",
-      "font_size": 22,
-      "fg_color": "#C7C7CC"
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "open_wifi"
     },
     {
       "type": "button",
@@ -144,7 +137,7 @@
       "y": 470,
       "w": 900,
       "h": 32,
-      "text": "Wi-Fi, sound, language and theme are not in this version",
+      "text": "Sound, language and theme are not available yet.",
       "font_size": 16,
       "fg_color": "#8E8E93"
     }

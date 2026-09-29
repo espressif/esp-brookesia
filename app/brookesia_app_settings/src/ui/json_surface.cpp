@@ -14,6 +14,13 @@ namespace {
 
 class JsonSettingsSurface: public SettingsSurface {
 public:
+    std::expected<void, std::string> set_wifi(
+        system::core::AppContext &, const WifiPageView &
+    ) override
+    {
+        return std::unexpected("JSON Wi-Fi uses its screen bindings");
+    }
+
     std::expected<void, std::string> show_page(
         system::core::AppContext &context,
         std::string_view page

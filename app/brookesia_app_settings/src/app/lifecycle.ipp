@@ -71,10 +71,11 @@ std::expected<void, std::string> SettingsApp::on_install(system::core::AppContex
     return {};
 }
 
-void SettingsApp::on_uninstall(system::core::AppContext &)
+void SettingsApp::on_uninstall(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
     shutdown_brightness_callbacks();
+    close_wifi_page(context);
     disconnect_sntp_events();
     disconnect_wifi_events();
     release_sntp_service();
@@ -253,6 +254,7 @@ std::expected<void, std::string> SettingsApp::on_stop(system::core::AppContext &
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
     shutdown_brightness_callbacks();
+    close_wifi_page(context);
     ++wifi_operation_generation_;
     cancel_wifi_scan_retry_timer(context);
     if (pending_wifi_connected_hide_timer_id_ != system::core::INVALID_TIMER_ID) {
@@ -321,6 +323,12 @@ std::expected<void, std::string> SettingsApp::on_timer(
 )
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (name == WIFI_PAGE_TIMER_NAME) {
+        if (timer_id != wifi_page_.timer_id || current_page_ != PAGE_WIFI || !wifi_page_.mailbox) {
+            return {};
+        }
+        return sync_wifi_page(context);
+    }
     constexpr std::string_view brightness_timer_prefix = BRIGHTNESS_UI_TIMER_NAME;
     if (name.starts_with(brightness_timer_prefix) && (name.size() > brightness_timer_prefix.size()) &&
             (name[brightness_timer_prefix.size()] == ':')) {

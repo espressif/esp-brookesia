@@ -174,6 +174,7 @@ bool Session::start_impl(
                            ? ESP_GSP_TOUCH_INPUT_INTERRUPT
                            : ESP_GSP_TOUCH_INPUT_POLLING;
     lcd.task_stack_size = RENDER_TASK_STACK_SIZE;
+    lcd.task_stack_size_freetype = RENDER_TASK_STACK_SIZE;
     lcd.task_stack_psram = true;
 
     esp_gsp_config_t config = bundle;

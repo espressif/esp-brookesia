@@ -80,6 +80,7 @@ private:
         bool locked = true;
         int signal_level = 0;
         int channel = 0;
+        int rssi = 0;
     };
 
     enum class WifiConnectedCardState {
@@ -195,6 +196,15 @@ private:
         service::ServiceBase::FunctionResultHandler handler = nullptr
     );
     void apply_wifi_enabled_preference_to_service();
+    std::expected<void, std::string> open_wifi_page(system::core::AppContext &context);
+    void close_wifi_page(system::core::AppContext &context);
+    void subscribe_wifi_page_events();
+    std::expected<void, std::string> sync_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> render_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> scan_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> toggle_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> read_wifi_page_state();
+    void stop_wifi_page_scan();
     void subscribe_wifi_events();
     void disconnect_wifi_events();
     void request_saved_wifi_networks_refresh();

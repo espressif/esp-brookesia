@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <array>
 #include <expected>
 #include <memory>
 #include <string>
@@ -15,15 +16,34 @@
 
 namespace esp_brookesia::app::settings {
 
+inline constexpr size_t WIFI_PAGE_ROW_COUNT = 5;
+
+struct WifiPageView {
+    struct Row {
+        std::string ssid;
+        std::string detail;
+    };
+    bool enabled = false;
+    bool toggle_enabled = false;
+    bool refresh_enabled = false;
+    bool previous_enabled = false;
+    bool next_enabled = false;
+    std::string status;
+    std::string connection;
+    std::string pagination;
+    std::array<Row, WIFI_PAGE_ROW_COUNT> rows;
+};
+
 /**
- * @brief Screen updates used while adjusting brightness.
- *
- * LVGL and GSP each implement this. The rest of Settings does not
- * call the widgets itself.
+ * @brief Present Settings state through the selected GUI backend.
  */
 class SettingsSurface {
 public:
     virtual ~SettingsSurface() = default;
+
+    virtual std::expected<void, std::string> set_wifi(
+        system::core::AppContext &context, const WifiPageView &view
+    ) = 0;
 
     virtual std::expected<void, std::string> show_page(
         system::core::AppContext &context,
