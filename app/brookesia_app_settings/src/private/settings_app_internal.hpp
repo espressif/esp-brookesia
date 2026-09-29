@@ -6,14 +6,20 @@
 #pragma once
 
 #include <array>
+#include <charconv>
 #include <chrono>
 #include <cstdint>
+#include <cstdio>
 #include <expected>
+#include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+
+#include "private/settings_surface.hpp"
 
 #include "boost/json/array.hpp"
 #include "boost/json/value.hpp"
@@ -195,6 +201,7 @@ inline constexpr const char *ACTION_DEBUG_THREAD_IDLE_CPU =
 inline constexpr const char *ACTION_DEBUG_THREAD_STACK_HWM =
     "settings.debug.thread.stack_hwm";
 inline constexpr const char *WIFI_SCAN_RETRY_TIMER_NAME = "settings.wifi.scan.retry";
+inline constexpr const char *BRIGHTNESS_UI_TIMER_NAME = "settings.display.brightness";
 inline constexpr const char *WIFI_CONNECTED_HIDE_TIMER_NAME = "settings.wifi.connected.hide";
 inline constexpr const char *WIFI_CONNECTED_SCROLL_TIMER_NAME = "settings.wifi.connected.scroll";
 inline constexpr const char *TIME_ZONE_OPTION_UTC_ACTION = "settings.time_zone.utc";
@@ -474,6 +481,24 @@ const service::EventItem *find_event_item(
 
 namespace esp_brookesia::app::settings {
 
+// Shared with the display callback. That callback updates this state and
+// does not touch the Settings object. Stopping Settings waits, from outside
+// the callback, until the current call has finished.
+struct BrightnessCallbackState {
+    std::mutex mutex;
+    bool open = false;
+    system::core::AppContext *context = nullptr;
+    uint64_t epoch = 0;
+    uint32_t output_id = 0;
+    bool output_valid = false;
+    bool sync_queued = false;
+    int pending_brightness = 0;
+    uint64_t pending_epoch = 0;
+    uint64_t schedule_ticket = 0;
+    uint64_t active_ticket = 0;
+    system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
+};
+
 struct SettingsApp::Impl {
     system::core::AppContext *context = nullptr;
     std::vector<std::string> dynamic_wifi_paths;
@@ -536,6 +561,11 @@ struct SettingsApp::Impl {
     size_t debug_entry_click_count = 0;
     detail::SteadyTimePoint debug_entry_last_click_at{};
     bool utils_debug_unavailable_logged = false;
+    std::unique_ptr<SettingsSurface> surface;
+    std::shared_ptr<BrightnessCallbackState> brightness_callbacks = std::make_shared<BrightnessCallbackState>();
+    uint64_t ui_epoch_counter = 0;
+    int logged_brightness = -1;
+    bool logged_brightness_enabled = false;
 };
 
 } // namespace esp_brookesia::app::settings
@@ -599,3 +629,8 @@ struct SettingsApp::Impl {
 #define debug_entry_click_count_ impl_->debug_entry_click_count
 #define debug_entry_last_click_at_ impl_->debug_entry_last_click_at
 #define utils_debug_unavailable_logged_ impl_->utils_debug_unavailable_logged
+#define surface_ impl_->surface
+#define brightness_callbacks_ impl_->brightness_callbacks
+#define ui_epoch_counter_ impl_->ui_epoch_counter
+#define logged_brightness_ impl_->logged_brightness
+#define logged_brightness_enabled_ impl_->logged_brightness_enabled

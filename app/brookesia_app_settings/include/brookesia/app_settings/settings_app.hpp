@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -39,6 +40,8 @@ public:
 
     system::core::AppManifest get_manifest() const override;
     system::core::AppGuiDescriptor get_gui_descriptor() const override;
+    std::span<const std::byte> gui_bundle() const override;
+    const void *gui_runtime_config() const override;
     std::expected<void, std::string> on_install(system::core::AppContext &context) override;
     void on_uninstall(system::core::AppContext &context) override;
     std::expected<void, std::string> on_start(system::core::AppContext &context) override;
@@ -134,6 +137,18 @@ private:
     void clear_hardware_groups(system::core::AppContext &context);
     std::expected<void, std::string> refresh_display_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_sound_state(system::core::AppContext &context);
+    std::expected<void, std::string> start_gsp_pages(system::core::AppContext &context);
+    std::expected<void, std::string> handle_gsp_action(
+        system::core::AppContext &context,
+        std::string_view action
+    );
+    std::expected<void, std::string> load_backlight_state();
+    void arm_ui_epoch();
+    void shutdown_brightness_callbacks();
+    void apply_scheduled_brightness(system::core::AppContext &context, uint64_t ticket);
+    std::string page_title_text(std::string_view page) const;
+    std::string brightness_status_text() const;
+    std::string brightness_caption_text() const;
     void subscribe_device_events();
     void disconnect_device_events();
     void handle_brightness_event(const gui::Event &event);

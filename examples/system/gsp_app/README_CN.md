@@ -2,12 +2,14 @@
 
 [English](./README.md)
 
-Brookesia System 在 ESP32-P4 Function EV Board 上运行一个本地应用。GUI 后端在 menuconfig 中选择：
+这个示例跑在 ESP32-P4 Function EV Board 的 1024×600 屏幕上。开机后是一个启动页，可以从这里打开设置，并调节屏幕亮度。
 
-- **GSP**（默认）：1024×600 的 Showcase（Command、Gallery、Lab），编译进固件。
-- **LVGL**：原有的 Super 桌面，资源写入 `littlefs_data` 分区。
+界面在 menuconfig 里选择：
 
-当前配置链接的是 ESP32-P4 revision v3.1 对应的 GSP 库。
+- **GSP**，默认。启动页、设置首页和亮度页。
+- **LVGL**。原来的桌面，以及原来的设置界面。
+
+工程按 ESP32-P4 revision v3.1 配置。
 
 ## 构建与烧录
 
@@ -18,23 +20,66 @@ idf.py build
 idf.py -p <PORT> -b 921600 flash monitor
 ```
 
-## 切换后端
+GSP 页面需要场景编译器。如果编译停下来并提示缺少它，可以安装工具，或把 `GSPC_EXECUTABLE` 指到 `gspc`：
+
+```bash
+python -m pip install -U esp-gsp-tools
+```
+
+## 切换界面
 
 ```bash
 idf.py menuconfig
 ```
 
-打开 `ESP-Brookesia: System Core Configurations → GUI backend`，然后保存。两种选择共用 `partitions_16m.csv`。选中 LVGL 后，`sdkconfig.defaults` 里的 LVGL 选项才会生效。
+打开 `ESP-Brookesia: System Core Configurations`，修改 `GUI backend`，然后保存。再构建并烧录：
 
 ```bash
 idf.py build
 idf.py -p <PORT> -b 921600 flash
 ```
 
-编译 GSP 场景需要场景编译器。没安装时菜单仍能打开，GSP 编译会停下来并提示安装方法：在 IDF 的 Python 环境里执行 `python -m pip install -U esp-gsp-tools`，或把 `GSPC_EXECUTABLE` 指到 `gspc`。
+两种选择都使用 `partitions_16m.csv`。`sdkconfig.defaults` 里的 LVGL 选项在选中 LVGL 之后生效。
 
-## 预期效果
+## 实际操作
 
-GSP：复位后进入 Command 场景。横向滑动可进入 Gallery 和 Lab。时钟指针会走动。`ALL SYSTEMS READY` 打开快捷设置。显示滑条会改变背光，并更新亮度文字。`Exit` 会熄灭背光约 1.5 秒，然后重新进入 Command。在 Lab 中，进入场景后的第一次 `TRIGGER` 打开组件页；离开后再进入也是如此。
+内存日志结束后，屏幕上是 **Brookesia** 和一个 **Settings** 按钮。
 
-LVGL：复位后先显示启动画面，然后进入 Super 桌面，其中有设置应用。
+```text
+Settings
+Display
+拖动亮度滑块
+Back
+Exit
+Settings
+```
+
+**Back** 回到设置首页。**Exit** 回到启动页。再次打开设置，亮度仍是刚才调的值。
+
+Wi-Fi、声音、语言和主题还在页面上，旁边写着 **Unavailable**。列表下面有一行字，说明这一版还没有这些功能。
+
+选择 LVGL 时，板子先显示启动画面，然后进入桌面。从桌面打开设置。亮度走同一个显示服务。
+
+## 亮度
+
+滑块是 0 到 100 的百分比，这个百分比会被保存。
+
+退出设置不会关掉显示服务。再次打开时读取当前百分比，不会写成一个新的固定值。
+
+重启后会恢复上次保存的百分比，然后把背光打开。还没有保存过时，第一次启动是 90。
+
+灯的硬件范围比 0 到 100 窄，所以硬件日志里的数字可能和滑块不同。滑块上的数字是保存的百分比。
+
+## 启动日志
+
+复位后会先打印内存日志，然后才出现启动页。示例会打开并关闭设置 22 次：2 次预热，20 次计量。这不会改已保存的亮度。
+
+如果还想在启动时从服务侧改一次亮度，编辑 `main/main_gsp.cpp`：
+
+```cpp
+constexpr bool RUN_BRIGHTNESS_PROBE = true;
+```
+
+重新构建并烧录。这次会先改亮度，再把原来的百分比写回去，然后才开始内存日志。
+
+画面以屏幕为准。串口日志记录的是服务和内存数字。

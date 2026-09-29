@@ -32,6 +32,7 @@ dependencies:
     version: "0.8.*"
     override_path: ../../../../service/media/brookesia_service_display
     matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
 
   espressif/brookesia_system_super:
@@ -44,4 +45,5 @@ dependencies:
     version: "0.8.*"
     override_path: ../../../../app/brookesia_app_settings
     matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True

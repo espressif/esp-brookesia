@@ -1,0 +1,61 @@
+{
+  "screen": "launcher",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "../fonts/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "glyph_source",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 24,
+      "text": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "font_size": 16,
+      "fg_color": "#F4F5F7",
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "title",
+      "x": 54,
+      "y": 180,
+      "w": 916,
+      "h": 64,
+      "text": "Brookesia",
+      "font_size": 48,
+      "fg_color": "#1C1C1E"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "x": 54,
+      "y": 252,
+      "w": 916,
+      "h": 36,
+      "text": "Open Settings to change the display brightness",
+      "font_size": 22,
+      "fg_color": "#8E8E93"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "open_settings",
+      "x": 54,
+      "y": 330,
+      "w": 320,
+      "h": 74,
+      "text": "Settings",
+      "font_size": 24,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 24,
+      "callback": "open_settings"
+    }
+  ]
+}

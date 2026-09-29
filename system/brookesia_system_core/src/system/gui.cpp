@@ -544,6 +544,11 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
     if ((record.gsp_host != nullptr) && record.gsp_host->running()) {
         return std::unexpected("GSP session is still running; stop it before starting again");
     }
+    for (const auto &[other_id, other] : apps_) {
+        if ((other_id != record.info.app_id) && gsp_session_running(other)) {
+            return std::unexpected("Another GSP session is already active on this panel");
+        }
+    }
     if ((gsp_panel_ == nullptr) || (gsp_touch_ == nullptr)) {
         return std::unexpected("GSP display devices are not bound");
     }

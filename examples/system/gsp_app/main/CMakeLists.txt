@@ -13,8 +13,7 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_LVGL)
 elseif(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
     set(SRCS
         "${CMAKE_CURRENT_LIST_DIR}/main_gsp.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/showcase_app.cpp"
-        "${CMAKE_CURRENT_LIST_DIR}/showcase_glue.c"
+        "${CMAKE_CURRENT_LIST_DIR}/launcher_app.cpp"
     )
 else()
     # The first dependency scan runs before sdkconfig exists.
@@ -35,11 +34,9 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
     endif()
     brookesia_gsp_add_bundle(${COMPONENT_LIB}
         SCENES
-            "${CMAKE_CURRENT_LIST_DIR}/scenes/showcase_command_1024.json"
-            "${CMAKE_CURRENT_LIST_DIR}/scenes/showcase_gallery_1024.json"
-            "${CMAKE_CURRENT_LIST_DIR}/scenes/showcase_lab_1024.json"
+            "${CMAKE_CURRENT_LIST_DIR}/scenes/launcher_1024.json"
         PIXEL_FORMAT rgb565
-        SYMBOL showcase
+        SYMBOL launcher
     )
 
     if(NOT TARGET esp_gsp_project_config)

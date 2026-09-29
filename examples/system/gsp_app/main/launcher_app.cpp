@@ -1,0 +1,71 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+#define BROOKESIA_LOG_TAG "GspLauncher"
+#include "brookesia/lib_utils/log.hpp"
+
+#include <cstdio>
+#include <string>
+
+#define GSP_BUNDLE_ENABLE_RAW_IDS 1
+#include "launcher_gsp.h"
+
+#include "launcher_app.hpp"
+
+namespace esp_brookesia::gsp_app {
+
+system::core::AppManifest LauncherApp::get_manifest() const
+{
+    system::core::AppManifest manifest;
+    manifest.id = "gsp_launcher";
+    manifest.name = "Home";
+    manifest.kind = system::core::AppKind::Native;
+    manifest.visible = true;
+    return manifest;
+}
+
+system::core::AppGuiDescriptor LauncherApp::get_gui_descriptor() const
+{
+    system::core::AppGuiDescriptor descriptor;
+    descriptor.root_kind = system::core::GuiRootKind::GspBundle;
+    return descriptor;
+}
+
+std::span<const std::byte> LauncherApp::gui_bundle() const
+{
+    const auto config = gsp_launcher_config();
+    return {reinterpret_cast<const std::byte *>(config.bundle), config.bundle_size};
+}
+
+const void *LauncherApp::gui_runtime_config() const
+{
+    static esp_gsp_config_t config;
+    config = gsp_launcher_config();
+    return &config;
+}
+
+std::expected<void, std::string> LauncherApp::on_action(system::core::AppContext &context, std::string_view action)
+{
+    if (action.starts_with("scene:")) {
+        return {};
+    }
+    unsigned scene = 0;
+    unsigned id = 0;
+    unsigned arg = 0;
+    const std::string text(action);
+    if (std::sscanf(text.c_str(), "%u:%u:%u", &scene, &id, &arg) != 3) {
+        return std::unexpected("Unrecognized GSP action");
+    }
+    (void)scene;
+    (void)arg;
+    if (id != GSP_LAUNCHER_ACT_ID_OPEN_SETTINGS) {
+        BROOKESIA_LOGI("Ignore launcher action %1%", id);
+        return {};
+    }
+    BROOKESIA_LOGI("Opening Settings");
+    return context.system_service().stop_app(context.app_id());
+}
+
+} // namespace esp_brookesia::gsp_app

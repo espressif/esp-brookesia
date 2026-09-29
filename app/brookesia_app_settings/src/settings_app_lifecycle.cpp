@@ -12,9 +12,13 @@ using namespace detail;
 SettingsApp::SettingsApp()
     : impl_(std::make_unique<Impl>())
 {
+    impl_->surface = make_settings_surface();
 }
 
-SettingsApp::~SettingsApp() = default;
+SettingsApp::~SettingsApp()
+{
+    shutdown_brightness_callbacks();
+}
 
 #include "app/lifecycle.ipp"
 

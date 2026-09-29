@@ -33,3 +33,14 @@ dependencies:
     version: "0.8.*"
     override_path: ../../hal/brookesia_hal_interface
     require: public
+
+  espressif/brookesia_service_display:
+    version: "0.8.*"
+    override_path: ../../service/media/brookesia_service_display
+    require: public
+
+  espressif/brookesia_gui_gsp:
+    version: "0.8.*"
+    override_path: ../../gui/brookesia_gui_gsp
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True

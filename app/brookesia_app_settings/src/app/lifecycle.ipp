@@ -16,8 +16,8 @@ system::core::AppManifest SettingsApp::get_manifest() const
         .version = make_app_version(),
         .kind = system::core::AppKind::Native,
         .visible = true,
-        // Keep the JSON UI DOM warm by default; Kconfig lets PSRAM-constrained builds opt out.
-        .preload_dom = BROOKESIA_APP_SETTINGS_ENABLE_PRELOAD_DOM,
+        // GSP has no JSON document to preload. LVGL preloads one unless turned off.
+        .preload_dom = settings_uses_gsp_backend() ? false : BROOKESIA_APP_SETTINGS_ENABLE_PRELOAD_DOM,
         .icon_id = APP_ICON_ID,
         .supported_systems = {},
         .icon_path = APP_ICON_PATH,
@@ -31,6 +31,14 @@ system::core::AppManifest SettingsApp::get_manifest() const
 
 system::core::AppGuiDescriptor SettingsApp::get_gui_descriptor() const
 {
+    if (settings_uses_gsp_backend()) {
+        return {
+            .root_kind = system::core::GuiRootKind::GspBundle,
+            .root = {},
+            .resources = {},
+            .screen_flows = {},
+        };
+    }
     return {
         .root_kind = system::core::GuiRootKind::File,
         .root = GUI_ROOT,
@@ -66,6 +74,7 @@ std::expected<void, std::string> SettingsApp::on_install(system::core::AppContex
 void SettingsApp::on_uninstall(system::core::AppContext &)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    shutdown_brightness_callbacks();
     disconnect_sntp_events();
     disconnect_wifi_events();
     release_sntp_service();
@@ -78,6 +87,9 @@ void SettingsApp::on_uninstall(system::core::AppContext &)
 std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (settings_uses_gsp_backend()) {
+        return start_gsp_pages(context);
+    }
     const auto start_profile_started_at = SteadyClock::now();
     bool start_profile_succeeded = false;
     lib_utils::FunctionGuard start_profile_guard([&]() {
@@ -178,6 +190,7 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
     apply_wifi_enabled_preference_to_service();
     log_start_profile("wifi_preference", stage_started_at, start_profile_started_at);
 
+    arm_ui_epoch();
     stage_started_at = SteadyClock::now();
     result = refresh_device_state(context);
     log_start_profile("refresh_device_state", stage_started_at, start_profile_started_at);
@@ -239,6 +252,7 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
 std::expected<void, std::string> SettingsApp::on_stop(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    shutdown_brightness_callbacks();
     ++wifi_operation_generation_;
     cancel_wifi_scan_retry_timer(context);
     if (pending_wifi_connected_hide_timer_id_ != system::core::INVALID_TIMER_ID) {
@@ -269,7 +283,6 @@ std::expected<void, std::string> SettingsApp::on_stop(system::core::AppContext &
         wifi_refresh_animation_id_ = 0;
     }
     action_handler_connections_.clear();
-    disconnect_device_events();
     disconnect_wifi_events();
     disconnect_sntp_events();
     clear_hardware_groups(context);
@@ -308,6 +321,17 @@ std::expected<void, std::string> SettingsApp::on_timer(
 )
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    constexpr std::string_view brightness_timer_prefix = BRIGHTNESS_UI_TIMER_NAME;
+    if (name.starts_with(brightness_timer_prefix) && (name.size() > brightness_timer_prefix.size()) &&
+            (name[brightness_timer_prefix.size()] == ':')) {
+        const auto suffix = name.substr(brightness_timer_prefix.size() + 1);
+        uint64_t ticket = 0;
+        const auto parsed = std::from_chars(suffix.data(), suffix.data() + suffix.size(), ticket);
+        if (parsed.ec == std::errc()) {
+            apply_scheduled_brightness(context, ticket);
+        }
+        return {};
+    }
     if (name == WIFI_SCAN_RETRY_TIMER_NAME) {
         if (timer_id != pending_wifi_scan_retry_timer_id_) {
             BROOKESIA_LOGW(
@@ -374,6 +398,9 @@ std::expected<void, std::string> SettingsApp::on_action(
 )
 {
     BROOKESIA_LOGD("Settings action: %1%", action);
+    if (settings_uses_gsp_backend()) {
+        return handle_gsp_action(context, action);
+    }
     std::string effective_action_storage;
     std::string_view effective_action = action;
     if (action == ACTION_HEADER_BACK) {

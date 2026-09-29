@@ -31,5 +31,18 @@ brookesia_stage_runtime_app_package(
     NO_INDEX
 )
 
+if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+    if(NOT COMMAND brookesia_gsp_add_bundle)
+        message(FATAL_ERROR "brookesia_gui_gsp bundle helper is unavailable")
+    endif()
+    brookesia_gsp_add_bundle(${COMPONENT_LIB}
+        SCENES
+            "${COMPONENT_DIR}/gsp/settings_home_1024.json"
+            "${COMPONENT_DIR}/gsp/settings_display_1024.json"
+        PIXEL_FORMAT rgb565
+        SYMBOL settings
+    )
+endif()
+
 include(package_manager)
 cu_pkg_define_version(${COMPONENT_DIR})

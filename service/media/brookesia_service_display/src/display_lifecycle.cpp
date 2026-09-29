@@ -3,10 +3,53 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <atomic>
+
 #include "boost/format.hpp"
 #include "private/display_impl.hpp"
 
 namespace esp_brookesia::service {
+
+namespace {
+
+std::atomic<Display::TouchCollectionOwner> &touch_collection_owner_storage()
+{
+    static std::atomic<Display::TouchCollectionOwner> owner{Display::TouchCollectionOwner::Service};
+    return owner;
+}
+
+bool service_owns_touch_input()
+{
+    return (BROOKESIA_SERVICE_DISPLAY_ENABLE_TOUCH_COLLECTION != 0) &&
+           (touch_collection_owner_storage().load(std::memory_order_acquire) == Display::TouchCollectionOwner::Service);
+}
+
+} // namespace
+
+void Display::set_touch_collection_owner(TouchCollectionOwner owner)
+{
+    touch_collection_owner_storage().store(owner, std::memory_order_release);
+    auto &display = get_instance();
+    if (!display.is_running()) {
+        BROOKESIA_LOGI(
+            "Display touch collection owner is %1%",
+            owner == TouchCollectionOwner::Service ? "service" : "external"
+        );
+        return;
+    }
+    if (owner == TouchCollectionOwner::External) {
+        display.stop_touch_gesture_tasks();
+        display.stop_touch_tasks();
+        BROOKESIA_LOGI("Display released touch input to an external reader");
+        return;
+    }
+    BROOKESIA_LOGI("Display touch collection owner is service");
+}
+
+Display::TouchCollectionOwner Display::touch_collection_owner()
+{
+    return touch_collection_owner_storage().load(std::memory_order_acquire);
+}
 
 std::string Display::get_component_version()
 {
@@ -167,22 +210,26 @@ bool Display::on_start()
     BROOKESIA_CHECK_FALSE_RETURN(scheduler->configure_group(get_touch_task_group(), {
         .enable_serial_execution = true,
     }), false, "Failed to configure Display touch task group");
-    if (!start_touch_tasks()) {
-        BROOKESIA_LOGW("Failed to start one or more Display touch tasks");
-    }
-    std::vector<uint32_t> enabled_gesture_outputs;
-    {
-        std::lock_guard lock(mutex_);
-        for (const auto &[output_id, output] : outputs_) {
-            if (output.gesture_config.enabled) {
-                enabled_gesture_outputs.push_back(output_id);
+    if (service_owns_touch_input()) {
+        if (!start_touch_tasks()) {
+            BROOKESIA_LOGW("Failed to start one or more Display touch tasks");
+        }
+        std::vector<uint32_t> enabled_gesture_outputs;
+        {
+            std::lock_guard lock(mutex_);
+            for (const auto &[output_id, output] : outputs_) {
+                if (output.gesture_config.enabled) {
+                    enabled_gesture_outputs.push_back(output_id);
+                }
             }
         }
-    }
-    for (const auto output_id : enabled_gesture_outputs) {
-        if (!start_touch_gesture_task(output_id)) {
-            BROOKESIA_LOGW("Failed to start Display touch gesture task for output %1%", output_id);
+        for (const auto output_id : enabled_gesture_outputs) {
+            if (!start_touch_gesture_task(output_id)) {
+                BROOKESIA_LOGW("Failed to start Display touch gesture task for output %1%", output_id);
+            }
         }
+    } else {
+        BROOKESIA_LOGI("Display touch collection is disabled; an external reader owns the touch device");
     }
     {
         std::lock_guard lock(mutex_);

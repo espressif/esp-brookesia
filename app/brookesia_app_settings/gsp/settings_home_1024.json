@@ -1,0 +1,152 @@
+{
+  "screen": "settings_home",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "../../../examples/system/gsp_app/main/fonts/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "header_bar",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 74,
+      "bg_color": "#FFFFFF"
+    },
+    {
+      "type": "label",
+      "parent_name": "header_bar",
+      "name": "header_title",
+      "bind": "header_title",
+      "x": 54,
+      "y": 16,
+      "w": 760,
+      "h": 42,
+      "text": "Settings",
+      "font_size": 32,
+      "fg_color": "#1C1C1E",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
+    },
+    {
+      "type": "button",
+      "parent_name": "header_bar",
+      "name": "header_exit",
+      "x": 860,
+      "y": 13,
+      "w": 140,
+      "h": 48,
+      "text": "Exit",
+      "font_size": 22,
+      "bg_color": "#E8E8EA",
+      "fg_color": "#1C1C1E",
+      "radius": 16,
+      "callback": "header_exit"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "home_card",
+      "x": 54,
+      "y": 92,
+      "w": 916,
+      "h": 360,
+      "bg_color": "#FFFFFF",
+      "radius": 24
+    },
+    {
+      "type": "label",
+      "parent_name": "home_card",
+      "x": 24,
+      "y": 22,
+      "w": 420,
+      "h": 36,
+      "text": "Wi-Fi",
+      "font_size": 24,
+      "fg_color": "#C7C7CC"
+    },
+    {
+      "type": "label",
+      "parent_name": "home_card",
+      "x": 560,
+      "y": 22,
+      "w": 330,
+      "h": 36,
+      "text": "Unavailable",
+      "font_size": 22,
+      "fg_color": "#C7C7CC"
+    },
+    {
+      "type": "button",
+      "parent_name": "home_card",
+      "name": "open_display",
+      "x": 12,
+      "y": 78,
+      "w": 892,
+      "h": 74,
+      "text": "Display",
+      "font_size": 24,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "open_display"
+    },
+    {
+      "type": "label",
+      "parent_name": "home_card",
+      "x": 24,
+      "y": 174,
+      "w": 420,
+      "h": 36,
+      "text": "Sound",
+      "font_size": 24,
+      "fg_color": "#C7C7CC"
+    },
+    {
+      "type": "label",
+      "parent_name": "home_card",
+      "x": 560,
+      "y": 174,
+      "w": 330,
+      "h": 36,
+      "text": "Unavailable",
+      "font_size": 22,
+      "fg_color": "#C7C7CC"
+    },
+    {
+      "type": "label",
+      "parent_name": "home_card",
+      "x": 24,
+      "y": 250,
+      "w": 420,
+      "h": 36,
+      "text": "Language",
+      "font_size": 24,
+      "fg_color": "#C7C7CC"
+    },
+    {
+      "type": "label",
+      "parent_name": "home_card",
+      "x": 560,
+      "y": 250,
+      "w": 330,
+      "h": 36,
+      "text": "Unavailable",
+      "font_size": 22,
+      "fg_color": "#C7C7CC"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "x": 62,
+      "y": 470,
+      "w": 900,
+      "h": 32,
+      "text": "Wi-Fi, sound, language and theme are not in this version",
+      "font_size": 16,
+      "fg_color": "#8E8E93"
+    }
+  ]
+}

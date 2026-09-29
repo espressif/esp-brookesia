@@ -10,8 +10,8 @@ menu "ESP-Brookesia: System Core Configurations"
         prompt "GUI backend"
         default BROOKESIA_GUI_BACKEND_LVGL
         help
-            GSP runs the showcase. LVGL runs the desktop. GSP is listed
-            only in examples that support it.
+            Choose GSP for this example's GSP screens, or LVGL for the
+            desktop. GSP is listed only in examples that support it.
 
         config BROOKESIA_GUI_BACKEND_GSP
             bool "GSP"
