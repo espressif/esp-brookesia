@@ -24,6 +24,10 @@ else()
     set(SRCS "${CMAKE_CURRENT_LIST_DIR}/main_pending.cpp")
 endif()
 
+if(CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE OR CONFIG_BROOKESIA_LVGL_WIFI_CONNECT_PROBE)
+    list(APPEND probe_requires esp_driver_usb_serial_jtag)
+endif()
+
 idf_component_register(
     SRCS ${SRCS}
     INCLUDE_DIRS "." ${EXTRA_INCLUDE_DIRS}

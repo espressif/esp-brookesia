@@ -8,6 +8,8 @@
 #include <atomic>
 #include <cstdint>
 #include <cstring>
+#include <mutex>
+#include <string>
 
 #include "esp_event.h"
 #include "esp_gsp.h"
@@ -25,6 +27,10 @@ constexpr uint32_t WIFI_STATUS_KEY = 0x03BA13BFU; // FNV-1a key of the generated
 constexpr std::array<uint32_t, UNICODE_AP_COUNT> SSID_KEYS = {
     0x3D75BD29U, 0x3C75BB96U, 0x3B75BA03U,
 };
+constexpr std::array<uint32_t, 5> ROW_SSID_KEYS = {
+    0x3D75BD29U, 0x3C75BB96U, 0x3B75BA03U, 0x3A75B870U, 0x4175C375U,
+};
+constexpr uint32_t CONNECTION_STATUS_KEY = 0x435B5D3CU; // FNV-1a key of "connection_status".
 constexpr std::array<const char *, UNICODE_AP_COUNT> UNICODE_SSIDS = {
     "中文热点_嗨嗯", "繁體網路測試", "Café_Δίκτυο_Сеть",
 };
@@ -35,6 +41,15 @@ std::array<std::atomic<unsigned>, STATUS_COUNT> statuses{};
 std::array<std::atomic<unsigned>, UNICODE_AP_COUNT> unicode_rows{};
 std::atomic<bool> cleanup_ok{true};
 std::atomic<bool> unicode_records_pending{false};
+std::mutex target_mutex;
+std::string target_ssid;
+std::atomic<int> target_row{-1};
+std::atomic<unsigned> connected_targets{0};
+unsigned wifi_status_updates = 0;
+unsigned connection_status_updates = 0;
+unsigned target_connecting_updates = 0;
+std::string latest_wifi_status;
+std::string latest_connection_status;
 
 bool consume(Fault fault)
 {
@@ -106,6 +121,52 @@ unsigned unicode_row_count(size_t row)
 bool cleanup_succeeded()
 {
     return cleanup_ok.load();
+}
+
+void track_target_ssid(std::string_view ssid)
+{
+    std::lock_guard lock(target_mutex);
+    target_ssid.assign(ssid);
+    target_row.store(-1);
+    connected_targets.store(0);
+    wifi_status_updates = 0;
+    connection_status_updates = 0;
+    target_connecting_updates = 0;
+    latest_wifi_status.clear();
+    latest_connection_status.clear();
+}
+
+void clear_target_ssid()
+{
+    track_target_ssid({});
+}
+
+void reset_target_row()
+{
+    target_row.store(-1);
+}
+
+int matching_target_row()
+{
+    return target_row.load();
+}
+
+unsigned connected_target_count()
+{
+    return connected_targets.load();
+}
+
+WifiDisplaySnapshot wifi_display_snapshot()
+{
+    std::lock_guard lock(target_mutex);
+    return {
+        .status_updates = wifi_status_updates,
+        .connection_updates = connection_status_updates,
+        .target_connecting_updates = target_connecting_updates,
+        .wifi_off = latest_wifi_status == "Wi-Fi is off. Turn it on to discover networks.",
+        .status_connecting = latest_wifi_status == "Connecting to network...",
+        .connection_connecting = std::string_view(latest_connection_status).starts_with("Connecting: "),
+    };
 }
 
 } // namespace esp_brookesia::gsp_app::wifi_probe_hooks
@@ -190,6 +251,36 @@ extern "C" esp_gsp_err_t __wrap_esp_gsp_component_set_text(esp_gsp_handle_t gsp,
         if (key == SSID_KEYS[index] && std::strcmp(value, UNICODE_SSIDS[index]) == 0) {
             unicode_rows[index].fetch_add(1);
         }
+    }
+    std::lock_guard lock(target_mutex);
+    if (key == WIFI_STATUS_KEY) {
+        latest_wifi_status = value;
+        ++wifi_status_updates;
+    } else if (key == CONNECTION_STATUS_KEY) {
+        latest_connection_status = value;
+        ++connection_status_updates;
+        if (!target_ssid.empty() && std::string_view(value).starts_with("Connecting: ") &&
+                std::string_view(value).substr(sizeof("Connecting: ") - 1) == target_ssid) {
+            ++target_connecting_updates;
+        }
+    }
+    if (target_ssid.empty()) {
+        return result;
+    }
+    for (size_t index = 0; index < ROW_SSID_KEYS.size(); ++index) {
+        if (key == ROW_SSID_KEYS[index]) {
+            if (target_ssid == value) {
+                target_row.store(static_cast<int>(index));
+            } else if (target_row.load() == static_cast<int>(index)) {
+                target_row.store(-1);
+            }
+            break;
+        }
+    }
+    if (key == CONNECTION_STATUS_KEY &&
+            std::string_view(value).starts_with("Connected: ") &&
+            std::string_view(value).substr(sizeof("Connected: ") - 1) == target_ssid) {
+        connected_targets.fetch_add(1);
     }
     return result;
 }

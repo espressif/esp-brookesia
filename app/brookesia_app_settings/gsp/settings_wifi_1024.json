@@ -104,12 +104,29 @@
       "bind": "wifi_status",
       "x": 54,
       "y": 144,
-      "w": 916,
+      "w": 742,
       "h": 28,
       "text": "Wi-Fi is off.",
       "font_size": 20,
       "fg_color": "#1C1C1E",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "network_0",
+      "bind": "network_0",
+      "x": 54,
+      "y": 178,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "select_0",
+      "enabled": false
     },
     {
       "type": "label",
@@ -141,6 +158,23 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
+      "type": "button",
+      "parent": -1,
+      "name": "network_1",
+      "bind": "network_1",
+      "x": 54,
+      "y": 239,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "select_1",
+      "enabled": false
+    },
+    {
       "type": "label",
       "parent": -1,
       "name": "ssid_1",
@@ -168,6 +202,23 @@
       "font_size": 16,
       "fg_color": "#636366",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "network_2",
+      "bind": "network_2",
+      "x": 54,
+      "y": 300,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "select_2",
+      "enabled": false
     },
     {
       "type": "label",
@@ -199,6 +250,23 @@
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
+      "type": "button",
+      "parent": -1,
+      "name": "network_3",
+      "bind": "network_3",
+      "x": 54,
+      "y": 361,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "select_3",
+      "enabled": false
+    },
+    {
       "type": "label",
       "parent": -1,
       "name": "ssid_3",
@@ -226,6 +294,23 @@
       "font_size": 16,
       "fg_color": "#636366",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "network_4",
+      "bind": "network_4",
+      "x": 54,
+      "y": 422,
+      "w": 916,
+      "h": 58,
+      "text": "",
+      "font_size": 20,
+      "bg_color": "#FFFFFF",
+      "fg_color": "#1C1C1E",
+      "radius": 12,
+      "callback": "select_4",
+      "enabled": false
     },
     {
       "type": "label",
@@ -315,10 +400,27 @@
       "y": 558,
       "w": 916,
       "h": 28,
-      "text": "Password entry and connection controls are not available yet.",
+      "text": "Tap a network to connect. Saved credentials are reused when available.",
       "font_size": 18,
       "fg_color": "#636366",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "disconnect",
+      "bind": "disconnect",
+      "x": 814,
+      "y": 136,
+      "w": 156,
+      "h": 36,
+      "text": "Disconnect",
+      "font_size": 18,
+      "bg_color": "#E8E8EA",
+      "fg_color": "#1C1C1E",
+      "radius": 10,
+      "callback": "disconnect",
+      "enabled": false
     }
   ]
 }

@@ -933,8 +933,8 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
                 if (!tree_has_binding_declaration_for_update(*tree, query, update.key)) {
                     BROOKESIA_LOGW(
                         "Binding update target not found and no matching binding declaration exists: "
-                        "document_id=%1%, path='%2%', key='%3%', value='%4%'",
-                        document_id.value(), query, update.key, update.value
+                        "document_id=%1%, path='%2%', key='%3%'",
+                        document_id.value(), query, update.key
                     );
                 }
                 continue;
@@ -963,10 +963,9 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
                 auto apply_result = apply_binding_value(*tree, *record, *binding_target, update.value);
                 if (!apply_result) {
                     BROOKESIA_LOGW(
-                        "Failed to apply batched binding update: node='%1%', path='%2%', value='%3%', reason='%4%'",
+                        "Failed to apply batched binding update: node='%1%', path='%2%', reason='%3%'",
                         record->absolute_path,
                         binding_path,
-                        update.value,
                         apply_result.error()
                     );
                     continue;
@@ -983,8 +982,8 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
             if (!matched_binding) {
                 BROOKESIA_LOGW(
                     "Binding update path exists but no binding declaration matched key: "
-                    "document_id=%1%, path='%2%', key='%3%', value='%4%', node_type=%5%",
-                    document_id.value(), record->absolute_path, update.key, update.value,
+                    "document_id=%1%, path='%2%', key='%3%', node_type=%4%",
+                    document_id.value(), record->absolute_path, update.key,
                     get_theme_style_key(record->node().type)
                 );
             }
@@ -1090,10 +1089,9 @@ Runtime::Impl::BindingApplyMasks Runtime::Impl::apply_initial_bindings(
         auto apply_result = apply_binding_value(tree, temporary_record, *binding_target, *value);
         if (!apply_result) {
             BROOKESIA_LOGW(
-                "Failed to apply initial binding: node='%1%', path='%2%', value='%3%', reason='%4%'",
+                "Failed to apply initial binding: node='%1%', path='%2%', reason='%3%'",
                 absolute_path,
                 path,
-                *value,
                 apply_result.error()
             );
             continue;

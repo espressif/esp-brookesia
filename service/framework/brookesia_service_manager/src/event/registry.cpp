@@ -66,7 +66,7 @@ bool EventRegistry::validate_items(const std::string &event_name, const EventIte
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: event_name(%1%), event_items(%2%)", event_name, BROOKESIA_DESCRIBE_TO_STR(event_items));
+    BROOKESIA_LOGD("Validating event '%1%'", event_name);
 
     BROOKESIA_CHECK_FALSE_RETURN(!event_items.empty(), false, "Event items map is empty");
 

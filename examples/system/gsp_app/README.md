@@ -2,11 +2,11 @@
 
 [中文](./README_CN.md)
 
-This example runs on the ESP32-P4 Function EV Board, on the 1024×600 screen. It opens a launcher. From there you can open Settings, adjust screen brightness, and discover nearby Wi-Fi networks.
+This example runs on the ESP32-P4 Function EV Board, on the 1024×600 screen. It opens a launcher. From there you can open Settings, adjust screen brightness, and connect to nearby Wi-Fi networks.
 
 The interface is chosen in menuconfig:
 
-- **GSP**, the default. Launcher, Settings home, brightness, and Wi-Fi discovery.
+- **GSP**, the default. Launcher, Settings home, brightness, and Wi-Fi setup.
 - **LVGL**. The existing desktop and the original Settings screens.
 
 The project is set up for ESP32-P4 revision v3.1.
@@ -70,7 +70,11 @@ Open **Settings → Wi-Fi**. Turn Wi-Fi on to scan nearby networks. Use **Refres
 
 **Back** returns to Settings. Leaving during a scan cancels that scan; reopening the page reads the current service state and starts a fresh scan when Wi-Fi is on. Turning Wi-Fi off also disconnects the current network. The switch preference is saved across restarts.
 
-Password entry and connection controls are not available yet. The Wi-Fi service can still reconnect to networks it already knows, and those connections appear on the page.
+Tap a network to connect. Open networks and networks with saved credentials connect directly. For a new personal network, choose **Edit password**, enter the password, confirm, and choose **Connect**. The keyboard includes letters, numbers, symbols, space, and delete; passwords remain masked. **Cancel** closes the keyboard without starting a connection.
+
+Wait for **Connected to network** before returning to the list. A failed attempt can be retried. Leaving the page after a connection has been submitted lets the Wi-Fi service finish it; reopening reads the current status. **Disconnect** ends the current connection without deleting saved credentials. Successful connections are saved and can reconnect after a restart.
+
+Enterprise network configuration, Chinese input, and saved-network management are not provided. The password keyboard accepts printable ASCII characters.
 
 The P4 board uses its Wi-Fi companion chip through ESP-Hosted. If the service is unavailable, check the board configuration and companion firmware. A failed scan can be retried with **Refresh**; an empty result means no named networks were found.
 
@@ -101,5 +105,7 @@ For Wi-Fi acceptance testing, enable **Run Settings Wi-Fi hardware acceptance pr
 The probe also injects empty and failed scan outcomes and sample multilingual names to check the corresponding screens. These labeled cases are synthetic; the subsequent refreshes and repeated scans use nearby networks.
 
 For LVGL, the same example menu provides **Run LVGL hardware acceptance probe at startup**. It checks desktop navigation, Settings, brightness, Wi-Fi, and hardware discovery, captures screens, and records memory over 20 cycles. Both acceptance probes are disabled by default.
+
+Each probe has an optional password-and-connection mode. Use a dedicated personal test network and send a single JSON object with `ssid` and `password` fields when the serial console reports that it is ready. The firmware does not echo credentials; use a serial sender with local echo disabled. GSP checks password entry for an unsaved network, then tests stopping and restarting Wi-Fi during a direct connection from the list. If credentials are already saved, it runs only the direct-connection checks. LVGL can remove the test network's saved entry through Settings before entering its password again. A successful connection saves the credentials through the normal Wi-Fi service.
 
 Look at the panel to confirm the screens. The serial log records the service and the memory numbers.

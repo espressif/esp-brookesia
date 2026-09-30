@@ -138,7 +138,7 @@ wifi_sta_config_t get_station_config(const wifi::ConnectApInfo &ap_info)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
-    BROOKESIA_LOGD("Params: ap_info(%1%)", BROOKESIA_DESCRIBE_TO_STR(ap_info));
+    BROOKESIA_LOGD("Configuring station for SSID '%1%'", ap_info.ssid);
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmissing-field-initializers"
@@ -165,6 +165,20 @@ wifi_sta_config_t get_station_config(const wifi::ConnectApInfo &ap_info)
     return cfg;
 }
 
+bool is_enterprise_auth_mode(wifi_auth_mode_t auth_mode)
+{
+    switch (auth_mode) {
+    case WIFI_AUTH_ENTERPRISE:
+    case WIFI_AUTH_WPA3_ENT_192:
+    case WIFI_AUTH_WPA3_ENTERPRISE:
+    case WIFI_AUTH_WPA2_WPA3_ENTERPRISE:
+    case WIFI_AUTH_WPA_ENTERPRISE:
+        return true;
+    default:
+        return false;
+    }
+}
+
 wifi::ScanApInfo get_ap_info(const wifi_ap_record_t &ap_record)
 {
     return wifi::ScanApInfo{
@@ -173,6 +187,7 @@ wifi::ScanApInfo get_ap_info(const wifi_ap_record_t &ap_record)
         .rssi = ap_record.rssi,
         .signal_level = wifi::ScanApInfo::get_signal_level(ap_record.rssi),
         .channel = ap_record.primary,
+        .is_enterprise = is_enterprise_auth_mode(ap_record.authmode),
     };
 }
 } // anonymous namespace
@@ -823,7 +838,6 @@ bool WifiEspBackend::do_connect(const wifi::ConnectApInfo &ap_info)
     BROOKESIA_CHECK_FALSE_RETURN(ap_info.is_valid(), false, "Invalid connecting AP info");
 
     BROOKESIA_LOGI("Connecting to %1%...", ap_info.ssid);
-    BROOKESIA_LOGD("With password: %1%", ap_info.password);
 
     wifi_config_t wifi_config = {
         .sta = get_station_config(ap_info),
@@ -1503,7 +1517,7 @@ bool WifiEspBackend::set_target_connect_ap_info(const wifi::ConnectApInfo &ap_in
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: ap_info(%1%)", BROOKESIA_DESCRIBE_TO_STR(ap_info));
+    BROOKESIA_LOGD("Setting target AP '%1%'", ap_info.ssid);
 
     target_connect_ap_info_ = ap_info;
 
@@ -1523,11 +1537,23 @@ bool WifiEspBackend::set_last_connected_ap_info(const wifi::ConnectApInfo &ap_in
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: ap_info(%1%)", BROOKESIA_DESCRIBE_TO_STR(ap_info));
+    BROOKESIA_LOGD("Setting last connected AP '%1%'", ap_info.ssid);
 
     last_connected_ap_info_ = ap_info;
 
     return true;
+}
+
+bool WifiEspBackend::get_connected_ssid(std::string &ssid) const
+{
+    ssid.clear();
+    wifi_ap_record_t ap_info = {};
+    if (esp_wifi_sta_get_ap_info(&ap_info) != ESP_OK) {
+        return false;
+    }
+    const auto *end = std::find(ap_info.ssid, ap_info.ssid + sizeof(ap_info.ssid), static_cast<uint8_t>(0));
+    ssid.assign(reinterpret_cast<const char *>(ap_info.ssid), static_cast<size_t>(end - ap_info.ssid));
+    return !ssid.empty();
 }
 
 bool WifiEspBackend::on_wifi_event(uint8_t event, bool scan_failed)

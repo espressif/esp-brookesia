@@ -40,6 +40,14 @@
 #   include "esp_lcd_mipi_dsi.h"
 #   include "wifi_probe_hooks.hpp"
 #endif
+#if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
+#   include <algorithm>
+#   include <cctype>
+#   include <optional>
+#   include <utility>
+#   include "boost/json.hpp"
+#   include "driver/usb_serial_jtag.h"
+#endif
 
 namespace esp_brookesia::gsp_app {
 
@@ -67,6 +75,52 @@ ShellState shell_state;
 
 class ShellSystem: public system::core::System {
 public:
+    void set_settings_keyboard_target(
+        const std::shared_ptr<app::settings::SettingsApp> &settings, system::core::AppId app_id
+    )
+    {
+        settings_keyboard_target_ = settings;
+        settings_keyboard_app_id_ = app_id;
+    }
+
+    std::expected<void, std::string> on_show_app_keyboard(
+        system::core::AppId app_id,
+        system::core::KeyboardRequestId request_id,
+        const system::core::KeyboardRequestOptions &options
+    ) override
+    {
+        if (app_id != settings_keyboard_app_id_ || app_id == system::core::INVALID_APP_ID) {
+            return std::unexpected("GSP keyboard is only available in Settings");
+        }
+        auto settings = settings_keyboard_target_.lock();
+        const auto app = get_app(app_id);
+        if (!settings || !app || app->state != system::core::AppState::Running) {
+            return std::unexpected("Settings is not running");
+        }
+        const auto complete = [this](const system::core::KeyboardResult & result) {
+            auto completed = complete_app_keyboard(
+                                 result.app_id, result.request_id, result.confirmed, result.text
+                             );
+            if (!completed) {
+                BROOKESIA_LOGW("Failed to complete GSP keyboard request %1%: %2%",
+                               result.request_id, completed.error());
+            }
+        };
+        return settings->show_gsp_keyboard(request_id, options, complete);
+    }
+
+    void on_hide_app_keyboard(
+        system::core::AppId app_id, system::core::KeyboardRequestId request_id
+    ) override
+    {
+        if (app_id != settings_keyboard_app_id_) {
+            return;
+        }
+        if (auto settings = settings_keyboard_target_.lock()) {
+            settings->hide_gsp_keyboard(request_id);
+        }
+    }
+
     void on_app_stopped(const system::core::AppInfo &app) override
     {
         if (!shell_state.handoff.load()) {
@@ -86,6 +140,10 @@ public:
             BROOKESIA_LOGE("Failed to switch the active GSP app: %1%", started.error());
         }
     }
+
+private:
+    std::weak_ptr<app::settings::SettingsApp> settings_keyboard_target_;
+    system::core::AppId settings_keyboard_app_id_ = system::core::INVALID_APP_ID;
 };
 
 struct HeapSample {
@@ -228,10 +286,22 @@ bool run_brightness_probe(uint32_t output_id, int saved_brightness)
 
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
 #   include "wifi_probe.ipp"
+#   if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
+#       include "wifi_connect_probe.ipp"
+#   endif
 #endif
 
 void run_main()
 {
+#if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
+    connect_probe::Credentials test_credentials;
+    if (!connect_probe::read_credentials(test_credentials)) {
+        return;
+    }
+    lib_utils::FunctionGuard clear_test_credentials([&]() {
+        connect_probe::clear_password(test_credentials.password);
+    });
+#endif
     static auto panel = hal::acquire_interface<hal::display::PanelIface>(hal::DisplayDevice::LCD_PANEL_IMPL_NAME);
     static auto touch = hal::acquire_interface<hal::display::TouchIface>(hal::DisplayDevice::LCD_TOUCH_IMPL_NAME);
     static auto backlight = hal::acquire_interface<hal::display::BacklightIface>(
@@ -292,6 +362,7 @@ void run_main()
     }
     shell_state.launcher_id = launcher_id.value();
     shell_state.settings_id = settings_id.value();
+    system_instance.set_settings_keyboard_target(settings, shell_state.settings_id);
 
     // Keep Display running for the whole example. Closing Settings also
     // releases its own use of Display, and that must not stop the service
@@ -333,10 +404,17 @@ void run_main()
     }
 
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
+#   if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
+    if (!run_wifi_connect_probe(system_instance, shell_state.settings_id, *panel, test_credentials)) {
+        BROOKESIA_LOGE("Wi-Fi connection probe FAILED");
+        return;
+    }
+#   else
     if (!run_wifi_probe(system_instance, shell_state.settings_id, *panel)) {
         BROOKESIA_LOGE("Wi-Fi probe FAILED");
         return;
     }
+#   endif
 #endif
 
     for (int cycle = 1; cycle <= WARMUP_CYCLES; ++cycle) {

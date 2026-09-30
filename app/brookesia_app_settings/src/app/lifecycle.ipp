@@ -74,6 +74,15 @@ std::expected<void, std::string> SettingsApp::on_install(system::core::AppContex
 void SettingsApp::on_uninstall(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    ++wifi_operation_generation_;
+    if (wifi_ui_mailbox_) {
+        wifi_ui_mailbox_->close();
+        wifi_ui_mailbox_.reset();
+    }
+    if (wifi_ui_timer_id_ != system::core::INVALID_TIMER_ID) {
+        (void)context.timer().stop(wifi_ui_timer_id_);
+        wifi_ui_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
     shutdown_brightness_callbacks();
     close_wifi_page(context);
     disconnect_sntp_events();
@@ -94,6 +103,10 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
     const auto start_profile_started_at = SteadyClock::now();
     bool start_profile_succeeded = false;
     lib_utils::FunctionGuard start_profile_guard([&]() {
+        if (!start_profile_succeeded && wifi_ui_mailbox_) {
+            wifi_ui_mailbox_->close();
+            wifi_ui_mailbox_.reset();
+        }
         APP_SETTINGS_PROFILE_LOGI(
             "Settings start profile: result(%1%), total_ms(%2%)",
             start_profile_succeeded ? "ok" : "failed",
@@ -103,6 +116,7 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
 
     auto stage_started_at = SteadyClock::now();
     context_ = &context;
+    wifi_ui_mailbox_ = std::make_shared<WifiUiMailbox>();
     const auto active_gui = context.gui().get_theme_language();
     current_locale_ = normalize_locale(active_gui.language);
     current_theme_id_ = active_gui.theme_id == THEME_DARK ? THEME_DARK : THEME_LIGHT;
@@ -246,6 +260,11 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
     stage_started_at = SteadyClock::now();
     subscribe_sntp_events();
     log_start_profile("subscribe_sntp_events", stage_started_at, start_profile_started_at);
+    auto wifi_ui_timer = context.timer().start_periodic(WIFI_UI_TIMER_NAME, WIFI_UI_POLL_INTERVAL_MS);
+    if (!wifi_ui_timer) {
+        return std::unexpected(wifi_ui_timer.error());
+    }
+    wifi_ui_timer_id_ = *wifi_ui_timer;
     start_profile_succeeded = true;
     return {};
 }
@@ -253,6 +272,14 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
 std::expected<void, std::string> SettingsApp::on_stop(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (wifi_ui_mailbox_) {
+        wifi_ui_mailbox_->close();
+        wifi_ui_mailbox_.reset();
+    }
+    if (wifi_ui_timer_id_ != system::core::INVALID_TIMER_ID) {
+        (void)context.timer().stop(wifi_ui_timer_id_);
+        wifi_ui_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
     shutdown_brightness_callbacks();
     close_wifi_page(context);
     ++wifi_operation_generation_;
@@ -323,11 +350,49 @@ std::expected<void, std::string> SettingsApp::on_timer(
 )
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (name == WIFI_UI_TIMER_NAME) {
+        if (timer_id != wifi_ui_timer_id_ || !wifi_ui_mailbox_) {
+            return {};
+        }
+        std::deque<std::function<void(SettingsApp &)>> pending;
+        bool overflowed = false;
+        {
+            boost::lock_guard lock(wifi_ui_mailbox_->mutex);
+            pending.swap(wifi_ui_mailbox_->pending);
+            overflowed = std::exchange(wifi_ui_mailbox_->overflowed, false);
+        }
+        for (auto &work : pending) {
+            work(*this);
+        }
+        if (overflowed) {
+            BROOKESIA_LOGW("Settings Wi-Fi UI mailbox was full; refreshing service state");
+            saved_wifi_networks_refreshing_ = false;
+            if (wifi_ui_state_.enabled) {
+                (void)refresh_wifi_service_state(context);
+                request_saved_wifi_networks_refresh();
+            }
+        }
+        return {};
+    }
     if (name == WIFI_PAGE_TIMER_NAME) {
-        if (timer_id != wifi_page_.timer_id || current_page_ != PAGE_WIFI || !wifi_page_.mailbox) {
+        if (timer_id != wifi_page_.timer_id ||
+                (current_page_ != PAGE_WIFI && current_page_ != PAGE_WIFI_CONNECT) || !wifi_page_.mailbox) {
             return {};
         }
         return sync_wifi_page(context);
+    }
+    if (name == WIFI_CONNECT_TIMER_NAME) {
+        if (timer_id != wifi_connect_timer_id_) {
+            return {};
+        }
+        if (!sync_wifi_connect_operation(context)) {
+            return {};
+        }
+        auto refreshed = refresh_wifi_page_state(context);
+        if (!refreshed) {
+            return refreshed;
+        }
+        return refresh_wifi_summary_state(context);
     }
     constexpr std::string_view brightness_timer_prefix = BRIGHTNESS_UI_TIMER_NAME;
     if (name.starts_with(brightness_timer_prefix) && (name.size() > brightness_timer_prefix.size()) &&
@@ -469,7 +534,8 @@ std::expected<void, std::string> SettingsApp::on_action(
             }
             apply_wifi_enabled_preference_to_service();
         };
-        auto save_result = submit_wifi_enabled_preference_save(true, save_handler);
+        auto save_result = submit_wifi_enabled_preference_save(
+                               true, make_wifi_ui_result_handler(wifi_ui_mailbox_, save_handler));
         if (!save_result) {
             if (auto refresh_result = refresh_wifi_page_state(context); !refresh_result) {
                 BROOKESIA_LOGW(
@@ -537,6 +603,13 @@ std::expected<void, std::string> SettingsApp::on_action(
         auto result = context.gui().trigger_screen_flow(CONTENT_FLOW_ID, effective_action);
         if (!result) {
             return result;
+        }
+        if (previous_page == PAGE_WIFI_CONNECT) {
+            invalidate_wifi_connect_operation(context);
+            cancel_wifi_keyboard_if_active(context);
+            std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
+            wifi_connect_password_.clear();
+            selected_wifi_network_.reset();
         }
         if (const auto page = get_navigation_page(effective_action); page.has_value()) {
             current_page_ = *page;

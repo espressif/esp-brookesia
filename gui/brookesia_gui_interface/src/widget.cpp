@@ -93,7 +93,7 @@ bool View::set_binding_value(std::string_view key, std::string value) const
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: key(%2%), value(%3%)", *this, key, value);
+    BROOKESIA_LOGD("Params: key(%2%)", *this, key);
 
     if (runtime_ == nullptr) {
         return false;
@@ -245,7 +245,7 @@ bool Label::set_text(std::string_view text) const
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: text(%2%)", *this, text);
+    BROOKESIA_LOGD("Setting label text");
 
     return runtime_ != nullptr && runtime_->set_view_text(*this, text);
 }

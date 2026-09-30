@@ -13,6 +13,7 @@
 #   include "settings_gsp.h"
 #   include "brookesia/gui_gsp/app_host.hpp"
 #   include "esp_gsp.h"
+#   include "ui/gsp_keyboard.hpp"
 #endif
 
 namespace esp_brookesia::app::settings {
@@ -47,6 +48,9 @@ public:
         system::core::AppContext &, const WifiPageView &view
     ) override
     {
+        if (page_ != detail::PAGE_WIFI || keyboard_.active()) {
+            return {};
+        }
         esp_gsp_handle_t handle = nullptr;
         auto ready = require_handle(handle);
         if (!ready) {
@@ -64,6 +68,7 @@ public:
                 !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, view.enabled ? "Wi-Fi: On" : "Wi-Fi: Off") ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, view.toggle_enabled) ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_REFRESH, view.refresh_enabled) ||
+                !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_DISCONNECT, view.disconnect_enabled) ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_PREVIOUS, view.previous_enabled) ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_NEXT, view.next_enabled)) {
             return std::unexpected("Failed to update Wi-Fi controls");
@@ -76,13 +81,104 @@ public:
             GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_0, GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_1,
             GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_2, GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_3, GSP_SETTINGS_WIFI_OBJ_KEY_DETAIL_4,
         };
+        static constexpr std::array<uint32_t, WIFI_PAGE_ROW_COUNT> row_keys = {
+            GSP_SETTINGS_WIFI_OBJ_KEY_NETWORK_0, GSP_SETTINGS_WIFI_OBJ_KEY_NETWORK_1,
+            GSP_SETTINGS_WIFI_OBJ_KEY_NETWORK_2, GSP_SETTINGS_WIFI_OBJ_KEY_NETWORK_3,
+            GSP_SETTINGS_WIFI_OBJ_KEY_NETWORK_4,
+        };
         for (size_t row = 0; row < WIFI_PAGE_ROW_COUNT; ++row) {
             if (!set_text(ssid_keys[row], view.rows[row].ssid) ||
                     !set_text(detail_keys[row], view.rows[row].detail)) {
-                return std::unexpected("Failed to update Wi-Fi network row");
+                return std::unexpected("Failed to update Wi-Fi network labels: " + std::to_string(row));
+            }
+            const auto enabled = esp_gsp_component_set_enabled(handle, row_keys[row], view.rows[row].enabled);
+            if (enabled != ESP_GSP_OK) {
+                return std::unexpected("Failed to enable Wi-Fi network row " + std::to_string(row) +
+                                       ": " + std::to_string(static_cast<int>(enabled)));
             }
         }
         return {};
+    }
+
+    std::expected<void, std::string> set_wifi_connect(
+        system::core::AppContext &, const WifiConnectView &view
+    ) override
+    {
+        wifi_connect_view_ = view;
+        if (page_ != detail::PAGE_WIFI_CONNECT || keyboard_.active()) {
+            return {};
+        }
+        esp_gsp_handle_t handle = nullptr;
+        auto ready = require_handle(handle);
+        if (!ready) {
+            return ready;
+        }
+        if (esp_gsp_component_set_text(handle, GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_SSID,
+                                       view.ssid.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(handle, GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_DETAIL,
+                                           view.detail.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(handle, GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_PASSWORD_VALUE,
+                                           view.password_summary.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(handle, GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_STATUS,
+                                           view.status.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_enabled(handle, GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_EDIT_PASSWORD,
+                                              view.password_enabled) != ESP_GSP_OK ||
+                esp_gsp_component_set_enabled(handle, GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_CONNECT,
+                                              view.connect_enabled) != ESP_GSP_OK) {
+            return std::unexpected("Failed to update the Wi-Fi connection page");
+        }
+        return {};
+    }
+
+    std::expected<void, std::string> show_keyboard(
+        system::core::AppContext &context, system::core::KeyboardRequestId request_id,
+        const system::core::KeyboardRequestOptions &options, system::core::KeyboardResultHandler completion
+    ) override
+    {
+        if (page_ != detail::PAGE_WIFI_CONNECT) {
+            return std::unexpected("The Wi-Fi password page is not open");
+        }
+        esp_gsp_handle_t handle = nullptr;
+        auto ready = require_handle(handle);
+        if (!ready) {
+            return ready;
+        }
+        auto finished = [this, &context, completion = std::move(completion)](
+                            const system::core::KeyboardResult & result
+        ) {
+            // The edit buffer is already closed before the System completes its request.
+            restore_keyboard_page(context);
+            if (completion) {
+                completion(result);
+            }
+        };
+        auto shown = keyboard_.show(handle, context.app_id(), request_id, options, std::move(finished));
+        if (!shown && !keyboard_.active()) {
+            restore_keyboard_page(context);
+        }
+        return shown;
+    }
+
+    void hide_keyboard(system::core::AppContext &context, system::core::KeyboardRequestId request_id) override
+    {
+        const bool was_active = keyboard_.active();
+        keyboard_.hide(current_handle(), request_id);
+        if (was_active && !keyboard_.active()) {
+            restore_keyboard_page(context);
+        }
+    }
+
+    std::expected<bool, std::string> handle_keyboard_action(unsigned scene, unsigned id, unsigned arg) override
+    {
+        if (scene == GSP_SETTINGS_SCENE_SETTINGS_KEYBOARD || keyboard_.active()) {
+            auto handled = keyboard_.handle_action(current_handle(), scene, id, arg);
+            if (!handled) {
+                return std::unexpected(handled.error());
+            }
+            // Discard delayed keys and background controls while the modal owns input.
+            return true;
+        }
+        return false;
     }
 
     std::expected<void, std::string> show_page(
@@ -102,6 +198,8 @@ public:
             scene = GSP_SETTINGS_SCENE_SETTINGS_DISPLAY;
         } else if (page == detail::PAGE_WIFI) {
             scene = GSP_SETTINGS_SCENE_SETTINGS_WIFI;
+        } else if (page == detail::PAGE_WIFI_CONNECT) {
+            scene = GSP_SETTINGS_SCENE_SETTINGS_WIFI_CONNECT;
         } else {
             return std::unexpected("Unsupported settings page");
         }
@@ -122,12 +220,16 @@ public:
         bool show_back
     ) override
     {
+        if (keyboard_.active()) {
+            return {};
+        }
         esp_gsp_handle_t handle = nullptr;
         auto ready = require_handle(handle);
         if (!ready) {
             return ready;
         }
-        const auto title_key = page_ == detail::PAGE_WIFI ? GSP_SETTINGS_WIFI_OBJ_KEY_HEADER_TITLE :
+        const auto title_key = page_ == detail::PAGE_WIFI_CONNECT ? GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_HEADER_TITLE :
+                               page_ == detail::PAGE_WIFI ? GSP_SETTINGS_WIFI_OBJ_KEY_HEADER_TITLE :
                                show_back ? GSP_SETTINGS_DISPLAY_OBJ_KEY_HEADER_TITLE :
                                GSP_SETTINGS_HOME_OBJ_KEY_HEADER_TITLE;
         if (esp_gsp_component_set_text(handle, title_key, std::string(title).c_str()) != ESP_GSP_OK) {
@@ -179,7 +281,23 @@ public:
         return {};
     }
 private:
+    void restore_keyboard_page(system::core::AppContext &context)
+    {
+        if (page_ != detail::PAGE_WIFI_CONNECT || current_handle() == nullptr) {
+            return;
+        }
+        auto shown = show_page(context, detail::PAGE_WIFI_CONNECT);
+        if (shown) {
+            shown = set_wifi_connect(context, wifi_connect_view_);
+        }
+        if (!shown) {
+            BROOKESIA_LOGW("Failed to restore the Wi-Fi password page: %1%", shown.error());
+        }
+    }
+
     std::string page_;
+    WifiConnectView wifi_connect_view_;
+    GspKeyboard keyboard_;
 };
 
 std::unique_ptr<SettingsSurface> make_gsp_settings_surface()
@@ -247,9 +365,17 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
     if (std::sscanf(text.c_str(), "%u:%u:%u", &scene, &id, &arg) != 3) {
         return std::unexpected("Unrecognized GSP action");
     }
+    const auto keyboard_action = surface_->handle_keyboard_action(scene, id, arg);
+    if (!keyboard_action) {
+        return std::unexpected(keyboard_action.error());
+    }
+    if (*keyboard_action) {
+        return {};
+    }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME && current_page_ != detail::PAGE_HOME) ||
             (scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY && current_page_ != detail::PAGE_DISPLAY) ||
-            (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI && current_page_ != detail::PAGE_WIFI)) {
+            (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI && current_page_ != detail::PAGE_WIFI) ||
+            (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI_CONNECT && current_page_ != detail::PAGE_WIFI_CONNECT)) {
         return {};
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_WIFI)) {
@@ -276,12 +402,36 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
         if (id == GSP_SETTINGS_WIFI_ACT_ID_REFRESH) {
             return scan_wifi_page(context);
         }
+        if (id == GSP_SETTINGS_WIFI_ACT_ID_DISCONNECT) {
+            return disconnect_current_wifi(context);
+        }
+        static constexpr std::array<unsigned, WIFI_PAGE_ROW_COUNT> selection_actions = {
+            GSP_SETTINGS_WIFI_ACT_ID_SELECT_0, GSP_SETTINGS_WIFI_ACT_ID_SELECT_1,
+            GSP_SETTINGS_WIFI_ACT_ID_SELECT_2, GSP_SETTINGS_WIFI_ACT_ID_SELECT_3, GSP_SETTINGS_WIFI_ACT_ID_SELECT_4,
+        };
+        for (size_t row = 0; row < selection_actions.size(); ++row) {
+            if (id == selection_actions[row]) {
+                return select_wifi_page_network(context, row);
+            }
+        }
         if (id == GSP_SETTINGS_WIFI_ACT_ID_PREVIOUS && available_wifi_page_ > 0) {
             --available_wifi_page_;
         } else if (id == GSP_SETTINGS_WIFI_ACT_ID_NEXT) {
             ++available_wifi_page_;
         }
         return render_wifi_page(context);
+    }
+    if (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI_CONNECT) {
+        if (id == GSP_SETTINGS_WIFI_CONNECT_ACT_ID_HEADER_BACK) {
+            return back_wifi_connect(context);
+        }
+        if (id == GSP_SETTINGS_WIFI_CONNECT_ACT_ID_EDIT_PASSWORD) {
+            return show_wifi_password_keyboard(context);
+        }
+        if (id == GSP_SETTINGS_WIFI_CONNECT_ACT_ID_CONNECT) {
+            return submit_wifi_connect(context);
+        }
+        return {};
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_HEADER_EXIT)) {
         return context.system_service().stop_app(context.app_id());
@@ -341,5 +491,25 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(system::core::Ap
 }
 
 #endif
+
+std::expected<void, std::string> SettingsApp::show_gsp_keyboard(
+    system::core::KeyboardRequestId request_id,
+    const system::core::KeyboardRequestOptions &options,
+    system::core::KeyboardResultHandler completion
+)
+{
+    if (!settings_uses_gsp_backend() || context_ == nullptr || current_page_ != detail::PAGE_WIFI_CONNECT ||
+            !wifi_page_.mailbox || !wifi_ui_state_.service_ready || !wifi_ui_state_.enabled) {
+        return std::unexpected("The Settings Wi-Fi password page is not active");
+    }
+    return surface_->show_keyboard(*context_, request_id, options, std::move(completion));
+}
+
+void SettingsApp::hide_gsp_keyboard(system::core::KeyboardRequestId request_id)
+{
+    if (settings_uses_gsp_backend() && context_ != nullptr) {
+        surface_->hide_keyboard(*context_, request_id);
+    }
+}
 
 } // namespace esp_brookesia::app::settings

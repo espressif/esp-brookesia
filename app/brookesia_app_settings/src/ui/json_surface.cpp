@@ -21,6 +21,27 @@ public:
         return std::unexpected("JSON Wi-Fi uses its screen bindings");
     }
 
+    std::expected<void, std::string> set_wifi_connect(
+        system::core::AppContext &context, const WifiConnectView &view
+    ) override
+    {
+        std::vector<gui::BindingValueUpdate> updates;
+        detail::add_binding_update(updates, detail::WIFI_CONNECT_SSID_PATH, "ssid", view.ssid);
+        detail::add_binding_update(updates, detail::WIFI_CONNECT_DETAIL_PATH, "detail", view.detail);
+        detail::add_binding_update(
+            updates, detail::WIFI_CONNECT_PASSWORD_VALUE_PATH, "passwordValue", view.password_summary
+        );
+        detail::add_binding_update(updates, detail::WIFI_CONNECT_STATUS_PATH, "status", view.status);
+        detail::add_binding_update(
+            updates, detail::WIFI_CONNECT_BUTTON_PATH, "disabled", view.connect_enabled ? "false" : "true"
+        );
+        detail::add_binding_update(
+            updates, detail::WIFI_CONNECT_BUTTON_PATH, "opacity",
+            std::to_string(view.connect_enabled ? detail::ENABLED_OPACITY : detail::DISABLED_OPACITY)
+        );
+        return context.gui().set_binding_values(updates);
+    }
+
     std::expected<void, std::string> show_page(
         system::core::AppContext &context,
         std::string_view page
@@ -31,6 +52,10 @@ public:
             action = detail::ACTION_OPEN_HOME;
         } else if (page == detail::PAGE_DISPLAY) {
             action = "settings.open.display";
+        } else if (page == detail::PAGE_WIFI_CONNECT) {
+            action = detail::ACTION_OPEN_WIFI_CONNECT;
+        } else if (page == detail::PAGE_WIFI) {
+            action = detail::ACTION_BACK_WIFI_CONNECT;
         } else {
             return std::unexpected("Unsupported settings page");
         }

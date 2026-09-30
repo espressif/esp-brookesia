@@ -227,6 +227,7 @@ public:
     void deinit()
     {
         connected_ = false;
+        active_ssid_.clear();
         started_ = false;
         initialized_ = false;
         backend_initialized_ = false;
@@ -251,6 +252,7 @@ public:
         is_running_ = false;
         started_ = false;
         connected_ = false;
+        active_ssid_.clear();
     }
 
     void reset_data()
@@ -292,6 +294,7 @@ public:
             break;
         case wifi::BasicAction::Stop:
             connected_ = false;
+            active_ssid_.clear();
             started_ = false;
             notify_basic_event(wifi::BasicEvent::Stopped, false);
             break;
@@ -357,6 +360,7 @@ public:
             initialized_ = true;
             started_ = true;
             connected_ = true;
+            active_ssid_ = target_ap_.ssid;
             last_ap_ = target_ap_;
             last_ap_.is_connectable = true;
             add_connected_ap(last_ap_);
@@ -371,6 +375,7 @@ public:
             }
 #endif
             connected_ = false;
+            active_ssid_.clear();
             notify_station_event(wifi::StationEvent::Disconnected, false);
             break;
         default:
@@ -443,6 +448,38 @@ public:
     const wifi::ConnectApInfo &get_last_connected_ap_info() const
     {
         return last_ap_;
+    }
+
+    bool get_connected_ssid(std::string &ssid) const
+    {
+        ssid.clear();
+#if !BROOKESIA_HAL_LINUX_WIFI_BACKEND_STUB
+        if (network_manager_available_) {
+            const auto device = get_first_wifi_device();
+            if (device.empty()) {
+                return false;
+            }
+            int exit_code = 0;
+            const auto output = run_command("nmcli -t -f IN-USE,SSID device wifi list ifname " +
+                                            shell_quote(device) + " --rescan no", &exit_code);
+            if (exit_code != 0) {
+                return false;
+            }
+            for (const auto &line : split_lines(output)) {
+                const auto fields = split_nmcli_line(line);
+                if (fields.size() >= 2 && fields[0] == "*" && !fields[1].empty()) {
+                    ssid = fields[1];
+                    return true;
+                }
+            }
+            return false;
+        }
+#endif
+        if (connected_) {
+            ssid = active_ssid_;
+            return !ssid.empty();
+        }
+        return true;
     }
 
     const wifi::ConnectApInfoList &get_connected_ap_infos() const
@@ -916,6 +953,7 @@ private:
         initialized_ = true;
         started_ = true;
         connected_ = true;
+        active_ssid_ = target_ap_.ssid;
         connected_since_ = std::chrono::steady_clock::now();
         last_ap_ = target_ap_;
         last_ap_.is_connectable = true;
@@ -936,6 +974,7 @@ private:
             }
         }
         connected_ = false;
+        active_ssid_.clear();
         notify_station_event(wifi::StationEvent::Disconnected, false);
     }
 
@@ -1090,6 +1129,7 @@ private:
     bool is_running_ = false;
     bool started_ = false;
     bool connected_ = false;
+    std::string active_ssid_;
     bool is_scanning_ = false;
     bool softap_started_ = false;
     bool provision_running_ = false;
@@ -1238,6 +1278,11 @@ public:
     const wifi::ConnectApInfo &get_last_connected_ap_info() const override
     {
         return backend_->get_last_connected_ap_info();
+    }
+
+    bool get_connected_ssid(std::string &ssid) const override
+    {
+        return backend_->get_connected_ssid(ssid);
     }
 
     const wifi::ConnectApInfoList &get_connected_ap_infos() const override

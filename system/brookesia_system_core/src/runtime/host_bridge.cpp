@@ -1405,7 +1405,7 @@ NativeResult SystemHostBridge::Impl::subscribe_event(const NativeArgs &args)
                               const std::string & event_name, const service::EventItemMap & items
     ) {
         const auto items_json = event_items_to_json(items);
-        BROOKESIA_LOGD("Service event [%1%.%2%]: %3%", service_name, event_name, items_json);
+        BROOKESIA_LOGD("Service event [%1%.%2%]", service_name, event_name);
         if (!event_dispatcher_) {
             return;
         }
@@ -1474,7 +1474,7 @@ NativeResult SystemHostBridge::Impl::subscribe_service_event(const NativeArgs &a
                               const std::string & event_name, const service::EventItemMap & items
     ) {
         const auto items_json = event_items_to_json(items);
-        BROOKESIA_LOGD("Service event [%1%.%2%]: %3%", service_name, event_name, items_json);
+        BROOKESIA_LOGD("Service event [%1%.%2%]", service_name, event_name);
         if (!event_dispatcher_) {
             return;
         }

@@ -6,11 +6,14 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <charconv>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <deque>
 #include <expected>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -204,6 +207,8 @@ inline constexpr const char *ACTION_DEBUG_THREAD_IDLE_CPU =
 inline constexpr const char *ACTION_DEBUG_THREAD_STACK_HWM =
     "settings.debug.thread.stack_hwm";
 inline constexpr const char *WIFI_SCAN_RETRY_TIMER_NAME = "settings.wifi.scan.retry";
+inline constexpr const char *WIFI_UI_TIMER_NAME = "settings.wifi.ui";
+inline constexpr int WIFI_UI_POLL_INTERVAL_MS = 100;
 inline constexpr const char *BRIGHTNESS_UI_TIMER_NAME = "settings.display.brightness";
 inline constexpr const char *WIFI_CONNECTED_HIDE_TIMER_NAME = "settings.wifi.connected.hide";
 inline constexpr const char *WIFI_CONNECTED_SCROLL_TIMER_NAME = "settings.wifi.connected.scroll";
@@ -287,7 +292,10 @@ inline constexpr uint32_t WIFI_SERVICE_TIMEOUT_MS = 1000;
 inline constexpr uint32_t SNTP_SERVICE_TIMEOUT_MS = 500;
 inline constexpr uint32_t UTILS_DEBUG_SERVICE_TIMEOUT_MS = 500;
 inline constexpr const char *WIFI_PAGE_TIMER_NAME = "settings.wifi.page";
+inline constexpr const char *WIFI_CONNECT_TIMER_NAME = "settings.wifi.connect";
 inline constexpr int WIFI_PAGE_POLL_INTERVAL_MS = 100;
+inline constexpr int WIFI_CONNECT_POLL_INTERVAL_MS = 500;
+inline constexpr int WIFI_CONNECT_TIMEOUT_MS = 65000;
 inline constexpr int WIFI_STATE_POLL_INTERVAL_MS = 1000;
 inline constexpr int WIFI_TOGGLE_TIMEOUT_MS = 15000;
 inline constexpr int WIFI_SCAN_SETTLE_TIMEOUT_MS = 2000;
@@ -517,8 +525,70 @@ struct WifiPageMailbox {
     std::optional<boost::json::array> scan_results;
 };
 
+// Service threads enqueue bounded work; only the System app task touches Settings state or GUI.
+struct WifiUiMailbox {
+    static constexpr size_t MAX_PENDING = 64;
+    boost::mutex mutex;
+    bool open = true;
+    bool overflowed = false;
+    std::deque<std::function<void(SettingsApp &)>> pending;
+
+    void enqueue(std::function<void(SettingsApp &)> work)
+    {
+        boost::lock_guard lock(mutex);
+        if (!open) {
+            return;
+        }
+        if (pending.size() == MAX_PENDING) {
+            overflowed = true;
+            return;
+        }
+        pending.push_back(std::move(work));
+    }
+
+    void close()
+    {
+        boost::lock_guard lock(mutex);
+        open = false;
+        pending.clear();
+    }
+};
+
+template<typename Handler>
+auto make_wifi_ui_result_handler(const std::shared_ptr<WifiUiMailbox> &mailbox, Handler handler)
+{
+    const bool defer_to_app = static_cast<bool>(mailbox);
+    const std::weak_ptr<WifiUiMailbox> weak_mailbox = mailbox;
+    return [defer_to_app, weak_mailbox, handler = std::move(handler)](service::FunctionResult && result) mutable {
+        if (!defer_to_app)
+        {
+            // GSP and installation have no LVGL UI mailbox; preserve their existing callback path.
+            handler(std::move(result));
+            return;
+        }
+        if (auto active = weak_mailbox.lock())
+        {
+            auto payload = std::make_shared<service::FunctionResult>(std::move(result));
+            active->enqueue([handler, payload](SettingsApp &) mutable {
+                handler(std::move(*payload));
+            });
+        }
+    };
+}
+
+struct WifiSelectionOperation {
+    boost::mutex mutex;
+    bool valid = true;
+    bool done = false;
+    bool success = false;
+    bool saved = false;
+    std::string ssid;
+    std::string password;
+};
+
 struct WifiPageState {
     std::shared_ptr<WifiPageMailbox> mailbox;
+    std::shared_ptr<WifiSelectionOperation> selection;
     system::core::TimerId timer_id = system::core::INVALID_TIMER_ID;
     detail::SteadyTimePoint next_state_read{};
     detail::SteadyTimePoint deadline{};
@@ -526,7 +596,25 @@ struct WifiPageState {
     bool scan_requested = false;
     bool scan_received = false;
     bool scan_owned = false;
+    bool connect_pending = false;
+    std::string connect_ssid;
     std::string error;
+};
+
+// Service callbacks retain this small state, never SettingsApp or GUI objects.
+struct WifiConnectOperation {
+    enum class Phase { Saving, SettingTarget, SendingConnect, WaitingForConnection, Failed };
+    boost::mutex mutex;
+    bool valid = true;
+    bool connected_event_armed = false;
+    uint64_t connected_event_epoch = 0;
+    uint64_t connect_start_epoch = 0;
+    Phase phase = Phase::Saving;
+    std::string ssid;
+    std::string password;
+    std::string error;
+    detail::SteadyTimePoint deadline{};
+    esp_brookesia::lib_utils::scoped_connection connected_event_connection;
 };
 
 struct SettingsApp::Impl {
@@ -556,10 +644,15 @@ struct SettingsApp::Impl {
     std::vector<esp_brookesia::lib_utils::scoped_connection> device_event_connections;
     std::vector<esp_brookesia::lib_utils::scoped_connection> wifi_event_connections;
     std::vector<esp_brookesia::lib_utils::scoped_connection> sntp_event_connections;
-    uint64_t wifi_operation_generation = 0;
+    std::shared_ptr<std::atomic<uint64_t>> wifi_operation_generation =
+                                            std::make_shared<std::atomic<uint64_t>>(0);
     DeviceUiState device_ui_state;
     WifiUiState wifi_ui_state;
     WifiPageState wifi_page;
+    std::shared_ptr<WifiUiMailbox> wifi_ui_mailbox;
+    system::core::TimerId wifi_ui_timer_id = system::core::INVALID_TIMER_ID;
+    std::shared_ptr<WifiConnectOperation> wifi_connect_operation;
+    system::core::TimerId wifi_connect_timer_id = system::core::INVALID_TIMER_ID;
     TimeZoneUiState time_zone_ui_state;
     DebugUiState debug_ui_state;
     detail::UtilsHelper::DebugCapabilities utils_debug_capabilities;
@@ -627,10 +720,14 @@ struct SettingsApp::Impl {
 #define device_event_connections_ impl_->device_event_connections
 #define wifi_event_connections_ impl_->wifi_event_connections
 #define sntp_event_connections_ impl_->sntp_event_connections
-#define wifi_operation_generation_ impl_->wifi_operation_generation
+#define wifi_operation_generation_ (*impl_->wifi_operation_generation)
 #define device_ui_state_ impl_->device_ui_state
 #define wifi_ui_state_ impl_->wifi_ui_state
 #define wifi_page_ impl_->wifi_page
+#define wifi_ui_mailbox_ impl_->wifi_ui_mailbox
+#define wifi_ui_timer_id_ impl_->wifi_ui_timer_id
+#define wifi_connect_operation_ impl_->wifi_connect_operation
+#define wifi_connect_timer_id_ impl_->wifi_connect_timer_id
 #define time_zone_ui_state_ impl_->time_zone_ui_state
 #define debug_ui_state_ impl_->debug_ui_state
 #define utils_debug_capabilities_ impl_->utils_debug_capabilities

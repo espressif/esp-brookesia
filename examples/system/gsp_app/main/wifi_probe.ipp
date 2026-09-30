@@ -406,7 +406,7 @@ bool probe_launcher_round_trip(hal::display::PanelIface &panel)
     probe_frame(panel);
     for (int cycle = 0; cycle < 2; ++cycle) {
         if (!probe_has_component("open_settings") || !probe_click(200, 366) ||
-                !probe_has_component("open_wifi")) {
+                !probe_wait([]() { return probe_has_component("open_wifi"); }, 3000)) {
             return false;
         }
         if (cycle == 0) {
@@ -414,7 +414,7 @@ bool probe_launcher_round_trip(hal::display::PanelIface &panel)
             probe_frame(panel);
         }
         if (!probe_click(920, 37) ||
-                !probe_has_component("open_settings")) {
+                !probe_wait([]() { return probe_has_component("open_settings"); }, 3000)) {
             return false;
         }
     }

@@ -218,6 +218,7 @@ struct ScanApInfo {
     int rssi = 0;                             ///< Signal strength in dBm.
     ScanApSignalLevel signal_level = ScanApSignalLevel::LEVEL_0; ///< Bucketed signal level.
     uint8_t channel = 0;                      ///< RF channel.
+    bool is_enterprise = false;               ///< Whether AP requires enterprise authentication.
 };
 
 /**
@@ -307,7 +308,7 @@ BROOKESIA_DESCRIBE_ENUM(StationEvent, Disconnected, Connected, Max);
 BROOKESIA_DESCRIBE_STRUCT(ConnectApInfo, (), (ssid, password, is_connectable));
 BROOKESIA_DESCRIBE_STRUCT(ScanParams, (), (ap_count, interval_ms, timeout_ms));
 BROOKESIA_DESCRIBE_ENUM(ScanApSignalLevel, LEVEL_0, LEVEL_1, LEVEL_2, LEVEL_3, LEVEL_4);
-BROOKESIA_DESCRIBE_STRUCT(ScanApInfo, (), (ssid, is_locked, rssi, signal_level, channel));
+BROOKESIA_DESCRIBE_STRUCT(ScanApInfo, (), (ssid, is_locked, rssi, signal_level, channel, is_enterprise));
 BROOKESIA_DESCRIBE_STRUCT(SoftApParams, (), (ssid, password, max_connection, channel));
 BROOKESIA_DESCRIBE_ENUM(SoftApEvent, Started, Stopped, Max);
 

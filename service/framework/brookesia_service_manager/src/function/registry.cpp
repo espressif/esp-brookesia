@@ -74,7 +74,7 @@ FunctionResult FunctionRegistry::call(const std::string &func_name, FunctionPara
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    BROOKESIA_LOGD("Params: func_name(%1%), parameters(%2%)", func_name, BROOKESIA_DESCRIBE_TO_STR(parameters));
+    BROOKESIA_LOGD("Calling function '%1%'", func_name);
 
     boost::unique_lock lock(functions_mutex_);
 

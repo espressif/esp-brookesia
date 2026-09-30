@@ -881,7 +881,7 @@ std::expected<boost::json::array, std::string> Storage::function_list(const std:
 std::expected<void, std::string> Storage::function_set(const std::string &nspace, boost::json::object &&key_value_map)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
-    BROOKESIA_LOGD("Params: nspace(%1%), key_value_map(%2%)", nspace, BROOKESIA_DESCRIBE_TO_STR(key_value_map));
+    BROOKESIA_LOGD("Setting %1% key-value entries in namespace '%2%'", key_value_map.size(), nspace);
 
     if (!kv_iface_) {
         return std::unexpected("Storage KV HAL interface is not available");
@@ -890,8 +890,7 @@ std::expected<void, std::string> Storage::function_set(const std::string &nspace
     KeyValueMap parsed_key_value_map;
     if (!BROOKESIA_DESCRIBE_FROM_JSON(key_value_map, parsed_key_value_map)) {
         return std::unexpected((
-                                   boost::format("Failed to parse key-value map in namespace '%1%': %2%") %
-                                   nspace % BROOKESIA_DESCRIBE_TO_STR(key_value_map)
+                                   boost::format("Failed to parse key-value map in namespace '%1%'") % nspace
                                ).str());
     }
 

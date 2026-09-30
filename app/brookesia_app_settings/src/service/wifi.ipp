@@ -452,7 +452,7 @@ std::expected<void, std::string> SettingsApp::start_wifi_scan(
         cancel_wifi_scan_retry_timer(context);
         wifi_scan_retry_remaining_ = WIFI_SCAN_INTERRUPTED_RETRY_COUNT;
     }
-    const auto generation = wifi_operation_generation_;
+    const auto generation = wifi_operation_generation_.load();
     if (!saved_wifi_networks_loaded_) {
         request_saved_wifi_networks_refresh();
     }
@@ -523,7 +523,9 @@ std::expected<void, std::string> SettingsApp::start_wifi_scan(
             return;
         }
 
-        if (!WifiHelper::call_function_async(WifiHelper::FunctionId::TriggerScanStart, scan_start_handler)) {
+        if (!WifiHelper::call_function_async(
+                    WifiHelper::FunctionId::TriggerScanStart,
+                    make_wifi_ui_result_handler(wifi_ui_mailbox_, scan_start_handler))) {
             BROOKESIA_LOGW("Failed to submit Wi-Fi scan start request");
             if (context_ == nullptr) {
                 return;
@@ -543,7 +545,7 @@ std::expected<void, std::string> SettingsApp::start_wifi_scan(
     if (!WifiHelper::call_function_async(
                 WifiHelper::FunctionId::SetScanParams,
                 BROOKESIA_DESCRIBE_TO_JSON(params).as_object(),
-                set_params_handler
+                make_wifi_ui_result_handler(wifi_ui_mailbox_, set_params_handler)
             )) {
         wifi_ui_state_.scanning = false;
         wifi_scan_stop_after_first_result_ = false;
@@ -586,7 +588,7 @@ void SettingsApp::schedule_wifi_scan_retry(system::core::AppContext &context)
     }
 
     --wifi_scan_retry_remaining_;
-    pending_wifi_scan_retry_generation_ = wifi_operation_generation_;
+    pending_wifi_scan_retry_generation_ = wifi_operation_generation_.load();
     auto timer = context.timer().start_delayed(WIFI_SCAN_RETRY_TIMER_NAME, WIFI_SCAN_RETRY_DELAY_MS);
     if (!timer) {
         pending_wifi_scan_retry_generation_ = 0;
@@ -621,105 +623,233 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
 )
 {
     if (!wifi_ui_state_.service_ready) {
-        return std::unexpected(localized_text(current_locale_, "wifi_service_unavailable"));
+        return std::unexpected(settings_uses_gsp_backend() ?
+                               "Wi-Fi service unavailable. Reopen this page to retry." :
+                               localized_text(current_locale_, "wifi_service_unavailable"));
     }
     if (network.ssid.empty()) {
         return std::unexpected("Wi-Fi SSID is empty");
     }
+    if (settings_uses_gsp_backend() && network.enterprise) {
+        return std::unexpected("Enterprise Wi-Fi is not supported on this device");
+    }
 
-    const auto generation = ++wifi_operation_generation_;
+    invalidate_wifi_connect_operation(context);
+    if (!settings_uses_gsp_backend()) {
+        auto timer = context.timer().start_periodic(WIFI_CONNECT_TIMER_NAME, WIFI_CONNECT_POLL_INTERVAL_MS);
+        if (!timer) {
+            return std::unexpected(timer.error());
+        }
+        wifi_connect_timer_id_ = *timer;
+    }
+    auto operation = std::make_shared<WifiConnectOperation>();
+    operation->ssid = network.ssid;
+    operation->password = password;
+    operation->deadline = SteadyClock::now() + std::chrono::milliseconds(WIFI_CONNECT_TIMEOUT_MS);
+    operation->phase = WifiConnectOperation::Phase::Saving;
+    wifi_connect_operation_ = operation;
+    const std::weak_ptr<WifiConnectOperation> weak_operation = operation;
+    const service::EventRegistry::SignalSlot operation_event_handler =
+    [weak_operation](const std::string &, const service::EventItemMap & items) {
+        const auto *event = std::get_if<std::string>(find_event_item(items, "Event"));
+        if (!event) {
+            return;
+        }
+        if (auto active = weak_operation.lock()) {
+            boost::lock_guard lock(active->mutex);
+            if (*event == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralEvent::Stopped) ||
+                    *event == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralEvent::Deinited)) {
+                active->valid = false;
+                std::fill(active->password.begin(), active->password.end(), '\0');
+                active->password.clear();
+            } else if (active->valid &&
+                       *event == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralEvent::Connected)) {
+                ++active->connected_event_epoch;
+            }
+        }
+    };
+    operation->connected_event_connection = WifiHelper::subscribe_event(
+                                            WifiHelper::EventId::GeneralEventHappened, operation_event_handler);
+    if (!operation->connected_event_connection.connected()) {
+        boost::lock_guard lock(operation->mutex);
+        std::fill(operation->password.begin(), operation->password.end(), '\0');
+        operation->password.clear();
+        operation->phase = WifiConnectOperation::Phase::Failed;
+        operation->error = "Could not observe the connection. Try again.";
+    }
+    wifi_page_.connect_pending = true;
+    wifi_page_.connect_ssid = network.ssid;
+    wifi_page_.error.clear();
+    ++wifi_operation_generation_;
     cancel_wifi_scan_retry_timer(context);
     wifi_scan_retry_remaining_ = 0;
-    const auto save_handler = [this, generation](service::FunctionResult && result) {
-        if (generation != wifi_operation_generation_) {
-            return;
-        }
-        if (result.success) {
-            return;
-        }
-        BROOKESIA_LOGW("Failed to save Settings Wi-Fi enabled preference: %1%", result.error_message);
-    };
-    auto save_result = submit_wifi_enabled_preference_save(true, save_handler);
-    if (!save_result) {
-        return save_result;
-    }
     wifi_ui_state_.connecting = true;
     wifi_ui_state_.enabled = true;
     wifi_scan_stop_after_first_result_ = false;
-    wifi_ui_state_.connected_ssid = network.ssid;
     cancel_wifi_connected_hide_timer(context);
     show_wifi_connected_card(WifiConnectedCardState::Connecting, network.ssid);
+
+    const auto set_target_handler = [operation](service::FunctionResult && target) {
+        boost::lock_guard lock(operation->mutex);
+        if (!operation->valid) {
+            return;
+        }
+        if (!target.success) {
+            operation->phase = WifiConnectOperation::Phase::Failed;
+            operation->error = "Could not set the network. Try again.";
+            return;
+        }
+        operation->phase = WifiConnectOperation::Phase::SendingConnect;
+        const auto connect_handler = [operation](service::FunctionResult && connect) {
+            boost::lock_guard connect_lock(operation->mutex);
+            if (!operation->valid) {
+                return;
+            }
+            operation->phase = connect.success ? WifiConnectOperation::Phase::WaitingForConnection :
+                               WifiConnectOperation::Phase::Failed;
+            if (!connect.success) {
+                operation->error = "Could not start the connection. Try again.";
+            }
+        };
+        // Keep the validity lock through submission so cancellation blocks later Connect submissions.
+        operation->connected_event_armed = true;
+        operation->connect_start_epoch = operation->connected_event_epoch;
+        if (!WifiHelper::call_function_async(
+                    WifiHelper::FunctionId::TriggerGeneralAction,
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Connect), connect_handler)) {
+            operation->phase = WifiConnectOperation::Phase::Failed;
+            operation->error = "Could not submit the connection. Try again.";
+        }
+    };
+    const auto save_handler = [operation, set_target_handler](service::FunctionResult && result) {
+        boost::lock_guard lock(operation->mutex);
+        if (!operation->valid) {
+            return;
+        }
+        if (!result.success) {
+            std::fill(operation->password.begin(), operation->password.end(), '\0');
+            operation->password.clear();
+            operation->phase = WifiConnectOperation::Phase::Failed;
+            operation->error = "Could not save the Wi-Fi setting. Try again.";
+            return;
+        }
+        operation->phase = WifiConnectOperation::Phase::SettingTarget;
+        auto password_copy = operation->password;
+        std::fill(operation->password.begin(), operation->password.end(), '\0');
+        operation->password.clear();
+        // Keep the validity lock through submission so cancellation blocks later SetConnectAp submissions.
+        const bool submitted = WifiHelper::call_function_async(
+                                   WifiHelper::FunctionId::SetConnectAp,
+                                   operation->ssid, password_copy, set_target_handler);
+        std::fill(password_copy.begin(), password_copy.end(), '\0');
+        password_copy.clear();
+        if (!submitted) {
+            operation->phase = WifiConnectOperation::Phase::Failed;
+            operation->error = "Could not submit the network. Try again.";
+        }
+    };
+    auto save_result = operation->connected_event_connection.connected() ?
+                       submit_wifi_enabled_preference_save(true, save_handler) :
+                       std::expected<void, std::string>(std::unexpected("Wi-Fi event subscription failed"));
+    if (!save_result && operation->connected_event_connection.connected()) {
+        {
+            boost::lock_guard lock(operation->mutex);
+            std::fill(operation->password.begin(), operation->password.end(), '\0');
+            operation->password.clear();
+            operation->phase = WifiConnectOperation::Phase::Failed;
+            operation->error = "Could not save the Wi-Fi setting. Try again.";
+        }
+        // The page/timer consumes this failure just like an asynchronous result.
+    }
+    if (settings_uses_gsp_backend()) {
+        return current_page_ == PAGE_WIFI ? render_wifi_page(context) : std::expected<void, std::string>{};
+    }
     auto refresh_result = refresh_wifi_page_state(context);
     if (!refresh_result) {
         return refresh_result;
     }
-    refresh_result = refresh_wifi_summary_state(context);
-    if (!refresh_result) {
-        return refresh_result;
-    }
+    return refresh_wifi_summary_state(context);
+}
 
-    const auto connect_handler = [this, generation](service::FunctionResult && result) {
-        if (context_ == nullptr || generation != wifi_operation_generation_ || !wifi_ui_state_.enabled) {
-            return;
+void SettingsApp::invalidate_wifi_connect_operation(system::core::AppContext &context)
+{
+    auto operation = std::move(wifi_connect_operation_);
+    if (operation) {
+        {
+            boost::lock_guard lock(operation->mutex);
+            operation->valid = false;
+            std::fill(operation->password.begin(), operation->password.end(), '\0');
+            operation->password.clear();
         }
-        if (result.success) {
-            return;
-        }
-        BROOKESIA_LOGW("Failed to connect Wi-Fi: %1%", result.error_message);
-        wifi_ui_state_.connecting = false;
-        hide_wifi_connected_card();
-        if (auto state_result = refresh_wifi_service_state(*context_); !state_result) {
-            BROOKESIA_LOGW("Failed to refresh Wi-Fi state after failed connect: %1%", state_result.error());
-        }
-    };
-    const auto set_target_handler = [this, connect_handler, generation](service::FunctionResult && result) {
-        if (context_ == nullptr || generation != wifi_operation_generation_ || !wifi_ui_state_.enabled) {
-            return;
-        }
-        if (!result.success) {
-            BROOKESIA_LOGW("Failed to set Wi-Fi target AP: %1%", result.error_message);
-            wifi_ui_state_.connecting = false;
-            hide_wifi_connected_card();
-            if (auto state_result = refresh_wifi_service_state(*context_); !state_result) {
-                BROOKESIA_LOGW(
-                    "Failed to refresh Wi-Fi state after failed target AP update: %1%",
-                    state_result.error()
-                );
-            }
-            return;
-        }
-
-        if (!WifiHelper::call_function_async(
-                    WifiHelper::FunctionId::TriggerGeneralAction,
-                    BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Connect),
-                    connect_handler
-                )) {
-            wifi_ui_state_.connecting = false;
-            hide_wifi_connected_card();
-            BROOKESIA_LOGW("Failed to submit Wi-Fi connect request");
-            if (auto state_result = refresh_wifi_service_state(*context_); !state_result) {
-                BROOKESIA_LOGW("Failed to refresh Wi-Fi state after failed connect submit: %1%", state_result.error());
-            }
-        }
-    };
-    if (!WifiHelper::call_function_async(
-                WifiHelper::FunctionId::SetConnectAp,
-                network.ssid,
-                std::string(password),
-                set_target_handler
-            )) {
-        wifi_ui_state_.connecting = false;
-        hide_wifi_connected_card();
-        if (auto state_result = refresh_wifi_service_state(context); !state_result) {
-            BROOKESIA_LOGW("Failed to refresh Wi-Fi state after failed connect: %1%", state_result.error());
-        }
-        return std::unexpected("Failed to submit Wi-Fi target AP update request");
+        operation->connected_event_connection.disconnect();
     }
-    return {};
+    if (wifi_connect_timer_id_ != system::core::INVALID_TIMER_ID) {
+        (void)context.timer().stop(wifi_connect_timer_id_);
+        wifi_connect_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
+    wifi_page_.connect_pending = false;
+    wifi_page_.connect_ssid.clear();
+}
+
+bool SettingsApp::sync_wifi_connect_operation(system::core::AppContext &context)
+{
+    auto operation = wifi_connect_operation_;
+    if (!operation) {
+        return false;
+    }
+    WifiConnectOperation::Phase phase;
+    std::string target_ssid;
+    std::string error;
+    bool valid = false;
+    bool fresh_connected_event = false;
+    SteadyTimePoint deadline;
+    {
+        boost::lock_guard lock(operation->mutex);
+        valid = operation->valid;
+        phase = operation->phase;
+        target_ssid = operation->ssid;
+        error = operation->error;
+        fresh_connected_event = operation->connected_event_armed &&
+                                operation->connected_event_epoch > operation->connect_start_epoch;
+        deadline = operation->deadline;
+    }
+    if (!valid) {
+        // Service callbacks invalidate the operation; the App task releases its UI ownership.
+        invalidate_wifi_connect_operation(context);
+        return true;
+    }
+    const bool connected = phase == WifiConnectOperation::Phase::WaitingForConnection && fresh_connected_event &&
+                           wifi_ui_state_.general_state == "Connected" &&
+                           wifi_ui_state_.connected_ssid == target_ssid;
+    if (connected) {
+        invalidate_wifi_connect_operation(context);
+        wifi_page_.error.clear();
+        wifi_ui_state_.connecting = false;
+        std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
+        wifi_connect_password_.clear();
+        if (!settings_uses_gsp_backend()) {
+            selected_wifi_network_.reset();
+            request_saved_wifi_networks_refresh();
+        }
+        return true;
+    }
+    if (phase != WifiConnectOperation::Phase::Failed && SteadyClock::now() < deadline) {
+        return false;
+    }
+    invalidate_wifi_connect_operation(context);
+    wifi_ui_state_.connecting = false;
+    hide_wifi_connected_card();
+    wifi_page_.error = error.empty() ? "Connection timed out. Check the network and try again." : std::move(error);
+    return true;
 }
 
 std::expected<void, std::string> SettingsApp::disconnect_wifi(system::core::AppContext &context)
 {
+    invalidate_wifi_connect_operation(context);
+    cancel_wifi_keyboard_if_active(context);
+    std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
+    wifi_connect_password_.clear();
+    selected_wifi_network_.reset();
     const auto generation = ++wifi_operation_generation_;
     cancel_wifi_scan_retry_timer(context);
     wifi_scan_retry_remaining_ = 0;
@@ -751,7 +881,8 @@ std::expected<void, std::string> SettingsApp::disconnect_wifi(system::core::AppC
         }
         apply_wifi_enabled_preference_to_service();
     };
-    auto save_result = submit_wifi_enabled_preference_save(false, save_handler);
+    auto save_result = submit_wifi_enabled_preference_save(
+                           false, make_wifi_ui_result_handler(wifi_ui_mailbox_, save_handler));
     if (!save_result) {
         if (auto refresh_result = refresh_wifi_page_state(context); !refresh_result) {
             BROOKESIA_LOGW(
@@ -807,7 +938,7 @@ std::expected<void, std::string> SettingsApp::disconnect_wifi(system::core::AppC
     if (!WifiHelper::call_function_async(
                 WifiHelper::FunctionId::TriggerGeneralAction,
                 BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Stop),
-                stop_handler
+                make_wifi_ui_result_handler(wifi_ui_mailbox_, stop_handler)
             )) {
         BROOKESIA_LOGW("Failed to submit Wi-Fi stop request");
     }
@@ -816,8 +947,24 @@ std::expected<void, std::string> SettingsApp::disconnect_wifi(system::core::AppC
 
 std::expected<void, std::string> SettingsApp::disconnect_current_wifi(system::core::AppContext &context)
 {
+    invalidate_wifi_connect_operation(context);
     if (!wifi_ui_state_.service_ready || !wifi_ui_state_.enabled) {
         return refresh_wifi_page_state(context);
+    }
+
+    if (settings_uses_gsp_backend()) {
+        auto handler = [](service::FunctionResult && result) {
+            if (!result.success) {
+                BROOKESIA_LOGW("Failed to disconnect Wi-Fi: %1%", result.error_message);
+            }
+        };
+        if (!WifiHelper::call_function_async(
+                    WifiHelper::FunctionId::TriggerGeneralAction,
+                    BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Disconnect), handler)) {
+            return std::unexpected("Failed to submit Wi-Fi disconnect request");
+        }
+        wifi_page_.next_state_read = {};
+        return {};
     }
 
     const auto disconnected_handler = [this](service::FunctionResult && result) {
@@ -862,7 +1009,7 @@ std::expected<void, std::string> SettingsApp::disconnect_current_wifi(system::co
     if (!WifiHelper::call_function_async(
                 WifiHelper::FunctionId::TriggerGeneralAction,
                 BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Disconnect),
-                disconnected_handler
+                make_wifi_ui_result_handler(wifi_ui_mailbox_, disconnected_handler)
             )) {
         return std::unexpected("Failed to submit Wi-Fi disconnect request");
     }
@@ -975,7 +1122,7 @@ void SettingsApp::handle_wifi_forget_event(const gui::Event &event)
     if (!WifiHelper::call_function_async(
                 WifiHelper::FunctionId::RemoveConnectedAp,
                 network.ssid,
-                forget_handler
+                make_wifi_ui_result_handler(wifi_ui_mailbox_, forget_handler)
             )) {
         wifi_forget_click_suppression_id_.clear();
         wifi_forget_click_suppression_ssid_.clear();
@@ -989,8 +1136,19 @@ std::expected<void, std::string> SettingsApp::open_wifi_connect(
 )
 {
     selected_wifi_network_ = std::move(network);
+    std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
     wifi_connect_password_.clear();
-    auto result = context.gui().trigger_screen_flow(CONTENT_FLOW_ID, ACTION_OPEN_WIFI_CONNECT);
+    wifi_page_.error.clear();
+    if (settings_uses_gsp_backend()) {
+        auto shown = surface_->show_page(context, PAGE_WIFI_CONNECT);
+        if (!shown) {
+            selected_wifi_network_.reset();
+            return shown;
+        }
+        current_page_ = PAGE_WIFI_CONNECT;
+        return refresh_wifi_connect_state(context);
+    }
+    auto result = surface_->show_page(context, PAGE_WIFI_CONNECT);
     if (!result) {
         return result;
     }
@@ -1005,40 +1163,41 @@ std::expected<void, std::string> SettingsApp::open_wifi_connect(
 
 std::expected<void, std::string> SettingsApp::refresh_wifi_connect_state(system::core::AppContext &context)
 {
-    const auto password_empty_text = localized_text(current_locale_, "wifi_password_placeholder");
+    const bool gsp_backend = settings_uses_gsp_backend();
+    const auto password_empty_text = gsp_backend ? "Enter password" :
+                                     localized_text(current_locale_, "wifi_password_placeholder");
     const auto status_text = wifi_connect_password_.empty() ?
-                             localized_text(current_locale_, "wifi_password_required") :
-                             localized_text(current_locale_, "wifi_ready_to_connect");
+                             (gsp_backend ? "Enter the password to connect." :
+                              localized_text(current_locale_, "wifi_password_required")) :
+                             (gsp_backend ? "Ready to connect." :
+                              localized_text(current_locale_, "wifi_ready_to_connect"));
     const bool connect_enabled = selected_wifi_network_.has_value() && !wifi_connect_password_.empty();
+    WifiConnectView view;
+    view.ssid = selected_wifi_network_ ? selected_wifi_network_->ssid : "";
+    view.detail = selected_wifi_network_ ? selected_wifi_network_->detail : "";
+    view.password_summary = make_password_summary(wifi_connect_password_, password_empty_text);
+    view.status = wifi_page_.error.empty() ? status_text : wifi_page_.error;
+    view.password_enabled = selected_wifi_network_.has_value();
+    view.connect_enabled = connect_enabled;
 
-    std::vector<gui::BindingValueUpdate> updates;
-    add_binding_update(
-        updates,
-        WIFI_CONNECT_SSID_PATH,
-        "ssid",
-        selected_wifi_network_.has_value() ? selected_wifi_network_->ssid : ""
-    );
-    add_binding_update(
-        updates,
-        WIFI_CONNECT_DETAIL_PATH,
-        "detail",
-        selected_wifi_network_.has_value() ? selected_wifi_network_->detail : ""
-    );
-    add_binding_update(
-        updates,
-        WIFI_CONNECT_PASSWORD_VALUE_PATH,
-        "passwordValue",
-        make_password_summary(wifi_connect_password_, password_empty_text)
-    );
-    add_binding_update(updates, WIFI_CONNECT_STATUS_PATH, "status", status_text);
-    add_binding_update(updates, WIFI_CONNECT_BUTTON_PATH, "disabled", connect_enabled ? "false" : "true");
-    add_binding_update(
-        updates,
-        WIFI_CONNECT_BUTTON_PATH,
-        "opacity",
-        std::to_string(connect_enabled ? ENABLED_OPACITY : DISABLED_OPACITY)
-    );
-    return context.gui().set_binding_values(updates);
+    if (gsp_backend) {
+        if (selected_wifi_network_) {
+            const auto &network = *selected_wifi_network_;
+            view.detail = (network.enterprise ? "Enterprise (unsupported)" :
+                           network.locked ? "Secured" : "Open") +
+                          std::string("   Signal ") + std::to_string(network.signal_level) + "/4   " +
+                          std::to_string(network.rssi) + " dBm   " + network.band;
+        }
+        const bool connected = selected_wifi_network_ && wifi_ui_state_.general_state == "Connected" &&
+                               wifi_ui_state_.connected_ssid == selected_wifi_network_->ssid &&
+                               !wifi_page_.connect_pending;
+        view.status = !wifi_page_.error.empty() ? wifi_page_.error :
+                      wifi_page_.connect_pending ? "Connecting to network..." :
+                      connected ? "Connected to network" : status_text;
+        view.password_enabled = selected_wifi_network_ && !wifi_page_.connect_pending && !connected;
+        view.connect_enabled = connect_enabled && view.password_enabled;
+    }
+    return surface_->set_wifi_connect(context, view);
 }
 
 std::expected<void, std::string> SettingsApp::refresh_wifi_summary_state(system::core::AppContext &context)
@@ -1057,27 +1216,30 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_summary_state(system:
 
 std::expected<void, std::string> SettingsApp::show_wifi_password_keyboard(system::core::AppContext &context)
 {
-    if (!selected_wifi_network_.has_value()) {
-        return std::unexpected(localized_text(current_locale_, "wifi_no_network_selected"));
+    if (!selected_wifi_network_.has_value() || wifi_page_.connect_pending ||
+            (settings_uses_gsp_backend() && wifi_ui_state_.general_state == "Connected" &&
+             wifi_ui_state_.connected_ssid == selected_wifi_network_->ssid)) {
+        return std::unexpected(settings_uses_gsp_backend() ? "Select a Wi-Fi network first." :
+                               localized_text(current_locale_, "wifi_no_network_selected"));
     }
     if (wifi_keyboard_request_id_ != system::core::INVALID_KEYBOARD_REQUEST_ID) {
         return {};
     }
 
-    auto request = context.system_service().show_keyboard(
-    system::core::KeyboardRequestOptions{
+    auto options = system::core::KeyboardRequestOptions{
         .title = selected_wifi_network_->ssid,
-        .placeholder = localized_text(current_locale_, "wifi_password_placeholder"),
+        .placeholder = settings_uses_gsp_backend() ? "Enter password" :
+                       localized_text(current_locale_, "wifi_password_placeholder"),
         .initial_text = wifi_connect_password_,
         .max_length = 64,
         .password = true,
         .mode = "text",
         .allowed_modes = {"text", "upper", "number", "special"},
-    },
-    [this](const system::core::KeyboardResult & result) {
+    };
+    auto completion = [this](const system::core::KeyboardResult & result) {
         handle_wifi_keyboard_result(result);
-    }
-                   );
+    };
+    auto request = context.system_service().show_keyboard(std::move(options), std::move(completion));
     if (!request) {
         return std::unexpected(request.error());
     }
@@ -1097,7 +1259,12 @@ void SettingsApp::handle_wifi_keyboard_result(const system::core::KeyboardResult
         return;
     }
 
+    if (current_page_ != PAGE_WIFI_CONNECT || !selected_wifi_network_) {
+        return;
+    }
+    std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
     wifi_connect_password_ = result.text;
+    wifi_page_.error.clear();
     if (context_ == nullptr) {
         return;
     }
@@ -1110,27 +1277,30 @@ void SettingsApp::handle_wifi_keyboard_result(const system::core::KeyboardResult
 std::expected<void, std::string> SettingsApp::submit_wifi_connect(system::core::AppContext &context)
 {
     if (!selected_wifi_network_.has_value()) {
-        return std::unexpected(localized_text(current_locale_, "wifi_no_network_selected"));
+        return std::unexpected(settings_uses_gsp_backend() ? "Select a Wi-Fi network first." :
+                               localized_text(current_locale_, "wifi_no_network_selected"));
     }
     if (wifi_connect_password_.empty()) {
         return refresh_wifi_connect_state(context);
     }
 
     auto result = connect_wifi_network(context, *selected_wifi_network_, wifi_connect_password_);
+    std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
+    wifi_connect_password_.clear();
+    if (settings_uses_gsp_backend()) {
+        if (!result) {
+            wifi_page_.error = "Could not start the connection. Try again.";
+        }
+        return refresh_wifi_connect_state(context);
+    }
     if (!result) {
-        const std::vector<gui::BindingValueUpdate> updates = {
-            gui::BindingValueUpdate{
-                .absolute_path = WIFI_CONNECT_STATUS_PATH,
-                .key = "status",
-                .value = localized_text(current_locale_, "wifi_connect_failed"),
-            },
-        };
-        if (auto status_result = context.gui().set_binding_values(updates); !status_result) {
+        wifi_page_.error = localized_text(current_locale_, "wifi_connect_failed");
+        if (auto status_result = refresh_wifi_connect_state(context); !status_result) {
             BROOKESIA_LOGW("Failed to refresh Wi-Fi connect failure status: %1%", status_result.error());
         }
         return result;
     }
-    result = context.gui().trigger_screen_flow(CONTENT_FLOW_ID, ACTION_BACK_WIFI_CONNECT);
+    result = surface_->show_page(context, PAGE_WIFI);
     if (!result) {
         return result;
     }
@@ -1162,6 +1332,28 @@ void SettingsApp::handle_wifi_general_event(std::string_view event, bool unexpec
     }
     if (unexpected) {
         BROOKESIA_LOGW("Wi-Fi service reported unexpected event: %1%", event);
+    }
+    const bool stopped = event == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralEvent::Stopped) ||
+                         event == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralEvent::Deinited);
+    const bool service_unavailable = !wifi_service_binding_.is_valid() || !WifiHelper::is_running();
+    if (stopped || service_unavailable) {
+        invalidate_wifi_connect_operation(*context_);
+        ++wifi_operation_generation_;
+        cancel_wifi_keyboard_if_active(*context_);
+        std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
+        wifi_connect_password_.clear();
+        selected_wifi_network_.reset();
+        wifi_ui_state_.enabled = false;
+        wifi_ui_state_.connecting = false;
+        wifi_ui_state_.connected_ssid.clear();
+        if (service_unavailable) {
+            wifi_ui_state_.service_ready = false;
+        }
+        if (current_page_ == PAGE_WIFI_CONNECT) {
+            if (auto result = on_action(*context_, ACTION_BACK_WIFI_CONNECT); !result) {
+                BROOKESIA_LOGW("Failed to leave Wi-Fi connect page after Wi-Fi stopped: %1%", result.error());
+            }
+        }
     }
     if (!wifi_ui_state_.enabled) {
         wifi_ui_state_.scanning = false;
@@ -1227,6 +1419,7 @@ void SettingsApp::handle_wifi_general_event(std::string_view event, bool unexpec
     }
     if (event == BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralEvent::Connected)) {
         selected_wifi_network_.reset();
+        std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
         wifi_connect_password_.clear();
         request_saved_wifi_networks_refresh();
     }

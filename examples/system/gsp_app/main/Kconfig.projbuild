@@ -17,6 +17,17 @@ menu "Brookesia system GSP example"
             This temporarily changes Wi-Fi state and restores it on success.
             Leave disabled for normal use.
 
+    config BROOKESIA_GSP_WIFI_CONNECT_PROBE
+        bool "Run password and connection checks instead of scan checks"
+        depends on BROOKESIA_GSP_WIFI_PROBE
+        default n
+        help
+            Accept temporary test credentials over the serial console, then
+            exercise the password keyboard, failed connection, retry, exit,
+            and saved-network reconnection using injected touch input.
+            Credentials are not printed. Successful connections are saved by
+            the Wi-Fi service. Leave disabled for normal use.
+
     config BROOKESIA_LVGL_HW_PROBE
         bool "Run LVGL hardware acceptance probe at startup"
         depends on BROOKESIA_GUI_BACKEND_LVGL
@@ -26,5 +37,15 @@ menu "Brookesia system GSP example"
             Exercise the desktop, Settings, brightness, and Wi-Fi through
             injected touch input. Capture screens and log heap use over
             20 measured cycles. Leave disabled for normal use.
+
+    config BROOKESIA_LVGL_WIFI_CONNECT_PROBE
+        bool "Run LVGL password and connection checks instead of desktop checks"
+        depends on BROOKESIA_LVGL_HW_PROBE
+        default n
+        help
+            Read temporary test credentials from the serial console and test
+            password entry, cancellation, connection, and reopening Settings.
+            A saved entry for this test network is removed through the UI and
+            saved again after connection. Leave disabled for normal use.
 
 endmenu

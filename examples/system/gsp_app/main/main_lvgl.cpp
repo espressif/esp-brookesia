@@ -17,12 +17,25 @@
 
 #if CONFIG_BROOKESIA_LVGL_HW_PROBE
 #   include "lvgl_probe.ipp"
+#   if CONFIG_BROOKESIA_LVGL_WIFI_CONNECT_PROBE
+#       include "lvgl_connect_probe.ipp"
+#   endif
 #endif
 
 namespace {
 
 void run_main()
 {
+#if CONFIG_BROOKESIA_LVGL_WIFI_CONNECT_PROBE
+    namespace connection_probe = esp_brookesia::gsp_app::lvgl_connect_probe;
+    connection_probe::Credentials test_credentials;
+    if (!connection_probe::read_credentials(test_credentials)) {
+        return;
+    }
+    esp_brookesia::lib_utils::FunctionGuard clear_test_credentials([&]() {
+        connection_probe::clear_password(test_credentials.password);
+    });
+#endif
     if (!GeneralServices::get_instance().init()) {
         BROOKESIA_LOGE("Failed to initialize general services");
         return;
@@ -57,9 +70,15 @@ void run_main()
     }
     BROOKESIA_LOGI("LVGL system started");
 #if CONFIG_BROOKESIA_LVGL_HW_PROBE
+#   if CONFIG_BROOKESIA_LVGL_WIFI_CONNECT_PROBE
+    if (!esp_brookesia::gsp_app::lvgl_connect_probe::run(*system_instance, display, test_credentials)) {
+        BROOKESIA_LOGE("LVGL connection probe FAILED");
+    }
+#   else
     if (!esp_brookesia::gsp_app::lvgl_probe::run(*system_instance, display)) {
         BROOKESIA_LOGE("LVGL hardware probe FAILED");
     }
+#   endif
 #endif
 }
 
