@@ -7,6 +7,7 @@
 #include <array>
 #include <atomic>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <mutex>
 #include <string>
@@ -36,6 +37,8 @@ constexpr std::array<const char *, UNICODE_AP_COUNT> UNICODE_SSIDS = {
 };
 
 std::atomic<Fault> armed_fault{Fault::None};
+std::atomic<uint32_t> failed_text_key{0};
+std::atomic<unsigned> text_failures{0};
 std::array<std::atomic<unsigned>, FAULT_COUNT> injections{};
 std::array<std::atomic<unsigned>, STATUS_COUNT> statuses{};
 std::array<std::atomic<unsigned>, UNICODE_AP_COUNT> unicode_rows{};
@@ -100,7 +103,19 @@ bool arm(Fault fault)
 void disarm()
 {
     armed_fault.store(Fault::None);
+    failed_text_key.store(0);
     unicode_records_pending.store(false);
+}
+
+bool arm_text_failure(uint32_t key)
+{
+    uint32_t expected = 0;
+    return key != 0 && failed_text_key.compare_exchange_strong(expected, key);
+}
+
+unsigned text_failure_count()
+{
+    return text_failures.load();
 }
 
 unsigned injection_count(Fault fault)
@@ -231,6 +246,12 @@ extern "C" esp_gsp_err_t __wrap_esp_gsp_component_set_text(esp_gsp_handle_t gsp,
         gsp_component_key_t key, const char *value)
 {
     using namespace esp_brookesia::gsp_app::wifi_probe_hooks;
+    uint32_t expected = key;
+    if (key != 0 && failed_text_key.compare_exchange_strong(expected, 0)) {
+        text_failures.fetch_add(1);
+        std::printf("SETTINGS_TEXT_FAILURE_INJECTED,%lu\n", static_cast<unsigned long>(key));
+        return ESP_GSP_ERR_NO_MEM;
+    }
     const auto result = __real_esp_gsp_component_set_text(gsp, key, value);
     if (result != ESP_GSP_OK || !value) {
         return result;

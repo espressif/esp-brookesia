@@ -27,6 +27,20 @@ std::expected<void, std::string> SettingsApp::refresh_header(system::core::AppCo
 
 std::expected<void, std::string> SettingsApp::refresh_theme_state(system::core::AppContext &context)
 {
+    if (settings_uses_gsp_backend()) {
+        PreferencePageView view;
+        view.labels = {localized_text(current_locale_, "light"), localized_text(current_locale_, "dark")};
+        view.values = {
+            pending_theme_id_ == THEME_LIGHT ? localized_text(current_locale_, "restart_required") :
+            current_theme_id_ == THEME_LIGHT ? localized_text(current_locale_, "current") : "",
+            pending_theme_id_ == THEME_DARK ? localized_text(current_locale_, "restart_required") :
+            current_theme_id_ == THEME_DARK ? localized_text(current_locale_, "current") : "",
+        };
+        view.status = !preference_error_.empty() ? preference_error_ :
+                      pending_theme_id_.empty() ? "" : localized_text(current_locale_, "theme.restart_required");
+        view.show_restart = restart_prompt_kind_ == RestartPromptKind::Theme;
+        return surface_->set_preferences(context, view);
+    }
     const bool dark = current_theme_id_ == THEME_DARK;
     auto tokens = load_selectable_theme_tokens(context, current_theme_id_);
     if (!tokens) {
@@ -59,6 +73,24 @@ std::expected<void, std::string> SettingsApp::refresh_theme_state(system::core::
 
 std::expected<void, std::string> SettingsApp::refresh_language_state(system::core::AppContext &context)
 {
+    if (settings_uses_gsp_backend()) {
+        PreferencePageView view;
+        view.labels = {
+            localized_text(current_locale_, "language.display.en"),
+            localized_text(current_locale_, "language.display.zh_CN"),
+        };
+        view.values = {
+            pending_language_locale_ == LOCALE_EN ? localized_text(current_locale_, "restart_required") :
+            current_locale_ == LOCALE_EN ? localized_text(current_locale_, "current") : "",
+            pending_language_locale_ == LOCALE_ZH_CN ? localized_text(current_locale_, "restart_required") :
+            current_locale_ == LOCALE_ZH_CN ? localized_text(current_locale_, "current") : "",
+        };
+        view.status = !preference_error_.empty() ? preference_error_ :
+                      pending_language_locale_.empty() ? "" :
+                      localized_text(current_locale_, "language.restart_required");
+        view.show_restart = restart_prompt_kind_ == RestartPromptKind::Language;
+        return surface_->set_preferences(context, view);
+    }
     std::vector<gui::BindingValueUpdate> updates;
     add_binding_update(
         updates,

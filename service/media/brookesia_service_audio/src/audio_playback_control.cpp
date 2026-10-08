@@ -24,6 +24,7 @@ namespace {
 
 constexpr const char *KEY_VOLUME = "Volume";
 constexpr const char *KEY_MUTE = "Mute";
+constexpr uint32_t CONTROL_SAVE_TIMEOUT_MS = 500;
 
 std::expected<std::string, std::string> make_storage_namespace(std::string_view raw_namespace)
 {
@@ -80,18 +81,14 @@ std::expected<void, std::string> AudioPlayback::function_set_volume(double volum
     }
 
     const auto target_volume = volume_result.value();
-    if (target_volume == desired_volume_) {
-        return {};
+    if (target_volume != desired_volume_) {
+        desired_volume_ = target_volume;
+        if (!apply_control_state_to_hal()) {
+            BROOKESIA_LOGW("Failed to apply audio volume to HAL immediately, target state retained");
+        }
+        publish_volume_changed();
     }
-
-    desired_volume_ = target_volume;
-    save_volume_data();
-    if (!apply_control_state_to_hal()) {
-        BROOKESIA_LOGW("Failed to apply audio volume to HAL immediately, target state retained");
-    }
-    publish_volume_changed();
-
-    return {};
+    return save_volume_data();
 }
 
 std::expected<double, std::string> AudioPlayback::function_get_volume()
@@ -114,18 +111,14 @@ std::expected<void, std::string> AudioPlayback::function_set_mute(bool enable)
         return std::unexpected("Audio player interface is not available");
     }
 
-    if (enable == desired_mute_) {
-        return {};
+    if (enable != desired_mute_) {
+        desired_mute_ = enable;
+        if (!apply_control_state_to_hal()) {
+            BROOKESIA_LOGW("Failed to apply audio mute state to HAL immediately, target state retained");
+        }
+        publish_mute_changed();
     }
-
-    desired_mute_ = enable;
-    save_mute_data();
-    if (!apply_control_state_to_hal()) {
-        BROOKESIA_LOGW("Failed to apply audio mute state to HAL immediately, target state retained");
-    }
-    publish_mute_changed();
-
-    return {};
+    return save_mute_data();
 }
 
 std::expected<bool, std::string> AudioPlayback::function_get_mute()
@@ -248,50 +241,56 @@ void AudioPlayback::load_control_data_from_storage()
     control_data_loaded_ = true;
 }
 
-void AudioPlayback::save_volume_data()
+std::expected<void, std::string> AudioPlayback::save_volume_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     if (!StorageHelper::is_available()) {
-        BROOKESIA_LOGD("Storage service is not available, skip");
-        return;
+        return std::unexpected("Storage service is not available to save audio volume");
     }
 
     auto namespace_result = make_storage_namespace(get_attributes().name);
-    BROOKESIA_CHECK_FALSE_EXIT(namespace_result, "%1%", namespace_result.error());
+    if (!namespace_result) {
+        return std::unexpected(namespace_result.error());
+    }
     auto key_result = make_storage_key(KEY_VOLUME);
-    BROOKESIA_CHECK_FALSE_EXIT(key_result, "%1%", key_result.error());
-    auto key = std::move(key_result.value());
-    auto result = StorageHelper::save_key_value_async(namespace_result.value(), key, desired_volume_,
-    [](auto &&result) mutable {
-        BROOKESIA_CHECK_FALSE_EXIT(result.success, "Failed to save %1% to Storage: %2%", KEY_VOLUME,
-                                   result.error_message);
-        BROOKESIA_LOGI("Saved '%1%' to Storage", KEY_VOLUME);
-    });
-    BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to save audio playback volume to Storage");
+    if (!key_result) {
+        return std::unexpected(key_result.error());
+    }
+    auto result = StorageHelper::save_key_value(
+                      namespace_result.value(), key_result.value(), desired_volume_, CONTROL_SAVE_TIMEOUT_MS
+                  );
+    if (!result) {
+        return std::unexpected("Failed to save audio volume: " + result.error());
+    }
+    BROOKESIA_LOGI("Saved '%1%' to Storage", KEY_VOLUME);
+    return {};
 }
 
-void AudioPlayback::save_mute_data()
+std::expected<void, std::string> AudioPlayback::save_mute_data()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     if (!StorageHelper::is_available()) {
-        BROOKESIA_LOGD("Storage service is not available, skip");
-        return;
+        return std::unexpected("Storage service is not available to save audio mute");
     }
 
     auto namespace_result = make_storage_namespace(get_attributes().name);
-    BROOKESIA_CHECK_FALSE_EXIT(namespace_result, "%1%", namespace_result.error());
+    if (!namespace_result) {
+        return std::unexpected(namespace_result.error());
+    }
     auto key_result = make_storage_key(KEY_MUTE);
-    BROOKESIA_CHECK_FALSE_EXIT(key_result, "%1%", key_result.error());
-    auto key = std::move(key_result.value());
-    auto result = StorageHelper::save_key_value_async(namespace_result.value(), key, desired_mute_,
-    [](auto &&result) mutable {
-        BROOKESIA_CHECK_FALSE_EXIT(result.success, "Failed to save %1% to Storage: %2%", KEY_MUTE,
-                                   result.error_message);
-        BROOKESIA_LOGI("Saved '%1%' to Storage", KEY_MUTE);
-    });
-    BROOKESIA_CHECK_FALSE_EXIT(result, "Failed to save audio playback mute to Storage");
+    if (!key_result) {
+        return std::unexpected(key_result.error());
+    }
+    auto result = StorageHelper::save_key_value(
+                      namespace_result.value(), key_result.value(), desired_mute_, CONTROL_SAVE_TIMEOUT_MS
+                  );
+    if (!result) {
+        return std::unexpected("Failed to save audio mute: " + result.error());
+    }
+    BROOKESIA_LOGI("Saved '%1%' to Storage", KEY_MUTE);
+    return {};
 }
 
 void AudioPlayback::reset_control_data(uint8_t old_volume, bool old_mute)

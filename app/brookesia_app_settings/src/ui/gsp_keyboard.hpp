@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <expected>
 #include <string>
+#include <string_view>
 
 #include "brookesia/system_core/app/types.hpp"
 #include "esp_gsp.h"
@@ -30,6 +31,8 @@ namespace esp_brookesia::app::settings {
  */
 class GspKeyboard {
 public:
+    void set_appearance(std::string_view locale, std::string_view theme);
+
     std::expected<void, std::string> show(
         esp_gsp_handle_t handle,
         system::core::AppId app_id,
@@ -60,6 +63,8 @@ private:
     system::core::KeyboardResultHandler completion_;
     std::string text_;
     std::string placeholder_;
+    std::string locale_ = "en";
+    std::string theme_ = "light";
     size_t max_length_ = 64;
     Layout layout_ = Layout::Lower;
     bool allow_lower_ = true;

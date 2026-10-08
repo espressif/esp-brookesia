@@ -9,12 +9,26 @@
     {
       "type": "container",
       "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
       "name": "header_bar",
       "x": 0,
       "y": 0,
       "w": 1024,
       "h": 74,
-      "bg_color": "#FFFFFF"
+      "bg_color": {
+        "theme": "surface"
+      }
     },
     {
       "type": "label",
@@ -26,7 +40,9 @@
       "h": 40,
       "text": "Wi-Fi password",
       "font_size": 24,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "title"
@@ -39,8 +55,12 @@
       "y": 88,
       "w": 916,
       "h": 58,
-      "bg_color": "#FFFFFF",
-      "border_color": "#D1D1D6",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "border_color": {
+        "theme": "rail"
+      },
       "border_width": 1,
       "radius": 12
     },
@@ -54,7 +74,9 @@
       "h": 36,
       "text": "Enter password",
       "font_size": 24,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "masked_password"
     },
@@ -68,7 +90,9 @@
       "h": 30,
       "text": "0 / 64",
       "font_size": 20,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "password_count"
     },
@@ -83,8 +107,12 @@
       "h": 62,
       "text": "1",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_0"
@@ -100,8 +128,12 @@
       "h": 62,
       "text": "2",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_1"
@@ -117,8 +149,12 @@
       "h": 62,
       "text": "3",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_2"
@@ -134,8 +170,12 @@
       "h": 62,
       "text": "4",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_3"
@@ -151,8 +191,12 @@
       "h": 62,
       "text": "5",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_4"
@@ -168,8 +212,12 @@
       "h": 62,
       "text": "6",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_5"
@@ -185,8 +233,12 @@
       "h": 62,
       "text": "7",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_6"
@@ -202,8 +254,12 @@
       "h": 62,
       "text": "8",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_7"
@@ -219,8 +275,12 @@
       "h": 62,
       "text": "9",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_8"
@@ -236,8 +296,12 @@
       "h": 62,
       "text": "0",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_0_9"
@@ -253,8 +317,12 @@
       "h": 62,
       "text": "q",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_0"
@@ -270,8 +338,12 @@
       "h": 62,
       "text": "w",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_1"
@@ -287,8 +359,12 @@
       "h": 62,
       "text": "e",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_2"
@@ -304,8 +380,12 @@
       "h": 62,
       "text": "r",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_3"
@@ -321,8 +401,12 @@
       "h": 62,
       "text": "t",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_4"
@@ -338,8 +422,12 @@
       "h": 62,
       "text": "y",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_5"
@@ -355,8 +443,12 @@
       "h": 62,
       "text": "u",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_6"
@@ -372,8 +464,12 @@
       "h": 62,
       "text": "i",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_7"
@@ -389,8 +485,12 @@
       "h": 62,
       "text": "o",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_8"
@@ -406,8 +506,12 @@
       "h": 62,
       "text": "p",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_1_9"
@@ -423,8 +527,12 @@
       "h": 62,
       "text": "a",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_0"
@@ -440,8 +548,12 @@
       "h": 62,
       "text": "s",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_1"
@@ -457,8 +569,12 @@
       "h": 62,
       "text": "d",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_2"
@@ -474,8 +590,12 @@
       "h": 62,
       "text": "f",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_3"
@@ -491,8 +611,12 @@
       "h": 62,
       "text": "g",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_4"
@@ -508,8 +632,12 @@
       "h": 62,
       "text": "h",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_5"
@@ -525,8 +653,12 @@
       "h": 62,
       "text": "j",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_6"
@@ -542,8 +674,12 @@
       "h": 62,
       "text": "k",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_7"
@@ -559,8 +695,12 @@
       "h": 62,
       "text": "l",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_2_8"
@@ -576,8 +716,12 @@
       "h": 62,
       "text": "Shift",
       "font_size": 21,
-      "bg_color": "#E5E5EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "shift",
@@ -594,8 +738,12 @@
       "h": 62,
       "text": "z",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_0"
@@ -611,8 +759,12 @@
       "h": 62,
       "text": "x",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_1"
@@ -628,8 +780,12 @@
       "h": 62,
       "text": "c",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_2"
@@ -645,8 +801,12 @@
       "h": 62,
       "text": "v",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_3"
@@ -662,8 +822,12 @@
       "h": 62,
       "text": "b",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_4"
@@ -679,8 +843,12 @@
       "h": 62,
       "text": "n",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_5"
@@ -696,8 +864,12 @@
       "h": 62,
       "text": "m",
       "font_size": 24,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "key"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "key_3_6"
@@ -713,10 +885,15 @@
       "h": 62,
       "text": "Delete",
       "font_size": 21,
-      "bg_color": "#E5E5EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "bind": "delete"
     },
     {
       "type": "button",
@@ -729,8 +906,12 @@
       "h": 70,
       "text": "Symbols",
       "font_size": 21,
-      "bg_color": "#E5E5EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "bind": "symbols",
@@ -747,10 +928,15 @@
       "h": 70,
       "text": "Space",
       "font_size": 21,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "bind": "space"
     },
     {
       "type": "button",
@@ -763,10 +949,15 @@
       "h": 70,
       "text": "Cancel",
       "font_size": 21,
-      "bg_color": "#E5E5EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "bind": "cancel"
     },
     {
       "type": "button",
@@ -779,10 +970,62 @@
       "h": 70,
       "text": "Done",
       "font_size": 21,
-      "bg_color": "#007AFF",
-      "fg_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "accent"
+      },
+      "fg_color": {
+        "theme": "on_accent"
+      },
       "radius": 10,
-      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "bind": "confirm"
     }
-  ]
+  ],
+  "themes": {
+    "accent": {
+      "type": "color",
+      "default": "#0A84FF",
+      "dynamic": true
+    },
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "key": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "on_accent": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "rail": {
+      "type": "color",
+      "default": "#E5E5EA",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
 }

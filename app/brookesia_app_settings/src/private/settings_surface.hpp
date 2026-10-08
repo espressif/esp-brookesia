@@ -45,12 +45,43 @@ struct WifiConnectView {
     bool password_enabled = false;
 };
 
+struct SoundPageView {
+    int volume = 0;
+    bool muted = false;
+    bool enabled = false;
+    bool test_enabled = false;
+    std::string status;
+};
+
+struct PreferencePageView {
+    std::array<std::string, 2> labels;
+    std::array<std::string, 2> values;
+    std::string status;
+    bool show_restart = false;
+};
+
 /**
  * @brief Present Settings state through the selected GUI backend.
  */
 class SettingsSurface {
 public:
     virtual ~SettingsSurface() = default;
+
+    virtual void set_appearance(std::string_view, std::string_view) {}
+
+    virtual std::expected<void, std::string> set_sound(
+        system::core::AppContext &, const SoundPageView &
+    )
+    {
+        return {};
+    }
+
+    virtual std::expected<void, std::string> set_preferences(
+        system::core::AppContext &, const PreferencePageView &
+    )
+    {
+        return {};
+    }
 
     virtual std::expected<void, std::string> set_wifi(
         system::core::AppContext &context, const WifiPageView &view

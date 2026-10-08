@@ -9,10 +9,13 @@
 #include <cstring>
 #include <iostream>
 #include <span>
+#include <vector>
 #include <sys/wait.h>
 #include <unistd.h>
 
 #include <exception>
+
+#include "zlib.h"
 
 #include "esp_heap_caps.h"
 #include "sdk_stubs.hpp"
@@ -20,9 +23,11 @@
 struct FakeGsp {};
 
 #include "brookesia/gui_gsp/bundle.hpp"
+#include "brookesia/gui_gsp/app_host.hpp"
 #include "brookesia/gui_gsp/session.hpp"
 
 using esp_brookesia::gui::gsp::Bundle;
+using esp_brookesia::gui::gsp::AppHost;
 using esp_brookesia::gui::gsp::DisplayLease;
 using esp_brookesia::gui::gsp::Session;
 using esp_brookesia::hal::display::PanelIface;
@@ -40,6 +45,11 @@ esp_gsp_event_cb_t event_callback = nullptr;
 void *event_ctx = nullptr;
 esp_gsp_esp_lcd_config_t last_lcd{};
 size_t last_bundle_size = 0;
+const void *last_bundle_ptr = nullptr;
+const void *last_directories = nullptr;
+const void *last_ttf = nullptr;
+int allocations = 0;
+int frees = 0;
 
 void reset()
 {
@@ -53,6 +63,35 @@ void reset()
     event_ctx = nullptr;
     last_lcd = {};
     last_bundle_size = 0;
+    last_bundle_ptr = nullptr;
+    last_directories = nullptr;
+    last_ttf = nullptr;
+    allocations = 0;
+    frees = 0;
+}
+
+void write_u32(std::vector<std::byte> &buffer, size_t offset, uint32_t value)
+{
+    for (size_t byte = 0; byte < 4; ++byte) {
+        buffer[offset + byte] = static_cast<std::byte>((value >> (byte * 8)) & 0xFF);
+    }
+}
+
+std::vector<std::byte> compressed_bundle(std::span<const std::byte> raw)
+{
+    uLongf compressed_size = compressBound(raw.size());
+    std::vector<std::byte> result(16 + compressed_size);
+    result[0] = std::byte{'B'};
+    result[1] = std::byte{'G'};
+    result[2] = std::byte{'Z'};
+    result[3] = std::byte{'1'};
+    assert(compress2(reinterpret_cast<Bytef *>(result.data() + 16), &compressed_size,
+                     reinterpret_cast<const Bytef *>(raw.data()), raw.size(), 6) == Z_OK);
+    result.resize(16 + compressed_size);
+    write_u32(result, 4, raw.size());
+    write_u32(result, 8, compressed_size);
+    write_u32(result, 12, crc32(0, reinterpret_cast<const Bytef *>(raw.data()), raw.size()));
+    return result;
 }
 
 DisplayLease lease_for(PanelIface &panel, TouchIface &touch)
@@ -173,11 +212,103 @@ void test_destructor_terminates_when_stop_fails()
     assert(WEXITSTATUS(status) == 77);
 }
 
+void test_compressed_app_host_owns_one_expansion_until_stop()
+{
+    reset();
+    std::array<char, 8> raw{'G', 'S', 'P', 'B', 'A', 'B', 'C', 'D'};
+    auto encoded = compressed_bundle(std::as_bytes(std::span(raw)));
+    PanelIface panel;
+    TouchIface touch;
+    AppHost host;
+    int directory = 5;
+    int font = 7;
+    esp_gsp_config_t config{};
+    config.bundle = encoded.data();
+    config.bundle_size = encoded.size();
+    config.directories = &directory;
+    config.ttf = &font;
+    config.ttf_size = sizeof(font);
+    assert(host.start(config, lease_for(panel, touch), nullptr, nullptr));
+    assert(host.running() && host.bundle() == nullptr);
+    assert(allocations == 1 && frees == 0);
+    assert(last_bundle_ptr != encoded.data() && last_bundle_size == raw.size());
+    assert(std::memcmp(last_bundle_ptr, raw.data(), raw.size()) == 0);
+    assert(last_directories == &directory && last_ttf == &font);
+
+    stop_timeouts_left = 3;
+    assert(!host.stop());
+    assert(host.running() && frees == 0);
+    assert(host.stop());
+    assert(!host.running() && frees == 1);
+}
+
+void test_compressed_app_host_rejects_invalid_envelopes()
+{
+    std::array<char, 8> raw{'G', 'S', 'P', 'B', 'A', 'B', 'C', 'D'};
+    auto encoded = compressed_bundle(std::as_bytes(std::span(raw)));
+    PanelIface panel;
+    TouchIface touch;
+    auto try_invalid = [&](std::vector<std::byte> input, bool allocated) {
+        reset();
+        AppHost host;
+        esp_gsp_config_t config{};
+        config.bundle = input.data();
+        config.bundle_size = input.size();
+        assert(!host.start(config, lease_for(panel, touch), nullptr, nullptr));
+        assert(!host.running() && starts == 0);
+        assert(allocations == static_cast<int>(allocated));
+        assert(frees == allocations);
+    };
+    auto bad_magic = encoded;
+    bad_magic[0] = std::byte{'X'};
+    try_invalid(bad_magic, false);
+    auto bad_size = encoded;
+    write_u32(bad_size, 4, 9 * 1024 * 1024);
+    try_invalid(bad_size, false);
+    auto bad_crc = encoded;
+    bad_crc[12] ^= std::byte{1};
+    try_invalid(bad_crc, true);
+    auto trailing = encoded;
+    trailing.push_back(std::byte{0});
+    try_invalid(trailing, false);
+    auto truncated = encoded;
+    truncated.pop_back();
+    write_u32(truncated, 8, truncated.size() - 16);
+    try_invalid(truncated, true);
+}
+
+void test_compressed_app_host_failed_start_cleanup()
+{
+    reset();
+    std::array<char, 4> raw{'G', 'S', 'P', 'B'};
+    auto encoded = compressed_bundle(std::as_bytes(std::span(raw)));
+    PanelIface panel;
+    TouchIface touch;
+    esp_gsp_config_t config{};
+    config.bundle = encoded.data();
+    config.bundle_size = encoded.size();
+    AppHost host;
+    fail_start = true;
+    assert(!host.start(config, lease_for(panel, touch), nullptr, nullptr));
+    assert(!host.running() && allocations == 1 && frees == 1);
+
+    reset();
+    fail_event = true;
+    stop_failure = ESP_GSP_FAIL;
+    AppHost retained;
+    auto ignored = [](esp_gsp_handle_t, const esp_gsp_event_t *, void *) {};
+    assert(!retained.start(config, lease_for(panel, touch), ignored, nullptr));
+    assert(retained.running() && allocations == 1 && frees == 0);
+    stop_failure = ESP_GSP_OK;
+    assert(retained.stop() && frees == 1);
+}
+
 } // namespace
 
 extern "C" void *heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t caps)
 {
     assert(alignment == 64 && size > 0 && (caps & MALLOC_CAP_8BIT));
+    ++allocations;
     void *ptr = nullptr;
     assert(posix_memalign(&ptr, alignment, size) == 0);
     return ptr;
@@ -185,6 +316,7 @@ extern "C" void *heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t
 
 extern "C" void heap_caps_free(void *ptr)
 {
+    ++frees;
     std::free(ptr);
 }
 
@@ -235,6 +367,9 @@ extern "C" esp_err_t esp_gsp_esp_lcd_start(
     assert(config != nullptr && lcd != nullptr && out_gsp != nullptr);
     ++starts;
     last_bundle_size = config->bundle_size;
+    last_bundle_ptr = config->bundle;
+    last_directories = config->directories;
+    last_ttf = config->ttf;
     last_lcd = *lcd;
     if (fail_start) {
         return ESP_GSP_FAIL;
@@ -276,5 +411,8 @@ int main()
     test_event_registration_failure_stops();
     test_stop_timeout_keeps_bundle_until_retry();
     test_destructor_terminates_when_stop_fails();
+    test_compressed_app_host_owns_one_expansion_until_stop();
+    test_compressed_app_host_rejects_invalid_envelopes();
+    test_compressed_app_host_failed_start_cleanup();
     std::cout << "GSP session lifecycle tests passed\n";
 }

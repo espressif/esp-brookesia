@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <string_view>
 
 namespace esp_brookesia::gsp_app::wifi_probe_hooks {
@@ -35,6 +36,8 @@ struct WifiDisplaySnapshot {
 };
 
 bool arm(Fault fault);
+bool arm_text_failure(uint32_t key);
+unsigned text_failure_count();
 void disarm();
 unsigned injection_count(Fault fault);
 unsigned status_count(Status status);

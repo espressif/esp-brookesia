@@ -32,20 +32,51 @@ brookesia_stage_runtime_app_package(
 )
 
 if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+    set(settings_strings "${CMAKE_CURRENT_BINARY_DIR}/settings_strings.hpp")
+    set(settings_i18n_dir "${COMPONENT_DIR}/package/res/i18n")
+    add_custom_command(
+        OUTPUT "${settings_strings}"
+        COMMAND "${PYTHON}" "${COMPONENT_DIR}/cmake/compile_strings.py"
+            --source "${settings_i18n_dir}" --output "${settings_strings}"
+        DEPENDS "${COMPONENT_DIR}/cmake/compile_strings.py"
+            "${settings_i18n_dir}/en.json" "${settings_i18n_dir}/zh_CN.json"
+        VERBATIM
+    )
+    target_sources(${COMPONENT_LIB} PRIVATE "${settings_strings}")
+    target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
     if(NOT COMMAND brookesia_gsp_add_bundle)
         message(FATAL_ERROR "brookesia_gui_gsp bundle helper is unavailable")
     endif()
+    include("${COMPONENT_DIR}/cmake/prepare_themes.cmake")
+    set(settings_scenes
+        "${COMPONENT_DIR}/gsp/settings_home_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_display_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_wifi_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_wifi_connect_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_keyboard_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_sound_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_language_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_theme_1024.json"
+    )
+    settings_prepare_theme(settings_light_scenes light ${settings_scenes})
+    settings_prepare_theme(settings_dark_scenes dark ${settings_scenes})
     brookesia_gsp_add_bundle(${COMPONENT_LIB}
-        SCENES
-            "${COMPONENT_DIR}/gsp/settings_home_1024.json"
-            "${COMPONENT_DIR}/gsp/settings_display_1024.json"
-            "${COMPONENT_DIR}/gsp/settings_wifi_1024.json"
-            "${COMPONENT_DIR}/gsp/settings_wifi_connect_1024.json"
-            "${COMPONENT_DIR}/gsp/settings_keyboard_1024.json"
+        SCENES ${settings_light_scenes}
         PIXEL_FORMAT rgb565
         DYNAMIC_FONT "${COMPONENT_DIR}/gsp/fonts/DroidSansFallback-CommonChinese.ttf"
         SYMBOL settings
     )
+    if(CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES)
+        brookesia_gsp_compress_bundle(${COMPONENT_LIB} SYMBOL settings)
+    endif()
+    brookesia_gsp_add_bundle(${COMPONENT_LIB}
+        SCENES ${settings_dark_scenes}
+        PIXEL_FORMAT rgb565
+        SYMBOL settings_dark
+    )
+    if(CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES)
+        brookesia_gsp_compress_bundle(${COMPONENT_LIB} SYMBOL settings_dark)
+    endif()
 endif()
 
 include(package_manager)

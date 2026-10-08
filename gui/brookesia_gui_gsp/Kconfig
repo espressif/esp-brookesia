@@ -6,4 +6,13 @@ menu "ESP-Brookesia: GUI GSP Configurations"
         help
             Enable trace and debug logs for GSP session start and stop.
 
+    config BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES
+        bool "Compress embedded Brookesia GSP bundles"
+        depends on SPIRAM
+        default n
+        help
+            Keep GSPC's original bundle and generated headers at build time,
+            but embed a lossless zlib envelope in the firmware. The active
+            bundle is expanded into PSRAM for the lifetime of its GSP session.
+
 endmenu

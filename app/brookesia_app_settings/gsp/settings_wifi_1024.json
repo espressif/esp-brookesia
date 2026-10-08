@@ -9,12 +9,26 @@
     {
       "type": "container",
       "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
       "name": "header_bar",
       "x": 0,
       "y": 0,
       "w": 1024,
       "h": 74,
-      "bg_color": "#FFFFFF"
+      "bg_color": {
+        "theme": "surface"
+      }
     },
     {
       "type": "button",
@@ -26,11 +40,17 @@
       "h": 56,
       "text": "Back",
       "font_size": 22,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 16,
       "callback": "header_back",
-      "enabled": true
+      "enabled": true,
+      "bind": "header_back",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -43,7 +63,9 @@
       "h": 42,
       "text": "Wi-Fi",
       "font_size": 32,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
     },
     {
@@ -57,8 +79,12 @@
       "h": 44,
       "text": "Wi-Fi: Off",
       "font_size": 20,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "wifi_toggle",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
@@ -75,8 +101,12 @@
       "h": 44,
       "text": "Refresh",
       "font_size": 20,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "refresh",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
@@ -93,7 +123,9 @@
       "h": 28,
       "text": "Not connected",
       "font_size": 20,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
@@ -108,7 +140,9 @@
       "h": 28,
       "text": "Wi-Fi is off.",
       "font_size": 20,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -122,11 +156,16 @@
       "h": 58,
       "text": "",
       "font_size": 20,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "select_0",
-      "enabled": false
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -139,7 +178,9 @@
       "h": 30,
       "text": "",
       "font_size": 22,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
@@ -154,7 +195,9 @@
       "h": 25,
       "text": "",
       "font_size": 16,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -168,11 +211,16 @@
       "h": 58,
       "text": "",
       "font_size": 20,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "select_1",
-      "enabled": false
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -185,7 +233,9 @@
       "h": 30,
       "text": "",
       "font_size": 22,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
@@ -200,7 +250,9 @@
       "h": 25,
       "text": "",
       "font_size": 16,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -214,11 +266,16 @@
       "h": 58,
       "text": "",
       "font_size": 20,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "select_2",
-      "enabled": false
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -231,7 +288,9 @@
       "h": 30,
       "text": "",
       "font_size": 22,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
@@ -246,7 +305,9 @@
       "h": 25,
       "text": "",
       "font_size": 16,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -260,11 +321,16 @@
       "h": 58,
       "text": "",
       "font_size": 20,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "select_3",
-      "enabled": false
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -277,7 +343,9 @@
       "h": 30,
       "text": "",
       "font_size": 22,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
@@ -292,7 +360,9 @@
       "h": 25,
       "text": "",
       "font_size": 16,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -306,11 +376,16 @@
       "h": 58,
       "text": "",
       "font_size": 20,
-      "bg_color": "#FFFFFF",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "select_4",
-      "enabled": false
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -323,7 +398,9 @@
       "h": 30,
       "text": "",
       "font_size": 22,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
@@ -338,7 +415,9 @@
       "h": 25,
       "text": "",
       "font_size": 16,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -352,8 +431,12 @@
       "h": 44,
       "text": "Previous",
       "font_size": 20,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "previous",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
@@ -370,7 +453,9 @@
       "h": 30,
       "text": "0 networks   1 / 1",
       "font_size": 20,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -384,8 +469,12 @@
       "h": 44,
       "text": "Next",
       "font_size": 20,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 12,
       "callback": "next",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
@@ -402,7 +491,9 @@
       "h": 28,
       "text": "Tap a network to connect. Saved credentials are reused when available.",
       "font_size": 18,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -416,11 +507,43 @@
       "h": 36,
       "text": "Disconnect",
       "font_size": 18,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 10,
       "callback": "disconnect",
-      "enabled": false
+      "enabled": false,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     }
-  ]
+  ],
+  "themes": {
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
 }

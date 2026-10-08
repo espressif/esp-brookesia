@@ -21,6 +21,10 @@
 
 请参考 [ESP-Brookesia 编程指南 - 如何获取和使用组件](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-component-usage)。
 
+## 音频处理器录制功能
+
+启用音频处理器时，`BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL` 默认开启。仅需播放的固件可关闭该选项，移除高层 `EncoderIface`、`DecoderIface` 能力及其 AFE 唤醒词代码。`PlaybackIface`、`CodecPlayerIface` 和 `CodecRecorderIface` 仍可用。播放功能仍依赖 `av_processor` 组件。
+
 ## 扩展板级适配
 
 自定义设备在初始化或释放失败后，可能仍持有需要清理的资源。板级适配可以注册清理回调，由 HAL 在后续释放请求中调用。使用已有板型的应用无需自行注册。

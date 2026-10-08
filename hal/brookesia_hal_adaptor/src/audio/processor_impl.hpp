@@ -10,6 +10,7 @@
 #include <mutex>
 #include <string>
 
+#include "brookesia/hal_adaptor/macro_configs.h"
 #include "brookesia/hal_adaptor/audio/device.hpp"
 #include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
 #include "brookesia/hal_interface/interfaces/audio/codec_recorder.hpp"
@@ -39,6 +40,7 @@ public:
     bool resume();
     bool stop();
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     std::vector<std::string> get_afe_wake_words();
     bool start_encoder(const audio::EncoderDynamicConfig &config, audio::EncoderIface::Callbacks callbacks);
     int read_encoded_data(uint8_t *data, size_t size);
@@ -61,14 +63,17 @@ public:
         return is_decoder_started_;
     }
     bool feed_decoder_data(const uint8_t *data, size_t size);
+#endif
 
 private:
     bool open_common(audio::PlaybackIface::EventCallback callback);
     void close_common();
     void on_playback_event(uint8_t state);
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     void on_recorder_event(void *event);
     void on_recorder_input_data(const uint8_t *data, size_t size);
     void emit_afe_event(audio::AfeEvent event);
+#endif
 
     std::shared_ptr<audio::CodecPlayerIface> player_iface_;
     std::shared_ptr<audio::CodecRecorderIface> recorder_iface_;
@@ -77,17 +82,23 @@ private:
     mutable std::mutex mutex_;
     size_t open_ref_count_ = 0;
     audio::PlaybackIface::EventCallback playback_callback_;
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     audio::EncoderIface::Callbacks encoder_callbacks_;
+#endif
 
     void *playback_handle_ = nullptr;
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     void *recorder_handle_ = nullptr;
     void *feeder_handle_ = nullptr;
+#endif
     std::atomic_bool is_opened_ = false;
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     std::atomic_bool is_encoder_started_ = false;
     std::atomic_bool is_encoder_paused_ = false;
     std::atomic_bool is_decoder_started_ = false;
     std::string afe_model_partition_label_;
     std::string afe_mn_language_;
+#endif
 };
 
 class AudioPlaybackImpl: public audio::PlaybackIface {
@@ -111,6 +122,7 @@ private:
     std::atomic_bool is_opened_ = false;
 };
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 class AudioEncoderImpl: public audio::EncoderIface {
 public:
     explicit AudioEncoderImpl(std::shared_ptr<AudioProcessorCore> core);
@@ -142,5 +154,6 @@ public:
 private:
     std::shared_ptr<AudioProcessorCore> core_;
 };
+#endif
 
 } // namespace esp_brookesia::hal

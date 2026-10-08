@@ -9,12 +9,26 @@
     {
       "type": "container",
       "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
       "name": "header_bar",
       "x": 0,
       "y": 0,
       "w": 1024,
       "h": 74,
-      "bg_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "surface"
+      },
       "radius": 18
     },
     {
@@ -28,8 +42,12 @@
       "h": 56,
       "text": "Back",
       "font_size": 22,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 14,
       "callback": "header_back",
       "enabled": true,
@@ -46,7 +64,9 @@
       "h": 42,
       "text": "Connect to Wi-Fi",
       "font_size": 32,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -57,7 +77,9 @@
       "y": 102,
       "w": 916,
       "h": 112,
-      "bg_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "surface"
+      },
       "radius": 18
     },
     {
@@ -71,7 +93,9 @@
       "h": 44,
       "text": "",
       "font_size": 30,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
       "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt"
     },
@@ -86,7 +110,9 @@
       "h": 30,
       "text": "",
       "font_size": 20,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -100,7 +126,9 @@
       "h": 30,
       "text": "Network password",
       "font_size": 22,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -111,7 +139,9 @@
       "y": 280,
       "w": 916,
       "h": 100,
-      "bg_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "surface"
+      },
       "radius": 18
     },
     {
@@ -125,7 +155,9 @@
       "h": 42,
       "text": "Enter password",
       "font_size": 26,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -139,8 +171,12 @@
       "h": 60,
       "text": "Edit password",
       "font_size": 22,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 14,
       "callback": "edit_password",
       "enabled": true,
@@ -157,7 +193,9 @@
       "h": 56,
       "text": "Enter the network password, then tap Connect.",
       "font_size": 22,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
@@ -171,8 +209,12 @@
       "h": 64,
       "text": "Connect",
       "font_size": 22,
-      "bg_color": "#1677FF",
-      "fg_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "accent"
+      },
+      "fg_color": {
+        "theme": "on_accent"
+      },
       "radius": 14,
       "callback": "connect",
       "enabled": true,
@@ -189,8 +231,47 @@
       "h": 25,
       "text": "Passwords are saved by the Wi-Fi service only after a successful connection.",
       "font_size": 17,
-      "fg_color": "#636366",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     }
-  ]
+  ],
+  "themes": {
+    "accent": {
+      "type": "color",
+      "default": "#0A84FF",
+      "dynamic": true
+    },
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "on_accent": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
 }

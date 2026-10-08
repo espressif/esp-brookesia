@@ -92,4 +92,57 @@ function(brookesia_gsp_add_bundle target)
     endif()
 
     gsp_add_bundle(${target} ${ARGN})
+    cmake_parse_arguments(bundle "DEPLOYABLE" "SYMBOL" "" ${ARGN})
+    if(bundle_SYMBOL)
+        set_property(TARGET ${target} PROPERTY
+            "BROOKESIA_GSP_${bundle_SYMBOL}_DEPLOYABLE" "${bundle_DEPLOYABLE}")
+    endif()
+endfunction()
+
+# Replace only the embedded payload. GSPC still emits the original GSPB and
+# generated API headers, and the dynamic-font embed remains untouched. The
+# generated config then points at the envelope: pass it through Brookesia's
+# AppHost decoder, never directly to esp_gsp_create().
+function(brookesia_gsp_compress_bundle target)
+    cmake_parse_arguments(ARG "" "SYMBOL" "" ${ARGN})
+    if(NOT ARG_SYMBOL OR NOT ARG_SYMBOL MATCHES "^[A-Za-z_][A-Za-z0-9_]*$")
+        message(FATAL_ERROR "brookesia_gsp_compress_bundle needs a valid SYMBOL")
+    endif()
+    if(NOT DEFINED PYTHON OR "${PYTHON}" STREQUAL "")
+        message(FATAL_ERROR "brookesia_gsp_compress_bundle needs IDF's PYTHON executable")
+    endif()
+
+    set(gen_dir "${CMAKE_CURRENT_BINARY_DIR}/gsp_gen_${ARG_SYMBOL}")
+    set(bundle_path "${gen_dir}/${ARG_SYMBOL}.gspb")
+    set(raw_embed "${gen_dir}/${ARG_SYMBOL}_embed.S")
+    if(NOT TARGET ${target}_gsp_${ARG_SYMBOL})
+        message(FATAL_ERROR "Call brookesia_gsp_add_bundle before compressing ${ARG_SYMBOL}")
+    endif()
+    get_target_property(is_deployable ${target} "BROOKESIA_GSP_${ARG_SYMBOL}_DEPLOYABLE")
+    if(is_deployable)
+        message(FATAL_ERROR
+            "Compressed ${ARG_SYMBOL} requires an ordinary generated config, not DEPLOYABLE")
+    endif()
+
+    set(compressed_path "${gen_dir}/${ARG_SYMBOL}.gspz")
+    set(compressor "${BROOKESIA_GUI_GSP_CMAKE_DIR}/compress_gsp_bundle.py")
+    add_custom_command(
+        OUTPUT "${compressed_path}"
+        COMMAND "${PYTHON}" "${compressor}"
+            --input "${bundle_path}" --output "${compressed_path}"
+        DEPENDS "${bundle_path}" "${compressor}"
+        COMMENT "Compressing compiled GSP bundle ${ARG_SYMBOL}"
+        VERBATIM
+    )
+
+    # gsp_add_bundle already registered this source. Keep its generation rule,
+    # but do not link its uncompressed bytes alongside the replacement.
+    set_source_files_properties("${raw_embed}" PROPERTIES HEADER_FILE_ONLY TRUE)
+    set(GSP_BUNDLE_SYMBOL "${ARG_SYMBOL}")
+    set(GSP_BUNDLE_PATH "${compressed_path}")
+    set(compressed_embed "${gen_dir}/${ARG_SYMBOL}_compressed_embed.S")
+    configure_file("${BROOKESIA_GUI_GSP_CMAKE_DIR}/gsp_compressed_embed.S.in"
+        "${compressed_embed}" @ONLY)
+    set_property(SOURCE "${compressed_embed}" APPEND PROPERTY OBJECT_DEPENDS "${compressed_path}")
+    target_sources(${target} PRIVATE "${compressed_embed}")
 endfunction()

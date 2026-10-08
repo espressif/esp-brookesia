@@ -28,6 +28,13 @@ struct AudioPlayUrlConfig {
     uint32_t loop_count = 0;        /*!< Number of loops; 0 means play once */
     uint32_t loop_interval_ms = 0;  /*!< Interval between loops */
     uint32_t timeout_ms = 0;        /*!< Timeout for finishing playback */
+    /**
+     * @brief Admit playback only when the service is idle, without queueing or interrupting another request.
+     *
+     * Set `interrupt` to false when enabling this option. The check and request admission occur in the
+     * AudioPlayback service call. The default false preserves the existing interrupt/queue behavior.
+     */
+    bool only_if_idle = false;
 };
 
 /**
@@ -196,7 +203,7 @@ private:
 
     inline static constexpr DefaultValueSpec PLAY_URL_CONFIG_DEFAULT = {
         .kind = DefaultValueKind::JsonObject,
-        .string = R"({"interrupt":true,"delay_ms":0,"loop_count":0,"loop_interval_ms":0,"timeout_ms":0})",
+        .string = R"({"interrupt":true,"delay_ms":0,"loop_count":0,"loop_interval_ms":0,"timeout_ms":0,"only_if_idle":false})",
     };
 
     inline static constexpr std::array<FunctionParameterSpec, 2> PLAYBACK_PLAY_PARAMETERS = {{
@@ -209,7 +216,7 @@ private:
                 .name = "Config",
                 .description =
                 R"(Playback config. Example: {"interrupt":true,"delay_ms":0,"loop_count":0,)"
-                R"("loop_interval_ms":0,"timeout_ms":0})",
+                R"("loop_interval_ms":0,"timeout_ms":0,"only_if_idle":false})",
                 .type = FunctionValueType::Object,
                 .default_value = PLAY_URL_CONFIG_DEFAULT,
             },
@@ -227,7 +234,7 @@ private:
                 .name = "Config",
                 .description =
                 R"(Playback config. Example: {"interrupt":true,"delay_ms":0,"loop_count":0,)"
-                R"("loop_interval_ms":0,"timeout_ms":0})",
+                R"("loop_interval_ms":0,"timeout_ms":0,"only_if_idle":false})",
                 .type = FunctionValueType::Object,
                 .default_value = PLAY_URL_CONFIG_DEFAULT,
             },
@@ -752,7 +759,9 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////// The following are the describe macros //////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-BROOKESIA_DESCRIBE_STRUCT(AudioPlayUrlConfig, (), (interrupt, delay_ms, loop_count, loop_interval_ms, timeout_ms));
+BROOKESIA_DESCRIBE_STRUCT(
+    AudioPlayUrlConfig, (), (interrupt, delay_ms, loop_count, loop_interval_ms, timeout_ms, only_if_idle)
+);
 BROOKESIA_DESCRIBE_ENUM(Audio::SourceState, Idle, Requested, Granted, Released);
 BROOKESIA_DESCRIBE_ENUM(Audio::StreamQueuePolicy, DropNewest, Max);
 BROOKESIA_DESCRIBE_ENUM(

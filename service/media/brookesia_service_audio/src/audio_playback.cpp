@@ -134,6 +134,17 @@ std::expected<void, std::string> AudioPlayback::submit_playback_request(Playback
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    if (request.config.only_if_idle) {
+        if (request.config.interrupt) {
+            return std::unexpected("Only-if-idle playback cannot interrupt");
+        }
+        if ((play_state_ != AudioPlayState::Idle) || (playlist_state_.phase != PlaylistPhase::Inactive) ||
+                !playback_queue_.empty() || is_processing_queue_ || pause_requested_ || stop_for_pending_interrupt_ ||
+                pending_interrupt_request_.has_value()) {
+            return std::unexpected("Audio playback is busy");
+        }
+    }
+
     if (request.config.interrupt) {
         return submit_interrupt_playback_request(std::move(request));
     }

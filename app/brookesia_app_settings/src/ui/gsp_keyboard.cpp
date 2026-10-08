@@ -19,6 +19,11 @@
 #include "settings_gsp.h"
 
 #include "ui/gsp_keyboard.hpp"
+#include "ui/gsp_appearance.hpp"
+
+namespace esp_brookesia::app::settings::detail {
+std::string localized_text(std::string_view locale, std::string_view key);
+}
 
 namespace esp_brookesia::app::settings {
 
@@ -142,6 +147,12 @@ bool is_printable_ascii(std::string_view text)
 
 } // namespace
 
+void GspKeyboard::set_appearance(std::string_view locale, std::string_view theme)
+{
+    locale_ = locale;
+    theme_ = theme;
+}
+
 std::expected<void, std::string> GspKeyboard::show(
     esp_gsp_handle_t handle,
     system::core::AppId app_id,
@@ -188,7 +199,7 @@ std::expected<void, std::string> GspKeyboard::show(
     request_id_ = request_id;
     completion_ = std::move(completion);
     text_ = options.initial_text;
-    placeholder_ = options.placeholder.empty() ? "Enter password" : options.placeholder;
+    placeholder_ = options.placeholder.empty() ? detail::localized_text(locale_, "wifi_password_placeholder") : options.placeholder;
     max_length_ = max_length;
     layout_ = options.mode == "upper" ? Layout::Upper :
               options.mode == "special" ? Layout::Symbols : Layout::Lower;
@@ -211,7 +222,12 @@ std::expected<void, std::string> GspKeyboard::show(
         clear();
         return std::unexpected("Failed to settle GSP keyboard scene");
     }
-    const auto title = options.title.empty() ? "Wi-Fi password" : options.title;
+    auto appearance = apply_settings_appearance(handle, GSP_SETTINGS_SCENE_SETTINGS_KEYBOARD, locale_, theme_);
+    if (!appearance) {
+        clear();
+        return appearance;
+    }
+    const auto title = options.title.empty() ? detail::localized_text(locale_, "wifi.password_title") : options.title;
     if (esp_gsp_component_set_text(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_TITLE, title.c_str()) != ESP_GSP_OK) {
         clear();
         return std::unexpected("Failed to initialize GSP keyboard scene");
@@ -352,11 +368,11 @@ std::expected<void, std::string> GspKeyboard::refresh_layout(esp_gsp_handle_t ha
             return std::unexpected("Failed to update GSP keyboard keys");
         }
     }
-    const char *shift = layout_ == Layout::Upper ? "Lower" :
-                        layout_ == Layout::Symbols ? "Letters" : "Shift";
-    const char *symbols = layout_ == Layout::Symbols ? "ABC" : "Symbols";
-    if (esp_gsp_component_set_text(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_SHIFT, shift) != ESP_GSP_OK ||
-            esp_gsp_component_set_text(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_SYMBOLS, symbols) != ESP_GSP_OK ||
+    const auto shift = detail::localized_text(locale_, layout_ == Layout::Upper ? "gsp.lower" :
+                       layout_ == Layout::Symbols ? "gsp.letters" : "gsp.shift");
+    const auto symbols = detail::localized_text(locale_, layout_ == Layout::Symbols ? "gsp.letters" : "gsp.symbols");
+    if (esp_gsp_component_set_text(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_SHIFT, shift.c_str()) != ESP_GSP_OK ||
+            esp_gsp_component_set_text(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_SYMBOLS, symbols.c_str()) != ESP_GSP_OK ||
             esp_gsp_component_set_enabled(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_SHIFT,
                                           allow_lower_ && allow_upper_ && layout_ != Layout::Symbols) != ESP_GSP_OK ||
             esp_gsp_component_set_enabled(handle, GSP_SETTINGS_KEYBOARD_OBJ_KEY_SYMBOLS,

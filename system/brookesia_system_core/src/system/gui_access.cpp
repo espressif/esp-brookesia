@@ -708,6 +708,20 @@ std::expected<void, std::string> SystemGuiAccess::set_theme(
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    if (theme_id.empty()) {
+        return std::unexpected("GUI theme is empty");
+    }
+    (void)reapply_loaded_documents;
+    auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
+                      SYSTEM_GUI_TASK_GROUP,
+    [this, theme_id = std::string(theme_id)]() -> std::expected<void, std::string> {
+        system_->impl_->environment_.theme_id = theme_id;
+        return {};
+    },
+    std::unexpected("Failed to post system GUI theme set task")
+                  );
+#else
     auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
                       SYSTEM_GUI_TASK_GROUP,
     [this, theme_id = std::string(theme_id), reapply_loaded_documents]() -> std::expected<void, std::string> {
@@ -724,6 +738,7 @@ std::expected<void, std::string> SystemGuiAccess::set_theme(
     },
     std::unexpected("Failed to post system GUI theme set task")
                   );
+#endif
     if (!result) {
         return result;
     }
@@ -906,6 +921,20 @@ std::expected<void, std::string> SystemGuiAccess::set_language(
     if (system_ == nullptr) {
         return make_unavailable_error();
     }
+#if !BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
+    if (language.empty()) {
+        return std::unexpected("GUI language is empty");
+    }
+    (void)reapply_loaded_documents;
+    auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
+                      SYSTEM_GUI_TASK_GROUP,
+    [this, language = std::string(language)]() -> std::expected<void, std::string> {
+        system_->impl_->environment_.language = language;
+        return {};
+    },
+    std::unexpected("Failed to post system GUI language set task")
+                  );
+#else
     auto result = system_->impl_->run_task_sync<std::expected<void, std::string>>(
                       SYSTEM_GUI_TASK_GROUP,
     [this, language = std::string(language), reapply_loaded_documents]() -> std::expected<void, std::string> {
@@ -922,6 +951,7 @@ std::expected<void, std::string> SystemGuiAccess::set_language(
     },
     std::unexpected("Failed to post system GUI language set task")
                   );
+#endif
     if (!result) {
         return result;
     }

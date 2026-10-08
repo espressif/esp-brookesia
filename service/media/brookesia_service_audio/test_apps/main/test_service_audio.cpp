@@ -229,6 +229,87 @@ BROOKESIA_TEST_CASE(
 }
 
 BROOKESIA_TEST_CASE(
+    play_only_if_idle, "Test ServiceAudio - play only when idle", "[service][audio][play_only_if_idle]"
+)
+{
+    TEST_ASSERT_TRUE_MESSAGE(startup(), "Failed to startup");
+    lib_utils::FunctionGuard shutdown_guard([]() {
+        shutdown();
+    });
+
+    AudioHelper::PlayUrlConfig legacy_config{.interrupt = false};
+    auto legacy_json = BROOKESIA_DESCRIBE_TO_JSON(legacy_config).as_object();
+    legacy_json.erase("only_if_idle");
+    AudioHelper::PlayUrlConfig parsed_legacy_config{};
+    TEST_ASSERT_TRUE_MESSAGE(
+        BROOKESIA_DESCRIBE_FROM_JSON(legacy_json, parsed_legacy_config),
+        "Legacy playback config without only_if_idle must remain readable"
+    );
+    TEST_ASSERT_FALSE_MESSAGE(parsed_legacy_config.only_if_idle, "Legacy playback must retain queue behavior");
+
+    AudioPlaybackHelper::EventMonitor<AudioPlaybackHelper::EventId::PlayStateChanged> play_state_monitor;
+    TEST_ASSERT_TRUE_MESSAGE(play_state_monitor.start(), "Failed to monitor PlayStateChanged event");
+    auto first_result = AudioPlaybackHelper::call_function_sync(
+                            AudioPlaybackHelper::FunctionId::Play, get_audio_file_path("example.mp3")
+                        );
+    TEST_ASSERT_TRUE_MESSAGE(first_result, "Failed to start first playback");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Playing, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Playing state before only-if-idle rejection"
+        ),
+        "Expected Playing state before only-if-idle rejection"
+    );
+
+    AudioHelper::PlayUrlConfig idle_only_config{
+        .interrupt = false,
+        .only_if_idle = true,
+    };
+    const auto idle_only_json = BROOKESIA_DESCRIBE_TO_JSON(idle_only_config).as_object();
+    auto busy_result = AudioPlaybackHelper::call_function_sync(
+                           AudioPlaybackHelper::FunctionId::Play, get_audio_file_path("2.mp3"), idle_only_json
+                       );
+    TEST_ASSERT_FALSE_MESSAGE(busy_result, "Only-if-idle playback must reject Playing state");
+
+    play_state_monitor.clear();
+    auto pause_result = AudioPlaybackHelper::call_function_sync(AudioPlaybackHelper::FunctionId::Pause);
+    TEST_ASSERT_TRUE_MESSAGE(pause_result, "Failed to pause first playback");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Paused, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Paused state before only-if-idle rejection"
+        ),
+        "Expected Paused state before only-if-idle rejection"
+    );
+    auto paused_result = AudioPlaybackHelper::call_function_sync(
+                             AudioPlaybackHelper::FunctionId::Play, get_audio_file_path("2.mp3"), idle_only_json
+                         );
+    TEST_ASSERT_FALSE_MESSAGE(paused_result, "Only-if-idle playback must reject Paused state");
+
+    play_state_monitor.clear();
+    auto stop_result = AudioPlaybackHelper::call_function_sync(AudioPlaybackHelper::FunctionId::Stop);
+    TEST_ASSERT_TRUE_MESSAGE(stop_result, "Failed to stop first playback");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Idle, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Idle state after stopping first playback"
+        ),
+        "Expected Idle state after stopping first playback"
+    );
+    auto idle_result = AudioPlaybackHelper::call_function_sync(
+                           AudioPlaybackHelper::FunctionId::Play, get_audio_file_path("2.mp3"), idle_only_json
+                       );
+    TEST_ASSERT_TRUE_MESSAGE(idle_result, "Only-if-idle playback must start from Idle state");
+    TEST_ASSERT_TRUE_MESSAGE(
+        wait_for_playback_state(
+            play_state_monitor, AudioHelper::PlayState::Playing, AUDIO_WAIT_EVENT_TIMEOUT_MS,
+            "Expected Playing state after only-if-idle request"
+        ),
+        "Expected Playing state after only-if-idle request"
+    );
+}
+
+BROOKESIA_TEST_CASE(
     play_interrupt_with_delay_gap,
     "Test ServiceAudio - interrupt with delay gap",
     "[service][audio][interrupt][gap]"

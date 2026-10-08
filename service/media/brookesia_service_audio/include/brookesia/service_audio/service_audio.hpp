@@ -172,8 +172,8 @@ private:
 
     void initialize_control_default_state();
     void load_control_data_from_storage();
-    void save_volume_data();
-    void save_mute_data();
+    std::expected<void, std::string> save_volume_data();
+    std::expected<void, std::string> save_mute_data();
     void reset_control_data(uint8_t old_volume, bool old_mute);
     bool ensure_player_iface();
     bool apply_control_state_to_hal();

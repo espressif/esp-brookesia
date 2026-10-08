@@ -170,6 +170,9 @@ inline constexpr const char *PAGE_SOUND = "sound";
 inline constexpr const char *PAGE_DISPLAY = "display";
 inline constexpr const char *PAGE_MORE = "more";
 inline constexpr const char *PAGE_LANGUAGE = "language";
+inline constexpr const char *PAGE_THEME = "theme";
+inline constexpr const char *SOUND_UI_TIMER_NAME = "settings.sound.ui";
+inline constexpr uint32_t SOUND_UI_POLL_INTERVAL_MS = 100;
 inline constexpr const char *PAGE_TIME_ZONE = "time_zone";
 inline constexpr const char *PAGE_DEBUG = "debug";
 inline constexpr const char *ACTION_OPEN_HOME = "settings.open.home";
@@ -617,8 +620,32 @@ struct WifiConnectOperation {
     esp_brookesia::lib_utils::scoped_connection connected_event_connection;
 };
 
+struct SoundUiMailbox {
+    boost::mutex mutex;
+    bool open = true;
+    std::optional<double> volume;
+    std::optional<bool> muted;
+    std::optional<std::string> error;
+    bool playback_started = false;
+    bool playback_finished = false;
+    uint64_t control_result_generation = 0;
+    bool control_result_pending = false;
+    bool control_result_success = false;
+
+    void close()
+    {
+        boost::lock_guard lock(mutex);
+        open = false;
+        volume.reset();
+        muted.reset();
+        error.reset();
+    }
+};
+
 struct SettingsApp::Impl {
     system::core::AppContext *context = nullptr;
+    // Owned by the App record; retained until uninstall for compiled bundle selection.
+    system::core::AppContext *installed_context = nullptr;
     std::vector<std::string> dynamic_wifi_paths;
     std::vector<std::string> dynamic_hardware_group_paths;
     size_t saved_wifi_slot_count = 0;
@@ -647,6 +674,11 @@ struct SettingsApp::Impl {
     std::shared_ptr<std::atomic<uint64_t>> wifi_operation_generation =
                                             std::make_shared<std::atomic<uint64_t>>(0);
     DeviceUiState device_ui_state;
+    std::shared_ptr<SoundUiMailbox> sound_ui_mailbox;
+    system::core::TimerId sound_ui_timer_id = system::core::INVALID_TIMER_ID;
+    bool settings_tone_active = false;
+    detail::SteadyTimePoint settings_tone_deadline{};
+    uint64_t sound_control_generation = 0;
     WifiUiState wifi_ui_state;
     WifiPageState wifi_page;
     std::shared_ptr<WifiUiMailbox> wifi_ui_mailbox;
@@ -667,6 +699,7 @@ struct SettingsApp::Impl {
     size_t wifi_scan_retry_remaining = 0;
     std::string pending_language_locale;
     std::string pending_theme_id;
+    std::string preference_error;
     hal::InterfaceHandle<hal::system::GeneralIface> restart_iface;
     SettingsApp::RestartPromptKind restart_prompt_kind = SettingsApp::RestartPromptKind::None;
     bool restart_in_progress = false;
@@ -682,6 +715,7 @@ struct SettingsApp::Impl {
     std::string current_page;
     std::string current_locale;
     std::string current_theme_id;
+    bool theme_from_display = false;
     size_t debug_entry_click_count = 0;
     detail::SteadyTimePoint debug_entry_last_click_at{};
     bool utils_debug_unavailable_logged = false;
@@ -754,6 +788,13 @@ struct SettingsApp::Impl {
 #define wifi_refresh_animation_id_ impl_->wifi_refresh_animation_id
 #define current_page_ impl_->current_page
 #define current_locale_ impl_->current_locale
+#define theme_from_display_ impl_->theme_from_display
+#define preference_error_ impl_->preference_error
+#define sound_ui_mailbox_ impl_->sound_ui_mailbox
+#define sound_ui_timer_id_ impl_->sound_ui_timer_id
+#define settings_tone_active_ impl_->settings_tone_active
+#define settings_tone_deadline_ impl_->settings_tone_deadline
+#define sound_control_generation_ impl_->sound_control_generation
 #define current_theme_id_ impl_->current_theme_id
 #define debug_entry_click_count_ impl_->debug_entry_click_count
 #define debug_entry_last_click_at_ impl_->debug_entry_last_click_at

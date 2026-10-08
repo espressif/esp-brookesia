@@ -13,8 +13,23 @@
 #include "launcher_gsp.h"
 
 #include "launcher_app.hpp"
+#include "brookesia/gui_gsp/app_host.hpp"
 
 namespace esp_brookesia::gsp_app {
+
+esp_gsp_config_t launcher_dark_config();
+
+std::expected<void, std::string> LauncherApp::on_install(system::core::AppContext &context)
+{
+    installed_context_ = &context;
+    return {};
+}
+
+void LauncherApp::on_uninstall(system::core::AppContext &context)
+{
+    (void)context;
+    installed_context_ = nullptr;
+}
 
 system::core::AppManifest LauncherApp::get_manifest() const
 {
@@ -35,15 +50,35 @@ system::core::AppGuiDescriptor LauncherApp::get_gui_descriptor() const
 
 std::span<const std::byte> LauncherApp::gui_bundle() const
 {
-    const auto config = gsp_launcher_config();
+    const auto config = *static_cast<const esp_gsp_config_t *>(gui_runtime_config());
     return {reinterpret_cast<const std::byte *>(config.bundle), config.bundle_size};
 }
 
 const void *LauncherApp::gui_runtime_config() const
 {
     static esp_gsp_config_t config;
-    config = gsp_launcher_config();
+    const bool dark = installed_context_ != nullptr &&
+                      installed_context_->gui().get_theme_language().theme_id == "dark";
+    config = dark ? launcher_dark_config() : gsp_launcher_config();
     return &config;
+}
+
+std::expected<void, std::string> LauncherApp::on_start(system::core::AppContext &context)
+{
+    const auto active = context.gui().get_theme_language();
+    auto *host = gui::gsp::AppHost::current();
+    if (!host || !host->handle()) {
+        return std::unexpected("Launcher GSP session is unavailable");
+    }
+    const auto handle = host->handle();
+    const bool chinese = active.language == "zh_CN";
+    if (esp_gsp_component_set_visible(handle, GSP_LAUNCHER_OBJ_KEY_SUBTITLE, !chinese) != ESP_GSP_OK ||
+            esp_gsp_component_set_visible(handle, GSP_LAUNCHER_OBJ_KEY_SUBTITLE_ZH, chinese) != ESP_GSP_OK ||
+            esp_gsp_component_set_visible(handle, GSP_LAUNCHER_OBJ_KEY_OPEN_SETTINGS, !chinese) != ESP_GSP_OK ||
+            esp_gsp_component_set_visible(handle, GSP_LAUNCHER_OBJ_KEY_OPEN_SETTINGS_ZH, chinese) != ESP_GSP_OK) {
+        return std::unexpected("Failed to apply launcher appearance");
+    }
+    return {};
 }
 
 std::expected<void, std::string> LauncherApp::on_action(system::core::AppContext &context, std::string_view action)

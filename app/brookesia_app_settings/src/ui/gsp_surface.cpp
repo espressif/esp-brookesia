@@ -14,6 +14,7 @@
 #   include "brookesia/gui_gsp/app_host.hpp"
 #   include "esp_gsp.h"
 #   include "ui/gsp_keyboard.hpp"
+#   include "ui/gsp_appearance.hpp"
 #endif
 
 namespace esp_brookesia::app::settings {
@@ -21,6 +22,32 @@ namespace esp_brookesia::app::settings {
 #if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
 
 namespace {
+
+uint16_t scene_for_page(std::string_view page)
+{
+    if (page == detail::PAGE_HOME) {
+        return GSP_SETTINGS_SCENE_SETTINGS_HOME;
+    }
+    if (page == detail::PAGE_DISPLAY) {
+        return GSP_SETTINGS_SCENE_SETTINGS_DISPLAY;
+    }
+    if (page == detail::PAGE_WIFI) {
+        return GSP_SETTINGS_SCENE_SETTINGS_WIFI;
+    }
+    if (page == detail::PAGE_WIFI_CONNECT) {
+        return GSP_SETTINGS_SCENE_SETTINGS_WIFI_CONNECT;
+    }
+    if (page == detail::PAGE_SOUND) {
+        return GSP_SETTINGS_SCENE_SETTINGS_SOUND;
+    }
+    if (page == detail::PAGE_LANGUAGE) {
+        return GSP_SETTINGS_SCENE_SETTINGS_LANGUAGE;
+    }
+    if (page == detail::PAGE_THEME) {
+        return GSP_SETTINGS_SCENE_SETTINGS_THEME;
+    }
+    return UINT16_MAX;
+}
 
 esp_gsp_handle_t current_handle()
 {
@@ -44,6 +71,75 @@ std::expected<void, std::string> require_handle(esp_gsp_handle_t &handle)
 
 class GspSettingsSurface: public SettingsSurface {
 public:
+    void set_appearance(std::string_view locale, std::string_view theme) override
+    {
+        locale_ = locale;
+        theme_ = theme;
+        keyboard_.set_appearance(locale, theme);
+    }
+
+    std::expected<void, std::string> set_sound(
+        system::core::AppContext &, const SoundPageView &view
+    ) override
+    {
+        if (page_ != detail::PAGE_SOUND) {
+            return {};
+        }
+        esp_gsp_handle_t handle = nullptr;
+        auto ready = require_handle(handle);
+        if (!ready) {
+            return ready;
+        }
+        const auto level = view.enabled ? std::to_string(view.volume) + "%" : "--";
+        const auto mute = detail::localized_text(locale_, view.muted ? "gsp.muted" : "gsp.unmuted");
+        if (esp_gsp_component_set_value(handle, GSP_SETTINGS_SOUND_OBJ_KEY_VOLUME_SLIDER, view.volume) != ESP_GSP_OK ||
+                esp_gsp_component_set_enabled(handle, GSP_SETTINGS_SOUND_OBJ_KEY_VOLUME_SLIDER, view.enabled) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(handle, GSP_SETTINGS_SOUND_OBJ_KEY_VOLUME_VALUE, level.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(handle, GSP_SETTINGS_SOUND_OBJ_KEY_MUTE_TOGGLE, mute.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_enabled(handle, GSP_SETTINGS_SOUND_OBJ_KEY_MUTE_TOGGLE, view.enabled) != ESP_GSP_OK ||
+                esp_gsp_component_set_enabled(handle, GSP_SETTINGS_SOUND_OBJ_KEY_TEST_SOUND, view.test_enabled) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(handle, GSP_SETTINGS_SOUND_OBJ_KEY_SOUND_STATUS, view.status.c_str()) != ESP_GSP_OK) {
+            return std::unexpected("Failed to update sound controls");
+        }
+        return {};
+    }
+
+    std::expected<void, std::string> set_preferences(
+        system::core::AppContext &, const PreferencePageView &view
+    ) override
+    {
+        if (page_ != detail::PAGE_LANGUAGE && page_ != detail::PAGE_THEME) {
+            return {};
+        }
+        esp_gsp_handle_t handle = nullptr;
+        auto ready = require_handle(handle);
+        if (!ready) {
+            return ready;
+        }
+        const bool language = page_ == detail::PAGE_LANGUAGE;
+        const std::array<uint32_t, 2> options = language ?
+                                                std::array<uint32_t, 2> {GSP_SETTINGS_LANGUAGE_OBJ_KEY_OPTION_0, GSP_SETTINGS_LANGUAGE_OBJ_KEY_OPTION_1} :
+                                                std::array<uint32_t, 2> {GSP_SETTINGS_THEME_OBJ_KEY_OPTION_0, GSP_SETTINGS_THEME_OBJ_KEY_OPTION_1};
+        const std::array<uint32_t, 2> values = language ?
+                                               std::array<uint32_t, 2> {GSP_SETTINGS_LANGUAGE_OBJ_KEY_VALUE_0, GSP_SETTINGS_LANGUAGE_OBJ_KEY_VALUE_1} :
+                                               std::array<uint32_t, 2> {GSP_SETTINGS_THEME_OBJ_KEY_VALUE_0, GSP_SETTINGS_THEME_OBJ_KEY_VALUE_1};
+        for (size_t index = 0; index < options.size(); ++index) {
+            if (esp_gsp_component_set_text(handle, options[index], view.labels[index].c_str()) != ESP_GSP_OK ||
+                    esp_gsp_component_set_text(handle, values[index], view.values[index].c_str()) != ESP_GSP_OK) {
+                return std::unexpected("Failed to update preference choices");
+            }
+        }
+        const auto status = language ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_STATUS : GSP_SETTINGS_THEME_OBJ_KEY_STATUS;
+        const auto restart = language ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_RESTART_NOW : GSP_SETTINGS_THEME_OBJ_KEY_RESTART_NOW;
+        const auto later = language ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_LATER : GSP_SETTINGS_THEME_OBJ_KEY_LATER;
+        if (esp_gsp_component_set_text(handle, status, view.status.c_str()) != ESP_GSP_OK ||
+                esp_gsp_component_set_visible(handle, restart, view.show_restart) != ESP_GSP_OK ||
+                esp_gsp_component_set_visible(handle, later, view.show_restart) != ESP_GSP_OK) {
+            return std::unexpected("Failed to update preference confirmation");
+        }
+        return {};
+    }
+
     std::expected<void, std::string> set_wifi(
         system::core::AppContext &, const WifiPageView &view
     ) override
@@ -65,7 +161,7 @@ public:
         if (!set_text(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_STATUS, view.status) ||
                 !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_CONNECTION_STATUS, view.connection) ||
                 !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_PAGINATION, view.pagination) ||
-                !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, view.enabled ? "Wi-Fi: On" : "Wi-Fi: Off") ||
+                !set_text(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, detail::localized_text(locale_, view.enabled ? "gsp.wifi_on" : "gsp.wifi_off")) ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_WIFI_TOGGLE, view.toggle_enabled) ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_REFRESH, view.refresh_enabled) ||
                 !set_enabled(GSP_SETTINGS_WIFI_OBJ_KEY_DISCONNECT, view.disconnect_enabled) ||
@@ -191,25 +287,23 @@ public:
         if (!ready) {
             return ready;
         }
-        uint16_t scene = 0;
-        if (page == detail::PAGE_HOME) {
-            scene = GSP_SETTINGS_SCENE_SETTINGS_HOME;
-        } else if (page == detail::PAGE_DISPLAY) {
-            scene = GSP_SETTINGS_SCENE_SETTINGS_DISPLAY;
-        } else if (page == detail::PAGE_WIFI) {
-            scene = GSP_SETTINGS_SCENE_SETTINGS_WIFI;
-        } else if (page == detail::PAGE_WIFI_CONNECT) {
-            scene = GSP_SETTINGS_SCENE_SETTINGS_WIFI_CONNECT;
-        } else {
+        const auto scene = scene_for_page(page);
+        if (scene == UINT16_MAX) {
             return std::unexpected("Unsupported settings page");
         }
         if (esp_gsp_goto_scene(handle, scene, ESP_GSP_NO_TRANSITION) != ESP_GSP_OK) {
             return std::unexpected("Failed to show the Settings page");
         }
+        // The scene command has been accepted. Keep input routing aligned with it even if
+        // a later render fence or cosmetic label update fails.
         page_ = page;
         const auto flushed = esp_gsp_flush(handle, 500);
         if (flushed != ESP_GSP_OK) {
-            return std::unexpected("Failed to settle the Settings page: " + std::to_string(static_cast<int>(flushed)));
+            BROOKESIA_LOGW("Failed to settle the Settings page: %1%", static_cast<int>(flushed));
+        }
+        auto appearance = apply_settings_appearance(handle, scene, locale_, theme_);
+        if (!appearance) {
+            BROOKESIA_LOGW("Failed to update Settings page labels: %1%", appearance.error());
         }
         return {};
     }
@@ -228,9 +322,13 @@ public:
         if (!ready) {
             return ready;
         }
+        (void)show_back;
         const auto title_key = page_ == detail::PAGE_WIFI_CONNECT ? GSP_SETTINGS_WIFI_CONNECT_OBJ_KEY_HEADER_TITLE :
                                page_ == detail::PAGE_WIFI ? GSP_SETTINGS_WIFI_OBJ_KEY_HEADER_TITLE :
-                               show_back ? GSP_SETTINGS_DISPLAY_OBJ_KEY_HEADER_TITLE :
+                               page_ == detail::PAGE_SOUND ? GSP_SETTINGS_SOUND_OBJ_KEY_HEADER_TITLE :
+                               page_ == detail::PAGE_LANGUAGE ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_HEADER_TITLE :
+                               page_ == detail::PAGE_THEME ? GSP_SETTINGS_THEME_OBJ_KEY_HEADER_TITLE :
+                               page_ == detail::PAGE_DISPLAY ? GSP_SETTINGS_DISPLAY_OBJ_KEY_HEADER_TITLE :
                                GSP_SETTINGS_HOME_OBJ_KEY_HEADER_TITLE;
         if (esp_gsp_component_set_text(handle, title_key, std::string(title).c_str()) != ESP_GSP_OK) {
             return std::unexpected("Failed to update the Settings title");
@@ -296,6 +394,8 @@ private:
     }
 
     std::string page_;
+    std::string locale_ = "en";
+    std::string theme_ = "light";
     WifiConnectView wifi_connect_view_;
     GspKeyboard keyboard_;
 };
@@ -305,25 +405,50 @@ std::unique_ptr<SettingsSurface> make_gsp_settings_surface()
     return std::make_unique<GspSettingsSurface>();
 }
 
+esp_gsp_config_t settings_dark_config();
+
 std::span<const std::byte> SettingsApp::gui_bundle() const
 {
-    const auto config = gsp_settings_config();
+    const auto config = *static_cast<const esp_gsp_config_t *>(gui_runtime_config());
     return {reinterpret_cast<const std::byte *>(config.bundle), config.bundle_size};
 }
 
 const void *SettingsApp::gui_runtime_config() const
 {
     static esp_gsp_config_t config;
-    config = gsp_settings_config();
+    const auto light = gsp_settings_config();
+    // App permissions are available after installation, before the first GUI load.
+    const auto theme = impl_->installed_context != nullptr ?
+                       impl_->installed_context->gui().get_theme_language().theme_id : current_theme_id_;
+    config = theme == detail::THEME_DARK ? settings_dark_config() : light;
+    // Both palettes use the same font and object layout.
+    config.ttf = light.ttf;
+    config.ttf_size = light.ttf_size;
     return &config;
 }
 
 std::expected<void, std::string> SettingsApp::start_gsp_pages(system::core::AppContext &context)
 {
     context_ = &context;
-    current_locale_ = detail::LOCALE_EN;
+    const auto active = context.gui().get_theme_language();
+    current_locale_ = detail::normalize_locale(active.language);
+    current_theme_id_ = active.theme_id == detail::THEME_DARK ? detail::THEME_DARK : detail::THEME_LIGHT;
+    surface_->set_appearance(current_locale_, current_theme_id_);
     current_page_ = detail::PAGE_HOME;
-    current_theme_id_.clear();
+    pending_language_locale_.clear();
+    if (const auto stored = context.gui().get_stored_language_preference(); stored && *stored != current_locale_ &&
+            (*stored == detail::LOCALE_EN || *stored == detail::LOCALE_ZH_CN)) {
+        pending_language_locale_ = *stored;
+    }
+    pending_theme_id_.clear();
+    if (const auto stored = context.gui().get_stored_theme_preference(); stored && *stored != current_theme_id_ &&
+            (*stored == detail::THEME_LIGHT || *stored == detail::THEME_DARK)) {
+        pending_theme_id_ = *stored;
+    }
+    preference_error_.clear();
+    restart_prompt_kind_ = RestartPromptKind::None;
+    restart_in_progress_ = false;
+    restart_iface_ = hal::acquire_first_interface<hal::system::GeneralIface>();
     device_ui_state_ = DeviceUiState{};
     arm_ui_epoch();
 
@@ -331,6 +456,11 @@ std::expected<void, std::string> SettingsApp::start_gsp_pages(system::core::AppC
     if (!loaded) {
         shutdown_brightness_callbacks();
         return loaded;
+    }
+    auto audio = load_audio_state();
+    if (!audio) {
+        shutdown_brightness_callbacks();
+        return audio;
     }
     subscribe_device_events();
     auto shown = surface_->show_page(context, detail::PAGE_HOME);
@@ -372,10 +502,107 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
     if (*keyboard_action) {
         return {};
     }
-    if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME && current_page_ != detail::PAGE_HOME) ||
-            (scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY && current_page_ != detail::PAGE_DISPLAY) ||
-            (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI && current_page_ != detail::PAGE_WIFI) ||
-            (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI_CONNECT && current_page_ != detail::PAGE_WIFI_CONNECT)) {
+    if (scene != scene_for_page(current_page_)) {
+        return {};
+    }
+    const auto open_page = [&](std::string_view page) -> std::expected<void, std::string> {
+        if (page == detail::PAGE_THEME)
+        {
+            theme_from_display_ = current_page_ == detail::PAGE_DISPLAY;
+        }
+        if (page == detail::PAGE_SOUND)
+        {
+            auto loaded = load_audio_state();
+            if (!loaded) {
+                return loaded;
+            }
+            // Keep the App-owned mailbox so an in-flight control completion can
+            // clear its pending state even when this page is closed and reopened.
+            if (!sound_ui_mailbox_) {
+                disconnect_device_events();
+                subscribe_device_events();
+            }
+        }
+        auto shown = surface_->show_page(context, page);
+        if (!shown)
+        {
+            return shown;
+        }
+        current_page_ = page;
+        preference_error_.clear();
+        restart_prompt_kind_ = RestartPromptKind::None;
+        auto header = refresh_header(context);
+        if (!header)
+        {
+            return header;
+        }
+        if (page == detail::PAGE_SOUND)
+        {
+            return refresh_sound_state(context);
+        }
+        if (page == detail::PAGE_LANGUAGE)
+        {
+            return refresh_language_state(context);
+        }
+        if (page == detail::PAGE_THEME)
+        {
+            return refresh_theme_state(context);
+        }
+        if (page == detail::PAGE_DISPLAY)
+        {
+            return refresh_display_state(context);
+        }
+        return {};
+    };
+    if (scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) {
+        if (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_SOUND) {
+            return open_page(detail::PAGE_SOUND);
+        }
+        if (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_LANGUAGE) {
+            return open_page(detail::PAGE_LANGUAGE);
+        }
+        if (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_THEME) {
+            return open_page(detail::PAGE_THEME);
+        }
+    }
+    if (scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY && id == GSP_SETTINGS_DISPLAY_ACT_ID_OPEN_THEME) {
+        return open_page(detail::PAGE_THEME);
+    }
+    if (scene == GSP_SETTINGS_SCENE_SETTINGS_SOUND) {
+        if (id == GSP_SETTINGS_SOUND_ACT_ID_HEADER_BACK) {
+            return open_page(detail::PAGE_HOME);
+        }
+        if (id == GSP_SETTINGS_SOUND_ACT_ID_VOLUME) {
+            set_volume(context, detail::clamp_percent(arg));
+        }
+        if (id == GSP_SETTINGS_SOUND_ACT_ID_MUTE) {
+            set_mute(context, !device_ui_state_.muted);
+        }
+        if (id == GSP_SETTINGS_SOUND_ACT_ID_TEST_SOUND) {
+            return play_test_sound(context);
+        }
+        return {};
+    }
+    if (scene == GSP_SETTINGS_SCENE_SETTINGS_LANGUAGE || scene == GSP_SETTINGS_SCENE_SETTINGS_THEME) {
+        const bool language = scene == GSP_SETTINGS_SCENE_SETTINGS_LANGUAGE;
+        const auto back = language ? GSP_SETTINGS_LANGUAGE_ACT_ID_HEADER_BACK : GSP_SETTINGS_THEME_ACT_ID_HEADER_BACK;
+        const auto first = language ? GSP_SETTINGS_LANGUAGE_ACT_ID_SELECT_0 : GSP_SETTINGS_THEME_ACT_ID_SELECT_0;
+        const auto second = language ? GSP_SETTINGS_LANGUAGE_ACT_ID_SELECT_1 : GSP_SETTINGS_THEME_ACT_ID_SELECT_1;
+        const auto restart = language ? GSP_SETTINGS_LANGUAGE_ACT_ID_RESTART_NOW : GSP_SETTINGS_THEME_ACT_ID_RESTART_NOW;
+        const auto later = language ? GSP_SETTINGS_LANGUAGE_ACT_ID_LATER : GSP_SETTINGS_THEME_ACT_ID_LATER;
+        if (id == back) {
+            return open_page(!language && theme_from_display_ ? detail::PAGE_DISPLAY : detail::PAGE_HOME);
+        }
+        if (id == first || id == second) {
+            return language ? schedule_language_switch(context, id == first ? detail::LOCALE_EN : detail::LOCALE_ZH_CN) :
+                   schedule_theme_switch(context, id == first ? detail::THEME_LIGHT : detail::THEME_DARK);
+        }
+        if (id == restart || id == later) {
+            system::core::MessageDialogResult result;
+            result.reason = system::core::MessageDialogCloseReason::Button;
+            result.button_index = id == restart ? 0 : 1;
+            handle_restart_dialog_result(context, restart_prompt_kind_, result);
+        }
         return {};
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_WIFI)) {
@@ -388,11 +615,11 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
     }
     if (scene == GSP_SETTINGS_SCENE_SETTINGS_WIFI) {
         if (id == GSP_SETTINGS_WIFI_ACT_ID_HEADER_BACK) {
-            close_wifi_page(context);
             auto shown = surface_->show_page(context, detail::PAGE_HOME);
             if (!shown) {
                 return shown;
             }
+            close_wifi_page(context);
             current_page_ = detail::PAGE_HOME;
             return refresh_header(context);
         }
@@ -426,7 +653,13 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
             return back_wifi_connect(context);
         }
         if (id == GSP_SETTINGS_WIFI_CONNECT_ACT_ID_EDIT_PASSWORD) {
-            return show_wifi_password_keyboard(context);
+            auto shown = show_wifi_password_keyboard(context);
+            if (!shown) {
+                BROOKESIA_LOGW("Failed to show Settings Wi-Fi password keyboard: %1%", shown.error());
+                wifi_page_.error = detail::localized_text(current_locale_, "wifi.keyboard_unavailable");
+                return refresh_wifi_connect_state(context);
+            }
+            return {};
         }
         if (id == GSP_SETTINGS_WIFI_CONNECT_ACT_ID_CONNECT) {
             return submit_wifi_connect(context);
@@ -437,7 +670,6 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
         return context.system_service().stop_app(context.app_id());
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_HOME) && (id == GSP_SETTINGS_HOME_ACT_ID_OPEN_DISPLAY)) {
-        current_page_ = detail::PAGE_DISPLAY;
         auto loaded = load_backlight_state();
         if (!loaded) {
             return loaded;
@@ -446,6 +678,7 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
         if (!shown) {
             return shown;
         }
+        current_page_ = detail::PAGE_DISPLAY;
         auto header = refresh_header(context);
         if (!header) {
             return header;
@@ -453,11 +686,11 @@ std::expected<void, std::string> SettingsApp::handle_gsp_action(
         return refresh_display_state(context);
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY) && (id == GSP_SETTINGS_DISPLAY_ACT_ID_HEADER_BACK)) {
-        current_page_ = detail::PAGE_HOME;
         auto shown = surface_->show_page(context, detail::PAGE_HOME);
         if (!shown) {
             return shown;
         }
+        current_page_ = detail::PAGE_HOME;
         return refresh_header(context);
     }
     if ((scene == GSP_SETTINGS_SCENE_SETTINGS_DISPLAY) && (id == GSP_SETTINGS_DISPLAY_ACT_ID_BRIGHTNESS)) {

@@ -21,6 +21,10 @@ Please refer to the following documentation:
 
 Please refer to [ESP-Brookesia Programming Guide - How to Obtain and Use Components](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-component-usage).
 
+## Audio Processor Recording
+
+`BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL` defaults to enabled when the audio processor is enabled. Disable it for playback-only firmware to omit the high-level `EncoderIface` and `DecoderIface` capabilities and their AFE wake-word code. `PlaybackIface`, `CodecPlayerIface`, and `CodecRecorderIface` remain available. Playback still depends on the `av_processor` component.
+
 ## Extending Board Support
 
 A custom device may still hold resources after initialization or release fails. Board adaptors can register cleanup callbacks for HAL to invoke on later release requests. Applications using an existing board do not need to register these callbacks themselves.

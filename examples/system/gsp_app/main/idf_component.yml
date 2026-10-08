@@ -1,4 +1,8 @@
 dependencies:
+  espressif/brookesia_service_audio:
+    version: "0.8.*"
+    override_path: ../../../../service/media/brookesia_service_audio
+
   espressif/brookesia_system_core:
     version: "0.8.*"
     override_path: ../../../../system/brookesia_system_core

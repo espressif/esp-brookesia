@@ -8,15 +8,17 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 
-#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <new>
 #include <utility>
 
-#include "boost/thread.hpp"
-#include "esp_gmf_afe.h"
-#include "model_path.h"
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
+#   include <cstdlib>
+#   include "boost/thread.hpp"
+#   include "esp_gmf_afe.h"
+#   include "model_path.h"
+#endif
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "private/utils.hpp"
 #include "processor_impl.hpp"
@@ -26,6 +28,7 @@
 
 namespace esp_brookesia::hal {
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 constexpr size_t GET_WAKE_WORDS_THREAD_STACK_SIZE = 5 * 1024;
 constexpr size_t RECORDER_THREAD_STACK_SIZE = 5 * 1024;
 
@@ -82,6 +85,7 @@ bool audio_recorder_close_wrapper(audio_recorder_handle_t recorder_handle)
 }
 
 } // namespace
+#endif
 
 AudioProcessorCore::AudioProcessorCore(
     std::shared_ptr<audio::CodecPlayerIface> player_iface,
@@ -96,8 +100,10 @@ AudioProcessorCore::AudioProcessorCore(
 
 AudioProcessorCore::~AudioProcessorCore()
 {
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     stop_encoder();
     stop_decoder();
+#endif
 
     std::lock_guard lock(mutex_);
     open_ref_count_ = 0;
@@ -189,9 +195,11 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
         BROOKESIA_CHECK_NULL_RETURN(self->recorder_iface_, ESP_FAIL, "Invalid recorder interface");
 
         auto result = self->recorder_iface_->read_data(data, size);
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
         if (result) {
             self->on_recorder_input_data(data, size);
         }
+#endif
 
         return result ? ESP_OK : ESP_FAIL;
     };
@@ -326,6 +334,7 @@ bool AudioProcessorCore::stop()
     return true;
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 std::vector<std::string> AudioProcessorCore::get_afe_wake_words()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -568,6 +577,7 @@ bool AudioProcessorCore::feed_decoder_data(const uint8_t *data, size_t size)
 
     return true;
 }
+#endif
 
 void AudioProcessorCore::on_playback_event(uint8_t state)
 {
@@ -599,6 +609,7 @@ void AudioProcessorCore::on_playback_event(uint8_t state)
     }
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 void AudioProcessorCore::on_recorder_event(void *event)
 {
     auto afe_evt = static_cast<esp_gmf_afe_evt_t *>(event);
@@ -649,6 +660,7 @@ void AudioProcessorCore::emit_afe_event(audio::AfeEvent event)
         callback(event);
     }
 }
+#endif
 
 AudioPlaybackImpl::AudioPlaybackImpl(std::shared_ptr<AudioProcessorCore> core)
     : core_(std::move(core))
@@ -712,6 +724,7 @@ bool AudioPlaybackImpl::stop()
     return core_->stop();
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 AudioEncoderImpl::AudioEncoderImpl(std::shared_ptr<AudioProcessorCore> core)
     : core_(std::move(core))
 {
@@ -804,6 +817,7 @@ bool AudioDecoderImpl::feed_data(const uint8_t *data, size_t size)
     BROOKESIA_CHECK_NULL_RETURN(core_, false, "Invalid audio processor core");
     return core_->feed_decoder_data(data, size);
 }
+#endif
 
 } // namespace esp_brookesia::hal
 #endif // BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL

@@ -39,6 +39,10 @@
 
 #include "private/utils.hpp"
 
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   include "settings_strings.hpp"
+#endif
+
 #if BROOKESIA_APP_SETTINGS_ENABLE_PROFILE_LOG
 #   define APP_SETTINGS_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
 #else
@@ -148,6 +152,7 @@ static constexpr const char *PAGE_SOUND = "sound";
 static constexpr const char *PAGE_DISPLAY = "display";
 static constexpr const char *PAGE_MORE = "more";
 static constexpr const char *PAGE_LANGUAGE = "language";
+static constexpr const char *PAGE_THEME = "theme";
 static constexpr const char *PAGE_TIME_ZONE = "time_zone";
 static constexpr const char *PAGE_DEBUG = "debug";
 static constexpr const char *ACTION_OPEN_HOME = "settings.open.home";
@@ -1145,6 +1150,18 @@ void add_control_state_updates(
 
 std::optional<std::string> find_localized_text(std::string_view locale, std::string_view key)
 {
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    const auto entry = std::lower_bound(
+                           std::begin(COMPILED_STRINGS), std::end(COMPILED_STRINGS), key,
+    [](const CompiledString & text, std::string_view wanted) {
+        return text.key < wanted;
+    }
+                       );
+    if (entry != std::end(COMPILED_STRINGS) && entry->key == key) {
+        return std::string(locale == LOCALE_ZH_CN ? entry->chinese : entry->english);
+    }
+    return std::nullopt;
+#else
     auto locale_it = i18n_string_tables.find(std::string(locale));
     if (locale_it != i18n_string_tables.end()) {
         auto text_it = locale_it->second.find(std::string(key));
@@ -1162,6 +1179,7 @@ std::optional<std::string> find_localized_text(std::string_view locale, std::str
         }
     }
     return std::nullopt;
+#endif
 }
 
 std::string localized_text(std::string_view locale, std::string_view key)

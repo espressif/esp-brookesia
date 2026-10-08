@@ -624,14 +624,14 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
 {
     if (!wifi_ui_state_.service_ready) {
         return std::unexpected(settings_uses_gsp_backend() ?
-                               "Wi-Fi service unavailable. Reopen this page to retry." :
+                               localized_text(current_locale_, "wifi.unavailable_retry") :
                                localized_text(current_locale_, "wifi_service_unavailable"));
     }
     if (network.ssid.empty()) {
         return std::unexpected("Wi-Fi SSID is empty");
     }
     if (settings_uses_gsp_backend() && network.enterprise) {
-        return std::unexpected("Enterprise Wi-Fi is not supported on this device");
+        return std::unexpected(localized_text(current_locale_, "wifi.enterprise_error"));
     }
 
     invalidate_wifi_connect_operation(context);
@@ -675,7 +675,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
         std::fill(operation->password.begin(), operation->password.end(), '\0');
         operation->password.clear();
         operation->phase = WifiConnectOperation::Phase::Failed;
-        operation->error = "Could not observe the connection. Try again.";
+        operation->error = "wifi.observe_failed";
     }
     wifi_page_.connect_pending = true;
     wifi_page_.connect_ssid = network.ssid;
@@ -696,7 +696,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
         }
         if (!target.success) {
             operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "Could not set the network. Try again.";
+            operation->error = "wifi.set_target_failed";
             return;
         }
         operation->phase = WifiConnectOperation::Phase::SendingConnect;
@@ -708,7 +708,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
             operation->phase = connect.success ? WifiConnectOperation::Phase::WaitingForConnection :
                                WifiConnectOperation::Phase::Failed;
             if (!connect.success) {
-                operation->error = "Could not start the connection. Try again.";
+                operation->error = "wifi.start_failed";
             }
         };
         // Keep the validity lock through submission so cancellation blocks later Connect submissions.
@@ -718,7 +718,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
                     WifiHelper::FunctionId::TriggerGeneralAction,
                     BROOKESIA_DESCRIBE_TO_STR(WifiHelper::GeneralAction::Connect), connect_handler)) {
             operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "Could not submit the connection. Try again.";
+            operation->error = "wifi.submit_connect_failed";
         }
     };
     const auto save_handler = [operation, set_target_handler](service::FunctionResult && result) {
@@ -730,7 +730,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
             std::fill(operation->password.begin(), operation->password.end(), '\0');
             operation->password.clear();
             operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "Could not save the Wi-Fi setting. Try again.";
+            operation->error = "wifi.preference_save_failed";
             return;
         }
         operation->phase = WifiConnectOperation::Phase::SettingTarget;
@@ -745,7 +745,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
         password_copy.clear();
         if (!submitted) {
             operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "Could not submit the network. Try again.";
+            operation->error = "wifi.submit_target_failed";
         }
     };
     auto save_result = operation->connected_event_connection.connected() ?
@@ -757,7 +757,7 @@ std::expected<void, std::string> SettingsApp::connect_wifi_network(
             std::fill(operation->password.begin(), operation->password.end(), '\0');
             operation->password.clear();
             operation->phase = WifiConnectOperation::Phase::Failed;
-            operation->error = "Could not save the Wi-Fi setting. Try again.";
+            operation->error = "wifi.preference_save_failed";
         }
         // The page/timer consumes this failure just like an asynchronous result.
     }
@@ -839,7 +839,7 @@ bool SettingsApp::sync_wifi_connect_operation(system::core::AppContext &context)
     invalidate_wifi_connect_operation(context);
     wifi_ui_state_.connecting = false;
     hide_wifi_connected_card();
-    wifi_page_.error = error.empty() ? "Connection timed out. Check the network and try again." : std::move(error);
+    wifi_page_.error = localized_text(current_locale_, error.empty() ? "wifi.timeout" : error);
     return true;
 }
 
@@ -1164,13 +1164,12 @@ std::expected<void, std::string> SettingsApp::open_wifi_connect(
 std::expected<void, std::string> SettingsApp::refresh_wifi_connect_state(system::core::AppContext &context)
 {
     const bool gsp_backend = settings_uses_gsp_backend();
-    const auto password_empty_text = gsp_backend ? "Enter password" :
+    const auto password_empty_text = gsp_backend ? localized_text(current_locale_, "wifi.enter_password") :
                                      localized_text(current_locale_, "wifi_password_placeholder");
     const auto status_text = wifi_connect_password_.empty() ?
-                             (gsp_backend ? "Enter the password to connect." :
+                             (gsp_backend ? localized_text(current_locale_, "wifi.enter_password_to_connect") :
                               localized_text(current_locale_, "wifi_password_required")) :
-                             (gsp_backend ? "Ready to connect." :
-                              localized_text(current_locale_, "wifi_ready_to_connect"));
+                             localized_text(current_locale_, "wifi_ready_to_connect");
     const bool connect_enabled = selected_wifi_network_.has_value() && !wifi_connect_password_.empty();
     WifiConnectView view;
     view.ssid = selected_wifi_network_ ? selected_wifi_network_->ssid : "";
@@ -1183,17 +1182,18 @@ std::expected<void, std::string> SettingsApp::refresh_wifi_connect_state(system:
     if (gsp_backend) {
         if (selected_wifi_network_) {
             const auto &network = *selected_wifi_network_;
-            view.detail = (network.enterprise ? "Enterprise (unsupported)" :
-                           network.locked ? "Secured" : "Open") +
-                          std::string("   Signal ") + std::to_string(network.signal_level) + "/4   " +
+            view.detail = localized_text(current_locale_, network.enterprise ? "wifi.enterprise" :
+                                         network.locked ? "wifi.secured" : "wifi.open") +
+                          "   " + localized_text(current_locale_, "wifi.signal") + " " +
+                          std::to_string(network.signal_level) + "/4   " +
                           std::to_string(network.rssi) + " dBm   " + network.band;
         }
         const bool connected = selected_wifi_network_ && wifi_ui_state_.general_state == "Connected" &&
                                wifi_ui_state_.connected_ssid == selected_wifi_network_->ssid &&
                                !wifi_page_.connect_pending;
         view.status = !wifi_page_.error.empty() ? wifi_page_.error :
-                      wifi_page_.connect_pending ? "Connecting to network..." :
-                      connected ? "Connected to network" : status_text;
+                      wifi_page_.connect_pending ? localized_text(current_locale_, "wifi.connecting_network") :
+                      connected ? localized_text(current_locale_, "wifi.connected_network") : status_text;
         view.password_enabled = selected_wifi_network_ && !wifi_page_.connect_pending && !connected;
         view.connect_enabled = connect_enabled && view.password_enabled;
     }
@@ -1219,7 +1219,7 @@ std::expected<void, std::string> SettingsApp::show_wifi_password_keyboard(system
     if (!selected_wifi_network_.has_value() || wifi_page_.connect_pending ||
             (settings_uses_gsp_backend() && wifi_ui_state_.general_state == "Connected" &&
              wifi_ui_state_.connected_ssid == selected_wifi_network_->ssid)) {
-        return std::unexpected(settings_uses_gsp_backend() ? "Select a Wi-Fi network first." :
+        return std::unexpected(settings_uses_gsp_backend() ? localized_text(current_locale_, "wifi.select_first") :
                                localized_text(current_locale_, "wifi_no_network_selected"));
     }
     if (wifi_keyboard_request_id_ != system::core::INVALID_KEYBOARD_REQUEST_ID) {
@@ -1227,8 +1227,10 @@ std::expected<void, std::string> SettingsApp::show_wifi_password_keyboard(system
     }
 
     auto options = system::core::KeyboardRequestOptions{
-        .title = selected_wifi_network_->ssid,
-        .placeholder = settings_uses_gsp_backend() ? "Enter password" :
+        .title = settings_uses_gsp_backend() ?
+                 localized_text(current_locale_, "wifi.password_title") + ": " + selected_wifi_network_->ssid :
+                 selected_wifi_network_->ssid,
+        .placeholder = settings_uses_gsp_backend() ? localized_text(current_locale_, "wifi.enter_password") :
                        localized_text(current_locale_, "wifi_password_placeholder"),
         .initial_text = wifi_connect_password_,
         .max_length = 64,
@@ -1277,7 +1279,7 @@ void SettingsApp::handle_wifi_keyboard_result(const system::core::KeyboardResult
 std::expected<void, std::string> SettingsApp::submit_wifi_connect(system::core::AppContext &context)
 {
     if (!selected_wifi_network_.has_value()) {
-        return std::unexpected(settings_uses_gsp_backend() ? "Select a Wi-Fi network first." :
+        return std::unexpected(settings_uses_gsp_backend() ? localized_text(current_locale_, "wifi.select_first") :
                                localized_text(current_locale_, "wifi_no_network_selected"));
     }
     if (wifi_connect_password_.empty()) {
@@ -1289,7 +1291,7 @@ std::expected<void, std::string> SettingsApp::submit_wifi_connect(system::core::
     wifi_connect_password_.clear();
     if (settings_uses_gsp_backend()) {
         if (!result) {
-            wifi_page_.error = "Could not start the connection. Try again.";
+            wifi_page_.error = localized_text(current_locale_, "wifi.start_failed");
         }
         return refresh_wifi_connect_state(context);
     }

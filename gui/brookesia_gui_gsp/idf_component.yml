@@ -17,3 +17,7 @@ dependencies:
   espressif/esp-gsp:
     version: "1.4.0"
     require: public
+
+  espressif/zlib:
+    version: "^1.3.0"
+    require: private

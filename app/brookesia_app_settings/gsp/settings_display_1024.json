@@ -9,12 +9,26 @@
     {
       "type": "container",
       "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
       "name": "header_bar",
       "x": 0,
       "y": 0,
       "w": 1024,
       "h": 74,
-      "bg_color": "#FFFFFF"
+      "bg_color": {
+        "theme": "surface"
+      }
     },
     {
       "type": "button",
@@ -26,10 +40,16 @@
       "h": 56,
       "text": "Back",
       "font_size": 22,
-      "bg_color": "#E8E8EA",
-      "fg_color": "#1C1C1E",
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
       "radius": 16,
-      "callback": "header_back"
+      "callback": "header_back",
+      "bind": "header_back",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -42,85 +62,47 @@
       "h": 42,
       "text": "Display & brightness",
       "font_size": 32,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
     },
     {
       "type": "label",
-      "parent": -1,
+      "name": "theme_caption",
+      "bind": "theme_caption",
       "x": 54,
       "y": 92,
       "w": 300,
       "h": 28,
       "text": "Theme",
       "font_size": 16,
-      "fg_color": "#8E8E93"
+      "fg_color": {
+        "theme": "muted"
+      },
+      "parent": -1,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
-      "type": "container",
+      "type": "button",
       "parent": -1,
-      "name": "light_mode",
+      "name": "open_theme",
+      "bind": "open_theme",
       "x": 54,
       "y": 128,
-      "w": 447,
+      "w": 916,
       "h": 120,
-      "bg_color": "#FFFFFF",
-      "radius": 24
-    },
-    {
-      "type": "label",
-      "parent_name": "light_mode",
-      "x": 24,
-      "y": 28,
-      "w": 400,
-      "h": 32,
-      "text": "Light mode",
+      "text": "Theme",
       "font_size": 24,
-      "fg_color": "#C7C7CC"
-    },
-    {
-      "type": "label",
-      "parent_name": "light_mode",
-      "x": 24,
-      "y": 68,
-      "w": 400,
-      "h": 28,
-      "text": "Unavailable",
-      "font_size": 16,
-      "fg_color": "#C7C7CC"
-    },
-    {
-      "type": "container",
-      "parent": -1,
-      "name": "dark_mode",
-      "x": 523,
-      "y": 128,
-      "w": 447,
-      "h": 120,
-      "bg_color": "#FFFFFF",
-      "radius": 24
-    },
-    {
-      "type": "label",
-      "parent_name": "dark_mode",
-      "x": 24,
-      "y": 28,
-      "w": 400,
-      "h": 32,
-      "text": "Dark mode",
-      "font_size": 24,
-      "fg_color": "#C7C7CC"
-    },
-    {
-      "type": "label",
-      "parent_name": "dark_mode",
-      "x": 24,
-      "y": 68,
-      "w": 400,
-      "h": 28,
-      "text": "Unavailable",
-      "font_size": 16,
-      "fg_color": "#C7C7CC"
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "open_theme",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "label",
@@ -132,7 +114,11 @@
       "h": 28,
       "text": "Brightness level",
       "font_size": 16,
-      "fg_color": "#8E8E93"
+      "fg_color": {
+        "theme": "muted"
+      },
+      "bind": "brightness_caption",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "container",
@@ -142,7 +128,9 @@
       "y": 304,
       "w": 916,
       "h": 140,
-      "bg_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "surface"
+      },
       "radius": 24
     },
     {
@@ -154,7 +142,12 @@
       "h": 32,
       "text": "Screen brightness",
       "font_size": 24,
-      "fg_color": "#1C1C1E"
+      "fg_color": {
+        "theme": "text"
+      },
+      "name": "screen_brightness",
+      "bind": "screen_brightness",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "slider",
@@ -170,9 +163,15 @@
       "enabled": true,
       "track_size": 8,
       "radius": 16,
-      "bg_color": "#E5E5EA",
-      "fg_color": "#0A84FF",
-      "knob_color": "#FFFFFF",
+      "bg_color": {
+        "theme": "rail"
+      },
+      "fg_color": {
+        "theme": "accent"
+      },
+      "knob_color": {
+        "theme": "surface"
+      },
       "callback": "brightness"
     },
     {
@@ -186,7 +185,9 @@
       "h": 40,
       "text": "--",
       "font_size": 24,
-      "fg_color": "#1C1C1E",
+      "fg_color": {
+        "theme": "text"
+      },
       "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
     },
     {
@@ -200,8 +201,47 @@
       "h": 36,
       "text": " ",
       "font_size": 16,
-      "fg_color": "#8E8E93",
+      "fg_color": {
+        "theme": "muted"
+      },
       "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
     }
-  ]
+  ],
+  "themes": {
+    "accent": {
+      "type": "color",
+      "default": "#0A84FF",
+      "dynamic": true
+    },
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "rail": {
+      "type": "color",
+      "default": "#E5E5EA",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
 }

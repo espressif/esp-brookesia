@@ -86,6 +86,8 @@ private:
         int brightness = 0;
         int volume = 0;
         bool muted = false;
+        std::string sound_error;
+        bool sound_pending = false;
     };
 
     struct WifiNetworkState {
@@ -158,6 +160,9 @@ private:
     void clear_hardware_groups(system::core::AppContext &context);
     std::expected<void, std::string> refresh_display_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_sound_state(system::core::AppContext &context);
+    std::expected<void, std::string> load_audio_state();
+    std::expected<void, std::string> drain_sound_events(system::core::AppContext &context);
+    std::expected<void, std::string> play_test_sound(system::core::AppContext &context);
     std::expected<void, std::string> start_gsp_pages(system::core::AppContext &context);
     std::expected<void, std::string> handle_gsp_action(
         system::core::AppContext &context,

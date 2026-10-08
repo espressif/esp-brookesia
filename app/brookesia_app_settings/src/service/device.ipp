@@ -81,12 +81,12 @@ std::expected<void, std::string> SettingsApp::load_backlight_state()
 std::string SettingsApp::brightness_status_text() const
 {
     if (!SETTINGS_HARDWARE_OPERATIONS_ENABLED) {
-        return "Hardware controls are disabled";
+        return localized_text(current_locale_, "display.disabled");
     }
     if (!device_ui_state_.display_service_ready) {
-        return "Display service is unavailable";
+        return localized_text(current_locale_, "display.unavailable");
     }
-    return "Brightness control is unavailable";
+    return localized_text(current_locale_, "display.no_backlight");
 }
 
 std::string SettingsApp::brightness_caption_text() const
@@ -193,34 +193,8 @@ std::expected<void, std::string> SettingsApp::refresh_device_state(system::core:
         return backlight;
     }
 
-    device_ui_state_.audio_service_ready =
-        audio_playback_service_binding_.is_valid() && AudioPlaybackHelper::is_running();
-    if (!device_ui_state_.audio_service_ready) {
-        BROOKESIA_LOGW("AudioPlayback service is not ready; audio controls will stay disabled");
-    }
-
-    if (device_ui_state_.audio_service_ready) {
-        device_ui_state_.audio_player_supported = true;
-        auto volume_result = AudioPlaybackHelper::call_function_sync<double>(
-                                 AudioPlaybackHelper::FunctionId::GetVolume,
-                                 service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                             );
-        auto mute_result = AudioPlaybackHelper::call_function_sync<bool>(
-                               AudioPlaybackHelper::FunctionId::GetMute,
-                               service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                           );
-        if (volume_result && mute_result) {
-            device_ui_state_.volume = clamp_percent(*volume_result);
-            device_ui_state_.muted = *mute_result;
-        } else {
-            if (!volume_result) {
-                BROOKESIA_LOGW("Audio player volume is unavailable: %1%", volume_result.error());
-            }
-            if (!mute_result) {
-                BROOKESIA_LOGW("Audio player mute is unavailable: %1%", mute_result.error());
-            }
-            device_ui_state_.audio_player_supported = false;
-        }
+    if (auto audio_result = load_audio_state(); !audio_result) {
+        BROOKESIA_LOGW("Failed to load audio state: %1%", audio_result.error());
     }
 
     auto result = refresh_my_device_state(context);
@@ -236,6 +210,40 @@ std::expected<void, std::string> SettingsApp::refresh_device_state(system::core:
         return result;
     }
     subscribe_device_events();
+    return {};
+}
+
+std::expected<void, std::string> SettingsApp::load_audio_state()
+{
+    bind_audio_service();
+    device_ui_state_.audio_service_ready =
+        audio_playback_service_binding_.is_valid() && AudioPlaybackHelper::is_running();
+    device_ui_state_.audio_player_supported = false;
+    if (!device_ui_state_.audio_service_ready) {
+        BROOKESIA_LOGW("AudioPlayback service is not ready; audio controls will stay disabled");
+        return {};
+    }
+
+    auto volume_result = AudioPlaybackHelper::call_function_sync<double>(
+                             AudioPlaybackHelper::FunctionId::GetVolume,
+                             service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
+                         );
+    auto mute_result = AudioPlaybackHelper::call_function_sync<bool>(
+                           AudioPlaybackHelper::FunctionId::GetMute,
+                           service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
+                       );
+    if (!volume_result || !mute_result) {
+        if (!volume_result) {
+            BROOKESIA_LOGW("Audio player volume is unavailable: %1%", volume_result.error());
+        }
+        if (!mute_result) {
+            BROOKESIA_LOGW("Audio player mute is unavailable: %1%", mute_result.error());
+        }
+        return {};
+    }
+    device_ui_state_.volume = clamp_percent(*volume_result);
+    device_ui_state_.muted = *mute_result;
+    device_ui_state_.audio_player_supported = true;
     return {};
 }
 
@@ -461,6 +469,23 @@ std::expected<void, std::string> SettingsApp::refresh_display_state(system::core
 std::expected<void, std::string> SettingsApp::refresh_sound_state(system::core::AppContext &context)
 {
     const bool enabled = device_ui_state_.audio_service_ready && device_ui_state_.audio_player_supported;
+    if (settings_uses_gsp_backend()) {
+        if (current_page_ != PAGE_SOUND) {
+            return {};
+        }
+        SoundPageView view;
+        view.volume = enabled ? device_ui_state_.volume : 0;
+        view.muted = enabled && device_ui_state_.muted;
+        view.enabled = enabled;
+        view.test_enabled = enabled && !device_ui_state_.sound_pending &&
+                            !settings_tone_active_ && BROOKESIA_APP_SETTINGS_SOUND_TEST_URL[0] != '\0';
+        const auto status_key = !enabled ? "sound.unavailable" :
+                                !device_ui_state_.sound_error.empty() ? device_ui_state_.sound_error.c_str() :
+                                settings_tone_active_ ? "sound.playing" :
+                                device_ui_state_.sound_pending ? "sound.saving" : "sound.ready";
+        view.status = localized_text(current_locale_, status_key);
+        return surface_->set_sound(context, view);
+    }
     std::vector<gui::BindingValueUpdate> updates;
     add_control_state_updates(updates, SOUND_VOLUME_ROW_PATH, SOUND_VOLUME_SLIDER_PATH, enabled);
     add_control_state_updates(updates, SOUND_MUTE_ROW_PATH, SOUND_MUTE_TOGGLE_PATH, enabled);
@@ -484,6 +509,80 @@ std::expected<void, std::string> SettingsApp::refresh_sound_state(system::core::
                    make_percent_text(device_ui_state_.volume)) : make_localized_unavailable_text(current_locale_)
     );
     return context.gui().set_binding_values(updates);
+}
+
+std::expected<void, std::string> SettingsApp::drain_sound_events(system::core::AppContext &context)
+{
+    auto mailbox = sound_ui_mailbox_;
+    if (!mailbox) {
+        return {};
+    }
+    std::optional<double> volume;
+    std::optional<bool> muted;
+    std::optional<std::string> error;
+    bool playback_finished = false;
+    bool control_result_pending = false;
+    bool control_result_success = false;
+    uint64_t control_result_generation = 0;
+    {
+        boost::lock_guard lock(mailbox->mutex);
+        if (!mailbox->open) {
+            return {};
+        }
+        volume.swap(mailbox->volume);
+        muted.swap(mailbox->muted);
+        error.swap(mailbox->error);
+        playback_finished = std::exchange(mailbox->playback_finished, false);
+        control_result_pending = std::exchange(mailbox->control_result_pending, false);
+        control_result_success = mailbox->control_result_success;
+        control_result_generation = mailbox->control_result_generation;
+    }
+    bool changed = false;
+    if (volume) {
+        device_ui_state_.volume = clamp_percent(*volume);
+        changed = true;
+    }
+    if (muted) {
+        device_ui_state_.muted = *muted;
+        changed = true;
+    }
+    if (control_result_pending && control_result_generation == sound_control_generation_) {
+        device_ui_state_.sound_pending = false;
+        if (control_result_success) {
+            device_ui_state_.sound_error.clear();
+        } else {
+            device_ui_state_.sound_error = "sound.update_failed";
+            if (!settings_uses_gsp_backend()) {
+                ensure_message_dialog(
+                    context, localized_text(current_locale_, "sound.update_failed"),
+                    system::core::MessageDialogIcon::Warning, MESSAGE_DIALOG_FAILED_AUTO_CLOSE_MS
+                );
+            }
+        }
+        if (auto loaded = load_audio_state(); !loaded) {
+            BROOKESIA_LOGW("Failed to reload audio state after update: %1%", loaded.error());
+        }
+        changed = true;
+    }
+    if (error) {
+        device_ui_state_.sound_error = *error;
+        changed = true;
+    }
+    if (settings_tone_active_ &&
+            (playback_finished || SteadyClock::now() >= settings_tone_deadline_)) {
+        if (!playback_finished) {
+            device_ui_state_.sound_error = "sound.play_failed";
+        }
+        settings_tone_active_ = false;
+        settings_tone_deadline_ = {};
+        {
+            boost::lock_guard lock(mailbox->mutex);
+            mailbox->playback_started = false;
+            mailbox->playback_finished = false;
+        }
+        changed = true;
+    }
+    return changed ? refresh_sound_state(context) : std::expected<void, std::string>{};
 }
 
 void SettingsApp::subscribe_device_events()
@@ -567,18 +666,35 @@ void SettingsApp::subscribe_device_events()
     }
 
     if (device_ui_state_.audio_player_supported) {
+        if (context_ == nullptr) {
+            BROOKESIA_LOGW("Settings has no App context for sound updates");
+            return;
+        }
+        sound_ui_mailbox_ = std::make_shared<SoundUiMailbox>();
+        auto timer = context_->timer().start_periodic(SOUND_UI_TIMER_NAME, SOUND_UI_POLL_INTERVAL_MS);
+        if (!timer) {
+            BROOKESIA_LOGW("Failed to start Settings sound UI timer: %1%", timer.error());
+            sound_ui_mailbox_->close();
+            sound_ui_mailbox_.reset();
+            device_ui_state_.audio_player_supported = false;
+            if (auto result = refresh_sound_state(*context_); !result) {
+                BROOKESIA_LOGW("Failed to disable sound UI after timer error: %1%", result.error());
+            }
+            return;
+        }
+        sound_ui_timer_id_ = *timer;
+        const std::weak_ptr<SoundUiMailbox> weak_mailbox = sound_ui_mailbox_;
         const service::EventRegistry::SignalSlot volume_callback =
-            [this](const std::string &, const service::EventItemMap &items) {
+            [weak_mailbox](const std::string &, const service::EventItemMap &items) {
             const auto *volume = std::get_if<double>(find_event_item(items, "Volume"));
             if (!volume) {
                 return;
             }
-            if (context_ == nullptr) {
-                return;
-            }
-            device_ui_state_.volume = clamp_percent(*volume);
-            if (auto result = refresh_sound_state(*context_); !result) {
-                BROOKESIA_LOGW("Failed to refresh sound after volume event: %1%", result.error());
+            if (auto mailbox = weak_mailbox.lock()) {
+                boost::lock_guard lock(mailbox->mutex);
+                if (mailbox->open) {
+                    mailbox->volume = *volume;
+                }
             }
         };
         auto volume_connection = AudioPlaybackHelper::subscribe_event(
@@ -592,17 +708,16 @@ void SettingsApp::subscribe_device_events()
         }
 
         const service::EventRegistry::SignalSlot mute_callback =
-            [this](const std::string &, const service::EventItemMap &items) {
+            [weak_mailbox](const std::string &, const service::EventItemMap &items) {
             const auto *muted = std::get_if<bool>(find_event_item(items, "IsMuted"));
             if (!muted) {
                 return;
             }
-            if (context_ == nullptr) {
-                return;
-            }
-            device_ui_state_.muted = *muted;
-            if (auto result = refresh_sound_state(*context_); !result) {
-                BROOKESIA_LOGW("Failed to refresh sound after mute event: %1%", result.error());
+            if (auto mailbox = weak_mailbox.lock()) {
+                boost::lock_guard lock(mailbox->mutex);
+                if (mailbox->open) {
+                    mailbox->muted = *muted;
+                }
             }
         };
         auto mute_connection = AudioPlaybackHelper::subscribe_event(
@@ -614,11 +729,51 @@ void SettingsApp::subscribe_device_events()
         } else {
             BROOKESIA_LOGW("Failed to subscribe Device mute event");
         }
+
+        const service::EventRegistry::SignalSlot play_state_callback =
+            [weak_mailbox](const std::string &, const service::EventItemMap &items) {
+            const auto *state = std::get_if<std::string>(find_event_item(items, "State"));
+            if (!state) {
+                return;
+            }
+            if (auto mailbox = weak_mailbox.lock()) {
+                boost::lock_guard lock(mailbox->mutex);
+                if (!mailbox->open) {
+                    return;
+                }
+                if (*state == "Playing") {
+                    mailbox->playback_started = true;
+                } else if (*state == "Idle" && mailbox->playback_started) {
+                    mailbox->playback_finished = true;
+                }
+            }
+        };
+        auto play_state_connection = AudioPlaybackHelper::subscribe_event(
+                                         AudioPlaybackHelper::EventId::PlayStateChanged,
+                                         play_state_callback
+                                     );
+        if (play_state_connection.connected()) {
+            device_event_connections_.push_back(std::move(play_state_connection));
+        } else {
+            BROOKESIA_LOGW("Failed to subscribe Device audio playback state event");
+        }
     }
 }
 
 void SettingsApp::disconnect_device_events()
 {
+    if (sound_ui_mailbox_) {
+        sound_ui_mailbox_->close();
+        sound_ui_mailbox_.reset();
+    }
+    if (sound_ui_timer_id_ != system::core::INVALID_TIMER_ID) {
+        if (context_ != nullptr) {
+            (void)context_->timer().stop(sound_ui_timer_id_);
+        }
+        sound_ui_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
+    settings_tone_active_ = false;
+    settings_tone_deadline_ = {};
     device_event_connections_.clear();
 }
 
@@ -708,15 +863,31 @@ void SettingsApp::set_volume(system::core::AppContext &context, int volume)
         return;
     }
     const int clamped_volume = std::clamp(volume, 0, 100);
-    auto result = AudioPlaybackHelper::call_function_sync(
-                      AudioPlaybackHelper::FunctionId::SetVolume,
-                      static_cast<double>(clamped_volume),
-                      service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                  );
-    if (!result) {
-        BROOKESIA_LOGW("Failed to set audio volume: %1%", result.error());
-    } else {
-        device_ui_state_.volume = clamped_volume;
+    const auto generation = ++sound_control_generation_;
+    const std::weak_ptr<SoundUiMailbox> weak_mailbox = sound_ui_mailbox_;
+    device_ui_state_.sound_pending = true;
+    device_ui_state_.sound_error.clear();
+    const auto completion = [weak_mailbox, generation](service::FunctionResult &&result) {
+        if (auto mailbox = weak_mailbox.lock()) {
+            boost::lock_guard lock(mailbox->mutex);
+            if (mailbox->open && generation >= mailbox->control_result_generation) {
+                mailbox->control_result_generation = generation;
+                mailbox->control_result_pending = true;
+                mailbox->control_result_success = result.success;
+            }
+        }
+        if (!result.success) {
+            BROOKESIA_LOGW("Failed to set audio volume: %1%", result.error_message);
+        }
+    };
+    auto submitted = AudioPlaybackHelper::call_function_async(
+                         AudioPlaybackHelper::FunctionId::SetVolume,
+                         static_cast<double>(clamped_volume), completion
+                     );
+    if (!submitted) {
+        BROOKESIA_LOGW("Failed to submit audio volume change");
+        device_ui_state_.sound_pending = false;
+        device_ui_state_.sound_error = "sound.update_failed";
     }
     if (auto refresh_result = refresh_sound_state(context); !refresh_result) {
         BROOKESIA_LOGW("Failed to refresh audio volume UI: %1%", refresh_result.error());
@@ -737,19 +908,95 @@ void SettingsApp::set_mute(system::core::AppContext &context, bool muted)
         }
         return;
     }
-    auto result = AudioPlaybackHelper::call_function_sync(
-                      AudioPlaybackHelper::FunctionId::SetMute,
-                      muted,
-                      service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                  );
-    if (!result) {
-        BROOKESIA_LOGW("Failed to set audio mute: %1%", result.error());
-    } else {
-        device_ui_state_.muted = muted;
+    const auto generation = ++sound_control_generation_;
+    const std::weak_ptr<SoundUiMailbox> weak_mailbox = sound_ui_mailbox_;
+    device_ui_state_.sound_pending = true;
+    device_ui_state_.sound_error.clear();
+    const auto completion = [weak_mailbox, generation](service::FunctionResult &&result) {
+        if (auto mailbox = weak_mailbox.lock()) {
+            boost::lock_guard lock(mailbox->mutex);
+            if (mailbox->open && generation >= mailbox->control_result_generation) {
+                mailbox->control_result_generation = generation;
+                mailbox->control_result_pending = true;
+                mailbox->control_result_success = result.success;
+            }
+        }
+        if (!result.success) {
+            BROOKESIA_LOGW("Failed to set audio mute: %1%", result.error_message);
+        }
+    };
+    auto submitted = AudioPlaybackHelper::call_function_async(
+                         AudioPlaybackHelper::FunctionId::SetMute, muted, completion
+                     );
+    if (!submitted) {
+        BROOKESIA_LOGW("Failed to submit audio mute change");
+        device_ui_state_.sound_pending = false;
+        device_ui_state_.sound_error = "sound.update_failed";
     }
     if (auto refresh_result = refresh_sound_state(context); !refresh_result) {
         BROOKESIA_LOGW("Failed to refresh audio mute UI: %1%", refresh_result.error());
     }
+}
+
+std::expected<void, std::string> SettingsApp::play_test_sound(system::core::AppContext &context)
+{
+    if (!device_ui_state_.audio_service_ready || !device_ui_state_.audio_player_supported ||
+            device_ui_state_.sound_pending || settings_tone_active_ ||
+            BROOKESIA_APP_SETTINGS_SOUND_TEST_URL[0] == '\0' || !sound_ui_mailbox_) {
+        device_ui_state_.sound_error = "sound.unavailable";
+        return refresh_sound_state(context);
+    }
+
+    auto mailbox = sound_ui_mailbox_;
+    bool mailbox_open = false;
+    {
+        boost::lock_guard lock(mailbox->mutex);
+        mailbox_open = mailbox->open;
+        if (mailbox_open) {
+            mailbox->playback_started = false;
+            mailbox->playback_finished = false;
+        }
+    }
+    if (!mailbox_open) {
+        device_ui_state_.sound_error = "sound.unavailable";
+        return refresh_sound_state(context);
+    }
+    device_ui_state_.sound_error.clear();
+    settings_tone_active_ = true;
+    settings_tone_deadline_ = SteadyClock::now() + std::chrono::milliseconds(2500);
+    service::helper::Audio::PlayUrlConfig config{
+        .interrupt = false,
+        .loop_count = 0,
+        .timeout_ms = 2000,
+        .only_if_idle = true,
+    };
+    const std::weak_ptr<SoundUiMailbox> weak_mailbox = mailbox;
+    const auto completion = [weak_mailbox](service::FunctionResult &&result) {
+        if (result.success) {
+            return;
+        }
+        BROOKESIA_LOGW("Failed to play Settings sound test: %1%", result.error_message);
+        if (auto active = weak_mailbox.lock()) {
+            boost::lock_guard lock(active->mutex);
+            if (active->open) {
+                active->error = result.error_message.find("Audio playback is busy") != std::string::npos ?
+                                "sound.busy" : "sound.play_failed";
+                active->playback_finished = true;
+            }
+        }
+    };
+    auto submitted = AudioPlaybackHelper::call_function_async(
+                         AudioPlaybackHelper::FunctionId::Play,
+                         std::string(BROOKESIA_APP_SETTINGS_SOUND_TEST_URL),
+                         BROOKESIA_DESCRIBE_TO_JSON(config).as_object(), completion
+                     );
+    if (!submitted) {
+        BROOKESIA_LOGW("Failed to submit Settings sound test");
+        settings_tone_active_ = false;
+        settings_tone_deadline_ = {};
+        device_ui_state_.sound_error = "sound.play_failed";
+    }
+    return refresh_sound_state(context);
 }
 
 void SettingsApp::bind_display_service()

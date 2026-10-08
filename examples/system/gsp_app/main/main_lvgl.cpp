@@ -17,6 +17,7 @@
 
 #if CONFIG_BROOKESIA_LVGL_HW_PROBE
 #   include "lvgl_probe.ipp"
+#   include "lvgl_settings_probe.ipp"
 #   if CONFIG_BROOKESIA_LVGL_WIFI_CONNECT_PROBE
 #       include "lvgl_connect_probe.ipp"
 #   endif
@@ -77,6 +78,8 @@ void run_main()
 #   else
     if (!esp_brookesia::gsp_app::lvgl_probe::run(*system_instance, display)) {
         BROOKESIA_LOGE("LVGL hardware probe FAILED");
+    } else if (!esp_brookesia::gsp_app::lvgl_settings_probe::run(*system_instance, display)) {
+        BROOKESIA_LOGE("LVGL Settings probe FAILED");
     }
 #   endif
 #endif

@@ -19,6 +19,9 @@ constexpr int ESP_GSP_ERR_TIMEOUT = 0x107;
 struct esp_gsp_config_t {
     const void *bundle = nullptr;
     size_t bundle_size = 0;
+    const void *directories = nullptr;
+    const void *ttf = nullptr;
+    size_t ttf_size = 0;
 };
 
 struct esp_gsp_deployable_info_t {

@@ -17,9 +17,19 @@ menu "Brookesia system GSP example"
             This temporarily changes Wi-Fi state and restores it on success.
             Leave disabled for normal use.
 
+    config BROOKESIA_GSP_SETTINGS_PROBE
+        bool "Run Settings sound and appearance checks instead of scan checks"
+        depends on BROOKESIA_GSP_WIFI_PROBE
+        default n
+        help
+            Exercise the Settings pages with injected touch, capture frames,
+            check sound controls, and record a short resource regression.
+            Leave disabled for normal use.
+
     config BROOKESIA_GSP_WIFI_CONNECT_PROBE
         bool "Run password and connection checks instead of scan checks"
         depends on BROOKESIA_GSP_WIFI_PROBE
+        depends on !BROOKESIA_GSP_SETTINGS_PROBE
         default n
         help
             Accept temporary test credentials over the serial console, then

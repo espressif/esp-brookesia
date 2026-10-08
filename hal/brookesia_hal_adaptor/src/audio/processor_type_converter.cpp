@@ -45,6 +45,7 @@ audio_playback_config_t AudioProcessorTypeConverter::convert(
     };
 }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 av_processor_format_id_t AudioProcessorTypeConverter::convert(audio::CodecFormat format)
 {
     switch (format) {
@@ -202,5 +203,6 @@ audio_feeder_config_t AudioProcessorTypeConverter::convert(
 
     return result;
 }
+#endif
 
 } // namespace esp_brookesia::hal

@@ -27,6 +27,7 @@
 #include "brookesia/lib_utils/function_guard.hpp"
 #include "brookesia/service_display/service_display.hpp"
 #include "brookesia/service_helper/media/display.hpp"
+#include "brookesia/service_helper/media/audio.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
 #include "brookesia/system_core.hpp"
@@ -40,7 +41,7 @@
 #   include "esp_lcd_mipi_dsi.h"
 #   include "wifi_probe_hooks.hpp"
 #endif
-#if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
+#if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE || CONFIG_BROOKESIA_GSP_SETTINGS_PROBE
 #   include <algorithm>
 #   include <cctype>
 #   include <optional>
@@ -75,6 +76,28 @@ ShellState shell_state;
 
 class ShellSystem: public system::core::System {
 public:
+#if CONFIG_BROOKESIA_GSP_SETTINGS_PROBE
+    auto probe_appearance()
+    {
+        return system_gui().get_theme_language();
+    }
+#endif
+    std::expected<void, std::string> on_start() override
+    {
+        // Use the same stored preferences as Super; selection takes effect at restart.
+        begin_gui_preferences_restore();
+        const auto saved_theme = get_stored_gui_theme_id().value_or("light");
+        const auto saved_language = get_stored_gui_language().value_or("en");
+        const auto theme = saved_theme == "dark" ? "dark" : "light";
+        const auto language = saved_language == "zh_CN" || saved_language == "zh" ? "zh_CN" : "en";
+        auto result = system_gui().set_theme(theme, false);
+        if (result) {
+            result = system_gui().set_language(language, false);
+        }
+        mark_gui_preferences_restored();
+        return result;
+    }
+
     void set_settings_keyboard_target(
         const std::shared_ptr<app::settings::SettingsApp> &settings, system::core::AppId app_id
     )
@@ -286,6 +309,9 @@ bool run_brightness_probe(uint32_t output_id, int saved_brightness)
 
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
 #   include "wifi_probe.ipp"
+#   if CONFIG_BROOKESIA_GSP_SETTINGS_PROBE
+#       include "settings_probe.ipp"
+#   endif
 #   if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
 #       include "wifi_connect_probe.ipp"
 #   endif
@@ -348,6 +374,13 @@ void run_main()
         return;
     }
 
+    static service::ServiceBinding playback_binding = service::ServiceManager::get_instance().bind(
+                service::helper::AudioPlayback::get_name().data()
+            );
+    if (!playback_binding.is_valid()) {
+        BROOKESIA_LOGW("Audio playback is unavailable; Settings sound controls will be disabled");
+    }
+
     static auto launcher = std::make_shared<LauncherApp>();
     static auto settings = std::make_shared<app::settings::SettingsApp>();
     auto launcher_id = system_instance.install_app(launcher);
@@ -404,7 +437,16 @@ void run_main()
     }
 
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
-#   if CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
+#   if CONFIG_BROOKESIA_GSP_SETTINGS_PROBE
+    if (!settings_probe_load_cost(system_instance, shell_state.settings_id)) {
+        BROOKESIA_LOGE("Settings load cost probe FAILED");
+        return;
+    }
+    if (!run_settings_probe(system_instance, shell_state.settings_id, *panel)) {
+        BROOKESIA_LOGE("Settings sound and appearance probe FAILED");
+        (void)run_app(system_instance, shell_state.settings_id, "settings", false);
+    }
+#   elif CONFIG_BROOKESIA_GSP_WIFI_CONNECT_PROBE
     if (!run_wifi_connect_probe(system_instance, shell_state.settings_id, *panel, test_credentials)) {
         BROOKESIA_LOGE("Wi-Fi connection probe FAILED");
         return;
@@ -462,6 +504,13 @@ void run_main()
     }
 #endif
     BROOKESIA_LOGI("Interactive launcher is running. Confirm the panel visually; serial logs do not prove the picture");
+#if CONFIG_BROOKESIA_GSP_SETTINGS_PROBE
+    if (!settings_probe_navigation_failure()) {
+        BROOKESIA_LOGE("Settings navigation failure probe FAILED");
+        return;
+    }
+    settings_probe_console(system_instance, *panel);
+#endif
     while (true) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }

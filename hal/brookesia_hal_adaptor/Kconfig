@@ -305,6 +305,15 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
             help
                 Enable the high-level audio processor backed by av_processor.
 
+        config BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
+            bool "Audio Processor Recording"
+            depends on BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
+            default y
+            help
+                Expose high-level audio encoder and decoder interfaces, including
+                AFE wake-word support. Disable for playback-only applications;
+                the raw codec player and recorder interfaces remain available.
+
         if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_CODEC_RECORDER_IMPL
             config BROOKESIA_HAL_ADAPTOR_AUDIO_CODEC_RECORDER_BITS
                 int "Recorder bits"

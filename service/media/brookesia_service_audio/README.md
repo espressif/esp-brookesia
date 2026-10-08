@@ -6,6 +6,8 @@
 
 `brookesia_service_audio` is the media service for audio playback, capture, AFE, and volume control.
 
+Playback callers may set `PlayUrlConfig::only_if_idle` with `interrupt=false` to reject a busy player instead of queueing a request. The option defaults to false, preserving existing playback behavior.
+
 For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/service/audio.html).
 
 ## DataFlow Integration

@@ -56,9 +56,10 @@ system::core::AppGuiDescriptor SettingsApp::get_gui_descriptor() const
     };
 }
 
-std::expected<void, std::string> SettingsApp::on_install(system::core::AppContext &)
+std::expected<void, std::string> SettingsApp::on_install(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    impl_->installed_context = &context;
     bind_storage_service();
     bind_wifi_service();
     wifi_ui_state_.enabled = load_wifi_enabled_preference();
@@ -74,6 +75,7 @@ std::expected<void, std::string> SettingsApp::on_install(system::core::AppContex
 void SettingsApp::on_uninstall(system::core::AppContext &context)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    impl_->installed_context = nullptr;
     ++wifi_operation_generation_;
     if (wifi_ui_mailbox_) {
         wifi_ui_mailbox_->close();
@@ -91,6 +93,8 @@ void SettingsApp::on_uninstall(system::core::AppContext &context)
     release_utils_debug_service();
     release_wifi_service();
     release_device_service();
+    release_display_service();
+    release_audio_service();
     release_storage_service();
 }
 
@@ -103,6 +107,9 @@ std::expected<void, std::string> SettingsApp::on_start(system::core::AppContext 
     const auto start_profile_started_at = SteadyClock::now();
     bool start_profile_succeeded = false;
     lib_utils::FunctionGuard start_profile_guard([&]() {
+        if (!start_profile_succeeded) {
+            shutdown_brightness_callbacks();
+        }
         if (!start_profile_succeeded && wifi_ui_mailbox_) {
             wifi_ui_mailbox_->close();
             wifi_ui_mailbox_.reset();
@@ -350,6 +357,12 @@ std::expected<void, std::string> SettingsApp::on_timer(
 )
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (name == SOUND_UI_TIMER_NAME) {
+        if (timer_id != sound_ui_timer_id_ || !sound_ui_mailbox_) {
+            return {};
+        }
+        return drain_sound_events(context);
+    }
     if (name == WIFI_UI_TIMER_NAME) {
         if (timer_id != wifi_ui_timer_id_ || !wifi_ui_mailbox_) {
             return {};

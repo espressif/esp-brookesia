@@ -44,12 +44,14 @@ bool AudioDevice::set_processor_config(AudioProcessorConfig config)
     BROOKESIA_CHECK_FALSE_RETURN(
         !is_iface_initialized(PLAYBACK_IMPL_NAME), false, "Should be called before initializing audio playback"
     );
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     BROOKESIA_CHECK_FALSE_RETURN(
         !is_iface_initialized(ENCODER_IMPL_NAME), false, "Should be called before initializing audio encoder"
     );
     BROOKESIA_CHECK_FALSE_RETURN(
         !is_iface_initialized(DECODER_IMPL_NAME), false, "Should be called before initializing audio decoder"
     );
+#endif
 
     processor_config_ = std::move(config);
 
@@ -74,8 +76,10 @@ std::vector<InterfaceSpec> AudioDevice::get_interface_specs() const
 #endif
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
     specs.push_back({audio::PlaybackIface::NAME, PLAYBACK_IMPL_NAME});
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     specs.push_back({audio::EncoderIface::NAME, ENCODER_IMPL_NAME});
     specs.push_back({audio::DecoderIface::NAME, DECODER_IMPL_NAME});
+#endif
 #endif
     return specs;
 }
@@ -222,22 +226,28 @@ bool AudioDevice::init_processor()
     });
 
     std::shared_ptr<AudioPlaybackImpl> playback_iface = nullptr;
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     std::shared_ptr<AudioEncoderImpl> encoder_iface = nullptr;
     std::shared_ptr<AudioDecoderImpl> decoder_iface = nullptr;
+#endif
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         playback_iface = std::make_shared<AudioPlaybackImpl>(core), false, "Failed to create audio playback interface"
     );
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         encoder_iface = std::make_shared<AudioEncoderImpl>(core), false, "Failed to create audio encoder interface"
     );
     BROOKESIA_CHECK_EXCEPTION_RETURN(
         decoder_iface = std::make_shared<AudioDecoderImpl>(core), false, "Failed to create audio decoder interface"
     );
+#endif
 
     processor_core_ = core;
     interfaces_.emplace(PLAYBACK_IMPL_NAME, playback_iface);
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     interfaces_.emplace(ENCODER_IMPL_NAME, encoder_iface);
     interfaces_.emplace(DECODER_IMPL_NAME, decoder_iface);
+#endif
 
     iface_delete_guard.release();
 
@@ -253,8 +263,10 @@ void AudioDevice::deinit_processor()
         return;
     }
 
+#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     interfaces_.erase(DECODER_IMPL_NAME);
     interfaces_.erase(ENCODER_IMPL_NAME);
+#endif
     interfaces_.erase(PLAYBACK_IMPL_NAME);
     processor_core_.reset();
 }
