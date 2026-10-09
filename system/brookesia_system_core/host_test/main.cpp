@@ -21,6 +21,7 @@
 #include <variant>
 #include <vector>
 
+#include "boost/json.hpp"
 #include "brookesia/runtime_manager/types.hpp"
 #include "brookesia/service_manager.hpp"
 #include "brookesia/system_core/app/package.hpp"
@@ -42,6 +43,7 @@ using esp_brookesia::runtime::NativeValue;
 using esp_brookesia::service::EventItemSchema;
 using esp_brookesia::service::EventItemType;
 using esp_brookesia::service::EventSchema;
+using esp_brookesia::service::RawBuffer;
 using esp_brookesia::service::FunctionParameterMap;
 using esp_brookesia::service::FunctionParameterSchema;
 using esp_brookesia::service::FunctionResult;
@@ -50,9 +52,14 @@ using esp_brookesia::service::FunctionValueType;
 using esp_brookesia::service::ManagerService;
 using esp_brookesia::service::ServiceBase;
 using esp_brookesia::service::ServiceManager;
+using esp_brookesia::system::core::AppGuiDescriptor;
 using esp_brookesia::system::core::AppKind;
 using esp_brookesia::system::core::AppManifest;
 using esp_brookesia::system::core::AppManifestService;
+using esp_brookesia::system::core::GuiBackend;
+using esp_brookesia::system::core::GuiRootKind;
+using esp_brookesia::system::core::check_runtime_package_gui_backend;
+using esp_brookesia::system::core::read_runtime_app_resource_descriptor;
 using esp_brookesia::system::core::read_unpacked_app_manifest;
 using esp_brookesia::system::core::SystemCoreHelper;
 using esp_brookesia::system::core::SystemGuiHelper;
@@ -61,6 +68,35 @@ using esp_brookesia::system::core::SystemTimerHelper;
 using esp_brookesia::system::core::detail::evaluate_service_requirements;
 using esp_brookesia::system::core::detail::is_service_version_compatible;
 using FunctionHandlerMap = ServiceBase::FunctionHandlerMap;
+
+boost::json::object host_file_info(const std::filesystem::path &path)
+{
+    std::error_code error;
+    const auto status = std::filesystem::status(path, error);
+    if (error || !std::filesystem::exists(status)) {
+        return {
+            {"type", "Missing"},
+            {"size", 0},
+            {"mtime_ms", 0},
+            {"exists", false},
+        };
+    }
+    std::string_view type = "Other";
+    int64_t size = 0;
+    if (std::filesystem::is_regular_file(status)) {
+        type = "File";
+        const auto file_size = std::filesystem::file_size(path, error);
+        size = error ? 0 : static_cast<int64_t>(file_size);
+    } else if (std::filesystem::is_directory(status)) {
+        type = "Directory";
+    }
+    return {
+        {"type", type},
+        {"size", size},
+        {"mtime_ms", 0},
+        {"exists", true},
+    };
+}
 
 constexpr std::string_view TEST_RPC_NAME = "RequirementTestRpc";
 constexpr std::string_view INVALID_VERSION_RPC_NAME = "InvalidVersionRpc";
@@ -169,6 +205,43 @@ public:
                     .type = FunctionValueType::String,
                     .description = "File contents.",
                 },
+            },
+            {
+                .name = "FSStat",
+                .description = "Get host file information.",
+                .parameters = {
+                    FunctionParameterSchema{
+                        .name = "Path",
+                        .description = "Host file path.",
+                        .type = FunctionValueType::String,
+                    }
+                },
+                .require_scheduler = false,
+                .return_value = esp_brookesia::service::FunctionReturnSchema{
+                    .type = FunctionValueType::Object,
+                    .description = "File information.",
+                },
+            },
+            {
+                .name = "FSRead",
+                .description = "Read a host file into a caller buffer.",
+                .parameters = {
+                    FunctionParameterSchema{
+                        .name = "Path",
+                        .description = "Host file path.",
+                        .type = FunctionValueType::String,
+                    },
+                    FunctionParameterSchema{
+                        .name = "Buffer",
+                        .description = "Destination buffer.",
+                        .type = FunctionValueType::RawBuffer,
+                    }
+                },
+                .require_scheduler = false,
+                .return_value = esp_brookesia::service::FunctionReturnSchema{
+                    .type = FunctionValueType::Number,
+                    .description = "Bytes read.",
+                },
             }};
     }
 
@@ -210,7 +283,76 @@ protected:
                 .data = std::move(contents),
             };
         };
-        return {{"FSReadText", std::move(read_text_handler)}};
+        auto stat_handler = [](FunctionParameterMap && parameters) -> FunctionResult {
+            const auto path_it = parameters.find("Path");
+            if (path_it == parameters.end())
+            {
+                return FunctionResult{
+                    .success = false,
+                    .error_message = "Missing Path",
+                };
+            }
+            const auto *path = std::get_if<std::string>(&path_it->second);
+            if (path == nullptr)
+            {
+                return FunctionResult{
+                    .success = false,
+                    .error_message = "Path is not a string",
+                };
+            }
+            return FunctionResult{
+                .success = true,
+                .data = host_file_info(*path),
+            };
+        };
+        auto read_handler = [](FunctionParameterMap && parameters) -> FunctionResult {
+            const auto path_it = parameters.find("Path");
+            const auto buffer_it = parameters.find("Buffer");
+            if ((path_it == parameters.end()) || (buffer_it == parameters.end()))
+            {
+                return FunctionResult{
+                    .success = false,
+                    .error_message = "Invalid FSRead parameters",
+                };
+            }
+            const auto *path = std::get_if<std::string>(&path_it->second);
+            const auto *buffer = std::get_if<RawBuffer>(&buffer_it->second);
+            if ((path == nullptr) || (buffer == nullptr) || (buffer->to_ptr<uint8_t>() == nullptr))
+            {
+                return FunctionResult{
+                    .success = false,
+                    .error_message = "Invalid FSRead parameters",
+                };
+            }
+            std::ifstream input(*path, std::ios::binary);
+            if (!input.is_open())
+            {
+                return FunctionResult{
+                    .success = false,
+                    .error_message = "Failed to open host file: " + *path,
+                };
+            }
+            input.read(
+                reinterpret_cast<char *>(buffer->to_ptr<uint8_t>()),
+                static_cast<std::streamsize>(buffer->data_size)
+            );
+            if (!input && !input.eof())
+            {
+                return FunctionResult{
+                    .success = false,
+                    .error_message = "Failed to read host file: " + *path,
+                };
+            }
+            return FunctionResult{
+                .success = true,
+                .data = static_cast<double>(input.gcount()),
+            };
+        };
+        return {
+            {"FSReadText", std::move(read_text_handler)},
+            {"FSStat", std::move(stat_handler)},
+            {"FSRead", std::move(read_handler)},
+        };
     }
 };
 
@@ -488,6 +630,102 @@ bool verify_manifest_parser()
             std::cerr << "Invalid manifest case unexpectedly passed: " << invalid_case.name << '\n';
             return false;
         }
+    }
+
+    parsed = parse_manifest_case(
+                 temporary_directory.get_path(),
+                 R"({"package":{"id":"device","name":{"en":"Device"},"version":"0.1.0"},)"
+                 R"("runtime":{"type":"JavaScript","entry":"app.js"},"gui":{"backend":"gsp"}})"
+             );
+    if (!require(parsed.has_value(), "Explicit GSP GUI backend was rejected") ||
+            !require(parsed->gui_backend == GuiBackend::Gsp, "GSP GUI backend was not stored") ||
+            !require(parsed->runtime_type == esp_brookesia::runtime::BackendType::JavaScript,
+                     "JavaScript execution backend was not stored")) {
+        return false;
+    }
+
+    parsed = parse_manifest_case(
+                 temporary_directory.get_path(),
+                 R"({"package":{"id":"device","name":{"en":"Device"},"version":"0.1.0"},)"
+                 R"("runtime":{"type":"JavaScript","entry":"app.js"},"gui":{"backend":"json"}})"
+             );
+    if (parsed) {
+        std::cerr << "Unknown GUI backend unexpectedly passed\n";
+        return false;
+    }
+    return true;
+}
+
+bool verify_gsp_package_descriptor()
+{
+    TemporaryDirectory temporary_directory;
+    if (!require(temporary_directory.is_valid(), "Failed to create GSP package directory")) {
+        return false;
+    }
+    const auto root = temporary_directory.get_path();
+    const auto manifest = root / "manifest.json";
+    const auto profile = root / "res" / "profile.json";
+    const auto bundle = root / "res" / "device.gspb";
+    std::filesystem::create_directories(profile.parent_path());
+    {
+        std::ofstream output(manifest, std::ios::binary | std::ios::trunc);
+        output << R"({"package":{"id":"device","name":{"en":"Device"},"version":"0.1.0"},)"
+               R"("runtime":{"type":"JavaScript","entry":"app.js","resource_dir":"res"},)"
+               R"("gui":{"backend":"gsp"}})";
+    }
+    {
+        std::ofstream output(profile, std::ios::binary | std::ios::trunc);
+        output << R"({"gui_backend":"gsp","root":"device.gspb"})";
+    }
+    {
+        std::ofstream output(bundle, std::ios::binary | std::ios::trunc);
+        output << "GSPB";
+        output << std::string(64, '\0');
+    }
+
+    auto parsed = read_unpacked_app_manifest(root.generic_string());
+    if (!require(parsed.has_value(), "GSP package manifest was rejected")) {
+        return false;
+    }
+    auto descriptor = read_runtime_app_resource_descriptor(*parsed);
+    const std::string descriptor_error = descriptor ? std::string() : descriptor.error();
+    if (!require(descriptor.has_value(), "GSP profile was rejected: " + descriptor_error) ||
+            !require(descriptor->gui.root_kind == GuiRootKind::GspBundle, "Profile was not a GSP bundle") ||
+            !require(descriptor->gui.root == "device.gspb", "GSP bundle path was not preserved") ||
+            !require(descriptor->gui.screen_flows.empty(), "GSP profile kept JSON screen flows")) {
+        return false;
+    }
+
+    AppGuiDescriptor json_gui;
+    json_gui.root_kind = GuiRootKind::File;
+    json_gui.root = "root.json";
+    auto host_mismatch = check_runtime_package_gui_backend(GuiBackend::Lvgl, json_gui, GuiBackend::Gsp);
+    if (host_mismatch) {
+        std::cerr << "LVGL package on a GSP host was accepted\n";
+        return false;
+    }
+    auto package_mismatch = check_runtime_package_gui_backend(GuiBackend::Gsp, descriptor->gui, GuiBackend::Lvgl);
+    if (package_mismatch) {
+        std::cerr << "GSP package on an LVGL host was accepted\n";
+        return false;
+    }
+    auto matched = check_runtime_package_gui_backend(GuiBackend::Gsp, descriptor->gui, GuiBackend::Gsp);
+    if (!require(matched.has_value(), "Matching GSP package and host were rejected")) {
+        return false;
+    }
+
+    {
+        std::ofstream output(bundle, std::ios::binary | std::ios::trunc);
+        output << "XXXX";
+    }
+    auto damaged = read_runtime_app_resource_descriptor(*parsed);
+    if (damaged) {
+        std::cerr << "Damaged GSP bundle was accepted\n";
+        return false;
+    }
+    if (damaged.error().find("Damaged GSP bundle") == std::string::npos) {
+        std::cerr << "Damaged GSP bundle error was not explicit: " << damaged.error() << '\n';
+        return false;
     }
     return true;
 }
@@ -1037,6 +1275,7 @@ bool run_tests()
     );
 
     const bool passed = verify_manifest_parser() &&
+                        verify_gsp_package_descriptor() &&
                         verify_requirement_evaluator(manager) &&
                         verify_compatible_version(bridge, *service) &&
                         verify_version_rejections(bridge) &&

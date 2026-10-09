@@ -116,6 +116,125 @@
       "callback": "open_settings",
       "font": "../../../../../app/brookesia_app_settings/gsp/fonts/DroidSansFallback-CommonChinese.ttf",
       "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "installed_caption",
+      "x": 54,
+      "y": 424,
+      "w": 916,
+      "h": 32,
+      "text": "Installed apps",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": true
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "installed_caption_zh",
+      "x": 54,
+      "y": 424,
+      "w": 916,
+      "h": 32,
+      "text": "已安装应用",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font": "../../../../../app/brookesia_app_settings/gsp/fonts/DroidSansFallback-CommonChinese.ttf",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "app_slot_0",
+      "bind": "app_slot_0",
+      "x": 54,
+      "y": 468,
+      "w": 220,
+      "h": 64,
+      "text": "Installed application",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 18,
+      "callback": "open_app_0",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "app_slot_1",
+      "bind": "app_slot_1",
+      "x": 286,
+      "y": 468,
+      "w": 220,
+      "h": 64,
+      "text": "Installed application",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 18,
+      "callback": "open_app_1",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "app_slot_2",
+      "bind": "app_slot_2",
+      "x": 518,
+      "y": 468,
+      "w": 220,
+      "h": 64,
+      "text": "Installed application",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 18,
+      "callback": "open_app_2",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "parent": -1,
+      "name": "app_slot_3",
+      "bind": "app_slot_3",
+      "x": 750,
+      "y": 468,
+      "w": 220,
+      "h": 64,
+      "text": "Installed application",
+      "font_size": 20,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 18,
+      "callback": "open_app_3",
+      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-",
+      "hidden": true
     }
   ],
   "themes": {

@@ -233,6 +233,9 @@ public:
     std::expected<void, std::string> ensure_gui_loaded(AppRecord &record, bool enable_idle_warm = true);
     std::expected<void, std::string> ensure_gsp_loaded(AppRecord &record);
     std::expected<void, std::string> stop_gsp_session(AppRecord &record);
+    std::expected<void, std::string> apply_runtime_gsp_update(
+        runtime::AppId runtime_app_id, const SystemHostBridge::GspUpdate &update
+    );
     bool gsp_session_running(const AppRecord &record) const;
     bool any_gsp_session_running() const;
     std::expected<void, std::string> hold_gsp_display_devices();

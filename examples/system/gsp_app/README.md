@@ -11,6 +11,8 @@ The interface is chosen in menuconfig:
 
 The project is set up for ESP32-P4 revision v3.1.
 
+You can also install apps over USB while the board is running. They appear on the launcher next to Settings; see [Installable apps](#installable-apps).
+
 ## Build and flash
 
 ```bash
@@ -49,7 +51,7 @@ For an existing checkout that disabled **Audio Device → Audio Processor**, ena
 
 ## Try it
 
-After the memory log, the screen shows **Brookesia** and a **Settings** button.
+After startup, the screen shows **Brookesia** and a **Settings** button.
 
 ```text
 Settings
@@ -65,6 +67,17 @@ Settings
 Open **Sound**, **Language**, or **Theme** from the Settings home page. Theme is also accessible from Display.
 
 With LVGL, the board shows the startup screen and then the desktop. Open Settings from there. Brightness uses the same display service.
+
+## Installable apps
+
+The launcher lists the apps installed on the board, up to four, next to **Settings**. Install, update, and uninstall them over USB while the board is running. No firmware rebuild is needed, and installed apps stay after a restart.
+
+```bash
+python -m pip install brookesia-usb
+brookesia-usb install <package>.bpk
+```
+
+A package installs only on the interface it was built for: a GSP package needs the GSP interface. [Device Control](../../app/gsp_js_device_control/README.md) is a ready-made example that reads and changes the brightness.
 
 ## Wi-Fi
 
@@ -106,26 +119,21 @@ After restart, the selected language and theme apply to the launcher and all Set
 
 The GSP launcher provides a Settings entry rather than the Super desktop. My device, time zone, diagnostics, and saved-network management remain in LVGL. Both interfaces use the same system preferences and hardware services.
 
-## Startup log
+## Diagnostics
 
-Reset prints a memory log before the launcher appears. The example opens and closes Settings 22 times: 2 to warm up, then 20 measured. This does not change the saved brightness.
+Normal startup goes straight to the launcher. The checks below are for development and are off by default. Enable them under **Brookesia system GSP example** in menuconfig.
 
-To try a brightness change from the service as well, edit `main/main_gsp.cpp`:
+| Option | What it does |
+| --- | --- |
+| **Open and close Settings repeatedly at startup to log heap use** | Opens and closes Settings 22 times, 2 to warm up and 20 measured, and logs memory before the launcher appears |
+| **Log heap across short start and exit cycles of the installed GSP JS app** | Does the same for the installed Device Control app with 5 cycles |
+| **Run Settings Wi-Fi hardware acceptance probe at startup** | Uses real scans and simulated touches to exercise refresh, scan cancellation, reopening, and Wi-Fi toggles, and logs memory over 20 cycles. It also shows synthetic empty and failed scan results and multilingual names |
+| **Run Settings sound and appearance checks instead of scan checks** | Available with the Wi-Fi probe. Checks page navigation, the test tone, mute restoration, and memory, and adds temporary serial commands `touch X Y`, `frame`, and `state` |
+| **Run password and connection checks instead of scan checks** | Available with the Wi-Fi probe. Tests password entry and connecting to a network |
+| **Run LVGL hardware acceptance probe at startup** | For the LVGL interface: checks desktop navigation, Settings, brightness, Wi-Fi, sound, language, and theme, captures screens, and logs memory over 20 cycles. **Run LVGL password and connection checks instead of desktop checks** adds the connection test |
 
-```cpp
-constexpr bool RUN_BRIGHTNESS_PROBE = true;
-```
+The connection checks need a dedicated personal test network. When the serial console reports that it is ready, send one JSON object with `ssid` and `password` fields. The firmware does not echo the credentials, so turn local echo off in your serial sender. A successful connection is saved by the normal Wi-Fi service.
 
-Rebuild and flash. The probe changes the brightness, then writes the previous percent back before the memory log.
+To also change the brightness from the service at startup, set `RUN_BRIGHTNESS_PROBE` to `true` in `main/main_gsp.cpp`. The probe writes the previous percent back afterwards.
 
-For Wi-Fi acceptance testing, enable **Run Settings Wi-Fi hardware acceptance probe at startup** under **Brookesia system GSP example** in menuconfig. The probe uses real scans and simulated touches to exercise refresh, scan cancellation, reopening, and Wi-Fi toggles, and logs memory over 20 measured cycles after warmup. Disable it for normal use.
-
-The probe also injects empty and failed scan outcomes and sample multilingual names to check the corresponding screens. These labeled cases are synthetic; the subsequent refreshes and repeated scans use nearby networks.
-
-For LVGL, the same example menu provides **Run LVGL hardware acceptance probe at startup**. It checks desktop navigation, Settings, brightness, Wi-Fi, and hardware discovery, captures screens, and records memory over 20 cycles. Both acceptance probes are disabled by default. The LVGL probe also checks Sound controls and opens the language and theme choices.
-
-Each probe has an optional password-and-connection mode. Use a dedicated personal test network and send a single JSON object with `ssid` and `password` fields when the serial console reports that it is ready. The firmware does not echo credentials; use a serial sender with local echo disabled. GSP checks password entry for an unsaved network, then tests stopping and restarting Wi-Fi during a direct connection from the list. If credentials are already saved, it runs only the direct-connection checks. LVGL can remove the test network's saved entry through Settings before entering its password again. A successful connection saves the credentials through the normal Wi-Fi service.
-
-The GSP probe has a **Sound and appearance checks** mode for page navigation, a short test tone, mute restoration, and memory sampling. It also injects label-update failures to check Back, Exit, and reopening. Its temporary serial console accepts `touch X Y`, `frame`, and `state` commands for visual checks; it is absent from normal firmware.
-
-Look at the panel to confirm the screens. The serial log records the service and the memory numbers.
+Look at the panel to confirm the screens. The serial log records service state and memory.

@@ -28,6 +28,7 @@ public:
         RequestCloseApp,
         StartApp,
         StopApp,
+        UninstallApp,
         ShowLoading,
         HideLoading,
         ShowKeyboard,
@@ -106,6 +107,7 @@ BROOKESIA_DESCRIBE_ENUM(
     RequestCloseApp,
     StartApp,
     StopApp,
+    UninstallApp,
     ShowLoading,
     HideLoading,
     ShowKeyboard,
@@ -157,6 +159,7 @@ private:
     service::FunctionResult request_close_app(service::FunctionParameterMap &&params);
     service::FunctionResult start_app(service::FunctionParameterMap &&params);
     service::FunctionResult stop_app(service::FunctionParameterMap &&params);
+    service::FunctionResult uninstall_app(service::FunctionParameterMap &&params);
     service::FunctionResult show_loading();
     service::FunctionResult hide_loading();
     service::FunctionResult show_keyboard(service::FunctionParameterMap &&params);

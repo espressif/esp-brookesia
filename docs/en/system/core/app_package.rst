@@ -17,6 +17,8 @@ An app package uses ``manifest.json`` to describe package metadata and the runti
 - ``.bpk``: a ZIP container, unpacked at runtime by ``system::core::unpack_app_package_to()``.
 - unpacked package: deploy ``manifest.json + app/ + res/`` directly, scanned and installed by ``System::init()``.
 
+A package can use either the LVGL or the GSP GUI backend. See ``gui`` under Manifest Fields and the Resource Descriptor section for how a GSP package differs.
+
 To run a ``.bpk``, first call the system_core package API (optionally ``verify_app_package_release()``, then ``unpack_app_package_to()``) to obtain an ``AppManifest``, then convert it with ``make_runtime_app_config()`` into a ``runtime::AppConfig``.
 
 .. _system-core-app_package-sec-02:
@@ -99,6 +101,18 @@ The ``runtime`` object:
    * - ``arguments``
      - String array of runtime startup arguments
 
+The optional top-level ``gui`` object selects the GUI backend. It is independent of the runtime in ``runtime.type``, so a JavaScript app can use either GUI backend:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Field
+     - Description
+   * - ``backend``
+     - ``lvgl`` (default) or ``gsp``. Leave ``gui`` out for an existing JSON UI package. A GSP package sets ``"backend": "gsp"``
+
+A package installs only on firmware that uses the same GUI backend. A GSP package cannot be installed on LVGL firmware, and a JSON UI package cannot be installed on GSP firmware.
+
 The optional top-level ``services`` array declares the service RPCs required by a runtime app:
 
 .. list-table::
@@ -140,6 +154,17 @@ Resource Descriptor
 
 ``icon_id`` locates the launcher icon within the package; ``root`` points to a standard JSON UI document; ``screen_flows[]`` specifies the startup flow. A regular app main screen should use ``AppDefault``, and ``AppTop`` is only for an app's own header, floating layer, or toolbar; a runtime app can only use ``Replace`` with ``z_order`` within ``0..100``. ``root.json`` is a standard JSON UI document and should reference a ``screenFlow`` asset.
 
+A GSP package uses a different ``profile.json``. ``root`` names a compiled ``.gspb`` bundle, and pages are GSP scenes inside it, so ``screen_flows`` and ``preload_dom`` are not used:
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb"
+   }
+
+``manifest.gui.backend`` must also be ``gsp``. ``examples/app/gsp_js_device_control`` is a complete GSP package.
+
 .. _system-core-app_package-sec-05:
 
 Scanning and Install
@@ -157,7 +182,8 @@ Safety Constraints
 - ``runtime.entry`` and ``runtime.resource_dir`` must be safe relative paths, not absolute and not containing ``..``.
 - A package whose ``package.systems`` does not match the current system type is skipped.
 - A missing or wrongly typed ``package.id``, ``package.version``, ``runtime.type``, or ``runtime.entry`` fails manifest parsing.
-- The runtime GUI startup flow must be written in ``screen_flows[]`` of ``profile.json``.
+- An LVGL runtime GUI startup flow must be written in ``screen_flows[]`` of ``profile.json``.
+- A GSP package must set both ``manifest.gui.backend`` and ``profile.json`` ``gui_backend`` to ``gsp``. A damaged bundle, or a backend that does not match the firmware, is rejected at install and leaves an already installed version in place.
 
 .. _system-core-app_package-sec-07:
 

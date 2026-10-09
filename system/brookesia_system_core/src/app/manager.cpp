@@ -119,8 +119,14 @@ std::expected<void, std::string> validate_gui_descriptor(AppKind kind, const App
         if (!descriptor.screen_flows.empty()) {
             return std::unexpected("GSP bundle GUI does not use JSON screen flows");
         }
-        if (!descriptor.root.empty()) {
-            return std::unexpected("GSP bundle GUI does not use a JSON root path");
+        if (kind == AppKind::Native) {
+            if (!descriptor.root.empty()) {
+                return std::unexpected("Native GSP bundle GUI does not use a package bundle path");
+            }
+            return {};
+        }
+        if (descriptor.root.empty()) {
+            return std::unexpected("Runtime GSP bundle GUI requires a bundle path");
         }
         return {};
     }
@@ -430,6 +436,17 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
     if (!descriptor_result) {
         return std::unexpected(descriptor_result.error());
     }
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    const GuiBackend host_gui_backend = GuiBackend::Gsp;
+#else
+    const GuiBackend host_gui_backend = GuiBackend::Lvgl;
+#endif
+    auto backend_result = check_runtime_package_gui_backend(
+                              manifest.gui_backend, resource_descriptor->gui, host_gui_backend
+                          );
+    if (!backend_result) {
+        return std::unexpected(backend_result.error());
+    }
     auto storage_result = impl_->ensure_app_storage_paths(manifest.id);
     if (!storage_result) {
         return std::unexpected(storage_result.error());
@@ -498,7 +515,13 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
         }
         return std::unexpected(hook_result.error());
     }
-    BROOKESIA_LOGI("Runtime app installed: id(%1%), manifest(%2%)", app_id, manifest.id);
+    BROOKESIA_LOGI(
+        "Runtime app installed: id(%1%), manifest(%2%), execution_backend(%3%), gui_backend(%4%)",
+        app_id,
+        manifest.id,
+        BROOKESIA_DESCRIBE_TO_STR(manifest.runtime_type),
+        BROOKESIA_DESCRIBE_TO_STR(manifest.gui_backend)
+    );
     return app_id;
 }
 
@@ -1005,6 +1028,7 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
         impl_->cleanup_app_transient_resources(record);
         return {};
     }
+    const auto stop_started_at = SteadyClock::now();
     auto heap_before_stop = heap_trace::capture();
     heap_trace::log("system.stop", "before stop", record.info.manifest.id, heap_before_stop);
     record.info.state = AppState::Stopping;
@@ -1092,6 +1116,12 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     if (impl_->active_app_id_ == app_id) {
         impl_->active_app_id_ = INVALID_APP_ID;
     }
+    BROOKESIA_LOGI(
+        "App stopped: id(%1%), manifest(%2%), elapsed_ms(%3%)",
+        app_id,
+        record.info.manifest.id,
+        elapsed_ms_since(stop_started_at)
+    );
     on_app_stopped(record.info);
     heap_trace::log(
         "system.stop",
@@ -1100,7 +1130,6 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
         heap_trace::capture(),
         &heap_before_stop
     );
-    BROOKESIA_LOGI("App stopped: id(%1%), manifest(%2%)", app_id, record.info.manifest.id);
     return {};
 }
 

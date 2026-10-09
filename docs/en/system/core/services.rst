@@ -53,14 +53,14 @@ Core Service
      - Return the installed app list
    * - ``RequestCloseApp``
      - Request to close an app
-   * - ``StartApp`` / ``StopApp``
-     - Start or stop the specified app
+   * - ``StartApp`` / ``StopApp`` / ``UninstallApp``
+     - Start, stop, or uninstall the specified app
    * - ``ShowLoading`` / ``HideLoading``
      - Show or hide the calling app's loading overlay
    * - ``ShowKeyboard`` / ``HideKeyboard``
      - Show or cancel the calling app's system keyboard request
 
-Events include ``AppChanged`` (app state change) and ``KeyboardClosed`` (keyboard input completed or canceled, containing ``RequestId``, ``AppId``, ``Confirmed``, ``Text``). A regular runtime app may call the query functions; ``RequestCloseApp``, ``ShowLoading`` / ``HideLoading``, and ``ShowKeyboard`` / ``HideKeyboard`` act only on itself, and ``StartApp`` and ``StopApp`` are rejected; a native app should use ``SystemApi`` through ``AppContext::system_service()``.
+Events include ``AppChanged`` (app state change) and ``KeyboardClosed`` (keyboard input completed or canceled, containing ``RequestId``, ``AppId``, ``Confirmed``, ``Text``). A regular runtime app may call the query functions; ``RequestCloseApp``, ``ShowLoading`` / ``HideLoading``, and ``ShowKeyboard`` / ``HideKeyboard`` act only on itself, and ``StartApp``, ``StopApp``, and ``UninstallApp`` are rejected; a native app should use ``SystemApi`` through ``AppContext::system_service()``. A host connected over USB can call ``UninstallApp`` with ``brookesia-usb call``.
 
 A runtime app can call ``ShowKeyboard`` to request the system keyboard; ``Options`` supports ``title``, ``placeholder``, ``initial_text``, ``max_length``, ``password``, ``mode`` (``text`` / ``upper`` / ``number`` / ``special``), and ``allowedModes``. If ``mode`` is not in ``allowedModes``, the Shell uses the first item of ``allowedModes``; when unset, all four layouts are allowed by default. After the user confirms or cancels, ``KeyboardClosed`` returns ``RequestId``, ``AppId``, ``Confirmed``, and ``Text``.
 

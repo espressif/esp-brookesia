@@ -53,14 +53,14 @@ Core 服务
      - 返回已安装 app 列表
    * - ``RequestCloseApp``
      - 请求关闭 app
-   * - ``StartApp`` / ``StopApp``
-     - 启动或停止指定 app
+   * - ``StartApp`` / ``StopApp`` / ``UninstallApp``
+     - 启动、停止或卸载指定 app
    * - ``ShowLoading`` / ``HideLoading``
      - 显示或隐藏调用方 app 的 loading overlay
    * - ``ShowKeyboard`` / ``HideKeyboard``
      - 显示或取消调用方 app 的系统键盘请求
 
-事件包括 ``AppChanged``（app 状态变化）和 ``KeyboardClosed``（键盘输入完成或取消，包含 ``RequestId``、``AppId``、``Confirmed``、``Text``）。运行时普通 app 允许调用查询类函数，``RequestCloseApp``、``ShowLoading`` / ``HideLoading``、``ShowKeyboard`` / ``HideKeyboard`` 只作用于自己，``StartApp`` 和 ``StopApp`` 会被拒绝；原生应用建议通过 ``AppContext::system_service()`` 使用 ``SystemApi``。
+事件包括 ``AppChanged``（app 状态变化）和 ``KeyboardClosed``（键盘输入完成或取消，包含 ``RequestId``、``AppId``、``Confirmed``、``Text``）。运行时普通 app 允许调用查询类函数，``RequestCloseApp``、``ShowLoading`` / ``HideLoading``、``ShowKeyboard`` / ``HideKeyboard`` 只作用于自己，``StartApp``、``StopApp`` 和 ``UninstallApp`` 会被拒绝；原生应用建议通过 ``AppContext::system_service()`` 使用 ``SystemApi``。通过 USB 连接的主机可以用 ``brookesia-usb call`` 调用 ``UninstallApp``。
 
 运行时应用可调用 ``ShowKeyboard`` 请求系统键盘，``Options`` 支持 ``title``、``placeholder``、``initial_text``、``max_length``、``password``、``mode``（``text`` / ``upper`` / ``number`` / ``special``）和 ``allowedModes``。如果 ``mode`` 不在 ``allowedModes`` 中，Shell 自动使用 ``allowedModes`` 的第一项；未设置时默认允许全部四种布局。用户确认或取消后通过 ``KeyboardClosed`` event 返回 ``RequestId``、``AppId``、``Confirmed`` 和 ``Text``。
 

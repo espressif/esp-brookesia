@@ -5,7 +5,9 @@
  */
 #pragma once
 
+#include <array>
 #include <expected>
+#include <functional>
 #include <span>
 #include <string_view>
 
@@ -27,8 +29,19 @@ public:
         std::string_view action
     ) override;
 
+    void set_launch_request(std::function<void(system::core::AppId)> request);
+    std::expected<void, std::string> refresh_slots();
+
 private:
+    static constexpr size_t SLOT_COUNT = 4;
+
+    std::string slot_label(const system::core::AppInfo &app) const;
+    std::expected<void, std::string> open_slot(system::core::AppContext &context, size_t slot);
+
     system::core::AppContext *installed_context_ = nullptr;
+    system::core::AppContext *context_ = nullptr;
+    std::function<void(system::core::AppId)> launch_request_;
+    std::array<system::core::AppId, SLOT_COUNT> slot_apps_{};
 };
 
 } // namespace esp_brookesia::gsp_app

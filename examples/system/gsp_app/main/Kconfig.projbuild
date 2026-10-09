@@ -7,6 +7,24 @@ menu "Brookesia system GSP example"
         help
             This example can run GSP, so menuconfig includes that choice.
 
+    config BROOKESIA_GSP_SETTINGS_MEMORY_PROBE
+        bool "Open and close Settings repeatedly at startup to log heap use"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        default n
+        help
+            Start and stop Settings before the launcher, including 20 measured
+            cycles. Each cycle draws the Settings page. Leave disabled for
+            normal use, including after Restart now.
+
+    config BROOKESIA_GSP_JS_APP_MEMORY_PROBE
+        bool "Log heap across short start and exit cycles of the installed GSP JS app"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        default n
+        help
+            After warmup, start and stop brookesia.gsp.device_control five times
+            and log internal RAM and PSRAM. The app must already be installed.
+            Leave disabled for normal use.
+
     config BROOKESIA_GSP_WIFI_PROBE
         bool "Run Settings Wi-Fi hardware acceptance probe at startup"
         depends on BROOKESIA_GUI_BACKEND_GSP

@@ -53,6 +53,9 @@ endif()
 
 # Storage is a plugin. Reference its registrar so SystemCore can bind it.
 target_link_libraries(${COMPONENT_LIB} PRIVATE "-u service_storage_symbol" "-u service_device_symbol")
+if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+    target_link_libraries(${COMPONENT_LIB} PRIVATE "-u runtime_js_backend_symbol")
+endif()
 target_link_libraries(${COMPONENT_LIB} PRIVATE "-u settings_audio_playback_symbol")
 
 if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)

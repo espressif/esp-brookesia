@@ -5,6 +5,7 @@
  */
 #pragma once
 
+#include <cstdint>
 #include <expected>
 #include <functional>
 #include <memory>
@@ -31,12 +32,31 @@ public:
                                 std::string
                             )>;
 
+    /**
+     * @brief One named update from JavaScript onto the owning app's GSP session.
+     */
+    struct GspUpdate {
+        enum class Kind {
+            SetText,
+            SetValue,
+            ShowPage,
+        };
+
+        Kind kind = Kind::SetText;
+        std::string name;
+        std::string text;
+        int32_t value = 0;
+    };
+
+    using GspUpdater = std::function<std::expected<void, std::string>(runtime::AppId, const GspUpdate &)>;
+
     explicit SystemHostBridge(
         std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge =
             std::make_shared<runtime::RuntimeFunctionBridge>(),
         std::shared_ptr<lib_utils::TaskScheduler> task_scheduler = nullptr,
         StoragePathResolver storage_path_resolver = {},
-        EventDispatcher event_dispatcher = {}
+        EventDispatcher event_dispatcher = {},
+        GspUpdater gsp_updater = {}
     );
     ~SystemHostBridge() override;
 

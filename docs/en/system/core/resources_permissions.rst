@@ -95,7 +95,7 @@ Runtime App
 
 - Specify a GUI ``DocumentId``, layer, or mount target.
 - Call the load/unload GUI document service.
-- Start or stop other apps through a service.
+- Start, stop, or uninstall other apps through a service.
 - Change the default install target or access another app's private directory.
 - Register native image/font runtime resources.
 

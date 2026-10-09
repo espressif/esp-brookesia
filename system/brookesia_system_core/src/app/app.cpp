@@ -1231,6 +1231,18 @@ std::expected<AppId, std::string> System::install_runtime_app_package(
         cleanup_staging();
         return std::unexpected("Failed to validate staged runtime app package: " + descriptor_result.error());
     }
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    const GuiBackend host_gui_backend = GuiBackend::Gsp;
+#else
+    const GuiBackend host_gui_backend = GuiBackend::Lvgl;
+#endif
+    auto backend_result = check_runtime_package_gui_backend(
+                              unpacked_manifest->gui_backend, descriptor_result->gui, host_gui_backend
+                          );
+    if (!backend_result) {
+        cleanup_staging();
+        return std::unexpected(backend_result.error());
+    }
 
     if (installed) {
         auto preserve_result = preserve_runtime_app_private_data(old_app_dir, staged_app_dir);

@@ -8,9 +8,14 @@
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
 #endif
 #include <algorithm>
+#include <atomic>
+#include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <set>
+#include <span>
 #include <string_view>
+#include <vector>
 
 #if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
 #include "esp_timer.h"
@@ -21,12 +26,36 @@
 #include "private/utils.hpp"
 #include "private/heap_trace.hpp"
 #include "private/system/impl.hpp"
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   include "brookesia/gui_gsp/bundle.hpp"
+#endif
 
 namespace esp_brookesia::system::core {
 
 namespace {
 
 constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
+
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+uint32_t gsp_name_key(std::string_view name)
+{
+    uint32_t key = 2166136261U;
+    for (const char character : name) {
+        key = (key ^ static_cast<uint8_t>(character)) * 16777619U;
+    }
+    return key;
+}
+
+int64_t steady_us()
+{
+    return std::chrono::duration_cast<std::chrono::microseconds>(
+               std::chrono::steady_clock::now().time_since_epoch()
+           ).count();
+}
+
+std::atomic<int64_t> gsp_page_requested_us{0};
+std::atomic<uint32_t> gsp_page_delivery_seq{0};
+#endif
 
 #if BROOKESIA_SYSTEM_CORE_USE_JSON_GUI
 std::string make_binding_update_key(std::string_view absolute_path, std::string_view key)
@@ -569,13 +598,38 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
             return held;
         }
     }
-    if (!record.native_app) {
-        return std::unexpected("GSP bundle GUI requires a native app");
-    }
-    const auto bytes = record.native_app->gui_bundle();
-    const auto *runtime_config = static_cast<const esp_gsp_config_t *>(record.native_app->gui_runtime_config());
-    if ((runtime_config == nullptr) && bytes.empty()) {
-        return std::unexpected("GSP app has no compiled bundle");
+    std::vector<std::byte> package_bytes;
+    std::span<const std::byte> bytes;
+    const esp_gsp_config_t *runtime_config = nullptr;
+    if (record.native_app) {
+        bytes = record.native_app->gui_bundle();
+        runtime_config = static_cast<const esp_gsp_config_t *>(record.native_app->gui_runtime_config());
+        if ((runtime_config == nullptr) && bytes.empty()) {
+            return std::unexpected("GSP app has no compiled bundle");
+        }
+    } else if ((record.info.manifest.kind == AppKind::Runtime) &&
+               (record.gui_descriptor.root_kind == GuiRootKind::GspBundle)) {
+        const auto bundle_path = resolve_app_resource_path(record.info.manifest, record.gui_descriptor.root);
+        auto info = service::helper::Storage::fs_stat(bundle_path, STORAGE_FS_TIMEOUT_MS);
+        if (!info || !info->exists || (info->type != service::helper::Storage::FileType::File)) {
+            return std::unexpected("GSP bundle not found: " + bundle_path);
+        }
+        constexpr uint64_t MAX_BUNDLE_BYTES = 8U * 1024U * 1024U;
+        if ((info->size < 4) || (info->size > MAX_BUNDLE_BYTES)) {
+            return std::unexpected("Damaged GSP bundle: unexpected size: " + bundle_path);
+        }
+        package_bytes.resize(static_cast<size_t>(info->size));
+        auto read_result = service::helper::Storage::fs_read(
+                               bundle_path,
+                               service::RawBuffer(package_bytes.data(), package_bytes.size()),
+                               STORAGE_FS_TIMEOUT_MS
+                           );
+        if (!read_result || (*read_result != package_bytes.size())) {
+            return std::unexpected("Damaged GSP bundle: unable to read " + bundle_path);
+        }
+        bytes = std::span<const std::byte>(package_bytes.data(), package_bytes.size());
+    } else {
+        return std::unexpected("GSP bundle GUI requires a native app or a runtime GSP package");
     }
 
     if (record.gsp_host == nullptr) {
@@ -613,6 +667,12 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
         }
         return started;
     }
+    if (!record.native_app) {
+        if (auto handle = record.gsp_host->handle(); (handle != nullptr) &&
+                (esp_gsp_set_swipe_enabled(handle, false) != ESP_GSP_OK)) {
+            BROOKESIA_LOGW("Failed to disable GSP scene swipe for runtime app: %1%", record.info.manifest.id);
+        }
+    }
     BROOKESIA_LOGI("GSP app session started: manifest(%1%)", record.info.manifest.id);
     return {};
 #endif
@@ -637,6 +697,59 @@ std::expected<void, std::string> System::Impl::stop_gsp_session(AppRecord &recor
     record.gsp_event_target = {};
     if (record.gsp_epoch != nullptr) {
         record.gsp_epoch->fetch_add(1, std::memory_order_release);
+    }
+    return {};
+#endif
+}
+
+std::expected<void, std::string> System::Impl::apply_runtime_gsp_update(
+    runtime::AppId runtime_app_id, const SystemHostBridge::GspUpdate &update
+)
+{
+#if !CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    (void)runtime_app_id;
+    (void)update;
+    return std::unexpected("GSP GUI backend is not enabled");
+#else
+    auto owner = runtime_to_app_.find(runtime_app_id);
+    if (owner == runtime_to_app_.end()) {
+        return std::unexpected("Runtime app owner not found");
+    }
+    auto record_result = get_record(owner->second);
+    if (!record_result) {
+        return std::unexpected(record_result.error());
+    }
+    auto &record = *record_result.value();
+    if ((record.gsp_host == nullptr) || !record.gsp_host->running() || (record.gsp_host->handle() == nullptr)) {
+        return std::unexpected("GSP session is not running");
+    }
+    const auto handle = record.gsp_host->handle();
+    if (update.kind == SystemHostBridge::GspUpdate::Kind::ShowPage) {
+        if ((update.value < 0) || (update.value > static_cast<int32_t>(UINT16_MAX))) {
+            return std::unexpected("GSP page index is out of range");
+        }
+        gsp_page_requested_us.store(steady_us(), std::memory_order_release);
+        if (esp_gsp_goto_scene(
+                    handle, static_cast<uint16_t>(update.value), ESP_GSP_NO_TRANSITION
+                ) != ESP_GSP_OK) {
+            gsp_page_requested_us.store(0, std::memory_order_release);
+            return std::unexpected("Failed to show GSP page " + std::to_string(update.value));
+        }
+        BROOKESIA_LOGI("GSP page requested scene(%1%)", update.value);
+        return {};
+    }
+    if (update.name.empty()) {
+        return std::unexpected("GSP object name is empty");
+    }
+    const auto key = gsp_name_key(update.name);
+    if (update.kind == SystemHostBridge::GspUpdate::Kind::SetText) {
+        if (esp_gsp_component_set_text(handle, key, update.text.c_str()) != ESP_GSP_OK) {
+            return std::unexpected("Failed to update GSP text: " + update.name);
+        }
+        return {};
+    }
+    if (esp_gsp_component_set_value(handle, key, update.value) != ESP_GSP_OK) {
+        return std::unexpected("Failed to update GSP value: " + update.name);
     }
     return {};
 #endif
@@ -761,9 +874,15 @@ void System::Impl::dispatch_gsp_event(AppId app_id, const esp_gsp_event_t *event
         return;
     }
     std::string action_text(action);
-    auto posted = post_task(SYSTEM_APP_TASK_GROUP, [this, app_id, action_text, epoch]() {
+    const uint16_t scene_id = event->scene_id;
+    const uint16_t action_id = event->action_id;
+    const uint32_t arg = event->arg;
+    const bool scene_changed = event->type == ESP_GSP_EVENT_SCENE_CHANGED;
+    auto posted = post_task(
+                      SYSTEM_APP_TASK_GROUP,
+    [this, app_id, action_text, epoch, scene_id, action_id, arg, scene_changed]() {
         auto posted_record = get_record(app_id);
-        if (!posted_record || !posted_record.value()->native_app || !posted_record.value()->context) {
+        if (!posted_record || !posted_record.value()->context) {
             return;
         }
         auto &record = *posted_record.value();
@@ -775,14 +894,59 @@ void System::Impl::dispatch_gsp_event(AppId app_id, const esp_gsp_event_t *event
             BROOKESIA_LOGI("Dropping GSP action after the session ended: app_id(%1%)", app_id);
             return;
         }
-        auto result = record.native_app->on_action(*record.context, action_text);
+        if (record.native_app) {
+            auto result = record.native_app->on_action(*record.context, action_text);
+            if (!result) {
+                BROOKESIA_LOGW("GSP app action failed: app_id(%1%), error(%2%)", app_id, result.error());
+            }
+            return;
+        }
+        if (!record.runtime_app_id.has_value()) {
+            return;
+        }
+
+        if (scene_changed) {
+            const auto requested_us = gsp_page_requested_us.exchange(0, std::memory_order_acq_rel);
+            if (requested_us != 0) {
+                const auto elapsed_ms = (steady_us() - requested_us) / 1000;
+                BROOKESIA_LOGI("GSP page delivered scene(%1%) elapsed_ms(%2%)", scene_id, elapsed_ms);
+            }
+        }
+        boost::json::object payload;
+        payload["scene"] = scene_id;
+        std::string action_name = scene_changed ? "gsp.scene" : "gsp.call";
+        if (!scene_changed) {
+            payload["action_id"] = action_id;
+            payload["arg"] = arg;
+            const auto bundle = record.gsp_host->bundle();
+            if (bundle) {
+                auto key = bundle->action_key(scene_id, action_id);
+                if (key) {
+                    payload["key"] = *key;
+                } else {
+                    payload["key_error"] = key.error();
+                }
+            }
+        }
+        auto result = call_runtime_lifecycle(
+                          record, LIFECYCLE_ON_ACTION,
+        {std::move(action_name), std::to_string(scene_id), boost::json::serialize(payload)}
+                      );
+        if (scene_changed) {
+            gsp_page_delivery_seq.fetch_add(1, std::memory_order_release);
+        }
         if (!result) {
-            BROOKESIA_LOGW("GSP app action failed: app_id(%1%), error(%2%)", app_id, result.error());
+            BROOKESIA_LOGW("GSP runtime action failed: app_id(%1%), error(%2%)", app_id, result.error());
         }
     });
     if (!posted) {
         BROOKESIA_LOGW("Failed to post GSP action: app_id(%1%), error(%2%)", app_id, posted.error());
     }
+}
+
+extern "C" uint32_t brookesia_gsp_page_delivery_seq()
+{
+    return gsp_page_delivery_seq.load(std::memory_order_acquire);
 }
 #endif
 

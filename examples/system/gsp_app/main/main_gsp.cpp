@@ -34,6 +34,11 @@
 #include "esp_heap_caps.h"
 #include "launcher_app.hpp"
 
+#if CONFIG_BROOKESIA_GSP_JS_APP_MEMORY_PROBE
+#   include "brookesia/gui_gsp/app_host.hpp"
+#   include "esp_gsp_debug.h"
+extern "C" uint32_t brookesia_gsp_page_delivery_seq();
+#endif
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
 #   include "brookesia/gui_gsp/app_host.hpp"
 #   include "brookesia/service_helper/network/wifi.hpp"
@@ -57,8 +62,10 @@ namespace {
 constexpr uint16_t EXPECTED_H_RES = 1024;
 constexpr uint16_t EXPECTED_V_RES = 600;
 constexpr int SERVICE_TIMEOUT_MS = 1000;
+#if CONFIG_BROOKESIA_GSP_SETTINGS_MEMORY_PROBE
 constexpr int WARMUP_CYCLES = 2;
 constexpr int MEASURED_CYCLES = 20;
+#endif
 // Leave this off for a normal start. Turn it on to change the brightness
 // once at boot, then put the saved percent back.
 constexpr bool RUN_BRIGHTNESS_PROBE = false;
@@ -70,6 +77,7 @@ struct ShellState {
     std::atomic<bool> handoff{false};
     system::core::AppId launcher_id = system::core::INVALID_APP_ID;
     system::core::AppId settings_id = system::core::INVALID_APP_ID;
+    system::core::AppId pending_app_id = system::core::INVALID_APP_ID;
 };
 
 ShellState shell_state;
@@ -96,6 +104,11 @@ public:
         }
         mark_gui_preferences_restored();
         return result;
+    }
+
+    void set_launcher(std::shared_ptr<LauncherApp> launcher)
+    {
+        launcher_ = std::move(launcher);
     }
 
     void set_settings_keyboard_target(
@@ -144,28 +157,85 @@ public:
         }
     }
 
+    std::expected<void, std::string> on_app_installed(const system::core::AppInfo &app) override
+    {
+        if (app.manifest.kind == system::core::AppKind::Runtime) {
+            refresh_launcher_slots();
+        }
+        return {};
+    }
+
+    std::expected<void, std::string> on_app_uninstalled(const system::core::AppInfo &app) override
+    {
+        if (app.manifest.kind == system::core::AppKind::Runtime) {
+            refresh_launcher_slots();
+        }
+        return {};
+    }
+
     void on_app_stopped(const system::core::AppInfo &app) override
     {
         if (!shell_state.handoff.load()) {
             return;
         }
-        std::expected<void, std::string> started = std::unexpected("No GSP app to start");
-        if (app.manifest.id == "gsp_launcher") {
-            BROOKESIA_LOGI("Launcher stopped; starting Settings");
-            started = start_app(shell_state.settings_id);
-        } else if (app.manifest.id == "brookesia.general.settings") {
-            BROOKESIA_LOGI("Settings stopped; returning to the launcher");
-            started = start_app(shell_state.launcher_id);
-        } else {
+        auto open_app = [this](system::core::AppId app_id, const char *label) {
+            const auto started_at = std::chrono::steady_clock::now();
+            auto started = start_app(app_id);
+            const auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - started_at
+                                    ).count();
+            if (started) {
+                BROOKESIA_LOGI("App open elapsed_ms(%1%) target(%2%) id(%3%)", elapsed_ms, label, app_id);
+                return started;
+            }
+            BROOKESIA_LOGE(
+                "App open failed elapsed_ms(%1%) target(%2%) id(%3%): %4%",
+                elapsed_ms, label, app_id, started.error()
+            );
+            return started;
+        };
+        if (app.app_id == shell_state.launcher_id) {
+            const auto next = shell_state.pending_app_id;
+            shell_state.pending_app_id = system::core::INVALID_APP_ID;
+            const bool open_settings = next == system::core::INVALID_APP_ID;
+            const auto target = open_settings ? shell_state.settings_id : next;
+            const char *label = open_settings ? "settings" : "app";
+            BROOKESIA_LOGI("Launcher stopped; starting %1%", label);
+            auto started = open_app(target, label);
+            if (!started) {
+                BROOKESIA_LOGE("Failed to open %1% after the launcher stopped: %2%", label, started.error());
+                auto restored = open_app(shell_state.launcher_id, "launcher");
+                if (!restored) {
+                    BROOKESIA_LOGE("Failed to restore the launcher: %1%", restored.error());
+                }
+            }
             return;
         }
-        if (!started) {
-            BROOKESIA_LOGE("Failed to switch the active GSP app: %1%", started.error());
+        BROOKESIA_LOGI("App stopped; returning to the launcher");
+        auto returned = open_app(shell_state.launcher_id, "launcher");
+        if (!returned) {
+            BROOKESIA_LOGE("Failed to return to the launcher: %1%", returned.error());
+        }
+    }
+
+    void refresh_launcher_slots()
+    {
+        if (shell_state.launcher_id == system::core::INVALID_APP_ID) {
+            return;
+        }
+        auto active = get_active_app();
+        if (!active || (active->app_id != shell_state.launcher_id) || !launcher_) {
+            return;
+        }
+        auto refreshed = launcher_->refresh_slots();
+        if (!refreshed) {
+            BROOKESIA_LOGW("Failed to refresh launcher apps: %1%", refreshed.error());
         }
     }
 
 private:
     std::weak_ptr<app::settings::SettingsApp> settings_keyboard_target_;
+    std::shared_ptr<LauncherApp> launcher_;
     system::core::AppId settings_keyboard_app_id_ = system::core::INVALID_APP_ID;
 };
 
@@ -176,7 +246,7 @@ struct HeapSample {
     size_t psram_largest = 0;
 };
 
-HeapSample sample_heap()
+[[maybe_unused]] HeapSample sample_heap()
 {
     return {
         .internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
@@ -186,7 +256,7 @@ HeapSample sample_heap()
     };
 }
 
-void log_heap(const char *label, const HeapSample &sample)
+[[maybe_unused]] void log_heap(const char *label, const HeapSample &sample)
 {
     BROOKESIA_LOGI(
         "Heap %1%: internal_free(%2%) internal_largest(%3%) psram_free(%4%) psram_largest(%5%)",
@@ -354,7 +424,7 @@ void run_main()
     config.environment.height_px = EXPECTED_V_RES;
     config.start_service_manager = true;
     config.install_registered_apps = false;
-    config.install_package_apps = false;
+    config.install_package_apps = true;
     auto init_result = system_instance.init(std::move(config));
     if (!init_result) {
         BROOKESIA_LOGE("System init failed: %1%", init_result.error());
@@ -382,6 +452,10 @@ void run_main()
     }
 
     static auto launcher = std::make_shared<LauncherApp>();
+    system_instance.set_launcher(launcher);
+    launcher->set_launch_request([](system::core::AppId app_id) {
+        shell_state.pending_app_id = app_id;
+    });
     static auto settings = std::make_shared<app::settings::SettingsApp>();
     auto launcher_id = system_instance.install_app(launcher);
     auto settings_id = system_instance.install_app(settings);
@@ -459,6 +533,7 @@ void run_main()
 #   endif
 #endif
 
+#if CONFIG_BROOKESIA_GSP_SETTINGS_MEMORY_PROBE
     for (int cycle = 1; cycle <= WARMUP_CYCLES; ++cycle) {
         if (!run_app(system_instance, shell_state.settings_id, "settings", true) ||
                 !run_app(system_instance, shell_state.settings_id, "settings", false)) {
@@ -492,11 +567,168 @@ void run_main()
         "Settings open/close trend after warmup: cycles(%1%), internal_free_delta(%2%), psram_free_delta(%3%)",
         MEASURED_CYCLES, internal_delta, psram_delta
     );
+#endif
+
+#if CONFIG_BROOKESIA_GSP_JS_APP_MEMORY_PROBE
+    system::core::AppId js_app_id = system::core::INVALID_APP_ID;
+    for (const auto &app : system_instance.list_apps()) {
+        if (app.manifest.id == "brookesia.gsp.device_control") {
+            js_app_id = app.app_id;
+            break;
+        }
+    }
+    if (js_app_id == system::core::INVALID_APP_ID) {
+        BROOKESIA_LOGE("JS app memory probe did not find brookesia.gsp.device_control");
+        return;
+    }
+    if (!run_app(system_instance, js_app_id, "device_control", true) ||
+            !run_app(system_instance, js_app_id, "device_control", false)) {
+        return;
+    }
+    const auto js_heap_after_warmup = sample_heap();
+    log_heap("js app after warmup", js_heap_after_warmup);
+    HeapSample js_heap_after_cycles = js_heap_after_warmup;
+    constexpr int JS_PROBE_CYCLES = 5;
+    for (int cycle = 1; cycle <= JS_PROBE_CYCLES; ++cycle) {
+        if (!run_app(system_instance, js_app_id, "device_control", true) ||
+                !run_app(system_instance, js_app_id, "device_control", false)) {
+            return;
+        }
+        js_heap_after_cycles = sample_heap();
+        char label[40];
+        std::snprintf(label, sizeof(label), "js app cycle %d", cycle);
+        log_heap(label, js_heap_after_cycles);
+    }
+    BROOKESIA_LOGI(
+        "JS app start/exit trend: cycles(%1%), internal_free_delta(%2%), psram_free_delta(%3%)",
+        JS_PROBE_CYCLES,
+        static_cast<int64_t>(js_heap_after_cycles.internal_free) -
+        static_cast<int64_t>(js_heap_after_warmup.internal_free),
+        static_cast<int64_t>(js_heap_after_cycles.psram_free) -
+        static_cast<int64_t>(js_heap_after_warmup.psram_free)
+    );
+#endif
 
     shell_state.handoff.store(true);
     if (!run_app(system_instance, shell_state.launcher_id, "launcher", true)) {
         return;
     }
+#if CONFIG_BROOKESIA_GSP_JS_APP_MEMORY_PROBE
+    auto elapsed_since = [](std::chrono::steady_clock::time_point started_at) {
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+                   std::chrono::steady_clock::now() - started_at
+               ).count();
+    };
+    auto tap_current = [](int x, int y) {
+        auto *host = gui::gsp::AppHost::current();
+        if ((host == nullptr) || (host->handle() == nullptr)) {
+            BROOKESIA_LOGE("JS app probe has no GSP session");
+            return false;
+        }
+        if (esp_gsp_inject_touch(
+                    host->handle(), static_cast<int16_t>(x), static_cast<int16_t>(y), true
+                ) != ESP_GSP_OK) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(80));
+        return esp_gsp_inject_touch(
+                   host->handle(), static_cast<int16_t>(x), static_cast<int16_t>(y), false
+               ) == ESP_GSP_OK;
+    };
+    auto slide_current = [](int x, int y, int dx) {
+        auto *host = gui::gsp::AppHost::current();
+        if ((host == nullptr) || (host->handle() == nullptr)) {
+            BROOKESIA_LOGE("JS app probe has no GSP session");
+            return false;
+        }
+        const auto handle = host->handle();
+        if (esp_gsp_inject_touch(handle, static_cast<int16_t>(x), static_cast<int16_t>(y), true) != ESP_GSP_OK) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        if (esp_gsp_inject_touch(
+                    handle, static_cast<int16_t>(x + dx), static_cast<int16_t>(y), true
+                ) != ESP_GSP_OK) {
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(30));
+        return esp_gsp_inject_touch(
+                   handle, static_cast<int16_t>(x + dx), static_cast<int16_t>(y), false
+               ) == ESP_GSP_OK;
+    };
+    auto wait_until = [&](const char *label, auto ready) {
+        const auto started_at = std::chrono::steady_clock::now();
+        constexpr int timeout_ms = 3000;
+        while (elapsed_since(started_at) < timeout_ms) {
+            if (ready()) {
+                BROOKESIA_LOGI("Probe observed %1% elapsed_ms(%2%)", label, elapsed_since(started_at));
+                return true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
+        BROOKESIA_LOGE("Probe timed out waiting for %1%", label);
+        return false;
+    };
+    auto active_is = [&](system::core::AppId app_id) {
+        auto active = system_instance.get_active_app();
+        return active && (active->app_id == app_id);
+    };
+    auto name_key = [](const char *name) {
+        uint32_t key = 2166136261U;
+        for (const char *character = name; *character != '\0'; ++character) {
+            key = (key ^ static_cast<uint8_t>(*character)) * 16777619U;
+        }
+        return key;
+    };
+    const auto slider_key = name_key("brightness_slider");
+    BROOKESIA_LOGI("JS app probe tapping the first installed app");
+    const auto opened_at = std::chrono::steady_clock::now();
+    const bool opened = (js_app_id != system::core::INVALID_APP_ID) && slide_current(164, 500, 20) &&
+    wait_until("app open", [&]() {
+        return active_is(js_app_id);
+    });
+    if (opened) {
+        BROOKESIA_LOGI("JS app open from tap elapsed_ms(%1%)", elapsed_since(opened_at));
+    }
+    const auto page_seq_before_brightness = brookesia_gsp_page_delivery_seq();
+    const bool brightness_page = opened && tap_current(264, 382) &&
+    wait_until("brightness page", [&]() {
+        return brookesia_gsp_page_delivery_seq() != page_seq_before_brightness;
+    });
+    int32_t slider_before = 0;
+    if (brightness_page) {
+        auto *host = gui::gsp::AppHost::current();
+        if ((host != nullptr) && (host->handle() != nullptr)) {
+            (void)esp_gsp_component_get_value(host->handle(), slider_key, &slider_before);
+        }
+    }
+    const bool slider_moved = brightness_page && tap_current(800, 284) &&
+    wait_until("slider value", [&]() {
+        auto *host = gui::gsp::AppHost::current();
+        if ((host == nullptr) || (host->handle() == nullptr)) {
+            return false;
+        }
+        int32_t value = slider_before;
+        if (esp_gsp_component_get_value(host->handle(), slider_key, &value) != ESP_GSP_OK) {
+            return false;
+        }
+        return value != slider_before;
+    });
+    const auto page_seq_before_status = brookesia_gsp_page_delivery_seq();
+    const bool status_page = slider_moved && tap_current(106, 60) &&
+    wait_until("status page", [&]() {
+        return brookesia_gsp_page_delivery_seq() != page_seq_before_status;
+    });
+    const bool exited = status_page && tap_current(638, 382) &&
+    wait_until("app exit", [&]() {
+        return active_is(shell_state.launcher_id);
+    });
+    if (exited) {
+        BROOKESIA_LOGI("JS app probe finished the status, brightness, back, and exit taps");
+    } else {
+        BROOKESIA_LOGE("JS app probe tap sequence failed");
+    }
+#endif
 #if CONFIG_BROOKESIA_GSP_WIFI_PROBE
     if (!probe_launcher_round_trip(*panel)) {
         BROOKESIA_LOGE("Wi-Fi probe launcher round trip FAILED");

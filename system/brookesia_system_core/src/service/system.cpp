@@ -482,6 +482,12 @@ constexpr std::array<FunctionSpec, static_cast<size_t>(SystemCoreHelper::Functio
             false,
         },
         {
+            "UninstallApp",
+            "Uninstall an app and remove its package directory",
+            APP_ID_PARAMETERS,
+            false,
+        },
+        {
             "ShowLoading",
             "Show caller app loading overlay",
             {},
@@ -765,6 +771,10 @@ service::ServiceBase::FunctionHandlerMap SystemService::get_function_handlers()
         {
             return stop_app(std::move(params));
         },
+        [this](FunctionParameterMap &&params)
+        {
+            return uninstall_app(std::move(params));
+        },
         [this](FunctionParameterMap &&)
         {
             return show_loading();
@@ -920,6 +930,22 @@ FunctionResult SystemService::stop_app(FunctionParameterMap &&params)
         return make_error("Only native system apps can stop other apps through SystemCore");
     }
     return service::ServiceBase::to_function_result(system_.stop_app(to_app_id(*app_id)));
+}
+
+FunctionResult SystemService::uninstall_app(FunctionParameterMap &&params)
+{
+    auto app_id = get_number_param(params, BROOKESIA_DESCRIBE_TO_STR(SystemCoreHelper::AppIdParam::AppId));
+    if (!app_id) {
+        return make_error(app_id.error());
+    }
+    auto caller = get_runtime_caller(system_);
+    if (!caller) {
+        return make_error(caller.error());
+    }
+    if (caller->has_value() && !is_native_system_app(caller->value())) {
+        return make_error("Only native system apps can uninstall apps through SystemCore");
+    }
+    return service::ServiceBase::to_function_result(system_.uninstall_app(to_app_id(*app_id)));
 }
 
 FunctionResult SystemService::show_loading()

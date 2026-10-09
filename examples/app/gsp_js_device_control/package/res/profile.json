@@ -1,0 +1,4 @@
+{
+  "gui_backend": "gsp",
+  "root": "device_control.gspb"
+}

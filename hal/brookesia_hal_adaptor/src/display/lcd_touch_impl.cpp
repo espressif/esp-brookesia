@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include <array>
+#include <cstdint>
 #include "brookesia/hal_adaptor/macro_configs.h"
 #if !BROOKESIA_HAL_ADAPTOR_DISPLAY_LCD_TOUCH_IMPL_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -16,10 +17,85 @@
 #include "esp_board_manager_includes.h"
 #include "brookesia/hal_adaptor/board_manager.h"
 #include "esp_lcd_touch.h"
+#include "esp_timer.h"
 
 namespace esp_brookesia::hal {
 
 namespace {
+// The GT911 driver keeps the last points until the controller posts a new report, and the
+// controller posts a release only once. If that report is missed, every later read returns the
+// old point and the finger stays pressed until the next touch. A touched controller reports
+// every scan (GT911 scans at most 20 ms apart), so a longer silence means the finger has left.
+constexpr int64_t TOUCH_REPORT_TIMEOUT_US = 100 * 1000;
+constexpr uint8_t NO_FRESH_REPORT = UINT8_MAX;
+
+// Board devices expose one LCD touch controller.
+struct ReleaseTimeout {
+    esp_lcd_touch_handle_t handle = nullptr;
+    esp_err_t (*read_data)(esp_lcd_touch_handle_t tp) = nullptr;
+    int64_t last_report_us = 0;
+};
+
+ReleaseTimeout release_timeout;
+
+esp_err_t read_data_with_release_timeout(esp_lcd_touch_handle_t tp)
+{
+    auto &state = release_timeout;
+    if ((tp != state.handle) || (state.read_data == nullptr)) {
+        return ESP_ERR_INVALID_STATE;
+    }
+    portENTER_CRITICAL(&tp->data.lock);
+    const uint8_t previous_points = tp->data.points;
+    tp->data.points = NO_FRESH_REPORT;
+    portEXIT_CRITICAL(&tp->data.lock);
+
+    const esp_err_t ret = state.read_data(tp);
+    const int64_t now_us = esp_timer_get_time();
+    int64_t silent_us = 0;
+    portENTER_CRITICAL(&tp->data.lock);
+    if (tp->data.points != NO_FRESH_REPORT) {
+        state.last_report_us = now_us;
+    } else if ((previous_points > 0) && ((now_us - state.last_report_us) > TOUCH_REPORT_TIMEOUT_US)) {
+        tp->data.points = 0;
+        silent_us = now_us - state.last_report_us;
+    } else {
+        tp->data.points = previous_points;
+    }
+    portEXIT_CRITICAL(&tp->data.lock);
+    if (silent_us > 0) {
+        BROOKESIA_LOGW(
+            "Touch controller sent no report for %1% ms; treating the touch as released", silent_us / 1000
+        );
+    }
+    return ret;
+}
+
+void install_release_timeout(esp_lcd_touch_handle_t tp)
+{
+    if ((tp == nullptr) || (tp->read_data == nullptr)) {
+        return;
+    }
+    if (release_timeout.handle != nullptr) {
+        BROOKESIA_LOGW("Touch release timeout already serves another controller");
+        return;
+    }
+    release_timeout = ReleaseTimeout{
+        .handle = tp,
+        .read_data = tp->read_data,
+        .last_report_us = 0,
+    };
+    tp->read_data = read_data_with_release_timeout;
+}
+
+void uninstall_release_timeout(esp_lcd_touch_handle_t tp)
+{
+    if ((tp == nullptr) || (release_timeout.handle != tp)) {
+        return;
+    }
+    tp->read_data = release_timeout.read_data;
+    release_timeout = {};
+}
+
 esp_lcd_touch_handle_t get_touch_handle(void *handles)
 {
     return reinterpret_cast<dev_lcd_touch_handles_t *>(handles)->touch_handle;
@@ -73,6 +149,8 @@ I2cDisplayTouchImpl::I2cDisplayTouchImpl()
 
     ret = brookesia_hal_board_manager_get_device_handle(ESP_BOARD_DEVICE_NAME_LCD_TOUCH, &handles_);
     BROOKESIA_CHECK_ESP_ERR_EXIT(ret, "Failed to get handles");
+
+    install_release_timeout(get_touch_handle(handles_));
 }
 
 I2cDisplayTouchImpl::~I2cDisplayTouchImpl()
@@ -80,6 +158,9 @@ I2cDisplayTouchImpl::~I2cDisplayTouchImpl()
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
     register_interrupt_handler(nullptr, nullptr);
+    if (handles_ != nullptr) {
+        uninstall_release_timeout(get_touch_handle(handles_));
+    }
 
     if (brookesia_hal_board_manager_check_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH)) {
         auto ret = brookesia_hal_board_manager_deinit_device_by_name(ESP_BOARD_DEVICE_NAME_LCD_TOUCH);

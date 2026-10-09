@@ -15,6 +15,7 @@
 #include "private/runtime/service_json.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -62,6 +63,25 @@ bool get_string_arg(const NativeArgs &args, std::size_t index, std::string &valu
     }
     value = std::get<std::string>(args[index]);
     return true;
+}
+
+std::optional<int64_t> native_finite_integer(const NativeValue &value)
+{
+    if (const auto *integer = std::get_if<int64_t>(&value)) {
+        return *integer;
+    }
+    if (const auto *number = std::get_if<double>(&value)) {
+        // INT64_MIN is exactly -2^63, but INT64_MAX rounds up to 2^63 as a double, which
+        // does not fit. Reject 2^63 itself before the conversion.
+        constexpr double INT64_LOWER_BOUND = -9223372036854775808.0;
+        constexpr double INT64_UPPER_BOUND_EXCLUSIVE = 9223372036854775808.0;
+        if (!std::isfinite(*number) || (*number < INT64_LOWER_BOUND) ||
+                (*number >= INT64_UPPER_BOUND_EXCLUSIVE)) {
+            return std::nullopt;
+        }
+        return static_cast<int64_t>(*number);
+    }
+    return std::nullopt;
 }
 
 int64_t native_value_to_handle(const NativeValue &value)
@@ -246,19 +266,21 @@ public:
     };
 
     explicit Impl(std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge)
-        : Impl(std::move(function_bridge), nullptr, {}, {})
+        : Impl(std::move(function_bridge), nullptr, {}, {}, {})
     {}
 
     Impl(
         std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge,
         std::shared_ptr<lib_utils::TaskScheduler> task_scheduler,
         SystemHostBridge::StoragePathResolver storage_path_resolver,
-        SystemHostBridge::EventDispatcher event_dispatcher
+        SystemHostBridge::EventDispatcher event_dispatcher,
+        SystemHostBridge::GspUpdater gsp_updater
     )
         : function_bridge_(std::move(function_bridge))
         , task_scheduler_(std::move(task_scheduler))
         , storage_path_resolver_(std::move(storage_path_resolver))
         , event_dispatcher_(std::move(event_dispatcher))
+        , gsp_updater_(std::move(gsp_updater))
     {
         auto result = function_bridge_->add_module(make_brookesia_module());
         if (!result) {
@@ -287,6 +309,10 @@ public:
     NativeResult attach_app_context(const NativeArgs &args);
     NativeResult detach_app_context(const NativeArgs &args);
     NativeResult print(const NativeArgs &args);
+    NativeResult gsp_set_text(const NativeArgs &args);
+    NativeResult gsp_set_value(const NativeArgs &args);
+    NativeResult gsp_show_page(const NativeArgs &args);
+    NativeResult apply_gsp_update(const SystemHostBridge::GspUpdate &update);
     std::shared_ptr<AsyncCallRecord> create_async_call(RuntimeAppId app_id, NativeAsyncCallback callback);
     void complete_async_call(
         const std::shared_ptr<AsyncCallRecord> &record, NativeResult result, const char *source
@@ -319,6 +345,7 @@ public:
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler_;
     SystemHostBridge::StoragePathResolver storage_path_resolver_;
     SystemHostBridge::EventDispatcher event_dispatcher_;
+    SystemHostBridge::GspUpdater gsp_updater_;
     mutable std::mutex mutex_;
     std::map<int64_t, ServiceRecord> services_;
     std::map<int64_t, SubscriptionRecord> subscriptions_;
@@ -1584,6 +1611,77 @@ NativeResult SystemHostBridge::Impl::print(const NativeArgs &args)
     return NativeValue{};
 }
 
+NativeResult SystemHostBridge::Impl::apply_gsp_update(const SystemHostBridge::GspUpdate &update)
+{
+    auto app_id = function_bridge_->get_current_app_id();
+    if (!app_id) {
+        return std::unexpected(app_id.error());
+    }
+    if (!gsp_updater_) {
+        return std::unexpected("GSP surface is not available");
+    }
+    auto result = gsp_updater_(app_id.value(), update);
+    if (!result) {
+        return std::unexpected(result.error());
+    }
+    return make_success();
+}
+
+NativeResult SystemHostBridge::Impl::gsp_set_text(const NativeArgs &args)
+{
+    if (args.size() < 2) {
+        return std::unexpected("brookesia.gsp_set_text(name, text) requires an object name and text");
+    }
+    SystemHostBridge::GspUpdate update;
+    update.kind = SystemHostBridge::GspUpdate::Kind::SetText;
+    if (!get_string_arg(args, 0, update.name) || update.name.empty()) {
+        return std::unexpected("brookesia.gsp_set_text() requires an object name");
+    }
+    if (!get_string_arg(args, 1, update.text)) {
+        return std::unexpected("brookesia.gsp_set_text() requires text");
+    }
+    return apply_gsp_update(update);
+}
+
+NativeResult SystemHostBridge::Impl::gsp_set_value(const NativeArgs &args)
+{
+    if (args.size() < 2) {
+        return std::unexpected("brookesia.gsp_set_value(name, value) requires an object name and value");
+    }
+    SystemHostBridge::GspUpdate update;
+    update.kind = SystemHostBridge::GspUpdate::Kind::SetValue;
+    if (!get_string_arg(args, 0, update.name) || update.name.empty()) {
+        return std::unexpected("brookesia.gsp_set_value() requires an object name");
+    }
+    const auto value = native_finite_integer(args[1]);
+    if (!value) {
+        return std::unexpected("brookesia.gsp_set_value() requires a numeric value");
+    }
+    if ((*value < std::numeric_limits<int32_t>::min()) || (*value > std::numeric_limits<int32_t>::max())) {
+        return std::unexpected("brookesia.gsp_set_value() value is out of range");
+    }
+    update.value = static_cast<int32_t>(*value);
+    return apply_gsp_update(update);
+}
+
+NativeResult SystemHostBridge::Impl::gsp_show_page(const NativeArgs &args)
+{
+    if (args.empty()) {
+        return std::unexpected("brookesia.gsp_show_page(scene) requires a scene index");
+    }
+    const auto scene = native_finite_integer(args[0]);
+    if (!scene) {
+        return std::unexpected("brookesia.gsp_show_page() requires a numeric scene index");
+    }
+    if ((*scene < 0) || (*scene > static_cast<int64_t>(UINT16_MAX))) {
+        return std::unexpected("brookesia.gsp_show_page() scene index is out of range");
+    }
+    SystemHostBridge::GspUpdate update;
+    update.kind = SystemHostBridge::GspUpdate::Kind::ShowPage;
+    update.value = static_cast<int32_t>(*scene);
+    return apply_gsp_update(update);
+}
+
 NativeModule SystemHostBridge::Impl::make_brookesia_module()
 {
     NativeModule module;
@@ -1735,6 +1833,30 @@ NativeModule SystemHostBridge::Impl::make_brookesia_module()
             },
             .async_function = nullptr,
         },
+        {
+            .name = "gsp_set_text",
+            .function = [this](const NativeArgs & args)
+            {
+                return gsp_set_text(args);
+            },
+            .async_function = nullptr,
+        },
+        {
+            .name = "gsp_set_value",
+            .function = [this](const NativeArgs & args)
+            {
+                return gsp_set_value(args);
+            },
+            .async_function = nullptr,
+        },
+        {
+            .name = "gsp_show_page",
+            .function = [this](const NativeArgs & args)
+            {
+                return gsp_show_page(args);
+            },
+            .async_function = nullptr,
+        },
     };
     return module;
 }
@@ -1743,13 +1865,15 @@ SystemHostBridge::SystemHostBridge(
     std::shared_ptr<runtime::RuntimeFunctionBridge> function_bridge,
     std::shared_ptr<lib_utils::TaskScheduler> task_scheduler,
     StoragePathResolver storage_path_resolver,
-    EventDispatcher event_dispatcher
+    EventDispatcher event_dispatcher,
+    GspUpdater gsp_updater
 )
     : impl_(std::make_unique<Impl>(
                 function_bridge ? std::move(function_bridge) : std::make_shared<runtime::RuntimeFunctionBridge>(),
                 std::move(task_scheduler),
                 std::move(storage_path_resolver),
-                std::move(event_dispatcher)
+                std::move(event_dispatcher),
+                std::move(gsp_updater)
             ))
 {}
 

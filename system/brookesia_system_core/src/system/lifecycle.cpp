@@ -171,11 +171,15 @@ std::expected<void, std::string> System::init(Config config)
         };
         return impl_->post_task(SYSTEM_APP_INPUT_TASK_GROUP, std::move(task));
     };
+    auto gsp_updater = [this](runtime::AppId runtime_app_id, const SystemHostBridge::GspUpdate & update) {
+        return impl_->apply_runtime_gsp_update(runtime_app_id, update);
+    };
     impl_->host_bridge_ = std::make_shared<SystemHostBridge>(
                               std::make_shared<runtime::RuntimeFunctionBridge>(),
                               impl_->task_scheduler_,
                               std::move(storage_path_resolver),
-                              std::move(event_dispatcher)
+                              std::move(event_dispatcher),
+                              std::move(gsp_updater)
                           );
     impl_->runtime_function_bridge_ = impl_->host_bridge_->get_function_bridge();
     impl_->runtime_ = std::make_unique<runtime::Runtime>(impl_->host_bridge_);

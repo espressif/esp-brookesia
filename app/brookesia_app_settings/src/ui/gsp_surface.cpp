@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include <chrono>
 #include <cstdio>
 #include <string>
 
@@ -126,14 +127,22 @@ public:
         for (size_t index = 0; index < options.size(); ++index) {
             if (esp_gsp_component_set_text(handle, options[index], view.labels[index].c_str()) != ESP_GSP_OK ||
                     esp_gsp_component_set_text(handle, values[index], view.values[index].c_str()) != ESP_GSP_OK) {
-                return std::unexpected("Failed to update preference choices");
+                BROOKESIA_LOGW("Failed to update preference choice %1%", index);
             }
         }
         const auto status = language ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_STATUS : GSP_SETTINGS_THEME_OBJ_KEY_STATUS;
         const auto restart = language ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_RESTART_NOW : GSP_SETTINGS_THEME_OBJ_KEY_RESTART_NOW;
         const auto later = language ? GSP_SETTINGS_LANGUAGE_OBJ_KEY_LATER : GSP_SETTINGS_THEME_OBJ_KEY_LATER;
         if (esp_gsp_component_set_text(handle, status, view.status.c_str()) != ESP_GSP_OK ||
-                esp_gsp_component_set_visible(handle, restart, view.show_restart) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(
+                    handle, restart, detail::localized_text(locale_, "restart_now").c_str()
+                ) != ESP_GSP_OK ||
+                esp_gsp_component_set_text(
+                    handle, later, detail::localized_text(locale_, "later").c_str()
+                ) != ESP_GSP_OK) {
+            BROOKESIA_LOGW("Failed to update preference text");
+        }
+        if (esp_gsp_component_set_visible(handle, restart, view.show_restart) != ESP_GSP_OK ||
                 esp_gsp_component_set_visible(handle, later, view.show_restart) != ESP_GSP_OK) {
             return std::unexpected("Failed to update preference confirmation");
         }
@@ -291,15 +300,25 @@ public:
         if (scene == UINT16_MAX) {
             return std::unexpected("Unsupported settings page");
         }
+        const auto settle_started_at = std::chrono::steady_clock::now();
         if (esp_gsp_goto_scene(handle, scene, ESP_GSP_NO_TRANSITION) != ESP_GSP_OK) {
             return std::unexpected("Failed to show the Settings page");
         }
         // The scene command has been accepted. Keep input routing aligned with it even if
-        // a later render fence or cosmetic label update fails.
+        // a later render fence or cosmetic label update fails. Wait until this scene is
+        // current before writing its labels; those setters apply to the active scene.
         page_ = page;
         const auto flushed = esp_gsp_flush(handle, 500);
+        const auto settle_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                   std::chrono::steady_clock::now() - settle_started_at
+                               ).count();
+        BROOKESIA_LOGI(
+            "Settings page settle elapsed_ms(%1%) scene(%2%) flush(%3%)",
+            settle_ms, static_cast<unsigned>(scene), static_cast<int>(flushed)
+        );
         if (flushed != ESP_GSP_OK) {
             BROOKESIA_LOGW("Failed to settle the Settings page: %1%", static_cast<int>(flushed));
+            return {};
         }
         auto appearance = apply_settings_appearance(handle, scene, locale_, theme_);
         if (!appearance) {

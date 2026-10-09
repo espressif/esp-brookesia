@@ -32,6 +32,12 @@ dependencies:
     matches:
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
 
+  espressif/brookesia_runtime_js:
+    version: "0.8.*"
+    override_path: ../../../../runtime/brookesia_runtime_js
+    matches:
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
+
   espressif/brookesia_service_display:
     version: "0.8.*"
     override_path: ../../../../service/media/brookesia_service_display
