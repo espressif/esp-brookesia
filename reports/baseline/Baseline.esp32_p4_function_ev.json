@@ -1,0 +1,108 @@
+{
+  "test_suite": "ESP-Brookesia-Perf",
+  "app_id": "com.brookesia.perf_eval",
+  "runtime_type": "JSON_UI",
+  "sample_count": 62,
+  "metadata": {
+    "board_id": "esp32_p4_function_ev",
+    "git_sha": "481b8eb7-dirty",
+    "idf_version": "v6.2-dev-2564-gb10ae7f167f",
+    "idf_preview": true,
+    "sdkconfig_hash": "481b8eb7-dirty",
+    "cpu_freq_mhz": 360,
+    "lvgl_version": "9.5.0",
+    "esp_lv_adapter_version": "0.6.4",
+    "json_ui_document_version": 1,
+    "fixture_version": "p1",
+    "fixture_provenance": "in_repo_super",
+    "golden_case": "perf_eval/boot",
+    "resource_scheme": "littlefs",
+    "mem_budget_kb": {
+      "sram": 512,
+      "psram": 32768
+    },
+    "display": {
+      "width": 1024,
+      "height": 600,
+      "refresh_period_ms": 15
+    },
+    "touch": {
+      "driver": "gt911",
+      "max_points": 5
+    },
+    "core_affinity": {
+      "display_task_core": 0,
+      "service_manager_workers": [
+        0,
+        1,
+        -1
+      ]
+    },
+    "profile_switches": true,
+    "fast_action_dispatch": false,
+    "doc_complexity": {
+      "nodes": 688,
+      "styles": 121,
+      "images": 39,
+      "bytes": 2200371
+    },
+    "stat_basis": "P95 for latency, mean for ratios",
+    "present_semantics": "submitted",
+    "benchmark_validity": {
+      "draw_buf_ratio": 1.0,
+      "opa_scene": false,
+      "asserts_enabled": false,
+      "opt_enabled": true,
+      "log_level": "WARN",
+      "heap_trace_overflow": false
+    },
+    "worktree_dirty": true,
+    "worktree_diff_sha256": "383a355e6d9009470969446b57d41381bea73be63e018cfc172bb68cc8c16bf7"
+  },
+  "scenarios": {
+    "steady_state": {
+      "metrics": {
+        "sram_free_kb": {
+          "mean": 376.2613722903226,
+          "std": 0.020281363425720036,
+          "cv": 5.3902326731724595e-05,
+          "p50": 376.256836,
+          "p75": 376.256836,
+          "p95": 376.256836,
+          "p99": 376.350586,
+          "n": 62
+        },
+        "sram_largest_kb": {
+          "mean": 264.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 264.0,
+          "p75": 264.0,
+          "p95": 264.0,
+          "p99": 264.0,
+          "n": 62
+        },
+        "psram_free_kb": {
+          "mean": 19398.361706370964,
+          "std": 0.045353219986991,
+          "cv": 2.3379922837553717e-06,
+          "p50": 19398.355469,
+          "p75": 19398.355469,
+          "p95": 19398.363281,
+          "p99": 19398.558594,
+          "n": 62
+        },
+        "psram_largest_kb": {
+          "mean": 18432.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 18432.0,
+          "p75": 18432.0,
+          "p95": 18432.0,
+          "p99": 18432.0,
+          "n": 62
+        }
+      }
+    }
+  }
+}
