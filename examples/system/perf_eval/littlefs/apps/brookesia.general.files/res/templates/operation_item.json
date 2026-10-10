@@ -1,0 +1,137 @@
+{
+    "type": "viewTemplate",
+    "id": "operation_item",
+    "node": {
+        "type": "button",
+        "styleRefs": [
+            "app.listItem"
+        ],
+        "commonProps": {
+            "pressLock": false
+        },
+        "style": {
+            "borderWidth": "0dp"
+        },
+        "bindings": {
+            "commonProps.disabled": "commonProps.disabled",
+            "style.opacity": "style.opacity"
+        },
+        "layout": {
+            "type": "grid",
+            "gridTemplateColumns": [
+                "${constant.files.layout.operationIconColumn}",
+                "match",
+                "${constant.files.layout.chevronWidth}"
+            ],
+            "gridTemplateRows": [
+                "match"
+            ],
+            "gap": "12dp",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.files.layout.operationItemHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "image",
+                "id": "icon",
+                "styleRefs": [
+                    "app.iconBox"
+                ],
+                "commonProps": {
+                    "clickable": false
+                },
+                "bindings": {
+                    "imageProps.src": "imageProps.src"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 0,
+                    "gridRow": 0,
+                    "width": "${constant.files.layout.iconBox}",
+                    "height": "${constant.files.layout.iconBox}",
+                    "alignSelf": "center"
+                },
+                "imageProps": {
+                    "src": "${image.files.icon.file}",
+                    "innerAlign": "contain"
+                }
+            },
+            {
+                "type": "container",
+                "id": "content",
+                "commonProps": {
+                    "clickable": false,
+                    "scrollable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "flexFlow": "column",
+                    "mainAlign": "center",
+                    "crossAlign": "start",
+                    "gap": "3dp"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 1,
+                    "gridRow": 0,
+                    "alignSelf": "stretch"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "title",
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        },
+                        "styleRefs": [
+                            "app.listItemTitle"
+                        ],
+                        "style": {
+                            "fontSize": "${constant.files.font.body}"
+                        },
+                        "labelProps": {
+                            "text": "${constant.files.i18n.action}"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "detail",
+                        "bindings": {
+                            "labelProps.text": "labelProps.text"
+                        },
+                        "styleRefs": [
+                            "app.caption"
+                        ],
+                        "labelProps": {
+                            "text": ""
+                        }
+                    }
+                ]
+            },
+            {
+                "type": "label",
+                "id": "chevron",
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                },
+                "styleRefs": [
+                    "app.listItemValue"
+                ],
+                "labelProps": {
+                    "text": ">"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "gridColumn": 2,
+                    "gridRow": 0,
+                    "alignSelf": "center"
+                }
+            }
+        ]
+    }
+}

@@ -1,0 +1,9 @@
+{
+    "type": "screenFlow",
+    "id": "files_header",
+    "screens": [
+        "files_header"
+    ],
+    "initial": "files_header",
+    "transitions": []
+}

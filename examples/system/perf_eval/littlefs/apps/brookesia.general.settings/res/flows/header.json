@@ -1,0 +1,9 @@
+{
+    "type": "screenFlow",
+    "id": "settings_header",
+    "screens": [
+        "settings_header"
+    ],
+    "initial": "settings_header",
+    "transitions": []
+}

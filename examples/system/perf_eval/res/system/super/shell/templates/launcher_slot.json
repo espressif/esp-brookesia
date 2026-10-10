@@ -1,0 +1,20 @@
+{
+    "type": "viewTemplate",
+    "id": "launcher_slot",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "clickable": false,
+            "scrollable": false
+        },
+        "style": {
+            "padding": 0,
+            "opacity": 0
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "${constant.ui.content.metric.launcherItemWidth}",
+            "height": "${constant.ui.content.metric.launcherItemHeight}"
+        }
+    }
+}

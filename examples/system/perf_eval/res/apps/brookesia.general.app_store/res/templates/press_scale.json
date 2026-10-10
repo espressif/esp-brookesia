@@ -1,0 +1,74 @@
+{
+    "type": "interactionTemplate",
+    "id": "press.scale",
+    "commonProps": {
+        "pressLock": false,
+        "pivotX": "50%",
+        "pivotY": "50%"
+    },
+    "events": [
+        {
+            "type": "pressed",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_down"
+                }
+            ]
+        },
+        {
+            "type": "pressLost",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_up"
+                }
+            ]
+        },
+        {
+            "type": "released",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_up"
+                }
+            ]
+        },
+        {
+            "type": "clicked",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_up"
+                }
+            ]
+        }
+    ],
+    "animations": [
+        {
+            "id": "press_down",
+            "trigger": "manual",
+            "property": "scale",
+            "fromMode": "current",
+            "from": 0,
+            "to": 236,
+            "duration": 80,
+            "easing": "easeOut"
+        },
+        {
+            "id": "press_up",
+            "trigger": "manual",
+            "property": "scale",
+            "fromMode": "current",
+            "from": 0,
+            "to": 256,
+            "duration": 120,
+            "easing": "easeOut"
+        }
+    ],
+    "stateStyles": {
+        "pressed": {
+            "opacity": 230
+        }
+    }
+}

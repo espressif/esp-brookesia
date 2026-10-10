@@ -1,0 +1,21 @@
+{
+    "type": "screenFlow",
+    "id": "keyboard",
+    "screens": [
+        "keyboard_hidden",
+        "keyboard_input"
+    ],
+    "initial": "keyboard_hidden",
+    "transitions": [
+        {
+            "from": [],
+            "action": "super.keyboard.show",
+            "to": "keyboard_input"
+        },
+        {
+            "from": [],
+            "action": "super.keyboard.hide",
+            "to": "keyboard_hidden"
+        }
+    ]
+}

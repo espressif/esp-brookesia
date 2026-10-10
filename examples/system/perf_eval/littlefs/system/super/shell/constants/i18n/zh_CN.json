@@ -1,0 +1,22 @@
+{
+    "type": "constant",
+    "data": {
+        "i18n": {
+            "launcher": {
+                "title": "应用",
+                "search": "搜索应用",
+                "all": "全部",
+                "system": "系统",
+                "media": "媒体",
+                "summary": "0 个应用",
+                "ready": "准备启动",
+                "appsSuffix": "个应用"
+            },
+            "overlay": {
+                "brand": "Brookesia",
+                "launcher": "应用启动器",
+                "wifi": "WiFi"
+            }
+        }
+    }
+}

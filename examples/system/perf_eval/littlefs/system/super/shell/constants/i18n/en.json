@@ -1,0 +1,22 @@
+{
+    "type": "constant",
+    "data": {
+        "i18n": {
+            "launcher": {
+                "title": "Apps",
+                "search": "Search apps",
+                "all": "All",
+                "system": "System",
+                "media": "Media",
+                "summary": "0 apps",
+                "ready": "ready to launch",
+                "appsSuffix": "apps"
+            },
+            "overlay": {
+                "brand": "Brookesia",
+                "launcher": "App Launcher",
+                "wifi": "WiFi"
+            }
+        }
+    }
+}

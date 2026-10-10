@@ -1,0 +1,418 @@
+{
+    "type": "viewScreen",
+    "id": "debug",
+    "mountMode": "dynamic",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "label",
+                    "id": "switch_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Debug functions"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "switch_card",
+                    "templateId": "settings_card",
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "memory_debug",
+                                "templateId": "switch_row",
+                                "overrides": {
+                                    "text/title": {
+                                        "labelProps": {
+                                            "text": "Memory debug"
+                                        }
+                                    },
+                                    "text/subtitle": {
+                                        "labelProps": {
+                                            "text": "SRAM / PSRAM overlay"
+                                        }
+                                    },
+                                    "toggle": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.memory.toggle"
+                                            }
+                                        ],
+                                        "toggleProps": {
+                                            "checked": false
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "thread_debug",
+                                "templateId": "switch_row",
+                                "overrides": {
+                                    "text/title": {
+                                        "labelProps": {
+                                            "text": "Thread debug"
+                                        }
+                                    },
+                                    "text/subtitle": {
+                                        "labelProps": {
+                                            "text": "CPU / stack overlay"
+                                        }
+                                    },
+                                    "toggle": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.thread.toggle"
+                                            }
+                                        ],
+                                        "toggleProps": {
+                                            "checked": false
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "gui_debug",
+                                "templateId": "switch_row",
+                                "overrides": {
+                                    "text/title": {
+                                        "labelProps": {
+                                            "text": "GUI debug"
+                                        }
+                                    },
+                                    "text/subtitle": {
+                                        "labelProps": {
+                                            "text": "View bounds"
+                                        }
+                                    },
+                                    "toggle": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.gui.toggle"
+                                            }
+                                        ],
+                                        "toggleProps": {
+                                            "checked": false
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "memory_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Memory thresholds"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "memory_card",
+                    "templateId": "settings_card",
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "memory_sample_interval",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Sample interval ms"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.memory.sample_interval"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 500,
+                                            "max": 10000,
+                                            "value": 1000
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "memory_internal_free",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "SRAM free %"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.memory.internal_free_percent"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 1,
+                                            "max": 80,
+                                            "value": 10
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "memory_internal_largest",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "SRAM largest KB"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.memory.internal_largest"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 1,
+                                            "max": 512,
+                                            "value": 10
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "memory_external_free",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "PSRAM free %"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.memory.external_free_percent"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 1,
+                                            "max": 80,
+                                            "value": 20
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "memory_external_largest",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "PSRAM largest KB"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.memory.external_largest"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 1,
+                                            "max": 4096,
+                                            "value": 500
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "thread_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Thread thresholds"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "thread_card",
+                    "templateId": "settings_card",
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "thread_interval",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Profiling interval ms"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.thread.profiling_interval"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 1000,
+                                            "max": 20000,
+                                            "value": 5000
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "thread_duration",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Sampling duration ms"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.thread.sampling_duration"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 100,
+                                            "max": 5000,
+                                            "value": 1000
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "thread_idle",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Idle CPU %"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.thread.idle_cpu"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 1,
+                                            "max": 50,
+                                            "value": 1
+                                        }
+                                    }
+                                }
+                            },
+                            {
+                                "type": "templateRef",
+                                "id": "thread_stack",
+                                "templateId": "debug_slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Stack HWM bytes"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.debug.thread.stack_hwm"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 64,
+                                            "max": 8192,
+                                            "value": 128
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}

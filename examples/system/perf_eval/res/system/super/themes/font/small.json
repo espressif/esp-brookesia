@@ -1,0 +1,12 @@
+{
+    "type": "constant",
+    "data": {
+        "font": {
+            "pageTitle": "32sp",
+            "cardTitle": "18sp",
+            "listItemTitle": "18sp",
+            "listItemValue": "15sp",
+            "caption": "14sp"
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+    "type": "screenFlow",
+    "id": "background",
+    "screens": [
+        "background",
+        "app_background"
+    ],
+    "initial": "background",
+    "transitions": [
+        {
+            "from": [],
+            "action": "super.background.shell",
+            "to": "background"
+        },
+        {
+            "from": [],
+            "action": "super.background.app",
+            "to": "app_background"
+        }
+    ]
+}

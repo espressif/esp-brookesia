@@ -1,0 +1,237 @@
+{
+    "type": "constant",
+    "data": {
+        "styles": {
+            "all": {
+                "fontSize": "${constant.font.body}",
+                "bgColor": "",
+                "textColor": "${color.text.default}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.none}",
+                "opacity": 255,
+                "imageOpacity": 255
+            },
+            "screen": {
+                "bgColor": "",
+                "textColor": "${color.text.default}"
+            },
+            "container": {
+                "bgColor": "",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.none}"
+            },
+            "label": {
+                "textColor": "${color.text.default}",
+                "fontSize": "${constant.font.body}"
+            },
+            "button": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.button}",
+                "textColor": "${color.text.default}",
+                "stateStyles": {
+                    "pressed": {
+                        "bgColor": "${color.primary.soft}"
+                    }
+                }
+            },
+            "textInput": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.input}",
+                "textColor": "${color.text.default}"
+            },
+            "image": {
+                "imageOpacity": 255
+            },
+            "app.page": {
+                "bgColor": "${color.bg.base}",
+                "textColor": "${color.text.default}"
+            },
+            "app.pageTitle": {
+                "textColor": "${color.text.default}",
+                "fontSize": "${constant.font.pageTitle}"
+            },
+            "app.pageSubtitle": {
+                "textColor": "${color.text.muted}",
+                "fontSize": "${constant.font.pageSubtitle}"
+            },
+            "app.body": {
+                "textColor": "${color.text.default}",
+                "fontSize": "${constant.font.body}"
+            },
+            "app.card": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.card}"
+            },
+            "app.selectableCard": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.card}"
+            },
+            "app.selectableCardSelected": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.primary.fill}",
+                "borderWidth": "${constant.stroke.selected}",
+                "radius": "${constant.radius.card}"
+            },
+            "app.selectableLabelSelected": {
+                "textColor": "${color.primary.fill}",
+                "fontSize": "${constant.font.cardTitle}"
+            },
+            "app.cardTitle": {
+                "textColor": "${color.text.default}",
+                "fontSize": "${constant.font.cardTitle}"
+            },
+            "app.cardSubtitle": {
+                "textColor": "${color.text.muted}",
+                "fontSize": "${constant.font.cardSubtitle}"
+            },
+            "app.listItem": {
+                "bgColor": "${color.surface.base}",
+                "borderWidth": "${constant.stroke.none}",
+                "radius": "${constant.radius.listItem}",
+                "stateStyles": {
+                    "pressed": {
+                        "bgColor": "${color.surface.pressed}"
+                    }
+                }
+            },
+            "app.listItemTitle": {
+                "textColor": "${color.text.default}",
+                "fontSize": "${constant.font.listItemTitle}"
+            },
+            "app.listItemValue": {
+                "textColor": "${color.text.muted}",
+                "fontSize": "${constant.font.listItemValue}"
+            },
+            "app.caption": {
+                "textColor": "${color.text.muted}",
+                "fontSize": "${constant.font.caption}"
+            },
+            "app.iconBox": {
+                "bgColor": "${color.primary.soft}",
+                "borderWidth": "${constant.stroke.none}",
+                "radius": "${constant.radius.iconBox}"
+            },
+            "app.iconRecolor": {
+                "imageRecolor": "${color.text.default}",
+                "imageRecolorOpacity": 255
+            },
+            "app.input": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.input}",
+                "textColor": "${color.text.default}"
+            },
+            "app.buttonPrimary": {
+                "bgColor": "${color.primary.fill}",
+                "borderWidth": "${constant.stroke.none}",
+                "radius": "${constant.radius.button}",
+                "textColor": "${color.primary.on}",
+                "stateStyles": {
+                    "pressed": {
+                        "bgColor": "${color.primary.hover}"
+                    }
+                }
+            },
+            "app.buttonSecondary": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.button}",
+                "textColor": "${color.text.default}",
+                "stateStyles": {
+                    "pressed": {
+                        "bgColor": "${color.primary.soft}"
+                    }
+                }
+            },
+            "app.chip": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.chip}",
+                "textColor": "${color.text.default}"
+            },
+            "app.primaryChip": {
+                "bgColor": "${color.primary.fill}",
+                "borderWidth": "${constant.stroke.none}",
+                "radius": "${constant.radius.chip}",
+                "textColor": "${color.primary.on}"
+            },
+            "app.secondaryChip": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.chip}",
+                "textColor": "${color.text.default}"
+            },
+            "app.navRail": {
+                "bgColor": "${color.surface.base}",
+                "borderColor": "${color.border.default}",
+                "borderWidth": "${constant.stroke.thin}"
+            },
+            "app.switch": {
+                "bgColor": "${color.border.default}",
+                "borderColor": "${color.border.strong}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.switchTrack}",
+                "partStyles": {
+                    "indicator": {
+                        "style": {
+                            "bgColor": "${color.border.default}",
+                            "radius": "${constant.radius.switchTrack}"
+                        },
+                        "stateStyles": {
+                            "checked": {
+                                "bgColor": "${color.primary.fill}"
+                            }
+                        }
+                    },
+                    "knob": {
+                        "style": {
+                            "bgColor": "${color.surface.raised}",
+                            "borderColor": "${color.border.default}",
+                            "borderWidth": "${constant.stroke.thin}",
+                            "radius": "${constant.radius.switchKnob}"
+                        }
+                    }
+                }
+            },
+            "app.slider": {
+                "bgColor": "${color.border.default}",
+                "borderColor": "${color.border.strong}",
+                "borderWidth": "${constant.stroke.thin}",
+                "radius": "${constant.radius.control}",
+                "partStyles": {
+                    "indicator": {
+                        "style": {
+                            "bgColor": "${color.primary.fill}",
+                            "radius": "${constant.radius.control}"
+                        }
+                    },
+                    "knob": {
+                        "style": {
+                            "bgColor": "${color.surface.raised}",
+                            "borderColor": "${color.border.strong}",
+                            "borderWidth": "${constant.stroke.thin}",
+                            "radius": "${constant.radius.switchKnob}"
+                        },
+                        "stateStyles": {
+                            "pressed": {
+                                "bgColor": "${color.primary.soft}"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

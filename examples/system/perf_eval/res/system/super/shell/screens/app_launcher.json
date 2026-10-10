@@ -1,0 +1,134 @@
+{
+    "type": "viewScreen",
+    "id": "launcher",
+    "commonProps": {
+        "scrollable": false
+    },
+    "style": {
+        "padding": 0
+    },
+    "styleRefs": [
+        "shell.desktop"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "content",
+            "commonProps": {
+                "scrollable": false
+            },
+            "style": {
+                "padding": 0
+            },
+            "styleRefs": [
+                "shell.desktop"
+            ],
+            "placement": {
+                "mode": "absolute",
+                "x": 0,
+                "y": "${constant.ui.content.metric.y}",
+                "width": "${env.widthDp}",
+                "height": "${expr(${env.heightDp} - ${constant.ui.content.metric.y})}"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "grid_stage",
+                    "commonProps": {
+                        "scrollable": true
+                    },
+                    "style": {
+                        "padding": 0
+                    },
+                    "bindings": {
+                        "placement.x": "grid_x",
+                        "placement.width": "grid_width"
+                    },
+                    "placement": {
+                        "mode": "absolute",
+                        "x": "${expr((${env.widthDp} - ${constant.ui.content.metric.launcherGridWidth}) / 2)}",
+                        "y": "${constant.ui.content.metric.launcherGridTop}",
+                        "width": "${constant.ui.content.metric.launcherGridWidth}",
+                        "height": "${expr(${env.heightDp} - ${constant.ui.content.metric.y} - ${constant.ui.content.metric.launcherGridTop})}"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "slot_grid",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "placement.height": "content_height"
+                            },
+                            "style": {
+                                "padding": 0
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "rowWrap",
+                                "gap": "${constant.ui.content.metric.launcherItemGap}",
+                                "mainAlign": "start",
+                                "crossAlign": "start"
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "match",
+                                "height": "match"
+                            },
+                            "children": []
+                        },
+                        {
+                            "type": "container",
+                            "id": "item_layer",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "placement.height": "content_height"
+                            },
+                            "style": {
+                                "padding": 0
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "match",
+                                "height": "match"
+                            },
+                            "children": []
+                        },
+                        {
+                            "type": "container",
+                            "id": "drag_layer",
+                            "commonProps": {
+                                "hidden": true,
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "placement.height": "content_height"
+                            },
+                            "style": {
+                                "padding": 0
+                            },
+                            "placement": {
+                                "mode": "absolute",
+                                "x": 0,
+                                "y": 0,
+                                "width": "match",
+                                "height": "match"
+                            },
+                            "children": []
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

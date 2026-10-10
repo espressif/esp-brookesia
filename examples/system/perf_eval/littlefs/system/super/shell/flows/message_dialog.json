@@ -1,0 +1,21 @@
+{
+    "type": "screenFlow",
+    "id": "message_dialog",
+    "screens": [
+        "message_dialog_hidden",
+        "message_dialog"
+    ],
+    "initial": "message_dialog_hidden",
+    "transitions": [
+        {
+            "from": [],
+            "action": "super.message_dialog.show",
+            "to": "message_dialog"
+        },
+        {
+            "from": [],
+            "action": "super.message_dialog.hide",
+            "to": "message_dialog_hidden"
+        }
+    ]
+}

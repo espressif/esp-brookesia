@@ -1,0 +1,142 @@
+{
+    "type": "viewScreen",
+    "id": "settings_header",
+    "commonProps": {
+        "clickable": false,
+        "scrollable": false
+    },
+    "style": {
+        "paddingTop": "10dp",
+        "padding": 0
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "bar",
+            "commonProps": {
+                "scrollable": false
+            },
+            "styleRefs": [
+                "app.page"
+            ],
+            "style": {
+                "paddingLeft": "28dp",
+                "paddingRight": "28dp",
+                "paddingTop": "8dp",
+                "paddingBottom": "8dp"
+            },
+            "layout": {
+                "type": "grid",
+                "gridTemplateColumns": [
+                    "${constant.settings.layout.headerSideWidth}",
+                    "match",
+                    "${constant.settings.layout.headerSideWidth}"
+                ],
+                "gridTemplateRows": [
+                    "match"
+                ],
+                "crossAlign": "center"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": 0,
+                "y": 0,
+                "width": "match",
+                "height": "${constant.settings.layout.headerHeight}"
+            },
+            "children": [
+                {
+                    "type": "button",
+                    "id": "back",
+                    "commonProps": {
+                        "hidden": true
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "commonProps.hidden"
+                    },
+                    "events": [
+                        {
+                            "type": "clicked",
+                            "action": "settings.header.back"
+                        }
+                    ],
+                    "interactionRefs": [
+                        "press.item"
+                    ],
+                    "styleRefs": [
+                        "app.listItem"
+                    ],
+                    "style": {
+                        "borderWidth": "0dp"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "mainAlign": "center",
+                        "crossAlign": "center"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "gridColumn": 0,
+                        "gridRow": 0,
+                        "width": "${constant.settings.layout.headerBackSize}",
+                        "height": "${constant.settings.layout.headerBackSize}",
+                        "alignSelf": "center"
+                    },
+                    "children": [
+                        {
+                            "type": "image",
+                            "id": "icon",
+                            "commonProps": {
+                                "clickable": false
+                            },
+                            "imageProps": {
+                                "src": "${image.header.back}",
+                                "innerAlign": "contain"
+                            },
+                            "styleRefs": [
+                                "app.iconRecolor"
+                            ],
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.settings.layout.headerIconSize}",
+                                "height": "${constant.settings.layout.headerIconSize}"
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "label",
+                    "id": "title",
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    },
+                    "styleRefs": [
+                        "app.pageTitle"
+                    ],
+                    "style": {
+                        "fontSize": "${constant.settings.font.title}"
+                    },
+                    "labelProps": {
+                        "text": ""
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "gridColumn": 1,
+                        "gridRow": 0,
+                        "alignSelf": "center"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "spacer",
+                    "placement": {
+                        "mode": "flow",
+                        "gridColumn": 2,
+                        "gridRow": 0,
+                        "alignSelf": "stretch"
+                    }
+                }
+            ]
+        }
+    ]
+}

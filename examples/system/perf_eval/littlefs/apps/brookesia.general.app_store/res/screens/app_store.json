@@ -1,0 +1,656 @@
+{
+    "type": "viewScreen",
+    "id": "app_store",
+    "styleRefs": [
+        "app.page"
+    ],
+    "style": {
+        "padding": "${constant.appStore.layout.pagePadding}"
+    },
+    "layout": {
+        "type": "flex",
+        "flexFlow": "column",
+        "mainAlign": "start",
+        "crossAlign": "stretch",
+        "gap": "${constant.appStore.layout.pageGap}"
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "placement": {
+                "mode": "flow",
+                "width": "match",
+                "height": "match"
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "mainAlign": "start",
+                "crossAlign": "stretch",
+                "gap": "${constant.appStore.layout.pageGap}"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "header",
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "commonProps": {
+                        "scrollable": false
+                    },
+                    "style": {
+                        "padding": "${constant.appStore.layout.cardPadding}"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "mainAlign": "start",
+                        "crossAlign": "stretch",
+                        "gap": "${constant.appStore.layout.tabGap}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "summary",
+                            "commonProps": {
+                                "scrollable": false
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "row",
+                                "mainAlign": "start",
+                                "crossAlign": "center",
+                                "gap": "${constant.appStore.layout.headerGap}"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "wrap",
+                                "alignSelf": "stretch"
+                            },
+                            "children": [
+                                {
+                                    "type": "container",
+                                    "id": "text",
+                                    "commonProps": {
+                                        "clickable": false,
+                                        "scrollable": false
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "flexFlow": "column",
+                                        "mainAlign": "center",
+                                        "crossAlign": "stretch",
+                                        "gap": "4dp"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "1dp",
+                                        "height": "wrap",
+                                        "flexGrow": 1,
+                                        "alignSelf": "center"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "title",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "title"
+                                            },
+                                            "styleRefs": [
+                                                "app.cardTitle"
+                                            ],
+                                            "labelProps": {
+                                                "text": "${constant.appStore.i18n.screen_title}"
+                                            },
+                                            "style": {
+                                                "fontSize": "${constant.appStore.font.title}"
+                                            },
+                                            "placement": {
+                                                "mode": "flow",
+                                                "width": "match",
+                                                "height": "wrap"
+                                            }
+                                        },
+                                        {
+                                            "type": "label",
+                                            "id": "status",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "status"
+                                            },
+                                            "labelProps": {
+                                                "text": ""
+                                            },
+                                            "styleRefs": [
+                                                "app.caption"
+                                            ],
+                                            "style": {
+                                                "fontSize": "${constant.appStore.font.body}"
+                                            },
+                                            "placement": {
+                                                "mode": "flow",
+                                                "width": "match",
+                                                "height": "wrap"
+                                            }
+                                        },
+                                        {
+                                            "type": "label",
+                                            "id": "storage",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "storage"
+                                            },
+                                            "labelProps": {
+                                                "text": ""
+                                            },
+                                            "styleRefs": [
+                                                "app.caption"
+                                            ],
+                                            "style": {
+                                                "fontSize": "${constant.appStore.font.caption}"
+                                            },
+                                            "placement": {
+                                                "mode": "flow",
+                                                "width": "match",
+                                                "height": "wrap"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "button",
+                                    "id": "refresh",
+                                    "interactionRefs": [
+                                        "press.scale"
+                                    ],
+                                    "bindings": {
+                                        "commonProps.disabled": "commonProps.disabled",
+                                        "style.opacity": "style.opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "app_store.refresh"
+                                        }
+                                    ],
+                                    "style": {
+                                        "bgColor": "${color.primary.fill}",
+                                        "radius": "12dp",
+                                        "padding": "0dp"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "${constant.appStore.layout.headerButtonWidth}",
+                                        "height": "${constant.appStore.layout.actionButtonHeight}",
+                                        "alignSelf": "center"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "label"
+                                            },
+                                            "labelProps": {
+                                                "text": "${constant.appStore.i18n.action_refresh}"
+                                            },
+                                            "style": {
+                                                "textColor": "${color.primary.on}",
+                                                "fontSize": "${constant.appStore.font.button}"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "type": "container",
+                            "id": "tabs",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "row",
+                                "mainAlign": "start",
+                                "crossAlign": "center",
+                                "gap": "${constant.appStore.layout.tabGap}"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "${constant.appStore.layout.tabHeight}",
+                                "alignSelf": "stretch"
+                            },
+                            "children": [
+                                {
+                                    "type": "button",
+                                    "id": "store",
+                                    "interactionRefs": [
+                                        "press.scale"
+                                    ],
+                                    "bindings": {
+                                        "style.opacity": "style.opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "app_store.tab.store"
+                                        }
+                                    ],
+                                    "style": {
+                                        "bgColor": "${color.primary.fill}",
+                                        "radius": "${constant.appStore.layout.tabHeight}",
+                                        "padding": "0dp"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "${constant.appStore.layout.tabButtonWidth}",
+                                        "height": "${constant.appStore.layout.tabHeight}"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "label"
+                                            },
+                                            "labelProps": {
+                                                "text": "${constant.appStore.i18n.tab_store}"
+                                            },
+                                            "style": {
+                                                "textColor": "${color.primary.on}",
+                                                "fontSize": "${constant.appStore.font.tab}"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "button",
+                                    "id": "installed",
+                                    "interactionRefs": [
+                                        "press.scale"
+                                    ],
+                                    "bindings": {
+                                        "style.opacity": "style.opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "app_store.tab.installed"
+                                        }
+                                    ],
+                                    "style": {
+                                        "bgColor": "${color.primary.fill}",
+                                        "radius": "${constant.appStore.layout.tabHeight}",
+                                        "padding": "0dp"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "${constant.appStore.layout.tabButtonWidth}",
+                                        "height": "${constant.appStore.layout.tabHeight}"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "label"
+                                            },
+                                            "labelProps": {
+                                                "text": "${constant.appStore.i18n.tab_installed}"
+                                            },
+                                            "style": {
+                                                "textColor": "${color.primary.on}",
+                                                "fontSize": "${constant.appStore.font.tab}"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "button",
+                                    "id": "local",
+                                    "interactionRefs": [
+                                        "press.scale"
+                                    ],
+                                    "bindings": {
+                                        "style.opacity": "style.opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "app_store.tab.local"
+                                        }
+                                    ],
+                                    "style": {
+                                        "bgColor": "${color.primary.fill}",
+                                        "radius": "${constant.appStore.layout.tabHeight}",
+                                        "padding": "0dp"
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "${constant.appStore.layout.tabButtonWidth}",
+                                        "height": "${constant.appStore.layout.tabHeight}"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false,
+                                                "scrollable": false
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "label"
+                                            },
+                                            "labelProps": {
+                                                "text": "${constant.appStore.i18n.tab_local}"
+                                            },
+                                            "style": {
+                                                "textColor": "${color.primary.on}",
+                                                "fontSize": "${constant.appStore.font.tab}"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    "type": "container",
+                    "id": "list",
+                    "commonProps": {
+                        "hidden": false,
+                        "scrollable": true
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "commonProps.hidden"
+                    },
+                    "styleRefs": [
+                        "app.card"
+                    ],
+                    "style": {
+                        "padding": "${constant.appStore.layout.cardPadding}"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "column",
+                        "mainAlign": "start",
+                        "crossAlign": "stretch",
+                        "gap": "${constant.appStore.layout.cardGap}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "match"
+                    },
+                    "children": [
+                        {
+                            "type": "container",
+                            "id": "top_anchor",
+                            "commonProps": {
+                                "clickable": false,
+                                "scrollable": false
+                            },
+                            "style": {
+                                "bgColor": "",
+                                "padding": "0dp",
+                                "opacity": 0
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "1dp",
+                                "alignSelf": "stretch"
+                            }
+                        },
+                        {
+                            "type": "container",
+                            "id": "items",
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "column",
+                                "mainAlign": "start",
+                                "crossAlign": "stretch",
+                                "gap": "${constant.appStore.layout.cardGap}"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "wrap",
+                                "alignSelf": "stretch"
+                            }
+                        },
+                        {
+                            "type": "container",
+                            "id": "pager",
+                            "commonProps": {
+                                "hidden": true,
+                                "scrollable": false
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "commonProps.hidden"
+                            },
+                            "layout": {
+                                "type": "flex",
+                                "flexFlow": "row",
+                                "mainAlign": "center",
+                                "crossAlign": "center",
+                                "gap": "10dp"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "36dp",
+                                "alignSelf": "stretch"
+                            },
+                            "children": [
+                                {
+                                    "type": "button",
+                                    "id": "prev",
+                                    "commonProps": {
+                                        "disabled": true,
+                                        "scrollable": false
+                                    },
+                                    "style": {
+                                        "bgColor": "",
+                                        "borderWidth": "0dp",
+                                        "padding": "0dp",
+                                        "opacity": 110
+                                    },
+                                    "bindings": {
+                                        "commonProps.disabled": "commonProps.disabled",
+                                        "style.opacity": "style.opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "app_store.page.prev"
+                                        }
+                                    ],
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "44dp",
+                                        "height": "32dp"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false
+                                            },
+                                            "styleRefs": [
+                                                "app.caption"
+                                            ],
+                                            "labelProps": {
+                                                "text": "<"
+                                            },
+                                            "placement": {
+                                                "mode": "flow",
+                                                "width": "wrap",
+                                                "height": "wrap",
+                                                "alignSelf": "center"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "container",
+                                    "id": "page",
+                                    "commonProps": {
+                                        "scrollable": false
+                                    },
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "64dp",
+                                        "height": "32dp",
+                                        "alignSelf": "center"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "styleRefs": [
+                                                "app.caption"
+                                            ],
+                                            "labelProps": {
+                                                "text": "-- / --"
+                                            },
+                                            "bindings": {
+                                                "labelProps.text": "labelProps.text"
+                                            },
+                                            "placement": {
+                                                "mode": "flow",
+                                                "width": "wrap",
+                                                "height": "wrap",
+                                                "alignSelf": "center"
+                                            }
+                                        }
+                                    ]
+                                },
+                                {
+                                    "type": "button",
+                                    "id": "next",
+                                    "commonProps": {
+                                        "disabled": true,
+                                        "scrollable": false
+                                    },
+                                    "style": {
+                                        "bgColor": "",
+                                        "borderWidth": "0dp",
+                                        "padding": "0dp",
+                                        "opacity": 110
+                                    },
+                                    "bindings": {
+                                        "commonProps.disabled": "commonProps.disabled",
+                                        "style.opacity": "style.opacity"
+                                    },
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "app_store.page.next"
+                                        }
+                                    ],
+                                    "layout": {
+                                        "type": "flex",
+                                        "mainAlign": "center",
+                                        "crossAlign": "center"
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "44dp",
+                                        "height": "32dp"
+                                    },
+                                    "children": [
+                                        {
+                                            "type": "label",
+                                            "id": "label",
+                                            "commonProps": {
+                                                "clickable": false
+                                            },
+                                            "styleRefs": [
+                                                "app.caption"
+                                            ],
+                                            "labelProps": {
+                                                "text": ">"
+                                            },
+                                            "placement": {
+                                                "mode": "flow",
+                                                "width": "wrap",
+                                                "height": "wrap",
+                                                "alignSelf": "center"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

@@ -1,0 +1,147 @@
+{
+    "type": "viewTemplate",
+    "id": "file_entry",
+    "node": {
+        "type": "button",
+        "commonProps": {
+            "hidden": true,
+            "pressLock": false
+        },
+        "bindings": {
+            "commonProps.hidden": "commonProps.hidden"
+        },
+        "styleRefs": [
+            "app.listItem"
+        ],
+        "style": {
+            "padding": "0dp"
+        },
+        "events": [
+            {
+                "type": "clicked",
+                "action": "files.entry.click"
+            },
+            {
+                "type": "longPressed",
+                "action": "files.entry.long"
+            }
+        ],
+        "layout": {
+            "type": "none"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.files.layout.entryHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "body",
+                "commonProps": {
+                    "clickable": false
+                },
+                "layout": {
+                    "type": "grid",
+                    "gridTemplateColumns": [
+                        "${constant.files.layout.iconColumn}",
+                        "match"
+                    ],
+                    "gridTemplateRows": [
+                        "match"
+                    ],
+                    "gap": "10dp",
+                    "crossAlign": "center"
+                },
+                "placement": {
+                    "mode": "relative",
+                    "align": "center",
+                    "width": "match",
+                    "height": "match"
+                },
+                "children": [
+                    {
+                        "type": "image",
+                        "id": "icon",
+                        "styleRefs": [
+                            "app.iconBox"
+                        ],
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "bindings": {
+                            "imageProps.src": "imageProps.src"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 0,
+                            "gridRow": 0,
+                            "width": "${constant.files.layout.iconBox}",
+                            "height": "${constant.files.layout.iconBox}",
+                            "alignSelf": "center"
+                        },
+                        "imageProps": {
+                            "src": "${image.files.icon.file}",
+                            "innerAlign": "contain"
+                        }
+                    },
+                    {
+                        "type": "container",
+                        "id": "content",
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "layout": {
+                            "type": "flex",
+                            "flexFlow": "column",
+                            "mainAlign": "center",
+                            "crossAlign": "start",
+                            "gap": "3dp"
+                        },
+                        "placement": {
+                            "mode": "flow",
+                            "gridColumn": 1,
+                            "gridRow": 0,
+                            "alignSelf": "stretch"
+                        },
+                        "children": [
+                            {
+                                "type": "label",
+                                "id": "title",
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                },
+                                "styleRefs": [
+                                    "app.listItemTitle"
+                                ],
+                                "style": {
+                                    "fontSize": "${constant.files.font.body}"
+                                },
+                                "labelProps": {
+                                    "text": ""
+                                }
+                            },
+                            {
+                                "type": "label",
+                                "id": "detail",
+                                "bindings": {
+                                    "labelProps.text": "labelProps.text"
+                                },
+                                "styleRefs": [
+                                    "app.caption"
+                                ],
+                                "style": {
+                                    "fontSize": "${constant.files.font.caption}"
+                                },
+                                "labelProps": {
+                                    "text": ""
+                                }
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

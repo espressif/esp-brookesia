@@ -1,0 +1,21 @@
+dependencies:
+  espressif/brookesia_gui_lvgl:
+    override_path: ../../../../gui/brookesia_gui_lvgl
+    version: 0.8.*
+  espressif/brookesia_hal_adaptor:
+    override_path: ../../../../hal/brookesia_hal_adaptor
+    version: 0.8.*
+  espressif/brookesia_hal_boards:
+    override_path: ../../../../hal/brookesia_hal_boards
+    version: 0.8.*
+  espressif/brookesia_service_display:
+    override_path: ../../../../service/media/brookesia_service_display
+    version: 0.8.*
+  espressif/brookesia_service_storage:
+    override_path: ../../../../service/system/brookesia_service_storage
+    version: 0.8.*
+  espressif/brookesia_system_core:
+    override_path: ../../../../system/brookesia_system_core
+  espressif/brookesia_service_device:
+    override_path: ../../../../service/system/brookesia_service_device
+    version: 0.8.*

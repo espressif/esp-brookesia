@@ -1,0 +1,6 @@
+components/gen_bmgr_codes/
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock

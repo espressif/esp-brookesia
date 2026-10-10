@@ -1,0 +1,142 @@
+{
+    "type": "viewTemplate",
+    "id": "launcher_app_button",
+    "node": {
+        "type": "button",
+        "bindings": {
+            "placement.x": "x",
+            "placement.y": "y"
+        },
+        "interactionRefs": [
+            "press.scale"
+        ],
+        "events": [
+            {
+                "type": "clicked",
+                "effects": [
+                    {
+                        "type": "emitAction",
+                        "action": "super.launch.app",
+                        "requireValidPress": true
+                    }
+                ]
+            }
+        ],
+        "style": {
+            "padding": 0
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": "${constant.ui.content.metric.launcherLabelGap}",
+            "mainAlign": "center",
+            "crossAlign": "center"
+        },
+        "placement": {
+            "mode": "absolute",
+            "width": "${constant.ui.content.metric.launcherItemWidth}",
+            "height": "${constant.ui.content.metric.launcherItemHeight}"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "icon_box",
+                "commonProps": {
+                    "clickable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "mainAlign": "center",
+                    "crossAlign": "center"
+                },
+                "placement": {
+                    "width": "${constant.ui.content.metric.launcherIconTileSize}",
+                    "height": "${constant.ui.content.metric.launcherIconTileSize}"
+                },
+                "children": [
+                    {
+                        "type": "image",
+                        "id": "icon_image",
+                        "commonProps": {
+                            "clickable": false,
+                            "hidden": true
+                        },
+                        "bindings": {
+                            "imageProps.src": "src",
+                            "commonProps.hidden": "hidden"
+                        },
+                        "imageProps": {
+                            "src": "",
+                            "innerAlign": "contain"
+                        },
+                        "placement": {
+                            "width": "${constant.ui.content.metric.launcherIconSize}",
+                            "height": "${constant.ui.content.metric.launcherIconSize}"
+                        }
+                    },
+                    {
+                        "type": "label",
+                        "id": "icon",
+                        "commonProps": {
+                            "clickable": false,
+                            "hidden": true
+                        },
+                        "bindings": {
+                            "labelProps.text": "text",
+                            "commonProps.hidden": "hidden"
+                        },
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "styleRefs": [
+                            "shell.launcherFallbackIcon"
+                        ]
+                    }
+                ],
+                "styleRefs": [
+                    "shell.launcherIconTile"
+                ]
+            },
+            {
+                "type": "container",
+                "id": "title_box",
+                "commonProps": {
+                    "clickable": false
+                },
+                "layout": {
+                    "type": "flex",
+                    "mainAlign": "center",
+                    "crossAlign": "center"
+                },
+                "placement": {
+                    "width": "${constant.ui.content.metric.launcherItemWidth}",
+                    "height": "${constant.ui.content.metric.launcherTitleBoxHeight}"
+                },
+                "children": [
+                    {
+                        "type": "label",
+                        "id": "app_name",
+                        "commonProps": {
+                            "clickable": false
+                        },
+                        "bindings": {
+                            "labelProps.text": "name"
+                        },
+                        "labelProps": {
+                            "text": ""
+                        },
+                        "style": {
+                            "fontSize": "${constant.ui.metric.captionFont}"
+                        },
+                        "styleRefs": [
+                            "shell.launcherAppLabel"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "styleRefs": [
+            "shell.launcherAppButton"
+        ]
+    }
+}

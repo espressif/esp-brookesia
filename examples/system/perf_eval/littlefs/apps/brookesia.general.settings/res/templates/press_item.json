@@ -1,0 +1,72 @@
+{
+    "type": "interactionTemplate",
+    "id": "press.item",
+    "commonProps": {
+        "pressLock": false
+    },
+    "events": [
+        {
+            "type": "pressed",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_item_down"
+                }
+            ]
+        },
+        {
+            "type": "pressLost",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_item_up"
+                }
+            ]
+        },
+        {
+            "type": "released",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_item_up"
+                }
+            ]
+        },
+        {
+            "type": "clicked",
+            "effects": [
+                {
+                    "type": "startAnimation",
+                    "animationId": "press_item_up"
+                }
+            ]
+        }
+    ],
+    "animations": [
+        {
+            "id": "press_item_down",
+            "trigger": "manual",
+            "property": "opacity",
+            "fromMode": "current",
+            "from": 0,
+            "to": 224,
+            "duration": 80,
+            "easing": "easeOut"
+        },
+        {
+            "id": "press_item_up",
+            "trigger": "manual",
+            "property": "opacity",
+            "fromMode": "current",
+            "from": 0,
+            "to": 255,
+            "duration": 120,
+            "easing": "easeOut"
+        }
+    ],
+    "stateStyles": {
+        "pressed": {
+            "opacity": 224
+        }
+    }
+}

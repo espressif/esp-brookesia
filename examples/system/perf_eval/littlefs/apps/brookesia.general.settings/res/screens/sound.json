@@ -1,0 +1,173 @@
+{
+    "type": "viewScreen",
+    "id": "sound",
+    "mountMode": "dynamic",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "templateRef",
+                    "id": "volume_card",
+                    "templateId": "settings_card",
+                    "overrides": {
+                        ".": {
+                            "style": {
+                                "padding": "${constant.settings.layout.cardPadding}"
+                            },
+                            "layout": {
+                                "gap": "10dp"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "wrap",
+                                "alignSelf": "stretch"
+                            }
+                        }
+                    },
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "media_volume_row",
+                                "templateId": "slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Volume"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.sound.volume"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 0,
+                                            "max": 100,
+                                            "value": 42
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "options_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Sound options"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "silent_card",
+                    "templateId": "settings_card",
+                    "overrides": {
+                        ".": {
+                            "style": {
+                                "padding": "${constant.settings.layout.cardPadding}"
+                            },
+                            "layout": {
+                                "gap": "10dp"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "wrap",
+                                "alignSelf": "stretch"
+                            }
+                        }
+                    },
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "silent_mode",
+                                "templateId": "switch_row",
+                                "overrides": {
+                                    ".": {
+                                        "placement": {
+                                            "mode": "flow",
+                                            "width": "match",
+                                            "height": "${constant.settings.layout.rowHeight}",
+                                            "alignSelf": "stretch"
+                                        }
+                                    },
+                                    "text": {
+                                        "layout": {
+                                            "type": "flex",
+                                            "flexFlow": "column",
+                                            "mainAlign": "center",
+                                            "crossAlign": "start",
+                                            "gap": "0dp"
+                                        }
+                                    },
+                                    "text/title": {
+                                        "labelProps": {
+                                            "text": "Mute"
+                                        }
+                                    },
+                                    "text/subtitle": {
+                                        "commonProps": {
+                                            "hidden": true
+                                        },
+                                        "labelProps": {
+                                            "text": ""
+                                        }
+                                    },
+                                    "toggle": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.sound.mute"
+                                            }
+                                        ],
+                                        "toggleProps": {
+                                            "checked": true
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}
