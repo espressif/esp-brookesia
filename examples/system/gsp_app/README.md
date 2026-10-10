@@ -79,6 +79,10 @@ brookesia-usb install <package>.bpk
 
 A package installs only on the interface it was built for: a GSP package needs the GSP interface. [Device Control](../../app/gsp_js_device_control/README.md) is a ready-made example that reads and changes the brightness.
 
+Installed apps live in the LittleFS partition. A full `idf.py flash` rewrites that partition and removes them along with their data; use `idf.py app-flash` to update the firmware and keep them.
+
+To build Device Control into the firmware instead, enable **Brookesia system GSP example → Preinstall the Device Control app** in menuconfig and run a full `idf.py flash`. It is off by default.
+
 ## Wi-Fi
 
 Open **Settings → Wi-Fi**. Turn Wi-Fi on to scan nearby networks. Use **Refresh** to scan again and **Previous / Next** to browse the results. The page shows each network's security, signal level, and RSSI, together with the current connection status.
@@ -127,6 +131,7 @@ Normal startup goes straight to the launcher. The checks below are for developme
 | --- | --- |
 | **Open and close Settings repeatedly at startup to log heap use** | Opens and closes Settings 22 times, 2 to warm up and 20 measured, and logs memory before the launcher appears |
 | **Log heap across short start and exit cycles of the installed GSP JS app** | Does the same for the installed Device Control app with 5 cycles |
+| **Let USB callers inject touches and print the screen** | Adds a `GspProbe` service with `Tap`, `Drag`, `Component`, and `Frame`, callable through `brookesia-usb call`. `Frame` prints the framebuffers to the console after the USB command ends. Startup and app installation are unchanged |
 | **Run Settings Wi-Fi hardware acceptance probe at startup** | Uses real scans and simulated touches to exercise refresh, scan cancellation, reopening, and Wi-Fi toggles, and logs memory over 20 cycles. It also shows synthetic empty and failed scan results and multilingual names |
 | **Run Settings sound and appearance checks instead of scan checks** | Available with the Wi-Fi probe. Checks page navigation, the test tone, mute restoration, and memory, and adds temporary serial commands `touch X Y`, `frame`, and `state` |
 | **Run password and connection checks instead of scan checks** | Available with the Wi-Fi probe. Tests password entry and connecting to a network |

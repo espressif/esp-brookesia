@@ -7,6 +7,16 @@ menu "Brookesia system GSP example"
         help
             This example can run GSP, so menuconfig includes that choice.
 
+    config BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL
+        bool "Preinstall the Device Control app"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        default n
+        help
+            Build examples/app/gsp_js_device_control and put it in the
+            LittleFS image. The image is written only by a full 'idf.py flash',
+            which replaces every app installed over USB and their data.
+            Leave disabled to install apps with brookesia-usb instead.
+
     config BROOKESIA_GSP_SETTINGS_MEMORY_PROBE
         bool "Open and close Settings repeatedly at startup to log heap use"
         depends on BROOKESIA_GUI_BACKEND_GSP
@@ -24,6 +34,17 @@ menu "Brookesia system GSP example"
             After warmup, start and stop brookesia.gsp.device_control five times
             and log internal RAM and PSRAM. The app must already be installed.
             Leave disabled for normal use.
+
+    config BROOKESIA_GSP_DELIVERY_PROBE
+        bool "Let USB callers inject touches and print the screen"
+        depends on BROOKESIA_GUI_BACKEND_GSP
+        depends on !BROOKESIA_GSP_SETTINGS_PROBE
+        default n
+        help
+            Register a GspProbe service that brookesia-usb can call to tap,
+            drag, query components, and print the framebuffers to the console.
+            Startup and the USB install path are unchanged. Anyone with USB
+            access can drive the screen, so leave disabled for normal use.
 
     config BROOKESIA_GSP_WIFI_PROBE
         bool "Run Settings Wi-Fi hardware acceptance probe at startup"

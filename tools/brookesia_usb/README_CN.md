@@ -37,7 +37,7 @@ brookesia-usb --port /dev/ttyUSB0 --baudrate 921600 status
 
 存在多个匹配设备时，请用 `devices` 输出的路径显式指定 `--port`。单个 Serial/JTAG CDC 配置通常只暴露 `/dev/ttyACM0`；不存在 `/dev/ttyACM1` 是正常的。
 
-打开 USB 转 UART 端口会复位设备，因此 CLI 会重试 `hello` 直到服务就绪。执行命令前请关闭 `idf.py monitor`、minicom 或其他读取同一端口的程序。
+CLI 打开端口时不会复位设备，命令直接作用于正在运行的系统。若设备仍在启动，CLI 会重试 `hello` 直到服务就绪。执行命令前请关闭 `idf.py monitor`、minicom 或其他读取同一端口的程序。
 
 ## 控制会话
 

@@ -135,6 +135,8 @@ The exact RPC names ``SystemCore``, ``SystemGui``, and ``SystemTimer`` are impli
 
 This enforcement applies to runtime apps that access services through the HostBridge. Native apps are trusted firmware code and their direct C++ service access is not restricted by the manifest.
 
+A ``.bpk`` is unpacked and validated under ``apps/.installing/`` before anything installed is touched. When it replaces an installed app, the old directory is moved to ``previous/`` in that staging folder, its ``cache``, ``data`` and ``files`` are carried into the new copy, and the old directory is deleted only after the new version registers and the update is committed: a temporary ``committing`` file is written and then renamed to ``committed``. If registration fails, or the commit fails and ``committed`` does not exist, the new copy is moved aside and the old version is moved back and registered again. At boot, a staging folder with ``previous/`` but no ``committed`` file is treated as an unfinished update and the old version is restored the same way; ``previous/`` is removed only when ``committed`` exists and the new copy is in place. If any of these files cannot be checked or moved, the staging folder is kept untouched. Other leftover staging folders are removed, and an installed app that fails to load is skipped with a warning instead of stopping system start. Uninstalling removes the app directory, including its data.
+
 .. _system-core-app_package-sec-04:
 
 Resource Descriptor

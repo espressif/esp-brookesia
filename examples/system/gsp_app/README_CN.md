@@ -79,6 +79,10 @@ brookesia-usb install <package>.bpk
 
 安装包只能装到它所面向的界面上：GSP 安装包需要使用 GSP 界面。[Device Control](../../app/gsp_js_device_control/README_CN.md) 是一个现成的示例，可以读取并调节亮度。
 
+已安装的应用保存在 LittleFS 分区。完整执行 `idf.py flash` 会重写该分区，删除这些应用及其数据；只更新固件并保留应用请使用 `idf.py app-flash`。
+
+如需将 Device Control 直接编入固件，在 menuconfig 中开启 **Brookesia system GSP example → Preinstall the Device Control app**，再完整执行 `idf.py flash`。该选项默认关闭。
+
 ## Wi-Fi
 
 打开 **Settings → Wi-Fi**，开启 Wi-Fi 后扫描附近热点。使用 **Refresh** 重新扫描，通过 **Previous / Next** 浏览结果。页面显示各热点的安全状态、信号等级和 RSSI，以及当前连接状态。
@@ -127,6 +131,7 @@ GSP 启动页提供设置入口，LVGL 使用 Super 桌面。我的设备、时�
 | --- | --- |
 | **Open and close Settings repeatedly at startup to log heap use** | 打开并关闭设置 22 次，其中 2 次预热、20 次计量，在启动页出现前记录内存 |
 | **Log heap across short start and exit cycles of the installed GSP JS app** | 对已安装的 Device Control 应用做同样的检查，共 5 轮 |
+| **Let USB callers inject touches and print the screen** | 增加 `GspProbe` 服务，提供 `Tap`、`Drag`、`Component` 和 `Frame`，可通过 `brookesia-usb call` 调用。`Frame` 在 USB 命令结束后把帧缓冲输出到串口。启动流程和应用安装不变 |
 | **Run Settings Wi-Fi hardware acceptance probe at startup** | 使用真实扫描和模拟触摸，覆盖刷新、取消扫描、重新进入和 Wi-Fi 开关，并记录 20 轮内存。还会显示合成的空结果、扫描失败和多语言名称 |
 | **Run Settings sound and appearance checks instead of scan checks** | 需先开启 Wi-Fi 探针。检查页面导航、试听、静音恢复和内存，并提供临时串口命令 `touch X Y`、`frame`、`state` |
 | **Run password and connection checks instead of scan checks** | 需先开启 Wi-Fi 探针。测试密码输入和连接网络 |

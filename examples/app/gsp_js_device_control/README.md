@@ -1,117 +1,120 @@
-# GSP JavaScript Device Control
+# Device Control
 
 [中文](./README_CN.md)
 
-A small app for the ESP-Brookesia GSP interface that you install while the board is running. It shows the screen brightness and lets you change it with a slider. The logic is JavaScript and the pages are GSP scenes, so you can change either one, build a new package, and update the app over USB without rebuilding or flashing the firmware.
+Device Control is an example app for ESP-Brookesia boards that use the GSP interface. It shows the screen brightness and changes it with a slider. The pages are GSP scenes and the logic is JavaScript, so you can change the app and install the new version over USB without rebuilding or flashing the firmware.
 
 ## Features
 
-- Two pages: a status page and a brightness page with a slider
-- Reads and changes the backlight through the Display service, and shows the value the service reports
-- Install, update, and uninstall over USB
-- Appears on the launcher next to Settings
+- A status page and a brightness page with a slider
+- Reads and sets the backlight through the Display service
+- Installs, updates, and uninstalls over USB while the board is running
+- Can also be built into the firmware image as a preinstalled app
 
 ## Requirements
 
-- An ESP32-P4 Function EV Board running the [System GSP App](../../system/gsp_app/README.md) with the GSP interface, which is the default
+- ESP32-P4 Function EV Board running [System GSP App](../../system/gsp_app/README.md) with the GSP interface (the default)
 - Python 3
-- The GSP scene compiler: `python -m pip install -U esp-gsp-tools`
-- The USB command line tool: `python -m pip install brookesia-usb`
+- GSP tools: `python -m pip install -U esp-gsp-tools`
+- USB tool: `python -m pip install brookesia-usb`
 
-## Build
+## Quick start
 
-```bash
-python3 tools/build_package.py --version 0.1.0
-```
+Run these commands from this directory.
 
-The package is written to `build/brookesia.gsp.device_control.debug.0.1.0.bpk`.
+1. Build the package:
 
-If the build cannot find `gspc`, set `GSPC_EXECUTABLE` to its path or pass `--gspc <path>`.
+   ```bash
+   python3 tools/build_package.py --version 0.1.0
+   ```
 
-## Install
+   The package is written to `build/brookesia.gsp.device_control.debug.0.1.0.bpk`.
 
-Connect the board's USB Serial/JTAG port, wait until the launcher is on screen, and close any serial monitor. Then run:
+2. Connect the board's USB Serial/JTAG port and close any serial monitor that uses it.
 
-```bash
-brookesia-usb install build/brookesia.gsp.device_control.debug.0.1.0.bpk
-```
+3. Install:
 
-**Device Control** appears on the launcher next to Settings. The launcher shows up to four installed apps, and they stay installed after a restart.
+   ```bash
+   brookesia-usb install build/brookesia.gsp.device_control.debug.0.1.0.bpk
+   ```
+
+**Device Control** appears on the launcher next to **Settings**. Tap it, then tap **Brightness** and drag the slider. **Back** returns to the status page and **Exit** returns to the launcher.
 
 ## Update
 
-Build again with a higher version and install it the same way. The installed copy is replaced.
+Build with a higher version and install it the same way:
 
 ```bash
 python3 tools/build_package.py --version 0.2.0
 brookesia-usb install build/brookesia.gsp.device_control.debug.0.2.0.bpk
 ```
 
-A package that is damaged or built for another interface is rejected, and the installed version keeps working.
+The new version replaces the old one and keeps the app's data. If the package is damaged or does not fit the firmware, the install is refused with the reason and the installed version keeps working.
 
 ## Uninstall
 
+Find the app's `app_id`, then uninstall it:
+
 ```bash
 brookesia-usb call SystemCore ListApps '{}'
-brookesia-usb call SystemCore UninstallApp '{"AppId": <id>}'
+brookesia-usb call SystemCore UninstallApp '{"AppId": <app_id>}'
 ```
 
-Use the `app_id` of `brookesia.gsp.device_control` from the first command. The id can change after a reinstall, so list the apps again before uninstalling.
+Uninstalling also deletes the app's data. The `app_id` changes after every install, so list the apps first.
 
-## Using the app
+## Preinstall in the firmware
 
-1. Tap **Device Control** on the launcher.
-2. The status page shows the package version and the current brightness.
-3. Tap **Brightness** and drag the slider. The screen brightness changes, and the value shown is read back from the Display service.
-4. Tap **Back** to return to the status page, or **Exit** to return to the launcher.
+USB installation is the usual way to deliver this app. To ship a firmware image that already contains it, enable the option in System GSP App:
+
+```text
+idf.py menuconfig
+  Brookesia system GSP example → Preinstall the Device Control app
+```
+
+The build compiles the package and adds it to the LittleFS image. The image is written only by a full `idf.py flash`, which **replaces every app installed over USB and their data**. `idf.py app-flash` leaves LittleFS untouched, so it neither adds nor removes the preinstalled app. A preinstalled app can still be updated or uninstalled over USB.
 
 ## Customize
 
-| Path | Purpose |
+| Path | Contents |
 | --- | --- |
 | `package/app/app.js` | App logic |
 | `scenes/status.json`, `scenes/brightness.json` | The two pages |
-| `package/manifest.json` | Name, version, and required services |
+| `package/manifest.json` | App ID, name, version, and required services |
 | `tools/build_package.py` | Compiles the pages and creates the `.bpk` |
 
-After editing, build with a new `--version` and install again.
+After a change, build with a new `--version` and install it. To check page layout without a board, run `python3 tools/build_package.py --preview`. The preview shows layout only and does not run `app.js`.
 
-### JavaScript interface
+### JavaScript API
 
-`app.js` defines `globalThis.brookesia_app` with these callbacks:
+`app.js` assigns `globalThis.brookesia_app` with these callbacks:
 
 | Callback | Called when |
 | --- | --- |
-| `on_start()` | The app opens |
+| `on_start()` | The app opens. Return `false` or throw to cancel the start |
 | `on_stop()` | The app closes |
-| `on_action(action, path, payloadJson)` | A page control is used or a page change finishes |
+| `on_action(action, path, payloadJson)` | A control is used (`gsp.call`) or a requested page is on screen (`gsp.scene`) |
 | `on_event(serviceName, eventName, itemsJson)` | A subscribed service event arrives |
 
-`on_action` receives two kinds of action:
-
-- `gsp.call`: a control with a `callback` was used. The payload holds `scene`, `action_id`, `arg`, and `key`, which is the FNV-1a hash of the callback name from the scene JSON. `app.js` shows how to compute it.
-- `gsp.scene`: the page requested with `gsp_show_page` is now on screen. Controls on the new page only exist from this point, so update them here.
-
-To change what is on screen:
+For `gsp.call`, the payload includes `arg` and `key`, the FNV-1a hash of the control's `callback` name; `app.js` shows how to compute it. Controls on a new page exist only after its `gsp.scene` action, so update them there.
 
 | Function | Effect |
 | --- | --- |
-| `brookesia.gsp_set_text(name, text)` | Sets a label's text |
+| `brookesia.gsp_set_text(name, text)` | Sets the text of a label that has a `bind` in the scene |
 | `brookesia.gsp_set_value(name, value)` | Sets a slider's value |
-| `brookesia.gsp_show_page(scene)` | Switches to the page with that index, in build order |
-
-A label's text can be changed only if it has a `bind` in the scene JSON. Services are called with `brookesia.call_service_function`, and the services an app needs are listed in `manifest.json`.
-
-## Notes
-
-- The package runs only on firmware built with the GSP interface. Installing it on an LVGL build is rejected.
-- `python3 tools/build_package.py --preview` shows the pages in the ESP-GSP simulator, `gsp_sim_host` from esp-gsp-tools. It shows layout only. It does not run `app.js` or talk to the Display service.
-- Figma export produces LVGL JSON UI packages and cannot create GSP pages.
+| `brookesia.gsp_show_page(index)` | Shows a page by its build order |
+| `brookesia.call_service_function(service, function, argsJson, timeoutMs)` | Calls a service declared in `manifest.json` |
 
 ## Troubleshooting
 
-| Symptom | What to do |
+| Symptom | Fix |
 | --- | --- |
-| `brookesia-usb` times out or reports that the port is busy | Close any serial monitor or other program using the board's port |
-| The first command after a reset fails or lists no apps | Wait until the launcher is on screen, then run it again |
-| Install fails with a message about the GUI backend | The firmware uses the LVGL interface. Build and flash the GSP interface |
+| `brookesia-usb` times out or the port is busy | Close any program using the board's serial port |
+| The app list is empty right after a reboot | Wait for the launcher to appear, then retry |
+| Install fails with a GUI backend message | The firmware uses the LVGL interface; build and flash the GSP interface |
+| The build cannot find `gspc` | Set `GSPC_EXECUTABLE` or pass `--gspc <path>` |
+| Tapping the app returns to the launcher | `on_start` failed; the reason is in the serial log |
+
+## Limitations
+
+- Runs only on firmware built with the GSP interface.
+- Figma export produces LVGL JSON UI packages and cannot generate GSP pages.

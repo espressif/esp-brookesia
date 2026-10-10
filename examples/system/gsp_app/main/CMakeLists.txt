@@ -20,6 +20,9 @@ elseif(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
         list(APPEND SRCS "${CMAKE_CURRENT_LIST_DIR}/wifi_probe_hooks.cpp")
         set(probe_requires esp_event esp_wifi)
     endif()
+    if(CONFIG_BROOKESIA_GSP_DELIVERY_PROBE)
+        list(APPEND SRCS "${CMAKE_CURRENT_LIST_DIR}/delivery_probe.cpp")
+    endif()
 else()
     # The first dependency scan runs before sdkconfig exists.
     set(SRCS "${CMAKE_CURRENT_LIST_DIR}/main_pending.cpp")
@@ -42,6 +45,10 @@ idf_component_register(
 
 if(CONFIG_BROOKESIA_LVGL_HW_PROBE)
     idf_component_optional_requires(PRIVATE lvgl lvgl__lvgl esp_lcd)
+endif()
+
+if(CONFIG_BROOKESIA_GSP_DELIVERY_PROBE)
+    target_link_options(${COMPONENT_LIB} INTERFACE "LINKER:--wrap=esp_lcd_panel_draw_bitmap")
 endif()
 
 if(CONFIG_BROOKESIA_GSP_WIFI_PROBE)

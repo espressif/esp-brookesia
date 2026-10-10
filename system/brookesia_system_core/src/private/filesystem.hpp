@@ -21,6 +21,32 @@ inline constexpr uint32_t STORAGE_FS_TIMEOUT_MS = 5000;
 
 } // namespace detail
 
+// Each package install works in `<app root>/.installing/<unique>/`. While an update is
+// replacing an installed app, the old directory waits in `previous/`. Once the new version
+// is registered, `committing` is written and renamed to `committed`; only `committed`
+// counts. Without it, boot recovery puts `previous/` back and moves the unconfirmed copy
+// to `rejected/`.
+inline constexpr const char *APP_INSTALL_STAGING_DIR = ".installing";
+inline constexpr const char *APP_PREVIOUS_VERSION_DIR = "previous";
+inline constexpr const char *APP_REJECTED_VERSION_DIR = "rejected";
+inline constexpr const char *APP_INSTALL_COMMITTING_FILE = "committing";
+inline constexpr const char *APP_INSTALL_COMMITTED_FILE = "committed";
+
+enum class PathState {
+    Missing,
+    Exists,
+    Unknown,
+};
+
+inline PathState query_path_state(const std::filesystem::path &path)
+{
+    auto info = service::helper::Storage::fs_stat(path.generic_string(), detail::STORAGE_FS_TIMEOUT_MS);
+    if (!info) {
+        return PathState::Unknown;
+    }
+    return info->exists ? PathState::Exists : PathState::Missing;
+}
+
 inline std::expected<std::uintmax_t, std::string> remove_path_tree(
     const std::filesystem::path &path,
     std::string_view label

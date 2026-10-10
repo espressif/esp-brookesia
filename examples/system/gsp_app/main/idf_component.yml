@@ -57,3 +57,8 @@ dependencies:
     matches:
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
+
+  gsp_js_device_control:
+    path: ../../../app/gsp_js_device_control
+    rules:
+      - if: $CONFIG{BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL} == True

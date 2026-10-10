@@ -630,6 +630,8 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
         if (!remove_result) {
             return std::unexpected(remove_result.error());
         }
+        std::lock_guard lock(impl_->mutex_);
+        impl_->app_storage_paths_cache_.erase(record.info.manifest.id);
     }
     if (!impl_->discard_app_record(app_id)) {
         return std::unexpected("GSP session is still running");

@@ -17,6 +17,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -60,6 +61,16 @@ constexpr std::string_view MISSING_RPC_NAME = "MissingRpc";
 constexpr std::string_view SECOND_MISSING_RPC_NAME = "SecondMissingRpc";
 constexpr std::string_view STAGED_APP_ID = "staged-incompatible";
 constexpr std::string_view NATIVE_APP_ID = "native-incompatible";
+constexpr std::string_view UPDATE_APP_ID = "update-target";
+constexpr std::string_view INTERRUPTED_APP_ID = "interrupted-update";
+constexpr std::string_view BROKEN_APP_ID = "broken-installed";
+constexpr std::string_view PARTIAL_APP_ID = "partial-update";
+constexpr std::string_view COMMITTED_APP_ID = "committed-update";
+constexpr std::string_view UNCHECKED_BACKUP_APP_ID = "unchecked-backup";
+constexpr std::string_view UNCHECKED_TARGET_APP_ID = "unchecked-target";
+constexpr std::string_view MARKER_APPLIED_APP_ID = "marker-applied";
+constexpr std::string_view MARKER_FAULT_APP_ID = "marker-fault";
+constexpr std::string_view FAILING_INSTALL_VERSION = "9.9.9";
 
 class TemporaryDirectory {
 public:
@@ -200,6 +211,27 @@ public:
         file_replacement_source_ = std::move(replacement);
     }
 
+    void fail_stat(const std::filesystem::path &path)
+    {
+        std::lock_guard lock(failure_mutex_);
+        failing_stat_paths_.insert(path.lexically_normal().generic_string());
+    }
+
+    // Fails calls whose path contains `pattern`; an empty pattern clears the fault. `after_effect` performs
+    // the operation before reporting the error, like a real Storage that creates the file and then fails
+    // to allocate its buffer.
+    void set_write_text_fault(std::string pattern, bool after_effect)
+    {
+        std::lock_guard lock(failure_mutex_);
+        write_text_fault_ = {std::move(pattern), after_effect};
+    }
+
+    void set_rename_fault(std::string from_pattern, bool after_effect)
+    {
+        std::lock_guard lock(failure_mutex_);
+        rename_fault_ = {std::move(from_pattern), after_effect};
+    }
+
     std::vector<FunctionSchema> get_function_schemas() override
     {
         constexpr std::string_view REQUIRED_SCHEMAS[] = {
@@ -238,9 +270,15 @@ protected:
         auto get_file_systems = [](FunctionParameterMap &&) {
             return make_success(boost::json::array{});
         };
-        auto fs_stat = [](FunctionParameterMap && parameters) {
+        auto fs_stat = [this](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
-            return path == nullptr ? make_error("Missing Path") : make_success(make_file_info(*path));
+            if (path == nullptr) {
+                return make_error("Missing Path");
+            }
+            if (should_fail_stat(*path)) {
+                return make_error("Injected stat failure: " + *path);
+            }
+            return make_success(make_file_info(*path));
         };
         auto fs_list = [](FunctionParameterMap && parameters) {
             const auto *path = get_parameter<std::string>(parameters, "Path");
@@ -313,9 +351,16 @@ protected:
             if (path == nullptr || data == nullptr) {
                 return make_error("Invalid FSWriteText parameters");
             }
+            const auto fault = match_fault(write_text_fault_, *path);
+            if (fault && !*fault) {
+                return make_error("Injected write failure: " + *path);
+            }
             mutation_count_.fetch_add(1);
             std::ofstream output(*path, std::ios::binary | std::ios::trunc);
             output << *data;
+            if (fault) {
+                return make_error("Injected write failure after creating: " + *path);
+            }
             return output ? make_success() : make_error("Failed to write file: " + *path);
         };
         auto fs_write = [this](FunctionParameterMap && parameters) {
@@ -348,9 +393,16 @@ protected:
             if (from == nullptr || to == nullptr) {
                 return make_error("Invalid FSRename parameters");
             }
+            const auto fault = match_fault(rename_fault_, *from);
+            if (fault && !*fault) {
+                return make_error("Injected rename failure: " + *from);
+            }
             mutation_count_.fetch_add(1);
             std::error_code error;
             std::filesystem::rename(*from, *to, error);
+            if (fault) {
+                return make_error("Injected rename failure after renaming: " + *from);
+            }
             return error ? make_error(error.message()) : make_success();
         };
         auto fs_copy_tree = [this](FunctionParameterMap && parameters) {
@@ -412,6 +464,27 @@ protected:
     }
 
 private:
+    bool should_fail_stat(const std::string &path)
+    {
+        std::lock_guard lock(failure_mutex_);
+        return failing_stat_paths_.contains(std::filesystem::path(path).lexically_normal().generic_string());
+    }
+
+    struct Fault {
+        std::string pattern;
+        bool after_effect = false;
+    };
+
+    // Returns whether the fault applies after the effect, or nothing when the path does not contain the pattern.
+    std::optional<bool> match_fault(const Fault &fault, const std::string &path)
+    {
+        std::lock_guard lock(failure_mutex_);
+        if (fault.pattern.empty() || (path.find(fault.pattern) == std::string::npos)) {
+            return std::nullopt;
+        }
+        return fault.after_effect;
+    }
+
     std::expected<void, std::string> replace_file_if_armed(const std::filesystem::path &path)
     {
         std::filesystem::path replacement;
@@ -442,6 +515,10 @@ private:
     std::mutex file_replacement_mutex_;
     std::filesystem::path file_replacement_target_;
     std::filesystem::path file_replacement_source_;
+    std::mutex failure_mutex_;
+    std::set<std::string> failing_stat_paths_;
+    Fault write_text_fault_;
+    Fault rename_fault_;
 };
 
 class HostDeviceService final: public ServiceBase {
@@ -533,6 +610,14 @@ protected:
         start_failure_count_.fetch_add(1);
     }
 
+    std::expected<void, std::string> on_app_installed(const AppInfo &app) override
+    {
+        if (app.manifest.version == FAILING_INSTALL_VERSION) {
+            return std::unexpected("Injected install hook failure");
+        }
+        return {};
+    }
+
     std::expected<void, std::string> on_show_message_dialog(
         AppId,
         MessageDialogRequestId request_id,
@@ -577,6 +662,112 @@ bool create_staged_runtime_app(const std::filesystem::path &storage_root)
            write_text_file(app_root / "data" / "keep.txt", "preserve-existing-app");
 }
 
+std::string make_runtime_manifest(std::string_view app_id, std::string_view version)
+{
+    return R"({"package":{"id":")" + std::string(app_id) + R"(","name":{"en":"Runtime test"},"version":")" +
+           std::string(version) + R"("},"runtime":{"type":"JavaScript","entry":"app.js","resource_dir":"res"}})";
+}
+
+// Power was lost after the installed copy moved to previous/ and before the new copy took its place.
+bool create_interrupted_update(const std::filesystem::path &storage_root)
+{
+    const auto installing = storage_root / "apps" / ".installing";
+    const auto previous = installing / "interrupted-update-1" / "previous";
+    const auto staged = installing / "interrupted-update-1" / INTERRUPTED_APP_ID;
+    return write_text_file(previous / "manifest.json", make_runtime_manifest(INTERRUPTED_APP_ID, "1.0.0")) &&
+           write_text_file(previous / "res" / "profile.json", "{}") &&
+           write_text_file(previous / "data" / "keep.txt", "survived-interrupted-update") &&
+           write_text_file(staged / "manifest.json", make_runtime_manifest(INTERRUPTED_APP_ID, "2.0.0")) &&
+           write_text_file(installing / "stale-install-2" / "partial" / "app.js", "stale");
+}
+
+enum class TargetState {
+    ManifestOnly,
+    Complete,
+    Missing,
+};
+
+// One update that stopped after the installed copy moved to previous/.
+bool create_unfinished_update(
+    const std::filesystem::path &storage_root, std::string_view app_id, TargetState target, bool committed
+)
+{
+    const auto staging = storage_root / "apps" / ".installing" / (std::string(app_id) + "-1");
+    const auto previous = staging / "previous";
+    const auto install_dir = storage_root / "apps" / app_id;
+    bool ok = write_text_file(previous / "manifest.json", make_runtime_manifest(app_id, "1.0.0")) &&
+              write_text_file(previous / "res" / "profile.json", "{}") &&
+              write_text_file(previous / "data" / "keep.txt", "old-data");
+    if (target != TargetState::Missing) {
+        ok = ok && write_text_file(install_dir / "manifest.json", make_runtime_manifest(app_id, "2.0.0"));
+    }
+    if (target == TargetState::Complete) {
+        ok = ok && write_text_file(install_dir / "res" / "profile.json", "{}") &&
+             write_text_file(install_dir / "data" / "keep.txt", "new-data");
+    }
+    if (committed) {
+        ok = ok && write_text_file(staging / "committed", "");
+    }
+    return ok;
+}
+
+bool create_broken_installed_app(const std::filesystem::path &storage_root)
+{
+    const auto app_root = storage_root / "apps" / BROKEN_APP_ID;
+    return write_text_file(app_root / "manifest.json", make_runtime_manifest(BROKEN_APP_ID, "1.0.0")) &&
+           write_text_file(app_root / "res" / "profile.json", "[not json");
+}
+
+std::optional<std::string> read_text_file(const std::filesystem::path &path)
+{
+    std::ifstream input(path, std::ios::binary);
+    if (!input.is_open()) {
+        return std::nullopt;
+    }
+    return std::string(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
+}
+
+std::optional<std::filesystem::path> find_staging(const std::filesystem::path &installing_root, std::string_view app_id)
+{
+    std::error_code error;
+    for (std::filesystem::directory_iterator it(installing_root, error), end; !error && it != end; it.increment(error)) {
+        if (it->path().filename().generic_string().starts_with(std::string(app_id) + "-")) {
+            return it->path();
+        }
+    }
+    return std::nullopt;
+}
+
+System::Config make_test_config(const std::filesystem::path &storage_root)
+{
+    System::Config config;
+    config.install_registered_apps = false;
+    config.install_package_apps = true;
+    config.storage.internal_override = StorageVolume{
+        .id = "internal",
+        .partition = StoragePartition::Internal,
+        .mount_point = storage_root.generic_string(),
+        .root_path = storage_root.generic_string(),
+        .available = true,
+    };
+    return config;
+}
+
+// Staging directories that boot recovery must keep because their state could not be checked.
+bool only_unchecked_staging_left(const std::filesystem::path &installing_root)
+{
+    const std::set<std::string> expected = {
+        std::string(UNCHECKED_BACKUP_APP_ID) + "-1",
+        std::string(UNCHECKED_TARGET_APP_ID) + "-1",
+    };
+    std::set<std::string> names;
+    std::error_code error;
+    for (std::filesystem::directory_iterator it(installing_root, error), end; !error && it != end; it.increment(error)) {
+        names.insert(it->path().filename().generic_string());
+    }
+    return !error && (names == expected);
+}
+
 void append_u16(std::vector<uint8_t> &output, uint16_t value)
 {
     output.push_back(static_cast<uint8_t>(value));
@@ -591,50 +782,59 @@ void append_u32(std::vector<uint8_t> &output, uint32_t value)
     output.push_back(static_cast<uint8_t>(value >> 24U));
 }
 
-bool create_manifest_only_bpk(const std::filesystem::path &path, std::string_view manifest)
+using BpkFiles = std::vector<std::pair<std::string, std::string>>;
+
+// Writes a stored (uncompressed) ZIP. CRC fields stay zero because the installer does not check them.
+bool create_bpk(const std::filesystem::path &path, const BpkFiles &files)
 {
-    constexpr std::string_view FILE_NAME = "manifest.json";
     std::vector<uint8_t> data;
-    append_u32(data, 0x04034b50U);
-    append_u16(data, 20);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u32(data, 0);
-    append_u32(data, static_cast<uint32_t>(manifest.size()));
-    append_u32(data, static_cast<uint32_t>(manifest.size()));
-    append_u16(data, static_cast<uint16_t>(FILE_NAME.size()));
-    append_u16(data, 0);
-    data.insert(data.end(), FILE_NAME.begin(), FILE_NAME.end());
-    data.insert(data.end(), manifest.begin(), manifest.end());
+    std::vector<uint32_t> local_offsets;
+    for (const auto &[name, contents] : files) {
+        local_offsets.push_back(static_cast<uint32_t>(data.size()));
+        append_u32(data, 0x04034b50U);
+        append_u16(data, 20);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u32(data, 0);
+        append_u32(data, static_cast<uint32_t>(contents.size()));
+        append_u32(data, static_cast<uint32_t>(contents.size()));
+        append_u16(data, static_cast<uint16_t>(name.size()));
+        append_u16(data, 0);
+        data.insert(data.end(), name.begin(), name.end());
+        data.insert(data.end(), contents.begin(), contents.end());
+    }
 
     const auto central_offset = static_cast<uint32_t>(data.size());
-    append_u32(data, 0x02014b50U);
-    append_u16(data, 20);
-    append_u16(data, 20);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u32(data, 0);
-    append_u32(data, static_cast<uint32_t>(manifest.size()));
-    append_u32(data, static_cast<uint32_t>(manifest.size()));
-    append_u16(data, static_cast<uint16_t>(FILE_NAME.size()));
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u16(data, 0);
-    append_u32(data, 0);
-    append_u32(data, 0);
-    data.insert(data.end(), FILE_NAME.begin(), FILE_NAME.end());
+    for (size_t index = 0; index < files.size(); ++index) {
+        const auto &[name, contents] = files[index];
+        append_u32(data, 0x02014b50U);
+        append_u16(data, 20);
+        append_u16(data, 20);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u32(data, 0);
+        append_u32(data, static_cast<uint32_t>(contents.size()));
+        append_u32(data, static_cast<uint32_t>(contents.size()));
+        append_u16(data, static_cast<uint16_t>(name.size()));
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u16(data, 0);
+        append_u32(data, 0);
+        append_u32(data, local_offsets[index]);
+        data.insert(data.end(), name.begin(), name.end());
+    }
 
     const auto central_size = static_cast<uint32_t>(data.size()) - central_offset;
     append_u32(data, 0x06054b50U);
     append_u16(data, 0);
     append_u16(data, 0);
-    append_u16(data, 1);
-    append_u16(data, 1);
+    append_u16(data, static_cast<uint16_t>(files.size()));
+    append_u16(data, static_cast<uint16_t>(files.size()));
     append_u32(data, central_size);
     append_u32(data, central_offset);
     append_u16(data, 0);
@@ -642,6 +842,25 @@ bool create_manifest_only_bpk(const std::filesystem::path &path, std::string_vie
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
     output.write(reinterpret_cast<const char *>(data.data()), static_cast<std::streamsize>(data.size()));
     return static_cast<bool>(output);
+}
+
+bool create_manifest_only_bpk(const std::filesystem::path &path, std::string_view manifest)
+{
+    return create_bpk(path, {{"manifest.json", std::string(manifest)}});
+}
+
+bool create_runtime_bpk(
+    const std::filesystem::path &path,
+    std::string_view version,
+    std::string_view profile = "{}",
+    std::string_view app_id = UPDATE_APP_ID
+)
+{
+    return create_bpk(path, {
+        {"manifest.json", make_runtime_manifest(app_id, version)},
+        {"app.js", "// version " + std::string(version)},
+        {"res/profile.json", std::string(profile)},
+    });
 }
 
 std::optional<AppInfo> find_app(const System &system, std::string_view manifest_id)
@@ -682,6 +901,204 @@ bool verify_blocked_start(
            );
 }
 
+bool run_package_lifecycle_tests(
+    TestSystem &system, HostStorageService &storage, const std::filesystem::path &storage_root
+)
+{
+    const auto apps_root = storage_root / "apps";
+    const auto installing_root = apps_root / ".installing";
+    const auto app_dir = apps_root / UPDATE_APP_ID;
+    const auto user_data = app_dir / "data" / "keep.txt";
+
+    const auto interrupted = find_app(system, INTERRUPTED_APP_ID);
+    bool passed = require(interrupted.has_value(), "Interrupted update did not restore the previous version");
+    if (interrupted) {
+        passed &= require(interrupted->manifest.version == "1.0.0", "Interrupted update restored the wrong version");
+    }
+    passed &= require(
+                  read_text_file(apps_root / INTERRUPTED_APP_ID / "data" / "keep.txt") == "survived-interrupted-update",
+                  "Interrupted update lost the previous app data"
+              );
+    passed &= require(!find_app(system, BROKEN_APP_ID).has_value(), "Broken installed app was registered");
+
+    const auto partial = find_app(system, PARTIAL_APP_ID);
+    passed &= require(partial && partial->manifest.version == "1.0.0",
+                      "Uncommitted update with a manifest-only target did not restore 1.0.0");
+    passed &= require(read_text_file(apps_root / PARTIAL_APP_ID / "data" / "keep.txt") == "old-data",
+                      "Uncommitted update lost the previous app data");
+    const auto committed = find_app(system, COMMITTED_APP_ID);
+    passed &= require(committed && committed->manifest.version == "2.0.0", "Committed update was rolled back");
+    passed &= require(read_text_file(apps_root / COMMITTED_APP_ID / "data" / "keep.txt") == "new-data",
+                      "Committed update lost the new app data");
+    const auto unchecked_backup = installing_root / (std::string(UNCHECKED_BACKUP_APP_ID) + "-1") / "previous";
+    passed &= require(read_text_file(unchecked_backup / "data" / "keep.txt") == "old-data",
+                      "Boot recovery removed a backup it could not check");
+    passed &= require(!find_app(system, UNCHECKED_BACKUP_APP_ID).has_value(),
+                      "Boot recovery restored a backup it could not check");
+    const auto unchecked_target = installing_root / (std::string(UNCHECKED_TARGET_APP_ID) + "-1") / "previous";
+    passed &= require(read_text_file(unchecked_target / "data" / "keep.txt") == "old-data",
+                      "Boot recovery removed a backup when the target could not be checked");
+    passed &= require(read_text_file(apps_root / UNCHECKED_TARGET_APP_ID / "data" / "keep.txt") == "new-data",
+                      "Boot recovery changed a target it could not check");
+    passed &= require(only_unchecked_staging_left(installing_root), "Boot recovery left or removed the wrong staging");
+
+    const auto v1_bpk = storage_root / "update-1.0.0.bpk";
+    const auto v2_bpk = storage_root / "update-2.0.0.bpk";
+    const auto failing_bpk = storage_root / "update-failing.bpk";
+    const auto damaged_bpk = storage_root / "update-damaged.bpk";
+    passed &= require(
+                  create_runtime_bpk(v1_bpk, "1.0.0") && create_runtime_bpk(v2_bpk, "2.0.0") &&
+                  create_runtime_bpk(failing_bpk, FAILING_INSTALL_VERSION) &&
+                  create_runtime_bpk(damaged_bpk, "3.0.0", "[damaged"),
+                  "Failed to create update BPKs"
+              );
+
+    auto first_install = system.install_runtime_app_package(v1_bpk.generic_string(), true);
+    passed &= require(first_install.has_value(), first_install ? "" : "First install failed: " + first_install.error());
+    passed &= require(write_text_file(user_data, "user-data"), "Failed to write app data");
+
+    auto update = system.install_runtime_app_package(v2_bpk.generic_string(), true);
+    passed &= require(update.has_value(), update ? "" : "Update failed: " + update.error());
+    auto updated = find_app(system, UPDATE_APP_ID);
+    passed &= require(updated && updated->manifest.version == "2.0.0", "Update did not register version 2.0.0");
+    passed &= require(read_text_file(app_dir / "app.js") == "// version 2.0.0", "Update did not replace app files");
+    passed &= require(read_text_file(user_data) == "user-data", "Update lost app data");
+
+    auto failed = system.install_runtime_app_package(failing_bpk.generic_string(), true);
+    passed &= require(!failed.has_value(), "Update with a failing install hook was accepted");
+    if (!failed) {
+        passed &= require(
+                      failed.error().find("previous version 2.0.0 restored") != std::string::npos,
+                      "Failed update did not report the restore: " + failed.error()
+                  );
+    }
+    auto restored = find_app(system, UPDATE_APP_ID);
+    passed &= require(restored && restored->manifest.version == "2.0.0", "Failed update did not re-register 2.0.0");
+    passed &= require(read_text_file(app_dir / "app.js") == "// version 2.0.0", "Failed update left new app files");
+    passed &= require(read_text_file(user_data) == "user-data", "Failed update lost app data");
+
+    auto damaged = system.install_runtime_app_package(damaged_bpk.generic_string(), true);
+    passed &= require(!damaged.has_value(), "Damaged update was accepted");
+    auto kept = find_app(system, UPDATE_APP_ID);
+    passed &= require(
+                  kept && restored && (kept->app_id == restored->app_id) && (kept->manifest.version == "2.0.0"),
+                  "Damaged update changed the installed app"
+              );
+    passed &= require(read_text_file(user_data) == "user-data", "Damaged update lost app data");
+
+    const auto commit_failure_bpk = storage_root / "update-commit-failure.bpk";
+    passed &= require(create_runtime_bpk(commit_failure_bpk, "3.0.1"), "Failed to create commit failure BPK");
+    storage.set_write_text_fault("/committing", false);
+    auto uncommitted = system.install_runtime_app_package(commit_failure_bpk.generic_string(), true);
+    storage.set_write_text_fault("", false);
+    passed &= require(!uncommitted.has_value(), "Update without a commit marker was accepted");
+    if (!uncommitted) {
+        passed &= require(
+                      (uncommitted.error().find("Failed to commit the update") != std::string::npos) &&
+                      (uncommitted.error().find("previous version 2.0.0 restored") != std::string::npos),
+                      "Commit failure did not restore the previous version: " + uncommitted.error()
+                  );
+    }
+    kept = find_app(system, UPDATE_APP_ID);
+    passed &= require(kept && kept->manifest.version == "2.0.0", "Commit failure did not keep 2.0.0 registered");
+    passed &= require(read_text_file(app_dir / "app.js") == "// version 2.0.0", "Commit failure left new app files");
+    passed &= require(read_text_file(user_data) == "user-data", "Commit failure lost app data");
+
+    const auto unpublished_bpk = storage_root / "update-unpublished.bpk";
+    passed &= require(create_runtime_bpk(unpublished_bpk, "3.0.2"), "Failed to create unpublished commit BPK");
+    storage.set_rename_fault("/committing", false);
+    auto unpublished = system.install_runtime_app_package(unpublished_bpk.generic_string(), true);
+    storage.set_rename_fault("", false);
+    passed &= require(!unpublished.has_value(), "Update whose commit marker was not published was accepted");
+    kept = find_app(system, UPDATE_APP_ID);
+    passed &= require(kept && kept->manifest.version == "2.0.0", "Unpublished commit did not keep 2.0.0");
+    passed &= require(read_text_file(user_data) == "user-data", "Unpublished commit lost app data");
+
+    const auto applied_v1_bpk = storage_root / "marker-applied-1.0.0.bpk";
+    const auto applied_v2_bpk = storage_root / "marker-applied-2.0.0.bpk";
+    passed &= require(
+                  create_runtime_bpk(applied_v1_bpk, "1.0.0", "{}", MARKER_APPLIED_APP_ID) &&
+                  create_runtime_bpk(applied_v2_bpk, "2.0.0", "{}", MARKER_APPLIED_APP_ID),
+                  "Failed to create applied commit BPKs"
+              );
+    passed &= require(system.install_runtime_app_package(applied_v1_bpk.generic_string(), true).has_value(),
+                      "Failed to install the applied commit base version");
+    storage.set_rename_fault("/committing", true);
+    auto applied = system.install_runtime_app_package(applied_v2_bpk.generic_string(), true);
+    storage.set_rename_fault("", false);
+    passed &= require(applied.has_value(), applied ? "" :
+                      "Update whose commit marker was published despite an error was rejected: " + applied.error());
+    const auto applied_app = find_app(system, MARKER_APPLIED_APP_ID);
+    passed &= require(applied_app && applied_app->manifest.version == "2.0.0",
+                      "Published commit did not keep 2.0.0");
+    passed &= require(only_unchecked_staging_left(installing_root), "Package installs left staging directories");
+
+    if (kept) {
+        auto uninstalled = system.uninstall_app(kept->app_id);
+        passed &= require(uninstalled.has_value(), uninstalled ? "" : "Uninstall failed: " + uninstalled.error());
+    }
+    passed &= require(!find_app(system, UPDATE_APP_ID).has_value(), "Uninstall kept the app record");
+    passed &= require(!std::filesystem::exists(app_dir), "Uninstall kept the app directory");
+
+    auto reinstall = system.install_runtime_app_package(v2_bpk.generic_string(), true);
+    passed &= require(reinstall.has_value(), reinstall ? "" : "Reinstall failed: " + reinstall.error());
+    passed &= require(std::filesystem::is_directory(app_dir / "data"), "Reinstall did not recreate app data storage");
+    passed &= require(!std::filesystem::exists(user_data), "Reinstall resurrected uninstalled app data");
+
+    // The commit marker write creates the file and then fails, and rollback cannot move the old version back.
+    // The staging directory must not look committed, so the restart restores the old version.
+    const auto fault_v1_bpk = storage_root / "marker-fault-1.0.0.bpk";
+    const auto fault_v2_bpk = storage_root / "marker-fault-2.0.0.bpk";
+    passed &= require(
+                  create_runtime_bpk(fault_v1_bpk, "1.0.0", "{}", MARKER_FAULT_APP_ID) &&
+                  create_runtime_bpk(fault_v2_bpk, "2.0.0", "{}", MARKER_FAULT_APP_ID),
+                  "Failed to create commit fault BPKs"
+              );
+    passed &= require(system.install_runtime_app_package(fault_v1_bpk.generic_string(), true).has_value(),
+                      "Failed to install the commit fault base version");
+    passed &= require(write_text_file(apps_root / MARKER_FAULT_APP_ID / "data" / "keep.txt", "fault-data"),
+                      "Failed to write commit fault app data");
+    // "/commit" matches both "committing" and "committed", so the same fault applies whichever name is written.
+    storage.set_write_text_fault("/commit", true);
+    storage.set_rename_fault("/previous", false);
+    auto faulted = system.install_runtime_app_package(fault_v2_bpk.generic_string(), true);
+    storage.set_write_text_fault("", false);
+    storage.set_rename_fault("", false);
+    passed &= require(!faulted.has_value(), "Update with a half-written commit marker was accepted");
+    const auto fault_staging = find_staging(installing_root, MARKER_FAULT_APP_ID);
+    passed &= require(fault_staging.has_value(), "Failed rollback did not keep its staging directory");
+    if (fault_staging) {
+        passed &= require(!std::filesystem::exists(*fault_staging / "committed"),
+                          "Half-written commit marker was published as committed");
+        passed &= require(read_text_file(*fault_staging / "previous" / "data" / "keep.txt") == "fault-data",
+                          "Failed rollback lost the previous app data");
+    }
+    return passed;
+}
+
+// Boots a second System on the same storage, as after a power cycle.
+bool run_restart_tests(const std::filesystem::path &storage_root)
+{
+    const auto apps_root = storage_root / "apps";
+    TestSystem restarted;
+    auto init_result = restarted.init(make_test_config(storage_root));
+    bool passed = require(init_result.has_value(), init_result ? "" : "Restart init failed: " + init_result.error());
+    if (passed) {
+        const auto fault_app = find_app(restarted, MARKER_FAULT_APP_ID);
+        passed &= require(fault_app && fault_app->manifest.version == "1.0.0",
+                          "Restart did not restore the version kept by the failed rollback");
+        passed &= require(read_text_file(apps_root / MARKER_FAULT_APP_ID / "data" / "keep.txt") == "fault-data",
+                          "Restart lost the app data kept by the failed rollback");
+        const auto applied_app = find_app(restarted, MARKER_APPLIED_APP_ID);
+        passed &= require(applied_app && applied_app->manifest.version == "2.0.0",
+                          "Restart rolled back a published commit");
+        passed &= require(only_unchecked_staging_left(apps_root / ".installing"),
+                          "Restart left or removed the wrong staging directories");
+    }
+    restarted.deinit();
+    return passed;
+}
+
 bool run_tests()
 {
     TemporaryDirectory temporary_directory;
@@ -692,15 +1109,37 @@ bool run_tests()
             !require(
                 create_staged_runtime_app(temporary_directory.get_path()),
                 "Failed to create staged runtime app"
+            ) ||
+            !require(
+                create_interrupted_update(temporary_directory.get_path()),
+                "Failed to create interrupted update"
+            ) ||
+            !require(
+                create_broken_installed_app(temporary_directory.get_path()),
+                "Failed to create broken installed app"
+            ) ||
+            !require(
+                create_unfinished_update(temporary_directory.get_path(), PARTIAL_APP_ID, TargetState::ManifestOnly,
+                                         false) &&
+                create_unfinished_update(temporary_directory.get_path(), COMMITTED_APP_ID, TargetState::Complete,
+                                         true) &&
+                create_unfinished_update(temporary_directory.get_path(), UNCHECKED_BACKUP_APP_ID,
+                                         TargetState::Missing, false) &&
+                create_unfinished_update(temporary_directory.get_path(), UNCHECKED_TARGET_APP_ID,
+                                         TargetState::Complete, false),
+                "Failed to create unfinished updates"
             )) {
         return false;
     }
+    const auto installing = temporary_directory.get_path() / "apps" / ".installing";
 
     auto &manager = ServiceManager::get_instance();
     if (!require(manager.init(), "Failed to initialize ServiceManager")) {
         return false;
     }
     auto storage = std::make_shared<HostStorageService>();
+    storage->fail_stat(installing / (std::string(UNCHECKED_BACKUP_APP_ID) + "-1") / "previous");
+    storage->fail_stat(temporary_directory.get_path() / "apps" / UNCHECKED_TARGET_APP_ID);
     if (!require(manager.add_service(storage), "Failed to add host Storage service")) {
         manager.deinit();
         return false;
@@ -712,17 +1151,7 @@ bool run_tests()
     }
 
     TestSystem system;
-    System::Config config;
-    config.install_registered_apps = false;
-    config.install_package_apps = true;
-    config.storage.internal_override = StorageVolume{
-        .id = "internal",
-        .partition = StoragePartition::Internal,
-        .mount_point = temporary_directory.get_path().generic_string(),
-        .root_path = temporary_directory.get_path().generic_string(),
-        .available = true,
-    };
-    auto init_result = system.init(std::move(config));
+    auto init_result = system.init(make_test_config(temporary_directory.get_path()));
     if (!require(init_result.has_value(), init_result ? "" : "System init failed: " + init_result.error())) {
         system.deinit();
         manager.stop();
@@ -823,7 +1252,7 @@ bool run_tests()
                   "BPK install gate ran after a Storage mutation"
               );
     passed &= require(
-                  !std::filesystem::exists(installing_root),
+                  only_unchecked_staging_left(installing_root),
                   "BPK install gate created a staging directory"
               );
     passed &= require(
@@ -893,7 +1322,10 @@ bool run_tests()
         }
     }
 
+    passed &= run_package_lifecycle_tests(system, *storage, temporary_directory.get_path());
+
     system.deinit();
+    passed &= run_restart_tests(temporary_directory.get_path());
     manager.stop();
     manager.deinit();
     return passed;

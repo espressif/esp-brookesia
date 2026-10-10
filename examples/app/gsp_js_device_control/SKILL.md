@@ -18,6 +18,8 @@ brookesia-usb install build/brookesia.gsp.device_control.debug.0.1.0.bpk
 
 Wait for the launcher before running a `brookesia-usb` command after a reset, and close any serial monitor first.
 
+USB install is the normal path. The directory is also an optional ESP-IDF component: System GSP App's `CONFIG_BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL` builds the package with the same script and adds it to the LittleFS image. Only suggest it when the user wants a preinstalled firmware image, and warn that a full `idf.py flash` replaces every USB-installed app and its data.
+
 To update, build with a higher `--version` and install again. The host firmware does not change.
 
 To uninstall, list the apps and pass the `app_id` of `brookesia.gsp.device_control`:

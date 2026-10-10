@@ -56,9 +56,10 @@ When several matching devices are present, pass `--port` explicitly using a path
 reported by `devices`. A single Serial/JTAG CDC configuration normally exposes
 only `/dev/ttyACM0`; the absence of `/dev/ttyACM1` is expected.
 
-Opening a USB-to-UART port resets the device, so the CLI retries `hello` until
-the service is ready. Close `idf.py monitor`, minicom, or any other program that
-reads the same port before running a command.
+The CLI opens the port without resetting the device, so a command runs against
+the system that is already up. If the device is still starting, the CLI retries
+`hello` until the service is ready. Close `idf.py monitor`, minicom, or any other
+program that reads the same port before running a command.
 
 ## Control sessions
 

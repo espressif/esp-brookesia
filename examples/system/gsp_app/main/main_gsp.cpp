@@ -34,6 +34,9 @@
 #include "esp_heap_caps.h"
 #include "launcher_app.hpp"
 
+#if CONFIG_BROOKESIA_GSP_DELIVERY_PROBE
+#   include "delivery_probe.hpp"
+#endif
 #if CONFIG_BROOKESIA_GSP_JS_APP_MEMORY_PROBE
 #   include "brookesia/gui_gsp/app_host.hpp"
 #   include "esp_gsp_debug.h"
@@ -734,6 +737,9 @@ void run_main()
         BROOKESIA_LOGE("Wi-Fi probe launcher round trip FAILED");
         return;
     }
+#endif
+#if CONFIG_BROOKESIA_GSP_DELIVERY_PROBE
+    (void)start_delivery_probe(*panel);
 #endif
     BROOKESIA_LOGI("Interactive launcher is running. Confirm the panel visually; serial logs do not prove the picture");
 #if CONFIG_BROOKESIA_GSP_SETTINGS_PROBE
