@@ -1,0 +1,56 @@
+.gui_perf_host_template:
+  stage: pre_check
+  image: python:3.10-slim
+  tags: ["build", "amd64", "internet"]
+  dependencies: []
+
+# Spec v1.8 section 6 item 9 requires JSON UI / document-model / style-layer
+# changes to carry a dual-gate memory conclusion. This job makes that gate
+# automatic instead of relying on reviewers to run the harness by hand.
+#
+# flake8 is invoked directly rather than through pre-commit: the repository's
+# global pre-commit exclude contains ".*py", which matches every Python path
+# and silently skips all of them, so a pre-commit based check would pass
+# without inspecting anything.
+check_gui_perf_host_gate:
+  extends:
+    - .gui_perf_host_template
+  before_script:
+    # The package is PEP 517/660 (setuptools>=68 backend). Older pip cannot
+    # perform the editable install: pip 22.0.2 + setuptools 59.6.0 was observed
+    # to fail on this repo, and the python:3.10-slim image ships an
+    # uncontrolled pip. Upgrade first so the first MR run is deterministic.
+    - python -m pip install --upgrade pip setuptools
+    - python -m pip install -e tools/brookesia_gui_perf
+    - python -m pip install "flake8==5.0.4"
+  script:
+    - python -m unittest discover -s tools/brookesia_gui_perf/tests -t tools/brookesia_gui_perf -v
+    # G4 size gate (.gitlab/tools/measure_size.py). unittest discovery skips
+    # dot-directories, so the test file is run by path.
+    - python .gitlab/tools/tests/test_measure_size.py -v
+    - python -m flake8 --config=.flake8 tools/brookesia_gui_perf/ .gitlab/tools/measure_size.py .gitlab/tools/tests/
+    # check-copyright is likewise skipped for .py by the global exclude, so the
+    # SPDX headers the repo requires are asserted here instead. The window is 8
+    # lines because repo tools put the header after the shebang and a short
+    # description block (see .gitlab/tools/check_readme_links.py).
+    - |
+      fail=0
+      for f in $(find tools/brookesia_gui_perf .gitlab/tools/tests -name "*.py") .gitlab/tools/measure_size.py; do
+        head -8 "$f" | grep -q "SPDX-License-Identifier: Apache-2.0" || { echo "missing SPDX header: $f"; fail=1; }
+      done
+      exit $fail
+  # This job only self-tests the gate logic. It deliberately does NOT widen its
+  # trigger to system/ app/ assets or sdkconfig: spec section 3.7 requires those
+  # PRs to carry paired size data, which needs idf.py build artifacts that a
+  # pre_check job does not have. Running the unit tests on every app/ change
+  # would cost CI time without enforcing anything. Section 3.7 enforcement
+  # belongs where the paired Baseline/Optimized size records are produced; see
+  # reports/adhoc/p1a_handover.md section 10.4.
+  rules:
+    - changes:
+        - tools/brookesia_gui_perf/**/*
+        - .gitlab/tools/measure_size.py
+        - .gitlab/tools/tests/**/*
+        - gui/brookesia_gui_interface/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/pre/gui_perf_host.yml

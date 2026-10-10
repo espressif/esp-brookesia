@@ -96,6 +96,11 @@ repos:
         entry: ./.gitlab/tools/check_forbidden_strings.py -s ./.gitlab/tools/forbidden_strings.txt -f
         language: python
         files: '(^|/)sdkconfig[^/]*$'
+      - id: check-p4-spiram-guard
+        name: P4 guardrails (ALWAYSINTERNAL=0, no PSRAM alloc in gui_interface)
+        entry: python ./.gitlab/tools/check_p4_spiram_guard.py --
+        language: python
+        files: '(^|/)sdkconfig[^/]*$|^gui/brookesia_gui_interface/(src|include|examples|test_apps)/.+\.(c|cc|cpp|cxx|h|hh|hpp)$'
       - id: check-component-licenses
         name: Check component license files
         entry: python .gitlab/tools/check_component_licenses.py
