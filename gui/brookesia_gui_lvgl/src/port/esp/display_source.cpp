@@ -7,6 +7,7 @@
 #include "brookesia/gui_lvgl/backend.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -120,6 +121,32 @@ public:
         return output_height_;
     }
 
+    uint64_t frame_count() const
+    {
+        return frame_count_.load(std::memory_order_relaxed);
+    }
+
+    uint64_t dropped_frame_count() const
+    {
+        return dropped_frame_count_.load(std::memory_order_relaxed);
+    }
+
+    uint64_t flush_count() const
+    {
+        return flush_count_.load(std::memory_order_relaxed);
+    }
+
+
+    // Frames completed, i.e. LVGL flush callbacks accepted by submit_frame. Not the
+    // panel's physical refresh rate: with a static UI LVGL stops redrawing entirely, so
+    // this counts work actually done and is the numerator the v1.8 FPS metric needs.
+    std::atomic<uint64_t> frame_count_{0};
+    // Partial-buffer writes the tearing path performs per refresh cycle. Kept beside
+    // frame_count_ because frame_time and flush_apply analysis needs the write count.
+    std::atomic<uint64_t> flush_count_{0};
+    // Frames the display service refused because this source was not active. Kept apart
+    // from frame_count_ so a zero rate can be told apart from a fully dropped one.
+    std::atomic<uint64_t> dropped_frame_count_{0};
 private:
     bool acquire_hal_interfaces();
     bool bind_display_service();
@@ -212,6 +239,21 @@ uint32_t DisplaySource::width() const
 uint32_t DisplaySource::height() const
 {
     return impl_->height();
+}
+
+uint64_t DisplaySource::frame_count() const
+{
+    return impl_->frame_count();
+}
+
+uint64_t DisplaySource::dropped_frame_count() const
+{
+    return impl_->dropped_frame_count();
+}
+
+uint64_t DisplaySource::flush_count() const
+{
+    return impl_->flush_count();
 }
 
 bool DisplaySourceImpl::start(const DisplaySourceConfig &config)
@@ -472,6 +514,25 @@ bool DisplaySourceImpl::start_lvgl_adapter(const DisplaySourceConfig &config)
                                 reinterpret_cast<void *>(static_cast<std::uintptr_t>(rounder_data)));
     }
 
+    // Frame accounting must hook LVGL's display events, not the custom draw callback.
+    // On this panel (MIPI DSI, TRIPLE_PARTIAL) the adapter's flush path copies pixels
+    // with its own blit helpers and never calls custom_draw_bitmap, so a counter placed
+    // there stayed at zero while the panel kept refreshing. REFR_READY fires once per
+    // completed refresh cycle -- the refresh loop rate section 3.2 defines as FPS --
+    // whereas FLUSH_FINISH fires per partial buffer write on this tearing mode.
+    lv_display_add_event_cb(display_, [](lv_event_t *event) {
+        auto *self = static_cast<DisplaySourceImpl *>(lv_event_get_user_data(event));
+        if (self != nullptr) {
+            self->frame_count_.fetch_add(1, std::memory_order_relaxed);
+        }
+    }, LV_EVENT_REFR_READY, this);
+    lv_display_add_event_cb(display_, [](lv_event_t *event) {
+        auto *self = static_cast<DisplaySourceImpl *>(lv_event_get_user_data(event));
+        if (self != nullptr) {
+            self->flush_count_.fetch_add(1, std::memory_order_relaxed);
+        }
+    }, LV_EVENT_FLUSH_FINISH, this);
+
     const auto input_count = MultiTouchPointerManager::resolve_input_count(output_name_);
     BROOKESIA_CHECK_FALSE_RETURN(
         pointer_inputs_.start(display_, nullptr, output_name_, input_count), false,
@@ -625,6 +686,14 @@ esp_err_t DisplaySourceImpl::draw_bitmap_callback(
     BROOKESIA_CHECK_NULL_RETURN(self, ESP_ERR_INVALID_ARG, "LVGL Display source callback context is null");
 
     auto ret = self->submit_frame(x_start, y_start, x_end, y_end, color_map);
+    // Counts the flush callback itself, which is the refresh loop rate section 3.2
+    // defines FPS as, rather than only frames that reached the panel. Counting
+    // presented frames instead reported zero whenever the source was not the active
+    // one, which reads identically to LVGL never drawing at all.
+    self->frame_count_.fetch_add(1, std::memory_order_relaxed);
+    if (ret == ESP_ERR_NOT_ALLOWED) {
+        self->dropped_frame_count_.fetch_add(1, std::memory_order_relaxed);
+    }
     if (ret == ESP_ERR_NOT_ALLOWED) {
         BROOKESIA_LOGD("LVGL Display frame dropped because source is not active");
     }

@@ -72,6 +72,21 @@ public:
     uint32_t width() const;
     uint32_t height() const;
 
+    /**
+     * @brief Frames completed since start, i.e. LVGL flushes accepted for drawing
+     *
+     * Not the panel refresh rate. A static UI stops redrawing, so this counts frames
+     * actually produced, which is the numerator a measured refresh rate needs.
+     */
+    uint64_t frame_count() const;
+
+    /// Flush callbacks the display service refused because this source was not active.
+    uint64_t dropped_frame_count() const;
+
+    /// Partial-buffer writes LVGL performed, from LV_EVENT_FLUSH_FINISH. A refresh
+    /// cycle typically emits several of these on a multi-buffer tearing panel.
+    uint64_t flush_count() const;
+
 private:
     DisplaySource();
     ~DisplaySource();
