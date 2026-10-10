@@ -1,0 +1,1186 @@
+I (288) esp_image: segment 1: paddr=00293608 vaddr=30100000 size=000b8h (   184) load
+I (289) esp_image: segment 2: paddr=002936c8 vaddr=4ff00000 size=0c950h ( 51536) load
+I (298) esp_image: segment 3: paddr=002a0020 vaddr=48000020 size=67bce0h (6798560) map
+I (1095) esp_image: segment 4: paddr=0091bd08 vaddr=4ff0c950 size=0a978h ( 43384) load
+I (1102) esp_image: segment 5: paddr=00926688 vaddr=4ff17300 size=09854h ( 38996) load
+I (1109) esp_image: segment 6: paddr=0092fee4 vaddr=50108080 size=00024h (    36) load
+I (1116) boot: Loaded app from partition at offset 0x60000
+W (1118) pmu_pvt: blk_version is less than 2, pvt auto dbias init not supported in efuse.
+I (1120) hex_psram: vendor id    : 0x0d (AP)
+I (1120) hex_psram: Latency      : 0x01 (Fixed)
+I (1121) hex_psram: DriveStr.    : 0x00 (25 Ohm)
+I (1121) hex_psram: dev id       : 0x03 (generation 4)
+I (1121) hex_psram: density      : 0x07 (256 Mbit)
+I (1122) hex_psram: good-die     : 0x06 (Pass)
+I (1122) hex_psram: SRF          : 0x02 (Slow Refresh)
+I (1122) hex_psram: BurstType    : 0x00 ( Wrap)
+I (1123) hex_psram: BurstLen     : 0x03 (2048 Byte)
+I (1123) hex_psram: BitMode      : 0x01 (X16 Mode)
+I (1123) hex_psram: Readlatency  : 0x04 (14 cycles@Fixed)
+I (1124) hex_psram: DriveStrength: 0x00 (1/1)
+I (1124) MSPI Timing: Enter psram timing tuning
+I esp_psram: Found 32MB PSRAM device
+I esp_psram: Speed: 200MHz
+I (1404) mmu_psram: .rodata xip on psram
+I (1722) mmu_psram: .text xip on psram
+I (1724) cpu_start: Multicore app
+I (2221) esp_psram: SPI SRAM memory test OK
+I (2230) cpu_start: Pro cpu start user code
+I (2231) cpu_start: cpu freq: 360000000 Hz
+I (2231) app_init: Application information:
+I (2231) app_init: Project name:     example_system_super
+I (2231) app_init: App version:      d1602521-dirty
+I (2231) app_init: Compile time:     Sep 29 2026 09:40:59
+I (2232) app_init: ELF file SHA256:  6359c02a2...
+I (2232) app_init: ESP-IDF:          v6.2-dev-2564-gb10ae7f167f
+I (2232) efuse_init: Min chip rev:     v0.0
+I (2232) efuse_init: Max chip rev:     v1.99 
+I (2232) efuse_init: Chip rev:         v1.0
+I (2233) heap_init: Initializing. RAM available for dynamic allocation:
+I (2233) heap_init: At 4FF2A050 len 00010F70 (67 KiB): RETENT_RAM
+I (2233) heap_init: At 4FF3AFC0 len 00004BF0 (18 KiB): RAM
+I (2234) heap_init: At 4FF40F10 len 0005F0F0 (380 KiB): RAM
+I (2234) heap_init: At 501080A4 len 00007F5C (31 KiB): RTCRAM
+I (2234) heap_init: At 301000B8 len 00001F48 (7 KiB): SPM
+I (2234) esp_psram: Adding pool of 23808K of PSRAM memory to heap allocator
+I (2235) esp_psram: Adding pool of 16K of PSRAM memory gap generated due to end address alignment of irom to the heap allocator
+I (2235) esp_psram: Adding pool of 50K of PSRAM memory gap generated due to end address alignment of drom to the heap allocator
+I (2236) spi_flash: detected chip: gd
+I (2236) spi_flash: flash io: qio
+I (2241) SD_HOST: src_freq_hz: 160000000
+I (2242) sleep_gpio: Configure to isolate all GPIO pins in sleep state
+I (2242) sleep_gpio: Enable automatic switching of GPIO sleep configuration
+I (2244) H_SDIO_DRV: sdio_data_to_rx_buf_task started
+I (2244) main_task: Started on CPU0
+I (2244) esp_psram: Reserving pool of 32K of internal memory for DMA/internal allocations
+I (2245) main_task: Calling app_main()
+I (2245) Main: : 
+
+=== System Example ===
+
+I (2246) SvcMgr: : Version: 0.8.2
+I (2248) SvcMgr: : Initializing service: Manager
+I (2249) SvcMgr: : Initialized service: Manager
+I (2249) SvcMgr: : Service added: Manager
+I (2249) SvcMgr: : Initializing service: Utils
+I (2251) SvcMgr: : Initialized service: Utils
+I (2251) SvcMgr: : Service added: Utils
+I (2252) SvcMgr: : Initializing service: DataFlow
+I (2254) SvcMgr: : Initialized service: DataFlow
+I (2254) SvcMgr: : Service added: DataFlow
+I (2257) SvcMgr: : Service initialization order: 
+I (2257) SvcMgr: :   1. XiaoZhi
+I (2257) SvcMgr: :   2. VideoEncoder0
+I (2257) SvcMgr: :   3. VideoDecoder0
+I (2257) SvcMgr: :   4. Usb
+I (2258) SvcMgr: :   5. Storage
+I (2258) SvcMgr: :   6. Wifi
+I (2258) SvcMgr: :   7. SNTP
+I (2258) SvcMgr: :   8. AgentManager
+I (2258) SvcMgr: :   9. Display
+I (2258) SvcMgr: :   10. NES
+I (2258) SvcMgr: :   11. Http
+I (2259) SvcMgr: :   12. Device
+I (2259) SvcMgr: :   13. Coze
+I (2259) SvcMgr: : Initializing service: XiaoZhi
+I (2260) XiaoZhi: : Version: 0.8.2
+I (2261) SvcMgr: : Initialized service: XiaoZhi
+I (2261) SvcMgr: : Service added: XiaoZhi
+I (2261) SvcMgr: : Initializing service: VideoEncoder0
+I (2262) SvcVideo: : Version: 0.8.3
+I (2263) SvcMgr: : Initialized service: VideoEncoder0
+I (2263) SvcMgr: : Service added: VideoEncoder0
+I (2263) SvcMgr: : Initializing service: VideoDecoder0
+I (2264) SvcVideo: : Version: 0.8.3
+I (2264) SvcMgr: : Initialized service: VideoDecoder0
+I (2265) SvcMgr: : Service added: VideoDecoder0
+I (2265) SvcMgr: : Initializing service: Usb
+I (2265) SvcUsb: : Version: 0.8.1
+I (2267) SvcMgr: : Initialized service: Usb
+I (2267) SvcMgr: : Service added: Usb
+I (2267) SvcMgr: : Initializing service: Storage
+I (2268) SvcStorage: : Version: 0.8.3
+I (2269) HalIface: : Version: 0.8.2
+I (2269) main_task: Returned from app_main()
+I (2634) HalAdpt: : LittleFS partition size: total: 5120000, used: 2924544
+I (2634) DEV_FS_FAT_SUB_SDMMC: slot_config: cd=-1, wp=-1, clk=0, cmd=0, d0=0, d1=0, d2=0, d3=0, d4=0, d5=0, d6=0, d7=0, width=4, flags=0x1
+I (2635) sdmmc_periph: SDMMC host controller already created, returning existing handle
+E (2662) sdmmc_common: sdmmc_init_ocr: send_op_cond (1) returned 0x107
+E (2662) vfs_fat_sdmmc: sdmmc_card_init failed (0x107).
+E (2663) SD_HOST: sd_host_del_sdmmc_controller(417): host controller with slot registered
+E (2663) vfs_fat_sdmmc: esp_vfs_fat_sdmmc_sdcard_init failed (0x107).
+E (2663) DEV_FS_FAT_SUB_SDMMC: Failed to mount filesystem
+E (2663) DEV_FS_FAT: Failed to initialize sub device: sdmmc
+E (2663) BOARD_DEVICE: Failed to init device: fs_sdcard
+E (2663) BOARD_MANAGER: Failed to initialize device fs_sdcard
+E (2664) HalAdpt: : Checked ESP error: ESP_FAIL(-1)
+E (2664) HalAdpt: : Failed to initialize SD card
+E (2664) HalAdpt: : Failed to initialize SD card
+I (2672) HalIface: : - [Storage] Registered interface 'Storage:FileSystem'
+I (2672) HalIface: : - [Storage] Registered interface 'Storage:KeyValue'
+I (2672) HalIface: : - [Storage] Initialized
+I (2673) HalIface: : - [Storage] Reference count increased to 1
+I (2673) HalIface: : - [Storage] Acquired interface 'Storage:KeyValue' with reference count 1
+I (2673) SvcStorage: : Using storage KV interface: Storage:KeyValue
+I (2674) HalIface: : - [Storage] Reference count increased to 2
+I (2675) HalIface: : - [Storage] Acquired interface 'Storage:FileSystem' with reference count 2
+I (2675) SvcStorage: : Using storage file-system interface: Storage:FileSystem
+I (2679) SvcMgr: : Initialized service: Storage
+I (2679) SvcMgr: : Service added: Storage
+I (2679) SvcMgr: : Initializing service: Wifi
+I (2680) SvcWiFi: : Version: 0.8.2
+I (2681) HalIface: : Version: 0.8.2
+I (2681) HalIface: : - [WiFi] Registered interface 'Network:Connectivity:WiFi'
+I (2682) HalIface: : - [WiFi] Registered interface 'WiFi:Basic'
+I (2682) HalIface: : - [WiFi] Registered interface 'WiFi:SoftAP'
+I (2683) HalIface: : - [WiFi] Registered interface 'WiFi:Station'
+I (2683) HalIface: : - [WiFi] Initialized
+I (2683) HalIface: : - [WiFi] Reference count increased to 1
+I (2684) HalIface: : - [WiFi] Acquired interface 'WiFi:Basic' with reference count 1
+I (2685) HalIface: : - [WiFi] Reference count increased to 2
+I (2685) HalIface: : - [WiFi] Acquired interface 'WiFi:Station' with reference count 2
+I (2687) HalIface: : - [WiFi] Reference count increased to 3
+I (2687) HalIface: : - [WiFi] Acquired interface 'WiFi:SoftAP' with reference count 3
+I (2688) SvcWiFi: : Using Wi-Fi basic interface: WiFi:Basic
+I (2688) SvcWiFi: : Using Wi-Fi station interface: WiFi:Station
+I (2688) SvcWiFi: : Using Wi-Fi SoftAP interface: WiFi:SoftAP
+I (2692) SvcWiFi: : State machine initialized
+I (2696) SvcMgr: : Initialized service: Wifi
+I (2697) SvcMgr: : Service added: Wifi
+I (2697) SvcMgr: : Initializing service: SNTP
+I (2697) SvcSNTP: : Version: 0.8.2
+I (2699) SvcMgr: : Initialized service: SNTP
+I (2700) SvcMgr: : Service added: SNTP
+I (2700) SvcMgr: : Initializing service: AgentManager
+I (2701) AgentMgr: : Version: 0.8.2
+I (2711) SvcMgr: : Initialized service: AgentManager
+I (2712) SvcMgr: : Service added: AgentManager
+I (2713) SvcMgr: : Initializing service: Display
+I (2713) SvcDisplay: : Version: 0.8.2
+I (2715) HalIface: : Version: 0.8.2
+I (2715) BOARD_DEVICE: Device display_lcd config found: 0x48762d34 (size: 124)
+I (2716) BOARD_DEVICE: Device display_lcd config found: 0x48762d34 (size: 124)
+I (2716) DEV_DISPLAY_LCD: Initializing LCD display: display_lcd, chip: ek79007, sub_type: dsi
+I (2716) DEV_DISPLAY_LCD_SUB_DSI: Initializing DSI LCD display: display_lcd, chip: ek79007
+I (2716) PERIPH_LDO: LDO initialize success
+I (2717) PERIPH_DSI: MIPI DSI bus initialize success
+I (2717) P4_FUNCTION_EV_SETUP_DEVICE: Install EK79007 LCD panel driver
+I (2717) ek79007: version: 1.0.4
+E (2899) lcd_panel: esp_lcd_panel_swap_xy(60): swap_xy is not supported by this panel
+W (2899) DEV_DISPLAY_LCD: Failed to swap LCD panel XY: ESP_ERR_NOT_SUPPORTED
+E (2899) lcd_panel: esp_lcd_panel_disp_on_off(81): disp_on_off is not supported by this panel
+I (2899) DEV_DISPLAY_LCD: Successfully initialized LCD display: display_lcd (sub_type: dsi), panel: 0x4ff3f3bc, io: 0x4ff3f390
+I (2899) BOARD_MANAGER: Device display_lcd initialized
+I (2900) BOARD_DEVICE: Device handle display_lcd found, Handle: 0x488ed174 TO: 0x488ed174
+I (2900) BOARD_DEVICE: Device lcd_touch config found: 0x48762cc8 (size: 108)
+I (2901) PERIPH_I2C: I2C master bus initialized successfully
+I (2901) GT911: I2C address initialization procedure skipped - using default GT9xx setup
+I (2903) GT911: TouchPad_ID:0x39,0x31,0x31
+I (2903) GT911: TouchPad_Config_Version:89
+I (2903) DEV_LCD_TOUCH_SUB_I2C: Successfully initialized LCD touch: lcd_touch, addr: 0xba, touch:0x48c72fc4, io:0x48c72f1c
+I (2903) DEV_LCD_TOUCH: Successfully initialized LCD touch: lcd_touch, chip: gt911, sub_type: i2c
+I (2903) BOARD_MANAGER: Device lcd_touch initialized
+I (2904) BOARD_DEVICE: Device handle lcd_touch found, Handle: 0x488d727c TO: 0x488d727c
+I (2904) PERIPH_LEDC: LEDC initialized: speed_mode=0, channel=1, gpio=26, freq=4000Hz
+I (2905) BOARD_PERIPH: Peripheral ledc_backlight config found: 0x487631f8 (size: 36)
+I (2905) DEV_LEDC_CTRL: LEDC control device lcd_brightness initialized: channel=1, default_percent=100%, duty=8191
+I (2905) BOARD_MANAGER: Device lcd_brightness initialized
+I (2905) BOARD_DEVICE: Device handle lcd_brightness found, Handle: 0x48c73334 TO: 0x48c73334
+I (2905) BOARD_DEVICE: Device lcd_brightness config found: 0x48762cb8 (size: 16)
+I (2906) BOARD_PERIPH: Peripheral ledc_backlight config found: 0x487631f8 (size: 36)
+I (2907) HalAdpt: : Set brightness: 0
+W (2907) HalAdpt: : Backlight control GPIO not found, skip
+I (2908) HalIface: : - [Display] Registered interface 'Display:LcdPanel'
+I (2909) HalIface: : - [Display] Registered interface 'Display:LcdTouch'
+I (2910) HalIface: : - [Display] Registered interface 'Display:LedcBacklight'
+I (2911) HalIface: : - [Display] Initialized
+I (2912) HalIface: : - [Display] Reference count increased to 1
+I (2913) HalIface: : - [Display] Acquired interface 'Display:LcdPanel' with reference count 1
+I (2918) HalIface: : - [Display] Reference count increased to 2
+I (2919) HalIface: : - [Display] Acquired interface 'Display:LcdTouch' with reference count 2
+I (2923) HalIface: : - [Display] Reference count increased to 3
+I (2925) HalIface: : - [Display] Acquired interface 'Display:LedcBacklight' with reference count 3
+I (2929) SvcDisplay: : Registered display output Output0: 1024x600, pixel_format=RGB565, panel=Display:LcdPanel, group_id=display_lcd
+I (2932) SvcDisplay: : Registered display touch Touch0: 1024x600, max_points=5, operation_mode=Polling, touch=Display:LcdTouch, group_id=display_lcd
+I (2933) SvcDisplay: : Bound display output Output0 to touch Touch0 by group_id(display_lcd)
+I (2934) SvcDisplay: : Bound display output Output0 to backlight Display:LedcBacklight by group_id(display_lcd)
+I (2940) HalIface: : - [Display] Reference count increased to 4
+I (2942) HalIface: : - [Display] Acquired interface 'Display:LcdPanel' with reference count 4
+I (2945) BOARD_DEVICE: Device display_lcd config found: 0x48762d34 (size: 124)
+I (2946) HalIface: : - [Display] Reference count decreased to 3
+I (2953) SvcDisplay: : Registered Display DataFlow provider
+I (3003) SvcMgr: : Initialized service: Display
+I (3006) SvcMgr: : Service added: Display
+I (3010) SvcMgr: : Initializing service: NES
+I (3014) SvcNES: : Version: 0.8.2
+I (3024) SvcMgr: : Initialized service: NES
+I (3028) SvcMgr: : Service added: NES
+I (3033) SvcMgr: : Initializing service: Http
+I (3039) SvcHTTP: : Version: 0.8.2
+I (3043) SvcHTTP: : HTTP service initialized
+I (3075) SvcMgr: : Initialized service: Http
+I (3081) SvcMgr: : Service added: Http
+I (3088) SvcMgr: : Initializing service: Device
+I (3097) SvcDevice: : Version: 0.8.2
+I (3097) SvcDevice: : Initialized
+I (3169) SvcMgr: : Initialized service: Device
+I (3176) SvcMgr: : Service added: Device
+I (3195) Coze: : Version: 0.8.2
+I (3221) SvcMgr: : Initialized service: Coze
+I (3228) SvcMgr: : Service added: Coze
+I (3230) SvcMgr: : All services added
+I (3252) SvcMgr: : Started service: Manager
+I (3262) SvcMgr: : Service started: Manager
+I (3274) SvcMgr: : Started service: Utils
+I (3286) SvcMgr: : Service started: Utils
+I (3299) SvcMgr: : Started service: DataFlow
+I (3311) SvcMgr: : Service started: DataFlow
+I (3315) Main: : Service manager started successfully
+I (3327) SvcMgr: : Started service: Storage
+I (3339) SvcMgr: : Service started: Storage
+W (3929) SvcDisplay: : KV key 'backlight.display_lcd.On' length 24 exceeds backend limit 15; using stable hash 'h2m1fy28e3uznh'
+I (4047) HalAdpt: : Set brightness: 94
+I (4111) SvcMgr: : Service started: Display
+I (4438) Main: : Using Display output { id: 1, name: Output0, width: 1024, height: 600, pixel_format: RGB565, slot: HalPanel, panel_instance: Display:LcdPanel, group_id: display_lcd, touch: { id: 1, name: Touch0, instance: Display:LcdTouch, max_points: 5, operation_mode: Polling }, backlight: { instance: Display:LedcBacklight, on_off_supported: false } }
+I (4530) HalIface: : - [Display] Reference count increased to 4
+I (4552) HalIface: : - [Display] Acquired interface 'Display:LcdPanel' with reference count 4
+I (4595) GuiLvgl: : LVGL Display source uses output Output0 (1024x600, panel=Display:LcdPanel)
+I (4631) esp_lvgl:adapter: Decoder initialized successfully
+I (4631) esp_lvgl:adapter: LVGL adapter initialized successfully
+I (4631) BOARD_DEVICE: Device display_lcd config found: 0x48762d34 (size: 124)
+I (4649) GuiLvgl: : LVGL Display source uses bus MIPI, frame buffers=3, tear mode=TRIPLE_PARTIAL
+I (4658) esp_lvgl:bridge_v9: Initializing hardware resources
+I (4658) esp_lvgl:bridge_v9: Hardware resources initialized successfully
+I (4658) esp_lvgl:bridge: Initializing hardware resources
+I (4659) esp_lvgl:bridge: Hardware resources initialized successfully
+I (4683) GuiLvgl: : LVGL Display source created 5 pointer input(s)
+I (4686) esp_lvgl:adapter: LVGL task started successfully
+I (5086) Main: : Display touch gesture enabled for output Output0
+W (5190) Main: : Audio playback service is not available
+I (5261) SysSuper: : Version: 0.8.3
+I (5284) SysCore: : Version: 0.8.4
+I (5449) SvcMgr: : Initializing service: SystemCore
+I (5578) SvcMgr: : Initialized service: SystemCore
+I (5592) SvcMgr: : Service added: SystemCore
+I (5608) SvcMgr: : Initializing service: SystemGui
+I (5697) SvcMgr: : Initializing service: SystemTimer
+I (5733) SvcMgr: : Initialized service: SystemTimer
+I (6162) SvcMgr: : Started service: SystemCore
+I (6183) SvcMgr: : Service started: SystemCore
+I (6209) SvcMgr: : Started service: SystemGui
+I (6230) SvcMgr: : Service started: SystemGui
+I (6261) SvcMgr: : Started service: SystemTimer
+I (6283) SvcMgr: : Service started: SystemTimer
+W (6583) SysCore: : KV namespace 'brookesia.system.storage' length 24 exceeds backend limit 15; using stable hash 'h3t1mdqi16omay'
+W (6890) SysCore: : KV key 'DefaultInstallTarget' length 20 exceeds backend limit 15; using stable hash 'h87e8co8unx7s'
+I (10058) SysCore: : System GUI preference 'ThemeId: light' is loaded
+W (10653) HalAdpt: : Skipping key 'Language': Key 'Language' not found in namespace 'h2a1k71xqvyaxm'
+I (10821) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/root.json), stage(read_text), bytes(1070), elapsed_ms(23)
+I (10822) GuiIface: : Parsing GUI root file '/littlefs/system/super/startup/root.json'
+I (10823) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(parse_root_json), bytes(1070), elapsed_ms(0), total_ms(0)
+I (10859) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/constants/default.json), stage(read_text), bytes(143), elapsed_ms(33)
+I (10860) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/constants/default.json), stage(parse_json), bytes(143), elapsed_ms(0)
+I (10890) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/images/index.json), stage(read_text), bytes(191), elapsed_ms(29)
+I (10891) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/images/index.json), stage(parse_json), bytes(191), elapsed_ms(0)
+I (10920) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/screens/startup.json), stage(read_text), bytes(702), elapsed_ms(28)
+I (10921) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/screens/startup.json), stage(parse_json), bytes(702), elapsed_ms(0)
+I (10957) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/constants/1024x600.json), stage(read_text), bytes(143), elapsed_ms(33)
+I (10958) GuiIface: : GUI parser file profile: file(/littlefs/system/super/startup/constants/1024x600.json), stage(parse_json), bytes(143), elapsed_ms(0)
+I (10959) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(load_asset_entries), assets(4), dependencies(5), elapsed_ms(135), total_ms(136)
+I (10961) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(resolve_constants), assets(4), elapsed_ms(0), total_ms(138)
+I (10963) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(resolve_assets), resolved_assets(2), elapsed_ms(1), total_ms(140)
+I (10964) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(parse_image_assets), images(1), elapsed_ms(0), total_ms(141)
+I (10965) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(parse_style_assets), styles(0), elapsed_ms(0), total_ms(142)
+I (10965) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(parse_interaction_templates), interactions(0), elapsed_ms(0), total_ms(142)
+I (10966) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(parse_templates), raw_templates(0), templates(0), elapsed_ms(0), total_ms(143)
+I (10969) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(parse_flows_screens), flows(0), screens(1), elapsed_ms(2), total_ms(146)
+I (10970) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(validate_document), elapsed_ms(0), total_ms(147)
+I (10971) GuiIface: : GUI parser profile: base_dir(/littlefs/system/super/startup), stage(total), dependencies(5), images(1), styles(0), templates(0), flows(0), screens(1), elapsed_ms(148), total_ms(148)
+I (10974) GuiIface: : GUI runtime load file profile: file(/littlefs/system/super/startup/root.json), stage(parse_document), dependencies(5), images(1), screens(1), templates(0), elapsed_ms(175), total_ms(175)
+I (10975) GuiIface: : GUI runtime load profile: file(/littlefs/system/super/startup/root.json), stage(validate_document), elapsed_ms(0), total_ms(0)
+I (10983) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(prepare_tree), dependencies(5), elapsed_ms(1), total_ms(8)
+I (10983) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(capture_dependency_mtimes), dependencies(5), hits(0), skipped(true), elapsed_ms(0), total_ms(8)
+I (10984) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(index_assets), images(1), flows(0), screens(1), templates(0), elapsed_ms(0), total_ms(9)
+I (10986) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(validate_resource_references), elapsed_ms(0), total_ms(11)
+I (10992) GuiIface: : [HeapTrace][gui.load.split] doc(1) stage(after tree move+validate (H_C)) psram_free(19936420) delta(-23464)
+I (10992) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(preload_image_resources), preloaded(0), elapsed_ms(0), total_ms(17)
+I (10999) GuiIface: : [HeapTrace][gui.load.split] doc(1) stage(after image preload (H_A)) psram_free(19936444) delta(24)
+I (11006) GuiIface: : [HeapTrace][gui.node] action(create) type(screen) live_type(1) node_record_size(64) node_size(1388) compact_props(false) psram_free(19933436)
+I (11040) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Image) record_size(120) placement_entries(1) placement_hits(0) placement_misses(1)
+I (11041) GuiIface: : [HeapTrace][gui.node] action(create) type(image) live_type(1) node_record_size(64) node_size(1388) compact_props(true) psram_free(19918920)
+I (11044) GuiIface: : GUI runtime subtree build profile: doc(1), stage(eager_screen_build), root(startup), nodes(2), total_ms(39), copy_definition_ms(0.098), initial_bindings_ms(0.003), image_resolve_ms(31.797), create_node_ms(1.708), resolve_style_ms(0.649), store_record_ms(1.97)
+I (11046) GuiIface: : GUI runtime subtree build profile: doc(1), stage(eager_screen_build), root(startup), apply_props_ms(0.898), apply_layout_ms(0.173), apply_placement_ms(0.411), apply_transform_ms(0.253), apply_style_ms(0.743), apply_animations_ms(0.02), events_ms(0.037), subscribe_bindings_ms(0)
+I (11047) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(eager_screen_build), screen(startup), elapsed_ms(39), total_ms(69)
+I (11061) GuiIface: : [HeapTrace][gui.load.split] doc(1) stage(total root load (H_A+H_B+H_C)) psram_free(19919020) delta(-40864)
+I (11062) GuiIface: : GUI runtime load profile: doc(1), file(/littlefs/system/super/startup/root.json), stage(total), elapsed_ms(87), total_ms(87)
+I (11063) GuiIface: : GUI runtime load file profile: file(/littlefs/system/super/startup/root.json), doc(1), stage(load_document), elapsed_ms(88), total_ms(264)
+I (11595) GuiIface: : GUI parser file profile: file(/littlefs/system/fonts/index.json), stage(read_text), bytes(440), elapsed_ms(22)
+I (12054) SysSuper: : Super shell fonts preloaded: /littlefs/system/fonts/index.json, language(en), default_font(default)
+I (12159) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/light.json), stage(read_text), bytes(1267), elapsed_ms(25)
+I (12192) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/color/light.json), stage(read_text), bytes(2341), elapsed_ms(30)
+I (12194) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/color/light.json), stage(parse_json), bytes(2341), elapsed_ms(0)
+I (12229) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/default.json), stage(read_text), bytes(404), elapsed_ms(34)
+I (12230) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/default.json), stage(parse_json), bytes(404), elapsed_ms(0)
+I (12266) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/default.json), stage(read_text), bytes(496), elapsed_ms(35)
+I (12267) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/default.json), stage(parse_json), bytes(496), elapsed_ms(0)
+I (12300) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/style/default.json), stage(read_text), bytes(9577), elapsed_ms(32)
+I (12305) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/style/default.json), stage(parse_json), bytes(9577), elapsed_ms(4)
+I (12352) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/1024x600.json), stage(read_text), bytes(43), elapsed_ms(33)
+I (12353) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/1024x600.json), stage(parse_json), bytes(43), elapsed_ms(0)
+I (12387) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/1024x600.json), stage(read_text), bytes(43), elapsed_ms(33)
+I (12388) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/1024x600.json), stage(parse_json), bytes(43), elapsed_ms(0)
+I (12611) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/dark.json), stage(read_text), bytes(1265), elapsed_ms(25)
+I (12646) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/color/dark.json), stage(read_text), bytes(2341), elapsed_ms(31)
+I (12647) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/color/dark.json), stage(parse_json), bytes(2341), elapsed_ms(1)
+I (12684) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/default.json), stage(read_text), bytes(404), elapsed_ms(34)
+I (12685) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/default.json), stage(parse_json), bytes(404), elapsed_ms(0)
+I (12722) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/default.json), stage(read_text), bytes(496), elapsed_ms(36)
+I (12723) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/default.json), stage(parse_json), bytes(496), elapsed_ms(0)
+I (12757) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/style/default.json), stage(read_text), bytes(9577), elapsed_ms(33)
+I (12763) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/style/default.json), stage(parse_json), bytes(9577), elapsed_ms(4)
+I (12814) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/1024x600.json), stage(read_text), bytes(43), elapsed_ms(34)
+I (12815) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/font/1024x600.json), stage(parse_json), bytes(43), elapsed_ms(0)
+I (12851) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/1024x600.json), stage(read_text), bytes(43), elapsed_ms(34)
+I (12852) GuiIface: : GUI parser file profile: file(/littlefs/system/super/themes/size/1024x600.json), stage(parse_json), bytes(43), elapsed_ms(0)
+I (13076) GuiIface: : Runtime theme configured: id='light', loaded_documents(1), applies_to(new documents only)
+I (13194) SysSuper: : Super shell theme preloaded: light
+I (14430) SysCore: : Native app installed: id(1), manifest(brookesia.system.super.shell)
+I (15038) SysSuper: : Super system initialized
+I (16975) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/images/index.json), stage(read_text), bytes(774), elapsed_ms(26)
+I (17001) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(read_text), bytes(1179), elapsed_ms(19)
+I (17002) GuiIface: : Parsing GUI root file '/littlefs/apps/brookesia.general.app_store/res/root.json'
+I (17003) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(parse_root_json), bytes(1179), elapsed_ms(0), total_ms(0)
+I (17036) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/constants/default.json), stage(read_text), bytes(1060), elapsed_ms(26)
+I (17037) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/constants/default.json), stage(parse_json), bytes(1060), elapsed_ms(0)
+I (17064) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/i18n/en.json), stage(read_text), bytes(6162), elapsed_ms(25)
+I (17067) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/i18n/en.json), stage(parse_json), bytes(6162), elapsed_ms(2)
+I (17096) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/images/index.json), stage(read_text), bytes(774), elapsed_ms(27)
+I (17097) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/images/index.json), stage(parse_json), bytes(774), elapsed_ms(0)
+I (17124) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/templates/press_scale.json), stage(read_text), bytes(1702), elapsed_ms(25)
+I (17126) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/templates/press_scale.json), stage(parse_json), bytes(1702), elapsed_ms(0)
+I (17167) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/screens/app_store.json), stage(read_text), bytes(33266), elapsed_ms(39)
+I (17179) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/screens/app_store.json), stage(parse_json), bytes(33266), elapsed_ms(9)
+I (17222) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/templates/app_store_item.json), stage(read_text), bytes(11944), elapsed_ms(39)
+I (17232) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/templates/app_store_item.json), stage(parse_json), bytes(11944), elapsed_ms(5)
+I (17289) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/flows/app_store.json), stage(read_text), bytes(147), elapsed_ms(50)
+I (17295) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/flows/app_store.json), stage(parse_json), bytes(147), elapsed_ms(0)
+I (17361) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/constants/1024x600.json), stage(read_text), bytes(482), elapsed_ms(51)
+I (17367) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.app_store/res/constants/1024x600.json), stage(parse_json), bytes(482), elapsed_ms(1)
+I (17381) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(load_asset_entries), assets(8), dependencies(9), elapsed_ms(370), total_ms(372)
+I (17713) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(resolve_constants), assets(8), elapsed_ms(321), total_ms(701)
+I (20041) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(resolve_assets), resolved_assets(5), elapsed_ms(2304), total_ms(3016)
+I (20234) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(parse_image_assets), images(5), elapsed_ms(168), total_ms(3211)
+I (20261) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(parse_style_assets), styles(0), elapsed_ms(0), total_ms(3236)
+I (20293) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(parse_interaction_templates), interactions(1), elapsed_ms(8), total_ms(3270)
+I (24730) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(parse_templates), raw_templates(1), templates(1), elapsed_ms(4408), total_ms(7703)
+E (26940) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (26940) task_wdt:  - IDLE0 (CPU 0)
+E (26940) task_wdt: Tasks currently running:
+E (26940) task_wdt: CPU 0: System0
+E (26940) task_wdt: CPU 1: IDLE1
+E (26940) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cb3fd0  GP      : 0x4ff17b00  
+TP      : 0x48cb98a0  T0      : 0x488c0014  T1      : 0x4ff0c31a  T2      : 0x488c0014  
+S0/FP   : 0x48dca018  S1      : 0x48dca018  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000001c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cb4144  
+S4      : 0x4ff5b7c0  S5      : 0x4ff2a534  S6      : 0x48cb89a8  S7      : 0x48cb8978  
+S8      : 0x48cb89c4  S9      : 0x486e5418  S10     : 0x486cc730  S11     : 0x48cb58e0  
+T3      : 0x00008210  T4      : 0x4a000000  T5      : 0x48dc928c  T6      : 0x4862d45e  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000000  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (36942) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (36942) task_wdt:  - IDLE0 (CPU 0)
+E (36942) task_wdt: Tasks currently running:
+E (36942) task_wdt: CPU 0: System0
+E (36942) task_wdt: CPU 1: IDLE1
+E (36942) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cb8550  GP      : 0x4ff17b00  
+TP      : 0x48cb98a0  T0      : 0x65666669  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48dc8be8  S1      : 0x48dc8be8  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000007c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x00000ff0  
+S4      : 0x4ff5b7c0  S5      : 0x4ff2a534  S6      : 0x48dc2360  S7      : 0x48dc2350  
+S8      : 0x48cb87e8  S9      : 0x41c6594d  S10     : 0x48cb87e8  S11     : 0x00000000  
+T3      : 0x00000001  T4      : 0x00000008  T5      : 0x48dc4930  T6      : 0x48cb87c0  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000000  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+I (37305) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(validate_document), elapsed_ms(666), total_ms(20278)
+I (37345) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.app_store/res), stage(total), dependencies(9), images(5), styles(0), templates(1), flows(1), screens(1), elapsed_ms(20307), total_ms(20307)
+I (39440) GuiIface: : GUI runtime load file profile: file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(parse_document), dependencies(9), images(5), screens(1), templates(1), elapsed_ms(22457), total_ms(22457)
+I (39462) GuiIface: : GUI runtime load profile: file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(validate_document), elapsed_ms(20), total_ms(20)
+I (39478) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(prepare_tree), dependencies(9), elapsed_ms(7), total_ms(36)
+I (39480) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(capture_dependency_mtimes), dependencies(9), hits(0), skipped(true), elapsed_ms(0), total_ms(38)
+I (39482) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(index_assets), images(5), flows(1), screens(1), templates(1), elapsed_ms(0), total_ms(39)
+I (39487) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(validate_resource_references), elapsed_ms(4), total_ms(45)
+I (39496) GuiIface: : [HeapTrace][gui.load.split] doc(2) stage(after tree move+validate (H_C)) psram_free(19355244) delta(-9052)
+I (39499) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(preload_image_resources), preloaded(0), elapsed_ms(1), total_ms(56)
+I (39507) GuiIface: : [HeapTrace][gui.load.split] doc(2) stage(after image preload (H_A)) psram_free(19355248) delta(4)
+I (39515) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Screen) record_size(120) placement_entries(2) placement_hits(0) placement_misses(2)
+I (39517) GuiIface: : [HeapTrace][gui.node] action(create) type(screen) live_type(2) node_record_size(64) node_size(1388) compact_props(false) psram_free(19352056)
+I (39524) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(2) placement_hits(1) placement_misses(2)
+I (39526) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(1) node_record_size(64) node_size(1388) compact_props(false) psram_free(19349484)
+I (39532) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(3) placement_hits(1) placement_misses(3)
+I (39534) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(2) node_record_size(64) node_size(1388) compact_props(false) psram_free(19347036)
+I (39540) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(4) placement_hits(1) placement_misses(4)
+I (39542) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(3) node_record_size(64) node_size(1388) compact_props(false) psram_free(19345564)
+I (39549) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(5) placement_hits(1) placement_misses(5)
+I (39552) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(4) node_record_size(64) node_size(1388) compact_props(false) psram_free(19343976)
+I (39560) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(6) placement_hits(1) placement_misses(6)
+I (39562) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(1) node_record_size(64) node_size(1388) compact_props(false) psram_free(19339564)
+I (39590) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(6) placement_hits(2) placement_misses(6)
+I (39592) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(2) node_record_size(64) node_size(1388) compact_props(false) psram_free(19326884)
+I (39614) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(6) placement_hits(3) placement_misses(6)
+I (39616) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(3) node_record_size(64) node_size(1388) compact_props(false) psram_free(19323400)
+I (39628) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(6) placement_hits(4) placement_misses(6)
+I (39631) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(1) node_record_size(64) node_size(1388) compact_props(false) psram_free(19318660)
+I (39642) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(7) placement_hits(4) placement_misses(7)
+I (39644) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(4) node_record_size(64) node_size(1388) compact_props(false) psram_free(19308444)
+I (39664) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(8) placement_hits(4) placement_misses(8)
+I (39666) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(5) node_record_size(64) node_size(1388) compact_props(false) psram_free(19312788)
+I (39690) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(9) placement_hits(4) placement_misses(9)
+I (39693) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(2) node_record_size(64) node_size(1388) compact_props(false) psram_free(19305056)
+I (39705) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(10) placement_hits(4) placement_misses(10)
+I (39708) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(5) node_record_size(64) node_size(1388) compact_props(false) psram_free(19298892)
+I (39722) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(10) placement_hits(5) placement_misses(10)
+I (39725) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(3) node_record_size(64) node_size(1388) compact_props(false) psram_free(19299964)
+I (39738) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(10) placement_hits(6) placement_misses(10)
+I (39741) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(6) node_record_size(64) node_size(1388) compact_props(false) psram_free(19295684)
+I (39767) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(10) placement_hits(7) placement_misses(10)
+I (39772) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(4) node_record_size(64) node_size(1388) compact_props(false) psram_free(19295768)
+I (39787) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(10) placement_hits(8) placement_misses(10)
+I (39790) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(7) node_record_size(64) node_size(1388) compact_props(false) psram_free(19290744)
+I (39812) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(10) placement_hits(9) placement_misses(10)
+I (39816) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(6) node_record_size(64) node_size(1388) compact_props(false) psram_free(19294012)
+I (39829) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(10) placement_hits(10) placement_misses(10)
+I (39832) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(7) node_record_size(64) node_size(1388) compact_props(false) psram_free(19292168)
+I (39845) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(11) placement_hits(10) placement_misses(11)
+I (39848) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(8) node_record_size(64) node_size(1388) compact_props(false) psram_free(19291080)
+I (39863) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(11) placement_hits(11) placement_misses(11)
+I (39866) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(9) node_record_size(64) node_size(1388) compact_props(false) psram_free(19288572)
+I (39881) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(12) placement_hits(11) placement_misses(12)
+I (39886) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(5) node_record_size(64) node_size(1388) compact_props(false) psram_free(19283256)
+I (39901) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(13) placement_hits(11) placement_misses(13)
+I (39904) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(8) node_record_size(64) node_size(1388) compact_props(false) psram_free(19279548)
+I (39926) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(14) placement_hits(11) placement_misses(14)
+I (39930) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(10) node_record_size(64) node_size(1388) compact_props(false) psram_free(19280076)
+I (39949) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(15) placement_hits(11) placement_misses(15)
+I (39954) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(9) node_record_size(64) node_size(1388) compact_props(false) psram_free(19276604)
+I (39979) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(15) placement_hits(12) placement_misses(15)
+I (39984) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(6) node_record_size(64) node_size(1388) compact_props(false) psram_free(19275500)
+I (40008) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(15) placement_hits(13) placement_misses(15)
+I (40013) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(10) node_record_size(64) node_size(1388) compact_props(false) psram_free(19272524)
+I (40039) GuiIface: : GUI runtime subtree build profile: doc(2), stage(eager_screen_build), root(app_store), nodes(27), total_ms(518), copy_definition_ms(3.142), initial_bindings_ms(11.891), image_resolve_ms(0.105), create_node_ms(70.907), resolve_style_ms(25.735), store_record_ms(63.175)
+I (40045) GuiIface: : GUI runtime subtree build profile: doc(2), stage(eager_screen_build), root(app_store), apply_props_ms(78.86), apply_layout_ms(16.381), apply_placement_ms(36.156), apply_transform_ms(59.877), apply_style_ms(110), apply_animations_ms(0.435), events_ms(5.1), subscribe_bindings_ms(0)
+I (40049) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(eager_screen_build), screen(app_store), elapsed_ms(518), total_ms(591)
+I (40059) GuiIface: : [HeapTrace][gui.load.split] doc(2) stage(eager build screen app_store) psram_free(19277312) delta(-77912)
+I (40062) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(eager_screen_build_total), eager_screens(1), dynamic_screens(0), elapsed_ms(552), total_ms(618)
+I (40073) GuiIface: : [HeapTrace][gui.load.split] doc(2) stage(after eager screen build (H_B)) psram_free(19277696) delta(-77552)
+I (40075) GuiIface: : [HeapTrace][gui.load.split] doc(2) stage(total root load (H_A+H_B+H_C)) psram_free(19277696) delta(-86600)
+I (40078) GuiIface: : GUI runtime load profile: doc(2), file(/littlefs/apps/brookesia.general.app_store/res/root.json), stage(total), elapsed_ms(634), total_ms(634)
+I (40082) GuiIface: : GUI runtime load file profile: file(/littlefs/apps/brookesia.general.app_store/res/root.json), doc(2), stage(load_document), elapsed_ms(638), total_ms(23098)
+I (40238) SysCore: : Native app installed: id(2), manifest(brookesia.general.app_store)
+I (42773) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/images/index.json), stage(read_text), bytes(1659), elapsed_ms(33)
+I (42818) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/root.json), stage(read_text), bytes(731), elapsed_ms(28)
+I (42818) GuiIface: : Parsing GUI root file '/littlefs/apps/brookesia.general.files/res/root.json'
+I (42820) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(parse_root_json), bytes(731), elapsed_ms(0), total_ms(0)
+I (42870) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/constants/default.json), stage(read_text), bytes(938), elapsed_ms(35)
+I (42871) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/constants/default.json), stage(parse_json), bytes(938), elapsed_ms(0)
+I (42910) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/i18n/en.json), stage(read_text), bytes(1833), elapsed_ms(37)
+I (42914) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/i18n/en.json), stage(parse_json), bytes(1833), elapsed_ms(2)
+I (42951) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/images/index.json), stage(read_text), bytes(1659), elapsed_ms(35)
+I (42955) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/images/index.json), stage(parse_json), bytes(1659), elapsed_ms(3)
+I (42996) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/screens/header.json), stage(read_text), bytes(6094), elapsed_ms(40)
+I (43002) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/screens/header.json), stage(parse_json), bytes(6094), elapsed_ms(4)
+I (43045) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/screens/browser.json), stage(read_text), bytes(2455), elapsed_ms(40)
+I (43047) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/screens/browser.json), stage(parse_json), bytes(2455), elapsed_ms(1)
+I (43091) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/screens/operations.json), stage(read_text), bytes(7086), elapsed_ms(41)
+I (43099) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/screens/operations.json), stage(parse_json), bytes(7086), elapsed_ms(3)
+I (43149) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/templates/file_entry.json), stage(read_text), bytes(5169), elapsed_ms(45)
+I (43155) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/templates/file_entry.json), stage(parse_json), bytes(5169), elapsed_ms(4)
+I (43206) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/templates/operation_item.json), stage(read_text), bytes(4302), elapsed_ms(46)
+I (43214) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/templates/operation_item.json), stage(parse_json), bytes(4302), elapsed_ms(4)
+I (43271) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/flows/header.json), stage(read_text), bytes(156), elapsed_ms(54)
+I (43276) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/flows/header.json), stage(parse_json), bytes(156), elapsed_ms(0)
+I (43334) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/flows/files.json), stage(read_text), bytes(404), elapsed_ms(55)
+I (43340) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.files/res/flows/files.json), stage(parse_json), bytes(404), elapsed_ms(0)
+I (43348) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(load_asset_entries), assets(10), dependencies(11), elapsed_ms(522), total_ms(524)
+I (43410) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(resolve_constants), assets(10), elapsed_ms(54), total_ms(584)
+I (44281) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(resolve_assets), resolved_assets(8), elapsed_ms(856), total_ms(1447)
+I (44513) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(parse_image_assets), images(11), elapsed_ms(217), total_ms(1681)
+I (44530) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(parse_style_assets), styles(0), elapsed_ms(0), total_ms(1696)
+I (44546) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(parse_interaction_templates), interactions(0), elapsed_ms(0), total_ms(1712)
+I (46886) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(parse_templates), raw_templates(2), templates(2), elapsed_ms(2317), total_ms(4046)
+E (46942) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (46942) task_wdt:  - IDLE0 (CPU 0)
+E (46942) task_wdt: Tasks currently running:
+E (46942) task_wdt: CPU 0: System2
+E (46942) task_wdt: CPU 1: IDLE1
+E (46942) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cd8ac0  GP      : 0x4ff17b00  
+TP      : 0x48cdb4b0  T0      : 0x65745f77  T1      : 0x4ff0c31a  T2      : 0x616c706d  
+S0/FP   : 0x48da77dc  S1      : 0x48da77dc  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cd8b2c  
+S4      : 0x4ff5b9dc  S5      : 0x4ff2a534  S6      : 0x48cda5b8  S7      : 0x48cda588  
+S8      : 0x48cda5d4  S9      : 0x48cd8d08  S10     : 0x486cc730  S11     : 0x48cd93f0  
+T3      : 0x48da77d4  T4      : 0x4a000000  T5      : 0x0000000e  T6      : 0x6172202c  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000000  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+I (52691) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(parse_flows_screens), flows(2), screens(3), elapsed_ms(5780), total_ms(9850)
+I (53263) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(validate_document), elapsed_ms(550), total_ms(10426)
+I (53296) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.files/res), stage(total), dependencies(11), images(11), styles(0), templates(2), flows(2), screens(3), elapsed_ms(10448), total_ms(10448)
+I (53989) GuiIface: : GUI runtime load file profile: file(/littlefs/apps/brookesia.general.files/res/root.json), stage(parse_document), dependencies(11), images(11), screens(3), templates(2), elapsed_ms(11201), total_ms(11201)
+I (54015) GuiIface: : GUI runtime load profile: file(/littlefs/apps/brookesia.general.files/res/root.json), stage(validate_document), elapsed_ms(21), total_ms(21)
+I (54034) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(prepare_tree), dependencies(11), elapsed_ms(9), total_ms(42)
+I (54035) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(capture_dependency_mtimes), dependencies(11), hits(0), skipped(true), elapsed_ms(0), total_ms(43)
+I (54039) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(index_assets), images(11), flows(2), screens(3), templates(2), elapsed_ms(1), total_ms(46)
+I (54045) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(validate_resource_references), elapsed_ms(5), total_ms(53)
+I (54057) GuiIface: : [HeapTrace][gui.load.split] doc(3) stage(after tree move+validate (H_C)) psram_free(19166920) delta(-13624)
+I (54063) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(preload_image_resources), preloaded(0), elapsed_ms(2), total_ms(68)
+I (54074) GuiIface: : [HeapTrace][gui.load.split] doc(3) stage(after image preload (H_A)) psram_free(19166972) delta(52)
+I (54086) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Screen) record_size(120) placement_entries(15) placement_hits(14) placement_misses(15)
+I (54087) GuiIface: : [HeapTrace][gui.node] action(create) type(screen) live_type(3) node_record_size(64) node_size(1388) compact_props(false) psram_free(19164248)
+I (54095) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(15) placement_hits(15) placement_misses(15)
+I (54098) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(11) node_record_size(64) node_size(1388) compact_props(false) psram_free(19162036)
+I (54108) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(16) placement_hits(15) placement_misses(16)
+I (54110) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(12) node_record_size(64) node_size(1388) compact_props(false) psram_free(19159228)
+I (54117) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(16) placement_hits(16) placement_misses(16)
+I (54120) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(13) node_record_size(64) node_size(1388) compact_props(false) psram_free(19157888)
+I (54130) GuiIface: : GUI runtime subtree build profile: doc(3), stage(eager_screen_build), root(browser), nodes(4), total_ms(44), copy_definition_ms(0.033), initial_bindings_ms(0.011), image_resolve_ms(0.014), create_node_ms(9.488), resolve_style_ms(3.621), store_record_ms(8.713)
+I (54135) GuiIface: : GUI runtime subtree build profile: doc(3), stage(eager_screen_build), root(browser), apply_props_ms(5.171), apply_layout_ms(2.089), apply_placement_ms(3.15), apply_transform_ms(2.973), apply_style_ms(7.631), apply_animations_ms(0.062), events_ms(0.15), subscribe_bindings_ms(0)
+I (54136) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(eager_screen_build), screen(browser), elapsed_ms(44), total_ms(136)
+I (54158) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Screen) record_size(120) placement_entries(16) placement_hits(17) placement_misses(16)
+I (54159) GuiIface: : [HeapTrace][gui.node] action(create) type(screen) live_type(4) node_record_size(64) node_size(1388) compact_props(false) psram_free(19156684)
+I (54168) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(16) placement_hits(18) placement_misses(16)
+I (54171) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(14) node_record_size(64) node_size(1388) compact_props(false) psram_free(19155696)
+I (54181) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(16) placement_hits(19) placement_misses(16)
+I (54184) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(11) node_record_size(64) node_size(1388) compact_props(false) psram_free(19153152)
+I (54202) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(16) placement_hits(20) placement_misses(16)
+I (54205) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(15) node_record_size(64) node_size(1388) compact_props(false) psram_free(19151628)
+I (54237) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(16) placement_hits(21) placement_misses(16)
+I (54241) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(7) node_record_size(64) node_size(1388) compact_props(false) psram_free(19145468)
+I (54302) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Image) record_size(120) placement_entries(17) placement_hits(21) placement_misses(17)
+I (54307) GuiIface: : [HeapTrace][gui.node] action(create) type(image) live_type(2) node_record_size(64) node_size(1388) compact_props(true) psram_free(19138128)
+I (54321) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(18) placement_hits(21) placement_misses(18)
+I (54324) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(16) node_record_size(64) node_size(1388) compact_props(false) psram_free(19139140)
+I (54340) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(19) placement_hits(21) placement_misses(19)
+I (54342) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(12) node_record_size(64) node_size(1388) compact_props(false) psram_free(19134044)
+I (54359) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(19) placement_hits(22) placement_misses(19)
+I (54361) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(13) node_record_size(64) node_size(1388) compact_props(false) psram_free(19132992)
+I (54392) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(19) placement_hits(23) placement_misses(19)
+I (54397) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(14) node_record_size(64) node_size(1388) compact_props(false) psram_free(19130772)
+I (54416) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(23) placement_misses(20)
+I (54421) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(15) node_record_size(64) node_size(1388) compact_props(false) psram_free(19133108)
+I (54436) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(20) placement_hits(24) placement_misses(20)
+I (54440) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(17) node_record_size(64) node_size(1388) compact_props(false) psram_free(19132008)
+I (54471) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(20) placement_hits(25) placement_misses(20)
+I (54475) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(8) node_record_size(64) node_size(1388) compact_props(false) psram_free(19127992)
+I (54546) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Image) record_size(120) placement_entries(20) placement_hits(26) placement_misses(20)
+I (54548) GuiIface: : [HeapTrace][gui.node] action(create) type(image) live_type(3) node_record_size(64) node_size(1388) compact_props(true) psram_free(19120440)
+I (54567) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(20) placement_hits(27) placement_misses(20)
+I (54572) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(18) node_record_size(64) node_size(1388) compact_props(false) psram_free(19121512)
+I (54589) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(28) placement_misses(20)
+I (54595) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(16) node_record_size(64) node_size(1388) compact_props(false) psram_free(19118040)
+I (54610) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(29) placement_misses(20)
+I (54616) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(17) node_record_size(64) node_size(1388) compact_props(false) psram_free(19116808)
+I (54651) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(30) placement_misses(20)
+I (54654) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(18) node_record_size(64) node_size(1388) compact_props(false) psram_free(19115480)
+I (54693) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(20) placement_hits(31) placement_misses(20)
+I (54699) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(9) node_record_size(64) node_size(1388) compact_props(false) psram_free(19116904)
+I (54777) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Image) record_size(120) placement_entries(20) placement_hits(32) placement_misses(20)
+I (54784) GuiIface: : [HeapTrace][gui.node] action(create) type(image) live_type(4) node_record_size(64) node_size(1388) compact_props(true) psram_free(19108568)
+I (54808) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(20) placement_hits(33) placement_misses(20)
+I (54812) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(19) node_record_size(64) node_size(1388) compact_props(false) psram_free(19108932)
+I (54834) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(34) placement_misses(20)
+I (54841) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(19) node_record_size(64) node_size(1388) compact_props(false) psram_free(19106032)
+I (54867) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(35) placement_misses(20)
+I (54873) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(20) node_record_size(64) node_size(1388) compact_props(false) psram_free(19104276)
+I (54910) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(20) placement_hits(36) placement_misses(20)
+I (54915) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(21) node_record_size(64) node_size(1388) compact_props(false) psram_free(19104056)
+I (54955) GuiIface: : GUI runtime subtree build profile: doc(3), stage(eager_screen_build), root(operations), nodes(24), total_ms(791), copy_definition_ms(6.903), initial_bindings_ms(15.08), image_resolve_ms(151.846), create_node_ms(81.893), resolve_style_ms(25.833), store_record_ms(76.06)
+I (54962) GuiIface: : GUI runtime subtree build profile: doc(3), stage(eager_screen_build), root(operations), apply_props_ms(169.483), apply_layout_ms(18.009), apply_placement_ms(50.109), apply_transform_ms(58.967), apply_style_ms(98.071), apply_animations_ms(0.352), events_ms(1.589), subscribe_bindings_ms(0)
+I (54967) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(eager_screen_build), screen(operations), elapsed_ms(791), total_ms(956)
+I (54993) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Screen) record_size(120) placement_entries(20) placement_hits(37) placement_misses(20)
+I (54998) GuiIface: : [HeapTrace][gui.node] action(create) type(screen) live_type(5) node_record_size(64) node_size(1388) compact_props(false) psram_free(19106596)
+I (55019) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(20) placement_hits(38) placement_misses(20)
+I (55028) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(20) node_record_size(64) node_size(1388) compact_props(false) psram_free(19100724)
+I (55050) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Button) record_size(120) placement_entries(21) placement_hits(38) placement_misses(21)
+I (55058) GuiIface: : [HeapTrace][gui.node] action(create) type(button) live_type(10) node_record_size(64) node_size(1388) compact_props(false) psram_free(19099972)
+I (55087) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(22) placement_hits(38) placement_misses(22)
+I (55094) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(22) node_record_size(64) node_size(1388) compact_props(false) psram_free(19097544)
+I (55122) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(22) placement_hits(39) placement_misses(22)
+I (55127) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(21) node_record_size(64) node_size(1388) compact_props(false) psram_free(19096944)
+I (55160) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(22) placement_hits(40) placement_misses(22)
+I (55167) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(23) node_record_size(64) node_size(1388) compact_props(false) psram_free(19092916)
+I (55213) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(22) placement_hits(41) placement_misses(22)
+I (55220) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(24) node_record_size(64) node_size(1388) compact_props(false) psram_free(19090404)
+I (55299) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Container) record_size(120) placement_entries(22) placement_hits(42) placement_misses(22)
+I (55308) GuiIface: : [HeapTrace][gui.node] action(create) type(container) live_type(22) node_record_size(64) node_size(1388) compact_props(false) psram_free(19086488)
+I (55358) GuiLvgl: : [HeapTrace][gui.lvgl_record] action(create) type(Label) record_size(120) placement_entries(23) placement_hits(42) placement_misses(23)
+I (55369) GuiIface: : [HeapTrace][gui.node] action(create) type(label) live_type(25) node_record_size(64) node_size(1388) compact_props(false) psram_free(19085388)
+I (55418) GuiIface: : GUI runtime subtree build profile: doc(3), stage(eager_screen_build), root(files_header), nodes(9), total_ms(417), copy_definition_ms(0.423), initial_bindings_ms(3.764), image_resolve_ms(0.032), create_node_ms(54.861), resolve_style_ms(18.902), store_record_ms(49.039)
+I (55430) GuiIface: : GUI runtime subtree build profile: doc(3), stage(eager_screen_build), root(files_header), apply_props_ms(88.7), apply_layout_ms(13.997), apply_placement_ms(39.023), apply_transform_ms(37.744), apply_style_ms(93.613), apply_animations_ms(0.151), events_ms(0.389), subscribe_bindings_ms(0)
+I (55434) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(eager_screen_build), screen(files_header), elapsed_ms(417), total_ms(1415)
+I (55449) GuiIface: : [HeapTrace][gui.load.split] doc(3) stage(eager build screen files_header) psram_free(19087264) delta(-19756)
+I (55456) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(eager_screen_build_total), eager_screens(3), dynamic_screens(0), elapsed_ms(1377), total_ms(1460)
+I (55474) GuiIface: : [HeapTrace][gui.load.split] doc(3) stage(after eager screen build (H_B)) psram_free(19087460) delta(-79512)
+I (55481) GuiIface: : [HeapTrace][gui.load.split] doc(3) stage(total root load (H_A+H_B+H_C)) psram_free(19087460) delta(-93084)
+I (55483) GuiIface: : GUI runtime load profile: doc(3), file(/littlefs/apps/brookesia.general.files/res/root.json), stage(total), elapsed_ms(1489), total_ms(1489)
+I (55491) GuiIface: : GUI runtime load file profile: file(/littlefs/apps/brookesia.general.files/res/root.json), doc(3), stage(load_document), elapsed_ms(1495), total_ms(12700)
+I (55703) SysCore: : Native app installed: id(3), manifest(brookesia.general.files)
+E (56944) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (56944) task_wdt:  - IDLE0 (CPU 0)
+E (56944) task_wdt: Tasks currently running:
+E (56944) task_wdt: CPU 0: Thread
+E (56944) task_wdt: CPU 1: IDLE1
+E (56944) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x488cc7e0  GP      : 0x4ff17b00  
+TP      : 0x488cdb90  T0      : 0x3831692f  T1      : 0x4ff0c31a  T2      : 0x687a2f6e  
+S0/FP   : 0x48d9a560  S1      : 0x48d9a560  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000034  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x488cc958  
+S4      : 0x4ff3b584  S5      : 0x4ff2a534  S6      : 0x00000008  S7      : 0x4868b878  
+S8      : 0x488cc9c8  S9      : 0x48ca9018  S10     : 0x488cd2a8  S11     : 0x488cc9f0  
+T3      : 0x00000001  T4      : 0x00000008  T5      : 0x73676e69  T6      : 0x7365722f  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000000  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+I (59246) SvcWiFi: : State machine started
+I (60416) SvcWiFi: : Loaded 'LastAp' from Storage
+I (61293) SvcWiFi: : Loaded '1' connected AP entries from Storage
+I (62075) SvcWiFi: : Loaded 'ScanParams' from Storage
+W (62641) HalAdpt: : Key 'SoftApParams' not found in namespace 'Wifi'
+I (62879) SvcWiFi: : Loaded all data from Storage
+I (62924) SvcMgr: : Started service: Wifi
+I (62969) SvcMgr: : Service started: Wifi
+I (64452) HalAdpt: : WiFi do 'Init' running...
+I (64472) HalAdpt: : WiFi do 'Init' finished
+I (64478) transport: Attempt connection with slave: retry[0]
+W (64479) H_SDIO_DRV: Reset slave using GPIO[54]
+I (64479) os_wrapper_esp: GPIO [54] configured
+I (66010) sdio_wrapper: SDIO master: Slot 1, Data-Lines: 4-bit Freq(KHz)[40000 KHz]
+I (66011) sdio_wrapper: GPIOs: CLK[18] CMD[19] D0[14] D1[15] D2[16] D3[17] Slave_Reset[54]
+I (66011) sdio_wrapper: Queues: Tx[20] Rx[20] SDIO-Rx-Mode[1]
+I (66120) sdio_wrapper: Function 0 Blocksize: 512
+I (66134) sdio_wrapper: Function 1 Blocksize: 512
+I (66238) H_SDIO_DRV: Card init success, TRANSPORT_RX_ACTIVE
+I (66238) transport: set_transport_state: 1
+I (66239) transport: Waiting for esp_hosted slave to be ready
+I (66251) H_SDIO_DRV: SDIO Host operating in STREAMING MODE
+I (66251) H_SDIO_DRV: Open data path at slave
+I (66258) H_SDIO_DRV: Starting SDIO process rx task
+I (66258) H_SDIO_DRV: Received ESP_PRIV_IF type message
+I (66258) transport: Received INIT event from ESP32 peripheral
+I (66259) transport: EVENT: 12
+I (66259) transport: Identified slave [esp32c6]
+I (66259) transport: EVENT: 11
+I (66259) transport: capabilities: 0xd
+I (66259) transport: Features supported are:
+I (66259) transport: 	 * WLAN
+I (66259) transport: 	   - HCI over SDIO
+I (66260) transport: 	   - BLE only
+I (66260) transport: EVENT: 13
+W (66260) transport: Version mismatch: Host [2.12.0] > Co-proc [0.0.0] ==> Upgrade co-proc to avoid RPC timeouts
+I (66260) transport: ESP board type is : 13 
+
+I (66260) transport: Base transport is set-up, TRANSPORT_TX_ACTIVE
+I (66261) H_API: Transport active
+I (66261) transport: Slave chip Id[12]
+I (66261) transport: raw_tp_dir[-], flow_ctrl: low[60] high[80]
+I (66261) transport: transport_delayed_init
+I (66261) esp_cli: Registering command: crash
+I (66261) esp_cli: Registering command: reboot
+I (66265) esp_cli: Registering command: sock-dump
+I (66265) esp_cli: Registering command: host-power-save
+I (66265) hci_stub_drv: Host BT Support: Disabled
+I (66265) H_SDIO_DRV: Received INIT event
+I (66266) H_SDIO_DRV: Event type: 0x22
+I (66266) H_SDIO_DRV: Write thread started
+I (66272) RPC_WRAP: Coprocessor Boot-up
+I (66603) HalAdpt: : Detected expected event: Inited
+I (66759) HalAdpt: : WiFi do 'Start' running...
+I (66868) HalAdpt: : WiFi do 'Start' finished
+I (66875) RPC_WRAP: ESP Event: wifi station started
+I (66895) HalAdpt: : Detected expected event: Started
+I (69061) HalAdpt: : WiFi do 'Connect' running...
+I (69067) HalAdpt: : Connecting to TEST111...
+I (69089) H_API: esp_wifi_remote_connect
+I (69104) HalAdpt: : WiFi do 'Connect' finished
+E (71230) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (71230) task_wdt:  - IDLE0 (CPU 0)
+E (71230) task_wdt: Tasks currently running:
+E (71230) task_wdt: CPU 0: System2
+E (71230) task_wdt: CPU 1: IDLE1
+E (71230) task_wdt: Print CPU 0 (current core) registers
+Core  0 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cdb270  GP      : 0x4ff17b00  
+TP      : 0x48cdb4b0  T0      : 0x4fc1a058  T1      : 0x0004007f  T2      : 0x28736d5f  
+S0/FP   : 0x48d7dedc  S1      : 0x48d7dedc  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000010  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cdb2fc  
+S4      : 0x4ff5b9dc  S5      : 0x4ff2a534  S6      : 0x00000000  S7      : 0x00000001  
+S8      : 0xffffffff  S9      : 0x00000074  S10     : 0x00000000  S11     : 0x00000000  
+T3      : 0x00000001  T4      : 0x48d67db4  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000000  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+I (73230) RPC_WRAP: ESP Event: Station mode: Connected
+I (73231) esp_wifi_remote: esp_wifi_internal_reg_rxcb: sta: 0x485bc074
+I (73732) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/images/index.json), stage(read_text), bytes(1481), elapsed_ms(43)
+I (73796) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/root.json), stage(read_text), bytes(1834), elapsed_ms(38)
+I (73798) GuiIface: : Parsing GUI root file '/littlefs/apps/brookesia.general.settings/res/root.json'
+I (73802) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.settings/res), stage(parse_root_json), bytes(1834), elapsed_ms(2), total_ms(2)
+I (73913) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/constants/default.json), stage(read_text), bytes(2009), elapsed_ms(57)
+I (73919) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/constants/default.json), stage(parse_json), bytes(2009), elapsed_ms(3)
+I (73976) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/images/index.json), stage(read_text), bytes(1481), elapsed_ms(53)
+I (73982) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/images/index.json), stage(parse_json), bytes(1481), elapsed_ms(1)
+I (74047) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/settings_home.json), stage(read_text), bytes(10729), elapsed_ms(62)
+I (74060) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/settings_home.json), stage(parse_json), bytes(10729), elapsed_ms(10)
+I (74131) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/my_device.json), stage(read_text), bytes(8738), elapsed_ms(67)
+I (74144) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/my_device.json), stage(parse_json), bytes(8738), elapsed_ms(8)
+I (74246) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/wifi.json), stage(read_text), bytes(42771), elapsed_ms(96)
+I (74280) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/wifi.json), stage(parse_json), bytes(42771), elapsed_ms(28)
+I (74280) esp_netif_handlers: sta ip: 192.168.31.6, mask: 255.255.255.0, gw: 192.168.31.1
+I (74396) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/wifi_connect.json), stage(read_text), bytes(14894), elapsed_ms(105)
+I (74402) SvcWiFi: : Saved 'LastAp' to Storage
+I (74422) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/wifi_connect.json), stage(parse_json), bytes(14894), elapsed_ms(14)
+I (74465) HalAdpt: : Detected expected event: Connected
+I (74471) SvcWiFi: : Saved connected AP 'TEST111' to Storage key 'ca2nuv1sd98k8k2'
+I (74557) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/sound.json), stage(read_text), bytes(7090), elapsed_ms(119)
+I (74582) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/sound.json), stage(parse_json), bytes(7090), elapsed_ms(8)
+I (74718) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/display.json), stage(read_text), bytes(7970), elapsed_ms(119)
+I (74745) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/display.json), stage(parse_json), bytes(7970), elapsed_ms(10)
+I (74893) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/header.json), stage(read_text), bytes(4797), elapsed_ms(128)
+I (74921) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/header.json), stage(parse_json), bytes(4797), elapsed_ms(8)
+I (75089) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/more.json), stage(read_text), bytes(5061), elapsed_ms(145)
+I (75297) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/language.json), stage(read_text), bytes(2875), elapsed_ms(154)
+I (75323) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/language.json), stage(parse_json), bytes(2875), elapsed_ms(4)
+I (75510) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/time_zone.json), stage(read_text), bytes(12974), elapsed_ms(162)
+I (75551) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/time_zone.json), stage(parse_json), bytes(12974), elapsed_ms(18)
+I (75747) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/screens/debug.json), stage(read_text), bytes(19220), elapsed_ms(175)
+I (76310) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/settings_card.json), stage(parse_json), bytes(791), elapsed_ms(2)
+I (76538) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/search_card.json), stage(read_text), bytes(1607), elapsed_ms(201)
+I (76574) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/search_card.json), stage(parse_json), bytes(1607), elapsed_ms(4)
+I (76809) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/debug_slider_row.json), stage(read_text), bytes(7541), elapsed_ms(202)
+I (76849) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/debug_slider_row.jsoI (77096) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/setting_row.json), stage(read_text), bytes(2570), elapsed_ms(214)
+I (77136) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/setting_row.json), stage(parse_json), bytes(2570), elapsed_ms(10)
+I (77380) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/slider_row.json), stage(read_text), bytes(1773), elapsed_ms(207)
+I (77420) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/slider_row.json), stage(parse_json), bytes(1773), elapsed_ms(6)
+I (77667) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/switch_row.json), stage(read_text), bytes(3259), elapsed_ms(212)
+I (77704) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/switch_row.json), stage(parse_json), bytes(3259), elapsed_ms(9)
+I (77998) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/hardware_group_card.json), stage(parse_json), bytes(2082), elapsed_ms(10)
+I (78255) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/wifi_network_item.jsI (78300) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/wifi_network_item.json), stage(parse_json), bytes(3217), elapsed_ms(9)
+I (78560) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/wifi_connected_item.json), stage(read_text), bytes(3186), elapsed_ms(226)
+I (78863) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/theme_mode_card.json), stage(read_text), bytes(2020), elapsed_ms(226)
+I (78908) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/theme_mode_card.json), stage(parse_json), bytes(2020), elapsed_ms(9)
+I (79531) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/menu_item.json), stage(parse_json), bytes(3541), elapsed_ms(11)
+I (79804) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/templates/page_header.json), stage(read_text), bytes(1345), elapsed_ms(229)
+I (80108) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/flows/content.json), stage(reaI (80145) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/flows/content.json), stage(parse_json), bytes(2514), elapsed_ms(4)
+I (80455) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/flows/header.json), stage(parse_json), bytes(165), elapsed_ms(0)
+I (80787) GuiIface: : GUI parser file profile: file(/littlefs/apps/brookesia.general.settings/res/constants/1024x600.json), stage(read_text), bytes(2014), elapsed_ms(230)
+I (80910) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.settings/res), stage(load_asset_entries), assets(30), dependencies(31), elapsed_ms(7070), total_ms(7075)
+I (81829) GuiIface: : GUI parser profile: base_dir(/littlefs/apps/brookesia.general.settings/res), stage(resolve_constants), assets(30), elapsed_ms(878), total_ms(7999)
+E (83675) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (83675) task_wdt:  - IDLE1 (CPU 1)
+E (83675) task_wdt: Tasks currently running:
+E (83675) task_wdt: CPU 0: System2
+E (83675) task_wdt: CPU 1: System1
+E (83675) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc8f00  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x4fc1a058  T1      : 0x4ff0c31a  T2      : 0x48776f52  
+S0/FP   : 0x48e21524  S1      : 0x48e21524  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000094  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc9268  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48e2b5b8  S7      : 0x48e2b3b0  
+S8      : 0x48cc9770  S9      : 0x48cca068  S10     : 0x48e2993c  S11     : 0x05555555  
+T3      : 0x48e2151c  T4      : 0x4a000000  T5      : 0x6f79616c  T6      : 0x732e7475  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (93676) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (93676) task_wdt:  - IDLE1 (CPU 1)
+E (93676) task_wdt: Tasks currently running:
+E (93676) task_wdt: CPU 0: System0
+E (93676) task_wdt: CPU 1: System1
+E (93676) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc8ca0  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x4fc1a058  T1      : 0x4ff0c31a  T2      : 0x68676965  
+S0/FP   : 0x48e4b814  S1      : 0x48e4b814  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000188  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc9008  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48e4d9fc  S7      : 0x48e4d730  
+S8      : 0x48cc9770  S9      : 0x48cca068  S10     : 0x48e4b7d8  S11     : 0x05555555  
+T3      : 0x00040000  T4      : 0x00000019  T5      : 0x6f79616c  T6      : 0x702e7475  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (103679) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (103679) task_wdt:  - IDLE1 (CPU 1)
+E (103679) task_wdt: Tasks currently running:
+E (103679) task_wdt: CPU 0: System2
+E (103679) task_wdt: CPU 1: System1
+E (103679) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc9160  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x4fc1a058  T1      : 0x4ff0c31a  T2      : 0x65756c61  
+S0/FP   : 0x48e65d8c  S1      : 0x48e65d8c  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000004c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc98b8  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48e65d88  S7      : 0x48e69a48  
+S8      : 0x48cc9770  S9      : 0x48cca068  S10     : 0x48715560  S11     : 0x48e68850  
+T3      : 0x48e65e0c  T4      : 0x4a000000  T5      : 0x6f79616c  T6      : 0x6d2e7475  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (113681) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (113681) task_wdt:  - IDLE1 (CPU 1)
+E (113681) task_wdt: Tasks currently running:
+E (113681) task_wdt: CPU 0: System0
+E (113681) task_wdt: CPU 1: System1
+E (113681) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc8c60  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x00000000  T1      : 0x4ff0c31a  T2      : 0x48e7f480  
+S0/FP   : 0x48e72718  S1      : 0x48e72718  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48e7e220  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc9780  S9      : 0x48cc8ea8  S10     : 0x486cc730  S11     : 0x48cc9590  
+T3      : 0x0160a8f0  T4      : 0x4a000000  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (123686) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (123686) task_wdt:  - IDLE1 (CPU 1)
+E (123686) task_wdt: Tasks currently running:
+E (123686) task_wdt: CPU 0: System2
+E (123686) task_wdt: CPU 1: System1
+E (123686) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc8b80  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x00000000  T1      : 0x4ff0c31a  T2      : 0x0000003a  
+S0/FP   : 0x48e83f04  S1      : 0x48e83f04  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc8bec  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x00000009  S7      : 0x486e7c40  
+S8      : 0x48cc9780  S9      : 0x48cc8ea8  S10     : 0x486cc730  S11     : 0x48cc9590  
+T3      : 0x48e83efc  T4      : 0x4a000000  T5      : 0x0000ffff  T6      : 0xffff0000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (133690) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (133690) task_wdt:  - IDLE1 (CPU 1)
+E (133690) task_wdt: Tasks currently running:
+E (133690) task_wdt: CPU 0: tcpip
+E (133690) task_wdt: CPU 1: System1
+E (133690) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc7cc0  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48e8cb98  S1      : 0x48e8cb98  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000038  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48e83738  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc9780  S9      : 0x48cc7f28  S10     : 0x48e8cfe0  S11     : 0x48cc8610  
+T3      : 0x00000001  T4      : 0x45042000  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (143690) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (143690) task_wdt:  - IDLE1 (CPU 1)
+E (143690) task_wdt: Tasks currently running:
+E (143690) task_wdt: CPU 0: tcpip
+E (143690) task_wdt: CPU 1: System1
+E (143690) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc5060  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x48ea7ba8  T1      : 0x4ff0c31a  T2      : 0xaabd345a  
+S0/FP   : 0x48e8243c  S1      : 0x48e8243c  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc50cc  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x00000009  S7      : 0x486e7c40  
+S8      : 0x48cc97f4  S9      : 0x48cc5388  S10     : 0x486cc730  S11     : 0x48cc5a70  
+T3      : 0x48e82434  T4      : 0x4a000000  T5      : 0x48eaa728  T6      : 0x4862d45e  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (153691) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (153691) task_wdt:  - IDLE1 (CPU 1)
+E (153691) task_wdt: Tasks currently running:
+E (153691) task_wdt: CPU 0: tcpip
+E (153691) task_wdt: CPU 1: System1
+E (153691) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01a70  SP      : 0x48cc59d0  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x488c01a0  T2      : 0x0000004a  
+S0/FP   : 0x4ff2a534  S1      : 0x48ea89cc  A0      : 0x4ff1744c  A1      : 0x48ea89e8  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x48ea89d4  A7      : 0x48ccb058  S2      : 0x00000003  S3      : 0x00000004  
+S4      : 0x00000000  S5      : 0x00000000  S6      : 0x0000000e  S7      : 0x48cc97a8  
+S8      : 0x48cc5bd0  S9      : 0x48e6f0d0  S10     : 0x48e6f13c  S11     : 0x00000000  
+T3      : 0x00000008  T4      : 0x0004003c  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (163695) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (163695) task_wdt:  - IDLE1 (CPU 1)
+E (163695) task_wdt: Tasks currently running:
+E (163695) task_wdt: CPU 0: tcpip
+E (163695) task_wdt: CPU 1: System1
+E (163695) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc4a90  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x48eb2acc  
+S0/FP   : 0x48eb1540  S1      : 0x48eb1540  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x486e8be8  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x486e4288  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc5388  S10     : 0x486cc730  S11     : 0x48cc5a70  
+T3      : 0x48eb1538  T4      : 0x4a000000  T5      : 0x00000005  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (173697) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (173697) task_wdt:  - IDLE1 (CPU 1)
+E (173697) task_wdt: Tasks currently running:
+E (173697) task_wdt: CPU 0: tcpip
+E (173697) task_wdt: CPU 1: System1
+E (173697) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc4e40  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48e8bfbc  S1      : 0x48e8bfbc  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000000c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48eb9fb0  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc50a8  S10     : 0x48eba050  S11     : 0x48cc5790  
+T3      : 0x00000001  T4      : 0x48eba04c  T5      : 0x00000000  T6      : 0x00000001  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (183700) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (183700) task_wdt:  - IDLE1 (CPU 1)
+E (183700) task_wdt: Tasks currently running:
+E (183700) task_wdt: CPU 0: tcpip
+E (183700) task_wdt: CPU 1: System1
+E (183700) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc60a0  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000068  
+S0/FP   : 0x48ed47a8  S1      : 0x48ed47a8  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000000c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48ed4b40  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cca068  S7      : 0x48cc97a8  
+S8      : 0x48cc6234  S9      : 0x00000018  S10     : 0x48e6ef8c  S11     : 0x48cc7690  
+T3      : 0x00000008  T4      : 0x0000000a  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (193703) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (193703) task_wdt:  - IDLE1 (CPU 1)
+E (193703) task_wdt: Tasks currently running:
+E (193703) task_wdt: CPU 0: tcpip
+E (193703) task_wdt: CPU 1: System1
+E (193703) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc4e80  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48ed1204  S1      : 0x48ed1204  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x000000d4  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc4f74  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc50a8  S10     : 0x48ed76c0  S11     : 0x48cc5790  
+T3      : 0x00000001  T4      : 0x48ed1310  T5      : 0x48ed2058  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (203705) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (203705) task_wdt:  - IDLE1 (CPU 1)
+E (203705) task_wdt: Tasks currently running:
+E (203705) task_wdt: CPU 0: tcpip
+E (203705) task_wdt: CPU 1: System1
+E (203705) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc5f80  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48ee0f90  S1      : 0x48ee0f90  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000010  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48ed78e0  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cca068  S7      : 0x48cc97a8  
+S8      : 0x48cc6234  S9      : 0x48ed9138  S10     : 0x48e6eeb4  S11     : 0x48ed9d34  
+T3      : 0x00000004  T4      : 0x00000009  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (213709) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (213709) task_wdt:  - IDLE1 (CPU 1)
+E (213709) task_wdt: Tasks currently running:
+E (213709) task_wdt: CPU 0: tcpip
+E (213709) task_wdt: CPU 1: System1
+E (213709) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc7c50  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x000001da  
+S0/FP   : 0x48e96e68  S1      : 0x48e96e68  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000000c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48eaa8ec  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc7f28  S10     : 0x486cc730  S11     : 0x48cc8610  
+T3      : 0x00000002  T4      : 0x00000008  T5      : 0x0000000e  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (223709) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (223709) task_wdt:  - IDLE1 (CPU 1)
+E (223709) task_wdt: Tasks currently running:
+E (223709) task_wdt: CPU 0: tcpip
+E (223709) task_wdt: CPU 1: System1
+E (223709) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc6f50  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48ea3230  S1      : 0x48ea3230  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48ea6660  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cca068  S7      : 0x48cc97a8  
+S8      : 0x48cc71b4  S9      : 0x48eb0a5c  S10     : 0x48e6eeb4  S11     : 0x00000000  
+T3      : 0x00000001  T4      : 0x212c7fd0  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (233715) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (233715) task_wdt:  - IDLE1 (CPU 1)
+E (233715) task_wdt: Tasks currently running:
+E (233715) task_wdt: CPU 0: tcpip
+E (233715) task_wdt: CPU 1: System1
+E (233715) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc5060  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x48ed76e8  T1      : 0x4ff0c31a  T2      : 0x48ea8f44  
+S0/FP   : 0x48eb6c8c  S1      : 0x48eb6c8c  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc50cc  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x00000009  S7      : 0x486e7c40  
+S8      : 0x48cc97f4  S9      : 0x48cc5388  S10     : 0x486cc730  S11     : 0x48cc5a70  
+T3      : 0x48eb6c84  T4      : 0x4a000000  T5      : 0x00000000  T6      : 0x6656b66e  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (243717) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (243717) task_wdt:  - IDLE1 (CPU 1)
+E (243717) task_wdt: Tasks currently running:
+E (243717) task_wdt: CPU 0: tcpip
+E (243717) task_wdt: CPU 1: System1
+E (243717) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc7720  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48e96818  S1      : 0x48e96818  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000580  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48edb02c  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48edb598  S7      : 0x486e71e4  
+S8      : 0x00000007  S9      : 0x486e5418  S10     : 0x48ecf8f8  S11     : 0x48edb598  
+T3      : 0x00000000  T4      : 0x00000000  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (253722) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (253722) task_wdt:  - IDLE1 (CPU 1)
+E (253722) task_wdt: Tasks currently running:
+E (253722) task_wdt: CPU 0: tcpip
+E (253722) task_wdt: CPU 1: System1
+E (253722) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc56b0  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x48eb1858  T1      : 0x4ff0c31a  T2      : 0x0000000c  
+S0/FP   : 0x48e790c0  S1      : 0x48e790c0  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000024  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc571c  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x00000009  S7      : 0x486e7c40  
+S8      : 0x48cc97f4  S9      : 0x48cc59d8  S10     : 0x486cc730  S11     : 0x48cc60c0  
+T3      : 0x48e790b8  T4      : 0x4a000000  T5      : 0x48eb05e0  T6      : 0x4862d45e  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (263728) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (263728) task_wdt:  - IDLE1 (CPU 1)
+E (263728) task_wdt: Tasks currently running:
+E (263728) task_wdt: CPU 0: tcpip
+E (263728) task_wdt: CPU 1: System1
+E (263728) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc7c50  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x000001da  
+S0/FP   : 0x48e8359c  S1      : 0x48e8359c  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000038  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48eadc50  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc7f28  S10     : 0x486cc730  S11     : 0x48cc8610  
+T3      : 0x00000001  T4      : 0x48eb16f8  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (273732) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (273732) task_wdt:  - IDLE1 (CPU 1)
+E (273732) task_wdt: Tasks currently running:
+E (273732) task_wdt: CPU 0: System2
+E (273732) task_wdt: CPU 1: System1
+E (273732) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc4800  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x00000000  
+S0/FP   : 0x48eac4c0  S1      : 0x48eac4c0  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x0000001c  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48cc4924  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc4a58  S10     : 0x486cc730  S11     : 0x48cc5140  
+T3      : 0x00000004  T4      : 0x00000009  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (283734) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (283734) task_wdt:  - IDLE1 (CPU 1)
+E (283734) task_wdt: Tasks currently running:
+E (283734) task_wdt: CPU 0: System0
+E (283734) task_wdt: CPU 1: System1
+E (283734) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc60d0  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x0000004a  
+S0/FP   : 0x48ee0c04  S1      : 0x48ee0c04  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000010  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48eac86c  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cca068  S7      : 0x48cc97a8  
+S8      : 0x48cc6234  S9      : 0x48eac8ac  S10     : 0x48e6efb0  S11     : 0x48ec334c  
+T3      : 0x00000001  T4      : 0x48ea4d14  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.
+E (293740) task_wdt: Task watchdog got triggered. The following tasks/users did not reset the watchdog in time:
+E (293740) task_wdt:  - IDLE1 (CPU 1)
+E (293740) task_wdt: Tasks currently running:
+E (293740) task_wdt: CPU 0: System0
+E (293740) task_wdt: CPU 1: System1
+E (293740) task_wdt: Print CPU 1 registers
+Core  1 register dump:
+MEPC    : 0x4ff10880  RA      : 0x4ff01902  SP      : 0x48cc5740  GP      : 0x4ff17b00  
+TP      : 0x48cca6d0  T0      : 0x483977a8  T1      : 0x4ff0c31a  T2      : 0x0000004a  
+S0/FP   : 0x48ed9714  S1      : 0x48ed9714  A0      : 0x4ff1744c  A1      : 0x48cdbe38  
+A2      : 0x7f000000  A3      : 0x00000000  A4      : 0x1f000000  A5      : 0x1f000000  
+A6      : 0x00000054  A7      : 0x4ff2a000  S2      : 0x00000000  S3      : 0x48ee2d90  
+S4      : 0x4ff5b900  S5      : 0x4ff2a534  S6      : 0x48cc97d8  S7      : 0x48cc97a8  
+S8      : 0x48cc97f4  S9      : 0x48cc59d8  S10     : 0x486e5418  S11     : 0x48cc60c0  
+T3      : 0x00000001  T4      : 0x48ed3950  T5      : 0x00000000  T6      : 0x00000000  
+MSTATUS : 0x00001888  MTVEC   : 0x4ff00003  MCAUSE  : 0xdeadc0de  MTVAL   : 0xdeadc0de  
+MHARTID : 0x00000001  
+Please enable CONFIG_ESP_SYSTEM_USE_FRAME_POINTER option to have a full backtrace.

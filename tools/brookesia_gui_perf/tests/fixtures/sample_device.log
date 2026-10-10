@@ -1,0 +1,6 @@
+I (458) app: boot ok
+random debug line without marker
+[BENCH] {"record":"metadata","test_suite":"ESP-Brookesia-Perf","app_id":"com.bench.app_a","runtime_type":"JSON_UI","metadata":{"board_id":"esp32_p4x_function_ev","git_sha":"abc1234"}}
+[BENCH] {"record":"sample","scenario":"app_a_scroll","sample_index":0,"metrics":{"first_frame_ms":91.0,"avg_fps":52.4}}
+not json noise
+[BENCH] {"record":"sample","scenario":"app_a_scroll","sample_index":1,"metrics":{"first_frame_ms":93.5,"avg_fps":51.9}}
