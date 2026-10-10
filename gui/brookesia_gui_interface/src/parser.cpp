@@ -506,6 +506,7 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
             continue;
         }
         const auto &resolved_asset_object = asset_entry.value.as_object();
+        const auto asset_start = ParserProfileClock::now();
         if (asset_entry.type == "imageSet" || asset_entry.type == "interactionTemplate" ||
                 asset_entry.type == "styleSet" || asset_entry.type == "viewTemplate") {
             continue;
@@ -517,6 +518,12 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
                            "Failed to parse screenFlow asset '" + asset_entry.source_label + "': " + flow.error()
                        );
             }
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI parser profile: base_dir(%1%), stage(parse_flow_item), source(%2%), elapsed_ms(%3%), total_ms(%4%)",
+                base_dir,
+                asset_entry.source_label,
+                parser_profile_elapsed_ms(asset_start, ParserProfileClock::now()),
+                parser_profile_elapsed_ms(total_start, ParserProfileClock::now()));
             document.screen_flows.push_back(std::move(*flow));
             asset_entry.value = boost::json::value(nullptr);
             continue;
@@ -543,12 +550,19 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
 
     size_t parsed_screens = 0;
     for (auto *asset_entry : view_screen_assets) {
+        const auto asset_start = ParserProfileClock::now();
         auto node = parse_one_view_screen(*asset_entry);
         if (!node) {
             return std::unexpected(
                        "Failed to parse viewScreen asset '" + asset_entry->source_label + "': " + node.error()
                    );
         }
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI parser profile: base_dir(%1%), stage(parse_screen_item), source(%2%), elapsed_ms(%3%), total_ms(%4%)",
+            base_dir,
+            asset_entry->source_label,
+            parser_profile_elapsed_ms(asset_start, ParserProfileClock::now()),
+            parser_profile_elapsed_ms(total_start, ParserProfileClock::now()));
         document.screens.push_back(std::move(*node));
         ++parsed_screens;
         asset_entry->value = boost::json::value(nullptr);

@@ -42,6 +42,7 @@ else()
     target_include_directories(test_brookesia_gui_interface PRIVATE ${BROOKESIA_TEST_BOOST_ROOT})
     target_compile_definitions(test_brookesia_gui_interface PRIVATE
         BROOKESIA_LIB_UTILS_TEST_ADAPTER_USE_INCLUDED_BOOST_TEST=1
+        BOOST_TEST_ALTERNATIVE_INIT_API=1
     )
 endif()
 
