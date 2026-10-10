@@ -11,6 +11,7 @@
 #include <set>
 #include <string_view>
 
+#include "esp_timer.h"
 #include "boost/json.hpp"
 
 #include "brookesia/service_helper/system/storage.hpp"
@@ -339,12 +340,17 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
                 &heap_before_flush
             );
         }
+        const int64_t apply_started_us = esp_timer_get_time();
         auto record_result = get_record(app_id);
         if (!record_result || !gui_runtime_ || !record_result.value()->document_id.has_value()) {
             BROOKESIA_LOGW("Skip pending GUI binding flush: app_id(%1%), count(%2%)", app_id, updates.size());
         } else {
             gui_runtime_->set_binding_values(*record_result.value()->document_id, updates);
         }
+        gui_binding_flush_count_.fetch_add(1, std::memory_order_relaxed);
+        gui_binding_applied_updates_.fetch_add(updates.size(), std::memory_order_relaxed);
+        gui_binding_apply_us_.fetch_add(
+            static_cast<uint64_t>(esp_timer_get_time() - apply_started_us), std::memory_order_relaxed);
         if constexpr (heap_trace::detail_enabled) {
             const auto app_id_string = std::to_string(app_id);
             const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
@@ -684,6 +690,15 @@ std::expected<void, std::string> System::gui_set_binding_values(
 )
 {
     return impl_->enqueue_gui_binding_updates(app_id, updates);
+}
+
+System::GuiBindingFlushStats System::gui_binding_flush_stats() const
+{
+    return {
+        .flush_count = impl_->gui_binding_flush_count_.load(std::memory_order_relaxed),
+        .applied_updates = impl_->gui_binding_applied_updates_.load(std::memory_order_relaxed),
+        .apply_us = impl_->gui_binding_apply_us_.load(std::memory_order_relaxed),
+    };
 }
 
 std::optional<std::string> System::gui_get_binding_value(
