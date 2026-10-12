@@ -59,14 +59,17 @@ _FIELDS: Dict[str, Dict[str, Any]] = {
     },
     # --- fragmentation ---------------------------------------------------
     "sram_frag_rate_pct": {
+        "metrics": ["sram_frag_rate_pct"],
         "status": PENDING,
         "reason": "heap_caps_get_info() fragmentation rate not emitted",
     },
     "psram_frag_rate_pct": {
+        "metrics": ["psram_frag_rate_pct"],
         "status": PENDING,
         "reason": "heap_caps_get_info() fragmentation rate not emitted",
     },
     "frag_trend": {
+        "metrics": ["sram_largest_block_pct", "sram_free_block_count"],
         "status": PENDING,
         "reason": "largest block recorded (steady_state.*_largest_kb); free-block count/trend not emitted",
     },
@@ -77,6 +80,7 @@ _FIELDS: Dict[str, Dict[str, Any]] = {
     },
     # --- task stacks -----------------------------------------------------
     "stack_hwm_kb": {
+        "metrics": ["stack_hwm_lv_adapter_kb", "stack_hwm_worker0_kb", "stack_hwm_touch_kb"],
         "status": PENDING,
         "reason": "display/worker/touch stack high-water marks not instrumented",
     },
@@ -97,6 +101,7 @@ _FIELDS: Dict[str, Dict[str, Any]] = {
     },
     # --- normalised memory ----------------------------------------------
     "bytes_per_lvgl_object": {
+        "metrics": ["bytes_per_lvgl_object"],
         "status": PENDING,
         "reason": "runtime LVGL object count not instrumented",
     },
@@ -123,6 +128,7 @@ _FIELDS: Dict[str, Dict[str, Any]] = {
         "reason": "v1.8 §3.3 required: allocation-lifetime resident pct not built",
     },
     "task_heap_max_kb": {
+        "metrics": ["task_heap_max_lv_adapter_kb", "task_heap_max_worker0_kb"],
         "status": PENDING,
         "reason": "v1.8 §3.3 required: per-task heap peak (CONFIG_HEAP_TASK_TRACKING) not built",
     },
@@ -142,6 +148,7 @@ _FIELDS: Dict[str, Dict[str, Any]] = {
     },
     # --- CPU -------------------------------------------------------------
     "cpu_pct": {
+        "metrics": ["cpu_pct_lv_adapter", "cpu_pct_gui_worker"],
         "status": PENDING,
         "reason": "per-task CPU (FreeRTOS run-time stats) not emitted",
     },

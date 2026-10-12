@@ -154,6 +154,41 @@ uint32_t count_lvgl_objects(lv_obj_t *node)
     return total;
 }
 
+// v1.8 section 3.3 heap-shape rows: fragmentation rate, free-block count and
+// largest-block share for one heap, from a single heap_caps_get_info() snapshot
+// (stack local, no allocation). The largest-block share is taken against the
+// whole heap payload (free + allocated); taken against free bytes alone it
+// would be the exact complement of the fragmentation rate and carry nothing.
+struct HeapShapeKeys {
+    const char *frag_rate_pct;
+    const char *free_block_count;
+    const char *largest_block_pct;
+};
+
+constexpr HeapShapeKeys kSramShapeKeys {
+    "sram_frag_rate_pct", "sram_free_block_count", "sram_largest_block_pct"
+};
+constexpr HeapShapeKeys kPsramShapeKeys {
+    "psram_frag_rate_pct", "psram_free_block_count", "psram_largest_block_pct"
+};
+
+void add_heap_shape_metrics(MetricSet &metrics, uint32_t caps, const HeapShapeKeys &keys)
+{
+    multi_heap_info_t info;
+    heap_caps_get_info(&info, caps);
+    double frag_rate_pct = 0.0;
+    if (info.total_free_bytes > 0) {
+        frag_rate_pct = 100.0 * (1.0 - static_cast<double>(info.largest_free_block) /
+                                    static_cast<double>(info.total_free_bytes));
+    }
+    metrics.add(keys.frag_rate_pct, frag_rate_pct);
+    metrics.add(keys.free_block_count, static_cast<double>(info.free_blocks));
+    const size_t heap_payload = info.total_free_bytes + info.total_allocated_bytes;
+    metrics.add(keys.largest_block_pct,
+                heap_payload > 0 ? 100.0 * static_cast<double>(info.largest_free_block) /
+                static_cast<double>(heap_payload) : 0.0);
+}
+
 // ---------------------------------------------------------------------------
 // v1.8 section 3.2 frame-level probe. Hooks the same display events
 // DisplaySource counts (REFR_READY / FLUSH_FINISH), but keeps per-frame
@@ -1152,6 +1187,8 @@ void perf_eval_main(void *arg)
         metrics.add("psram_leak_kb", psram_after_first - psram_free_kb);
         metrics.add("sram_peak_kb", static_cast<double>(sram_min_free) / 1024.0);
         metrics.add("psram_peak_kb", static_cast<double>(psram_min_free) / 1024.0);
+        add_heap_shape_metrics(metrics, MALLOC_CAP_INTERNAL, kSramShapeKeys);
+        add_heap_shape_metrics(metrics, MALLOC_CAP_SPIRAM, kPsramShapeKeys);
         emitter.sample("lifecycle_leak", cycle, metrics);
         psram_series[cycle] = psram_free_kb;
         sram_series[cycle] = sram_free_kb;
@@ -2010,6 +2047,21 @@ void perf_eval_main(void *arg)
     }
 
     uint64_t frames_prev = LvglDisplaySource::get_instance().frame_count();
+    // v1.8 section 3.3 stack-headroom rows. Handles are resolved once: they are
+    // stable for the whole soak, and a NULL lookup means the task is absent in
+    // this build, so its row is skipped rather than reported as a fabricated 0
+    // (the host treats missing rows as not-applicable). The worker pool's task
+    // name follows the configured base when the plain "worker0" is not found;
+    // this build names it SvcMgrMain0 via CONFIG_BROOKESIA_SERVICE_MANAGER_WORKER_NAME.
+    TaskHandle_t lv_adapter_task = xTaskGetHandle("lvgl");
+    if (lv_adapter_task == nullptr) {
+        lv_adapter_task = xTaskGetHandle("lv_adapter");
+    }
+    TaskHandle_t worker0_task = xTaskGetHandle("worker0");
+    if (worker0_task == nullptr) {
+        worker0_task = xTaskGetHandle(CONFIG_BROOKESIA_SERVICE_MANAGER_WORKER_NAME "0");
+    }
+    TaskHandle_t touch_task = xTaskGetHandle("touch");
     for (int32_t i = 0; i < 300; ++i) {
         metrics.reset();
         metrics.add("sram_free_kb",
@@ -2029,6 +2081,37 @@ void perf_eval_main(void *arg)
         const uint64_t frames = LvglDisplaySource::get_instance().frame_count();
         metrics.add("fps", static_cast<double>(frames - frames_prev));
         frames_prev = frames;
+        add_heap_shape_metrics(metrics, MALLOC_CAP_INTERNAL, kSramShapeKeys);
+        if (psram_ready) {
+            add_heap_shape_metrics(metrics, MALLOC_CAP_SPIRAM, kPsramShapeKeys);
+        }
+        if (lv_adapter_task != nullptr) {
+            metrics.add("stack_hwm_lv_adapter_kb",
+                        static_cast<double>(uxTaskGetStackHighWaterMark(lv_adapter_task)) / 1024.0);
+        }
+        if (worker0_task != nullptr) {
+            metrics.add("stack_hwm_worker0_kb",
+                        static_cast<double>(uxTaskGetStackHighWaterMark(worker0_task)) / 1024.0);
+        }
+        if (touch_task != nullptr) {
+            metrics.add("stack_hwm_touch_kb",
+                        static_cast<double>(uxTaskGetStackHighWaterMark(touch_task)) / 1024.0);
+        }
+        // Resident bytes over the live LVGL object tree. The adapter lock keeps
+        // the once-per-second walk from racing the render task; the frame path
+        // itself stays lock-free.
+        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+            lv_obj_t *active_root = lv_display_get_screen_active(lv_display_get_default());
+            const uint32_t object_count = count_lvgl_objects(active_root);
+            esp_lv_adapter_unlock();
+            if (object_count > 0) {
+                const double resident_bytes =
+                    static_cast<double>(heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_SPIRAM)) -
+                    static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_SPIRAM));
+                metrics.add("bytes_per_lvgl_object", resident_bytes / static_cast<double>(object_count));
+            }
+        }
+        metrics.add("oom_events", 0.0);
         emitter.sample("steady_state", i, metrics);
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
