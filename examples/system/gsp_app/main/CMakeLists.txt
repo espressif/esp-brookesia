@@ -105,6 +105,21 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP OR CONFIG_BROOKESIA_GUI_BACKEND_LVGL)
         message(FATAL_ERROR
             "This example needs the littlefs_data image, but joltwallet/littlefs is not in the build")
     endif()
+    if(DEFINED BROOKESIA_SYSTEM_CORE_COMPONENT_DIR AND NOT "${BROOKESIA_SYSTEM_CORE_COMPONENT_DIR}" STREQUAL "")
+        set(brookesia_system_core_dir "${BROOKESIA_SYSTEM_CORE_COMPONENT_DIR}")
+    else()
+        idf_build_get_property(brookesia_gsp_build_components BUILD_COMPONENTS)
+        if("espressif__brookesia_system_core" IN_LIST brookesia_gsp_build_components)
+            idf_component_get_property(brookesia_system_core_dir espressif__brookesia_system_core COMPONENT_DIR)
+        else()
+            idf_component_get_property(brookesia_system_core_dir brookesia_system_core COMPONENT_DIR)
+        endif()
+    endif()
+    include("${brookesia_system_core_dir}/cmake/runtime_app_stage.cmake")
+    brookesia_system_core_runtime_path_to_stage_dir(
+        littlefs_image_dir
+        "${BROOKESIA_SYSTEM_CORE_ESP_RUNTIME_INTERNAL_ROOT}"
+    )
     get_property(brookesia_runtime_app_stage_targets GLOBAL PROPERTY BROOKESIA_RUNTIME_APP_STAGE_TARGETS)
     if(brookesia_runtime_app_stage_targets)
         list(REMOVE_DUPLICATES brookesia_runtime_app_stage_targets)
@@ -113,7 +128,21 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP OR CONFIG_BROOKESIA_GUI_BACKEND_LVGL)
     if(brookesia_system_super_stage_targets)
         list(REMOVE_DUPLICATES brookesia_system_super_stage_targets)
     endif()
-    set(test_tone "${CMAKE_CURRENT_LIST_DIR}/../littlefs/settings-tone.wav")
+    set(littlefs_image_depends settings_test_tone ${brookesia_runtime_app_stage_targets} ${brookesia_system_super_stage_targets})
+    if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+        # system/super and system/fonts belong to the LVGL shell. Drop them even when
+        # this build directory previously configured the LVGL backend.
+        add_custom_target(brookesia_gsp_drop_lvgl_system_resources ALL
+            COMMAND ${CMAKE_COMMAND} -E rm -rf "${littlefs_image_dir}/system"
+            COMMENT "Removing LVGL system resources from the GSP littlefs stage"
+            VERBATIM
+        )
+        if(brookesia_system_super_stage_targets)
+            add_dependencies(brookesia_gsp_drop_lvgl_system_resources ${brookesia_system_super_stage_targets})
+        endif()
+        list(APPEND littlefs_image_depends brookesia_gsp_drop_lvgl_system_resources)
+    endif()
+    set(test_tone "${littlefs_image_dir}/settings-tone.wav")
     add_custom_command(OUTPUT "${test_tone}"
         COMMAND "${PYTHON}" "${CMAKE_CURRENT_LIST_DIR}/make_test_tone.py" "${test_tone}"
         DEPENDS "${CMAKE_CURRENT_LIST_DIR}/make_test_tone.py"
@@ -122,8 +151,8 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP OR CONFIG_BROOKESIA_GUI_BACKEND_LVGL)
     add_custom_target(settings_test_tone DEPENDS "${test_tone}")
     littlefs_create_partition_image(
         littlefs_data
-        ../littlefs
+        "${littlefs_image_dir}"
         FLASH_IN_PROJECT
-        DEPENDS settings_test_tone ${brookesia_runtime_app_stage_targets} ${brookesia_system_super_stage_targets}
+        DEPENDS ${littlefs_image_depends}
     )
 endif()

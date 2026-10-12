@@ -41,7 +41,26 @@ idf.py build
 idf.py -p <PORT> -b 921600 flash
 ```
 
-两种选择都使用 `partitions_16m.csv`。`sdkconfig.defaults` 里的 LVGL 选项在选中 LVGL 之后生效。
+两种选择都使用 `partitions_16m.csv`。选中 LVGL 后，`sdkconfig.defaults` 中的 LVGL 选项才会生效。
+
+### 文件系统资源
+
+`littlefs_data` 镜像由 `build/littlefs_stage` 生成；本示例不再使用源码树中的 `littlefs/` 目录生成该镜像。
+
+选择 GSP 时，镜像包含声音测试 WAV、Settings 应用名称所需的翻译文件，以及配置为预装的 GSP 应用。GSP 场景及其字体由 GSP bundle 提供；镜像不包含 LVGL 桌面（`system/super`）、LVGL 公共字体（`system/fonts`）和 Settings 的 LVGL 页面。选择 LVGL 时，镜像会包含桌面资源和完整的 Settings 包。
+
+### 切换 backend 后烧录
+
+`idf.py app-flash` 只更新应用分区，不会更新 `littlefs_data`。要把所选 backend 对应的文件系统镜像写入开发板，请先构建，再完整烧录：
+
+```bash
+idf.py build
+idf.py -p <PORT> -b 921600 flash
+```
+
+完整烧录会替换整个 LittleFS 分区，其中已安装的应用及其数据也会被删除。烧录前请备份需要保留的内容。
+
+切换到 GSP 后，第一次构建可能因旧配置尚未解析 GSP 场景组件而停止。再运行一次 `idf.py build` 即可完成配置和构建。
 
 两种界面使用同一套能力配置和 AudioPlayback 服务。声音测试通过板卡共享的音频处理器播放本地 PCM/WAV 音频；高层录音接口默认关闭，原始编解码器接口仍可使用。本示例不提供语音、网络流媒体或视频功能。分区表和 GSP 字符覆盖不变。
 

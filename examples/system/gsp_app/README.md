@@ -43,6 +43,25 @@ idf.py -p <PORT> -b 921600 flash
 
 Both choices use `partitions_16m.csv`. The LVGL options in `sdkconfig.defaults` apply after LVGL is selected.
 
+### Filesystem resources
+
+The `littlefs_data` image is built from `build/littlefs_stage`; this example no longer uses the source-tree `littlefs/` directory for that image.
+
+With GSP selected, the image contains the sound-check WAV, Settings translations used for the application name, and any GSP apps configured for preinstallation. GSP scenes and their fonts are supplied by GSP bundles; the image does not include the LVGL desktop (`system/super`), shared LVGL fonts (`system/fonts`), or the Settings LVGL screens. With LVGL selected, the image includes the desktop resources and the complete Settings package.
+
+### Flashing after a backend change
+
+`idf.py app-flash` updates the application partition only; it does not update `littlefs_data`. To deploy the filesystem image for the selected backend, build and run a full flash:
+
+```bash
+idf.py build
+idf.py -p <PORT> -b 921600 flash
+```
+
+A full flash replaces the LittleFS partition, including installed apps and their data. Back up anything you need before flashing.
+
+The first build after selecting GSP may stop because the previous configuration has not resolved the GSP scene component yet. Run `idf.py build` once more to complete configuration and build.
+
 Both interfaces use the same capability configuration and AudioPlayback service. The Sound test uses local PCM/WAV playback through the board's shared audio processor. High-level recording is disabled; raw codec access remains available. This example does not expose speech, streaming, or video features. The partition table and GSP font coverage are unchanged.
 
 Compiled GSP scenes are compressed losslessly in flash. Opening an app expands its scene bundle into PSRAM; closing it releases that memory. Font coverage is unchanged. To use uncompressed scenes, disable **Compress embedded Brookesia GSP bundles** under **ESP-Brookesia: GUI GSP Configurations**.

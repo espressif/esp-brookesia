@@ -9,13 +9,15 @@ menu "Brookesia system GSP example"
 
     config BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL
         bool "Preinstall the Device Control app"
-        depends on BROOKESIA_GUI_BACKEND_GSP
         default n
         help
-            Build examples/app/gsp_js_device_control and put it in the
-            LittleFS image. The image is written only by a full 'idf.py flash',
-            which replaces every app installed over USB and their data.
-            Leave disabled to install apps with brookesia-usb instead.
+            Build examples/app/gsp_js_device_control and put it in the GSP
+            LittleFS image. The option stays defined when LVGL is selected so
+            the component rule can be evaluated, but the package is staged
+            only for the GSP backend. The image is written only by a full
+            'idf.py flash', which replaces every app installed over USB and
+            their data. Leave disabled to install apps with brookesia-usb
+            instead.
 
     config BROOKESIA_GSP_SETTINGS_MEMORY_PROBE
         bool "Open and close Settings repeatedly at startup to log heap use"

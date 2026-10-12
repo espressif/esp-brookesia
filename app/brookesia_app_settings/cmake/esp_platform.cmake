@@ -24,11 +24,24 @@ else()
 endif()
 include("${brookesia_system_core_dir}/cmake/runtime_app_stage.cmake")
 brookesia_system_core_get_esp_runtime_app_stage_root(app_settings_stage_root)
+set(settings_stage_relative_paths)
+if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+    # GSP reads res/i18n for the application name. The LVGL screens, templates,
+    # images, and constants are not part of the GSP package.
+    set(settings_stage_relative_paths RELATIVE_PATHS "res/i18n")
+endif()
 brookesia_stage_runtime_app_package(
     PACKAGE_ID "${app_settings_package_id}"
     SOURCE_DIR "${COMPONENT_DIR}/package"
     STAGE_ROOT "${app_settings_stage_root}"
     NO_INDEX
+    ${settings_stage_relative_paths}
+)
+set(settings_device_resource_dir "${BROOKESIA_SYSTEM_CORE_ESP_RUNTIME_APP_ROOT}/${app_settings_package_id}")
+target_compile_definitions(
+    ${COMPONENT_LIB}
+    PRIVATE
+    "BROOKESIA_APP_SETTINGS_RESOURCE_DIR=\"${settings_device_resource_dir}\""
 )
 
 if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)

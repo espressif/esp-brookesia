@@ -40,10 +40,39 @@ function(brookesia_system_core_cleanup_runtime_stage_root stage_root)
     set_property(GLOBAL PROPERTY "BROOKESIA_RUNTIME_APP_STAGE_CLEANED_${stage_key}" TRUE)
 endfunction()
 
+function(_brookesia_stage_validate_relative_path relative_path)
+    if(IS_ABSOLUTE "${relative_path}" OR "${relative_path}" MATCHES "(^|/)\\.\\.(/|$)")
+        message(FATAL_ERROR "brookesia_stage_runtime_app_package relative path must stay inside the package: ${relative_path}")
+    endif()
+endfunction()
+
+function(_brookesia_stage_copy_package_selection stage_source_dir stage_dir)
+    if(ARGN)
+        foreach(relative_path IN LISTS ARGN)
+            _brookesia_stage_validate_relative_path("${relative_path}")
+            set(source_path "${stage_source_dir}/${relative_path}")
+            if(NOT EXISTS "${source_path}")
+                message(FATAL_ERROR "brookesia_stage_runtime_app_package source is missing: ${source_path}")
+            endif()
+            set(destination_path "${stage_dir}/${relative_path}")
+            if(IS_DIRECTORY "${source_path}")
+                file(MAKE_DIRECTORY "${destination_path}")
+                file(COPY "${source_path}/" DESTINATION "${destination_path}")
+            else()
+                get_filename_component(destination_dir "${destination_path}" DIRECTORY)
+                file(MAKE_DIRECTORY "${destination_dir}")
+                file(COPY "${source_path}" DESTINATION "${destination_dir}")
+            endif()
+        endforeach()
+    else()
+        file(COPY "${stage_source_dir}/" DESTINATION "${stage_dir}")
+    endif()
+endfunction()
+
 function(brookesia_stage_runtime_app_package)
     set(options NO_INDEX)
     set(one_value_args PACKAGE_ID SOURCE_DIR STAGE_ROOT)
-    set(multi_value_args)
+    set(multi_value_args RELATIVE_PATHS)
     cmake_parse_arguments(stage "${options}" "${one_value_args}" "${multi_value_args}" ${ARGN})
 
     if(NOT stage_PACKAGE_ID)
@@ -62,7 +91,7 @@ function(brookesia_stage_runtime_app_package)
 
     brookesia_system_core_cleanup_runtime_stage_root("${stage_root}")
     file(REMOVE_RECURSE "${stage_dir}")
-    file(COPY "${stage_source_dir}/" DESTINATION "${stage_dir}")
+    _brookesia_stage_copy_package_selection("${stage_source_dir}" "${stage_dir}" ${stage_RELATIVE_PATHS})
 
     string(MD5 stage_target_hash "${stage_dir}")
     string(MAKE_C_IDENTIFIER "${stage_PACKAGE_ID}" stage_target_id)
@@ -70,10 +99,39 @@ function(brookesia_stage_runtime_app_package)
     if(NOT TARGET ${stage_target})
         string(MD5 stage_key "${stage_root}")
         get_property(legacy_cleanup_commands GLOBAL PROPERTY "BROOKESIA_RUNTIME_APP_STAGE_LEGACY_CLEANUP_${stage_key}")
-        add_custom_target(${stage_target} ALL
-            ${legacy_cleanup_commands}
+        # The build step only merges package files into the stage directory. It must not delete
+        # the directory: the PC simulator keeps runtime data (data/, cache/, files/) there.
+        # Stale files are removed at configure time above, which every backend switch triggers.
+        set(stage_commands ${legacy_cleanup_commands})
+        list(APPEND stage_commands
             COMMAND ${CMAKE_COMMAND} -E make_directory "${stage_root}"
-            COMMAND ${CMAKE_COMMAND} -E copy_directory "${stage_source_dir}" "${stage_dir}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${stage_dir}"
+        )
+        if(stage_RELATIVE_PATHS)
+            foreach(relative_path IN LISTS stage_RELATIVE_PATHS)
+                _brookesia_stage_validate_relative_path("${relative_path}")
+                set(source_path "${stage_source_dir}/${relative_path}")
+                set(destination_path "${stage_dir}/${relative_path}")
+                if(IS_DIRECTORY "${source_path}")
+                    list(APPEND stage_commands
+                        COMMAND ${CMAKE_COMMAND} -E make_directory "${destination_path}"
+                        COMMAND ${CMAKE_COMMAND} -E copy_directory "${source_path}" "${destination_path}"
+                    )
+                else()
+                    get_filename_component(destination_dir "${destination_path}" DIRECTORY)
+                    list(APPEND stage_commands
+                        COMMAND ${CMAKE_COMMAND} -E make_directory "${destination_dir}"
+                        COMMAND ${CMAKE_COMMAND} -E copy "${source_path}" "${destination_path}"
+                    )
+                endif()
+            endforeach()
+        else()
+            list(APPEND stage_commands
+                COMMAND ${CMAKE_COMMAND} -E copy_directory "${stage_source_dir}" "${stage_dir}"
+            )
+        endif()
+        add_custom_target(${stage_target} ALL
+            ${stage_commands}
             COMMENT "Staging Brookesia runtime app package ${stage_PACKAGE_ID}"
             VERBATIM
         )
