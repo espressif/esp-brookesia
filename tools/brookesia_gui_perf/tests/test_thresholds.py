@@ -39,10 +39,11 @@ class ThresholdsTests(unittest.TestCase):
         self.assertEqual(table["mount_ms"]["pass_b_max"], 300)
         self.assertEqual(table["mount_ms"]["fail_above"], 500)
 
-    def test_event_timing_metrics_are_cv_exempt(self):
+    def test_cv_exempt_only_where_cv_exceeds_spec_limit(self):
         table = load_thresholds()
-        for key in ("feedback_delay_ms", "flush_apply_ms", "event_dispatch_ms"):
-            self.assertTrue(table[key].get("cv_exempt"), key)
+        self.assertTrue(table["event_dispatch_ms"].get("cv_exempt"))
+        for key in ("feedback_delay_ms", "flush_apply_ms"):
+            self.assertFalse(table[key].get("cv_exempt", False), key)
 
     def test_fps_is_higher_better_mean(self):
         table = load_thresholds()

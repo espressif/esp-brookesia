@@ -58,7 +58,240 @@
       "heap_trace_overflow": false
     },
     "worktree_dirty": true,
-    "worktree_diff_sha256": "962752a3042dc15a62434d30fa3006d158a945111d56b903cfbe0e16203fc710"
+    "worktree_diff_sha256": "962752a3042dc15a62434d30fa3006d158a945111d56b903cfbe0e16203fc710",
+    "acceptance": {
+      "fps": {
+        "status": "collected",
+        "metric": "fps"
+      },
+      "fps_1pct_low": {
+        "status": "pending_instrumentation",
+        "reason": "frame-time series aggregated on-device; 1% low needs the raw per-frame samples"
+      },
+      "refresh_area_ratio_pct": {
+        "status": "collected",
+        "metric": "refresh_area_ratio_pct"
+      },
+      "flush_apply_ms": {
+        "status": "collected",
+        "metric": "flush_apply_ms"
+      },
+      "binding_saturated_updates_per_s": {
+        "status": "pending_instrumentation",
+        "reason": "ladder recorded as flush_apply_ladder_ms; saturation point not yet derived"
+      },
+      "batch_invalidate_ms": {
+        "status": "collected",
+        "metric": "batch_invalidate_ms"
+      },
+      "sram_free_kb": {
+        "status": "collected",
+        "metric": "sram_free_kb"
+      },
+      "psram_free_kb": {
+        "status": "collected",
+        "metric": "psram_free_kb"
+      },
+      "sram_peak_kb": {
+        "status": "collected",
+        "metric": "sram_peak_kb"
+      },
+      "psram_peak_kb": {
+        "status": "collected",
+        "metric": "psram_peak_kb"
+      },
+      "sram_steady_kb": {
+        "status": "pending_instrumentation",
+        "reason": "steady-state free recorded (steady_state.sram_free_kb); steady_kb not derived"
+      },
+      "psram_steady_kb": {
+        "status": "pending_instrumentation",
+        "reason": "steady-state free recorded (steady_state.psram_free_kb); steady_kb not derived"
+      },
+      "sram_frag_rate_pct": {
+        "status": "pending_instrumentation",
+        "reason": "heap_caps_get_info() fragmentation rate not emitted"
+      },
+      "psram_frag_rate_pct": {
+        "status": "pending_instrumentation",
+        "reason": "heap_caps_get_info() fragmentation rate not emitted"
+      },
+      "frag_trend": {
+        "status": "pending_instrumentation",
+        "reason": "largest block recorded (steady_state.*_largest_kb); free-block count/trend not emitted"
+      },
+      "lvgl_mem": {
+        "status": "not_applicable",
+        "reason": "CLIB malloc build: LVGL heap view N/A (v1.8 §3.3)"
+      },
+      "stack_hwm_kb": {
+        "status": "pending_instrumentation",
+        "reason": "display/worker/touch stack high-water marks not instrumented"
+      },
+      "alloc_churn_per_s": {
+        "status": "pending_instrumentation",
+        "reason": "HeapTrace alloc/free churn counter not emitted"
+      },
+      "oom_events": {
+        "status": "pending_instrumentation",
+        "reason": "not collected"
+      },
+      "runtime_heap_kb": {
+        "status": "not_applicable",
+        "reason": "runtime_type=JSON_UI: no QuickJS/WASM/Lua inner heap"
+      },
+      "runtime_heap_note": {
+        "status": "not_applicable",
+        "reason": "runtime_type=JSON_UI: no inner runtime heap"
+      },
+      "bytes_per_lvgl_object": {
+        "status": "pending_instrumentation",
+        "reason": "runtime LVGL object count not instrumented"
+      },
+      "bytes_per_json_node": {
+        "status": "pending_instrumentation",
+        "reason": "derivable from doc_complexity.nodes + heap, not yet emitted"
+      },
+      "mem_attr_kb": {
+        "status": "pending_instrumentation",
+        "reason": "HeapTrace per-attribute (noderecord/style_cache/images) attribution not emitted"
+      },
+      "doc_load_transient_kb": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: parse/build stage peak (4 capture hooks) not built"
+      },
+      "build_copy_bytes": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: per-path copy byte counter not built"
+      },
+      "alloc_resident_pct": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: allocation-lifetime resident pct not built"
+      },
+      "task_heap_max_kb": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: per-task heap peak (CONFIG_HEAP_TASK_TRACKING) not built"
+      },
+      "style_cache_hit_rate_pct": {
+        "status": "pending_instrumentation",
+        "reason": "gui.style_cache hit counter not emitted"
+      },
+      "image_preload_hit_rate_pct": {
+        "status": "pending_instrumentation",
+        "reason": "image preload hit counter not emitted"
+      },
+      "ffi_call_us": {
+        "status": "not_applicable",
+        "reason": "JSON_UI local binding path: no JS<->Native FFI segments"
+      },
+      "cpu_pct": {
+        "status": "pending_instrumentation",
+        "reason": "per-task CPU (FreeRTOS run-time stats) not emitted"
+      },
+      "firmware_bin_bytes": {
+        "status": "collected",
+        "value": 8884384
+      },
+      "resource_image_bytes": {
+        "status": "collected",
+        "value": 2200371
+      }
+    },
+    "dimension_coverage": {
+      "dimensions": {
+        "D1": {
+          "status": "covered",
+          "metrics_seen": [
+            "flush_apply_ms"
+          ],
+          "question": "complex UI load: which stage is slowest?"
+        },
+        "D2": {
+          "status": "covered",
+          "metrics_seen": [
+            "mount_ms"
+          ],
+          "question": "first visible / page switch"
+        },
+        "D3": {
+          "status": "covered",
+          "metrics_seen": [
+            "feedback_delay_ms",
+            "event_dispatch_ms"
+          ],
+          "question": "interaction response"
+        },
+        "D4": {
+          "status": "covered",
+          "metrics_seen": [
+            "fps",
+            "jank_rate_pct",
+            "hitch_ratio_ms_s",
+            "frozen_frame_count",
+            "refresh_area_ratio_pct"
+          ],
+          "question": "frame quality"
+        },
+        "D5": {
+          "status": "missing",
+          "metrics_seen": [],
+          "question": "build-time temporaries (v1.8)"
+        },
+        "D6": {
+          "status": "partial",
+          "metrics_seen": [
+            "sram_peak_kb",
+            "psram_peak_kb"
+          ],
+          "question": "resident / placement"
+        },
+        "D7": {
+          "status": "partial",
+          "metrics_seen": [
+            "sram_leak_kb"
+          ],
+          "question": "lifecycle (leak / frag / stack / churn)"
+        },
+        "D8": {
+          "status": "missing",
+          "metrics_seen": [],
+          "question": "architecture overhead"
+        },
+        "D9": {
+          "status": "missing",
+          "metrics_seen": [],
+          "question": "resource scheme S1-S4"
+        }
+      },
+      "required": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "D6",
+        "D7"
+      ],
+      "missing": [
+        "D5",
+        "D6",
+        "D7"
+      ]
+    },
+    "stat_exemptions": {
+      "event_dispatch_ms": {
+        "kind": "cv_exempt",
+        "measured_cv": 0.12105852705031328,
+        "limit": 0.05,
+        "reason": "event timing on the serial SystemGui/SystemAppInput task group has structural jitter beyond the 5% limit"
+      },
+      "refresh_area_ratio_pct": {
+        "kind": "record_only",
+        "measured_cv": 0.0,
+        "limit": 0.05,
+        "reason": "v1.8 section 4 first-round record semantics for interaction-scene area ratio"
+      }
+    }
   },
   "scenarios": {
     "batch_invalidate": {

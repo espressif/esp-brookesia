@@ -7,6 +7,12 @@ import subprocess
 from typing import Any, Dict, List
 
 from brookesia_gui_perf.parser import RunRecords
+from brookesia_gui_perf.spec_coverage import (
+    assess_coverage,
+    assess_dimensions,
+    assess_exemptions,
+    uncovered,
+)
 from brookesia_gui_perf.stats import DEFAULT_WARMUP, aggregate
 
 REQUIRED_METADATA_FIELDS: List[str] = [
@@ -77,7 +83,7 @@ def build_report(
     metadata: Dict[str, Any] = dict(head.get("metadata") or {})
     metadata["worktree_dirty"] = worktree_flag
     metadata["worktree_diff_sha256"] = worktree_diff
-    return {
+    report: Dict[str, Any] = {
         "test_suite": head.get("test_suite"),
         "app_id": head.get("app_id"),
         "runtime_type": head.get("runtime_type"),
@@ -89,6 +95,12 @@ def build_report(
         "metadata": metadata,
         "scenarios": scenarios,
     }
+    # v1.8 §5.1/§六-6: every canonical field must resolve to an explicit status so a
+    # mandatory memory item can never be silently missing.
+    metadata["acceptance"] = assess_coverage(report)
+    metadata["dimension_coverage"] = assess_dimensions(report)
+    metadata["stat_exemptions"] = assess_exemptions(report)
+    return report
 
 
 def validate_report(report: Dict[str, Any]) -> List[str]:
@@ -107,6 +119,8 @@ def validate_report(report: Dict[str, Any]) -> List[str]:
             for pk in PERCENTILE_KEYS:
                 if pk not in stats:
                     violations.append(f"scenario {scenario} metric {metric}: missing {pk}")
+    for field in uncovered(report):
+        violations.append(f"spec section 5.1 field without declaration: {field}")
     return violations
 
 

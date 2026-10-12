@@ -11,8 +11,7 @@
     "judge": "p95",
     "pass_a_max": 30,
     "pass_b_max": 50,
-    "fail_above": 100,
-    "cv_exempt": true
+    "fail_above": 100
   },
   "event_dispatch_ms": {
     "direction": "lower_better",
@@ -107,7 +106,6 @@
     "pass_a_max": 20,
     "pass_b_max": 50,
     "fail_above": 100,
-    "cv_exempt": true,
     "regression_tolerance_pct": 2.0
   },
   "batch_invalidate_ms": {

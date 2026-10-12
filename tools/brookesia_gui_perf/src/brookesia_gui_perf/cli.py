@@ -12,6 +12,15 @@ from brookesia_gui_perf.compare import compare_reports
 from brookesia_gui_perf.gate import check_gate
 from brookesia_gui_perf.parser import assess_log_integrity, parse_log
 from brookesia_gui_perf.report import build_report, validate_report
+from brookesia_gui_perf.spec_coverage import (
+    COLLECTED,
+    NOT_APPLICABLE,
+    PENDING,
+    assess_coverage,
+    assess_dimensions,
+    assess_exemptions,
+    summarize,
+)
 from brookesia_gui_perf.stats import DEFAULT_WARMUP
 
 
@@ -138,6 +147,45 @@ def _cmd_doc_load(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_coverage(args: argparse.Namespace) -> int:
+    path = pathlib.Path(args.report)
+    report = _load_json(path)
+    coverage = assess_coverage(report)
+    if args.sizes:
+        sizes = _load_json(pathlib.Path(args.sizes))
+        if sizes.get("app_bin_bytes") is not None:
+            coverage["firmware_bin_bytes"] = {
+                "status": COLLECTED, "value": sizes["app_bin_bytes"]
+            }
+        if sizes.get("resource_bytes") is not None:
+            coverage["resource_image_bytes"] = {
+                "status": COLLECTED, "value": sizes["resource_bytes"]
+            }
+    if args.write:
+        report.setdefault("metadata", {})["acceptance"] = coverage
+        report["metadata"]["dimension_coverage"] = assess_dimensions(report)
+        report["metadata"]["stat_exemptions"] = assess_exemptions(report)
+        path.write_text(
+            json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+    for field, entry in coverage.items():
+        reason = f" -- {entry['reason']}" if entry.get("reason") else ""
+        print(f"{field}: {entry['status']}{reason}")
+    counts = summarize(coverage)
+    print(
+        f"collected={counts[COLLECTED]} not_applicable={counts[NOT_APPLICABLE]} "
+        f"pending_instrumentation={counts[PENDING]}"
+    )
+    dims = report.get("metadata", {}).get("dimension_coverage") or assess_dimensions(report)
+    for name, body in dims["dimensions"].items():
+        print(f"{name}: {body['status']} -- {body['question']}")
+    print(f"dimension_complete={not dims['missing']} missing={dims['missing']}")
+    if args.strict and counts[PENDING]:
+        print(f"strict: {counts[PENDING]} field(s) pending instrumentation", file=sys.stderr)
+        return 1
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="brookesia-gui-perf")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -171,6 +219,17 @@ def build_parser() -> argparse.ArgumentParser:
     p_ver.add_argument("--baseline-dir", required=True)
     p_ver.add_argument("--optimized-dir", required=True)
     p_ver.set_defaults(func=_cmd_verify)
+
+    p_cov = sub.add_parser(
+        "coverage", help="v1.8 5.1 canonical-field coverage / N-A declarations"
+    )
+    p_cov.add_argument("report")
+    p_cov.add_argument("--write", action="store_true", help="embed acceptance block into report")
+    p_cov.add_argument("--sizes", help="measure_size.py record: fills firmware/resource bytes")
+    p_cov.add_argument(
+        "--strict", action="store_true", help="fail if any field is pending_instrumentation"
+    )
+    p_cov.set_defaults(func=_cmd_coverage)
     return parser
 
 
