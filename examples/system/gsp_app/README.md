@@ -121,6 +121,8 @@ After restart, the selected language and theme apply to the launcher and all Set
 
 ## Remaining interface differences
 
+The host binds the SNTP service for as long as it runs, as Super does, so the wall clock is set from the network once Wi-Fi is up, whichever app opens first. Without a saved Wi-Fi network the clock stays unset and apps such as Clock show 1970.
+
 The GSP launcher provides a Settings entry rather than the Super desktop. My device, time zone, diagnostics, and saved-network management remain in LVGL. Both interfaces use the same system preferences and hardware services.
 
 ## Diagnostics

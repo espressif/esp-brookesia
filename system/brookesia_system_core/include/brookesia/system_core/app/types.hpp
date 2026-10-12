@@ -188,6 +188,8 @@ struct AppGuiDescriptor {
     std::string root;
     AppGuiResources resources;
     std::vector<GuiScreenFlowEntry> screen_flows;
+    /// GSP bundle only: the scene to show first for each system theme id. A theme that is not listed starts on scene 0.
+    std::map<std::string, uint16_t> start_scenes{};
 };
 BROOKESIA_DESCRIBE_STRUCT(AppGuiDescriptor, (), (root_kind, root, resources, screen_flows))
 

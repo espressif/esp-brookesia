@@ -1,5 +1,7 @@
 CONFIG_BROOKESIA_GUI_BACKEND_GSP=y
 CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES=y
+# A JavaScript app fills a whole page in one burst of updates; the default depth of 24 drops some of them.
+CONFIG_ESP_GSP_QUEUE_DEPTH=128
 
 # Both backends share playback. Speech processing and video codecs stay disabled.
 CONFIG_BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL=y

@@ -28,6 +28,7 @@
 #include "brookesia/service_display/service_display.hpp"
 #include "brookesia/service_helper/media/display.hpp"
 #include "brookesia/service_helper/media/audio.hpp"
+#include "brookesia/service_helper/network/sntp.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
 #include "brookesia/system_core.hpp"
@@ -75,6 +76,7 @@ constexpr bool RUN_BRIGHTNESS_PROBE = false;
 
 using DisplayHelper = service::helper::Display;
 using StorageHelper = service::helper::Storage;
+using SntpHelper = service::helper::SNTP;
 
 struct ShellState {
     std::atomic<bool> handoff{false};
@@ -452,6 +454,26 @@ void run_main()
             );
     if (!playback_binding.is_valid()) {
         BROOKESIA_LOGW("Audio playback is unavailable; Settings sound controls will be disabled");
+    }
+
+    // Super keeps SNTP bound for as long as the shell runs, so the wall clock is set whichever app opens first.
+    // The GSP host does the same; without it Clock shows 1970 and alarms never match the real time.
+    static service::ServiceBinding sntp_binding;
+    if (!SntpHelper::is_available()) {
+        BROOKESIA_LOGW("SNTP service is not available; the wall clock stays unset");
+    } else {
+        sntp_binding = service::ServiceManager::get_instance().bind(SntpHelper::get_name().data());
+        if (!sntp_binding.is_valid()) {
+            BROOKESIA_LOGW("Failed to bind SNTP; the wall clock stays unset");
+        } else if (auto state = SntpHelper::call_function_sync<std::string>(SntpHelper::FunctionId::GetState);
+                   state && (*state == BROOKESIA_DESCRIBE_TO_STR(SntpHelper::State::Stopped))) {
+            if (auto started = SntpHelper::call_function_sync<void>(SntpHelper::FunctionId::Start); !started) {
+                BROOKESIA_LOGW("Failed to start SNTP: %1%", started.error());
+            }
+        }
+        if (sntp_binding.is_valid()) {
+            BROOKESIA_LOGI("SNTP held by the GSP host");
+        }
     }
 
     static auto launcher = std::make_shared<LauncherApp>();

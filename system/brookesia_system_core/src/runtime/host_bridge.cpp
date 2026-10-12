@@ -312,6 +312,7 @@ public:
     NativeResult gsp_set_text(const NativeArgs &args);
     NativeResult gsp_set_value(const NativeArgs &args);
     NativeResult gsp_show_page(const NativeArgs &args);
+    NativeResult gsp_set_property(const NativeArgs &args);
     NativeResult apply_gsp_update(const SystemHostBridge::GspUpdate &update);
     std::shared_ptr<AsyncCallRecord> create_async_call(RuntimeAppId app_id, NativeAsyncCallback callback);
     void complete_async_call(
@@ -1682,6 +1683,39 @@ NativeResult SystemHostBridge::Impl::gsp_show_page(const NativeArgs &args)
     return apply_gsp_update(update);
 }
 
+NativeResult SystemHostBridge::Impl::gsp_set_property(const NativeArgs &args)
+{
+    constexpr const char *USAGE = "brookesia.gsp_set_property(name, property, value) requires an object name, "
+                                  "a property name, and a number, boolean, or #RRGGBB string";
+    if (args.size() < 3) {
+        return std::unexpected(USAGE);
+    }
+    SystemHostBridge::GspUpdate update;
+    update.kind = SystemHostBridge::GspUpdate::Kind::SetProperty;
+    if (!get_string_arg(args, 0, update.name) || update.name.empty() ||
+            !get_string_arg(args, 1, update.property) || update.property.empty()) {
+        return std::unexpected(USAGE);
+    }
+    if (const auto *flag = std::get_if<bool>(&args[2])) {
+        update.value_kind = SystemHostBridge::GspUpdate::ValueKind::Boolean;
+        update.value = *flag ? 1 : 0;
+    } else if (std::holds_alternative<std::string>(args[2])) {
+        update.value_kind = SystemHostBridge::GspUpdate::ValueKind::Text;
+        update.text = std::get<std::string>(args[2]);
+    } else {
+        const auto value = native_finite_integer(args[2]);
+        if (!value) {
+            return std::unexpected(USAGE);
+        }
+        if ((*value < std::numeric_limits<int32_t>::min()) || (*value > std::numeric_limits<int32_t>::max())) {
+            return std::unexpected("brookesia.gsp_set_property() value is out of range");
+        }
+        update.value_kind = SystemHostBridge::GspUpdate::ValueKind::Integer;
+        update.value = static_cast<int32_t>(*value);
+    }
+    return apply_gsp_update(update);
+}
+
 NativeModule SystemHostBridge::Impl::make_brookesia_module()
 {
     NativeModule module;
@@ -1854,6 +1888,14 @@ NativeModule SystemHostBridge::Impl::make_brookesia_module()
             .function = [this](const NativeArgs & args)
             {
                 return gsp_show_page(args);
+            },
+            .async_function = nullptr,
+        },
+        {
+            .name = "gsp_set_property",
+            .function = [this](const NativeArgs & args)
+            {
+                return gsp_set_property(args);
             },
             .async_function = nullptr,
         },

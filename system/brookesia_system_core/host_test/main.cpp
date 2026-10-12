@@ -696,6 +696,39 @@ bool verify_gsp_package_descriptor()
         return false;
     }
 
+    if (!require(descriptor->gui.start_scenes.empty(), "A profile without start_scenes listed some")) {
+        return false;
+    }
+    {
+        std::ofstream output(profile, std::ios::binary | std::ios::trunc);
+        output << R"({"gui_backend":"gsp","root":"device.gspb","start_scenes":{"light":0,"dark":12}})";
+    }
+    auto with_scenes = read_runtime_app_resource_descriptor(*parsed);
+    if (!require(with_scenes.has_value(), "GSP profile with start_scenes was rejected") ||
+            !require(with_scenes->gui.start_scenes.size() == 2 && with_scenes->gui.start_scenes.at("dark") == 12,
+                     "start_scenes were not read")) {
+        return false;
+    }
+    for (const char *bad : {
+                R"({"gui_backend":"gsp","root":"device.gspb","start_scenes":{"dark":-1}})",
+                R"({"gui_backend":"gsp","root":"device.gspb","start_scenes":{"dark":"12"}})",
+                R"({"gui_backend":"gsp","root":"device.gspb","start_scenes":[12]})",
+                R"({"gui_backend":"gsp","root":"device.gspb","start_scenes":{"dark":70000}})"
+            }) {
+        {
+            std::ofstream output(profile, std::ios::binary | std::ios::trunc);
+            output << bad;
+        }
+        if (!require(!read_runtime_app_resource_descriptor(*parsed).has_value(),
+                     std::string("start_scenes accepted: ") + bad)) {
+            return false;
+        }
+    }
+    {
+        std::ofstream output(profile, std::ios::binary | std::ios::trunc);
+        output << R"({"gui_backend":"gsp","root":"device.gspb"})";
+    }
+
     AppGuiDescriptor json_gui;
     json_gui.root_kind = GuiRootKind::File;
     json_gui.root = "root.json";
@@ -1214,6 +1247,63 @@ bool verify_missing_service_probe(SystemHostBridge &bridge)
     return require_bool_result(available, false, "repeated missing service_available");
 }
 
+bool verify_gsp_property_updates()
+{
+    using Update = SystemHostBridge::GspUpdate;
+    constexpr AppId APP_ID = 130;
+    std::vector<Update> seen;
+    auto function_bridge = std::make_shared<esp_brookesia::runtime::RuntimeFunctionBridge>();
+    SystemHostBridge bridge(
+        std::move(function_bridge),
+        nullptr,
+        {},
+    [](AppId, std::string, std::string, std::string) {
+        return std::expected<void, std::string> {};
+    },
+    [&seen](AppId app_id, const Update & update) -> std::expected<void, std::string> {
+        if (app_id != APP_ID)
+        {
+            return std::unexpected("unexpected app id");
+        }
+        seen.push_back(update);
+        return {};
+    }
+    );
+    bridge.register_app_manifest(APP_ID, make_manifest("gsp-updates", {}));
+    const auto modules = bridge.get_modules_for_app(APP_ID);
+
+    if (!require(call_native(modules, "gsp_set_property", {std::string("row"), std::string("visible"), false}).has_value(),
+                 "gsp_set_property boolean failed") ||
+            !require(call_native(modules, "gsp_set_property", {std::string("hand"), std::string("hour_angle"), int64_t(270)})
+                     .has_value(), "gsp_set_property integer failed") ||
+            !require(call_native(modules, "gsp_set_property", {std::string("card"), std::string("color"), std::string("#0891B2")})
+                     .has_value(), "gsp_set_property color failed")) {
+        return false;
+    }
+    if (!require(seen.size() == 3, "gsp updates were not delivered")) {
+        return false;
+    }
+    if (!require(seen[0].kind == Update::Kind::SetProperty && seen[0].name == "row" && seen[0].property == "visible" &&
+                 seen[0].value_kind == Update::ValueKind::Boolean && seen[0].value == 0, "boolean update mismatch") ||
+            !require(seen[1].value_kind == Update::ValueKind::Integer && seen[1].value == 270, "integer update mismatch") ||
+            !require(seen[2].value_kind == Update::ValueKind::Text && seen[2].text == "#0891B2", "color update mismatch")) {
+        return false;
+    }
+
+    const std::array<std::pair<std::string, NativeArgs>, 4> rejected{{
+            {"gsp_set_property", {std::string("row"), std::string("visible")}},
+            {"gsp_set_property", {std::string("row"), std::string(""), true}},
+            {"gsp_set_property", {std::string(""), std::string("visible"), true}},
+            {"gsp_set_property", {std::string("row"), std::string("value"), 3.5e12}},
+        }};
+    for (const auto &[name, args] : rejected) {
+        if (!require(!call_native(modules, name, args).has_value(), name + " accepted invalid arguments")) {
+            return false;
+        }
+    }
+    return require(seen.size() == 3, "invalid gsp updates reached the surface");
+}
+
 bool run_tests()
 {
     auto &manager = ServiceManager::get_instance();
@@ -1276,6 +1366,7 @@ bool run_tests()
 
     const bool passed = verify_manifest_parser() &&
                         verify_gsp_package_descriptor() &&
+                        verify_gsp_property_updates() &&
                         verify_requirement_evaluator(manager) &&
                         verify_compatible_version(bridge, *service) &&
                         verify_version_rejections(bridge) &&

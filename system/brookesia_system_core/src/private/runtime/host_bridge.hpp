@@ -40,12 +40,24 @@ public:
             SetText,
             SetValue,
             ShowPage,
+            SetProperty,
+        };
+
+        /** How `SetProperty` carries its value. */
+        enum class ValueKind {
+            Integer,
+            Boolean,
+            Text,
         };
 
         Kind kind = Kind::SetText;
         std::string name;
+        /** Text for `SetText`, or the `#RRGGBB` color for a `SetProperty` text value. */
         std::string text;
+        /** Semantic property name for `SetProperty`, for example `visible` or `color`. */
+        std::string property;
         int32_t value = 0;
+        ValueKind value_kind = ValueKind::Integer;
     };
 
     using GspUpdater = std::function<std::expected<void, std::string>(runtime::AppId, const GspUpdate &)>;

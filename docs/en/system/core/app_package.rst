@@ -167,6 +167,18 @@ A GSP package uses a different ``profile.json``. ``root`` names a compiled ``.gs
 
 ``manifest.gui.backend`` must also be ``gsp``. ``examples/app/gsp_js_device_control`` is a complete GSP package.
 
+A bundle that holds a copy of its scenes for each system theme can name the first scene for each theme, so the app does not flash the wrong theme while its JavaScript starts. A theme that is not listed starts on scene 0:
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb",
+     "start_scenes": {"light": 0, "dark": 12}
+   }
+
+JavaScript updates the page with ``brookesia.gsp_set_text(name, text)``, ``brookesia.gsp_set_value(name, value)``, ``brookesia.gsp_set_property(name, property, value)`` (a number, a boolean, or a ``#RRGGBB`` color, for the properties that the scene declares such as ``visible``, ``enabled``, ``color``, or a clock hand angle) and ``brookesia.gsp_show_page(scene)``. A burst of updates waits briefly when the GSP command queue is full.
+
 .. _system-core-app_package-sec-05:
 
 Scanning and Install

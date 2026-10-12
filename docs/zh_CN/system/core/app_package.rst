@@ -167,6 +167,18 @@ GSP 包使用另一种 ``profile.json``。``root`` 指向编译好的 ``.gspb`` 
 
 ``manifest.gui.backend`` 也必须是 ``gsp``。``examples/app/gsp_js_device_control`` 是一个完整的 GSP 包。
 
+如果 bundle 为每个系统主题各带一份场景,可以用 ``start_scenes`` 指定各主题的首个场景,避免 JavaScript 启动期间闪现错误主题。未列出的主题从 scene 0 开始:
+
+.. code-block:: json
+
+   {
+     "gui_backend": "gsp",
+     "root": "app.gspb",
+     "start_scenes": {"light": 0, "dark": 12}
+   }
+
+JavaScript 通过 ``brookesia.gsp_set_text(name, text)``、``brookesia.gsp_set_value(name, value)``、``brookesia.gsp_set_property(name, property, value)``(数值、布尔值或 ``#RRGGBB`` 颜色,用于场景声明过的 ``visible``、``enabled``、``color`` 或时钟指针角度等属性)以及 ``brookesia.gsp_show_page(scene)`` 更新页面。一批更新遇到 GSP 命令队列已满时会短暂等待。
+
 .. _system-core-app_package-sec-05:
 
 扫描与安装

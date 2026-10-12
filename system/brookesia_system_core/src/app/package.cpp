@@ -892,6 +892,19 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
         if (!bundle_result) {
             return std::unexpected(bundle_result.error());
         }
+        std::map<std::string, uint16_t> start_scenes;
+        if (auto scenes_it = root.find("start_scenes"); (scenes_it != root.end()) && !scenes_it->value().is_null()) {
+            if (!scenes_it->value().is_object()) {
+                return std::unexpected("Runtime profile.json start_scenes must be an object");
+            }
+            for (const auto &[theme_id, scene] : scenes_it->value().as_object()) {
+                if (theme_id.empty() || !scene.is_int64() || (scene.as_int64() < 0) ||
+                        (scene.as_int64() > static_cast<int64_t>(UINT16_MAX))) {
+                    return std::unexpected("Runtime profile.json start_scenes maps a theme id to a scene index");
+                }
+                start_scenes.emplace(std::string(theme_id), static_cast<uint16_t>(scene.as_int64()));
+            }
+        }
         return RuntimeAppResourceDescriptor{
             .icon_id = std::move(icon_id),
             .preload_dom = false,
@@ -900,6 +913,7 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
                 .root = std::move(bundle_root),
                 .resources = {},
                 .screen_flows = {},
+                .start_scenes = std::move(start_scenes),
             },
         };
     }
@@ -940,6 +954,7 @@ std::expected<RuntimeAppResourceDescriptor, std::string> parse_runtime_app_resou
             .root = std::move(document_root),
             .resources = {},
             .screen_flows = std::move(*screen_flows),
+            .start_scenes = {},
         },
     };
 }

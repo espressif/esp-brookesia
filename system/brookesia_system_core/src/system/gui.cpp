@@ -15,6 +15,7 @@
 #include <set>
 #include <span>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
@@ -44,6 +45,21 @@ uint32_t gsp_name_key(std::string_view name)
         key = (key ^ static_cast<uint8_t>(character)) * 16777619U;
     }
     return key;
+}
+
+// A burst of updates, such as a whole page being filled in, can fill the GSP command queue. The queue
+// reports that as a timeout while it drains, so wait briefly and offer the update again.
+template <typename Submit>
+esp_gsp_err_t submit_gsp_update(Submit &&submit)
+{
+    constexpr int ATTEMPTS = 20;
+    constexpr auto PAUSE = std::chrono::milliseconds(5);
+    auto result = submit();
+    for (int attempt = 1; (result == ESP_GSP_ERR_TIMEOUT) && (attempt < ATTEMPTS); ++attempt) {
+        std::this_thread::sleep_for(PAUSE);
+        result = submit();
+    }
+    return result;
 }
 
 int64_t steady_us()
@@ -672,6 +688,20 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
                 (esp_gsp_set_swipe_enabled(handle, false) != ESP_GSP_OK)) {
             BROOKESIA_LOGW("Failed to disable GSP scene swipe for runtime app: %1%", record.info.manifest.id);
         }
+        // A bundle with a copy of its pages per theme names the first page for each theme, so the app does not
+        // flash the wrong theme while its JavaScript starts.
+        const auto &start_scenes = record.gui_descriptor.start_scenes;
+        if (auto start = start_scenes.find(environment_.theme_id); (start != start_scenes.end()) &&
+                (start->second != 0)) {
+            if (esp_gsp_goto_scene(
+                        record.gsp_host->handle(), start->second, ESP_GSP_NO_TRANSITION
+                    ) != ESP_GSP_OK) {
+                BROOKESIA_LOGW(
+                    "Failed to show start scene %1% for theme %2%: %3%", start->second, environment_.theme_id,
+                    record.info.manifest.id
+                );
+            }
+        }
     }
     BROOKESIA_LOGI("GSP app session started: manifest(%1%)", record.info.manifest.id);
     return {};
@@ -742,13 +772,81 @@ std::expected<void, std::string> System::Impl::apply_runtime_gsp_update(
         return std::unexpected("GSP object name is empty");
     }
     const auto key = gsp_name_key(update.name);
+    if (update.kind == SystemHostBridge::GspUpdate::Kind::SetProperty) {
+        if (update.property.empty()) {
+            return std::unexpected("GSP property name is empty");
+        }
+        const auto property_key = gsp_name_key(update.property);
+        gsp_property_info_t info{};
+        if (esp_gsp_component_get_property_info(handle, key, property_key, &info) != ESP_GSP_OK) {
+            return std::unexpected("GSP object " + update.name + " has no property " + update.property);
+        }
+        using ValueKind = SystemHostBridge::GspUpdate::ValueKind;
+        if (info.value_type == GSP_VALUE_COLOR) {
+            if (update.value_kind != ValueKind::Text || update.text.size() != 7 || update.text.front() != '#') {
+                return std::unexpected("GSP color property " + update.property + " needs a #RRGGBB string");
+            }
+            uint32_t rgb = 0;
+            for (size_t index = 1; index < update.text.size(); ++index) {
+                const char digit = update.text[index];
+                uint32_t nibble = 0;
+                if (digit >= '0' && digit <= '9') {
+                    nibble = static_cast<uint32_t>(digit - '0');
+                } else if (digit >= 'a' && digit <= 'f') {
+                    nibble = static_cast<uint32_t>(digit - 'a' + 10);
+                } else if (digit >= 'A' && digit <= 'F') {
+                    nibble = static_cast<uint32_t>(digit - 'A' + 10);
+                } else {
+                    return std::unexpected("GSP color property " + update.property + " needs a #RRGGBB string");
+                }
+                rgb = (rgb << 4) | nibble;
+            }
+            const auto submitted = submit_gsp_update([&] {
+                return esp_gsp_component_set_property_color_rgb888(handle, key, property_key, rgb);
+            });
+            if (submitted != ESP_GSP_OK) {
+                return std::unexpected("Failed to update GSP color: " + update.name + "." + update.property);
+            }
+            return {};
+        }
+        if (update.value_kind == ValueKind::Text) {
+            return std::unexpected("GSP property " + update.property + " does not take a string");
+        }
+        gsp_value_t value{};
+        if (info.value_type == GSP_VALUE_BOOL) {
+            value.type = GSP_VALUE_BOOL;
+            value.data.boolean = update.value != 0;
+        } else if (info.value_type == GSP_VALUE_U32) {
+            if (update.value < 0) {
+                return std::unexpected("GSP property " + update.property + " cannot be negative");
+            }
+            value.type = GSP_VALUE_U32;
+            value.data.u32 = static_cast<uint32_t>(update.value);
+        } else {
+            value.type = GSP_VALUE_I32;
+            value.data.i32 = update.value;
+        }
+        const auto submitted = submit_gsp_update([&] {
+            return esp_gsp_component_set_property(handle, key, property_key, &value);
+        });
+        if (submitted != ESP_GSP_OK) {
+            return std::unexpected("Failed to update GSP property: " + update.name + "." + update.property);
+        }
+        return {};
+    }
     if (update.kind == SystemHostBridge::GspUpdate::Kind::SetText) {
-        if (esp_gsp_component_set_text(handle, key, update.text.c_str()) != ESP_GSP_OK) {
+        const auto submitted = submit_gsp_update([&] {
+            return esp_gsp_component_set_text(handle, key, update.text.c_str());
+        });
+        if (submitted != ESP_GSP_OK) {
             return std::unexpected("Failed to update GSP text: " + update.name);
         }
         return {};
     }
-    if (esp_gsp_component_set_value(handle, key, update.value) != ESP_GSP_OK) {
+    const auto submitted = submit_gsp_update([&] {
+        return esp_gsp_component_set_value(handle, key, update.value);
+    });
+    if (submitted != ESP_GSP_OK) {
         return std::unexpected("Failed to update GSP value: " + update.name);
     }
     return {};

@@ -101,6 +101,7 @@ For `gsp.call`, the payload includes `arg` and `key`, the FNV-1a hash of the con
 | --- | --- |
 | `brookesia.gsp_set_text(name, text)` | Sets the text of a label that has a `bind` in the scene |
 | `brookesia.gsp_set_value(name, value)` | Sets a slider's value |
+| `brookesia.gsp_set_property(name, property, value)` | Sets a property the scene declares, such as `visible`, `enabled`, `color` (`"#RRGGBB"`) or a clock hand angle |
 | `brookesia.gsp_show_page(index)` | Shows a page by its build order |
 | `brookesia.call_service_function(service, function, argsJson, timeoutMs)` | Calls a service declared in `manifest.json` |
 

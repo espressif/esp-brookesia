@@ -101,6 +101,7 @@ idf.py menuconfig
 | --- | --- |
 | `brookesia.gsp_set_text(name, text)` | 设置场景中带 `bind` 的标签文本 |
 | `brookesia.gsp_set_value(name, value)` | 设置滑块数值 |
+| `brookesia.gsp_set_property(name, property, value)` | 设置场景声明过的属性,如 `visible`、`enabled`、`color`(`"#RRGGBB"`)或时钟指针角度 |
 | `brookesia.gsp_show_page(index)` | 按构建顺序显示页面 |
 | `brookesia.call_service_function(service, function, argsJson, timeoutMs)` | 调用 `manifest.json` 中声明的服务 |
 
