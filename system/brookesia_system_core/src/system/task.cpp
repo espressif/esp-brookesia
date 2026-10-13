@@ -201,10 +201,15 @@ void System::Impl::execute_task_with_group_context(
 
 std::expected<void, std::string> System::Impl::post_task(
     const lib_utils::TaskScheduler::Group &group,
-    lib_utils::TaskScheduler::OnceTask task
+    lib_utils::TaskScheduler::OnceTask task,
+    bool allow_inline_execution
 )
 {
-    if (is_current_task_domain(group) || !task_scheduler_ || !task_scheduler_->is_running()) {
+    // allow_inline_execution=false forces a real queue hop even when the caller is
+    // already in the target task domain. Callers that re-arm themselves (e.g. the
+    // GUI binding-flush continuation) must use it: the inline shortcut would run
+    // them nested and can recurse without bound under sustained arrivals.
+    if ((allow_inline_execution && is_current_task_domain(group)) || !task_scheduler_ || !task_scheduler_->is_running()) {
         task();
         return {};
     }
@@ -231,9 +236,9 @@ std::expected<void, std::string> System::Impl::post_task(
     return {};
 }
 
-std::expected<void, std::string> System::Impl::post_gui_task(lib_utils::TaskScheduler::OnceTask task)
+std::expected<void, std::string> System::Impl::post_gui_task(lib_utils::TaskScheduler::OnceTask task, bool allow_inline_execution)
 {
-    return post_task(SYSTEM_GUI_TASK_GROUP, std::move(task));
+    return post_task(SYSTEM_GUI_TASK_GROUP, std::move(task), allow_inline_execution);
 }
 
 

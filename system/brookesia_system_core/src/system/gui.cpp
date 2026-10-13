@@ -383,9 +383,15 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
         return;
     }
 
+    // This re-arm is a continuation ("run another pass later"), not an
+    // affinity-sensitive call, so it must always take a real queue hop. A flush
+    // always runs in the GUI task domain, so the post_task inline shortcut would
+    // execute the next pass nested inside this one; under sustained binding
+    // arrivals (v1.8 binding_stress) every level re-arms and the worker stack is
+    // exhausted. allow_inline_execution=false keeps the pass ordered but queued.
     auto post_result = post_gui_task([this, app_id]() {
         flush_pending_gui_bindings(app_id);
-    });
+    }, /*allow_inline_execution=*/false);
     if (!post_result) {
         std::lock_guard lock(gui_binding_mutex_);
         auto buffer_it = pending_gui_bindings_.find(app_id);

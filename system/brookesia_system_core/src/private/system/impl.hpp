@@ -128,7 +128,8 @@ public:
     );
     std::expected<void, std::string> post_task(
         const lib_utils::TaskSchedulerGroup &group,
-        lib_utils::TaskScheduler::OnceTask task
+        lib_utils::TaskScheduler::OnceTask task,
+        bool allow_inline_execution = true
     );
     std::expected<GuiBatchResult, std::string> execute_gui_batch_now(
         AppId app_id,
@@ -173,7 +174,10 @@ public:
         return result_future.get();
     }
 
-    std::expected<void, std::string> post_gui_task(lib_utils::TaskScheduler::OnceTask task);
+    std::expected<void, std::string> post_gui_task(
+        lib_utils::TaskScheduler::OnceTask task,
+        bool allow_inline_execution = true
+    );
     std::expected<void, std::string> post_gui_input_task(lib_utils::TaskScheduler::OnceTask task);
 
     std::expected<void, std::string> enqueue_gui_binding_update(
