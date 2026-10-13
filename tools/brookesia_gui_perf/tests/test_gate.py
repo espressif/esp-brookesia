@@ -97,6 +97,23 @@ class WorktreeGateTests(unittest.TestCase):
         opt["metadata"]["git_sha"] = "deadbee"
         self.assertEqual(check_gate(base, opt), [])
 
+    def test_stat_exemptions_measured_cv_is_not_a_config_field(self):
+        # stat_exemptions embeds a per-run measured CV; two runs can never agree on
+        # it, so it must not fail the paired metadata gate. The declared content
+        # (kind / reason / limit) still must match.
+        base = build_report(make_records(40))
+        opt = copy.deepcopy(base)
+        for info in opt["metadata"]["stat_exemptions"].values():
+            info["measured_cv"] = (info.get("measured_cv") or 0.0) + 0.5
+        self.assertEqual(check_gate(base, opt), [])
+
+    def test_stat_exemptions_kind_mismatch_still_fails(self):
+        base = build_report(make_records(40))
+        opt = copy.deepcopy(base)
+        first = next(iter(opt["metadata"]["stat_exemptions"].values()))
+        first["kind"] = "not-the-same"
+        self.assertTrue(any("stat_exemptions" in v for v in check_gate(base, opt)))
+
 
 if __name__ == "__main__":
     unittest.main()

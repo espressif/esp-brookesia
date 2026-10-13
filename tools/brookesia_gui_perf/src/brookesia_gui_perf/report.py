@@ -13,7 +13,7 @@ from brookesia_gui_perf.spec_coverage import (
     assess_exemptions,
     uncovered,
 )
-from brookesia_gui_perf.stats import DEFAULT_WARMUP, aggregate
+from brookesia_gui_perf.stats import DEFAULT_WARMUP, MIN_SAMPLES, aggregate
 
 REQUIRED_METADATA_FIELDS: List[str] = [
     "board_id", "git_sha", "idf_version", "idf_preview", "sdkconfig_hash",
@@ -74,9 +74,19 @@ def build_report(
                 else:
                     passthrough[key] = value
         metrics: Dict[str, Any] = {k: {"value": v} for k, v in passthrough.items()}
+        insufficient: Dict[str, int] = {}
         for key, values in numeric.items():
+            if len(values) < MIN_SAMPLES:
+                # A torn UART record can drop or corrupt a single metric key, which
+                # would otherwise abort the whole aggregate over one lost byte. Refuse
+                # to aggregate the metric but keep the run usable and record the
+                # shortfall explicitly rather than dropping it silently.
+                insufficient[key] = len(values)
+                continue
             metrics[key] = aggregate(values)
         scenarios[scenario] = {"metrics": metrics}
+        if insufficient:
+            scenarios[scenario]["insufficient_metrics"] = insufficient
         min_kept = len(kept) if min_kept is None else min(min_kept, len(kept))
 
     assert min_kept is not None, "log contains no scenarios"

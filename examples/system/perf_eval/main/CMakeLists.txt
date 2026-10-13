@@ -54,17 +54,28 @@ endforeach()
 message(STATUS "perf_eval: staged ${CMAKE_CURRENT_BINARY_DIR}/res_stage")
 
 # v1.8 section 5.1: sdkconfig_hash must identify the build configuration so a
-# baseline and an optimized run from the same config share it. Hash the resolved
-# sdkconfig; the previous git-sha stand-in changed whenever the optimization was
-# committed and blocked every cross-commit paired comparison.
+# baseline and an optimized run from the same config share it. Hash the
+# *effective* configuration (enabled symbols only): a tree that merely defines an
+# extra, disabled Kconfig symbol resolves a different sdkconfig file while
+# compiling the identical build, and a whole-file hash wrongly blocked such paired
+# comparisons.
 if(EXISTS "${CMAKE_SOURCE_DIR}/sdkconfig")
-    file(SHA256 "${CMAKE_SOURCE_DIR}/sdkconfig" PERF_EVAL_SDKCONFIG_SHA)
+    file(STRINGS "${CMAKE_SOURCE_DIR}/sdkconfig" _perf_eval_sdk_lines)
+    set(_perf_eval_sdk_effective "")
+    foreach(_line IN LISTS _perf_eval_sdk_lines)
+        if(_line MATCHES "^CONFIG_[A-Za-z0-9_]+=" AND NOT _line MATCHES "=n$" AND NOT _line MATCHES "=0$")
+            list(APPEND _perf_eval_sdk_effective "${_line}")
+        endif()
+    endforeach()
+    list(SORT _perf_eval_sdk_effective)
+    string(REPLACE ";" "\n" _perf_eval_sdk_effective "${_perf_eval_sdk_effective}")
+    string(SHA256 PERF_EVAL_SDKCONFIG_SHA "${_perf_eval_sdk_effective}")
 else()
     set(PERF_EVAL_SDKCONFIG_SHA "unavailable")
 endif()
 # A generated header is used instead of a quoted compile definition: CMake strips
 # the inner quotes of -DMACRO="..." so the value landed in the metadata JSON
-# without its closing quote, producing an unparseable record.
+# without its closing quote, producing an unparsable record.
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/perf_eval_build_info.h"
     "#pragma once\n#define PERF_EVAL_SDKCONFIG_HASH \"sha256:${PERF_EVAL_SDKCONFIG_SHA}\"\n")
 target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

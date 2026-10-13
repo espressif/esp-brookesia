@@ -69,9 +69,14 @@ class ReportTests(unittest.TestCase):
         self.assertEqual(stats["n"], 30)
         self.assertLess(stats["mean"], 150.0)  # warmup 999 outliers excluded
 
-    def test_too_few_samples_raises(self):
-        with self.assertRaisesRegex(ValueError, "at least 30"):
-            build_report(make_records(30))  # 30 - 3 warmup = 27
+    def test_too_few_samples_is_flagged_not_fatal(self):
+        # A metric with fewer than the minimum samples (e.g. a torn UART record that
+        # corrupted one key) must not abort the whole aggregate; it is skipped and its
+        # shortfall recorded so the gap stays explicit rather than silently dropped.
+        report = build_report(make_records(30))  # 30 - 3 warmup = 27
+        scenario = report["scenarios"]["app_a_scroll"]
+        self.assertNotIn("first_frame_ms", scenario["metrics"])
+        self.assertEqual(scenario["insufficient_metrics"]["first_frame_ms"], 27)
 
     def test_non_numeric_passthrough(self):
         report = build_report(make_records(33))

@@ -36,13 +36,34 @@ def check_validity(metadata: Dict[str, Any]) -> List[str]:
     return violations
 
 
+def _comparable_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
+    """Metadata as the paired gate must see it.
+
+    ``stat_exemptions`` carries a per-run ``measured_cv``, which by construction
+    cannot be equal across two runs; only its declared content (kind / reason /
+    limit) is a configuration property and must match between baseline and
+    optimized.
+    """
+    comparable = dict(metadata)
+    exemptions = comparable.get("stat_exemptions")
+    if isinstance(exemptions, dict):
+        comparable["stat_exemptions"] = {
+            metric: (
+                {key: value for key, value in info.items() if key != "measured_cv"}
+                if isinstance(info, dict) else info
+            )
+            for metric, info in exemptions.items()
+        }
+    return comparable
+
+
 def check_gate(baseline: Dict[str, Any], optimized: Dict[str, Any]) -> List[str]:
     """Spec section 5.2 step 1 paired-comparison gate. Empty list means pass."""
     violations: List[str] = []
     violations += [f"baseline: {v}" for v in validate_report(baseline)]
     violations += [f"optimized: {v}" for v in validate_report(optimized)]
-    base_meta = baseline.get("metadata", {})
-    opt_meta = optimized.get("metadata", {})
+    base_meta = _comparable_metadata(baseline.get("metadata", {}))
+    opt_meta = _comparable_metadata(optimized.get("metadata", {}))
     if base_meta.get("board_id") != opt_meta.get("board_id"):
         violations.append(
             f"board_id mismatch: {base_meta.get('board_id')!r} != {opt_meta.get('board_id')!r}"
