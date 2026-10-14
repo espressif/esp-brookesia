@@ -9,6 +9,6 @@ dependencies:
     override_path: ../brookesia_runtime_manager
     require: public
 
-  georgik/lua:
-    version: "5.5.*"
-    require: public
+  espressif/lua:
+    version: "^5.5.1"
+    require: private
