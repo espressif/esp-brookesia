@@ -6,6 +6,7 @@
 #pragma once
 
 #include <cstddef>
+#include "brookesia/system_core/macro_configs.h"
 #include <atomic>
 #include <cstdint>
 #include <expected>
@@ -324,9 +325,11 @@ public:
     // flush_pending_gui_bindings(), read by the perf harness between phases, so
     // atomics rather than the binding mutex: the counter must stay readable from a
     // task that never touches the GUI path.
-    std::atomic<uint64_t> gui_binding_flush_count_{0};
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+    std::atomic<uint64_t> gui_binding_flush_count_ {0};
     std::atomic<uint64_t> gui_binding_apply_us_{0};
     std::atomic<uint64_t> gui_binding_applied_updates_{0};
+#endif
     std::set<gui::DocumentId::Value> live_preview_document_ids_;
     std::optional<lib_utils::TaskSchedulerTaskId> live_preview_poll_task_id_;
     StorageLayout storage_layout_;

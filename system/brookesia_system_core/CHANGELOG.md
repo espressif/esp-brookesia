@@ -20,7 +20,7 @@
 
 ### Enhancements:
 
-- feat(system): expose GUI binding flush statistics, and make `system_gui_load_json` / `system_gui_mount_screen` / `system_gui_unmount_screen` / `system_gui_unload` public so a carrier holding embedded documents can drive the GUI without an app.
+- feat(system): expose GUI binding flush statistics behind `BROOKESIA_SYSTEM_CORE_ENABLE_GUI_BINDING_PROBE` (default n), and make `system_gui_load_json` / `system_gui_mount_screen` / `system_gui_unmount_screen` / `system_gui_unload` public so a carrier holding embedded documents can drive the GUI without an app.
 
 ### Bug Fixes:
 

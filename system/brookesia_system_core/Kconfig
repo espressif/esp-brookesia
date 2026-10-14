@@ -48,6 +48,15 @@ menu "ESP-Brookesia: System Core Configurations"
             disabled in normal builds because log formatting and serial output
             perturb app launch timing.
 
+    config BROOKESIA_SYSTEM_CORE_ENABLE_GUI_BINDING_PROBE
+        bool "Enable GUI binding flush probe counters"
+        default n
+        help
+            Count GUI binding flush passes, applied updates and accumulated apply
+            time for the v1.8 3.1 flush-apply metric. Compiled out by default so a
+            shipped build does not pay the per-flush esp_timer reads or the counter
+            memory; the performance baseline carrier enables it.
+
     config BROOKESIA_SYSTEM_CORE_RUNTIME_ASYNC_DEBUG_PROBE
         bool "Enable runtime async debug probe"
         default n
