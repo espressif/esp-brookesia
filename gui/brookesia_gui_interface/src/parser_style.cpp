@@ -17,86 +17,93 @@ std::expected<Style, std::string> parse_style_object(
 {
     Style style;
 
-    auto parse_optional_string = [&](std::string_view key, std::optional<std::string> &field) -> std::expected<void, std::string> {
+    auto parse_optional_string = [&](std::string_view key) -> std::expected<std::optional<std::string>, std::string> {
         const auto *value = find_child_value(style_object, key);
         if (value == nullptr)
         {
-            return {};
+            return std::optional<std::string> {};
         }
         auto parsed = parse_string_field(style_object, key, "");
         if (!parsed)
         {
             return std::unexpected(parsed.error());
         }
-        field = *parsed;
-        return {};
+        return std::optional<std::string>(*parsed);
     };
 
-    auto parse_optional_scaled = [&](std::string_view key, std::optional<int32_t> &field, std::string_view unit, float scale) -> std::expected<void, std::string> {
+    auto parse_optional_scaled = [&](std::string_view key, std::string_view unit, float scale)
+    -> std::expected<std::optional<int32_t>, std::string> {
         const auto *value = find_child_value(style_object, key);
         if (value == nullptr)
         {
-            return {};
+            return std::optional<int32_t> {};
         }
         auto parsed = parse_scaled_value(value, key, unit, scale);
         if (!parsed)
         {
             return std::unexpected(parsed.error());
         }
-        field = *parsed;
-        return {};
+        return std::optional<int32_t>(*parsed);
     };
 
-    auto parse_optional_int = [&](std::string_view key, std::optional<int32_t> &field) -> std::expected<void, std::string> {
+    auto parse_optional_int = [&](std::string_view key) -> std::expected<std::optional<int32_t>, std::string> {
         const auto *value = find_child_value(style_object, key);
         if (value == nullptr)
         {
-            return {};
+            return std::optional<int32_t> {};
         }
         auto parsed = parse_int_field(style_object, key, 0);
         if (!parsed)
         {
             return std::unexpected(parsed.error());
         }
-        field = *parsed;
-        return {};
+        return std::optional<int32_t>(*parsed);
     };
 
-    auto bg_color = parse_optional_string("bg_color", style.bg_color);
-    if (!bg_color) {
+    if (auto bg_color = parse_optional_string("bg_color"); !bg_color) {
         return std::unexpected(bg_color.error());
+    } else {
+        style.set_bg_color(std::move(*bg_color));
     }
-    auto bg_gradient_color = parse_optional_string("bg_gradient_color", style.bg_gradient_color);
-    if (!bg_gradient_color) {
+    if (auto bg_gradient_color = parse_optional_string("bg_gradient_color"); !bg_gradient_color) {
         return std::unexpected(bg_gradient_color.error());
+    } else {
+        style.set_bg_gradient_color(std::move(*bg_gradient_color));
     }
-    auto bg_gradient_direction = parse_optional_string("bg_gradient_direction", style.bg_gradient_direction);
-    if (!bg_gradient_direction) {
+    if (auto bg_gradient_direction = parse_optional_string("bg_gradient_direction"); !bg_gradient_direction) {
         return std::unexpected(bg_gradient_direction.error());
+    } else {
+        style.set_bg_gradient_direction(std::move(*bg_gradient_direction));
     }
-    auto text_color = parse_optional_string("text_color", style.text_color);
-    if (!text_color) {
+    if (auto text_color = parse_optional_string("text_color"); !text_color) {
         return std::unexpected(text_color.error());
+    } else {
+        style.set_text_color(std::move(*text_color));
     }
-    auto border_color = parse_optional_string("border_color", style.border_color);
-    if (!border_color) {
+    if (auto border_color = parse_optional_string("border_color"); !border_color) {
         return std::unexpected(border_color.error());
+    } else {
+        style.set_border_color(std::move(*border_color));
     }
-    auto line_color = parse_optional_string("line_color", style.line_color);
-    if (!line_color) {
+    if (auto line_color = parse_optional_string("line_color"); !line_color) {
         return std::unexpected(line_color.error());
+    } else {
+        style.set_line_color(std::move(*line_color));
     }
-    auto arc_color = parse_optional_string("arc_color", style.arc_color);
-    if (!arc_color) {
+    if (auto arc_color = parse_optional_string("arc_color"); !arc_color) {
         return std::unexpected(arc_color.error());
+    } else {
+        style.set_arc_color(std::move(*arc_color));
     }
-    auto arc_gradient_color = parse_optional_string("arc_gradient_color", style.arc_gradient_color);
-    if (!arc_gradient_color) {
+    if (auto arc_gradient_color = parse_optional_string("arc_gradient_color"); !arc_gradient_color) {
         return std::unexpected(arc_gradient_color.error());
+    } else {
+        style.set_arc_gradient_color(std::move(*arc_gradient_color));
     }
-    auto shadow_color = parse_optional_string("shadow_color", style.shadow_color);
-    if (!shadow_color) {
+    if (auto shadow_color = parse_optional_string("shadow_color"); !shadow_color) {
         return std::unexpected(shadow_color.error());
+    } else {
+        style.set_shadow_color(std::move(*shadow_color));
     }
 
     const auto *font_value = find_child_value(style_object, "font");
@@ -108,118 +115,145 @@ std::expected<Style, std::string> parse_style_object(
         if (!font) {
             return std::unexpected(font.error());
         }
-        style.font = *font;
+        style.set_font(*font);
     }
 
-    auto bg_main_stop = parse_optional_int("bg_main_stop", style.bg_main_stop);
-    if (!bg_main_stop) {
+    if (auto bg_main_stop = parse_optional_int("bg_main_stop"); !bg_main_stop) {
         return std::unexpected(bg_main_stop.error());
+    } else {
+        style.set_bg_main_stop(*bg_main_stop);
     }
-    auto bg_gradient_stop = parse_optional_int("bg_gradient_stop", style.bg_gradient_stop);
-    if (!bg_gradient_stop) {
+    if (auto bg_gradient_stop = parse_optional_int("bg_gradient_stop"); !bg_gradient_stop) {
         return std::unexpected(bg_gradient_stop.error());
+    } else {
+        style.set_bg_gradient_stop(*bg_gradient_stop);
     }
-    auto bg_gradient_opacity = parse_optional_int("bg_gradient_opacity", style.bg_gradient_opacity);
-    if (!bg_gradient_opacity) {
+    if (auto bg_gradient_opacity = parse_optional_int("bg_gradient_opacity"); !bg_gradient_opacity) {
         return std::unexpected(bg_gradient_opacity.error());
+    } else {
+        style.set_bg_gradient_opacity(*bg_gradient_opacity);
     }
-    auto border_width = parse_optional_scaled("border_width", style.border_width, "dp", environment.density);
-    if (!border_width) {
+    if (auto border_width = parse_optional_scaled("border_width", "dp", environment.density); !border_width) {
         return std::unexpected(border_width.error());
+    } else {
+        style.set_border_width(*border_width);
     }
-    auto radius = parse_optional_scaled("radius", style.radius, "dp", environment.density);
-    if (!radius) {
+    if (auto radius = parse_optional_scaled("radius", "dp", environment.density); !radius) {
         return std::unexpected(radius.error());
+    } else {
+        style.set_radius(*radius);
     }
-    auto padding = parse_optional_scaled("padding", style.padding, "dp", environment.density);
-    if (!padding) {
+    if (auto padding = parse_optional_scaled("padding", "dp", environment.density); !padding) {
         return std::unexpected(padding.error());
+    } else {
+        style.set_padding(*padding);
     }
-    auto padding_left = parse_optional_scaled("padding_left", style.padding_left, "dp", environment.density);
-    if (!padding_left) {
+    if (auto padding_left = parse_optional_scaled("padding_left", "dp", environment.density); !padding_left) {
         return std::unexpected(padding_left.error());
+    } else {
+        style.set_padding_left(*padding_left);
     }
-    auto padding_right = parse_optional_scaled("padding_right", style.padding_right, "dp", environment.density);
-    if (!padding_right) {
+    if (auto padding_right = parse_optional_scaled("padding_right", "dp", environment.density); !padding_right) {
         return std::unexpected(padding_right.error());
+    } else {
+        style.set_padding_right(*padding_right);
     }
-    auto padding_top = parse_optional_scaled("padding_top", style.padding_top, "dp", environment.density);
-    if (!padding_top) {
+    if (auto padding_top = parse_optional_scaled("padding_top", "dp", environment.density); !padding_top) {
         return std::unexpected(padding_top.error());
+    } else {
+        style.set_padding_top(*padding_top);
     }
-    auto padding_bottom = parse_optional_scaled("padding_bottom", style.padding_bottom, "dp", environment.density);
-    if (!padding_bottom) {
+    if (auto padding_bottom = parse_optional_scaled("padding_bottom", "dp", environment.density); !padding_bottom) {
         return std::unexpected(padding_bottom.error());
+    } else {
+        style.set_padding_bottom(*padding_bottom);
     }
-    auto margin = parse_optional_scaled("margin", style.margin, "dp", environment.density);
-    if (!margin) {
+    if (auto margin = parse_optional_scaled("margin", "dp", environment.density); !margin) {
         return std::unexpected(margin.error());
+    } else {
+        style.set_margin(*margin);
     }
-    auto margin_left = parse_optional_scaled("margin_left", style.margin_left, "dp", environment.density);
-    if (!margin_left) {
+    if (auto margin_left = parse_optional_scaled("margin_left", "dp", environment.density); !margin_left) {
         return std::unexpected(margin_left.error());
+    } else {
+        style.set_margin_left(*margin_left);
     }
-    auto margin_right = parse_optional_scaled("margin_right", style.margin_right, "dp", environment.density);
-    if (!margin_right) {
+    if (auto margin_right = parse_optional_scaled("margin_right", "dp", environment.density); !margin_right) {
         return std::unexpected(margin_right.error());
+    } else {
+        style.set_margin_right(*margin_right);
     }
-    auto margin_top = parse_optional_scaled("margin_top", style.margin_top, "dp", environment.density);
-    if (!margin_top) {
+    if (auto margin_top = parse_optional_scaled("margin_top", "dp", environment.density); !margin_top) {
         return std::unexpected(margin_top.error());
+    } else {
+        style.set_margin_top(*margin_top);
     }
-    auto margin_bottom = parse_optional_scaled("margin_bottom", style.margin_bottom, "dp", environment.density);
-    if (!margin_bottom) {
+    if (auto margin_bottom = parse_optional_scaled("margin_bottom", "dp", environment.density); !margin_bottom) {
         return std::unexpected(margin_bottom.error());
+    } else {
+        style.set_margin_bottom(*margin_bottom);
     }
-    auto shadow_width = parse_optional_scaled("shadow_width", style.shadow_width, "dp", environment.density);
-    if (!shadow_width) {
+    if (auto shadow_width = parse_optional_scaled("shadow_width", "dp", environment.density); !shadow_width) {
         return std::unexpected(shadow_width.error());
+    } else {
+        style.set_shadow_width(*shadow_width);
     }
-    auto shadow_offset_x = parse_optional_scaled("shadow_offset_x", style.shadow_offset_x, "dp", environment.density);
-    if (!shadow_offset_x) {
+    if (auto shadow_offset_x = parse_optional_scaled("shadow_offset_x", "dp", environment.density); !shadow_offset_x) {
         return std::unexpected(shadow_offset_x.error());
+    } else {
+        style.set_shadow_offset_x(*shadow_offset_x);
     }
-    auto shadow_offset_y = parse_optional_scaled("shadow_offset_y", style.shadow_offset_y, "dp", environment.density);
-    if (!shadow_offset_y) {
+    if (auto shadow_offset_y = parse_optional_scaled("shadow_offset_y", "dp", environment.density); !shadow_offset_y) {
         return std::unexpected(shadow_offset_y.error());
+    } else {
+        style.set_shadow_offset_y(*shadow_offset_y);
     }
-    auto opacity = parse_optional_int("opacity", style.opacity);
-    if (!opacity) {
+    if (auto opacity = parse_optional_int("opacity"); !opacity) {
         return std::unexpected(opacity.error());
+    } else {
+        style.set_opacity(*opacity);
     }
-    auto line_width = parse_optional_scaled("line_width", style.line_width, "dp", environment.density);
-    if (!line_width) {
+    if (auto line_width = parse_optional_scaled("line_width", "dp", environment.density); !line_width) {
         return std::unexpected(line_width.error());
+    } else {
+        style.set_line_width(*line_width);
     }
-    auto image_opacity = parse_optional_int("image_opacity", style.image_opacity);
-    if (!image_opacity) {
+    if (auto image_opacity = parse_optional_int("image_opacity"); !image_opacity) {
         return std::unexpected(image_opacity.error());
+    } else {
+        style.set_image_opacity(*image_opacity);
     }
-    auto image_recolor = parse_optional_string("image_recolor", style.image_recolor);
-    if (!image_recolor) {
+    if (auto image_recolor = parse_optional_string("image_recolor"); !image_recolor) {
         return std::unexpected(image_recolor.error());
+    } else {
+        style.set_image_recolor(std::move(*image_recolor));
     }
-    auto image_recolor_opacity = parse_optional_int("image_recolor_opacity", style.image_recolor_opacity);
-    if (!image_recolor_opacity) {
+    if (auto image_recolor_opacity = parse_optional_int("image_recolor_opacity"); !image_recolor_opacity) {
         return std::unexpected(image_recolor_opacity.error());
+    } else {
+        style.set_image_recolor_opacity(*image_recolor_opacity);
     }
     if (find_child_value(style_object, "font_size") != nullptr && !allow_font_size) {
         return std::unexpected("State styles do not support field 'fontSize'");
     }
     if (allow_font_size) {
-        auto font_size = parse_optional_scaled("font_size", style.font_size, "sp", environment.density * environment.font_scale);
-        if (!font_size) {
+        if (auto font_size = parse_optional_scaled("font_size", "sp", environment.density * environment.font_scale);
+                !font_size) {
             return std::unexpected(font_size.error());
+        } else {
+            style.set_font_size(*font_size);
         }
     }
     if (find_child_value(style_object, "image_font_size") != nullptr && !allow_font_size) {
         return std::unexpected("State styles do not support field 'imageFontSize'");
     }
     if (allow_font_size) {
-        auto image_font_size =
-            parse_optional_scaled("image_font_size", style.image_font_size, "sp", environment.density * environment.font_scale);
-        if (!image_font_size) {
+        if (auto image_font_size =
+                    parse_optional_scaled("image_font_size", "sp", environment.density * environment.font_scale);
+                !image_font_size) {
             return std::unexpected(image_font_size.error());
+        } else {
+            style.set_image_font_size(*image_font_size);
         }
     }
     const auto *text_align_value = find_child_value(style_object, "text_align");
@@ -232,34 +266,37 @@ std::expected<Style, std::string> parse_style_object(
         if (!BROOKESIA_DESCRIBE_STR_TO_ENUM_FLEXIBLE(*text_align_text, text_align)) {
             return std::unexpected("Field 'textAlign' has invalid enum value");
         }
-        style.text_align = text_align;
+        style.set_text_align(text_align);
     }
 
-    auto arc_width = parse_optional_scaled("arc_width", style.arc_width, "dp", environment.density);
-    if (!arc_width) {
+    if (auto arc_width = parse_optional_scaled("arc_width", "dp", environment.density); !arc_width) {
         return std::unexpected(arc_width.error());
+    } else {
+        style.set_arc_width(*arc_width);
     }
-    auto arc_opacity = parse_optional_int("arc_opacity", style.arc_opacity);
-    if (!arc_opacity) {
+    if (auto arc_opacity = parse_optional_int("arc_opacity"); !arc_opacity) {
         return std::unexpected(arc_opacity.error());
+    } else {
+        style.set_arc_opacity(*arc_opacity);
     }
-    auto arc_gradient_segments = parse_optional_int("arc_gradient_segments", style.arc_gradient_segments);
-    if (!arc_gradient_segments) {
+    if (auto arc_gradient_segments = parse_optional_int("arc_gradient_segments"); !arc_gradient_segments) {
         return std::unexpected(arc_gradient_segments.error());
+    } else {
+        style.set_arc_gradient_segments(*arc_gradient_segments);
     }
     const auto *arc_rounded_value = find_child_value(style_object, "arc_rounded");
     if (arc_rounded_value != nullptr) {
         if (!arc_rounded_value->is_bool()) {
             return std::unexpected("Field 'arcRounded' must be boolean");
         }
-        style.arc_rounded = arc_rounded_value->as_bool();
+        style.set_arc_rounded(arc_rounded_value->as_bool());
     }
     const auto *clip_corner_value = find_child_value(style_object, "clip_corner");
     if (clip_corner_value != nullptr) {
         if (!clip_corner_value->is_bool()) {
             return std::unexpected("Field 'clipCorner' must be boolean");
         }
-        style.clip_corner = clip_corner_value->as_bool();
+        style.set_clip_corner(clip_corner_value->as_bool());
     }
 
     return style;

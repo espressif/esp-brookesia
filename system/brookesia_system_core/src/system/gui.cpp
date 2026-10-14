@@ -230,8 +230,9 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
         return {};
     }
 
-    auto heap_before_enqueue = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_enqueue {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_enqueue = heap_trace::capture();
         const auto app_id_string = std::to_string(app_id);
         const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
         heap_trace::log_detail(
@@ -265,7 +266,7 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
         pending_update_count = buffer.updates.size();
         pending_index_count = buffer.indexes.size();
     }
-    if constexpr (heap_trace::enabled) {
+    if constexpr (heap_trace::detail_enabled) {
         const auto app_id_string = std::to_string(app_id);
         const auto details = "app_id=" + app_id_string +
                              " pending_updates=" + std::to_string(pending_update_count) +
@@ -301,8 +302,9 @@ std::expected<void, std::string> System::Impl::enqueue_gui_binding_updates(
 
 void System::Impl::flush_pending_gui_bindings(AppId app_id)
 {
-    auto heap_before_flush = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_flush {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_flush = heap_trace::capture();
         const auto app_id_string = std::to_string(app_id);
         heap_trace::log_detail(
             "system.gui.binding",
@@ -325,7 +327,7 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
     }
 
     if (!updates.empty()) {
-        if constexpr (heap_trace::enabled) {
+        if constexpr (heap_trace::detail_enabled) {
             const auto app_id_string = std::to_string(app_id);
             const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
             heap_trace::log_detail(
@@ -343,7 +345,7 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
         } else {
             gui_runtime_->set_binding_values(*record_result.value()->document_id, updates);
         }
-        if constexpr (heap_trace::enabled) {
+        if constexpr (heap_trace::detail_enabled) {
             const auto app_id_string = std::to_string(app_id);
             const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
             heap_trace::log_detail(
@@ -495,7 +497,7 @@ bool System::Impl::ensure_live_preview_poll_started()
 }
 
 
-std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &record)
+std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &record, bool enable_idle_warm)
 {
     const auto &descriptor = record.gui_descriptor;
     if (descriptor.root_kind == GuiRootKind::None) {
@@ -505,18 +507,26 @@ std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &reco
         return std::unexpected("GUI runtime is not available");
     }
     if (!record.document_id.has_value()) {
+        gui::DocumentLoadOptions load_options;
+        // Non-entry Eager screens stay unbuilt until idle warm / first mount / path API access.
+        // find_view and create_view materialize the owning Eager screen on demand.
+        load_options.defer_non_entry_eager_screens = true;
+        load_options.build_entry_screens = enable_idle_warm;
+        load_options.schedule_idle_warm = enable_idle_warm;
         std::expected<gui::DocumentId, std::string> load_result = std::unexpected("Invalid GUI root");
         if (descriptor.root_kind == GuiRootKind::File) {
             load_result = gui_runtime_->load_file(
                               resolve_app_resource_path(record.info.manifest, descriptor.root),
-                              environment_
+                              environment_,
+                              load_options
                           );
         } else if (descriptor.root_kind == GuiRootKind::JsonString) {
             load_result = gui_runtime_->load_json(
                               record.info.manifest.id,
                               descriptor.root,
                               resolve_app_resource_dir(record.info.manifest),
-                              environment_
+                              environment_,
+                              load_options
                           );
         }
         if (!load_result) {
@@ -536,6 +546,8 @@ std::expected<void, std::string> System::Impl::ensure_gui_loaded(AppRecord &reco
                 return std::unexpected(preview_result.error());
             }
         }
+    } else if (enable_idle_warm) {
+        gui_runtime_->request_idle_screen_warm(*record.document_id);
     }
 #if defined(__EMSCRIPTEN__)
     if (record.info.manifest.kind != AppKind::Native && record.document_id.has_value() &&
@@ -600,7 +612,8 @@ std::expected<void, std::string> System::Impl::prepare_installed_app_gui(AppReco
         return resource_result;
     }
 
-    return ensure_gui_loaded(record);
+    // preload_dom: parse + register resources only; defer all Eager screen builds until StartApp.
+    return ensure_gui_loaded(record, false);
 }
 
 
@@ -889,8 +902,9 @@ std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
     const std::vector<std::string> &actions
 )
 {
-    auto heap_before_task = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_task {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_task = heap_trace::capture();
         const auto app_id_string = std::to_string(app_id);
         const auto details = "app_id=" + app_id_string + " actions=" + std::to_string(actions.size());
         heap_trace::log_detail(
@@ -909,8 +923,9 @@ std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
     if (!gui_runtime_ || !record.document_id.has_value()) {
         return std::unexpected("App GUI document is not loaded");
     }
-    auto heap_before_connect = heap_trace::capture();
-    if constexpr (heap_trace::enabled) {
+    [[maybe_unused]] heap_trace::Snapshot heap_before_connect {};
+    if constexpr (heap_trace::detail_enabled) {
+        heap_before_connect = heap_trace::capture();
         const auto details = "app_id=" + std::to_string(app_id) +
                              " manifest_id=" + record.info.manifest.id +
                              " actions=" + std::to_string(actions.size()) +
@@ -958,7 +973,7 @@ std::expected<void, std::string> System::Impl::subscribe_gui_actions_now(
         record.action_connection_keys.insert(std::move(action));
     }
 
-    if constexpr (heap_trace::enabled) {
+    if constexpr (heap_trace::detail_enabled) {
         const auto details = "app_id=" + std::to_string(app_id) +
                              " manifest_id=" + record.info.manifest.id +
                              " actions=" + std::to_string(actions.size()) +

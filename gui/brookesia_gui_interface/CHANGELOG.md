@@ -1,5 +1,22 @@
 # ChangeLog
 
+## Unreleased
+
+### Enhancements:
+
+- feat(json_ui): store Style sparsely and avoid parse-time tree copies to cut resident SRAM and fragmentation.
+- feat(runtime): parse all screens eagerly, then build LVGL subtrees lazily (entry-first, idle warm, on-demand).
+- feat(runtime): materialize deferred Eager screens from `find_view` / `create_view` / `destroy_view` for path-based APIs.
+- feat(runtime): build deferred screens on a staging parent to avoid visible-layer flicker during idle warm.
+- feat(parser): on Storage-worker paths, batch-read multi-file JSON assets by file count and release each batch after parse.
+
+### Bug Fixes:
+
+- fix(runtime): keep Dynamic screen unmount as immediate destroy (no keep-alive LRU).
+- fix(runtime): rebuild via `ensure_screen_built` so language/theme refresh does not materialize empty stubs.
+- fix(runtime): keep public `load*()` Eager defaults; System opts into deferred Eager builds explicitly.
+- fix(parser): do not stat JSON asset sizes on the caller when FS I/O must run on the Storage worker.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

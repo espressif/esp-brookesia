@@ -49,6 +49,25 @@ struct RuntimeAnimationStartResult {
     int32_t resolved_to = 0;
 };
 
+/** Controls Eager screen LVGL construction during document load (parse is always full). */
+struct DocumentLoadOptions {
+    /**
+     * When false (default), load builds every Eager screen, matching mountMode "eager".
+     * When true, non-entry screens stay unbuilt until idle warm, first mount, or a path-based
+     * API (find_view / create_view) materializes the owning Eager screen. System passes true;
+     * preload_dom also defers via build_entry_screens=false. Dynamic screens stay mount-driven.
+     * Does not affect JSON parsing: Document always contains the full semantic IR.
+     */
+    bool defer_non_entry_eager_screens = false;
+    /** When true, also build entry Eager screens during load. False = parse/resources only (preload_dom). */
+    bool build_entry_screens = true;
+    /** When deferring builds, schedule one-by-one idle warm on the GUI task group (if configured). */
+    bool schedule_idle_warm = true;
+};
+BROOKESIA_DESCRIBE_STRUCT(
+    DocumentLoadOptions, (), (defer_non_entry_eager_screens, build_entry_screens, schedule_idle_warm)
+)
+
 class Runtime {
 public:
     using ActionHandler = std::function<void(const Event &)>;
@@ -65,10 +84,28 @@ public:
     std::expected<DocumentId, std::string> load(
         std::string_view root_path, const Document &document, const Environment &environment
     );
+    std::expected<DocumentId, std::string> load(
+        std::string_view root_path,
+        const Document &document,
+        const Environment &environment,
+        const DocumentLoadOptions &options
+    );
     std::expected<DocumentId, std::string> load_json(
         std::string_view root_path, std::string_view json, std::string_view base_dir, const Environment &environment
     );
+    std::expected<DocumentId, std::string> load_json(
+        std::string_view root_path,
+        std::string_view json,
+        std::string_view base_dir,
+        const Environment &environment,
+        const DocumentLoadOptions &options
+    );
     std::expected<DocumentId, std::string> load_file(std::string_view path, const Environment &environment);
+    std::expected<DocumentId, std::string> load_file(
+        std::string_view path, const Environment &environment, const DocumentLoadOptions &options
+    );
+    /** Start or resume idle warm of unbuilt Eager screens for a loaded document. */
+    void request_idle_screen_warm(DocumentId id);
     std::expected<void, std::string> load_theme(const ThemeAsset &theme);
     std::expected<void, std::string> load_theme_json(std::string_view json, std::string_view base_dir = {});
     std::expected<void, std::string> load_theme_file(std::string_view path);

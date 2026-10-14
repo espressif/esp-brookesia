@@ -9,129 +9,7 @@ namespace esp_brookesia::gui {
 
 void Runtime::Impl::merge_style_layer(Style &destination, const Style &source)
 {
-    if (source.bg_color.has_value()) {
-        destination.bg_color = source.bg_color;
-    }
-    if (source.bg_gradient_color.has_value()) {
-        destination.bg_gradient_color = source.bg_gradient_color;
-    }
-    if (source.bg_gradient_direction.has_value()) {
-        destination.bg_gradient_direction = source.bg_gradient_direction;
-    }
-    if (source.text_color.has_value()) {
-        destination.text_color = source.text_color;
-    }
-    if (source.border_color.has_value()) {
-        destination.border_color = source.border_color;
-    }
-    if (source.line_color.has_value()) {
-        destination.line_color = source.line_color;
-    }
-    if (source.arc_color.has_value()) {
-        destination.arc_color = source.arc_color;
-    }
-    if (source.arc_gradient_color.has_value()) {
-        destination.arc_gradient_color = source.arc_gradient_color;
-    }
-    if (source.font.has_value()) {
-        destination.font = source.font;
-    }
-    if (source.bg_main_stop.has_value()) {
-        destination.bg_main_stop = source.bg_main_stop;
-    }
-    if (source.bg_gradient_stop.has_value()) {
-        destination.bg_gradient_stop = source.bg_gradient_stop;
-    }
-    if (source.bg_gradient_opacity.has_value()) {
-        destination.bg_gradient_opacity = source.bg_gradient_opacity;
-    }
-    if (source.border_width.has_value()) {
-        destination.border_width = source.border_width;
-    }
-    if (source.radius.has_value()) {
-        destination.radius = source.radius;
-    }
-    if (source.padding.has_value()) {
-        destination.padding = source.padding;
-    }
-    if (source.padding_left.has_value()) {
-        destination.padding_left = source.padding_left;
-    }
-    if (source.padding_right.has_value()) {
-        destination.padding_right = source.padding_right;
-    }
-    if (source.padding_top.has_value()) {
-        destination.padding_top = source.padding_top;
-    }
-    if (source.padding_bottom.has_value()) {
-        destination.padding_bottom = source.padding_bottom;
-    }
-    if (source.margin.has_value()) {
-        destination.margin = source.margin;
-    }
-    if (source.margin_left.has_value()) {
-        destination.margin_left = source.margin_left;
-    }
-    if (source.margin_right.has_value()) {
-        destination.margin_right = source.margin_right;
-    }
-    if (source.margin_top.has_value()) {
-        destination.margin_top = source.margin_top;
-    }
-    if (source.margin_bottom.has_value()) {
-        destination.margin_bottom = source.margin_bottom;
-    }
-    if (source.shadow_width.has_value()) {
-        destination.shadow_width = source.shadow_width;
-    }
-    if (source.shadow_offset_x.has_value()) {
-        destination.shadow_offset_x = source.shadow_offset_x;
-    }
-    if (source.shadow_offset_y.has_value()) {
-        destination.shadow_offset_y = source.shadow_offset_y;
-    }
-    if (source.shadow_color.has_value()) {
-        destination.shadow_color = source.shadow_color;
-    }
-    if (source.opacity.has_value()) {
-        destination.opacity = source.opacity;
-    }
-    if (source.line_width.has_value()) {
-        destination.line_width = source.line_width;
-    }
-    if (source.image_opacity.has_value()) {
-        destination.image_opacity = source.image_opacity;
-    }
-    if (source.image_recolor.has_value()) {
-        destination.image_recolor = source.image_recolor;
-    }
-    if (source.image_recolor_opacity.has_value()) {
-        destination.image_recolor_opacity = source.image_recolor_opacity;
-    }
-    if (source.font_size.has_value()) {
-        destination.font_size = source.font_size;
-    }
-    if (source.image_font_size.has_value()) {
-        destination.image_font_size = source.image_font_size;
-    }
-    if (source.text_align.has_value()) {
-        destination.text_align = source.text_align;
-    }
-    if (source.arc_width.has_value()) {
-        destination.arc_width = source.arc_width;
-    }
-    if (source.arc_opacity.has_value()) {
-        destination.arc_opacity = source.arc_opacity;
-    }
-    if (source.arc_gradient_segments.has_value()) {
-        destination.arc_gradient_segments = source.arc_gradient_segments;
-    }
-    if (source.arc_rounded.has_value()) {
-        destination.arc_rounded = source.arc_rounded;
-    }
-    if (source.clip_corner.has_value()) {
-        destination.clip_corner = source.clip_corner;
-    }
+    destination.merge_from(source);
 }
 void Runtime::Impl::merge_style_set_layer(StyleSet &destination, const StyleSet &source)
 {
@@ -263,24 +141,24 @@ std::optional<KeyboardKeyStyle> Runtime::Impl::resolve_keyboard_key_style_ref(
     const auto *pressed_style = pressed_it != style_set->state_styles.end() ? &pressed_it->second : nullptr;
 
     KeyboardKeyStyle key_style;
-    if (style_set->style.bg_color.has_value()) {
-        key_style.bg_color = resolve_keyboard_key_color(tree, *style_set->style.bg_color, "bgColor");
+    if (style_set->style.bg_color().has_value()) {
+        key_style.bg_color = resolve_keyboard_key_color(tree, *style_set->style.bg_color(), "bgColor");
     }
-    if (style_set->style.text_color.has_value()) {
-        key_style.text_color = resolve_keyboard_key_color(tree, *style_set->style.text_color, "textColor");
+    if (style_set->style.text_color().has_value()) {
+        key_style.text_color = resolve_keyboard_key_color(tree, *style_set->style.text_color(), "textColor");
     }
     if (pressed_style != nullptr) {
-        if (pressed_style->bg_color.has_value()) {
+        if (pressed_style->bg_color().has_value()) {
             key_style.pressed_bg_color =
-                resolve_keyboard_key_color(tree, *pressed_style->bg_color, "pressed.bgColor");
+                resolve_keyboard_key_color(tree, *pressed_style->bg_color(), "pressed.bgColor");
         }
-        if (pressed_style->text_color.has_value()) {
+        if (pressed_style->text_color().has_value()) {
             key_style.pressed_text_color =
-                resolve_keyboard_key_color(tree, *pressed_style->text_color, "pressed.textColor");
+                resolve_keyboard_key_color(tree, *pressed_style->text_color(), "pressed.textColor");
         }
     }
-    if (style_set->style.radius.has_value()) {
-        key_style.radius = std::max<int32_t>(0, *style_set->style.radius);
+    if (style_set->style.radius().has_value()) {
+        key_style.radius = std::max<int32_t>(0, *style_set->style.radius());
     }
     return key_style;
 }
@@ -304,11 +182,11 @@ void Runtime::Impl::resolve_keyboard_key_style_refs(const TreeRecord &tree, Node
 std::expected<void, std::string> Runtime::Impl::validate_node_resource_references(
     const TreeRecord &tree, const Node &node, const std::string &absolute_path) const
 {
-    if (node.style.font.has_value() && !node.style.font->empty() &&
-            !has_font_resource(tree, *node.style.font) &&
-            !is_builtin_default_font_id(*node.style.font)) {
+    if (node.style.font().has_value() && !node.style.font()->empty() &&
+            !has_font_resource(tree, *node.style.font()) &&
+            !is_builtin_default_font_id(*node.style.font())) {
         return std::unexpected(
-                   "Node '" + absolute_path + "' references missing font resource: " + *node.style.font
+                   "Node '" + absolute_path + "' references missing font resource: " + *node.style.font()
                );
     }
     if (node.type == NodeType::Image && !node.image_props.src.empty() &&
@@ -346,26 +224,26 @@ std::expected<void, std::string> Runtime::Impl::validate_resource_references(con
 {
     const auto &builtin_theme = get_builtin_default_theme();
     for (const auto &[style_key, style_set] : builtin_theme.styles) {
-        if (style_set.style.font.has_value() && !style_set.style.font->empty() &&
-                !has_font_resource(tree, *style_set.style.font) &&
-                !is_builtin_default_font_id(*style_set.style.font)) {
+        if (style_set.style.font().has_value() && !style_set.style.font()->empty() &&
+                !has_font_resource(tree, *style_set.style.font()) &&
+                !is_builtin_default_font_id(*style_set.style.font())) {
             return std::unexpected(
                        "Built-in default theme style '" + style_key +
-                       "' references missing font resource: " + *style_set.style.font
+                       "' references missing font resource: " + *style_set.style.font()
                    );
         }
     }
     for (const auto &[theme_id, theme] : global_themes) {
         for (const auto &[style_key, style_set] : theme.styles) {
-            if (style_set.style.font.has_value() && !style_set.style.font->empty() &&
-                    !has_font_resource(tree, *style_set.style.font) &&
-                    !is_builtin_default_font_id(*style_set.style.font)) {
+            if (style_set.style.font().has_value() && !style_set.style.font()->empty() &&
+                    !has_font_resource(tree, *style_set.style.font()) &&
+                    !is_builtin_default_font_id(*style_set.style.font())) {
                 std::string message = "Theme '";
                 message += theme_id;
                 message += "' style '";
                 message += style_key;
                 message += "' references missing font resource: ";
-                message += *style_set.style.font;
+                message += *style_set.style.font();
                 return std::unexpected(message);
             }
         }
@@ -480,10 +358,10 @@ ResolvedStyle Runtime::Impl::resolve_style(const TreeRecord &tree, const Node &n
                        resolved_style.resolved_font.native_fonts.size());
     };
 
-    if (resolved_style.style.font.has_value() && !resolved_style.style.font->empty()) {
+    if (resolved_style.style.font().has_value() && !resolved_style.style.font()->empty()) {
         resolve_font_chain(
-            *resolved_style.style.font,
-            is_builtin_default_font_id(*resolved_style.style.font)
+            *resolved_style.style.font(),
+            is_builtin_default_font_id(*resolved_style.style.font())
         );
         return resolved_style;
     }

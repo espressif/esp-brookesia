@@ -33,6 +33,7 @@
 #include <unordered_set>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "boost/json.hpp"
 #include "boost/unordered/unordered_flat_map.hpp"
@@ -561,6 +562,8 @@ private:
 
 std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
 ;
+std::expected<std::vector<std::string>, std::string> read_text_files(const std::vector<std::filesystem::path> &paths)
+;
 
 std::expected<boost::json::value, std::string> parse_json_text(
     const std::filesystem::path &path,
@@ -604,6 +607,9 @@ std::expected<std::vector<std::string>, std::string> parse_string_array(
 ;
 
 void merge_json(boost::json::value &destination, const boost::json::value &source)
+;
+
+void merge_json(boost::json::value &destination, boost::json::value &&source)
 ;
 
 bool is_reference_string(std::string_view text);

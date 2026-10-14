@@ -21,21 +21,46 @@ Runtime::~Runtime() = default;
 std::expected<DocumentId, std::string> Runtime::load(
     std::string_view root_path, const Document &document, const Environment &environment)
 {
-    return impl_->load(root_path, document, environment);
+    return load(root_path, document, environment, DocumentLoadOptions{});
+}
+
+std::expected<DocumentId, std::string> Runtime::load(
+    std::string_view root_path,
+    const Document &document,
+    const Environment &environment,
+    const DocumentLoadOptions &options)
+{
+    return impl_->load(root_path, document, environment, false, {}, options);
 }
 
 std::expected<DocumentId, std::string> Runtime::load_json(
     std::string_view root_path, std::string_view json, std::string_view base_dir, const Environment &environment)
+{
+    return load_json(root_path, json, base_dir, environment, DocumentLoadOptions{});
+}
+
+std::expected<DocumentId, std::string> Runtime::load_json(
+    std::string_view root_path,
+    std::string_view json,
+    std::string_view base_dir,
+    const Environment &environment,
+    const DocumentLoadOptions &options)
 {
     const auto parse_environment = impl_->make_parse_environment(environment);
     auto document = parse_document(json, base_dir, parse_environment);
     if (!document) {
         return std::unexpected(document.error());
     }
-    return impl_->load(root_path, std::move(*document), environment);
+    return impl_->load(root_path, std::move(*document), environment, false, {}, options);
 }
 
 std::expected<DocumentId, std::string> Runtime::load_file(std::string_view path, const Environment &environment)
+{
+    return load_file(path, environment, DocumentLoadOptions{});
+}
+
+std::expected<DocumentId, std::string> Runtime::load_file(
+    std::string_view path, const Environment &environment, const DocumentLoadOptions &options)
 {
     const std::string path_string(path);
     const auto total_start = RuntimeProfileClock::now();
@@ -76,7 +101,8 @@ std::expected<DocumentId, std::string> Runtime::load_file(std::string_view path,
                       std::move(parsed_document->document),
                       environment,
                       true,
-                      std::move(parsed_document->dependency_files)
+                      std::move(parsed_document->dependency_files),
+                      options
                   );
     stage_end = RuntimeProfileClock::now();
     if (!result) {
@@ -98,6 +124,11 @@ std::expected<DocumentId, std::string> Runtime::load_file(std::string_view path,
         runtime_profile_elapsed_ms(total_start, stage_end)
     );
     return result;
+}
+
+void Runtime::request_idle_screen_warm(DocumentId id)
+{
+    impl_->request_idle_screen_warm(id);
 }
 
 std::expected<void, std::string> Runtime::load_theme(const ThemeAsset &theme)

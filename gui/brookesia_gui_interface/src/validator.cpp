@@ -164,46 +164,46 @@ static void validate_style(const Style &style, std::string_view owner, std::vect
         }
     };
 
-    validate_optional_color(style.bg_color, "bg_color");
-    validate_optional_color(style.bg_gradient_color, "bg_gradient_color");
-    validate_optional_color(style.text_color, "text_color");
-    validate_optional_color(style.border_color, "border_color");
-    validate_optional_color(style.line_color, "line_color");
-    validate_optional_color(style.arc_color, "arc_color");
-    validate_optional_color(style.arc_gradient_color, "arc_gradient_color");
-    validate_optional_color(style.shadow_color, "shadow_color");
-    validate_optional_color(style.image_recolor, "image_recolor");
+    validate_optional_color(style.bg_color(), "bg_color");
+    validate_optional_color(style.bg_gradient_color(), "bg_gradient_color");
+    validate_optional_color(style.text_color(), "text_color");
+    validate_optional_color(style.border_color(), "border_color");
+    validate_optional_color(style.line_color(), "line_color");
+    validate_optional_color(style.arc_color(), "arc_color");
+    validate_optional_color(style.arc_gradient_color(), "arc_gradient_color");
+    validate_optional_color(style.shadow_color(), "shadow_color");
+    validate_optional_color(style.image_recolor(), "image_recolor");
 
-    if (style.bg_gradient_direction.has_value() && !is_valid_gradient_direction(*style.bg_gradient_direction)) {
-        errors.push_back(std::string(owner) + " has invalid bg_gradient_direction: " + *style.bg_gradient_direction);
+    if (style.bg_gradient_direction().has_value() && !is_valid_gradient_direction(*style.bg_gradient_direction())) {
+        errors.push_back(std::string(owner) + " has invalid bg_gradient_direction: " + *style.bg_gradient_direction());
     }
-    if (style.bg_main_stop.has_value() && (*style.bg_main_stop < 0 || *style.bg_main_stop > 255)) {
+    if (style.bg_main_stop().has_value() && (*style.bg_main_stop() < 0 || *style.bg_main_stop() > 255)) {
         errors.push_back(std::string(owner) + " has invalid bg_main_stop");
     }
-    if (style.bg_gradient_stop.has_value() && (*style.bg_gradient_stop < 0 || *style.bg_gradient_stop > 255)) {
+    if (style.bg_gradient_stop().has_value() && (*style.bg_gradient_stop() < 0 || *style.bg_gradient_stop() > 255)) {
         errors.push_back(std::string(owner) + " has invalid bg_gradient_stop");
     }
-    if (style.bg_gradient_opacity.has_value() && (*style.bg_gradient_opacity < 0 || *style.bg_gradient_opacity > 255)) {
+    if (style.bg_gradient_opacity().has_value() && (*style.bg_gradient_opacity() < 0 || *style.bg_gradient_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid bg_gradient_opacity");
     }
-    if (style.opacity.has_value() && (*style.opacity < 0 || *style.opacity > 255)) {
+    if (style.opacity().has_value() && (*style.opacity() < 0 || *style.opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid opacity");
     }
-    if (style.image_opacity.has_value() && (*style.image_opacity < 0 || *style.image_opacity > 255)) {
+    if (style.image_opacity().has_value() && (*style.image_opacity() < 0 || *style.image_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid image_opacity");
     }
-    if (style.image_recolor_opacity.has_value() &&
-            (*style.image_recolor_opacity < 0 || *style.image_recolor_opacity > 255)) {
+    if (style.image_recolor_opacity().has_value() &&
+            (*style.image_recolor_opacity() < 0 || *style.image_recolor_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid image_recolor_opacity");
     }
-    if (style.image_font_size.has_value() && *style.image_font_size <= 0) {
+    if (style.image_font_size().has_value() && *style.image_font_size() <= 0) {
         errors.push_back(std::string(owner) + " has invalid image_font_size");
     }
-    if (style.arc_opacity.has_value() && (*style.arc_opacity < 0 || *style.arc_opacity > 255)) {
+    if (style.arc_opacity().has_value() && (*style.arc_opacity() < 0 || *style.arc_opacity() > 255)) {
         errors.push_back(std::string(owner) + " has invalid arc_opacity");
     }
-    if (style.arc_gradient_segments.has_value() &&
-            (*style.arc_gradient_segments < 2 || *style.arc_gradient_segments > 128)) {
+    if (style.arc_gradient_segments().has_value() &&
+            (*style.arc_gradient_segments() < 2 || *style.arc_gradient_segments() > 128)) {
         errors.push_back(std::string(owner) + " has invalid arc_gradient_segments");
     }
 }
@@ -216,13 +216,13 @@ static void validate_state_styles(
             errors.push_back(std::string(owner) + " has unsupported stateStyles state: " + state_name);
             continue;
         }
-        if (style.font.has_value()) {
+        if (style.font().has_value()) {
             errors.push_back(std::string(owner) + " stateStyles." + state_name + " must not set font");
         }
-        if (style.font_size.has_value()) {
+        if (style.font_size().has_value()) {
             errors.push_back(std::string(owner) + " stateStyles." + state_name + " must not set fontSize");
         }
-        if (style.image_font_size.has_value()) {
+        if (style.image_font_size().has_value()) {
             errors.push_back(std::string(owner) + " stateStyles." + state_name + " must not set imageFontSize");
         }
         validate_style(style, std::string(owner) + " stateStyles." + state_name, errors);
@@ -238,13 +238,13 @@ static void validate_style_set(const StyleSet &style_set, std::string_view owner
             errors.push_back(std::string(owner) + " has unsupported partStyles part: " + part_name);
             continue;
         }
-        if (part_style.style.font.has_value()) {
+        if (part_style.style.font().has_value()) {
             errors.push_back(std::string(owner) + " partStyles." + part_name + " must not set font");
         }
-        if (part_style.style.font_size.has_value()) {
+        if (part_style.style.font_size().has_value()) {
             errors.push_back(std::string(owner) + " partStyles." + part_name + " must not set fontSize");
         }
-        if (part_style.style.image_font_size.has_value()) {
+        if (part_style.style.image_font_size().has_value()) {
             errors.push_back(std::string(owner) + " partStyles." + part_name + " must not set imageFontSize");
         }
         validate_style(part_style.style, std::string(owner) + " partStyles." + part_name, errors);
@@ -311,12 +311,29 @@ static void build_view_path_index(
     }
 }
 
+static std::string make_action_owner(
+    std::string_view scope_id,
+    const std::vector<std::string> &current_view_path,
+    const std::string &node_id)
+{
+    // Roots use their own id (screen/template). Children keep relative_to's relative path, but
+    // prefix the owning screen/template so cross-screen duplicates are distinct owners.
+    if (current_view_path.empty()) {
+        return node_id;
+    }
+    if (scope_id.empty()) {
+        return join_view_path(current_view_path);
+    }
+    return std::string(scope_id) + "." + join_view_path(current_view_path);
+}
+
 static void validate_node(
     const Node &node,
     const boost::unordered_flat_set<std::string> &font_ids,
     const boost::unordered_flat_map<std::string, std::vector<std::string>> &view_paths,
     boost::unordered_flat_map<std::string, std::string> &action_owners,
     std::vector<std::string> current_view_path,
+    std::string_view action_scope_id,
     std::vector<std::string> &errors)
 {
     BROOKESIA_LOG_TRACE_GUARD();
@@ -427,13 +444,13 @@ static void validate_node(
             errors.push_back("Node '" + node.id + "' has unsupported partStyles part: " + part_name);
             continue;
         }
-        if (part_style.style.font.has_value()) {
+        if (part_style.style.font().has_value()) {
             errors.push_back("Node '" + node.id + "' partStyles." + part_name + " must not set font");
         }
-        if (part_style.style.font_size.has_value()) {
+        if (part_style.style.font_size().has_value()) {
             errors.push_back("Node '" + node.id + "' partStyles." + part_name + " must not set fontSize");
         }
-        if (part_style.style.image_font_size.has_value()) {
+        if (part_style.style.image_font_size().has_value()) {
             errors.push_back("Node '" + node.id + "' partStyles." + part_name + " must not set imageFontSize");
         }
         validate_style(part_style.style, "Node '" + node.id + "' partStyles." + part_name, errors);
@@ -544,7 +561,7 @@ static void validate_node(
             errors.push_back("Node '" + node.id + "' has invalid event type");
         }
         if (!event.action.empty()) {
-            const auto owner = current_view_path.empty() ? node.id : join_view_path(current_view_path);
+            const auto owner = make_action_owner(action_scope_id, current_view_path, node.id);
             auto [it, inserted] = action_owners.emplace(event.action, owner);
             if (!inserted && it->second != owner) {
                 errors.push_back(
@@ -606,7 +623,9 @@ static void validate_node(
         if (!child.id.empty()) {
             child_view_path.push_back(child.id);
         }
-        validate_node(child, font_ids, view_paths, action_owners, std::move(child_view_path), errors);
+        validate_node(
+            child, font_ids, view_paths, action_owners, std::move(child_view_path), action_scope_id, errors
+        );
     }
 }
 
@@ -755,7 +774,7 @@ ValidationResult validate_document(const Document &document)
         for (const auto &child : screen.children) {
             build_view_path_index(child, current_path, view_paths, result.errors);
         }
-        validate_node(screen, font_ids, view_paths, action_owners, {}, result.errors);
+        validate_node(screen, font_ids, view_paths, action_owners, {}, screen.id, result.errors);
     }
 
     for (const auto &node : document.templates) {
@@ -770,7 +789,7 @@ ValidationResult validate_document(const Document &document)
         for (const auto &child : node.children) {
             build_view_path_index(child, current_path, view_paths, result.errors);
         }
-        validate_node(node, font_ids, view_paths, action_owners, {}, result.errors);
+        validate_node(node, font_ids, view_paths, action_owners, {}, node.id, result.errors);
     }
 
     boost::unordered_flat_set<std::string> screen_flow_ids;
@@ -875,6 +894,47 @@ ValidationResult validate_document(const Document &document)
         BROOKESIA_LOGD("Validation info: %1%", info);
     }
 #endif
+    return result;
+}
+
+ValidationResult validate_screen_node(
+    const Node &screen,
+    const std::vector<const Node *> &siblings,
+    const std::vector<const Node *> &templates)
+{
+    ValidationResult result;
+    if (screen.type != NodeType::Screen) {
+        result.errors.push_back("Top-level screen definitions must use node type 'Screen'");
+    }
+
+    boost::unordered_flat_set<std::string> font_ids;
+    boost::unordered_flat_map<std::string, std::string> action_owners;
+    auto seed_action_owners = [&](const Node * node) {
+        if (node == nullptr || node->id == screen.id) {
+            return;
+        }
+        std::vector<std::string> ignored;
+        boost::unordered_flat_map<std::string, std::vector<std::string>> view_paths;
+        std::vector<std::string> current_path;
+        for (const auto &child : node->children) {
+            build_view_path_index(child, current_path, view_paths, ignored);
+        }
+        validate_node(*node, font_ids, view_paths, action_owners, {}, node->id, ignored);
+    };
+    for (const Node *sibling : siblings) {
+        seed_action_owners(sibling);
+    }
+    for (const Node *node : templates) {
+        seed_action_owners(node);
+    }
+
+    boost::unordered_flat_map<std::string, std::vector<std::string>> view_paths;
+    std::vector<std::string> current_path;
+    for (const auto &child : screen.children) {
+        build_view_path_index(child, current_path, view_paths, result.errors);
+    }
+    validate_node(screen, font_ids, view_paths, action_owners, {}, screen.id, result.errors);
+    result.success = result.errors.empty();
     return result;
 }
 

@@ -195,7 +195,7 @@ public:
     void cleanup_app_transient_resources(AppRecord &record);
 
     std::expected<void, std::string> ensure_runtime_initialized();
-    std::expected<void, std::string> ensure_gui_loaded(AppRecord &record);
+    std::expected<void, std::string> ensure_gui_loaded(AppRecord &record, bool enable_idle_warm = true);
     std::expected<void, std::string> prepare_installed_app_gui(AppRecord &record);
     void release_app_gui_presentation(AppRecord &record);
     void cleanup_stopped_app_gui(AppRecord &record);

@@ -141,6 +141,12 @@ bool Runtime::Impl::unsubscribe_subscription(SubscriptionId subscription_id)
 }
 Runtime::Impl::~Impl()
 {
+    for (auto &[unused_id, tree] : trees) {
+        (void)unused_id;
+        if (tree.idle_warm_token) {
+            tree.idle_warm_token->store(false);
+        }
+    }
     std::vector<DocumentId::Value> document_ids;
     document_ids.reserve(trees.size());
     for (const auto &[document_id, unused_tree] : trees) {
@@ -156,7 +162,8 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
     Document document,
     const Environment &environment,
     bool file_backed,
-    std::vector<std::string> dependency_files )
+    std::vector<std::string> dependency_files,
+    DocumentLoadOptions options)
 {
     if (backend == nullptr) {
         return std::unexpected("GUI backend is null");
@@ -184,11 +191,18 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         auto hp_snap = []() {
             return ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
         };
-        auto hp_log = [document_id](const char *stage, size_t prev_ext, size_t cur_ext) {
+        auto hp_log = [document_id](const char *stage, const auto & prev, const auto & cur) {
             BROOKESIA_LOGI(
-                "[HeapTrace][gui.load.split] doc(%1%) stage(%2%) psram_free(%3%) delta(%4%)",
-                document_id.value(), stage, cur_ext,
-                static_cast<int64_t>(cur_ext) - static_cast<int64_t>(prev_ext)
+                "[HeapTrace][gui.load.split] doc(%1%) stage(%2%) "
+                "internal_free(%3%) internal_largest(%4%) internal_delta(%5%) "
+                "psram_free(%6%) psram_delta(%7%)",
+                document_id.value(),
+                stage,
+                cur.internal_free,
+                cur.internal_largest,
+                static_cast<int64_t>(cur.internal_free) - static_cast<int64_t>(prev.internal_free),
+                cur.external_free,
+                static_cast<int64_t>(cur.external_free) - static_cast<int64_t>(prev.external_free)
             );
         };
         auto hp_entry = hp_snap();
@@ -196,6 +210,7 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         stage_start = RuntimeProfileClock::now();
         TreeRecord tree;
         tree.document_id = document_id;
+        tree.load_options = options;
         tree.file_path = file_path;
         tree.file_backed = file_backed;
         tree.environment_dependencies = document.environment_dependencies;
@@ -228,6 +243,15 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         );
 
         stage_start = RuntimeProfileClock::now();
+        boost::unordered_flat_set<std::string> entry_screen_ids;
+        for (const auto &flow : document.screen_flows) {
+            if (!flow.initial.empty()) {
+                entry_screen_ids.insert(flow.initial);
+            }
+        }
+        if (entry_screen_ids.empty() && !document.screens.empty()) {
+            entry_screen_ids.insert(document.screens.front().id);
+        }
         for (auto &image : document.images) {
             auto image_id = image.id;
             BROOKESIA_LOGD(
@@ -288,7 +312,7 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         }
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         auto hp_before_preload = hp_snap();
-        hp_log("after tree move+validate (H_C)", hp_entry.external_free, hp_before_preload.external_free);
+        hp_log("after tree move+validate (H_C)", hp_entry, hp_before_preload);
 #endif
         stage_start = RuntimeProfileClock::now();
         auto preload_result = preload_tree_image_resources(*stored_tree);
@@ -308,12 +332,15 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         }
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         auto hp_after_preload = hp_snap();
-        hp_log("after image preload (H_A)", hp_before_preload.external_free, hp_after_preload.external_free);
+        hp_log("after image preload (H_A)", hp_before_preload, hp_after_preload);
 #endif
 
         const auto eager_stage_start = RuntimeProfileClock::now();
         size_t eager_screen_count = 0;
+        size_t deferred_screen_count = 0;
         size_t dynamic_screen_count = 0;
+        stored_tree->pending_warm_screens.clear();
+        stored_tree->idle_warm_scheduled = false;
         for (const auto &[unused_id, screen] : stored_tree->screens) {
             (void)unused_id;
             if (screen.mount_mode == MountMode::Dynamic) {
@@ -325,31 +352,32 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
                 continue;
             }
 
+            const bool is_entry = entry_screen_ids.contains(screen.id);
+            const bool defer_screen =
+                !options.build_entry_screens ||
+                (options.defer_non_entry_eager_screens && !is_entry);
+            if (defer_screen) {
+                stored_tree->pending_warm_screens.push_back(screen.id);
+                ++deferred_screen_count;
+#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+                BROOKESIA_LOGI(
+                    "[HeapTrace][gui.eager_mount] screen(%1%) mode(eager) action(deferred_warm)", screen.id);
+#endif
+                continue;
+            }
+
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_load_eager_before = hp_snap();
 #endif
             stage_start = RuntimeProfileClock::now();
-            reset_subtree_build_profile();
-            auto root_uid = create_subtree(
-                                document_id,
-                                *stored_tree,
-                                screen,
-                                BackendHandle(),
-                                0,
-                                screen.id,
-                                Path(),
-                                "/" + screen.id,
-                                std::nullopt
-                            );
+            auto root_uid = ensure_screen_built(document_id, *stored_tree, screen.id);
             if (!root_uid) {
                 unload(document_id);
                 return std::unexpected(root_uid.error());
             }
-            stored_tree->screen_roots.emplace(screen.id, *root_uid);
             stage_end = RuntimeProfileClock::now();
             const auto screen_build_ms = runtime_profile_elapsed_ms(stage_start, stage_end);
             ++eager_screen_count;
-            log_subtree_build_profile("eager_screen_build", document_id, screen.id, screen_build_ms);
             GUI_INTERFACE_PROFILE_LOGI(
                 "GUI runtime load profile: doc(%1%), file(%2%), stage(eager_screen_build), "
                 "screen(%3%), elapsed_ms(%4%), total_ms(%5%)",
@@ -362,25 +390,29 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
             auto hp_load_eager_after = hp_snap();
             hp_log((std::string("eager build screen ") + screen.id).c_str(),
-                   hp_load_eager_before.external_free, hp_load_eager_after.external_free);
+                   hp_load_eager_before, hp_load_eager_after);
 #endif
         }
         stage_end = RuntimeProfileClock::now();
         GUI_INTERFACE_PROFILE_LOGI(
             "GUI runtime load profile: doc(%1%), file(%2%), stage(eager_screen_build_total), "
-            "eager_screens(%3%), dynamic_screens(%4%), elapsed_ms(%5%), total_ms(%6%)",
+            "eager_screens(%3%), deferred_screens(%4%), dynamic_screens(%5%), elapsed_ms(%6%), total_ms(%7%)",
             document_id.value(),
             file_path,
             eager_screen_count,
+            deferred_screen_count,
             dynamic_screen_count,
             runtime_profile_elapsed_ms(eager_stage_start, stage_end),
             runtime_profile_elapsed_ms(total_start, stage_end)
         );
+        if (options.schedule_idle_warm && !stored_tree->pending_warm_screens.empty()) {
+            request_idle_screen_warm(document_id);
+        }
 
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
         auto hp_after_screens = hp_snap();
-        hp_log("after eager screen build (H_B)", hp_after_preload.external_free, hp_after_screens.external_free);
-        hp_log("total root load (H_A+H_B+H_C)", hp_entry.external_free, hp_after_screens.external_free);
+        hp_log("after eager screen build (H_B)", hp_after_preload, hp_after_screens);
+        hp_log("total root load (H_A+H_B+H_C)", hp_entry, hp_after_screens);
 #endif
         stage_end = RuntimeProfileClock::now();
         GUI_INTERFACE_PROFILE_LOGI(
@@ -869,6 +901,7 @@ bool Runtime::Impl::unload(DocumentId document_id)
         (void)unsubscribe_subscription(animation_it->second);
         event_animation_ids_.erase(key);
     }
+    stop_idle_screen_warm(tree_it->second);
     unload_partial_tree(tree_it->second);
     release_tree_image_resources(tree_it->second);
     trees.erase(tree_it);

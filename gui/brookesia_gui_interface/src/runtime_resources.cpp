@@ -72,9 +72,12 @@ std::expected<std::string, std::string> Runtime::Impl::resolve_color_binding_val
 }
 void Runtime::Impl::resolve_style_color_field(
     const TreeRecord &tree,
-    std::optional<std::string> &field,
+    Style &style,
+    std::optional<std::string> (Style::*getter)() const,
+    void (Style::*setter)(std::optional<std::string>),
     std::string_view field_name) const
 {
+    auto field = (style.*getter)();
     if (!field.has_value()) {
         return;
     }
@@ -88,19 +91,21 @@ void Runtime::Impl::resolve_style_color_field(
         );
         return;
     }
-    field = std::move(*resolved);
+    (style.*setter)(std::move(*resolved));
 }
 void Runtime::Impl::resolve_style_color_fields(const TreeRecord &tree, Style &style) const
 {
-    resolve_style_color_field(tree, style.bg_color, "bgColor");
-    resolve_style_color_field(tree, style.bg_gradient_color, "bgGradientColor");
-    resolve_style_color_field(tree, style.text_color, "textColor");
-    resolve_style_color_field(tree, style.border_color, "borderColor");
-    resolve_style_color_field(tree, style.line_color, "lineColor");
-    resolve_style_color_field(tree, style.arc_color, "arcColor");
-    resolve_style_color_field(tree, style.arc_gradient_color, "arcGradientColor");
-    resolve_style_color_field(tree, style.shadow_color, "shadowColor");
-    resolve_style_color_field(tree, style.image_recolor, "imageRecolor");
+    resolve_style_color_field(tree, style, &Style::bg_color, &Style::set_bg_color, "bgColor");
+    resolve_style_color_field(
+        tree, style, &Style::bg_gradient_color, &Style::set_bg_gradient_color, "bgGradientColor");
+    resolve_style_color_field(tree, style, &Style::text_color, &Style::set_text_color, "textColor");
+    resolve_style_color_field(tree, style, &Style::border_color, &Style::set_border_color, "borderColor");
+    resolve_style_color_field(tree, style, &Style::line_color, &Style::set_line_color, "lineColor");
+    resolve_style_color_field(tree, style, &Style::arc_color, &Style::set_arc_color, "arcColor");
+    resolve_style_color_field(
+        tree, style, &Style::arc_gradient_color, &Style::set_arc_gradient_color, "arcGradientColor");
+    resolve_style_color_field(tree, style, &Style::shadow_color, &Style::set_shadow_color, "shadowColor");
+    resolve_style_color_field(tree, style, &Style::image_recolor, &Style::set_image_recolor, "imageRecolor");
 }
 void Runtime::Impl::resolve_style_set_color_fields(const TreeRecord &tree, StyleSet &style_set) const
 {

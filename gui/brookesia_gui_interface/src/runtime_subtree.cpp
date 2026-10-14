@@ -281,7 +281,9 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
 #endif
 
     step_start = subtree_profile_now();
-    backend->apply_props(handle, node);
+    // Defer CommonTransform until after layout/placement/style so percent pivots use final size.
+    // apply_props(All) would apply transform once here and again below.
+    backend->apply_props(handle, node, PropsApplyMask::All & ~PropsApplyMask::CommonTransform);
     add_subtree_profile_time(subtree_build_profile_.apply_props_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     const size_t dbg_s4 = dbg_ext_free();
@@ -302,15 +304,15 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     dbg_step_apply_placement_ += static_cast<int64_t>(dbg_s5) - static_cast<int64_t>(dbg_s6);
 #endif
     step_start = subtree_profile_now();
-    backend->apply_props(handle, node, PropsApplyMask::CommonTransform);
-    add_subtree_profile_time(subtree_build_profile_.apply_transform_us, step_start);
-    step_start = subtree_profile_now();
     backend->apply_style(handle, *stored_record->resolved_style);
     add_subtree_profile_time(subtree_build_profile_.apply_style_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     const size_t dbg_s7 = dbg_ext_free();
     dbg_step_apply_style_ += static_cast<int64_t>(dbg_s6) - static_cast<int64_t>(dbg_s7);
 #endif
+    step_start = subtree_profile_now();
+    backend->apply_props(handle, node, PropsApplyMask::CommonTransform);
+    add_subtree_profile_time(subtree_build_profile_.apply_transform_us, step_start);
     step_start = subtree_profile_now();
     backend->apply_debug_visual(handle, view_debug_enabled_);
     backend->apply_animations(handle, node.animations);
@@ -375,7 +377,256 @@ void Runtime::Impl::unload_partial_tree(TreeRecord &tree)
     tree.nodes.clear();
     tree.interaction_records.clear();
     tree.screen_roots.clear();
+    stop_idle_screen_warm(tree);
+    tree.pending_warm_screens.clear();
+    tree.idle_warm_scheduled = false;
 }
+
+void Runtime::Impl::remove_pending_warm_screen(TreeRecord &tree, std::string_view screen_id)
+{
+    tree.pending_warm_screens.erase(
+        std::remove(tree.pending_warm_screens.begin(), tree.pending_warm_screens.end(), screen_id),
+        tree.pending_warm_screens.end()
+    );
+}
+
+std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_built(
+    DocumentId document_id,
+    TreeRecord &tree,
+    const std::string &screen_id)
+{
+    auto screen_root_it = tree.screen_roots.find(screen_id);
+    if (screen_root_it != tree.screen_roots.end()) {
+        return screen_root_it->second;
+    }
+
+    auto screen_def_it = tree.screens.find(screen_id);
+    if (screen_def_it == tree.screens.end()) {
+        return std::unexpected("Screen not found: /" + screen_id);
+    }
+
+    refresh_global_fonts_from_backend();
+#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+    auto hp_build_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
+#endif
+    const auto build_stage_start = RuntimeProfileClock::now();
+    reset_subtree_build_profile();
+    // The screen root is the first UID this call allocates. A later child failure
+    // still leaves that root, and its descendants, in the tree.
+    const NodeUid expected_root_uid = tree.next_uid;
+    auto root_uid = create_subtree(
+                        document_id,
+                        tree,
+                        screen_def_it->second,
+                        BackendHandle(),
+                        0,
+                        screen_def_it->second.id,
+                        Path(),
+                        "/" + screen_def_it->second.id,
+                        std::nullopt
+                    );
+    if (!root_uid) {
+        if (find_node_record(tree, expected_root_uid) != nullptr) {
+            destroy_subtree(tree, expected_root_uid);
+        }
+        return std::unexpected(root_uid.error());
+    }
+    tree.screen_roots.emplace(screen_id, *root_uid);
+    remove_pending_warm_screen(tree, screen_id);
+    const auto build_stage_end = RuntimeProfileClock::now();
+    const auto build_ms = runtime_profile_elapsed_ms(build_stage_start, build_stage_end);
+    const char *profile_stage =
+        screen_def_it->second.mount_mode == MountMode::Dynamic ? "dynamic_screen_build" : "eager_screen_build";
+    log_subtree_build_profile(profile_stage, document_id, screen_def_it->second.id, build_ms);
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI runtime screen build profile: doc(%1%), screen(%2%), mode(%3%), elapsed_ms(%4%)",
+        document_id.value(),
+        screen_def_it->second.id,
+        screen_def_it->second.mount_mode == MountMode::Dynamic ? "dynamic" : "eager",
+        build_ms
+    );
+#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+    auto hp_build_after = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
+    BROOKESIA_LOGI(
+        "[HeapTrace][gui.screen_build] screen(%1%) mode(%2%) psram_delta(%3%)",
+        screen_def_it->second.id,
+        screen_def_it->second.mount_mode == MountMode::Dynamic ? "dynamic" : "eager",
+        static_cast<int64_t>(hp_build_after.external_free) -
+        static_cast<int64_t>(hp_build_before.external_free));
+#endif
+    return *root_uid;
+}
+
+std::expected<void, std::string> Runtime::Impl::ensure_eager_screen_built_for_path(
+    DocumentId document_id,
+    TreeRecord &tree,
+    std::string_view normalized_absolute_path)
+{
+    const auto trimmed = trim_slashes(normalized_absolute_path);
+    if (trimmed.empty()) {
+        return {};
+    }
+    const auto slash = trimmed.find('/');
+    const std::string screen_id(
+        (slash == std::string_view::npos) ? trimmed : trimmed.substr(0, slash)
+    );
+    if (tree.screen_roots.contains(screen_id)) {
+        return {};
+    }
+    auto screen_it = tree.screens.find(screen_id);
+    if (screen_it == tree.screens.end()) {
+        return {};
+    }
+    // Dynamic screens stay mount-driven; path APIs must not recreate them after unmount.
+    if (screen_it->second.mount_mode == MountMode::Dynamic) {
+        return {};
+    }
+    auto built = ensure_screen_built(document_id, tree, screen_id);
+    if (!built) {
+        return std::unexpected(built.error());
+    }
+    return {};
+}
+
+void Runtime::Impl::request_idle_screen_warm(DocumentId document_id)
+{
+    auto *tree = resolve_tree(document_id);
+    if (tree == nullptr) {
+        return;
+    }
+    // Explicit warm request opts the document back into idle warm after preload_dom
+    // (schedule_idle_warm=false), so later update()/refresh can re-schedule pending screens.
+    tree->load_options.schedule_idle_warm = true;
+    if (tree->pending_warm_screens.empty()) {
+        return;
+    }
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI runtime idle warm request: doc(%1%), pending(%2%)",
+        document_id.value(),
+        tree->pending_warm_screens.size()
+    );
+    schedule_idle_screen_warm(document_id);
+}
+
+void Runtime::Impl::schedule_idle_screen_warm(DocumentId document_id)
+{
+    auto *tree = resolve_tree(document_id);
+    if (tree == nullptr || tree->pending_warm_screens.empty()) {
+        if (tree != nullptr) {
+            tree->idle_warm_scheduled = false;
+        }
+        return;
+    }
+    if (tree->idle_warm_scheduled) {
+        return;
+    }
+    if (!task_config.task_scheduler || !task_config.task_scheduler->is_running() ||
+            task_config.gui_group.empty()) {
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime idle warm skip schedule: doc(%1%), pending(%2%), scheduler_ready(%3%), gui_group_empty(%4%)",
+            document_id.value(),
+            tree->pending_warm_screens.size(),
+            (task_config.task_scheduler && task_config.task_scheduler->is_running()) ? 1 : 0,
+            task_config.gui_group.empty() ? 1 : 0
+        );
+        return;
+    }
+
+    if (tree->idle_warm_task_id != 0) {
+        stop_idle_screen_warm(*tree);
+        if (tree->pending_warm_screens.empty()) {
+            return;
+        }
+    }
+    auto token = std::make_shared<std::atomic<bool>>(true);
+    tree->idle_warm_token = token;
+    tree->idle_warm_scheduled = true;
+    lib_utils::TaskScheduler::TaskId task_id = 0;
+    const bool posted = task_config.task_scheduler->post_delayed(
+    [this, document_id, token]() {
+        if (!token->load()) {
+            return;
+        }
+        if (auto *warm_tree = resolve_tree(document_id)) {
+            warm_tree->idle_warm_task_id = 0;
+        }
+        warm_one_pending_screen(document_id);
+    },
+    kIdleScreenWarmDelayMs,
+    &task_id,
+    task_config.gui_group
+                        );
+    if (!posted) {
+        token->store(false);
+        tree->idle_warm_scheduled = false;
+        tree->idle_warm_task_id = 0;
+        BROOKESIA_LOGW("Failed to schedule idle screen warm for doc(%1%)", document_id.value());
+        return;
+    }
+    tree->idle_warm_task_id = task_id;
+    GUI_INTERFACE_PROFILE_LOGI(
+        "GUI runtime idle warm scheduled: doc(%1%), pending(%2%), delay_ms(%3%)",
+        document_id.value(),
+        tree->pending_warm_screens.size(),
+        kIdleScreenWarmDelayMs
+    );
+}
+
+void Runtime::Impl::stop_idle_screen_warm(TreeRecord &tree)
+{
+    if (tree.idle_warm_token) {
+        tree.idle_warm_token->store(false);
+    }
+    const auto task_id = tree.idle_warm_task_id;
+    tree.idle_warm_task_id = 0;
+    tree.idle_warm_scheduled = false;
+    if (task_id == 0 || task_config.task_scheduler == nullptr) {
+        return;
+    }
+    task_config.task_scheduler->cancel(task_id);
+    (void)task_config.task_scheduler->wait(task_id);
+}
+
+void Runtime::Impl::warm_one_pending_screen(DocumentId document_id)
+{
+    auto *tree = resolve_tree(document_id);
+    if (tree == nullptr) {
+        return;
+    }
+    tree->idle_warm_scheduled = false;
+    while (!tree->pending_warm_screens.empty()) {
+        const std::string screen_id = tree->pending_warm_screens.front();
+        tree->pending_warm_screens.erase(tree->pending_warm_screens.begin());
+        if (tree->screen_roots.contains(screen_id)) {
+            continue;
+        }
+        auto build_result = ensure_screen_built(document_id, *tree, screen_id);
+        if (!build_result) {
+            BROOKESIA_LOGW(
+                "Idle warm failed for screen(%1%): %2%",
+                screen_id,
+                build_result.error()
+            );
+        } else {
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime idle warm built: doc(%1%), screen(%2%), remaining(%3%)",
+                document_id.value(),
+                screen_id,
+                tree->pending_warm_screens.size()
+            );
+        }
+        break;
+    }
+    if (!tree->pending_warm_screens.empty()) {
+        schedule_idle_screen_warm(document_id);
+    } else {
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime idle warm done: doc(%1%)",
+            document_id.value()
+        );
+    }
+}
+
 bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view absolute_path)
 {
     const auto screen_id = trim_slashes(absolute_path);
@@ -391,10 +642,11 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
 
     const bool result = backend->unmount_screen(record->handle);
     auto screen_def_it = tree.screens.find(screen_id);
-    const bool should_destroy =
+    const bool is_dynamic =
         screen_def_it != tree.screens.end() && screen_def_it->second.mount_mode == MountMode::Dynamic;
-    if (should_destroy) {
-        destroy_subtree(tree, mounted_it->second);
+    if (is_dynamic) {
+        const auto root_uid = mounted_it->second;
+        destroy_subtree(tree, root_uid);
         tree.screen_roots.erase(screen_id);
     }
     return result;

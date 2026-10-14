@@ -6,6 +6,7 @@
 #pragma once
 
 #include <array>
+#include <cstdint>
 #include <expected>
 #include <initializer_list>
 #include <map>
@@ -729,6 +730,89 @@ public:
     )
     {
         return call_function_sync<std::string>(FunctionId::FSReadText, path, Timeout(timeout_ms));
+    }
+
+    /**
+     * Read many text files in one Storage function batch.
+     *
+     * On ESP without PSRAM XIP, each FSReadText otherwise hops to the cache-safe
+     * Storage worker. Batching keeps LittleFS I/O on that worker while paying
+     * one scheduler round-trip for the whole document.
+     */
+    static std::expected<std::vector<std::string>, std::string> fs_read_text_many(
+        const std::vector<std::string> &paths, uint32_t timeout_ms = 0
+    )
+    {
+        std::vector<std::string> contents;
+        contents.reserve(paths.size());
+        if (paths.empty()) {
+            return contents;
+        }
+        if (paths.size() == 1) {
+            auto one = fs_read_text(paths.front(), timeout_ms);
+            if (!one) {
+                return std::unexpected(one.error());
+            }
+            contents.push_back(std::move(*one));
+            return contents;
+        }
+
+        auto binding = ServiceManager::get_instance().bind(get_name().data());
+        if (!binding.is_valid()) {
+            return std::unexpected("Failed to bind service");
+        }
+        auto service = binding.get_service();
+        if (!service) {
+            return std::unexpected("Service not found");
+        }
+
+        std::vector<FunctionCall> calls;
+        calls.reserve(paths.size());
+        const auto method_name = BROOKESIA_DESCRIBE_ENUM_TO_STR(FunctionId::FSReadText);
+        for (const auto &path : paths) {
+            calls.push_back(FunctionCall{
+                .name = std::string(method_name),
+                .parameters = {{"Path", path}},
+            });
+        }
+
+        uint32_t batch_timeout_ms = timeout_ms;
+        if (batch_timeout_ms == 0) {
+            // call_functions_sync runs FSReadText calls sequentially under one timeout.
+            const auto timeout_product =
+                static_cast<uint64_t>(paths.size()) *
+                static_cast<uint64_t>(FS_READ_TEXT_DEFAULT_TIMEOUT_MS);
+            batch_timeout_ms = (timeout_product > UINT32_MAX)
+                               ? UINT32_MAX
+                               : static_cast<uint32_t>(timeout_product);
+        }
+        auto batch = service->call_functions_sync(std::move(calls), batch_timeout_ms);
+        if (!batch.success || batch.results.size() != paths.size()) {
+            std::string error = "Failed to batch-read Storage text files";
+            for (const auto &item : batch.results) {
+                if (!item.success && !item.error_message.empty()) {
+                    error.append(": ").append(item.error_message);
+                    break;
+                }
+            }
+            return std::unexpected(error);
+        }
+
+        for (size_t i = 0; i < batch.results.size(); ++i) {
+            auto &item = batch.results[i];
+            if (!item.success || !item.data.has_value()) {
+                return std::unexpected(
+                           "Failed to read file: " + paths[i] +
+                           (item.error_message.empty() ? "" : (", error: " + item.error_message))
+                       );
+            }
+            auto *text = std::get_if<std::string>(&(*item.data));
+            if (text == nullptr) {
+                return std::unexpected("Storage FSReadText result is not text: " + paths[i]);
+            }
+            contents.push_back(std::move(*text));
+        }
+        return contents;
     }
 
     static std::expected<size_t, std::string> fs_read(
