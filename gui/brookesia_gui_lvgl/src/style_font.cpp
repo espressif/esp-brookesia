@@ -57,14 +57,19 @@ std::expected<std::shared_ptr<FontCacheEntry::FontSource>, std::string> load_fon
         return std::unexpected("Font file is too large: " + font_path_string);
     }
 
+#if BROOKESIA_GUI_LVGL_PERF_PROBE
     const auto read_start = std::chrono::steady_clock::now();
+#endif
     auto source = std::make_shared<FontCacheEntry::FontSource>();
     source->data.resize(static_cast<size_t>(info->size));
+#if BROOKESIA_GUI_LVGL_PERF_PROBE
     const auto alloc_done = std::chrono::steady_clock::now();
+#endif
     auto read_result = StorageHelper::fs_read(
                            font_path_string,
                            service::RawBuffer(source->data.data(), source->data.size())
                        );
+#if BROOKESIA_GUI_LVGL_PERF_PROBE
     const auto read_done = std::chrono::steady_clock::now();
     BROOKESIA_LOGI(
         "font load profile: path(%1%), bytes(%2%), alloc_ms(%3%), read_ms(%4%)",
@@ -72,6 +77,7 @@ std::expected<std::shared_ptr<FontCacheEntry::FontSource>, std::string> load_fon
         static_cast<int64_t>(info->size),
         std::chrono::duration_cast<std::chrono::milliseconds>(alloc_done - read_start).count(),
         std::chrono::duration_cast<std::chrono::milliseconds>(read_done - alloc_done).count());
+#endif
     if (!read_result) {
         return std::unexpected("Failed to read font file: " + font_path_string + ", error: " + read_result.error());
     }

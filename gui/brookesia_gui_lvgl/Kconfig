@@ -119,4 +119,13 @@ menu "ESP-Brookesia: GUI LVGL Configurations"
             bool "Style"
             default y
     endif
+    config BROOKESIA_GUI_LVGL_ENABLE_PERF_PROBE
+        bool "Enable display FPS/flush counters and font-load timing"
+        default n
+        help
+            Count completed refresh cycles / partial flushes / dropped frames on the
+            display source, and log font load timing. These are the v1.8 section 3.2
+            and 3.6 measurement hooks; compiled out by default so shipped products pay
+            nothing, enabled by the performance baseline carrier.
+
 endmenu
