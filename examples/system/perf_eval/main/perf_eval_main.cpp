@@ -179,7 +179,7 @@ void add_heap_shape_metrics(MetricSet &metrics, uint32_t caps, const HeapShapeKe
     double frag_rate_pct = 0.0;
     if (info.total_free_bytes > 0) {
         frag_rate_pct = 100.0 * (1.0 - static_cast<double>(info.largest_free_block) /
-                                    static_cast<double>(info.total_free_bytes));
+                                 static_cast<double>(info.total_free_bytes));
     }
     metrics.add(keys.frag_rate_pct, frag_rate_pct);
     metrics.add(keys.free_block_count, static_cast<double>(info.free_blocks));

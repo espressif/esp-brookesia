@@ -7,7 +7,7 @@ config PERF_EVAL_NOTE
 endmenu
 
 # Declaring BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL here is what made
-# it worse: it re-declares a symbol hal_adaptor already owns, and a project
+# it worse: it redeclares a symbol hal_adaptor already owns, and a project
 # Kconfig cannot extend a component symbol's definition, so the reference from
 # esp_video resolved to neither. The real value comes from
 # sdkconfig.defaults, which sets it to y so hal_adaptor's own declaration

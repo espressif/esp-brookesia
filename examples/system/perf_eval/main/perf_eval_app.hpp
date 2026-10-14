@@ -19,8 +19,7 @@ namespace perf_eval {
 // app record, so binding pushes against it are silently dropped by flush. This app
 // owns a separate document loaded from the same embedded root.json, mounted on the
 // /debug screen, and exposes its running state to the harness once started.
-class PerfEvalApp : public esp_brookesia::system::core::IApp
-{
+class PerfEvalApp : public esp_brookesia::system::core::IApp {
 public:
     PerfEvalApp() = default;
     ~PerfEvalApp() override = default;
