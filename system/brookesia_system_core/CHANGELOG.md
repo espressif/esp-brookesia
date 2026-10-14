@@ -16,6 +16,16 @@
 
 - docs(usb): update package and command names for the brookesia-usb CLI.
 
+## v0.8.5 - 2026-10-14
+
+### Enhancements:
+
+- feat(system): expose GUI binding flush statistics, and make `system_gui_load_json` / `system_gui_mount_screen` / `system_gui_unmount_screen` / `system_gui_unload` public so a carrier holding embedded documents can drive the GUI without an app.
+
+### Bug Fixes:
+
+- fix(system): post the GUI binding-flush re-arm as a real queue hop instead of running it inline, which recursed and overflowed the worker stack under sustained binding updates.
+
 ## v0.8.4 - 2026-08-31
 
 ### Breaking Changes:

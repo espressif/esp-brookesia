@@ -17,6 +17,16 @@
 - fix(deps): require Service Helper `>=0.8.6,<0.9` for batched storage reads.
 - fix(style): preserve public optional `Style` fields for compatibility with 0.8.x consumers.
 
+## v0.8.3 - 2026-10-14
+
+### Enhancements:
+
+- feat(parser): include `base_dir` in the parser profile lines and add per screen/flow-item stage timing.
+
+### Tests:
+
+- test(mem_gate): add the host JSON UI dual-gate memory test.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

@@ -8,6 +8,13 @@
 - fix(props): reset transforms when local transform properties are removed.
 - fix(deps): require GUI Interface `>=0.8.3,<0.9`.
 
+## v0.8.6 - 2026-10-14
+
+### Enhancements:
+
+- feat(display): add per-source frame / flush / dropped counters and font-load timing, compiled out behind `BROOKESIA_GUI_LVGL_ENABLE_PERF_PROBE` (default n) so shipped builds pay nothing.
+- feat(soc): add an ESP32-C5 button ADC compatibility shim.
+
 ## v0.8.5 - 2026-09-17
 
 ### Bug Fixes:
