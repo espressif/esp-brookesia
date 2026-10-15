@@ -8,6 +8,19 @@
 
 更多信息请参考 [ESP-Brookesia 编程指南](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/system/core/index.html)。
 
+## GSP 系统主页与公共输入
+
+`System::Config` 配置 `gsp_panel` 和 `gsp_touch` 后，System Core 安装并启动
+内置 GSP 系统主页。主页每页列出六个可见应用，安装或卸载后刷新列表，恢复保存的
+语言和主题偏好，并在系统运行期间持有 SNTP 服务。
+
+Native 和 JavaScript 应用使用现有 System Core 键盘和消息框 API。打开模态界面时
+暂时停止应用的 GSP 会话，关闭后恢复；切换应用时通过请求管理器关闭待处理的模态
+请求。GSP 停止失败会保留会话及显示、触摸设备引用，成功重试后才释放设备。
+
+主页、键盘和消息框场景归本组件所有；主题编译辅助和公共 Latin 字体来自已声明的
+`brookesia_gui_gsp` 依赖。使用本组件不需要 Settings 或 GSP 示例的源码文件。
+
 ## USB 主机桥接
 
 在支持的 ESP32-P4 目标上，System Core 可以绑定 USB Serial/JTAG 服务，为主机提供独占控制通道。该通道支持服务调用、配置上传根目录下的受保护文件上传，以及 BPK 运行时应用安装。

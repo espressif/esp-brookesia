@@ -17,6 +17,43 @@
 namespace esp_brookesia::app::settings {
 
 inline constexpr size_t WIFI_PAGE_ROW_COUNT = 5;
+inline constexpr size_t MY_DEVICE_GROUP_SLOTS = 4;
+inline constexpr size_t MY_DEVICE_GROUP_LINES = 3;
+inline constexpr size_t TIME_ZONE_OPTION_COUNT = 6;
+
+struct HomeSummaryView {
+    std::string device;
+    std::string wifi;
+    std::string display;
+    std::string sound;
+    std::string language;
+    std::string theme;
+    std::string time_zone;
+};
+
+struct MyDevicePageView {
+    struct GroupCard {
+        std::string title;
+        std::array<std::string, MY_DEVICE_GROUP_LINES> lines{};
+        size_t line_count = 0;
+        bool visible = false;
+    };
+    std::string system_name;
+    std::string system_version;
+    std::string device_name;
+    std::string pagination;
+    bool previous_enabled = false;
+    bool next_enabled = false;
+    std::array<GroupCard, MY_DEVICE_GROUP_SLOTS> groups{};
+};
+
+struct TimeZonePageView {
+    std::string current_timezone;
+    std::string sntp_state;
+    std::string status;
+    std::array<std::string, TIME_ZONE_OPTION_COUNT> labels{};
+    std::array<std::string, TIME_ZONE_OPTION_COUNT> values{};
+};
 
 struct WifiPageView {
     struct Row {
@@ -30,9 +67,13 @@ struct WifiPageView {
     bool previous_enabled = false;
     bool next_enabled = false;
     bool disconnect_enabled = false;
+    bool forget_enabled = false;
     std::string status;
     std::string connection;
     std::string pagination;
+    std::string selection_notice;
+    bool saved_list = false;
+    bool list_switch_enabled = false;
     std::array<Row, WIFI_PAGE_ROW_COUNT> rows;
 };
 
@@ -68,6 +109,32 @@ public:
     virtual ~SettingsSurface() = default;
 
     virtual void set_appearance(std::string_view, std::string_view) {}
+    virtual void set_suspended(bool) {}
+    virtual bool suspended() const
+    {
+        return false;
+    }
+
+    virtual std::expected<void, std::string> set_home_summary(
+        system::core::AppContext &, const HomeSummaryView &
+    )
+    {
+        return {};
+    }
+
+    virtual std::expected<void, std::string> set_my_device(
+        system::core::AppContext &, const MyDevicePageView &
+    )
+    {
+        return {};
+    }
+
+    virtual std::expected<void, std::string> set_time_zone(
+        system::core::AppContext &, const TimeZonePageView &
+    )
+    {
+        return {};
+    }
 
     virtual std::expected<void, std::string> set_sound(
         system::core::AppContext &, const SoundPageView &
@@ -90,21 +157,6 @@ public:
     virtual std::expected<void, std::string> set_wifi_connect(
         system::core::AppContext &context, const WifiConnectView &view
     ) = 0;
-
-    virtual std::expected<void, std::string> show_keyboard(
-        system::core::AppContext &, system::core::KeyboardRequestId,
-        const system::core::KeyboardRequestOptions &, system::core::KeyboardResultHandler
-    )
-    {
-        return std::unexpected("This Settings surface does not host a keyboard");
-    }
-
-    virtual void hide_keyboard(system::core::AppContext &, system::core::KeyboardRequestId) {}
-
-    virtual std::expected<bool, std::string> handle_keyboard_action(unsigned, unsigned, unsigned)
-    {
-        return false;
-    }
 
     virtual std::expected<void, std::string> show_page(
         system::core::AppContext &context,

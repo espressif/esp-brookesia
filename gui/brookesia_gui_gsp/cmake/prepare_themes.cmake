@@ -3,10 +3,10 @@
 
 # Color is baked into text-bound GSP controls. Resolve both palettes at configure
 # time; gsp_add_bundle compiles them at build time with identical object layouts.
-function(settings_prepare_theme output theme)
+function(brookesia_gsp_prepare_theme output theme)
     set(scenes ${ARGN})
     set(generator "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/prepare_themes.py")
-    set(destination "${CMAKE_CURRENT_BINARY_DIR}/settings_themes/${theme}")
+    set(destination "${CMAKE_CURRENT_BINARY_DIR}/gsp_themes/${theme}")
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${scenes} "${generator}")
     execute_process(COMMAND "${PYTHON}" "${generator}"
         --theme "${theme}" --output "${destination}" ${scenes}

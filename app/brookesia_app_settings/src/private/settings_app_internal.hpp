@@ -293,6 +293,8 @@ inline constexpr size_t DEBUG_ENTRY_CLICK_COUNT = 3;
 inline constexpr uint32_t DEVICE_SERVICE_TIMEOUT_MS = 500;
 inline constexpr uint32_t WIFI_SERVICE_TIMEOUT_MS = 1000;
 inline constexpr uint32_t SNTP_SERVICE_TIMEOUT_MS = 500;
+inline constexpr const char *SNTP_UI_TIMER_NAME = "settings_sntp_ui";
+inline constexpr uint32_t SNTP_UI_POLL_INTERVAL_MS = 2000;
 inline constexpr uint32_t UTILS_DEBUG_SERVICE_TIMEOUT_MS = 500;
 inline constexpr const char *WIFI_PAGE_TIMER_NAME = "settings.wifi.page";
 inline constexpr const char *WIFI_CONNECT_TIMER_NAME = "settings.wifi.connect";
@@ -601,6 +603,8 @@ struct WifiPageState {
     bool scan_owned = false;
     bool connect_pending = false;
     std::string connect_ssid;
+    bool saved_list = false;
+    std::string forget_ssid;
     std::string error;
 };
 
@@ -648,6 +652,9 @@ struct SettingsApp::Impl {
     system::core::AppContext *installed_context = nullptr;
     std::vector<std::string> dynamic_wifi_paths;
     std::vector<std::string> dynamic_hardware_group_paths;
+    std::vector<detail::HardwareGroup> cached_hardware_groups;
+    std::string cached_device_name;
+    size_t my_device_page = 0;
     size_t saved_wifi_slot_count = 0;
     size_t available_wifi_slot_count = 0;
     size_t saved_wifi_page = 0;
@@ -686,6 +693,7 @@ struct SettingsApp::Impl {
     std::shared_ptr<WifiConnectOperation> wifi_connect_operation;
     system::core::TimerId wifi_connect_timer_id = system::core::INVALID_TIMER_ID;
     TimeZoneUiState time_zone_ui_state;
+    system::core::TimerId sntp_ui_timer_id = system::core::INVALID_TIMER_ID;
     DebugUiState debug_ui_state;
     detail::UtilsHelper::DebugCapabilities utils_debug_capabilities;
     std::vector<WifiNetworkState> saved_wifi_networks;
@@ -731,6 +739,9 @@ struct SettingsApp::Impl {
 #define context_ impl_->context
 #define dynamic_wifi_paths_ impl_->dynamic_wifi_paths
 #define dynamic_hardware_group_paths_ impl_->dynamic_hardware_group_paths
+#define cached_hardware_groups_ impl_->cached_hardware_groups
+#define cached_device_name_ impl_->cached_device_name
+#define my_device_page_ impl_->my_device_page
 #define saved_wifi_slot_count_ impl_->saved_wifi_slot_count
 #define available_wifi_slot_count_ impl_->available_wifi_slot_count
 #define saved_wifi_page_ impl_->saved_wifi_page
@@ -763,6 +774,7 @@ struct SettingsApp::Impl {
 #define wifi_connect_operation_ impl_->wifi_connect_operation
 #define wifi_connect_timer_id_ impl_->wifi_connect_timer_id
 #define time_zone_ui_state_ impl_->time_zone_ui_state
+#define sntp_ui_timer_id_ impl_->sntp_ui_timer_id
 #define debug_ui_state_ impl_->debug_ui_state
 #define utils_debug_capabilities_ impl_->utils_debug_capabilities
 #define saved_wifi_networks_ impl_->saved_wifi_networks

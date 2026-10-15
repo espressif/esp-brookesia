@@ -3,7 +3,7 @@
   "w": 1024,
   "h": 600,
   "screen_bg": "#F4F5F7",
-  "font": "../../../examples/system/gsp_app/main/fonts/DejaVuSans.ttf",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
   "default_font_size": 24,
   "objects": [
     {

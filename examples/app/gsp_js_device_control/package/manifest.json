@@ -7,7 +7,7 @@
     },
     "version": "0.1.0",
     "visible": true,
-    "systems": ["core"]
+    "systems": ["core", "super"]
   },
   "runtime": {
     "type": "JavaScript",

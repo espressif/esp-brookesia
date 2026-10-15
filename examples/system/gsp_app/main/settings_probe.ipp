@@ -76,7 +76,7 @@ bool settings_probe_visit(int cycle, const char *name, int y, std::string_view p
     return settings_probe_back_home();
 }
 
-bool settings_probe_load_cost(ShellSystem &system, system::core::AppId settings_id)
+bool settings_probe_load_cost(system::core::System &system, system::core::AppId settings_id)
 {
     for (int cycle = 0; cycle < 4; ++cycle) {
         const auto before = sample_heap();
@@ -122,7 +122,7 @@ bool settings_probe_load_cost(ShellSystem &system, system::core::AppId settings_
     return true;
 }
 
-bool run_settings_probe(ShellSystem &system, system::core::AppId settings_id,
+bool run_settings_probe(system::core::System &system, system::core::AppId settings_id,
                         hal::display::PanelIface &panel)
 {
     if (!run_app(system, settings_id, "settings", true) ||
@@ -135,7 +135,7 @@ bool run_settings_probe(ShellSystem &system, system::core::AppId settings_id,
     if (!prepare_backlight(output_id, initial_brightness)) {
         return false;
     }
-    const auto initial_preference = system.probe_appearance();
+    const auto initial_preference = system.get_environment();
     SettingsProbeAudioState initial_audio;
     const bool audio_available = settings_probe_read_audio(initial_audio);
     std::printf("SETTINGS_BASELINE,brightness=%d,audio=%d,volume=%.2f,mute=%d,theme=%s,language=%s\n",
@@ -154,11 +154,11 @@ bool run_settings_probe(ShellSystem &system, system::core::AppId settings_id,
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
             probe_frame(panel);
         }
-        if (!settings_probe_visit(cycle, "display", 201, "brightness_slider", panel)) {
+        if (!settings_probe_visit(cycle, "display", 262, "brightness_slider", panel)) {
             return false;
         }
 
-        if (!settings_probe_open_page(271, "volume_slider")) {
+        if (!settings_probe_open_page(330, "volume_slider")) {
             return false;
         }
         std::printf("SETTINGS_PAGE,%d,sound\n", cycle);
@@ -213,9 +213,9 @@ bool run_settings_probe(ShellSystem &system, system::core::AppId settings_id,
             }
         }
         if (!settings_probe_back_home() ||
-                !settings_probe_visit(cycle, "language", 341, "option_0", panel) ||
-                !settings_probe_visit(cycle, "theme", 411, "option_0", panel) ||
-                !settings_probe_visit(cycle, "wifi", 131, "wifi_toggle", panel)) {
+                !settings_probe_visit(cycle, "language", 398, "option_0", panel) ||
+                !settings_probe_visit(cycle, "theme", 466, "option_0", panel) ||
+                !settings_probe_visit(cycle, "wifi", 194, "wifi_toggle", panel)) {
             return false;
         }
 
@@ -230,7 +230,7 @@ bool run_settings_probe(ShellSystem &system, system::core::AppId settings_id,
             BROOKESIA_LOGE("Settings probe audio state changed in cycle %1%", cycle);
             return false;
         }
-        const auto preference = system.probe_appearance();
+        const auto preference = system.get_environment();
         if (preference.theme_id != initial_preference.theme_id ||
                 preference.language != initial_preference.language) {
             BROOKESIA_LOGE("Settings probe active preference changed in cycle %1%", cycle);
@@ -262,9 +262,9 @@ bool settings_probe_navigation_failure()
     const auto home_after_failure = [failures]() {
         return probe_has_component("open_sound") && text_failure_count() == failures + 2;
     };
-    if (!probe_click(200, 366) ||
+    if (!probe_click(198, 211) ||
             !probe_wait([]() { return probe_has_component("open_sound"); }, 3000) ||
-            !arm_text_failure(probe_key("header_back")) || !probe_click(512, 271) ||
+            !arm_text_failure(probe_key("header_back")) || !probe_click(512, 330) ||
             !probe_wait(sound_after_failure, 3000)) {
         return false;
     }
@@ -274,7 +274,7 @@ bool settings_probe_navigation_failure()
             !probe_wait([]() { return probe_has_component("open_settings"); }, 3000)) {
         return false;
     }
-    if (!probe_click(200, 366) ||
+    if (!probe_click(198, 211) ||
             !probe_wait([]() { return probe_has_component("open_sound"); }, 3000) ||
             !probe_click(920, 37) ||
             !probe_wait([]() { return probe_has_component("open_settings"); }, 3000)) {
@@ -286,7 +286,7 @@ bool settings_probe_navigation_failure()
 
 // Optional acceptance console. It dispatches touch coordinates on app_main and
 // never runs service waits in the GSP callback or exposes credential contents.
-void settings_probe_console(ShellSystem &system, hal::display::PanelIface &panel)
+void settings_probe_console(system::core::System &system, hal::display::PanelIface &panel)
 {
     // The acceptance console owns RX after the measured run. Normal firmware
     // keeps the USB host bridge; a reset restores it in probe firmware as well.
@@ -342,7 +342,7 @@ void settings_probe_console(ShellSystem &system, hal::display::PanelIface &panel
             std::printf("SETTINGS_BUSY_TONE,%d\n", static_cast<bool>(result));
         } else if (std::string_view(command.data()) == "state") {
             SettingsProbeAudioState audio;
-            const auto active = system.probe_appearance();
+            const auto active = system.get_environment();
             const auto heap = sample_heap();
             const bool available = settings_probe_read_audio(audio);
             const auto wifi = service::helper::Wifi::call_function_sync<std::string>(

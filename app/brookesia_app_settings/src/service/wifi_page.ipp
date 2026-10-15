@@ -8,6 +8,7 @@ std::expected<void, std::string> SettingsApp::open_wifi_page(system::core::AppCo
 {
     close_wifi_page(context);
     wifi_ui_state_ = WifiUiState{};
+    saved_wifi_page_ = 0;
     wifi_page_.mailbox = std::make_shared<WifiPageMailbox>();
     bind_wifi_service();
     wifi_ui_state_.service_ready = wifi_service_binding_.is_valid() && WifiHelper::is_running();
@@ -153,6 +154,32 @@ std::expected<void, std::string> SettingsApp::read_wifi_page_state()
             wifi_ui_state_.connected_ssid = std::string(ssid->as_string());
         }
     }
+    if (wifi_ui_state_.enabled) {
+        if (auto saved_json = WifiHelper::call_function_sync<boost::json::array>(
+                                  WifiHelper::FunctionId::GetConnectedAps,
+                                  service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
+                              ); saved_json) {
+            std::vector<WifiHelper::ConnectApInfo> saved_aps;
+            if (BROOKESIA_DESCRIBE_FROM_JSON(*saved_json, saved_aps)) {
+                std::vector<WifiNetworkState> next_saved;
+                for (auto &ap : saved_aps) {
+                    if (!ap.ssid.empty()) {
+                        WifiNetworkState entry{};
+                        entry.ssid = ap.ssid;
+                        entry.saved = true;
+                        entry.locked = true;
+                        next_saved.push_back(std::move(entry));
+                    }
+                    std::fill(ap.password.begin(), ap.password.end(), '\0');
+                }
+                saved_wifi_networks_ = std::move(next_saved);
+                saved_wifi_networks_loaded_ = true;
+            }
+        }
+    } else {
+        saved_wifi_networks_.clear();
+        saved_wifi_networks_loaded_ = false;
+    }
     return {};
 }
 
@@ -229,6 +256,7 @@ std::expected<void, std::string> SettingsApp::toggle_wifi_page(system::core::App
         std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
         wifi_connect_password_.clear();
         selected_wifi_network_.reset();
+        wifi_page_.forget_ssid.clear();
     }
     auto kv_name = make_settings_kv_name(SETTINGS_STORAGE_NAMESPACE, WIFI_ENABLED_STORAGE_KEY);
     auto saved = kv_name ? StorageHelper::save_key_value(
@@ -284,22 +312,32 @@ std::expected<void, std::string> SettingsApp::sync_wifi_page(system::core::AppCo
         const auto previous_state = wifi_ui_state_.general_state;
         const auto previous_ssid = wifi_ui_state_.connected_ssid;
         const auto previous_ready = wifi_ui_state_.service_ready;
+        std::vector<std::string> previous_saved;
+        for (const auto &network : saved_wifi_networks_) {
+            previous_saved.push_back(network.ssid);
+        }
         if (auto result = read_wifi_page_state(); !result) {
             wifi_page_.error = localized_text(current_locale_, "wifi.unavailable_retry");
         } else if (!previous_ready) {
             wifi_page_.error.clear();
         }
-        changed = changed || previous_state != wifi_ui_state_.general_state ||
+        std::vector<std::string> current_saved;
+        for (const auto &network : saved_wifi_networks_) {
+            current_saved.push_back(network.ssid);
+        }
+        if (!wifi_page_.forget_ssid.empty() && !is_saved_wifi_ssid(wifi_page_.forget_ssid)) {
+            wifi_page_.forget_ssid.clear();
+        }
+        changed = changed || previous_saved != current_saved || previous_state != wifi_ui_state_.general_state ||
                   previous_ssid != wifi_ui_state_.connected_ssid || previous_ready != wifi_ui_state_.service_ready;
         wifi_page_.next_state_read = SteadyClock::now() + std::chrono::milliseconds(WIFI_STATE_POLL_INTERVAL_MS);
     }
     if (settings_uses_gsp_backend() && current_page_ == PAGE_WIFI_CONNECT &&
             (!wifi_ui_state_.service_ready || !wifi_ui_state_.enabled)) {
         // An external Wi-Fi stop or service loss can happen while the password keyboard is open.
-        // Hide it before switching pages because its close path restores the connection page.
+        // Switch current_page_ before hiding the keyboard so its resume path restores PAGE_WIFI.
         invalidate_wifi_connect_operation(context);
         cancel_wifi_page_selection();
-        cancel_wifi_keyboard_if_active(context);
         std::fill(wifi_connect_password_.begin(), wifi_connect_password_.end(), '\0');
         wifi_connect_password_.clear();
         selected_wifi_network_.reset();
@@ -312,11 +350,12 @@ std::expected<void, std::string> SettingsApp::sync_wifi_page(system::core::AppCo
         if (wifi_ui_state_.service_ready) {
             wifi_page_.error.clear();
         }
+        current_page_ = PAGE_WIFI;
+        cancel_wifi_keyboard_if_active(context);
         auto shown = surface_->show_page(context, PAGE_WIFI);
         if (!shown) {
             return shown;
         }
-        current_page_ = PAGE_WIFI;
         return render_wifi_page(context);
     }
     if (auto selection = wifi_page_.selection) {
@@ -346,7 +385,9 @@ std::expected<void, std::string> SettingsApp::sync_wifi_page(system::core::AppCo
             } else if (current_page_ == PAGE_WIFI && wifi_ui_state_.service_ready && wifi_ui_state_.enabled &&
                        !wifi_ui_state_.scanning && !wifi_page_.toggle_target) {
                 auto it = std::find_if(available_wifi_networks_.begin(), available_wifi_networks_.end(),
-                [&ssid](const WifiNetworkState &network) { return network.ssid == ssid; });
+                [&ssid](const WifiNetworkState & network) {
+                    return network.ssid == ssid;
+                });
                 if (it != available_wifi_networks_.end()) {
                     auto network = *it;
                     network.saved = saved;
@@ -441,6 +482,15 @@ std::expected<void, std::string> SettingsApp::render_wifi_page(system::core::App
                            !wifi_ui_state_.scanning &&
                            !wifi_page_.selection;
     view.disconnect_enabled = view.enabled && wifi_ui_state_.general_state == "Connected";
+    view.saved_list = wifi_page_.saved_list;
+    view.list_switch_enabled = view.refresh_enabled && !wifi_page_.connect_pending;
+    view.forget_enabled = view.list_switch_enabled && view.saved_list &&
+                          !wifi_page_.forget_ssid.empty() && is_saved_wifi_ssid(wifi_page_.forget_ssid);
+    view.selection_notice = view.saved_list ?
+                            (wifi_page_.forget_ssid.empty() ?
+                             localized_text(current_locale_, "wifi.select_saved_to_forget") :
+                             localized_text(current_locale_, "wifi.forget_target") + wifi_page_.forget_ssid) :
+                            localized_text(current_locale_, "gsp.tap_network");
     view.connection = localized_text(current_locale_, "wifi.not_connected");
     if (wifi_page_.connect_pending) {
         view.connection = localized_text(current_locale_, "wifi.connecting_prefix") + wifi_page_.connect_ssid;
@@ -468,39 +518,90 @@ std::expected<void, std::string> SettingsApp::render_wifi_page(system::core::App
         view.status = localized_text(current_locale_, "wifi.off_hint");
     } else if (wifi_ui_state_.scanning) {
         view.status = localized_text(current_locale_, "wifi.scanning_networks");
+    } else if (view.saved_list) {
+        view.status = localized_text(current_locale_,
+                                     saved_wifi_networks_.empty() ? "wifi_no_saved_networks" : "wifi.saved_list");
     } else if (wifi_page_.scan_received && available_wifi_networks_.empty()) {
         view.status = localized_text(current_locale_, "wifi.empty_hint");
     } else {
         view.status = localized_text(current_locale_, "wifi.nearby");
     }
+    const auto &networks = view.saved_list ? saved_wifi_networks_ : available_wifi_networks_;
+    auto &page = view.saved_list ? saved_wifi_page_ : available_wifi_page_;
     const auto count = (wifi_ui_state_.service_ready && view.enabled && !wifi_ui_state_.scanning) ?
-                       available_wifi_networks_.size() : 0;
+                       networks.size() : 0;
     const auto pages = std::max<size_t>(1, (count + WIFI_PAGE_ROW_COUNT - 1) / WIFI_PAGE_ROW_COUNT);
-    available_wifi_page_ = std::min(available_wifi_page_, pages - 1);
-    view.previous_enabled = available_wifi_page_ > 0;
-    view.next_enabled = available_wifi_page_ + 1 < pages;
+    page = std::min(page, pages - 1);
+    view.previous_enabled = page > 0;
+    view.next_enabled = page + 1 < pages;
     view.pagination = std::to_string(count) + localized_text(current_locale_, "gsp.networks") +
                       "   " +
-                      std::to_string(available_wifi_page_ + 1) +
+                      std::to_string(page + 1) +
                       " / " + std::to_string(pages);
     for (size_t row = 0; row < WIFI_PAGE_ROW_COUNT; ++row) {
-        const auto index = available_wifi_page_ * WIFI_PAGE_ROW_COUNT + row;
+        const auto index = page * WIFI_PAGE_ROW_COUNT + row;
         if (index >= count) {
             break;
         }
-        const auto &network = available_wifi_networks_[index];
-        view.rows[row].enabled = !wifi_ui_state_.scanning && !wifi_page_.selection && !network.ssid.empty();
+        const auto &network = networks[index];
+        view.rows[row].enabled = !wifi_ui_state_.scanning && !wifi_page_.selection && !network.ssid.empty() &&
+                                 (!view.saved_list || view.list_switch_enabled);
         view.rows[row].ssid = network.ssid;
+        if (view.saved_list) {
+            const auto detail_key = network.ssid == wifi_page_.forget_ssid ? "wifi.selected_to_forget" : "wifi.saved";
+            view.rows[row].detail = localized_text(current_locale_, detail_key);
+            if (wifi_ui_state_.general_state == "Connected" && network.ssid == wifi_ui_state_.connected_ssid) {
+                view.rows[row].detail += "   " + localized_text(current_locale_, "wifi.connected");
+            }
+            continue;
+        }
         view.rows[row].detail = localized_text(current_locale_, network.enterprise ? "wifi.enterprise" :
-                                network.locked ? "wifi.secured" : "wifi.open") +
+                                               network.locked ? "wifi.secured" : "wifi.open") +
                                 "   " + localized_text(current_locale_, "wifi.signal") + " " +
                                 std::to_string(network.signal_level) + "/4   " +
                                 std::to_string(network.rssi) + " dBm   " + network.band;
         if (wifi_ui_state_.general_state == "Connected" && network.ssid == wifi_ui_state_.connected_ssid) {
             view.rows[row].detail += "   " + localized_text(current_locale_, "wifi.connected");
+        } else if (is_saved_wifi_ssid(network.ssid)) {
+            view.rows[row].detail += "   " + localized_text(current_locale_, "wifi.saved");
         }
     }
     return surface_->set_wifi(context, view);
+}
+
+std::expected<void, std::string> SettingsApp::forget_wifi_page_network(system::core::AppContext &context)
+{
+    if (!wifi_page_.saved_list || !wifi_ui_state_.service_ready || !wifi_ui_state_.enabled ||
+            wifi_ui_state_.scanning || wifi_ui_state_.connecting || wifi_page_.connect_pending ||
+            wifi_page_.toggle_target || wifi_page_.selection || wifi_page_.forget_ssid.empty() ||
+            !is_saved_wifi_ssid(wifi_page_.forget_ssid)) {
+        return render_wifi_page(context);
+    }
+    const auto target_ssid = wifi_page_.forget_ssid;
+    auto removed = WifiHelper::call_function_sync(
+                       WifiHelper::FunctionId::RemoveConnectedAp,
+                       target_ssid,
+                       service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
+                   );
+    if (!removed) {
+        wifi_page_.error = localized_text(current_locale_, "wifi.forget_failed");
+        return render_wifi_page(context);
+    }
+    const auto matches_target = [&target_ssid](const WifiNetworkState &item) {
+        return item.ssid == target_ssid;
+    };
+    saved_wifi_networks_.erase(
+        std::remove_if(saved_wifi_networks_.begin(), saved_wifi_networks_.end(), matches_target),
+        saved_wifi_networks_.end()
+    );
+    wifi_page_.forget_ssid.clear();
+    wifi_page_.error = localized_text(current_locale_, "wifi.forgotten");
+    if (wifi_ui_state_.general_state == "Connected" && wifi_ui_state_.connected_ssid == target_ssid) {
+        if (auto disconnected = disconnect_current_wifi(context); !disconnected) {
+            wifi_page_.error = localized_text(current_locale_, "wifi.disconnect_failed");
+        }
+    }
+    return render_wifi_page(context);
 }
 
 std::expected<void, std::string> SettingsApp::select_wifi_page_network(
@@ -511,13 +612,23 @@ std::expected<void, std::string> SettingsApp::select_wifi_page_network(
             !wifi_ui_state_.enabled || wifi_ui_state_.scanning || wifi_page_.toggle_target || wifi_page_.selection) {
         return {};
     }
-    const size_t index = available_wifi_page_ * WIFI_PAGE_ROW_COUNT + row;
-    if (index >= available_wifi_networks_.size()) {
+    const auto &networks = wifi_page_.saved_list ? saved_wifi_networks_ : available_wifi_networks_;
+    const auto page = wifi_page_.saved_list ? saved_wifi_page_ : available_wifi_page_;
+    const size_t index = page * WIFI_PAGE_ROW_COUNT + row;
+    if (index >= networks.size()) {
         return {};
     }
-    auto network = available_wifi_networks_[index];
+    auto network = networks[index];
     if (network.ssid.empty()) {
         return {};
+    }
+    if (wifi_page_.saved_list) {
+        if (wifi_ui_state_.connecting || wifi_page_.connect_pending) {
+            return {};
+        }
+        wifi_page_.forget_ssid = network.ssid;
+        wifi_page_.error.clear();
+        return render_wifi_page(context);
     }
     if (wifi_ui_state_.general_state == "Connected" && wifi_ui_state_.connected_ssid == network.ssid) {
         wifi_page_.error.clear();

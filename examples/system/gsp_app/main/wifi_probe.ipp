@@ -236,7 +236,7 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
         return false;
     }
     const bool initially_enabled = *initial == "Started" || *initial == "Connected" || *initial == "Connecting";
-    if (!run_app(system, settings_id, "settings", true) || !probe_click(450, 130)) {
+    if (!run_app(system, settings_id, "settings", true) || !probe_click(512, 194)) {
         return false;
     }
     if (!initially_enabled && !probe_click(140, 108)) {
@@ -287,7 +287,7 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
             return false;
         }
         // Leave while a new scan is active, then return and require a fresh result.
-        if (!probe_click(890, 108) || !probe_click(60, 37) || !probe_click(450, 130)) {
+        if (!probe_click(890, 108) || !probe_click(60, 37) || !probe_click(512, 194)) {
             return false;
         }
         previous = results->load();
@@ -324,7 +324,7 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
             baseline = last;
         }
         previous = results->load();
-        if (!run_app(system, settings_id, "settings", true) || !probe_click(450, 130) || !probe_wait(scan_ready)) {
+        if (!run_app(system, settings_id, "settings", true) || !probe_click(512, 194) || !probe_wait(scan_ready)) {
             return false;
         }
     }
@@ -349,7 +349,7 @@ bool run_wifi_probe(system::core::System &system, system::core::AppId settings_i
             return false;
         }
     }
-    if (!probe_click(60, 37) || !probe_click(450, 210)) {
+    if (!probe_click(60, 37) || !probe_click(512, 262)) {
         return false;
     }
     int32_t brightness = -1;
@@ -405,7 +405,7 @@ bool probe_launcher_round_trip(hal::display::PanelIface &panel)
     std::puts("WIFI_CASE,launcher");
     probe_frame(panel);
     for (int cycle = 0; cycle < 2; ++cycle) {
-        if (!probe_has_component("open_settings") || !probe_click(200, 366) ||
+        if (!probe_has_component("open_settings") || !probe_click(198, 211) ||
                 !probe_wait([]() { return probe_has_component("open_wifi"); }, 3000)) {
             return false;
         }

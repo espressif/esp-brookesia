@@ -42,29 +42,12 @@ public:
     system::core::AppGuiDescriptor get_gui_descriptor() const override;
     std::span<const std::byte> gui_bundle() const override;
     const void *gui_runtime_config() const override;
-    /**
-     * @brief Present a password keyboard for an active Settings GSP connection page.
-     * @param[in] request_id Request owned by SystemApi and this app.
-     * @param[in] options Password editor options.
-     * @param[in] completion Handler called once after user confirmation or cancellation.
-     * @return Success, or an error if the page or keyboard request cannot be opened.
-     * @note The System host calls this on the app task and owns the request's lifetime.
-     */
-    std::expected<void, std::string> show_gsp_keyboard(
-        system::core::KeyboardRequestId request_id,
-        const system::core::KeyboardRequestOptions &options,
-        system::core::KeyboardResultHandler completion
-    );
-    /**
-     * @brief Close a matching GSP keyboard without completing the SystemApi request.
-     * @param[in] request_id Request to hide; other request identifiers are ignored.
-     * @note Called on the app task. SystemApi delivers cancellation after this returns.
-     */
-    void hide_gsp_keyboard(system::core::KeyboardRequestId request_id);
     std::expected<void, std::string> on_install(system::core::AppContext &context) override;
     void on_uninstall(system::core::AppContext &context) override;
     std::expected<void, std::string> on_start(system::core::AppContext &context) override;
     std::expected<void, std::string> on_stop(system::core::AppContext &context) override;
+    std::expected<void, std::string> on_pause(system::core::AppContext &context) override;
+    std::expected<void, std::string> on_resume(system::core::AppContext &context) override;
     std::expected<void, std::string> on_action(
         system::core::AppContext &context,
         std::string_view action
@@ -157,6 +140,7 @@ private:
     std::expected<void, std::string> refresh_language_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_device_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_my_device_state(system::core::AppContext &context);
+    std::expected<void, std::string> refresh_gsp_home_summaries(system::core::AppContext &context);
     void clear_hardware_groups(system::core::AppContext &context);
     std::expected<void, std::string> refresh_display_state(system::core::AppContext &context);
     std::expected<void, std::string> refresh_sound_state(system::core::AppContext &context);
@@ -228,6 +212,7 @@ private:
     std::expected<void, std::string> render_wifi_page(system::core::AppContext &context);
     std::expected<void, std::string> scan_wifi_page(system::core::AppContext &context);
     std::expected<void, std::string> toggle_wifi_page(system::core::AppContext &context);
+    std::expected<void, std::string> forget_wifi_page_network(system::core::AppContext &context);
     std::expected<void, std::string> select_wifi_page_network(system::core::AppContext &context, size_t row);
     void cancel_wifi_page_selection();
     std::expected<void, std::string> back_wifi_connect(system::core::AppContext &context);

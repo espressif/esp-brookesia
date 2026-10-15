@@ -422,6 +422,17 @@ void System::deinit()
     }
     stop();
     impl_->hide_startup_overlay();
+    auto shell_stopped = impl_->run_task_sync<std::expected<void, std::string>>(
+                             SYSTEM_APP_TASK_GROUP,
+    [this]() {
+        return impl_->stop_gsp_shell_session();
+    },
+    std::unexpected("Failed to post GSP shell stop task")
+                         );
+    if (!shell_stopped) {
+        BROOKESIA_LOGE("GSP modal stop failed; keeping system and HAL ownership: %1%", shell_stopped.error());
+        return;
+    }
     for (auto &[_, record] : impl_->apps_) {
         if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
             auto stop_result = stop_app(record.info.app_id);
@@ -492,6 +503,13 @@ void System::deinit()
         );
         return;
     }
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    impl_->gsp_sntp_binding_.release();
+    impl_->gsp_shell_app_.reset();
+    impl_->gsp_shell_app_id_ = INVALID_APP_ID;
+    impl_->gsp_stopping_ = false;
+    impl_->gsp_launching_app_ = false;
+#endif
     impl_->release_gsp_display_devices();
     impl_->apps_.clear();
     impl_->manifest_id_to_app_.clear();
@@ -538,6 +556,7 @@ void System::deinit()
 void System::Impl::abandon_system_references()
 {
     detach_gsp_callbacks();
+    detach_gsp_shell_callbacks();
     system_service_binding_.release();
     gui_service_binding_.release();
     timer_service_binding_.release();

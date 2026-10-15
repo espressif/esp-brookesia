@@ -85,6 +85,10 @@ void SettingsApp::on_uninstall(system::core::AppContext &context)
         (void)context.timer().stop(wifi_ui_timer_id_);
         wifi_ui_timer_id_ = system::core::INVALID_TIMER_ID;
     }
+    if (sntp_ui_timer_id_ != system::core::INVALID_TIMER_ID) {
+        (void)context.timer().stop(sntp_ui_timer_id_);
+        sntp_ui_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
     shutdown_brightness_callbacks();
     close_wifi_page(context);
     disconnect_sntp_events();
@@ -287,6 +291,10 @@ std::expected<void, std::string> SettingsApp::on_stop(system::core::AppContext &
         (void)context.timer().stop(wifi_ui_timer_id_);
         wifi_ui_timer_id_ = system::core::INVALID_TIMER_ID;
     }
+    if (sntp_ui_timer_id_ != system::core::INVALID_TIMER_ID) {
+        (void)context.timer().stop(sntp_ui_timer_id_);
+        sntp_ui_timer_id_ = system::core::INVALID_TIMER_ID;
+    }
     shutdown_brightness_callbacks();
     close_wifi_page(context);
     ++wifi_operation_generation_;
@@ -357,6 +365,15 @@ std::expected<void, std::string> SettingsApp::on_timer(
 )
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (name == SNTP_UI_TIMER_NAME) {
+        if (!settings_uses_gsp_backend() || timer_id != sntp_ui_timer_id_ ||
+                sntp_ui_timer_id_ == system::core::INVALID_TIMER_ID || context_ != &context ||
+                current_page_ != PAGE_TIME_ZONE || !surface_ || surface_->suspended()) {
+            return {};
+        }
+        // on_timer runs on the App task; no service callback retains UI or lifecycle state.
+        return refresh_time_zone_state(context);
+    }
     if (name == SOUND_UI_TIMER_NAME) {
         if (timer_id != sound_ui_timer_id_ || !sound_ui_mailbox_) {
             return {};

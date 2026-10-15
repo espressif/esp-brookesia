@@ -19,3 +19,8 @@ current Settings bundle). The generated component directories and separate
 dynamic font remain unchanged. Uncompressed and deployable bundles retain
 their existing paths; compression is currently used only for ordinary generated
 configs, whose `AppHost::bundle()` remains null as before.
+
+`brookesia_gsp_prepare_theme` prepares light/dark scenes before bundle compilation.
+The helper resolves `brookesia_gui_gsp/DejaVuSans.ttf` against this component's
+font resources, so consumer scenes do not depend on example source paths. The
+font's license is included beside the font in `gsp/fonts/`.

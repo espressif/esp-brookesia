@@ -3,7 +3,7 @@
   "w": 1024,
   "h": 600,
   "screen_bg": "#F4F5F7",
-  "font": "../../../examples/system/gsp_app/main/fonts/DejaVuSans.ttf",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
   "default_font_size": 24,
   "objects": [
     {
@@ -92,7 +92,7 @@
       "y": 128,
       "w": 916,
       "h": 120,
-      "text": "Theme",
+      "text": "",
       "font_size": 24,
       "bg_color": {
         "theme": "surface"
@@ -103,6 +103,38 @@
       "radius": 14,
       "callback": "open_theme",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "text": "Theme",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_theme",
+      "name": "theme_name",
+      "bind": "theme_name",
+      "x": 24,
+      "y": 43,
+      "w": 800,
+      "h": 32,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_theme",
+      "name": "theme_arrow",
+      "x": 856,
+      "y": 44,
+      "w": 28,
+      "h": 32,
+      "text": ">",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
     },
     {
       "type": "label",

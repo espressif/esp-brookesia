@@ -13,3 +13,7 @@ bundle 在固件中的原始字节替换为无损 zlib 封装。生成配置中�
 完整 bundle 大小的 PSRAM（当前 Settings 约 1.0 MB）。生成的组件目录与独立动态
 字体保持不变。未压缩及可部署 bundle 继续走原路径；目前仅普通生成配置使用压缩，
 其 `AppHost::bundle()` 和以往一样为空。
+
+`brookesia_gsp_prepare_theme` 在 bundle 编译前生成明暗主题场景，将
+`brookesia_gui_gsp/DejaVuSans.ttf` 解析为本组件的字体资源，使用方无需引用示例
+源码路径。字体许可证随字体保存在 `gsp/fonts/`。

@@ -66,7 +66,7 @@ void SettingsApp::subscribe_sntp_events()
             return;
         }
         time_zone_ui_state_.state = *state;
-        if (context_ == nullptr) {
+        if (context_ == nullptr || settings_uses_gsp_backend()) {
             return;
         }
         if (auto result = refresh_time_zone_state(*context_); !result) {
@@ -124,6 +124,39 @@ std::expected<void, std::string> SettingsApp::refresh_time_zone_page_state(syste
     const auto unavailable = make_localized_unavailable_text(current_locale_);
     const auto timezone_text = time_zone_ui_state_.timezone.empty() ? unavailable : time_zone_ui_state_.timezone;
     const auto state_text = time_zone_ui_state_.state.empty() ? unavailable : time_zone_ui_state_.state;
+
+    if (settings_uses_gsp_backend()) {
+        if (current_page_ != PAGE_TIME_ZONE) {
+            return {};
+        }
+        TimeZonePageView view;
+        view.current_timezone = time_zone_ui_state_.timezone.empty() ?
+                                unavailable :
+                                (get_time_zone_summary_name(current_locale_, time_zone_ui_state_.timezone) +
+                                 " (" + time_zone_ui_state_.timezone + ")");
+        view.sntp_state = state_text;
+        static constexpr std::pair<std::string_view, std::string_view> SNTP_STATE_LABELS[] = {
+            {"Stopped", "gsp.sntp_stopped"},
+            {"CheckingNetwork", "gsp.sntp_checking_network"},
+            {"Syncing", "gsp.sntp_syncing"},
+            {"Synced", "gsp.sntp_synced"},
+        };
+        for (const auto &[state, label] : SNTP_STATE_LABELS) {
+            if (state_text == state) {
+                view.sntp_state = localized_text(current_locale_, label);
+                break;
+            }
+        }
+        view.status = localized_text(current_locale_, "gsp.time_zone_hint");
+        for (size_t i = 0; i < TIME_ZONE_OPTIONS.size() && i < view.labels.size(); ++i) {
+            const auto &option = TIME_ZONE_OPTIONS[i];
+            view.labels[i] = get_time_zone_summary_name(current_locale_, option.timezone);
+            view.values[i] = (option.timezone == time_zone_ui_state_.timezone) ?
+                             (localized_text(current_locale_, "current") + " | " + std::string(option.timezone)) :
+                             std::string(option.timezone);
+        }
+        return surface_->set_time_zone(context, view);
+    }
 
     std::vector<gui::BindingValueUpdate> updates;
     add_binding_update(

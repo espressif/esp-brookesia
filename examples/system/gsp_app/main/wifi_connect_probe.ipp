@@ -217,7 +217,7 @@ bool open_wifi(system::core::System &system, system::core::AppId settings_id,
                const std::shared_ptr<std::atomic<unsigned>> &scan_count)
 {
     const auto previous = scan_count->load();
-    if (!run_app(system, settings_id, "settings", true) || !probe_click(450, 130)) {
+    if (!run_app(system, settings_id, "settings", true) || !probe_click(512, 194)) {
         return false;
     }
     if (current_state_is("Idle") || current_state_is("Inited")) {

@@ -1,0 +1,239 @@
+{
+  "screen": "super_dialog",
+  "w": 1024,
+  "h": 600,
+  "screen_bg": "#F4F5F7",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
+  "default_font_size": 24,
+  "objects": [
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "page_background",
+      "x": 0,
+      "y": 0,
+      "w": 1024,
+      "h": 600,
+      "bg_color": {
+        "theme": "page_bg"
+      }
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "dialog_card",
+      "x": 162,
+      "y": 130,
+      "w": 700,
+      "h": 340,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "border_color": {
+        "theme": "rail"
+      },
+      "border_width": 1,
+      "radius": 24
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "dialog_badge",
+      "bind": "dialog_badge",
+      "x": 202,
+      "y": 164,
+      "w": 620,
+      "h": 32,
+      "text": "Notice",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "accent"
+      },
+      "hidden": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "dialog_text",
+      "bind": "dialog_text",
+      "x": 202,
+      "y": 212,
+      "w": 620,
+      "h": 54,
+      "text": "Message",
+      "font_size": 26,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "label",
+      "parent": -1,
+      "name": "dialog_info",
+      "bind": "dialog_info",
+      "x": 202,
+      "y": 278,
+      "w": 620,
+      "h": 68,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "hidden": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "button_0_group",
+      "bind": "button_0_group",
+      "bind_target": "visible",
+      "x": 202,
+      "y": 374,
+      "w": 192,
+      "h": 62,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "button_0",
+      "bind": "button_0",
+      "x": 0,
+      "y": 0,
+      "w": 192,
+      "h": 62,
+      "text": "OK",
+      "font_size": 22,
+      "bg_color": {
+        "theme": "accent"
+      },
+      "fg_color": {
+        "theme": "on_accent"
+      },
+      "radius": 14,
+      "callback": "button_0",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "button_0_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "button_1_group",
+      "bind": "button_1_group",
+      "bind_target": "visible",
+      "x": 416,
+      "y": 374,
+      "w": 192,
+      "h": 62,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "button_1",
+      "bind": "button_1",
+      "x": 0,
+      "y": 0,
+      "w": 192,
+      "h": 62,
+      "text": "Cancel",
+      "font_size": 22,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "button_1",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "button_1_group"
+    },
+    {
+      "type": "container",
+      "parent": -1,
+      "name": "button_2_group",
+      "bind": "button_2_group",
+      "bind_target": "visible",
+      "x": 630,
+      "y": 374,
+      "w": 192,
+      "h": 62,
+      "bg_color": "#00000000",
+      "hidden": true
+    },
+    {
+      "type": "button",
+      "name": "button_2",
+      "bind": "button_2",
+      "x": 0,
+      "y": 0,
+      "w": 192,
+      "h": 62,
+      "text": "Action",
+      "font_size": 22,
+      "bg_color": {
+        "theme": "control"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 14,
+      "callback": "button_2",
+      "hidden": false,
+      "enabled": true,
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "parent_name": "button_2_group"
+    }
+  ],
+  "themes": {
+    "accent": {
+      "type": "color",
+      "default": "#0A84FF",
+      "dynamic": true
+    },
+    "control": {
+      "type": "color",
+      "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
+      "dynamic": true
+    },
+    "on_accent": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "page_bg": {
+      "type": "color",
+      "default": "#F4F5F7",
+      "dynamic": true
+    },
+    "rail": {
+      "type": "color",
+      "default": "#E5E5EA",
+      "dynamic": true
+    },
+    "surface": {
+      "type": "color",
+      "default": "#FFFFFF",
+      "dynamic": true
+    },
+    "text": {
+      "type": "color",
+      "default": "#1C1C1E",
+      "dynamic": true
+    }
+  }
+}

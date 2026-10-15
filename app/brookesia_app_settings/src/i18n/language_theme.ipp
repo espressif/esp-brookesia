@@ -100,13 +100,11 @@ std::expected<void, std::string> SettingsApp::schedule_language_switch(
             show_preference_save_failure(context, true, result.error());
             return result;
         }
-        preference_error_.clear();
-        pending_language_locale_.clear();
-        restart_prompt_kind_ = RestartPromptKind::None;
-        if (!settings_uses_gsp_backend()) {
-            hide_message_dialog_if_visible(context);
-        }
-        return refresh_language_state(context);
+    preference_error_.clear();
+    pending_language_locale_.clear();
+    restart_prompt_kind_ = RestartPromptKind::None;
+    hide_message_dialog_if_visible(context);
+    return refresh_language_state(context);
     }
 
     const auto supported_languages = settings_uses_gsp_backend() ?
@@ -146,13 +144,11 @@ std::expected<void, std::string> SettingsApp::schedule_theme_switch(
             show_preference_save_failure(context, false, result.error());
             return result;
         }
-        preference_error_.clear();
-        pending_theme_id_.clear();
-        restart_prompt_kind_ = RestartPromptKind::None;
-        if (!settings_uses_gsp_backend()) {
-            hide_message_dialog_if_visible(context);
-        }
-        return refresh_theme_state(context);
+    preference_error_.clear();
+    pending_theme_id_.clear();
+    restart_prompt_kind_ = RestartPromptKind::None;
+    hide_message_dialog_if_visible(context);
+    return refresh_theme_state(context);
     }
     if (auto result = context.gui().save_theme_preference(theme_id); !result) {
         show_preference_save_failure(context, false, result.error());
@@ -174,12 +170,11 @@ std::expected<void, std::string> SettingsApp::show_restart_prompt(
 {
     const auto text_key = kind == RestartPromptKind::Language ?
                           "language.restart_required" : "theme.restart_required";
-    if (settings_uses_gsp_backend()) {
-        restart_prompt_kind_ = kind;
-        return kind == RestartPromptKind::Language ? refresh_language_state(context) : refresh_theme_state(context);
-    }
     const auto text = localized_text(current_locale_, text_key);
     restart_prompt_kind_ = kind;
+    if (settings_uses_gsp_backend()) {
+        (void)(kind == RestartPromptKind::Language ? refresh_language_state(context) : refresh_theme_state(context));
+    }
     ensure_message_dialog(
         context,
         text,
@@ -197,6 +192,9 @@ std::expected<void, std::string> SettingsApp::show_restart_prompt(
         }
     );
     if (message_dialog_request_id_ == system::core::INVALID_MESSAGE_DIALOG_REQUEST_ID) {
+        if (settings_uses_gsp_backend()) {
+            return {};
+        }
         restart_prompt_kind_ = RestartPromptKind::None;
         return std::unexpected("Failed to show restart confirmation dialog");
     }

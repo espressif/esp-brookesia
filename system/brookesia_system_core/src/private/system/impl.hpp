@@ -104,6 +104,10 @@ public:
         std::unique_ptr<gui::gsp::AppHost> gsp_host;
         std::unique_ptr<std::atomic<uint64_t>> gsp_epoch;
         GspEventTarget gsp_event_target{};
+        uint16_t gsp_current_scene = 0;
+        bool gsp_scene_known = false;
+        bool gsp_suspended = false;
+        std::vector<SystemHostBridge::GspUpdate> gsp_scene_updates;
 #endif
     };
 
@@ -238,6 +242,9 @@ public:
     );
     bool gsp_session_running(const AppRecord &record) const;
     bool any_gsp_session_running() const;
+    bool gsp_shell_session_running() const;
+    std::expected<void, std::string> stop_gsp_shell_session();
+    void detach_gsp_shell_callbacks();
     std::expected<void, std::string> hold_gsp_display_devices();
     void release_gsp_display_devices();
     void detach_gsp_callbacks();
@@ -347,6 +354,11 @@ public:
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP
     hal::InterfaceHandle<hal::display::PanelIface> gsp_panel_owner_;
     hal::InterfaceHandle<hal::display::TouchIface> gsp_touch_owner_;
+    std::shared_ptr<IApp> gsp_shell_app_;
+    AppId gsp_shell_app_id_ = INVALID_APP_ID;
+    service::ServiceBinding gsp_sntp_binding_;
+    bool gsp_stopping_ = false;
+    bool gsp_launching_app_ = false;
 #endif
     std::optional<gui::IBackend::ThreadGuard> gui_thread_guard_;
     std::shared_ptr<SystemHostBridge> host_bridge_;

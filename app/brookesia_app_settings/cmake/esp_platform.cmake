@@ -60,19 +60,19 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
     if(NOT COMMAND brookesia_gsp_add_bundle)
         message(FATAL_ERROR "brookesia_gui_gsp bundle helper is unavailable")
     endif()
-    include("${COMPONENT_DIR}/cmake/prepare_themes.cmake")
     set(settings_scenes
         "${COMPONENT_DIR}/gsp/settings_home_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_my_device_1024.json"
         "${COMPONENT_DIR}/gsp/settings_display_1024.json"
         "${COMPONENT_DIR}/gsp/settings_wifi_1024.json"
         "${COMPONENT_DIR}/gsp/settings_wifi_connect_1024.json"
-        "${COMPONENT_DIR}/gsp/settings_keyboard_1024.json"
         "${COMPONENT_DIR}/gsp/settings_sound_1024.json"
         "${COMPONENT_DIR}/gsp/settings_language_1024.json"
         "${COMPONENT_DIR}/gsp/settings_theme_1024.json"
+        "${COMPONENT_DIR}/gsp/settings_time_zone_1024.json"
     )
-    settings_prepare_theme(settings_light_scenes light ${settings_scenes})
-    settings_prepare_theme(settings_dark_scenes dark ${settings_scenes})
+    brookesia_gsp_prepare_theme(settings_light_scenes light ${settings_scenes})
+    brookesia_gsp_prepare_theme(settings_dark_scenes dark ${settings_scenes})
     brookesia_gsp_add_bundle(${COMPONENT_LIB}
         SCENES ${settings_light_scenes}
         PIXEL_FORMAT rgb565

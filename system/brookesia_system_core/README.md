@@ -8,6 +8,24 @@
 
 For more information, see the [ESP-Brookesia Programming Guide](https://docs.espressif.com/projects/esp-brookesia/en/latest/system/core/index.html).
 
+## GSP system home and shared input
+
+When `System::Config` supplies `gsp_panel` and `gsp_touch`, System Core installs
+and starts its built-in GSP system home. The home lists six visible applications
+per page and refreshes the list after installation or removal. It restores saved
+language/theme preferences and holds the SNTP binding for the system lifetime.
+
+Native and JavaScript applications use the existing System Core keyboard and
+message-dialog APIs. A modal temporarily suspends the application GSP session;
+closing it resumes that session. Switching applications closes pending modal
+requests through their request manager. A failed GSP stop retains the session and
+display/touch references so it can be retried before device release.
+
+The compiled home, keyboard and dialog scenes belong to this component. Theme
+preparation and the common Latin font come from the declared `brookesia_gui_gsp`
+dependency; using this component does not require Settings or the GSP example's
+source files.
+
 ## USB Host Bridge
 
 On supported ESP32-P4 targets, system core can bind the USB Serial/JTAG

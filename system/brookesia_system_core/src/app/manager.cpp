@@ -712,6 +712,20 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
             elapsed_ms_since(start_profile_started_at, now)
         );
     };
+    auto prepare_start_result = on_prepare_app_start(app_id);
+    if (!prepare_start_result) {
+        record.info.state = AppState::Error;
+        record.info.last_error = prepare_start_result.error();
+        on_app_start_failed(record.info, prepare_start_result.error());
+        show_lifecycle_error_dialog(*this, record.info, "start", LIFECYCLE_ON_START, prepare_start_result.error());
+        return prepare_start_result;
+    }
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    record.gsp_current_scene = 0;
+    record.gsp_scene_known = false;
+    record.gsp_suspended = false;
+    record.gsp_scene_updates.clear();
+#endif
     auto heap_before_start = heap_trace::capture();
     heap_trace::log("system.start", "before start", record.info.manifest.id, heap_before_start);
     record.info.state = AppState::Starting;
@@ -1115,6 +1129,12 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
         return stop_result;
     }
     record.info.state = AppState::Stopped;
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    record.gsp_current_scene = 0;
+    record.gsp_scene_known = false;
+    record.gsp_suspended = false;
+    record.gsp_scene_updates.clear();
+#endif
     if (impl_->active_app_id_ == app_id) {
         impl_->active_app_id_ = INVALID_APP_ID;
     }

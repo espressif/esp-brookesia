@@ -31,6 +31,8 @@ def prepare(source, destination, palette):
         if isinstance(value, list):
             return [resolve(item) for item in value]
         if key in {"font", "font_charset_file"} and isinstance(value, str):
+            if key == "font" and value.startswith("brookesia_gui_gsp/"):
+                return str((Path(__file__).resolve().parent.parent / "gsp/fonts" / value.split("/", 1)[1]).resolve())
             return str((source.parent / value).resolve())
         return value
 

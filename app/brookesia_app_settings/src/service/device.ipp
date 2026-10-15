@@ -249,117 +249,147 @@ std::expected<void, std::string> SettingsApp::load_audio_state()
 
 std::expected<void, std::string> SettingsApp::refresh_my_device_state(system::core::AppContext &context)
 {
-    clear_hardware_groups(context);
-    if (current_page_ != PAGE_DEVICE) {
+    if (!settings_uses_gsp_backend()) {
+        clear_hardware_groups(context);
+    }
+    if (current_page_ != PAGE_DEVICE && !settings_uses_gsp_backend()) {
         return {};
     }
-
     const auto system_info = context.system_service().get_system_info();
     const auto system_name = system_info.name.empty() ? std::string(MY_DEVICE_FALLBACK_SYSTEM_NAME) :
                              system_info.name;
     const auto system_version = system_info.version.empty() ? std::string(MY_DEVICE_FALLBACK_SYSTEM_VERSION) :
                                 system_info.version;
-    std::string device_name = make_localized_unavailable_text(current_locale_);
-    std::vector<HardwareGroup> groups;
+    if (!settings_uses_gsp_backend() || cached_hardware_groups_.empty()) {
+        bind_device_service();
+        std::string device_name = make_localized_unavailable_text(current_locale_);
+        std::vector<HardwareGroup> groups;
 
-    if (!device_service_binding_.is_valid() || !DeviceHelper::is_running()) {
-        BROOKESIA_LOGW("Device service is not ready; My Device hardware list will be unavailable");
-        auto &group = find_or_create_hardware_group(groups, "Other", current_locale_);
-        group.lines.push_back(make_localized_unavailable_text(current_locale_));
-    } else {
-        auto board_result = DeviceHelper::call_function_sync<boost::json::object>(
-                                DeviceHelper::FunctionId::GetBoardInfo,
-                                service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                            );
-        if (board_result) {
-            DeviceHelper::BoardInfo board_info;
-            if (BROOKESIA_DESCRIBE_FROM_JSON(board_result.value(), board_info) && board_info.is_valid()) {
-                if (!board_info.name.empty()) {
-                    device_name = board_info.name;
-                } else if (!board_info.chip.empty()) {
-                    device_name = board_info.chip;
-                }
-
-                auto &system_group = find_or_create_hardware_group(groups, "System", current_locale_);
-                if (!board_info.chip.empty()) {
-                    system_group.lines.push_back(
-                        localized_text(current_locale_, "text.chip_prefix") + board_info.chip
-                    );
-                }
-                if (!board_info.manufacturer.empty()) {
-                    system_group.lines.push_back(
-                        localized_text(current_locale_, "text.manufacturer_prefix") + board_info.manufacturer
-                    );
-                }
-                if (!board_info.version.empty()) {
-                    system_group.lines.push_back(
-                        localized_text(current_locale_, "text.board_version_prefix") + board_info.version
-                    );
-                }
-                if (!board_info.description.empty()) {
-                    system_group.lines.push_back(board_info.description);
-                }
-            }
+        if (!device_service_binding_.is_valid() || !DeviceHelper::is_running()) {
+            BROOKESIA_LOGW("Device service is not ready; My Device hardware list will be unavailable");
+            auto &group = find_or_create_hardware_group(groups, "Other", current_locale_);
+            group.lines.push_back(make_localized_unavailable_text(current_locale_));
         } else {
-            BROOKESIA_LOGW("Failed to get Device board info: %1%", board_result.error());
-        }
-
-        auto capabilities_result = DeviceHelper::call_function_sync<boost::json::array>(
-                                       DeviceHelper::FunctionId::GetCapabilities,
-                                       service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                                   );
-        if (capabilities_result) {
-            DeviceHelper::Capabilities capabilities;
-            if (BROOKESIA_DESCRIBE_FROM_JSON(capabilities_result.value(), capabilities)) {
-                for (const auto &device : capabilities) {
-                    if (device.interfaces.empty()) {
-                        auto &group = find_or_create_hardware_group(groups, "Other", current_locale_);
-                        group.lines.push_back(device.name.empty() ? make_localized_unknown_text(current_locale_) :
-                                              device.name);
-                        continue;
+            auto board_result = DeviceHelper::call_function_sync<boost::json::object>(
+                                    DeviceHelper::FunctionId::GetBoardInfo,
+                                    service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
+                                );
+            if (board_result) {
+                DeviceHelper::BoardInfo board_info;
+                if (BROOKESIA_DESCRIBE_FROM_JSON(board_result.value(), board_info) && board_info.is_valid()) {
+                    if (!board_info.name.empty()) {
+                        device_name = board_info.name;
+                    } else if (!board_info.chip.empty()) {
+                        device_name = board_info.chip;
                     }
-                    for (const auto &interface : device.interfaces) {
-                        auto &group = find_or_create_hardware_group(
-                                          groups,
-                                          classify_hardware_interface(interface.type_name, interface.instance_name),
-                                          current_locale_
-                                      );
+
+                    auto &system_group = find_or_create_hardware_group(groups, "System", current_locale_);
+                    if (!board_info.chip.empty()) {
+                        system_group.lines.push_back(
+                            localized_text(current_locale_, "text.chip_prefix") + board_info.chip
+                        );
+                    }
+                    if (!board_info.manufacturer.empty()) {
+                        system_group.lines.push_back(
+                            localized_text(current_locale_, "text.manufacturer_prefix") + board_info.manufacturer
+                        );
+                    }
+                    if (!board_info.version.empty()) {
+                        system_group.lines.push_back(
+                            localized_text(current_locale_, "text.board_version_prefix") + board_info.version
+                        );
+                    }
+                    if (!board_info.description.empty()) {
+                        system_group.lines.push_back(board_info.description);
+                    }
+                }
+            } else {
+                BROOKESIA_LOGW("Failed to get Device board info: %1%", board_result.error());
+            }
+
+            auto capabilities_result = DeviceHelper::call_function_sync<boost::json::array>(
+                                           DeviceHelper::FunctionId::GetCapabilities,
+                                           service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
+                                       );
+            if (capabilities_result) {
+                DeviceHelper::Capabilities capabilities;
+                if (BROOKESIA_DESCRIBE_FROM_JSON(capabilities_result.value(), capabilities)) {
+                    for (const auto &device : capabilities) {
+                        if (device.interfaces.empty()) {
+                            auto &group = find_or_create_hardware_group(groups, "Other", current_locale_);
+                            group.lines.push_back(device.name.empty() ? make_localized_unknown_text(current_locale_) :
+                                                  device.name);
+                            continue;
+                        }
+                        for (const auto &interface : device.interfaces) {
+                            auto &group = find_or_create_hardware_group(
+                                              groups,
+                                              classify_hardware_interface(interface.type_name, interface.instance_name),
+                                              current_locale_
+                                          );
+                            std::ostringstream line;
+                            line << (device.name.empty() ? make_localized_unknown_text(current_locale_) : device.name);
+                            line << " - " << interface.type_name;
+                            if (!interface.instance_name.empty()) {
+                                line << " (" << interface.instance_name << ")";
+                            }
+                            group.lines.push_back(line.str());
+                        }
+                    }
+                } else {
+                    BROOKESIA_LOGW("Failed to parse Device capabilities");
+                }
+            } else {
+                BROOKESIA_LOGW("Failed to get Device capabilities: %1%", capabilities_result.error());
+            }
+
+            auto camera_result = DeviceHelper::call_function_sync<boost::json::array>(
+                                     DeviceHelper::FunctionId::GetCameraDeviceInfos,
+                                     service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
+                                 );
+            if (camera_result) {
+                DeviceHelper::CameraDeviceInfos camera_infos;
+                if (BROOKESIA_DESCRIBE_FROM_JSON(camera_result.value(), camera_infos) && !camera_infos.empty()) {
+                    auto &group = find_or_create_hardware_group(groups, "Video", current_locale_);
+                    for (const auto &camera : camera_infos) {
                         std::ostringstream line;
-                        line << (device.name.empty() ? make_localized_unknown_text(current_locale_) : device.name);
-                        line << " - " << interface.type_name;
-                        if (!interface.instance_name.empty()) {
-                            line << " (" << interface.instance_name << ")";
+                        line << localized_text(current_locale_, "text.camera_prefix") << camera.id << ": ";
+                        line << (camera.name.empty() ? make_localized_unknown_text(current_locale_) : camera.name);
+                        if (!camera.device_path.empty()) {
+                            line << " (" << camera.device_path << ")";
                         }
                         group.lines.push_back(line.str());
                     }
                 }
-            } else {
-                BROOKESIA_LOGW("Failed to parse Device capabilities");
             }
-        } else {
-            BROOKESIA_LOGW("Failed to get Device capabilities: %1%", capabilities_result.error());
-        }
 
-        auto camera_result = DeviceHelper::call_function_sync<boost::json::array>(
-                                 DeviceHelper::FunctionId::GetCameraDeviceInfos,
-                                 service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                             );
-        if (camera_result) {
-            DeviceHelper::CameraDeviceInfos camera_infos;
-            if (BROOKESIA_DESCRIBE_FROM_JSON(camera_result.value(), camera_infos) && !camera_infos.empty()) {
-                auto &group = find_or_create_hardware_group(groups, "Video", current_locale_);
-                for (const auto &camera : camera_infos) {
-                    std::ostringstream line;
-                    line << localized_text(current_locale_, "text.camera_prefix") << camera.id << ": ";
-                    line << (camera.name.empty() ? make_localized_unknown_text(current_locale_) : camera.name);
-                    if (!camera.device_path.empty()) {
-                        line << " (" << camera.device_path << ")";
-                    }
-                    group.lines.push_back(line.str());
+            auto battery_info_result = DeviceHelper::call_function_sync<boost::json::object>(
+                                           DeviceHelper::FunctionId::GetPowerBatteryInfo,
+                                           service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
+                                       );
+            if (battery_info_result) {
+                DeviceHelper::PowerBatteryInfo battery_info;
+                if (BROOKESIA_DESCRIBE_FROM_JSON(battery_info_result.value(), battery_info) &&
+                        !battery_info.name.empty()) {
+                    auto &group = find_or_create_hardware_group(groups, "Power", current_locale_);
+                    group.lines.push_back(
+                        localized_text(current_locale_, "text.battery_prefix") + battery_info.name
+                    );
                 }
             }
         }
 
+        if (groups.empty()) {
+            auto &group = find_or_create_hardware_group(groups, "Other", current_locale_);
+            group.lines.push_back(make_localized_unavailable_text(current_locale_));
+        }
+
+        cached_device_name_ = device_name;
+        cached_hardware_groups_ = groups;
+    }
+    // Capabilities and camera discovery are cached; connectivity belongs to this page visit.
+    auto groups = cached_hardware_groups_;
+    if (current_page_ == PAGE_DEVICE && device_service_binding_.is_valid() && DeviceHelper::is_running()) {
         auto network_result = DeviceHelper::call_function_sync<boost::json::array>(
                                   DeviceHelper::FunctionId::GetNetworkConnectivityInfo,
                                   service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
@@ -378,25 +408,62 @@ std::expected<void, std::string> SettingsApp::refresh_my_device_state(system::co
             }
         }
 
-        auto battery_info_result = DeviceHelper::call_function_sync<boost::json::object>(
-                                       DeviceHelper::FunctionId::GetPowerBatteryInfo,
-                                       service::helper::Timeout(DEVICE_SERVICE_TIMEOUT_MS)
-                                   );
-        if (battery_info_result) {
-            DeviceHelper::PowerBatteryInfo battery_info;
-            if (BROOKESIA_DESCRIBE_FROM_JSON(battery_info_result.value(), battery_info) &&
-                    !battery_info.name.empty()) {
-                auto &group = find_or_create_hardware_group(groups, "Power", current_locale_);
-                group.lines.push_back(
-                    localized_text(current_locale_, "text.battery_prefix") + battery_info.name
-                );
-            }
+        if (!network_result) {
+            BROOKESIA_LOGW("Failed to get Device network state: %1%", network_result.error());
+            auto &group = find_or_create_hardware_group(groups, "Network", current_locale_);
+            group.lines.push_back(make_localized_unavailable_text(current_locale_));
         }
     }
 
-    if (groups.empty()) {
-        auto &group = find_or_create_hardware_group(groups, "Other", current_locale_);
-        group.lines.push_back(make_localized_unavailable_text(current_locale_));
+    const auto &device_name = cached_device_name_;
+    if (settings_uses_gsp_backend()) {
+        if (current_page_ != PAGE_DEVICE) {
+            return {};
+        }
+        std::vector<MyDevicePageView::GroupCard> cards;
+        for (const auto &group : groups) {
+            if (group.lines.empty()) {
+                MyDevicePageView::GroupCard card;
+                card.title = group.title;
+                card.visible = true;
+                cards.push_back(std::move(card));
+                continue;
+            }
+            const size_t chunks = (group.lines.size() + MY_DEVICE_GROUP_LINES - 1) / MY_DEVICE_GROUP_LINES;
+            for (size_t chunk = 0; chunk < chunks; ++chunk) {
+                MyDevicePageView::GroupCard card;
+                card.title = chunks > 1 ?
+                             (group.title + " (" + std::to_string(chunk + 1) + "/" + std::to_string(chunks) + ")") :
+                             group.title;
+                card.visible = true;
+                const size_t start = chunk * MY_DEVICE_GROUP_LINES;
+                const size_t count = std::min(MY_DEVICE_GROUP_LINES, group.lines.size() - start);
+                card.line_count = count;
+                for (size_t line = 0; line < count; ++line) {
+                    card.lines[line] = group.lines[start + line];
+                }
+                cards.push_back(std::move(card));
+            }
+        }
+        const size_t total = cards.size();
+        const size_t pages = std::max<size_t>(1, (total + MY_DEVICE_GROUP_SLOTS - 1) / MY_DEVICE_GROUP_SLOTS);
+        my_device_page_ = std::min(my_device_page_, pages - 1);
+
+        MyDevicePageView view;
+        view.system_name = system_name;
+        view.system_version = system_version;
+        view.device_name = cached_device_name_;
+        view.previous_enabled = my_device_page_ > 0;
+        view.next_enabled = my_device_page_ + 1 < pages;
+        view.pagination = std::to_string(groups.size()) + localized_text(current_locale_, "gsp.groups") +
+                          "   " + std::to_string(my_device_page_ + 1) + " / " + std::to_string(pages);
+        for (size_t slot = 0; slot < MY_DEVICE_GROUP_SLOTS; ++slot) {
+            const size_t index = my_device_page_ * MY_DEVICE_GROUP_SLOTS + slot;
+            if (index < total) {
+                view.groups[slot] = cards[index];
+            }
+        }
+        return surface_->set_my_device(context, view);
     }
 
     std::vector<gui::BindingValueUpdate> updates;
@@ -552,12 +619,10 @@ std::expected<void, std::string> SettingsApp::drain_sound_events(system::core::A
             device_ui_state_.sound_error.clear();
         } else {
             device_ui_state_.sound_error = "sound.update_failed";
-            if (!settings_uses_gsp_backend()) {
-                ensure_message_dialog(
-                    context, localized_text(current_locale_, "sound.update_failed"),
-                    system::core::MessageDialogIcon::Warning, MESSAGE_DIALOG_FAILED_AUTO_CLOSE_MS
-                );
-            }
+            ensure_message_dialog(
+                context, localized_text(current_locale_, "sound.update_failed"),
+                system::core::MessageDialogIcon::Warning, MESSAGE_DIALOG_FAILED_AUTO_CLOSE_MS
+            );
         }
         if (auto loaded = load_audio_state(); !loaded) {
             BROOKESIA_LOGW("Failed to reload audio state after update: %1%", loaded.error());

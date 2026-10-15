@@ -3,7 +3,7 @@
   "w": 1024,
   "h": 600,
   "screen_bg": "#F4F5F7",
-  "font": "../../../examples/system/gsp_app/main/fonts/DejaVuSans.ttf",
+  "font": "brookesia_gui_gsp/DejaVuSans.ttf",
   "default_font_size": 24,
   "objects": [
     {
@@ -44,7 +44,7 @@
       "fg_color": {
         "theme": "text"
       },
-      "font_charset": " ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789%&-.:'"
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
       "type": "button",
@@ -72,9 +72,9 @@
       "parent": -1,
       "name": "home_card",
       "x": 54,
-      "y": 92,
+      "y": 88,
       "w": 916,
-      "h": 360,
+      "h": 492,
       "bg_color": {
         "theme": "surface"
       },
@@ -83,12 +83,13 @@
     {
       "type": "button",
       "parent_name": "home_card",
-      "name": "open_wifi",
+      "name": "open_device",
+      "bind": "open_device",
       "x": 12,
       "y": 8,
       "w": 892,
-      "h": 62,
-      "text": "Wi-Fi",
+      "h": 60,
+      "text": "",
       "font_size": 24,
       "bg_color": {
         "theme": "surface"
@@ -96,20 +97,164 @@
       "fg_color": {
         "theme": "text"
       },
-      "radius": 12,
-      "callback": "open_wifi",
-      "bind": "open_wifi",
+      "radius": 0,
+      "callback": "open_device",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "text": "My device",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_device",
+      "name": "name_device",
+      "bind": "name_device",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_device",
+      "name": "arrow_device",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent_name": "home_card",
+      "name": "divider_device",
+      "x": 36,
+      "y": 72,
+      "w": 844,
+      "h": 1,
+      "bg_color": {
+        "theme": "control"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "open_device",
+      "name": "value_device",
+      "bind": "value_device",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
+    },
+    {
+      "type": "button",
+      "parent_name": "home_card",
+      "name": "open_wifi",
+      "bind": "open_wifi",
+      "x": 12,
+      "y": 76,
+      "w": 892,
+      "h": 60,
+      "text": "",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 0,
+      "callback": "open_wifi",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "text": "Wi-Fi",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_wifi",
+      "name": "name_wifi",
+      "bind": "name_wifi",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_wifi",
+      "name": "arrow_wifi",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent_name": "home_card",
+      "name": "divider_wifi",
+      "x": 36,
+      "y": 140,
+      "w": 844,
+      "h": 1,
+      "bg_color": {
+        "theme": "control"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "open_wifi",
+      "name": "value_wifi",
+      "bind": "value_wifi",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset_file": "fonts/ssid_latin_greek_cyrillic.txt",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
     },
     {
       "type": "button",
       "parent_name": "home_card",
       "name": "open_display",
+      "bind": "open_display",
       "x": 12,
-      "y": 78,
+      "y": 144,
       "w": 892,
-      "h": 62,
-      "text": "Display",
+      "h": 60,
+      "text": "",
       "font_size": 24,
       "bg_color": {
         "theme": "surface"
@@ -117,20 +262,81 @@
       "fg_color": {
         "theme": "text"
       },
-      "radius": 12,
+      "radius": 0,
       "callback": "open_display",
-      "bind": "open_display",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
+      "text": "Display",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_display",
+      "name": "name_display",
+      "bind": "name_display",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_display",
+      "name": "arrow_display",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent_name": "home_card",
+      "name": "divider_display",
+      "x": 36,
+      "y": 208,
+      "w": 844,
+      "h": 1,
+      "bg_color": {
+        "theme": "control"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "open_display",
+      "name": "value_display",
+      "bind": "value_display",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
+    },
+    {
       "type": "button",
+      "parent_name": "home_card",
       "name": "open_sound",
       "bind": "open_sound",
       "x": 12,
-      "y": 148,
+      "y": 212,
       "w": 892,
-      "h": 62,
-      "text": "Sound",
+      "h": 60,
+      "text": "",
       "font_size": 24,
       "bg_color": {
         "theme": "surface"
@@ -138,20 +344,81 @@
       "fg_color": {
         "theme": "text"
       },
-      "radius": 14,
+      "radius": 0,
       "callback": "open_sound",
-      "parent_name": "home_card",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
+      "text": "Sound",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_sound",
+      "name": "name_sound",
+      "bind": "name_sound",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_sound",
+      "name": "arrow_sound",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent_name": "home_card",
+      "name": "divider_sound",
+      "x": 36,
+      "y": 276,
+      "w": 844,
+      "h": 1,
+      "bg_color": {
+        "theme": "control"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "open_sound",
+      "name": "value_sound",
+      "bind": "value_sound",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
+    },
+    {
       "type": "button",
+      "parent_name": "home_card",
       "name": "open_language",
       "bind": "open_language",
       "x": 12,
-      "y": 218,
+      "y": 280,
       "w": 892,
-      "h": 62,
-      "text": "Language",
+      "h": 60,
+      "text": "",
       "font_size": 24,
       "bg_color": {
         "theme": "surface"
@@ -159,20 +426,81 @@
       "fg_color": {
         "theme": "text"
       },
-      "radius": 14,
+      "radius": 0,
       "callback": "open_language",
-      "parent_name": "home_card",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     },
     {
+      "text": "Language",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_language",
+      "name": "name_language",
+      "bind": "name_language",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_language",
+      "name": "arrow_language",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent_name": "home_card",
+      "name": "divider_language",
+      "x": 36,
+      "y": 344,
+      "w": 844,
+      "h": 1,
+      "bg_color": {
+        "theme": "control"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "open_language",
+      "name": "value_language",
+      "bind": "value_language",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
+    },
+    {
       "type": "button",
+      "parent_name": "home_card",
       "name": "open_theme",
       "bind": "open_theme",
       "x": 12,
-      "y": 288,
+      "y": 348,
       "w": 892,
-      "h": 62,
-      "text": "Theme",
+      "h": 60,
+      "text": "",
       "font_size": 24,
       "bg_color": {
         "theme": "surface"
@@ -180,16 +508,151 @@
       "fg_color": {
         "theme": "text"
       },
-      "radius": 14,
+      "radius": 0,
       "callback": "open_theme",
-      "parent_name": "home_card",
       "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "text": "Theme",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_theme",
+      "name": "name_theme",
+      "bind": "name_theme",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_theme",
+      "name": "arrow_theme",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "container",
+      "parent_name": "home_card",
+      "name": "divider_theme",
+      "x": 36,
+      "y": 412,
+      "w": 844,
+      "h": 1,
+      "bg_color": {
+        "theme": "control"
+      }
+    },
+    {
+      "type": "label",
+      "parent_name": "open_theme",
+      "name": "value_theme",
+      "bind": "value_theme",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
+    },
+    {
+      "type": "button",
+      "parent_name": "home_card",
+      "name": "open_time_zone",
+      "bind": "open_time_zone",
+      "x": 12,
+      "y": 416,
+      "w": 892,
+      "h": 60,
+      "text": "",
+      "font_size": 24,
+      "bg_color": {
+        "theme": "surface"
+      },
+      "fg_color": {
+        "theme": "text"
+      },
+      "radius": 0,
+      "callback": "open_time_zone",
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+    },
+    {
+      "text": "Time zone",
+      "font_size": 24,
+      "fg_color": {
+        "theme": "text"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "type": "label",
+      "parent_name": "open_time_zone",
+      "name": "name_time_zone",
+      "bind": "name_time_zone",
+      "x": 24,
+      "y": 15,
+      "w": 260,
+      "h": 30,
+      "text_align": "left"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_time_zone",
+      "name": "arrow_time_zone",
+      "x": 836,
+      "y": 16,
+      "w": 24,
+      "h": 28,
+      "text": ">",
+      "font_size": 22,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "text_align": "center"
+    },
+    {
+      "type": "label",
+      "parent_name": "open_time_zone",
+      "name": "value_time_zone",
+      "bind": "value_time_zone",
+      "x": 304,
+      "y": 17,
+      "w": 508,
+      "h": 28,
+      "text": " ",
+      "font_size": 20,
+      "fg_color": {
+        "theme": "muted"
+      },
+      "font_charset": " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~",
+      "text_align": "right"
     }
   ],
   "themes": {
     "control": {
       "type": "color",
       "default": "#E8E8EA",
+      "dynamic": true
+    },
+    "muted": {
+      "type": "color",
+      "default": "#636366",
       "dynamic": true
     },
     "page_bg": {

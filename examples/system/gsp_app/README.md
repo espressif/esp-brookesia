@@ -70,7 +70,7 @@ For an existing checkout that disabled **Audio Device → Audio Processor**, ena
 
 ## Try it
 
-After startup, the screen shows **Brookesia** and a **Settings** button.
+After startup, the public System Core home lists installed applications and provides a **Settings** entry.
 
 ```text
 Settings
@@ -89,7 +89,7 @@ With LVGL, the board shows the startup screen and then the desktop. Open Setting
 
 ## Installable apps
 
-The launcher lists the apps installed on the board, up to four, next to **Settings**. Install, update, and uninstall them over USB while the board is running. No firmware rebuild is needed, and installed apps stay after a restart.
+The system home shows six applications per page; use **Previous / Next** for additional pages. Install, update, and uninstall them over USB while the board is running. No firmware rebuild is needed, and installed apps stay after a restart.
 
 ```bash
 python -m pip install brookesia-usb
@@ -112,7 +112,7 @@ Tap a network to connect. Open networks and networks with saved credentials conn
 
 Wait for **Connected to network** before returning to the list. A failed attempt can be retried. Leaving the page after a connection has been submitted lets the Wi-Fi service finish it; reopening reads the current status. **Disconnect** ends the current connection without deleting saved credentials. Successful connections are saved and can reconnect after a restart.
 
-Enterprise network configuration, Chinese input, and saved-network management are not provided. The password keyboard accepts printable ASCII characters.
+Choose **Saved networks**, select the target SSID, then choose **Forget** to remove its saved credentials. Removing the current network also disconnects it. **Nearby networks** returns to scan results. Enterprise network configuration and Chinese input are not provided. The public system keyboard accepts printable ASCII passwords.
 
 The P4 board uses its Wi-Fi companion chip through ESP-Hosted. If the service is unavailable, check the board configuration and companion firmware. A failed scan can be retried with **Refresh**; an empty result means no named networks were found.
 
@@ -142,7 +142,7 @@ After restart, the selected language and theme apply to the launcher and all Set
 
 The host binds the SNTP service for as long as it runs, as Super does, so the wall clock is set from the network once Wi-Fi is up, whichever app opens first. Without a saved Wi-Fi network the clock stays unset and apps such as Clock show 1970.
 
-The GSP launcher provides a Settings entry rather than the Super desktop. My device, time zone, diagnostics, and saved-network management remain in LVGL. Both interfaces use the same system preferences and hardware services.
+System Core provides the GSP system home and public keyboard/message dialogs; this example configures the devices and starts the system. Settings includes My device, time zone with live SNTP state, and selection-based saved-network removal. Advanced diagnostics remain in LVGL. Both interfaces use the same system preferences and hardware services.
 
 ## Diagnostics
 
