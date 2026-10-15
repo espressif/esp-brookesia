@@ -16,6 +16,8 @@
 
 namespace esp_brookesia::gui::gsp {
 
+struct DesktopBundle;
+
 /**
  * @brief Owns validated, aligned deployable GSP bytes and their parsed metadata.
  *
@@ -43,6 +45,9 @@ public:
 
 private:
     Bundle() = default;
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+    std::shared_ptr<const DesktopBundle> desktop_bundle_;
+#endif
 
     std::byte *bytes_ = nullptr;
     esp_gsp_deployable_bundle_t *deployable_ = nullptr;

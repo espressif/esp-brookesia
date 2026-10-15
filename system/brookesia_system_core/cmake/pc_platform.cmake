@@ -115,6 +115,16 @@ target_link_libraries(${COMPONENT_LIB}
         brookesia::gui_interface
         ZLIB::ZLIB
 )
+if(BROOKESIA_BUILD_GUI_GSP)
+    if(NOT TARGET brookesia::gui_gsp)
+        message(FATAL_ERROR "GSP SystemCore requires brookesia_gui_gsp")
+    endif()
+    include("${COMPONENT_DIR}/cmake/pc_gsp_shell.cmake")
+    brookesia_system_core_add_pc_gsp_shell(${COMPONENT_LIB})
+    target_link_libraries(${COMPONENT_LIB} PUBLIC brookesia::gui_gsp)
+    target_compile_definitions(${COMPONENT_LIB} PUBLIC CONFIG_BROOKESIA_GUI_BACKEND_GSP=1)
+endif()
+
 target_compile_definitions(${COMPONENT_LIB}
     PRIVATE
         ${component_pc_config_compile_definitions}

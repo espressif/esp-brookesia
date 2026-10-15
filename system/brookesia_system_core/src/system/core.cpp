@@ -12,7 +12,7 @@
 #include "private/utils.hpp"
 #include "private/system/impl.hpp"
 
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -41,7 +41,7 @@
 
 namespace esp_brookesia::system::core {
 
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
 
 extern "C" {
     extern const uint8_t settings_dynamic_font_start[] __attribute__((weak));
@@ -246,6 +246,23 @@ std::expected<KeyboardRequestOptions, std::string> normalize_keyboard_options(Ke
         options.mode = options.allowed_modes.front();
     }
     return options;
+}
+
+std::string gsp_app_state_text(AppState state, bool chinese)
+{
+    if (!chinese) {
+        return BROOKESIA_DESCRIBE_TO_STR(state);
+    }
+    switch (state) {
+    case AppState::Installed: return "已安装";
+    case AppState::Starting: return "启动中";
+    case AppState::Running: return "运行中";
+    case AppState::Paused: return "已暂停";
+    case AppState::Stopping: return "停止中";
+    case AppState::Stopped: return "已停止";
+    case AppState::Error: return "错误";
+    }
+    return "未知";
 }
 
 std::string make_gsp_clock_text()
@@ -937,10 +954,14 @@ public:
                 slot_apps_[slot] = app.app_id;
                 const auto name = resolve_app_display_name(app.manifest, language);
                 std::string meta = (app.manifest.kind == AppKind::Native) ?
-                                   (chinese ? "系统应用" : "System") :
-                                   (chinese ? "已安装应用" : "Installed");
+                                   (chinese ? "原生应用" : "Native") :
+                                   std::string(BROOKESIA_DESCRIBE_TO_STR(app.manifest.runtime_type));
                 if (!app.manifest.version.empty()) {
                     meta += " | v" + app.manifest.version;
+                }
+                meta += " | " + std::string(gsp_app_state_text(app.state, chinese));
+                if (auto error = owner_.app_support_error(app.app_id); error) {
+                    meta += chinese ? " | 不可用" : " | Unavailable";
                 }
                 (void)esp_gsp_component_set_text(handle, SLOT_KEYS[slot], name.c_str());
                 (void)esp_gsp_component_set_text(handle, META_KEYS[slot], meta.c_str());
@@ -1292,7 +1313,7 @@ private:
         }
         auto *panel = static_cast<hal::display::PanelIface *>(owner_.gsp_panel());
         auto *touch = static_cast<hal::display::TouchIface *>(owner_.gsp_touch());
-        if (panel == nullptr || touch == nullptr) {
+        if (!owner_.gsp_desktop_display() && (panel == nullptr || touch == nullptr)) {
             return std::unexpected("GSP display devices are not available for system modal");
         }
         auto suspended = owner_.suspend_gsp_session_for_modal();
@@ -1307,7 +1328,9 @@ private:
             modal_gate_->epoch.fetch_add(1, std::memory_order_release);
         }
         const auto *config = static_cast<const esp_gsp_config_t *>(gui_runtime_config());
-        const gui::gsp::DisplayLease lease{.panel = panel, .touch = touch};
+        const gui::gsp::DisplayLease lease{
+            .panel = panel, .touch = touch, .desktop = owner_.gsp_desktop_display()
+        };
         auto *gate_ptr = modal_gate_.get();
         const auto on_modal_event = [](esp_gsp_handle_t, const esp_gsp_event_t *event, void *user_ctx) {
             auto *gate = static_cast<ModalCallbackGate *>(user_ctx);
@@ -1529,7 +1552,7 @@ System::System()
 
 bool System::Impl::gsp_shell_session_running() const
 {
-#if defined(ESP_PLATFORM) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
     auto *shell = as_gsp_shell(gsp_shell_app_);
     return shell != nullptr && shell->modal_session_running();
 #else
@@ -1539,7 +1562,7 @@ bool System::Impl::gsp_shell_session_running() const
 
 std::expected<void, std::string> System::Impl::stop_gsp_shell_session()
 {
-#if defined(ESP_PLATFORM) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(gsp_shell_app_); shell != nullptr) {
         return shell->close_modals_for_app_switch();
     }
@@ -1549,7 +1572,7 @@ std::expected<void, std::string> System::Impl::stop_gsp_shell_session()
 
 void System::Impl::detach_gsp_shell_callbacks()
 {
-#if defined(ESP_PLATFORM) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(gsp_shell_app_); shell != nullptr) {
         shell->detach_callbacks();
     }
@@ -1587,8 +1610,8 @@ std::expected<void, std::string> System::on_prepare_startup_overlay()
 
 std::expected<void, std::string> System::on_init()
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
-    if (impl_->gsp_panel_ != nullptr && impl_->gsp_touch_ != nullptr) {
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    if (impl_->config_.gsp_desktop_display || (impl_->gsp_panel_ != nullptr && impl_->gsp_touch_ != nullptr)) {
         begin_gui_preferences_restore();
         const auto saved_theme = get_stored_gui_theme_id().value_or("light");
         const auto saved_language = get_stored_gui_language().value_or("en");
@@ -1618,7 +1641,7 @@ std::expected<void, std::string> System::on_init()
 
 std::expected<void, std::string> System::on_start()
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     impl_->gsp_stopping_ = false;
     if (impl_->gsp_shell_app_id_ != INVALID_APP_ID) {
         start_gsp_sntp_if_needed(impl_->gsp_sntp_binding_);
@@ -1630,7 +1653,7 @@ std::expected<void, std::string> System::on_start()
 
 void System::on_stop()
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     impl_->gsp_stopping_ = true;
     impl_->gsp_sntp_binding_.release();
 #endif
@@ -1638,7 +1661,7 @@ void System::on_stop()
 
 void System::on_deinit()
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         auto closed = shell->close_modals_for_app_switch();
         if (!closed) {
@@ -1650,7 +1673,7 @@ void System::on_deinit()
 
 std::expected<void, std::string> System::on_app_installed(const AppInfo &)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->refresh_launcher();
     }
@@ -1660,7 +1683,7 @@ std::expected<void, std::string> System::on_app_installed(const AppInfo &)
 
 std::expected<void, std::string> System::on_app_uninstalled(const AppInfo &)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->refresh_launcher();
     }
@@ -1670,7 +1693,7 @@ std::expected<void, std::string> System::on_app_uninstalled(const AppInfo &)
 
 std::expected<void, std::string> System::on_prepare_app_start(AppId app_id)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (impl_->gsp_shell_app_id_ != INVALID_APP_ID) {
         if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
             auto closed = shell->close_modals_for_app_switch();
@@ -1699,14 +1722,30 @@ std::expected<void, std::string> System::on_prepare_app_start(AppId app_id)
     return {};
 }
 
-std::expected<void, std::string> System::on_app_started(const AppInfo &)
+std::expected<void, std::string> System::on_app_started(const AppInfo &app)
 {
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    // Desktop bridge sessions publish user events only; deliver the initial scene once the JS app is running.
+    if (impl_->config_.gsp_desktop_display && app.manifest.kind == AppKind::Runtime) {
+        auto found = impl_->get_record(app.app_id);
+        if (found && (*found)->gsp_host && (*found)->gsp_host->running()) {
+            const auto &record = **found;
+            esp_gsp_event_t event{};
+            event.type = ESP_GSP_EVENT_SCENE_CHANGED;
+            event.scene_id = record.gsp_scene_known ? record.gsp_current_scene : 0;
+            const auto epoch = record.gsp_epoch ? record.gsp_epoch->load(std::memory_order_acquire) : 0;
+            impl_->dispatch_gsp_event(app.app_id, &event, epoch);
+        }
+    }
+#else
+    (void)app;
+#endif
     return {};
 }
 
 void System::on_app_start_failed(const AppInfo &app, std::string_view)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (impl_->gsp_stopping_ || impl_->gsp_launching_app_ ||
             impl_->gsp_shell_app_id_ == INVALID_APP_ID || app.app_id == impl_->gsp_shell_app_id_) {
         return;
@@ -1719,7 +1758,7 @@ void System::on_app_start_failed(const AppInfo &app, std::string_view)
 
 void System::on_app_stopped(const AppInfo &app)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (impl_->gsp_stopping_ || impl_->gsp_launching_app_ ||
             impl_->gsp_shell_app_id_ == INVALID_APP_ID || app.app_id == impl_->gsp_shell_app_id_) {
         return;
@@ -1732,7 +1771,7 @@ void System::on_app_stopped(const AppInfo &app)
 
 void System::on_app_stop_failed(const AppInfo &app, std::string_view)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (impl_->gsp_stopping_ || impl_->gsp_launching_app_ ||
             impl_->gsp_shell_app_id_ == INVALID_APP_ID || app.app_id == impl_->gsp_shell_app_id_) {
         return;
@@ -1745,7 +1784,7 @@ void System::on_app_stop_failed(const AppInfo &app, std::string_view)
 
 std::expected<void, std::string> System::on_theme_changed(std::string_view)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->refresh_launcher();
     }
@@ -1755,7 +1794,7 @@ std::expected<void, std::string> System::on_theme_changed(std::string_view)
 
 std::expected<void, std::string> System::on_language_changed(std::string_view)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->refresh_launcher();
     }
@@ -1777,7 +1816,7 @@ std::expected<void, std::string> System::on_show_app_keyboard(
     const KeyboardRequestOptions &options
 )
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->show_keyboard(app_id, request_id, options);
     }
@@ -1791,7 +1830,7 @@ std::expected<void, std::string> System::on_show_app_keyboard(
 
 void System::on_hide_app_keyboard(AppId app_id, KeyboardRequestId request_id)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         shell->hide_keyboard(app_id, request_id);
     }
@@ -1807,7 +1846,7 @@ std::expected<void, std::string> System::on_show_message_dialog(
     const MessageDialogOptions &options
 )
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->show_message_dialog(app_id, request_id, options);
     }
@@ -1825,7 +1864,7 @@ std::expected<void, std::string> System::on_update_message_dialog(
     const MessageDialogOptions &options
 )
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         return shell->update_message_dialog(app_id, request_id, options);
     }
@@ -1839,7 +1878,7 @@ std::expected<void, std::string> System::on_update_message_dialog(
 
 void System::on_hide_message_dialog(AppId app_id, MessageDialogRequestId request_id)
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         shell->hide_message_dialog(app_id, request_id);
     }
@@ -1851,7 +1890,7 @@ void System::on_hide_message_dialog(AppId app_id, MessageDialogRequestId request
 
 void System::on_message_dialog_idle()
 {
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
     if (auto *shell = as_gsp_shell(impl_->gsp_shell_app_); shell != nullptr) {
         shell->handle_message_dialog_idle();
     }
@@ -1871,6 +1910,11 @@ void *System::gsp_panel() const
 void *System::gsp_touch() const
 {
     return impl_ != nullptr ? impl_->gsp_touch_ : nullptr;
+}
+
+std::shared_ptr<gui::gsp::DesktopDisplay> System::gsp_desktop_display() const
+{
+    return impl_ != nullptr ? impl_->config_.gsp_desktop_display : nullptr;
 }
 
 std::expected<void, std::string> System::post_system_app_task(std::function<void()> task)

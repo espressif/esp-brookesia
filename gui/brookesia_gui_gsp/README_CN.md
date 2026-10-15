@@ -3,6 +3,17 @@
 `AppHost` 在借用的显示设备上启动编译后的 GSP 场景，并在 GSP 会话成功停止前保留
 bundle 和事件回调上下文。
 
+Linux 下启用 `BROOKESIA_BUILD_GUI_GSP`，并用 `ESP_GSP_ROOT` 指定官方 ESP-GSP 1.4
+模拟器桥接组件。`DisplayLease::desktop` 持有共享的 `DesktopDisplay`，不需要 ESP
+显示或触摸句柄。启动会话前，通过 `register_bundle()` 注册原始编译包及对应的
+GSPC schema-2 API sidecar；大小、CRC 和元数据校验会拒绝不匹配的产物，包本身仍由
+官方渲染器校验。
+
+Session 调用和事件轮询在同一桥接线程执行。启动会话会创建渲染进程；停止时先完成
+已接受的调用，再释放桥接和子进程。`browser_url()` 标识当前预览文档，包括会话
+fragment 在内的 URL 发生变化后，使用方应重新创建预览文档。系统启动方式及支持
+范围见 Toolkit 的 `simulator/docs/build-native-linux.md`。
+
 可选的 `CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES` 默认为 `n`。启用后，
 Brookesia CMake 辅助函数仍保留 GSPC 生成的原始 `.gspb` 与 API 头文件，但将所选
 bundle 在固件中的原始字节替换为无损 zlib 封装。生成配置中的 bundle 指针此时指向

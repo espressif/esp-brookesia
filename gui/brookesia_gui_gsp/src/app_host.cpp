@@ -6,7 +6,25 @@
 #include <cstring>
 #include <utility>
 
-#include "esp_heap_caps.h"
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+#   include <cstdlib>
+namespace {
+void heap_caps_free(void *pointer)
+{
+    std::free(pointer);
+}
+#if defined(CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES) && CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES
+constexpr int MALLOC_CAP_SPIRAM = 0;
+constexpr int MALLOC_CAP_8BIT = 0;
+void *heap_caps_aligned_alloc(size_t alignment, size_t size, int)
+{
+    return std::aligned_alloc(alignment, ((size + alignment - 1) / alignment) * alignment);
+}
+#endif
+}
+#else
+#   include "esp_heap_caps.h"
+#endif
 #if defined(CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES) && CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES
 #   include <cstdint>
 #   include "zlib.h"
@@ -211,6 +229,9 @@ std::expected<void, std::string> AppHost::start(
         return {};
     }
 
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+    return std::unexpected(loaded.error());
+#else
     // Ordinary compiler bundles use the separately generated directory tables.
     // Retain the supplied config when self-describing metadata is absent.
     BROOKESIA_LOGW("GSP deployable open failed (%1%); using the compiler config in place", loaded.error());
@@ -225,6 +246,7 @@ std::expected<void, std::string> AppHost::start(
     }
     s_current = this;
     return {};
+#endif
 }
 
 std::expected<void, std::string> AppHost::stop()

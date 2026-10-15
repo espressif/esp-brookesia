@@ -4,6 +4,20 @@
 keeps the selected bundle and callback context alive until the GSP session
 stops successfully.
 
+On Linux, enable `BROOKESIA_BUILD_GUI_GSP` and provide `ESP_GSP_ROOT` for the
+official ESP-GSP 1.4 simulator bridge. `DisplayLease::desktop` holds a shared
+`DesktopDisplay`; no ESP panel or touch handles are required. Register the exact
+compiled bundle and its GSPC schema-2 API sidecar with `register_bundle()` before
+opening a session. Size/CRC and metadata validation reject mismatched artifacts.
+The official renderer still validates the bundle itself.
+
+Session calls and event polling execute on one bridge thread. A session starts a
+renderer process, and stopping it drains accepted calls before releasing the
+bridge and child process. `browser_url()` identifies the current preview document;
+replace that document when the URL changes, including its session fragment.
+The Linux system entrypoint and support limits are documented in the Toolkit's
+`simulator/docs/build-native-linux.md`.
+
 The optional `CONFIG_BROOKESIA_GSP_COMPRESS_COMPILED_BUNDLES` build setting
 defaults to `n`. When enabled by a consuming example, the Brookesia CMake
 helper keeps GSPC's original `.gspb` and generated API headers, but embeds a

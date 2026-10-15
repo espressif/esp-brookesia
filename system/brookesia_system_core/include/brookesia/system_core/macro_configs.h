@@ -9,10 +9,10 @@
 #   include "sdkconfig.h"
 #endif
 
-// The JSON GUI runtime belongs to the LVGL/PC backend. GSP uses its native
+// The JSON GUI runtime belongs to the LVGL backend. GSP uses its native
 // bundle and session path while retaining the same SystemCore public API.
 #if !defined(BROOKESIA_SYSTEM_CORE_USE_JSON_GUI)
-#   if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#   if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
 #       define BROOKESIA_SYSTEM_CORE_USE_JSON_GUI (0)
 #   else
 #       define BROOKESIA_SYSTEM_CORE_USE_JSON_GUI (1)

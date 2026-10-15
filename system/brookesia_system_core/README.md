@@ -26,6 +26,20 @@ preparation and the common Latin font come from the declared `brookesia_gui_gsp`
 dependency; using this component does not require Settings or the GSP example's
 source files.
 
+Linux GSP builds use `System::Config::gsp_desktop_display` instead of ESP display
+devices, and run the same shell, app manager and modal logic. The optional
+`app_support_check` reports a launch limitation while keeping the installed App
+visible with its error. The Toolkit entrypoint is
+`simulator/tools/brookesia_gsp_system/run.py`; its Linux guide describes package
+discovery, persistent data and hardware capabilities that are not connected.
+
+On Linux, blocking JavaScript `ShowKeyboard` and `ShowMessageDialog` calls return
+an accepted request ID before renderer startup. The ID can be used to cancel a
+pending request. Message dialogs share the same FIFO with native/system requests;
+cancelled pending dialogs are not displayed. If display fails after acceptance,
+the normal close event completes that ID once and the App retains the actual
+error. This does not change the synchronous display path on ESP.
+
 ## USB Host Bridge
 
 On supported ESP32-P4 targets, system core can bind the USB Serial/JTAG

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(brookesia_system_core_host_test LANGUAGES CXX)
+project(brookesia_system_core_host_test LANGUAGES C CXX)
 
 get_filename_component(brookesia_root "${CMAKE_CURRENT_LIST_DIR}/../../.." ABSOLUTE)
 
@@ -37,6 +37,15 @@ target_link_libraries(brookesia_system_core_host_test
     PRIVATE
         brookesia::system_core
 )
+
+if(BROOKESIA_BUILD_GUI_GSP)
+    get_target_property(gsp_fixture_bundle brookesia_system_core_impl BROOKESIA_GSP_SHELL_LIGHT_BUNDLE)
+    get_target_property(gsp_fixture_api brookesia_system_core_impl BROOKESIA_GSP_SHELL_LIGHT_API)
+    target_compile_definitions(brookesia_system_core_host_test PRIVATE
+        BROOKESIA_TEST_GSP_BUNDLE="${gsp_fixture_bundle}"
+        BROOKESIA_TEST_GSP_API="${gsp_fixture_api}"
+    )
+endif()
 
 target_link_libraries(brookesia_system_core_gate_integration_test
     PRIVATE

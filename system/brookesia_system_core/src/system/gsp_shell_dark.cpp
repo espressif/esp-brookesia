@@ -7,7 +7,7 @@
 #   include "sdkconfig.h"
 #endif
 
-#if defined(ESP_PLATFORM) && defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
+#if defined(CONFIG_BROOKESIA_GUI_BACKEND_GSP) && CONFIG_BROOKESIA_GUI_BACKEND_GSP
 #include "super_shell_dark_gsp.h"
 
 namespace esp_brookesia::system::core {

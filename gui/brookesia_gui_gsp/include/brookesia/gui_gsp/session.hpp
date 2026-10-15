@@ -20,6 +20,7 @@
 namespace esp_brookesia::gui::gsp {
 
 class Bundle;
+class DesktopDisplay;
 
 /**
  * @brief Borrowed display devices for one exclusive GSP session.
@@ -30,6 +31,7 @@ class Bundle;
 struct DisplayLease {
     hal::display::PanelIface *panel = nullptr; ///< Initialized panel. Required.
     hal::display::TouchIface *touch = nullptr; ///< Initialized touch controller. Required for input.
+    std::shared_ptr<DesktopDisplay> desktop; ///< Linux renderer; panel and touch are unused when set.
 };
 
 /**

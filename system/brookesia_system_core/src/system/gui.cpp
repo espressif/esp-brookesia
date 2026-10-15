@@ -602,13 +602,14 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
             return std::unexpected("Another GSP session is already active on this panel");
         }
     }
-    if ((gsp_panel_ == nullptr) || (gsp_touch_ == nullptr)) {
+    if (!config_.gsp_desktop_display && ((gsp_panel_ == nullptr) || (gsp_touch_ == nullptr))) {
         return std::unexpected("GSP display devices are not bound");
     }
     const auto *panel = static_cast<esp_brookesia::hal::display::PanelIface *>(gsp_panel_);
     const auto *touch = static_cast<esp_brookesia::hal::display::TouchIface *>(gsp_touch_);
-    if (!gsp_panel_owner_ || (gsp_panel_owner_.get().get() != panel) ||
-            !gsp_touch_owner_ || (gsp_touch_owner_.get().get() != touch)) {
+    if (!config_.gsp_desktop_display &&
+            (!gsp_panel_owner_ || (gsp_panel_owner_.get().get() != panel) ||
+             !gsp_touch_owner_ || (gsp_touch_owner_.get().get() != touch))) {
         auto held = hold_gsp_display_devices();
         if (!held) {
             return held;
@@ -666,6 +667,7 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
     const gui::gsp::DisplayLease display{
         .panel = static_cast<hal::display::PanelIface *>(gsp_panel_),
         .touch = static_cast<hal::display::TouchIface *>(gsp_touch_),
+        .desktop = config_.gsp_desktop_display,
     };
     record.gsp_epoch->fetch_add(1, std::memory_order_release);
     auto started = (runtime_config != nullptr)
@@ -1040,6 +1042,12 @@ std::expected<void, std::string> System::Impl::hold_gsp_display_devices()
 #if !CONFIG_BROOKESIA_GUI_BACKEND_GSP
     return {};
 #else
+    if (config_.gsp_desktop_display) {
+        if (gsp_panel_ != nullptr || gsp_touch_ != nullptr) {
+            return std::unexpected("GSP desktop and HAL display bindings cannot be combined");
+        }
+        return {};
+    }
     if ((gsp_panel_ == nullptr) && (gsp_touch_ == nullptr)) {
         return {};
     }

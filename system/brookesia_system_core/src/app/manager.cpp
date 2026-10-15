@@ -647,6 +647,18 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
     return {};
 }
 
+std::optional<std::string> System::app_support_error(AppId app_id) const
+{
+    auto record = impl_->get_record(app_id);
+    if (!record) {
+        return record.error();
+    }
+    if (impl_->config_.app_support_check) {
+        return impl_->config_.app_support_check((*record)->info.manifest);
+    }
+    return std::nullopt;
+}
+
 std::expected<void, std::string> System::start_app(AppId app_id)
 {
     return start_app(app_id, AppStartOptions{});
@@ -669,6 +681,12 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
         return std::unexpected(record_result.error());
     }
     auto &record = *record_result.value();
+    if (auto error = app_support_error(app_id); error) {
+        record.info.last_error = *error;
+        on_app_start_failed(record.info, *error);
+        show_service_requirement_error_dialog(*this, record.info, *error);
+        return std::unexpected(*error);
+    }
     if (record.info.state == AppState::Running) {
         return {};
     }
@@ -1280,6 +1298,40 @@ std::expected<KeyboardRequestId, std::string> System::show_app_keyboard(
     };
     impl_->keyboard_requests_.emplace(request_id, std::move(keyboard_record));
 
+    // A blocking JS service call holds the SystemApp callback gate. Accept the request before
+    // switching desktop renderers, then display it on that same task after JavaScript receives its ID.
+    if (impl_->config_.gsp_desktop_display && is_blocking_runtime_service_call_context()) {
+        auto show_deferred = [this, app_id, request_id, options = std::move(options)]() {
+            const auto pending = impl_->keyboard_requests_.find(request_id);
+            if (pending == impl_->keyboard_requests_.end() || pending->second.app_id != app_id) {
+                return;
+            }
+            auto owner = impl_->get_record(app_id);
+            if (!owner || (*owner)->info.state != AppState::Running) {
+                (void)hide_app_keyboard(app_id, request_id);
+                return;
+            }
+            auto shown = on_show_app_keyboard(app_id, request_id, options);
+            if (!shown) {
+                (*owner)->info.last_error = shown.error();
+                BROOKESIA_LOGE("Deferred keyboard display failed: app_id(%1%), request_id(%2%), error(%3%)",
+                               app_id, request_id, shown.error());
+                // Close the accepted request through its normal owner callback and KeyboardClosed event.
+                auto closed = hide_app_keyboard(app_id, request_id);
+                if (!closed) {
+                    BROOKESIA_LOGW("Failed to close deferred keyboard request: %1%", closed.error());
+                }
+            }
+        };
+        // post_task may execute inline on SystemApp; this acceptance path must always enqueue.
+        if (!impl_->task_scheduler_ || !impl_->task_scheduler_->is_running() ||
+                !impl_->task_scheduler_->post(std::move(show_deferred), nullptr, SYSTEM_APP_TASK_GROUP)) {
+            impl_->keyboard_requests_.erase(request_id);
+            return std::unexpected("Failed to queue desktop keyboard display");
+        }
+        return request_id;
+    }
+
     auto show_result = on_show_app_keyboard(app_id, request_id, options);
     if (!show_result) {
         impl_->keyboard_requests_.erase(request_id);
@@ -1523,8 +1575,29 @@ std::expected<MessageDialogRequestId, std::string> System::enqueue_message_dialo
     };
     impl_->message_dialog_requests_.emplace(request_id, std::move(request));
 
-    if (impl_->active_message_dialog_request_id_.has_value()) {
+    if (impl_->active_message_dialog_request_id_.has_value() ||
+            !impl_->queued_message_dialog_requests_.empty()) {
         impl_->queued_message_dialog_requests_.push_back(request_id);
+        return request_id;
+    }
+
+    // Return the accepted ID before a desktop renderer switch can exceed the JS call deadline.
+    // Keep pending requests in the same FIFO so cancellation and native requests cannot bypass them.
+    if (impl_->config_.gsp_desktop_display && is_blocking_runtime_service_call_context()) {
+        impl_->queued_message_dialog_requests_.push_back(request_id);
+        auto show_deferred = [this]() {
+            auto shown = show_next_message_dialog();
+            if (!shown) {
+                BROOKESIA_LOGW("Failed to show deferred message dialog: %1%", shown.error());
+            }
+        };
+        // Unlike post_task, post must not execute inline on the current SystemApp task.
+        if (!impl_->task_scheduler_ || !impl_->task_scheduler_->is_running() ||
+                !impl_->task_scheduler_->post(std::move(show_deferred), nullptr, SYSTEM_APP_TASK_GROUP)) {
+            remove_queued_message_dialog(request_id);
+            impl_->message_dialog_requests_.erase(request_id);
+            return std::unexpected("Failed to queue desktop message dialog display");
+        }
         return request_id;
     }
 
@@ -1555,11 +1628,20 @@ std::expected<void, std::string> System::show_next_message_dialog()
         }
 
         impl_->active_message_dialog_request_id_ = request_id;
-        auto show_result = on_show_message_dialog(it->second.app_id, request_id, it->second.options);
+        auto owner = impl_->get_record(it->second.app_id);
+        const bool stopped_desktop_owner = impl_->config_.gsp_desktop_display &&
+                                           it->second.app_id != INVALID_APP_ID &&
+                                           (!owner || (*owner)->info.state != AppState::Running);
+        auto show_result = stopped_desktop_owner ?
+                           std::expected<void, std::string>(std::unexpected("Message dialog owner is not running")) :
+                           on_show_message_dialog(it->second.app_id, request_id, it->second.options);
         if (show_result) {
             return {};
         }
 
+        if (owner) {
+            (*owner)->info.last_error = show_result.error();
+        }
         BROOKESIA_LOGW("Failed to show queued message dialog: %1%", show_result.error());
         auto record = std::move(it->second);
         impl_->message_dialog_requests_.erase(it);

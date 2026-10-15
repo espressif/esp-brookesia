@@ -21,6 +21,18 @@ Native 和 JavaScript 应用使用现有 System Core 键盘和消息框 API。�
 主页、键盘和消息框场景归本组件所有；主题编译辅助和公共 Latin 字体来自已声明的
 `brookesia_gui_gsp` 依赖。使用本组件不需要 Settings 或 GSP 示例的源码文件。
 
+Linux GSP 构建通过 `System::Config::gsp_desktop_display` 配置显示端，复用相同的
+主页、应用管理和公共弹层逻辑。可选的 `app_support_check` 返回应用启动限制原因，
+已安装应用仍可在主页显示并报告错误。Toolkit 入口是
+`simulator/tools/brookesia_gsp_system/run.py`；对应 Linux 使用文档说明了包发现、
+数据保留方式及尚未接通的硬件能力。
+
+Linux 下，JavaScript 同步调用 `ShowKeyboard` 或 `ShowMessageDialog` 时，先返回
+已接收的请求 ID，再启动渲染界面；即使尚未显示，也可以用该 ID 取消请求。消息框
+与 native/system 请求共用同一 FIFO，已取消的待显示消息框不会出现。接收后显示
+失败时，原关闭事件对该 ID 完成一次通知，App 保留实际错误。ESP 的同步显示路径
+保持不变。
+
 ## USB 主机桥接
 
 在支持的 ESP32-P4 目标上，System Core 可以绑定 USB Serial/JTAG 服务，为主机提供独占控制通道。该通道支持服务调用、配置上传根目录下的受保护文件上传，以及 BPK 运行时应用安装。

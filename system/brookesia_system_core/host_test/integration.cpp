@@ -12,6 +12,8 @@
 #include <exception>
 #include <filesystem>
 #include <fstream>
+#include <future>
+#include <thread>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -24,6 +26,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+#include "brookesia/gui_gsp/desktop_display.hpp"
+#endif
+#include "private/runtime/call_context.hpp"
 #include "boost/json.hpp"
 #include "brookesia/service_helper/system/device.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
@@ -593,6 +599,17 @@ private:
 
 class TestSystem final: public System {
 public:
+    using KeyboardShow = std::function<std::expected<void, std::string>(AppId,
+                         esp_brookesia::system::core::KeyboardRequestId)>;
+    KeyboardShow keyboard_show;
+    std::function<std::expected<void, std::string>(AppId, MessageDialogRequestId,
+            const MessageDialogOptions &)> dialog_show;
+
+    std::expected<void, std::string> invoke_app_task(std::function<void()> task)
+    {
+        return post_system_app_task(std::move(task));
+    }
+
     int get_start_failure_count() const
     {
         return start_failure_count_.load();
@@ -605,6 +622,24 @@ public:
     }
 
 protected:
+    std::expected<void, std::string> on_init() override
+    {
+        return {};
+    }
+    std::expected<void, std::string> on_start() override
+    {
+        return {};
+    }
+
+    std::expected<void, std::string> on_show_app_keyboard(
+        AppId app_id, esp_brookesia::system::core::KeyboardRequestId request_id,
+        const esp_brookesia::system::core::KeyboardRequestOptions &
+    ) override
+    {
+        return keyboard_show ? keyboard_show(app_id, request_id) : std::expected<void, std::string> {};
+    }
+    void on_hide_app_keyboard(AppId, esp_brookesia::system::core::KeyboardRequestId) override {}
+
     void on_app_start_failed(const AppInfo &, std::string_view) override
     {
         start_failure_count_.fetch_add(1);
@@ -619,14 +654,16 @@ protected:
     }
 
     std::expected<void, std::string> on_show_message_dialog(
-        AppId,
+        AppId app_id,
         MessageDialogRequestId request_id,
         const MessageDialogOptions &options
     ) override
     {
-        std::lock_guard lock(dialog_mutex_);
-        last_dialog_ = std::pair{request_id, options};
-        return {};
+        {
+            std::lock_guard lock(dialog_mutex_);
+            last_dialog_ = std::pair{request_id, options};
+        }
+        return dialog_show ? dialog_show(app_id, request_id, options) : std::expected<void, std::string> {};
     }
 
 private:
@@ -1099,6 +1136,211 @@ bool run_restart_tests(const std::filesystem::path &storage_root)
     return passed;
 }
 
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+// Acceptance must precede UI work, and cancelling a pending head must still drain the shared FIFO.
+bool verify_deferred_message_dialog(TestSystem &system, AppId app_id)
+{
+    using namespace esp_brookesia::system::core;
+    MessageDialogOptions options;
+    options.buttons.push_back({"OK", MessageDialogButtonRole::Accept});
+    std::promise<std::expected<MessageDialogRequestId, std::string>> accepted;
+    std::promise<MessageDialogResult> completed;
+    std::atomic<int> closes{0};
+    system.dialog_show = [&system](AppId owner, MessageDialogRequestId request, const MessageDialogOptions &) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+        return system.complete_app_message_dialog(owner, request, 0, MessageDialogCloseReason::Button);
+    };
+    auto accepted_future = accepted.get_future();
+    auto completed_future = completed.get_future();
+    auto submit = [&]() {
+        esp_brookesia::service::ScopedCallContext context({{RUNTIME_BLOCKING_SERVICE_CALL_CONTEXT_KEY, "true"}});
+        accepted.set_value(system.show_app_message_dialog(app_id, options, [&](const MessageDialogResult & result) {
+            if (closes.fetch_add(1) == 0) {
+                completed.set_value(result);
+            }
+        }));
+    };
+    auto posted = system.invoke_app_task(submit);
+    if (!require(posted.has_value(), "Failed to post dialog acceptance test")) {
+        return false;
+    }
+    const bool timely = accepted_future.wait_for(std::chrono::milliseconds(500)) == std::future_status::ready;
+    accepted_future.wait();
+    auto request = accepted_future.get();
+    bool passed = require(timely && request.has_value(), "Dialog acceptance waited for slow renderer");
+    passed &= require(completed_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready,
+                      "Accepted dialog completion was lost");
+    if (completed_future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        const auto result = completed_future.get();
+        passed &= require(request && result.request_id == *request && result.app_id == app_id &&
+                          result.button_role == MessageDialogButtonRole::Accept && closes.load() == 1,
+                          "Dialog completion lost request ID, owner, role, or completed twice");
+    }
+
+    std::promise<bool> cancelled;
+    auto cancelled_future = cancelled.get_future();
+    std::atomic<int> shown{0};
+    std::atomic<int> cancelled_count{0};
+    system.dialog_show = [&](AppId owner, MessageDialogRequestId id, const MessageDialogOptions &) {
+        shown.fetch_add(1);
+        return system.complete_app_message_dialog(owner, id, -1, MessageDialogCloseReason::Closed);
+    };
+    auto cancel_and_queue = [&]() {
+        esp_brookesia::service::ScopedCallContext context({{RUNTIME_BLOCKING_SERVICE_CALL_CONTEXT_KEY, "true"}});
+        auto pending = system.show_app_message_dialog(app_id, {}, [&](const MessageDialogResult &) {
+            cancelled_count.fetch_add(1);
+        });
+        auto following = system.show_system_message_dialog({}, [&](const MessageDialogResult & result) {
+            cancelled.set_value(result.app_id == INVALID_APP_ID && shown.load() == 1 && cancelled_count.load() == 1);
+        });
+        auto hidden = pending ? system.hide_app_message_dialog(app_id, *pending) :
+                      std::expected<void, std::string>(std::unexpected("No request"));
+        if (!following || !hidden) {
+            cancelled.set_value(false);
+        }
+    };
+    posted = system.invoke_app_task(cancel_and_queue);
+    passed &= require(posted.has_value() &&
+                      cancelled_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready,
+                      "Cancelled dialog head left subsequent system dialog stranded");
+    if (cancelled_future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        passed &= require(cancelled_future.get(), "Cancelled dialog displayed, completed twice, or violated FIFO");
+    }
+
+    std::promise<MessageDialogResult> failed;
+    auto failed_future = failed.get_future();
+    std::atomic<MessageDialogRequestId> failed_id{INVALID_MESSAGE_DIALOG_REQUEST_ID};
+    system.dialog_show = [](AppId, MessageDialogRequestId, const MessageDialogOptions &)
+    -> std::expected<void, std::string> {
+        return std::unexpected("Injected dialog renderer failure");
+    };
+    auto submit_failure = [&]() {
+        esp_brookesia::service::ScopedCallContext context({{RUNTIME_BLOCKING_SERVICE_CALL_CONTEXT_KEY, "true"}});
+        auto pending = system.show_app_message_dialog(app_id, {}, [&](const MessageDialogResult & result) {
+            failed.set_value(result);
+        });
+        if (pending) {
+            failed_id = *pending;
+        } else {
+            failed.set_value({});
+        }
+    };
+    posted = system.invoke_app_task(submit_failure);
+    passed &= require(posted.has_value() &&
+                      failed_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready,
+                      "Accepted failed dialog did not complete");
+    if (failed_future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        const auto result = failed_future.get();
+        const auto owner = system.get_app(app_id);
+        passed &= require(failed_id != INVALID_MESSAGE_DIALOG_REQUEST_ID && result.request_id == failed_id &&
+                          result.app_id == app_id && result.reason == MessageDialogCloseReason::Closed &&
+                          owner && owner->last_error == "Injected dialog renderer failure",
+                          "Failed dialog lost accepted ID, owner, close reason, or actual error");
+    }
+    system.dialog_show = {};
+    return passed;
+}
+
+// Production request manager and scheduler, with a deliberately slow UI adapter; no renderer is launched.
+bool verify_deferred_keyboard(TestSystem &system, AppId app_id)
+{
+    using namespace esp_brookesia::system::core;
+    std::promise<std::expected<KeyboardRequestId, std::string>> accepted;
+    std::promise<KeyboardResult> completed;
+    std::atomic<int> closes{0};
+    system.keyboard_show = [&system](AppId owner, KeyboardRequestId request) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1100));
+        return system.complete_app_keyboard(owner, request, true, "accepted input");
+    };
+    auto accepted_future = accepted.get_future();
+    auto completed_future = completed.get_future();
+    auto posted = system.invoke_app_task([&]() {
+        esp_brookesia::service::ScopedCallContext context({{RUNTIME_BLOCKING_SERVICE_CALL_CONTEXT_KEY, "true"}});
+        accepted.set_value(system.show_app_keyboard(app_id, {}, [&](const KeyboardResult & result) {
+            if (closes.fetch_add(1) == 0) {
+                completed.set_value(result);
+            }
+        }));
+    });
+    if (!require(posted.has_value(), "Failed to post keyboard acceptance test")) {
+        return false;
+    }
+    if (!require(accepted_future.wait_for(std::chrono::milliseconds(500)) == std::future_status::ready,
+                 "Keyboard acceptance waited for the slow renderer adapter")) {
+        // Keep callback state alive while a synchronous-regression adapter finishes.
+        accepted_future.wait();
+        completed_future.wait();
+        return false;
+    }
+    auto request = accepted_future.get();
+    if (!require(request.has_value(), "Deferred keyboard request was rejected") ||
+            !require(completed_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready,
+                     "Deferred keyboard completion was lost")) {
+        return false;
+    }
+    const auto result = completed_future.get();
+    bool passed = require(result.request_id == *request && result.app_id == app_id && result.confirmed &&
+                          result.text == "accepted input" && closes.load() == 1,
+                          "Deferred keyboard result lost ownership, text, or completed twice");
+
+    std::promise<KeyboardResult> failed;
+    auto failed_future = failed.get_future();
+    system.keyboard_show = [](AppId, KeyboardRequestId) -> std::expected<void, std::string> {
+        return std::unexpected("Injected desktop renderer failure");
+    };
+    auto failure_posted = system.invoke_app_task([&]() {
+        esp_brookesia::service::ScopedCallContext context({{RUNTIME_BLOCKING_SERVICE_CALL_CONTEXT_KEY, "true"}});
+        auto pending = system.show_app_keyboard(app_id, {}, [&](const KeyboardResult & closed) {
+            failed.set_value(closed);
+        });
+        if (!pending) {
+            failed.set_value({});
+        }
+    });
+    passed &= require(failure_posted.has_value() &&
+                      failed_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready,
+                      "Failed deferred keyboard did not close its accepted request");
+    if (failed_future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        const auto failure = failed_future.get();
+        passed &= require(failure.app_id == app_id && !failure.confirmed,
+                          "Failed deferred keyboard reported a confirmed result or wrong owner");
+    }
+    const auto owner = system.get_app(app_id);
+    passed &= require(owner && owner->last_error == "Injected desktop renderer failure",
+                      "Deferred renderer failure did not retain its real error");
+
+    std::promise<bool> cancelled;
+    auto cancelled_future = cancelled.get_future();
+    std::atomic<int> shown{0};
+    std::atomic<int> cancelled_count{0};
+    system.keyboard_show = [&](AppId, KeyboardRequestId) -> std::expected<void, std::string> {
+        shown.fetch_add(1); return {};
+    };
+    auto cancel_posted = system.invoke_app_task([&]() {
+        esp_brookesia::service::ScopedCallContext context({{RUNTIME_BLOCKING_SERVICE_CALL_CONTEXT_KEY, "true"}});
+        auto pending = system.show_app_keyboard(app_id, {}, [&](const KeyboardResult &) {
+            cancelled_count.fetch_add(1);
+        });
+        auto hidden = pending ? system.hide_app_keyboard(app_id, *pending) :
+                      std::expected<void, std::string>(std::unexpected("No request"));
+        auto fence = system.invoke_app_task([&]() {
+            cancelled.set_value(shown.load() == 0 && cancelled_count.load() == 1);
+        });
+        if (!hidden || !fence) {
+            cancelled.set_value(false);
+        }
+    });
+    passed &= require(cancel_posted.has_value() &&
+                      cancelled_future.wait_for(std::chrono::seconds(3)) == std::future_status::ready,
+                      "Pending keyboard cancellation did not complete");
+    if (cancelled_future.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        passed &= require(cancelled_future.get(), "Cancelled pending keyboard was displayed or closed twice");
+    }
+    system.keyboard_show = {};
+    return passed;
+}
+#endif
+
 bool run_tests()
 {
     TemporaryDirectory temporary_directory;
@@ -1151,7 +1393,20 @@ bool run_tests()
     }
 
     TestSystem system;
-    auto init_result = system.init(make_test_config(temporary_directory.get_path()));
+    bool native_supported = false;
+    auto config = make_test_config(temporary_directory.get_path());
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+    config.gsp_desktop_display = std::make_shared<esp_brookesia::gui::gsp::DesktopDisplay>(
+                                     esp_brookesia::gui::gsp::DesktopDisplay::Config{});
+#endif
+    config.app_support_check = [&native_supported](const AppManifest & manifest) -> std::optional<std::string> {
+        if (manifest.id == NATIVE_APP_ID && !native_supported)
+        {
+            return "Native GUI is unavailable on this platform";
+        }
+        return std::nullopt;
+    };
+    auto init_result = system.init(std::move(config));
     if (!require(init_result.has_value(), init_result ? "" : "System init failed: " + init_result.error())) {
         system.deinit();
         manager.stop();
@@ -1214,12 +1469,35 @@ bool run_tests()
               );
     passed &= require(native_app->get_install_count() == 1, "Native app install lifecycle was not called");
     if (native_install) {
+        auto unsupported = system.app_support_error(*native_install);
+        passed &= require(unsupported.has_value(), "Unsupported native app omitted its availability reason");
+        auto rejected = system.start_app(*native_install);
+        passed &= require(!rejected, "Unsupported native app unexpectedly started");
+        passed &= require(native_app->get_start_count() == 0, "Unsupported native app executed on_start");
+        auto retained = find_app(system, NATIVE_APP_ID);
+        passed &= require(retained && retained->state == AppState::Installed,
+                          "Platform support rejection did not retain the installed native app");
+        passed &= require(retained && unsupported && retained->last_error == *unsupported,
+                          "Platform support rejection lost its error reason");
+        const auto warning = system.get_last_dialog();
+        passed &= require(warning && unsupported && warning->second.informative_text == *unsupported,
+                          "Unsupported app did not show its actual platform support error");
+        if (warning) {
+            auto hidden = system.hide_system_message_dialog(warning->first);
+            passed &= require(hidden.has_value(), "Failed to close platform support warning");
+        }
+        native_supported = true;
+        passed &= require(!system.app_support_error(*native_install), "Native app support did not refresh");
         auto native_start = system.start_app(*native_install);
         passed &= require(
                       native_start.has_value(),
                       native_start ? "" : "Trusted native app start failed: " + native_start.error()
                   );
         passed &= require(native_app->get_start_count() == 1, "Trusted native app did not execute on_start");
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+        passed &= verify_deferred_keyboard(system, *native_install);
+        passed &= verify_deferred_message_dialog(system, *native_install);
+#endif
     }
 
     const std::string replacement_manifest =

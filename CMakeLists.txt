@@ -24,6 +24,7 @@ option(BROOKESIA_BUILD_SERVICE_PICODET "Build brookesia_service_picodet for PC" 
 option(BROOKESIA_BUILD_SERVICE_VIDEO "Build brookesia_service_video for PC" OFF)
 option(BROOKESIA_BUILD_EMULATION_NES "Build brookesia_emulation_nes for PC" OFF)
 option(BROOKESIA_BUILD_GUI_INTERFACE "Build brookesia_gui_interface for PC" ON)
+option(BROOKESIA_BUILD_GUI_GSP "Build brookesia_gui_gsp for PC" OFF)
 option(BROOKESIA_BUILD_GUI_LVGL "Build brookesia_gui_lvgl for PC" OFF)
 option(BROOKESIA_BUILD_RUNTIME_MANAGER "Build brookesia_runtime_manager for PC" OFF)
 option(BROOKESIA_BUILD_RUNTIME_LUA "Build brookesia_runtime_lua for PC" OFF)
@@ -80,6 +81,7 @@ set(BROOKESIA_SUPPORTED_COMPONENTS
     brookesia_emulation_nes
     brookesia_gui_interface
     brookesia_gui_lvgl
+    brookesia_gui_gsp
     brookesia_runtime_manager
     brookesia_runtime_lua
     brookesia_runtime_js
@@ -311,6 +313,11 @@ if(BROOKESIA_BUILD_GUI_LVGL)
 
     message(STATUS "Brookesia: enabling brookesia::gui_lvgl")
     add_subdirectory(gui/brookesia_gui_lvgl)
+endif()
+
+if(BROOKESIA_BUILD_GUI_GSP)
+    message(STATUS "Brookesia: enabling brookesia::gui_gsp")
+    add_subdirectory(gui/brookesia_gui_gsp)
 endif()
 
 if(BROOKESIA_BUILD_RUNTIME_MANAGER)

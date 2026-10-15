@@ -21,6 +21,9 @@
 #include <variant>
 #include <vector>
 
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+#include "brookesia/gui_gsp/desktop_display.hpp"
+#endif
 #include "boost/json.hpp"
 #include "brookesia/runtime_manager/types.hpp"
 #include "brookesia/service_manager.hpp"
@@ -677,11 +680,20 @@ bool verify_gsp_package_descriptor()
         std::ofstream output(profile, std::ios::binary | std::ios::trunc);
         output << R"({"gui_backend":"gsp","root":"device.gspb"})";
     }
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+    esp_brookesia::gui::gsp::DesktopDisplay display({});
+    auto registered = display.register_bundle(BROOKESIA_TEST_GSP_BUNDLE, BROOKESIA_TEST_GSP_API);
+    if (!require(registered.has_value(), registered ? "" : "GSP fixture registration failed: " + registered.error())) {
+        return false;
+    }
+    std::filesystem::copy_file(BROOKESIA_TEST_GSP_BUNDLE, bundle);
+#else
     {
         std::ofstream output(bundle, std::ios::binary | std::ios::trunc);
         output << "GSPB";
         output << std::string(64, '\0');
     }
+#endif
 
     auto parsed = read_unpacked_app_manifest(root.generic_string());
     if (!require(parsed.has_value(), "GSP package manifest was rejected")) {
@@ -747,6 +759,19 @@ bool verify_gsp_package_descriptor()
         return false;
     }
 
+#if defined(BROOKESIA_GUI_GSP_DESKTOP)
+    {
+        std::fstream output(bundle, std::ios::binary | std::ios::in | std::ios::out);
+        output.seekg(64);
+        const char changed = static_cast<char>(output.get() ^ 1);
+        output.seekp(64);
+        output.put(changed);
+    }
+    auto unregistered_bytes = read_runtime_app_resource_descriptor(*parsed);
+    if (!require(!unregistered_bytes, "Changed GSP fixture bytes were accepted with the original sidecar")) {
+        return false;
+    }
+#endif
     {
         std::ofstream output(bundle, std::ios::binary | std::ios::trunc);
         output << "XXXX";

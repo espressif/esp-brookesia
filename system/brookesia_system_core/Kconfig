@@ -15,7 +15,6 @@ menu "ESP-Brookesia: System Core Configurations"
 
         config BROOKESIA_GUI_BACKEND_GSP
             bool "GSP"
-            depends on BROOKESIA_SYSTEM_CORE_ENABLE_GSP_BACKEND
         config BROOKESIA_GUI_BACKEND_LVGL
             bool "LVGL"
     endchoice
