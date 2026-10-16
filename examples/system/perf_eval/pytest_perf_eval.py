@@ -110,3 +110,16 @@ def run_test(dut: Dut) -> None:
 @pytest.mark.timeout(TIMEOUT_S)
 def test_esp32_p4_function_ev(dut: Dut) -> None:
     run_test(dut)
+
+
+@pytest.mark.target('esp32p4')
+@pytest.mark.env('esp32p4x_function_ev_board')
+@pytest.mark.parametrize(
+    'target, config',
+    [
+        ('esp32p4', 'esp32_p4x_function_ev'),
+    ],
+)
+@pytest.mark.timeout(TIMEOUT_S)
+def test_esp32_p4x_function_ev(dut: Dut) -> None:
+    run_test(dut)

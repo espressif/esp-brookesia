@@ -10,6 +10,11 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 
 project(example_system_perf_eval)
 
+# C++ compile job pool (BROOKESIA_CXX_JOBS). Without it this carrier compiles
+# every heavy C++ TU at once and the CI runner OOM-kills cc1plus part-way
+# through; the other examples and test apps all apply the same tuning.
+brookesia_compile_tuning_apply_current_project()
+
 # -Wfree-nonheap-object is a GCC 16 false positive that fires only at -O2/-O3.
 # CONFIG_COMPILER_OPTIMIZATION_PERF=y is set in sdkconfig.defaults.esp32p4, so
 # gui_interface's runtime_style.cpp:434 (resolve_font_chain, a lambda whose
