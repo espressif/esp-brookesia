@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "sdkconfig.h"
-#include "private/utils.hpp"
+#include "lvgl/log.hpp"
 #include "boost/chrono.hpp"
 #include "boost/thread.hpp"
 #include "brookesia/lib_utils/thread_config.hpp"
 #include "brookesia/gui_lvgl.hpp"
 #include "brookesia/system_super.hpp"
-#include "modules/general_services.hpp"
-#include "modules/display.hpp"
+#include "lvgl/general_services.hpp"
+#include "lvgl/display.hpp"
 
 using namespace esp_brookesia;
 

@@ -8,7 +8,7 @@
 #include "brookesia/hal_adaptor.hpp"
 #include "brookesia/service_helper/media/audio.hpp"
 #include "brookesia/service_manager/service/manager.hpp"
-#include "private/utils.hpp"
+#include "log.hpp"
 #include "general_services.hpp"
 
 using namespace esp_brookesia;

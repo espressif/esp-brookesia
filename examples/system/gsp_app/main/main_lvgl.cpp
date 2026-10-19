@@ -12,8 +12,8 @@
 #include "brookesia/app_settings/settings_app.hpp"
 #include "brookesia/gui_lvgl.hpp"
 #include "brookesia/system_super.hpp"
-#include "modules/display.hpp"
-#include "modules/general_services.hpp"
+#include "lvgl/display.hpp"
+#include "lvgl/general_services.hpp"
 
 #if CONFIG_BROOKESIA_LVGL_HW_PROBE
 #   include "lvgl_probe.ipp"

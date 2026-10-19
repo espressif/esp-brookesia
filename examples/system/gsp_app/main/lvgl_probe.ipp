@@ -37,7 +37,7 @@
 #include "esp_heap_caps.h"
 #include "esp_lcd_mipi_dsi.h"
 #include "lvgl.h"
-#include "modules/display.hpp"
+#include "lvgl/display.hpp"
 
 #if !LV_USE_OBJ_NAME
 #   error "The LVGL hardware probe requires CONFIG_LV_USE_OBJ_NAME=y"

@@ -3,13 +3,13 @@ if(CONFIG_BROOKESIA_GUI_BACKEND_GSP AND CONFIG_BROOKESIA_GUI_BACKEND_LVGL)
 endif()
 
 if(CONFIG_BROOKESIA_GUI_BACKEND_LVGL)
-    set(SUPER_MAIN "${CMAKE_CURRENT_LIST_DIR}/../../../system/super/main")
+    set(common_dir "${CMAKE_CURRENT_LIST_DIR}/../../common")
     set(SRCS
         "${CMAKE_CURRENT_LIST_DIR}/main_lvgl.cpp"
-        "${SUPER_MAIN}/modules/display.cpp"
-        "${SUPER_MAIN}/modules/general_services.cpp"
+        "${common_dir}/lvgl/display.cpp"
+        "${common_dir}/lvgl/general_services.cpp"
     )
-    set(EXTRA_INCLUDE_DIRS "${SUPER_MAIN}")
+    set(EXTRA_INCLUDE_DIRS "${common_dir}")
 elseif(CONFIG_BROOKESIA_GUI_BACKEND_GSP)
     set(SRCS
         "${CMAKE_CURRENT_LIST_DIR}/main_gsp.cpp"

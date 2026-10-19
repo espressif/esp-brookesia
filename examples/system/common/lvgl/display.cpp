@@ -11,7 +11,7 @@
 #include "boost/json/object.hpp"
 #include "boost/json/value.hpp"
 
-#include "private/utils.hpp"
+#include "log.hpp"
 #include "brookesia/gui_lvgl.hpp"
 #include "brookesia/lib_utils/describe_helpers.hpp"
 #include "brookesia/service_helper/media/display.hpp"

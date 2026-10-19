@@ -1,9 +1,11 @@
 file(GLOB_RECURSE SRCS "${CMAKE_CURRENT_LIST_DIR}/*.cpp" "${CMAKE_CURRENT_LIST_DIR}/*.c")
+set(common_dir "${CMAKE_CURRENT_LIST_DIR}/../../common")
+list(APPEND SRCS "${common_dir}/lvgl/display.cpp" "${common_dir}/lvgl/general_services.cpp")
 set(EMBEDDED_FILES "")
 
 idf_component_register(
     SRCS ${SRCS}
-    INCLUDE_DIRS "."
+    INCLUDE_DIRS "." "${common_dir}"
     EMBED_TXTFILES ${EMBEDDED_FILES}
 )
 
