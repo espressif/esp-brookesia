@@ -4,6 +4,7 @@
 
 This test executes the real request manager and shell methods. GSP, timers and
 service dispatch are fakes; it does not validate rendering or real HAL teardown.
+The desktop display stays null to exercise the synchronous board lifecycle path.
 """
 import argparse
 import os
@@ -103,6 +104,20 @@ struct Host {
     ~Host() { assert(!alive); }
 };
 struct FakeService { void publish_message_dialog_closed(MessageDialogResult) {} };
+enum class AppState { Running };
+struct AppRecord {
+    struct Info {
+        AppState state = AppState::Running;
+        std::string last_error;
+    } info;
+};
+struct FakeTaskScheduler {
+    bool is_running() const { return false; }
+    bool post(std::function<void()>, std::nullptr_t, const char *) {
+        assert(false && "Board lifecycle slices must not schedule desktop dialog work");
+        return false;
+    }
+};
 class Shell;
 class TestOwner {
 public:
@@ -112,6 +127,11 @@ public:
             MessageDialogOptions options;
             MessageDialogResultHandler handler;
         };
+        struct Config {
+            void *gsp_desktop_display = nullptr;
+        } config_;
+        FakeTaskScheduler *task_scheduler_ = nullptr;
+        std::map<int, AppRecord> app_records_{{42, {}}};
         int next_message_dialog_request_id_ = 1;
         std::map<int, MessageDialogRequestRecord> message_dialog_requests_;
         std::optional<int> active_message_dialog_request_id_;
@@ -119,12 +139,17 @@ public:
         FakeService *system_service_ = nullptr;
         bool should_defer_gui_task(const char *) { return false; }
         std::expected<void, std::string> post_gui_input_task(std::function<void()> f) { f(); return {}; }
-        std::expected<void, std::string> get_record(int) { return {}; }
+        std::expected<AppRecord *, std::string> get_record(int app_id) {
+            auto it = app_records_.find(app_id);
+            if (it == app_records_.end()) { return std::unexpected("App not found"); }
+            return &it->second;
+        }
     };
     std::unique_ptr<Impl> impl_ = std::make_unique<Impl>();
     std::deque<std::function<void()>> tasks;
     Shell *shell = nullptr;
     int shown = 0;
+    bool is_blocking_runtime_service_call_context() const { return false; }
     std::expected<void, std::string> on_show_message_dialog(int, int, const MessageDialogOptions &);
     void on_hide_message_dialog(int, int);
     void on_message_dialog_idle() {}
@@ -142,6 +167,7 @@ public:
     void publish_message_dialog_closed(MessageDialogResult, MessageDialogResultHandler);
 };
 constexpr auto SYSTEM_GUI_INPUT_TASK_GROUP = "gui";
+constexpr auto SYSTEM_APP_TASK_GROUP = "app";
 class Shell {
 public:
     struct ModalCallbackGate {
