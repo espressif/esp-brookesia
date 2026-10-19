@@ -10,19 +10,19 @@ dependencies:
     require: public
 
   espressif/esp_bt_audio:
-    version: "^0.8"
+    version: "^1.0"
     require: private
     matches:
       - if: "target in [esp32, esp32s31] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_BT_DEVICE} == True && $CONFIG{BT_CONTROLLER_ENABLED} == True && $CONFIG{BT_CLASSIC_ENABLED} == True && $CONFIG{BT_BLUEDROID_ENABLED} == True && $CONFIG{BT_A2DP_ENABLE} == True"
 
   espressif/gmf_audio:
-    version: "^0.8"
+    version: "~1.0"
     require: private
     matches:
       - if: "target in [esp32, esp32s31] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_BT_DEVICE} == True && $CONFIG{BT_CONTROLLER_ENABLED} == True && $CONFIG{BT_CLASSIC_ENABLED} == True && $CONFIG{BT_BLUEDROID_ENABLED} == True && $CONFIG{BT_A2DP_ENABLE} == True"
 
   espressif/gmf_io:
-    version: "^0.8"
+    version: "~1.0"
     require: private
     matches:
       - if: "target in [esp32, esp32s31] && $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_BT_DEVICE} == True && $CONFIG{BT_CONTROLLER_ENABLED} == True && $CONFIG{BT_CLASSIC_ENABLED} == True && $CONFIG{BT_BLUEDROID_ENABLED} == True && $CONFIG{BT_A2DP_ENABLE} == True"
@@ -42,27 +42,59 @@ dependencies:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_POWER_DEVICE} == True
 
   espressif/media_lib_sal:
-    version: "0.9.3"
+    # 1.0.2 includes the ESP-IDF 6 TLS field fix; 1.0.1 still uses <6.2.
+    version: "~1.0.2"
     matches:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
 
   jason-mao/av_processor:
-    version: "0.6.*"
+    version: "0.7.0"
     matches:
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
 
-  # Keep av_processor's transitive video dependency on the validated release series,
-  # including audio-only boards where the HAL camera is disabled.
+  # AI Audio 1.0.2 uses ESP-SR 2.5.3 (P4 rev <3 / IDF 6) and GMF Core 1.0.
+  # AI Audio 1.1 requires Core 1.1, incompatible with av_processor's Audio 1.0.
+  espressif/gmf_ai_audio:
+    version: "1.0.2"
+    require: no
+    matches:
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
+
+  # Match the compile-requirement ABI backported for ESP-SR 2.5.3 below.
+  espressif/esp-dl:
+    version: "3.3.13"
+    require: no
+    matches:
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
+
+  # Keep video consumers on the validated release series. Audio-only profiles
+  # disable VIDEO_PROCESSOR_ENABLE and do not require the camera stack.
+  espressif/esp_capture:
+    version: "~1.0.2"
+    require: private
+    matches:
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
+
+  espressif/esp_video_codec:
+    version: "~0.5"
+    require: private
+    matches:
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
+      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True
+
   espressif/esp_video:
     version: "2.4.*"
     rules:
       - if: "target in [esp32p4, esp32s3, esp32c3, esp32c5, esp32c6, esp32c61, esp32s31]"
     matches:
-      - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_AUDIO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_CAMERA_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL} == True
       - if: $CONFIG{BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE} == True && $CONFIG{BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL} == True

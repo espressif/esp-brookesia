@@ -328,10 +328,31 @@ idf_component_register(
     EMBED_TXTFILES ${COMPONENT_EMBED_TXTFILES}
 )
 
+if(BROOKESIA_HAL_ADAPTOR_NEEDS_AV_PROCESSOR)
+    # Backport the official SR 2.5.5 requirements for the identical models in
+    # 2.5.3. Register after SR configuration and before ESP-DL's deferred
+    # finalize, avoiding an order-dependent patch to the dependency CMake.
+    # Additional model components register their own requirements in the union.
+    idf_build_get_property(_sr_build_components BUILD_COMPONENTS)
+    foreach(_sr_name esp-sr espressif__esp-sr)
+        if(_sr_name IN_LIST _sr_build_components)
+            idf_component_get_property(_sr_version ${_sr_name} COMPONENT_VERSION)
+            if(_sr_version VERSION_EQUAL "2.5.3")
+                foreach(_dl_name esp-dl espressif__esp-dl)
+                    if(_dl_name IN_LIST _sr_build_components)
+                        idf_component_get_property(_dl_dir ${_dl_name} COMPONENT_DIR)
+                        include(${_dl_dir}/cmake/compile_register.cmake)
+                        esp_dl_compile_add_yml(${COMPONENT_DIR}/tools/esp_sr_2_5_3_compile_req.yml)
+                    endif()
+                endforeach()
+            endif()
+        endif()
+    endforeach()
+endif()
+
 #
-# Patch the resolved media_lib_sal component so its esp_tls usage builds on
-# ESP-IDF 6.x. The dependency may be resolved either as a local override
-# (media_lib_sal) or a managed component (espressif__media_lib_sal).
+# Patch resolved dependencies under either their local or managed names.
+# media_lib_sal >=1.0.2 already contains the ESP-IDF 6 TLS field fix.
 #
 find_package(Git QUIET)
 foreach(_prefix "" "espressif__")
@@ -346,19 +367,6 @@ foreach(_prefix "" "espressif__")
             sensors/${_sensor}/${_sensor}.c "ESP_LOGD(TAG, \"Get sensor ID failed\")")
     endforeach()
 endforeach()
-set(BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH
-    ${COMPONENT_DIR}/tools/media_lib_sal_esp_tls_idf6.patch
-)
-brookesia_hal_adaptor_apply_component_patch(media_lib_sal
-    ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
-    port/media_lib_tls_default.c
-    REQUIRED
-)
-brookesia_hal_adaptor_apply_component_patch(espressif__media_lib_sal
-    ${BROOKESIA_HAL_ADAPTOR_MEDIA_LIB_SAL_PATCH}
-    port/media_lib_tls_default.c
-    REQUIRED
-)
 
 if(CONFIG_CODEC_DATA_ADC_SUPPORT)
     # IDF master moved channel counts from SOC capabilities to ADC LL.
@@ -379,7 +387,7 @@ endif()
 
 if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
    CONFIG_BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL)
-    # av_processor 0.6.x only considers stream mode "running", so its public
+    # av_processor 0.7.0 only considers stream mode "running", so its public
     # stop API otherwise leaves a frame-mode capture pipeline open. Keep the
     # workaround local until the dependency release contains the fix.
     set(BROOKESIA_HAL_ADAPTOR_AV_PROCESSOR_PATCH
@@ -447,7 +455,7 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
         src/esp_video_init.c
         REQUIRED
     )
-    # esp_capture 0.8.4 only recognises YUYV for YUV422, so a DVP sensor that
+    # esp_capture 1.0.x only recognises YUYV for YUV422, so a DVP sensor that
     # exposes UYVY alone (the SC101IOT CameraBoard variant) fails negotiation.
     set(BROOKESIA_HAL_ADAPTOR_ESP_CAPTURE_UYVY_PATCH
         ${COMPONENT_DIR}/tools/esp_capture_v4l2_uyvy_support.patch

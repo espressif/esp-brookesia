@@ -85,6 +85,8 @@ Super supports LVGL only and needs no GSP compiler or GSP resources. The default
 
 Each output has a separate dependency cache, so multiple outputs use additional disk space. Board generation under `components/gen_bmgr_codes` remains shared source input. Regenerate matching inputs when switching boards or ESP-IDF versions; back up custom inputs first. Use separate source checkouts for concurrent work on different boards. Give external `SDKCONFIG` or resource-stage paths distinct locations too. The [CI output audit](../../../.gitlab/tools/README.md#build_appspy) checks the standard build-local layout.
 
+The full configuration includes recording, AFE/wake-word processing, playback, and video. See the [HAL audio/video compatibility notes](../../../hal/brookesia_hal_adaptor/README.md#audiovideo-dependencies-and-configuration) for the dependency combination and [additional-model registration](../../../hal/brookesia_hal_adaptor/README.md#additional-esp-dl-models) before adding `.espdl` models.
+
 ### Console and Host-Control Port Pairing
 
 ESP-Mosaico uses a board-specific TinyUSB CDC console, with the USB service and System Core USB bridge disabled in its board defaults. The UART and USB Serial/JTAG profiles below do not provide host control over Mosaico's onboard TinyUSB CDC port.
@@ -116,7 +118,7 @@ needed when the pairing is switched.
 
 ## ⚡ Build Performance
 
-On P4, this example's [CMake policy](CMakeLists.txt) favors firmware size with `-Os` for C++ in System Core, the JSON GUI interface, Super Shell, Settings, App Store, Files, and Service Manager to fit the existing factory partition. LVGL, HAL, Audio/Video services, and QuickJS retain `-O2`. This policy is local to Super; gsp_app uses its own build options.
+On P4, this example's [CMake policy](CMakeLists.txt) favors firmware size with `-Os` for C++ in System Core, the JSON GUI interface, Super Shell, Settings, App Store, Files, and Service Manager to fit the existing factory partition. LVGL, HAL, Audio/Video services, and QuickJS retain `-O2`; ESP-DL kernels retain upstream `-O3`. This policy is local to Super; gsp_app uses its own build options.
 
 The example builds the complete dependency set by default. It enables ccache and limits simultaneous compile edges for first-party Brookesia C++ targets and `esp-boost`, whose template-heavy translation units have the highest peak compiler memory use. The same tuning is available to all first-party examples and test apps.
 

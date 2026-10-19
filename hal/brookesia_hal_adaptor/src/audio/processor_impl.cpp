@@ -160,14 +160,15 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
     BROOKESIA_CHECK_NULL_RETURN(recorder_iface_, false, "Invalid recorder interface");
     const auto &recorder_info = recorder_iface_->get_info();
     auto player_config = config_.playback.player;
+    // Player and recorder can share an I2S clock. The recorder has no dynamic
+    // format API, so keep both endpoints on its declared format.
     if ((player_config.bits != recorder_info.bits) ||
             (player_config.channels != recorder_info.channels) ||
             (player_config.sample_rate != recorder_info.sample_rate)) {
         BROOKESIA_LOGW(
-            "Playback codec config(%1%) does not match audio manager output(bits=%2%, channels=%3%, rate=%4%); "
-            "using audio manager output config",
-            BROOKESIA_DESCRIBE_TO_STR(player_config), recorder_info.bits, recorder_info.channels,
-            recorder_info.sample_rate
+            "Playback format differs from recorder; using recorder format(bits=%1%, channels=%2%, rate=%3%) "
+            "for shared-clock compatibility",
+            recorder_info.bits, recorder_info.channels, recorder_info.sample_rate
         );
         player_config.bits = recorder_info.bits;
         player_config.channels = recorder_info.channels;
@@ -206,21 +207,34 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
 
     audio_manager_config_t manager_config = {
         .play_io = {
+            .audio_info = {
+                .sample_rate = player_config.sample_rate,
+                .sample_bits = player_config.bits,
+                .channels = player_config.channels,
+                .frame_duration = 0,
+            },
             .read_cb = nullptr,
             .read_ctx = nullptr,
             .write_cb = player_write_cb,
             .write_ctx = player_iface_.get(),
+            .drain_cb = nullptr,
+            .drain_ctx = nullptr,
         },
         .rec_io = {
+            .audio_info = {
+                .sample_rate = recorder_info.sample_rate,
+                .sample_bits = recorder_info.bits,
+                .channels = recorder_info.channels,
+                .frame_duration = 0,
+            },
             .read_cb = recorder_read_cb,
             .read_ctx = this,
             .write_cb = nullptr,
             .write_ctx = nullptr,
+            .drain_cb = nullptr,
+            .drain_ctx = nullptr,
         },
         .mic_layout = {0},
-        .board_sample_rate = static_cast<int>(recorder_info.sample_rate),
-        .board_bits = static_cast<int>(recorder_info.bits),
-        .board_channels = static_cast<int>(recorder_info.channels),
     };
     if (!recorder_info.mic_layout.empty()) {
         std::strncpy(

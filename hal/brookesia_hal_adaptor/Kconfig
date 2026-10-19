@@ -388,8 +388,9 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
             bool "Encoder"
             default y
+            select VIDEO_PROCESSOR_ENABLE
             help
-                Enable the video encoder implementation.
+                Enable the video encoder implementation and its av_processor video pipeline.
 
         if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL
             config BROOKESIA_HAL_ADAPTOR_VIDEO_ENCODER_DEFAULT_DEVICE_PATH_PREFIX
@@ -409,8 +410,9 @@ menu "ESP-Brookesia: Hal Adaptor Configurations"
         menuconfig BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL
             bool "Decoder"
             default y
+            select VIDEO_PROCESSOR_ENABLE
             help
-                Enable the video decoder implementation.
+                Enable the video decoder implementation and its av_processor video pipeline.
 
         if BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_DECODER_IMPL
             config BROOKESIA_HAL_ADAPTOR_VIDEO_DECODER_DEFAULT_NUM

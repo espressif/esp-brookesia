@@ -6,7 +6,7 @@
 
 - Python 3.9+、C 编译器，以及支持 C++23 的编译器（GCC 13 或更新版本）。
 - 核心测试需要 Boost 头文件、Boost.Thread 和 Boost.System 开发库。
-- 依赖测试需要 Git、CMake，以及已有配置工程的 `managed_components` 目录。
+- 依赖测试还需要 Git、CMake 3.22+、PyYAML，以及已有配置工程的 `managed_components` 目录。这些额外要求不适用于核心测试。
 
 运行器优先使用 `CXX`，否则选择 `g++-13` 或 `c++`。以下命令均在仓库根目录执行。
 
@@ -22,16 +22,24 @@ python3 hal/brookesia_hal_adaptor/test_apps/host/run.py --suite core
 
 ## 依赖回归
 
-先按正常流程配置固件工程，准备依赖及必要补丁，再执行：
+先按 [System Super 构建流程](../../../../examples/system/super/README_CN.md#-如何使用)配置固件工程，在 `examples/system/super/build/dependencies/managed_components` 中准备解析出的依赖及必要补丁。以下命令从仓库根目录创建独立 Python 环境，并仅运行依赖测试：
 
 ```bash
-python3 hal/brookesia_hal_adaptor/test_apps/host/run.py --suite all \
-    --managed-components examples/system/super/managed_components
+python3 -m venv /tmp/brookesia-hal-host-venv
+source /tmp/brookesia-hal-host-venv/bin/activate
+python3 -m pip install PyYAML "cmake>=3.22"
+python3 hal/brookesia_hal_adaptor/test_apps/host/run.py --suite dependencies \
+    --managed-components examples/system/super/build/dependencies/managed_components
+deactivate
 ```
 
-使用 `--suite dependencies` 可仅运行补丁测试，覆盖补丁应用、组件别名、重复配置、释放错误、帧模式停止和 UYVY/YUYV 协商。依赖由参数显式传入；运行器不会下载依赖或修改工程中的组件副本。
+同时具备核心测试前提时，可改用 `--suite all`。依赖测试覆盖真实 av_processor 头文件下的播放/录音格式、播放优先级、回调及打开失败回滚，以及补丁应用、组件别名、重复配置、释放错误、帧模式停止和 UYVY/YUYV 协商。依赖由参数显式传入；运行器不会下载依赖或修改工程中的组件副本。
 
-这些用例已在 Board Manager 0.5.15、esp_video 2.4.1、esp_capture 0.8.4 和 av_processor 0.6.6 上验证。升级 Board Manager 时，应使用候选工程解析出的依赖运行测试，检查补丁或 API 差异，再执行核心回归和实机测试。编译失败应作为兼容性问题处理，不应跳过对应测试。
+共享 I2S 用例执行实际 codec 库的配对、格式检查、`set_fmt` 和 `esp_codec_dev_open` 函数，仅将驱动、OS 和模拟 codec 控制替换为桩。覆盖 16/48 kHz、默认 16/16 kHz、声道和位深不一致，检查驱动格式与 manager 元数据相符；负向对照复现修复前被吞掉的拒绝，并要求同一回归能够拒绝该实现。这不验证物理 I2S 时钟或音质。
+
+这些用例已在 Board Manager 0.5.15、esp_video 2.4.1、esp_capture 1.0.2 和 av_processor 0.7.0 上验证。升级 Board Manager 时，应使用候选工程解析出的依赖运行测试，检查补丁或 API 差异，再执行核心回归和实机测试。编译失败应作为兼容性问题处理，不应跳过对应测试。
+
+依赖组还执行实际 HAL CMake 注册块及 ESP-DL 官方生成器，覆盖 local/managed 组件别名、P4/S3/S31/C5、额外模型需求并集及 SR 版本边界。这些检查不验证模型推理结果、音质或硬件时延。
 
 ## 验证范围与清理
 

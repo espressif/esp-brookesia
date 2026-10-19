@@ -71,6 +71,13 @@ ESP 设备板级适配
 
 若需在初始化前覆盖默认能力参数，可在对应设备单例上调用 ``set_codec_player_info``、``set_codec_recorder_info`` 或 ``set_ledc_backlight_info``。初始化完成后再调用通常不会生效。
 
+.. _hal-adaptor-audio-format:
+
+音频处理器格式
+^^^^^^^^^^^^^^
+
+打开共享 I2S 时钟的 codec 前，音频处理器按录音接口声明的格式统一播放采样率、位深和声道。codec 和处理器元数据均使用这一实际格式，调用者请求的播放配置保持不变。若播放需要特定的共享时钟格式，请在初始化前设置录音格式。
+
 .. _hal-adaptor-expansion-modules:
 
 扩展模块支持
@@ -154,12 +161,45 @@ Brookesia 管理的 Board Manager 调用会串行执行。直接调用 Board Man
      - 在旧 SOC 宏缺失时使用等价 ADC LL 通道数，保留板级 ADC 校验。
    * - ``esp_codec_dev_adc_idf6``
      - 在旧 SOC 宏缺失时使用等价 ADC LL 通道数，保留 ADC 采集与边界检查。
-   * - ``media_lib_sal_esp_tls_idf6``
-     - 适配 ESP-IDF 6 的 TLS 接口。
 
 .. note::
 
    必要补丁无法应用或检测到不兼容的旧补丁时，构建配置会报错。请核对依赖版本及本地修改；需要恢复依赖时，应使用依赖锁定文件中的版本。
+
+.. _hal-adaptor-media-dependencies:
+
+音视频依赖与模型
+----------------
+
+av_processor 0.7.0 使用 GMF AI Audio 1.0.2、ESP-SR 2.5.3 及 ESP-DL 3.3.13，保留旧 P4 / IDF 6 语音库。media_lib_sal 1.0.2 已包含 ESP-IDF 6 TLS 修复，不再使用旧 TLS 补丁。
+
+HAL 使用上游 SR 2.5.5 算子需求元数据，为 SR 2.5.3 模型注册需求。登记需求后会全局启用算子和内核裁剪（``DL_COMPILE_ALL=0``）。每个额外加载 ``.espdl`` 模型的 native 组件都须注册自身需求，由 ESP-DL 与 SR 需求取并集。
+
+将 ``espressif/esp-dl`` 声明为模型组件的依赖。在该组件的 ``CMakeLists.txt`` 中，先调用 ``idf_component_register()``，再按解析出的组件名称注册需求文件：
+
+.. code-block:: cmake
+
+    idf_build_get_property(build_components BUILD_COMPONENTS)
+    if("espressif__esp-dl" IN_LIST build_components)
+        idf_component_get_property(
+            dl_dir espressif__esp-dl COMPONENT_DIR)
+    else()
+        idf_component_get_property(
+            dl_dir esp-dl COMPONENT_DIR)
+    endif()
+    include("${dl_dir}/cmake/compile_register.cmake")
+    esp_dl_compile_add_yml(
+        "${CMAKE_CURRENT_LIST_DIR}/model.compile_req.yml")
+
+请按各模型确定算子与内核。仅需 ``Relu`` 的模型可使用以下 ``model.compile_req.yml``：
+
+.. code-block:: yaml
+
+    kernel_abi: 1
+    ops: [Relu]
+    kernels: []
+
+ESP-DL 3.3.13 会拒绝未知算子、超出其支持范围的 ``kernel_abi``，以及多个需求文件间不一致的 ABI 值。未知 kernel 则会告警并被过滤。
 
 .. _hal-adaptor-sec-05:
 

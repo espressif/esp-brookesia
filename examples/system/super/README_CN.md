@@ -85,6 +85,8 @@ Super 固定使用 LVGL，不需要 GSP 编译器或专属资源。默认输出�
 
 各输出保留独立依赖缓存，因此多个输出会增加磁盘占用。`components/gen_bmgr_codes` 中的板级生成结果仍是共享源码输入。切换板型或 ESP-IDF 版本时，需重新生成匹配的输入；重新生成前请备份自定义输入。同时开发不同板型时，请使用独立源码检出。外部 `SDKCONFIG` 或资源 staging 路径也应各自独立。[CI 输出审计](../../../.gitlab/tools/README.md#build_appspy)检查标准的构建目录内布局。
 
+完整配置包含录音、AFE/唤醒词、播放和视频。依赖组合请参阅 [HAL 音视频兼容说明](../../../hal/brookesia_hal_adaptor/README_CN.md#音视频依赖与配置)；添加 `.espdl` 模型前请完成[额外模型需求登记](../../../hal/brookesia_hal_adaptor/README_CN.md#额外-esp-dl-模型)。
+
 ### Console 与主机控制端口配对
 
 ESP-Mosaico 使用板级 TinyUSB CDC 控制台，板级默认配置关闭 USB Service 和 System Core USB bridge。下述 UART 与 USB Serial/JTAG profile 不提供通过 Mosaico 板载 TinyUSB CDC 端口进行的主机控制。
@@ -107,7 +109,7 @@ ESP32-P4 同时引出两种端口，目前需在编译期选择；运行期自�
 
 ## ⚡ 构建性能
 
-在 P4 上，本示例的 [CMake 策略](CMakeLists.txt) 优先优化固件体积，对 System Core、JSON GUI 接口层、Super Shell、Settings、App Store、Files 和 Service Manager 的 C++ 使用 `-Os`，以适配既有 factory 分区。LVGL、HAL、Audio/Video 服务和 QuickJS 保持 `-O2`。该策略仅作用于 Super；gsp_app 使用自身的构建选项。
+在 P4 上，本示例的 [CMake 策略](CMakeLists.txt) 优先优化固件体积，对 System Core、JSON GUI 接口层、Super Shell、Settings、App Store、Files 和 Service Manager 的 C++ 使用 `-Os`，以适配既有 factory 分区。LVGL、HAL、Audio/Video 服务和 QuickJS 保持 `-O2`，ESP-DL 内核保留上游 `-O3`。该策略仅作用于 Super；gsp_app 使用自身的构建选项。
 
 示例默认构建完整依赖集，同时启用 ccache，并限制第一方 Brookesia C++ target 和 `esp-boost` 的并发编译 edge 数量；这些模板密集型编译单元通常具有最高的编译器峰值内存。相同的调优机制也用于所有第一方 example 和 test app。
 

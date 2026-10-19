@@ -36,10 +36,14 @@ def main():
     if args.suite in ('dependencies', 'all'):
         from board_manager.suite import run as run_board_manager
         from media.suite import run as run_media
+        from audio_config.suite import run as run_audio_config
+        from dl_config.suite import run as run_dl_config
 
         print(f'Running dependency regressions against {args.managed_components}', flush=True)
         run_board_manager(args.managed_components)
         run_media(args.managed_components)
+        run_audio_config(args.managed_components)
+        run_dl_config(args.managed_components)
     print(f'PASS: {args.suite} host regressions', flush=True)
 
 
