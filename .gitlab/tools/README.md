@@ -1,5 +1,25 @@
 # GitLab Tools
 
+## `build_apps.py`
+
+CI builds of `examples/system/super` and `examples/system/gsp_app` reject an existing source-directory `sdkconfig` before cleanup; use `idf.py -B <build-dir>` to keep an existing configuration.
+
+These jobs run the build-local dependency-state regression before building and audit the selected backend's configuration, component paths, generated resources, firmware, and LittleFS image afterward. The audit assumes the standard build-local layout; it does not certify caller-specified external configuration or resource paths.
+
+Run the state regression from the repository root:
+
+```bash
+python3 -B -m unittest discover -s examples/system/common -p test_component_manager.py -v
+```
+
+To audit an ordinary completed build, pass its output directory:
+
+```bash
+python3 examples/system/common/check_build_isolation.py examples/system/super/build
+```
+
+The audit checks `<build-dir>/dependencies/local_manifests.sha256` against the local override manifests and final Kconfig configuration. If it reports a missing or stale stamp, rerun `idf.py -B <build-dir> reconfigure`, resolve any configuration failure, and rebuild before auditing again. The regression tests cover when a successful stamp is written; implementation details are in [the shared CMake setup](../../examples/system/common.cmake) and [dependency-state helper](../../examples/system/common/component_manager.py).
+
 ## `check_public_header_hygiene.py`
 
 `check_public_header_hygiene.py` checks Brookesia's public include paths for heavyweight or overly broad includes. Its purpose is to prevent accidental transitive dependencies from increasing C/C++ compile time and peak memory usage.

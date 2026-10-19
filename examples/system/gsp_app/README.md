@@ -4,67 +4,74 @@
 
 This example runs on the ESP32-P4 Function EV Board, on the 1024×600 screen. It opens a launcher. From there you can open Settings, adjust brightness and sound, connect to Wi-Fi, and choose the interface language and theme.
 
-The interface is chosen in menuconfig:
+Two backend profiles are supported:
 
 - **GSP**, the default. Launcher and Settings, including brightness, Wi-Fi, sound, language, and theme.
 - **LVGL**. The existing desktop and the original Settings screens.
 
-The project is set up for ESP32-P4 revision v3.1.
+The default P4 configuration targets chip revision v3.1 or later.
 
 You can also install apps over USB while the board is running. They appear on the launcher next to Settings; see [Installable apps](#installable-apps).
 
 ## Build and flash
 
+Activate the supported ESP-IDF environment (6.0 or later) and run commands from this example directory. For GSP, first install `esp-gsp-tools` with `python -m pip install -U esp-gsp-tools`, or pass `-D GSPC_EXECUTABLE=/path/to/gspc` with a compatible compiler; see the [GSP application setup](../../app/gsp_js_device_control/README.md#requirements). LVGL does not need the GSP compiler.
+
+Use a new output directory for each board/backend combination. Existing `sdkconfig` choices take precedence over defaults; changing only the defaults does not convert an existing output to another board.
+
+### P4X (revision v3.1 or later)
+
+Generate the P4X board inputs, then choose one backend:
+
 ```bash
-idf.py gen-bmgr-config -b esp32_p4_function_ev
-idf.py set-target esp32p4
-idf.py build
-idf.py -p <PORT> -b 921600 flash monitor
+idf.py gen-bmgr-config -b esp32_p4x_function_ev
+idf.py -B build-gsp -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defaults build
+idf.py -B build-lvgl -D IDF_TARGET=esp32p4 \
+    -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.ci.lvgl' build
 ```
 
-GSP pages need the scene compiler. If the build stops and asks for it, install the tool or point `GSPC_EXECUTABLE` at a `gspc` binary:
+`sdkconfig.defaults.esp32p4` and `sdkconfig.ci.lvgl` select the revision ≥3 path with a minimum of v3.1. The CI file `sdkconfig.ci.board.esp32_p4_function_ev` also targets v3.1 despite its historical board name; it is not an old-P4 profile.
+
+### Flash and monitor
+
+Use the same `-B` as the build. For example, after the P4X GSP build:
 
 ```bash
-python -m pip install -U esp-gsp-tools
+idf.py -B build-gsp -p <PORT> -b 921600 flash monitor
 ```
+
+Replace `<PORT>` with the board's serial port; use `build-lvgl` for LVGL. Exit the monitor with `Ctrl+]`. A full flash replaces LittleFS, including installed apps and their data; back up anything you need first.
+
+### Output directories
+
+Each output owns `sdkconfig`, `dependencies.lock`, `dependencies/managed_components`, generated headers/bundles, and `littlefs_stage`. With no explicit defaults or external `SDKCONFIG`, a new output imports the project's existing sdkconfig once. Explicit defaults start a fresh configuration and include the generated board defaults first. Existing project configuration and downloads are preserved; each output's separate dependency cache uses additional disk space.
+
+Board generation under `components/gen_bmgr_codes` is shared source input. Regenerate matching inputs when switching boards or ESP-IDF versions; back up custom inputs first. Use separate source checkouts for concurrent work on different boards. Give caller-specified external `SDKCONFIG` or resource-stage paths distinct locations too. The [CI output audit](../../../.gitlab/tools/README.md#build_appspy) checks the standard build-local layout.
 
 ## Switch the interface
 
-```bash
-idf.py menuconfig
-```
-
-Open `ESP-Brookesia: System Core Configurations` and change `GUI backend`, then save. Build and flash again:
+Choose the corresponding output above; reusing an output for another backend is rejected. Keep `-B build-gsp` or `-B build-lvgl` on subsequent `menuconfig`, build and flash commands. To change settings within one backend:
 
 ```bash
-idf.py build
-idf.py -p <PORT> -b 921600 flash
+idf.py -B build-gsp menuconfig
+idf.py -B build-gsp build
 ```
 
-Both choices use `partitions_16m.csv`. The LVGL options in `sdkconfig.defaults` apply after LVGL is selected.
+Both profiles use `partitions_16m.csv`. The LVGL startup helpers are shared under `examples/system/common/lvgl`; neither backend reads sources or outputs from the Super example.
 
 ### Filesystem resources
 
-The `littlefs_data` image is built from `build/littlefs_stage`; this example no longer uses the source-tree `littlefs/` directory for that image.
+The `littlefs_data` image is built from `<selected-build>/littlefs_stage`; this example no longer uses the source-tree `littlefs/` directory for that image.
 
 With GSP selected, the image contains the sound-check WAV, Settings translations used for the application name, and any GSP apps configured for preinstallation. GSP scenes and their fonts are supplied by GSP bundles; the image does not include the LVGL desktop (`system/super`), shared LVGL fonts (`system/fonts`), or the Settings LVGL screens. With LVGL selected, the image includes the desktop resources and the complete Settings package.
 
 ### Flashing after a backend change
 
-`idf.py app-flash` updates the application partition only; it does not update `littlefs_data`. To deploy the filesystem image for the selected backend, build and run a full flash:
+`idf.py app-flash` updates the application partition only; it does not update `littlefs_data`. After a backend change, build its output and use the full [flash command](#flash-and-monitor) above to deploy the matching filesystem resources.
 
-```bash
-idf.py build
-idf.py -p <PORT> -b 921600 flash
-```
+Both interfaces use the same capability configuration and AudioPlayback service. The Sound test uses local PCM/WAV playback through the board's shared audio processor. High-level recording is disabled; raw codec access remains available. This example does not expose speech, streaming, or video features.
 
-A full flash replaces the LittleFS partition, including installed apps and their data. Back up anything you need before flashing.
-
-The first build after selecting GSP may stop because the previous configuration has not resolved the GSP scene component yet. Run `idf.py build` once more to complete configuration and build.
-
-Both interfaces use the same capability configuration and AudioPlayback service. The Sound test uses local PCM/WAV playback through the board's shared audio processor. High-level recording is disabled; raw codec access remains available. This example does not expose speech, streaming, or video features. The partition table and GSP font coverage are unchanged.
-
-Compiled GSP scenes are compressed losslessly in flash. Opening an app expands its scene bundle into PSRAM; closing it releases that memory. Font coverage is unchanged. To use uncompressed scenes, disable **Compress embedded Brookesia GSP bundles** under **ESP-Brookesia: GUI GSP Configurations**.
+Compiled GSP scenes are compressed losslessly in flash. Opening an app expands its scene bundle into PSRAM; closing it releases that memory. To use uncompressed scenes, disable **Compress embedded Brookesia GSP bundles** under **ESP-Brookesia: GUI GSP Configurations**.
 
 For an existing checkout that disabled **Audio Device → Audio Processor**, enable it under **ESP-Brookesia: Hal Adaptor Configurations**. Disable **Audio Processor Recording** and keep the example's other capability defaults. Switching the GUI backend does not require changing these settings.
 

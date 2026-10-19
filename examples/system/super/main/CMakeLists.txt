@@ -25,7 +25,7 @@ endif()
 if(COMMAND littlefs_create_partition_image)
     littlefs_create_partition_image(
         littlefs_data
-        ../littlefs
+        "${BROOKESIA_SYSTEM_CORE_ESP_RESOURCE_STAGE_ROOT}"
         FLASH_IN_PROJECT
         DEPENDS ${brookesia_runtime_app_stage_targets} ${brookesia_system_super_stage_targets}
     )

@@ -32,7 +32,7 @@ This example demonstrates how to start a complete ESP-Brookesia System Super pro
 
 This example provides configurations for the following development boards:
 
-- `esp32_p4x_function_ev`
+- `esp32_p4x_function_ev` (P4 chip revision ≥3)
 - `esp32_s31_korvo1`
 - `esp_mosaico_v1_0`
 - `esp_mosaico_v1_2` (initial adaptation; partially validated, see the guide below)
@@ -61,6 +61,29 @@ Please refer to the following documentation:
 </a>
 
 Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](https://docs.espressif.com/projects/esp-brookesia/en/latest/getting_started.html#getting-started-example-projects).
+
+### Select the board and build
+
+Activate the supported ESP-IDF environment (6.0 or later). Run commands from this example directory. For a first P4X (revision v3.1 or later) build, with no existing `build/` output:
+
+```bash
+idf.py gen-bmgr-config -b esp32_p4x_function_ev
+idf.py -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defaults build
+```
+
+For subsequent builds of this configuration, run:
+
+```bash
+idf.py build
+```
+
+For another board, select its name from [Hardware Requirements](#hardware-requirements) and its matching chip target. Keep existing generated inputs when they already describe the correct board.
+
+### Independent LVGL output
+
+Super supports LVGL only and needs no GSP compiler or GSP resources. The default output is this directory's `build/`, which owns `sdkconfig`, `dependencies.lock`, `dependencies/managed_components`, generated files, and `littlefs_stage`. A new output imports the existing project sdkconfig once unless explicit defaults or an external `SDKCONFIG` are selected. The original configuration and downloads are preserved. Use `-B <another-output-directory>` for another configuration and retain the same `-B` on later menuconfig, build, and flash commands. Do not share an output with `examples/system/gsp_app`.
+
+Each output has a separate dependency cache, so multiple outputs use additional disk space. Board generation under `components/gen_bmgr_codes` remains shared source input. Regenerate matching inputs when switching boards or ESP-IDF versions; back up custom inputs first. Use separate source checkouts for concurrent work on different boards. Give external `SDKCONFIG` or resource-stage paths distinct locations too. The [CI output audit](../../../.gitlab/tools/README.md#build_appspy) checks the standard build-local layout.
 
 ### Console and Host-Control Port Pairing
 

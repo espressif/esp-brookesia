@@ -10,7 +10,9 @@ cmake_minimum_required(VERSION 3.16)
 
 option(CCACHE_ENABLE "Use ccache to accelerate repeat ESP-IDF builds" ON)
 
+include("${CMAKE_CURRENT_LIST_DIR}/../common.cmake")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+idf_build_set_property(DEPENDENCIES_LOCK "${DEPENDENCIES_LOCK}")
 
 # Work around esp-idf-configdep mapping CONFIG_ESP_LVGL_ADAPTER_PARTIAL_AUX_IMG_CACHE
 # to a Windows-invalid path containing the reserved device name "aux".
@@ -22,6 +24,7 @@ if(CMAKE_HOST_WIN32)
 endif()
 
 project(example_system_super)
+brookesia_system_check_build_backend()
 
 # Temporary workaround for `espressif__mcp-c-sdk` stringop-truncation warning
 idf_build_set_property(COMPILE_OPTIONS -Wno-error=stringop-truncation APPEND)

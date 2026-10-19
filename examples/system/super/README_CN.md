@@ -32,7 +32,7 @@
 
 本示例提供以下开发板配置：
 
-- `esp32_p4x_function_ev`
+- `esp32_p4x_function_ev`（P4 芯片 revision ≥3）
 - `esp32_s31_korvo1`
 - `esp_mosaico_v1_0`
 - `esp_mosaico_v1_2`（初步适配，部分验证范围见下方指南）
@@ -61,6 +61,29 @@ V1.2 默认将 HTTP/TLS 路径所用的 mbedTLS/PSA SHA/AES 配置为软件实�
 </a>
 
 请参考 [ESP-Brookesia 编程指南 - 如何使用示例工程](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/getting_started.html#getting-started-example-projects)。
+
+### 选板与构建
+
+先激活支持的 ESP-IDF 环境（6.0 或更新版本）。以下命令均在本示例目录执行。P4X（revision v3.1 或更新版本）首次使用、尚无 `build/` 输出时：
+
+```bash
+idf.py gen-bmgr-config -b esp32_p4x_function_ev
+idf.py -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defaults build
+```
+
+后续构建同一配置时，直接执行：
+
+```bash
+idf.py build
+```
+
+其他板卡从[硬件要求](#硬件要求)中选择对应名称，并使用匹配的芯片 target。已有生成文件且板型正确时，无需重新生成。
+
+### 独立 LVGL 输出
+
+Super 固定使用 LVGL，不需要 GSP 编译器或专属资源。默认输出为本目录的 `build/`，独立保存 `sdkconfig`、`dependencies.lock`、`dependencies/managed_components`、生成文件及 `littlefs_stage`。未显式指定 defaults 或外部 `SDKCONFIG` 时，新输出首次复制项目已有 sdkconfig，保留原配置与下载。需要另一套配置时使用 `-B <另一输出目录>`，后续 menuconfig、构建和烧录沿用同一 `-B`；不要与 `examples/system/gsp_app` 共用输出。
+
+各输出保留独立依赖缓存，因此多个输出会增加磁盘占用。`components/gen_bmgr_codes` 中的板级生成结果仍是共享源码输入。切换板型或 ESP-IDF 版本时，需重新生成匹配的输入；重新生成前请备份自定义输入。同时开发不同板型时，请使用独立源码检出。外部 `SDKCONFIG` 或资源 staging 路径也应各自独立。[CI 输出审计](../../../.gitlab/tools/README.md#build_appspy)检查标准的构建目录内布局。
 
 ### Console 与主机控制端口配对
 

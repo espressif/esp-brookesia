@@ -19,6 +19,8 @@ import shutil
 
 from idf_build_apps import App, build_apps, find_apps, setup_logging
 from idf_build_apps.app import CMakeApp
+from idf_build_apps.constants import BuildStatus
+from idf_build_apps.utils import BuildError, subprocess_run
 
 logger = logging.getLogger('idf_build_apps')
 IDF_PATH = os.getenv('IDF_PATH', '')
@@ -45,6 +47,14 @@ IGNORE_WARNINGS = [
 class CustomApp(CMakeApp):
     build_system: t.Literal['custom'] = 'custom'  # Must be unique to identify your custom app type
 
+    def _pre_build(self) -> None:
+        if self.is_system_example() and (Path(self.work_dir) / 'sdkconfig').exists():
+            raise BuildError(
+                f'System example CI builds require a checkout without {Path(self.work_dir) / "sdkconfig"}. '
+                'Use idf.py -B <build-dir> to preserve an existing configuration.'
+            )
+        super()._pre_build()
+
     def _build(
         self,
         *,
@@ -53,6 +63,20 @@ class CustomApp(CMakeApp):
         modified_files: t.Optional[t.List[str]] = None,
         check_app_dependencies: bool = False,
     ) -> None:
+        system_example = self.is_system_example()
+        if system_example:
+            # These projects generate sdkconfig inside each build directory.
+            self.copy_sdkconfig = False
+            subprocess_run(
+                [
+                    sys.executable, '-B', '-m', 'unittest', 'discover',
+                    '-s', str(PROJECT_ROOT / 'examples/system/common'),
+                    '-p', 'test_component_manager.py',
+                ],
+                log_fs=self.build_log_path,
+                check=True,
+                cwd=self.work_dir,
+            )
         self._pre_hook()
         super()._build(
             manifest_rootpath=manifest_rootpath,
@@ -60,6 +84,23 @@ class CustomApp(CMakeApp):
             modified_files=modified_files,
             check_app_dependencies=check_app_dependencies,
         )
+        if system_example and self.build_status == BuildStatus.SUCCESS:
+            subprocess_run(
+                [
+                    sys.executable,
+                    str(PROJECT_ROOT / 'examples/system/common/check_build_isolation.py'),
+                    str(Path(self.build_path).resolve()),
+                ],
+                log_fs=self.build_log_path,
+                check=True,
+                cwd=self.work_dir,
+            )
+
+    def is_system_example(self) -> bool:
+        return Path(self.app_dir).resolve() in {
+            PROJECT_ROOT / 'examples/system/super',
+            PROJECT_ROOT / 'examples/system/gsp_app',
+        }
 
     def is_board_manager_project(self) -> bool:
         main_yml_path = Path(self.work_dir) / 'main' / 'idf_component.yml'
@@ -103,7 +144,8 @@ class CustomApp(CMakeApp):
                     break
         print(f'== Pre build hook for app: {self.name} at \'{self.work_dir}\' for target: {self.target}, board:'
               f'{board_name}, argv: {sys.argv}, sdkconfig_files: {self.sdkconfig_files}')
-        self.clear_project_generated_files()
+        if not self.is_system_example():
+            self.clear_project_generated_files()
         if board_name == '':
             print(f'== No board name found, skip setting board manager config')
             return  # no board name found, skip the pre build hook
@@ -112,6 +154,9 @@ class CustomApp(CMakeApp):
             cwd=self.work_dir,
             check=True,
         )
+        if self.is_system_example():
+            # CMakeApp supplies the target and build directory to the real build.
+            return
         set_target_cmd = [sys.executable, f'{IDF_PATH}/tools/idf.py']
         if self.target in PREVIEW_TARGETS:
             set_target_cmd.append('--preview')

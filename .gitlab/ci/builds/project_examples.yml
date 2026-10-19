@@ -33,12 +33,23 @@ build_examples_system_gsp_app:
   extends:
     - .build_template_without_large_artifacts
     - .rules:build:examples_system_gsp_app
+  before_script:
+    - |
+      if [ "${EXAMPLE_CONFIG}" != "sdkconfig.ci.lvgl=" ]; then
+        python -m pip install esp-gsp-tools
+      fi
   parallel:
     matrix:
       - IMAGE: "espressif/idf:release-v6.0"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.esp32_p4_function_ev="
       - IMAGE: "espressif/idf:release-v6.0"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.lvgl="
+      - IMAGE: "espressif/idf:latest"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.esp32_p4_function_ev="
+      - IMAGE: "espressif/idf:latest"
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.lvgl="
   timeout: 3 hour

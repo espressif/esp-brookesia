@@ -10,6 +10,19 @@
   # - "conftest.py"
   # - "pytest.ini"
 
+# Shared build inputs for both system examples. Keep these scoped so a system
+# matrix change does not schedule every unrelated example and test app.
+.patterns-build_system_examples:
+  - ".build-rules.yml"
+  - ".gitlab-ci.yml"
+  - ".gitlab/ci/builds/project_common.yml"
+  - ".gitlab/ci/builds/project_examples.yml"
+  - ".gitlab/ci/rules/examples.yml"
+  - ".gitlab/ci/rules/patterns.yml"
+  - ".gitlab/tools/build_apps.py"
+  - "examples/system/common.cmake"
+  - "examples/system/common/**/*"
+
 ##############
 # if anchors #
 ##############
@@ -501,6 +514,8 @@
 .patterns-component_brookesia_system_core:
   - "system/brookesia_system_core/include/**/*"
   - "system/brookesia_system_core/src/**/*"
+  - "system/brookesia_system_core/cmake/**/*"
+  - "system/brookesia_system_core/gsp/**/*"
   - "system/brookesia_system_core/CMakeLists.txt"
   - "system/brookesia_system_core/idf_component.yml"
   - "system/brookesia_system_core/Kconfig"
@@ -527,6 +542,7 @@
   - "app/brookesia_app_settings/src/**/*"
   - "app/brookesia_app_settings/cmake/**/*"
   - "app/brookesia_app_settings/package/**/*"
+  - "app/brookesia_app_settings/gsp/**/*"
   - "app/brookesia_app_settings/CMakeLists.txt"
   - "app/brookesia_app_settings/idf_component.yml"
   - "app/brookesia_app_settings/Kconfig"
@@ -768,6 +784,7 @@
 # system/gsp_app
 .patterns-examples_system_gsp_app:
   - "examples/system/gsp_app/main/**/*"
+  - "examples/app/gsp_js_device_control/**/*"
   - "examples/system/gsp_app/CMakeLists.txt"
   - "examples/system/gsp_app/idf_ext.py"
   - "examples/system/gsp_app/gsp_dma2d_idf60.h"

@@ -4,67 +4,74 @@
 
 本示例面向配有 1024×600 屏幕的 ESP32-P4 Function EV Board。开机后进入启动页，可打开设置、调节亮度和声音、连接 Wi-Fi，并选择界面语言和主题。
 
-界面在 menuconfig 里选择：
+支持两种 backend 配置：
 
 - **GSP**，默认。启动页与设置，包括亮度、Wi-Fi、声音、语言和主题。
 - **LVGL**。原来的桌面，以及原来的设置界面。
 
-工程按 ESP32-P4 revision v3.1 配置。
+默认 P4 配置面向芯片 revision v3.1 或更新版本。
 
 开发板运行时还可以通过 USB 安装应用，它们会显示在启动页的设置按钮旁，详见[可安装应用](#可安装应用)。
 
 ## 构建与烧录
 
+先激活支持的 ESP-IDF 环境（6.0 或更新版本），以下命令均在本示例目录执行。使用 GSP 时，先通过 `python -m pip install -U esp-gsp-tools` 安装编译工具，或通过 `-D GSPC_EXECUTABLE=/path/to/gspc` 指定兼容编译器，详见 [GSP 应用环境准备](../../app/gsp_js_device_control/README_CN.md#环境要求)。LVGL 不需要 GSP 编译器。
+
+每种板型与 backend 组合都使用新的输出目录。已有 `sdkconfig` 中的选择优先于 defaults，仅更换 defaults 不能将已有输出切换为另一板型。
+
+### P4X（revision v3.1 或更新版本）
+
+生成 P4X 板级输入，再选择一个 backend：
+
 ```bash
-idf.py gen-bmgr-config -b esp32_p4_function_ev
-idf.py set-target esp32p4
-idf.py build
-idf.py -p <PORT> -b 921600 flash monitor
+idf.py gen-bmgr-config -b esp32_p4x_function_ev
+idf.py -B build-gsp -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defaults build
+idf.py -B build-lvgl -D IDF_TARGET=esp32p4 \
+    -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;sdkconfig.ci.lvgl' build
 ```
 
-GSP 页面需要场景编译器。如果编译停下来并提示缺少它，可以安装工具，或把 `GSPC_EXECUTABLE` 指到 `gspc`：
+`sdkconfig.defaults.esp32p4` 和 `sdkconfig.ci.lvgl` 均选择 revision ≥3 路径，最低要求为 v3.1。CI 文件 `sdkconfig.ci.board.esp32_p4_function_ev` 虽沿用历史板名，实际也面向 v3.1，并非旧版 P4 配置。
+
+### 烧录与监视
+
+沿用构建时的 `-B`。例如，完成 P4X GSP 构建后：
 
 ```bash
-python -m pip install -U esp-gsp-tools
+idf.py -B build-gsp -p <PORT> -b 921600 flash monitor
 ```
+
+将 `<PORT>` 替换为开发板串口；LVGL 使用 `build-lvgl`。按 `Ctrl+]` 退出监视器。完整烧录会替换 LittleFS，包含其中已安装的应用及其数据，请先备份需要保留的内容。
+
+### 输出目录
+
+各输出独立保存 `sdkconfig`、`dependencies.lock`、`dependencies/managed_components`、生成头文件/bundle 和 `littlefs_stage`。未显式指定 defaults 或外部 `SDKCONFIG` 时，新输出首次复制项目已有 sdkconfig；显式 defaults 则创建新配置，并首先加载已生成的板级 defaults。原有项目配置与下载保留；各输出的独立依赖缓存会增加磁盘占用。
+
+`components/gen_bmgr_codes` 中的板级生成结果是共享源码输入。切换板型或 ESP-IDF 版本时，需重新生成匹配的输入；重新生成前请备份自定义输入。同时开发不同板型时，请使用独立源码检出。显式指定的外部 `SDKCONFIG` 或资源 staging 路径也应各自独立。[CI 输出审计](../../../.gitlab/tools/README.md#build_appspy)检查标准的构建目录内布局。
 
 ## 切换界面
 
-```bash
-idf.py menuconfig
-```
-
-打开 `ESP-Brookesia: System Core Configurations`，修改 `GUI backend`，然后保存。再构建并烧录：
+使用上面对应的输出目录；同一输出切换 backend 会被拒绝。后续 menuconfig、构建和烧录均保留 `-B build-gsp` 或 `-B build-lvgl`。修改某个 backend 内的设置：
 
 ```bash
-idf.py build
-idf.py -p <PORT> -b 921600 flash
+idf.py -B build-gsp menuconfig
+idf.py -B build-gsp build
 ```
 
-两种选择都使用 `partitions_16m.csv`。选中 LVGL 后，`sdkconfig.defaults` 中的 LVGL 选项才会生效。
+两种配置均使用 `partitions_16m.csv`。LVGL 启动辅助代码共享于 `examples/system/common/lvgl`，两个 backend 均不读取 Super example 的源码或产物。
 
 ### 文件系统资源
 
-`littlefs_data` 镜像由 `build/littlefs_stage` 生成；本示例不再使用源码树中的 `littlefs/` 目录生成该镜像。
+`littlefs_data` 镜像由 `<所选构建目录>/littlefs_stage` 生成；本示例不再使用源码树中的 `littlefs/` 目录生成该镜像。
 
 选择 GSP 时，镜像包含声音测试 WAV、Settings 应用名称所需的翻译文件，以及配置为预装的 GSP 应用。GSP 场景及其字体由 GSP bundle 提供；镜像不包含 LVGL 桌面（`system/super`）、LVGL 公共字体（`system/fonts`）和 Settings 的 LVGL 页面。选择 LVGL 时，镜像会包含桌面资源和完整的 Settings 包。
 
 ### 切换 backend 后烧录
 
-`idf.py app-flash` 只更新应用分区，不会更新 `littlefs_data`。要把所选 backend 对应的文件系统镜像写入开发板，请先构建，再完整烧录：
+`idf.py app-flash` 只更新应用分区，不会更新 `littlefs_data`。切换 backend 后，请构建对应输出，再使用上方的[完整烧录命令](#烧录与监视)，写入匹配的文件系统资源。
 
-```bash
-idf.py build
-idf.py -p <PORT> -b 921600 flash
-```
+两种界面使用同一套能力配置和 AudioPlayback 服务。声音测试通过板卡共享的音频处理器播放本地 PCM/WAV 音频；高层录音接口默认关闭，原始编解码器接口仍可使用。本示例不提供语音、网络流媒体或视频功能。
 
-完整烧录会替换整个 LittleFS 分区，其中已安装的应用及其数据也会被删除。烧录前请备份需要保留的内容。
-
-切换到 GSP 后，第一次构建可能因旧配置尚未解析 GSP 场景组件而停止。再运行一次 `idf.py build` 即可完成配置和构建。
-
-两种界面使用同一套能力配置和 AudioPlayback 服务。声音测试通过板卡共享的音频处理器播放本地 PCM/WAV 音频；高层录音接口默认关闭，原始编解码器接口仍可使用。本示例不提供语音、网络流媒体或视频功能。分区表和 GSP 字符覆盖不变。
-
-GSP 编译场景在 Flash 中采用无损压缩。打开应用时，场景包解压到 PSRAM，关闭后释放；字体覆盖保持不变。如需使用未压缩场景，可在 **ESP-Brookesia: GUI GSP Configurations** 中关闭 **Compress embedded Brookesia GSP bundles**。
+GSP 编译场景在 Flash 中采用无损压缩。打开应用时，场景包解压到 PSRAM，关闭后释放。如需使用未压缩场景，可在 **ESP-Brookesia: GUI GSP Configurations** 中关闭 **Compress embedded Brookesia GSP bundles**。
 
 如果已有配置关闭了 **Audio Device → Audio Processor**，请在 menuconfig 的 **ESP-Brookesia: Hal Adaptor Configurations** 中启用它，关闭 **Audio Processor Recording**，并保留示例的其他能力默认值。切换 GUI 后端无需更改这些设置。
 

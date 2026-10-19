@@ -136,5 +136,8 @@ variables:
         EXAMPLE_TARGET: "esp32p4"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
       - IMAGE: "espressif/idf:latest"
+        EXAMPLE_TARGET: "esp32p4"
+        EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
+      - IMAGE: "espressif/idf:latest"
         EXAMPLE_TARGET: "esp32s31"
         EXAMPLE_CONFIG: "sdkconfig.ci.board.*="
