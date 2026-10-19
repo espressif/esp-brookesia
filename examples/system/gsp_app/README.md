@@ -9,7 +9,7 @@ Two backend profiles are supported:
 - **GSP**, the default. Launcher and Settings, including brightness, Wi-Fi, sound, language, and theme.
 - **LVGL**. The existing desktop and the original Settings screens.
 
-The default P4 configuration targets chip revision v3.1 or later.
+The default P4 configuration targets chip revision v3.1 or later. P4 v1.3 needs the [older-P4 configuration](#p4-revision-v13) below.
 
 You can also install apps over USB while the board is running. They appear on the launcher next to Settings; see [Installable apps](#installable-apps).
 
@@ -32,6 +32,42 @@ idf.py -B build-lvgl -D IDF_TARGET=esp32p4 \
 
 `sdkconfig.defaults.esp32p4` and `sdkconfig.ci.lvgl` select the revision ≥3 path with a minimum of v3.1. The CI file `sdkconfig.ci.board.esp32_p4_function_ev` also targets v3.1 despite its historical board name; it is not an old-P4 profile.
 
+### P4 revision v1.3
+
+Generate the old-P4 board inputs:
+
+```bash
+idf.py gen-bmgr-config -b esp32_p4_function_ev
+```
+
+For GSP, create an output-local defaults file and load it last to override the v3.1 settings in `sdkconfig.defaults.esp32p4`:
+
+```bash
+mkdir -p build-gsp-p4-v1
+cat > build-gsp-p4-v1/board.defaults <<'EOF'
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_360=y
+EOF
+idf.py -B build-gsp-p4-v1 -D IDF_TARGET=esp32p4 \
+    -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;build-gsp-p4-v1/board.defaults' build
+```
+
+For LVGL, use a separate output and select LVGL in its defaults file:
+
+```bash
+mkdir -p build-lvgl-p4-v1
+cat > build-lvgl-p4-v1/board.defaults <<'EOF'
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_360=y
+CONFIG_BROOKESIA_GUI_BACKEND_GSP=n
+CONFIG_BROOKESIA_GUI_BACKEND_LVGL=y
+EOF
+idf.py -B build-lvgl-p4-v1 -D IDF_TARGET=esp32p4 \
+    -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;build-lvgl-p4-v1/board.defaults' build
+```
+
+Before flashing, check the selected output's `sdkconfig`: `CONFIG_ESP_BOARD_NAME="esp32_p4_function_ev"`, `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y`, and `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=360`. Do not force-flash firmware requiring revision ≥3 onto v1.3.
+
 ### Flash and monitor
 
 Use the same `-B` as the build. For example, after the P4X GSP build:
@@ -40,7 +76,7 @@ Use the same `-B` as the build. For example, after the P4X GSP build:
 idf.py -B build-gsp -p <PORT> -b 921600 flash monitor
 ```
 
-Replace `<PORT>` with the board's serial port; use `build-lvgl` for LVGL. Exit the monitor with `Ctrl+]`. A full flash replaces LittleFS, including installed apps and their data; back up anything you need first.
+Replace `<PORT>` with the board's serial port; use `build-gsp-p4-v1`, `build-lvgl`, or `build-lvgl-p4-v1` for the other builds. Exit the monitor with `Ctrl+]`. A full flash replaces LittleFS, including installed apps and their data; back up anything you need first.
 
 ### Output directories
 

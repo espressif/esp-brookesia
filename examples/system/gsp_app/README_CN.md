@@ -9,7 +9,7 @@
 - **GSP**，默认。启动页与设置，包括亮度、Wi-Fi、声音、语言和主题。
 - **LVGL**。原来的桌面，以及原来的设置界面。
 
-默认 P4 配置面向芯片 revision v3.1 或更新版本。
+默认 P4 配置面向芯片 revision v3.1 或更新版本。P4 v1.3 请使用下方的[旧版 P4 配置](#p4-revision-v13)。
 
 开发板运行时还可以通过 USB 安装应用，它们会显示在启动页的设置按钮旁，详见[可安装应用](#可安装应用)。
 
@@ -32,6 +32,42 @@ idf.py -B build-lvgl -D IDF_TARGET=esp32p4 \
 
 `sdkconfig.defaults.esp32p4` 和 `sdkconfig.ci.lvgl` 均选择 revision ≥3 路径，最低要求为 v3.1。CI 文件 `sdkconfig.ci.board.esp32_p4_function_ev` 虽沿用历史板名，实际也面向 v3.1，并非旧版 P4 配置。
 
+### P4 revision v1.3
+
+生成旧版 P4 板级输入：
+
+```bash
+idf.py gen-bmgr-config -b esp32_p4_function_ev
+```
+
+使用 GSP 时，在输出目录内创建 defaults 文件，并放在加载顺序最后，以覆盖 `sdkconfig.defaults.esp32p4` 的 v3.1 设置：
+
+```bash
+mkdir -p build-gsp-p4-v1
+cat > build-gsp-p4-v1/board.defaults <<'EOF'
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_360=y
+EOF
+idf.py -B build-gsp-p4-v1 -D IDF_TARGET=esp32p4 \
+    -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;build-gsp-p4-v1/board.defaults' build
+```
+
+使用 LVGL 时，使用另一个输出目录，并在其 defaults 文件中选择 LVGL：
+
+```bash
+mkdir -p build-lvgl-p4-v1
+cat > build-lvgl-p4-v1/board.defaults <<'EOF'
+CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_360=y
+CONFIG_BROOKESIA_GUI_BACKEND_GSP=n
+CONFIG_BROOKESIA_GUI_BACKEND_LVGL=y
+EOF
+idf.py -B build-lvgl-p4-v1 -D IDF_TARGET=esp32p4 \
+    -D 'SDKCONFIG_DEFAULTS=sdkconfig.defaults;build-lvgl-p4-v1/board.defaults' build
+```
+
+烧录前核对所选输出的 `sdkconfig`：`CONFIG_ESP_BOARD_NAME="esp32_p4_function_ev"`、`CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y`、`CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=360`。不要将要求 revision ≥3 的固件强制烧录到 v1.3。
+
 ### 烧录与监视
 
 沿用构建时的 `-B`。例如，完成 P4X GSP 构建后：
@@ -40,7 +76,7 @@ idf.py -B build-lvgl -D IDF_TARGET=esp32p4 \
 idf.py -B build-gsp -p <PORT> -b 921600 flash monitor
 ```
 
-将 `<PORT>` 替换为开发板串口；LVGL 使用 `build-lvgl`。按 `Ctrl+]` 退出监视器。完整烧录会替换 LittleFS，包含其中已安装的应用及其数据，请先备份需要保留的内容。
+将 `<PORT>` 替换为开发板串口；其他配置分别使用 `build-gsp-p4-v1`、`build-lvgl` 或 `build-lvgl-p4-v1`。按 `Ctrl+]` 退出监视器。完整烧录会替换 LittleFS，包含其中已安装的应用及其数据，请先备份需要保留的内容。
 
 ### 输出目录
 

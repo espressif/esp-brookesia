@@ -32,6 +32,7 @@ This example demonstrates how to start a complete ESP-Brookesia System Super pro
 
 This example provides configurations for the following development boards:
 
+- `esp32_p4_function_ev` (P4 chip revision <3, including v1.3)
 - `esp32_p4x_function_ev` (P4 chip revision ≥3)
 - `esp32_s31_korvo1`
 - `esp_mosaico_v1_0`
@@ -64,10 +65,10 @@ Please refer to [ESP-Brookesia Programming Guide - How to Use Example Projects](
 
 ### Select the board and build
 
-Activate the supported ESP-IDF environment (6.0 or later). Run commands from this example directory. For a first P4X (revision v3.1 or later) build, with no existing `build/` output:
+Activate the supported ESP-IDF environment (6.0 or later). Run commands from this example directory. For a first P4 revision <3 build, with no existing `build/` output:
 
 ```bash
-idf.py gen-bmgr-config -b esp32_p4x_function_ev
+idf.py gen-bmgr-config -b esp32_p4_function_ev
 idf.py -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defaults build
 ```
 
@@ -77,13 +78,28 @@ For subsequent builds of this configuration, run:
 idf.py build
 ```
 
-For another board, select its name from [Hardware Requirements](#hardware-requirements) and its matching chip target. Keep existing generated inputs when they already describe the correct board.
+For P4 revision ≥3, use `esp32_p4x_function_ev` instead. For another board, select its name from [Hardware Requirements](#hardware-requirements) and its matching chip target. Keep existing generated inputs when they already describe the correct board.
 
 ### Independent LVGL output
 
 Super supports LVGL only and needs no GSP compiler or GSP resources. The default output is this directory's `build/`, which owns `sdkconfig`, `dependencies.lock`, `dependencies/managed_components`, generated files, and `littlefs_stage`. A new output imports the existing project sdkconfig once unless explicit defaults or an external `SDKCONFIG` are selected. The original configuration and downloads are preserved. Use `-B <another-output-directory>` for another configuration and retain the same `-B` on later menuconfig, build, and flash commands. Do not share an output with `examples/system/gsp_app`.
 
 Each output has a separate dependency cache, so multiple outputs use additional disk space. Board generation under `components/gen_bmgr_codes` remains shared source input. Regenerate matching inputs when switching boards or ESP-IDF versions; back up custom inputs first. Use separate source checkouts for concurrent work on different boards. Give external `SDKCONFIG` or resource-stage paths distinct locations too. The [CI output audit](../../../.gitlab/tools/README.md#build_appspy) checks the standard build-local layout.
+
+### P4 revision <3 CPU frequency
+
+P4 chip revision v1.3 uses `esp32_p4_function_ev`. That board profile selects revision <3 and defaults to **360 MHz**. The separate `esp32_p4x_function_ev` profile retains IDF's **400 MHz** default.
+
+Existing sdkconfig choices take precedence over defaults. To switch from P4X or another board, regenerate the board inputs and use a new output directory with explicit defaults so it does not import the project's old sdkconfig:
+
+```bash
+idf.py gen-bmgr-config -b esp32_p4_function_ev
+idf.py -B build-p4-v1 -D IDF_TARGET=esp32p4 -D SDKCONFIG_DEFAULTS=sdkconfig.defaults build
+```
+
+Check `build-p4-v1/sdkconfig` for `CONFIG_ESP_BOARD_NAME="esp32_p4_function_ev"`, `CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y`, and `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ=360`. Keep `-B build-p4-v1` on subsequent menuconfig, build, and flash commands. Changing only the revision and CPU frequency in an old output does not replace its board and peripheral selections.
+
+In ESP-IDF commit [`8d7d8aef58829a3afc0859ff76305decce45ed55`](https://github.com/espressif/esp-idf/blob/8d7d8aef58829a3afc0859ff76305decce45ed55/components/esp_hw_support/port/esp32p4/rtc_clk.c), the revision <3 clock path accepts 360/180/90 MHz and aborts for other values. If startup aborts in clock initialization before `app_main`, check these settings and rebuild for the board. Do not force-flash P4X firmware requiring revision ≥3.
 
 The full configuration includes recording, AFE/wake-word processing, playback, and video. See the [HAL audio/video compatibility notes](../../../hal/brookesia_hal_adaptor/README.md#audiovideo-dependencies-and-configuration) for the dependency combination and [additional-model registration](../../../hal/brookesia_hal_adaptor/README.md#additional-esp-dl-models) before adding `.espdl` models.
 

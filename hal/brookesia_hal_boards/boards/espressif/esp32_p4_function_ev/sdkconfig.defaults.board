@@ -17,6 +17,9 @@ CONFIG_CACHE_L2_CACHE_LINE_128B=y
 # When running CI, CONFIG_IDF_CI_BUILD is automatically enabled, which causes CONFIG_ESP32P4_SELECTS_REV_LESS_V3=n
 # so we manually enable it here
 CONFIG_ESP32P4_SELECTS_REV_LESS_V3=y
+# IDF's rev <3 clock path uses 360 MHz; keep this in the old-P4 profile.
+# P4X retains IDF's 400 MHz default. Existing sdkconfig choices take precedence.
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_360=y
 
 # Brookesia USB service: the USB Serial/JTAG CDC is shared by console logs and
 # the exclusive host-control session.
