@@ -73,11 +73,12 @@ def _cmd_compare(args: argparse.Namespace) -> int:
     result = _run_gate_and_compare(pathlib.Path(args.baseline), pathlib.Path(args.optimized))
     if result is None:
         return 1
-    for name, row in sorted(result["metrics"].items()):
-        print(
-            f"{name}: improvement={row['improvement_pct']} "
-            f"base={row['baseline_grade']} opt={row['optimized_grade']} ok={row['ok']}"
-        )
+    for scenario, metrics in sorted(result["metrics"].items()):
+        for name, row in sorted(metrics.items()):
+            print(
+                f"{scenario}/{name}: improvement={row['improvement_pct']} "
+                f"base={row['baseline_grade']} opt={row['optimized_grade']} ok={row['ok']}"
+            )
     print(f"PASS={result['pass']}")
     if args.output:
         pathlib.Path(args.output).write_text(

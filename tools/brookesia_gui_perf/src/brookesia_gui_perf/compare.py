@@ -4,7 +4,7 @@
 
 import json
 from importlib import resources
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from brookesia_gui_perf.report import judgment_value
 from brookesia_gui_perf.stats import cv_ok
@@ -97,7 +97,7 @@ def compare_reports(
     thresholds = thresholds if thresholds is not None else load_thresholds()
     base_meta = baseline.get("metadata", {})
     opt_meta = optimized.get("metadata", {})
-    metrics_out: Dict[str, Dict[str, Any]] = {}
+    metrics_out: Dict[str, Dict[str, Dict[str, Any]]] = {}
     all_ok = True
 
     base_scenarios = baseline.get("scenarios", {})
@@ -119,7 +119,10 @@ def compare_reports(
             opt_value = judgment_value(opt_stats, row["judge"])
             base_grade = grade(row, base_value, baseline_value=None, metadata=base_meta)
             opt_grade = grade(row, opt_value, baseline_value=base_value, metadata=opt_meta)
-            if opt_grade == "record" or base_grade == "record":
+            # A relative rule always grades the baseline with baseline_value=None, which
+            # is "record" by construction; gating on base_grade would therefore skip
+            # every relative metric and hide real regressions.
+            if opt_grade == "record":
                 improvement = None
                 regressed = False
                 ok = True
@@ -135,11 +138,26 @@ def compare_reports(
             if not cv_ok(opt_stats) and not row.get("cv_exempt"):
                 ok = False
             all_ok = all_ok and ok
-            metrics_out[name] = {
+            metrics_out.setdefault(scenario, {})[name] = {
                 "improvement_pct": improvement,
                 "baseline_grade": base_grade,
                 "optimized_grade": opt_grade,
                 "regressed": regressed,
                 "ok": ok,
             }
-    return {"pass": all_ok, "metrics": metrics_out}
+    # Intersecting only covers what both sides emitted: a gated baseline metric that
+    # the optimized run lost would be skipped and still return pass. Fail explicitly.
+    coverage_gaps: List[Dict[str, str]] = []
+    for scenario, scenario_data in base_scenarios.items():
+        if scenario in RECORD_ONLY_SCENARIOS:
+            continue
+        opt_metrics = opt_scenarios.get(scenario, {}).get("metrics", {})
+        for name in scenario_data.get("metrics", {}):
+            row = thresholds.get(name)
+            if row is None or row.get("record_only"):
+                continue
+            if name not in opt_metrics:
+                coverage_gaps.append({"scenario": scenario, "metric": name})
+                all_ok = False
+
+    return {"pass": all_ok, "metrics": metrics_out, "coverage_gaps": coverage_gaps}

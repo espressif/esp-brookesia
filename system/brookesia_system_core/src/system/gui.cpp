@@ -11,7 +11,9 @@
 #include <set>
 #include <string_view>
 
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
 #include "esp_timer.h"
+#endif
 #include "boost/json.hpp"
 
 #include "brookesia/service_helper/system/storage.hpp"

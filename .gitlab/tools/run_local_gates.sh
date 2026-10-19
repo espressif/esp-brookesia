@@ -29,7 +29,7 @@ gate_host_mem() {
     echo "== [host_mem] G2 host memory gate (gui_interface PC tests)"
     local app="gui/brookesia_gui_interface/test_apps"
     cmake -S "$app" -B "$app/build_pc" -DBROOKESIA_GUI_INTERFACE_TEST_APPS_FORCE_PC=ON
-    cmake --build "$app/build_pc" -j"$(nproc)"
+    cmake --build "$app/build_pc" --target test_brookesia_gui_interface -j"$(nproc)"
     ctest --test-dir "$app/build_pc" --output-on-failure
     pass "host_mem"
 }

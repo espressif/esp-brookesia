@@ -1,5 +1,15 @@
 # ChangeLog
 
+## v0.8.6 - 2026-10-27
+
+- feat(system): expose GUI binding flush statistics behind `BROOKESIA_SYSTEM_CORE_ENABLE_GUI_BINDING_PROBE` (default n), and make `system_gui_load_json` / `system_gui_mount_screen` / `system_gui_unmount_screen` / `system_gui_unload` public so a carrier holding embedded documents can drive the GUI without an app.
+- feat(gui): load app documents with deferred non-entry Eager screen builds and idle warm.
+- feat(gui): keep `preload_dom` parse-only at install; StartApp relies on Runtime on-demand materialization for path APIs.
+- feat(system): `System::process_timers()` now drives `gui_runtime_->process_backend()`, so an explicit call processes pending LVGL refreshes instead of being a no-op.
+- feat(profiling): `PROFILE_LOG` mode emits sparse `MemSnap` heap snapshots instead of per-operation verbose logs.
+- fix(system): post the GUI binding-flush re-arm as a real queue hop instead of running it inline, which recursed and overflowed the worker stack under sustained binding updates.
+- fix(build): include esp_timer.h only when the GUI binding probe is enabled.
+
 ## v0.8.5 - 2026-10-27
 
 ### Enhancements:
@@ -15,16 +25,6 @@
 ### Documentation:
 
 - docs(usb): update package and command names for the brookesia-usb CLI.
-
-## v0.8.5 - 2026-10-14
-
-### Enhancements:
-
-- feat(system): expose GUI binding flush statistics behind `BROOKESIA_SYSTEM_CORE_ENABLE_GUI_BINDING_PROBE` (default n), and make `system_gui_load_json` / `system_gui_mount_screen` / `system_gui_unmount_screen` / `system_gui_unload` public so a carrier holding embedded documents can drive the GUI without an app.
-
-### Bug Fixes:
-
-- fix(system): post the GUI binding-flush re-arm as a real queue hop instead of running it inline, which recursed and overflowed the worker stack under sustained binding updates.
 
 ## v0.8.4 - 2026-08-31
 

@@ -40,7 +40,7 @@
 
 ``System::start()`` 调用 ``on_start()`` 后进入 started 状态；``System::stop()`` 调用 ``on_stop()`` 并清除 started 状态；``System::deinit()`` 会停止运行中的应用，清理 runtime、GUI、timer、service 和 app 记录。
 
-``System::process_timers()`` 当前保留为兼容入口；timer 由 system 内部 scheduler 自动触发并派发到应用。
+``System::process_timers()`` 会驱动 GUI runtime 后端：调用 ``process_backend()``，处理挂起的 LVGL 刷新。
 
 如果 ``System::Config::enable_gui_live_preview`` 打开，core 会在 file-backed GUI document 加载后注册 live preview，并在 ``SystemGui`` task group 中启动周期 poll。poll 与 document reload 仍经过 GUI runtime gate 和 backend thread guard，``deinit()`` 或 document unload 时会取消对应轮询状态。
 

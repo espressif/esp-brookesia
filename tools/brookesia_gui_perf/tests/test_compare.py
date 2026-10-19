@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import json
 import unittest
 
 from brookesia_gui_perf.compare import compare_reports, grade, improvement_pct, load_thresholds
@@ -72,7 +73,7 @@ class CompareTests(unittest.TestCase):
         base = scaled_report(1.0)
         opt = scaled_report(0.85)
         result = compare_reports(base, opt)
-        metric = result["metrics"]["first_frame_ms"]
+        metric = result["metrics"]["app_a_scroll"]["first_frame_ms"]
         self.assertGreaterEqual(metric["improvement_pct"], 10.0)
         self.assertTrue(metric["ok"])
         self.assertTrue(result["pass"])
@@ -89,17 +90,58 @@ class CompareTests(unittest.TestCase):
         self.assertTrue(row.get("record_only"))
         self.assertEqual(grade(row, 100.0, baseline_value=100.0, metadata={}), "record")
 
+    def test_missing_gated_metric_breaks_coverage(self):
+        base = scaled_report(1.0)
+        opt = scaled_report(1.0)
+        for scenario in opt["scenarios"].values():
+            scenario["metrics"].pop("first_frame_ms", None)
+        result = compare_reports(base, opt)
+        self.assertFalse(result["pass"])
+        self.assertTrue(any(g["metric"] == "first_frame_ms" for g in result["coverage_gaps"]))
+
+    def test_empty_optimized_is_not_a_pass(self):
+        base = scaled_report(1.0)
+        opt = scaled_report(1.0)
+        opt["scenarios"] = {}
+        result = compare_reports(base, opt)
+        self.assertFalse(result["pass"])
+        self.assertTrue(result["coverage_gaps"])
+
+    def test_relative_rule_is_not_short_circuited_by_baseline_record(self):
+        base = scaled_report(1.0)
+        opt = scaled_report(3.0)
+        thr = {"first_frame_ms": {"direction": "lower_better", "judge": "p95", "relative": "max"}}
+        row = compare_reports(base, opt, thresholds=thr)["metrics"]["app_a_scroll"]["first_frame_ms"]
+        self.assertEqual(row["optimized_grade"], "fail")
+        self.assertFalse(row["ok"])
+
+    def test_same_metric_across_scenarios_keeps_both_results(self):
+        base = scaled_report(1.0)
+        opt = scaled_report(1.0)
+        worse = json.loads(json.dumps(opt["scenarios"]["app_a_scroll"]))
+        for stats in worse["metrics"].values():
+            if not isinstance(stats, dict) or "mean" not in stats:
+                continue
+            for key in ("mean", "p50", "p95", "p99"):
+                stats[key] *= 20.0
+        opt["scenarios"]["second_scene"] = worse
+        base["scenarios"]["second_scene"] = json.loads(json.dumps(base["scenarios"]["app_a_scroll"]))
+        result = compare_reports(base, opt)
+        self.assertFalse(result["pass"])
+        self.assertFalse(result["metrics"]["second_scene"]["first_frame_ms"]["ok"])
+        self.assertTrue(result["metrics"]["app_a_scroll"]["first_frame_ms"]["ok"])
+
     def test_sub_tolerance_delta_is_not_a_regression(self):
         base = scaled_report(1.0)
         opt = scaled_report(1.005)
-        metric = compare_reports(base, opt)["metrics"]["first_frame_ms"]
+        metric = compare_reports(base, opt)["metrics"]["app_a_scroll"]["first_frame_ms"]
         self.assertFalse(metric["regressed"])
 
     def test_compare_catches_fail_grade(self):
         base = scaled_report(0.9)
         opt = scaled_report(3.5)
         result = compare_reports(base, opt)
-        metric = result["metrics"]["first_frame_ms"]
+        metric = result["metrics"]["app_a_scroll"]["first_frame_ms"]
         self.assertEqual(metric["optimized_grade"], "fail")
         self.assertFalse(metric["ok"])
         self.assertFalse(result["pass"])
@@ -108,7 +150,7 @@ class CompareTests(unittest.TestCase):
         base = scaled_report(1.0)
         opt = scaled_report(1.05)
         result = compare_reports(base, opt)
-        metric = result["metrics"]["first_frame_ms"]
+        metric = result["metrics"]["app_a_scroll"]["first_frame_ms"]
         self.assertTrue(metric["regressed"])
         self.assertFalse(metric["ok"])
         self.assertFalse(result["pass"])

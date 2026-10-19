@@ -41,10 +41,10 @@ Steps to run these test cases:
 
 ## What is asserted
 
-The checks below stop at the section 3.1 object gate rather than waiting for the
-steady-state loop to finish its 300 samples, which takes five minutes on its own.
-The numbers themselves are produced by brookesia-gui-perf from a capture of the
-whole run:
+The checks below assert the section 3.1 object gate and then wait for the
+completion marker, which doubles as the no-panic/reboot guard. The full bench
+takes about 1740 s, so the pytest timeout covers it; the numbers themselves are
+produced by brookesia-gui-perf from a capture of the whole run:
 
 ```bash
 PYTHONPATH=tools/brookesia_gui_perf/src python3 -m brookesia_gui_perf.cli \
@@ -55,7 +55,11 @@ PYTHONPATH=tools/brookesia_gui_perf/src python3 -m brookesia_gui_perf.cli \
 import pytest
 from pytest_embedded import Dut
 
-TIMEOUT_S = 10 * 60
+# The full bench is ~1740 s (all scenarios incl. the 300-sample steady-state loop);
+# the pytest timeout must cover it, while early boot/mount probes only need a short
+# bound so a dead device fails fast instead of burning the whole budget.
+EXPECT_TIMEOUT_S = 5 * 60
+BENCH_TIMEOUT_S = 45 * 60
 
 # v1.8 section 3.1: the Golden Case has to clear this on the runtime object count,
 # which only exists once screens are mounted. Kept as a named threshold so a failure
@@ -69,12 +73,20 @@ def run_test(dut: Dut) -> None:
     # The document tree is embedded, so nothing here depends on a mounted host
     # filesystem. It is staged into the internal LittleFS volume because the asset
     # layer resolves relative paths through the Storage service.
-    dut.expect(r'PerfEval: materialised \d+/\d+ embedded files', timeout=TIMEOUT_S)
+    dut.expect(r'PerfEval: materialised \d+/\d+ embedded files', timeout=EXPECT_TIMEOUT_S)
+
+    # Every JSON asset is part of the document model, so a partial staging means the
+    # Golden Case was not really reproduced (the p4x run silently skipped 144 files).
+    json_line = dut.expect(r'PerfEval: materialised json (\d+)/(\d+)', timeout=EXPECT_TIMEOUT_S)
+    assert json_line.group(1) == json_line.group(2), (
+        'Golden Case JSON staging incomplete: '
+        f'{json_line.group(1)}/{json_line.group(2)}'
+    )
 
     # section 1.3 probes. Without these lines doc-load has nothing to segment.
-    dut.expect(r'profile: .*stage\(parse_root_json\)', timeout=TIMEOUT_S)
+    dut.expect(r'profile: .*stage\(parse_root_json\)', timeout=EXPECT_TIMEOUT_S)
 
-    mounted = dut.expect(r'PerfEval: mounted (\d+) screens \((\d+) failed\)', timeout=TIMEOUT_S)
+    mounted = dut.expect(r'PerfEval: mounted (\d+) screens \((\d+) failed\)', timeout=EXPECT_TIMEOUT_S)
     screens = int(mounted.group(1))
     failed = int(mounted.group(2))
 
@@ -84,7 +96,7 @@ def run_test(dut: Dut) -> None:
     assert failed == 0, 'screens failed to mount, object count would be understated'
     assert screens > 0, 'no screen mounted, section 3.1 cannot be judged'
 
-    objects = dut.expect(r'runtime LVGL objects=(\d+)', timeout=TIMEOUT_S)
+    objects = dut.expect(r'runtime LVGL objects=(\d+)', timeout=EXPECT_TIMEOUT_S)
     object_count = int(objects.group(1))
     assert object_count >= SECTION_3_1_OBJECT_GATE, (
         'section 3.1 runtime object gate not met: '
@@ -96,7 +108,7 @@ def run_test(dut: Dut) -> None:
     # reboot loop. This marker is logged only after the load, the mount and the full
     # steady-state loop, so a device that is panicking never reaches it and the expect
     # times out instead.
-    dut.expect(COMPLETION_MARKER, timeout=TIMEOUT_S)
+    dut.expect(COMPLETION_MARKER, timeout=BENCH_TIMEOUT_S)
 
 
 @pytest.mark.target('esp32p4')
@@ -107,7 +119,7 @@ def run_test(dut: Dut) -> None:
         ('esp32p4', 'esp32_p4_function_ev'),
     ],
 )
-@pytest.mark.timeout(TIMEOUT_S)
+@pytest.mark.timeout(BENCH_TIMEOUT_S)
 def test_esp32_p4_function_ev(dut: Dut) -> None:
     run_test(dut)
 
@@ -120,6 +132,6 @@ def test_esp32_p4_function_ev(dut: Dut) -> None:
         ('esp32p4', 'esp32_p4x_function_ev'),
     ],
 )
-@pytest.mark.timeout(TIMEOUT_S)
+@pytest.mark.timeout(BENCH_TIMEOUT_S)
 def test_esp32_p4x_function_ev(dut: Dut) -> None:
     run_test(dut)

@@ -76,6 +76,22 @@ endif()
 # A generated header is used instead of a quoted compile definition: CMake strips
 # the inner quotes of -DMACRO="..." so the value landed in the metadata JSON
 # without its closing quote, producing an unparsable record.
+# The board id must come from the board this build selected: the target-test job runs
+# on esp32_p4x_function_ev_board, and a hardcoded id would archive p4x numbers as the
+# p4_function_ev baseline and defeat the metadata check the paired gate relies on.
+if(BOARD)
+    string(REGEX REPLACE "^espressif/" "" PERF_EVAL_BOARD_ALIAS "${BOARD}")
+else()
+    # idf_build_apps does not pass BOARD, so fall back to the sdkconfig the job
+    # selected; an unresolved id must fail instead of archiving under "unknown".
+    string(REGEX MATCH "esp32_p4x_function_ev|esp32_p4_function_ev"
+        PERF_EVAL_BOARD_ALIAS "${SDKCONFIG}")
+endif()
+if(NOT PERF_EVAL_BOARD_ALIAS)
+    message(FATAL_ERROR "perf_eval: cannot determine the board id "
+        "(BOARD='${BOARD}', SDKCONFIG='${SDKCONFIG}')")
+endif()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/perf_eval_build_info.h"
-    "#pragma once\n#define PERF_EVAL_SDKCONFIG_HASH \"sha256:${PERF_EVAL_SDKCONFIG_SHA}\"\n")
+    "#pragma once\n#define PERF_EVAL_SDKCONFIG_HASH \"sha256:${PERF_EVAL_SDKCONFIG_SHA}\"\n"
+    "#define PERF_EVAL_BOARD_ID \"${PERF_EVAL_BOARD_ALIAS}\"\n")
 target_include_directories(${COMPONENT_LIB} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

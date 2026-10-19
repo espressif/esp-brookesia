@@ -32,8 +32,10 @@
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_system.h"
+#include "esp_partition.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 #include "freertos/task.h"
 #include "lv_version.h"
 #include "perf_bench.hpp"
@@ -51,8 +53,12 @@ namespace {
 
 static const char *TAG = "PerfEval";
 
+// Bounded adapter-lock wait: an unbounded wait can keep a stopping tick task
+// alive forever, which would defeat the exit join below.
+constexpr uint32_t kTickLockTimeoutMs = 100;
 
-constexpr const char *kBoardId = "esp32_p4_function_ev";
+
+constexpr const char *kBoardId = PERF_EVAL_BOARD_ID;
 // The 23-field contract names this key "esp_lv_adapter_version", but the
 // component is actually espressif/esp_lvgl_adapter. The key name is kept
 // because brookesia_gui_perf.report.REQUIRED_METADATA_FIELDS requires it; the
@@ -712,6 +718,24 @@ void perf_eval_main(void *arg)
     (void)arg;
     ESP_LOGI(TAG, "perf_eval: board=%s idf=%s", kBoardId, esp_get_idf_version());
 
+    // Must run before any service mounts the volume. Erasing the raw partition drops
+    // the stale superblock and blocks left by earlier runs, so the backend formats a
+    // clean volume on the next mount; per-file deletes keep both, which is why the
+    // largest assets became unsatisfiable.
+    const esp_partition_t *res_part = esp_partition_find_first(
+                                          ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "littlefs_data");
+    if (res_part == nullptr) {
+        ESP_LOGE(TAG, "storage partition littlefs_data not found");
+        vTaskDelete(nullptr);
+        return;
+    }
+    esp_err_t erased = esp_partition_erase_range(res_part, 0, res_part->size);
+    if (erased != ESP_OK) {
+        ESP_LOGE(TAG, "failed to erase the storage partition: %s", esp_err_to_name(erased));
+        vTaskDelete(nullptr);
+        return;
+    }
+
     emit_metadata();
 
     // NOTE: driving brookesia_system_core from here requires a full service
@@ -1010,6 +1034,15 @@ void perf_eval_main(void *arg)
     }
     size_t written = 0;
     size_t skipped = 0;
+    size_t json_written = 0;
+    size_t json_total = 0;
+    for (size_t i = 0; i < perf_eval_res_manifest_count; i++) {
+        const char *path = perf_eval_res_manifest[i].path;
+        const size_t len = std::strlen(path);
+        if (len > 5 && std::strcmp(path + len - 5, ".json") == 0) {
+            json_total++;
+        }
+    }
     // Written largest first. The write order is otherwise alphabetical, so the many
     // small JSON files land first and fragment the free block list; LittleFS then
     // cannot satisfy the 1.54 MB CJK font, which needs that much contiguous space,
@@ -1045,23 +1078,33 @@ void perf_eval_main(void *arg)
             wr = esp_brookesia::service::helper::Storage::fs_write(
                      abs, esp_brookesia::service::RawBuffer(e.data, perf_eval_res_size(&e)));
         }
+        const bool is_json = rel.size() > 5 && rel.compare(rel.size() - 5, 5, ".json") == 0;
         if (!wr) {
-            // Skipped rather than fatal. The Storage service carries file bytes as
-            // a function-call parameter, and a 1.54 MB asset does not fit that path,
-            // while the corpora's fonts are referenced only by system/fonts/index.json
-            // and by no screen or flow. Aborting the whole measurement over an asset
-            // the loaded document never reads would hide every other number, so the
-            // gap is recorded explicitly instead.
+            if (is_json) {
+                // A JSON asset is part of the document model: without it the load
+                // cannot reproduce the Golden Case, so stop instead of measuring a
+                // silently incomplete tree (this is what hid the p4x space failure).
+                ESP_LOGE(TAG, "materialise failed for required json %s (%u bytes): %s",
+                         rel.c_str(), (unsigned)perf_eval_res_size(&e), wr.error().c_str());
+                vTaskDelete(nullptr);
+                return;
+            }
+            // Binary-only assets (e.g. the 1.54 MB CJK font, which does not fit the
+            // Storage service's call-parameter path) stay best-effort and recorded.
             ESP_LOGW(TAG, "materialise skipped %s (%u bytes): %s",
                      rel.c_str(), (unsigned)perf_eval_res_size(&e), wr.error().c_str());
             skipped++;
             continue;
         }
         written++;
+        if (is_json) {
+            json_written++;
+        }
     }
     ESP_LOGI(TAG, "materialised %u/%u embedded files under %s (%u skipped)",
              (unsigned)written, (unsigned)perf_eval_res_manifest_count,
              kResDir.c_str(), (unsigned)skipped);
+    ESP_LOGI(TAG, "materialised json %u/%u", (unsigned)json_written, (unsigned)json_total);
 
     const PerfEvalResEntry *doc_root = perf_eval_res_find((std::string(kAppDir) + "/root.json").c_str());
     if (doc_root == nullptr) {
@@ -1286,6 +1329,7 @@ void perf_eval_main(void *arg)
             std::atomic<uint32_t> ticks{0};
             std::atomic<bool> stop{false};
             std::atomic<bool> animate{false};
+            SemaphoreHandle_t exited{nullptr};
         } tick_ctx{system.get()};
         TaskHandle_t tick_handle = nullptr;
         auto tick_fn = [](void *arg) {
@@ -1303,7 +1347,7 @@ void perf_eval_main(void *arg)
                 if (ctx->animate.load(std::memory_order_relaxed)) {
                     phase = (phase + 1) & 63;
                     // Same reason as cc_perf_tick: raw LVGL calls need the adapter lock.
-                    if (esp_lv_adapter_lock(-1) == ESP_OK) {
+                    if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
                         auto *display = lv_display_get_default();
                         auto *screen = display ? lv_display_get_screen_active(display) : nullptr;
                         if (screen != nullptr && lv_obj_get_child_count(screen) > 0) {
@@ -1317,11 +1361,19 @@ void perf_eval_main(void *arg)
                 ctx->ticks.fetch_add(1, std::memory_order_relaxed);
                 vTaskDelay(pdMS_TO_TICKS(15));
             }
+            if (ctx->exited != nullptr) {
+                xSemaphoreGive(ctx->exited);
+            }
             vTaskDelete(nullptr);
         };
-        if (xTaskCreatePinnedToCore(tick_fn, "perf_tick", 16384, &tick_ctx, 5, &tick_handle,
-                                    DISPLAY_CORE) != pdPASS) {
+        tick_ctx.exited = xSemaphoreCreateBinary();
+        if (tick_ctx.exited == nullptr ||
+                xTaskCreatePinnedToCore(tick_fn, "perf_tick", 16384, &tick_ctx, 5, &tick_handle,
+                                        DISPLAY_CORE) != pdPASS) {
             ESP_LOGE(TAG, "render stress: failed to create tick task");
+            if (tick_ctx.exited != nullptr) {
+                vSemaphoreDelete(tick_ctx.exited);
+            }
             return;
         }
         // 60 s rather than 30: sample_count is the minimum across scenarios, so every
@@ -1371,7 +1423,19 @@ void perf_eval_main(void *arg)
         }
         tick_ctx.animate.store(false, std::memory_order_relaxed);
         tick_ctx.stop.store(true, std::memory_order_relaxed);
-        vTaskDelay(pdMS_TO_TICKS(40));
+        // Join the task before the stack-allocated context goes out of scope. The lock
+        // wait below is bounded, so the task is guaranteed to reach the exit signal.
+        if (tick_ctx.exited != nullptr &&
+                xSemaphoreTake(tick_ctx.exited, pdMS_TO_TICKS(2000)) != pdTRUE) {
+            // Freeing the semaphore or leaving this scope would expose the context the
+            // worker may still be reading; a stuck worker must abort the benchmark.
+            ESP_LOGE(TAG, "render stress: tick task did not exit within 2 s");
+            abort();
+        }
+        if (tick_ctx.exited != nullptr) {
+            vSemaphoreDelete(tick_ctx.exited);
+            tick_ctx.exited = nullptr;
+        }
         const double stress_fps_mean = stress_fps_sum / static_cast<double>(kStressSeconds);
         ESP_LOGI(TAG, "render stress done; frames now=%llu ticks=%u fps_mean=%.1f",
                  (unsigned long long)LvglDisplaySource::get_instance().frame_count(),
@@ -1705,6 +1769,7 @@ void perf_eval_main(void *arg)
             esp_brookesia::system::core::System *system;
             std::atomic<uint32_t> ticks{0};
             std::atomic<bool> stop{false};
+            SemaphoreHandle_t exited{nullptr};
         } cc_tick_ctx{system.get()};
         TaskHandle_t cc_tick_handle = nullptr;
         auto cc_tick_fn = [](void *arg) {
@@ -1716,7 +1781,7 @@ void perf_eval_main(void *arg)
                 // Raw LVGL access from this task must hold the adapter lock, or it races
                 // the carrier task's adapter-locked screen destroy (lost wakeup on the
                 // object tree once showed up as an lv_obj_destructor load fault).
-                if (esp_lv_adapter_lock(-1) == ESP_OK) {
+                if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
                     auto *display = lv_display_get_default();
                     auto *screen = display ? lv_display_get_screen_active(display) : nullptr;
                     if (screen != nullptr && lv_obj_get_child_count(screen) > 0) {
@@ -1729,11 +1794,20 @@ void perf_eval_main(void *arg)
                 ctx->ticks.fetch_add(1, std::memory_order_relaxed);
                 vTaskDelay(pdMS_TO_TICKS(15));
             }
+            if (ctx->exited != nullptr) {
+                xSemaphoreGive(ctx->exited);
+            }
             vTaskDelete(nullptr);
         };
-        if (xTaskCreatePinnedToCore(cc_tick_fn, "cc_perf_tick", 16384, &cc_tick_ctx, 5,
-                                    &cc_tick_handle, DISPLAY_CORE) != pdPASS) {
+        cc_tick_ctx.exited = xSemaphoreCreateBinary();
+        if (cc_tick_ctx.exited == nullptr ||
+                xTaskCreatePinnedToCore(cc_tick_fn, "cc_perf_tick", 16384, &cc_tick_ctx, 5,
+                                        &cc_tick_handle, DISPLAY_CORE) != pdPASS) {
             ESP_LOGE(TAG, "concurrency: failed to create tick task");
+            if (cc_tick_ctx.exited != nullptr) {
+                vSemaphoreDelete(cc_tick_ctx.exited);
+                cc_tick_ctx.exited = nullptr;
+            }
         } else {
             const char *switch_screens[4] = {"debug", "display", "sound", "more"};
             std::vector<esp_brookesia::gui::BindingValueUpdate> push_batch;
@@ -1819,7 +1893,15 @@ void perf_eval_main(void *arg)
                 vTaskDelay(pdMS_TO_TICKS(2));
             }
             cc_tick_ctx.stop.store(true, std::memory_order_relaxed);
-            vTaskDelay(pdMS_TO_TICKS(40));
+            if (cc_tick_ctx.exited != nullptr &&
+                    xSemaphoreTake(cc_tick_ctx.exited, pdMS_TO_TICKS(2000)) != pdTRUE) {
+                ESP_LOGE(TAG, "concurrency: tick task did not exit within 2 s");
+                abort();
+            }
+            if (cc_tick_ctx.exited != nullptr) {
+                vSemaphoreDelete(cc_tick_ctx.exited);
+                cc_tick_ctx.exited = nullptr;
+            }
             ESP_LOGI(TAG, "concurrency: done; stopping bench app to restore steady state");
             (void)system->gui_trigger_screen_flow(
                 bench_app_id, "settings_content", "settings.open.home");
@@ -1840,7 +1922,7 @@ void perf_eval_main(void *arg)
     // purpose; render_stress covers the document path.
     if (composite_assets_init() && mounted > 0) {
         ESP_LOGI(TAG, "composite_stress: entering, 40 s");
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             g_comp.saved_screen = lv_screen_active();
             composite_screen_build();
             lv_screen_load_anim(g_comp.screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
@@ -1867,7 +1949,7 @@ void perf_eval_main(void *arg)
             emitter.sample("composite_stress", i, metrics);
         }
         ESP_LOGI(TAG, "composite_stress: done; tearing down");
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             lv_anim_delete_all();
             // Reload the saved screen before deleting the composite one: the
             // saved screen is the display's active screen at this point, and
@@ -1895,7 +1977,7 @@ void perf_eval_main(void *arg)
     //     issued; the swatch recolour and counter label are the response).
     if (g_comp.img_buf != nullptr && mounted > 0) {
         ESP_LOGI(TAG, "feedback_delay: entering, 40 taps");
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             g_comp.saved_screen = lv_screen_active();
             feedback_screen_build();
             lv_screen_load_anim(g_comp.fb_screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
@@ -1970,7 +2052,7 @@ void perf_eval_main(void *arg)
             }
         }
         ESP_LOGI(TAG, "feedback_delay: done, %d samples", (int)fb_samples);
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             if (g_comp.fb_indev != nullptr) {
                 lv_indev_delete(g_comp.fb_indev);
                 g_comp.fb_indev = nullptr;
@@ -1996,7 +2078,7 @@ void perf_eval_main(void *arg)
     // batch_invalidate_ms threshold is defined on.
     if (mounted > 0) {
         ESP_LOGI(TAG, "batch_invalidate: entering, 40 samples");
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             g_comp.saved_screen = lv_screen_active();
             batch_screen_build();
             lv_screen_load_anim(g_comp.batch_screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
@@ -2006,7 +2088,7 @@ void perf_eval_main(void *arg)
         int32_t bi_samples = 0;
         for (int32_t i = 0; i < 40; ++i) {
             vTaskDelay(pdMS_TO_TICKS(250));
-            if (esp_lv_adapter_lock(-1) != ESP_OK) {
+            if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
                 continue;
             }
             for (int32_t t = 0; t < kCompTiles; ++t) {
@@ -2024,7 +2106,7 @@ void perf_eval_main(void *arg)
             bi_samples++;
         }
         ESP_LOGI(TAG, "batch_invalidate: done, %d samples", (int)bi_samples);
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             lv_obj_t *gone = g_comp.batch_screen;
             g_comp.batch_screen = nullptr;
             if (g_comp.saved_screen != nullptr) {
@@ -2100,7 +2182,7 @@ void perf_eval_main(void *arg)
         // Resident bytes over the live LVGL object tree. The adapter lock keeps
         // the once-per-second walk from racing the render task; the frame path
         // itself stays lock-free.
-        if (esp_lv_adapter_lock(-1) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
             lv_obj_t *active_root = lv_display_get_screen_active(lv_display_get_default());
             const uint32_t object_count = count_lvgl_objects(active_root);
             esp_lv_adapter_unlock();

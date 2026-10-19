@@ -40,7 +40,7 @@ Main Flow
 
 ``System::start()`` calls ``on_start()`` and enters the started state; ``System::stop()`` calls ``on_stop()`` and clears the started state; ``System::deinit()`` stops running apps and cleans up the runtime, GUI, timers, services, and app records.
 
-``System::process_timers()`` is currently retained as a compatibility entry; timers are triggered automatically by the internal scheduler and dispatched to apps.
+``System::process_timers()`` drives the GUI runtime backend: it calls ``process_backend()`` so pending LVGL refreshes are processed.
 
 If ``System::Config::enable_gui_live_preview`` is on, the core registers live preview after a file-backed GUI document loads, and starts a periodic poll in the ``SystemGui`` task group. The poll and document reload still pass through the GUI runtime gate and backend thread guard, and the poll state is canceled on ``deinit()`` or document unload.
 

@@ -705,11 +705,9 @@ esp_err_t DisplaySourceImpl::draw_bitmap_callback(
 
     auto ret = self->submit_frame(x_start, y_start, x_end, y_end, color_map);
 #if BROOKESIA_GUI_LVGL_PERF_PROBE
-    // Counts the flush callback itself, which is the refresh loop rate section 3.2
-    // defines FPS as, rather than only frames that reached the panel. Counting
-    // presented frames instead reported zero whenever the source was not the active
-    // one, which reads identically to LVGL never drawing at all.
-    self->frame_count_.fetch_add(1, std::memory_order_relaxed);
+    // frame_count_ is counted once per refresh in the REFR_READY handler above. This
+    // callback is used by the TEAR_AVOID_MODE_NONE path, where REFR_READY also fires,
+    // so counting here too would double the rate.
     if (ret == ESP_ERR_NOT_ALLOWED) {
         self->dropped_frame_count_.fetch_add(1, std::memory_order_relaxed);
     }
