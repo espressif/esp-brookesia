@@ -93,6 +93,8 @@ needed when the pairing is switched.
 
 ## ⚡ Build Performance
 
+On P4, this example's [CMake policy](CMakeLists.txt) favors firmware size with `-Os` for C++ in System Core, the JSON GUI interface, Super Shell, Settings, App Store, Files, and Service Manager to fit the existing factory partition. LVGL, HAL, Audio/Video services, and QuickJS retain `-O2`. This policy is local to Super; gsp_app uses its own build options.
+
 The example builds the complete dependency set by default. It enables ccache and limits simultaneous compile edges for first-party Brookesia C++ targets and `esp-boost`, whose template-heavy translation units have the highest peak compiler memory use. The same tuning is available to all first-party examples and test apps.
 
 | CMake option | Default | Description |

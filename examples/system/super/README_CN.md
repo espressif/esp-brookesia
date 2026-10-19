@@ -84,6 +84,8 @@ ESP32-P4 同时引出两种端口，目前需在编译期选择；运行期自�
 
 ## ⚡ 构建性能
 
+在 P4 上，本示例的 [CMake 策略](CMakeLists.txt) 优先优化固件体积，对 System Core、JSON GUI 接口层、Super Shell、Settings、App Store、Files 和 Service Manager 的 C++ 使用 `-Os`，以适配既有 factory 分区。LVGL、HAL、Audio/Video 服务和 QuickJS 保持 `-O2`。该策略仅作用于 Super；gsp_app 使用自身的构建选项。
+
 示例默认构建完整依赖集，同时启用 ccache，并限制第一方 Brookesia C++ target 和 `esp-boost` 的并发编译 edge 数量；这些模板密集型编译单元通常具有最高的编译器峰值内存。相同的调优机制也用于所有第一方 example 和 test app。
 
 | CMake 选项 | 默认值 | 说明 |

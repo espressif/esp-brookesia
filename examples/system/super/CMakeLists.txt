@@ -27,3 +27,26 @@ project(example_system_super)
 idf_build_set_property(COMPILE_OPTIONS -Wno-error=stringop-truncation APPEND)
 
 brookesia_system_super_apply_compile_policy()
+
+# Size-optimise P4's JSON UI and application orchestration within the existing
+# factory partition. Pixel rendering, hardware services and media keep -O2.
+# Keep this product policy here so it cannot change gsp_app's compile options.
+if(IDF_TARGET STREQUAL "esp32p4")
+    idf_build_get_property(super_components BUILD_COMPONENTS)
+    foreach(super_size_component IN ITEMS
+            brookesia_system_core
+            brookesia_gui_interface
+            brookesia_system_super
+            brookesia_app_settings
+            brookesia_app_store
+            brookesia_app_files
+            brookesia_service_manager)
+        if(super_size_component IN_LIST super_components)
+            set(super_component ${super_size_component})
+        else()
+            set(super_component espressif__${super_size_component})
+        endif()
+        idf_component_get_property(super_size_lib ${super_component} COMPONENT_LIB)
+        target_compile_options(${super_size_lib} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:-Os>")
+    endforeach()
+endif()
