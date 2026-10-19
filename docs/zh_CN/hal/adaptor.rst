@@ -150,6 +150,10 @@ Brookesia 管理的 Board Manager 调用会串行执行。直接调用 Board Man
      - 支持停止帧模式下的采集管线。
    * - ``esp_capture_v4l2_uyvy_support``
      - 支持 UYVY/YUYV 格式协商及协商失败后的清理。
+   * - ``esp_board_manager_adc_idf6``
+     - 在旧 SOC 宏缺失时使用等价 ADC LL 通道数，保留板级 ADC 校验。
+   * - ``esp_codec_dev_adc_idf6``
+     - 在旧 SOC 宏缺失时使用等价 ADC LL 通道数，保留 ADC 采集与边界检查。
    * - ``media_lib_sal_esp_tls_idf6``
      - 适配 ESP-IDF 6 的 TLS 接口。
 

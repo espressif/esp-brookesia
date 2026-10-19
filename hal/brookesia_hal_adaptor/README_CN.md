@@ -25,6 +25,10 @@
 
 启用音频处理器时，`BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL` 默认开启。仅需播放的固件可关闭该选项，移除高层 `EncoderIface`、`DecoderIface` 能力及其 AFE 唤醒词代码。`PlaybackIface`、`CodecPlayerIface` 和 `CodecRecorderIface` 仍可用。播放功能仍依赖 `av_processor` 组件。
 
+## ADC 兼容补丁
+
+SDK 不再定义 `SOC_ADC_CHANNEL_NUM` 时，已启用 ADC 的集成使用等价 ADC LL 通道数。Board Manager 和 codec 补丁保留既有 ADC 边界校验；必要补丁不匹配会中止配置。请参阅[补丁列表](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/adaptor.html#hal-adaptor-dependency-patches)与[来源记录](SOURCE.md)。
+
 ## 扩展板级适配
 
 自定义设备在初始化或释放失败后，可能仍持有需要清理的资源。板级适配可以注册清理回调，由 HAL 在后续释放请求中调用。使用已有板型的应用无需自行注册。

@@ -1,0 +1,18 @@
+Keep ADC channel-count checks compatible with ESP-IDF master.
+
+ESP-IDF moved the channel-count macro from SOC capabilities to ADC LL.
+Use the equivalent LL macro only when the former SOC macro is absent.
+
+--- a/platform/audio_codec_data_adc.c
++++ b/platform/audio_codec_data_adc.c
+@@ -11,5 +11,10 @@
+ #include "esp_idf_version.h"
+ #include "esp_codec_dev_defaults.h"
+ #include "esp_adc/adc_continuous.h"
++
++#ifndef SOC_ADC_CHANNEL_NUM
++#include "hal/adc_ll.h"
++#define SOC_ADC_CHANNEL_NUM(unit_id)  ADC_LL_CHANNEL_NUM(unit_id)
++#endif
+
+ #define TAG  "CODEC_ADC_IF"

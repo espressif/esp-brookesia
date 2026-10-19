@@ -150,6 +150,10 @@ The component applies patches from ``hal/brookesia_hal_adaptor/tools`` according
      - Stop the capture pipeline in frame mode.
    * - ``esp_capture_v4l2_uyvy_support``
      - Support UYVY/YUYV format negotiation and cleanup after negotiation failure.
+   * - ``esp_board_manager_adc_idf6``
+     - Use equivalent ADC LL channel counts when the old SOC macro is absent, retaining board ADC validation.
+   * - ``esp_codec_dev_adc_idf6``
+     - Use equivalent ADC LL channel counts when the old SOC macro is absent, retaining ADC capture and bounds checks.
    * - ``media_lib_sal_esp_tls_idf6``
      - Adapt to the ESP-IDF 6 TLS interface.
 

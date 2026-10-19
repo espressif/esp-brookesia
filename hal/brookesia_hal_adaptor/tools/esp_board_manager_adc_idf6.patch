@@ -1,0 +1,20 @@
+Keep ADC channel validation compatible with ESP-IDF 6.x in Board Manager 0.5.15.
+
+ESP-IDF 6.x moved the per-unit channel count from SOC_ADC_CHANNEL_NUM to
+ADC_LL_CHANNEL_NUM. Use the equivalent LL macro only when the legacy macro is
+absent, preserving the existing validation and older SDK behavior.
+
+--- a/peripherals/periph_adc/periph_adc.c
++++ b/peripherals/periph_adc/periph_adc.c
+@@ -10,5 +10,10 @@
+ #include "esp_board_manager_defs.h"
+ #include "esp_board_periph.h"
+ #include "periph_adc.h"
+-
++
++#ifndef SOC_ADC_CHANNEL_NUM
++#include "hal/adc_ll.h"
++#define SOC_ADC_CHANNEL_NUM(unit_id) ADC_LL_CHANNEL_NUM(unit_id)
++#endif
++
+ static const char *TAG = "PERIPH_ADC";

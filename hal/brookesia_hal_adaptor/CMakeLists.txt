@@ -360,6 +360,23 @@ brookesia_hal_adaptor_apply_component_patch(espressif__media_lib_sal
     REQUIRED
 )
 
+if(CONFIG_CODEC_DATA_ADC_SUPPORT)
+    # IDF master moved channel counts from SOC capabilities to ADC LL.
+    set(BROOKESIA_HAL_ADAPTOR_CODEC_ADC_PATCH
+        ${COMPONENT_DIR}/tools/esp_codec_dev_adc_idf6.patch
+    )
+    brookesia_hal_adaptor_apply_component_patch(esp_codec_dev
+        ${BROOKESIA_HAL_ADAPTOR_CODEC_ADC_PATCH}
+        platform/audio_codec_data_adc.c
+        REQUIRED
+    )
+    brookesia_hal_adaptor_apply_component_patch(espressif__esp_codec_dev
+        ${BROOKESIA_HAL_ADAPTOR_CODEC_ADC_PATCH}
+        platform/audio_codec_data_adc.c
+        REQUIRED
+    )
+endif()
+
 if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
    CONFIG_BROOKESIA_HAL_ADAPTOR_VIDEO_ENABLE_ENCODER_IMPL)
     # av_processor 0.6.x only considers stream mode "running", so its public
@@ -381,6 +398,21 @@ if(CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE AND
 endif()
 
 if(BROOKESIA_HAL_ADAPTOR_NEEDS_BOARD_MANAGER)
+    if(CONFIG_ESP_BOARD_PERIPH_ADC_SUPPORT)
+        set(BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_ADC_PATCH
+            ${COMPONENT_DIR}/tools/esp_board_manager_adc_idf6.patch
+        )
+        brookesia_hal_adaptor_apply_component_patch(esp_board_manager
+            ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_ADC_PATCH}
+            peripherals/periph_adc/periph_adc.c
+            REQUIRED
+        )
+        brookesia_hal_adaptor_apply_component_patch(espressif__esp_board_manager
+            ${BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_ADC_PATCH}
+            peripherals/periph_adc/periph_adc.c
+            REQUIRED
+        )
+    endif()
     # A failed low-level teardown may already consume its handle. Quarantine
     # the peripheral instead of restoring a reference to an uncertain pointer.
     set(BROOKESIA_HAL_ADAPTOR_BOARD_MANAGER_PERIPH_PATCH

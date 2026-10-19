@@ -81,12 +81,14 @@ const esp_board_entry_desc_t *esp_board_entry_find_subtype_desc(const char *devi
 ''',
 }
 PATCHES = (
+    ('esp_board_manager', 'espressif__esp_board_manager', 'esp_board_manager_adc_idf6'),
     ('esp_board_manager', 'espressif__esp_board_manager', 'esp_board_manager_periph_deinit_retry'),
     ('esp_board_manager', 'espressif__esp_board_manager', 'esp_board_manager_dvp_camera_deinit'),
     ('esp_video', 'espressif__esp_video', 'esp_video_dvp_deinit_order'),
     ('esp_capture', 'espressif__esp_capture', 'esp_capture_v4l2_uyvy_support'),
     ('av_processor', 'jason-mao__av_processor', 'av_processor_frame_mode_stop'),
     ('media_lib_sal', 'espressif__media_lib_sal', 'media_lib_sal_esp_tls_idf6'),
+    ('esp_codec_dev', 'espressif__esp_codec_dev', 'esp_codec_dev_adc_idf6'),
 )
 
 
