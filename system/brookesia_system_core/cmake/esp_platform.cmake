@@ -2,6 +2,9 @@
 # ESP Platform
 #
 # Always declare mbedtls for release verify on ESP-IDF (see package_release_verify.cpp).
+if(NOT CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+    list(REMOVE_ITEM COMPONENT_SRCS_CPP "${COMPONENT_SRC_DIR}/system/gsp_shell_dark.cpp")
+endif()
 set(_brookesia_system_core_esp_requires ${COMPONENT_REQUIRES})
 list(APPEND _brookesia_system_core_esp_requires mbedtls)
 if(CONFIG_BROOKESIA_SYSTEM_CORE_ENABLE_USB_BRIDGE)

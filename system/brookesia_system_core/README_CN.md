@@ -10,6 +10,10 @@
 
 ## GSP 系统主页与公共输入
 
+ESP 构建通过 Kconfig 选择 GSP 或 LVGL；目标需启用
+`BROOKESIA_SYSTEM_CORE_ENABLE_GSP_BACKEND` 才能选择 GSP。LVGL 构建不编译
+GSP Shell、场景资源或 renderer 依赖；应用生命周期与服务契约继续共享。
+
 `System::Config` 配置 `gsp_panel` 和 `gsp_touch` 后，System Core 安装并启动
 内置 GSP 系统主页。主页每页列出六个可见应用，安装或卸载后刷新列表，恢复保存的
 语言和主题偏好，并在系统运行期间持有 SNTP 服务。

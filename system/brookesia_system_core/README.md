@@ -10,6 +10,11 @@ For more information, see the [ESP-Brookesia Programming Guide](https://docs.esp
 
 ## GSP system home and shared input
 
+ESP builds select GSP or LVGL in Kconfig. A target must enable
+`BROOKESIA_SYSTEM_CORE_ENABLE_GSP_BACKEND` before GSP is available. LVGL builds
+omit the GSP shell, scene resources and renderer dependency; application
+lifecycle and service contracts remain shared.
+
 When `System::Config` supplies `gsp_panel` and `gsp_touch`, System Core installs
 and starts its built-in GSP system home. The home lists six visible applications
 per page and refreshes the list after installation or removal. It restores saved

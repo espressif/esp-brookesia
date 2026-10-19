@@ -405,6 +405,9 @@ std::expected<void, std::string> SettingsApp::on_timer(
         return {};
     }
     if (name == WIFI_PAGE_TIMER_NAME) {
+        if (!settings_uses_gsp_backend()) {
+            return {};
+        }
         if (timer_id != wifi_page_.timer_id ||
                 (current_page_ != PAGE_WIFI && current_page_ != PAGE_WIFI_CONNECT) || !wifi_page_.mailbox) {
             return {};

@@ -43,4 +43,6 @@ dependencies:
     version: "0.8.*"
     override_path: ../../gui/brookesia_gui_gsp
     matches:
-      - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
+      # The current backend choice has two values: GSP and LVGL. LVGL is
+      # exported even when the target hides GSP from sdkconfig.json.
+      - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == False

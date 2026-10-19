@@ -1,6 +1,12 @@
 #
 # ESP Platform
 #
+if(NOT CONFIG_BROOKESIA_GUI_BACKEND_GSP)
+    list(REMOVE_ITEM COMPONENT_SRCS_CPP
+        "${COMPONENT_SRC_DIR}/ui/gsp_appearance.cpp"
+        "${COMPONENT_SRC_DIR}/ui/gsp_dark_bundle.cpp"
+    )
+endif()
 idf_component_register(
     SRCS ${COMPONENT_SRCS_C} ${COMPONENT_SRCS_CPP}
     INCLUDE_DIRS ${COMPONENT_INCLUDE_DIRS}
