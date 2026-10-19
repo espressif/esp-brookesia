@@ -2,13 +2,14 @@
   "test_suite": "ESP-Brookesia-Perf",
   "app_id": "com.brookesia.perf_eval",
   "runtime_type": "JSON_UI",
-  "sample_count": 62,
+  "sample_count": 30,
+  "malformed_records": 0,
   "metadata": {
     "board_id": "esp32_p4_function_ev",
-    "git_sha": "481b8eb7-dirty",
+    "git_sha": "2f110a24-dirty",
     "idf_version": "v6.2-dev-2564-gb10ae7f167f",
     "idf_preview": true,
-    "sdkconfig_hash": "481b8eb7-dirty",
+    "sdkconfig_hash": "sha256:6dc59bc41317fd4b35d6eb8f18fc4e29a2969a10a4ef123f550f66337c4b1e1e",
     "cpu_freq_mhz": 360,
     "lvgl_version": "9.5.0",
     "esp_lv_adapter_version": "0.6.4",
@@ -57,20 +58,994 @@
       "heap_trace_overflow": false
     },
     "worktree_dirty": true,
-    "worktree_diff_sha256": "383a355e6d9009470969446b57d41381bea73be63e018cfc172bb68cc8c16bf7"
+    "worktree_diff_sha256": "bfe4ff42aa88ad02e38bddd66312c8126e141ec56e69249189ad88ad44d6fbb3",
+    "acceptance": {
+      "fps": {
+        "status": "collected",
+        "metric": "fps"
+      },
+      "fps_1pct_low": {
+        "status": "pending_instrumentation",
+        "reason": "frame-time series aggregated on-device; 1% low needs the raw per-frame samples"
+      },
+      "refresh_area_ratio_pct": {
+        "status": "collected",
+        "metric": "refresh_area_ratio_pct"
+      },
+      "flush_apply_ms": {
+        "status": "collected",
+        "metric": "flush_apply_ms"
+      },
+      "binding_saturated_updates_per_s": {
+        "status": "pending_instrumentation",
+        "reason": "ladder recorded as flush_apply_ladder_ms; saturation point not yet derived"
+      },
+      "batch_invalidate_ms": {
+        "status": "collected",
+        "metric": "batch_invalidate_ms"
+      },
+      "sram_free_kb": {
+        "status": "collected",
+        "metric": "sram_free_kb"
+      },
+      "psram_free_kb": {
+        "status": "collected",
+        "metric": "psram_free_kb"
+      },
+      "sram_peak_kb": {
+        "status": "collected",
+        "metric": "sram_peak_kb"
+      },
+      "psram_peak_kb": {
+        "status": "collected",
+        "metric": "psram_peak_kb"
+      },
+      "sram_steady_kb": {
+        "status": "pending_instrumentation",
+        "reason": "steady-state free recorded (steady_state.sram_free_kb); steady_kb not derived"
+      },
+      "psram_steady_kb": {
+        "status": "pending_instrumentation",
+        "reason": "steady-state free recorded (steady_state.psram_free_kb); steady_kb not derived"
+      },
+      "sram_frag_rate_pct": {
+        "status": "collected",
+        "metric": "sram_frag_rate_pct"
+      },
+      "psram_frag_rate_pct": {
+        "status": "collected",
+        "metric": "psram_frag_rate_pct"
+      },
+      "frag_trend": {
+        "status": "collected",
+        "metric": "sram_largest_block_pct"
+      },
+      "lvgl_mem": {
+        "status": "not_applicable",
+        "reason": "CLIB malloc build: LVGL heap view N/A (v1.8 §3.3)"
+      },
+      "stack_hwm_kb": {
+        "status": "collected",
+        "metric": "stack_hwm_lv_adapter_kb"
+      },
+      "alloc_churn_per_s": {
+        "status": "pending_instrumentation",
+        "reason": "HeapTrace alloc/free churn counter not emitted"
+      },
+      "oom_events": {
+        "status": "collected",
+        "metric": "oom_events"
+      },
+      "runtime_heap_kb": {
+        "status": "not_applicable",
+        "reason": "runtime_type=JSON_UI: no QuickJS/WASM/Lua inner heap"
+      },
+      "runtime_heap_note": {
+        "status": "not_applicable",
+        "reason": "runtime_type=JSON_UI: no inner runtime heap"
+      },
+      "bytes_per_lvgl_object": {
+        "status": "collected",
+        "metric": "bytes_per_lvgl_object"
+      },
+      "bytes_per_json_node": {
+        "status": "pending_instrumentation",
+        "reason": "derivable from doc_complexity.nodes + heap, not yet emitted"
+      },
+      "mem_attr_kb": {
+        "status": "pending_instrumentation",
+        "reason": "HeapTrace per-attribute (noderecord/style_cache/images) attribution not emitted"
+      },
+      "doc_load_transient_kb": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: parse/build stage peak (4 capture hooks) not built"
+      },
+      "build_copy_bytes": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: per-path copy byte counter not built"
+      },
+      "alloc_resident_pct": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: allocation-lifetime resident pct not built"
+      },
+      "task_heap_max_kb": {
+        "status": "pending_instrumentation",
+        "reason": "v1.8 §3.3 required: per-task heap peak (CONFIG_HEAP_TASK_TRACKING) not built"
+      },
+      "style_cache_hit_rate_pct": {
+        "status": "pending_instrumentation",
+        "reason": "gui.style_cache hit counter not emitted"
+      },
+      "image_preload_hit_rate_pct": {
+        "status": "pending_instrumentation",
+        "reason": "image preload hit counter not emitted"
+      },
+      "ffi_call_us": {
+        "status": "not_applicable",
+        "reason": "JSON_UI local binding path: no JS<->Native FFI segments"
+      },
+      "cpu_pct": {
+        "status": "pending_instrumentation",
+        "reason": "per-task CPU (FreeRTOS run-time stats) not emitted"
+      },
+      "firmware_bin_bytes": {
+        "status": "pending_instrumentation",
+        "reason": "app.bin size is a host artefact (measure_size / --firmware-bin)"
+      },
+      "resource_image_bytes": {
+        "status": "pending_instrumentation",
+        "reason": "littlefs/resource image size is a host artefact (--resource-image)"
+      }
+    },
+    "dimension_coverage": {
+      "dimensions": {
+        "D1": {
+          "status": "covered",
+          "metrics_seen": [
+            "flush_apply_ms"
+          ],
+          "question": "complex UI load: which stage is slowest?"
+        },
+        "D2": {
+          "status": "covered",
+          "metrics_seen": [
+            "mount_ms"
+          ],
+          "question": "first visible / page switch"
+        },
+        "D3": {
+          "status": "covered",
+          "metrics_seen": [
+            "feedback_delay_ms",
+            "event_dispatch_ms"
+          ],
+          "question": "interaction response"
+        },
+        "D4": {
+          "status": "covered",
+          "metrics_seen": [
+            "fps",
+            "jank_rate_pct",
+            "hitch_ratio_ms_s",
+            "frozen_frame_count",
+            "refresh_area_ratio_pct"
+          ],
+          "question": "frame quality"
+        },
+        "D5": {
+          "status": "missing",
+          "metrics_seen": [],
+          "question": "build-time temporaries (v1.8)"
+        },
+        "D6": {
+          "status": "partial",
+          "metrics_seen": [
+            "sram_peak_kb",
+            "psram_peak_kb",
+            "bytes_per_lvgl_object"
+          ],
+          "question": "resident / placement"
+        },
+        "D7": {
+          "status": "partial",
+          "metrics_seen": [
+            "sram_leak_kb"
+          ],
+          "question": "lifecycle (leak / frag / stack / churn)"
+        },
+        "D8": {
+          "status": "missing",
+          "metrics_seen": [],
+          "question": "architecture overhead"
+        },
+        "D9": {
+          "status": "missing",
+          "metrics_seen": [],
+          "question": "resource scheme S1-S4"
+        }
+      },
+      "required": [
+        "D1",
+        "D2",
+        "D3",
+        "D4",
+        "D5",
+        "D6",
+        "D7"
+      ],
+      "missing": [
+        "D5",
+        "D6",
+        "D7"
+      ]
+    },
+    "stat_exemptions": {
+      "event_dispatch_ms": {
+        "kind": "cv_exempt",
+        "measured_cv": 0.08445696198469704,
+        "limit": 0.05,
+        "reason": "event timing on the serial SystemGui/SystemAppInput task group has structural jitter beyond the 5% limit"
+      },
+      "refresh_area_ratio_pct": {
+        "kind": "record_only",
+        "measured_cv": 0.0,
+        "limit": 0.05,
+        "reason": "v1.8 section 4 first-round record semantics for interaction-scene area ratio"
+      }
+    }
   },
   "scenarios": {
+    "batch_invalidate": {
+      "metrics": {
+        "batch_invalidate_ms": {
+          "mean": 33.72251428571428,
+          "std": 0.3719156586416558,
+          "cv": 0.011028704902920267,
+          "p50": 33.787,
+          "p75": 33.94,
+          "p95": 34.280699999999996,
+          "p99": 34.403439999999996,
+          "n": 35
+        }
+      }
+    },
+    "binding_push": {
+      "metrics": {
+        "fps": {
+          "mean": 59.20555563333333,
+          "std": 0.1043435056801331,
+          "cv": 0.0017623938254434123,
+          "p50": 59.166667,
+          "p75": 59.333333,
+          "p95": 59.333333,
+          "p99": 59.333333,
+          "n": 30
+        },
+        "flush_apply_ms": {
+          "mean": 1.0115070666666666,
+          "std": 0.005243512332550485,
+          "cv": 0.0051838612950377335,
+          "p50": 1.0111735,
+          "p75": 1.01413675,
+          "p95": 1.0203251,
+          "p99": 1.02226931,
+          "n": 30
+        },
+        "apply_updates_per_flush": {
+          "mean": 3.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 3.0,
+          "p75": 3.0,
+          "p95": 3.0,
+          "p99": 3.0,
+          "n": 30
+        },
+        "flushes_per_s": {
+          "mean": 59.3111111,
+          "std": 0.149925377777575,
+          "cv": 0.002527778943894629,
+          "p50": 59.333333,
+          "p75": 59.333333,
+          "p95": 59.5,
+          "p99": 59.61833357,
+          "n": 30
+        },
+        "sram_free_kb": {
+          "mean": 372.6378253333333,
+          "std": 0.013443220848502385,
+          "cv": 3.6075835394533846e-05,
+          "p50": 372.635742,
+          "p75": 372.651367,
+          "p95": 372.65996075,
+          "p99": 372.666992,
+          "n": 30
+        }
+      }
+    },
+    "binding_stress": {
+      "metrics": {
+        "fps": {
+          "mean": 58.80285714285714,
+          "std": 0.016903085094570572,
+          "cv": 0.00028745346596859727,
+          "p50": 58.8,
+          "p75": 58.8,
+          "p95": 58.8,
+          "p99": 58.866,
+          "n": 35
+        },
+        "flush_apply_ladder_ms": {
+          "mean": 1.0041522857142857,
+          "std": 0.0033423017216163047,
+          "cv": 0.00332848091785084,
+          "p50": 1.003053,
+          "p75": 1.0060415,
+          "p95": 1.0101582,
+          "p99": 1.0118444199999999,
+          "n": 35
+        },
+        "flushes_per_s": {
+          "mean": 60.06571428571429,
+          "std": 1.2109653070133413,
+          "cv": 0.02016067437828423,
+          "p50": 59.5,
+          "p75": 60.650000000000006,
+          "p95": 62.33,
+          "p99": 62.4,
+          "n": 35
+        },
+        "sram_free_kb": {
+          "mean": 372.64154557142854,
+          "std": 0.03994152764044086,
+          "cv": 0.00010718484859006361,
+          "p50": 372.620117,
+          "p75": 372.620117,
+          "p95": 372.713867,
+          "p99": 372.713867,
+          "n": 35
+        }
+      }
+    },
+    "composite_stress": {
+      "metrics": {
+        "frame_time_ms_mean": {
+          "mean": 242.1760763714286,
+          "std": 24.49139597124105,
+          "cv": 0.10113053418900998,
+          "p50": 240.779,
+          "p75": 258.30337499999996,
+          "p95": 284.70784999999995,
+          "p99": 286.41193,
+          "n": 35
+        },
+        "frame_time_ms_p95": {
+          "mean": 262.4233714285714,
+          "std": 30.142836668382866,
+          "cv": 0.11486338470652337,
+          "p50": 261.572,
+          "p75": 289.70799999999997,
+          "p95": 312.54789999999997,
+          "p99": 316.15382,
+          "n": 35
+        },
+        "frame_time_ms": {
+          "mean": 262.4233714285714,
+          "std": 30.142836668382866,
+          "cv": 0.11486338470652337,
+          "p50": 261.572,
+          "p75": 289.70799999999997,
+          "p95": 312.54789999999997,
+          "p99": 316.15382,
+          "n": 35
+        },
+        "jank_rate_pct": {
+          "mean": 16.442176885714286,
+          "std": 13.294504152480501,
+          "cv": 0.8085610710119153,
+          "p50": 20.0,
+          "p75": 25.0,
+          "p95": 40.85714289999999,
+          "p99": 47.57142861999998,
+          "n": 35
+        },
+        "hitch_ratio_ms_s": {
+          "mean": 27.242749142857143,
+          "std": 57.826064628233674,
+          "cv": 2.1226222186682384,
+          "p50": 5.779417,
+          "p75": 20.7726,
+          "p95": 168.0376787,
+          "p99": 226.8227175199997,
+          "n": 35
+        },
+        "frame_overrun_mean_ms": {
+          "mean": 16.231538085714288,
+          "std": 26.34759739905258,
+          "cv": 1.6232347951203494,
+          "p50": 5.136,
+          "p75": 20.3355,
+          "p95": 82.45703309999999,
+          "p99": 89.18127999999997,
+          "n": 35
+        },
+        "frozen_frame_count": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 35
+        },
+        "refresh_area_ratio_pct": {
+          "mean": 100.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 100.0,
+          "p75": 100.0,
+          "p95": 100.0,
+          "p99": 100.0,
+          "n": 35
+        },
+        "refresh_period_ms": {
+          "mean": 246.71365714285713,
+          "std": 26.73731550929707,
+          "cv": 0.10837387690222228,
+          "p50": 239.832,
+          "p75": 266.1345,
+          "p95": 289.8052,
+          "p99": 297.68255999999997,
+          "n": 35
+        },
+        "flush_time_ms_mean": {
+          "mean": 7.9093398,
+          "std": 0.2756969105879734,
+          "cv": 0.03485713315642014,
+          "p50": 7.8654,
+          "p75": 7.9800165,
+          "p95": 8.5075831,
+          "p99": 8.612074,
+          "n": 35
+        },
+        "frames_lt1_5x_pct": {
+          "mean": 100.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 100.0,
+          "p75": 100.0,
+          "p95": 100.0,
+          "p99": 100.0,
+          "n": 35
+        },
+        "frames_1_5_2_5x_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 35
+        },
+        "frames_2_5_3x_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 35
+        },
+        "frames_ge3x_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 35
+        },
+        "fps": {
+          "mean": 4.828571428571428,
+          "std": 0.7469827262241818,
+          "cv": 0.15470056460264123,
+          "p50": 5.0,
+          "p75": 5.0,
+          "p95": 6.0,
+          "p99": 6.659999999999997,
+          "n": 35
+        },
+        "presented_fps": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 35
+        },
+        "sram_free_kb": {
+          "mean": 372.63886699999995,
+          "std": 0.044323966097228204,
+          "cv": 0.00011894617019976129,
+          "p50": 372.620117,
+          "p75": 372.620117,
+          "p95": 372.713867,
+          "p99": 372.775742,
+          "n": 35
+        }
+      }
+    },
+    "concurrency": {
+      "metrics": {
+        "fps": {
+          "mean": 51.733333333333334,
+          "std": 1.1675694569410755,
+          "cv": 0.022568997234685736,
+          "p50": 51.5,
+          "p75": 52.666667,
+          "p95": 53.2583333,
+          "p99": 53.688333,
+          "n": 30
+        },
+        "fps_drop_pct": {
+          "mean": -7.8152135666666664,
+          "std": 2.4332811592603427,
+          "cv": -0.3113518445150031,
+          "p50": -7.328934,
+          "p75": -5.939562,
+          "p95": -4.168113700000002,
+          "p99": -3.3622786499999995,
+          "n": 30
+        },
+        "flush_apply_ms": {
+          "mean": 0.6157167666666666,
+          "std": 0.015266126163736717,
+          "cv": 0.024794072518738813,
+          "p50": 0.610831,
+          "p75": 0.6200412500000001,
+          "p95": 0.64469495,
+          "p99": 0.6601445300000001,
+          "n": 30
+        },
+        "event_dispatch_ms": {
+          "mean": 16.188161133333335,
+          "std": 1.3672029094400837,
+          "cv": 0.08445696198469704,
+          "p50": 16.129917,
+          "p75": 16.98066675,
+          "p95": 17.940558,
+          "p99": 19.655278000000003,
+          "n": 30
+        },
+        "sram_free_kb": {
+          "mean": 356.487305,
+          "std": 0.02690730816634434,
+          "cv": 7.54790080570873e-05,
+          "p50": 356.487305,
+          "p75": 356.50293,
+          "p95": 356.52714875,
+          "p99": 356.54527375,
+          "n": 30
+        }
+      }
+    },
+    "feedback_delay": {
+      "metrics": {
+        "feedback_delay_ms": {
+          "mean": 1.3428571428571427,
+          "std": 0.4815939919779354,
+          "cv": 0.3586338238133562,
+          "p50": 1.0,
+          "p75": 2.0,
+          "p95": 2.0,
+          "p99": 2.0,
+          "n": 35
+        },
+        "event_dispatch_ms": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 35
+        }
+      }
+    },
+    "lifecycle_leak": {
+      "metrics": {
+        "sram_free_kb": {
+          "mean": 372.63927022580646,
+          "std": 0.04273677700817275,
+          "cv": 0.0001146867236571061,
+          "p50": 372.620117,
+          "p75": 372.620117,
+          "p95": 372.713867,
+          "p99": 372.721367,
+          "n": 93
+        },
+        "psram_free_kb": {
+          "mean": 19463.689096010752,
+          "std": 0.17902565505416645,
+          "cv": 9.197930267539018e-06,
+          "p50": 19463.675781,
+          "p75": 19463.695312,
+          "p95": 19463.8890624,
+          "p99": 19463.93937504,
+          "n": 93
+        },
+        "sram_leak_kb": {
+          "mean": -0.019153225806451613,
+          "std": 0.04273677700817275,
+          "cv": -2.23130962063723,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.00749999999999984,
+          "n": 93
+        },
+        "psram_leak_kb": {
+          "mean": -0.025033666666666666,
+          "std": 0.1790256213940591,
+          "cv": -7.1513943114229805,
+          "p50": -0.011719,
+          "p75": 0.003906,
+          "p95": 0.082031,
+          "p99": 0.2289064799999977,
+          "n": 93
+        },
+        "sram_peak_kb": {
+          "mean": 372.526367,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 372.526367,
+          "p75": 372.526367,
+          "p95": 372.526367,
+          "p99": 372.526367,
+          "n": 93
+        },
+        "psram_peak_kb": {
+          "mean": 19387.847656,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 19387.847656,
+          "p75": 19387.847656,
+          "p95": 19387.847656,
+          "p99": 19387.847656,
+          "n": 93
+        },
+        "sram_frag_rate_pct": {
+          "mean": 29.15381222580645,
+          "std": 0.007078863964263769,
+          "cv": 0.0002428109198699469,
+          "p50": 29.150363,
+          "p75": 29.150363,
+          "p95": 29.168184,
+          "p99": 29.168184,
+          "n": 93
+        },
+        "sram_free_block_count": {
+          "mean": 19.419354838709676,
+          "std": 0.6136593844407514,
+          "cv": 0.03160040019545398,
+          "p50": 19.0,
+          "p75": 20.0,
+          "p95": 20.0,
+          "p99": 21.08,
+          "n": 93
+        },
+        "sram_largest_block_pct": {
+          "mean": 47.886764387096775,
+          "std": 0.00013465770068529147,
+          "cv": 2.8120024898064604e-06,
+          "p50": 47.88683,
+          "p75": 47.88683,
+          "p95": 47.88683,
+          "p99": 47.88683,
+          "n": 93
+        },
+        "psram_frag_rate_pct": {
+          "mean": 2.6701058924731185,
+          "std": 0.0004240687357730031,
+          "cv": 0.00015882094300770225,
+          "p50": 2.669939,
+          "p75": 2.670036,
+          "p95": 2.6710086,
+          "p99": 2.671189,
+          "n": 93
+        },
+        "psram_free_block_count": {
+          "mean": 149.0752688172043,
+          "std": 3.3564880686832055,
+          "cv": 0.022515391689810888,
+          "p50": 148.0,
+          "p75": 151.0,
+          "p95": 156.0,
+          "p99": 159.16,
+          "n": 93
+        },
+        "psram_largest_block_pct": {
+          "mean": 78.06108601075269,
+          "std": 1.4845211952349663e-05,
+          "cv": 1.90174294402012e-07,
+          "p50": 78.061092,
+          "p75": 78.061092,
+          "p95": 78.061092,
+          "p99": 78.061117,
+          "n": 93
+        }
+      }
+    },
+    "mount_fixed_screen": {
+      "metrics": {
+        "mount_ms": {
+          "mean": 197.1,
+          "std": 6.1912533179525795,
+          "cv": 0.031411736772970975,
+          "p50": 198.75,
+          "p75": 200.25,
+          "p95": 204.5,
+          "p99": 205.325,
+          "n": 35
+        }
+      }
+    },
+    "render_stress": {
+      "metrics": {
+        "fps": {
+          "mean": 47.96363636363636,
+          "std": 0.8598801889763128,
+          "cv": 0.017927752234153604,
+          "p50": 48.0,
+          "p75": 49.0,
+          "p95": 49.0,
+          "p99": 49.46,
+          "n": 55
+        },
+        "flush_rate": {
+          "mean": 719.4545454545455,
+          "std": 12.919721046492912,
+          "cv": 0.017957661297879964,
+          "p50": 720.0,
+          "p75": 726.5,
+          "p95": 741.4,
+          "p99": 748.92,
+          "n": 55
+        },
+        "fps_dropped": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "ticks": {
+          "mean": 1357.9454545454546,
+          "std": 658.0148714457531,
+          "cv": 0.48456649657258183,
+          "p50": 1356.0,
+          "p75": 1914.0,
+          "p95": 2356.2999999999997,
+          "p99": 2445.86,
+          "n": 55
+        },
+        "frame_time_ms_mean": {
+          "mean": 23.034532763636363,
+          "std": 0.07166699013698669,
+          "cv": 0.0031112847337682625,
+          "p50": 23.03328,
+          "p75": 23.084271,
+          "p95": 23.144249799999997,
+          "p99": 23.1795875,
+          "n": 55
+        },
+        "frame_time_ms_p95": {
+          "mean": 23.508981818181816,
+          "std": 0.06923242948885498,
+          "cv": 0.0029449352602463927,
+          "p50": 23.513,
+          "p75": 23.5535,
+          "p95": 23.6166,
+          "p99": 23.65966,
+          "n": 55
+        },
+        "frame_time_ms": {
+          "mean": 23.572872727272728,
+          "std": 0.08428875733331578,
+          "cv": 0.0035756676035414883,
+          "p50": 23.562,
+          "p75": 23.6265,
+          "p95": 23.708099999999998,
+          "p99": 23.7764,
+          "n": 55
+        },
+        "jank_rate_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "hitch_ratio_ms_s": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "frame_overrun_mean_ms": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "frozen_frame_count": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "refresh_area_ratio_pct": {
+          "mean": 100.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 100.0,
+          "p75": 100.0,
+          "p95": 100.0,
+          "p99": 100.0,
+          "n": 55
+        },
+        "refresh_period_ms": {
+          "mean": 43.390654545454545,
+          "std": 0.2751962409695509,
+          "cv": 0.006342292916583336,
+          "p50": 43.431,
+          "p75": 43.594,
+          "p95": 43.798199999999994,
+          "p99": 43.883900000000004,
+          "n": 55
+        },
+        "flush_time_ms_mean": {
+          "mean": 6.422324327272728,
+          "std": 0.056685377230638496,
+          "cv": 0.008826302494553436,
+          "p50": 6.426375,
+          "p75": 6.463252,
+          "p95": 6.5078955,
+          "p99": 6.53683164,
+          "n": 55
+        },
+        "frames_lt1_5x_pct": {
+          "mean": 100.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 100.0,
+          "p75": 100.0,
+          "p95": 100.0,
+          "p99": 100.0,
+          "n": 55
+        },
+        "frames_1_5_2_5x_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "frames_2_5_3x_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "frames_ge3x_pct": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        },
+        "presented_fps": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 55
+        }
+      }
+    },
+    "screen_cycle": {
+      "metrics": {
+        "mount_all_screens_ms": {
+          "mean": 55.981818181818184,
+          "std": 51.710551580708795,
+          "cv": 0.9237026102432555,
+          "p50": 46.0,
+          "p75": 63.5,
+          "p95": 197.09999999999997,
+          "p99": 216.46,
+          "n": 55
+        },
+        "fps": {
+          "mean": 1.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 1.0,
+          "p75": 1.0,
+          "p95": 1.0,
+          "p99": 1.0,
+          "n": 55
+        },
+        "sram_free_kb": {
+          "mean": 372.63034427272726,
+          "std": 0.03457671532150274,
+          "cv": 9.279092766582672e-05,
+          "p50": 372.620117,
+          "p75": 372.620117,
+          "p95": 372.713867,
+          "p99": 372.75699199999997,
+          "n": 55
+        },
+        "psram_free_kb": {
+          "mean": 19444.90518456364,
+          "std": 21.221043663710326,
+          "cv": 0.0010913421002719354,
+          "p50": 19451.800781,
+          "p75": 19459.8398435,
+          "p95": 19463.1441407,
+          "p99": 19463.27039024,
+          "n": 55
+        }
+      }
+    },
     "steady_state": {
       "metrics": {
         "sram_free_kb": {
-          "mean": 376.2613722903226,
-          "std": 0.020281363425720036,
-          "cv": 5.3902326731724595e-05,
-          "p50": 376.256836,
-          "p75": 376.256836,
-          "p95": 376.256836,
-          "p99": 376.350586,
-          "n": 62
+          "mean": 372.62840781632656,
+          "std": 0.028825887244637444,
+          "cv": 7.735826533882006e-05,
+          "p50": 372.620117,
+          "p75": 372.620117,
+          "p95": 372.713867,
+          "p99": 372.713867,
+          "n": 294
         },
         "sram_largest_kb": {
           "mean": 264.0,
@@ -80,17 +1055,17 @@
           "p75": 264.0,
           "p95": 264.0,
           "p99": 264.0,
-          "n": 62
+          "n": 294
         },
         "psram_free_kb": {
-          "mean": 19398.361706370964,
-          "std": 0.045353219986991,
-          "cv": 2.3379922837553717e-06,
-          "p50": 19398.355469,
-          "p75": 19398.355469,
-          "p95": 19398.363281,
-          "p99": 19398.558594,
-          "n": 62
+          "mean": 19196.74024720408,
+          "std": 0.05061726946955776,
+          "cv": 2.636763784774862e-06,
+          "p50": 19196.726562,
+          "p75": 19196.726562,
+          "p95": 19196.921875,
+          "p99": 19196.921875,
+          "n": 294
         },
         "psram_largest_kb": {
           "mean": 18432.0,
@@ -100,7 +1075,117 @@
           "p75": 18432.0,
           "p95": 18432.0,
           "p99": 18432.0,
-          "n": 62
+          "n": 294
+        },
+        "fps": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 294
+        },
+        "sram_frag_rate_pct": {
+          "mean": 29.159091346938773,
+          "std": 0.010064623295683403,
+          "cv": 0.00034516244611099736,
+          "p50": 29.150363,
+          "p75": 29.168184,
+          "p95": 29.168184,
+          "p99": 29.185996,
+          "n": 294
+        },
+        "sram_free_block_count": {
+          "mean": 19.374149659863946,
+          "std": 0.5252775551541198,
+          "cv": 0.027112289539204918,
+          "p50": 19.0,
+          "p75": 20.0,
+          "p95": 20.0,
+          "p99": 21.0,
+          "n": 294
+        },
+        "sram_largest_block_pct": {
+          "mean": 47.88666392517007,
+          "std": 0.00019156125526482854,
+          "cv": 4.000304877453378e-06,
+          "p50": 47.88683,
+          "p75": 47.88683,
+          "p95": 47.88683,
+          "p99": 47.88683,
+          "n": 294
+        },
+        "psram_frag_rate_pct": {
+          "mean": 3.983788863945578,
+          "std": 0.0013342592997753271,
+          "cv": 0.0003349221922503859,
+          "p50": 3.98363,
+          "p75": 3.984607,
+          "p95": 3.985076,
+          "p99": 3.985721,
+          "n": 294
+        },
+        "psram_free_block_count": {
+          "mean": 142.70068027210885,
+          "std": 3.696534611813209,
+          "cv": 0.02590411345457128,
+          "p50": 142.0,
+          "p75": 144.75,
+          "p95": 147.0,
+          "p99": 150.07,
+          "n": 294
+        },
+        "psram_largest_block_pct": {
+          "mean": 75.95158925850339,
+          "std": 6.580139613157695e-05,
+          "cv": 8.663597006195622e-07,
+          "p50": 75.95159,
+          "p75": 75.95159,
+          "p95": 75.951614,
+          "p99": 75.951969,
+          "n": 294
+        },
+        "stack_hwm_lv_adapter_kb": {
+          "mean": 33.523438,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 33.523438,
+          "p75": 33.523438,
+          "p95": 33.523438,
+          "p99": 33.523438,
+          "n": 294
+        },
+        "stack_hwm_worker0_kb": {
+          "mean": 12.195312,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 12.195312,
+          "p75": 12.195312,
+          "p95": 12.195312,
+          "p99": 12.195312,
+          "n": 294
+        },
+        "bytes_per_lvgl_object": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 294
+        },
+        "oom_events": {
+          "mean": 0.0,
+          "std": 0.0,
+          "cv": 0.0,
+          "p50": 0.0,
+          "p75": 0.0,
+          "p95": 0.0,
+          "p99": 0.0,
+          "n": 294
         }
       }
     }
