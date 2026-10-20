@@ -1071,6 +1071,10 @@ void perf_eval_main(void *arg)
         // The corpus is not all text. system/fonts carries a 1.54 MB CJK TTF, and
         // fs_write_text cannot take binary, so the two assets are written raw.
         const std::string abs = std::string("/littlefs/perf_eval/") + rel;
+        // Remove the previous copy first: the volume is persistent, and rewriting in
+        // place made repeated runs fail with "No more free space" while overwriting a
+        // file it already held. Absent files are expected and ignored.
+        (void)esp_brookesia::service::helper::Storage::fs_remove(abs);
         std::expected<void, std::string> wr;
         if (rel.size() > 5 && rel.compare(rel.size() - 5, 5, ".json") == 0) {
             wr = esp_brookesia::service::helper::Storage::fs_write_text(abs, std::string(body));
