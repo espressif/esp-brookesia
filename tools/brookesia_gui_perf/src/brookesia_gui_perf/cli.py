@@ -37,7 +37,8 @@ def _cmd_aggregate(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
-    report = build_report(records, warmup=args.warmup)
+    report = build_report(records, warmup=args.warmup, probe_worktree=True,
+                          allow_unknown_worktree=getattr(args, "allow_unknown_worktree", False))
     violations = validate_report(report)
     if violations:
         for v in violations:
@@ -79,6 +80,9 @@ def _cmd_compare(args: argparse.Namespace) -> int:
                 f"{scenario}/{name}: improvement={row['improvement_pct']} "
                 f"base={row['baseline_grade']} opt={row['optimized_grade']} ok={row['ok']}"
             )
+    unknown = result.get("unknown_thresholds") or []
+    if unknown:
+        print("thresholds with no matching metric in either report: " + ", ".join(unknown))
     print(f"PASS={result['pass']}")
     if args.output:
         pathlib.Path(args.output).write_text(
@@ -195,6 +199,8 @@ def build_parser() -> argparse.ArgumentParser:
     p_agg.add_argument("log")
     p_agg.add_argument("-o", "--output", required=True)
     p_agg.add_argument("--warmup", type=int, default=DEFAULT_WARMUP)
+    p_agg.add_argument("--allow-unknown-worktree", action="store_true",
+                       help="record that provenance is unprovable (no git) instead of failing")
     p_agg.set_defaults(func=_cmd_aggregate)
 
     p_prof = sub.add_parser(

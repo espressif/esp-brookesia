@@ -8,8 +8,10 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -32,7 +34,8 @@
 #include "esp_heap_caps.h"
 #include "esp_idf_version.h"
 #include "esp_system.h"
-#include "esp_partition.h"
+
+#include "esp_littlefs.h"
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -57,7 +60,6 @@ static const char *TAG = "PerfEval";
 // alive forever, which would defeat the exit join below.
 constexpr uint32_t kTickLockTimeoutMs = 100;
 
-
 constexpr const char *kBoardId = PERF_EVAL_BOARD_ID;
 // The 23-field contract names this key "esp_lv_adapter_version", but the
 // component is actually espressif/esp_lvgl_adapter. The key name is kept
@@ -70,7 +72,7 @@ constexpr const char *kBoardId = PERF_EVAL_BOARD_ID;
 // ships no version macro, so it is a literal rather than a CONFIG_ lookup.
 constexpr const char *kLvglAdapterVersion = "0.6.4";
 constexpr const char *kAppId = "com.brookesia.perf_eval";
-constexpr const char *kFixtureVersion = "p1";
+constexpr const char *kFixtureVersion = "p3";
 // v1.8 section 2.3 item 5 puts in-repo corpus last in the carrier priority, and
 // this corpus is the in-repo system document set, so it is labelled with the spec
 // vocabulary rather than with the staging path it happens to sit at.
@@ -409,6 +411,17 @@ bool add_frame_window_metrics(MetricSet &metrics)
     const double wall_s = static_cast<double>(ready_us[n - 1] - ready_us[0]) / 1e6;
     const double frame_px = static_cast<double>(g_frames.disp_w) *
                             static_cast<double>(g_frames.disp_h);
+    // A refresh cycle cannot repaint more than a couple of screens worth of
+    // pixels (tearing double-buffer writes the same area twice), so an average
+    // above that is a corrupted window, not a measurement: an unset resolution
+    // or a torn slot read turned one sample into 1e8 % of a screen in a run
+    // where every other sample was exactly 100 %. Dropping the window keeps the
+    // bogus value out of the aggregate and out of the gate.
+    if (frame_px <= 0.0 || (static_cast<double>(px_sum) / static_cast<double>(n)) > 2.0 * frame_px) {
+        ESP_LOGW(TAG, "frame window rejected: implausible flushed area (%llu px over %u frames, screen %.0f px)",
+                 static_cast<unsigned long long>(px_sum), (unsigned)n, frame_px);
+        return false;
+    }
 
     metrics.add("frame_time_ms_mean", sum / static_cast<double>(n));
     metrics.add("frame_time_ms_p95",
@@ -717,24 +730,34 @@ void perf_eval_main(void *arg)
 {
     (void)arg;
     ESP_LOGI(TAG, "perf_eval: board=%s idf=%s", kBoardId, esp_get_idf_version());
+    if (std::strcmp(kBoardId, "unknown") == 0 || kBoardId[0] == '\0') {
+        // Reports must never be archived under an unresolved board: the paired gate
+        // compares board ids, and a wrong one silently poisons the baseline.
+        ESP_LOGE(TAG, "refusing to run with an unresolved board id");
+        vTaskDelete(nullptr);
+        return;
+    }
 
-    // Must run before any service mounts the volume. Erasing the raw partition drops
-    // the stale superblock and blocks left by earlier runs, so the backend formats a
-    // clean volume on the next mount; per-file deletes keep both, which is why the
-    // largest assets became unsatisfiable.
-    const esp_partition_t *res_part = esp_partition_find_first(
-                                          ESP_PARTITION_TYPE_DATA, ESP_PARTITION_SUBTYPE_ANY, "littlefs_data");
-    if (res_part == nullptr) {
-        ESP_LOGE(TAG, "storage partition littlefs_data not found");
+    // Destructive by design: this image rebuilds its own data partition on every boot,
+    // and that partition occupies the flash region examples/system/super uses for its
+    // LittleFS image, so flashing this over a super board erases those files.
+    ESP_LOGW(TAG, "perf_eval: reformatting perf_eval_data; this flash region is exclusive to the benchmark");
+    // Must run before any service mounts the volume: LittleFS refuses to format a
+    // mounted partition. Per-file deletes leave stale blocks behind, which is what
+    // made the largest assets unsatisfiable on repeated runs.
+#if CONFIG_PERF_EVAL_ALLOW_DESTRUCTIVE_FORMAT
+    esp_err_t fmt = esp_littlefs_format("perf_eval_data");
+    if (fmt != ESP_OK) {
+        ESP_LOGE(TAG, "failed to format the storage partition: %s", esp_err_to_name(fmt));
         vTaskDelete(nullptr);
         return;
     }
-    esp_err_t erased = esp_partition_erase_range(res_part, 0, res_part->size);
-    if (erased != ESP_OK) {
-        ESP_LOGE(TAG, "failed to erase the storage partition: %s", esp_err_to_name(erased));
-        vTaskDelete(nullptr);
-        return;
-    }
+#else
+    ESP_LOGE(TAG, "refusing to reformat perf_eval_data: enable "
+             "PERF_EVAL_ALLOW_DESTRUCTIVE_FORMAT on a board dedicated to benchmarking");
+    vTaskDelete(nullptr);
+    return;
+#endif
 
     emit_metadata();
 
@@ -983,7 +1006,6 @@ void perf_eval_main(void *arg)
     // (:308) starts them right after they are added.
     esp_brookesia::system::core::System::Config config;
 
-
     config.gui_backend = std::make_unique<esp_brookesia::gui::lvgl::Backend>();
     config.environment = {
         .width_px = static_cast<int32_t>(main_output.width),
@@ -1118,6 +1140,24 @@ void perf_eval_main(void *arg)
     }
     const std::string_view doc_json(
         reinterpret_cast<const char *>(doc_root->data), perf_eval_res_size(doc_root));
+    // The corpus carries the Super themes, but a document only resolves its named
+    // style references once one is registered and active, so this has to happen
+    // before the first document is parsed.
+    const std::string kThemeDir = "/littlefs/perf_eval/system/super/themes";
+    auto theme_loaded = system->system_gui_load_theme_file(kThemeDir, "light.json");
+    if (!theme_loaded) {
+        ESP_LOGE(TAG, "failed to load theme light.json: %s", theme_loaded.error().c_str());
+        vTaskDelete(nullptr);
+        return;
+    }
+    auto theme_set = system->system_gui_set_theme("light");
+    if (!theme_set) {
+        ESP_LOGE(TAG, "failed to activate theme light: %s", theme_set.error().c_str());
+        vTaskDelete(nullptr);
+        return;
+    }
+    ESP_LOGI(TAG, "theme light registered and activated from %s", kThemeDir.c_str());
+
     auto doc_id = system->system_gui_load_json("/", doc_json, kResDir);
     if (!doc_id) {
         ESP_LOGE(TAG, "root.json load failed: %s", doc_id.error().c_str());
@@ -1137,6 +1177,50 @@ void perf_eval_main(void *arg)
     // mounting "/header" fails while the other ten succeed. perf_eval_res.c collects the
     // declared ids at generation time, which also keeps this loop from having to parse
     // flow documents on the device.
+    // Every object of the target screen counts, including widgets that are hidden by
+    // design (e.g. settings/wifi_content, app_store/pager): the runtime creates them, so
+    // toggling visibility must not change the total. Only top-level children that are
+    // themselves hidden screens (other documents/screens left mounted by Backend) and the
+    // display root are excluded.
+    std::function<uint32_t(lv_obj_t *)> count_subtree;
+    count_subtree = [&count_subtree](lv_obj_t *node) -> uint32_t {
+        if (node == nullptr)
+        {
+            return 0;
+        }
+        uint32_t total = 1u;
+        const uint32_t children = lv_obj_get_child_count(node);
+        for (uint32_t i = 0; i < children; i++)
+        {
+            total += count_subtree(lv_obj_get_child(node, i));
+        }
+        return total;
+    };
+    auto count_section_objects = [&count_subtree](bool * ok) -> uint32_t {
+        *ok = false;
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK)
+        {
+            return 0;
+        }
+        auto *display = lv_display_get_default();
+        lv_obj_t *root = display != nullptr ? lv_display_get_screen_active(display) : nullptr;
+        uint32_t total = 0;
+        if (root != nullptr)
+        {
+            const uint32_t children = lv_obj_get_child_count(root);
+            for (uint32_t i = 0; i < children; i++) {
+                lv_obj_t *child = lv_obj_get_child(root, i);
+                if (lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) {
+                    continue;
+                }
+                total += count_subtree(child);
+            }
+        }
+        esp_lv_adapter_unlock();
+        *ok = true;
+        return total;
+    };
+
     uint32_t total_objects = 0;
     uint32_t mounted = 0;
     uint32_t mount_failed = 0;
@@ -1148,16 +1232,91 @@ void perf_eval_main(void *arg)
         const std::string screen = std::string("/") + sc.screen_id;
         auto v = system->system_gui_mount_screen(doc_id.value(), screen);
         if (!v) {
-            ESP_LOGW(TAG, "mount %s failed: %s", screen.c_str(), v.error().c_str());
+            // A failed mount silently shrinks the counted footprint, which would let a
+            // broken corpus pass the gate, so it stops the run instead of warning.
+            ESP_LOGE(TAG, "mount %s failed: %s", screen.c_str(), v.error().c_str());
             mount_failed++;
-            continue;
+            vTaskDelete(nullptr);
+            return;
         }
         // Counted before the next mount replaces the active screen, so the total is the
         // footprint of the whole app rather than of whichever screen happens to be last.
-        total_objects += count_lvgl_objects(lv_display_get_screen_active(lv_display_get_default()));
+        bool counted_ok = false;
+        const uint32_t counted = count_section_objects(&counted_ok);
+        if (!counted_ok) {
+            ESP_LOGE(TAG, "adapter lock timeout while counting section 3.1 objects");
+            vTaskDelete(nullptr);
+            return;
+        }
+        total_objects += counted;
         mounted++;
     }
-    ESP_LOGI(TAG, "mounted %u screens (%u failed); runtime LVGL objects=%u (section 3.1 gate >=600)",
+
+    // The gate is defined over the whole Golden Case, but the scenarios below only drive
+    // the Settings document (doc_id). The other documents are therefore loaded, counted
+    // the same way, and unloaded again, leaving only Settings resident afterwards.
+    auto open_doc = doc_id.value();
+    const char *open_dir = nullptr;
+    bool have_open_doc = false;
+    for (size_t i = 0; i < perf_eval_res_screen_count; i++) {
+        const PerfEvalResScreen &sc = perf_eval_res_screens[i];
+        if (std::strcmp(kAppDir, sc.dir) == 0) {
+            continue;
+        }
+        if (open_dir == nullptr || std::strcmp(open_dir, sc.dir) != 0) {
+            if (have_open_doc) {
+                (void)system->system_gui_unload(open_doc);
+                have_open_doc = false;
+            }
+            const std::string root_rel = std::string(sc.dir) + "/root.json";
+            const PerfEvalResEntry *entry = perf_eval_res_find(root_rel.c_str());
+            if (entry == nullptr) {
+                ESP_LOGE(TAG, "%s not found in the embedded resource set", root_rel.c_str());
+                vTaskDelete(nullptr);
+                return;
+            }
+            const std::string_view json(
+                reinterpret_cast<const char *>(entry->data), perf_eval_res_size(entry));
+            auto loaded = system->system_gui_load_json(
+                              "/", json, std::string("/littlefs/perf_eval/") + sc.dir);
+            if (!loaded) {
+                ESP_LOGE(TAG, "%s load failed: %s", root_rel.c_str(), loaded.error().c_str());
+                vTaskDelete(nullptr);
+                return;
+            }
+            open_doc = loaded.value();
+            open_dir = sc.dir;
+            have_open_doc = true;
+        }
+        const std::string screen = std::string("/") + sc.screen_id;
+        auto v = system->system_gui_mount_screen(open_doc, screen);
+        if (!v) {
+            ESP_LOGE(TAG, "%s mount %s failed: %s", sc.dir, screen.c_str(), v.error().c_str());
+            (void)system->system_gui_unload(open_doc);
+            vTaskDelete(nullptr);
+            return;
+        }
+        bool counted_ok = false;
+        const uint32_t counted = count_section_objects(&counted_ok);
+        if (!counted_ok) {
+            ESP_LOGE(TAG, "adapter lock timeout while counting section 3.1 objects");
+            vTaskDelete(nullptr);
+            return;
+        }
+        total_objects += counted;
+        mounted++;
+        if (!system->system_gui_unmount_screen(open_doc, screen)) {
+            ESP_LOGE(TAG, "%s unmount %s failed", sc.dir, screen.c_str());
+            (void)system->system_gui_unload(open_doc);
+            vTaskDelete(nullptr);
+            return;
+        }
+    }
+    if (have_open_doc) {
+        (void)system->system_gui_unload(open_doc);
+    }
+
+    ESP_LOGI(TAG, "mounted %u screens over the whole Golden Case (%u failed); runtime LVGL objects=%u (section 3.1 gate >=600)",
              (unsigned)mounted, (unsigned)mount_failed, (unsigned)total_objects);
 
     // Ordered ahead of the steady-state soak so a routine capture still reaches the
@@ -1232,8 +1391,15 @@ void perf_eval_main(void *arg)
         metrics.add("psram_free_kb", psram_free_kb);
         metrics.add("sram_leak_kb", sram_after_first - sram_free_kb);
         metrics.add("psram_leak_kb", psram_after_first - psram_free_kb);
-        metrics.add("sram_peak_kb", static_cast<double>(sram_min_free) / 1024.0);
-        metrics.add("psram_peak_kb", static_cast<double>(psram_min_free) / 1024.0);
+        // Peak memory is the memory actually in use at the worst moment, not the
+        // smallest free figure that moment left behind. Reporting min-free under a
+        // lower_better rule inverted the verdict: 112 kB -> 212 kB of remaining RAM
+        // read as a 25 % improvement. Capacity minus min-free keeps the field name,
+        // the lower_better direction and the absolute budget meaningful.
+        const double sram_total_kb = static_cast<double>(heap_caps_get_total_size(MALLOC_CAP_INTERNAL)) / 1024.0;
+        const double psram_total_kb = static_cast<double>(heap_caps_get_total_size(MALLOC_CAP_SPIRAM)) / 1024.0;
+        metrics.add("sram_peak_kb", sram_total_kb - static_cast<double>(sram_min_free) / 1024.0);
+        metrics.add("psram_peak_kb", psram_total_kb - static_cast<double>(psram_min_free) / 1024.0);
         add_heap_shape_metrics(metrics, MALLOC_CAP_INTERNAL, kSramShapeKeys);
         add_heap_shape_metrics(metrics, MALLOC_CAP_SPIRAM, kPsramShapeKeys);
         emitter.sample("lifecycle_leak", cycle, metrics);
@@ -1272,15 +1438,19 @@ void perf_eval_main(void *arg)
         }
         return (count * sum_xy - sum_x * sum_y) / denom;
     };
+    // Both series hold *free* memory, so a leak shows up as a negative slope; a small
+    // negative slope is measurement noise, not a leak.
+    constexpr double kLeakSlopeToleranceKb = 0.01;
     const size_t warm = static_cast<size_t>(kLeakCycles) / 10;
     const double sram_slope = trend_slope(sram_series, warm);
     const double psram_slope = trend_slope(psram_series, warm);
+    const bool sram_ok = sram_slope >= -kLeakSlopeToleranceKb;
+    const bool psram_ok = psram_slope >= -kLeakSlopeToleranceKb;
     ESP_LOGI(TAG, "leak audit: %d cycles, unmount failures=%u, sram delta=%.2f kB, psram delta=%.2f kB",
              (int)kLeakCycles, (unsigned)unmount_failures, sram_leak_kb, psram_leak_kb);
     ESP_LOGI(TAG, "zero-leak stop tier: %s (sram slope=%.5f kB/cycle, psram slope=%.5f kB/cycle)",
-             (sram_slope <= 0.0 && psram_slope <= 0.0) ? "PASS" : "FAIL",
+             (sram_ok && psram_ok) ? "PASS" : "FAIL",
              sram_slope, psram_slope);
-
 
     // Section 1.4 declares log_level WARN as part of benchmark validity, and this is
     // where that has to actually happen. Left at the default INFO, the App B loop alone
@@ -1918,6 +2088,143 @@ void perf_eval_main(void *arg)
         }
     }
 
+    // v1.8 section 3.2 acceptance probe for the process_timers() contract. A carrier
+    // that ticks every 15 ms must not turn a local invalidation into a full-screen
+    // repaint, and a static screen must not be woken at all. The three conditions
+    // share one carrier tick task; only the mutation differs, so refreshes / flushes
+    // / tick cost are directly comparable.
+    if (mounted > 0) {
+        // lifecycle_leak unloaded the document and unmounted every screen, so the local
+        // condition would otherwise invalidate an empty tree and report 0 refreshes for
+        // the wrong reason. Reload first, then mount, and fail loudly: a silent failure
+        // here turns the probe into a vacuous "0 refreshes" measurement.
+        auto probe_doc = system->system_gui_load_json("/", doc_json, kResDir);
+        if (!probe_doc) {
+            ESP_LOGE(TAG, "refresh probe: document reload failed: %s", probe_doc.error().c_str());
+        } else {
+            bool probe_mounted = false;
+            for (size_t i = 0; i < perf_eval_res_screen_count; i++) {
+                const PerfEvalResScreen &sc = perf_eval_res_screens[i];
+                if (kAppDir == sc.dir) {
+                    auto mounted_screen = system->system_gui_mount_screen(
+                                              probe_doc.value(), std::string("/") + sc.screen_id);
+                    probe_mounted = mounted_screen.has_value();
+                    if (!probe_mounted) {
+                        ESP_LOGE(TAG, "refresh probe: mount failed: %s", mounted_screen.error().c_str());
+                    }
+                    break;
+                }
+            }
+            if (!probe_mounted) {
+                ESP_LOGW(TAG, "refresh probe: no content mounted, local/full conditions are not meaningful");
+            }
+        }
+        vTaskDelay(pdMS_TO_TICKS(300));
+        struct RpCtx {
+            esp_brookesia::system::core::System *system;
+            std::atomic<bool> stop{false};
+            std::atomic<uint32_t> ticks{0};
+            // Time spent inside process_timers() itself. Dividing the loop's wall clock
+            // by the tick count measured the 15 ms sleep, not the call cost.
+            std::atomic<uint64_t> busy_us{0};
+            SemaphoreHandle_t exited{nullptr};
+        } rp_ctx{system.get()};
+        rp_ctx.exited = xSemaphoreCreateBinary();
+        if (rp_ctx.exited == nullptr) {
+            ESP_LOGE(TAG, "refresh probe: semaphore allocation failed");
+        }
+        auto rp_fn = [](void *arg) {
+            auto *ctx = static_cast<RpCtx *>(arg);
+            while (!ctx->stop.load(std::memory_order_relaxed)) {
+                const int64_t call_start = esp_timer_get_time();
+                ctx->system->process_timers();
+                ctx->busy_us.fetch_add(static_cast<uint64_t>(esp_timer_get_time() - call_start),
+                                       std::memory_order_relaxed);
+                ctx->ticks.fetch_add(1, std::memory_order_relaxed);
+                vTaskDelay(pdMS_TO_TICKS(15));
+            }
+            if (ctx->exited != nullptr) {
+                xSemaphoreGive(ctx->exited);
+            }
+            vTaskDelete(nullptr);
+        };
+        TaskHandle_t rp_handle = nullptr;
+        if (rp_ctx.exited != nullptr) {
+            xTaskCreatePinnedToCore(rp_fn, "perf_refresh_probe", 8192, &rp_ctx, 5, &rp_handle,
+                                    tskNO_AFFINITY);
+        }
+        if (rp_handle == nullptr) {
+            if (rp_ctx.exited != nullptr) {
+                // Never hand a null handle to xSemaphoreTake, and never delete one the
+                // worker cannot reach: this branch means no worker was started.
+                vSemaphoreDelete(rp_ctx.exited);
+            }
+            ESP_LOGE(TAG, "refresh probe: carrier tick task could not be created");
+        } else {
+            struct RpCase {
+                const char *scenario;
+                int mode;   // 0 static, 1 local child invalidation, 2 whole screen
+            };
+            const RpCase cases[3] = {
+                {"refresh_probe_static", 0}, {"refresh_probe_local", 1}, {"refresh_probe_full", 2}
+            };
+            for (const auto &cs : cases) {
+                frame_probe_reset_window();
+                auto &ds = LvglDisplaySource::get_instance();
+                const uint64_t frames0 = ds.frame_count();
+                const uint64_t flush0 = ds.flush_count();
+                const uint32_t ticks0 = rp_ctx.ticks.load(std::memory_order_relaxed);
+                const uint64_t busy0 = rp_ctx.busy_us.load(std::memory_order_relaxed);
+                const int64_t t0 = esp_timer_get_time();
+                for (int i = 0; i < 60; ++i) {
+                    if (cs.mode != 0 && esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
+                        lv_obj_t *scr = lv_screen_active();
+                        if (scr != nullptr) {
+                            if (cs.mode == 1) {
+                                // A local update is a small rectangle of the screen. Using
+                                // a child object measured 0 here because the first child of
+                                // the remounted screen has no area of its own, which made
+                                // the condition report a vacuous "0 refreshes".
+                                lv_area_t local_area{10, 10, 49, 49};
+                                lv_obj_invalidate_area(scr, &local_area);
+                            } else {
+                                lv_obj_invalidate(scr);
+                            }
+                        }
+                        esp_lv_adapter_unlock();
+                    }
+                    vTaskDelay(pdMS_TO_TICKS(16));
+                }
+                const int64_t t1 = esp_timer_get_time();
+                const uint64_t refreshes = ds.frame_count() - frames0;
+                const uint64_t flushes = ds.flush_count() - flush0;
+                const uint32_t ticks = rp_ctx.ticks.load(std::memory_order_relaxed) - ticks0;
+                const uint64_t busy = rp_ctx.busy_us.load(std::memory_order_relaxed) - busy0;
+                metrics.reset();
+                metrics.add("refreshes", static_cast<double>(refreshes));
+                metrics.add("flushes", static_cast<double>(flushes));
+                metrics.add("ticks", static_cast<double>(ticks));
+                metrics.add("loop_ms", static_cast<double>(t1 - t0) / 1000.0);
+                metrics.add("tick_cost_us",
+                            ticks > 0 ? static_cast<double>(busy) / static_cast<double>(ticks) : 0.0);
+                (void)add_frame_window_metrics(metrics);
+                emitter.sample(cs.scenario, 0, metrics);
+                ESP_LOGI(TAG, "%s: refreshes=%llu flushes=%llu ticks=%u",
+                         cs.scenario, (unsigned long long)refreshes,
+                         (unsigned long long)flushes, (unsigned)ticks);
+            }
+            rp_ctx.stop.store(true, std::memory_order_relaxed);
+            if (xSemaphoreTake(rp_ctx.exited, pdMS_TO_TICKS(2000)) != pdTRUE) {
+                // The worker still reads this stack context, so deleting the semaphore or
+                // leaving scope would be a use-after-free; the other tick scenarios abort
+                // here for the same reason.
+                ESP_LOGE(TAG, "refresh probe: carrier tick did not exit within 2 s");
+                abort();
+            }
+            vSemaphoreDelete(rp_ctx.exited);
+        }
+    }
+
     // v1.8 section 3.8 App A composite stress. Native-LVGL ceiling probe: tiled
     // moving wallpaper, rotating/scaling sprites, whole-object-alpha overlays,
     // and a scrolling 60-row list, all animated by the adapter worker's own
@@ -1926,12 +2233,17 @@ void perf_eval_main(void *arg)
     // purpose; render_stress covers the document path.
     if (composite_assets_init() && mounted > 0) {
         ESP_LOGI(TAG, "composite_stress: entering, 40 s");
-        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
-            g_comp.saved_screen = lv_screen_active();
-            composite_screen_build();
-            lv_screen_load_anim(g_comp.screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
-            esp_lv_adapter_unlock();
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
+            // Measuring the previous screen would report unrelated numbers as this
+            // scenario, so a failed setup ends the run instead of sampling it.
+            ESP_LOGE(TAG, "composite_stress: adapter lock timeout during setup");
+            vTaskDelete(nullptr);
+            return;
         }
+        g_comp.saved_screen = lv_screen_active();
+        composite_screen_build();
+        lv_screen_load_anim(g_comp.screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
+        esp_lv_adapter_unlock();
         frame_probe_reset_window();
         uint64_t presented_prev = g_frames.presented_count.load(std::memory_order_relaxed);
         uint64_t stress_prev_c = LvglDisplaySource::get_instance().frame_count();
@@ -1953,7 +2265,13 @@ void perf_eval_main(void *arg)
             emitter.sample("composite_stress", i, metrics);
         }
         ESP_LOGI(TAG, "composite_stress: done; tearing down");
-        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
+            // A leftover composite screen would leak into the next scenario.
+            ESP_LOGE(TAG, "composite_stress: adapter lock timeout during teardown");
+            vTaskDelete(nullptr);
+            return;
+        }
+        {
             lv_anim_delete_all();
             // Reload the saved screen before deleting the composite one: the
             // saved screen is the display's active screen at this point, and
@@ -1981,7 +2299,12 @@ void perf_eval_main(void *arg)
     //     issued; the swatch recolour and counter label are the response).
     if (g_comp.img_buf != nullptr && mounted > 0) {
         ESP_LOGI(TAG, "feedback_delay: entering, 40 taps");
-        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
+            ESP_LOGE(TAG, "feedback_delay: adapter lock timeout during setup");
+            vTaskDelete(nullptr);
+            return;
+        }
+        {
             g_comp.saved_screen = lv_screen_active();
             feedback_screen_build();
             lv_screen_load_anim(g_comp.fb_screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
@@ -2056,7 +2379,12 @@ void perf_eval_main(void *arg)
             }
         }
         ESP_LOGI(TAG, "feedback_delay: done, %d samples", (int)fb_samples);
-        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
+            ESP_LOGE(TAG, "feedback_delay: adapter lock timeout during teardown");
+            vTaskDelete(nullptr);
+            return;
+        }
+        {
             if (g_comp.fb_indev != nullptr) {
                 lv_indev_delete(g_comp.fb_indev);
                 g_comp.fb_indev = nullptr;
@@ -2082,12 +2410,17 @@ void perf_eval_main(void *arg)
     // batch_invalidate_ms threshold is defined on.
     if (mounted > 0) {
         ESP_LOGI(TAG, "batch_invalidate: entering, 40 samples");
-        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
-            g_comp.saved_screen = lv_screen_active();
-            batch_screen_build();
-            lv_screen_load_anim(g_comp.batch_screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
-            esp_lv_adapter_unlock();
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
+            // Sampling an unbuilt scene would report a near-zero batch time as a huge
+            // improvement, so a failed setup ends the run instead of measuring nothing.
+            ESP_LOGE(TAG, "batch_invalidate: adapter lock timeout during setup");
+            vTaskDelete(nullptr);
+            return;
         }
+        g_comp.saved_screen = lv_screen_active();
+        batch_screen_build();
+        lv_screen_load_anim(g_comp.batch_screen, LV_SCREEN_LOAD_ANIM_NONE, 0, 0, false);
+        esp_lv_adapter_unlock();
         vTaskDelay(pdMS_TO_TICKS(300));
         int32_t bi_samples = 0;
         for (int32_t i = 0; i < 40; ++i) {
@@ -2110,7 +2443,15 @@ void perf_eval_main(void *arg)
             bi_samples++;
         }
         ESP_LOGI(TAG, "batch_invalidate: done, %d samples", (int)bi_samples);
-        if (esp_lv_adapter_lock(kTickLockTimeoutMs) == ESP_OK) {
+        // The batch screen must be released before steady_state starts, otherwise the
+        // 100 tiles stay resident and the following memory samples describe the batch
+        // scene instead of the mounted Golden Case.
+        if (esp_lv_adapter_lock(kTickLockTimeoutMs) != ESP_OK) {
+            ESP_LOGE(TAG, "batch_invalidate: adapter lock timeout during teardown");
+            vTaskDelete(nullptr);
+            return;
+        }
+        {
             lv_obj_t *gone = g_comp.batch_screen;
             g_comp.batch_screen = nullptr;
             if (g_comp.saved_screen != nullptr) {
@@ -2191,9 +2532,16 @@ void perf_eval_main(void *arg)
             const uint32_t object_count = count_lvgl_objects(active_root);
             esp_lv_adapter_unlock();
             if (object_count > 0) {
-                const double resident_bytes =
-                    static_cast<double>(heap_caps_get_total_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_SPIRAM)) -
-                    static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_SPIRAM));
+                // A combined INTERNAL|SPIRAM capability matches no single region, so both
+                // queries returned 0 and the metric was always reported as 0; sum the two
+                // regions instead.
+                const double total_bytes =
+                    static_cast<double>(heap_caps_get_total_size(MALLOC_CAP_INTERNAL)) +
+                    static_cast<double>(heap_caps_get_total_size(MALLOC_CAP_SPIRAM));
+                const double free_bytes =
+                    static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_INTERNAL)) +
+                    static_cast<double>(heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
+                const double resident_bytes = total_bytes - free_bytes;
                 metrics.add("bytes_per_lvgl_object", resident_bytes / static_cast<double>(object_count));
             }
         }
@@ -2202,7 +2550,11 @@ void perf_eval_main(void *arg)
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    ESP_LOGI(TAG, "perf_eval: completed");
+    // ESP_LOG stops emitting once the steady-state soak is under way, while the direct
+    // write used for [BENCH] records keeps working, so completion is reported on that
+    // channel; a log-line marker would never be observed.
+    fputs("[BENCH] {\"record\":\"completed\"}\n", stdout);
+    fflush(stdout);
     vTaskDelete(nullptr);
 }
 

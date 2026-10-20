@@ -454,7 +454,11 @@ bool BackendImpl::requires_preloaded_image_resource(const RuntimeImageResource &
 void BackendImpl::process_timers()
 {
     if (is_timer_managed_by_port()) {
-        request_refresh_now();
+        // The port already drives lv_timer_handler on its own cadence, so forcing a
+        // refresh here made every host tick invalidate the whole screen and all of its
+        // layers: a carrier calling process_timers() every 15 ms measured local widget
+        // animations under a full-screen repaint the scenario never asked for. Nothing
+        // to do: pending work is flushed by the port timer.
         return;
     }
 

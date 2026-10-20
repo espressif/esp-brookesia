@@ -107,7 +107,7 @@ class TestParseProfileLog(unittest.TestCase):
     def test_as_dict_shape(self):
         out = parse_profile_log(DEVICE_LOG).as_dict()
         self.assertIn("stages", out)
-        self.assertAlmostEqual(out["doc_load_total_ms"], 15934.0)
+        self.assertAlmostEqual(out["doc_load_ms"], 15934.0)
         self.assertNotIn("undecodable", out)
 
     def test_empty_log(self):

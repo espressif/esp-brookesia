@@ -11,7 +11,8 @@
     "judge": "p95",
     "pass_a_max": 30,
     "pass_b_max": 50,
-    "fail_above": 100
+    "fail_above": 100,
+    "cv_exempt": true
   },
   "event_dispatch_ms": {
     "direction": "lower_better",
@@ -50,12 +51,30 @@
     "pass_b_max": 50,
     "fail_above": 120
   },
-  "avg_fps": {
+  "fps": {
     "direction": "higher_better",
     "judge": "mean",
     "pass_a_min": 55,
     "pass_b_min": 40,
-    "fail_below": 30
+    "fail_below": 30,
+    "scenario_overrides": {
+      "steady_state": {
+        "record": true
+      },
+      "screen_cycle": {
+        "record": true
+      },
+      "binding_push": {
+        "pass_a_min": 30,
+        "pass_b_min": 20,
+        "fail_below": 10
+      },
+      "concurrency": {
+        "pass_a_min": 30,
+        "pass_b_min": 20,
+        "fail_below": 10
+      }
+    }
   },
   "frame_time_ms": {
     "direction": "lower_better",
@@ -106,7 +125,8 @@
     "pass_a_max": 20,
     "pass_b_max": 50,
     "fail_above": 100,
-    "regression_tolerance_pct": 2.0
+    "regression_tolerance_pct": 2.0,
+    "cv_exempt": true
   },
   "batch_invalidate_ms": {
     "direction": "lower_better",

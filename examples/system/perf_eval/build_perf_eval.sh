@@ -34,7 +34,32 @@ BOARD_ALIAS="${BOARD##*/}"
 # shellcheck disable=SC1091
 . "$IDF_PATH/export.sh" >/dev/null 2>&1
 
+# Flashing this image reformats the flash region that examples/system/super uses
+# for its LittleFS volume, so a plain `flash` would silently erase that data.
+for arg in "$@"; do
+    case "$arg" in
+        flash|app-flash|flash-only)
+            if [ "${PERF_EVAL_ACK_ERASE:-0}" != "1" ]; then
+                echo "refusing to flash: this image erases the shared LittleFS region." >&2
+                echo "on a board dedicated to benchmarking, re-run with PERF_EVAL_ACK_ERASE=1." >&2
+                exit 1
+            fi
+            ;;
+    esac
+done
+
 cd "$HERE"
+
+# The board-manager code generator is only wired into build_apps.py: gen-bmgr-config
+# on its own emits a component whose include dirs miss the board device headers
+# (dev_display_lcd.h, dev_audio_codec.h), so a tree that was never built by build_apps
+# cannot link. Delegate the build to it and keep this wrapper for the flags/ack checks.
+if [ "$1" = "build" ] || [ "$1" = "all" ]; then
+    echo "perf_eval: building through build_apps.py (BOARD=$BOARD, target=$TARGET)"
+    cd "$HERE/../../.."
+    exec python .gitlab/tools/build_apps.py examples/system/perf_eval -t "$TARGET" -vv
+fi
+
 idf.py \
     -DBOARD="$BOARD" \
     -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.defaults.$TARGET;sdkconfig.ci.board.$BOARD_ALIAS;sdkconfig.defaults.board" \

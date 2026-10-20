@@ -704,18 +704,16 @@ std::expected<void, std::string> System::gui_set_binding_values(
     return impl_->enqueue_gui_binding_updates(app_id, updates);
 }
 
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
 System::GuiBindingFlushStats System::gui_binding_flush_stats() const
 {
-#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
     return {
         .flush_count = impl_->gui_binding_flush_count_.load(std::memory_order_relaxed),
         .applied_updates = impl_->gui_binding_applied_updates_.load(std::memory_order_relaxed),
         .apply_us = impl_->gui_binding_apply_us_.load(std::memory_order_relaxed),
     };
-#else
-    return {};
-#endif
 }
+#endif
 
 std::optional<std::string> System::gui_get_binding_value(
     AppId app_id,
@@ -1602,6 +1600,19 @@ std::expected<gui::DocumentId, std::string> System::system_gui_load_json(
 )
 {
     return system_gui().load_json(root_path, json, resource_dir);
+}
+
+std::expected<void, std::string> System::system_gui_load_theme_file(
+    std::string_view resource_dir,
+    std::string_view path
+)
+{
+    return system_gui().load_theme_file(resource_dir, path);
+}
+
+std::expected<void, std::string> System::system_gui_set_theme(std::string_view theme_id)
+{
+    return system_gui().set_theme(theme_id);
 }
 
 std::expected<gui::View, std::string> System::system_gui_mount_screen(

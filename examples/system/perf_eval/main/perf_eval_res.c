@@ -347,10 +347,10 @@ extern const uint8_t _binary_system_super_themes_style_default_json_end[];
 
 // Measured from res/: nodes are objects carrying a "type", styles are objects
 // carrying a "style", bytes is the whole embedded tree (JSON + images + fonts).
-const uint32_t perf_eval_res_doc_nodes = 688;
-const uint32_t perf_eval_res_doc_styles = 121;
+const uint32_t perf_eval_res_doc_nodes = 919;
+const uint32_t perf_eval_res_doc_styles = 274;
 const uint32_t perf_eval_res_doc_images = 39;
-const uint32_t perf_eval_res_doc_bytes = 2200371u;
+const uint32_t perf_eval_res_doc_bytes = 2328327u;
 
 // Screen ids as declared by the flow documents. A screen id is not a file stem:
 // settings ships screens/header.json for the screen id "settings_header".
@@ -378,6 +378,7 @@ const PerfEvalResScreen perf_eval_res_screens[] = {
     {"system/super/shell", "message_dialog"},
     {"system/super/shell", "message_dialog_hidden"},
     {"system/super/shell", "overlay"},
+    {"system/super/startup", "startup"},
 };
 
 const size_t perf_eval_res_screen_count =

@@ -19,3 +19,5 @@ dependencies:
   espressif/brookesia_service_device:
     override_path: ../../../../service/system/brookesia_service_device
     version: 0.8.*
+  joltwallet/littlefs:
+    version: "1.*"

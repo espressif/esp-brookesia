@@ -7,21 +7,28 @@ import os
 import pathlib
 import subprocess
 import sys
+import unittest
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-BASELINE = REPO / "reports/baseline/esp32_p4_function_ev/Baseline.esp32_p4_function_ev.json"
+BASELINE = REPO / "reports" / "baseline" / "esp32_p4_function_ev" / "Baseline.esp32_p4_function_ev.json"
 
 
-def test_compare_cli_handles_nested_metrics():
-    assert BASELINE.is_file(), f"missing baseline report: {BASELINE}"
-    env = dict(os.environ)
-    env["PYTHONPATH"] = str(REPO / "tools/brookesia_gui_perf/src")
-    proc = subprocess.run(
-        [sys.executable, "-m", "brookesia_gui_perf.cli", "compare",
-         str(BASELINE), str(BASELINE)],
-        cwd=str(REPO), capture_output=True, text=True, env=env, timeout=120,
-    )
-    assert "KeyError" not in (proc.stderr + proc.stdout), proc.stderr
-    assert proc.returncode in (0, 1), proc.stderr
-    assert "PASS=" in proc.stdout
-    assert any("/" in line for line in proc.stdout.splitlines()), proc.stdout
+class CompareCliTest(unittest.TestCase):
+    def test_compare_handles_nested_metrics(self):
+        self.assertTrue(BASELINE.is_file(), f"missing baseline report: {BASELINE}")
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(REPO / "tools" / "brookesia_gui_perf" / "src")
+        proc = subprocess.run(
+            [sys.executable, "-m", "brookesia_gui_perf.cli", "compare",
+             str(BASELINE), str(BASELINE)],
+            cwd=str(REPO), capture_output=True, text=True, env=env, timeout=120,
+        )
+        combined = proc.stderr + proc.stdout
+        self.assertNotIn("KeyError", combined, combined)
+        self.assertIn(proc.returncode, (0, 1), proc.stderr)
+        self.assertIn("PASS=", proc.stdout)
+        self.assertTrue(any("/" in line for line in proc.stdout.splitlines()), proc.stdout)
+
+
+if __name__ == "__main__":
+    unittest.main()

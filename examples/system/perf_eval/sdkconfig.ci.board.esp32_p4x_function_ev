@@ -4,3 +4,5 @@
 # sdkconfig.defaults.esp32p4 relies on. Keep it minimal so a fresh checkout can
 # select the board the target-test runner is tagged with.
 CONFIG_IDF_TARGET="esp32p4"
+CONFIG_PERF_EVAL_BOARD_ID="esp32_p4x_function_ev"
+CONFIG_PERF_EVAL_ALLOW_DESTRUCTIVE_FORMAT=y

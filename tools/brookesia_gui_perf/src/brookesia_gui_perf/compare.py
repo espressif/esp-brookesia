@@ -3,9 +3,11 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import pathlib
 from importlib import resources
 from typing import Any, Dict, Optional, List
 
+from brookesia_gui_perf import spec_coverage as _spec_coverage
 from brookesia_gui_perf.report import judgment_value
 from brookesia_gui_perf.stats import cv_ok
 
@@ -16,12 +18,37 @@ RELATIVE_FAIL_FACTOR = {"max": 1.10, "min": 0.90}
 REGRESSION_TOLERANCE_PCT = 1.0
 # composite_stress is the section 3.8 native-LVGL ceiling probe: a reference
 # workload, not a JSON-UI acceptance target, so it is recorded but never gates.
-RECORD_ONLY_SCENARIOS = {"composite_stress"}
+RECORD_ONLY_SCENARIOS = {
+    "composite_stress",
+    # refresh_probe_* are the process_timers() acceptance diagnostic: they
+    # report refreshes / flushes / tick cost for static, local and full
+    # invalidation, with no pass/fail target of their own.
+    "refresh_probe_static",
+    "refresh_probe_local",
+    "refresh_probe_full",
+}
 
 
 def load_thresholds() -> Dict[str, Any]:
     data = resources.files("brookesia_gui_perf").joinpath("thresholds.json").read_text(encoding="utf-8")
     return json.loads(data)
+
+
+def scenario_row(row: Dict[str, object], scenario: str) -> Dict[str, object]:
+    """Threshold row with this scenario's overrides folded in.
+
+    A single global rule cannot describe every scenario: fps is graded on a
+    sustained-load phase but is 0 whenever the carrier legitimately stops
+    redrawing, so those scenarios opt out instead of failing the run.
+    """
+    overrides = row.get("scenario_overrides") or {}
+    override = overrides.get(scenario)
+    if not override:
+        return row
+    merged = dict(row)
+    merged.update(override)
+    merged.pop("scenario_overrides", None)
+    return merged
 
 
 def improvement_pct(direction: str, baseline: float, optimized: float) -> float:
@@ -88,11 +115,53 @@ def grade(
     return "fail"
 
 
+def _shipped_baseline_metrics(path: Optional[pathlib.Path] = None) -> Optional[set]:
+    """Metric names this carrier is known to emit, or None when unknown.
+
+    The catalogue is shipped inside the package so an installed wheel validates
+    thresholds without a repository checkout; the repo baseline is only a fallback.
+    """
+    try:
+        catalog = resources.files("brookesia_gui_perf").joinpath("metric_catalog.json")
+        return set(json.loads(catalog.read_text(encoding="utf-8"))["metrics"])
+    except (OSError, ValueError, KeyError):
+        pass
+    try:
+        root = pathlib.Path(__file__).resolve().parents[4]
+        report = path or (root / "reports" / "baseline" / "esp32_p4_function_ev"
+                          / "Baseline.esp32_p4_function_ev.json")
+        if not report.is_file():
+            return None
+        payload = json.loads(report.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    names = set()
+    for scenario in payload.get("scenarios", {}).values():
+        names.update(scenario.get("metrics", {}))
+    return names
+
+
+DECLARED_UNINSTRUMENTED = {
+    "alloc_resident_pct", "build_copy_bytes", "doc_load_transient_kb",
+    "task_heap_max_kb", "doc_load_ms", "first_frame_ms", "first_visible_ms",
+    "page_switch_ms",
+}
+
+_SPEC_PENDING_METRICS = [
+    metric
+    for entry in _spec_coverage._FIELDS.values()
+    if entry.get("status") in (_spec_coverage.PENDING, _spec_coverage.NOT_APPLICABLE)
+    for metric in entry.get("metrics", [])
+]
+
+
 def compare_reports(
     baseline: Dict[str, Any],
     optimized: Dict[str, Any],
     *,
     thresholds: Optional[Dict[str, Any]] = None,
+    strict_unknown_thresholds: bool = False,
+    metric_catalog: "Optional[set]" = None,
 ) -> Dict[str, Any]:
     thresholds = thresholds if thresholds is not None else load_thresholds()
     base_meta = baseline.get("metadata", {})
@@ -110,6 +179,18 @@ def compare_reports(
         for name in sorted(set(base_metrics) & set(opt_metrics)):
             row = thresholds.get(name)
             if row is None:
+                continue
+            row = scenario_row(row, scenario)
+            if row.get("record"):
+                # A static screen stops redrawing by design, so an absolute fps floor
+                # cannot apply there: keep the value in the report without grading it.
+                metrics_out.setdefault(scenario, {})[name] = {
+                    "improvement_pct": None,
+                    "baseline_grade": "record",
+                    "optimized_grade": "record",
+                    "regressed": False,
+                    "ok": True,
+                }
                 continue
             base_stats = base_metrics[name]
             opt_stats = opt_metrics[name]
@@ -160,4 +241,40 @@ def compare_reports(
                 coverage_gaps.append({"scenario": scenario, "metric": name})
                 all_ok = False
 
-    return {"pass": all_ok, "metrics": metrics_out, "coverage_gaps": coverage_gaps}
+    # A threshold keyed by a metric name that appears in neither report can never fire,
+    # so a typo silently disables the rule (avg_fps vs fps did exactly that).
+    seen_names = set()
+    for scenario_data in list(base_scenarios.values()) + list(opt_scenarios.values()):
+        seen_names.update(scenario_data.get("metrics", {}))
+    unknown_thresholds = [
+        name for name, row in thresholds.items()
+        if not row.get("record_only") and name not in seen_names
+        and name not in DECLARED_UNINSTRUMENTED
+        and name not in _SPEC_PENDING_METRICS
+    ]
+    # A threshold key that the shipped baseline never emits can never fire. Checking
+    # against that reference (not against the pair under comparison) keeps partial
+    # comparisons legal while still failing on a misspelled key such as fps_typo, which
+    # difflib's 0.8 cutoff does not catch (fps_typo vs fps is only 0.55).
+    reference = metric_catalog if metric_catalog is not None else _shipped_baseline_metrics()
+    if reference is None:
+        # Without a known metric catalogue a threshold key cannot be validated, and an
+        # unvalidated gate is worse than a failing one.
+        if unknown_thresholds:
+            all_ok = False
+    else:
+        unknown_thresholds = [n for n in unknown_thresholds if n not in reference]
+        if unknown_thresholds:
+            all_ok = False
+    # Warmup can leave too few samples for every metric; an empty comparison must
+    # not be reported as a pass, and the coverage gaps above still apply.
+    if not metrics_out:
+        all_ok = False
+    # Record-only rows are not graded, so a comparison made only of them proves
+    # nothing; at least one metric must have actually been judged.
+    graded = any(row.get("optimized_grade") not in (None, "record")
+                 for scenario in metrics_out.values() for row in scenario.values())
+    if not graded:
+        all_ok = False
+    return {"pass": all_ok, "metrics": metrics_out, "coverage_gaps": coverage_gaps,
+            "unknown_thresholds": unknown_thresholds}

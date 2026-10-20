@@ -65,8 +65,9 @@ BENCH_TIMEOUT_S = 45 * 60
 # which only exists once screens are mounted. Kept as a named threshold so a failure
 # names the gate rather than just a number.
 SECTION_3_1_OBJECT_GATE = 600
+GOLDEN_CASE_SCREENS = 24
 
-COMPLETION_MARKER = 'perf_eval: completed'
+COMPLETION_MARKER = '"record":"completed"'
 
 
 def run_test(dut: Dut) -> None:
@@ -86,15 +87,22 @@ def run_test(dut: Dut) -> None:
     # section 1.3 probes. Without these lines doc-load has nothing to segment.
     dut.expect(r'profile: .*stage\(parse_root_json\)', timeout=EXPECT_TIMEOUT_S)
 
-    mounted = dut.expect(r'PerfEval: mounted (\d+) screens \((\d+) failed\)', timeout=EXPECT_TIMEOUT_S)
+    mounted = dut.expect(
+        r'PerfEval: mounted (\d+) screens over the whole Golden Case \((\d+) failed\)',
+        timeout=EXPECT_TIMEOUT_S,
+    )
     screens = int(mounted.group(1))
     failed = int(mounted.group(2))
 
     # A screen id is not a file stem, so this used to be 10 of 11 with
     # /settings_header failing. A partial mount would understate the object count and
-    # still look healthy, so it is a hard failure rather than a warning.
+    # still look healthy, so it is a hard failure rather than a warning. The count is
+    # pinned to the Golden Case (5 documents / 24 screens): a smaller number means the
+    # carrier stopped enumerating documents, not that the UI shrank.
     assert failed == 0, 'screens failed to mount, object count would be understated'
-    assert screens > 0, 'no screen mounted, section 3.1 cannot be judged'
+    assert screens == GOLDEN_CASE_SCREENS, (
+        f'expected {GOLDEN_CASE_SCREENS} screens from the Golden Case, got {screens}'
+    )
 
     objects = dut.expect(r'runtime LVGL objects=(\d+)', timeout=EXPECT_TIMEOUT_S)
     object_count = int(objects.group(1))

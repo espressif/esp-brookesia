@@ -4,6 +4,24 @@ config PERF_EVAL_NOTE
     bool
     default n
 
+config PERF_EVAL_ALLOW_DESTRUCTIVE_FORMAT
+    bool "Allow reformatting the benchmark data partition on boot"
+    default n
+    help
+        The benchmark partition occupies the same flash region that
+        examples/system/super uses for its LittleFS image, so reformatting it
+        destroys any files previously written there (fonts, apps, user data).
+        Only boards dedicated to benchmarking may enable this; the CI board
+        configs do so explicitly.
+
+config PERF_EVAL_BOARD_ID
+    string "Board id recorded in the [BENCH] metadata"
+    default ""
+    help
+        Set by each board config file. The CI build does not pass BOARD and hands
+        the component a generated sdkconfig path, so the id has to come from the
+        config the job selected.
+
 endmenu
 
 # Declaring BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL here is what made

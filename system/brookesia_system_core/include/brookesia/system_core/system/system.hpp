@@ -295,12 +295,14 @@ public:
     // flush_count/applied_updates are event totals, apply_us their accumulated
     // duration, so the harness derives mean/p95 T_flush_apply by differencing
     // snapshots rather than instrumenting the GUI path itself.
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
     struct GuiBindingFlushStats {
         uint64_t flush_count = 0;
         uint64_t applied_updates = 0;
         uint64_t apply_us = 0;
     };
     GuiBindingFlushStats gui_binding_flush_stats() const;
+#endif
     std::optional<std::string> gui_get_binding_value(
         AppId app_id,
         std::string_view absolute_path,
@@ -416,6 +418,23 @@ public:
         std::string_view json,
         std::string_view resource_dir
     );
+
+    /**
+     * @brief Register a theme document so loaded documents can resolve its styles
+     *
+     * Public for the same reason as system_gui_load_json(): a carrier that stages the
+     * theme files itself must register and activate one before loading any document,
+     * otherwise every named style reference resolves to nothing.
+     */
+    std::expected<void, std::string> system_gui_load_theme_file(
+        std::string_view resource_dir,
+        std::string_view path
+    );
+
+    /**
+     * @brief Activate a theme registered through system_gui_load_theme_file()
+     */
+    std::expected<void, std::string> system_gui_set_theme(std::string_view theme_id);
 
     /**
      * @brief Mount a screen from a loaded document, creating its widget tree

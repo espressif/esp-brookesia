@@ -4,7 +4,7 @@
 
 import hashlib
 import subprocess
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from brookesia_gui_perf.parser import RunRecords
 from brookesia_gui_perf.spec_coverage import (
@@ -14,6 +14,14 @@ from brookesia_gui_perf.spec_coverage import (
     uncovered,
 )
 from brookesia_gui_perf.stats import DEFAULT_WARMUP, MIN_SAMPLES, aggregate
+
+DIAGNOSTIC_SCENARIOS = {
+    # One-shot probes: raw values only, never statistics, never part of the shared
+    # sample budget (see build_report).
+    "refresh_probe_static",
+    "refresh_probe_local",
+    "refresh_probe_full",
+}
 
 REQUIRED_METADATA_FIELDS: List[str] = [
     "board_id", "git_sha", "idf_version", "idf_preview", "sdkconfig_hash",
@@ -29,20 +37,44 @@ PERCENTILE_KEYS = ("mean", "std", "cv", "p50", "p75", "p95", "p99", "n")
 JUDGES = ("mean", "p95", "p99")
 
 
-def _worktree_diff_sha256() -> str:
-    """sha256 over tracked diff + untracked file list. Empty string if git absent."""
+def _worktree_state(run: "Optional[Callable[..., str]]" = None) -> "tuple[bool, str, bool]":
+    """Return (dirty, fingerprint) for the *actual* source state.
+
+    A clean tree returns (False, ""). Untracked and staged content are part of the
+    fingerprint, because `git diff` alone misses both. A failing git command reports
+    dirty with no fingerprint: an unproven state must never look clean, since gate.py
+    treats the pair as a non-volatile pairing condition.
+    """
+
+    def git(*args: str) -> str:
+        result = subprocess.run(
+            ["git", *args], capture_output=True, text=True, timeout=20, check=False
+        )
+        if result.returncode != 0:
+            raise RuntimeError(result.stderr.strip() or "git command failed")
+        return result.stdout
+
+    run = run or git
+
     try:
-        diff = subprocess.run(
-            ["git", "diff"], capture_output=True, text=True, timeout=20, check=False
-        ).stdout
-        names = subprocess.run(
-            ["git", "ls-files", "--others", "--exclude-standard"],
-            capture_output=True, text=True, timeout=20, check=False,
-        ).stdout
-    except (OSError, subprocess.SubprocessError):
-        return ""
-    payload = diff + "\n--untracked--\n" + names
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+        unstaged = run("diff")
+        staged = run("diff", "--cached")
+        # -z plus quotepath=false keeps non-ASCII names raw; without it git emits an
+        # escaped, quoted form that cannot be opened and every such state collapses to
+        # the same (failed) fingerprint.
+        names = [n for n in run("-c", "core.quotepath=false", "ls-files", "-z",
+                                "--others", "--exclude-standard").split("\0") if n]
+        untracked = []
+        for name in sorted(names):
+            with open(name, "rb") as handle:
+                untracked.append(name + ":" + hashlib.sha256(handle.read()).hexdigest())
+    except (OSError, subprocess.SubprocessError, RuntimeError):
+        return True, "", False
+    if not (unstaged.strip() or staged.strip() or untracked):
+        return False, "", True
+    payload = (unstaged + "\x00--staged--\x00" + staged
+               + "\x00--untracked--\x00" + "\n".join(untracked))
+    return True, hashlib.sha256(payload.encode("utf-8")).hexdigest(), True
 
 
 def build_report(
@@ -51,9 +83,15 @@ def build_report(
     warmup: int = DEFAULT_WARMUP,
     worktree_dirty: bool = False,
     worktree_diff_sha256: str = "",
+    probe_worktree: bool = False,
+    allow_unknown_worktree: bool = False,
 ) -> Dict[str, Any]:
-    worktree_diff = worktree_diff_sha256 or _worktree_diff_sha256()
-    worktree_flag = worktree_dirty or bool(worktree_diff)
+    if probe_worktree:
+        worktree_flag, worktree_diff, worktree_known = _worktree_state()
+    else:
+        worktree_flag = bool(worktree_dirty or worktree_diff_sha256)
+        worktree_diff = worktree_diff_sha256
+        worktree_known = True
     head = records.metadata or {}
     per_scenario: Dict[str, List[Dict[str, Any]]] = {}
     for sample in records.samples:
@@ -62,6 +100,17 @@ def build_report(
     scenarios: Dict[str, Dict[str, Any]] = {}
     min_kept = None
     for scenario, samples in sorted(per_scenario.items()):
+        if scenario in DIAGNOSTIC_SCENARIOS:
+            # A diagnostic probe reports one measurement per condition; applying the
+            # warmup drop and the 30-sample minimum would erase it and, worse, drag the
+            # top-level sample_count to 0. Keep the raw values out of the statistics and
+            # out of the shared sample budget.
+            raw: Dict[str, Any] = {}
+            for sample in samples:
+                for key, value in sample["metrics"].items():
+                    raw[key] = {"value": value}
+            scenarios[scenario] = {"metrics": raw, "diagnostic": True}
+            continue
         kept = samples[warmup:]
         numeric: Dict[str, List[float]] = {}
         passthrough: Dict[str, Any] = {}
@@ -92,6 +141,11 @@ def build_report(
     assert min_kept is not None, "log contains no scenarios"
     metadata: Dict[str, Any] = dict(head.get("metadata") or {})
     metadata["worktree_dirty"] = worktree_flag
+    # False means "the source state could not be fingerprinted" (git unavailable);
+    # pairing such a report with anything proves nothing about the sources matching.
+    metadata["worktree_state_known"] = worktree_known
+    # Controlled use without git: the caller accepts that provenance is unprovable.
+    metadata["worktree_exempt"] = bool(allow_unknown_worktree)
     metadata["worktree_diff_sha256"] = worktree_diff
     report: Dict[str, Any] = {
         "test_suite": head.get("test_suite"),

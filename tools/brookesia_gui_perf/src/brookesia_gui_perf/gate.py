@@ -57,6 +57,21 @@ def _comparable_metadata(metadata: Dict[str, Any]) -> Dict[str, Any]:
     return comparable
 
 
+def _unprovable_worktree(metadata: Dict[str, Any]) -> bool:
+    """True when the source state could not be fingerprinted (git unavailable).
+
+    A dirty flag with no fingerprint cannot be compared with another unknown state:
+    equality of two unknowns proves nothing about the sources matching.
+    """
+    if metadata.get("worktree_exempt") is True:
+        return False
+    if metadata.get("worktree_state_known") is False:
+        return True
+    # Legacy reports predate worktree_state_known: an empty fingerprint with the dirty
+    # flag set is the same "cannot prove" state and must not be treated as known.
+    return bool(metadata.get("worktree_dirty")) and not metadata.get("worktree_diff_sha256")
+
+
 def check_gate(baseline: Dict[str, Any], optimized: Dict[str, Any]) -> List[str]:
     """Spec section 5.2 step 1 paired-comparison gate. Empty list means pass."""
     violations: List[str] = []
@@ -74,4 +89,10 @@ def check_gate(baseline: Dict[str, Any], optimized: Dict[str, Any]) -> List[str]
             violations.append(f"metadata field differs: {key}")
     violations += [f"baseline: {v}" for v in check_validity(base_meta)]
     violations += [f"optimized: {v}" for v in check_validity(opt_meta)]
+    for side, meta in (("baseline", base_meta), ("optimized", opt_meta)):
+        if _unprovable_worktree(meta):
+            violations.append(
+                f"{side}: worktree provenance unknown (git unavailable); "
+                "a pair cannot be validated without a source fingerprint"
+            )
     return violations

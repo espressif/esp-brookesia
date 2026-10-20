@@ -89,15 +89,24 @@ def collect_screens(files):
     Returns (dir, screen_id) pairs where dir is the document set the flow lives
     in, which is also the directory relative asset paths resolve against.
     """
-    screens = []
+    screens = set()
     for rel in files:
-        if "/flows/" not in rel or not rel.endswith(".json"):
+        if not rel.endswith(".json"):
             continue
-        flow = load_json(rel)
-        directory = rel[: rel.index("/flows/")]
-        for screen_id in flow.get("screens", []):
-            screens.append((directory, screen_id))
-    return sorted(set(screens))
+        if "/flows/" in rel:
+            flow = load_json(rel)
+            directory = rel[: rel.index("/flows/")]
+            for screen_id in flow.get("screens", []):
+                screens.add((directory, screen_id))
+        elif "/screens/" in rel:
+            # Screens that no flow declares (the startup document) exist only as files,
+            # so the id has to come from the document itself.
+            screen = load_json(rel)
+            screen_id = screen.get("id")
+            if screen_id:
+                directory = rel[: rel.index("/screens/")]
+                screens.add((directory, screen_id))
+    return sorted(screens)
 
 
 def main():
@@ -107,8 +116,19 @@ def main():
     files = collect_files()
     nodes, styles, images, total_bytes = measure_complexity(files)
     screens = collect_screens(files)
+    documents = sorted({rel[: rel.index("/root.json")] for rel in files
+                        if rel.endswith("/root.json")})
+    if len(documents) != 5:
+        sys.exit("expected 5 documents, found {}: {}".format(len(documents), documents))
+    if len(screens) != 24:
+        sys.exit("expected 24 screens, found {}: {}".format(len(screens), screens))
 
     out = [
+        "/*",
+        " * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD",
+        " *",
+        " * SPDX-License-Identifier: CC0-1.0",
+        " */",
         "// Generated from res/ by main/gen_perf_eval_res.py - do not edit by hand.",
         "//",
         "// Paths are mapped onto flat staged filenames because ESP-IDF derives",

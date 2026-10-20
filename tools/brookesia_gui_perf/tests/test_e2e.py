@@ -4,6 +4,7 @@
 
 import json
 import pathlib
+import shutil
 import tempfile
 import unittest
 
@@ -50,12 +51,17 @@ class EndToEndTests(unittest.TestCase):
                 opt_log = logs / f"opt_{board}.log"
                 base_log.write_text(emit_log(scaled_records(1.0), "aaa1111"), encoding="utf-8")
                 opt_log.write_text(emit_log(scaled_records(0.85), "bbb2222"), encoding="utf-8")
+                # CI images have no git, so provenance cannot be fingerprinted there;
+                # the pipeline must opt in explicitly, exactly as a real user would.
+                extra = [] if shutil.which("git") else ["--allow-unknown-worktree"]
                 self.assertEqual(
-                    main(["aggregate", str(base_log), "-o", str(bdir / f"Baseline.{board}.json")]),
+                    main(["aggregate", str(base_log), "-o",
+                          str(bdir / f"Baseline.{board}.json"), *extra]),
                     0,
                 )
                 self.assertEqual(
-                    main(["aggregate", str(opt_log), "-o", str(odir / f"Optimized.{board}.json")]),
+                    main(["aggregate", str(opt_log), "-o",
+                          str(odir / f"Optimized.{board}.json"), *extra]),
                     0,
                 )
             report = json.loads(

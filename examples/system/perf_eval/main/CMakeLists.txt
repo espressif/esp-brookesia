@@ -82,14 +82,18 @@ endif()
 if(BOARD)
     string(REGEX REPLACE "^espressif/" "" PERF_EVAL_BOARD_ALIAS "${BOARD}")
 else()
-    # idf_build_apps does not pass BOARD, so fall back to the sdkconfig the job
-    # selected; an unresolved id must fail instead of archiving under "unknown".
-    string(REGEX MATCH "esp32_p4x_function_ev|esp32_p4_function_ev"
-        PERF_EVAL_BOARD_ALIAS "${SDKCONFIG}")
+    # idf_build_apps does not pass BOARD and hands us a generated sdkconfig path,
+    # so each board config declares its own id; an unresolved id must fail instead
+    # of archiving the report under "unknown".
+    set(PERF_EVAL_BOARD_ALIAS "${CONFIG_PERF_EVAL_BOARD_ID}")
 endif()
 if(NOT PERF_EVAL_BOARD_ALIAS)
-    message(FATAL_ERROR "perf_eval: cannot determine the board id "
-        "(BOARD='${BOARD}', SDKCONFIG='${SDKCONFIG}')")
+    # The set-target pre-hook runs cmake before sdkconfig.ci.board.* is merged, so
+    # the id can legitimately be empty there; the real build resolves it and the
+    # firmware refuses to run when it is still unknown.
+    set(PERF_EVAL_BOARD_ALIAS "unknown")
+    message(WARNING "perf_eval: board id unresolved at configure time "
+        "(BOARD='${BOARD}', CONFIG_PERF_EVAL_BOARD_ID='${CONFIG_PERF_EVAL_BOARD_ID}')")
 endif()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/perf_eval_build_info.h"
     "#pragma once\n#define PERF_EVAL_SDKCONFIG_HASH \"sha256:${PERF_EVAL_SDKCONFIG_SHA}\"\n"

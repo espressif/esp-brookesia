@@ -96,7 +96,7 @@ class ProfileLog:
         }
         total = self.total_parse_ms()
         if total is not None:
-            out["doc_load_total_ms"] = total
+            out["doc_load_ms"] = total
         if self.undecodable:
             out["undecodable"] = self.undecodable
         return out

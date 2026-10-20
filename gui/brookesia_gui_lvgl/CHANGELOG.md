@@ -2,11 +2,15 @@
 
 ## v0.8.7 - 2026-10-27
 
+### Enhancements:
+
 - feat(display): add per-source frame / flush / dropped counters and font-load timing, compiled out behind `BROOKESIA_GUI_LVGL_ENABLE_PERF_PROBE` (default n) so shipped builds pay nothing.
 - feat(soc): add an ESP32-C5 button ADC compatibility shim.
-- feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
-- feat(props): skip redundant common transform defaults when applying local LVGL transform props.
-- feat(screen): move the staging root to a dedicated `staging_screen` and defer `refresh_relative_placements()` until mount, so idle-warm screens do not flicker.
+
+### Bug Fixes:
+
+- fix(display): count a frame once per refresh so FPS is not doubled on TEAR_AVOID_MODE_NONE.
+- fix(render): avoid full-screen/layer invalidation from `process_timers()` when the ESP LVGL adapter owns timer processing.
 
 ## v0.8.6 - 2026-10-27
 
@@ -15,7 +19,6 @@
 - fix(render): avoid flicker during deferred screen builds and refresh relative placement when a screen is mounted.
 - fix(props): reset transforms when local transform properties are removed.
 - fix(deps): require GUI Interface `>=0.8.3,<0.9`.
-
 ## v0.8.5 - 2026-09-17
 
 ### Bug Fixes:

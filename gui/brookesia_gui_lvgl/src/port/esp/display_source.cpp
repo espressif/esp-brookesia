@@ -257,6 +257,7 @@ uint32_t DisplaySource::height() const
     return impl_->height();
 }
 
+#if BROOKESIA_GUI_LVGL_PERF_PROBE
 uint64_t DisplaySource::frame_count() const
 {
     return impl_->frame_count();
@@ -271,6 +272,7 @@ uint64_t DisplaySource::flush_count() const
 {
     return impl_->flush_count();
 }
+#endif
 
 bool DisplaySourceImpl::start(const DisplaySourceConfig &config)
 {

@@ -86,6 +86,10 @@ def parse_log(text: str) -> RunRecords:
                 if "scenario" not in obj or "metrics" not in obj:
                     raise ValueError(f"sample record missing scenario/metrics: {obj!r}")
                 records.samples.append(obj)
+            elif rec_type == "completed":
+                # End-of-run marker emitted on the same channel as the samples; it
+                # carries no metrics, so it only proves the run reached the end.
+                records.completed = True
             else:
                 raise ValueError(f"unknown record type: {rec_type!r}")
     # A log with zero [BENCH] lines (e.g. a boot log captured before the

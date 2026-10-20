@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import pathlib
 import unittest
 
 from brookesia_gui_perf.compare import compare_reports, grade, improvement_pct, load_thresholds
@@ -158,3 +159,73 @@ class CompareTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UnknownThresholdTests(unittest.TestCase):
+    """A threshold keyed by a misspelled metric must not be silently skipped."""
+
+    BASELINE = pathlib.Path(__file__).resolve().parents[3] / "reports" / "baseline" \
+        / "esp32_p4_function_ev" / "Baseline.esp32_p4_function_ev.json"
+
+    def _report(self):
+        return json.loads(self.BASELINE.read_text(encoding="utf-8"))
+
+    def _thresholds_with_typo(self):
+        table = load_thresholds()
+        table["fps_typo"] = dict(table["fps"])
+        return table
+
+    def test_typo_fails_without_extra_flags(self):
+        report = self._report()
+        result = compare_reports(report, report, thresholds=self._thresholds_with_typo())
+        self.assertFalse(result["pass"])
+        self.assertIn("fps_typo", result["unknown_thresholds"])
+
+    def test_typo_is_reported(self):
+        report = self._report()
+        result = compare_reports(report, report, thresholds=self._thresholds_with_typo())
+        self.assertIn("fps_typo", result["unknown_thresholds"])
+
+    def test_typo_fails_on_an_otherwise_passing_pair(self):
+        base, opt = scaled_report(1.0), scaled_report(0.9)
+        catalog = set(load_thresholds())
+        self.assertTrue(compare_reports(base, opt, metric_catalog=catalog)["pass"])
+        table = load_thresholds()
+        table["fps_typo"] = dict(table["fps"])
+        self.assertFalse(compare_reports(base, opt, thresholds=table,
+                                         metric_catalog=catalog)["pass"])
+
+    def test_missing_catalog_fails_closed(self):
+        base, opt = scaled_report(1.0), scaled_report(0.9)
+        self.assertFalse(compare_reports(base, opt, metric_catalog=set())["pass"])
+
+    def test_metric_catalog_ships_with_the_package(self):
+        from brookesia_gui_perf.compare import _shipped_baseline_metrics
+        catalog = _shipped_baseline_metrics()
+        self.assertIsNotNone(catalog)
+        self.assertIn("fps", catalog)
+
+    def test_unknown_provenance_needs_an_explicit_exemption(self):
+        from brookesia_gui_perf.gate import check_gate
+        base, opt = scaled_report(1.0), scaled_report(0.95)
+        for report in (base, opt):
+            report["metadata"]["worktree_state_known"] = False
+            report["metadata"]["worktree_exempt"] = False
+        self.assertNotEqual(check_gate(base, opt), [])
+        for report in (base, opt):
+            report["metadata"]["worktree_exempt"] = True
+        self.assertEqual(check_gate(base, opt), [])
+
+    def test_record_only_rows_alone_are_not_a_pass(self):
+        base, opt = scaled_report(1.0), scaled_report(0.95)
+        for report in (base, opt):
+            for scenario in report["scenarios"].values():
+                scenario["metrics"] = {k: v for k, v in scenario["metrics"].items()
+                                       if k == "refresh_area_ratio_pct"}
+        self.assertFalse(compare_reports(base, opt, metric_catalog=set(load_thresholds()))["pass"])
+
+    def test_declared_pending_metrics_do_not_count_as_unknown(self):
+        report = self._report()
+        result = compare_reports(report, report)
+        self.assertNotIn("doc_load_ms", result["unknown_thresholds"])
+        self.assertNotIn("task_heap_max_kb", result["unknown_thresholds"])

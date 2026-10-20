@@ -17,4 +17,4 @@ brookesia-gui-perf = "brookesia_gui_perf.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-brookesia_gui_perf = ["thresholds.json"]
+brookesia_gui_perf = ["thresholds.json", "metric_catalog.json"]

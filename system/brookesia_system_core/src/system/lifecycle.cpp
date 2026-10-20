@@ -493,9 +493,9 @@ void System::process_timers()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    // Only path to lv_timer_handler() on device: overlay paths call process_backend()
-    // once per mount, so a static UI never flushes again without this. The host owns
-    // the call cadence, mirroring the PC build's own driver loop.
+    // Host-driven tick: the backend decides what a tick means. On a port that manages
+    // its own timers the backend does not force a refresh (that would repaint the whole
+    // screen on every tick); it only runs lv_timer_handler where the port does not.
     auto &impl = *impl_;
     std::lock_guard<std::recursive_mutex> runtime_lock(impl.gui_runtime_mutex_);
     if (impl.gui_runtime_ == nullptr) {

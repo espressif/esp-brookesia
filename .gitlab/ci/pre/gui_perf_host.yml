@@ -52,5 +52,8 @@ check_gui_perf_host_gate:
         - .gitlab/tools/measure_size.py
         - .gitlab/tools/tests/**/*
         - gui/brookesia_gui_interface/**/*
+        # The Golden Case carrier lives here; res/ edits must rerun the generator,
+        # which the resource-consistency test in this job enforces.
+        - examples/system/perf_eval/**/*
         - .gitlab-ci.yml
         - .gitlab/ci/pre/gui_perf_host.yml
