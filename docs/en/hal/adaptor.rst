@@ -171,7 +171,7 @@ The component applies patches from ``hal/brookesia_hal_adaptor/tools`` according
 Audio/Video Dependencies and Models
 -----------------------------------
 
-av_processor 0.7.0 uses GMF AI Audio 1.0.2, ESP-SR 2.5.3, and ESP-DL 3.3.13, retaining the old-P4 / IDF 6 speech library. media_lib_sal 1.0.2 includes the ESP-IDF 6 TLS fix; the old TLS patch is retired.
+av_processor 0.7.0 uses GMF AI Audio 1.0.2, ESP-SR 2.5.3, and ESP-DL 3.3.13, retaining the old-P4 / IDF 6 speech library. media_lib_sal 1.0.2 includes the ESP-IDF 6 TLS fix; the old TLS patch is retired. Non-video board profiles and ESP32-C5 audio/console profiles set ``CONFIG_VIDEO_PROCESSOR_ENABLE=n`` so audio-only targets do not pull in ``esp_capture`` or ``esp_video``.
 
 HAL registers the SR 2.5.3 models using the upstream SR 2.5.5 compile requirements. Registering requirements enables global operator/kernel pruning (``DL_COMPILE_ALL=0``). Every native component loading additional ``.espdl`` models must register its own requirements; ESP-DL combines them with the SR requirements.
 

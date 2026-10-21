@@ -171,7 +171,7 @@ Brookesia 管理的 Board Manager 调用会串行执行。直接调用 Board Man
 音视频依赖与模型
 ----------------
 
-av_processor 0.7.0 使用 GMF AI Audio 1.0.2、ESP-SR 2.5.3 及 ESP-DL 3.3.13，保留旧 P4 / IDF 6 语音库。media_lib_sal 1.0.2 已包含 ESP-IDF 6 TLS 修复，不再使用旧 TLS 补丁。
+av_processor 0.7.0 使用 GMF AI Audio 1.0.2、ESP-SR 2.5.3 及 ESP-DL 3.3.13，保留旧 P4 / IDF 6 语音库。media_lib_sal 1.0.2 已包含 ESP-IDF 6 TLS 修复，不再使用旧 TLS 补丁。无摄像头板级配置和 ESP32-C5 音频/控制台配置默认设置 ``CONFIG_VIDEO_PROCESSOR_ENABLE=n``，避免纯音频目标引入 ``esp_capture`` 或 ``esp_video``。
 
 HAL 使用上游 SR 2.5.5 算子需求元数据，为 SR 2.5.3 模型注册需求。登记需求后会全局启用算子和内核裁剪（``DL_COMPILE_ALL=0``）。每个额外加载 ``.espdl`` 模型的 native 组件都须注册自身需求，由 ESP-DL 与 SR 需求取并集。
 

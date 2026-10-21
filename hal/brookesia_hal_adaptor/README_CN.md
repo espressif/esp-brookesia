@@ -33,7 +33,7 @@
 
 音频处理器使用 av_processor 0.7.0 及兼容的 GMF/ESP-SR 依赖组合，包含旧 P4 / IDF 6 语音库。依赖版本和补丁来源记录在 [SOURCE.md](SOURCE.md) 与 [idf_component.yml](idf_component.yml)；[依赖补丁参考](https://docs.espressif.com/projects/esp-brookesia/zh_CN/latest/hal/adaptor.html#hal-adaptor-dependency-patches)列出按功能应用的补丁及失败行为。media_lib_sal 1.0.2 已包含 ESP-IDF 6 TLS 修复，替代原有本地补丁。
 
-仅使用音频的工程须在依赖解析前通过 `sdkconfig.defaults` 或已有 sdkconfig 设置 `CONFIG_VIDEO_PROCESSOR_ENABLE=n`，同时关闭 HAL 的摄像头、编码器和解码器实现。av_processor 0.7.0 上游默认启用视频。启用 HAL 视频编码器或解码器时，会同时启用其必需的 av_processor 视频管线。Audio 示例的 ESP32-C5 profile 保持视频关闭；完整 Super/P4 保留视频能力。
+仅使用音频的工程须在依赖解析前通过 `sdkconfig.defaults` 或已有 sdkconfig 设置 `CONFIG_VIDEO_PROCESSOR_ENABLE=n`，同时关闭 HAL 的摄像头、编码器和解码器实现。av_processor 0.7.0 上游默认启用视频。启用 HAL 视频编码器或解码器时，会同时启用其必需的 av_processor 视频管线。无摄像头板级配置（`esp_sensair_shuttle`、`esp_box_3`、`esp_vocat_board_v1_0`、`esp_vocat_board_v1_2`、`rymcu_bigsmart`、`esp32_s3_touch_amoled_*`）以及 Audio/Console 示例的 ESP32-C5 profile 默认设置 `CONFIG_VIDEO_PROCESSOR_ENABLE=n`；带摄像头的板级配置（`esp32_p4_function_ev`、`esp32_p4x_function_ev`、`esp32_s31_korvo1`、`esp32_s3_korvo2_v3`、`esp_mosaico_*`）保留视频能力。
 
 ### 额外 ESP-DL 模型
 
