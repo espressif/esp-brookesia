@@ -1,8 +1,10 @@
 # Brookesia GSP GUI adapter
 
-`AppHost` starts a compiled GSP scene bundle on borrowed display devices. It
-keeps the selected bundle and callback context alive until the GSP session
-stops successfully.
+`AppHost` starts a compiled GSP scene bundle on borrowed display devices. The
+caller must keep the callback context, HAL devices, and any borrowed data in an
+ordinary generated config alive until `stop()` succeeds, even after a failed
+start or stop. `AppHost` owns loaded deployable bundles and decompressed bytes;
+ordinary uncompressed bundle bytes and generated directory tables remain borrowed.
 
 On Linux, enable `BROOKESIA_BUILD_GUI_GSP` and provide `ESP_GSP_ROOT` for the
 official ESP-GSP 1.4 simulator bridge. `DisplayLease::desktop` holds a shared

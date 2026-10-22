@@ -9,7 +9,7 @@ The package lives in `examples/app/gsp_js_device_control`. It has two separate b
 
 ## Build and install
 
-Run from the app directory:
+Follow [Requirements](README.md#requirements) to prepare Python and obtain GSPC 0.5.0 with the public tool manager. Keep `GSPC_EXECUTABLE` exported for builds, updates, and previews. Run from the app directory:
 
 ```bash
 python3 tools/build_package.py --version 0.1.0
@@ -18,7 +18,7 @@ brookesia-usb install build/brookesia.gsp.device_control.debug.0.1.0.bpk
 
 Wait for the launcher before running a `brookesia-usb` command after a reset, and close any serial monitor first.
 
-USB install is the normal path. The directory is also an optional ESP-IDF component: System GSP App's `CONFIG_BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL` builds the package with the same script and adds it to the LittleFS image. Only suggest it when the user wants a preinstalled firmware image, and warn that a full `idf.py flash` replaces every USB-installed app and its data.
+USB install is the normal path. The directory is also an optional ESP-IDF component: System GSP App's `CONFIG_BROOKESIA_GSP_PREINSTALL_DEVICE_CONTROL` builds the package with the same script and adds it to the LittleFS image. Only suggest it when the user wants a preinstalled firmware image. Follow [Preinstall in the firmware](README.md#preinstall-in-the-firmware): enter the host directory, retain its existing `-B` for menuconfig/build/flash, and warn that a full flash replaces every USB-installed app and its data.
 
 To update, build with a higher `--version` and install again. The host firmware does not change.
 
@@ -38,4 +38,4 @@ brookesia-usb call SystemCore UninstallApp '{"AppId": <id>}'
 
 ## Preview limit
 
-`python3 tools/build_package.py --preview` shows the compiled pages in the simulator. It does not run the JavaScript, call Display, or install the package. Say so when reporting a preview result.
+Follow [Customize](README.md#customize) to obtain simulator 1.4.0 and export `GSP_SIM_EXECUTABLE` before running `python3 tools/build_package.py --preview`. It does not run the JavaScript, call Display, or install the package. Say so when reporting a preview result.

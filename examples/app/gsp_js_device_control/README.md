@@ -14,9 +14,20 @@ Device Control is an example app for ESP-Brookesia boards that use the GSP inter
 ## Requirements
 
 - ESP32-P4 Function EV Board running [System GSP App](../../system/gsp_app/README.md) with the GSP interface (the default)
-- Python 3
-- GSP tools: `python -m pip install -U esp-gsp-tools`
-- USB tool: `python -m pip install brookesia-usb`
+- Python 3.10 or later, with its environment activated
+- Bash or Zsh for the commands below
+
+Run from this app directory. Install the tool manager and USB CLI, then obtain the matching GSPC compiler and export its path:
+
+```bash
+python3 -m pip install -U esp-gsp-tools
+python3 -m pip install brookesia-usb
+python3 -m gsp.manager install 0.5.0 gspc
+export GSPC_EXECUTABLE="$(python3 -m gsp.manager path 0.5.0 gspc)"
+"$GSPC_EXECUTABLE" --version
+```
+
+The manager downloads the release for the current host. Keep this environment for builds, updates, and previews; in a new shell, activate the same Python environment and repeat the `export` command. The compiler should report `gspc 0.5.0`.
 
 ## Quick start
 
@@ -64,14 +75,21 @@ Uninstalling also deletes the app's data. The `app_id` changes after every insta
 
 ## Preinstall in the firmware
 
-USB installation is the usual way to deliver this app. To ship a firmware image that already contains it, enable the option in System GSP App:
+USB installation is the usual way to deliver this app. To ship a firmware image that already contains it, activate ESP-IDF 6.0 or later and prepare the GSP host using the [System GSP App build instructions](../../system/gsp_app/README.md#build-and-flash). From this app directory, enter the host directory and configure its existing GSP output:
 
-```text
-idf.py menuconfig
-  Brookesia system GSP example → Preinstall the Device Control app
+```bash
+cd ../../system/gsp_app
+idf.py -B build-gsp menuconfig
 ```
 
-The build compiles the package and adds it to the LittleFS image. The image is written only by a full `idf.py flash`, which **replaces every app installed over USB and their data**. `idf.py app-flash` leaves LittleFS untouched, so it neither adds nor removes the preinstalled app. A preinstalled app can still be updated or uninstalled over USB.
+Enable **Brookesia system GSP example → Preinstall the Device Control app**. If the host uses another output directory, replace `build-gsp` in every command with that directory. The build compiles the package and adds it to LittleFS; a full flash **replaces every app installed over USB and their data**:
+
+```bash
+idf.py -B build-gsp build
+idf.py -B build-gsp -p <PORT> -b 921600 flash monitor
+```
+
+Replace `<PORT>` with the board's serial port. Exit the monitor with `Ctrl+]` before using the USB CLI. `idf.py -B build-gsp app-flash` leaves LittleFS untouched, so it neither adds nor removes the preinstalled app. A preinstalled app can still be updated or uninstalled over USB.
 
 ## Customize
 
@@ -82,7 +100,15 @@ The build compiles the package and adds it to the LittleFS image. The image is w
 | `package/manifest.json` | App ID, name, version, and required services |
 | `tools/build_package.py` | Compiles the pages and creates the `.bpk` |
 
-After a change, build with a new `--version` and install it. To check page layout without a board, run `python3 tools/build_package.py --preview`. The preview shows layout only and does not run `app.js`.
+After a change, build with a new `--version` and install it. To check page layout without a board, run from this app directory in the tool environment above. Obtain the matching simulator and export its path before previewing:
+
+```bash
+python3 -m gsp.manager install 1.4.0 sim
+export GSP_SIM_EXECUTABLE="$(python3 -m gsp.manager path 1.4.0 sim)"
+python3 tools/build_package.py --preview
+```
+
+In a new shell, repeat both tool-path exports. The preview shows layout only and does not run `app.js`. Press `Ctrl+C` in the terminal to stop it.
 
 ### JavaScript API
 

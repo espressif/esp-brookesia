@@ -12,12 +12,12 @@
 概述
 --------------------
 
-App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runtime 资源目录下的 ``profile.json`` 是 system_core resource descriptor，``root`` 指向真正的 JSON UI document，启动 flow 写在 ``screen_flows[]``。它有两种使用方式：
+App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runtime 资源目录下的 ``profile.json`` 是 system_core resource descriptor，其 GUI 字段取决于 backend。它有两种使用方式：
 
 - ``.bpk``：ZIP 容器，运行时由 ``system::core::unpack_app_package_to()`` 解包。
 - unpacked package：直接部署 ``manifest.json + app/ + res/``，由 ``System::init()`` 扫描安装。
 
-包可以使用 LVGL 或 GSP 两种 GUI backend。GSP 包的差异见“Manifest 字段”中的 ``gui`` 和“资源 descriptor”一节。
+包可以使用 LVGL 或 GSP 两种 GUI backend。各 backend 的 descriptor 见“Manifest 字段”中的 ``gui`` 和 :ref:`system-core-app_package-sec-04`。
 
 需要运行 ``.bpk`` 时，先调用 system_core package API（可选 ``verify_app_package_release()``，再 ``unpack_app_package_to()``）得到 ``AppManifest``，再用 ``make_runtime_app_config()`` 转成 ``runtime::AppConfig``。
 
@@ -25,6 +25,8 @@ App package 使用 ``manifest.json`` 描述包元信息和 runtime 入口；runt
 
 最小包结构
 --------------------
+
+以下示例使用 JSON/LVGL：
 
 .. code-block:: text
 
@@ -111,7 +113,7 @@ Manifest 字段
    * - ``backend``
      - ``lvgl``（默认）或 ``gsp``。现有 JSON UI 包不需要写 ``gui``。GSP 包写 ``"backend": "gsp"``
 
-安装包只能装到使用相同 GUI backend 的固件上。GSP 包不能装进 LVGL 固件，JSON UI 包也不能装进 GSP 固件。
+GSP 包必须使用 GSP descriptor 并安装到 GSP 固件，不能装进 LVGL 固件。使用默认或显式 ``lvgl`` backend 的包，若 descriptor 含 JSON UI ``root``，就不能装进 GSP 固件。无 GUI 的包可以保留 ``lvgl`` 默认值，并在 ``profile.json`` 中省略 ``root``，这类包可安装到任一种 GUI backend 的固件。
 
 可选的顶层 ``services`` 数组声明 runtime app 所需的 service RPC：
 
@@ -142,7 +144,7 @@ Manifest 字段
 资源 descriptor
 --------------------
 
-``<runtime.resource_dir>/profile.json`` 是 system_core resource descriptor，不是 JSON UI document：
+``<runtime.resource_dir>/profile.json`` 是 system_core resource descriptor，不是 JSON UI document。JSON/LVGL descriptor 示例：
 
 .. code-block:: json
 
@@ -156,7 +158,12 @@ Manifest 字段
 
 ``icon_id`` 用于在包内定位 launcher 图标；``root`` 指向标准 JSON UI document；``screen_flows[]`` 指定启动 flow。普通 app 主界面应使用 ``AppDefault``，``AppTop`` 只用于 app 自己的 header、浮层或工具栏；runtime app 只能使用 ``Replace``，``z_order`` 在 ``0..100`` 内。``root.json`` 是标准 JSON UI document，应引用一个 ``screenFlow`` asset。
 
-GSP 包使用另一种 ``profile.json``。``root`` 指向编译好的 ``.gspb`` bundle，页面是 bundle 里的 GSP scene，因此不使用 ``screen_flows`` 和 ``preload_dom``：
+.. _system-core-app_package-gsp:
+
+包格式与页面 API
+^^^^^^^^^^^^^^^^^^^^
+
+GSP 包使用另一种 ``profile.json``。``root`` 指向通过 ``gspc compile`` 的 ``--deployable`` 选项生成的 deployable ``.gspb`` bundle，不能直接使用普通编译 bundle。页面是 bundle 里的 GSP scene，因此不使用 ``screen_flows`` 和 ``preload_dom``：
 
 .. code-block:: json
 

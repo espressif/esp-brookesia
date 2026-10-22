@@ -29,7 +29,7 @@ system core 当前注册三个基础 service：``SystemCore``、``SystemGui``、
 权限边界
 --------------------
 
-运行时应用可以查询系统信息、只能操作自己的 GUI document、只能管理自己的 timer，且不能通过 service 启动或停止其他 app。原生应用通过 ``AppContext`` 直接调用 ``SystemApi``、``AppGuiRuntime``、``AppTimerRuntime``，当前被视为系统内置可信 app。
+运行时应用可以查询系统信息、只能管理自己的 timer，使用 JSON/LVGL 时只能操作自己的 GUI document，且不能通过 service 启动、停止或卸载 app。原生应用通过 ``AppContext`` 直接调用 ``SystemApi``、``AppGuiRuntime``、``AppTimerRuntime``，当前被视为系统内置可信 app。
 
 .. _system-core-services-sec-03:
 
@@ -71,7 +71,7 @@ Core 服务
 GUI 服务
 --------------------
 
-``SystemGui`` 是运行时应用操作自身 GUI document 的受限 service，service 名固定为 ``SystemGui``。
+``SystemGui`` 是运行时应用操作自身 JSON/LVGL document 的受限 service，service 名固定为 ``SystemGui``。本节的 document 和 screen-flow API 不适用于 GSP。GSP 包资源和页面更新接口见 :ref:`system-core-app_package-gsp`。
 
 .. list-table::
    :header-rows: 1
@@ -147,7 +147,7 @@ GUI 服务
 
 v1 支持 ``SetBindings``、``SetViewSrc``、``StopAnimation``、``StartViewAnimation`` 命令，按数组顺序执行，失败时停止后续命令，返回值在 ``Results`` 中带每条命令结果。
 
-运行时应用必须在 ``profile.json`` 的 ``screen_flows[]`` 中声明启动 flow，core 会在 ``on_start()`` 前自动启动。``TriggerScreenFlow(ScreenFlow, Action)`` 按当前 state 和 transition action 切换 screen，精确 ``from[]`` transition 优先于任意来源 transition；如果 ``transitions`` 为空，document 仍挂载 ``initial`` 但 ``TriggerScreenFlow`` 返回错误。运行时应用只能使用 ``Replace`` mount mode，``z_order`` 在 ``0..100`` 内，不能指定 ``DocumentId``、layer 或其他 app 的 flow。
+带 GUI 的 JSON/LVGL 运行时应用必须在 ``profile.json`` 的 ``screen_flows[]`` 中声明启动 flow，core 会在 ``on_start()`` 前自动启动。``TriggerScreenFlow(ScreenFlow, Action)`` 按当前 state 和 transition action 切换 screen，精确 ``from[]`` transition 优先于任意来源 transition；如果 ``transitions`` 为空，document 仍挂载 ``initial`` 但 ``TriggerScreenFlow`` 返回错误。运行时应用只能使用 ``Replace`` mount mode，``z_order`` 在 ``0..100`` 内，不能指定 ``DocumentId``、layer 或其他 app 的 flow。
 
 ``SubscribeAction(action)`` 订阅当前 app document 中的 GUI action，触发后原生应用进入 ``IApp::on_action()``，运行时应用进入 ``brookesia_app.on_action()``。action 不在 LVGL callback 栈中直接执行：事件先进入 ``SystemGuiInput``，再投递到 ``SystemAppInput``，与普通 timer 回调共享 app callback gate。
 

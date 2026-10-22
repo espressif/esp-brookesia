@@ -6,9 +6,9 @@ This directory provides one entry point for HAL lifecycle, board cleanup, and de
 
 - Python 3.9+, a C compiler, and a C++23 compiler (GCC 13 or later).
 - Boost headers, Boost.Thread, and Boost.System development libraries for the core tests.
-- Dependency tests additionally require Git, CMake 3.22+, PyYAML, and an existing configured project's `managed_components` directory. These extra requirements do not apply to the core suite.
+- Dependency tests additionally require Git, CMake 3.22+, PyYAML, an existing configured project's `managed_components` directory, and a `c++` on `PATH` with C++20 support. These extra requirements do not apply to the core suite.
 
-The runner uses `CXX` when set, otherwise `g++-13` or `c++`. Run these commands from the repository root.
+The core suite uses `CXX` when set, otherwise `g++-13` or `c++`. The dependency audio tests call `c++` directly and do not use `CXX`. Run these commands from the repository root.
 
 ## Core Regressions
 

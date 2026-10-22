@@ -1,7 +1,9 @@
 # Brookesia GSP GUI 适配器
 
-`AppHost` 在借用的显示设备上启动编译后的 GSP 场景，并在 GSP 会话成功停止前保留
-bundle 和事件回调上下文。
+`AppHost` 在借用的显示设备上启动编译后的 GSP 场景。调用者必须保持回调上下文、
+HAL 设备及普通生成配置所引用的借用数据有效，直到 `stop()` 成功；启动或停止失败时
+也不能提前释放。`AppHost` 拥有已加载的 deployable bundle 和解压后的字节，普通
+未压缩 bundle 字节及生成的目录表仍由调用者保管。
 
 Linux 下启用 `BROOKESIA_BUILD_GUI_GSP`，并用 `ESP_GSP_ROOT` 指定官方 ESP-GSP 1.4
 模拟器桥接组件。`DisplayLease::desktop` 持有共享的 `DesktopDisplay`，不需要 ESP

@@ -18,8 +18,9 @@ namespace esp_brookesia::gui::gsp {
 /**
  * @brief Loads one compiled bundle and runs it in a Session for a system app.
  *
- * The bundle and event callback context stay owned until stop() succeeds.
- * Borrowed HAL devices are never released here.
+ * Owns loaded deployable bundles and decompressed bytes until stop() succeeds.
+ * The caller keeps the callback context, HAL devices, and borrowed generated
+ * config data alive until then, including after a failed start or stop.
  */
 class AppHost {
 public:

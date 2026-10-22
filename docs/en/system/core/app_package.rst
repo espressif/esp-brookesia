@@ -12,12 +12,12 @@ This page describes the structure of a runtime app package, its manifest fields,
 Overview
 --------------------
 
-An app package uses ``manifest.json`` to describe package metadata and the runtime entry; the ``profile.json`` under the runtime resource directory is the system_core resource descriptor, whose ``root`` points to the real JSON UI document and whose startup flow is written in ``screen_flows[]``. It has two usage forms:
+An app package uses ``manifest.json`` to describe package metadata and the runtime entry; the ``profile.json`` under the runtime resource directory is the system_core resource descriptor. Its GUI fields depend on the backend. It has two usage forms:
 
 - ``.bpk``: a ZIP container, unpacked at runtime by ``system::core::unpack_app_package_to()``.
 - unpacked package: deploy ``manifest.json + app/ + res/`` directly, scanned and installed by ``System::init()``.
 
-A package can use either the LVGL or the GSP GUI backend. See ``gui`` under Manifest Fields and the Resource Descriptor section for how a GSP package differs.
+A package can use either the LVGL or the GSP GUI backend. See ``gui`` under Manifest Fields and :ref:`system-core-app_package-sec-04` for backend-specific descriptors.
 
 To run a ``.bpk``, first call the system_core package API (optionally ``verify_app_package_release()``, then ``unpack_app_package_to()``) to obtain an ``AppManifest``, then convert it with ``make_runtime_app_config()`` into a ``runtime::AppConfig``.
 
@@ -25,6 +25,8 @@ To run a ``.bpk``, first call the system_core package API (optionally ``verify_a
 
 Minimal Package Structure
 -------------------------
+
+The following example uses JSON/LVGL:
 
 .. code-block:: text
 
@@ -111,7 +113,7 @@ The optional top-level ``gui`` object selects the GUI backend. It is independent
    * - ``backend``
      - ``lvgl`` (default) or ``gsp``. Leave ``gui`` out for an existing JSON UI package. A GSP package sets ``"backend": "gsp"``
 
-A package installs only on firmware that uses the same GUI backend. A GSP package cannot be installed on LVGL firmware, and a JSON UI package cannot be installed on GSP firmware.
+A GSP package requires both a GSP descriptor and GSP firmware; it cannot be installed on LVGL firmware. A package using the default or explicit ``lvgl`` backend cannot be installed on GSP firmware if its descriptor has a JSON UI ``root``. A package without a GUI may keep the ``lvgl`` default and omit ``root`` from ``profile.json``; it can be installed on either firmware backend.
 
 The optional top-level ``services`` array declares the service RPCs required by a runtime app:
 
@@ -142,7 +144,7 @@ A ``.bpk`` is unpacked and validated under ``apps/.installing/`` before anything
 Resource Descriptor
 --------------------
 
-``<runtime.resource_dir>/profile.json`` is the system_core resource descriptor, not a JSON UI document:
+``<runtime.resource_dir>/profile.json`` is the system_core resource descriptor, not a JSON UI document. A JSON/LVGL descriptor looks like this:
 
 .. code-block:: json
 
@@ -156,7 +158,12 @@ Resource Descriptor
 
 ``icon_id`` locates the launcher icon within the package; ``root`` points to a standard JSON UI document; ``screen_flows[]`` specifies the startup flow. A regular app main screen should use ``AppDefault``, and ``AppTop`` is only for an app's own header, floating layer, or toolbar; a runtime app can only use ``Replace`` with ``z_order`` within ``0..100``. ``root.json`` is a standard JSON UI document and should reference a ``screenFlow`` asset.
 
-A GSP package uses a different ``profile.json``. ``root`` names a compiled ``.gspb`` bundle, and pages are GSP scenes inside it, so ``screen_flows`` and ``preload_dom`` are not used:
+.. _system-core-app_package-gsp:
+
+Bundle Format and Page API
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A GSP package uses a different ``profile.json``. ``root`` names a deployable ``.gspb`` bundle built with the ``--deployable`` option of ``gspc compile``; an ordinary compiled bundle is insufficient. Pages are GSP scenes inside it, so ``screen_flows`` and ``preload_dom`` are not used:
 
 .. code-block:: json
 
