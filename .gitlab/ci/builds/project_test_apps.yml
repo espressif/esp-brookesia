@@ -132,6 +132,7 @@ build_test_apps_brookesia_service_device:
     - .build_template_without_large_artifacts
     - .build_idf_release_version_with_board
     - .rules:build:test_apps_brookesia_service_device
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/system/brookesia_service_device/test_apps
 # brookesia_service_display
@@ -204,6 +205,7 @@ build_test_apps_brookesia_service_wifi:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_service_wifi
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: service/network/brookesia_service_wifi/test_apps
 # brookesia_service_video
@@ -268,6 +270,7 @@ build_test_apps_brookesia_lib_utils_log:
     - .build_template
     - .build_idf_release_version_general
     - .rules:build:test_apps_brookesia_lib_utils_log
+  timeout: 3 hour
   variables:
     EXAMPLE_DIR: utils/brookesia_lib_utils/test_apps/log
 # brookesia_lib_utils: memory_profiler
