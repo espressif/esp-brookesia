@@ -23,7 +23,7 @@ BROOKESIA_TEST_CASE(general_state_changed_event, "Test ServiceHttp - general sta
         stop_services();
     });
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto binding = bind_http_service();

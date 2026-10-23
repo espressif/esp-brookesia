@@ -24,6 +24,7 @@ namespace {
 
 static auto &service_manager = service::ServiceManager::get_instance();
 static service::ServiceBinding http_binding;
+static std::unique_ptr<HttpEventCollector> http_event_collector;
 #if TEST_HTTP_USE_WIFI
 static service::ServiceBinding wifi_binding;
 #endif
@@ -39,6 +40,22 @@ void apply_network_test_leak_threshold()
 #endif
 
 } // namespace
+
+HttpEventCollector &get_http_event_collector()
+{
+    if (!http_event_collector) {
+        http_event_collector = std::make_unique<HttpEventCollector>();
+    }
+    return *http_event_collector;
+}
+
+void cleanup_http_test()
+{
+    // Unity assertions longjmp out of the test body without unwinding local guards.
+    // Keep callback targets alive until service workers and event dispatch have stopped.
+    stop_services();
+    http_event_collector.reset();
+}
 
 bool HttpEventCollector::start()
 {

@@ -10,6 +10,9 @@
 #include <mutex>
 #include <string>
 
+#include "boost/thread/condition_variable.hpp"
+#include "boost/thread/mutex.hpp"
+
 #include "brookesia/hal_adaptor/macro_configs.h"
 #include "brookesia/hal_adaptor/audio/device.hpp"
 #include "brookesia/hal_interface/interfaces/audio/codec_player.hpp"
@@ -81,6 +84,10 @@ private:
 
     mutable std::mutex mutex_;
     size_t open_ref_count_ = 0;
+    // SDK close waits for its event thread; callbacks must not take mutex_.
+    boost::mutex playback_callback_mutex_;
+    boost::condition_variable playback_callback_condition_;
+    size_t playback_callbacks_in_flight_ = 0;
     audio::PlaybackIface::EventCallback playback_callback_;
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     audio::EncoderIface::Callbacks encoder_callbacks_;

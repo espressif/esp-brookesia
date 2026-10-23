@@ -9,6 +9,7 @@ The shared-I2S fixture also executes the resolved codec SDK pairing,
 format compatibility, set_fmt and open functions with driver/OS stubs.
 """
 from pathlib import Path
+from ctypes.util import find_library
 import shutil
 import subprocess
 import tempfile
@@ -42,11 +43,12 @@ def run(managed_components):
     device_source = (codec / 'esp_codec_dev.c').read_text()
     with tempfile.TemporaryDirectory(prefix='brookesia-audio-config-') as directory:
         build = Path(directory)
-        (build / 'esp_err.h').write_text('#pragma once\ntypedef int esp_err_t;\n'
-                                       '#define ESP_OK 0\n#define ESP_FAIL -1\n'
-                                       '#define ESP_ERR_INVALID_ARG 0x102\n#define ESP_ERR_NO_MEM 0x101\n'
-                                       '#define ESP_ERR_NOT_SUPPORTED 0x106\n#define ESP_ERR_NOT_FOUND 0x105\n'
-                                       '#define ESP_ERR_INVALID_STATE 0x103\n')
+        (build / 'esp_err.h').write_text(
+            '#pragma once\ntypedef int esp_err_t;\n'
+            '#define ESP_OK 0\n#define ESP_FAIL -1\n'
+            '#define ESP_ERR_INVALID_ARG 0x102\n#define ESP_ERR_NO_MEM 0x101\n'
+            '#define ESP_ERR_NOT_SUPPORTED 0x106\n#define ESP_ERR_NOT_FOUND 0x105\n'
+            '#define ESP_ERR_INVALID_STATE 0x103\n')
         (build / 'esp_gmf_afe_manager.h').write_text(
             '#pragma once\ntypedef int afe_type_t;\ntypedef int afe_mode_t;\n'
             'typedef void *esp_gmf_afe_manager_handle_t;\n'
@@ -80,8 +82,9 @@ def run(managed_components):
         # clock/metadata regression check that the repaired version passes.
         start = core.index('    const auto &recorder_info =')
         end = core.index('    BROOKESIA_CHECK_FALSE_RETURN(player_iface_->open', start)
-        unfixed = core[:start] + ('    const auto &recorder_info = recorder_iface_->get_info();\n'
-                                 '    const auto &player_config = config_.playback.player;\n\n') + core[end:]
+        unfixed = core[:start] + (
+            '    const auto &recorder_info = recorder_iface_->get_info();\n'
+            '    const auto &player_config = config_.playback.player;\n\n') + core[end:]
         (build / 'production.inc').write_text(bodies.replace(core, unfixed))
         subprocess.run(command, check=True)
         subprocess.run([str(binary), '--reproduce-unfixed'], check=True, timeout=10)
@@ -89,3 +92,62 @@ def run(managed_components):
         if rejected.returncode != 1:
             raise AssertionError(f'Unfixed implementation escaped regression: {rejected.returncode}')
         print('PASS: rejected pre-fix implementation fails the shared-I2S regression', flush=True)
+        run_lifecycle(build, audio, here, sdk, codec_includes, codec_object)
+
+
+def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
+    """Exercise real lifecycle bodies with a worker that must finish STOPPED first."""
+    fixture = (here / 'test_main.cpp').read_text().split('#include "production.inc"')[0]
+    fixture = fixture.replace('#define BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL 1',
+                              '#define BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL 0')
+    fixture = fixture.replace('namespace audio {',
+                              'namespace audio {\nenum class PlayState { Idle, Playing, Paused };')
+    fixture = fixture.replace('std::function<void()>;', 'std::function<void(PlayState)>;')
+    start = fixture.index('class AudioProcessorCore {')
+    end = fixture.index('static audio_manager_config_t captured_manager;', start)
+    header = (audio / 'processor_impl.hpp').read_text()
+    declaration = header[header.index('class AudioProcessorCore {'):header.index('class AudioPlaybackImpl:')]
+    declaration = declaration.replace('private:', 'public:')
+    fixture = fixture[:start] + (
+        'namespace audio { using CodecRecorderIface = Recorder; }\n'
+        'struct AudioProcessorConfig { AudioProcessorPlaybackConfig playback; };\n') + \
+        declaration + fixture[end:]
+    fixture = fixture.replace('class AudioProcessorTypeConverter {\npublic:',
+                              'class AudioProcessorTypeConverter {\npublic:\n'
+                              'static auto to_playback_handle(void *p) { return '
+                              'static_cast<audio_play_handle_t>(p); }')
+    fixture = ('#include <atomic>\n#include <chrono>\n#include <future>\n#include <mutex>\n'
+               '#include <thread>\n#include "boost/thread/condition_variable.hpp"\n'
+               '#define BROOKESIA_LOGD(...) ((void)0)\n' + fixture)
+    (build / 'lifecycle_fixture.inc').write_text(fixture)
+    converter = (audio / 'processor_type_converter.cpp').read_text()
+    converter_bodies = ''.join(function(converter, signature) for signature in (
+        'audio_task_config_t AudioProcessorTypeConverter::convert(',
+        'audio_mixer_gain_config_t AudioProcessorTypeConverter::convert(',
+        'audio_playback_config_t AudioProcessorTypeConverter::convert('))
+    signatures = ('AudioProcessorCore::AudioProcessorCore(', 'AudioProcessorCore::~AudioProcessorCore()',
+                  'bool AudioProcessorCore::acquire(', 'void AudioProcessorCore::release()',
+                  'void AudioProcessorCore::clear_playback_callback()', 'bool AudioProcessorCore::open_common(',
+                  'void AudioProcessorCore::close_common()', 'void AudioProcessorCore::on_playback_event(')
+    source = (audio / 'processor_impl.cpp').read_text()
+    current = converter_bodies + ''.join(function(source, signature) for signature in signatures)
+    command = [shutil.which('c++') or 'c++', '-std=c++20', '-Wall', '-Wextra', '-Werror', '-pthread',
+               '-Wno-missing-field-initializers', f'-I{build}', f'-I{here}', f'-I{sdk}', *codec_includes,
+               str(here / 'lifecycle_main.cpp'), str(codec_object),
+               f'-l:{find_library("boost_thread") or "libboost_thread.so"}', '-o', str(build / 'lifecycle')]
+    (build / 'production.inc').write_text(current)
+    subprocess.run(command, check=True)
+    subprocess.run([str(build / 'lifecycle')], check=True, timeout=10)
+    # Restore only the pre-fix callback lock. The first close must hang waiting
+    # for a worker blocked on that lifecycle mutex, exactly as in the CI logs.
+    callback = function(source, 'void AudioProcessorCore::on_playback_event(')
+    old_callback = callback.replace('std::lock_guard lock(playback_callback_mutex_);',
+                                    'std::lock_guard lock(mutex_);')
+    (build / 'production.inc').write_text(current.replace(callback, old_callback))
+    subprocess.run(command, check=True)
+    try:
+        subprocess.run([str(build / 'lifecycle')], check=True, timeout=2)
+    except subprocess.TimeoutExpired:
+        print('PASS: restoring the old callback/lifecycle lock reproduces the stop deadlock', flush=True)
+    else:
+        raise AssertionError('Old callback lock escaped the audio stop deadlock regression')

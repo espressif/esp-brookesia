@@ -29,7 +29,7 @@ BROOKESIA_TEST_CASE(sync_get_request_flow, "Test ServiceHttp - sync GET request 
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     HttpHelper::HttpResponse response;
@@ -143,7 +143,7 @@ BROOKESIA_TEST_CASE(body_size_limit, "Test ServiceHttp - body size limit", "[ser
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto limit_request = make_test_request();
@@ -180,7 +180,7 @@ BROOKESIA_TEST_CASE(retry_on_5xx_status, "Test ServiceHttp - retry on 5xx status
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto retry_request = make_test_request();
@@ -212,7 +212,7 @@ BROOKESIA_TEST_CASE(async_request_lifecycle, "Test ServiceHttp - async request l
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     uint64_t request_id = 0;
@@ -242,7 +242,7 @@ BROOKESIA_TEST_CASE(deterministic_async_cancel, "Test ServiceHttp - deterministi
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto request = make_test_request();

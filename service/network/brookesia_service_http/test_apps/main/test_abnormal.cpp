@@ -50,7 +50,7 @@ BROOKESIA_TEST_CASE(request_without_wifi_fails_and_recovers, "Test ServiceHttp -
         stop_services();
     });
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     uint64_t request_id = 0;
@@ -94,7 +94,7 @@ BROOKESIA_TEST_CASE(in_flight_request_fails_on_wifi_disconnect_and_recovers, "Te
     });
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     auto request = make_test_request();
@@ -146,7 +146,7 @@ BROOKESIA_TEST_CASE(reset_and_reuse_after_abnormal_network_failure, "Test Servic
     TEST_ASSERT_TRUE_MESSAGE(connect_wifi_sta(), "Failed to connect WiFi STA");
     TEST_ASSERT_TRUE_MESSAGE(disconnect_wifi_sta(), "Failed to disconnect WiFi STA before failure");
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     uint64_t failed_request_id = 0;
@@ -247,7 +247,7 @@ BROOKESIA_TEST_CASE(
         stop_services();
     });
 
-    HttpEventCollector collector;
+    auto &collector = get_http_event_collector();
     TEST_ASSERT_TRUE_MESSAGE(collector.start(), "Failed to start HTTP event collector");
 
     uint64_t request_id = 0;

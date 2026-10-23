@@ -9,6 +9,7 @@
 #include <condition_variable>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -151,6 +152,10 @@ private:
     std::map<uint64_t, HttpHelper::HttpResponse> canceled_responses_;
     std::vector<esp_brookesia::service::EventRegistry::SignalConnection> connections_;
 };
+
+// The fixture owns callbacks across Unity longjmp and drains workers before destruction.
+HttpEventCollector &get_http_event_collector();
+void cleanup_http_test();
 
 bool start_http_service(bool init_storage = false);
 bool start_service_manager(bool init_storage = false);

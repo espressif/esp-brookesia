@@ -11,6 +11,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include "boost/thread/mutex.hpp"
 #include "audio_processor.h"
 #include "codec_shared.h"
 
@@ -145,6 +146,7 @@ public:
         AudioProcessorPlaybackConfig playback;
     } config_;
     audio::PlaybackIface::EventCallback playback_callback_;
+    boost::mutex playback_callback_mutex_;
     bool is_opened_ = false;
     void *playback_handle_ = nullptr;
     unsigned input_events = 0;

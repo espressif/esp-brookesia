@@ -100,6 +100,7 @@ AudioProcessorCore::AudioProcessorCore(
 
 AudioProcessorCore::~AudioProcessorCore()
 {
+    clear_playback_callback();
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     stop_encoder();
     stop_decoder();
@@ -117,6 +118,7 @@ bool AudioProcessorCore::acquire(audio::PlaybackIface::EventCallback callback)
     std::lock_guard lock(mutex_);
     if (is_opened_) {
         if (callback) {
+            std::lock_guard callback_lock(playback_callback_mutex_);
             playback_callback_ = std::move(callback);
         }
         open_ref_count_++;
@@ -148,8 +150,12 @@ void AudioProcessorCore::clear_playback_callback()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    std::lock_guard lock(mutex_);
+    boost::unique_lock lock(playback_callback_mutex_);
     playback_callback_ = nullptr;
+    // Drain before taking the lifecycle lock: a callback may still use the HAL.
+    playback_callback_condition_.wait(lock, [this]() {
+        return playback_callbacks_in_flight_ == 0;
+    });
 }
 
 bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callback)
@@ -262,7 +268,10 @@ bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callbac
         false, "Failed to open playback"
     );
 
-    playback_callback_ = std::move(callback);
+    {
+        std::lock_guard callback_lock(playback_callback_mutex_);
+        playback_callback_ = std::move(callback);
+    }
     is_opened_ = true;
 
     manager_guard.release();
@@ -280,6 +289,10 @@ void AudioProcessorCore::close_common()
         return;
     }
 
+    {
+        std::lock_guard callback_lock(playback_callback_mutex_);
+        playback_callback_ = nullptr;
+    }
     if (playback_handle_ != nullptr) {
         BROOKESIA_CHECK_ESP_ERR_EXECUTE(
         audio_playback_close(AudioProcessorTypeConverter::to_playback_handle(playback_handle_)), {}, {
@@ -300,7 +313,6 @@ void AudioProcessorCore::close_common()
         recorder_iface_->close();
     }
 
-    playback_callback_ = nullptr;
     is_opened_ = false;
 }
 
@@ -615,10 +627,19 @@ void AudioProcessorCore::on_playback_event(uint8_t state)
 
     audio::PlaybackIface::EventCallback callback;
     {
-        std::lock_guard lock(mutex_);
+        std::lock_guard lock(playback_callback_mutex_);
         callback = playback_callback_;
+        if (callback) {
+            ++playback_callbacks_in_flight_;
+        }
     }
     if (callback) {
+        lib_utils::FunctionGuard callback_guard([this]() {
+            std::lock_guard lock(playback_callback_mutex_);
+            if (--playback_callbacks_in_flight_ == 0) {
+                playback_callback_condition_.notify_all();
+            }
+        });
         callback(new_state);
     }
 }

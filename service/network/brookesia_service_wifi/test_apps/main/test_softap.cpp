@@ -261,7 +261,7 @@ BROOKESIA_TEST_CASE(test_servicewifi_softap_and_connect_coexistence, "Test Servi
 
     // Thread 2: Repeatedly start/stop SoftAP
     std::atomic<bool> softap_thread_error(false);
-    boost::thread softap_thread([service_name, &softap_thread_error]() {
+    boost::thread softap_thread([service_name, &collector, &softap_thread_error]() {
         BROOKESIA_LOGI("SoftAP Start/Stop thread started");
         for (size_t i = 0; i < CONCURRENT_SOFTAP_START_STOP_CYCLES; i++) {
             // Start SoftAP
@@ -281,6 +281,14 @@ BROOKESIA_TEST_CASE(test_servicewifi_softap_and_connect_coexistence, "Test Servi
                 break;
             }
 
+            // STA reconnects can delay SoftAP startup beyond the runner's dwell time.
+            if (!collector.wait_for_softap_events(i + 1, TEST_SOFTAP_START_DURATION_MS,
+                                                  WifiHelpler::SoftApEvent::Started)) {
+                BROOKESIA_LOGE("SoftAP Started event missing in cycle %zu", i + 1);
+                softap_thread_error = true;
+                break;
+            }
+
             esp_brookesia::lib_utils::test_adapter::delay_ms(500);
 
             // Stop SoftAP
@@ -296,6 +304,13 @@ BROOKESIA_TEST_CASE(test_servicewifi_softap_and_connect_coexistence, "Test Servi
             bool stop_passed = stop_runner.run_tests(service_name, stop_items);
             if (!stop_passed) {
                 BROOKESIA_LOGE("Stop SoftAP cycle %zu failed", i + 1);
+                softap_thread_error = true;
+                break;
+            }
+
+            if (!collector.wait_for_softap_events(i + 1, TEST_SOFTAP_STOP_DURATION_MS,
+                                                  WifiHelpler::SoftApEvent::Stopped)) {
+                BROOKESIA_LOGE("SoftAP Stopped event missing in cycle %zu", i + 1);
                 softap_thread_error = true;
                 break;
             }
