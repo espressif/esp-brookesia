@@ -16,6 +16,9 @@ from typing import List
 import typing as t
 import subprocess
 import shutil
+import shlex
+import tempfile
+from contextlib import contextmanager
 
 from idf_build_apps import App, build_apps, find_apps, setup_logging
 from idf_build_apps.app import CMakeApp
@@ -42,6 +45,41 @@ IGNORE_WARNINGS = [
     r"warning: 'strncpy' output may be truncated copying 31 bytes from a string of length 31",
     r"warning: 'strncpy' output may be truncated copying 79 bytes from a string of length 79",
 ]
+
+
+@contextmanager
+def limit_ninja_jobs(jobs: t.Optional[int]):
+    if jobs is None:
+        yield
+        return
+    ninja = shutil.which('ninja')
+    if ninja is None:
+        raise BuildError('Ninja is required when --build-jobs is set')
+    original_path = os.environ.get('PATH', '')
+    original_jobs = os.environ.get('IDF_PY_BUILD_JOBS')
+    with tempfile.TemporaryDirectory(prefix='brookesia-ci-ninja-') as wrapper_dir:
+        # IDF 6.0 has no -j option. PATH also covers bootloader's nested Ninja.
+        wrapper = Path(wrapper_dir) / 'ninja'
+        wrapper.write_text(f'#!/bin/sh\nexec {shlex.quote(str(Path(ninja).resolve()))} -j {jobs} "$@"\n', encoding='utf-8')
+        wrapper.chmod(0o755)
+        os.environ['PATH'] = wrapper_dir + os.pathsep + original_path
+        os.environ['IDF_PY_BUILD_JOBS'] = str(jobs)
+        logger.info('Limiting each Ninja invocation to %d parallel jobs', jobs)
+        try:
+            yield
+        finally:
+            os.environ['PATH'] = original_path
+            if original_jobs is None:
+                os.environ.pop('IDF_PY_BUILD_JOBS', None)
+            else:
+                os.environ['IDF_PY_BUILD_JOBS'] = original_jobs
+
+
+def positive_integer(value: str) -> int:
+    result = int(value)
+    if result < 1:
+        raise argparse.ArgumentTypeError('must be a positive integer')
+    return result
 
 
 class CustomApp(CMakeApp):
@@ -243,17 +281,18 @@ def main(args):  # type: (argparse.Namespace) -> None
         len(apps_to_build) // APPS_BUILD_PER_JOB + 1,
     )
 
-    ret_code = build_apps(
-        apps_to_build,
-        parallel_count=args.parallel_count,
-        parallel_index=args.parallel_index,
-        dry_run=False,
-        collect_size_info_filename=args.collect_size_info,
-        keep_going=True,
-        ignore_warning_strs=IGNORE_WARNINGS,
-        copy_sdkconfig=True,
-        no_preserve=False,
-    )
+    with limit_ninja_jobs(args.build_jobs):
+        ret_code = build_apps(
+            apps_to_build,
+            parallel_count=args.parallel_count,
+            parallel_index=args.parallel_index,
+            dry_run=False,
+            collect_size_info_filename=args.collect_size_info,
+            keep_going=True,
+            ignore_warning_strs=IGNORE_WARNINGS,
+            copy_sdkconfig=True,
+            no_preserve=False,
+        )
 
     sys.exit(ret_code)
 
@@ -285,6 +324,10 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--parallel-count', default=1, type=int, help='Number of parallel build jobs.'
+    )
+    parser.add_argument(
+        '--build-jobs', type=positive_integer,
+        help='Maximum parallel jobs per Ninja invocation, including the bootloader. Default: Ninja chooses.',
     )
     parser.add_argument(
         '--parallel-index',

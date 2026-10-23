@@ -1,5 +1,6 @@
 variables:
   ESP_IDF_COMPONENT_MANAGER_VERSION: ">=3"
+  BROOKESIA_CI_BUILD_JOBS: "2"
 
 .build_template: &build_template
   stage: build
@@ -44,7 +45,7 @@ variables:
     - pip list | grep idf-component-manager
     - pip install --upgrade "idf-component-manager${ESP_IDF_COMPONENT_MANAGER_VERSION}"
     - pip install idf_build_apps
-    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} --collect-size-info size_info.txt -vv
+    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} --collect-size-info size_info.txt --build-jobs "${BROOKESIA_CI_BUILD_JOBS}" -vv
 
 .build_template_without_large_artifacts:
   <<: *build_template
@@ -78,7 +79,7 @@ variables:
     - pip list | grep idf-component-manager
     - pip install --upgrade "idf-component-manager${ESP_IDF_COMPONENT_MANAGER_VERSION}"
     - pip install idf_build_apps
-    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} --collect-size-info size_info.txt -vv
+    - python .gitlab/tools/build_apps.py ${EXAMPLE_DIR} --config ${EXAMPLE_CONFIG} -t ${EXAMPLE_TARGET} --collect-size-info size_info.txt --build-jobs "${BROOKESIA_CI_BUILD_JOBS}" -vv
 
 # Target ESP-IDF versions
 # Keep matrix values literal. GitLab shows raw variable names in matrix job names instead of expanded values.

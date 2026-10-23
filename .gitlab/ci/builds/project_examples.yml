@@ -19,6 +19,8 @@ build_examples_gui_gsp_basic:
   extends:
     - .build_template_without_large_artifacts
     - .rules:build:examples_gui_gsp_basic
+  before_script:
+    - python -m pip install esp-gsp-tools
   parallel:
     matrix:
       - IMAGE: "espressif/idf:release-v6.0"

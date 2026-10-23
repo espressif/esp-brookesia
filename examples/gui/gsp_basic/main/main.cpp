@@ -48,6 +48,7 @@ void run_main()
     const gui::gsp::DisplayLease display{
         .panel = & *panel,
         .touch = & *touch,
+        .desktop = {},
     };
     static gui::gsp::Session session;
     if (!start_demo(session, display)) {
