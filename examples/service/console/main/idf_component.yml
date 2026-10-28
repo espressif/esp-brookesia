@@ -2,38 +2,38 @@
 dependencies:
   # Hal
   espressif/brookesia_hal_adaptor:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../hal/brookesia_hal_adaptor
   espressif/brookesia_hal_boards:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../hal/brookesia_hal_boards
 
   # Services
   espressif/brookesia_service_audio:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/media/brookesia_service_audio
   espressif/brookesia_service_display:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/media/brookesia_service_display
   espressif/brookesia_service_device:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/system/brookesia_service_device
   espressif/brookesia_service_storage:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/system/brookesia_service_storage
   espressif/brookesia_service_sntp:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/network/brookesia_service_sntp
   espressif/brookesia_service_wifi:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/network/brookesia_service_wifi
   espressif/brookesia_service_video:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/media/brookesia_service_video
     rules:
       - if: "target in [esp32p4]"
 
   # Expressions
   espressif/brookesia_expression_emote:
-    version: "0.8.*"
+    version: "0.9.*"
     override_path: ../../../../service/expression/brookesia_expression_emote

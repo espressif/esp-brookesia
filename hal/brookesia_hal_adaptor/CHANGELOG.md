@@ -1,6 +1,10 @@
 # ChangeLog
 
-## v0.8.5 - 2026-10-27
+## v0.9.0 - 2026-10-28
+
+### Breaking Changes:
+
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 
 ### Enhancements:
 
@@ -14,7 +18,7 @@
 - fix(camera): improve camera teardown and support UYVY capture.
 - fix(hal): improve board resource cleanup and serialize managed hardware lifecycle operations.
 - fix(display): drain pending SPI transfers before releasing borrowed draw buffers.
-- fix(deps): require HAL Interface 0.8.3 or later for expansion and lifecycle APIs.
+- fix(deps): require HAL Interface 0.9.0 or later for expansion and lifecycle APIs.
 
 ## v0.8.4 - 2026-08-25
 

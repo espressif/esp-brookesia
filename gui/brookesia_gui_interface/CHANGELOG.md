@@ -1,9 +1,10 @@
 # ChangeLog
 
-## v0.8.3 - 2026-10-27
+## v0.9.0 - 2026-10-28
 
 ### Breaking Changes:
 
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 - break(style): replace direct optional Style fields with sparse accessors; update and rebuild C++ consumers.
 
 ### Enhancements:
@@ -18,7 +19,7 @@
 - fix(runtime): destroy dynamic screens immediately when unmounted.
 - fix(runtime): preserve public eager-load defaults and stage deferred builds away from the active screen.
 - fix(parser): keep JSON asset size checks on the Storage worker when required.
-- fix(deps): require Service Helper 0.8.6 or later for batched storage reads.
+- fix(deps): require Service Helper 0.9.0 or later for batched storage reads.
 
 ## v0.8.2 - 2026-07-27
 

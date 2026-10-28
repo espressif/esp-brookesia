@@ -15,7 +15,7 @@ function(brookesia_parse_component_version component_dir output_prefix)
 
     file(
         STRINGS "${component_version_file}" component_version_lines
-        REGEX "^[ \t]*version:[ \t]*\"?[0-9]+\\.[0-9]+\\.[0-9]+\"?[ \t]*$"
+        REGEX "^version:[ \t]*\"?[0-9]+\\.[0-9]+\\.[0-9]+\"?[ \t]*$"
     )
     list(LENGTH component_version_lines component_version_count)
     if(NOT component_version_count EQUAL 1)
@@ -25,7 +25,7 @@ function(brookesia_parse_component_version component_dir output_prefix)
     list(GET component_version_lines 0 component_version_line)
     string(
         REGEX REPLACE
-        "^[ \t]*version:[ \t]*\"?([0-9]+)\\.([0-9]+)\\.([0-9]+)\"?[ \t]*$"
+        "^version:[ \t]*\"?([0-9]+)\\.([0-9]+)\\.([0-9]+)\"?[ \t]*$"
         "\\1;\\2;\\3"
         component_version_parts
         "${component_version_line}"

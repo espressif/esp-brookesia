@@ -12,6 +12,8 @@ add_subdirectory(${TEST_APP_DIR}/.. ${CMAKE_BINARY_DIR}/brookesia_service_bt)
 
 file(GLOB TEST_APP_SRCS_CPP ${TEST_APP_MAIN_DIR}/*.cpp)
 add_executable(test_brookesia_service_bt ${TEST_APP_SRCS_CPP})
+brookesia_parse_component_version("${TEST_APP_DIR}/.." test_component_version)
+target_compile_definitions(test_brookesia_service_bt PRIVATE BROOKESIA_TEST_COMPONENT_VERSION="${test_component_version}")
 find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 target_link_libraries(
     test_brookesia_service_bt

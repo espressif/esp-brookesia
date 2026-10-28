@@ -81,7 +81,7 @@ BROOKESIA_TEST_CASE(helper_schema_contract, "Test ServiceBle - helper schema con
         service_info.has_value(), service_info ? "Manager returned BLE service info" : service_info.error().c_str()
     );
     TEST_ASSERT_EQUAL_STRING("Ble", service_info->name.c_str());
-    TEST_ASSERT_EQUAL_STRING("0.8.0", service_info->version.c_str());
+    TEST_ASSERT_EQUAL_STRING(BROOKESIA_TEST_COMPONENT_VERSION, service_info->version.c_str());
 
     const auto service_schema = service::helper::Manager::get_service_schema(
                                     std::string(BleHelper::get_name()), EVENT_TIMEOUT_MS

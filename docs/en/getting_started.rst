@@ -18,6 +18,8 @@ From **v0.7**, ESP-Brookesia is componentized. Obtain components via the compone
 2. The ``release`` branch maintains historical stable versions and only fixes bugs and security issues.
 3. The ``master`` branch continuously integrates new features and may contain functionality that has not stabilized yet.
 
+The 0.9 line introduces the sparse C++ ``gui::Style`` API: replace direct optional-field reads with accessors such as ``style.bg_color()``, and writes with setters such as ``style.set_bg_color(value)``. Keep Brookesia dependencies on one ``major.minor`` line. When moving Runtime App packages to a 0.9 system, update their required service versions to 0.9.x and rebuild the packages.
+
 The version support matrix is shown below. For the component list and release notes, refer to:
 
 .. list-table:: ESP-Brookesia version support
@@ -28,7 +30,7 @@ The version support matrix is shown below. For the component list and release no
      - ESP-IDF
      - Main changes
      - Status
-   * - master (v0.8)
+   * - master (v0.9)
      - - ESP32-S31: 6.2
        - Others: >= 6.0, <= 6.2
      - - Componentized publishing expands to GUI, Runtime, System, App, and AI capabilities

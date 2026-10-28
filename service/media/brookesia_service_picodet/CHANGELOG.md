@@ -1,6 +1,10 @@
 # ChangeLog
 
-## v0.8.1 - 2026-10-27
+## v0.9.0 - 2026-10-28
+
+### Breaking Changes:
+
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 
 ### Enhancements:
 
@@ -8,6 +12,7 @@
 
 ### Bug Fixes:
 
+- fix(pc): derive component version metadata from the manifest.
 - fix(build): suppress the esp-dl 3.3.6 anonymous typedef warning for PicoDet sources.
 - fix(deps): declare the Service Manager dependency required for visual DataFlow.
 

@@ -1,6 +1,10 @@
 # ChangeLog
 
-## v0.8.6 - 2026-10-27
+## v0.9.0 - 2026-10-28
+
+### Breaking Changes:
+
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 
 ### Enhancements:
 
@@ -11,7 +15,7 @@
 
 - fix(render): keep deferred screen builds off the active display and refresh relative placement when mounted.
 - fix(props): restore identity transforms after removing a previous local transform.
-- fix(deps): require GUI Interface 0.8.3 or later for sparse style accessors.
+- fix(deps): require GUI Interface 0.9.0 or later for sparse style accessors.
 
 ## v0.8.5 - 2026-09-17
 

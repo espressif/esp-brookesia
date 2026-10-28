@@ -1,6 +1,10 @@
 # ChangeLog
 
-## v0.8.4 - 2026-10-27
+## v0.9.0 - 2026-10-28
+
+### Breaking Changes:
+
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 
 ### Enhancements:
 

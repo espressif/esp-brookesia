@@ -21,7 +21,10 @@ namespace esp_brookesia::service::bt {
 
 std::string Bt::get_component_version()
 {
-    return "0.8.0";
+    return make_version(
+               BROOKESIA_SERVICE_BT_VER_MAJOR, BROOKESIA_SERVICE_BT_VER_MINOR,
+               BROOKESIA_SERVICE_BT_VER_PATCH
+           );
 }
 
 bool Bt::on_init()

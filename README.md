@@ -42,9 +42,11 @@ From `v0.7`, ESP-Brookesia is componentized. Projects are recommended to obtain 
 2. The `release` branch maintains historical stable versions and only fixes bugs and security issues.
 3. The `master` branch continuously integrates new features and may contain functionality that has not stabilized yet.
 
+The 0.9 line introduces the sparse C++ `gui::Style` API; see the [GUI migration notes](gui/brookesia_gui_interface/README.md#c-api-migration). Keep Brookesia dependencies on one `major.minor` line. When moving Runtime App packages to a 0.9 system, update their required service versions to 0.9.x and rebuild the packages.
+
 | ESP-Brookesia | ESP-IDF | Main changes | Status |
 | --- | --- | --- | --- |
-| master (v0.8) | ESP32-S31: 6.2<br>Others: >= 6.0, <= 6.2 | Componentized publishing expands to GUI, Runtime, System, App, and AI capabilities; adds PC simulation, JSON UI, multi-runtime support, and the standard System Super mainline | Active development |
+| master (v0.9) | ESP32-S31: 6.2<br>Others: >= 6.0, <= 6.2 | Componentized publishing expands to GUI, Runtime, System, App, and AI capabilities; adds PC simulation, JSON UI, multi-runtime support, and the standard System Super mainline | Active development |
 | release/v0.7 | >= 5.5, <= 6.0 | Component manager support | Stable version, bug and security fixes only |
 | release/v0.6 | >= 5.3, <= 5.5 | Preview system framework; ESP-VoCat firmware project | End of maintenance |
 

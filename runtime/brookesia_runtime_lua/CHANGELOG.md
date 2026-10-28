@@ -1,9 +1,10 @@
 # ChangeLog
 
-## v0.8.3 - 2026-10-27
+## v0.9.0 - 2026-10-28
 
 ### Breaking Changes:
 
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 - break(deps): replace public `georgik/lua` with private `espressif/lua` at `^5.5.1`.
 
 ## v0.8.2 - 2026-07-27

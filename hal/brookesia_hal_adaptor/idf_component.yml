@@ -1,11 +1,11 @@
-version: "0.8.5"
+version: "0.9.0"
 description: ESP-Brookesia HAL adaptor which provides board-side audio and LCD device implementations for brookesia_hal_interface.
 url: https://github.com/espressif/esp-brookesia/tree/master/hal/brookesia_hal_adaptor
 repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
   espressif/brookesia_hal_interface:
-    version: ">=0.8.3,<0.9"
+    version: "0.9.*"
     override_path: ../brookesia_hal_interface
     require: public
 

@@ -1,6 +1,10 @@
 # ChangeLog
 
-## v0.8.3 - 2026-10-27
+## v0.9.0 - 2026-10-28
+
+### Breaking Changes:
+
+- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
 
 ### Enhancements:
 
@@ -9,7 +13,7 @@
 ### Bug Fixes:
 
 - fix(expansion): serialize event listener registration and service shutdown.
-- fix(deps): require Service Helper 0.8.5 and HAL Interface 0.8.3 for expansion contracts.
+- fix(deps): require Service Helper 0.9.0 and HAL Interface 0.9.0 for expansion contracts.
 
 ## v0.8.2 - 2026-07-27
 
