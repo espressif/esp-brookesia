@@ -36,7 +36,7 @@ static void log_parser_internal_heap(std::string_view, std::string_view) {}
 #endif
 
 
-static std::expected<ParsedDocument, std::string> parse_document_impl(
+static std::expected<SparseParsedDocument, std::string> parse_document_impl(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment,
@@ -80,7 +80,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         return std::unexpected("Legacy root fields 'constants'/'nodes' are no longer supported; use 'assets'");
     }
 
-    ParsedDocument parsed_document;
+    SparseParsedDocument parsed_document;
     auto &document = parsed_document.document;
     document.version = *version;
     parsed_document.dependency_files = std::move(dependency_files);
@@ -529,7 +529,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
         view_screen_assets.push_back(&asset_entry);
     }
 
-    auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry) -> std::expected<Node, std::string> {
+    auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry) -> std::expected<SparseNode, std::string> {
         std::vector<std::string> template_stack;
         return parse_view_node(
             asset_entry.value.as_object(),
@@ -571,7 +571,7 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     log_parser_internal_heap(base_dir, "after parse_flows_screens");
 
     stage_start = ParserProfileClock::now();
-    auto validation = validate_document(document);
+    auto validation = validate_sparse_document(document);
     stage_end = ParserProfileClock::now();
     GUI_INTERFACE_PROFILE_LOGI(
         "GUI parser profile: base_dir(%1%), stage(validate_document), elapsed_ms(%2%), total_ms(%3%)",
@@ -600,14 +600,14 @@ static std::expected<ParsedDocument, std::string> parse_document_impl(
     return parsed_document;
 }
 
-std::expected<Document, std::string> parse_document(
+std::expected<SparseDocument, std::string> parse_sparse_document(
     std::string_view json, std::string_view base_dir, const Environment &environment)
 {
     auto parsed_document = parse_document_impl(json, base_dir, environment, {});
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
-    return parsed_document->document;
+    return std::move(parsed_document->document);
 }
 
 std::expected<std::vector<FontAsset>, std::string> parse_font_asset_set_json(
@@ -660,7 +660,7 @@ std::expected<std::vector<ImageAsset>, std::string> parse_image_asset_set_file(s
     return parse_image_asset_set_json(*text, file_path.parent_path().string());
 }
 
-std::expected<ThemeAsset, std::string> parse_theme_asset_json(
+std::expected<SparseThemeAsset, std::string> parse_sparse_theme_asset_json(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment)
@@ -684,7 +684,7 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_json(
     return parse_theme_asset(object, std::filesystem::path(base_dir).lexically_normal(), environment);
 }
 
-std::expected<ThemeAsset, std::string> parse_theme_asset_file(
+std::expected<SparseThemeAsset, std::string> parse_sparse_theme_asset_file(
     std::string_view path,
     const Environment &environment)
 {
@@ -693,10 +693,10 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
     if (!text) {
         return std::unexpected(text.error());
     }
-    return parse_theme_asset_json(*text, file_path.parent_path().string(), environment);
+    return parse_sparse_theme_asset_json(*text, file_path.parent_path().string(), environment);
 }
 
-std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
+std::expected<SparseParsedDocument, std::string> parse_sparse_document_file_with_metadata(
     std::string_view path,
     const Environment &environment)
 {
@@ -716,21 +716,60 @@ std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
                *text, file_path.parent_path().string(), environment, std::move(dependency_files));
 }
 
+std::expected<Document, std::string> parse_document(
+    std::string_view json, std::string_view base_dir, const Environment &environment)
+{
+    auto document = parse_sparse_document(json, base_dir, environment);
+    if (!document) {
+        return std::unexpected(document.error());
+    }
+    return to_public(*document);
+}
+
+std::expected<ThemeAsset, std::string> parse_theme_asset_json(
+    std::string_view json,
+    std::string_view base_dir,
+    const Environment &environment)
+{
+    auto theme = parse_sparse_theme_asset_json(json, base_dir, environment);
+    if (!theme) {
+        return std::unexpected(theme.error());
+    }
+    return to_public(*theme);
+}
+
+std::expected<ThemeAsset, std::string> parse_theme_asset_file(
+    std::string_view path,
+    const Environment &environment)
+{
+    auto theme = parse_sparse_theme_asset_file(path, environment);
+    if (!theme) {
+        return std::unexpected(theme.error());
+    }
+    return to_public(*theme);
+}
+
+std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
+    std::string_view path,
+    const Environment &environment)
+{
+    auto parsed = parse_sparse_document_file_with_metadata(path, environment);
+    if (!parsed) {
+        return std::unexpected(parsed.error());
+    }
+    return ParsedDocument{
+        .document = to_public(parsed->document),
+        .dependency_files = std::move(parsed->dependency_files),
+    };
+}
+
 std::expected<Document, std::string> parse_document_file(std::string_view path, const Environment &environment)
 {
-    const std::filesystem::path file_path = std::filesystem::path(path).lexically_normal();
-    auto text = read_text_file(file_path);
-    if (!text) {
-        return std::unexpected(text.error());
+    auto parsed = parse_sparse_document_file_with_metadata(path, environment);
+    if (!parsed) {
+        return std::unexpected(parsed.error());
     }
-    std::vector<std::string> dependency_files;
-    dependency_files.push_back(file_path.string());
-    auto parsed_document = parse_document_impl(
-                               *text, file_path.parent_path().string(), environment, std::move(dependency_files));
-    if (!parsed_document) {
-        return std::unexpected(parsed_document.error());
-    }
-    return parsed_document->document;
+    return to_public(parsed->document);
 }
 
 } // namespace esp_brookesia::gui

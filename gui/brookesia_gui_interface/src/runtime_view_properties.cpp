@@ -20,9 +20,9 @@ std::string Runtime::Impl::get_view_id(const View &view) const
     auto *record = resolve_view_record(view);
     return record == nullptr ? std::string() : std::string(record->node_id());
 }
-Node Runtime::Impl::make_style_snapshot(const NodeRecord &record) const
+SparseNode Runtime::Impl::make_style_snapshot(const NodeRecord &record) const
 {
-    Node snapshot;
+    SparseNode snapshot;
     snapshot.type = record.node().type;
     snapshot.style_refs = record.definition->style_refs;
     record.populate_style_snapshot(snapshot);
@@ -34,13 +34,13 @@ void Runtime::Impl::apply_record_props(NodeRecord &record, PropsApplyMask mask)
         return;
     }
     if (record.transient_mutable_definition || record.compact_props_state == nullptr) {
-        backend->apply_props(record.handle, record.node(), mask);
+        apply_backend_props(*backend, record.handle, record.node(), mask);
         return;
     }
 
     // IBackend consumes this snapshot during the call. Copy only the selected node type's
     // props into temporary stack storage; unrelated domains never become persistent state.
-    Node props_snapshot;
+    SparseNode props_snapshot;
     props_snapshot.type = record.node().type;
     props_snapshot.common_props = record.common_props();
     props_snapshot.label_props = record.label_props();
@@ -88,7 +88,7 @@ void Runtime::Impl::apply_record_props(NodeRecord &record, PropsApplyMask mask)
         break;
     }
     props_snapshot.placement = record.placement();
-    backend->apply_props(record.handle, props_snapshot, mask);
+    apply_backend_props(*backend, record.handle, props_snapshot, mask);
 }
 std::optional<ViewStateValue> Runtime::Impl::get_view_state_internal(const View &view, ViewStateKind kind) const
 {
@@ -140,7 +140,7 @@ std::optional<ViewStateValue> Runtime::Impl::get_view_state_internal(const View 
     case ViewStateKind::Placement:
         return ViewStateValue(record->placement());
     case ViewStateKind::Style:
-        return ViewStateValue(record->resolved_style->style);
+        return ViewStateValue(to_public(record->resolved_style->style));
     case ViewStateKind::ResolvedFont:
         return ViewStateValue(record->resolved_style->resolved_font);
     case ViewStateKind::ResolvedImage:

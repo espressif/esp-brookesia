@@ -10,7 +10,7 @@ namespace esp_brookesia::gui {
 std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree(
     DocumentId document_id,
     TreeRecord &tree,
-    const Node &definition,
+    const SparseNode &definition,
     BackendHandle parent_handle,
     NodeUid parent_uid,
     const std::string &root_id,
@@ -31,9 +31,9 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     const bool needs_instance_node = override_root_id.has_value() || !definition.bindings.empty() ||
                                      definition.type == NodeType::Image ||
                                      definition.type == NodeType::Keyboard;
-    std::unique_ptr<Node> instance_node;
+    std::unique_ptr<SparseNode> instance_node;
     if (needs_instance_node) {
-        instance_node = std::make_unique<Node>(clone_node_without_children(definition));
+        instance_node = std::make_unique<SparseNode>(clone_node_without_children(definition));
     }
     if (override_root_id.has_value()) {
         instance_node->id = *override_root_id;
@@ -54,7 +54,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     if (definition.type == NodeType::Image || definition.type == NodeType::Keyboard) {
         resolve_image_source(tree, *instance_node);
     }
-    const Node &node = instance_node != nullptr ? *instance_node : definition;
+    const SparseNode &node = instance_node != nullptr ? *instance_node : definition;
     auto image_preload_result = ensure_node_image_resources_preloaded(tree, node);
     add_subtree_profile_time(subtree_build_profile_.image_resolve_us, step_start);
     if (!image_preload_result) {
@@ -66,7 +66,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     const size_t dbg_s0 = dbg_ext_free();
 #endif
     step_start = subtree_profile_now();
-    BackendHandle handle = backend->create_node(node, parent_handle, parent_absolute_path, scope_root_absolute_path);
+    BackendHandle handle = create_backend_node(*backend, node, parent_handle, parent_absolute_path, scope_root_absolute_path);
     add_subtree_profile_time(subtree_build_profile_.create_node_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     const size_t dbg_s1 = dbg_ext_free();
@@ -90,7 +90,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     // resolve_style_shared() only reads the effective node and de-duplicates the result across
     // identically-styled instances (for example, repeated template list items).
     step_start = subtree_profile_now();
-    const Node *style_definition = node_has_style_binding(definition) ? nullptr : &definition;
+    const SparseNode *style_definition = node_has_style_binding(definition) ? nullptr : &definition;
     record.resolved_style = resolve_style_shared(tree, node, style_definition);
     add_subtree_profile_time(subtree_build_profile_.resolve_style_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
@@ -98,7 +98,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     dbg_step_resolve_style_ += static_cast<int64_t>(dbg_s2) - static_cast<int64_t>(dbg_s2b);
 #endif
     // ---------------------------------------------------------------------------------------
-    // MEMORY-CRITICAL: static nodes retain only a stable definition pointer. A full Node is
+    // MEMORY-CRITICAL: static nodes retain only a stable definition pointer. A full SparseNode is
     // materialized only while the backend constructs the object. Later setters allocate only
     // the affected compact instance-state domain.
     //
@@ -110,7 +110,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     //    at every level (~O(sum of subtree sizes) instead of O(node count)).
     //
     // Mutable instance state is allocated only for domains that construction or a later setter
-    // actually changes. The complete Node above is construction-scoped and is never retained by
+    // actually changes. The complete SparseNode above is construction-scoped and is never retained by
     // a live record; bindings keep only their affected props/style/layout/placement payload.
     // ---------------------------------------------------------------------------------------
     step_start = subtree_profile_now();
@@ -267,7 +267,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
             get_theme_style_key(stored_record->node().type),
             dbg_live_nodes_by_type_[node_type_index],
             sizeof(NodeRecord),
-            sizeof(Node),
+            sizeof(SparseNode),
             has_compact_props,
             dbg_ext_free()
         );
@@ -283,7 +283,7 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     step_start = subtree_profile_now();
     // Defer CommonTransform until after layout/placement/style so percent pivots use final size.
     // apply_props(All) would apply transform once here and again below.
-    backend->apply_props(handle, node, PropsApplyMask::All & ~PropsApplyMask::CommonTransform);
+    apply_backend_props(*backend, handle, node, PropsApplyMask::All & ~PropsApplyMask::CommonTransform);
     add_subtree_profile_time(subtree_build_profile_.apply_props_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     const size_t dbg_s4 = dbg_ext_free();
@@ -304,14 +304,14 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::create_subtree
     dbg_step_apply_placement_ += static_cast<int64_t>(dbg_s5) - static_cast<int64_t>(dbg_s6);
 #endif
     step_start = subtree_profile_now();
-    backend->apply_style(handle, *stored_record->resolved_style);
+    apply_backend_style(*backend, handle, *stored_record->resolved_style);
     add_subtree_profile_time(subtree_build_profile_.apply_style_us, step_start);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     const size_t dbg_s7 = dbg_ext_free();
     dbg_step_apply_style_ += static_cast<int64_t>(dbg_s6) - static_cast<int64_t>(dbg_s7);
 #endif
     step_start = subtree_profile_now();
-    backend->apply_props(handle, node, PropsApplyMask::CommonTransform);
+    apply_backend_props(*backend, handle, node, PropsApplyMask::CommonTransform);
     add_subtree_profile_time(subtree_build_profile_.apply_transform_us, step_start);
     step_start = subtree_profile_now();
     backend->apply_debug_visual(handle, view_debug_enabled_);
@@ -697,7 +697,7 @@ void Runtime::Impl::destroy_subtree(TreeRecord &tree, NodeUid uid)
                 get_theme_style_key(current_it->second.node().type),
                 dbg_live_nodes_by_type_[node_type_index],
                 sizeof(NodeRecord),
-                sizeof(Node),
+                sizeof(SparseNode),
                 has_compact_props,
                 dbg_ext_free()
             );

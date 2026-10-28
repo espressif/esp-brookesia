@@ -430,12 +430,12 @@ std::expected<void, std::string> append_and_merge_theme_constant_assets(
     return {};
 }
 
-std::expected<ThemeAsset, std::string> parse_theme_asset(
+std::expected<SparseThemeAsset, std::string> parse_theme_asset(
     const boost::json::object &object,
     const std::filesystem::path &base_dir,
     const Environment &environment)
 {
-    ThemeAsset theme;
+    SparseThemeAsset theme;
 
     auto type = parse_string_field(object, "type", "theme");
     if (!type) {

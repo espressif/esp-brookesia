@@ -7,11 +7,11 @@
 
 namespace esp_brookesia::gui {
 
-void Runtime::Impl::merge_style_layer(Style &destination, const Style &source)
+void Runtime::Impl::merge_style_layer(SparseStyle &destination, const SparseStyle &source)
 {
     destination.merge_from(source);
 }
-void Runtime::Impl::merge_style_set_layer(StyleSet &destination, const StyleSet &source)
+void Runtime::Impl::merge_style_set_layer(SparseStyleSet &destination, const SparseStyleSet &source)
 {
     merge_style_layer(destination.style, source.style);
     for (const auto &[state_name, state_style] : source.state_styles) {
@@ -24,9 +24,9 @@ void Runtime::Impl::merge_style_set_layer(StyleSet &destination, const StyleSet 
         }
     }
 }
-StyleSet Runtime::Impl::compose_style_set(const TreeRecord &tree, const Node &node) const
+SparseStyleSet Runtime::Impl::compose_style_set(const TreeRecord &tree, const SparseNode &node) const
 {
-    StyleSet composed_style;
+    SparseStyleSet composed_style;
 
     const auto &builtin_theme = get_builtin_default_theme();
     if (auto all_style_it = builtin_theme.styles.find("all"); all_style_it != builtin_theme.styles.end()) {
@@ -106,7 +106,7 @@ std::optional<KeyboardKeyStyle> Runtime::Impl::resolve_keyboard_key_style_ref(
     const TreeRecord &tree,
     std::string_view style_ref) const
 {
-    const StyleSet *style_set = nullptr;
+    const SparseStyleSet *style_set = nullptr;
     auto local_style_it = tree.styles.find(std::string(style_ref));
     if (local_style_it != tree.styles.end()) {
         style_set = &local_style_it->second;
@@ -173,14 +173,14 @@ void Runtime::Impl::resolve_keyboard_key_style_refs(const TreeRecord &tree, Keyb
     }
     props.resolved_key_styles = std::move(resolved_styles);
 }
-void Runtime::Impl::resolve_keyboard_key_style_refs(const TreeRecord &tree, Node &node) const
+void Runtime::Impl::resolve_keyboard_key_style_refs(const TreeRecord &tree, SparseNode &node) const
 {
     if (node.type == NodeType::Keyboard) {
         resolve_keyboard_key_style_refs(tree, node.keyboard_props);
     }
 }
 std::expected<void, std::string> Runtime::Impl::validate_node_resource_references(
-    const TreeRecord &tree, const Node &node, const std::string &absolute_path) const
+    const TreeRecord &tree, const SparseNode &node, const std::string &absolute_path) const
 {
     if (node.style.font().has_value() && !node.style.font()->empty() &&
             !has_font_resource(tree, *node.style.font()) &&
@@ -262,9 +262,9 @@ std::expected<void, std::string> Runtime::Impl::validate_resource_references(con
     }
     return {};
 }
-ResolvedStyle Runtime::Impl::resolve_style(const TreeRecord &tree, const Node &node) const
+SparseResolvedStyle Runtime::Impl::resolve_style(const TreeRecord &tree, const SparseNode &node) const
 {
-    ResolvedStyle resolved_style;
+    SparseResolvedStyle resolved_style;
     auto style_set = compose_style_set(tree, node);
     resolve_style_set_color_fields(tree, style_set);
     resolved_style.style = style_set.style;
@@ -378,37 +378,25 @@ ResolvedStyle Runtime::Impl::resolve_style(const TreeRecord &tree, const Node &n
     resolve_font_chain("default", true);
     return resolved_style;
 }
-std::shared_ptr<const ResolvedStyle> Runtime::Impl::intern_resolved_style(
+std::shared_ptr<const SparseResolvedStyle> Runtime::Impl::intern_resolved_style(
     TreeRecord &tree,
-    ResolvedStyle resolved_style)
+    SparseResolvedStyle resolved_style)
 {
-    auto entry_it = tree.resolved_style_intern_cache.begin();
-    while (entry_it != tree.resolved_style_intern_cache.end()) {
-        auto candidate = entry_it->lock();
-        if (candidate == nullptr) {
-            entry_it = tree.resolved_style_intern_cache.erase(entry_it);
-            continue;
-        }
-        if (*candidate == resolved_style) {
+    bool reused = false;
+    auto result = intern_sparse_resolved_style(tree.resolved_style_intern_cache, std::move(resolved_style), &reused);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-            ++dbg_style_intern_hits_;
-#endif
-            return candidate;
-        }
-        ++entry_it;
+    if (reused) {
+        ++dbg_style_intern_hits_;
+    } else {
+        ++dbg_style_intern_misses_;
     }
-
-    auto result = std::make_shared<const ResolvedStyle>(std::move(resolved_style));
-    tree.resolved_style_intern_cache.push_back(result);
-#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
-    ++dbg_style_intern_misses_;
 #endif
     return result;
 }
-std::shared_ptr<const ResolvedStyle> Runtime::Impl::resolve_style_shared(
+std::shared_ptr<const SparseResolvedStyle> Runtime::Impl::resolve_style_shared(
     TreeRecord &tree,
-    const Node &node,
-    const Node *canonical_definition )
+    const SparseNode &node,
+    const SparseNode *canonical_definition )
 {
     if (style_cache_revision_ != current_style_revision_) {
         for (auto &[unused_document_id, cached_tree] : trees) {

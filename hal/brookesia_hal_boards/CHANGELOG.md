@@ -1,10 +1,6 @@
 # ChangeLog
 
-## v0.9.0 - 2026-10-28
-
-### Breaking Changes:
-
-- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
+## v0.8.1 - 2026-10-27
 
 ### Enhancements:
 
@@ -21,7 +17,7 @@
 
 ### Documentation:
 
-- docs(mosaico): document partial V1.2 validation and manual BOOT flashing with automatic download disabled.
+- docs(mosaico): document manual BOOT flashing for V1.2.
 
 ## v0.8.0 - 2026-06-28
 

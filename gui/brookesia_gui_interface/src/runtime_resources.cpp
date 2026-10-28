@@ -7,7 +7,7 @@
 
 namespace esp_brookesia::gui {
 
-std::expected<void, std::string> Runtime::Impl::load_theme(const ThemeAsset &theme)
+std::expected<void, std::string> Runtime::Impl::load_theme(const SparseThemeAsset &theme)
 {
     if (theme.id.empty()) {
         return std::unexpected("Theme id must not be empty");
@@ -72,9 +72,9 @@ std::expected<std::string, std::string> Runtime::Impl::resolve_color_binding_val
 }
 void Runtime::Impl::resolve_style_color_field(
     const TreeRecord &tree,
-    Style &style,
-    std::optional<std::string> (Style::*getter)() const,
-    void (Style::*setter)(std::optional<std::string>),
+    SparseStyle &style,
+    std::optional<std::string> (SparseStyle::*getter)() const,
+    void (SparseStyle::*setter)(std::optional<std::string>),
     std::string_view field_name) const
 {
     auto field = (style.*getter)();
@@ -93,21 +93,21 @@ void Runtime::Impl::resolve_style_color_field(
     }
     (style.*setter)(std::move(*resolved));
 }
-void Runtime::Impl::resolve_style_color_fields(const TreeRecord &tree, Style &style) const
+void Runtime::Impl::resolve_style_color_fields(const TreeRecord &tree, SparseStyle &style) const
 {
-    resolve_style_color_field(tree, style, &Style::bg_color, &Style::set_bg_color, "bgColor");
+    resolve_style_color_field(tree, style, &SparseStyle::bg_color, &SparseStyle::set_bg_color, "bgColor");
     resolve_style_color_field(
-        tree, style, &Style::bg_gradient_color, &Style::set_bg_gradient_color, "bgGradientColor");
-    resolve_style_color_field(tree, style, &Style::text_color, &Style::set_text_color, "textColor");
-    resolve_style_color_field(tree, style, &Style::border_color, &Style::set_border_color, "borderColor");
-    resolve_style_color_field(tree, style, &Style::line_color, &Style::set_line_color, "lineColor");
-    resolve_style_color_field(tree, style, &Style::arc_color, &Style::set_arc_color, "arcColor");
+        tree, style, &SparseStyle::bg_gradient_color, &SparseStyle::set_bg_gradient_color, "bgGradientColor");
+    resolve_style_color_field(tree, style, &SparseStyle::text_color, &SparseStyle::set_text_color, "textColor");
+    resolve_style_color_field(tree, style, &SparseStyle::border_color, &SparseStyle::set_border_color, "borderColor");
+    resolve_style_color_field(tree, style, &SparseStyle::line_color, &SparseStyle::set_line_color, "lineColor");
+    resolve_style_color_field(tree, style, &SparseStyle::arc_color, &SparseStyle::set_arc_color, "arcColor");
     resolve_style_color_field(
-        tree, style, &Style::arc_gradient_color, &Style::set_arc_gradient_color, "arcGradientColor");
-    resolve_style_color_field(tree, style, &Style::shadow_color, &Style::set_shadow_color, "shadowColor");
-    resolve_style_color_field(tree, style, &Style::image_recolor, &Style::set_image_recolor, "imageRecolor");
+        tree, style, &SparseStyle::arc_gradient_color, &SparseStyle::set_arc_gradient_color, "arcGradientColor");
+    resolve_style_color_field(tree, style, &SparseStyle::shadow_color, &SparseStyle::set_shadow_color, "shadowColor");
+    resolve_style_color_field(tree, style, &SparseStyle::image_recolor, &SparseStyle::set_image_recolor, "imageRecolor");
 }
-void Runtime::Impl::resolve_style_set_color_fields(const TreeRecord &tree, StyleSet &style_set) const
+void Runtime::Impl::resolve_style_set_color_fields(const TreeRecord &tree, SparseStyleSet &style_set) const
 {
     resolve_style_color_fields(tree, style_set.style);
     for (auto &[unused_state, state_style] : style_set.state_styles) {
@@ -397,7 +397,7 @@ void Runtime::Impl::refresh_image_references(TreeRecord &tree, std::string_view 
             if (backend == nullptr) {
                 continue;
             }
-            Node apply_node;
+            SparseNode apply_node;
             apply_node.type = NodeType::Image;
             apply_node.image_props = record.image_props();
             apply_node.resolved_image = record.resolved_image();
@@ -405,7 +405,7 @@ void Runtime::Impl::refresh_image_references(TreeRecord &tree, std::string_view 
             if (apply_node.resolved_image.primary_src.empty() && apply_node.resolved_image.native_src == 0) {
                 apply_node.image_props.src.clear();
             }
-            backend->apply_props(record.handle, apply_node, PropsApplyMask::ImageSource);
+            apply_backend_props(*backend, record.handle, apply_node, PropsApplyMask::ImageSource);
             backend->apply_placement(record.handle, record.placement(), PlacementApplyMask::Size);
             continue;
         }
@@ -415,7 +415,7 @@ void Runtime::Impl::refresh_image_references(TreeRecord &tree, std::string_view 
             resolve_keyboard_key_style_refs(tree, props);
             resolve_keyboard_key_images(tree, props);
         }
-        Node preload_snapshot;
+        SparseNode preload_snapshot;
         preload_snapshot.type = record.node().type;
         if (preload_snapshot.type == NodeType::Keyboard) {
             preload_snapshot.keyboard_props = record.keyboard_props();
@@ -531,7 +531,7 @@ bool Runtime::Impl::unregister_image(std::string_view id)
 }
 std::expected<void, std::string> Runtime::Impl::load_theme_json(std::string_view json, std::string_view base_dir)
 {
-    auto theme = parse_theme_asset_json(json, base_dir);
+    auto theme = parse_sparse_theme_asset_json(json, base_dir);
     if (!theme) {
         return std::unexpected(theme.error());
     }
@@ -539,7 +539,7 @@ std::expected<void, std::string> Runtime::Impl::load_theme_json(std::string_view
 }
 std::expected<void, std::string> Runtime::Impl::load_theme_file(std::string_view path)
 {
-    auto theme = parse_theme_asset_file(path);
+    auto theme = parse_sparse_theme_asset_file(path);
     if (!theme) {
         return std::unexpected(theme.error());
     }

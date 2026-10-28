@@ -18,8 +18,6 @@ ESP-Brookesia 自 ``v0.7`` 版本起采用组件化管理，建议项目通过�
 2. ``release`` 分支维护历史稳定版本，仅修复 bug 和安全问题。
 3. ``master`` 分支支持持续集成新特性，可能包含未稳定的新功能。
 
-0.9 版本线引入稀疏存储的 C++ ``gui::Style`` API：直接读取 optional 字段的代码需改用 ``style.bg_color()`` 等访问器，写入则改用 ``style.set_bg_color(value)`` 等设置函数。工程中的 Brookesia 依赖应保持相同的 ``major.minor``。将 Runtime App 包迁移到 0.9 系统时，需把所声明的服务需求版本更新为 0.9.x，并重新构建应用包。
-
 不同版本说明如下，组件列表与更新说明请参考：
 
 .. list-table:: ESP-Brookesia 版本支持情况
@@ -30,7 +28,7 @@ ESP-Brookesia 自 ``v0.7`` 版本起采用组件化管理，建议项目通过�
      - 依赖的 ESP-IDF
      - 主要变更
      - 支持状态
-   * - master (v0.9)
+   * - master (v0.8)
      - - ESP32-S31: 6.2
        - 其他： >= 6.0, <= 6.2
      - - 组件化发布扩展到 GUI、Runtime、System、App 与 AI 能力

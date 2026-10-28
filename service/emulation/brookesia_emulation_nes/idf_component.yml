@@ -1,7 +1,7 @@
-version: "0.9.0"
+version: "0.8.2"
 description: NES emulation service for ESP-Brookesia
 url: https://github.com/espressif/esp-brookesia/tree/master/service/emulation/brookesia_emulation_nes
 dependencies:
   espressif/brookesia_service_helper:
-    version: "0.9.*"
+    version: "0.8.*"
     override_path: ../../framework/brookesia_service_helper

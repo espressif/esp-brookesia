@@ -1,4 +1,4 @@
-version: "0.9.0"
+version: "0.8.2"
 description: ESP-Brookesia Coze Agent which provides Coze API integration, WebSocket communication, and agent management.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/agent/brookesia_agent_coze
 repository: https://github.com/espressif/esp-brookesia.git
@@ -9,7 +9,7 @@ dependencies:
     require: private
 
   espressif/brookesia_agent_manager:
-    version: "0.9.*"
+    version: "0.8.*"
     override_path: ../brookesia_agent_manager
     require: public
 

@@ -168,7 +168,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         break;
     }
 
-    Style *target_style = nullptr;
+    SparseStyle *target_style = nullptr;
     const bool stores_base_style_override = target_info.domain == BindingApplyDomain::Style &&
                                             target_info.style_part.empty() &&
                                             target_info.style_state.empty() &&
@@ -177,7 +177,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (target_info.style_part.empty()) {
             if (target_info.style_state.empty()) {
                 if (record.transient_mutable_definition) {
-                    target_style = &const_cast<Node *>(record.definition)->style;
+                    target_style = &const_cast<SparseNode *>(record.definition)->style;
                 }
             } else {
                 target_style = &record.mutable_state_styles()[target_info.style_state];
@@ -189,21 +189,21 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
                            &part_style.state_styles[target_info.style_state];
         }
     }
-    auto set_style_string = [&](void (Style::*setter)(std::optional<std::string>), std::string field_value) {
+    auto set_style_string = [&](void (SparseStyle::*setter)(std::optional<std::string>), std::string field_value) {
         if (stores_base_style_override) {
             record.set_style_override(target, std::move(field_value));
         } else {
             (target_style->*setter)(std::move(field_value));
         }
     };
-    auto set_style_number = [&](void (Style::*setter)(std::optional<int32_t>), int32_t field_value) {
+    auto set_style_number = [&](void (SparseStyle::*setter)(std::optional<int32_t>), int32_t field_value) {
         if (stores_base_style_override) {
             record.set_style_override(target, field_value);
         } else {
             (target_style->*setter)(field_value);
         }
     };
-    auto set_style_bool = [&](void (Style::*setter)(std::optional<bool>), bool field_value) {
+    auto set_style_bool = [&](void (SparseStyle::*setter)(std::optional<bool>), bool field_value) {
         if (stores_base_style_override) {
             record.set_style_override(target, static_cast<int32_t>(field_value));
         } else {
@@ -376,7 +376,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_bg_color, *color);
+        set_style_string(&SparseStyle::set_bg_color, *color);
         break;
     }
     case BindingTarget::StyleBgGradientColor: {
@@ -384,21 +384,21 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_bg_gradient_color, *color);
+        set_style_string(&SparseStyle::set_bg_gradient_color, *color);
         break;
     }
     case BindingTarget::StyleBgGradientDirection:
         if (value != "none" && value != "horizontal" && value != "vertical") {
             return std::unexpected("invalid style.bgGradientDirection");
         }
-        set_style_string(&Style::set_bg_gradient_direction, std::string(value));
+        set_style_string(&SparseStyle::set_bg_gradient_direction, std::string(value));
         break;
     case BindingTarget::StyleTextColor: {
         auto color = resolve_color_binding_value(tree, value);
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_text_color, *color);
+        set_style_string(&SparseStyle::set_text_color, *color);
         break;
     }
     case BindingTarget::StyleBorderColor: {
@@ -406,7 +406,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_border_color, *color);
+        set_style_string(&SparseStyle::set_border_color, *color);
         break;
     }
     case BindingTarget::StyleLineColor: {
@@ -414,7 +414,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_line_color, *color);
+        set_style_string(&SparseStyle::set_line_color, *color);
         break;
     }
     case BindingTarget::StyleArcColor: {
@@ -422,7 +422,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_arc_color, *color);
+        set_style_string(&SparseStyle::set_arc_color, *color);
         break;
     }
     case BindingTarget::StyleArcGradientColor: {
@@ -430,7 +430,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_arc_gradient_color, *color);
+        set_style_string(&SparseStyle::set_arc_gradient_color, *color);
         break;
     }
     case BindingTarget::StyleImageRecolor: {
@@ -438,7 +438,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_image_recolor, *color);
+        set_style_string(&SparseStyle::set_image_recolor, *color);
         break;
     }
     case BindingTarget::StyleFont:
@@ -448,14 +448,14 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!has_font_resource(tree, std::string(value))) {
             return std::unexpected("unknown font resource id: " + std::string(value));
         }
-        set_style_string(&Style::set_font, std::string(value));
+        set_style_string(&SparseStyle::set_font, std::string(value));
         break;
     case BindingTarget::StyleShadowColor: {
         auto color = resolve_color_binding_value(tree, value);
         if (!color) {
             return std::unexpected(color.error());
         }
-        set_style_string(&Style::set_shadow_color, *color);
+        set_style_string(&SparseStyle::set_shadow_color, *color);
         break;
     }
     case BindingTarget::StyleBgMainStop:
@@ -471,21 +471,21 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
             return std::unexpected(parsed.error());
         }
         if (target == BindingTarget::StyleBgMainStop) {
-            set_style_number(&Style::set_bg_main_stop, *parsed);
+            set_style_number(&SparseStyle::set_bg_main_stop, *parsed);
         } else if (target == BindingTarget::StyleBgGradientStop) {
-            set_style_number(&Style::set_bg_gradient_stop, *parsed);
+            set_style_number(&SparseStyle::set_bg_gradient_stop, *parsed);
         } else if (target == BindingTarget::StyleBgGradientOpacity) {
-            set_style_number(&Style::set_bg_gradient_opacity, *parsed);
+            set_style_number(&SparseStyle::set_bg_gradient_opacity, *parsed);
         } else if (target == BindingTarget::StyleOpacity) {
-            set_style_number(&Style::set_opacity, *parsed);
+            set_style_number(&SparseStyle::set_opacity, *parsed);
         } else if (target == BindingTarget::StyleImageOpacity) {
-            set_style_number(&Style::set_image_opacity, *parsed);
+            set_style_number(&SparseStyle::set_image_opacity, *parsed);
         } else if (target == BindingTarget::StyleImageRecolorOpacity) {
-            set_style_number(&Style::set_image_recolor_opacity, *parsed);
+            set_style_number(&SparseStyle::set_image_recolor_opacity, *parsed);
         } else if (target == BindingTarget::StyleArcOpacity) {
-            set_style_number(&Style::set_arc_opacity, *parsed);
+            set_style_number(&SparseStyle::set_arc_opacity, *parsed);
         } else {
-            set_style_number(&Style::set_arc_gradient_segments, *parsed);
+            set_style_number(&SparseStyle::set_arc_gradient_segments, *parsed);
         }
         break;
     }
@@ -533,34 +533,34 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         }
         switch (target) {
         case BindingTarget::StyleBorderWidth:
-            set_style_number(&Style::set_border_width, *parsed);
+            set_style_number(&SparseStyle::set_border_width, *parsed);
             break;
-        case BindingTarget::StyleRadius: set_style_number(&Style::set_radius, *parsed); break;
+        case BindingTarget::StyleRadius: set_style_number(&SparseStyle::set_radius, *parsed); break;
         case BindingTarget::StylePadding:
-            set_style_number(&Style::set_padding, *parsed);
+            set_style_number(&SparseStyle::set_padding, *parsed);
             break;
         case BindingTarget::StylePaddingLeft:
-            set_style_number(&Style::set_padding_left, *parsed);
+            set_style_number(&SparseStyle::set_padding_left, *parsed);
             break;
         case BindingTarget::StylePaddingRight:
-            set_style_number(&Style::set_padding_right, *parsed);
+            set_style_number(&SparseStyle::set_padding_right, *parsed);
             break;
         case BindingTarget::StylePaddingTop:
-            set_style_number(&Style::set_padding_top, *parsed);
+            set_style_number(&SparseStyle::set_padding_top, *parsed);
             break;
         case BindingTarget::StylePaddingBottom:
-            set_style_number(&Style::set_padding_bottom, *parsed);
+            set_style_number(&SparseStyle::set_padding_bottom, *parsed);
             break;
-        case BindingTarget::StyleMargin: set_style_number(&Style::set_margin, *parsed); break;
-        case BindingTarget::StyleMarginLeft: set_style_number(&Style::set_margin_left, *parsed); break;
-        case BindingTarget::StyleMarginRight: set_style_number(&Style::set_margin_right, *parsed); break;
-        case BindingTarget::StyleMarginTop: set_style_number(&Style::set_margin_top, *parsed); break;
-        case BindingTarget::StyleMarginBottom: set_style_number(&Style::set_margin_bottom, *parsed); break;
-        case BindingTarget::StyleShadowWidth: set_style_number(&Style::set_shadow_width, *parsed); break;
-        case BindingTarget::StyleShadowOffsetX: set_style_number(&Style::set_shadow_offset_x, *parsed); break;
-        case BindingTarget::StyleShadowOffsetY: set_style_number(&Style::set_shadow_offset_y, *parsed); break;
-        case BindingTarget::StyleLineWidth: set_style_number(&Style::set_line_width, *parsed); break;
-        case BindingTarget::StyleArcWidth: set_style_number(&Style::set_arc_width, *parsed); break;
+        case BindingTarget::StyleMargin: set_style_number(&SparseStyle::set_margin, *parsed); break;
+        case BindingTarget::StyleMarginLeft: set_style_number(&SparseStyle::set_margin_left, *parsed); break;
+        case BindingTarget::StyleMarginRight: set_style_number(&SparseStyle::set_margin_right, *parsed); break;
+        case BindingTarget::StyleMarginTop: set_style_number(&SparseStyle::set_margin_top, *parsed); break;
+        case BindingTarget::StyleMarginBottom: set_style_number(&SparseStyle::set_margin_bottom, *parsed); break;
+        case BindingTarget::StyleShadowWidth: set_style_number(&SparseStyle::set_shadow_width, *parsed); break;
+        case BindingTarget::StyleShadowOffsetX: set_style_number(&SparseStyle::set_shadow_offset_x, *parsed); break;
+        case BindingTarget::StyleShadowOffsetY: set_style_number(&SparseStyle::set_shadow_offset_y, *parsed); break;
+        case BindingTarget::StyleLineWidth: set_style_number(&SparseStyle::set_line_width, *parsed); break;
+        case BindingTarget::StyleArcWidth: set_style_number(&SparseStyle::set_arc_width, *parsed); break;
         default: break;
         }
         break;
@@ -578,7 +578,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
-        set_style_number(&Style::set_font_size, *parsed);
+        set_style_number(&SparseStyle::set_font_size, *parsed);
         break;
     }
     case BindingTarget::StyleImageFontSize: {
@@ -594,7 +594,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
-        set_style_number(&Style::set_image_font_size, *parsed);
+        set_style_number(&SparseStyle::set_image_font_size, *parsed);
         break;
     }
     case BindingTarget::StyleArcRounded: {
@@ -602,7 +602,7 @@ std::expected<void, std::string> Runtime::Impl::apply_binding_value(
         if (!parsed) {
             return std::unexpected(parsed.error());
         }
-        set_style_bool(&Style::set_arc_rounded, *parsed);
+        set_style_bool(&SparseStyle::set_arc_rounded, *parsed);
         break;
     }
     case BindingTarget::LayoutType: {
@@ -761,7 +761,7 @@ void Runtime::Impl::reapply_binding_domain(TreeRecord &tree, NodeRecord &record,
     case BindingApplyDomain::Style: {
         const auto style_snapshot = make_style_snapshot(record);
         record.resolved_style = resolve_style_shared(tree, style_snapshot);
-        backend->apply_style(record.handle, *record.resolved_style, target_info.style_mask);
+        apply_backend_style(*backend, record.handle, *record.resolved_style, target_info.style_mask);
         backend->apply_debug_visual(record.handle, view_debug_enabled_);
         break;
     }
@@ -790,7 +790,7 @@ void Runtime::Impl::reapply_binding_masks(TreeRecord &tree, NodeRecord &record, 
     if (masks.style != StyleApplyMask::None) {
         const auto style_snapshot = make_style_snapshot(record);
         record.resolved_style = resolve_style_shared(tree, style_snapshot);
-        backend->apply_style(record.handle, *record.resolved_style, masks.style);
+        apply_backend_style(*backend, record.handle, *record.resolved_style, masks.style);
         backend->apply_debug_visual(record.handle, view_debug_enabled_);
     }
     if (masks.layout != LayoutApplyMask::None) {
@@ -820,7 +820,7 @@ void Runtime::Impl::merge_binding_mask(BindingApplyMasks &masks, const BindingTa
         break;
     }
 }
-bool Runtime::Impl::node_has_binding_key(const Node &node, std::string_view key)
+bool Runtime::Impl::node_has_binding_key(const SparseNode &node, std::string_view key)
 {
     for (const auto &[unused_binding_path, expression] : node.bindings) {
         (void)unused_binding_path;
@@ -831,8 +831,8 @@ bool Runtime::Impl::node_has_binding_key(const Node &node, std::string_view key)
     }
     return false;
 }
-const Node *Runtime::Impl::find_child_node_by_path(
-    const Node &node,
+const SparseNode *Runtime::Impl::find_child_node_by_path(
+    const SparseNode &node,
     const std::vector<std::string> &segments,
     size_t index
 )
@@ -1045,7 +1045,7 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
 }
 Runtime::Impl::BindingApplyMasks Runtime::Impl::apply_initial_bindings(
     TreeRecord &tree,
-    Node &node,
+    SparseNode &node,
     std::string_view absolute_path,
     std::vector<InitialStyleBinding> &style_bindings)
 {
@@ -1057,7 +1057,7 @@ Runtime::Impl::BindingApplyMasks Runtime::Impl::apply_initial_bindings(
     NodeRecord temporary_record;
     temporary_record.definition = &node;
     // This record lives only for the duration of initial binding application, so its definition
-    // points at the mutable construction-local Node. Persistent records never enable this flag.
+    // points at the mutable construction-local SparseNode. Persistent records never enable this flag.
     temporary_record.transient_mutable_definition = true;
     for (const auto &[path, expression] : node.bindings) {
         auto binding_target = resolve_binding_target(node.type, path);
@@ -1359,13 +1359,13 @@ void Runtime::Impl::resolve_keyboard_key_images(const TreeRecord &tree, Keyboard
         }
     }
 }
-void Runtime::Impl::resolve_keyboard_key_images(const TreeRecord &tree, Node &node) const
+void Runtime::Impl::resolve_keyboard_key_images(const TreeRecord &tree, SparseNode &node) const
 {
     if (node.type == NodeType::Keyboard) {
         resolve_keyboard_key_images(tree, node.keyboard_props);
     }
 }
-bool Runtime::Impl::node_references_image(const Node &node, std::string_view image_id) const
+bool Runtime::Impl::node_references_image(const SparseNode &node, std::string_view image_id) const
 {
     if (node.type == NodeType::Image && node.image_props.src == image_id) {
         return true;
@@ -1446,7 +1446,7 @@ ResolvedImageSpec Runtime::Impl::resolve_image_spec(const TreeRecord &tree, std:
         .height = global_image_it->second.height,
     };
 }
-void Runtime::Impl::resolve_image_source(const TreeRecord &tree, Node &node) const
+void Runtime::Impl::resolve_image_source(const TreeRecord &tree, SparseNode &node) const
 {
     resolve_keyboard_key_style_refs(tree, node);
     resolve_keyboard_key_images(tree, node);

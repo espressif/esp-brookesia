@@ -1,20 +1,16 @@
 # ChangeLog
 
-## v0.9.0 - 2026-10-28
-
-### Breaking Changes:
-
-- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
+## v0.8.5 - 2026-10-27
 
 ### Enhancements:
 
-- feat(gui): defer non-entry screen builds and warm app screens while idle.
-- feat(gui): keep document preloading parse-only and build screens on demand when starting apps.
+- feat(gui): build non-entry app screens on demand or during idle.
+- feat(gui): preload app documents without building screens.
 - feat(profiling): log lifecycle memory snapshots when profile logging is enabled.
 
 ### Bug Fixes:
 
-- fix(deps): require GUI Interface 0.9.0 or later for deferred screen loading.
+- fix(deps): require GUI Interface `>=0.8.3,<0.9` for deferred screen loading.
 
 ### Documentation:
 

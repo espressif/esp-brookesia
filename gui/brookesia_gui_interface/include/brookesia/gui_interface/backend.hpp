@@ -213,6 +213,11 @@ public:
     virtual void apply_placement(
         BackendHandle handle, const Placement &placement, PlacementApplyMask mask = PlacementApplyMask::All
     ) = 0;
+    /**
+     * Apply resolved styles from a call-scoped snapshot.
+     *
+     * Implementations must copy any values needed after this function returns.
+     */
     virtual void apply_style(
         BackendHandle handle, const ResolvedStyle &style, StyleApplyMask mask = StyleApplyMask::All
     ) = 0;

@@ -1,25 +1,21 @@
 # ChangeLog
 
-## v0.9.0 - 2026-10-28
-
-### Breaking Changes:
-
-- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
-- break(style): replace direct optional Style fields with sparse accessors; update and rebuild C++ consumers.
+## v0.8.3 - 2026-10-27
 
 ### Enhancements:
 
-- feat(json_ui): store styles sparsely and reduce parser copies to lower resident memory and fragmentation.
-- feat(runtime): parse every screen eagerly and optionally defer non-entry builds until idle or first use.
-- feat(parser): batch Storage-worker reads and release each batch after parsing.
+- feat(json_ui): reduce JSON UI memory use and fragmentation.
+- feat(runtime): parse screen definitions on load and optionally defer non-entry builds until idle or first use.
 
 ### Bug Fixes:
 
-- fix(runtime): materialize deferred screens for view lookup, creation, destruction, and language or theme refresh.
+- fix(runtime): build deferred screens when their views are looked up, created, or removed.
+- fix(runtime): keep unbuilt screens deferred during language or theme refreshes.
 - fix(runtime): destroy dynamic screens immediately when unmounted.
-- fix(runtime): preserve public eager-load defaults and stage deferred builds away from the active screen.
-- fix(parser): keep JSON asset size checks on the Storage worker when required.
-- fix(deps): require Service Helper 0.9.0 or later for batched storage reads.
+- fix(runtime): preserve the eager-load default and avoid flicker during deferred screen builds.
+- fix(parser): avoid filesystem assertions when loading JSON assets from PSRAM tasks without PSRAM XIP.
+- fix(deps): require Service Helper `>=0.8.6,<0.9` for batched storage reads.
+- fix(style): preserve public optional `Style` fields for compatibility with 0.8.x consumers.
 
 ## v0.8.2 - 2026-07-27
 

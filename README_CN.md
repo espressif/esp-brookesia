@@ -42,11 +42,9 @@ ESP-Brookesia 自 `v0.7` 版本起采用组件化管理，建议项目通过组�
 2. `release` 分支维护历史稳定版本，仅修复 bug 和安全问题。
 3. `master` 分支支持持续集成新特性，可能包含未稳定的新功能。
 
-0.9 版本线引入稀疏存储的 C++ `gui::Style` API，迁移方法见 [GUI 迁移说明](gui/brookesia_gui_interface/README_CN.md#c-api-迁移)。工程中的 Brookesia 依赖应保持相同的 `major.minor`。将 Runtime App 包迁移到 0.9 系统时，需把所声明的服务需求版本更新为 0.9.x，并重新构建应用包。
-
 | ESP-Brookesia | 依赖的 ESP-IDF | 主要变更 | 支持状态 |
 | --- | --- | --- | --- |
-| master (v0.9) | ESP32-S31: 6.2<br>其他： >= 6.0, <= 6.2 | 组件化发布扩展到 GUI、Runtime、System、App 与 AI 能力；新增 PC 仿真、JSON UI、多运行时和标准 System Super 主线 | 新功能开发分支 |
+| master (v0.8) | ESP32-S31: 6.2<br>其他： >= 6.0, <= 6.2 | 组件化发布扩展到 GUI、Runtime、System、App 与 AI 能力；新增 PC 仿真、JSON UI、多运行时和标准 System Super 主线 | 新功能开发分支 |
 | release/v0.7 | >= 5.5, <= 6.0 | 支持组件管理器 | 稳定版本，仅修复 bug 和安全问题 |
 | release/v0.6 | >= 5.3, <= 5.5 | 预览支持系统框架，提供 ESP-VoCat 固件工程 | 停止维护 |
 

@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(real_bt_speaker_service_start_smoke)
     auto info = ManagerHelper::get_service_info(Helper::get_name().data(), 1000);
     BOOST_REQUIRE(info.has_value());
     BOOST_TEST(info->name == "BtSpeaker");
-    BOOST_TEST(info->version == BROOKESIA_TEST_COMPONENT_VERSION);
+    BOOST_TEST(info->version == "0.8.0");
     auto schema = ManagerHelper::get_service_schema(Helper::get_name().data(), 1000);
     BOOST_REQUIRE(schema.has_value());
     BOOST_TEST(schema->function_names.size() == 12);

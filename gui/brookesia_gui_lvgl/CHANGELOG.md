@@ -1,21 +1,12 @@
 # ChangeLog
 
-## v0.9.0 - 2026-10-28
-
-### Breaking Changes:
-
-- break(deps): move to the shared Brookesia 0.9 line and use matching 0.9.x component dependencies.
-
-### Enhancements:
-
-- feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
-- feat(props): skip redundant common transform defaults when applying local LVGL transform props.
+## v0.8.6 - 2026-10-27
 
 ### Bug Fixes:
 
-- fix(render): keep deferred screen builds off the active display and refresh relative placement when mounted.
-- fix(props): restore identity transforms after removing a previous local transform.
-- fix(deps): require GUI Interface 0.9.0 or later for sparse style accessors.
+- fix(render): avoid flicker during deferred screen builds and refresh relative placement when a screen is mounted.
+- fix(props): reset transforms when local transform properties are removed.
+- fix(deps): require GUI Interface `>=0.8.3,<0.9`.
 
 ## v0.8.5 - 2026-09-17
 

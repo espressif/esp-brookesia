@@ -275,7 +275,7 @@ std::expected<void, std::string> Runtime::Impl::update(
     }
     effective_environment = make_effective_environment(std::move(effective_environment));
     const auto parse_environment = make_parse_environment(effective_environment);
-    auto parsed_document = parse_document_file_with_metadata(file_path, parse_environment);
+    auto parsed_document = parse_sparse_document_file_with_metadata(file_path, parse_environment);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
@@ -286,14 +286,14 @@ std::expected<void, std::string> Runtime::Impl::update(
     DocumentId document_id,
     std::string_view file_path,
     const Environment &environment,
-    const ParsedDocument &parsed_document)
+    const SparseParsedDocument &parsed_document)
 {
     auto *tree = resolve_tree(document_id);
     if (tree == nullptr) {
         return std::unexpected("GUI document not loaded");
     }
 
-    auto validation = validate_document(parsed_document.document);
+    auto validation = validate_sparse_document(parsed_document.document);
     if (!validation.success) {
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
     }
@@ -572,7 +572,7 @@ size_t Runtime::Impl::reapply_style_record(TreeRecord &tree, NodeRecord &record)
             apply_record_props(record, PropsApplyMask::KeyboardConfig);
         }
     }
-    const Node *style_definition = nullptr;
+    const SparseNode *style_definition = nullptr;
     if (!node_has_style_binding(*record.definition)) {
         style_definition = record.definition;
     }
@@ -584,7 +584,7 @@ size_t Runtime::Impl::reapply_style_record(TreeRecord &tree, NodeRecord &record)
     }
     record.applied_style_revision = current_applied_style_revision();
     if (backend != nullptr) {
-        backend->apply_style(record.handle, *record.resolved_style);
+        apply_backend_style(*backend, record.handle, *record.resolved_style);
     }
     return 1;
 }

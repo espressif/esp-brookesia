@@ -30,7 +30,7 @@ std::expected<DocumentId, std::string> Runtime::load(
     const Environment &environment,
     const DocumentLoadOptions &options)
 {
-    return impl_->load(root_path, document, environment, false, {}, options);
+    return impl_->load(root_path, to_sparse(document), environment, false, {}, options);
 }
 
 std::expected<DocumentId, std::string> Runtime::load_json(
@@ -47,7 +47,7 @@ std::expected<DocumentId, std::string> Runtime::load_json(
     const DocumentLoadOptions &options)
 {
     const auto parse_environment = impl_->make_parse_environment(environment);
-    auto document = parse_document(json, base_dir, parse_environment);
+    auto document = parse_sparse_document(json, base_dir, parse_environment);
     if (!document) {
         return std::unexpected(document.error());
     }
@@ -66,7 +66,7 @@ std::expected<DocumentId, std::string> Runtime::load_file(
     const auto total_start = RuntimeProfileClock::now();
     auto stage_start = total_start;
     const auto parse_environment = impl_->make_parse_environment(environment);
-    auto parsed_document = parse_document_file_with_metadata(path, parse_environment);
+    auto parsed_document = parse_sparse_document_file_with_metadata(path, parse_environment);
     auto stage_end = RuntimeProfileClock::now();
     if (!parsed_document) {
         GUI_INTERFACE_PROFILE_LOGI(
@@ -133,7 +133,7 @@ void Runtime::request_idle_screen_warm(DocumentId id)
 
 std::expected<void, std::string> Runtime::load_theme(const ThemeAsset &theme)
 {
-    return impl_->load_theme(theme);
+    return impl_->load_theme(to_sparse(theme));
 }
 
 std::expected<void, std::string> Runtime::load_theme_json(std::string_view json, std::string_view base_dir)
