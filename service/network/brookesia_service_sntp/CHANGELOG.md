@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.3 - 2026-10-27
+
+### Bug Fixes:
+
+- fix(test): increase the SNTP test runner worker stack to 20 KB.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

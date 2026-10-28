@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.8.4 - 2026-10-27
+
+### Bug Fixes:
+
+- fix(preview): preserve original frames when swapping RGB565 bytes for display output.
+- fix(preview): reject frames with unexpected dimensions or size and clean up failed display activation.
+
 ## v0.8.3 - 2026-08-25
 
 ### Bug Fixes:

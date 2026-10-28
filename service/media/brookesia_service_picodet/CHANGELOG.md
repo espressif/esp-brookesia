@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.8.1 - 2026-10-27
+
+### Enhancements:
+
+- feat(picodet): present annotated frames via visual DataFlow instead of directly linking the Display service.
+
+### Bug Fixes:
+
+- fix(build): suppress the esp-dl 3.3.6 anonymous typedef warning for PicoDet sources.
+- fix(deps): declare the Service Manager dependency required for visual DataFlow.
+
 ## v0.8.0 - 2026-07-07
 
 ### Enhancements:

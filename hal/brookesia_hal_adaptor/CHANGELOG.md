@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.8.5 - 2026-10-27
+
+### Enhancements:
+
+- feat(expansion): add module discovery, state events, and managed camera sessions.
+- feat(storage): add SPI NAND FATFS support for compatible boards.
+- feat(power): add BQ27220 battery monitor support.
+- chore(deps): require esp_board_manager >=0.5.15,<0.6 and constrain esp_video to 2.4.* where enabled.
+
+### Bug Fixes:
+
+- fix(camera): improve camera teardown and support UYVY capture.
+- fix(hal): improve board resource cleanup and serialize managed hardware lifecycle operations.
+- fix(display): drain pending SPI transfers before releasing borrowed draw buffers.
+- fix(deps): require HAL Interface 0.8.3 or later for expansion and lifecycle APIs.
+
 ## v0.8.4 - 2026-08-25
 
 ### Bug Fixes:

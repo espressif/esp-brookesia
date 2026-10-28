@@ -1,5 +1,24 @@
 # ChangeLog
 
+## v0.8.1 - 2026-10-27
+
+### Enhancements:
+
+- feat(boards): add ESP-Mosaico V1.0 and initial V1.2 board configurations.
+- feat(mosaico): support expansion slots, camera modules, NAND storage, and USB console.
+- feat(boards): enable USB Serial/JTAG console defaults on supported boards.
+
+### Bug Fixes:
+
+- fix(mosaico): improve device lifecycle cleanup and NAND teardown.
+- fix(mosaico): adjust LVGL draw alignment and buffer height.
+- fix(display): align Waveshare AMOLED backlight bindings with shared LCD display groups.
+- fix(boards): stop forcing PSRAM instruction fetch on the Waveshare 1.8-inch AMOLED board.
+
+### Documentation:
+
+- docs(mosaico): document partial V1.2 validation and manual BOOT flashing with automatic download disabled.
+
 ## v0.8.0 - 2026-06-28
 
 ### Enhancements:

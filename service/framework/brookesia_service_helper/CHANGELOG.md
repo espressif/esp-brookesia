@@ -1,11 +1,15 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.6 - 2026-10-27
 
 ### Enhancements:
 
 - feat(storage): add `StorageHelper::fs_read_text_many` for batched `FSReadText` with cumulative default timeout.
 - feat(storage): move batch-read text results into the caller vector to avoid extra string copies.
+
+### Bug Fixes:
+
+- fix(deps): require HAL Interface 0.8.3 and Service Manager 0.8.2 for expansion and DataFlow helper headers.
 
 ## v0.8.5 - 2026-09-10
 

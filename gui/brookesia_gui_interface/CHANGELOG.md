@@ -1,21 +1,24 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.3 - 2026-10-27
+
+### Breaking Changes:
+
+- break(style): replace direct optional Style fields with sparse accessors; update and rebuild C++ consumers.
 
 ### Enhancements:
 
-- feat(json_ui): store Style sparsely and avoid parse-time tree copies to cut resident SRAM and fragmentation.
-- feat(runtime): parse all screens eagerly, then build LVGL subtrees lazily (entry-first, idle warm, on-demand).
-- feat(runtime): materialize deferred Eager screens from `find_view` / `create_view` / `destroy_view` for path-based APIs.
-- feat(runtime): build deferred screens on a staging parent to avoid visible-layer flicker during idle warm.
-- feat(parser): on Storage-worker paths, batch-read multi-file JSON assets by file count and release each batch after parse.
+- feat(json_ui): store styles sparsely and reduce parser copies to lower resident memory and fragmentation.
+- feat(runtime): parse every screen eagerly and optionally defer non-entry builds until idle or first use.
+- feat(parser): batch Storage-worker reads and release each batch after parsing.
 
 ### Bug Fixes:
 
-- fix(runtime): keep Dynamic screen unmount as immediate destroy (no keep-alive LRU).
-- fix(runtime): rebuild via `ensure_screen_built` so language/theme refresh does not materialize empty stubs.
-- fix(runtime): keep public `load*()` Eager defaults; System opts into deferred Eager builds explicitly.
-- fix(parser): do not stat JSON asset sizes on the caller when FS I/O must run on the Storage worker.
+- fix(runtime): materialize deferred screens for view lookup, creation, destruction, and language or theme refresh.
+- fix(runtime): destroy dynamic screens immediately when unmounted.
+- fix(runtime): preserve public eager-load defaults and stage deferred builds away from the active screen.
+- fix(parser): keep JSON asset size checks on the Storage worker when required.
+- fix(deps): require Service Helper 0.8.6 or later for batched storage reads.
 
 ## v0.8.2 - 2026-07-27
 
