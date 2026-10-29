@@ -1,4 +1,4 @@
-version: "0.8.2"
+version: "0.8.3"
 description: ESP-Brookesia WiFi service which provides state machine management, AP scanning, connection management, and SoftAP functionality.
 url: https://github.com/espressif/esp-brookesia/tree/master/service/network/brookesia_service_wifi
 repository: https://github.com/espressif/esp-brookesia.git

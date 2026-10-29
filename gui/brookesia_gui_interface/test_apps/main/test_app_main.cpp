@@ -31,6 +31,12 @@ extern "C" void app_main(void)
 }
 #else
 
+#if defined(BROOKESIA_TEST_BOOST_STATIC)
+boost::unit_test::test_suite *init_unit_test_suite(int, char **)
+{
+    return nullptr;
+}
+#else
 namespace {
 
 #if defined(BOOST_TEST_ALTERNATIVE_INIT_API)
@@ -51,4 +57,5 @@ int main(int argc, char **argv)
 {
     return boost::unit_test::unit_test_main(&init_unit_test, argc, argv);
 }
+#endif
 #endif

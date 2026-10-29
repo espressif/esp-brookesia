@@ -11,7 +11,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "brookesia/gui_interface/parser.hpp"
-#include "brookesia/gui_interface/validator.hpp"
+#include "private/sparse_parser.hpp"
+#include "private/sparse_validator.hpp"
 #include "brookesia/gui_interface/macro_configs.h"
 #if !BROOKESIA_GUI_INTERFACE_PARSER_ENABLE_DEBUG_LOG
 #   define BROOKESIA_LOG_DISABLE_DEBUG_TRACE 1
@@ -1348,29 +1349,29 @@ std::expected<int32_t, std::string> parse_int_field(
     const boost::json::object &object, std::string_view key, int32_t default_value
 );
 
-std::expected<Style, std::string> parse_style_object(
+std::expected<SparseStyle, std::string> parse_style_object(
     const boost::json::object &style_object,
     const Environment &environment,
     bool allow_font = true,
     bool allow_font_size = true)
 ;
 
-std::expected<StateStyleMap, std::string> parse_state_styles_object(
+std::expected<SparseStateStyleMap, std::string> parse_state_styles_object(
     const boost::json::object &state_styles_object,
     const Environment &environment)
 ;
 
-std::expected<PartStyleSet, std::string> parse_part_style_set_object(
+std::expected<SparsePartStyleSet, std::string> parse_part_style_set_object(
     const boost::json::object &part_style_object,
     const Environment &environment)
 ;
 
-std::expected<PartStyleMap, std::string> parse_part_styles_object(
+std::expected<SparsePartStyleMap, std::string> parse_part_styles_object(
     const boost::json::object &part_styles_object,
     const Environment &environment)
 ;
 
-std::expected<StyleSet, std::string> parse_style_set_object(
+std::expected<SparseStyleSet, std::string> parse_style_set_object(
     const boost::json::object &style_object,
     const Environment &environment)
 ;
@@ -1378,7 +1379,7 @@ std::expected<StyleSet, std::string> parse_style_set_object(
 const boost::unordered_flat_set<std::string> &get_theme_subtype_style_keys()
 ;
 
-std::expected<std::map<std::string, StyleSet>, std::string> parse_named_style_map(
+std::expected<std::map<std::string, SparseStyleSet>, std::string> parse_named_style_map(
     const boost::json::object &styles_object,
     const boost::json::value &constants,
     const Environment &environment,
@@ -1522,7 +1523,7 @@ std::expected<EventBinding, std::string> parse_event_binding(const boost::json::
 std::expected<Animation, std::string> parse_animation(const boost::json::object &object)
 ;
 
-std::expected<Node, std::string> parse_view_node(
+std::expected<SparseNode, std::string> parse_view_node(
     const boost::json::object &object,
     const Environment &environment,
     const TemplateRawMap &templates,
@@ -1556,7 +1557,7 @@ std::expected<void, std::string> apply_template_slots(
     const boost::json::object *slots)
 ;
 
-std::expected<Node, std::string> parse_template_ref(
+std::expected<SparseNode, std::string> parse_template_ref(
     const boost::json::object &object,
     const Environment &environment,
     const TemplateRawMap &templates,
@@ -1564,7 +1565,7 @@ std::expected<Node, std::string> parse_template_ref(
     std::vector<std::string> &template_stack)
 ;
 
-std::expected<std::vector<Node>, std::string> parse_children(
+std::expected<std::vector<SparseNode>, std::string> parse_children(
     const boost::json::object &object,
     const Environment &environment,
     const TemplateRawMap &templates,
@@ -1610,7 +1611,7 @@ std::expected<boost::json::object, std::string> apply_interaction_templates(
     const InteractionTemplateRawMap &interactions)
 ;
 
-std::expected<Node, std::string> parse_view_node(
+std::expected<SparseNode, std::string> parse_view_node(
     const boost::json::object &source_object,
     const Environment &environment,
     const TemplateRawMap &templates,
@@ -1663,7 +1664,7 @@ std::expected<void, std::string> append_and_merge_theme_constant_assets(
     std::string_view inline_entry_label)
 ;
 
-std::expected<ThemeAsset, std::string> parse_theme_asset(
+std::expected<SparseThemeAsset, std::string> parse_theme_asset(
     const boost::json::object &object,
     const std::filesystem::path &base_dir,
     const Environment &environment)

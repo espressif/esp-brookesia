@@ -159,7 +159,7 @@ Runtime::Impl::~Impl()
 }
 std::expected<DocumentId, std::string> Runtime::Impl::load(
     std::string_view file_path_view,
-    Document document,
+    SparseDocument document,
     const Environment &environment,
     bool file_backed,
     std::vector<std::string> dependency_files,
@@ -172,7 +172,7 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
     const std::string file_path = normalize_file_path(file_path_view);
     const auto total_start = RuntimeProfileClock::now();
     auto stage_start = total_start;
-    auto validation = validate_document(document);
+    auto validation = validate_sparse_document(document);
     auto stage_end = RuntimeProfileClock::now();
     GUI_INTERFACE_PROFILE_LOGI(
         "GUI runtime load profile: file(%1%), stage(validate_document), elapsed_ms(%2%), total_ms(%3%)",
@@ -520,7 +520,7 @@ RuntimeImageResource Runtime::Impl::make_runtime_image_resource(
         .height = resolved_image.height,
     };
 }
-RuntimeImageResource Runtime::Impl::make_runtime_image_resource(const Node &node)
+RuntimeImageResource Runtime::Impl::make_runtime_image_resource(const SparseNode &node)
 {
     return make_runtime_image_resource(node.image_props, node.resolved_image);
 }
@@ -590,7 +590,7 @@ std::expected<void, std::string> Runtime::Impl::ensure_image_resource_preloaded_
 
     return preload_image_resource_for_tree(tree, resource, ImagePreloadOwner::Automatic);
 }
-std::expected<void, std::string> Runtime::Impl::ensure_node_image_resources_preloaded(TreeRecord &tree, const Node &node)
+std::expected<void, std::string> Runtime::Impl::ensure_node_image_resources_preloaded(TreeRecord &tree, const SparseNode &node)
 {
     if (node.type == NodeType::Image && !node.image_props.src.empty()) {
         const auto primary_src = node.resolved_image.primary_src.empty() ?
@@ -1012,7 +1012,7 @@ void Runtime::Impl::poll_live_preview(Runtime *runtime)
         }
 
         const auto parse_environment = make_parse_environment(tree.environment);
-        auto parsed_document = parse_document_file_with_metadata(tree.file_path, parse_environment);
+        auto parsed_document = parse_sparse_document_file_with_metadata(tree.file_path, parse_environment);
         if (!parsed_document) {
             BROOKESIA_LOGW(
                 "Live preview parse failed: document_id=%1%, root='%2%', error=%3%",

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.3 - 2026-10-27
+
+### Enhancements:
+
+- feat(gui): add a 480x480 layout variant for the Files app.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

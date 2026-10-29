@@ -1,11 +1,20 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.5 - 2026-10-27
 
 ### Enhancements:
 
-- feat(gui): load app documents with deferred non-entry Eager screen builds and idle warm.
-- feat(gui): keep `preload_dom` parse-only at install; StartApp relies on Runtime on-demand materialization for path APIs.
+- feat(gui): build non-entry app screens on demand or during idle.
+- feat(gui): preload app documents without building screens.
+- feat(profiling): log lifecycle memory snapshots when profile logging is enabled.
+
+### Bug Fixes:
+
+- fix(deps): require GUI Interface `>=0.8.3,<0.9` for deferred screen loading.
+
+### Documentation:
+
+- docs(usb): update package and command names for the brookesia-usb CLI.
 
 ## v0.8.4 - 2026-08-31
 

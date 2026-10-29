@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.8.3 - 2026-10-27
+
+### Enhancements:
+
+- feat(expansion): add module discovery, slot states, and state-change listener interfaces.
+- feat(hal): add a lock for coordinating Brookesia-managed hardware lifecycle operations.
+
+### Documentation:
+
+- docs(display): clarify synchronous draw buffer lifetime and safety-drain behavior.
+- docs(video): clarify encoder callback and stop/close lifecycle requirements.
+
 ## v0.8.2 - 2026-07-20
 
 ### Breaking Changes:

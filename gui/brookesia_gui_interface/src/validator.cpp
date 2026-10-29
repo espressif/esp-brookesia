@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "brookesia/gui_interface/validator.hpp"
+#include "private/sparse_validator.hpp"
 #include "private/binding.hpp"
 #include "brookesia/gui_interface/macro_configs.h"
 #if !BROOKESIA_GUI_INTERFACE_VALIDATOR_ENABLE_DEBUG_LOG
@@ -154,7 +155,7 @@ static bool is_valid_gradient_direction(std::string_view direction)
     return direction == "none" || direction == "horizontal" || direction == "vertical";
 }
 
-static void validate_style(const Style &style, std::string_view owner, std::vector<std::string> &errors)
+static void validate_style(const SparseStyle &style, std::string_view owner, std::vector<std::string> &errors)
 {
     auto validate_optional_color = [&](const std::optional<std::string> &value, std::string_view field_name) {
         if (value.has_value() && !is_valid_color(*value)) {
@@ -209,7 +210,7 @@ static void validate_style(const Style &style, std::string_view owner, std::vect
 }
 
 static void validate_state_styles(
-    const StateStyleMap &state_styles, std::string_view owner, std::vector<std::string> &errors)
+    const SparseStateStyleMap &state_styles, std::string_view owner, std::vector<std::string> &errors)
 {
     for (const auto &[state_name, style] : state_styles) {
         if (!is_supported_style_state_name(state_name)) {
@@ -229,7 +230,7 @@ static void validate_state_styles(
     }
 }
 
-static void validate_style_set(const StyleSet &style_set, std::string_view owner, std::vector<std::string> &errors)
+static void validate_style_set(const SparseStyleSet &style_set, std::string_view owner, std::vector<std::string> &errors)
 {
     validate_style(style_set.style, owner, errors);
     validate_state_styles(style_set.state_styles, owner, errors);
@@ -283,7 +284,7 @@ static bool is_descendant_path(const std::vector<std::string> &candidate, const 
 }
 
 static void build_view_path_index(
-    const Node &node,
+    const SparseNode &node,
     std::vector<std::string> &current_path,
     boost::unordered_flat_map<std::string, std::vector<std::string>> &view_paths,
     std::vector<std::string> &errors)
@@ -328,7 +329,7 @@ static std::string make_action_owner(
 }
 
 static void validate_node(
-    const Node &node,
+    const SparseNode &node,
     const boost::unordered_flat_set<std::string> &font_ids,
     const boost::unordered_flat_map<std::string, std::vector<std::string>> &view_paths,
     boost::unordered_flat_map<std::string, std::string> &action_owners,
@@ -631,7 +632,7 @@ static void validate_node(
 
 } // namespace
 
-ValidationResult validate_document(const Document &document)
+ValidationResult validate_sparse_document(const SparseDocument &document)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -897,10 +898,10 @@ ValidationResult validate_document(const Document &document)
     return result;
 }
 
-ValidationResult validate_screen_node(
-    const Node &screen,
-    const std::vector<const Node *> &siblings,
-    const std::vector<const Node *> &templates)
+ValidationResult validate_sparse_screen_node(
+    const SparseNode &screen,
+    const std::vector<const SparseNode *> &siblings,
+    const std::vector<const SparseNode *> &templates)
 {
     ValidationResult result;
     if (screen.type != NodeType::Screen) {
@@ -909,7 +910,7 @@ ValidationResult validate_screen_node(
 
     boost::unordered_flat_set<std::string> font_ids;
     boost::unordered_flat_map<std::string, std::string> action_owners;
-    auto seed_action_owners = [&](const Node * node) {
+    auto seed_action_owners = [&](const SparseNode * node) {
         if (node == nullptr || node->id == screen.id) {
             return;
         }
@@ -921,10 +922,10 @@ ValidationResult validate_screen_node(
         }
         validate_node(*node, font_ids, view_paths, action_owners, {}, node->id, ignored);
     };
-    for (const Node *sibling : siblings) {
+    for (const SparseNode *sibling : siblings) {
         seed_action_owners(sibling);
     }
-    for (const Node *node : templates) {
+    for (const SparseNode *node : templates) {
         seed_action_owners(node);
     }
 
@@ -936,6 +937,44 @@ ValidationResult validate_screen_node(
     validate_node(screen, font_ids, view_paths, action_owners, {}, screen.id, result.errors);
     result.success = result.errors.empty();
     return result;
+}
+
+ValidationResult validate_document(const Document &document)
+{
+    return validate_sparse_document(to_sparse(document));
+}
+
+ValidationResult validate_screen_node(
+    const Node &screen,
+    const std::vector<const Node *> &siblings,
+    const std::vector<const Node *> &templates)
+{
+    const auto sparse_screen = to_sparse(screen);
+    std::vector<SparseNode> sparse_siblings;
+    sparse_siblings.reserve(siblings.size());
+    for (const auto *sibling : siblings) {
+        if (sibling != nullptr) {
+            sparse_siblings.push_back(to_sparse(*sibling));
+        }
+    }
+    std::vector<SparseNode> sparse_templates;
+    sparse_templates.reserve(templates.size());
+    for (const auto *node : templates) {
+        if (node != nullptr) {
+            sparse_templates.push_back(to_sparse(*node));
+        }
+    }
+    std::vector<const SparseNode *> sibling_refs;
+    sibling_refs.reserve(sparse_siblings.size());
+    for (const auto &sibling : sparse_siblings) {
+        sibling_refs.push_back(&sibling);
+    }
+    std::vector<const SparseNode *> template_refs;
+    template_refs.reserve(sparse_templates.size());
+    for (const auto &node : sparse_templates) {
+        template_refs.push_back(&node);
+    }
+    return validate_sparse_screen_node(sparse_screen, sibling_refs, template_refs);
 }
 
 } // namespace esp_brookesia::gui

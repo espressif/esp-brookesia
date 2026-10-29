@@ -15,6 +15,10 @@
 #include "brookesia/gui_interface/parser.hpp"
 #include "brookesia/gui_interface/validator.hpp"
 #include "private/binding.hpp"
+#include "private/sparse_document.hpp"
+#include "private/sparse_backend.hpp"
+#include "private/sparse_parser.hpp"
+#include "private/sparse_validator.hpp"
 #include "brookesia/gui_interface/macro_configs.h"
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
 #include "brookesia/lib_utils/memory_profiler.hpp"
@@ -150,9 +154,9 @@ static Path append_path(const Path &base, std::string_view segment)
     return Path(std::move(segments));
 }
 
-static Node clone_node_without_children(const Node &node)
+static SparseNode clone_node_without_children(const SparseNode &node)
 {
-    return Node{
+    return SparseNode{
         .type = node.type,
         .mount_mode = node.mount_mode,
         .id = node.id,
@@ -182,7 +186,7 @@ static Node clone_node_without_children(const Node &node)
     };
 }
 
-static bool node_has_style_binding(const Node &node)
+static bool node_has_style_binding(const SparseNode &node)
 {
     for (const auto &[path, unused_expression] : node.bindings) {
         (void)unused_expression;
@@ -682,10 +686,10 @@ static std::string get_theme_style_key(NodeType type)
     return {};
 }
 
-static const ThemeAsset &get_builtin_default_theme()
+static const SparseThemeAsset &get_builtin_default_theme()
 {
     auto make_builtin_base_style = []() {
-        Style style;
+        SparseStyle style;
         style.set_border_width(0);
         style.set_radius(0);
         style.set_padding(0);
@@ -702,18 +706,18 @@ static const ThemeAsset &get_builtin_default_theme()
         return style;
     };
 
-    static const ThemeAsset theme = {
+    static const SparseThemeAsset theme = {
         .id = "__builtin_default_theme__",
         .colors = {},
         .styles = {
             {
-                "all", StyleSet{.style = make_builtin_base_style(), .state_styles = {}, .part_styles = {}}
+                "all", SparseStyleSet{.style = make_builtin_base_style(), .state_styles = {}, .part_styles = {}}
             },
-            {"screen", StyleSet{}},
-            {"container", StyleSet{}},
-            {"label", StyleSet{}},
-            {"button", StyleSet{}},
-            {"dropdown", StyleSet{}},
+            {"screen", SparseStyleSet{}},
+            {"container", SparseStyleSet{}},
+            {"label", SparseStyleSet{}},
+            {"button", SparseStyleSet{}},
+            {"dropdown", SparseStyleSet{}},
         },
     };
     return theme;
@@ -889,7 +893,7 @@ public:
         std::string value;
     };
 
-    // Node identities are private to one loaded document. A 32-bit ID keeps the per-node record,
+    // SparseNode identities are private to one loaded document. A 32-bit ID keeps the per-node record,
     // parent/child lists, and lookup-index values compact while still allowing over four billion
     // node creations before a document must be reloaded. Public document/backend handles stay 64-bit.
     using NodeUid = uint32_t;
@@ -913,8 +917,8 @@ public:
             };
 
             struct NestedStyleState {
-                StateStyleMap state_styles;
-                PartStyleMap part_styles;
+                SparseStateStyleMap state_styles;
+                SparsePartStyleMap part_styles;
             };
 
             struct StyleState {
@@ -984,12 +988,12 @@ public:
         // Shared across all node instances that resolve to an identical style (same node type +
         // styleRefs + inline style/state/part overrides) within the current style revision. Template
         // list items (e.g. Wi-Fi scan rows) instantiate the same definition N times; storing one
-        // ResolvedStyle per instance duplicated its resolved_font/state/part vectors N times. Sharing a
-        // single immutable copy via shared_ptr removes that per-item PSRAM cost. ResolvedStyle is only
+        // SparseResolvedStyle per instance duplicated its resolved_font/state/part vectors N times. Sharing a
+        // single immutable copy via shared_ptr removes that per-item PSRAM cost. SparseResolvedStyle is only
         // ever reassigned wholesale (never mutated in place), so const sharing is safe.
-        std::shared_ptr<const ResolvedStyle> resolved_style;
+        std::shared_ptr<const SparseResolvedStyle> resolved_style;
         BackendHandle handle;
-        const Node *definition = nullptr;
+        const SparseNode *definition = nullptr;
         std::unique_ptr<CompactPropsState> compact_props_state;
         uint32_t applied_style_revision = 0;
         NodeUid parent_uid = 0;
@@ -1009,10 +1013,10 @@ public:
         }
 
         template <typename T>
-        const T &typed_props(T Node::*member) const
+        const T &typed_props(T SparseNode::*member) const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->*member;
+                return const_cast<SparseNode *>(definition)->*member;
             }
             if (compact_props_state != nullptr && compact_props_state->type_props_state != nullptr) {
                 return *static_cast<const T *>(compact_props_state->type_props_state);
@@ -1021,10 +1025,10 @@ public:
         }
 
         template <typename T>
-        T &mutable_typed_props(T Node::*member)
+        T &mutable_typed_props(T SparseNode::*member)
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->*member;
+                return const_cast<SparseNode *>(definition)->*member;
             }
             auto &state = ensure_compact_props_state();
             if (state.type_props_state == nullptr) {
@@ -1034,7 +1038,7 @@ public:
             return *static_cast<T *>(state.type_props_state);
         }
 
-        const Node &node() const
+        const SparseNode &node() const
         {
             return *definition;
         }
@@ -1051,7 +1055,7 @@ public:
         const CommonProps &common_props() const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->common_props;
+                return const_cast<SparseNode *>(definition)->common_props;
             }
             if (compact_props_state != nullptr && compact_props_state->common_props.has_value()) {
                 return *compact_props_state->common_props;
@@ -1062,7 +1066,7 @@ public:
         CommonProps &mutable_common_props()
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->common_props;
+                return const_cast<SparseNode *>(definition)->common_props;
             }
             auto &state = ensure_compact_props_state();
             if (!state.common_props.has_value()) {
@@ -1074,7 +1078,7 @@ public:
         const LabelProps &label_props() const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->label_props;
+                return const_cast<SparseNode *>(definition)->label_props;
             }
             if (compact_props_state != nullptr && compact_props_state->label_props.has_value()) {
                 return *compact_props_state->label_props;
@@ -1085,7 +1089,7 @@ public:
         LabelProps &mutable_label_props()
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->label_props;
+                return const_cast<SparseNode *>(definition)->label_props;
             }
             auto &state = ensure_compact_props_state();
             if (!state.label_props.has_value()) {
@@ -1097,7 +1101,7 @@ public:
         const ImageProps &image_props() const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->image_props;
+                return const_cast<SparseNode *>(definition)->image_props;
             }
             if (compact_props_state != nullptr && compact_props_state->image_state != nullptr) {
                 return compact_props_state->image_state->props;
@@ -1108,7 +1112,7 @@ public:
         ImageProps &mutable_image_props()
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->image_props;
+                return const_cast<SparseNode *>(definition)->image_props;
             }
             auto &state = ensure_compact_props_state();
             if (state.image_state == nullptr) {
@@ -1125,7 +1129,7 @@ public:
         const ResolvedImageSpec &resolved_image() const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->resolved_image;
+                return const_cast<SparseNode *>(definition)->resolved_image;
             }
             if (compact_props_state != nullptr && compact_props_state->image_state != nullptr) {
                 return compact_props_state->image_state->resolved;
@@ -1136,7 +1140,7 @@ public:
         ResolvedImageSpec &mutable_resolved_image()
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->resolved_image;
+                return const_cast<SparseNode *>(definition)->resolved_image;
             }
             auto &state = ensure_compact_props_state();
             if (state.image_state == nullptr) {
@@ -1153,11 +1157,11 @@ public:
 #define BROOKESIA_GUI_RUNTIME_DEFINE_TYPED_PROPS_ACCESSORS(Name, field) \
         const Name &field() const                                      \
         {                                                              \
-            return typed_props(&Node::field);                           \
+            return typed_props(&SparseNode::field);                           \
         }                                                              \
         Name &mutable_##field()                                        \
         {                                                              \
-            return mutable_typed_props(&Node::field);                   \
+            return mutable_typed_props(&SparseNode::field);                   \
         }
 
         BROOKESIA_GUI_RUNTIME_DEFINE_TYPED_PROPS_ACCESSORS(FrameViewProps, frame_view_props)
@@ -1195,15 +1199,15 @@ public:
             return *state.nested;
         }
 
-        StateStyleMap &mutable_state_styles()
+        SparseStateStyleMap &mutable_state_styles()
         {
-            return transient_mutable_definition ? const_cast<Node *>(definition)->state_styles :
+            return transient_mutable_definition ? const_cast<SparseNode *>(definition)->state_styles :
                    ensure_nested_style_state().state_styles;
         }
 
-        PartStyleMap &mutable_part_styles()
+        SparsePartStyleMap &mutable_part_styles()
         {
-            return transient_mutable_definition ? const_cast<Node *>(definition)->part_styles :
+            return transient_mutable_definition ? const_cast<SparseNode *>(definition)->part_styles :
                    ensure_nested_style_state().part_styles;
         }
 
@@ -1231,7 +1235,7 @@ public:
             ensure_style_override(target).numeric_value = value;
         }
 
-        static void apply_style_override(Style &style, const CompactPropsState::StyleOverride &item)
+        static void apply_style_override(SparseStyle &style, const CompactPropsState::StyleOverride &item)
         {
 #define BROOKESIA_GUI_RUNTIME_APPLY_STYLE_STRING(Target, Field) \
             case BindingTarget::Target:                              \
@@ -1292,7 +1296,7 @@ public:
 #undef BROOKESIA_GUI_RUNTIME_APPLY_STYLE_STRING
         }
 
-        void populate_style_snapshot(Node &snapshot) const
+        void populate_style_snapshot(SparseNode &snapshot) const
         {
             snapshot.style = definition->style;
             snapshot.state_styles = definition->state_styles;
@@ -1313,7 +1317,7 @@ public:
         const Layout &layout() const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->layout;
+                return const_cast<SparseNode *>(definition)->layout;
             }
             if (compact_props_state != nullptr && compact_props_state->layout != nullptr) {
                 return *compact_props_state->layout;
@@ -1324,7 +1328,7 @@ public:
         Layout &mutable_layout()
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->layout;
+                return const_cast<SparseNode *>(definition)->layout;
             }
             auto &state = ensure_compact_props_state();
             if (state.layout == nullptr) {
@@ -1336,7 +1340,7 @@ public:
         const Placement &placement() const
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->placement;
+                return const_cast<SparseNode *>(definition)->placement;
             }
             if (compact_props_state != nullptr && compact_props_state->placement != nullptr) {
                 return *compact_props_state->placement;
@@ -1347,7 +1351,7 @@ public:
         Placement &mutable_placement()
         {
             if (transient_mutable_definition) {
-                return const_cast<Node *>(definition)->placement;
+                return const_cast<SparseNode *>(definition)->placement;
             }
             auto &state = ensure_compact_props_state();
             if (state.placement == nullptr) {
@@ -1409,21 +1413,21 @@ public:
         std::unordered_map<std::string, uint64_t> dependency_mtimes;
         std::chrono::steady_clock::time_point last_live_preview_poll = std::chrono::steady_clock::time_point::min();
         boost::unordered_flat_map<std::string, ImageAsset> images;
-        std::map<std::string, StyleSet> styles;
+        std::map<std::string, SparseStyleSet> styles;
         boost::unordered_flat_map<std::string, ScreenFlow> screen_flows;
-        // NodeRecord keeps pointers into these canonical definitions. Node-based maps preserve
+        // NodeRecord keeps pointers into these canonical definitions. SparseNode-based maps preserve
         // references across map growth and make that lifetime guarantee explicit.
-        boost::unordered_node_map<std::string, Node> screens;
-        boost::unordered_node_map<std::string, Node> templates;
+        boost::unordered_node_map<std::string, SparseNode> screens;
+        boost::unordered_node_map<std::string, SparseNode> templates;
         // Canonical definitions already have stable addresses. Cache their resolved style by pointer
-        // instead of retaining a serialized Style/StateStyle/PartStyle string for every definition.
-        boost::unordered_flat_map<const Node *, std::shared_ptr<const ResolvedStyle>> definition_style_cache;
-        // Different definitions often resolve to the same immutable 708-byte ResolvedStyle. Keep only
+        // instead of retaining a serialized SparseStyle/StateStyle/PartStyle string for every definition.
+        boost::unordered_flat_map<const SparseNode *, std::shared_ptr<const SparseResolvedStyle>> definition_style_cache;
+        // Different definitions often resolve to the same immutable 708-byte SparseResolvedStyle. Keep only
         // weak references here: NodeRecord/definition caches own live results, while the
         // interner provides exact result sharing without extending their lifetime.
         // The pool is small (73 source cache entries in the measured workload). A contiguous vector
         // avoids one hash-table slot and one bucket allocation per unique result.
-        std::vector<std::weak_ptr<const ResolvedStyle>> resolved_style_intern_cache;
+        std::vector<std::weak_ptr<const SparseResolvedStyle>> resolved_style_intern_cache;
         std::vector<PreloadedImageRecord> preloaded_images;
         boost::unordered_flat_map<std::string, uint64_t> screen_roots;
         // Eager screens not built during load; warmed on idle or first mount.
@@ -1433,7 +1437,7 @@ public:
         lib_utils::TaskScheduler::TaskId idle_warm_task_id = 0;
         std::shared_ptr<std::atomic<bool>> idle_warm_token;
         // MEMORY/FRAGMENTATION-CRITICAL: must be a NODE-based map, not unordered_flat_map.
-        // NodeRecord is large (full Node definition + signals + vectors). A flat_map stores values
+        // NodeRecord is large (full SparseNode definition + signals + vectors). A flat_map stores values
         // inline in one contiguous table, so every rehash (on each doubling threshold) must reallocate
         // a single huge contiguous block and MOVE all NodeRecords - measured as a ~550KB transient
         // spike on a heap whose largest free block was only ~528KB, i.e. one growth step away from OOM
@@ -1476,7 +1480,7 @@ public:
 
     boost::unordered_flat_map<std::string, RuntimeFontResource> global_fonts;
     boost::unordered_flat_map<std::string, RuntimeImageResource> global_images;
-    boost::unordered_flat_map<std::string, ThemeAsset> global_themes;
+    boost::unordered_flat_map<std::string, SparseThemeAsset> global_themes;
     boost::unordered_flat_set<std::string> unregistered_global_fonts;
     std::vector<std::string> font_registration_order;
     std::vector<std::string> theme_registration_order;
@@ -1508,7 +1512,7 @@ public:
 
     std::expected<DocumentId, std::string> load(
         std::string_view file_path_view,
-        Document document,
+        SparseDocument document,
         const Environment &environment,
         bool file_backed = false,
         std::vector<std::string> dependency_files = {},
@@ -1541,7 +1545,7 @@ public:
     )
     ;
 
-    static RuntimeImageResource make_runtime_image_resource(const Node &node)
+    static RuntimeImageResource make_runtime_image_resource(const SparseNode &node)
     ;
 
     static RuntimeImageResource make_runtime_image_resource(const NodeRecord &record)
@@ -1561,7 +1565,7 @@ public:
         const RuntimeImageResource &resource)
     ;
 
-    std::expected<void, std::string> ensure_node_image_resources_preloaded(TreeRecord &tree, const Node &node)
+    std::expected<void, std::string> ensure_node_image_resources_preloaded(TreeRecord &tree, const SparseNode &node)
     ;
 
     void release_image_resource_from_tree(
@@ -1725,7 +1729,7 @@ public:
         DocumentId document_id,
         std::string_view file_path,
         const Environment &environment,
-        const ParsedDocument &parsed_document)
+        const SparseParsedDocument &parsed_document)
     ;
 
     size_t reapply_style_record(TreeRecord &tree, NodeRecord &record)
@@ -1755,7 +1759,7 @@ public:
     std::expected<void, std::string> refresh_document_if_dirty(Runtime *runtime, DocumentId document_id)
     ;
 
-    std::expected<void, std::string> load_theme(const ThemeAsset &theme)
+    std::expected<void, std::string> load_theme(const SparseThemeAsset &theme)
     ;
 
     std::vector<std::string> list_supported_themes() const
@@ -1774,16 +1778,16 @@ public:
 
     void resolve_style_color_field(
         const TreeRecord &tree,
-        Style &style,
-        std::optional<std::string> (Style::*getter)() const,
-        void (Style::*setter)(std::optional<std::string>),
+        SparseStyle &style,
+        std::optional<std::string> (SparseStyle::*getter)() const,
+        void (SparseStyle::*setter)(std::optional<std::string>),
         std::string_view field_name) const
     ;
 
-    void resolve_style_color_fields(const TreeRecord &tree, Style &style) const
+    void resolve_style_color_fields(const TreeRecord &tree, SparseStyle &style) const
     ;
 
-    void resolve_style_set_color_fields(const TreeRecord &tree, StyleSet &style_set) const
+    void resolve_style_set_color_fields(const TreeRecord &tree, SparseStyleSet &style_set) const
     ;
 
     std::expected<void, std::string> set_theme(
@@ -1880,7 +1884,7 @@ public:
     std::string get_view_id(const View &view) const
     ;
 
-    Node make_style_snapshot(const NodeRecord &record) const
+    SparseNode make_style_snapshot(const NodeRecord &record) const
     ;
 
     void apply_record_props(NodeRecord &record, PropsApplyMask mask)
@@ -2066,7 +2070,7 @@ private:
     std::expected<NodeUid, std::string> create_subtree(
         DocumentId document_id,
         TreeRecord &tree,
-        const Node &definition,
+        const SparseNode &definition,
         BackendHandle parent_handle,
         NodeUid parent_uid,
         const std::string &root_id,
@@ -2153,11 +2157,11 @@ private:
     void merge_binding_mask(BindingApplyMasks &masks, const BindingTargetInfo &target_info)
     ;
 
-    static bool node_has_binding_key(const Node &node, std::string_view key)
+    static bool node_has_binding_key(const SparseNode &node, std::string_view key)
     ;
 
-    static const Node *find_child_node_by_path(
-        const Node &node,
+    static const SparseNode *find_child_node_by_path(
+        const SparseNode &node,
         const std::vector<std::string> &segments,
         size_t index
     )
@@ -2178,7 +2182,7 @@ private:
 
     BindingApplyMasks apply_initial_bindings(
         TreeRecord &tree,
-        Node &node,
+        SparseNode &node,
         std::string_view absolute_path,
         std::vector<InitialStyleBinding> &style_bindings)
     ;
@@ -2239,10 +2243,10 @@ private:
     void resolve_keyboard_key_images(const TreeRecord &tree, KeyboardProps &props) const
     ;
 
-    void resolve_keyboard_key_images(const TreeRecord &tree, Node &node) const
+    void resolve_keyboard_key_images(const TreeRecord &tree, SparseNode &node) const
     ;
 
-    bool node_references_image(const Node &node, std::string_view image_id) const
+    bool node_references_image(const SparseNode &node, std::string_view image_id) const
     ;
 
     bool node_references_image(const NodeRecord &record, std::string_view image_id) const
@@ -2251,7 +2255,7 @@ private:
     ResolvedImageSpec resolve_image_spec(const TreeRecord &tree, std::string_view image_id) const
     ;
 
-    void resolve_image_source(const TreeRecord &tree, Node &node) const
+    void resolve_image_source(const TreeRecord &tree, SparseNode &node) const
     ;
 
     bool has_font_resource(const TreeRecord &tree, const std::string &font_id) const
@@ -2260,13 +2264,13 @@ private:
     bool has_image_resource(const TreeRecord &tree, const std::string &image_id) const
     ;
 
-    static void merge_style_layer(Style &destination, const Style &source)
+    static void merge_style_layer(SparseStyle &destination, const SparseStyle &source)
     ;
 
-    static void merge_style_set_layer(StyleSet &destination, const StyleSet &source)
+    static void merge_style_set_layer(SparseStyleSet &destination, const SparseStyleSet &source)
     ;
 
-    StyleSet compose_style_set(const TreeRecord &tree, const Node &node) const
+    SparseStyleSet compose_style_set(const TreeRecord &tree, const SparseNode &node) const
     ;
 
     std::string resolve_keyboard_key_color(
@@ -2283,31 +2287,31 @@ private:
     void resolve_keyboard_key_style_refs(const TreeRecord &tree, KeyboardProps &props) const
     ;
 
-    void resolve_keyboard_key_style_refs(const TreeRecord &tree, Node &node) const
+    void resolve_keyboard_key_style_refs(const TreeRecord &tree, SparseNode &node) const
     ;
 
     std::expected<void, std::string> validate_node_resource_references(
-        const TreeRecord &tree, const Node &node, const std::string &absolute_path) const
+        const TreeRecord &tree, const SparseNode &node, const std::string &absolute_path) const
     ;
 
     std::expected<void, std::string> validate_resource_references(const TreeRecord &tree) const
     ;
 
-    ResolvedStyle resolve_style(const TreeRecord &tree, const Node &node) const
+    SparseResolvedStyle resolve_style(const TreeRecord &tree, const SparseNode &node) const
     ;
 
-    std::shared_ptr<const ResolvedStyle> intern_resolved_style(
+    std::shared_ptr<const SparseResolvedStyle> intern_resolved_style(
         TreeRecord &tree,
-        ResolvedStyle resolved_style)
+        SparseResolvedStyle resolved_style)
     ;
 
-    // Returns a shared, immutable ResolvedStyle for `node`. Canonical definition pointers use a compact
+    // Returns a shared, immutable SparseResolvedStyle for `node`. Canonical definition pointers use a compact
     // per-document cache. Runtime-mutated styles resolve directly and then use exact result interning;
-    // serializing the full Style into a content-cache key costs more memory than the values it avoids.
-    std::shared_ptr<const ResolvedStyle> resolve_style_shared(
+    // serializing the full SparseStyle into a content-cache key costs more memory than the values it avoids.
+    std::shared_ptr<const SparseResolvedStyle> resolve_style_shared(
         TreeRecord &tree,
-        const Node &node,
-        const Node *canonical_definition = nullptr)
+        const SparseNode &node,
+        const SparseNode *canonical_definition = nullptr)
     ;
 
     void refresh_global_fonts_from_backend()

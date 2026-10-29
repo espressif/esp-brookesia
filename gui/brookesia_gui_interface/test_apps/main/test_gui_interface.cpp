@@ -540,7 +540,6 @@ public:
     {
         (void)mask;
         applied_styles_.insert_or_assign(handle.value(), style);
-        applied_style_sources_.insert_or_assign(handle.value(), &style);
         style_apply_count_++;
     }
 
@@ -711,12 +710,6 @@ public:
         return (it == applied_styles_.end()) ? nullptr : &it->second;
     }
 
-    const ResolvedStyle *style_source_for_handle(BackendHandle handle) const
-    {
-        auto it = applied_style_sources_.find(handle.value());
-        return (it == applied_style_sources_.end()) ? nullptr : it->second;
-    }
-
     const std::vector<RuntimeImageResource> &preloaded_images() const
     {
         return images_;
@@ -770,7 +763,6 @@ private:
     std::map<BackendHandle::Value, NodeType> node_types_;
     std::map<BackendHandle::Value, size_t> bound_event_count_;
     std::map<BackendHandle::Value, ResolvedStyle> applied_styles_;
-    std::map<BackendHandle::Value, const ResolvedStyle *> applied_style_sources_;
     std::map<BackendHandle::Value, AppliedImageState> applied_images_;
     std::vector<BackendHandle> mounted_handles_;
     std::vector<BackendHandle> unmounted_handles_;
@@ -1079,26 +1071,26 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(state.has_value());
     const auto *style = std::get_if<Style>(&state.value());
     TEST_ASSERT_NOT_NULL(style);
-    TEST_ASSERT_TRUE(style->opacity().has_value());
-    TEST_ASSERT_EQUAL_INT32(123, *style->opacity());
-    TEST_ASSERT_TRUE(style->bg_color().has_value());
-    TEST_ASSERT_EQUAL_STRING("#102030", style->bg_color()->c_str());
-    TEST_ASSERT_TRUE(style->radius().has_value());
-    TEST_ASSERT_EQUAL_INT32(5, *style->radius());
+    TEST_ASSERT_TRUE(style->opacity.has_value());
+    TEST_ASSERT_EQUAL_INT32(123, *style->opacity);
+    TEST_ASSERT_TRUE(style->bg_color.has_value());
+    TEST_ASSERT_EQUAL_STRING("#102030", style->bg_color->c_str());
+    TEST_ASSERT_TRUE(style->radius.has_value());
+    TEST_ASSERT_EQUAL_INT32(5, *style->radius);
 
     const auto panel_handle = backend_ptr->handle_for_path("/binding_screen/panel");
     const auto *resolved_style = backend_ptr->style_for_handle(panel_handle);
     TEST_ASSERT_NOT_NULL(resolved_style);
     TEST_ASSERT_EQUAL_STRING(
-        "#405060", resolved_style->state_styles.at("pressed").bg_color()->c_str()
+        "#405060", resolved_style->state_styles.at("pressed").bg_color->c_str()
     );
-    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width());
+    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width);
     TEST_ASSERT_EQUAL_STRING(
-        "#708090", resolved_style->part_styles.at("indicator").style.text_color()->c_str()
+        "#708090", resolved_style->part_styles.at("indicator").style.text_color->c_str()
     );
     TEST_ASSERT_EQUAL_STRING(
         "#A0B0C0",
-        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color()->c_str()
+        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color->c_str()
     );
 
     runtime.set_binding_values(document_id.value(), {
@@ -1111,18 +1103,18 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(state.has_value());
     style = std::get_if<Style>(&state.value());
     TEST_ASSERT_NOT_NULL(style);
-    TEST_ASSERT_EQUAL_STRING("#112233", style->bg_color()->c_str());
-    TEST_ASSERT_EQUAL_INT32(201, *style->opacity());
-    TEST_ASSERT_EQUAL_INT32(5, *style->radius());
+    TEST_ASSERT_EQUAL_STRING("#112233", style->bg_color->c_str());
+    TEST_ASSERT_EQUAL_INT32(201, *style->opacity);
+    TEST_ASSERT_EQUAL_INT32(5, *style->radius);
     resolved_style = backend_ptr->style_for_handle(panel_handle);
     TEST_ASSERT_NOT_NULL(resolved_style);
     TEST_ASSERT_EQUAL_STRING(
-        "#445566", resolved_style->state_styles.at("pressed").bg_color()->c_str()
+        "#445566", resolved_style->state_styles.at("pressed").bg_color->c_str()
     );
-    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width());
+    TEST_ASSERT_EQUAL_INT32(2, *resolved_style->state_styles.at("pressed").border_width);
     TEST_ASSERT_EQUAL_STRING(
         "#ABCDEF",
-        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color()->c_str()
+        resolved_style->part_styles.at("indicator").state_styles.at("checked").border_color->c_str()
     );
 
     state = runtime.get_view_state(document_id.value(), "/binding_screen/panel", ViewStateKind::Layout);
@@ -1849,10 +1841,10 @@ BROOKESIA_TEST_CASE(
 
     ThemeAsset first_theme;
     first_theme.id = "test.first";
-    first_theme.styles["label"].style.set_text_color("#111111");
+    first_theme.styles["label"].style.text_color = "#111111";
     ThemeAsset second_theme;
     second_theme.id = "test.second";
-    second_theme.styles["label"].style.set_text_color("#222222");
+    second_theme.styles["label"].style.text_color = "#222222";
     TEST_ASSERT_TRUE(runtime.load_theme(first_theme).has_value());
     TEST_ASSERT_TRUE(runtime.load_theme(second_theme).has_value());
 
@@ -1882,17 +1874,15 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(first_handle.is_valid());
     const auto *first_style = backend_ptr->style_for_handle(first_handle);
     TEST_ASSERT_NOT_NULL(first_style);
-    TEST_ASSERT_TRUE(first_style->style.text_color().has_value());
-    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color()->c_str());
+    TEST_ASSERT_TRUE(first_style->style.text_color.has_value());
+    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_en", first_style->resolved_font.font_id.c_str());
-    const auto *first_style_source = backend_ptr->style_source_for_handle(first_handle);
-    TEST_ASSERT_NOT_NULL(first_style_source);
 
     const auto style_apply_count = backend_ptr->style_apply_count();
     TEST_ASSERT_TRUE(runtime.set_theme("test.second", true).has_value());
     TEST_ASSERT_TRUE(runtime.set_language("zh", true).has_value());
     TEST_ASSERT_EQUAL_size_t(style_apply_count, backend_ptr->style_apply_count());
-    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color()->c_str());
+    TEST_ASSERT_EQUAL_STRING("#111111", first_style->style.text_color->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_en", first_style->resolved_font.font_id.c_str());
 
     // A node instantiated lazily in an already-loaded document must retain that document's
@@ -1905,12 +1895,9 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_TRUE(old_document_row_handle.is_valid());
     const auto *old_document_row_style = backend_ptr->style_for_handle(old_document_row_handle);
     TEST_ASSERT_NOT_NULL(old_document_row_style);
-    TEST_ASSERT_TRUE(old_document_row_style->style.text_color().has_value());
-    TEST_ASSERT_EQUAL_STRING("#111111", old_document_row_style->style.text_color()->c_str());
+    TEST_ASSERT_TRUE(old_document_row_style->style.text_color.has_value());
+    TEST_ASSERT_EQUAL_STRING("#111111", old_document_row_style->style.text_color->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_en", old_document_row_style->resolved_font.font_id.c_str());
-    // The screen label and template label are different definitions with the same fully resolved
-    // style. Runtime must share the immutable result rather than retaining two 708-byte copies.
-    TEST_ASSERT_TRUE(first_style_source == backend_ptr->style_source_for_handle(old_document_row_handle));
 
     auto second_document = runtime.load_json(
                                "test/theme_second.json", THEME_LANGUAGE_JSON, "test", default_environment
@@ -1921,11 +1908,50 @@ BROOKESIA_TEST_CASE(
     TEST_ASSERT_NOT_EQUAL(first_handle.value(), second_handle.value());
     const auto *second_style = backend_ptr->style_for_handle(second_handle);
     TEST_ASSERT_NOT_NULL(second_style);
-    TEST_ASSERT_TRUE(second_style->style.text_color().has_value());
-    TEST_ASSERT_EQUAL_STRING("#222222", second_style->style.text_color()->c_str());
+    TEST_ASSERT_TRUE(second_style->style.text_color.has_value());
+    TEST_ASSERT_EQUAL_STRING("#222222", second_style->style.text_color->c_str());
     TEST_ASSERT_EQUAL_STRING("test_font_zh", second_style->resolved_font.font_id.c_str());
-    TEST_ASSERT_TRUE(first_style_source != backend_ptr->style_source_for_handle(second_handle));
 
     TEST_ASSERT_TRUE(runtime.unload(first_document.value()));
     TEST_ASSERT_TRUE(runtime.unload(second_document.value()));
+}
+
+BROOKESIA_TEST_CASE(
+    test_gui_interface_runtime_public_document_styles,
+    "GUI runtime imports public optional styles and returns independent state",
+    "[gui][interface][runtime][style]"
+)
+{
+    auto parsed = parse_document(ROOT_JSON, "test", Environment{});
+    TEST_ASSERT_TRUE(parsed.has_value());
+    auto &title = parsed->screens.at(0).children.at(0);
+    std::optional<std::string> &color = title.style.text_color;
+    color.emplace("#123456");
+    title.style.radius = 0;
+    title.style.clip_corner = false;
+    title.state_styles["pressed"].opacity = 0;
+    title.part_styles["indicator"].style.padding = 0;
+
+    auto backend = std::make_unique<MockBackend>();
+    auto *backend_ptr = backend.get();
+    Runtime runtime(std::move(backend));
+    auto loaded = runtime.load("test/public.json", *parsed, Environment{});
+    TEST_ASSERT_TRUE(loaded.has_value());
+    color = "#654321";
+    const auto handle = backend_ptr->handle_for_path("/test_screen/title");
+    const auto *applied = backend_ptr->style_for_handle(handle);
+    TEST_ASSERT_NOT_NULL(applied);
+    TEST_ASSERT_EQUAL_STRING("#123456", applied->style.text_color->c_str());
+    TEST_ASSERT_EQUAL(0, applied->style.radius.value());
+    TEST_ASSERT_FALSE(applied->style.clip_corner.value());
+    TEST_ASSERT_EQUAL(0, applied->state_styles.at("pressed").opacity.value());
+    TEST_ASSERT_EQUAL(0, applied->part_styles.at("indicator").style.padding.value());
+
+    auto state = runtime.get_view_state(loaded.value(), "/test_screen/title", ViewStateKind::Style);
+    TEST_ASSERT_TRUE(state.has_value());
+    std::get<Style>(*state).text_color.reset();
+    state = runtime.get_view_state(loaded.value(), "/test_screen/title", ViewStateKind::Style);
+    TEST_ASSERT_TRUE(state.has_value());
+    TEST_ASSERT_EQUAL_STRING("#123456", std::get<Style>(*state).text_color->c_str());
+    TEST_ASSERT_TRUE(runtime.unload(loaded.value()));
 }

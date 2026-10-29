@@ -452,7 +452,7 @@ std::expected<void, std::string> apply_template_slots(
     return {};
 }
 
-std::expected<Node, std::string> parse_template_ref(
+std::expected<SparseNode, std::string> parse_template_ref(
     const boost::json::object &object,
     const Environment &environment,
     const TemplateRawMap &templates,
@@ -501,14 +501,14 @@ std::expected<Node, std::string> parse_template_ref(
     return parsed;
 }
 
-std::expected<std::vector<Node>, std::string> parse_children(
+std::expected<std::vector<SparseNode>, std::string> parse_children(
     const boost::json::object &object,
     const Environment &environment,
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack)
 {
-    std::vector<Node> children;
+    std::vector<SparseNode> children;
     const auto *value = find_child_value(object, "children");
     if (value == nullptr) {
         return children;
@@ -788,7 +788,7 @@ std::expected<boost::json::object, std::string> apply_interaction_templates(
     return target;
 }
 
-std::expected<Node, std::string> parse_view_node(
+std::expected<SparseNode, std::string> parse_view_node(
     const boost::json::object &source_object,
     const Environment &environment,
     const TemplateRawMap &templates,
@@ -806,7 +806,7 @@ std::expected<Node, std::string> parse_view_node(
 
     BROOKESIA_LOGD("Params: object(keys=%1%), environment(%2%)", object.size(), environment);
 
-    Node node;
+    SparseNode node;
 
     if (find_child_value(object, "subtype") != nullptr) {
         return std::unexpected("Field 'subtype' is no longer supported; use node field 'type'");

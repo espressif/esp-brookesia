@@ -9,13 +9,13 @@ namespace esp_brookesia::gui::parser_detail {
 
 
 
-std::expected<Style, std::string> parse_style_object(
+std::expected<SparseStyle, std::string> parse_style_object(
     const boost::json::object &style_object,
     const Environment &environment,
     bool allow_font,
     bool allow_font_size)
 {
-    Style style;
+    SparseStyle style;
 
     auto parse_optional_string = [&](std::string_view key) -> std::expected<std::optional<std::string>, std::string> {
         const auto *value = find_child_value(style_object, key);
@@ -302,11 +302,11 @@ std::expected<Style, std::string> parse_style_object(
     return style;
 }
 
-std::expected<StateStyleMap, std::string> parse_state_styles_object(
+std::expected<SparseStateStyleMap, std::string> parse_state_styles_object(
     const boost::json::object &state_styles_object,
     const Environment &environment)
 {
-    StateStyleMap state_styles;
+    SparseStateStyleMap state_styles;
 
     for (const auto &[state_key, style_value] : state_styles_object) {
         const std::string state_name(state_key.begin(), state_key.end());
@@ -326,11 +326,11 @@ std::expected<StateStyleMap, std::string> parse_state_styles_object(
     return state_styles;
 }
 
-std::expected<PartStyleSet, std::string> parse_part_style_set_object(
+std::expected<SparsePartStyleSet, std::string> parse_part_style_set_object(
     const boost::json::object &part_style_object,
     const Environment &environment)
 {
-    PartStyleSet part_style_set;
+    SparsePartStyleSet part_style_set;
 
     const auto *style_value = find_child_value(part_style_object, "style");
     if (style_value != nullptr) {
@@ -365,11 +365,11 @@ std::expected<PartStyleSet, std::string> parse_part_style_set_object(
     return part_style_set;
 }
 
-std::expected<PartStyleMap, std::string> parse_part_styles_object(
+std::expected<SparsePartStyleMap, std::string> parse_part_styles_object(
     const boost::json::object &part_styles_object,
     const Environment &environment)
 {
-    PartStyleMap part_styles;
+    SparsePartStyleMap part_styles;
 
     for (const auto &[part_key, part_style_value] : part_styles_object) {
         const std::string part_name(part_key.begin(), part_key.end());
@@ -389,11 +389,11 @@ std::expected<PartStyleMap, std::string> parse_part_styles_object(
     return part_styles;
 }
 
-std::expected<StyleSet, std::string> parse_style_set_object(
+std::expected<SparseStyleSet, std::string> parse_style_set_object(
     const boost::json::object &style_object,
     const Environment &environment)
 {
-    StyleSet style_set;
+    SparseStyleSet style_set;
 
     auto style = parse_style_object(style_object, environment);
     if (!style) {
@@ -453,13 +453,13 @@ const boost::unordered_flat_set<std::string> &get_theme_subtype_style_keys()
     return keys;
 }
 
-std::expected<std::map<std::string, StyleSet>, std::string> parse_named_style_map(
+std::expected<std::map<std::string, SparseStyleSet>, std::string> parse_named_style_map(
     const boost::json::object &styles_object,
     const boost::json::value &constants,
     const Environment &environment,
     bool allow_subtype_keys)
 {
-    std::map<std::string, StyleSet> styles;
+    std::map<std::string, SparseStyleSet> styles;
     const auto &subtype_keys = get_theme_subtype_style_keys();
 
     for (const auto &[style_key, style_value] : styles_object) {

@@ -75,23 +75,23 @@ void on_arc_gradient_draw_task_added(lv_event_t *event)
 
 std::optional<Record::ArcGradientRecord> make_arc_gradient_record(const Style &style)
 {
-    if (!style.arc_gradient_color().has_value()) {
+    if (!style.arc_gradient_color.has_value()) {
         return std::nullopt;
     }
-    auto end_color = parse_color(*style.arc_gradient_color());
+    auto end_color = parse_color(*style.arc_gradient_color);
     if (!end_color.has_value()) {
         return std::nullopt;
     }
 
     std::optional<uint32_t> start_color;
-    if (style.arc_color().has_value()) {
-        start_color = parse_color(*style.arc_color());
+    if (style.arc_color.has_value()) {
+        start_color = parse_color(*style.arc_color);
     }
-    if (!start_color.has_value() && style.line_color().has_value()) {
-        start_color = parse_color(*style.line_color());
+    if (!start_color.has_value() && style.line_color.has_value()) {
+        start_color = parse_color(*style.line_color);
     }
-    if (!start_color.has_value() && style.bg_color().has_value()) {
-        start_color = parse_color(*style.bg_color());
+    if (!start_color.has_value() && style.bg_color.has_value()) {
+        start_color = parse_color(*style.bg_color);
     }
     if (!start_color.has_value()) {
         return std::nullopt;
@@ -101,7 +101,7 @@ std::optional<Record::ArcGradientRecord> make_arc_gradient_record(const Style &s
         .enabled = true,
         .start_color = *start_color,
         .end_color = *end_color,
-        .segments = style.arc_gradient_segments().value_or(32),
+        .segments = style.arc_gradient_segments.value_or(32),
     };
 }
 

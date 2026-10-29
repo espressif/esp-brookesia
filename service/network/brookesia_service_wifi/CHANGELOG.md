@@ -1,5 +1,11 @@
 # ChangeLog
 
+## v0.8.3 - 2026-10-27
+
+### Bug Fixes:
+
+- fix(hosted): preserve the 8000 ms P4 HAL initialization timeout before esp_hosted is resolved.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

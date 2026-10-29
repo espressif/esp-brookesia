@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.8.4 - 2026-10-27
+
+### Enhancements:
+
+- feat(gui): add 480x480 shell, startup, theme, and font resource variants.
+- feat(expansion): notify users when supported expansion modules are attached, removed, or fail to initialize.
+
+### Bug Fixes:
+
+- fix(deps): declare the Service Helper dependency required by expansion notifications.
+
 ## v0.8.3 - 2026-08-05
 
 ### Bug Fixes:

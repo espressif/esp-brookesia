@@ -1,11 +1,12 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.6 - 2026-10-27
 
-### Enhancements:
+### Bug Fixes:
 
-- feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
-- feat(props): skip redundant common transform defaults when applying local LVGL transform props.
+- fix(render): avoid flicker during deferred screen builds and refresh relative placement when a screen is mounted.
+- fix(props): reset transforms when local transform properties are removed.
+- fix(deps): require GUI Interface `>=0.8.3,<0.9`.
 
 ## v0.8.5 - 2026-09-17
 

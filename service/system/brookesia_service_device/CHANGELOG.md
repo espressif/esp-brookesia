@@ -1,5 +1,16 @@
 # ChangeLog
 
+## v0.8.3 - 2026-10-27
+
+### Enhancements:
+
+- feat(expansion): expose module information and state-change events through the Device service.
+
+### Bug Fixes:
+
+- fix(expansion): serialize event listener registration and service shutdown.
+- fix(deps): require Service Helper `>=0.8.5,<0.9` and HAL Interface `>=0.8.3,<0.9` for expansion contracts.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:
