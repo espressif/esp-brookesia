@@ -10,7 +10,7 @@ import sys
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
-BASELINE = REPO / "reports" / "baseline" / "esp32_p4_function_ev" / "Baseline.esp32_p4_function_ev.json"
+BASELINE = REPO / "reports" / "baseline" / "esp32_p4x_function_ev" / "Baseline.esp32_p4x_function_ev.json"
 
 
 class CompareCliTest(unittest.TestCase):

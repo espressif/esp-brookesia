@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 GENERATOR = ROOT / "examples/system/perf_eval/main/gen_perf_eval_res.py"
 CARRIER = ROOT / "examples/system/perf_eval/main/perf_eval_res.c"
-BASELINE = ROOT / "reports/baseline/esp32_p4_function_ev/Baseline.esp32_p4_function_ev.json"
+BASELINE = ROOT / "reports/baseline/esp32_p4x_function_ev/Baseline.esp32_p4x_function_ev.json"
 
 FIELDS = ("nodes", "styles", "images", "bytes")
 

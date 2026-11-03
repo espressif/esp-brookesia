@@ -128,8 +128,8 @@ def _shipped_baseline_metrics(path: Optional[pathlib.Path] = None) -> Optional[s
         pass
     try:
         root = pathlib.Path(__file__).resolve().parents[4]
-        report = path or (root / "reports" / "baseline" / "esp32_p4_function_ev"
-                          / "Baseline.esp32_p4_function_ev.json")
+        report = path or (root / "reports" / "baseline" / "esp32_p4x_function_ev"
+                          / "Baseline.esp32_p4x_function_ev.json")
         if not report.is_file():
             return None
         payload = json.loads(report.read_text(encoding="utf-8"))

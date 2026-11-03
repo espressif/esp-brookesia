@@ -7,6 +7,8 @@ CI runs the host tests in a slim image without git, so the state is exercised
 through an injected runner instead of a real repository.
 """
 
+import copy
+import json
 import os
 import pathlib
 import shutil
@@ -15,6 +17,9 @@ import tempfile
 import unittest
 
 from brookesia_gui_perf.report import _worktree_state
+
+SHIPPED_BASELINE = pathlib.Path(__file__).resolve().parents[3] / "reports" / "baseline" \
+    / "esp32_p4x_function_ev" / "Baseline.esp32_p4x_function_ev.json"
 
 
 def _runner(unstaged="", staged="", untracked=()):
@@ -98,18 +103,55 @@ class WorktreeStateTests(unittest.TestCase):
         gate.py compares every non-volatile metadata field, so a schema change that
         only reaches build_report() silently makes the shipped baseline unpairable.
         """
-        import json as _json
         from brookesia_gui_perf.gate import check_gate
 
-        baseline = pathlib.Path(__file__).resolve().parents[3] / "reports" / "baseline" \
-            / "esp32_p4_function_ev" / "Baseline.esp32_p4_function_ev.json"
-        if not baseline.is_file():
-            self.skipTest(f"baseline not available: {baseline}")
-        metadata = _json.loads(baseline.read_text(encoding="utf-8"))["metadata"]
+        if not SHIPPED_BASELINE.is_file():
+            self.skipTest(f"baseline not available: {SHIPPED_BASELINE}")
+        report = json.loads(SHIPPED_BASELINE.read_text(encoding="utf-8"))
+        metadata = report["metadata"]
         self.assertIn("worktree_state_known", metadata)
         self.assertIn("worktree_exempt", metadata)
-        report = _json.loads(baseline.read_text(encoding="utf-8"))
         self.assertEqual(check_gate(report, report), [])
+
+    def test_shipped_baseline_pairs_with_a_clean_optimized_arm(self):
+        """The shipped baseline must pair with a normally aggregated clean arm.
+
+        The optimized side is forced to the source state every fresh `aggregate`
+        records (clean, no fingerprint), so a dirty shipped baseline fails here
+        instead of only failing when someone runs the real two-arm comparison.
+        """
+        from brookesia_gui_perf.gate import check_gate
+
+        if not SHIPPED_BASELINE.is_file():
+            self.skipTest(f"baseline not available: {SHIPPED_BASELINE}")
+        baseline = json.loads(SHIPPED_BASELINE.read_text(encoding="utf-8"))
+        metadata = baseline["metadata"]
+        self.assertFalse(metadata["worktree_dirty"], metadata["worktree_dirty"])
+        self.assertEqual(metadata["worktree_diff_sha256"], "")
+        self.assertTrue(metadata["worktree_state_known"])
+        self.assertNotIn("-dirty", metadata["git_sha"])
+
+        optimized = copy.deepcopy(baseline)
+        optimized["metadata"]["git_sha"] = "0123456"
+        optimized["metadata"]["worktree_dirty"] = False
+        optimized["metadata"]["worktree_diff_sha256"] = ""
+        optimized["metadata"]["worktree_state_known"] = True
+        optimized["metadata"]["worktree_exempt"] = False
+        self.assertEqual(check_gate(baseline, optimized), [])
+
+    def test_dirty_variant_of_the_shipped_baseline_is_rejected(self):
+        """The same file with a dirty flag must not pair with a clean arm."""
+        from brookesia_gui_perf.gate import check_gate
+
+        if not SHIPPED_BASELINE.is_file():
+            self.skipTest(f"baseline not available: {SHIPPED_BASELINE}")
+        clean = json.loads(SHIPPED_BASELINE.read_text(encoding="utf-8"))
+        dirty = copy.deepcopy(clean)
+        dirty["metadata"]["worktree_dirty"] = True
+        dirty["metadata"]["worktree_diff_sha256"] = "a" * 64
+        violations = check_gate(dirty, clean)
+        self.assertTrue(any("worktree_dirty" in v for v in violations), violations)
+        self.assertTrue(any("worktree_diff_sha256" in v for v in violations), violations)
 
     @unittest.skipUnless(shutil.which("git"), "git not installed")
     def test_real_clean_repository_reports_clean(self):

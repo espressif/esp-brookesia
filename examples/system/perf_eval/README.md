@@ -39,13 +39,36 @@ system partitions); that would need a smaller factory or larger flash.
 
 ## Build and flash
 
+`espressif/esp32_p4x_function_ev` is the baseline board; the P4 EV board still builds
+with `BOARD=espressif/esp32_p4_function_ev`.
+
 ```bash
-# build (BOARD/TARGET can be overridden)
+# build; no argument means "build"
 ./build_perf_eval.sh
 
-# flash: the acknowledgement is mandatory because this erases the data region
+# flash and monitor: the acknowledgement is mandatory because this erases the data region
 PERF_EVAL_ACK_ERASE=1 ./build_perf_eval.sh flash monitor
 ```
+
+The wrapper derives one build directory from `BOARD` and `TARGET`
+(`<idf-version>/build_<target>_board.<board-alias>`) and flashes exactly that
+directory's `flash_args`, so it cannot deploy an image left behind by another board.
+`PERF_EVAL_PORT` and `PERF_EVAL_BAUD` are forwarded to esptool, and
+`PERF_EVAL_FLASH_FORCE=1` adds `--force` for rev 0.x silicon.
+
+Capture from the port that carries the console: USB-Serial-JTAG on P4X
+(`/dev/ttyACM*`). A capture on the other node only sees the bootloader output. The P4 EV
+board has no USB-Serial-JTAG wired to the host and its board defaults still select it,
+so switch the console to UART0 in `menuconfig` before capturing on `/dev/ttyUSB*`.
+
+## Baselines
+
+`tools/brookesia_gui_perf` compares a run against
+`reports/baseline/<board_id>/Baseline.<board_id>.json`. Only a capture made from a
+clean tree is authoritative: `git_sha` has to resolve to a commit, `worktree_dirty`
+has to be `false`, and `worktree_diff_sha256` has to be empty. The shipped baseline is
+`esp32_p4x_function_ev`; captures whose `git_sha` carries a `-dirty` suffix are
+historical and are not part of the comparable set.
 
 ## Running
 

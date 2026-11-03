@@ -5,7 +5,6 @@
 ### Enhancements:
 
 - feat(display): add per-source frame / flush / dropped counters and font-load timing, compiled out behind `BROOKESIA_GUI_LVGL_ENABLE_PERF_PROBE` (default n) so shipped builds pay nothing.
-- feat(soc): add an ESP32-C5 button ADC compatibility shim.
 
 ### Bug Fixes:
 

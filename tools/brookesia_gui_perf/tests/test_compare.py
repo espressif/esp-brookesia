@@ -165,7 +165,7 @@ class UnknownThresholdTests(unittest.TestCase):
     """A threshold keyed by a misspelled metric must not be silently skipped."""
 
     BASELINE = pathlib.Path(__file__).resolve().parents[3] / "reports" / "baseline" \
-        / "esp32_p4_function_ev" / "Baseline.esp32_p4_function_ev.json"
+        / "esp32_p4x_function_ev" / "Baseline.esp32_p4x_function_ev.json"
 
     def _report(self):
         return json.loads(self.BASELINE.read_text(encoding="utf-8"))

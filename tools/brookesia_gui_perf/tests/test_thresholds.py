@@ -20,7 +20,7 @@ class ThresholdsTests(unittest.TestCase):
         catches that drift without rejecting single-scenario comparisons.
         """
         baseline = pathlib.Path(__file__).resolve().parents[3] / "reports" / "baseline" \
-            / "esp32_p4_function_ev" / "Baseline.esp32_p4_function_ev.json"
+            / "esp32_p4x_function_ev" / "Baseline.esp32_p4x_function_ev.json"
         if not baseline.is_file():
             self.skipTest(f"baseline report not available: {baseline}")
         report = json.loads(baseline.read_text(encoding="utf-8"))
