@@ -73,6 +73,14 @@ private:
     mutable std::mutex mutex_;
 };
 
+// Process-wide registry of the bundles opened for loaded documents, keyed by the
+// resource root. A bundle is a build artifact that does not change while the
+// process runs, so entries are kept for the process lifetime (index is ~1% of the
+// payload and the payload stays on flash).
+void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle);
+// Bytes for `path` when one of the registered bundles holds it.
+std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path);
+
 } // namespace parser_detail
 
 } // namespace esp_brookesia::gui

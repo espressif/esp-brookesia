@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include "brookesia/lib_utils/platform.hpp"
+#include "brookesia/gui_interface/asset_source.hpp"
 
 namespace esp_brookesia::gui::lvgl::props_detail {
 
@@ -231,7 +232,10 @@ std::expected<std::vector<uint8_t>, std::string> read_storage_file_bytes(
 )
 {
     std::expected<std::string, std::string> content = std::unexpected("Image read not attempted");
-    if (can_read_image_file_locally()) {
+    if (auto bundled = esp_brookesia::gui::read_bundled_asset(std::filesystem::path(path));
+            bundled.has_value()) {
+        content = std::move(*bundled);
+    } else if (can_read_image_file_locally()) {
         content = read_image_file_locally(path);
         if (!content) {
             content = StorageHelper::fs_read_text(path);

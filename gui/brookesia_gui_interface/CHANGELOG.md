@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.8.7 - 2026-11-19
+
+### Enhancements:
+
+- feat(asset): bundles can now carry media files, and `brookesia/gui_interface/asset_source.hpp`
+  lets any component read an asset through the bundle that the loaded document registered, so the
+  LVGL image loader no longer opens one file per image.
+
 ## v0.8.6 - 2026-11-19
 
 ### Enhancements:

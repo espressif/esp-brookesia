@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.8.9 - 2026-11-04
+
+### Enhancements:
+
+- perf(image): consult the document's asset bundle before reading an image file, which removes one
+  open per image when the bundle carries media.
+
 ## v0.8.8 - 2026-10-29
 
 ### Enhancements:

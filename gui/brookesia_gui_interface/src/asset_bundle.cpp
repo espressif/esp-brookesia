@@ -7,7 +7,11 @@
 
 #include <algorithm>
 #include <cstring>
+#include <map>
+#include <mutex>
 #include <system_error>
+
+#include "brookesia/gui_interface/asset_source.hpp"
 
 namespace esp_brookesia::gui {
 
@@ -156,6 +160,57 @@ std::optional<std::string> AssetBundle::read(const std::filesystem::path &path) 
     return text;
 }
 
+namespace {
+
+struct RegistryEntry {
+    std::shared_ptr<AssetBundle> bundle;
+};
+
+std::mutex &registry_mutex()
+{
+    static std::mutex mutex;
+    return mutex;
+}
+
+std::map<std::string, RegistryEntry> &registry()
+{
+    static std::map<std::string, RegistryEntry> entries;
+    return entries;
+}
+
+} // namespace
+
+void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle)
+{
+    if (bundle == nullptr) {
+        return;
+    }
+    const std::string key = root_dir.lexically_normal().generic_string();
+    std::lock_guard<std::mutex> lock(registry_mutex());
+    registry()[key].bundle = std::move(bundle);
+}
+
+std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path)
+{
+    std::lock_guard<std::mutex> lock(registry_mutex());
+    for (const auto &[root, entry] : registry()) {
+        (void)root;
+        if (entry.bundle == nullptr) {
+            continue;
+        }
+        auto bytes = entry.bundle->read(path);
+        if (bytes.has_value()) {
+            return bytes;
+        }
+    }
+    return std::nullopt;
+}
+
 } // namespace parser_detail
+
+std::optional<std::string> read_bundled_asset(const std::filesystem::path &path)
+{
+    return parser_detail::read_bundled_asset_bytes(path);
+}
 
 } // namespace esp_brookesia::gui

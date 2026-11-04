@@ -626,6 +626,10 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
         parser_profile_elapsed_ms(total_start, stage_end),
         parser_profile_elapsed_ms(total_start, stage_end)
     );
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    // Let the backend read resources (images, fonts) from the same bundle the parser just used.
+    parser_detail::register_asset_bundle(resolved_base_dir, asset_bundle);
+#endif
     return parsed_document;
 }
 

@@ -83,6 +83,8 @@ foreach(doc_root ${PERF_EVAL_DOC_ROOTS})
         COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${PERF_EVAL_ASSET_BUNDLE_SRC}"
                 "${PYTHON}" -m brookesia_gui_asset_bundle.cli pack
                 --res-root "${doc_dir}" --out "${bundle_staged}"
+                --include "*.json" --include "*.png" --include "*.jpg" --include "*.jpeg"
+                --include "*.bin"
         RESULT_VARIABLE bundle_status
         OUTPUT_VARIABLE bundle_output
         ERROR_VARIABLE bundle_error
