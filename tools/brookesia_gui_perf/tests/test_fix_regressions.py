@@ -64,6 +64,17 @@ class PairedVerdictTests(unittest.TestCase):
         result = compare_reports(base, opt, metric_catalog=set(load_thresholds()))
         self.assertFalse(result["pass"])
 
+    def test_record_only_row_high_cv_does_not_veto_verdict(self):
+        """refresh_area_ratio_pct is record_only with no cv_exempt flag."""
+        name = "refresh_area_ratio_pct"
+        stats = dict(graded_stats(40.0), cv=0.2)
+        base = {"metadata": {}, "scenarios": {"x": {"metrics": {name: stats}}}}
+        opt = {"metadata": {}, "scenarios": {"x": {"metrics": {name: stats}}}}
+        result = compare_reports(base, opt, metric_catalog=set(load_thresholds()))
+        row = result["metrics"]["x"][name]
+        self.assertEqual(row["optimized_grade"], "record")
+        self.assertTrue(row["ok"])
+
 
 class CaptureIntegrityTests(unittest.TestCase):
     """Spec section 1.2: a run without >=30 usable samples is not a baseline."""
@@ -119,6 +130,119 @@ class CvGateTests(unittest.TestCase):
     def test_non_finite_and_negative_cv_are_rejected(self):
         for value in (float("nan"), float("inf"), -0.5):
             self.assertFalse(cv_ok({"cv": value}))
+
+
+class TruncatedCaptureTests(unittest.TestCase):
+    """A truncated capture must never become a report."""
+
+    def _log_without_marker(self, path):
+        records = make_records(40)
+        header = json.dumps({
+            "record": "metadata",
+            "test_suite": records.metadata["test_suite"],
+            "app_id": records.metadata["app_id"],
+            "runtime_type": records.metadata["runtime_type"],
+            "metadata": records.metadata["metadata"],
+        })
+        lines = [f"[BENCH] {header}"] + [f"[BENCH] {json.dumps(s)}" for s in records.samples]
+        path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    def test_aggregate_rejects_a_log_without_the_end_marker(self):
+        import tempfile
+        from brookesia_gui_perf.cli import main
+        with tempfile.TemporaryDirectory() as tmp:
+            log = Path(tmp) / "truncated.log"
+            out = Path(tmp) / "out.json"
+            self._log_without_marker(log)
+            self.assertEqual(main(["aggregate", str(log), "-o", str(out)]), 1)
+            self.assertFalse(out.exists())
+
+    def test_two_torn_records_are_tolerated_on_a_32_sample_capture(self):
+        if not BASELINE.is_file():
+            self.skipTest(f"baseline not available: {BASELINE}")
+        report = json.loads(BASELINE.read_text(encoding="utf-8"))
+        report["malformed_records"] = 2
+        self.assertEqual(validate_report(report), [])
+        report["malformed_records"] = 3
+        self.assertTrue(any("malformed_records" in v for v in validate_report(report)))
+
+
+class RelativeRowToleranceTests(unittest.TestCase):
+    """Section 4 grades a relative row on its own 10% band, not the 1% noise floor."""
+
+    NAME = "batch_invalidate_ms"  # relative:max, Fail is > baseline + 10%
+
+    def _result(self, ratio):
+        base_value = 26.599
+        base = {"metadata": {}, "scenarios": {"x": {"metrics": {self.NAME: graded_stats(base_value)}}}}
+        opt = {"metadata": {}, "scenarios": {"x": {"metrics": {self.NAME: graded_stats(base_value * ratio)}}}}
+        return compare_reports(base, opt, metric_catalog=set(load_thresholds()))
+
+    def test_same_firmware_drift_inside_the_spec_band_passes(self):
+        result = self._result(1.024)  # +2.4%: observed between two identical runs
+        row = result["metrics"]["x"][self.NAME]
+        self.assertFalse(row["regressed"], row)
+        self.assertTrue(row["ok"], row)
+        self.assertTrue(result["pass"], row)
+
+    def test_beyond_the_spec_band_still_fails(self):
+        result = self._result(1.15)  # +15% > +10%
+        row = result["metrics"]["x"][self.NAME]
+        self.assertFalse(row["ok"], row)
+        self.assertFalse(result["pass"], row)
+
+
+class ZeroBaselineRatioTests(unittest.TestCase):
+    """A zero baseline cannot define a ratio; the bands must still decide."""
+
+    def _pair(self, opt_p95):
+        report = json.loads(BASELINE.read_text(encoding="utf-8"))
+        base = {"metadata": report["metadata"], "scenarios": report["scenarios"]}
+        opt = json.loads(json.dumps(base))
+        name = "event_dispatch_ms"  # feedback_delay arm: pass_a_max=10 ms
+        opt["scenarios"]["feedback_delay"]["metrics"].setdefault(
+            name, {"mean": opt_p95, "std": 0.0, "cv": 0.0, "p50": opt_p95,
+                   "p75": opt_p95, "p95": opt_p95, "p99": opt_p95, "n": 37}
+        )["p95"] = opt_p95
+        return compare_reports(base, opt, metric_catalog=set(load_thresholds()))
+
+    def test_zero_to_half_threshold_is_graded_not_raising(self):
+        result = self._pair(0.5)
+        row = result["metrics"]["feedback_delay"]["event_dispatch_ms"]
+        self.assertIsNone(row["improvement_pct"])
+        self.assertEqual(row["optimized_grade"], "pass_a")
+        self.assertTrue(row["ok"], row)
+        self.assertTrue(result["pass"], row)
+
+    def test_zero_to_over_threshold_fails(self):
+        result = self._pair(100.0)  # > fail_above 50 ms
+        row = result["metrics"]["feedback_delay"]["event_dispatch_ms"]
+        self.assertEqual(row["optimized_grade"], "fail")
+        self.assertFalse(row["ok"], row)
+        self.assertFalse(result["pass"], row)
+
+    def test_zero_to_zero_passes_without_raising(self):
+        result = self._pair(0.0)
+        row = result["metrics"]["feedback_delay"]["event_dispatch_ms"]
+        self.assertEqual(row["optimized_grade"], "pass_a")
+        self.assertTrue(result["pass"], row)
+
+    def test_cli_compare_survives_the_zero_baseline_pair(self):
+        import tempfile
+        from brookesia_gui_perf.cli import main
+        with tempfile.TemporaryDirectory() as tmp:
+            report = json.loads(BASELINE.read_text(encoding="utf-8"))
+            report["scenarios"]["feedback_delay"]["metrics"].setdefault(
+                "event_dispatch_ms",
+                {"mean": 0.5, "std": 0.0, "cv": 0.0, "p50": 0.5, "p75": 0.5,
+                 "p95": 0.5, "p99": 0.5, "n": 37},
+            )["p95"] = 0.5
+            base = Path(tmp) / "base.json"
+            opt = Path(tmp) / "opt.json"
+            base.write_text(json.dumps(json.loads(BASELINE.read_text(encoding="utf-8"))), encoding="utf-8")
+            opt.write_text(json.dumps(report), encoding="utf-8")
+            rc = main(["compare", str(base), str(opt)])
+            self.assertEqual(rc, 0)
 
 
 if __name__ == "__main__":

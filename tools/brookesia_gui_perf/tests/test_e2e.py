@@ -29,6 +29,7 @@ def emit_log(records, git_sha: str) -> str:
     ]
     for sample in records.samples:
         lines.append("[BENCH] " + json.dumps(sample))
+    lines.append('[BENCH] {"record": "completed"}')
     return "\n".join(lines) + "\n"
 
 

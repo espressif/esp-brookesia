@@ -34,6 +34,7 @@ class CliTests(unittest.TestCase):
         lines = [f"[BENCH] {header}"]
         for sample in records.samples:
             lines.append(f"[BENCH] {json.dumps(sample)}")
+        lines.append('[BENCH] {"record": "completed"}')
         with tempfile.TemporaryDirectory() as tmp:
             log_path = pathlib.Path(tmp) / "run.log"
             out_path = pathlib.Path(tmp) / "Baseline.esp32_p4x_function_ev.json"

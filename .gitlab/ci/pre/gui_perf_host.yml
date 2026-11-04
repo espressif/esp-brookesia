@@ -52,6 +52,10 @@ check_gui_perf_host_gate:
         - .gitlab/tools/measure_size.py
         - .gitlab/tools/tests/**/*
         - gui/brookesia_gui_interface/**/*
+        # The probe counters, the process_timers path and the binding probes live
+        # here; without them a framework-only change would skip this gate.
+        - gui/brookesia_gui_lvgl/**/*
+        - system/brookesia_system_core/**/*
         # The Golden Case carrier lives here; res/ edits must rerun the generator,
         # which the resource-consistency test in this job enforces.
         - examples/system/perf_eval/**/*

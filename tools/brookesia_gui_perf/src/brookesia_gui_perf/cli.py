@@ -37,6 +37,13 @@ def _cmd_aggregate(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 1
+    if not records.completed:
+        print(
+            "aggregate: log has no [BENCH] {\"record\":\"completed\"} end marker; "
+            "the capture was truncated, so its sample count proves nothing",
+            file=sys.stderr,
+        )
+        return 1
     report = build_report(records, warmup=args.warmup, probe_worktree=True,
                           allow_unknown_worktree=getattr(args, "allow_unknown_worktree", False))
     violations = validate_report(report)

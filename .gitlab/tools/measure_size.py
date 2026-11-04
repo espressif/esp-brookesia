@@ -17,6 +17,7 @@
 # valid source for these numbers.
 
 import argparse
+import math
 import hashlib
 import json
 import sys
@@ -25,7 +26,6 @@ from typing import Any, Dict, List, Optional
 
 # Spec v1.8 section 4, "体积" rows. direction is lower_better.
 SIZE_PASS_A_PCT = -5.0
-SIZE_PASS_B_PCT = 0.0
 SIZE_FAIL_PCT = 10.0
 
 # Resource trees staged into the littlefs image for the Golden Case product.
@@ -186,24 +186,70 @@ def grade(delta: float, *, first_round: bool) -> str:
     return "fail"
 
 
+def _valid_size(value: object) -> bool:
+    """A usable mandatory size row: a finite, positive number (bool is not a size)."""
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value > 0
+    )
+
+
+def _valid_optional_size(value: object) -> bool:
+    """A usable optional size row: a finite, non-negative measurement.
+
+    0 is a legal reading: measure(resource_dirs=[]) on a product without staged
+    resources measures resource_bytes as 0.
+    """
+    return (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and value >= 0
+    )
+
+
 def compare(baseline: Dict[str, Any], candidate: Dict[str, Any], *, first_round: bool = False) -> Dict[str, Any]:
     """Paired size comparison over the spec's two size rows."""
     rows: Dict[str, Any] = {}
+    compared_rows = 0
     for key in ("app_bin_bytes", "littlefs_bin_bytes", "resource_bytes", "total_image_size"):
         base = baseline.get(key)
         cand = candidate.get(key)
+        if key == "app_bin_bytes" and not (
+            _valid_size(base) and _valid_size(cand)
+        ):
+            # The app binary is the mandatory row: once the gate is armed, a pair
+            # without it on either side has nothing firmware-shaped to compare, so
+            # equal optional rows (resource_bytes) must not make it pass.
+            rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None,
+                         "grade": "record" if first_round else "fail"}
+            continue
         if base is None and cand is None:
             # Both arms omitted this optional row: nothing to compare, nothing to pass.
             rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None, "grade": "record"}
             continue
-        if not isinstance(base, (int, float)) or not isinstance(cand, (int, float)) or base == 0:
+        if not _valid_optional_size(base) or not _valid_optional_size(cand):
             # One-sided or unusable data must fail closed once the gate is armed:
             # silently recording it let a truncated candidate slip through. The
             # first round only records, so incomplete artifacts stay non-blocking.
             rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None,
                          "grade": "record" if first_round else "fail"}
             continue
+        if (base == 0) != (cand == 0):
+            # Resource appeared or disappeared: no ratio can be defined, and the
+            # image changed shape, so this is not an improvement to score. The
+            # first round only records.
+            rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None,
+                         "grade": "record" if first_round else "fail"}
+            continue
+        if base == 0 and cand == 0:
+            # A resource-less product measured twice: legal 0 -> 0, no change.
+            rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None, "grade": "record"}
+            continue
         delta = delta_pct(float(base), float(cand))
+        compared_rows += 1
         rows[key] = {
             "baseline": base,
             "candidate": cand,
@@ -219,12 +265,17 @@ def compare(baseline: Dict[str, Any], candidate: Dict[str, Any], *, first_round:
     sdk_match = isinstance(base_sha, str) and bool(base_sha) and base_sha == cand_sha
     board_ok = isinstance(base_board, str) and bool(base_board) and base_board == cand_board
     fail_rows = [k for k, v in rows.items() if v["grade"] == "fail"]
+    has_comparable_rows = compared_rows > 0
     return {
         # Section 4: the first round only records and must never Fail, even when
-        # identity hashes or optional rows are missing.
-        "pass": True if first_round else (not fail_rows and sdk_match and board_ok),
+        # identity hashes or optional rows are missing. Once armed, a pair with no
+        # comparable size row must not pass just because its identity fields match.
+        "pass": True if first_round else (
+            not fail_rows and sdk_match and board_ok and has_comparable_rows
+        ),
         "sdkconfig_match": sdk_match,
         "board_match": board_ok,
+        "compared_rows": compared_rows,
         "fail_rows": fail_rows,
         "rows": rows,
     }

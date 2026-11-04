@@ -20,6 +20,9 @@ class RunRecords:
     metadata: Optional[Dict[str, Any]] = None
     samples: List[Dict[str, object]] = field(default_factory=list)
     malformed: int = 0
+    # End-of-run marker. A capture that stopped early still yields samples, so the
+    # aggregating CLI has to look at this flag before it trusts the numbers.
+    completed: bool = False
 
 
 def assess_log_integrity(text: str) -> Dict[str, int]:

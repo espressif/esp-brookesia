@@ -192,7 +192,7 @@ def validate_report(report: Dict[str, Any]) -> List[str]:
     # two on this board are normal. Only a capture that lost a meaningful share of
     # its records is unusable, otherwise every future device run would GATE-FAIL.
     tol_basis = sample_count if count_is_valid else 0
-    malformed_tolerance = max(1, int(tol_basis * 0.05))
+    malformed_tolerance = max(2, math.ceil(tol_basis * 0.05))
     malformed = report.get("malformed_records") or 0
     if isinstance(malformed, (int, float)) and not isinstance(malformed, bool) and malformed > malformed_tolerance:
         violations.append(

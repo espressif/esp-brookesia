@@ -147,6 +147,77 @@ class CompareTests(unittest.TestCase):
         self.assertFalse(result["board_match"])
         self.assertFalse(result["pass"])
 
+    def test_both_missing_app_bin_fails_closed_when_armed(self):
+        base = self._record(app_bin_bytes=None)
+        cand = self._record(app_bin_bytes=None, resource_bytes=200)
+        result = measure_size.compare(base, cand)
+        self.assertIn("app_bin_bytes", result["fail_rows"], result["fail_rows"])
+        self.assertFalse(result["pass"])
+        # the optional rows still compare; only the mandatory app row is vetoed
+        self.assertEqual(result["compared_rows"], 3)
+
+    def test_one_sided_missing_app_bin_fails(self):
+        result = measure_size.compare(self._record(), self._record(app_bin_bytes=None))
+        self.assertIn("app_bin_bytes", result["fail_rows"])
+        self.assertFalse(result["pass"])
+
+    def test_zero_app_bin_fails(self):
+        result = measure_size.compare(self._record(), self._record(app_bin_bytes=0))
+        self.assertIn("app_bin_bytes", result["fail_rows"])
+        self.assertFalse(result["pass"])
+
+    def test_negative_and_bool_app_bin_fail(self):
+        for bad in (-1, False):
+            result = measure_size.compare(self._record(), self._record(app_bin_bytes=bad))
+            self.assertIn("app_bin_bytes", result["fail_rows"])
+            self.assertFalse(result["pass"])
+
+    def test_optional_rows_missing_still_passes(self):
+        # A size.json-less run records no littlefs/total rows; the mandatory
+        # app.bin comparison must still work.
+        base = self._record(littlefs_bin_bytes=None, total_image_size=None)
+        result = measure_size.compare(base, self._record(littlefs_bin_bytes=None, total_image_size=None))
+        self.assertTrue(result["pass"], result["fail_rows"])
+        self.assertEqual(result["compared_rows"], 2)
+
+    def test_first_round_broken_pair_only_records(self):
+        result = measure_size.compare(
+            self._record(app_bin_bytes=None), self._record(app_bin_bytes=None), first_round=True
+        )
+        self.assertEqual(result["rows"]["app_bin_bytes"]["grade"], "record")
+        self.assertTrue(result["pass"])
+
+    def test_resource_free_product_measures_zero_to_zero_pass(self):
+        # measure(resource_dirs=[]) legally records resource_bytes as 0.
+        base = self._record(resource_bytes=0, littlefs_bin_bytes=None, total_image_size=None)
+        result = measure_size.compare(base, self._record(resource_bytes=0, littlefs_bin_bytes=None, total_image_size=None))
+        self.assertEqual(result["rows"]["resource_bytes"]["grade"], "record")
+        self.assertNotIn("resource_bytes", result["fail_rows"], result["fail_rows"])
+        self.assertTrue(result["pass"], result["fail_rows"])
+
+    def test_resource_appearance_fails(self):
+        result = measure_size.compare(
+            self._record(resource_bytes=0, littlefs_bin_bytes=None, total_image_size=None),
+            self._record(resource_bytes=200, littlefs_bin_bytes=None, total_image_size=None),
+        )
+        self.assertIn("resource_bytes", result["fail_rows"], result["fail_rows"])
+        self.assertFalse(result["pass"])
+
+    def test_resource_removal_fails(self):
+        result = measure_size.compare(
+            self._record(resource_bytes=200, littlefs_bin_bytes=None, total_image_size=None),
+            self._record(resource_bytes=0, littlefs_bin_bytes=None, total_image_size=None),
+        )
+        self.assertIn("resource_bytes", result["fail_rows"], result["fail_rows"])
+        self.assertFalse(result["pass"])
+
+    def test_negative_resource_is_invalid(self):
+        result = measure_size.compare(
+            self._record(), self._record(resource_bytes=-1)
+        )
+        self.assertIn("resource_bytes", result["fail_rows"], result["fail_rows"])
+        self.assertFalse(result["pass"])
+
     def test_one_sided_missing_row_fails_closed(self):
         result = measure_size.compare(
             self._record(), self._record(littlefs_bin_bytes=None)
@@ -165,6 +236,13 @@ class CompareTests(unittest.TestCase):
         result = measure_size.compare({}, {})
         self.assertFalse(result["sdkconfig_match"])
         self.assertFalse(result["board_match"])
+        self.assertFalse(result["pass"])
+
+    def test_identity_only_pair_is_rejected(self):
+        # Valid identity fields but zero size rows prove nothing about a pair.
+        rec = {"sdkconfig_sha256": "abc", "board_id": "esp32_p4_function_ev"}
+        result = measure_size.compare(rec, dict(rec))
+        self.assertEqual(result["compared_rows"], 0)
         self.assertFalse(result["pass"])
 
     def test_missing_identity_fields_are_rejected(self):

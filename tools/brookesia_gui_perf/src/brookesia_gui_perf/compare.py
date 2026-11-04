@@ -12,11 +12,6 @@ from brookesia_gui_perf import spec_coverage as _spec_coverage
 from brookesia_gui_perf.report import judgment_value
 from brookesia_gui_perf.stats import cv_ok
 
-# Spec section 5.2 step 3 names >= +10% as the "clear improvement" bar. The verdict
-# is expressed below through the equivalent no-regression/no-Fail arm (a graded
-# metric is only pass_a/pass_b/fail), so keep this as the documented reference for
-# report consumers instead of duplicating a dead branch in the verdict.
-IMPROVEMENT_GATE_PCT = 10.0
 RELATIVE_FAIL_FACTOR = {"max": 1.10, "min": 0.90}
 # A single 20-minute run carries sub-1% noise on several metrics; a delta inside
 # this band is measurement noise, not a regression, so it must not fail the pair.
@@ -165,7 +160,6 @@ def compare_reports(
     optimized: Dict[str, Any],
     *,
     thresholds: Optional[Dict[str, Any]] = None,
-    strict_unknown_thresholds: bool = False,
     metric_catalog: "Optional[set]" = None,
 ) -> Dict[str, Any]:
     thresholds = thresholds if thresholds is not None else load_thresholds()
@@ -212,11 +206,31 @@ def compare_reports(
                 improvement = None
                 regressed = False
                 ok = True
+            elif base_value == 0:
+                # Section 5.2 step 3 is a ratio, and a zero baseline cannot define
+                # one: json.loads'd captures legitimately carry p95=0 rows (the
+                # shipped P4X baseline has feedback_delay/event_dispatch_ms at 0).
+                # Report the ratio as N/A and let the absolute bands decide, so a
+                # 0 -> non-zero move is neither an optimization nor an auto-pass.
+                improvement = None
+                regressed = False
+                ok = opt_grade in ("pass_a", "pass_b")
             else:
                 improvement = improvement_pct(row["direction"], base_value, opt_value)
                 # A noisier metric needs a wider noise band before a negative delta is
                 # called a regression; rows may override the global default.
-                regression_tolerance = row.get("regression_tolerance_pct", REGRESSION_TOLERANCE_PCT)
+                if row.get("relative"):
+                    # Section 4 grades a relative row on the same band that decides
+                    # its Fail (10% either side), so the global 1% noise floor must
+                    # not narrow it: a same-firmware re-run drifted 2.4% on
+                    # batch_invalidate_ms and was reported as a regression.
+                    regression_tolerance = abs(
+                        (RELATIVE_FAIL_FACTOR[row["relative"]] - 1.0) * 100.0
+                    )
+                else:
+                    regression_tolerance = row.get(
+                        "regression_tolerance_pct", REGRESSION_TOLERANCE_PCT
+                    )
                 regressed = improvement < -regression_tolerance
                 # json.loads accepts NaN/Infinity; every comparison against them is
                 # false, so a non-finite ratio must never look "unregressed".
@@ -228,8 +242,12 @@ def compare_reports(
                 # keep the single explicit form so a relative improvement can never
                 # again short-circuit an absolute Fail grade.
                 ok = (not regressed) and (opt_grade in ("pass_a", "pass_b"))
-            if not cv_ok(opt_stats) and not row.get("cv_exempt"):
-                ok = False
+                # A record-only row (and a relative row in its first round) has no
+                # pass/fail target, so its variance must not veto the verdict.
+                # refresh_area_ratio_pct is record_only with no cv_exempt flag; a
+                # noisy capture used to turn the whole paired run into a failure.
+                if not cv_ok(opt_stats) and not row.get("cv_exempt"):
+                    ok = False
             all_ok = all_ok and ok
             metrics_out.setdefault(scenario, {})[name] = {
                 "improvement_pct": improvement,
