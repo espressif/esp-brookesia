@@ -62,13 +62,20 @@ menu "ESP-Brookesia: GUI Interface Configurations"
 
     config BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
         bool "Keep unmounted dynamic screens resident (B4 keep-alive)"
+        # Rebuilding a Dynamic screen costs 20-180 ms depending on its size, while
+        # keeping it resident costs PSRAM. On PSRAM builds that trade is clearly
+        # worth it, so this defaults on there; targets without PSRAM keep the
+        # previous behaviour because the retained trees would compete with the
+        # rest of the heap.
+        default y if SPIRAM
         default n
         help
             When a dynamic screen is unmounted, its built LVGL subtree is kept
             (hidden) instead of being destroyed, so a later re-mount reuses it
-            and skips the rebuild. This speeds up repeated page switches at the
-            cost of retaining that screen's node/PSU memory while the document is
-            loaded, and measurably increases the per-flush binding apply cost.
+            and skips the rebuild. Measured on esp32_p4x_function_ev: mount
+            193 ms -> 15 ms, at the cost of ~365 KB PSRAM and about +0.2 ms per
+            text-binding flush. Use BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX
+            to bound how many screens stay resident.
 
             Measured on esp32_p4_function_ev against feat/gui-perf-baseline
             (perf_eval, 11 screens): mount_ms 197.1 -> 17.8 ms (-91.0%) and
@@ -83,7 +90,11 @@ menu "ESP-Brookesia: GUI Interface Configurations"
         int "Maximum unmounted Dynamic screens kept resident per document (0 = unlimited)"
         depends on BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
         range 0 64
-        default 8
+        # 8 was below the Dynamic screen count of the measured application (15),
+        # which turned every navigation cycle into evict+rebuild thrash
+        # (908 evictions in one capture). 16 covers a typical app without
+        # leaving the bound unbounded.
+        default 16
         help
             Keeping unmounted Dynamic screens resident trades memory for mount latency:
             rebuilding a screen costs 20-180 ms depending on its size. This bounds that
