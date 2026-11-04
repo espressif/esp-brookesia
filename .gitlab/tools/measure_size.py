@@ -178,7 +178,10 @@ def grade(delta: float, *, first_round: bool) -> str:
         return "record"
     if delta <= SIZE_PASS_A_PCT:
         return "pass_a"
-    if delta <= SIZE_PASS_B_PCT:
+    # Section 4 defines Pass-B as <= 0% and Fail as > +10%. Growth inside (0, 10]
+    # is a watch band, not a failure: grading it "fail" rejected every harmless
+    # alignment change as soon as the first-round flag was removed.
+    if delta <= SIZE_FAIL_PCT:
         return "pass_b"
     return "fail"
 
@@ -189,8 +192,16 @@ def compare(baseline: Dict[str, Any], candidate: Dict[str, Any], *, first_round:
     for key in ("app_bin_bytes", "littlefs_bin_bytes", "resource_bytes", "total_image_size"):
         base = baseline.get(key)
         cand = candidate.get(key)
-        if not isinstance(base, (int, float)) or not isinstance(cand, (int, float)) or base == 0:
+        if base is None and cand is None:
+            # Both arms omitted this optional row: nothing to compare, nothing to pass.
             rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None, "grade": "record"}
+            continue
+        if not isinstance(base, (int, float)) or not isinstance(cand, (int, float)) or base == 0:
+            # One-sided or unusable data must fail closed once the gate is armed:
+            # silently recording it let a truncated candidate slip through. The
+            # first round only records, so incomplete artifacts stay non-blocking.
+            rows[key] = {"baseline": base, "candidate": cand, "delta_pct": None,
+                         "grade": "record" if first_round else "fail"}
             continue
         delta = delta_pct(float(base), float(cand))
         rows[key] = {
@@ -200,11 +211,18 @@ def compare(baseline: Dict[str, Any], candidate: Dict[str, Any], *, first_round:
             "grade": grade(delta, first_round=first_round),
         }
 
-    sdk_match = baseline.get("sdkconfig_sha256") == candidate.get("sdkconfig_sha256")
-    board_ok = baseline.get("board_id") == candidate.get("board_id")
+    base_sha = baseline.get("sdkconfig_sha256")
+    cand_sha = candidate.get("sdkconfig_sha256")
+    base_board = baseline.get("board_id")
+    cand_board = candidate.get("board_id")
+    # Two missing values compare equal, but prove nothing about a paired build.
+    sdk_match = isinstance(base_sha, str) and bool(base_sha) and base_sha == cand_sha
+    board_ok = isinstance(base_board, str) and bool(base_board) and base_board == cand_board
     fail_rows = [k for k, v in rows.items() if v["grade"] == "fail"]
     return {
-        "pass": not fail_rows and sdk_match and board_ok,
+        # Section 4: the first round only records and must never Fail, even when
+        # identity hashes or optional rows are missing.
+        "pass": True if first_round else (not fail_rows and sdk_match and board_ok),
         "sdkconfig_match": sdk_match,
         "board_match": board_ok,
         "fail_rows": fail_rows,

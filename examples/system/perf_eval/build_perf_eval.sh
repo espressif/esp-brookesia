@@ -44,15 +44,21 @@ fi
 
 # Flashing this image reformats the flash region that examples/system/super uses for
 # its LittleFS volume, so a plain `flash` would silently erase that data.
-case "$action" in
-    flash|app-flash|flash-only)
-        if [ "${PERF_EVAL_ACK_ERASE:-0}" != "1" ]; then
-            echo "refusing to flash: this image erases the shared LittleFS region." >&2
-            echo "on a board dedicated to benchmarking, re-run with PERF_EVAL_ACK_ERASE=1." >&2
-            exit 1
-        fi
-        ;;
-esac
+# The wildcard branch forwards "$action" plus every extra argument to idf.py, so
+# checking only $action let `size erase-flash` bypass the gate. Inspect the whole
+# command line, while leaving genuinely read-only actions alone.
+needs_ack=0
+for arg in "$action" "$@"; do
+    case "$arg" in
+        read-flash|partition-table|size|size-components|size-files|monitor) ;;
+        *flash*|*erase*|*partition*) needs_ack=1 ;;
+    esac
+done
+if [ "$needs_ack" = "1" ] && [ "${PERF_EVAL_ACK_ERASE:-0}" != "1" ]; then
+    echo "refusing to flash: this image erases the shared LittleFS region." >&2
+    echo "on a board dedicated to benchmarking, re-run with PERF_EVAL_ACK_ERASE=1." >&2
+    exit 1
+fi
 
 # shellcheck disable=SC1091
 . "$IDF_PATH/export.sh" >/dev/null 2>&1

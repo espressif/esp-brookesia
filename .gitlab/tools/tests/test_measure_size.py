@@ -77,8 +77,10 @@ class GradeTests(unittest.TestCase):
         self.assertEqual(measure_size.grade(-5.0, first_round=False), "pass_a")
         self.assertEqual(measure_size.grade(-4.9, first_round=False), "pass_b")
         self.assertEqual(measure_size.grade(0.0, first_round=False), "pass_b")
-        self.assertEqual(measure_size.grade(0.1, first_round=False), "fail")
-        self.assertEqual(measure_size.grade(10.0, first_round=False), "fail")
+        # Section 4: Fail is > +10%, so the (0, 10] band is a watch, not a failure.
+        self.assertEqual(measure_size.grade(0.1, first_round=False), "pass_b")
+        self.assertEqual(measure_size.grade(10.0, first_round=False), "pass_b")
+        self.assertEqual(measure_size.grade(10.1, first_round=False), "fail")
         self.assertEqual(measure_size.grade(11.0, first_round=False), "fail")
 
     def test_first_round_only_records(self):
@@ -126,6 +128,15 @@ class CompareTests(unittest.TestCase):
         self.assertEqual(result["rows"]["app_bin_bytes"]["grade"], "record")
         self.assertTrue(result["pass"])
 
+    def test_first_round_tolerates_incomplete_artifacts(self):
+        # size_gate.yml falls back to an app.bin-only record when size.json is
+        # absent; that missing row must not turn the recording round red.
+        result = measure_size.compare(
+            self._record(), self._record(total_image_size=None), first_round=True
+        )
+        self.assertEqual(result["rows"]["total_image_size"]["grade"], "record")
+        self.assertTrue(result["pass"])
+
     def test_sdkconfig_mismatch_refuses(self):
         result = measure_size.compare(self._record(), self._record(sdkconfig_sha256="def"))
         self.assertFalse(result["sdkconfig_match"])
@@ -136,12 +147,32 @@ class CompareTests(unittest.TestCase):
         self.assertFalse(result["board_match"])
         self.assertFalse(result["pass"])
 
-    def test_missing_row_is_record_not_crash(self):
+    def test_one_sided_missing_row_fails_closed(self):
         result = measure_size.compare(
             self._record(), self._record(littlefs_bin_bytes=None)
         )
         self.assertIsNone(result["rows"]["littlefs_bin_bytes"]["delta_pct"])
+        self.assertEqual(result["rows"]["littlefs_bin_bytes"]["grade"], "fail")
+        self.assertFalse(result["pass"])
+
+    def test_both_sides_missing_row_is_record(self):
+        base = self._record(littlefs_bin_bytes=None)
+        result = measure_size.compare(base, dict(base))
         self.assertEqual(result["rows"]["littlefs_bin_bytes"]["grade"], "record")
+        self.assertTrue(result["pass"])
+
+    def test_empty_pair_is_rejected(self):
+        result = measure_size.compare({}, {})
+        self.assertFalse(result["sdkconfig_match"])
+        self.assertFalse(result["board_match"])
+        self.assertFalse(result["pass"])
+
+    def test_missing_identity_fields_are_rejected(self):
+        base = dict(self._record())
+        base.pop("sdkconfig_sha256")
+        result = measure_size.compare(base, dict(base))
+        self.assertFalse(result["sdkconfig_match"])
+        self.assertFalse(result["pass"])
 
 
 class DirBytesTests(unittest.TestCase):

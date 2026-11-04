@@ -264,8 +264,11 @@ def assess_dimensions(report: Dict[str, Any]) -> Dict[str, Any]:
 
 # Declared statistical exemptions (v1.8 1.2 CV<=5% / section 4 judgement). Anything
 # here is a KNOWN weakening of the spec limit, so it must carry a reason and the
-# measured CV. feedback_delay_ms is deliberately absent: its CV exceeds the limit
-# and must be re-measured rather than exempted.
+# measured CV. feedback_delay_ms is exempted because its one-interaction-per-sample
+# design is structurally noisier than the 5% limit; thresholds.json marks the same
+# metric `cv_exempt` and test_threshold_semantics.py keeps the two lists in sync.
+# A metric whose CV can instead be brought under the limit must be re-measured, not
+# exempted.
 STAT_EXEMPTIONS: Dict[str, Dict[str, str]] = {
     "feedback_delay_ms": {
         "kind": "cv_exempt",

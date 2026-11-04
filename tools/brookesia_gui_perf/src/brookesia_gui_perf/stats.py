@@ -35,7 +35,10 @@ def aggregate(values: Sequence[float], *, min_samples: int = MIN_SAMPLES) -> Dic
     if std == 0:
         cv = 0.0
     elif mean != 0:
-        cv = std / mean
+        # A metric such as sram_leak_kb can be negative on every sample. std is
+        # non-negative, so dividing by a negative mean yielded a negative CV that
+        # always satisfied `cv <= 0.05` and silently disabled the noise gate.
+        cv = std / abs(mean)
     else:
         cv = math.inf
     return {
@@ -51,4 +54,9 @@ def aggregate(values: Sequence[float], *, min_samples: int = MIN_SAMPLES) -> Dic
 
 
 def cv_ok(stats: Dict[str, float], limit: float = CV_LIMIT) -> bool:
-    return stats["cv"] <= limit
+    cv = stats.get("cv")
+    # bool is an int subclass: without this check `{"cv": False}` reads as a
+    # perfect 0.0 CV and silently disables the noise gate.
+    if isinstance(cv, bool) or not isinstance(cv, (int, float)) or not math.isfinite(cv):
+        return False
+    return 0.0 <= cv <= limit

@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import hashlib
+import math
 import subprocess
 from typing import Any, Callable, Dict, List, Optional
 
@@ -172,6 +173,40 @@ def validate_report(report: Dict[str, Any]) -> List[str]:
     for key in REQUIRED_TOP_KEYS:
         if key not in report:
             violations.append(f"missing top-level key: {key}")
+    # Section 1.2 requires N >= 30 usable samples. A capture that lost records, or
+    # had every metric dropped by warmup, used to produce a structurally valid but
+    # empty report that both the gate and the paired comparison accepted.
+    sample_count = report.get("sample_count")
+    count_is_valid = (
+        not isinstance(sample_count, bool)
+        and isinstance(sample_count, (int, float))
+        and math.isfinite(sample_count)
+    )
+    if not count_is_valid:
+        violations.append(f"sample_count {sample_count!r} is not a finite sample count")
+    elif sample_count < MIN_SAMPLES:
+        violations.append(
+            f"sample_count {sample_count!r} is below the section 1.2 minimum of {MIN_SAMPLES}"
+        )
+    # The parser already excludes torn UART records from the sample count; one or
+    # two on this board are normal. Only a capture that lost a meaningful share of
+    # its records is unusable, otherwise every future device run would GATE-FAIL.
+    tol_basis = sample_count if count_is_valid else 0
+    malformed_tolerance = max(1, int(tol_basis * 0.05))
+    malformed = report.get("malformed_records") or 0
+    if isinstance(malformed, (int, float)) and not isinstance(malformed, bool) and malformed > malformed_tolerance:
+        violations.append(
+            f"malformed_records: {malformed} torn records exceed the {malformed_tolerance}-record tolerance"
+        )
+    for scenario, body in report.get("scenarios", {}).items():
+        insufficient = body.get("insufficient_metrics") or {}
+        if not isinstance(insufficient, dict):
+            violations.append(f"scenario {scenario}: insufficient_metrics is not a mapping")
+            continue
+        for metric, count in insufficient.items():
+            violations.append(
+                f"scenario {scenario} metric {metric}: only {count} samples (needs {MIN_SAMPLES})"
+            )
     metadata = report.get("metadata", {})
     for key in REQUIRED_METADATA_FIELDS:
         if key not in metadata:

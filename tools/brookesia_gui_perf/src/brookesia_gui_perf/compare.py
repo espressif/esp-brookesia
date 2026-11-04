@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import json
+import math
 import pathlib
 from importlib import resources
 from typing import Any, Dict, Optional, List
@@ -11,6 +12,10 @@ from brookesia_gui_perf import spec_coverage as _spec_coverage
 from brookesia_gui_perf.report import judgment_value
 from brookesia_gui_perf.stats import cv_ok
 
+# Spec section 5.2 step 3 names >= +10% as the "clear improvement" bar. The verdict
+# is expressed below through the equivalent no-regression/no-Fail arm (a graded
+# metric is only pass_a/pass_b/fail), so keep this as the documented reference for
+# report consumers instead of duplicating a dead branch in the verdict.
 IMPROVEMENT_GATE_PCT = 10.0
 RELATIVE_FAIL_FACTOR = {"max": 1.10, "min": 0.90}
 # A single 20-minute run carries sub-1% noise on several metrics; a delta inside
@@ -213,9 +218,16 @@ def compare_reports(
                 # called a regression; rows may override the global default.
                 regression_tolerance = row.get("regression_tolerance_pct", REGRESSION_TOLERANCE_PCT)
                 regressed = improvement < -regression_tolerance
-                ok = improvement >= IMPROVEMENT_GATE_PCT or (
-                    not regressed and opt_grade != "fail"
-                )
+                # json.loads accepts NaN/Infinity; every comparison against them is
+                # false, so a non-finite ratio must never look "unregressed".
+                if not math.isfinite(improvement):
+                    regressed = True
+                # Spec section 5.2 step 3 qualifies a metric either by a >=+10%
+                # improvement or by "no regression and no Fail item". Since a graded
+                # metric is only pass_a/pass_b/fail, the latter subsumes the former;
+                # keep the single explicit form so a relative improvement can never
+                # again short-circuit an absolute Fail grade.
+                ok = (not regressed) and (opt_grade in ("pass_a", "pass_b"))
             if not cv_ok(opt_stats) and not row.get("cv_exempt"):
                 ok = False
             all_ok = all_ok and ok
