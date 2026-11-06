@@ -373,6 +373,10 @@ public:
 
     boost::unordered_flat_map<NodeType, Creator, EnumHash> creators;
     std::unordered_map<BackendHandle::Value, Record> records;
+    // Records whose placement currently uses PlacementMode::Relative. Every apply_props/style/
+    // layout/placement refreshes relative placements, which is O(records); this counter lets the
+    // common case (no relative placement anywhere) skip that scan in O(1).
+    std::size_t relative_placement_record_count = 0;
     // Keep tree traversal proportional to the visited subtree. Storing child lists only for
     // parents avoids adding a vector to every Record, including leaf-heavy JSON documents.
     std::unordered_map<BackendHandle::Value, std::vector<BackendHandle::Value>> child_handles;

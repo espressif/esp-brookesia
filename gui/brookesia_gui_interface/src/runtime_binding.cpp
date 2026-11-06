@@ -903,12 +903,18 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
         return false;
     };
 
+    // The scoped key is needed twice per update: once for the silent write and once, after the
+    // backend is coherent, for the subscriber notification. Build it once and keep it.
+    std::vector<std::string> scoped_store_keys(updates.size());
     for (size_t update_index = 0; update_index < updates.size(); ++update_index) {
         if (update_is_shadowed(update_index)) {
             continue;
         }
         const auto &update = updates[update_index];
-        store->set_string_silent(document_id, update.absolute_path, update.key, update.value);
+        scoped_store_keys[update_index] = MemoryDataStore::make_scoped_key(
+                                              document_id, update.absolute_path, update.key
+                                          );
+        store->set_string_silent(scoped_store_keys[update_index], update.value);
     }
 
     if (tree != nullptr) {
@@ -1006,12 +1012,7 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
             continue;
         }
         const auto &update = updates[update_index];
-        store->notify_string_if_value(
-            document_id,
-            update.absolute_path,
-            update.key,
-            update.value
-        );
+        store->notify_string_if_value_keyed(scoped_store_keys[update_index], update.value);
     }
 
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE

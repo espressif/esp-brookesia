@@ -19,6 +19,7 @@
 #include "private/sparse_backend.hpp"
 #include "private/sparse_parser.hpp"
 #include "private/sparse_validator.hpp"
+#include "private/style_pool.hpp"
 #include "brookesia/gui_interface/macro_configs.h"
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
 #include "brookesia/lib_utils/memory_profiler.hpp"
@@ -1432,6 +1433,9 @@ public:
         boost::unordered_flat_map<std::string, uint64_t> screen_roots;
         // Eager screens not built during load; warmed on idle or first mount.
         std::vector<std::string> pending_warm_screens;
+        // Earliest time the idle warm pass may start. Set when prewarm queues Dynamic screens so
+        // their builds do not race the foreground mount path for the LVGL lock.
+        std::chrono::steady_clock::time_point warm_not_before{};
         DocumentLoadOptions load_options;
         bool idle_warm_scheduled = false;
         lib_utils::TaskScheduler::TaskId idle_warm_task_id = 0;
@@ -2005,6 +2009,9 @@ public:
     std::mutex fast_action_mutex_;
     boost::unordered_flat_map<std::string, Event> fast_action_events_;
     boost::unordered_flat_map<DocumentId::Value, TreeRecord> trees;
+    // A3: null when BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS is 0. Interior styles hold a
+    // shared_ptr to it through their deleter, so the slab outlives every interned style.
+    std::shared_ptr<SparseResolvedStylePool> resolved_style_pool_;
     std::unordered_map<std::string, MountedScreenRef> mounted_screens_;
     std::unordered_map<TransientMountId::Value, TransientScreenRef> transient_screens_;
     /** Space out warm builds so GUI refresh is not starved (was 16ms). */

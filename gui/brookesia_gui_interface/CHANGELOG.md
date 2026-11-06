@@ -1,5 +1,21 @@
 # ChangeLog
 
+## v0.8.6 - 2026-11-19
+
+### Enhancements:
+
+- feat(runtime): add an off-by-default keep-alive for unmounted Dynamic screens, so a re-mount reuses
+  the built subtree instead of rebuilding it (measured -88% `mount_ms` on esp32_p4_function_ev, at the
+  cost of resident memory).
+- feat(runtime): serve interned `SparseResolvedStyle` objects from a fixed-capacity pool when
+  `BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS` is set, which reduces small-block PSRAM fragmentation.
+- perf(runtime): build the scoped binding store key once per update instead of once per write and
+  once per notification, cutting the binding flush apply time by ~10%.
+- feat(runtime): prewarm Dynamic screens during the idle pass (opt-in, budgeted) so the first mount
+  reuses a built subtree instead of paying the build on the interaction path.
+- feat(runtime): delay the prewarm pass (`..._PREWARM_DYNAMIC_SCREENS_DELAY_MS`, default 5 s) so the
+  background builds do not race the boot-time mount path for the LVGL lock.
+
 ## v0.8.5 - 2026-11-10
 
 ### Bug Fixes:

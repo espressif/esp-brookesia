@@ -1,5 +1,17 @@
 # ChangeLog
 
+## v0.8.8 - 2026-10-29
+
+### Enhancements:
+
+- feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
+- feat(props): skip redundant common transform defaults when applying local LVGL transform props.
+- perf(layout): skip the relative-placement scan when no record uses relative placement. Every
+  property/style/layout/placement apply ends in that scan, so resident screens used to turn a
+  constant-cost write into an O(records) one (-60% `flush_apply_ms` with keep-alive enabled).
+- perf(layout): lay out only the screen being mounted when its layer carries no layout (opt-in), so
+  keeping screens resident no longer makes every mount lay out the hidden ones too.
+
 ## v0.8.7 - 2026-10-27
 
 ### Enhancements:

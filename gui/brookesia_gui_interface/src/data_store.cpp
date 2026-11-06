@@ -119,9 +119,23 @@ void MemoryDataStore::set_string_silent(
     set_string_silent(make_scoped_store_key(document_id, absolute_path, key), std::move(value));
 }
 
+std::string MemoryDataStore::make_scoped_key(
+    DocumentId document_id,
+    std::string_view absolute_path,
+    std::string_view key)
+{
+    return make_scoped_store_key(document_id, absolute_path, key);
+}
+
 void MemoryDataStore::notify_string_if_value(std::string_view key, std::string_view expected_value)
 {
     const std::string key_string(key);
+    notify_string_if_value_keyed(key_string, expected_value);
+}
+
+void MemoryDataStore::notify_string_if_value_keyed(
+    const std::string &key_string, std::string_view expected_value)
+{
     std::string stored_value;
     std::vector<std::shared_ptr<Impl::ListenerControl>> listeners;
     {

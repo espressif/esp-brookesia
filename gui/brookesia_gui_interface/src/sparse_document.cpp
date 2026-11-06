@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 #include "private/sparse_document.hpp"
+#include "private/style_pool.hpp"
 
 namespace esp_brookesia::gui {
 
@@ -426,7 +427,8 @@ Node to_public_node_snapshot(const SparseNode &source)
 std::shared_ptr<const SparseResolvedStyle> intern_sparse_resolved_style(
     std::vector<std::weak_ptr<const SparseResolvedStyle>> &pool,
     SparseResolvedStyle style,
-    bool *reused)
+    bool *reused,
+    const std::shared_ptr<SparseResolvedStylePool> &residency_pool)
 {
     if (reused != nullptr) {
         *reused = false;
@@ -445,7 +447,19 @@ std::shared_ptr<const SparseResolvedStyle> intern_sparse_resolved_style(
         }
         ++it;
     }
-    auto result = std::make_shared<const SparseResolvedStyle>(std::move(style));
+    std::shared_ptr<const SparseResolvedStyle> result;
+    if (residency_pool != nullptr) {
+        if (auto *pooled = residency_pool->create(std::move(style))) {
+            auto residency = residency_pool;
+            result = std::shared_ptr<const SparseResolvedStyle>(pooled, [residency](const SparseResolvedStyle * value) {
+                residency->destroy(const_cast<SparseResolvedStyle *>(value));
+            });
+        }
+        // On exhaustion fall through to the heap: interning must never fail.
+    }
+    if (result == nullptr) {
+        result = std::make_shared<const SparseResolvedStyle>(std::move(style));
+    }
     pool.push_back(result);
     return result;
 }

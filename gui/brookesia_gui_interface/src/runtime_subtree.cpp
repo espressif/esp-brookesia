@@ -542,6 +542,17 @@ void Runtime::Impl::schedule_idle_screen_warm(DocumentId document_id)
     tree->idle_warm_token = token;
     tree->idle_warm_scheduled = true;
     lib_utils::TaskScheduler::TaskId task_id = 0;
+    int warm_delay_ms = kIdleScreenWarmDelayMs;
+    if (tree->warm_not_before.time_since_epoch().count() != 0) {
+        const auto now = std::chrono::steady_clock::now();
+        if (now < tree->warm_not_before) {
+            warm_delay_ms = std::max(
+                                warm_delay_ms,
+                                static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        tree->warm_not_before - now).count())
+                            );
+        }
+    }
     const bool posted = task_config.task_scheduler->post_delayed(
     [this, document_id, token]() {
         if (!token->load()) {
@@ -552,7 +563,7 @@ void Runtime::Impl::schedule_idle_screen_warm(DocumentId document_id)
         }
         warm_one_pending_screen(document_id);
     },
-    kIdleScreenWarmDelayMs,
+    warm_delay_ms,
     &task_id,
     task_config.gui_group
                         );
@@ -568,7 +579,7 @@ void Runtime::Impl::schedule_idle_screen_warm(DocumentId document_id)
         "GUI runtime idle warm scheduled: doc(%1%), pending(%2%), delay_ms(%3%)",
         document_id.value(),
         tree->pending_warm_screens.size(),
-        kIdleScreenWarmDelayMs
+        warm_delay_ms
     );
 }
 
@@ -641,6 +652,7 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
     }
 
     const bool result = backend->unmount_screen(record->handle);
+#if !BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
     auto screen_def_it = tree.screens.find(screen_id);
     const bool is_dynamic =
         screen_def_it != tree.screens.end() && screen_def_it->second.mount_mode == MountMode::Dynamic;
@@ -649,6 +661,7 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
         destroy_subtree(tree, root_uid);
         tree.screen_roots.erase(screen_id);
     }
+#endif
     return result;
 }
 void Runtime::Impl::destroy_subtree(TreeRecord &tree, NodeUid uid)

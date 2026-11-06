@@ -264,7 +264,7 @@ static void release_placement_cache_entry(BackendImpl &impl, PlacementCacheEntry
     }
 }
 
-static PlacementCacheEntry *replace_record_placement(
+static PlacementCacheEntry *replace_record_placement_impl(
     BackendImpl &impl, Record &record, const Placement &placement)
 {
     auto *old_entry = record.placement_cache_entry;
@@ -303,6 +303,22 @@ static PlacementCacheEntry *replace_record_placement(
     impl.placement_cache.push_back(std::move(new_entry));
     record.placement_cache_entry = result;
     release_placement_cache_entry(impl, old_entry);
+    return result;
+}
+
+static PlacementCacheEntry *replace_record_placement(
+    BackendImpl &impl, Record &record, const Placement &placement)
+{
+    const bool was_relative = get_record_placement(record).mode == PlacementMode::Relative;
+    auto *result = replace_record_placement_impl(impl, record, placement);
+    const bool is_relative = get_record_placement(record).mode == PlacementMode::Relative;
+    if (was_relative != is_relative) {
+        if (is_relative) {
+            ++impl.relative_placement_record_count;
+        } else if (impl.relative_placement_record_count > 0) {
+            --impl.relative_placement_record_count;
+        }
+    }
     return result;
 }
 
@@ -509,6 +525,9 @@ const Placement &get_record_placement(const Record &record)
 
 void release_record_placement(BackendImpl &impl, Record &record)
 {
+    if (get_record_placement(record).mode == PlacementMode::Relative && impl.relative_placement_record_count > 0) {
+        --impl.relative_placement_record_count;
+    }
     auto *entry = std::exchange(record.placement_cache_entry, nullptr);
     release_placement_cache_entry(impl, entry);
 }
@@ -625,6 +644,10 @@ void apply_placement(
 void refresh_relative_placements(BackendImpl &impl)
 {
     BROOKESIA_LOG_TRACE_GUARD();
+
+    if (impl.relative_placement_record_count == 0) {
+        return;
+    }
 
     bool has_relative_target = false;
     for (const auto &[unused_handle, record] : impl.records) {

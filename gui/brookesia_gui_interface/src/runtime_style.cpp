@@ -383,7 +383,9 @@ std::shared_ptr<const SparseResolvedStyle> Runtime::Impl::intern_resolved_style(
     SparseResolvedStyle resolved_style)
 {
     bool reused = false;
-    auto result = intern_sparse_resolved_style(tree.resolved_style_intern_cache, std::move(resolved_style), &reused);
+    auto result = intern_sparse_resolved_style(
+                      tree.resolved_style_intern_cache, std::move(resolved_style), &reused, resolved_style_pool_
+                  );
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     if (reused) {
         ++dbg_style_intern_hits_;

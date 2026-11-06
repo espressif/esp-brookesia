@@ -620,10 +620,15 @@ SparseDocument to_sparse(const Document &source);
 Document to_public(const SparseDocument &source);
 
 Node to_public_node_snapshot(const SparseNode &source);
+class SparseResolvedStylePool;
+
+// residency_pool is optional: when set, a newly interned style is allocated from that fixed-capacity
+// slab instead of the heap, and an exhausted pool falls back to the heap.
 std::shared_ptr<const SparseResolvedStyle> intern_sparse_resolved_style(
     std::vector<std::weak_ptr<const SparseResolvedStyle>> &pool,
     SparseResolvedStyle style,
-    bool *reused = nullptr);
+    bool *reused = nullptr,
+    const std::shared_ptr<SparseResolvedStylePool> &residency_pool = {});
 
 } // namespace esp_brookesia::gui
 

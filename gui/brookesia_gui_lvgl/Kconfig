@@ -88,6 +88,20 @@ menu "ESP-Brookesia: GUI LVGL Configurations"
             default n
             help
                 Whether the LVGL display source requires double buffering by default.
+
+        config BROOKESIA_GUI_LVGL_MOUNT_LAYOUT_SCREEN_ONLY
+            bool "Layout only the mounted screen, not the whole layer (default n)"
+            default n
+            help
+                lv_obj_update_layout() resolves the top-level screen of its argument, so laying out
+                the layer also lays out every screen that layer holds - including the ones
+                keep-alive leaves resident but hidden. Enable this to lay out only the screen being
+                mounted, and fall back to the layer when the layer itself carries a layout
+                (flex/grid), where the child's position comes from the parent.
+
+                Validate VISUALLY per board before enabling: a screen whose position or size is
+                computed by a layer layout must keep the layer path.
+
     endmenu
 
     menuconfig BROOKESIA_GUI_LVGL_ENABLE_DEBUG_LOG

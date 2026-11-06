@@ -77,6 +77,11 @@ Runtime::Impl::Impl(std::unique_ptr<IBackend> backend_in, RuntimeTaskConfig task
     , store(std::make_shared<MemoryDataStore>())
     , task_config(std::move(task_config_in))
 {
+#if BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS > 0
+    resolved_style_pool_ = std::make_shared<SparseResolvedStylePool>(
+                               static_cast<size_t>(BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS)
+                           );
+#endif
     if (backend != nullptr) {
         auto sink = [this](const BackendEvent & event) {
             if (try_dispatch_fast_action_event(event)) {
@@ -339,12 +344,38 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         size_t eager_screen_count = 0;
         size_t deferred_screen_count = 0;
         size_t dynamic_screen_count = 0;
+#if BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        size_t prewarmed_dynamic_count = 0;
+#endif
         stored_tree->pending_warm_screens.clear();
         stored_tree->idle_warm_scheduled = false;
         for (const auto &[unused_id, screen] : stored_tree->screens) {
             (void)unused_id;
             if (screen.mount_mode == MountMode::Dynamic) {
                 ++dynamic_screen_count;
+#if BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+                // A Dynamic screen is normally built on its first mount. Queue it for the idle pass
+                // so that build happens off the interaction path; the budget caps the extra
+                // resident memory this adds.
+                const int prewarm_budget = BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MAX;
+                const bool within_budget =
+                    prewarm_budget <= 0 ||
+                    prewarmed_dynamic_count < static_cast<size_t>(prewarm_budget);
+                if (options.schedule_idle_warm && within_budget) {
+                    stored_tree->pending_warm_screens.push_back(screen.id);
+                    stored_tree->warm_not_before =
+                        std::chrono::steady_clock::now() +
+                        std::chrono::milliseconds(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS);
+                    ++prewarmed_dynamic_count;
+#if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
+                    BROOKESIA_LOGI(
+                        "[HeapTrace][gui.eager_mount] screen(%1%) mode(dynamic) action(prewarm)",
+                        screen.id
+                    );
+#endif
+                    continue;
+                }
+#endif
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
                 BROOKESIA_LOGI(
                     "[HeapTrace][gui.eager_mount] screen(%1%) mode(dynamic) action(skipped)", screen.id);
