@@ -68,6 +68,7 @@ public:
     ~Backend() override;
 
     void set_event_sink(EventSink sink) override;
+    uint32_t get_input_idle_ms() const override;
     std::optional<ThreadGuard> get_thread_guard() const override;
     BackendHandle create_node(
         const Node &node,

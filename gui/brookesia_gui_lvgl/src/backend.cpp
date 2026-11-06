@@ -1532,6 +1532,11 @@ Backend::~Backend()
     impl_.reset();
 }
 
+uint32_t Backend::get_input_idle_ms() const
+{
+    return lv_display_get_inactive_time(nullptr);
+}
+
 void Backend::set_event_sink(EventSink sink)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();

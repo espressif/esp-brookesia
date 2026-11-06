@@ -228,6 +228,12 @@ public:
         const Animation &animation,
         std::function<void()> completed_handler = {}) = 0;
     virtual void bind_events(BackendHandle handle, const std::vector<EventBinding> &events) = 0;
+    // Milliseconds since the last user input across the displays, or 0 when the backend cannot
+    // report it. Background work (idle prewarm) uses it to stay out of the way of an active user.
+    virtual uint32_t get_input_idle_ms() const
+    {
+        return 0;
+    }
     virtual std::vector<GuiDisplayInfo> list_displays() const = 0;
     virtual std::vector<GuiLayer> list_layers() const = 0;
     virtual bool mount_screen(BackendHandle handle, const MountTarget &target) = 0;
