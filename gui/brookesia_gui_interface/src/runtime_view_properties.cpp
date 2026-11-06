@@ -314,6 +314,9 @@ bool Runtime::Impl::set_view_src(const View &view, std::string_view src)
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     auto hp_src_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
 #endif
+    // The preload above cached bytes under this document's bundle-read token.
+    const auto bundle_reads = asset_bundle_read_scope(*tree);
+    (void)bundle_reads;
     apply_record_props(*record, PropsApplyMask::ImageSource);
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     {

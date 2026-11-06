@@ -406,6 +406,8 @@ std::expected<Runtime::Impl::NodeUid, std::string> Runtime::Impl::ensure_screen_
     }
 
     refresh_global_fonts_from_backend();
+    const auto bundle_reads = asset_bundle_read_scope(tree);
+    (void)bundle_reads;
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     auto hp_build_before = ::esp_brookesia::lib_utils::MemoryProfiler::take_raw_heap_snapshot();
 #endif

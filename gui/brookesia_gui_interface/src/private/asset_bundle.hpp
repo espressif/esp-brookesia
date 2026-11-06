@@ -74,13 +74,13 @@ private:
 };
 
 // Process-wide registry of the bundles opened for loaded documents, keyed by the
-// resource root. Each loaded document that parsed the root with a bundle holds one
-// reference. The file stays open while any document still holds that root, and
-// closes when the last hold is released.
-void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle);
-// Drops one hold on a resource root. A missing entry is ignored. The file is closed
-// only when the last document using that root releases it.
-void unregister_asset_bundle(const std::filesystem::path &root_dir);
+// resource root. Each successful open is its own hold and keeps its own stream, so a
+// later open of the same root does not replace a bundle another document still uses.
+// Returns 0 when bundle is null. The file closes when that hold is released and no
+// other hold remains.
+std::uint64_t register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle);
+// Drops the hold identified by register_asset_bundle(). A missing hold is ignored.
+void unregister_asset_bundle(const std::filesystem::path &root_dir, std::uint64_t hold_id);
 // Bytes for `path` when one of the registered bundles holds it.
 std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path);
 

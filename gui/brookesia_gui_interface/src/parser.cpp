@@ -632,10 +632,10 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
     );
 #if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
     if (asset_bundle) {
-        // Let the backend read resources (images, fonts) from the same bundle the parser just used.
-        // One hold per successful open. The runtime drops it if this document does not keep the parse.
-        parser_detail::register_asset_bundle(resolved_base_dir, asset_bundle);
+        // One new hold. This does not replace a bundle another document already holds for the
+        // same root. The runtime keeps the id; a parse-only caller releases it before returning.
         parsed_document.asset_bundle_root = resolved_base_dir.lexically_normal().generic_string();
+        parsed_document.asset_bundle_hold = parser_detail::register_asset_bundle(resolved_base_dir, asset_bundle);
     }
 #endif
     return parsed_document;
@@ -645,7 +645,8 @@ std::expected<SparseDocument, std::string> parse_sparse_document(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment,
-    std::string *asset_bundle_root)
+    std::string *asset_bundle_root,
+    std::uint64_t *asset_bundle_hold)
 {
     auto parsed_document = parse_document_impl(json, base_dir, environment, {}, true);
     if (!parsed_document) {
@@ -653,6 +654,14 @@ std::expected<SparseDocument, std::string> parse_sparse_document(
     }
     if (asset_bundle_root != nullptr) {
         *asset_bundle_root = std::move(parsed_document->asset_bundle_root);
+        if (asset_bundle_hold != nullptr) {
+            *asset_bundle_hold = parsed_document->asset_bundle_hold;
+        }
+    } else if (parsed_document->asset_bundle_hold != 0) {
+        // parse_document() does not load a runtime document, so it cannot unload this hold.
+        parser_detail::unregister_asset_bundle(
+            parsed_document->asset_bundle_root, parsed_document->asset_bundle_hold
+        );
     }
     return std::move(parsed_document->document);
 }
@@ -797,6 +806,17 @@ std::expected<ThemeAsset, std::string> parse_theme_asset_file(
     return to_public(*theme);
 }
 
+static void release_parse_only_bundle(const SparseParsedDocument &parsed)
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (parsed.asset_bundle_hold != 0) {
+        parser_detail::unregister_asset_bundle(parsed.asset_bundle_root, parsed.asset_bundle_hold);
+    }
+#else
+    (void)parsed;
+#endif
+}
+
 std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     std::string_view path,
     const Environment &environment)
@@ -805,6 +825,7 @@ std::expected<ParsedDocument, std::string> parse_document_file_with_metadata(
     if (!parsed) {
         return std::unexpected(parsed.error());
     }
+    release_parse_only_bundle(*parsed);
     return ParsedDocument{
         .document = to_public(parsed->document),
         .dependency_files = std::move(parsed->dependency_files),
@@ -817,6 +838,7 @@ std::expected<Document, std::string> parse_document_file(std::string_view path, 
     if (!parsed) {
         return std::unexpected(parsed.error());
     }
+    release_parse_only_bundle(*parsed);
     return to_public(parsed->document);
 }
 

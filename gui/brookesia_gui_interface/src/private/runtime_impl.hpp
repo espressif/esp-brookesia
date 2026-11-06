@@ -10,6 +10,7 @@
  *
  * SPDX-License-Identifier: Apache-2.0
  */
+#include "brookesia/gui_interface/asset_source.hpp"
 #include "brookesia/gui_interface/runtime.hpp"
 #include "brookesia/gui_interface/data_store.hpp"
 #include "brookesia/gui_interface/parser.hpp"
@@ -1402,10 +1403,14 @@ public:
         DocumentId document_id;
         std::string file_path;
         bool file_backed = false;
-        // Resource root whose assets.bundle this document currently holds open. Empty when it
-        // holds none. unload() drops the hold; the file closes when the last document using
-        // that root releases it.
+        // Resource root whose assets.bundle this document currently holds open, plus the hold id
+        // returned by register_asset_bundle(). Empty / 0 when it holds none. unload() drops that
+        // hold only; another document's hold of the same root stays open.
         std::string asset_bundle_root;
+        std::uint64_t asset_bundle_hold = 0;
+        // Set when live preview drops this document's hold. Image reads then skip the bundle for
+        // this root even if another document still has it registered.
+        std::string bundle_bypass_root;
         EnvironmentDependencies environment_dependencies;
         bool theme_sensitive = false;
         boost::json::value constants;
@@ -1525,7 +1530,8 @@ public:
         bool file_backed = false,
         std::vector<std::string> dependency_files = {},
         DocumentLoadOptions options = {},
-        std::string asset_bundle_root = {})
+        std::string asset_bundle_root = {},
+        std::uint64_t asset_bundle_hold = 0)
     ;
 
     std::vector<RuntimeImageResource> collect_image_resources(const TreeRecord &tree) const
@@ -1621,16 +1627,20 @@ public:
     bool unload(DocumentId document_id)
     ;
 
-    // Accounts for a parse that already took one registry hold. An empty root means this parse
-    // took none, so an existing hold on the document is released.
-    void adopt_asset_bundle_hold(TreeRecord &tree, std::string parsed_root)
+    // Accounts for a parse that already took one registry hold. A zero hold means this parse
+    // took none, so an existing hold on the document is released and later image reads bypass
+    // any bundle still registered for that root.
+    void adopt_asset_bundle_hold(TreeRecord &tree, std::string parsed_root, std::uint64_t parsed_hold)
     ;
 
     // Drops a hold that no loaded document kept, such as a parse whose load failed first.
-    void discard_asset_bundle_hold(const std::string &root)
+    void discard_asset_bundle_hold(const std::string &root, std::uint64_t hold_id)
     ;
 
     void release_tree_asset_bundle(TreeRecord &tree)
+    ;
+
+    AssetBundleReadScope asset_bundle_read_scope(const TreeRecord &tree) const
     ;
 
     void set_view_debug_enabled(bool enabled)

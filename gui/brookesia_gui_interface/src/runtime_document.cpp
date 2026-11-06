@@ -170,10 +170,11 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
     bool file_backed,
     std::vector<std::string> dependency_files,
     DocumentLoadOptions options,
-    std::string asset_bundle_root)
+    std::string asset_bundle_root,
+    std::uint64_t asset_bundle_hold)
 {
     if (backend == nullptr) {
-        discard_asset_bundle_hold(asset_bundle_root);
+        discard_asset_bundle_hold(asset_bundle_root, asset_bundle_hold);
         return std::unexpected("GUI backend is null");
     }
 
@@ -189,14 +190,14 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         runtime_profile_elapsed_ms(total_start, stage_end)
     );
     if (!validation.success) {
-        discard_asset_bundle_hold(asset_bundle_root);
+        discard_asset_bundle_hold(asset_bundle_root, asset_bundle_hold);
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
     }
 
     const DocumentId document_id(next_document_id_++);
     auto fail_before_store = [&](const std::string & message) {
         if (resolve_tree(document_id) == nullptr) {
-            discard_asset_bundle_hold(asset_bundle_root);
+            discard_asset_bundle_hold(asset_bundle_root, asset_bundle_hold);
         }
         unload(document_id);
         return std::unexpected(message);
@@ -313,6 +314,8 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         }
         // The parser already took the hold. Move it onto the tree before any later unload.
         stored_tree->asset_bundle_root = std::move(asset_bundle_root);
+        stored_tree->asset_bundle_hold = asset_bundle_hold;
+        asset_bundle_hold = 0;
         stage_start = RuntimeProfileClock::now();
         auto resource_validation = validate_resource_references(*stored_tree);
         stage_end = RuntimeProfileClock::now();
@@ -595,6 +598,8 @@ std::expected<void, std::string> Runtime::Impl::preload_image_resource_for_tree(
         return {};
     }
 
+    const auto bundle_reads = asset_bundle_read_scope(tree);
+    (void)bundle_reads;
     auto result = backend->preload_image_resource(resource);
     if (!result) {
         return result;
@@ -717,6 +722,8 @@ void Runtime::Impl::release_image_resource_from_tree(
     if (it->automatic_ref_count > 0 || it->manual_ref_count > 0) {
         return;
     }
+    const auto bundle_reads = asset_bundle_read_scope(tree);
+    (void)bundle_reads;
     backend->release_image_resource(it->resource);
     tree.preloaded_images.erase(it);
 }
@@ -917,48 +924,68 @@ bool Runtime::Impl::disable_live_preview(DocumentId document_id)
     tree->live_preview_enabled = false;
     return true;
 }
-void Runtime::Impl::adopt_asset_bundle_hold(TreeRecord &tree, std::string parsed_root)
+void Runtime::Impl::adopt_asset_bundle_hold(
+    TreeRecord &tree, std::string parsed_root, std::uint64_t parsed_hold
+)
 {
 #if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
-    if (!parsed_root.empty()) {
-        if (!tree.asset_bundle_root.empty() && tree.asset_bundle_root != parsed_root) {
-            parser_detail::unregister_asset_bundle(tree.asset_bundle_root);
-            tree.asset_bundle_root = std::move(parsed_root);
-        } else if (tree.asset_bundle_root == parsed_root) {
-            // This parse took a second hold for a root the document already keeps.
-            parser_detail::unregister_asset_bundle(parsed_root);
-        } else {
-            tree.asset_bundle_root = std::move(parsed_root);
+    if (parsed_hold != 0) {
+        if (tree.asset_bundle_hold != 0 && tree.asset_bundle_hold != parsed_hold) {
+            parser_detail::unregister_asset_bundle(tree.asset_bundle_root, tree.asset_bundle_hold);
         }
-    } else {
-        release_tree_asset_bundle(tree);
+        tree.asset_bundle_root = std::move(parsed_root);
+        tree.asset_bundle_hold = parsed_hold;
+        tree.bundle_bypass_root.clear();
+    } else if (tree.asset_bundle_hold != 0) {
+        const std::string bypass_root = tree.asset_bundle_root;
+        parser_detail::unregister_asset_bundle(tree.asset_bundle_root, tree.asset_bundle_hold);
+        tree.asset_bundle_root.clear();
+        tree.asset_bundle_hold = 0;
+        tree.bundle_bypass_root = bypass_root;
     }
 #else
     (void)tree;
     (void)parsed_root;
+    (void)parsed_hold;
 #endif
 }
-void Runtime::Impl::discard_asset_bundle_hold(const std::string &root)
+void Runtime::Impl::discard_asset_bundle_hold(const std::string &root, std::uint64_t hold_id)
 {
 #if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
-    if (!root.empty()) {
-        parser_detail::unregister_asset_bundle(root);
+    if (hold_id != 0) {
+        parser_detail::unregister_asset_bundle(root, hold_id);
     }
 #else
     (void)root;
+    (void)hold_id;
 #endif
 }
 void Runtime::Impl::release_tree_asset_bundle(TreeRecord &tree)
 {
 #if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
-    if (tree.asset_bundle_root.empty()) {
-        return;
+    if (tree.asset_bundle_hold != 0) {
+        parser_detail::unregister_asset_bundle(tree.asset_bundle_root, tree.asset_bundle_hold);
     }
-    parser_detail::unregister_asset_bundle(tree.asset_bundle_root);
     tree.asset_bundle_root.clear();
+    tree.asset_bundle_hold = 0;
+    tree.bundle_bypass_root.clear();
 #else
     (void)tree;
 #endif
+}
+AssetBundleReadScope Runtime::Impl::asset_bundle_read_scope(const TreeRecord &tree) const
+{
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    if (tree.asset_bundle_hold != 0) {
+        return AssetBundleReadScope::hold(tree.asset_bundle_root, tree.asset_bundle_hold);
+    }
+    if (!tree.bundle_bypass_root.empty()) {
+        return AssetBundleReadScope::bypass(tree.bundle_bypass_root);
+    }
+#else
+    (void)tree;
+#endif
+    return {};
 }
 bool Runtime::Impl::unload(DocumentId document_id)
 {

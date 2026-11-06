@@ -18,10 +18,11 @@
 - fix(runtime): a backend that cannot report input-idle time returns `UINT32_MAX`, so it does not
   look like a touch in the current tick and block prewarm.
 - fix(parser): live preview reloads the changed source files and drops that document's hold on
-  the registered bundle after the reload parses, so image reads do not keep serving the previous
-  `assets.bundle` bytes. Unloading a document drops its hold too, and the file closes when the
-  last document using that root is gone. A parse that fails before taking a hold keeps every
-  existing holder.
+  the registered bundle after the reload parses. Each open is its own hold, so another document
+  on the same root keeps its stream, and the previewed document's later image reads skip that
+  bundle. Unload drops only that document's hold. `parse_document()`, `parse_document_file()`,
+  and `parse_document_file_with_metadata()` release the hold before they return, because they
+  do not create a document that can be unloaded.
 
 ## v0.8.6 - 2026-11-19
 

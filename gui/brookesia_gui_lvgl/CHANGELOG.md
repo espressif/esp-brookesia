@@ -11,6 +11,8 @@
 
 - fix(deps): require GUI Interface `>=0.8.7,<0.9` and lib_utils `>=0.8.4,<0.9`, which are the first
   versions that provide `asset_source.hpp` and `can_read_local_files()`.
+- fix(image): key the decoded-image cache by the current bundle-read scope, so a document that
+  is reading source files does not reuse another document's bundle bytes for the same path.
 
 ## v0.8.8 - 2026-10-29
 

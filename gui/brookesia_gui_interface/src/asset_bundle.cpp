@@ -6,10 +6,13 @@
 #include "private/asset_bundle.hpp"
 
 #include <algorithm>
+#include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <map>
 #include <mutex>
 #include <system_error>
+#include <vector>
 
 #include "brookesia/gui_interface/asset_source.hpp"
 
@@ -176,12 +179,41 @@ std::optional<std::string> AssetBundle::read(const std::filesystem::path &path) 
 
 namespace {
 
-struct RegistryEntry {
+struct BundleHold {
+    std::uint64_t id = 0;
     std::shared_ptr<AssetBundle> bundle;
-    // One per loaded document that parsed this root with a bundle. The stream stays open
-    // until the last holder is released.
-    int holders = 0;
 };
+
+struct RegistryEntry {
+    // One open per document. A new registration appends; it does not replace a hold
+    // another document is still using.
+    std::vector<BundleHold> holds;
+};
+
+struct ReadFrame {
+    bool bypass = false;
+    std::string root;
+    std::uint64_t hold_id = 0;
+};
+
+std::vector<ReadFrame> &read_frames()
+{
+    thread_local std::vector<ReadFrame> frames;
+    return frames;
+}
+
+bool path_in_root(const std::filesystem::path &path, const std::string &root)
+{
+    if (root.empty()) {
+        return false;
+    }
+    const std::string generic = path.lexically_normal().generic_string();
+    if (generic == root) {
+        return true;
+    }
+    const std::string prefix = root.back() == '/' ? root : root + "/";
+    return generic.compare(0, prefix.size(), prefix) == 0;
+}
 
 std::mutex &registry_mutex()
 {
@@ -197,45 +229,84 @@ std::map<std::string, RegistryEntry> &registry()
 
 } // namespace
 
-void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle)
+std::uint64_t register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle)
 {
     if (bundle == nullptr) {
-        return;
+        return 0;
     }
+    static std::atomic<std::uint64_t> next_hold{1};
+    const std::uint64_t hold_id = next_hold.fetch_add(1, std::memory_order_relaxed);
     const std::string key = root_dir.lexically_normal().generic_string();
     std::lock_guard<std::mutex> lock(registry_mutex());
-    auto &entry = registry()[key];
-    entry.bundle = std::move(bundle);
-    ++entry.holders;
+    registry()[key].holds.push_back(BundleHold{hold_id, std::move(bundle)});
+    return hold_id;
 }
 
-void unregister_asset_bundle(const std::filesystem::path &root_dir)
+void unregister_asset_bundle(const std::filesystem::path &root_dir, std::uint64_t hold_id)
 {
+    if (hold_id == 0) {
+        return;
+    }
     const std::string key = root_dir.lexically_normal().generic_string();
     std::lock_guard<std::mutex> lock(registry_mutex());
     auto it = registry().find(key);
     if (it == registry().end()) {
         return;
     }
-    if (it->second.holders > 0) {
-        --it->second.holders;
-    }
-    if (it->second.holders == 0) {
+    auto &holds = it->second.holds;
+    holds.erase(
+    std::remove_if(holds.begin(), holds.end(), [hold_id](const BundleHold & hold) {
+        return hold.id == hold_id;
+    }),
+    holds.end()
+    );
+    if (holds.empty()) {
         registry().erase(it);
     }
 }
 
+std::optional<std::string> read_one_bundle(
+    const std::shared_ptr<AssetBundle> &bundle, const std::filesystem::path &path
+)
+{
+    if (bundle == nullptr) {
+        return std::nullopt;
+    }
+    return bundle->read(path);
+}
+
 std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path)
 {
+    const auto &frames = read_frames();
+    if (!frames.empty()) {
+        const ReadFrame &frame = frames.back();
+        if (frame.bypass && path_in_root(path, frame.root)) {
+            return std::nullopt;
+        }
+        if (!frame.bypass && path_in_root(path, frame.root)) {
+            std::lock_guard<std::mutex> lock(registry_mutex());
+            const auto it = registry().find(frame.root);
+            if (it == registry().end()) {
+                return std::nullopt;
+            }
+            for (const BundleHold &hold : it->second.holds) {
+                if (hold.id != frame.hold_id) {
+                    continue;
+                }
+                return read_one_bundle(hold.bundle, path);
+            }
+            return std::nullopt;
+        }
+    }
+
     std::lock_guard<std::mutex> lock(registry_mutex());
     for (const auto &[root, entry] : registry()) {
         (void)root;
-        if (entry.bundle == nullptr) {
-            continue;
-        }
-        auto bytes = entry.bundle->read(path);
-        if (bytes.has_value()) {
-            return bytes;
+        for (const BundleHold &hold : entry.holds) {
+            auto bytes = read_one_bundle(hold.bundle, path);
+            if (bytes.has_value()) {
+                return bytes;
+            }
         }
     }
     return std::nullopt;
@@ -246,6 +317,54 @@ std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path 
 std::optional<std::string> read_bundled_asset(const std::filesystem::path &path)
 {
     return parser_detail::read_bundled_asset_bytes(path);
+}
+
+AssetBundleReadScope AssetBundleReadScope::bypass(std::string root)
+{
+    if (root.empty()) {
+        return AssetBundleReadScope();
+    }
+    parser_detail::read_frames().push_back(parser_detail::ReadFrame{true, std::move(root), 0});
+    return AssetBundleReadScope(true);
+}
+
+AssetBundleReadScope AssetBundleReadScope::hold(std::string root, std::uint64_t hold_id)
+{
+    if (root.empty() || hold_id == 0) {
+        return AssetBundleReadScope();
+    }
+    parser_detail::read_frames().push_back(parser_detail::ReadFrame{false, std::move(root), hold_id});
+    return AssetBundleReadScope(true);
+}
+
+AssetBundleReadScope::AssetBundleReadScope(AssetBundleReadScope &&other) noexcept
+    : active_(other.active_)
+{
+    other.active_ = false;
+}
+
+AssetBundleReadScope::~AssetBundleReadScope()
+{
+    if (!active_) {
+        return;
+    }
+    auto &frames = parser_detail::read_frames();
+    if (!frames.empty()) {
+        frames.pop_back();
+    }
+}
+
+std::string bundled_asset_read_token()
+{
+    const auto &frames = parser_detail::read_frames();
+    if (frames.empty()) {
+        return {};
+    }
+    const parser_detail::ReadFrame &frame = frames.back();
+    if (frame.bypass) {
+        return "bypass:" + frame.root;
+    }
+    return "hold:" + std::to_string(frame.hold_id);
 }
 
 } // namespace esp_brookesia::gui

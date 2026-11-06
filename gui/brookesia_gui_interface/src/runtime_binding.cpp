@@ -751,13 +751,16 @@ void Runtime::Impl::reapply_binding_domain(TreeRecord &tree, NodeRecord &record,
         return;
     }
     switch (target_info.domain) {
-    case BindingApplyDomain::Props:
+    case BindingApplyDomain::Props: {
+        const auto bundle_reads = asset_bundle_read_scope(tree);
+        (void)bundle_reads;
         apply_record_props(record, target_info.props_mask);
         if (record.node().type == NodeType::Image &&
                 has_mask(target_info.props_mask, PropsApplyMask::ImageSource)) {
             backend->apply_placement(record.handle, record.placement(), PlacementApplyMask::Size);
         }
         break;
+    }
     case BindingApplyDomain::Style: {
         const auto style_snapshot = make_style_snapshot(record);
         record.resolved_style = resolve_style_shared(tree, style_snapshot);
@@ -791,6 +794,8 @@ void Runtime::Impl::reapply_binding_masks(TreeRecord &tree, NodeRecord &record, 
     int64_t placement_us = 0;
 #endif
     if (masks.props != PropsApplyMask::None) {
+        const auto bundle_reads = asset_bundle_read_scope(tree);
+        (void)bundle_reads;
         apply_record_props(record, masks.props);
         if (record.node().type == NodeType::Image && has_mask(masks.props, PropsApplyMask::ImageSource)) {
             backend->apply_placement(record.handle, record.placement(), PlacementApplyMask::Size);

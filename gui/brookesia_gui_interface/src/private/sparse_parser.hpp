@@ -17,7 +17,8 @@ std::expected<SparseDocument, std::string> parse_sparse_document(
     std::string_view json,
     std::string_view base_dir,
     const Environment &environment,
-    std::string *asset_bundle_root = nullptr);
+    std::string *asset_bundle_root = nullptr,
+    std::uint64_t *asset_bundle_hold = nullptr);
 std::expected<SparseParsedDocument, std::string> parse_sparse_document_file_with_metadata(
     std::string_view path, const Environment &environment, bool use_asset_bundle = true);
 std::expected<SparseThemeAsset, std::string> parse_sparse_theme_asset_json(
