@@ -671,11 +671,11 @@ std::expected<float, std::string> parse_aspect_ratio(
 }
 
 std::expected<std::string, std::string> parse_string_field(
-    const boost::json::object &object, std::string_view key, std::string default_value)
+    const boost::json::object &object, std::string_view key, std::string_view default_value)
 {
     const auto *value = find_child_value(object, key);
     if (value == nullptr) {
-        return default_value;
+        return std::string(default_value);
     }
     if (!value->is_string()) {
         return std::unexpected("Field '" + std::string(key) + "' must be a string");

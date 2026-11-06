@@ -457,7 +457,8 @@ std::expected<SparseNode, std::string> parse_template_ref(
     const Environment &environment,
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
-    std::vector<std::string> &template_stack)
+    std::vector<std::string> &template_stack,
+    ParserNodeTiming *timing)
 {
     auto id = parse_string_field(object, "id");
     auto template_id = parse_string_field(object, "templateId");
@@ -496,7 +497,7 @@ std::expected<SparseNode, std::string> parse_template_ref(
     }
 
     template_stack.push_back(*template_id);
-    auto parsed = parse_view_node(node_object, environment, templates, interactions, template_stack);
+    auto parsed = parse_view_node(node_object, environment, templates, interactions, template_stack, std::nullopt, timing);
     template_stack.pop_back();
     return parsed;
 }
@@ -506,7 +507,8 @@ std::expected<std::vector<SparseNode>, std::string> parse_children(
     const Environment &environment,
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
-    std::vector<std::string> &template_stack)
+    std::vector<std::string> &template_stack,
+    ParserNodeTiming *timing)
 {
     std::vector<SparseNode> children;
     const auto *value = find_child_value(object, "children");
@@ -529,9 +531,28 @@ std::expected<std::vector<SparseNode>, std::string> parse_children(
         if (*child_type == "slot") {
             return std::unexpected("Node type 'slot' is only allowed inside viewTemplate assets");
         }
-        auto parsed_child = (*child_type == "templateRef") ?
-                            parse_template_ref(child_object, environment, templates, interactions, template_stack) :
-                            parse_view_node(child_object, environment, templates, interactions, template_stack);
+        if (*child_type == "templateRef") {
+            auto parsed_ref = parse_template_ref(
+                                  child_object, environment, templates, interactions, template_stack, timing
+                              );
+            if (!parsed_ref) {
+                return std::unexpected(parsed_ref.error());
+            }
+            if (parsed_ref->type == NodeType::Screen) {
+                return std::unexpected("Node type 'screen' is only allowed at the top level");
+            }
+            children.push_back(std::move(*parsed_ref));
+            continue;
+        }
+        // The type was already read above, so validate it here and hand the parsed value down instead
+        // of letting parse_view_node look the same field up and parse it a second time.
+        auto child_node_type = parse_node_type(*child_type);
+        if (!child_node_type) {
+            return std::unexpected(child_node_type.error());
+        }
+        auto parsed_child = parse_view_node(
+                                child_object, environment, templates, interactions, template_stack, *child_node_type, timing
+                            );
         if (!parsed_child) {
             return std::unexpected(parsed_child.error());
         }
@@ -794,15 +815,47 @@ std::expected<SparseNode, std::string> parse_view_node(
     const TemplateRawMap &templates,
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack,
-    std::optional<NodeType> forced_type)
+    std::optional<NodeType> forced_type,
+    ParserNodeTiming *timing)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
-    auto interaction_object = apply_interaction_templates(source_object, interactions);
-    if (!interaction_object) {
-        return std::unexpected(interaction_object.error());
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    const bool timing_active = timing != nullptr;
+#else
+    // Keep production builds free of the per-node clock reads and the accounting below.
+    const bool timing_active = false;
+#endif
+    const auto timing_start = timing_active ? ParserProfileClock::now() : ParserProfileClock::time_point {};
+    auto timing_after_template = timing_start;
+    auto timing_style_start = timing_start;
+    auto timing_style_end = timing_start;
+    auto timing_children_start = timing_start;
+    auto timing_children_end = timing_start;
+    bool timing_has_style = false;
+    bool timing_has_children = false;
+
+    // interactionRefs is optional and rare. Merging copied the whole node object for every node just
+    // to discover that there was nothing to merge, which dominated screen parsing (a 19 KB screen
+    // cost 114 ms). Only take the copy when the node actually references interaction templates.
+    auto interaction_refs = parse_string_array(source_object, "interactionRefs");
+    if (!interaction_refs) {
+        return std::unexpected(interaction_refs.error());
+    }
+    boost::json::object interaction_storage;
+    const boost::json::object *interaction_object = &source_object;
+    if (!interaction_refs->empty()) {
+        auto merged = apply_interaction_templates(source_object, interactions);
+        if (!merged) {
+            return std::unexpected(merged.error());
+        }
+        interaction_storage = std::move(*merged);
+        interaction_object = &interaction_storage;
     }
     const auto &object = *interaction_object;
+    if (timing_active) {
+        timing_after_template = ParserProfileClock::now();
+    }
 
     BROOKESIA_LOGD("Params: object(keys=%1%), environment(%2%)", object.size(), environment);
 
@@ -811,9 +864,8 @@ std::expected<SparseNode, std::string> parse_view_node(
     if (find_child_value(object, "subtype") != nullptr) {
         return std::unexpected("Field 'subtype' is no longer supported; use node field 'type'");
     }
-    if (find_child_value(object, "type") != nullptr &&
-            find_child_value(object, "type")->is_string() &&
-            find_child_value(object, "type")->as_string() == "view") {
+    const auto *type_value = find_child_value(object, "type");
+    if (type_value != nullptr && type_value->is_string() && type_value->as_string() == "view") {
         return std::unexpected("View asset type 'view' is no longer supported; use viewScreen/viewTemplate assets");
     }
     if (forced_type.has_value()) {
@@ -1255,8 +1307,9 @@ std::expected<SparseNode, std::string> parse_view_node(
             return std::unexpected("Field 'layout' must be an object");
         }
         const auto &layout_object = layout_value->as_object();
-        if (const auto *type_value = find_child_value(layout_object, "type");
-                type_value != nullptr && type_value->is_string() && type_value->as_string() == "absolute") {
+        const auto *layout_type_value = find_child_value(layout_object, "type");
+        if (layout_type_value != nullptr && layout_type_value->is_string() &&
+                layout_type_value->as_string() == "absolute") {
             return std::unexpected(
                        "layout.type='absolute' is no longer supported; use placement.mode='absolute'"
                    );
@@ -1272,7 +1325,7 @@ std::expected<SparseNode, std::string> parse_view_node(
             return std::unexpected(rejected_layout_fields.error());
         }
 
-        if (find_child_value(layout_object, "type") != nullptr) {
+        if (layout_type_value != nullptr) {
             auto layout_type = parse_enum_field<LayoutType>(layout_object, "type", node.layout.type);
             if (!layout_type) {
                 return std::unexpected(layout_type.error());
@@ -1304,8 +1357,8 @@ std::expected<SparseNode, std::string> parse_view_node(
             node.layout.cross_align = *cross_align;
         }
 
-        if (find_child_value(layout_object, "gap") != nullptr) {
-            auto gap = parse_scaled_value(find_child_value(layout_object, "gap"), "gap", "dp", environment.density);
+        if (const auto *gap_value = find_child_value(layout_object, "gap"); gap_value != nullptr) {
+            auto gap = parse_scaled_value(gap_value, "gap", "dp", environment.density);
             if (!gap) {
                 return std::unexpected(gap.error());
             }
@@ -1344,16 +1397,16 @@ std::expected<SparseNode, std::string> parse_view_node(
             node.placement.mode = *placement_mode;
         }
 
-        if (find_child_value(placement_object, "x") != nullptr) {
-            auto x = parse_placement_offset(find_child_value(placement_object, "x"), "x", environment);
+        if (const auto *x_value = find_child_value(placement_object, "x"); x_value != nullptr) {
+            auto x = parse_placement_offset(x_value, "x", environment);
             if (!x) {
                 return std::unexpected(x.error());
             }
             node.placement.x = *x;
         }
 
-        if (find_child_value(placement_object, "y") != nullptr) {
-            auto y = parse_placement_offset(find_child_value(placement_object, "y"), "y", environment);
+        if (const auto *y_value = find_child_value(placement_object, "y"); y_value != nullptr) {
+            auto y = parse_placement_offset(y_value, "y", environment);
             if (!y) {
                 return std::unexpected(y.error());
             }
@@ -1455,6 +1508,9 @@ std::expected<SparseNode, std::string> parse_view_node(
         }
     }
 
+    if (timing_active) {
+        timing_style_start = ParserProfileClock::now();
+    }
     const auto *style_value = find_child_value(object, "style");
     if (style_value != nullptr) {
         if (!style_value->is_object()) {
@@ -1496,6 +1552,10 @@ std::expected<SparseNode, std::string> parse_view_node(
         return std::unexpected(style_refs.error());
     }
     node.style_refs = std::move(*style_refs);
+    if (timing_active) {
+        timing_style_end = ParserProfileClock::now();
+        timing_has_style = true;
+    }
 
     const auto *events_value = find_child_value(object, "events");
     if (events_value != nullptr) {
@@ -1544,11 +1604,30 @@ std::expected<SparseNode, std::string> parse_view_node(
         }
     }
 
-    auto children = parse_children(object, environment, templates, interactions, template_stack);
+    if (timing_active) {
+        timing_children_start = ParserProfileClock::now();
+    }
+    auto children = parse_children(object, environment, templates, interactions, template_stack, timing);
     if (!children) {
         return std::unexpected(children.error());
     }
     node.children = std::move(*children);
+    if (timing_active) {
+        timing_children_end = ParserProfileClock::now();
+        timing_has_children = true;
+
+        const uint64_t style_us = timing_has_style ?
+                                  ParserNodeTiming::elapsed_us(timing_style_start, timing_style_end) : 0;
+        const uint64_t children_us = timing_has_children ?
+                                     ParserNodeTiming::elapsed_us(timing_children_start, timing_children_end) : 0;
+        const uint64_t template_us = ParserNodeTiming::elapsed_us(timing_start, timing_after_template);
+        const uint64_t total_us = ParserNodeTiming::elapsed_us(timing_start, timing_children_end);
+        timing->template_us += template_us;
+        timing->style_us += style_us;
+        timing->children_us += children_us;
+        timing->self_props_us += total_us - template_us - style_us - children_us;
+        ++timing->nodes;
+    }
 
     return node;
 }

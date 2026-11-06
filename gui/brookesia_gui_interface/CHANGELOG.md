@@ -15,6 +15,14 @@
   reuses a built subtree instead of paying the build on the interaction path.
 - feat(runtime): delay the prewarm pass (`..._PREWARM_DYNAMIC_SCREENS_DELAY_MS`, default 5 s) so the
   background builds do not race the boot-time mount path for the LVGL lock.
+- perf(parser): read text assets in large chunks without a preceding file_size() stat, cutting
+  document load by 25-39% (a 30-asset document: 1187 -> 885 ms).
+- perf(parser): copy a node object only when it actually references interaction templates, cutting
+  screen parsing by 34% (a 30-asset document: 885 -> 724 ms).
+- perf(parser): reuse the already parsed child type, cache duplicated field lookups and pass
+  string defaults as views while walking a screen into sparse nodes.
+- test(parser): add an opt-in per-screen timing breakdown (template/style/self-props/children)
+  behind the existing profile-log switch.
 
 ## v0.8.5 - 2026-11-10
 

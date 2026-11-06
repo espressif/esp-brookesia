@@ -536,7 +536,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
         view_screen_assets.push_back(&asset_entry);
     }
 
-    auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry) -> std::expected<SparseNode, std::string> {
+    auto parse_one_view_screen = [&](ResolvedAssetEntry & asset_entry,
+    ParserNodeTiming * node_timing) -> std::expected<SparseNode, std::string> {
         std::vector<std::string> template_stack;
         return parse_view_node(
             asset_entry.value.as_object(),
@@ -544,23 +545,32 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
             raw_templates,
             raw_interactions,
             template_stack,
-            NodeType::Screen
+            NodeType::Screen,
+            node_timing
         );
     };
 
     size_t parsed_screens = 0;
     for (auto *asset_entry : view_screen_assets) {
         const auto asset_start = ParserProfileClock::now();
-        auto node = parse_one_view_screen(*asset_entry);
+        ParserNodeTiming node_timing;
+        auto node = parse_one_view_screen(*asset_entry, &node_timing);
         if (!node) {
             return std::unexpected(
                        "Failed to parse viewScreen asset '" + asset_entry->source_label + "': " + node.error()
                    );
         }
         GUI_INTERFACE_PROFILE_LOGI(
-            "GUI parser profile: base_dir(%1%), stage(parse_screen_item), source(%2%), elapsed_ms(%3%), total_ms(%4%)",
+            "GUI parser profile: base_dir(%1%), stage(parse_screen_detail), source(%2%), nodes(%3%), "
+            "template_us(%4%), style_us(%5%), self_props_us(%6%), children_subtree_us(%7%), elapsed_ms(%8%), "
+            "total_ms(%9%)",
             base_dir,
             asset_entry->source_label,
+            node_timing.nodes,
+            node_timing.template_us,
+            node_timing.style_us,
+            node_timing.self_props_us,
+            node_timing.children_us,
             parser_profile_elapsed_ms(asset_start, ParserProfileClock::now()),
             parser_profile_elapsed_ms(total_start, ParserProfileClock::now()));
         document.screens.push_back(std::move(*node));

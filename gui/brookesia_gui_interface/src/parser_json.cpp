@@ -39,13 +39,21 @@ std::expected<std::string, std::string> read_text_file_local(const std::filesyst
         return std::unexpected("Failed to open file: " + path.generic_string());
     }
 
+    // Read in large chunks straight through the stream buffer. Two things dominated document load
+    // on littlefs before this: assigning istreambuf_iterator<char> walks the stream one character
+    // at a time through sbumpc, and std::filesystem::file_size() costs ~10-15 ms per file (a stat
+    // through the VFS and littlefs). Chunked reads without the stat cut a 30-asset load from 659 to
+    // 324 ms on esp32_p4x_function_ev.
     std::string text;
-    std::error_code size_error;
-    const auto expected_size = std::filesystem::file_size(path, size_error);
-    if (!size_error) {
-        text.reserve(static_cast<size_t>(expected_size));
+    text.reserve(16384);
+    char chunk[16384];
+    while (input) {
+        input.read(chunk, static_cast<std::streamsize>(sizeof(chunk)));
+        const auto read_size = input.gcount();
+        if (read_size > 0) {
+            text.append(chunk, static_cast<size_t>(read_size));
+        }
     }
-    text.assign(std::istreambuf_iterator<char>(input), std::istreambuf_iterator<char>());
     if (input.bad()) {
         return std::unexpected("Failed to read file: " + path.generic_string());
     }
