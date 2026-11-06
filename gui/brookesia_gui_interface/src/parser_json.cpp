@@ -5,6 +5,7 @@
  */
 #include "private/parser_impl.hpp"
 #include "private/gui_json_storage.hpp"
+#include "brookesia/lib_utils/platform.hpp"
 
 #include <fstream>
 #include <iterator>
@@ -23,13 +24,7 @@ constexpr size_t kRootAssetReadBatchMaxFiles = 8;
 
 bool can_read_text_on_caller()
 {
-#if !defined(ESP_PLATFORM)
-    return true;
-#elif defined(CONFIG_SPIRAM_XIP_FROM_PSRAM) && CONFIG_SPIRAM_XIP_FROM_PSRAM
-    return true;
-#else
-    return false;
-#endif
+    return esp_brookesia::lib_utils::can_read_local_files();
 }
 
 std::expected<std::string, std::string> read_text_file_local(const std::filesystem::path &path)

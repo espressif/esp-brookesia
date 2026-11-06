@@ -4,6 +4,10 @@
 
 ### Enhancements:
 
+- perf(image): read image files directly instead of through the storage service when the caller can
+  touch the filesystem, cutting the image part of a screen build by 60-65% (keyboard_input
+  136 -> 51 ms, settings_home 60 -> 21 ms on esp32_p4x_function_ev).
+
 - feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
 - feat(props): skip redundant common transform defaults when applying local LVGL transform props.
 - perf(layout): skip the relative-placement scan when no record uses relative placement. Every
