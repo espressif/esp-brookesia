@@ -26,6 +26,7 @@ variables:
 include:
   - '.gitlab/ci/pre/check.yml'
   - '.gitlab/ci/pre/gui_perf_host.yml'
+  - '.gitlab/ci/pre/gui_asset_bundle.yml'
   - '.gitlab/ci/pre/host_mem_gate.yml'
   - '.gitlab/ci/rules/patterns.yml'
   - '.gitlab/ci/rules/docs.yml'

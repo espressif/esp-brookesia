@@ -123,6 +123,13 @@ def main():
     if len(screens) != 24:
         sys.exit("expected 24 screens, found {}: {}".format(len(screens), screens))
 
+    # One packed bundle per document root. The bytes are produced by
+    # tools/gui_asset_bundle in main/CMakeLists.txt and embedded like any other
+    # resource, so the harness materialises them into littlefs at boot. They are
+    # kept out of `files` so the doc_complexity byte count still describes the
+    # source tree rather than the derived bundles.
+    bundle_files = ["{}/assets.bundle".format(doc) for doc in documents]
+
     out = [
         "/*",
         " * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD",
@@ -142,6 +149,7 @@ def main():
         "#include <stddef.h>",
         "#include <stdint.h>",
         "",
+        '#include "sdkconfig.h"',
         '#include "perf_eval_res.hpp"',
         "",
     ]
@@ -149,6 +157,13 @@ def main():
         symbol = staged_symbol(rel)
         out.append("extern const uint8_t _binary_{}_start[];".format(symbol))
         out.append("extern const uint8_t _binary_{}_end[];".format(symbol))
+    out.append("")
+    out.append("#if CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE")
+    for rel in bundle_files:
+        symbol = staged_symbol(rel)
+        out.append("extern const uint8_t _binary_{}_start[];".format(symbol))
+        out.append("extern const uint8_t _binary_{}_end[];".format(symbol))
+    out.append("#endif")
     out += [
         "",
         "// Measured from res/: nodes are objects carrying a \"type\", styles are objects",
@@ -175,6 +190,11 @@ def main():
     for rel in files:
         symbol = staged_symbol(rel)
         out.append('    {{"{}", _binary_{}_start, _binary_{}_end}},'.format(rel, symbol, symbol))
+    out.append("#if CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE")
+    for rel in bundle_files:
+        symbol = staged_symbol(rel)
+        out.append('    {{"{}", _binary_{}_start, _binary_{}_end}},'.format(rel, symbol, symbol))
+    out.append("#endif")
     out += [
         "};",
         "",

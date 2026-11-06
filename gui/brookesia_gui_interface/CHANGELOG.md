@@ -23,6 +23,15 @@
   string defaults as views while walking a screen into sparse nodes.
 - test(parser): add an opt-in per-screen timing breakdown (template/style/self-props/children)
   behind the existing profile-log switch.
+- perf(parser): match the camelCase and normalized key fallbacks without allocating, cutting the
+  screen walk by 37% (parse_flows_screens 274 -> 172 ms, self time per node 550 -> 251 us).
+- perf(parser): parse a shared viewTemplate in place when it has no slots and no overrides,
+  instead of deep-copying the JSON just to inject the instance id.
+- perf(parser): validate string and integer style fields from the value already located, dropping
+  the duplicate key lookup per field.
+- feat(parser): read JSON assets from a packed `assets.bundle` when
+  `BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE` is enabled, replacing one open per asset with a
+  single open plus a seek. Missing or malformed bundles fall back to the per-file path.
 
 ## v0.8.5 - 2026-11-10
 

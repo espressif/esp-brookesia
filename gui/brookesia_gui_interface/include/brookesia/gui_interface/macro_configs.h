@@ -44,6 +44,14 @@
  * This switch is separate from memory tracing so startup timing can be
  * diagnosed without heap snapshots. Memory tracing implies profile logging.
  */
+#if !defined(BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
+#   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
+#       define BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE  CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+#   else
+#       define BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE  (0)
+#   endif
+#endif
+
 #if !defined(BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG)
 #   if defined(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG)
 #       define BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG  CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG

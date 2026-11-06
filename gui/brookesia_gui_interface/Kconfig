@@ -35,6 +35,16 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             This is a profiling aid only; keep it disabled in production builds
             because the extra snapshots and logging add CPU and log overhead.
 
+    config BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+        bool "Read GUI JSON assets from a packed assets.bundle"
+        default n
+        help
+            When enabled, the parser looks for <resource root>/assets.bundle, produced
+            by tools/gui_asset_bundle, and serves the JSON assets from it. That replaces
+            one littlefs open per asset (about 5.25 ms each) with a single open plus a
+            seek per asset. A missing or malformed bundle falls back to the per-file
+            path, so apps that have not been packed keep working unchanged.
+
     config BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
         bool "Enable parser/runtime profile logs"
         default y if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE

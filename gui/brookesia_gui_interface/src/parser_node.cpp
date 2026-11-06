@@ -427,6 +427,31 @@ std::expected<void, std::string> expand_template_slots_in_children(
     return {};
 }
 
+static bool template_children_have_slot(const boost::json::array &children)
+{
+    for (const auto &child : children) {
+        if (!child.is_object()) {
+            continue;
+        }
+        const auto &child_object = child.as_object();
+        if (const auto *type = find_child_value(child_object, "type");
+                type != nullptr && type->is_string() && type->as_string() == "slot") {
+            return true;
+        }
+        if (const auto *nested = find_child_value(child_object, "children");
+                nested != nullptr && nested->is_array() && template_children_have_slot(nested->as_array())) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool template_object_has_slot(const boost::json::object &object)
+{
+    const auto *children = find_child_value(object, "children");
+    return children != nullptr && children->is_array() && template_children_have_slot(children->as_array());
+}
+
 std::expected<void, std::string> apply_template_slots(
     boost::json::object &root,
     const boost::json::object *slots)
@@ -473,8 +498,6 @@ std::expected<SparseNode, std::string> parse_template_ref(
         return std::unexpected("TemplateRef cycle detected for templateId: " + *template_id);
     }
 
-    auto node_object = template_it->second;
-    node_object.insert_or_assign("id", *id);
     const boost::json::object *slots = nullptr;
     if (const auto *slots_value = find_child_value(object, "slots"); slots_value != nullptr) {
         if (!slots_value->is_object()) {
@@ -482,22 +505,40 @@ std::expected<SparseNode, std::string> parse_template_ref(
         }
         slots = &slots_value->as_object();
     }
-    auto slot_result = apply_template_slots(node_object, slots);
-    if (!slot_result) {
-        return std::unexpected(slot_result.error());
+    const auto *overrides_value = find_child_value(object, "overrides");
+    if (overrides_value != nullptr && !overrides_value->is_object()) {
+        return std::unexpected("TemplateRef field 'overrides' must be an object");
     }
-    if (const auto *overrides_value = find_child_value(object, "overrides"); overrides_value != nullptr) {
-        if (!overrides_value->is_object()) {
-            return std::unexpected("TemplateRef field 'overrides' must be an object");
+
+    // A template only has to be copied when it is actually rewritten: slot children are expanded
+    // even without a 'slots' argument, and overrides patch the tree in place. Otherwise the shared
+    // template object is parsed as-is and the instance id is injected by the parser.
+    const bool needs_copy = (overrides_value != nullptr) || (slots != nullptr && !slots->empty()) ||
+                            template_object_has_slot(template_it->second);
+
+    boost::json::object node_object;
+    const boost::json::object *node_source = &template_it->second;
+    if (needs_copy) {
+        node_object = template_it->second;
+        node_object.insert_or_assign("id", *id);
+        auto slot_result = apply_template_slots(node_object, slots);
+        if (!slot_result) {
+            return std::unexpected(slot_result.error());
         }
-        auto override_result = apply_template_overrides(node_object, overrides_value->as_object());
-        if (!override_result) {
-            return std::unexpected(override_result.error());
+        if (overrides_value != nullptr) {
+            auto override_result = apply_template_overrides(node_object, overrides_value->as_object());
+            if (!override_result) {
+                return std::unexpected(override_result.error());
+            }
         }
+        node_source = &node_object;
     }
 
     template_stack.push_back(*template_id);
-    auto parsed = parse_view_node(node_object, environment, templates, interactions, template_stack, std::nullopt, timing);
+    auto parsed = parse_view_node(
+                      *node_source, environment, templates, interactions, template_stack, std::nullopt, timing,
+                      needs_copy ? nullptr : &*id
+                  );
     template_stack.pop_back();
     return parsed;
 }
@@ -816,7 +857,8 @@ std::expected<SparseNode, std::string> parse_view_node(
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack,
     std::optional<NodeType> forced_type,
-    ParserNodeTiming *timing)
+    ParserNodeTiming *timing,
+    const std::string *id_override)
 {
     BROOKESIA_LOG_TRACE_GUARD();
 
@@ -898,11 +940,17 @@ std::expected<SparseNode, std::string> parse_view_node(
         node.mount_mode = *mount_mode;
     }
 
-    auto id = parse_string_field(object, "id");
-    if (!id) {
-        return std::unexpected(id.error());
+    if (id_override != nullptr) {
+        // Template instances take their id from the referencing node, so the shared template object
+        // does not have to be copied just to inject it.
+        node.id = *id_override;
+    } else {
+        auto id = parse_string_field(object, "id");
+        if (!id) {
+            return std::unexpected(id.error());
+        }
+        node.id = *id;
     }
-    node.id = *id;
 
     if (find_child_value(object, "props") != nullptr) {
         return std::unexpected(

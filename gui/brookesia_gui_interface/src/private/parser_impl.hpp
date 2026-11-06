@@ -41,6 +41,8 @@
 #include "boost/unordered/unordered_flat_set.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
 
+#include "private/asset_bundle.hpp"
+
 #if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
 #   define GUI_INTERFACE_PROFILE_LOGI(...) BROOKESIA_LOGI(__VA_ARGS__)
 #else
@@ -583,7 +585,12 @@ private:
     Token current_;
 };
 
-std::expected<std::string, std::string> read_text_file(const std::filesystem::path &path)
+std::expected<std::string, std::string> read_text_file(
+    const std::filesystem::path &path, const parser_detail::AssetBundle *bundle = nullptr)
+;
+// Opens <root_dir>/assets.bundle when the build enables bundles and the caller can read a local
+// filesystem. Returns nullptr otherwise so every caller keeps the per-file path.
+std::shared_ptr<parser_detail::AssetBundle> open_asset_bundle(const std::filesystem::path &root_dir)
 ;
 std::expected<std::vector<std::string>, std::string> read_text_files(const std::vector<std::filesystem::path> &paths)
 ;
@@ -622,7 +629,8 @@ std::expected<void, std::string> append_root_asset_entries(
     boost::unordered_flat_set<std::string> &loaded_paths,
     std::vector<std::string> *dependency_files,
     std::vector<RootAssetEntry> &ordered_entries,
-    std::string_view inline_entry_label)
+    std::string_view inline_entry_label,
+    const parser_detail::AssetBundle *bundle = nullptr)
 ;
 
 std::expected<std::vector<std::string>, std::string> parse_string_array(
@@ -1552,7 +1560,8 @@ std::expected<SparseNode, std::string> parse_view_node(
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack,
     std::optional<NodeType> forced_type = std::nullopt,
-    ParserNodeTiming *timing = nullptr);
+    ParserNodeTiming *timing = nullptr,
+    const std::string *id_override = nullptr);
 std::expected<FontAsset, std::string> parse_font_asset(
     const boost::json::object &object, const std::filesystem::path &asset_dir);
 
@@ -1643,7 +1652,8 @@ std::expected<SparseNode, std::string> parse_view_node(
     const InteractionTemplateRawMap &interactions,
     std::vector<std::string> &template_stack,
     std::optional<NodeType> forced_type,
-    ParserNodeTiming *timing)
+    ParserNodeTiming *timing,
+    const std::string *id_override)
 ;
 
 std::expected<uint32_t, std::string> parse_image_font_codepoint(std::string_view text)

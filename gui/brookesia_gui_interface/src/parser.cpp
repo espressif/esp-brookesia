@@ -86,6 +86,9 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
     parsed_document.dependency_files = std::move(dependency_files);
 
     const std::filesystem::path resolved_base_dir = std::filesystem::path(base_dir).lexically_normal();
+    // One open for the whole document instead of one per asset. Null when the feature is off, the
+    // file is missing, or the caller has no local filesystem (Storage-worker path).
+    const auto asset_bundle = open_asset_bundle(resolved_base_dir);
     boost::json::value constants(boost::json::object(), make_gui_json_storage());
     boost::unordered_flat_set<std::string> loaded_asset_paths;
     std::vector<RootAssetEntry> asset_entries;
@@ -104,7 +107,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
                              loaded_asset_paths,
                              &parsed_document.dependency_files,
                              asset_entries,
-                             "inline asset"
+                             "inline asset",
+                             asset_bundle.get()
                          );
     if (!append_result) {
         return std::unexpected(append_result.error());
@@ -182,7 +186,8 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
                                 loaded_asset_paths,
                                 &parsed_document.dependency_files,
                                 asset_entries,
-                                "inline variant asset"
+                                "inline variant asset",
+                                asset_bundle.get()
                             );
             if (!append_result) {
                 return std::unexpected(append_result.error());

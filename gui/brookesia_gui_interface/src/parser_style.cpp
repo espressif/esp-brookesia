@@ -23,12 +23,11 @@ std::expected<SparseStyle, std::string> parse_style_object(
         {
             return std::optional<std::string> {};
         }
-        auto parsed = parse_string_field(style_object, key, "");
-        if (!parsed)
+        if (!value->is_string())
         {
-            return std::unexpected(parsed.error());
+            return std::unexpected("Field '" + std::string(key) + "' must be a string");
         }
-        return std::optional<std::string>(*parsed);
+        return std::optional<std::string>(value->as_string().c_str());
     };
 
     auto parse_optional_scaled = [&](std::string_view key, std::string_view unit, float scale)
@@ -52,12 +51,11 @@ std::expected<SparseStyle, std::string> parse_style_object(
         {
             return std::optional<int32_t> {};
         }
-        auto parsed = parse_int_field(style_object, key, 0);
-        if (!parsed)
+        if (!value->is_int64())
         {
-            return std::unexpected(parsed.error());
+            return std::unexpected("Field '" + std::string(key) + "' must be an integer");
         }
-        return std::optional<int32_t>(*parsed);
+        return std::optional<int32_t>(static_cast<int32_t>(value->as_int64()));
     };
 
     if (auto bg_color = parse_optional_string("bg_color"); !bg_color) {

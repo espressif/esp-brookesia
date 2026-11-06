@@ -1,0 +1,33 @@
+.gui_asset_bundle_template:
+  stage: pre_check
+  image: python:3.10-slim
+  tags: ["build", "amd64", "internet"]
+  dependencies: []
+
+# The bundle packer is host-side only: it must stay deterministic (the runtime
+# index depends on the exact byte layout) and it must not silently diverge from
+# the resource tree it packs. Both properties are cheap to assert on the host,
+# so they are gated here instead of on a device.
+check_gui_asset_bundle_tool:
+  extends:
+    - .gui_asset_bundle_template
+  before_script:
+    - python -m pip install --upgrade pip setuptools
+    - python -m pip install -e tools/gui_asset_bundle
+    - python -m pip install "flake8==5.0.4"
+  script:
+    - python -m unittest discover -s tools/gui_asset_bundle/tests -t tools/gui_asset_bundle -v
+    # The repository-wide pre-commit exclude contains ".*py", which matches
+    # every Python path, so lint and SPDX checks are asserted directly here.
+    - python -m flake8 --config=.flake8 tools/gui_asset_bundle/
+    - |
+      fail=0
+      for f in $(find tools/gui_asset_bundle -name "*.py"); do
+        head -8 "$f" | grep -q "SPDX-License-Identifier: Apache-2.0" || { echo "missing SPDX header: $f"; fail=1; }
+      done
+      exit $fail
+  rules:
+    - changes:
+        - tools/gui_asset_bundle/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/pre/gui_asset_bundle.yml

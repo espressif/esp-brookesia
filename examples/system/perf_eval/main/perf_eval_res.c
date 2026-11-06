@@ -16,6 +16,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "sdkconfig.h"
 #include "perf_eval_res.hpp"
 
 extern const uint8_t _binary__gitkeep_start[];
@@ -345,6 +346,19 @@ extern const uint8_t _binary_system_super_themes_size_small_json_end[];
 extern const uint8_t _binary_system_super_themes_style_default_json_start[];
 extern const uint8_t _binary_system_super_themes_style_default_json_end[];
 
+#if CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_assets_bundle_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_assets_bundle_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_assets_bundle_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_assets_bundle_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_assets_bundle_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_assets_bundle_end[];
+extern const uint8_t _binary_system_super_shell_assets_bundle_start[];
+extern const uint8_t _binary_system_super_shell_assets_bundle_end[];
+extern const uint8_t _binary_system_super_startup_assets_bundle_start[];
+extern const uint8_t _binary_system_super_startup_assets_bundle_end[];
+#endif
+
 // Measured from res/: nodes are objects carrying a "type", styles are objects
 // carrying a "style", bytes is the whole embedded tree (JSON + images + fonts).
 const uint32_t perf_eval_res_doc_nodes = 919;
@@ -548,6 +562,13 @@ const PerfEvalResEntry perf_eval_res_manifest[] = {
     {"system/super/themes/size/portrait.json", _binary_system_super_themes_size_portrait_json_start, _binary_system_super_themes_size_portrait_json_end},
     {"system/super/themes/size/small.json", _binary_system_super_themes_size_small_json_start, _binary_system_super_themes_size_small_json_end},
     {"system/super/themes/style/default.json", _binary_system_super_themes_style_default_json_start, _binary_system_super_themes_style_default_json_end},
+#if CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    {"apps/brookesia.general.app_store/res/assets.bundle", _binary_apps_brookesia_general_app_store_res_assets_bundle_start, _binary_apps_brookesia_general_app_store_res_assets_bundle_end},
+    {"apps/brookesia.general.files/res/assets.bundle", _binary_apps_brookesia_general_files_res_assets_bundle_start, _binary_apps_brookesia_general_files_res_assets_bundle_end},
+    {"apps/brookesia.general.settings/res/assets.bundle", _binary_apps_brookesia_general_settings_res_assets_bundle_start, _binary_apps_brookesia_general_settings_res_assets_bundle_end},
+    {"system/super/shell/assets.bundle", _binary_system_super_shell_assets_bundle_start, _binary_system_super_shell_assets_bundle_end},
+    {"system/super/startup/assets.bundle", _binary_system_super_startup_assets_bundle_start, _binary_system_super_startup_assets_bundle_end},
+#endif
 };
 
 const size_t perf_eval_res_manifest_count =
