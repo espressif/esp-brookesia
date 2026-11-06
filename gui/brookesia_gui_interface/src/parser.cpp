@@ -89,8 +89,9 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
     const std::filesystem::path resolved_base_dir = std::filesystem::path(base_dir).lexically_normal();
     // One open for the whole document instead of one per asset. Null when the feature is off, the
     // file is missing, or the caller has no local filesystem (Storage-worker path).
-    // Live preview passes false and drops this root only after the document parses, so a rejected
-    // reload leaves the running UI on the bundle it already has.
+    // A successful open takes one registry hold. The runtime releases that hold when the document
+    // is unloaded, or when a live-preview reload is accepted. A parse that fails before the hold
+    // is taken leaves every existing holder in place.
     const auto asset_bundle = use_asset_bundle ? open_asset_bundle(resolved_base_dir) : nullptr;
     boost::json::value constants(boost::json::object(), make_gui_json_storage());
     boost::unordered_flat_set<std::string> loaded_asset_paths;
@@ -632,24 +633,26 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
 #if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
     if (asset_bundle) {
         // Let the backend read resources (images, fonts) from the same bundle the parser just used.
+        // One hold per successful open. The runtime drops it if this document does not keep the parse.
         parser_detail::register_asset_bundle(resolved_base_dir, asset_bundle);
-    } else {
-        // register_asset_bundle(nullptr) would leave the previous entry in place. Drop this root
-        // so image reads fall through to the source files. This covers live preview and a reparse
-        // that could not open assets.bundle. A parse that fails before this point keeps the entry,
-        // and other documents' roots stay registered.
-        parser_detail::unregister_asset_bundle(resolved_base_dir);
+        parsed_document.asset_bundle_root = resolved_base_dir.lexically_normal().generic_string();
     }
 #endif
     return parsed_document;
 }
 
 std::expected<SparseDocument, std::string> parse_sparse_document(
-    std::string_view json, std::string_view base_dir, const Environment &environment)
+    std::string_view json,
+    std::string_view base_dir,
+    const Environment &environment,
+    std::string *asset_bundle_root)
 {
     auto parsed_document = parse_document_impl(json, base_dir, environment, {}, true);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
+    }
+    if (asset_bundle_root != nullptr) {
+        *asset_bundle_root = std::move(parsed_document->asset_bundle_root);
     }
     return std::move(parsed_document->document);
 }

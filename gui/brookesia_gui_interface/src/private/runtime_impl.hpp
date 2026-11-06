@@ -1402,6 +1402,10 @@ public:
         DocumentId document_id;
         std::string file_path;
         bool file_backed = false;
+        // Resource root whose assets.bundle this document currently holds open. Empty when it
+        // holds none. unload() drops the hold; the file closes when the last document using
+        // that root releases it.
+        std::string asset_bundle_root;
         EnvironmentDependencies environment_dependencies;
         bool theme_sensitive = false;
         boost::json::value constants;
@@ -1520,7 +1524,8 @@ public:
         const Environment &environment,
         bool file_backed = false,
         std::vector<std::string> dependency_files = {},
-        DocumentLoadOptions options = {})
+        DocumentLoadOptions options = {},
+        std::string asset_bundle_root = {})
     ;
 
     std::vector<RuntimeImageResource> collect_image_resources(const TreeRecord &tree) const
@@ -1614,6 +1619,18 @@ public:
     ;
 
     bool unload(DocumentId document_id)
+    ;
+
+    // Accounts for a parse that already took one registry hold. An empty root means this parse
+    // took none, so an existing hold on the document is released.
+    void adopt_asset_bundle_hold(TreeRecord &tree, std::string parsed_root)
+    ;
+
+    // Drops a hold that no loaded document kept, such as a parse whose load failed first.
+    void discard_asset_bundle_hold(const std::string &root)
+    ;
+
+    void release_tree_asset_bundle(TreeRecord &tree)
     ;
 
     void set_view_debug_enabled(bool enabled)

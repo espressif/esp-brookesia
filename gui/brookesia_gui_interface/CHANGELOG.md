@@ -17,10 +17,11 @@
 - fix(deps): require lib_utils `>=0.8.4,<0.9` for `can_read_local_files()`.
 - fix(runtime): a backend that cannot report input-idle time returns `UINT32_MAX`, so it does not
   look like a touch in the current tick and block prewarm.
-- fix(parser): live preview reloads the changed source files and drops that root's registered
-  bundle, so image reads do not keep serving the previous `assets.bundle` bytes. A reparse that
-  cannot open `assets.bundle` drops the previous registration as well. A parse that fails before
-  that point keeps it.
+- fix(parser): live preview reloads the changed source files and drops that document's hold on
+  the registered bundle after the reload parses, so image reads do not keep serving the previous
+  `assets.bundle` bytes. Unloading a document drops its hold too, and the file closes when the
+  last document using that root is gone. A parse that fails before taking a hold keeps every
+  existing holder.
 
 ## v0.8.6 - 2026-11-19
 

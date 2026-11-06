@@ -593,6 +593,9 @@ struct SparseDocument {
 struct SparseParsedDocument {
     SparseDocument document;
     std::vector<std::string> dependency_files;
+    // Set when this parse opened assets.bundle and took one registry hold. Empty when it
+    // did not, including a live-preview parse that intentionally skips the bundle.
+    std::string asset_bundle_root;
 };
 
 SparseStyle to_sparse(const Style &source);

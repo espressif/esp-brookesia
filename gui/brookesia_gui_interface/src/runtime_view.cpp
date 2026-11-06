@@ -290,11 +290,13 @@ std::expected<void, std::string> Runtime::Impl::update(
 {
     auto *tree = resolve_tree(document_id);
     if (tree == nullptr) {
+        discard_asset_bundle_hold(parsed_document.asset_bundle_root);
         return std::unexpected("GUI document not loaded");
     }
 
     auto validation = validate_sparse_document(parsed_document.document);
     if (!validation.success) {
+        discard_asset_bundle_hold(parsed_document.asset_bundle_root);
         return std::unexpected(validation.errors.empty() ? "Invalid GUI document" : validation.errors.front());
     }
 
@@ -410,8 +412,12 @@ std::expected<void, std::string> Runtime::Impl::update(
     }
     auto resource_validation = validate_resource_references(*tree);
     if (!resource_validation) {
+        discard_asset_bundle_hold(parsed_document.asset_bundle_root);
         return std::unexpected(resource_validation.error());
     }
+    // A live-preview parse leaves asset_bundle_root empty, which drops this document's hold
+    // before images are read. A parse that opened a bundle keeps a single hold.
+    adopt_asset_bundle_hold(*tree, parsed_document.asset_bundle_root);
     auto preload_result = preload_tree_image_resources(*tree);
     if (!preload_result) {
         release_tree_image_resources(*tree);

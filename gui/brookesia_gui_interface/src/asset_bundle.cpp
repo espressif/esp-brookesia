@@ -178,6 +178,9 @@ namespace {
 
 struct RegistryEntry {
     std::shared_ptr<AssetBundle> bundle;
+    // One per loaded document that parsed this root with a bundle. The stream stays open
+    // until the last holder is released.
+    int holders = 0;
 };
 
 std::mutex &registry_mutex()
@@ -201,14 +204,25 @@ void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_pt
     }
     const std::string key = root_dir.lexically_normal().generic_string();
     std::lock_guard<std::mutex> lock(registry_mutex());
-    registry()[key].bundle = std::move(bundle);
+    auto &entry = registry()[key];
+    entry.bundle = std::move(bundle);
+    ++entry.holders;
 }
 
 void unregister_asset_bundle(const std::filesystem::path &root_dir)
 {
     const std::string key = root_dir.lexically_normal().generic_string();
     std::lock_guard<std::mutex> lock(registry_mutex());
-    registry().erase(key);
+    auto it = registry().find(key);
+    if (it == registry().end()) {
+        return;
+    }
+    if (it->second.holders > 0) {
+        --it->second.holders;
+    }
+    if (it->second.holders == 0) {
+        registry().erase(it);
+    }
 }
 
 std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path)

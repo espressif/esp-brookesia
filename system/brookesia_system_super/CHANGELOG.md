@@ -1,5 +1,13 @@
 # ChangeLog
 
+## v0.8.6 - 2026-11-19
+
+### Enhancements:
+
+- feat(example): with `BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE` enabled, the published Super
+  example packs each document's JSON into `assets.bundle` in a staged copy of the LittleFS tree.
+  With the option off, the image is built from the staged resource tree directly.
+
 ## v0.8.5 - 2026-11-11
 
 ### Bug Fixes:
