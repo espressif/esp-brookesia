@@ -431,6 +431,8 @@ void Runtime::Impl::refresh_image_references(TreeRecord &tree, std::string_view 
             continue;
         }
         if (record.node().type == NodeType::Keyboard) {
+            const auto bundle_reads = asset_bundle_read_scope(tree);
+            (void)bundle_reads;
             apply_record_props(record, PropsApplyMask::KeyboardConfig);
         }
     }

@@ -267,6 +267,9 @@ std::expected<void, std::string> Runtime::Impl::update(
     const Environment &environment)
 {
     auto effective_environment = environment;
+    // Live preview is reading source files. Re-parsing the packed bundle here would
+    // put the document back on bytes that the preview already dropped.
+    bool use_asset_bundle = true;
     if (const auto *tree = resolve_tree_const(document_id); tree != nullptr) {
         if (effective_environment.theme_id.empty()) {
             effective_environment.theme_id = tree->environment.theme_id;
@@ -274,10 +277,12 @@ std::expected<void, std::string> Runtime::Impl::update(
         if (effective_environment.language.empty()) {
             effective_environment.language = tree->environment.language;
         }
+        use_asset_bundle = !tree->live_preview_enabled;
     }
     effective_environment = make_effective_environment(std::move(effective_environment));
     const auto parse_environment = make_parse_environment(effective_environment);
-    auto parsed_document = parse_sparse_document_file_with_metadata(file_path, parse_environment);
+    auto parsed_document = parse_sparse_document_file_with_metadata(
+                               file_path, parse_environment, use_asset_bundle);
     if (!parsed_document) {
         return std::unexpected(parsed_document.error());
     }
@@ -577,6 +582,8 @@ size_t Runtime::Impl::reapply_style_record(TreeRecord &tree, NodeRecord &record)
         auto &props = record.mutable_keyboard_props();
         resolve_keyboard_key_style_refs(tree, props);
         if (backend != nullptr) {
+            const auto bundle_reads = asset_bundle_read_scope(tree);
+            (void)bundle_reads;
             apply_record_props(record, PropsApplyMask::KeyboardConfig);
         }
     }

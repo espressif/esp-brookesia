@@ -214,7 +214,11 @@ def compare_reports(
                 # 0 -> non-zero move is neither an optimization nor an auto-pass.
                 improvement = None
                 regressed = False
-                ok = opt_grade in ("pass_a", "pass_b")
+                ok = math.isfinite(opt_value) and opt_grade in ("pass_a", "pass_b")
+                # A zero baseline does not waive the variance gate: a noisy capture
+                # must still fail unless the row opts out via cv_exempt.
+                if not cv_ok(opt_stats) and not row.get("cv_exempt"):
+                    ok = False
             else:
                 improvement = improvement_pct(row["direction"], base_value, opt_value)
                 # A noisier metric needs a wider noise band before a negative delta is

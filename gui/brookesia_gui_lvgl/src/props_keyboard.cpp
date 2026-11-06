@@ -331,7 +331,30 @@ void apply_keyboard_default_item_styles(Record &record)
     }
 }
 
-const void *keyboard_key_image_src(BackendImpl &impl, const KeyboardKey &key)
+std::shared_ptr<BinaryImageSource> lookup_keyboard_key_image(BackendImpl &impl, const KeyboardKey &key)
+{
+    if (key.resolved_image.native_src != 0 || key.resolved_image.primary_src.empty()) {
+        return nullptr;
+    }
+    const auto cache_key = image_cache_key(key.resolved_image.primary_src);
+    if (!is_lvgl_bin_path(key.resolved_image.primary_src)) {
+        auto decoded_cache_it = impl.decoded_image_cache.find(cache_key);
+        if (decoded_cache_it == impl.decoded_image_cache.end()) {
+            return nullptr;
+        }
+        return decoded_cache_it->second.source;
+    }
+    auto cache_it = impl.binary_image_cache.find(cache_key);
+    if (cache_it == impl.binary_image_cache.end()) {
+        return nullptr;
+    }
+    return cache_it->second.source;
+}
+
+const void *keyboard_key_image_src(
+    BackendImpl &impl,
+    const KeyboardKey &key,
+    const std::shared_ptr<BinaryImageSource> &resolved)
 {
     if (key.resolved_image.native_src != 0) {
         return reinterpret_cast<const void *>(key.resolved_image.native_src);
@@ -339,21 +362,13 @@ const void *keyboard_key_image_src(BackendImpl &impl, const KeyboardKey &key)
     if (key.resolved_image.primary_src.empty()) {
         return nullptr;
     }
-    if (!is_lvgl_bin_path(key.resolved_image.primary_src)) {
-        auto decoded_cache_it = impl.decoded_image_cache.find(key.resolved_image.primary_src);
-        if (decoded_cache_it != impl.decoded_image_cache.end() && decoded_cache_it->second.source != nullptr) {
-            return &decoded_cache_it->second.source->descriptor;
-        }
+    const std::shared_ptr<BinaryImageSource> source =
+        resolved != nullptr ? resolved : lookup_keyboard_key_image(impl, key);
+    if (source == nullptr) {
         BROOKESIA_LOGW("Keyboard key image source is not preloaded: %1%", key.resolved_image.primary_src);
         return nullptr;
     }
-
-    auto cache_it = impl.binary_image_cache.find(key.resolved_image.primary_src);
-    if (cache_it == impl.binary_image_cache.end() || cache_it->second.source == nullptr) {
-        BROOKESIA_LOGW("Keyboard key image binary source is not preloaded: %1%", key.resolved_image.primary_src);
-        return nullptr;
-    }
-    return &cache_it->second.source->descriptor;
+    return &source->descriptor;
 }
 
 bool draw_keyboard_key_image(
@@ -373,7 +388,16 @@ bool draw_keyboard_key_image(
         return false;
     }
 
-    const auto *src = keyboard_key_image_src(impl, key);
+    std::shared_ptr<BinaryImageSource> resolved;
+    auto layout_index = keyboard_layout_index(keyboard->current_mode);
+    if (!layout_index.has_value()) {
+        layout_index = keyboard_layout_index_from_lv_mode(lv_keyboard_get_mode(record.object));
+    }
+    if (layout_index.has_value() &&
+            base_dsc.id1 < keyboard->layouts[*layout_index].image_sources.size()) {
+        resolved = keyboard->layouts[*layout_index].image_sources[base_dsc.id1];
+    }
+    const auto *src = keyboard_key_image_src(impl, key, resolved);
     if (src == nullptr || key.resolved_image.width <= 0 || key.resolved_image.height <= 0) {
         return false;
     }
@@ -543,6 +567,7 @@ void apply_keyboard_layouts(BackendImpl &impl, Record &record, const KeyboardPro
             for (const auto &key : row) {
                 storage.labels.push_back(keyboard_key_label(key));
                 storage.keys.push_back(key);
+                storage.image_sources.push_back(lookup_keyboard_key_image(impl, key));
                 storage.map.push_back(storage.labels.back().c_str());
                 auto control = keyboard_key_ctrl(key, props.popovers);
                 if (key.role == "mode" && !keyboard_mode_allowed(record, key.mode)) {

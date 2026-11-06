@@ -5,7 +5,6 @@
  */
 #include <string_view>
 
-#include "brookesia/gui_interface/asset_source.hpp"
 #include "private/props_impl.hpp"
 // lv_image_cache_drop() lives in an instance header that lvgl.h does not aggregate.
 #if __has_include("lvgl/src/misc/cache/instance/lv_image_cache.h")
@@ -16,15 +15,6 @@
 
 namespace esp_brookesia::gui::lvgl {
 using namespace props_detail;
-
-std::string image_cache_key(const std::string &path)
-{
-    const std::string token = esp_brookesia::gui::bundled_asset_read_token();
-    if (token.empty()) {
-        return path;
-    }
-    return path + '\n' + token;
-}
 
 std::expected<std::shared_ptr<BinaryImageSource>, std::string> load_image_source(std::string_view path)
 {

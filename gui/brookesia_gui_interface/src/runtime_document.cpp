@@ -790,6 +790,10 @@ std::expected<void, std::string> Runtime::Impl::update_image_source(
 void Runtime::Impl::release_tree_image_resources(TreeRecord &tree)
 {
     if (backend != nullptr) {
+        // Preload stored each image under the document's bundle-read token. Release must
+        // use the same token so the cache lookup finds the entry instead of leaking it.
+        const auto bundle_reads = asset_bundle_read_scope(tree);
+        (void)bundle_reads;
         for (const auto &record : tree.preloaded_images) {
             backend->release_image_resource(record.resource);
         }

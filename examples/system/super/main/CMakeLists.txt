@@ -42,10 +42,17 @@ if(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
                 -DPYTHONPATH=${SUPER_ASSET_BUNDLE_SRC}
                 -DPACK=1
                 -P ${CMAKE_CURRENT_LIST_DIR}/stage_littlefs.cmake
-        DEPENDS ${brookesia_runtime_app_stage_targets} ${brookesia_system_super_stage_targets}
         COMMENT "Staging littlefs tree and packing GUI asset bundles"
         VERBATIM
     )
+    # Target-level dependencies must be added after the target exists, and only for
+    # names that are actually targets: a DEPENDS entry that is not yet a target is
+    # silently treated as a file dependency and the build can race.
+    foreach(stage_dep IN LISTS brookesia_runtime_app_stage_targets brookesia_system_super_stage_targets)
+        if(TARGET ${stage_dep})
+            add_dependencies(super_littlefs_stage ${stage_dep})
+        endif()
+    endforeach()
     set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_STAGE}")
     list(APPEND brookesia_runtime_app_stage_targets super_littlefs_stage)
 else()

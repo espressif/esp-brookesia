@@ -656,6 +656,11 @@ std::expected<SparseDocument, std::string> parse_sparse_document(
         *asset_bundle_root = std::move(parsed_document->asset_bundle_root);
         if (asset_bundle_hold != nullptr) {
             *asset_bundle_hold = parsed_document->asset_bundle_hold;
+        } else if (parsed_document->asset_bundle_hold != 0) {
+            // A caller that does not take the hold id cannot unload it later.
+            parser_detail::unregister_asset_bundle(
+                *asset_bundle_root, parsed_document->asset_bundle_hold
+            );
         }
     } else if (parsed_document->asset_bundle_hold != 0) {
         // parse_document() does not load a runtime document, so it cannot unload this hold.

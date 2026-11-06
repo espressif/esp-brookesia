@@ -183,6 +183,9 @@ struct Record {
     struct KeyboardLayoutStorage {
         std::vector<std::string> labels;
         std::vector<KeyboardKey> keys;
+        // Parallel to keys. Captured while the document read scope is active, because the
+        // key-image draw callback runs later and cannot see that scope.
+        std::vector<std::shared_ptr<BinaryImageSource>> image_sources;
         std::vector<const char *> map;
         std::vector<lv_buttonmatrix_ctrl_t> controls;
     };

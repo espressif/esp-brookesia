@@ -13,6 +13,8 @@
   versions that provide `asset_source.hpp` and `can_read_local_files()`.
 - fix(image): key the decoded-image cache by the current bundle-read scope, so a document that
   is reading source files does not reuse another document's bundle bytes for the same path.
+- fix(keyboard): retain each key image while the document read scope is active. The draw callback
+  runs after that scope ends, and a path-only lookup would miss bytes preloaded through a bundle.
 
 ## v0.8.8 - 2026-10-29
 

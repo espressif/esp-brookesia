@@ -377,6 +377,9 @@ void Runtime::Impl::unload_partial_tree(TreeRecord &tree)
     tree.nodes.clear();
     tree.interaction_records.clear();
     tree.screen_roots.clear();
+    // update() reuses the document id. Screen ids from the previous tree must not
+    // keep occupying this document's residency budget.
+    resident_unmounted_screens.erase(tree.document_id.value());
     stop_idle_screen_warm(tree);
     tree.pending_warm_screens.clear();
     tree.idle_warm_scheduled = false;

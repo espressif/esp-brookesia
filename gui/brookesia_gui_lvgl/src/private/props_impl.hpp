@@ -26,6 +26,7 @@
 #if defined(__EMSCRIPTEN__)
 #include "brookesia/gui_interface/wasm/gui_task_queue.hpp"
 #endif
+#include "brookesia/gui_interface/asset_source.hpp"
 #include "brookesia/service_helper/system/storage.hpp"
 #include "private/utils.hpp"
 
@@ -34,6 +35,18 @@ namespace esp_brookesia::gui::lvgl {
 namespace props_detail {
 
 using StorageHelper = service::helper::Storage;
+
+// Preload stores an image under this key. A document read scope appends its token so two
+// documents can keep different bytes for one path. Draw callbacks run after the scope ends,
+// so they must use a source captured while the scope was still active.
+inline std::string image_cache_key(const std::string &path)
+{
+    const std::string token = esp_brookesia::gui::bundled_asset_read_token();
+    if (token.empty()) {
+        return path;
+    }
+    return path + '\n' + token;
+}
 
 bool is_lvgl_bin_path(std::string_view path);
 bool is_png_path(std::string_view path);
@@ -121,7 +134,10 @@ void apply_keyboard_part_style(lv_obj_t *object, const KeyboardKeyStyle &style, 
 void apply_keyboard_default_item_styles(Record &record)
 ;
 
-const void *keyboard_key_image_src(BackendImpl &impl, const KeyboardKey &key)
+const void *keyboard_key_image_src(
+    BackendImpl &impl,
+    const KeyboardKey &key,
+    const std::shared_ptr<BinaryImageSource> &resolved)
 ;
 
 bool draw_keyboard_key_image(
