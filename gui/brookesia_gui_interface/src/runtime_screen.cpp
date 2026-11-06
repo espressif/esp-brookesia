@@ -200,6 +200,16 @@ std::expected<View, std::string> Runtime::Impl::mount_screen(
         .sequence = next_mounted_screen_sequence_++,
     });
     reorder_mounted_screens(*normalized_target);
+#if BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+    {
+        // The screen is mounted again, so it is no longer an eviction candidate.
+        auto resident_it = resident_unmounted_screens.find(document_id.value());
+        if (resident_it != resident_unmounted_screens.end()) {
+            auto &resident = resident_it->second;
+            resident.erase(std::remove(resident.begin(), resident.end(), screen_id), resident.end());
+        }
+    }
+#endif
     return View(runtime, document_id, normalized_path, NodeType::Screen);
 }
 bool Runtime::Impl::unmount_screen(DocumentId document_id, std::string_view absolute_path)

@@ -79,6 +79,18 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             validate per board against the v1.8 page_switch_ms and
             resident-memory dimensions before enabling.
 
+    config BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX
+        int "Maximum unmounted Dynamic screens kept resident per document (0 = unlimited)"
+        depends on BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+        range 0 64
+        default 8
+        help
+            Keeping unmounted Dynamic screens resident trades memory for mount latency:
+            rebuilding a screen costs 20-180 ms depending on its size. This bounds that
+            trade by evicting the screen that has been unmounted the longest once the
+            document holds more than this many unmounted screens. 0 disables the bound
+            and keeps every screen until the document is unloaded.
+
     config BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS
         int "Interned style residency pool slots (0 = heap)"
         range 0 512
@@ -114,6 +126,17 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS to also keep the screens
             resident afterwards, and size the budget below from the board's
             remaining memory. Disabled by default.
+
+    config BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS
+        int "Idle time required before the next prewarm step (ms, 0 = no guard)"
+        depends on BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS
+        range 0 60000
+        default 2000
+        help
+            Before building the next screen in the idle prewarm pass, check how long the
+            user has been away from the screen. If the last input is more recent than this,
+            the step is re-posted instead of run, so a background build never competes with
+            an active touch. 0 disables the guard.
 
     config BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_DELAY_MS
         int "Delay before the prewarm pass starts (ms)"

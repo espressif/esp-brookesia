@@ -2009,6 +2009,10 @@ public:
     std::mutex fast_action_mutex_;
     boost::unordered_flat_map<std::string, Event> fast_action_events_;
     boost::unordered_flat_map<DocumentId::Value, TreeRecord> trees;
+    // Unmounted Dynamic screens kept resident by BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS,
+    // in least-recently-unmounted order. Kept outside TreeRecord so the tree stays trivially
+    // movable for the flat map that stores it.
+    boost::unordered_flat_map<DocumentId::Value, std::deque<std::string>> resident_unmounted_screens;
     // A3: null when BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS is 0. Interior styles hold a
     // shared_ptr to it through their deleter, so the slab outlives every interned style.
     std::shared_ptr<SparseResolvedStylePool> resolved_style_pool_;
@@ -2123,6 +2127,15 @@ private:
     ;
 
     bool unmount_mounted_screen(TreeRecord &tree, std::string_view absolute_path)
+    ;
+
+    void remember_resident_screen(DocumentId document_id, const std::string &screen_id)
+    ;
+
+    void enforce_resident_screen_budget(TreeRecord &tree)
+    ;
+
+    bool is_screen_mounted(DocumentId document_id, std::string_view screen_id) const
     ;
 
     void destroy_subtree(TreeRecord &tree, NodeUid uid)

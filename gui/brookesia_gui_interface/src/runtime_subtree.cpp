@@ -605,6 +605,26 @@ void Runtime::Impl::warm_one_pending_screen(DocumentId document_id)
         return;
     }
     tree->idle_warm_scheduled = false;
+    if (backend != nullptr && !tree->pending_warm_screens.empty()) {
+        // A background build can hold the GUI thread for tens of milliseconds. If the user is
+        // touching the screen right now, post the same step again once the input has been idle
+        // long enough instead of competing with it.
+        constexpr uint32_t kMinIdleMs =
+            static_cast<uint32_t>(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS);
+        const uint32_t idle_ms = backend->get_input_idle_ms();
+        if (kMinIdleMs > 0 && idle_ms != 0 && idle_ms < kMinIdleMs) {
+            tree->warm_not_before = std::chrono::steady_clock::now() +
+                                    std::chrono::milliseconds(kMinIdleMs - idle_ms);
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI runtime idle warm deferred for input: doc(%1%), idle_ms(%2%), need_ms(%3%)",
+                document_id.value(),
+                idle_ms,
+                kMinIdleMs
+            );
+            schedule_idle_screen_warm(document_id);
+            return;
+        }
+    }
     while (!tree->pending_warm_screens.empty()) {
         const std::string screen_id = tree->pending_warm_screens.front();
         tree->pending_warm_screens.erase(tree->pending_warm_screens.begin());
@@ -652,10 +672,17 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
     }
 
     const bool result = backend->unmount_screen(record->handle);
-#if !BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
     auto screen_def_it = tree.screens.find(screen_id);
     const bool is_dynamic =
         screen_def_it != tree.screens.end() && screen_def_it->second.mount_mode == MountMode::Dynamic;
+#if BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+    if (is_dynamic) {
+        // Keep the subtree resident, but bound how many unmounted screens a document may hold:
+        // the budget evicts the screen that has been unmounted the longest.
+        remember_resident_screen(tree.document_id, screen_id);
+        enforce_resident_screen_budget(tree);
+    }
+#else
     if (is_dynamic) {
         const auto root_uid = mounted_it->second;
         destroy_subtree(tree, root_uid);
@@ -664,6 +691,60 @@ bool Runtime::Impl::unmount_mounted_screen(TreeRecord &tree, std::string_view ab
 #endif
     return result;
 }
+void Runtime::Impl::remember_resident_screen(DocumentId document_id, const std::string &screen_id)
+{
+    auto &order = resident_unmounted_screens[document_id.value()];
+    order.erase(std::remove(order.begin(), order.end(), screen_id), order.end());
+    order.push_back(screen_id);
+}
+
+bool Runtime::Impl::is_screen_mounted(DocumentId document_id, std::string_view screen_id) const
+{
+    for (const auto &entry : mounted_screens_) {
+        const auto &mounted = entry.second;
+        if (mounted.document_id == document_id && trim_slashes(mounted.absolute_path) == screen_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void Runtime::Impl::enforce_resident_screen_budget(TreeRecord &tree)
+{
+#if BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+    constexpr size_t kBudget = static_cast<size_t>(BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX);
+    if (kBudget == 0) {
+        return;
+    }
+    auto order_it = resident_unmounted_screens.find(tree.document_id.value());
+    if (order_it == resident_unmounted_screens.end()) {
+        return;
+    }
+    auto &order = order_it->second;
+    while (order.size() > kBudget) {
+        const std::string candidate = order.front();
+        order.pop_front();
+        if (is_screen_mounted(tree.document_id, candidate)) {
+            // Mounted again while queued; it is no longer an eviction candidate.
+            continue;
+        }
+        const auto root_it = tree.screen_roots.find(candidate);
+        if (root_it == tree.screen_roots.end()) {
+            continue;
+        }
+        const NodeUid root_uid = root_it->second;
+        tree.screen_roots.erase(root_it);
+        destroy_subtree(tree, root_uid);
+        GUI_INTERFACE_PROFILE_LOGI(
+            "GUI runtime resident budget evicted: doc(%1%), screen(%2%), budget(%3%)",
+            tree.document_id.value(),
+            candidate,
+            kBudget
+        );
+    }
+#endif
+}
+
 void Runtime::Impl::destroy_subtree(TreeRecord &tree, NodeUid uid)
 {
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
