@@ -1411,6 +1411,10 @@ public:
         // Set when live preview drops this document's hold. Image reads then skip the bundle for
         // this root even if another document still has it registered.
         std::string bundle_bypass_root;
+        // Advances once per accepted source-file parse while bypassing. The image-cache token
+        // includes it, so a later preview does not reuse bytes decoded for another document or
+        // for an older revision of this one. Release of the previous revision happens first.
+        std::uint64_t bundle_source_epoch = 0;
         EnvironmentDependencies environment_dependencies;
         bool theme_sensitive = false;
         boost::json::value constants;

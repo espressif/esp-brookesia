@@ -316,6 +316,14 @@ std::expected<DocumentId, std::string> Runtime::Impl::load(
         stored_tree->asset_bundle_root = std::move(asset_bundle_root);
         stored_tree->asset_bundle_hold = asset_bundle_hold;
         asset_bundle_hold = 0;
+#if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+        // When the bundle was unavailable (hold == 0) but the parser still resolved a
+        // resource root, set up a bypass so this document's image reads do not fall
+        // through to another document's bundle registered for the same root.
+        if (stored_tree->asset_bundle_hold == 0 && !stored_tree->asset_bundle_root.empty()) {
+            stored_tree->bundle_bypass_root = std::move(stored_tree->asset_bundle_root);
+        }
+#endif
         stage_start = RuntimeProfileClock::now();
         auto resource_validation = validate_resource_references(*stored_tree);
         stage_end = RuntimeProfileClock::now();
@@ -946,6 +954,18 @@ void Runtime::Impl::adopt_asset_bundle_hold(
         tree.asset_bundle_root.clear();
         tree.asset_bundle_hold = 0;
         tree.bundle_bypass_root = bypass_root;
+    } else if (!parsed_root.empty()) {
+        // The document loaded without a bundle (hold == 0) but the parser resolved a
+        // resource root. Set up a bypass so this document's reads skip any bundle that
+        // another document still holds for the same root and fall back to source files.
+        tree.bundle_bypass_root = std::move(parsed_root);
+    }
+    // update() releases images before this call, so that release still uses the previous
+    // epoch. Bumping here makes the following preload miss bytes kept for another document
+    // or for the revision just released. A document that is already bypassing still bumps:
+    // dropping the hold only happens on the first source-file parse.
+    if (parsed_hold == 0 && !tree.bundle_bypass_root.empty()) {
+        ++tree.bundle_source_epoch;
     }
 #else
     (void)tree;
@@ -984,7 +1004,11 @@ AssetBundleReadScope Runtime::Impl::asset_bundle_read_scope(const TreeRecord &tr
         return AssetBundleReadScope::hold(tree.asset_bundle_root, tree.asset_bundle_hold);
     }
     if (!tree.bundle_bypass_root.empty()) {
-        return AssetBundleReadScope::bypass(tree.bundle_bypass_root);
+        const std::string cache_identity =
+            std::to_string(tree.document_id.value()) + ":" +
+            std::to_string(tree.bundle_source_epoch) + ":" +
+            tree.bundle_bypass_root;
+        return AssetBundleReadScope::bypass(tree.bundle_bypass_root, cache_identity);
     }
 #else
     (void)tree;

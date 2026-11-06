@@ -58,6 +58,7 @@ private:
         std::string key;
         uint32_t offset = 0;
         uint32_t size = 0;
+        uint32_t crc32 = 0;
         uint32_t flags = 0;
     };
 

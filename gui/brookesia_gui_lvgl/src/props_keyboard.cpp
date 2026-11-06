@@ -535,6 +535,7 @@ void apply_keyboard_layouts(BackendImpl &impl, Record &record, const KeyboardPro
     }
     apply_keyboard_default_item_styles(record);
 
+    std::vector<BackendImpl::KeyboardLayoutBacking> fresh_backing;
     for (const auto &[mode, layout] : props.layouts) {
         auto index = keyboard_layout_index(mode);
         if (!index.has_value()) {
@@ -587,8 +588,30 @@ void apply_keyboard_layouts(BackendImpl &impl, Record &record, const KeyboardPro
             storage.map.data(),
             storage.controls.data()
         );
+        // The layout copy keeps the decoded images for draw callbacks. The backing entry
+        // only has to keep the map pointers LVGL borrowed, so drop the image refs here
+        // before the previous backing entry for this mode is released below.
         keyboard.layouts[*index] = storage;
-        impl.keyboard_layout_backing_store.push_back(std::move(storage_owner));
+        storage.image_sources.clear();
+        fresh_backing.push_back(BackendImpl::KeyboardLayoutBacking{
+            .owner = record.handle.value(),
+            .layout_index = *index,
+            .storage = std::move(storage_owner),
+        });
+    }
+    std::erase_if(
+        impl.keyboard_layout_backing_store,
+    [&fresh_backing](const BackendImpl::KeyboardLayoutBacking & entry) {
+        for (const auto &fresh : fresh_backing) {
+            if (entry.owner == fresh.owner && entry.layout_index == fresh.layout_index) {
+                return true;
+            }
+        }
+        return false;
+    }
+    );
+    for (auto &fresh : fresh_backing) {
+        impl.keyboard_layout_backing_store.push_back(std::move(fresh));
     }
 
     if (!keyboard.event_registered) {

@@ -398,7 +398,14 @@ public:
     std::size_t placement_cache_hits = 0;
     std::size_t placement_cache_misses = 0;
 #endif
-    std::vector<std::shared_ptr<Record::KeyboardLayoutStorage>> keyboard_layout_backing_store;
+    // LVGL borrows the map and control pointers until the layout is replaced or the keyboard
+    // is destroyed. Image bytes stay on the Record layout copy; this store does not keep them.
+    struct KeyboardLayoutBacking {
+        BackendHandle::Value owner = 0;
+        std::size_t layout_index = 0;
+        std::shared_ptr<Record::KeyboardLayoutStorage> storage;
+    };
+    std::vector<KeyboardLayoutBacking> keyboard_layout_backing_store;
     std::unordered_map<char, FontAssetsMountRecord> font_asset_mounts;
     std::unordered_map<char, ImageAssetsMountRecord> image_asset_mounts;
     std::unordered_map<BackendHandle::Value, MountTarget> mounted_targets;

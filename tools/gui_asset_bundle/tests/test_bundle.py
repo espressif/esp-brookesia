@@ -54,7 +54,7 @@ class PackTests(BundleTestCase):
         self.assertEqual(count, 3)
         self.assertEqual(stats.entries, 3)
         self.assertEqual(stats.total_bytes, len(blob))
-        expected_index = sum(4 + len(rel.encode("utf-8")) + 12 for rel in (
+        expected_index = sum(4 + len(rel.encode("utf-8")) + 16 for rel in (
             "root.json", "screens/deep/detail.json", "screens/home.json"
         ))
         self.assertEqual(index_size, expected_index)
@@ -172,6 +172,20 @@ class ReadTests(BundleTestCase):
         self.out.write_bytes(b"BGB1")
         with self.assertRaises(BundleError):
             read_bundle(self.out)
+
+    def test_rejects_corrupted_payload(self):
+        self.make_tree()
+        pack_assets(self.root, self.out)
+        blob = bytearray(self.out.read_bytes())
+        bundle = read_bundle(self.out)
+        entry = bundle.entries[0]
+        start = bundle.payload_offset + entry.offset
+        # Flip one byte inside the payload, keeping the structure and length intact.
+        blob[start] ^= 0xFF
+        self.out.write_bytes(blob)
+        with self.assertRaises(BundleError) as caught:
+            read_bundle(self.out)
+        self.assertIn("CRC", str(caught.exception))
 
 
 class VerifyTests(BundleTestCase):

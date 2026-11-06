@@ -631,10 +631,12 @@ static std::expected<SparseParsedDocument, std::string> parse_document_impl(
         parser_profile_elapsed_ms(total_start, stage_end)
     );
 #if BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE
+    // Remember the resource root even when the bundle is unavailable, so the runtime
+    // can set up a bypass that prevents reads from hitting another document's bundle.
+    parsed_document.asset_bundle_root = resolved_base_dir.lexically_normal().generic_string();
     if (asset_bundle) {
         // One new hold. This does not replace a bundle another document already holds for the
         // same root. The runtime keeps the id; a parse-only caller releases it before returning.
-        parsed_document.asset_bundle_root = resolved_base_dir.lexically_normal().generic_string();
         parsed_document.asset_bundle_hold = parser_detail::register_asset_bundle(resolved_base_dir, asset_bundle);
     }
 #endif

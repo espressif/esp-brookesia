@@ -31,30 +31,39 @@ if(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
     endif()
     set(SUPER_ASSET_BUNDLE_SRC
         "${CMAKE_CURRENT_LIST_DIR}/../../../../tools/gui_asset_bundle/src")
-    set(SUPER_LITTLEFS_STAGE "${CMAKE_CURRENT_BINARY_DIR}/littlefs_stage")
-    # App and system staging targets write into SUPER_LITTLEFS_DIR at build time.
-    # Copy and pack only after they have run, or the image keeps a configure-time snapshot.
-    add_custom_target(super_littlefs_stage ALL
-        COMMAND ${CMAKE_COMMAND}
-                -DSOURCE=${SUPER_LITTLEFS_DIR}
-                -DDEST=${SUPER_LITTLEFS_STAGE}
-                -DPYTHON=${PYTHON}
-                -DPYTHONPATH=${SUPER_ASSET_BUNDLE_SRC}
-                -DPACK=1
-                -P ${CMAKE_CURRENT_LIST_DIR}/stage_littlefs.cmake
-        COMMENT "Staging littlefs tree and packing GUI asset bundles"
-        VERBATIM
-    )
-    # Target-level dependencies must be added after the target exists, and only for
-    # names that are actually targets: a DEPENDS entry that is not yet a target is
-    # silently treated as a file dependency and the build can race.
-    foreach(stage_dep IN LISTS brookesia_runtime_app_stage_targets brookesia_system_super_stage_targets)
-        if(TARGET ${stage_dep})
-            add_dependencies(super_littlefs_stage ${stage_dep})
-        endif()
-    endforeach()
-    set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_STAGE}")
-    list(APPEND brookesia_runtime_app_stage_targets super_littlefs_stage)
+    if(NOT EXISTS "${SUPER_ASSET_BUNDLE_SRC}")
+        message(WARNING
+            "Super: GUI asset bundle tool not found at ${SUPER_ASSET_BUNDLE_SRC}. "
+            "This is expected when the example is built outside the esp-brookesia monorepo "
+            "(e.g. downloaded from the ESP Registry). Falling back to per-file reads; "
+            "set BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE=n to silence this warning.")
+        set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_DIR}")
+    else()
+        set(SUPER_LITTLEFS_STAGE "${CMAKE_CURRENT_BINARY_DIR}/littlefs_stage")
+        # App and system staging targets write into SUPER_LITTLEFS_DIR at build time.
+        # Copy and pack only after they have run, or the image keeps a configure-time snapshot.
+        add_custom_target(super_littlefs_stage ALL
+            COMMAND ${CMAKE_COMMAND}
+                    -DSOURCE=${SUPER_LITTLEFS_DIR}
+                    -DDEST=${SUPER_LITTLEFS_STAGE}
+                    -DPYTHON=${PYTHON}
+                    -DPYTHONPATH=${SUPER_ASSET_BUNDLE_SRC}
+                    -DPACK=1
+                    -P ${CMAKE_CURRENT_LIST_DIR}/stage_littlefs.cmake
+            COMMENT "Staging littlefs tree and packing GUI asset bundles"
+            VERBATIM
+        )
+        # Target-level dependencies must be added after the target exists, and only for
+        # names that are actually targets: a DEPENDS entry that is not yet a target is
+        # silently treated as a file dependency and the build can race.
+        foreach(stage_dep IN LISTS brookesia_runtime_app_stage_targets brookesia_system_super_stage_targets)
+            if(TARGET ${stage_dep})
+                add_dependencies(super_littlefs_stage ${stage_dep})
+            endif()
+        endforeach()
+        set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_STAGE}")
+        list(APPEND brookesia_runtime_app_stage_targets super_littlefs_stage)
+    endif()
 else()
     set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_DIR}")
 endif()

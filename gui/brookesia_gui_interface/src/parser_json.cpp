@@ -454,6 +454,23 @@ std::expected<void, std::string> append_root_asset_entries(
             auto asset_value = parse_json_text(pending_entry.path, text);
             text.clear();
             text.shrink_to_fit();
+            // Fall back to the source file when the bundle payload is missing, unparsable,
+            // or does not contain a JSON object. A corrupted bundle may have valid syntax
+            // but wrong content (e.g. null), while the source file is still correct.
+            if ((!asset_value || !asset_value->is_object()) && bundle != nullptr) {
+                BROOKESIA_LOGW(
+                    "Asset bundle parse failed for '%1%', retrying from source: %2%",
+                    pending_entry.path.generic_string(),
+                    asset_value ? "not a JSON object" : asset_value.error()
+                );
+                auto fallback = read_text_file(pending_entry.path, nullptr);
+                if (fallback) {
+                    auto fallback_value = parse_json_text(pending_entry.path, *fallback);
+                    if (fallback_value && fallback_value->is_object()) {
+                        asset_value = std::move(fallback_value);
+                    }
+                }
+            }
             if (!asset_value) {
                 return std::unexpected(asset_value.error());
             }

@@ -42,8 +42,11 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             When enabled, the parser looks for <resource root>/assets.bundle, produced
             by tools/gui_asset_bundle, and serves the JSON assets from it. That replaces
             one littlefs open per asset (about 5.25 ms each) with a single open plus a
-            seek per asset. A missing or malformed bundle falls back to the per-file
-            path, so apps that have not been packed keep working unchanged.
+            seek per asset. Each entry stores an IEEE 802.3 CRC32 of its payload, so a
+            bundle that is structurally intact but byte-corrupted is detected at read
+            time and the parser falls back to the source file. A missing or malformed
+            bundle also falls back to the per-file path, so apps that have not been
+            packed keep working unchanged.
 
     config BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
         bool "Enable parser/runtime profile logs"

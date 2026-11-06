@@ -1500,6 +1500,22 @@ BROOKESIA_TEST_CASE(
 
     const auto destroyed_before = backend_ptr->destroyed_count();
     TEST_ASSERT_TRUE(runtime.unmount_screen(document_id.value(), "/dynamic_screen"));
+#if BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+    // Keep-alive retains the Dynamic subtree: nothing is destroyed, the view
+    // stays valid, and a re-mount reuses the same instance state.
+    TEST_ASSERT_EQUAL_size_t(destroyed_before, backend_ptr->destroyed_count());
+    TEST_ASSERT_TRUE(runtime.find_view(document_id.value(), "/dynamic_screen/left").valid());
+
+    mounted = runtime.mount_screen(document_id.value(), "/dynamic_screen");
+    TEST_ASSERT_TRUE(mounted.has_value());
+    left = runtime.find_view(document_id.value(), "/dynamic_screen/left").as_label();
+    right = runtime.find_view(document_id.value(), "/dynamic_screen/right").as_label();
+    TEST_ASSERT_EQUAL_STRING("Left instance state", left.text().c_str());
+    TEST_ASSERT_EQUAL_STRING("Definition text", right.text().c_str());
+#else
+    // Without keep-alive, unmount destroys the subtree: the backend sees a
+    // destroy_node, the view becomes invalid, and a re-mount rebuilds from
+    // the definition so the setter state is discarded.
     TEST_ASSERT_EQUAL_size_t(destroyed_before + 1, backend_ptr->destroyed_count());
     TEST_ASSERT_FALSE(runtime.find_view(document_id.value(), "/dynamic_screen/left").valid());
 
@@ -1509,6 +1525,7 @@ BROOKESIA_TEST_CASE(
     right = runtime.find_view(document_id.value(), "/dynamic_screen/right").as_label();
     TEST_ASSERT_EQUAL_STRING("Definition text", left.text().c_str());
     TEST_ASSERT_EQUAL_STRING("Definition text", right.text().c_str());
+#endif
 
     TEST_ASSERT_TRUE(runtime.unmount_screen(document_id.value(), "/dynamic_screen"));
     TEST_ASSERT_TRUE(runtime.unload(document_id.value()));

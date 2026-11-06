@@ -2,7 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Packer and reader for the Brookesia GUI asset bundle (format v1).
+"""Packer and reader for the Brookesia GUI asset bundle (format v2).
 
 The runtime reads one JSON asset per file today. On littlefs every open costs a
 fixed ~5.25 ms regardless of size, so a 30-asset document spends roughly 157 ms
@@ -17,25 +17,31 @@ Layout (little endian, 4-byte aligned payload):
     offset 12  u32      entry count
     offset 16  u32      index size in bytes
     offset 20  u32      payload offset from the start of the file
-    offset 24  entries: u32 path_len, path bytes, u32 offset, u32 size, u32 flags
+    offset 24  entries: u32 path_len, path bytes, u32 offset, u32 size, u32 crc32, u32 flags
     ...        payload: raw file bytes, each entry offset 4-byte aligned
+
+Each entry stores the IEEE 802.3 CRC32 of its payload so the runtime can detect
+corruption that leaves the container structure intact but damages the content.
+A mismatch makes the reader treat the entry as absent and fall back to the
+source file, matching the Kconfig promise that a corrupted bundle is transparent.
 """
 
 import fnmatch
 import os
 import struct
+import zlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Sequence, Tuple
 
 MAGIC = b"BGB1"
-VERSION = 1
+VERSION = 2
 ALIGNMENT = 4
 DEFAULT_PATTERNS = ("*.json",)
 
 HEADER_FORMAT = "<4sIIIII"
 HEADER_SIZE = struct.calcsize(HEADER_FORMAT)
-ENTRY_FORMAT = "<III"
+ENTRY_FORMAT = "<IIII"
 ENTRY_FIXED_SIZE = 4 + struct.calcsize(ENTRY_FORMAT)
 
 _U32_MAX = 0xFFFFFFFF
@@ -50,6 +56,7 @@ class BundleEntry:
     path: str
     offset: int
     size: int
+    crc32: int
     flags: int
 
 
@@ -140,7 +147,7 @@ def pack_assets(
             raise BundleError(f"asset path is too long for the bundle format: {rel}")
         index.extend(struct.pack("<I", len(path_bytes)))
         index.extend(path_bytes)
-        index.extend(struct.pack(ENTRY_FORMAT, offset, len(data), 0))
+        index.extend(struct.pack(ENTRY_FORMAT, offset, len(data), zlib.crc32(data), 0))
 
     index_size = len(index)
     payload_offset = HEADER_SIZE + index_size
@@ -191,11 +198,14 @@ def read_bundle(bundle_path: os.PathLike) -> Bundle:
         except UnicodeDecodeError as error:
             raise BundleError("bundle entry path is not valid UTF-8") from error
         cursor += path_len
-        offset, size, entry_flags = struct.unpack_from(ENTRY_FORMAT, data, cursor)
+        offset, size, crc32, entry_flags = struct.unpack_from(ENTRY_FORMAT, data, cursor)
         cursor += struct.calcsize(ENTRY_FORMAT)
         if payload_offset + offset + size > len(data):
             raise BundleError(f"bundle entry is past the end of the file: {path}")
-        entries.append(BundleEntry(path=path, offset=offset, size=size, flags=entry_flags))
+        stored = data[payload_offset + offset:payload_offset + offset + size]
+        if zlib.crc32(stored) != crc32:
+            raise BundleError(f"bundle entry CRC mismatch: {path}")
+        entries.append(BundleEntry(path=path, offset=offset, size=size, crc32=crc32, flags=entry_flags))
 
     if cursor - HEADER_SIZE != index_size:
         raise BundleError("bundle index size does not match its entries")

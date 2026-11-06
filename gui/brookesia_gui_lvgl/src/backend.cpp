@@ -350,6 +350,13 @@ void BackendImpl::destroy_node(BackendHandle handle)
         auto record_it = records.find(handle_value);
         if (record_it != records.end()) {
             detach_keyboard_globals(record_it->second);
+            if (record_it->second.type == NodeType::Keyboard) {
+                // detach_keyboard_globals() has pointed every mode at a static empty map,
+                // so the borrowed label storage can go with the Record.
+                std::erase_if(keyboard_layout_backing_store, [handle_value](const KeyboardLayoutBacking & entry) {
+                    return entry.owner == handle_value;
+                });
+            }
         }
     }
 

@@ -27,10 +27,12 @@ std::optional<std::string> read_bundled_asset(const std::filesystem::path &path)
 
 // Active while one document's images are loaded or released. The image cache appends
 // bundled_asset_read_token() so two documents can keep different bytes for one path.
+// `cache_identity` distinguishes one document's accepted source revision from another
+// document, or from an older revision of the same document, that bypasses the same root.
 class AssetBundleReadScope {
 public:
     AssetBundleReadScope() = default;
-    static AssetBundleReadScope bypass(std::string root);
+    static AssetBundleReadScope bypass(std::string root, std::string cache_identity);
     static AssetBundleReadScope hold(std::string root, std::uint64_t hold_id);
 
     AssetBundleReadScope(const AssetBundleReadScope &) = delete;
