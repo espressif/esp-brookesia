@@ -4,13 +4,18 @@
 
 ### Enhancements:
 
-- feat(runtime): add an off-by-default keep-alive for unmounted Dynamic screens, so a re-mount reuses
-  the built subtree instead of rebuilding it (measured -88% `mount_ms` on esp32_p4_function_ev, at the
-  cost of resident memory).
+- feat(runtime): add a keep-alive for unmounted Dynamic screens, so a re-mount reuses the built
+  subtree instead of rebuilding it (measured 193 ms -> 15 ms `mount_ms` on esp32_p4x_function_ev, at
+  the cost of ~365 KB PSRAM and about +0.5 ms per text-binding flush). It defaults on for PSRAM builds and is bounded by
+  `BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX`, so a document cannot retain every screen it
+  ever visited.
 - feat(runtime): serve interned `SparseResolvedStyle` objects from a fixed-capacity pool when
   `BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS` is set, which reduces small-block PSRAM fragmentation.
 - perf(runtime): build the scoped binding store key once per update instead of once per write and
   once per notification, cutting the binding flush apply time by ~10%.
+- test(runtime): add opt-in flush/apply profiling (`GUI binding flush profile`, `GUI binding reapply
+  profile`, `GUI props apply profile`) behind `BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG`, so a
+  binding-latency regression can be attributed to store, lookup, binding or backend work.
 - feat(runtime): prewarm Dynamic screens during the idle pass (opt-in, budgeted) so the first mount
   reuses a built subtree instead of paying the build on the interaction path.
 - feat(runtime): delay the prewarm pass (`..._PREWARM_DYNAMIC_SCREENS_DELAY_MS`, default 5 s) so the

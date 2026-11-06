@@ -40,6 +40,9 @@ void Runtime::Impl::apply_record_props(NodeRecord &record, PropsApplyMask mask)
 
     // IBackend consumes this snapshot during the call. Copy only the selected node type's
     // props into temporary stack storage; unrelated domains never become persistent state.
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    const auto snapshot_start = std::chrono::steady_clock::now();
+#endif
     SparseNode props_snapshot;
     props_snapshot.type = record.node().type;
     props_snapshot.common_props = record.common_props();
@@ -88,7 +91,29 @@ void Runtime::Impl::apply_record_props(NodeRecord &record, PropsApplyMask mask)
         break;
     }
     props_snapshot.placement = record.placement();
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    const int64_t snapshot_us = static_cast<int64_t>(
+                                    std::chrono::duration_cast<std::chrono::microseconds>(
+                                        std::chrono::steady_clock::now() - snapshot_start).count());
+    const auto backend_start = std::chrono::steady_clock::now();
+#endif
     apply_backend_props(*backend, record.handle, props_snapshot, mask);
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    {
+        const int64_t backend_us = static_cast<int64_t>(
+                                       std::chrono::duration_cast<std::chrono::microseconds>(
+                                           std::chrono::steady_clock::now() - backend_start).count());
+        if (backend_us >= 2000) {
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI props apply profile: path(%1%), type(%2%), snapshot_us(%3%), backend_us(%4%)",
+                record.absolute_path,
+                static_cast<int>(record.node().type),
+                snapshot_us,
+                backend_us
+            );
+        }
+    }
+#endif
 }
 std::optional<ViewStateValue> Runtime::Impl::get_view_state_internal(const View &view, ViewStateKind kind) const
 {

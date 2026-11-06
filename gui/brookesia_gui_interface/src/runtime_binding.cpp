@@ -781,27 +781,81 @@ void Runtime::Impl::reapply_binding_masks(TreeRecord &tree, NodeRecord &record, 
     if (backend == nullptr) {
         return;
     }
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    const auto mask_start = std::chrono::steady_clock::now();
+    auto mask_stage = mask_start;
+    int64_t props_us = 0;
+    int64_t style_resolve_us = 0;
+    int64_t style_apply_us = 0;
+    int64_t layout_us = 0;
+    int64_t placement_us = 0;
+#endif
     if (masks.props != PropsApplyMask::None) {
         apply_record_props(record, masks.props);
         if (record.node().type == NodeType::Image && has_mask(masks.props, PropsApplyMask::ImageSource)) {
             backend->apply_placement(record.handle, record.placement(), PlacementApplyMask::Size);
         }
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        props_us = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                            std::chrono::steady_clock::now() - mask_stage).count());
+        mask_stage = std::chrono::steady_clock::now();
+#endif
     }
     if (masks.style != StyleApplyMask::None) {
         const auto style_snapshot = make_style_snapshot(record);
         record.resolved_style = resolve_style_shared(tree, style_snapshot);
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        style_resolve_us = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - mask_stage).count());
+        mask_stage = std::chrono::steady_clock::now();
+#endif
         apply_backend_style(*backend, record.handle, *record.resolved_style, masks.style);
         backend->apply_debug_visual(record.handle, view_debug_enabled_);
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        style_apply_us = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                std::chrono::steady_clock::now() - mask_stage).count());
+        mask_stage = std::chrono::steady_clock::now();
+#endif
     }
     if (masks.layout != LayoutApplyMask::None) {
         backend->apply_layout(record.handle, record.layout(), masks.layout);
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        layout_us = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                             std::chrono::steady_clock::now() - mask_stage).count());
+        mask_stage = std::chrono::steady_clock::now();
+#endif
     }
     if (masks.placement != PlacementApplyMask::None) {
         backend->apply_placement(record.handle, record.placement(), masks.placement);
         if (has_mask(masks.placement, PlacementApplyMask::Size)) {
             apply_record_props(record, PropsApplyMask::CommonTransform);
         }
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        placement_us = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                                std::chrono::steady_clock::now() - mask_stage).count());
+#endif
     }
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    {
+        const int64_t total_us = static_cast<int64_t>(std::chrono::duration_cast<std::chrono::microseconds>(
+                                     std::chrono::steady_clock::now() - mask_start).count());
+        if (total_us >= 3000) {
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI binding reapply profile: doc(%1%), path(%2%), type(%3%), total_us(%4%), "
+                "props_us(%5%), style_resolve_us(%6%), style_apply_us(%7%), layout_us(%8%), placement_us(%9%)",
+                tree.document_id.value(),
+                record.absolute_path,
+                static_cast<int>(record.node().type),
+                total_us,
+                props_us,
+                style_resolve_us,
+                style_apply_us,
+                layout_us,
+                placement_us
+            );
+        }
+    }
+#endif
 }
 void Runtime::Impl::merge_binding_mask(BindingApplyMasks &masks, const BindingTargetInfo &target_info)
 {
@@ -905,6 +959,15 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
 
     // The scoped key is needed twice per update: once for the silent write and once, after the
     // backend is coherent, for the subscriber notification. Build it once and keep it.
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    const auto flush_start = std::chrono::steady_clock::now();
+    auto flush_stage = flush_start;
+    int64_t store_write_us = 0;
+    int64_t apply_us = 0;
+    int64_t resolve_us = 0;
+    int64_t bind_loop_us = 0;
+    int64_t reapply_us = 0;
+#endif
     std::vector<std::string> scoped_store_keys(updates.size());
     for (size_t update_index = 0; update_index < updates.size(); ++update_index) {
         if (update_is_shadowed(update_index)) {
@@ -917,6 +980,12 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
         store->set_string_silent(scoped_store_keys[update_index], update.value);
     }
 
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    store_write_us = static_cast<int64_t>(
+                         std::chrono::duration_cast<std::chrono::microseconds>(
+                             std::chrono::steady_clock::now() - flush_stage).count());
+    flush_stage = std::chrono::steady_clock::now();
+#endif
     if (tree != nullptr) {
         // Binding batches are small (the system GUI normally sends 1-30 updates). A compact
         // vector avoids constructing a hash table for every flush and keeps all scratch storage
@@ -934,7 +1003,15 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
                 normalized_path_storage = normalize_absolute_path(query);
                 query = normalized_path_storage;
             }
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+            const auto resolve_start = std::chrono::steady_clock::now();
+#endif
             auto uid = resolve_normalized_uid(*tree, query);
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+            resolve_us += static_cast<int64_t>(
+                              std::chrono::duration_cast<std::chrono::microseconds>(
+                                  std::chrono::steady_clock::now() - resolve_start).count());
+#endif
             if (!uid.has_value()) {
                 if (!tree_has_binding_declaration_for_update(*tree, query, update.key)) {
                     BROOKESIA_LOGW(
@@ -995,6 +1072,12 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
             }
         }
 
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        bind_loop_us = static_cast<int64_t>(
+                           std::chrono::duration_cast<std::chrono::microseconds>(
+                               std::chrono::steady_clock::now() - flush_stage).count());
+        const auto reapply_start = std::chrono::steady_clock::now();
+#endif
         for (const auto &[uid, masks] : dirty_nodes) {
             auto *record = find_node_record(*tree, uid);
             if (record == nullptr) {
@@ -1002,8 +1085,20 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
             }
             reapply_binding_masks(*tree, *record, masks);
         }
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+        reapply_us = static_cast<int64_t>(
+                         std::chrono::duration_cast<std::chrono::microseconds>(
+                             std::chrono::steady_clock::now() - reapply_start).count());
+        apply_us = bind_loop_us + reapply_us;
+#endif
     }
 
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    apply_us = static_cast<int64_t>(
+                   std::chrono::duration_cast<std::chrono::microseconds>(
+                       std::chrono::steady_clock::now() - flush_stage).count());
+    flush_stage = std::chrono::steady_clock::now();
+#endif
     // Values were written silently before backend application so synchronous backend events
     // observe the new value. Notify explicit public subscribers only after backend state is
     // coherent; a reentrant write with a different value suppresses this stale notification.
@@ -1015,6 +1110,34 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
         store->notify_string_if_value_keyed(scoped_store_keys[update_index], update.value);
     }
 
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    {
+        const auto flush_end = std::chrono::steady_clock::now();
+        const int64_t total_us = static_cast<int64_t>(
+                                     std::chrono::duration_cast<std::chrono::microseconds>(
+                                         flush_end - flush_start).count());
+        const int64_t notify_us = static_cast<int64_t>(
+                                      std::chrono::duration_cast<std::chrono::microseconds>(
+                                          flush_end - flush_stage).count());
+        if (total_us >= 5000) {
+            GUI_INTERFACE_PROFILE_LOGI(
+                "GUI binding flush profile: doc(%1%), updates(%2%), nodes(%3%), total_us(%4%), "
+                "store_us(%5%), apply_us(%6%), notify_us(%7%), resolve_us(%8%), bind_loop_us(%9%), "
+                "reapply_us(%10%)",
+                document_id.value(),
+                updates.size(),
+                tree != nullptr ? tree->nodes.size() : 0,
+                total_us,
+                store_write_us,
+                apply_us,
+                notify_us,
+                resolve_us,
+                bind_loop_us,
+                reapply_us
+            );
+        }
+    }
+#endif
 #if BROOKESIA_GUI_INTERFACE_ENABLE_MEMORY_TRACE
     // A public listener may unload the document. Resolve it again after notification instead of
     // dereferencing the pre-callback TreeRecord pointer.
