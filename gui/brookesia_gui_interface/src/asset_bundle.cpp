@@ -79,6 +79,14 @@ std::expected<std::shared_ptr<AssetBundle>, std::string> AssetBundle::open(
         }
     }
 
+    // An entry is at least 16 bytes: path length, an empty path, then offset, size and flags.
+    // Reject a count that cannot fit before reserve(), so a corrupt header cannot ask for
+    // an unbounded allocation. The per-entry checks below still reject a short last entry.
+    constexpr uint32_t kMinEntryBytes = 16;
+    if (count > index_size / kMinEntryBytes) {
+        return std::unexpected("Asset bundle entry count does not fit in the index");
+    }
+
     auto bundle = std::shared_ptr<AssetBundle>(new AssetBundle());
     bundle->root_dir_ = bundle_path.parent_path().lexically_normal();
     bundle->payload_offset_ = payload_offset;
@@ -93,7 +101,10 @@ std::expected<std::shared_ptr<AssetBundle>, std::string> AssetBundle::open(
         }
         const uint32_t path_len = read_u32_le(cursor);
         cursor += 4;
-        if (static_cast<size_t>(end - cursor) < path_len + 12) {
+        const size_t remaining = static_cast<size_t>(end - cursor);
+        // Compare against the remaining bytes before adding. path_len + 12 wraps uint32_t
+        // when path_len is within 12 of 2^32, and a wrapped sum would pass a short index.
+        if (path_len > remaining || remaining - static_cast<size_t>(path_len) < 12) {
             return std::unexpected("Asset bundle entry is truncated");
         }
         Entry entry;
@@ -105,6 +116,9 @@ std::expected<std::shared_ptr<AssetBundle>, std::string> AssetBundle::open(
         cursor += 12;
         if (bundle->payload_offset_ + entry.offset + entry.size > bundle->file_size_) {
             return std::unexpected("Asset bundle entry points past the end of the file: " + entry.key);
+        }
+        if (!bundle->entries_.empty() && entry.key <= bundle->entries_.back().key) {
+            return std::unexpected("Asset bundle entries are not strictly increasing: " + entry.key);
         }
         bundle->entries_.push_back(std::move(entry));
     }
@@ -188,6 +202,13 @@ void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_pt
     const std::string key = root_dir.lexically_normal().generic_string();
     std::lock_guard<std::mutex> lock(registry_mutex());
     registry()[key].bundle = std::move(bundle);
+}
+
+void unregister_asset_bundle(const std::filesystem::path &root_dir)
+{
+    const std::string key = root_dir.lexically_normal().generic_string();
+    std::lock_guard<std::mutex> lock(registry_mutex());
+    registry().erase(key);
 }
 
 std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path)

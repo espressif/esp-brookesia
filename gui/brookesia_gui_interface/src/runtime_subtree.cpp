@@ -612,7 +612,9 @@ void Runtime::Impl::warm_one_pending_screen(DocumentId document_id)
         constexpr uint32_t kMinIdleMs =
             static_cast<uint32_t>(BROOKESIA_GUI_INTERFACE_PREWARM_DYNAMIC_SCREENS_MIN_IDLE_MS);
         const uint32_t idle_ms = backend->get_input_idle_ms();
-        if (kMinIdleMs > 0 && idle_ms != 0 && idle_ms < kMinIdleMs) {
+        // Inactive time is 0 when input arrived in the current tick. That is the case that must
+        // wait, not a missing measurement.
+        if (kMinIdleMs > 0 && idle_ms < kMinIdleMs) {
             tree->warm_not_before = std::chrono::steady_clock::now() +
                                     std::chrono::milliseconds(kMinIdleMs - idle_ms);
             GUI_INTERFACE_PROFILE_LOGI(
@@ -703,6 +705,12 @@ bool Runtime::Impl::is_screen_mounted(DocumentId document_id, std::string_view s
     for (const auto &entry : mounted_screens_) {
         const auto &mounted = entry.second;
         if (mounted.document_id == document_id && trim_slashes(mounted.absolute_path) == screen_id) {
+            return true;
+        }
+    }
+    for (const auto &entry : transient_screens_) {
+        const auto &transient = entry.second;
+        if (transient.document_id == document_id && trim_slashes(transient.absolute_path) == screen_id) {
             return true;
         }
     }

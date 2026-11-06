@@ -936,6 +936,7 @@ bool Runtime::Impl::unload(DocumentId document_id)
     unload_partial_tree(tree_it->second);
     release_tree_image_resources(tree_it->second);
     trees.erase(tree_it);
+    resident_unmounted_screens.erase(document_id.value());
 
     std::vector<std::string> mounted_targets_to_erase;
     for (const auto &[target_key, mounted_ref] : mounted_screens_) {
@@ -1043,7 +1044,10 @@ void Runtime::Impl::poll_live_preview(Runtime *runtime)
         }
 
         const auto parse_environment = make_parse_environment(tree.environment);
-        auto parsed_document = parse_sparse_document_file_with_metadata(tree.file_path, parse_environment);
+        // Skip the packed bundle and drop this root's registry entry. The reload was triggered
+        // because a source file changed, and image reads would otherwise keep the previous bytes.
+        auto parsed_document = parse_sparse_document_file_with_metadata(
+                                   tree.file_path, parse_environment, false);
         if (!parsed_document) {
             BROOKESIA_LOGW(
                 "Live preview parse failed: document_id=%1%, root='%2%', error=%3%",

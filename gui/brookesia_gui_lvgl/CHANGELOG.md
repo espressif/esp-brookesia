@@ -7,6 +7,11 @@
 - perf(image): consult the document's asset bundle before reading an image file, which removes one
   open per image when the bundle carries media.
 
+### Bug Fixes:
+
+- fix(deps): require GUI Interface `>=0.8.7,<0.9` and lib_utils `>=0.8.4,<0.9`, which are the first
+  versions that provide `asset_source.hpp` and `can_read_local_files()`.
+
 ## v0.8.8 - 2026-10-29
 
 ### Enhancements:
@@ -14,14 +19,9 @@
 - perf(image): read image files directly instead of through the storage service when the caller can
   touch the filesystem, cutting the image part of a screen build by 60-65% (keyboard_input
   136 -> 51 ms, settings_home 60 -> 21 ms on esp32_p4x_function_ev).
-
-- feat(style): adapt LVGL style application for sparse Style fields from `brookesia_gui_interface`.
-- feat(props): skip redundant common transform defaults when applying local LVGL transform props.
 - perf(layout): skip the relative-placement scan when no record uses relative placement. Every
   property/style/layout/placement apply ends in that scan, so resident screens used to turn a
   constant-cost write into an O(records) one (-60% `flush_apply_ms` with keep-alive enabled).
-- perf(layout): lay out only the screen being mounted when its layer carries no layout (opt-in), so
-  keeping screens resident no longer makes every mount lay out the hidden ones too.
 
 ## v0.8.7 - 2026-10-27
 

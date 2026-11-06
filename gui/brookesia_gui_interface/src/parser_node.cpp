@@ -585,14 +585,16 @@ std::expected<std::vector<SparseNode>, std::string> parse_children(
             children.push_back(std::move(*parsed_ref));
             continue;
         }
-        // The type was already read above, so validate it here and hand the parsed value down instead
-        // of letting parse_view_node look the same field up and parse it a second time.
+        // A parsed type is handed down so the success path does not look the field up again.
+        // A failure leaves forced_type empty: parse_view_node then checks the legacy 'subtype'
+        // field and type="view" and reports that migration hint before the type error.
         auto child_node_type = parse_node_type(*child_type);
-        if (!child_node_type) {
-            return std::unexpected(child_node_type.error());
+        std::optional<NodeType> forced_type;
+        if (child_node_type) {
+            forced_type = *child_node_type;
         }
         auto parsed_child = parse_view_node(
-                                child_object, environment, templates, interactions, template_stack, *child_node_type, timing
+                                child_object, environment, templates, interactions, template_stack, forced_type, timing
                             );
         if (!parsed_child) {
             return std::unexpected(parsed_child.error());

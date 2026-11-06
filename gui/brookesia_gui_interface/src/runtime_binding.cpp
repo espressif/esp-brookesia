@@ -1102,6 +1102,10 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
     // Values were written silently before backend application so synchronous backend events
     // observe the new value. Notify explicit public subscribers only after backend state is
     // coherent; a reentrant write with a different value suppresses this stale notification.
+    // A subscriber may unload the document, so snapshot anything the profile log still needs.
+#if BROOKESIA_GUI_INTERFACE_ENABLE_PROFILE_LOG
+    const size_t flushed_node_count = (tree != nullptr) ? tree->nodes.size() : 0;
+#endif
     for (size_t update_index = 0; update_index < updates.size(); ++update_index) {
         if (update_is_shadowed(update_index)) {
             continue;
@@ -1126,7 +1130,7 @@ void Runtime::Impl::set_binding_values(DocumentId document_id, std::span<const B
                 "reapply_us(%10%)",
                 document_id.value(),
                 updates.size(),
-                tree != nullptr ? tree->nodes.size() : 0,
+                flushed_node_count,
                 total_us,
                 store_write_us,
                 apply_us,

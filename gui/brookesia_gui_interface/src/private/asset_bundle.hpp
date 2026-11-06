@@ -74,10 +74,13 @@ private:
 };
 
 // Process-wide registry of the bundles opened for loaded documents, keyed by the
-// resource root. A bundle is a build artifact that does not change while the
-// process runs, so entries are kept for the process lifetime (index is ~1% of the
-// payload and the payload stays on flash).
+// resource root. A bundle is a build artifact, so an entry stays until that root
+// is dropped (index is ~1% of the payload and the payload stays on flash).
 void register_asset_bundle(const std::filesystem::path &root_dir, std::shared_ptr<AssetBundle> bundle);
+// Drops the bundle for one resource root. A missing entry is ignored. Live preview
+// calls this only after a reload parses, so a rejected reload keeps the running UI
+// on the bundle it already has. Later image reads then fall through to source files.
+void unregister_asset_bundle(const std::filesystem::path &root_dir);
 // Bytes for `path` when one of the registered bundles holds it.
 std::optional<std::string> read_bundled_asset_bytes(const std::filesystem::path &path);
 

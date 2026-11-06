@@ -687,17 +687,10 @@ bool BackendImpl::mount_screen(BackendHandle handle, const MountTarget &target)
     lv_obj_set_parent(record->object, layer_parent);
     lv_obj_remove_flag(record->object, LV_OBJ_FLAG_HIDDEN);
     lv_obj_move_foreground(record->object);
-#if BROOKESIA_GUI_LVGL_MOUNT_LAYOUT_SCREEN_ONLY
-    // Passing the layer would lay out every screen the layer holds, including the hidden ones that
-    // keep-alive retains. Keep the layer path when the layer itself carries a layout, because then
-    // the child's position comes from the parent.
-    // LV_LAYOUT_NONE is 0; any other value means the layer positions its children itself.
-    lv_obj_t *mount_layout_root =
-        (lv_obj_get_style_layout(layer_parent, LV_PART_MAIN) == 0) ? record->object : layer_parent;
-#else
-    lv_obj_t *mount_layout_root = layer_parent;
-#endif
-    lv_obj_update_layout(mount_layout_root);
+    // lv_obj_update_layout() walks the parentless ancestor of its argument. After set_parent the
+    // screen and the layer share that ancestor, so passing the screen would not skip the other
+    // screens kept on the layer.
+    lv_obj_update_layout(layer_parent);
 
     std::vector<BackendHandle::Value> refresh_handles;
     refresh_handles.reserve(record->mount_refresh_subtree_count);
@@ -718,7 +711,7 @@ bool BackendImpl::mount_screen(BackendHandle handle, const MountTarget &target)
         lvgl::apply_placement(*this, *subtree_record, placement, PlacementApplyMask::All, false);
     }
 
-    lv_obj_update_layout(mount_layout_root);
+    lv_obj_update_layout(layer_parent);
     for (auto handle_value : refresh_handles) {
         auto *subtree_record = find_record(BackendHandle(handle_value));
         if (subtree_record == nullptr || subtree_record->object == nullptr ||
@@ -1534,6 +1527,7 @@ Backend::~Backend()
 
 uint32_t Backend::get_input_idle_ms() const
 {
+    ThreadLockGuard lock;
     return lv_display_get_inactive_time(nullptr);
 }
 

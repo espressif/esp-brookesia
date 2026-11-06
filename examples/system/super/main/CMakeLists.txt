@@ -32,29 +32,22 @@ if(CONFIG_BROOKESIA_GUI_INTERFACE_ENABLE_ASSET_BUNDLE)
     set(SUPER_ASSET_BUNDLE_SRC
         "${CMAKE_CURRENT_LIST_DIR}/../../../../tools/gui_asset_bundle/src")
     set(SUPER_LITTLEFS_STAGE "${CMAKE_CURRENT_BINARY_DIR}/littlefs_stage")
-    file(REMOVE_RECURSE "${SUPER_LITTLEFS_STAGE}")
-    file(COPY "${SUPER_LITTLEFS_DIR}/" DESTINATION "${SUPER_LITTLEFS_STAGE}")
-    file(GLOB_RECURSE SUPER_DOC_ROOTS "${SUPER_LITTLEFS_STAGE}/*/root.json")
-    foreach(doc_root ${SUPER_DOC_ROOTS})
-        get_filename_component(doc_dir "${doc_root}" DIRECTORY)
-        execute_process(
-            # JSON only: this tree already carries ~2 MB of images and the 5 MB
-            # littlefs partition has no room for a second copy. Products that want
-            # image bundles should size the partition first.
-            COMMAND ${CMAKE_COMMAND} -E env "PYTHONPATH=${SUPER_ASSET_BUNDLE_SRC}"
-                    "${PYTHON}" -m brookesia_gui_asset_bundle.cli pack
-                    --res-root "${doc_dir}" --out "${doc_dir}/assets.bundle"
-                    --include "*.json"
-            RESULT_VARIABLE bundle_status
-            OUTPUT_VARIABLE bundle_output
-            ERROR_VARIABLE bundle_error
-        )
-        if(NOT bundle_status EQUAL 0)
-            message(FATAL_ERROR "super: packing ${doc_dir} failed: ${bundle_error}")
-        endif()
-        message(STATUS "super: ${bundle_output}")
-    endforeach()
+    # App and system staging targets write into SUPER_LITTLEFS_DIR at build time.
+    # Copy and pack only after they have run, or the image keeps a configure-time snapshot.
+    add_custom_target(super_littlefs_stage ALL
+        COMMAND ${CMAKE_COMMAND}
+                -DSOURCE=${SUPER_LITTLEFS_DIR}
+                -DDEST=${SUPER_LITTLEFS_STAGE}
+                -DPYTHON=${PYTHON}
+                -DPYTHONPATH=${SUPER_ASSET_BUNDLE_SRC}
+                -DPACK=1
+                -P ${CMAKE_CURRENT_LIST_DIR}/stage_littlefs.cmake
+        DEPENDS ${brookesia_runtime_app_stage_targets} ${brookesia_system_super_stage_targets}
+        COMMENT "Staging littlefs tree and packing GUI asset bundles"
+        VERBATIM
+    )
     set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_STAGE}")
+    list(APPEND brookesia_runtime_app_stage_targets super_littlefs_stage)
 else()
     set(SUPER_LITTLEFS_IMAGE_SRC "${SUPER_LITTLEFS_DIR}")
 endif()

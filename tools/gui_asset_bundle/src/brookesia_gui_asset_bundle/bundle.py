@@ -89,14 +89,19 @@ def collect_assets(
     patterns: Sequence[str] = DEFAULT_PATTERNS,
     exclude: os.PathLike = None,
 ) -> List[Tuple[str, Path]]:
-    """Return (relative posix path, source path) pairs, sorted by relative path."""
+    """Return (relative posix path, source path) pairs.
+
+    Sort by the relative path's UTF-8 bytes. Runtime lookup uses std::string
+    order, which compares those bytes. Path.parts order differs: '.' (0x2E)
+    sorts before '/' (0x2F), so images/icon.png must precede images/icon/x.png.
+    """
     root = Path(res_root)
     if not root.is_dir():
         raise BundleError(f"resource root is not a directory: {root}")
 
     exclude_path = Path(exclude).resolve() if exclude is not None else None
     found: List[Tuple[str, Path]] = []
-    for path in sorted(root.rglob("*")):
+    for path in root.rglob("*"):
         if path.is_symlink() or not path.is_file():
             continue
         if exclude_path is not None and path.resolve() == exclude_path:
@@ -104,6 +109,7 @@ def collect_assets(
         rel = path.relative_to(root).as_posix()
         if any(fnmatch.fnmatchcase(rel, pattern) for pattern in patterns):
             found.append((rel, path))
+    found.sort(key=lambda item: item[0].encode("utf-8"))
     return found
 
 
@@ -180,7 +186,10 @@ def read_bundle(bundle_path: os.PathLike) -> Bundle:
         cursor += 4
         if cursor + path_len + struct.calcsize(ENTRY_FORMAT) > HEADER_SIZE + index_size:
             raise BundleError("bundle entry is truncated")
-        path = data[cursor:cursor + path_len].decode("utf-8")
+        try:
+            path = data[cursor:cursor + path_len].decode("utf-8")
+        except UnicodeDecodeError as error:
+            raise BundleError("bundle entry path is not valid UTF-8") from error
         cursor += path_len
         offset, size, entry_flags = struct.unpack_from(ENTRY_FORMAT, data, cursor)
         cursor += struct.calcsize(ENTRY_FORMAT)

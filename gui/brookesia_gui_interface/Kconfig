@@ -72,19 +72,20 @@ menu "ESP-Brookesia: GUI Interface Configurations"
         help
             When a dynamic screen is unmounted, its built LVGL subtree is kept
             (hidden) instead of being destroyed, so a later re-mount reuses it
-            and skips the rebuild. Measured on esp32_p4x_function_ev: mount
-            193 ms -> 15 ms, at the cost of ~365 KB PSRAM and about +0.2 ms per
-            text-binding flush. Use BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX
-            to bound how many screens stay resident.
+            and skips the rebuild. This defaults to enabled only when SPIRAM is
+            on; targets without SPIRAM keep the previous destroy-on-unmount
+            behaviour. Use BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX to
+            bound how many screens stay resident. Validate per board against
+            the v1.8 page_switch_ms and resident-memory dimensions.
 
-            Measured on esp32_p4_function_ev against feat/gui-perf-baseline
-            (perf_eval, 11 screens): mount_ms 197.1 -> 17.8 ms (-91.0%) and
-            screen_cycle mount_all_screens_ms 52.7 -> 18.8 ms (-64.3%). The cost
-            is ~215 KB more resident PSRAM, flush_apply_ms 1.00 -> 2.69 ms
-            (still inside the Pass-A budget), and render_stress frame_time
-            +5.0%. Disabled by default, so behavior and memory are unchanged;
-            validate per board against the v1.8 page_switch_ms and
-            resident-memory dimensions before enabling.
+            esp32_p4x_function_ev: mount 193 ms -> 15 ms, about 365 KB resident
+            PSRAM, and about +0.2 ms per text-binding flush.
+
+            esp32_p4_function_ev against feat/gui-perf-baseline (perf_eval, 11
+            screens): mount_ms 197.1 -> 17.8 ms (-91.0%) and screen_cycle
+            mount_all_screens_ms 52.7 -> 18.8 ms (-64.3%). About 215 KB more
+            resident PSRAM, flush_apply_ms 1.00 -> 2.69 ms (still inside the
+            Pass-A budget), and render_stress frame_time +5.0%.
 
     config BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX
         int "Maximum unmounted Dynamic screens kept resident per document (0 = unlimited)"

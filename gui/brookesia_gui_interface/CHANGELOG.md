@@ -8,15 +8,31 @@
   lets any component read an asset through the bundle that the loaded document registered, so the
   LVGL image loader no longer opens one file per image.
 
+### Bug Fixes:
+
+- fix(asset): reject a bundle whose entry count, path length, or key order cannot be searched, so a
+  corrupt file falls back to per-file reads.
+- fix(runtime): keep a displayed transient screen out of the resident eviction queue.
+- fix(runtime): drop a document's resident-screen queue when that document is unloaded.
+- fix(deps): require lib_utils `>=0.8.4,<0.9` for `can_read_local_files()`.
+- fix(runtime): a backend that cannot report input-idle time returns `UINT32_MAX`, so it does not
+  look like a touch in the current tick and block prewarm.
+- fix(parser): live preview reloads the changed source files and drops that root's registered
+  bundle, so image reads do not keep serving the previous `assets.bundle` bytes. A reparse that
+  cannot open `assets.bundle` drops the previous registration as well. A parse that fails before
+  that point keeps it.
+
 ## v0.8.6 - 2026-11-19
 
 ### Enhancements:
 
 - feat(runtime): add a keep-alive for unmounted Dynamic screens, so a re-mount reuses the built
-  subtree instead of rebuilding it (measured 193 ms -> 15 ms `mount_ms` on esp32_p4x_function_ev, at
-  the cost of ~365 KB PSRAM and about +0.5 ms per text-binding flush). It defaults on for PSRAM builds and is bounded by
+  subtree instead of rebuilding it. It defaults on for PSRAM builds and is bounded by
   `BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS_MAX`, so a document cannot retain every screen it
-  ever visited.
+  ever visited. esp32_p4x_function_ev: mount 193 ms -> 15 ms, about 365 KB resident PSRAM, and
+  about +0.2 ms per text-binding flush. esp32_p4_function_ev against feat/gui-perf-baseline
+  (perf_eval, 11 screens): mount_ms 197.1 -> 17.8 ms and screen_cycle mount_all_screens_ms
+  52.7 -> 18.8 ms, about 215 KB more resident PSRAM, flush_apply_ms 1.00 -> 2.69 ms.
 - feat(runtime): serve interned `SparseResolvedStyle` objects from a fixed-capacity pool when
   `BROOKESIA_GUI_INTERFACE_STYLE_POOL_SLOTS` is set, which reduces small-block PSRAM fragmentation.
 - perf(runtime): build the scoped binding store key once per update instead of once per write and

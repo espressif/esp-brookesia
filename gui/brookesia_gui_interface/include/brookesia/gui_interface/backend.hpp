@@ -228,11 +228,12 @@ public:
         const Animation &animation,
         std::function<void()> completed_handler = {}) = 0;
     virtual void bind_events(BackendHandle handle, const std::vector<EventBinding> &events) = 0;
-    // Milliseconds since the last user input across the displays, or 0 when the backend cannot
-    // report it. Background work (idle prewarm) uses it to stay out of the way of an active user.
+    // Milliseconds since the last user input. UINT32_MAX means this backend cannot report it,
+    // which must not be confused with 0 (input arrived in the current tick). Idle prewarm treats
+    // only a reported idle time below its threshold as "the user is active".
     virtual uint32_t get_input_idle_ms() const
     {
-        return 0;
+        return UINT32_MAX;
     }
     virtual std::vector<GuiDisplayInfo> list_displays() const = 0;
     virtual std::vector<GuiLayer> list_layers() const = 0;

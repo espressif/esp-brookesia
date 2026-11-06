@@ -112,6 +112,18 @@ class PackTests(BundleTestCase):
         bundle = read_bundle(self.out)
         self.assertEqual(bundle.entries, ())
 
+    def test_prefix_sibling_sorts_like_runtime_string_order(self):
+        # '.' (0x2E) < '/' (0x2F), so the file sorts before the directory sibling.
+        # Path.parts order is the other way around and would break binary search.
+        self.write("images/icon/x.png", b"nested")
+        self.write("images/icon.png", b"flat")
+        pack_assets(self.root, self.out, patterns=("*",))
+        bundle = read_bundle(self.out)
+
+        self.assertEqual(bundle.paths(), ["images/icon.png", "images/icon/x.png"])
+        self.assertEqual(bundle.read("images/icon.png"), b"flat")
+        self.assertEqual(bundle.read("images/icon/x.png"), b"nested")
+
     def test_output_inside_the_tree_is_not_packed(self):
         self.write("root.json", "{}")
         inside = self.root / "assets.bundle"
@@ -124,6 +136,18 @@ class PackTests(BundleTestCase):
 
 
 class ReadTests(BundleTestCase):
+    def test_invalid_utf8_path_is_a_bundle_error(self):
+        self.write("root.json", b"{}")
+        pack_assets(self.root, self.out, patterns=("*",))
+        data = bytearray(self.out.read_bytes())
+        path_at = data.find(b"root.json")
+        self.assertGreater(path_at, 0)
+        data[path_at] = 0xFF
+        self.out.write_bytes(data)
+        with self.assertRaises(BundleError) as caught:
+            read_bundle(self.out)
+        self.assertIn("UTF-8", str(caught.exception))
+
     def test_rejects_bad_magic(self):
         self.out.write_bytes(b"NOPE" + b"\x00" * 32)
         with self.assertRaises(BundleError):

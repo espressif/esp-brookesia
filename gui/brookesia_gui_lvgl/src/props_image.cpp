@@ -209,14 +209,21 @@ std::expected<std::string, std::string> read_image_file_locally(const std::strin
     if (!input) {
         return std::unexpected("Failed to open image file: " + path);
     }
+    // Read into the string. The LVGL display task stack defaults to 40 KiB, so a 16 KiB scratch
+    // array on top of the mount call chain does not leave a safe margin.
+    constexpr size_t kReadChunk = 4096;
     std::string bytes;
     bytes.reserve(16384);
-    char chunk[16384];
     while (input) {
-        input.read(chunk, static_cast<std::streamsize>(sizeof(chunk)));
-        const auto count = input.gcount();
-        if (count > 0) {
-            bytes.append(chunk, static_cast<size_t>(count));
+        const size_t offset = bytes.size();
+        bytes.resize(offset + kReadChunk);
+        input.read(bytes.data() + offset, static_cast<std::streamsize>(kReadChunk));
+        const auto read_size = input.gcount();
+        if (read_size > 0) {
+            bytes.resize(offset + static_cast<size_t>(read_size));
+        } else {
+            bytes.resize(offset);
+            break;
         }
     }
     if (input.bad()) {
@@ -232,13 +239,15 @@ std::expected<std::vector<uint8_t>, std::string> read_storage_file_bytes(
 )
 {
     std::expected<std::string, std::string> content = std::unexpected("Image read not attempted");
-    if (auto bundled = esp_brookesia::gui::read_bundled_asset(std::filesystem::path(path));
-            bundled.has_value()) {
-        content = std::move(*bundled);
-    } else if (can_read_image_file_locally()) {
-        content = read_image_file_locally(path);
-        if (!content) {
-            content = StorageHelper::fs_read_text(path);
+    if (can_read_image_file_locally()) {
+        if (auto bundled = esp_brookesia::gui::read_bundled_asset(std::filesystem::path(path));
+                bundled.has_value()) {
+            content = std::move(*bundled);
+        } else {
+            content = read_image_file_locally(path);
+            if (!content) {
+                content = StorageHelper::fs_read_text(path);
+            }
         }
     } else {
         content = StorageHelper::fs_read_text(path);

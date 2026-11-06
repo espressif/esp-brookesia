@@ -307,6 +307,16 @@ std::expected<TransientMountId, std::string> Runtime::Impl::push_transient_scree
         .absolute_path = normalized_path,
         .target = *normalized_target,
     });
+#if BROOKESIA_GUI_INTERFACE_KEEP_DYNAMIC_SCREENS
+    {
+        // Shown again as a transient screen, so it is no longer an eviction candidate.
+        auto resident_it = resident_unmounted_screens.find(document_id.value());
+        if (resident_it != resident_unmounted_screens.end()) {
+            auto &resident = resident_it->second;
+            resident.erase(std::remove(resident.begin(), resident.end(), screen_id), resident.end());
+        }
+    }
+#endif
     return transient_id;
 }
 bool Runtime::Impl::pop_transient_screen(TransientMountId id)

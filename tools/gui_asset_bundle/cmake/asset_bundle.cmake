@@ -43,7 +43,18 @@ function(brookesia_gui_pack_assets target)
     endforeach()
 
     get_filename_component(out_dir "${ARG_OUT}" DIRECTORY)
-    file(GLOB_RECURSE res_files "${ARG_RES_DIR}/*")
+    get_filename_component(out_absolute "${ARG_OUT}" ABSOLUTE)
+    file(GLOB_RECURSE res_files CONFIGURE_DEPENDS "${ARG_RES_DIR}/*")
+    # The usual output lives inside RES_DIR. Compare absolute paths so a bundle
+    # that the glob can already see is not listed as a dependency of itself.
+    set(bundle_depends "")
+    foreach(res_file IN LISTS res_files)
+        get_filename_component(res_absolute "${res_file}" ABSOLUTE)
+        if(res_absolute STREQUAL out_absolute)
+            continue()
+        endif()
+        list(APPEND bundle_depends "${res_absolute}")
+    endforeach()
 
     add_custom_command(
         OUTPUT "${ARG_OUT}"
@@ -52,7 +63,7 @@ function(brookesia_gui_pack_assets target)
                 "PYTHONPATH=${BROOKESIA_GUI_ASSET_BUNDLE_SRC_DIR}"
                 "${PYTHON}" -m brookesia_gui_asset_bundle.cli pack
                 --res-root "${ARG_RES_DIR}" --out "${ARG_OUT}" ${patterns_args}
-        DEPENDS ${res_files}
+        DEPENDS ${bundle_depends}
         COMMENT "Packing GUI assets from ${ARG_RES_DIR} into ${ARG_OUT}"
         VERBATIM
     )

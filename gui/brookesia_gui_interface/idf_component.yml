@@ -5,7 +5,7 @@ repository: https://github.com/espressif/esp-brookesia.git
 issues: https://github.com/espressif/esp-brookesia/issues
 dependencies:
   espressif/brookesia_lib_utils:
-    version: "0.8.*"
+    version: ">=0.8.4,<0.9"
     override_path: ../../utils/brookesia_lib_utils
     require: public
 
