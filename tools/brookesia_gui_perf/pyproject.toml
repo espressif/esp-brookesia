@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "brookesia-gui-perf"
+version = "0.1.0"
+description = "Host-side aggregation, gating and comparison harness for the ESP-Brookesia GUI performance spec"
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Espressif Systems (Shanghai) Co., Ltd." }]
+
+[project.scripts]
+brookesia-gui-perf = "brookesia_gui_perf.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+brookesia_gui_perf = ["thresholds.json", "metric_catalog.json"]

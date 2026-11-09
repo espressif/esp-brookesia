@@ -1,0 +1,14 @@
+{
+    "type": "viewScreen",
+    "id": "app_background",
+    "commonProps": {
+        "scrollable": false,
+        "clickable": false
+    },
+    "style": {
+        "padding": 0
+    },
+    "styleRefs": [
+        "shell.appBackground"
+    ]
+}

@@ -1,0 +1,32 @@
+.gui_host_mem_gate_template:
+  stage: pre_check
+  image: ubuntu:24.04
+  tags: ["build", "amd64", "internet"]
+  dependencies: []
+
+# G2 host memory gate (json_ui_memory_optimization.md section 6.2): builds the
+# gui_interface host test binary and enforces the calibrated R/K/alloc limits in
+# test_mem_gate.cpp. apt Boost is 1.83 while thresholds were calibrated on
+# boost 1.87 with x1.25 headroom; a version-drift failure means recalibrating
+# the constants, not deleting the gate.
+gui_if_host_mem_gate:
+  extends:
+    - .gui_host_mem_gate_template
+  before_script:
+    - apt-get update
+    # Packages map to find_package(Boost): json/thread/system/chrono are
+    # REQUIRED by gui_interface/lib_utils/service_manager, test provides
+    # Boost.Test for pc_platform.cmake's unit_test_framework branch.
+    - DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends cmake g++ make libboost-json-dev libboost-thread-dev libboost-system-dev libboost-chrono-dev libboost-test-dev
+  script:
+    - cmake -S gui/brookesia_gui_interface/test_apps -B build_pc -DBROOKESIA_GUI_INTERFACE_TEST_APPS_FORCE_PC=ON
+    # --target is required: a bare `cmake --build build_pc` also compiles
+    # brookesia_gui_interface_examples (40+ heavy view TUs the test does not
+    # link) and on the runner that OOM-killed cc1plus and blew the 1h timeout.
+    - cmake --build build_pc --target test_brookesia_gui_interface -j"$(nproc)"
+    - ctest --test-dir build_pc --output-on-failure
+  rules:
+    - changes:
+        - gui/brookesia_gui_interface/**/*
+        - .gitlab-ci.yml
+        - .gitlab/ci/pre/host_mem_gate.yml

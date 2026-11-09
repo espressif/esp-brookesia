@@ -25,6 +25,8 @@ variables:
 
 include:
   - '.gitlab/ci/pre/check.yml'
+  - '.gitlab/ci/pre/gui_perf_host.yml'
+  - '.gitlab/ci/pre/host_mem_gate.yml'
   - '.gitlab/ci/rules/patterns.yml'
   - '.gitlab/ci/rules/docs.yml'
   - '.gitlab/ci/rules/test_apps.yml'
@@ -36,5 +38,6 @@ include:
   - '.gitlab/ci/target_test/common.yml'
   - '.gitlab/ci/target_test/test_apps.yml'
   - '.gitlab/ci/target_test/examples.yml'
+  - '.gitlab/ci/target_test/size_gate.yml'
   - '.gitlab/ci/deploy/docs.yml'
   - '.gitlab/ci/deploy/github.yml'

@@ -1,0 +1,8 @@
+# CI P4 target-test board. Mirrors examples/system/super's p4x config: the only
+# entry needed is the target, because the board definition already supplies the
+# flash size, the rev-2.0 pinning and the esp-sr suppression that
+# sdkconfig.defaults.esp32p4 relies on. Keep it minimal so a fresh checkout can
+# select the board the target-test runner is tagged with.
+CONFIG_IDF_TARGET="esp32p4"
+CONFIG_PERF_EVAL_BOARD_ID="esp32_p4x_function_ev"
+CONFIG_PERF_EVAL_ALLOW_DESTRUCTIVE_FORMAT=y

@@ -1,0 +1,61 @@
+{
+    "type": "viewTemplate",
+    "id": "search_card",
+    "node": {
+        "type": "container",
+        "styleRefs": [
+            "app.card"
+        ],
+        "style": {
+            "paddingLeft": "22dp",
+            "paddingRight": "22dp"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "row",
+            "crossAlign": "center",
+            "gap": "14dp"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "${constant.settings.layout.smallRowHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "label",
+                "id": "icon",
+                "styleRefs": [
+                    "app.cardSubtitle"
+                ],
+                "labelProps": {
+                    "text": "O"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "width": "28dp"
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            },
+            {
+                "type": "label",
+                "id": "placeholder",
+                "styleRefs": [
+                    "app.cardSubtitle"
+                ],
+                "labelProps": {
+                    "text": "Search settings"
+                },
+                "placement": {
+                    "mode": "flow"
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            }
+        ]
+    }
+}

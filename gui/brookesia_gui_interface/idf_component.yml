@@ -1,4 +1,4 @@
-version: "0.8.3"
+version: "0.8.4"
 description: ESP-Brookesia backend-neutral GUI document and runtime interface.
 url: https://github.com/espressif/esp-brookesia/tree/master/gui/brookesia_gui_interface
 repository: https://github.com/espressif/esp-brookesia.git

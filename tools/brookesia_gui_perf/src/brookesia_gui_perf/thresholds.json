@@ -1,0 +1,171 @@
+{
+  "first_frame_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 80,
+    "pass_b_max": 150,
+    "fail_above": 300
+  },
+  "feedback_delay_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 30,
+    "pass_b_max": 50,
+    "fail_above": 100,
+    "cv_exempt": true
+  },
+  "event_dispatch_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 10,
+    "pass_b_max": 30,
+    "fail_above": 50,
+    "cv_exempt": true,
+    "regression_tolerance_pct": 10.0
+  },
+  "first_visible_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 800,
+    "pass_b_max": 1500,
+    "fail_above": 3000
+  },
+  "page_switch_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 150,
+    "pass_b_max": 300,
+    "fail_above": 500
+  },
+  "mount_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 150,
+    "pass_b_max": 300,
+    "fail_above": 500
+  },
+  "doc_load_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 30,
+    "pass_b_max": 50,
+    "fail_above": 120
+  },
+  "fps": {
+    "direction": "higher_better",
+    "judge": "mean",
+    "pass_a_min": 55,
+    "pass_b_min": 40,
+    "fail_below": 30,
+    "scenario_overrides": {
+      "steady_state": {
+        "record": true
+      },
+      "screen_cycle": {
+        "record": true
+      },
+      "binding_push": {
+        "pass_a_min": 30,
+        "pass_b_min": 20,
+        "fail_below": 10
+      },
+      "concurrency": {
+        "pass_a_min": 30,
+        "pass_b_min": 20,
+        "fail_below": 10
+      }
+    }
+  },
+  "frame_time_ms": {
+    "direction": "lower_better",
+    "judge": "p99",
+    "pass_a_max": 20,
+    "pass_b_max": 33,
+    "fail_above": 50
+  },
+  "jank_rate_pct": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "pass_a_max": 2,
+    "pass_b_max": 8,
+    "fail_above": 15
+  },
+  "hitch_ratio_ms_s": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "pass_a_max": 5,
+    "pass_b_max": 10,
+    "fail_above": 25
+  },
+  "frozen_frame_count": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "pass_a_max": 0,
+    "pass_b_max": 1,
+    "fail_above": 1
+  },
+  "frame_overrun_mean_ms": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "pass_a_max": 8,
+    "pass_b_max": "T_refresh",
+    "fail_above": "2*T_refresh"
+  },
+  "refresh_area_ratio_pct": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "pass_a_max": 40,
+    "pass_b_max": 70,
+    "fail_above": 90,
+    "record_only": true
+  },
+  "flush_apply_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "pass_a_max": 20,
+    "pass_b_max": 50,
+    "fail_above": 100,
+    "regression_tolerance_pct": 2.0,
+    "cv_exempt": true
+  },
+  "batch_invalidate_ms": {
+    "direction": "lower_better",
+    "judge": "p95",
+    "relative": "max"
+  },
+  "binding_saturated_updates_per_s": {
+    "direction": "higher_better",
+    "judge": "mean",
+    "relative": "min"
+  },
+  "sram_peak_kb": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "budget": "sram"
+  },
+  "psram_peak_kb": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "budget": "psram"
+  },
+  "doc_load_transient_kb": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "relative": "max"
+  },
+  "build_copy_bytes": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "relative": "max"
+  },
+  "alloc_resident_pct": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "relative": "max"
+  },
+  "task_heap_max_kb": {
+    "direction": "lower_better",
+    "judge": "mean",
+    "relative": "max"
+  }
+}

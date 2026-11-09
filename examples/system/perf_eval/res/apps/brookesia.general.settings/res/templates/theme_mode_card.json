@@ -1,0 +1,69 @@
+{
+    "type": "viewTemplate",
+    "id": "theme_mode_card",
+    "node": {
+        "type": "button",
+        "events": [],
+        "styleRefs": [
+            "app.selectableCard"
+        ],
+        "style": {
+            "padding": "18dp"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "mainAlign": "center",
+            "crossAlign": "center",
+            "gap": "10dp"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "${constant.settings.layout.themeModeCardWidth}",
+            "height": "${constant.settings.layout.themeModeCardHeight}",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "container",
+                "id": "preview",
+                "commonProps": {
+                    "clickable": false
+                },
+                "style": {
+                    "bgColor": "${color.bg.base}",
+                    "radius": "18dp"
+                },
+                "bindings": {
+                    "style.bgColor": "previewBgColor"
+                },
+                "placement": {
+                    "mode": "flow",
+                    "width": "${constant.settings.layout.themePreviewWidth}",
+                    "height": "${constant.settings.layout.themePreviewHeight}"
+                }
+            },
+            {
+                "type": "label",
+                "id": "label",
+                "styleRefs": [
+                    "app.cardTitle"
+                ],
+                "labelProps": {
+                    "text": "Mode"
+                },
+                "placement": {
+                    "mode": "flow"
+                },
+                "bindings": {
+                    "labelProps.text": "labelProps.text"
+                }
+            }
+        ],
+        "bindings": {
+            "commonProps.clickable": "clickable",
+            "style.borderWidth": "borderWidth",
+            "style.borderColor": "borderColor"
+        }
+    }
+}

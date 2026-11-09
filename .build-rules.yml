@@ -175,3 +175,7 @@ examples/service/wifi:
 # system/super
 examples/system/super:
   <<: *general_target_enable
+# system/perf_eval
+examples/system/perf_eval:
+  enable:
+    - if: IDF_TARGET in ["esp32p4"]

@@ -6,6 +6,9 @@
 #pragma once
 
 #include <cstddef>
+#include "brookesia/system_core/macro_configs.h"
+#include <atomic>
+#include <cstdint>
 #include <expected>
 #include <chrono>
 #include <filesystem>
@@ -126,7 +129,8 @@ public:
     );
     std::expected<void, std::string> post_task(
         const lib_utils::TaskSchedulerGroup &group,
-        lib_utils::TaskScheduler::OnceTask task
+        lib_utils::TaskScheduler::OnceTask task,
+        bool allow_inline_execution = true
     );
     std::expected<GuiBatchResult, std::string> execute_gui_batch_now(
         AppId app_id,
@@ -171,7 +175,10 @@ public:
         return result_future.get();
     }
 
-    std::expected<void, std::string> post_gui_task(lib_utils::TaskScheduler::OnceTask task);
+    std::expected<void, std::string> post_gui_task(
+        lib_utils::TaskScheduler::OnceTask task,
+        bool allow_inline_execution = true
+    );
     std::expected<void, std::string> post_gui_input_task(lib_utils::TaskScheduler::OnceTask task);
 
     std::expected<void, std::string> enqueue_gui_binding_update(
@@ -314,6 +321,15 @@ public:
     std::map<std::string, AppId> font_resource_owners_;
     std::map<runtime::AppId, AppId> runtime_to_app_;
     std::map<AppId, PendingBindingBuffer> pending_gui_bindings_;
+    // v1.8 section 3.1 flush-apply probe. Written on the SystemGui worker inside
+    // flush_pending_gui_bindings(), read by the perf harness between phases, so
+    // atomics rather than the binding mutex: the counter must stay readable from a
+    // task that never touches the GUI path.
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+    std::atomic<uint64_t> gui_binding_flush_count_ {0};
+    std::atomic<uint64_t> gui_binding_apply_us_{0};
+    std::atomic<uint64_t> gui_binding_applied_updates_{0};
+#endif
     std::set<gui::DocumentId::Value> live_preview_document_ids_;
     std::optional<lib_utils::TaskSchedulerTaskId> live_preview_poll_task_id_;
     StorageLayout storage_layout_;

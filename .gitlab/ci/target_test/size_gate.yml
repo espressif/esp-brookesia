@@ -1,0 +1,76 @@
+# G4 体积门禁（v1.8 §3.7 / 实现文档 §8.2）。
+#
+# 复用 system/super 的 esp32p4 构建工件（size.json + app .bin + config/sdkconfig.json），
+# 经 .gitlab/tools/measure_size.py 产出 paired size 记录 JSON 并作为 artifact 归档。
+#
+# 拓扑约束（§8.2）：比较类 job 必须跨 stage 取 build 工件，因此落在 target_test
+# 而不是 pre_check。rules 直接复用 super 构建规则，保证「有构建才有度量」。
+# 首轮（基线 JSON 落地前）仅记录；基线就位后自动进入 compare --first-round，
+# 依 v1.8 §四首轮只记录不判 Fail。
+gui_size_gate:
+  stage: target_test
+  image: python:3.10-slim
+  tags: ["build", "amd64", "internet"]
+  extends:
+    - .rules:build:examples_system_super
+  needs:
+    - job: build_examples_system_super
+      artifacts: true
+      optional: true
+  script:
+    - mkdir -p size_records
+    # 只度量 esp32p4 目标（基线板 esp32_p4_function_ev 所在）；board id 从
+    # `build_<target>_board.<board>` 目录名推导，便于区分 p4_function_ev /
+    # p4x_function_ev 等多板同 target 构建。size.json 缺失时降级为仅 app.bin
+    # 记录（grade=record），不让工件缺项直接打挂门禁。
+    - |
+      found=0
+      for bd in $(find examples/system/super -maxdepth 3 -type d -name 'build_esp32p4*' | sort); do
+        found=1
+        name=$(basename "$bd")
+        cfg=${name#build_esp32p4_}
+        case "$cfg" in
+          board.*) board_id=${cfg#board.} ;;
+          *) board_id=esp32p4 ;;
+        esac
+        echo "measuring $bd (board_id=$board_id)"
+        if [ -f "$bd/size.json" ]; then
+          python .gitlab/tools/measure_size.py measure \
+            --build-dir "$bd" --repo-root . \
+            --idf-size-json "$bd/size.json" \
+            --board-id "$board_id" --profile perf \
+            -o "size_records/${name}.json"
+        else
+          python .gitlab/tools/measure_size.py measure \
+            --build-dir "$bd" --repo-root . \
+            --board-id "$board_id" --profile perf \
+            -o "size_records/${name}.json"
+        fi
+      done
+      if [ "$found" != "1" ]; then
+        echo "ERROR: no esp32p4 super build dir found under examples/system/super"
+        exit 1
+      fi
+      ls -l size_records/
+    # 基线落地后自动进入配对比较；每个度量到的 board 各自配对
+    # reports/baseline/<board>/size_baseline.json（硬编码单个 board 会让
+    # super 实际构建出的 p4x/s31/mosaico 记录永远配不上基线）。
+    # --first-round 仅记录不判 Fail（v1.8 §四），首轮稳定后移除即转为强制门禁。
+    - |
+      for cand in size_records/build_esp32p4_*.json; do
+        [ -f "$cand" ] || { echo "no size record produced; record-only round"; continue; }
+        name=$(basename "$cand" .json)
+        board=${name#build_esp32p4_board.}
+        base="reports/baseline/${board}/size_baseline.json"
+        if [ -f "$base" ]; then
+          python .gitlab/tools/measure_size.py compare "$base" "$cand" --first-round \
+            -o "size_records/compare_${board}.json"
+        else
+          echo "no baseline for board ${board} ($base); record-only round"
+        fi
+      done
+  artifacts:
+    when: always
+    paths:
+      - size_records/
+    expire_in: 1 week

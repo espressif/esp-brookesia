@@ -291,6 +291,18 @@ public:
         AppId app_id,
         const std::vector<gui::BindingValueUpdate> &updates
     );
+    // v1.8 section 3.1 flush-apply probe: monotonic counters taken between phases.
+    // flush_count/applied_updates are event totals, apply_us their accumulated
+    // duration, so the harness derives mean/p95 T_flush_apply by differencing
+    // snapshots rather than instrumenting the GUI path itself.
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+    struct GuiBindingFlushStats {
+        uint64_t flush_count = 0;
+        uint64_t applied_updates = 0;
+        uint64_t apply_us = 0;
+    };
+    GuiBindingFlushStats gui_binding_flush_stats() const;
+#endif
     std::optional<std::string> gui_get_binding_value(
         AppId app_id,
         std::string_view absolute_path,
@@ -385,6 +397,69 @@ public:
 
     std::expected<AppId, std::string> get_current_runtime_app_owner() const;
 
+public:
+    /**
+     * @brief Parse a document tree that the caller already holds in memory
+     *
+     * @c root_path    Absolute screen path inside the document, e.g. "/" or "/startup".
+     * @c json         The document JSON.
+     * @c resource_dir Directory that relative asset paths inside the document resolve
+     *                  against. May be empty when every asset reference is absolute.
+     *
+     * Public because a carrier that keeps its documents embedded in the firmware has no
+     * filesystem path to install an app from. The GUI performance and memory baseline
+     * harness (examples/system/perf_eval) parses the section 1.3 asset set this way, so
+     * the asset parse/load cost is measured without a VFS read in the measurement path.
+     * Installing a runtime app stays the normal route; this is the in-memory equivalent
+     * of AppGuiRuntime::load_json() for the case where there is no app and no path.
+     */
+    std::expected<gui::DocumentId, std::string> system_gui_load_json(
+        std::string_view root_path,
+        std::string_view json,
+        std::string_view resource_dir
+    );
+
+    /**
+     * @brief Register a theme document so loaded documents can resolve its styles
+     *
+     * Public for the same reason as system_gui_load_json(): a carrier that stages the
+     * theme files itself must register and activate one before loading any document,
+     * otherwise every named style reference resolves to nothing.
+     */
+    std::expected<void, std::string> system_gui_load_theme_file(
+        std::string_view resource_dir,
+        std::string_view path
+    );
+
+    /**
+     * @brief Activate a theme registered through system_gui_load_theme_file()
+     */
+    std::expected<void, std::string> system_gui_set_theme(std::string_view theme_id);
+
+    /**
+     * @brief Mount a screen from a loaded document, creating its widget tree
+     *
+     * Public for the same reason as system_gui_load_json(): a carrier holding its
+     * document tree in firmware image has no app to install, and the section 3.1
+     * runtime object count only exists once a screen is mounted.
+     */
+    std::expected<gui::View, std::string> system_gui_mount_screen(
+        gui::DocumentId document_id,
+        std::string_view absolute_path,
+        const gui::MountTarget &target = {}
+    );
+
+    /**
+     * @brief Tear a mounted screen down, and unload a document entirely
+     *
+     * Public for the same reason as system_gui_load_json() and
+     * system_gui_mount_screen(): the v1.8 section 3.3 zero-leak rule is defined over
+     * a Launch -> Navigate -> Back -> Unload/Destroy cycle, which a carrier cannot run
+     * without a way to undo what it did.
+     */
+    bool system_gui_unmount_screen(gui::DocumentId document_id, std::string_view absolute_path);
+    bool system_gui_unload(gui::DocumentId document_id);
+
 protected:
     virtual SystemInfo on_get_system_info() const;
     virtual std::expected<void, std::string> on_prepare_startup_overlay();
@@ -431,18 +506,6 @@ protected:
         std::string_view resource_dir,
         std::string_view path
     );
-    std::expected<gui::DocumentId, std::string> system_gui_load_json(
-        std::string_view root_path,
-        std::string_view json,
-        std::string_view resource_dir
-    );
-    std::expected<gui::View, std::string> system_gui_mount_screen(
-        gui::DocumentId document_id,
-        std::string_view absolute_path,
-        const gui::MountTarget &target = {}
-    );
-    bool system_gui_unmount_screen(gui::DocumentId document_id, std::string_view absolute_path);
-    bool system_gui_unload(gui::DocumentId document_id);
     std::expected<void, std::string> system_gui_enable_live_preview(
         gui::DocumentId document_id,
         const gui::LivePreviewOptions &options = {}

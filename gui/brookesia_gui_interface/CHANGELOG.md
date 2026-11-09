@@ -1,5 +1,12 @@
 # ChangeLog
 
+## v0.8.4 - 2026-10-27
+
+### Enhancements:
+
+- feat(parser): add per-flow and per-screen stage timings to the PROFILE log so document load can be attributed to individual assets.
+- test(mem_gate): add the host JSON UI dual-gate memory test.
+
 ## v0.8.3 - 2026-10-27
 
 ### Enhancements:

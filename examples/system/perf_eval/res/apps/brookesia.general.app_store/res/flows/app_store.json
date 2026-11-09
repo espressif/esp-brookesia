@@ -1,0 +1,9 @@
+{
+    "type": "screenFlow",
+    "id": "app_store",
+    "initial": "app_store",
+    "screens": [
+        "app_store"
+    ],
+    "transitions": []
+}

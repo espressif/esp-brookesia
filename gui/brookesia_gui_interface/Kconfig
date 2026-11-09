@@ -46,6 +46,10 @@ menu "ESP-Brookesia: GUI Interface Configurations"
             normal builds because log formatting and serial output perturb the
             timings being measured.
 
+            The v1.8 performance baseline carrier also enables this switch: its
+            document-load metric reads the same per-stage timings, so both uses
+            share one gate and nothing extra runs when it is off.
+
     menuconfig BROOKESIA_GUI_INTERFACE_ENABLE_EXAMPLES
         bool "Enable JSON-UI example suite"
         default y

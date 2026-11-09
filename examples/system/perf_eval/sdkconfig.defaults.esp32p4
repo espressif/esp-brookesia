@@ -1,0 +1,17 @@
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# esp32_p4x_function_ev ships eco2 (rev 2.0) silicon. esp-sr has no rev<3
+# support on ESP-IDF 6.x, so drop both dependency chains that pull it in:
+# video (esp_video -> esp_capture) and the high-level audio processor
+# (av_processor -> gmf_ai_audio). GUI shell and BPK app install don't need them.
+CONFIG_BROOKESIA_HAL_ADAPTOR_ENABLE_VIDEO_DEVICE=n
+CONFIG_BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL=n
+
+# GUI
+CONFIG_ESP_LVGL_ADAPTER_ENABLE_FREETYPE=y
+CONFIG_LV_USE_FREETYPE=y
+CONFIG_LV_FREETYPE_USE_LVGL_PORT=y
+CONFIG_LV_USE_FS_MEMFS=y
+CONFIG_LV_FS_MEMFS_LETTER=77
+CONFIG_LV_CACHE_DEF_SIZE=1024000
+CONFIG_LV_IMAGE_HEADER_CACHE_DEF_CNT=32

@@ -74,3 +74,15 @@ build_examples_system_super:
   timeout: 3 hour
   variables:
     EXAMPLE_DIR: examples/system/super
+# system/perf_eval
+build_examples_system_perf_eval:
+  extends:
+    - .build_template
+    # Every perf_eval board config is a sdkconfig.ci.board.* file, so the board
+    # has to reach the build through that glob; a bare EXAMPLE_CONFIG would
+    # build the carrier against the wrong display pipeline.
+    - .build_idf_release_version_with_board
+    - .rules:build:examples_system_perf_eval
+  timeout: 3 hour
+  variables:
+    EXAMPLE_DIR: examples/system/perf_eval

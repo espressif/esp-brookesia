@@ -1,0 +1,580 @@
+/*
+ * SPDX-FileCopyrightText: 2026 Espressif Systems (Shanghai) CO LTD
+ *
+ * SPDX-License-Identifier: CC0-1.0
+ */
+// Generated from res/ by main/gen_perf_eval_res.py - do not edit by hand.
+//
+// Paths are mapped onto flat staged filenames because ESP-IDF derives
+// target_add_binary_data symbols from the basename alone, which collides for
+// flows/header.json and screens/header.json. See main/CMakeLists.txt.
+//
+// doc_complexity and the screen list below are measured from res/ at generation
+// time rather than restated by hand, so neither can drift from the corpus that
+// is actually on the device.
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "perf_eval_res.hpp"
+
+extern const uint8_t _binary__gitkeep_start[];
+extern const uint8_t _binary__gitkeep_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_1024x600_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_1024x600_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_480x480_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_480x480_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_800x480_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_800x480_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_default_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_default_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_portrait_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_constants_portrait_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_flows_app_store_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_flows_app_store_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_i18n_en_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_i18n_en_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_i18n_zh_CN_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_i18n_zh_CN_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_bpk_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_bpk_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_index_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_index_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_launcher_icon_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_launcher_icon_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_ok_png_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_ok_png_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_pause_png_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_pause_png_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_start_png_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_images_start_png_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_root_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_root_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_screens_app_store_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_screens_app_store_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_templates_app_store_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_templates_app_store_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_templates_press_scale_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_app_store_res_templates_press_scale_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_constants_480x480_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_constants_480x480_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_constants_default_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_constants_default_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_flows_files_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_flows_files_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_flows_header_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_flows_header_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_i18n_en_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_i18n_en_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_i18n_zh_CN_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_i18n_zh_CN_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_audio_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_audio_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_bpk_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_bpk_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_delete_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_delete_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_directory_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_directory_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_doc_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_doc_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_driver_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_driver_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_file_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_file_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_image_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_image_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_rename_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_rename_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_video_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_icon_video_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_index_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_index_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_launcher_icon_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_images_launcher_icon_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_root_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_root_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_screens_browser_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_screens_browser_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_screens_header_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_screens_header_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_screens_operations_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_screens_operations_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_templates_file_entry_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_templates_file_entry_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_templates_operation_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_files_res_templates_operation_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_1024x600_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_1024x600_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_480x480_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_480x480_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_800x480_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_800x480_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_default_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_default_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_portrait_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_constants_portrait_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_flows_content_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_flows_content_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_flows_header_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_flows_header_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_i18n_en_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_i18n_en_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_i18n_zh_CN_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_i18n_zh_CN_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_back_png_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_back_png_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_display_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_display_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_language_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_language_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_more_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_more_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_my_device_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_my_device_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_refresh_png_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_refresh_png_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_sound_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_sound_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_time_zone_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_time_zone_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_wifi_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_icon_wifi_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_index_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_index_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_launcher_icon_jpg_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_images_launcher_icon_jpg_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_root_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_root_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_debug_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_debug_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_display_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_display_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_header_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_header_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_language_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_language_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_more_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_more_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_my_device_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_my_device_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_settings_home_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_settings_home_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_sound_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_sound_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_time_zone_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_time_zone_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_wifi_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_wifi_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_wifi_connect_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_screens_wifi_connect_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_debug_slider_row_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_debug_slider_row_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_hardware_group_card_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_hardware_group_card_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_language_option_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_language_option_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_menu_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_menu_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_nav_menu_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_nav_menu_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_page_header_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_page_header_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_press_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_press_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_search_card_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_search_card_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_setting_row_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_setting_row_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_settings_card_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_settings_card_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_slider_row_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_slider_row_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_switch_row_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_switch_row_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_theme_mode_card_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_theme_mode_card_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_wifi_connected_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_wifi_connected_item_json_end[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_wifi_network_item_json_start[];
+extern const uint8_t _binary_apps_brookesia_general_settings_res_templates_wifi_network_item_json_end[];
+extern const uint8_t _binary_system_fonts_NotoSansSC_Regular_subset_ttf_start[];
+extern const uint8_t _binary_system_fonts_NotoSansSC_Regular_subset_ttf_end[];
+extern const uint8_t _binary_system_fonts_Telex_Regular_ttf_start[];
+extern const uint8_t _binary_system_fonts_Telex_Regular_ttf_end[];
+extern const uint8_t _binary_system_fonts_index_json_start[];
+extern const uint8_t _binary_system_fonts_index_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_1024x600_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_1024x600_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_480x480_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_480x480_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_800x480_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_800x480_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_default_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_default_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_i18n_en_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_i18n_en_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_i18n_zh_CN_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_i18n_zh_CN_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_portrait_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_portrait_json_end[];
+extern const uint8_t _binary_system_super_shell_constants_small_json_start[];
+extern const uint8_t _binary_system_super_shell_constants_small_json_end[];
+extern const uint8_t _binary_system_super_shell_flows_background_json_start[];
+extern const uint8_t _binary_system_super_shell_flows_background_json_end[];
+extern const uint8_t _binary_system_super_shell_flows_keyboard_json_start[];
+extern const uint8_t _binary_system_super_shell_flows_keyboard_json_end[];
+extern const uint8_t _binary_system_super_shell_flows_message_dialog_json_start[];
+extern const uint8_t _binary_system_super_shell_flows_message_dialog_json_end[];
+extern const uint8_t _binary_system_super_shell_flows_overlay_json_start[];
+extern const uint8_t _binary_system_super_shell_flows_overlay_json_end[];
+extern const uint8_t _binary_system_super_shell_flows_shell_pages_json_start[];
+extern const uint8_t _binary_system_super_shell_flows_shell_pages_json_end[];
+extern const uint8_t _binary_system_super_shell_i18n_en_json_start[];
+extern const uint8_t _binary_system_super_shell_i18n_en_json_end[];
+extern const uint8_t _binary_system_super_shell_i18n_zh_CN_json_start[];
+extern const uint8_t _binary_system_super_shell_i18n_zh_CN_json_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_backspace_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_backspace_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_cancel_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_cancel_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_eye_hide_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_eye_hide_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_eye_show_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_eye_show_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_left_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_left_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_critical_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_critical_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_information_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_information_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_question_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_question_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_warning_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_msg_dialog_warning_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_ok_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_ok_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_right_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_right_png_end[];
+extern const uint8_t _binary_system_super_shell_images_icon_space_png_start[];
+extern const uint8_t _binary_system_super_shell_images_icon_space_png_end[];
+extern const uint8_t _binary_system_super_shell_images_index_json_start[];
+extern const uint8_t _binary_system_super_shell_images_index_json_end[];
+extern const uint8_t _binary_system_super_shell_root_json_start[];
+extern const uint8_t _binary_system_super_shell_root_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_app_background_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_app_background_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_app_launcher_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_app_launcher_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_background_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_background_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_keyboard_hidden_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_keyboard_hidden_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_keyboard_input_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_keyboard_input_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_message_dialog_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_message_dialog_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_message_dialog_hidden_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_message_dialog_hidden_json_end[];
+extern const uint8_t _binary_system_super_shell_screens_overlay_json_start[];
+extern const uint8_t _binary_system_super_shell_screens_overlay_json_end[];
+extern const uint8_t _binary_system_super_shell_styles_shell_json_start[];
+extern const uint8_t _binary_system_super_shell_styles_shell_json_end[];
+extern const uint8_t _binary_system_super_shell_templates_chip_json_start[];
+extern const uint8_t _binary_system_super_shell_templates_chip_json_end[];
+extern const uint8_t _binary_system_super_shell_templates_launcher_app_button_json_start[];
+extern const uint8_t _binary_system_super_shell_templates_launcher_app_button_json_end[];
+extern const uint8_t _binary_system_super_shell_templates_launcher_slot_json_start[];
+extern const uint8_t _binary_system_super_shell_templates_launcher_slot_json_end[];
+extern const uint8_t _binary_system_super_shell_templates_nav_button_json_start[];
+extern const uint8_t _binary_system_super_shell_templates_nav_button_json_end[];
+extern const uint8_t _binary_system_super_shell_templates_press_scale_json_start[];
+extern const uint8_t _binary_system_super_shell_templates_press_scale_json_end[];
+extern const uint8_t _binary_system_super_startup_constants_1024x600_json_start[];
+extern const uint8_t _binary_system_super_startup_constants_1024x600_json_end[];
+extern const uint8_t _binary_system_super_startup_constants_480x480_json_start[];
+extern const uint8_t _binary_system_super_startup_constants_480x480_json_end[];
+extern const uint8_t _binary_system_super_startup_constants_800x480_json_start[];
+extern const uint8_t _binary_system_super_startup_constants_800x480_json_end[];
+extern const uint8_t _binary_system_super_startup_constants_default_json_start[];
+extern const uint8_t _binary_system_super_startup_constants_default_json_end[];
+extern const uint8_t _binary_system_super_startup_constants_portrait_json_start[];
+extern const uint8_t _binary_system_super_startup_constants_portrait_json_end[];
+extern const uint8_t _binary_system_super_startup_constants_small_json_start[];
+extern const uint8_t _binary_system_super_startup_constants_small_json_end[];
+extern const uint8_t _binary_system_super_startup_images_background_png_start[];
+extern const uint8_t _binary_system_super_startup_images_background_png_end[];
+extern const uint8_t _binary_system_super_startup_images_index_json_start[];
+extern const uint8_t _binary_system_super_startup_images_index_json_end[];
+extern const uint8_t _binary_system_super_startup_root_json_start[];
+extern const uint8_t _binary_system_super_startup_root_json_end[];
+extern const uint8_t _binary_system_super_startup_screens_startup_json_start[];
+extern const uint8_t _binary_system_super_startup_screens_startup_json_end[];
+extern const uint8_t _binary_system_super_themes_color_dark_json_start[];
+extern const uint8_t _binary_system_super_themes_color_dark_json_end[];
+extern const uint8_t _binary_system_super_themes_color_light_json_start[];
+extern const uint8_t _binary_system_super_themes_color_light_json_end[];
+extern const uint8_t _binary_system_super_themes_dark_json_start[];
+extern const uint8_t _binary_system_super_themes_dark_json_end[];
+extern const uint8_t _binary_system_super_themes_font_1024x600_json_start[];
+extern const uint8_t _binary_system_super_themes_font_1024x600_json_end[];
+extern const uint8_t _binary_system_super_themes_font_480x480_json_start[];
+extern const uint8_t _binary_system_super_themes_font_480x480_json_end[];
+extern const uint8_t _binary_system_super_themes_font_800x480_json_start[];
+extern const uint8_t _binary_system_super_themes_font_800x480_json_end[];
+extern const uint8_t _binary_system_super_themes_font_default_json_start[];
+extern const uint8_t _binary_system_super_themes_font_default_json_end[];
+extern const uint8_t _binary_system_super_themes_font_portrait_json_start[];
+extern const uint8_t _binary_system_super_themes_font_portrait_json_end[];
+extern const uint8_t _binary_system_super_themes_font_small_json_start[];
+extern const uint8_t _binary_system_super_themes_font_small_json_end[];
+extern const uint8_t _binary_system_super_themes_light_json_start[];
+extern const uint8_t _binary_system_super_themes_light_json_end[];
+extern const uint8_t _binary_system_super_themes_size_1024x600_json_start[];
+extern const uint8_t _binary_system_super_themes_size_1024x600_json_end[];
+extern const uint8_t _binary_system_super_themes_size_480x480_json_start[];
+extern const uint8_t _binary_system_super_themes_size_480x480_json_end[];
+extern const uint8_t _binary_system_super_themes_size_800x480_json_start[];
+extern const uint8_t _binary_system_super_themes_size_800x480_json_end[];
+extern const uint8_t _binary_system_super_themes_size_default_json_start[];
+extern const uint8_t _binary_system_super_themes_size_default_json_end[];
+extern const uint8_t _binary_system_super_themes_size_portrait_json_start[];
+extern const uint8_t _binary_system_super_themes_size_portrait_json_end[];
+extern const uint8_t _binary_system_super_themes_size_small_json_start[];
+extern const uint8_t _binary_system_super_themes_size_small_json_end[];
+extern const uint8_t _binary_system_super_themes_style_default_json_start[];
+extern const uint8_t _binary_system_super_themes_style_default_json_end[];
+
+// Measured from res/: nodes are objects carrying a "type", styles are objects
+// carrying a "style", bytes is the whole embedded tree (JSON + images + fonts).
+const uint32_t perf_eval_res_doc_nodes = 919;
+const uint32_t perf_eval_res_doc_styles = 274;
+const uint32_t perf_eval_res_doc_images = 39;
+const uint32_t perf_eval_res_doc_bytes = 2328327u;
+
+// Screen ids as declared by the flow documents. A screen id is not a file stem:
+// settings ships screens/header.json for the screen id "settings_header".
+const PerfEvalResScreen perf_eval_res_screens[] = {
+    {"apps/brookesia.general.app_store/res", "app_store"},
+    {"apps/brookesia.general.files/res", "browser"},
+    {"apps/brookesia.general.files/res", "files_header"},
+    {"apps/brookesia.general.files/res", "operations"},
+    {"apps/brookesia.general.settings/res", "debug"},
+    {"apps/brookesia.general.settings/res", "display"},
+    {"apps/brookesia.general.settings/res", "language"},
+    {"apps/brookesia.general.settings/res", "more"},
+    {"apps/brookesia.general.settings/res", "my_device"},
+    {"apps/brookesia.general.settings/res", "settings_header"},
+    {"apps/brookesia.general.settings/res", "settings_home"},
+    {"apps/brookesia.general.settings/res", "sound"},
+    {"apps/brookesia.general.settings/res", "time_zone"},
+    {"apps/brookesia.general.settings/res", "wifi"},
+    {"apps/brookesia.general.settings/res", "wifi_connect"},
+    {"system/super/shell", "app_background"},
+    {"system/super/shell", "background"},
+    {"system/super/shell", "keyboard_hidden"},
+    {"system/super/shell", "keyboard_input"},
+    {"system/super/shell", "launcher"},
+    {"system/super/shell", "message_dialog"},
+    {"system/super/shell", "message_dialog_hidden"},
+    {"system/super/shell", "overlay"},
+    {"system/super/startup", "startup"},
+};
+
+const size_t perf_eval_res_screen_count =
+    sizeof(perf_eval_res_screens) / sizeof(perf_eval_res_screens[0]);
+
+const PerfEvalResEntry perf_eval_res_manifest[] = {
+    {".gitkeep", _binary__gitkeep_start, _binary__gitkeep_end},
+    {"apps/brookesia.general.app_store/res/constants/1024x600.json", _binary_apps_brookesia_general_app_store_res_constants_1024x600_json_start, _binary_apps_brookesia_general_app_store_res_constants_1024x600_json_end},
+    {"apps/brookesia.general.app_store/res/constants/480x480.json", _binary_apps_brookesia_general_app_store_res_constants_480x480_json_start, _binary_apps_brookesia_general_app_store_res_constants_480x480_json_end},
+    {"apps/brookesia.general.app_store/res/constants/800x480.json", _binary_apps_brookesia_general_app_store_res_constants_800x480_json_start, _binary_apps_brookesia_general_app_store_res_constants_800x480_json_end},
+    {"apps/brookesia.general.app_store/res/constants/default.json", _binary_apps_brookesia_general_app_store_res_constants_default_json_start, _binary_apps_brookesia_general_app_store_res_constants_default_json_end},
+    {"apps/brookesia.general.app_store/res/constants/portrait.json", _binary_apps_brookesia_general_app_store_res_constants_portrait_json_start, _binary_apps_brookesia_general_app_store_res_constants_portrait_json_end},
+    {"apps/brookesia.general.app_store/res/flows/app_store.json", _binary_apps_brookesia_general_app_store_res_flows_app_store_json_start, _binary_apps_brookesia_general_app_store_res_flows_app_store_json_end},
+    {"apps/brookesia.general.app_store/res/i18n/en.json", _binary_apps_brookesia_general_app_store_res_i18n_en_json_start, _binary_apps_brookesia_general_app_store_res_i18n_en_json_end},
+    {"apps/brookesia.general.app_store/res/i18n/zh_CN.json", _binary_apps_brookesia_general_app_store_res_i18n_zh_CN_json_start, _binary_apps_brookesia_general_app_store_res_i18n_zh_CN_json_end},
+    {"apps/brookesia.general.app_store/res/images/bpk.jpg", _binary_apps_brookesia_general_app_store_res_images_bpk_jpg_start, _binary_apps_brookesia_general_app_store_res_images_bpk_jpg_end},
+    {"apps/brookesia.general.app_store/res/images/index.json", _binary_apps_brookesia_general_app_store_res_images_index_json_start, _binary_apps_brookesia_general_app_store_res_images_index_json_end},
+    {"apps/brookesia.general.app_store/res/images/launcher_icon.jpg", _binary_apps_brookesia_general_app_store_res_images_launcher_icon_jpg_start, _binary_apps_brookesia_general_app_store_res_images_launcher_icon_jpg_end},
+    {"apps/brookesia.general.app_store/res/images/ok.png", _binary_apps_brookesia_general_app_store_res_images_ok_png_start, _binary_apps_brookesia_general_app_store_res_images_ok_png_end},
+    {"apps/brookesia.general.app_store/res/images/pause.png", _binary_apps_brookesia_general_app_store_res_images_pause_png_start, _binary_apps_brookesia_general_app_store_res_images_pause_png_end},
+    {"apps/brookesia.general.app_store/res/images/start.png", _binary_apps_brookesia_general_app_store_res_images_start_png_start, _binary_apps_brookesia_general_app_store_res_images_start_png_end},
+    {"apps/brookesia.general.app_store/res/root.json", _binary_apps_brookesia_general_app_store_res_root_json_start, _binary_apps_brookesia_general_app_store_res_root_json_end},
+    {"apps/brookesia.general.app_store/res/screens/app_store.json", _binary_apps_brookesia_general_app_store_res_screens_app_store_json_start, _binary_apps_brookesia_general_app_store_res_screens_app_store_json_end},
+    {"apps/brookesia.general.app_store/res/templates/app_store_item.json", _binary_apps_brookesia_general_app_store_res_templates_app_store_item_json_start, _binary_apps_brookesia_general_app_store_res_templates_app_store_item_json_end},
+    {"apps/brookesia.general.app_store/res/templates/press_scale.json", _binary_apps_brookesia_general_app_store_res_templates_press_scale_json_start, _binary_apps_brookesia_general_app_store_res_templates_press_scale_json_end},
+    {"apps/brookesia.general.files/res/constants/480x480.json", _binary_apps_brookesia_general_files_res_constants_480x480_json_start, _binary_apps_brookesia_general_files_res_constants_480x480_json_end},
+    {"apps/brookesia.general.files/res/constants/default.json", _binary_apps_brookesia_general_files_res_constants_default_json_start, _binary_apps_brookesia_general_files_res_constants_default_json_end},
+    {"apps/brookesia.general.files/res/flows/files.json", _binary_apps_brookesia_general_files_res_flows_files_json_start, _binary_apps_brookesia_general_files_res_flows_files_json_end},
+    {"apps/brookesia.general.files/res/flows/header.json", _binary_apps_brookesia_general_files_res_flows_header_json_start, _binary_apps_brookesia_general_files_res_flows_header_json_end},
+    {"apps/brookesia.general.files/res/i18n/en.json", _binary_apps_brookesia_general_files_res_i18n_en_json_start, _binary_apps_brookesia_general_files_res_i18n_en_json_end},
+    {"apps/brookesia.general.files/res/i18n/zh_CN.json", _binary_apps_brookesia_general_files_res_i18n_zh_CN_json_start, _binary_apps_brookesia_general_files_res_i18n_zh_CN_json_end},
+    {"apps/brookesia.general.files/res/images/icon/audio.jpg", _binary_apps_brookesia_general_files_res_images_icon_audio_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_audio_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/bpk.jpg", _binary_apps_brookesia_general_files_res_images_icon_bpk_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_bpk_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/delete.jpg", _binary_apps_brookesia_general_files_res_images_icon_delete_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_delete_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/directory.jpg", _binary_apps_brookesia_general_files_res_images_icon_directory_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_directory_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/doc.jpg", _binary_apps_brookesia_general_files_res_images_icon_doc_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_doc_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/driver.jpg", _binary_apps_brookesia_general_files_res_images_icon_driver_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_driver_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/file.jpg", _binary_apps_brookesia_general_files_res_images_icon_file_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_file_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/image.jpg", _binary_apps_brookesia_general_files_res_images_icon_image_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_image_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/rename.jpg", _binary_apps_brookesia_general_files_res_images_icon_rename_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_rename_jpg_end},
+    {"apps/brookesia.general.files/res/images/icon/video.jpg", _binary_apps_brookesia_general_files_res_images_icon_video_jpg_start, _binary_apps_brookesia_general_files_res_images_icon_video_jpg_end},
+    {"apps/brookesia.general.files/res/images/index.json", _binary_apps_brookesia_general_files_res_images_index_json_start, _binary_apps_brookesia_general_files_res_images_index_json_end},
+    {"apps/brookesia.general.files/res/images/launcher_icon.jpg", _binary_apps_brookesia_general_files_res_images_launcher_icon_jpg_start, _binary_apps_brookesia_general_files_res_images_launcher_icon_jpg_end},
+    {"apps/brookesia.general.files/res/root.json", _binary_apps_brookesia_general_files_res_root_json_start, _binary_apps_brookesia_general_files_res_root_json_end},
+    {"apps/brookesia.general.files/res/screens/browser.json", _binary_apps_brookesia_general_files_res_screens_browser_json_start, _binary_apps_brookesia_general_files_res_screens_browser_json_end},
+    {"apps/brookesia.general.files/res/screens/header.json", _binary_apps_brookesia_general_files_res_screens_header_json_start, _binary_apps_brookesia_general_files_res_screens_header_json_end},
+    {"apps/brookesia.general.files/res/screens/operations.json", _binary_apps_brookesia_general_files_res_screens_operations_json_start, _binary_apps_brookesia_general_files_res_screens_operations_json_end},
+    {"apps/brookesia.general.files/res/templates/file_entry.json", _binary_apps_brookesia_general_files_res_templates_file_entry_json_start, _binary_apps_brookesia_general_files_res_templates_file_entry_json_end},
+    {"apps/brookesia.general.files/res/templates/operation_item.json", _binary_apps_brookesia_general_files_res_templates_operation_item_json_start, _binary_apps_brookesia_general_files_res_templates_operation_item_json_end},
+    {"apps/brookesia.general.settings/res/constants/1024x600.json", _binary_apps_brookesia_general_settings_res_constants_1024x600_json_start, _binary_apps_brookesia_general_settings_res_constants_1024x600_json_end},
+    {"apps/brookesia.general.settings/res/constants/480x480.json", _binary_apps_brookesia_general_settings_res_constants_480x480_json_start, _binary_apps_brookesia_general_settings_res_constants_480x480_json_end},
+    {"apps/brookesia.general.settings/res/constants/800x480.json", _binary_apps_brookesia_general_settings_res_constants_800x480_json_start, _binary_apps_brookesia_general_settings_res_constants_800x480_json_end},
+    {"apps/brookesia.general.settings/res/constants/default.json", _binary_apps_brookesia_general_settings_res_constants_default_json_start, _binary_apps_brookesia_general_settings_res_constants_default_json_end},
+    {"apps/brookesia.general.settings/res/constants/portrait.json", _binary_apps_brookesia_general_settings_res_constants_portrait_json_start, _binary_apps_brookesia_general_settings_res_constants_portrait_json_end},
+    {"apps/brookesia.general.settings/res/flows/content.json", _binary_apps_brookesia_general_settings_res_flows_content_json_start, _binary_apps_brookesia_general_settings_res_flows_content_json_end},
+    {"apps/brookesia.general.settings/res/flows/header.json", _binary_apps_brookesia_general_settings_res_flows_header_json_start, _binary_apps_brookesia_general_settings_res_flows_header_json_end},
+    {"apps/brookesia.general.settings/res/i18n/en.json", _binary_apps_brookesia_general_settings_res_i18n_en_json_start, _binary_apps_brookesia_general_settings_res_i18n_en_json_end},
+    {"apps/brookesia.general.settings/res/i18n/zh_CN.json", _binary_apps_brookesia_general_settings_res_i18n_zh_CN_json_start, _binary_apps_brookesia_general_settings_res_i18n_zh_CN_json_end},
+    {"apps/brookesia.general.settings/res/images/icon/back.png", _binary_apps_brookesia_general_settings_res_images_icon_back_png_start, _binary_apps_brookesia_general_settings_res_images_icon_back_png_end},
+    {"apps/brookesia.general.settings/res/images/icon/display.jpg", _binary_apps_brookesia_general_settings_res_images_icon_display_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_display_jpg_end},
+    {"apps/brookesia.general.settings/res/images/icon/language.jpg", _binary_apps_brookesia_general_settings_res_images_icon_language_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_language_jpg_end},
+    {"apps/brookesia.general.settings/res/images/icon/more.jpg", _binary_apps_brookesia_general_settings_res_images_icon_more_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_more_jpg_end},
+    {"apps/brookesia.general.settings/res/images/icon/my_device.jpg", _binary_apps_brookesia_general_settings_res_images_icon_my_device_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_my_device_jpg_end},
+    {"apps/brookesia.general.settings/res/images/icon/refresh.png", _binary_apps_brookesia_general_settings_res_images_icon_refresh_png_start, _binary_apps_brookesia_general_settings_res_images_icon_refresh_png_end},
+    {"apps/brookesia.general.settings/res/images/icon/sound.jpg", _binary_apps_brookesia_general_settings_res_images_icon_sound_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_sound_jpg_end},
+    {"apps/brookesia.general.settings/res/images/icon/time_zone.jpg", _binary_apps_brookesia_general_settings_res_images_icon_time_zone_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_time_zone_jpg_end},
+    {"apps/brookesia.general.settings/res/images/icon/wifi.jpg", _binary_apps_brookesia_general_settings_res_images_icon_wifi_jpg_start, _binary_apps_brookesia_general_settings_res_images_icon_wifi_jpg_end},
+    {"apps/brookesia.general.settings/res/images/index.json", _binary_apps_brookesia_general_settings_res_images_index_json_start, _binary_apps_brookesia_general_settings_res_images_index_json_end},
+    {"apps/brookesia.general.settings/res/images/launcher_icon.jpg", _binary_apps_brookesia_general_settings_res_images_launcher_icon_jpg_start, _binary_apps_brookesia_general_settings_res_images_launcher_icon_jpg_end},
+    {"apps/brookesia.general.settings/res/root.json", _binary_apps_brookesia_general_settings_res_root_json_start, _binary_apps_brookesia_general_settings_res_root_json_end},
+    {"apps/brookesia.general.settings/res/screens/debug.json", _binary_apps_brookesia_general_settings_res_screens_debug_json_start, _binary_apps_brookesia_general_settings_res_screens_debug_json_end},
+    {"apps/brookesia.general.settings/res/screens/display.json", _binary_apps_brookesia_general_settings_res_screens_display_json_start, _binary_apps_brookesia_general_settings_res_screens_display_json_end},
+    {"apps/brookesia.general.settings/res/screens/header.json", _binary_apps_brookesia_general_settings_res_screens_header_json_start, _binary_apps_brookesia_general_settings_res_screens_header_json_end},
+    {"apps/brookesia.general.settings/res/screens/language.json", _binary_apps_brookesia_general_settings_res_screens_language_json_start, _binary_apps_brookesia_general_settings_res_screens_language_json_end},
+    {"apps/brookesia.general.settings/res/screens/more.json", _binary_apps_brookesia_general_settings_res_screens_more_json_start, _binary_apps_brookesia_general_settings_res_screens_more_json_end},
+    {"apps/brookesia.general.settings/res/screens/my_device.json", _binary_apps_brookesia_general_settings_res_screens_my_device_json_start, _binary_apps_brookesia_general_settings_res_screens_my_device_json_end},
+    {"apps/brookesia.general.settings/res/screens/settings_home.json", _binary_apps_brookesia_general_settings_res_screens_settings_home_json_start, _binary_apps_brookesia_general_settings_res_screens_settings_home_json_end},
+    {"apps/brookesia.general.settings/res/screens/sound.json", _binary_apps_brookesia_general_settings_res_screens_sound_json_start, _binary_apps_brookesia_general_settings_res_screens_sound_json_end},
+    {"apps/brookesia.general.settings/res/screens/time_zone.json", _binary_apps_brookesia_general_settings_res_screens_time_zone_json_start, _binary_apps_brookesia_general_settings_res_screens_time_zone_json_end},
+    {"apps/brookesia.general.settings/res/screens/wifi.json", _binary_apps_brookesia_general_settings_res_screens_wifi_json_start, _binary_apps_brookesia_general_settings_res_screens_wifi_json_end},
+    {"apps/brookesia.general.settings/res/screens/wifi_connect.json", _binary_apps_brookesia_general_settings_res_screens_wifi_connect_json_start, _binary_apps_brookesia_general_settings_res_screens_wifi_connect_json_end},
+    {"apps/brookesia.general.settings/res/templates/debug_slider_row.json", _binary_apps_brookesia_general_settings_res_templates_debug_slider_row_json_start, _binary_apps_brookesia_general_settings_res_templates_debug_slider_row_json_end},
+    {"apps/brookesia.general.settings/res/templates/hardware_group_card.json", _binary_apps_brookesia_general_settings_res_templates_hardware_group_card_json_start, _binary_apps_brookesia_general_settings_res_templates_hardware_group_card_json_end},
+    {"apps/brookesia.general.settings/res/templates/language_option_item.json", _binary_apps_brookesia_general_settings_res_templates_language_option_item_json_start, _binary_apps_brookesia_general_settings_res_templates_language_option_item_json_end},
+    {"apps/brookesia.general.settings/res/templates/menu_item.json", _binary_apps_brookesia_general_settings_res_templates_menu_item_json_start, _binary_apps_brookesia_general_settings_res_templates_menu_item_json_end},
+    {"apps/brookesia.general.settings/res/templates/nav_menu_item.json", _binary_apps_brookesia_general_settings_res_templates_nav_menu_item_json_start, _binary_apps_brookesia_general_settings_res_templates_nav_menu_item_json_end},
+    {"apps/brookesia.general.settings/res/templates/page_header.json", _binary_apps_brookesia_general_settings_res_templates_page_header_json_start, _binary_apps_brookesia_general_settings_res_templates_page_header_json_end},
+    {"apps/brookesia.general.settings/res/templates/press_item.json", _binary_apps_brookesia_general_settings_res_templates_press_item_json_start, _binary_apps_brookesia_general_settings_res_templates_press_item_json_end},
+    {"apps/brookesia.general.settings/res/templates/search_card.json", _binary_apps_brookesia_general_settings_res_templates_search_card_json_start, _binary_apps_brookesia_general_settings_res_templates_search_card_json_end},
+    {"apps/brookesia.general.settings/res/templates/setting_row.json", _binary_apps_brookesia_general_settings_res_templates_setting_row_json_start, _binary_apps_brookesia_general_settings_res_templates_setting_row_json_end},
+    {"apps/brookesia.general.settings/res/templates/settings_card.json", _binary_apps_brookesia_general_settings_res_templates_settings_card_json_start, _binary_apps_brookesia_general_settings_res_templates_settings_card_json_end},
+    {"apps/brookesia.general.settings/res/templates/slider_row.json", _binary_apps_brookesia_general_settings_res_templates_slider_row_json_start, _binary_apps_brookesia_general_settings_res_templates_slider_row_json_end},
+    {"apps/brookesia.general.settings/res/templates/switch_row.json", _binary_apps_brookesia_general_settings_res_templates_switch_row_json_start, _binary_apps_brookesia_general_settings_res_templates_switch_row_json_end},
+    {"apps/brookesia.general.settings/res/templates/theme_mode_card.json", _binary_apps_brookesia_general_settings_res_templates_theme_mode_card_json_start, _binary_apps_brookesia_general_settings_res_templates_theme_mode_card_json_end},
+    {"apps/brookesia.general.settings/res/templates/wifi_connected_item.json", _binary_apps_brookesia_general_settings_res_templates_wifi_connected_item_json_start, _binary_apps_brookesia_general_settings_res_templates_wifi_connected_item_json_end},
+    {"apps/brookesia.general.settings/res/templates/wifi_network_item.json", _binary_apps_brookesia_general_settings_res_templates_wifi_network_item_json_start, _binary_apps_brookesia_general_settings_res_templates_wifi_network_item_json_end},
+    {"system/fonts/NotoSansSC-Regular.subset.ttf", _binary_system_fonts_NotoSansSC_Regular_subset_ttf_start, _binary_system_fonts_NotoSansSC_Regular_subset_ttf_end},
+    {"system/fonts/Telex-Regular.ttf", _binary_system_fonts_Telex_Regular_ttf_start, _binary_system_fonts_Telex_Regular_ttf_end},
+    {"system/fonts/index.json", _binary_system_fonts_index_json_start, _binary_system_fonts_index_json_end},
+    {"system/super/shell/constants/1024x600.json", _binary_system_super_shell_constants_1024x600_json_start, _binary_system_super_shell_constants_1024x600_json_end},
+    {"system/super/shell/constants/480x480.json", _binary_system_super_shell_constants_480x480_json_start, _binary_system_super_shell_constants_480x480_json_end},
+    {"system/super/shell/constants/800x480.json", _binary_system_super_shell_constants_800x480_json_start, _binary_system_super_shell_constants_800x480_json_end},
+    {"system/super/shell/constants/default.json", _binary_system_super_shell_constants_default_json_start, _binary_system_super_shell_constants_default_json_end},
+    {"system/super/shell/constants/i18n/en.json", _binary_system_super_shell_constants_i18n_en_json_start, _binary_system_super_shell_constants_i18n_en_json_end},
+    {"system/super/shell/constants/i18n/zh_CN.json", _binary_system_super_shell_constants_i18n_zh_CN_json_start, _binary_system_super_shell_constants_i18n_zh_CN_json_end},
+    {"system/super/shell/constants/portrait.json", _binary_system_super_shell_constants_portrait_json_start, _binary_system_super_shell_constants_portrait_json_end},
+    {"system/super/shell/constants/small.json", _binary_system_super_shell_constants_small_json_start, _binary_system_super_shell_constants_small_json_end},
+    {"system/super/shell/flows/background.json", _binary_system_super_shell_flows_background_json_start, _binary_system_super_shell_flows_background_json_end},
+    {"system/super/shell/flows/keyboard.json", _binary_system_super_shell_flows_keyboard_json_start, _binary_system_super_shell_flows_keyboard_json_end},
+    {"system/super/shell/flows/message_dialog.json", _binary_system_super_shell_flows_message_dialog_json_start, _binary_system_super_shell_flows_message_dialog_json_end},
+    {"system/super/shell/flows/overlay.json", _binary_system_super_shell_flows_overlay_json_start, _binary_system_super_shell_flows_overlay_json_end},
+    {"system/super/shell/flows/shell_pages.json", _binary_system_super_shell_flows_shell_pages_json_start, _binary_system_super_shell_flows_shell_pages_json_end},
+    {"system/super/shell/i18n/en.json", _binary_system_super_shell_i18n_en_json_start, _binary_system_super_shell_i18n_en_json_end},
+    {"system/super/shell/i18n/zh_CN.json", _binary_system_super_shell_i18n_zh_CN_json_start, _binary_system_super_shell_i18n_zh_CN_json_end},
+    {"system/super/shell/images/icon/backspace.png", _binary_system_super_shell_images_icon_backspace_png_start, _binary_system_super_shell_images_icon_backspace_png_end},
+    {"system/super/shell/images/icon/cancel.png", _binary_system_super_shell_images_icon_cancel_png_start, _binary_system_super_shell_images_icon_cancel_png_end},
+    {"system/super/shell/images/icon/eye_hide.png", _binary_system_super_shell_images_icon_eye_hide_png_start, _binary_system_super_shell_images_icon_eye_hide_png_end},
+    {"system/super/shell/images/icon/eye_show.png", _binary_system_super_shell_images_icon_eye_show_png_start, _binary_system_super_shell_images_icon_eye_show_png_end},
+    {"system/super/shell/images/icon/left.png", _binary_system_super_shell_images_icon_left_png_start, _binary_system_super_shell_images_icon_left_png_end},
+    {"system/super/shell/images/icon/msg_dialog/critical.png", _binary_system_super_shell_images_icon_msg_dialog_critical_png_start, _binary_system_super_shell_images_icon_msg_dialog_critical_png_end},
+    {"system/super/shell/images/icon/msg_dialog/information.png", _binary_system_super_shell_images_icon_msg_dialog_information_png_start, _binary_system_super_shell_images_icon_msg_dialog_information_png_end},
+    {"system/super/shell/images/icon/msg_dialog/question.png", _binary_system_super_shell_images_icon_msg_dialog_question_png_start, _binary_system_super_shell_images_icon_msg_dialog_question_png_end},
+    {"system/super/shell/images/icon/msg_dialog/warning.png", _binary_system_super_shell_images_icon_msg_dialog_warning_png_start, _binary_system_super_shell_images_icon_msg_dialog_warning_png_end},
+    {"system/super/shell/images/icon/ok.png", _binary_system_super_shell_images_icon_ok_png_start, _binary_system_super_shell_images_icon_ok_png_end},
+    {"system/super/shell/images/icon/right.png", _binary_system_super_shell_images_icon_right_png_start, _binary_system_super_shell_images_icon_right_png_end},
+    {"system/super/shell/images/icon/space.png", _binary_system_super_shell_images_icon_space_png_start, _binary_system_super_shell_images_icon_space_png_end},
+    {"system/super/shell/images/index.json", _binary_system_super_shell_images_index_json_start, _binary_system_super_shell_images_index_json_end},
+    {"system/super/shell/root.json", _binary_system_super_shell_root_json_start, _binary_system_super_shell_root_json_end},
+    {"system/super/shell/screens/app_background.json", _binary_system_super_shell_screens_app_background_json_start, _binary_system_super_shell_screens_app_background_json_end},
+    {"system/super/shell/screens/app_launcher.json", _binary_system_super_shell_screens_app_launcher_json_start, _binary_system_super_shell_screens_app_launcher_json_end},
+    {"system/super/shell/screens/background.json", _binary_system_super_shell_screens_background_json_start, _binary_system_super_shell_screens_background_json_end},
+    {"system/super/shell/screens/keyboard_hidden.json", _binary_system_super_shell_screens_keyboard_hidden_json_start, _binary_system_super_shell_screens_keyboard_hidden_json_end},
+    {"system/super/shell/screens/keyboard_input.json", _binary_system_super_shell_screens_keyboard_input_json_start, _binary_system_super_shell_screens_keyboard_input_json_end},
+    {"system/super/shell/screens/message_dialog.json", _binary_system_super_shell_screens_message_dialog_json_start, _binary_system_super_shell_screens_message_dialog_json_end},
+    {"system/super/shell/screens/message_dialog_hidden.json", _binary_system_super_shell_screens_message_dialog_hidden_json_start, _binary_system_super_shell_screens_message_dialog_hidden_json_end},
+    {"system/super/shell/screens/overlay.json", _binary_system_super_shell_screens_overlay_json_start, _binary_system_super_shell_screens_overlay_json_end},
+    {"system/super/shell/styles/shell.json", _binary_system_super_shell_styles_shell_json_start, _binary_system_super_shell_styles_shell_json_end},
+    {"system/super/shell/templates/chip.json", _binary_system_super_shell_templates_chip_json_start, _binary_system_super_shell_templates_chip_json_end},
+    {"system/super/shell/templates/launcher_app_button.json", _binary_system_super_shell_templates_launcher_app_button_json_start, _binary_system_super_shell_templates_launcher_app_button_json_end},
+    {"system/super/shell/templates/launcher_slot.json", _binary_system_super_shell_templates_launcher_slot_json_start, _binary_system_super_shell_templates_launcher_slot_json_end},
+    {"system/super/shell/templates/nav_button.json", _binary_system_super_shell_templates_nav_button_json_start, _binary_system_super_shell_templates_nav_button_json_end},
+    {"system/super/shell/templates/press_scale.json", _binary_system_super_shell_templates_press_scale_json_start, _binary_system_super_shell_templates_press_scale_json_end},
+    {"system/super/startup/constants/1024x600.json", _binary_system_super_startup_constants_1024x600_json_start, _binary_system_super_startup_constants_1024x600_json_end},
+    {"system/super/startup/constants/480x480.json", _binary_system_super_startup_constants_480x480_json_start, _binary_system_super_startup_constants_480x480_json_end},
+    {"system/super/startup/constants/800x480.json", _binary_system_super_startup_constants_800x480_json_start, _binary_system_super_startup_constants_800x480_json_end},
+    {"system/super/startup/constants/default.json", _binary_system_super_startup_constants_default_json_start, _binary_system_super_startup_constants_default_json_end},
+    {"system/super/startup/constants/portrait.json", _binary_system_super_startup_constants_portrait_json_start, _binary_system_super_startup_constants_portrait_json_end},
+    {"system/super/startup/constants/small.json", _binary_system_super_startup_constants_small_json_start, _binary_system_super_startup_constants_small_json_end},
+    {"system/super/startup/images/background.png", _binary_system_super_startup_images_background_png_start, _binary_system_super_startup_images_background_png_end},
+    {"system/super/startup/images/index.json", _binary_system_super_startup_images_index_json_start, _binary_system_super_startup_images_index_json_end},
+    {"system/super/startup/root.json", _binary_system_super_startup_root_json_start, _binary_system_super_startup_root_json_end},
+    {"system/super/startup/screens/startup.json", _binary_system_super_startup_screens_startup_json_start, _binary_system_super_startup_screens_startup_json_end},
+    {"system/super/themes/color/dark.json", _binary_system_super_themes_color_dark_json_start, _binary_system_super_themes_color_dark_json_end},
+    {"system/super/themes/color/light.json", _binary_system_super_themes_color_light_json_start, _binary_system_super_themes_color_light_json_end},
+    {"system/super/themes/dark.json", _binary_system_super_themes_dark_json_start, _binary_system_super_themes_dark_json_end},
+    {"system/super/themes/font/1024x600.json", _binary_system_super_themes_font_1024x600_json_start, _binary_system_super_themes_font_1024x600_json_end},
+    {"system/super/themes/font/480x480.json", _binary_system_super_themes_font_480x480_json_start, _binary_system_super_themes_font_480x480_json_end},
+    {"system/super/themes/font/800x480.json", _binary_system_super_themes_font_800x480_json_start, _binary_system_super_themes_font_800x480_json_end},
+    {"system/super/themes/font/default.json", _binary_system_super_themes_font_default_json_start, _binary_system_super_themes_font_default_json_end},
+    {"system/super/themes/font/portrait.json", _binary_system_super_themes_font_portrait_json_start, _binary_system_super_themes_font_portrait_json_end},
+    {"system/super/themes/font/small.json", _binary_system_super_themes_font_small_json_start, _binary_system_super_themes_font_small_json_end},
+    {"system/super/themes/light.json", _binary_system_super_themes_light_json_start, _binary_system_super_themes_light_json_end},
+    {"system/super/themes/size/1024x600.json", _binary_system_super_themes_size_1024x600_json_start, _binary_system_super_themes_size_1024x600_json_end},
+    {"system/super/themes/size/480x480.json", _binary_system_super_themes_size_480x480_json_start, _binary_system_super_themes_size_480x480_json_end},
+    {"system/super/themes/size/800x480.json", _binary_system_super_themes_size_800x480_json_start, _binary_system_super_themes_size_800x480_json_end},
+    {"system/super/themes/size/default.json", _binary_system_super_themes_size_default_json_start, _binary_system_super_themes_size_default_json_end},
+    {"system/super/themes/size/portrait.json", _binary_system_super_themes_size_portrait_json_start, _binary_system_super_themes_size_portrait_json_end},
+    {"system/super/themes/size/small.json", _binary_system_super_themes_size_small_json_start, _binary_system_super_themes_size_small_json_end},
+    {"system/super/themes/style/default.json", _binary_system_super_themes_style_default_json_start, _binary_system_super_themes_style_default_json_end},
+};
+
+const size_t perf_eval_res_manifest_count =
+    sizeof(perf_eval_res_manifest) / sizeof(perf_eval_res_manifest[0]);
+
+size_t perf_eval_res_size(const PerfEvalResEntry *entry)
+{
+    if (entry == NULL) {
+        return 0;
+    }
+    return (size_t)(entry->end - entry->data);
+}
+
+const PerfEvalResEntry *perf_eval_res_find(const char *path)
+{
+    if (path == NULL) {
+        return NULL;
+    }
+    for (size_t i = 0; i < perf_eval_res_manifest_count; ++i) {
+        const char *a = perf_eval_res_manifest[i].path;
+        size_t j = 0;
+        while (a[j] != '\0' && a[j] == path[j]) {
+            ++j;
+        }
+        if (a[j] == '\0' && path[j] == '\0') {
+            return &perf_eval_res_manifest[i];
+        }
+    }
+    return NULL;
+}

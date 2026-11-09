@@ -1,0 +1,18 @@
+{
+    "type": "constant",
+    "data": {
+        "appStore": {
+            "layout": {
+                "pagePadding": "18dp",
+                "itemHeight": "112dp",
+                "itemRadius": "12dp",
+                "iconColumnWidth": "72dp",
+                "iconBoxSize": "72dp",
+                "iconSize": "56dp",
+                "actionColumnWidth": "132dp",
+                "actionButtonHeight": "40dp",
+                "deleteWidth": "84dp"
+            }
+        }
+    }
+}

@@ -1,0 +1,333 @@
+{
+    "type": "viewScreen",
+    "mount_mode": "dynamic",
+    "id": "message_dialog",
+    "commonProps": {
+        "clickable": true,
+        "scrollable": false
+    },
+    "placement": {
+        "width": "${env.widthDp}",
+        "height": "${env.heightDp}"
+    },
+    "children": [
+        {
+            "type": "container",
+            "id": "backdrop",
+            "commonProps": {
+                "clickable": true,
+                "scrollable": false
+            },
+            "placement": {
+                "width": "${env.widthDp}",
+                "height": "${env.heightDp}"
+            },
+            "styleRefs": [
+                "shell.messageDialogBackdrop"
+            ]
+        },
+        {
+            "type": "container",
+            "id": "panel",
+            "commonProps": {
+                "clickable": true,
+                "scrollable": false
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "mainAlign": "center",
+                "crossAlign": "center",
+                "gap": "${constant.ui.messageDialog.gap}"
+            },
+            "placement": {
+                "mode": "relative",
+                "align": "center",
+                "width": "wrap",
+                "height": "wrap"
+            },
+            "styleRefs": [
+                "shell.messageDialogPanel"
+            ],
+            "children": [
+                {
+                    "type": "image",
+                    "id": "icon",
+                    "commonProps": {
+                        "clickable": false,
+                        "hidden": true
+                    },
+                    "bindings": {
+                        "imageProps.src": "src",
+                        "imageProps.recolor": "recolor",
+                        "imageProps.recolorOpacity": "recolorOpacity",
+                        "commonProps.hidden": "hidden"
+                    },
+                    "imageProps": {
+                        "src": "",
+                        "recolor": "",
+                        "recolorOpacity": 255,
+                        "innerAlign": "contain"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "${constant.ui.messageDialog.iconSize}",
+                        "height": "${constant.ui.messageDialog.iconSize}"
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "text",
+                    "commonProps": {
+                        "clickable": false
+                    },
+                    "bindings": {
+                        "labelProps.text": "text"
+                    },
+                    "labelProps": {
+                        "text": ""
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "${constant.ui.messageDialog.contentWidth}",
+                        "height": "wrap"
+                    },
+                    "styleRefs": [
+                        "shell.messageDialogText"
+                    ],
+                    "style": {
+                        "fontSize": "${constant.ui.messageDialog.textFontSize}",
+                        "textAlign": "Center"
+                    }
+                },
+                {
+                    "type": "label",
+                    "id": "informative_text",
+                    "commonProps": {
+                        "clickable": false,
+                        "hidden": true
+                    },
+                    "bindings": {
+                        "labelProps.text": "text",
+                        "commonProps.hidden": "hidden"
+                    },
+                    "labelProps": {
+                        "text": ""
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "${constant.ui.messageDialog.contentWidth}",
+                        "height": "wrap"
+                    },
+                    "styleRefs": [
+                        "shell.messageDialogInformativeText"
+                    ],
+                    "style": {
+                        "fontSize": "${constant.ui.messageDialog.informativeTextFontSize}",
+                        "textAlign": "Center"
+                    }
+                },
+                {
+                    "type": "container",
+                    "id": "actions",
+                    "commonProps": {
+                        "clickable": false,
+                        "scrollable": false,
+                        "hidden": true
+                    },
+                    "bindings": {
+                        "commonProps.hidden": "hidden"
+                    },
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "row",
+                        "mainAlign": "center",
+                        "crossAlign": "center",
+                        "gap": "${constant.ui.messageDialog.buttonGap}"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "wrap",
+                        "height": "wrap"
+                    },
+                    "children": [
+                        {
+                            "type": "button",
+                            "id": "button0",
+                            "commonProps": {
+                                "hidden": true
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "hidden"
+                            },
+                            "interactionRefs": [
+                                "press.scale"
+                            ],
+                            "events": [
+                                {
+                                    "type": "clicked",
+                                    "action": "super.message_dialog.button0"
+                                }
+                            ],
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.ui.messageDialog.buttonWidth}",
+                                "height": "${constant.ui.messageDialog.buttonHeight}"
+                            },
+                            "styleRefs": [
+                                "shell.messageDialogButton"
+                            ],
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "text"
+                                    },
+                                    "labelProps": {
+                                        "text": ""
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "wrap",
+                                        "height": "wrap"
+                                    },
+                                    "styleRefs": [
+                                        "shell.messageDialogButtonLabel"
+                                    ],
+                                    "style": {
+                                        "fontSize": "${constant.ui.messageDialog.buttonFontSize}"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "button",
+                            "id": "button1",
+                            "commonProps": {
+                                "hidden": true
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "hidden"
+                            },
+                            "interactionRefs": [
+                                "press.scale"
+                            ],
+                            "events": [
+                                {
+                                    "type": "clicked",
+                                    "action": "super.message_dialog.button1"
+                                }
+                            ],
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.ui.messageDialog.buttonWidth}",
+                                "height": "${constant.ui.messageDialog.buttonHeight}"
+                            },
+                            "styleRefs": [
+                                "shell.messageDialogButton"
+                            ],
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "text"
+                                    },
+                                    "labelProps": {
+                                        "text": ""
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "wrap",
+                                        "height": "wrap"
+                                    },
+                                    "styleRefs": [
+                                        "shell.messageDialogButtonLabel"
+                                    ],
+                                    "style": {
+                                        "fontSize": "${constant.ui.messageDialog.buttonFontSize}"
+                                    }
+                                }
+                            ]
+                        },
+                        {
+                            "type": "button",
+                            "id": "button2",
+                            "commonProps": {
+                                "hidden": true
+                            },
+                            "bindings": {
+                                "commonProps.hidden": "hidden"
+                            },
+                            "interactionRefs": [
+                                "press.scale"
+                            ],
+                            "events": [
+                                {
+                                    "type": "clicked",
+                                    "action": "super.message_dialog.button2"
+                                }
+                            ],
+                            "layout": {
+                                "type": "flex",
+                                "mainAlign": "center",
+                                "crossAlign": "center"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "${constant.ui.messageDialog.buttonWidth}",
+                                "height": "${constant.ui.messageDialog.buttonHeight}"
+                            },
+                            "styleRefs": [
+                                "shell.messageDialogButton"
+                            ],
+                            "children": [
+                                {
+                                    "type": "label",
+                                    "id": "label",
+                                    "commonProps": {
+                                        "clickable": false
+                                    },
+                                    "bindings": {
+                                        "labelProps.text": "text"
+                                    },
+                                    "labelProps": {
+                                        "text": ""
+                                    },
+                                    "placement": {
+                                        "mode": "flow",
+                                        "width": "wrap",
+                                        "height": "wrap"
+                                    },
+                                    "styleRefs": [
+                                        "shell.messageDialogButtonLabel"
+                                    ],
+                                    "style": {
+                                        "fontSize": "${constant.ui.messageDialog.buttonFontSize}"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}

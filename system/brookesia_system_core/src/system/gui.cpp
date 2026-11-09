@@ -11,6 +11,9 @@
 #include <set>
 #include <string_view>
 
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+#include "esp_timer.h"
+#endif
 #include "boost/json.hpp"
 
 #include "brookesia/service_helper/system/storage.hpp"
@@ -339,12 +342,21 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
                 &heap_before_flush
             );
         }
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+        const int64_t apply_started_us = esp_timer_get_time();
+#endif
         auto record_result = get_record(app_id);
         if (!record_result || !gui_runtime_ || !record_result.value()->document_id.has_value()) {
             BROOKESIA_LOGW("Skip pending GUI binding flush: app_id(%1%), count(%2%)", app_id, updates.size());
         } else {
             gui_runtime_->set_binding_values(*record_result.value()->document_id, updates);
         }
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+        gui_binding_flush_count_.fetch_add(1, std::memory_order_relaxed);
+        gui_binding_applied_updates_.fetch_add(updates.size(), std::memory_order_relaxed);
+        gui_binding_apply_us_.fetch_add(
+            static_cast<uint64_t>(esp_timer_get_time() - apply_started_us), std::memory_order_relaxed);
+#endif
         if constexpr (heap_trace::detail_enabled) {
             const auto app_id_string = std::to_string(app_id);
             const auto details = "app_id=" + app_id_string + " update_count=" + std::to_string(updates.size());
@@ -377,9 +389,15 @@ void System::Impl::flush_pending_gui_bindings(AppId app_id)
         return;
     }
 
+    // This re-arm is a continuation ("run another pass later"), not an
+    // affinity-sensitive call, so it must always take a real queue hop. A flush
+    // always runs in the GUI task domain, so the post_task inline shortcut would
+    // execute the next pass nested inside this one; under sustained binding
+    // arrivals (v1.8 binding_stress) every level re-arms and the worker stack is
+    // exhausted. allow_inline_execution=false keeps the pass ordered but queued.
     auto post_result = post_gui_task([this, app_id]() {
         flush_pending_gui_bindings(app_id);
-    });
+    }, /*allow_inline_execution=*/false);
     if (!post_result) {
         std::lock_guard lock(gui_binding_mutex_);
         auto buffer_it = pending_gui_bindings_.find(app_id);
@@ -685,6 +703,17 @@ std::expected<void, std::string> System::gui_set_binding_values(
 {
     return impl_->enqueue_gui_binding_updates(app_id, updates);
 }
+
+#if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
+System::GuiBindingFlushStats System::gui_binding_flush_stats() const
+{
+    return {
+        .flush_count = impl_->gui_binding_flush_count_.load(std::memory_order_relaxed),
+        .applied_updates = impl_->gui_binding_applied_updates_.load(std::memory_order_relaxed),
+        .apply_us = impl_->gui_binding_apply_us_.load(std::memory_order_relaxed),
+    };
+}
+#endif
 
 std::optional<std::string> System::gui_get_binding_value(
     AppId app_id,
@@ -1571,6 +1600,19 @@ std::expected<gui::DocumentId, std::string> System::system_gui_load_json(
 )
 {
     return system_gui().load_json(root_path, json, resource_dir);
+}
+
+std::expected<void, std::string> System::system_gui_load_theme_file(
+    std::string_view resource_dir,
+    std::string_view path
+)
+{
+    return system_gui().load_theme_file(resource_dir, path);
+}
+
+std::expected<void, std::string> System::system_gui_set_theme(std::string_view theme_id)
+{
+    return system_gui().set_theme(theme_id);
 }
 
 std::expected<gui::View, std::string> System::system_gui_mount_screen(

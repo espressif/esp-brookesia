@@ -1,0 +1,46 @@
+# rev 0.x silicon. v1.8 section 1.1 names esp32_p4x_function_ev as the P4
+# baseline board and allows esp32_p4_function_ev as an alternative; the rev
+# constraint itself needs no entry here because the board definition already
+# selects REV_LESS_V3 and sdkconfig.defaults.esp32p4 pins the range to 0-199.
+#
+# Recorded per capture as board_id=esp32_p4_function_ev, chip_rev=v1.0. Do not
+# cross-compare against P4X numbers.
+CONFIG_IDF_TARGET="esp32p4"
+
+# The board definition does not set a flash size, so the target default (2MB)
+# applies and any partition table larger than that is rejected. The P4 EV board
+# carries 16MB, and the 16MB table is what examples/system/super uses, so pin it
+# here rather than shrinking the app partition below the binary size.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+
+# The revision gate, stated explicitly.
+#
+# This board is rev 0.x silicon (efuse reports v1.0), and esptool refuses to
+# flash a bootloader whose image header requires a higher revision. Leaving
+# CONFIG_ESP32P4_REV_MIN_* unset is NOT enough: with no board definition in play
+# Kconfig keeps the target default REV_MIN_301, so the bootloader is stamped
+# "requires >= 3.1" and flashing fails on this chip with
+#   'bootloader/bootloader.bin' requires chip revision in range [v3.1 - v3.99]
+#
+# SELECTS_REV_LESS_V3 is the switch the board definition would normally emit. Set
+# it here so the choice range collapses to 0-199, which admits rev 0.x and every
+# Revision is intentionally NOT set here. examples/system/super builds this
+# board with REV_MIN_FULL=0 and REV_LESS_V3 set, and it gets there via the
+# board_manager.defaults that .gitlab/tools/build_apps.py generates from this
+# filename - not via a line in this file. Setting SELECTS_REV_LESS_V3 by hand
+# here would mask whether that generation actually happened.
+
+# The revision is stated as a concrete choice, not left to fall out of
+# SELECTS_REV_LESS_V3. Inside the <3.0 branch the REV_MIN_* options are visible
+# again, but their default is still REV_MIN_301, which is outside that branch, so
+# Kconfig does not resolve to 0 on its own. REV_MIN_0 has to be selected
+# explicitly for REV_MIN_FULL to become 0, and REV_MIN_FULL=0 is what makes the
+# bootloader accept this rev 0.x / rev 1.x silicon instead of refusing with
+# "requires chip revision in range [v3.1 - v3.99]".
+#
+# SELECTS_REV_LESS_V3 itself comes from the board_manager.defaults that
+# gen-bmgr-config generates, which is why it must appear in SDKCONFIG_DEFAULTS.
+CONFIG_ESP32P4_REV_MIN_0=y
+CONFIG_PERF_EVAL_BOARD_ID="esp32_p4_function_ev"
+CONFIG_PERF_EVAL_ALLOW_DESTRUCTIVE_FORMAT=y

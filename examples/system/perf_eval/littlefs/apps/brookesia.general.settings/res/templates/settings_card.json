@@ -1,0 +1,34 @@
+{
+    "type": "viewTemplate",
+    "id": "settings_card",
+    "node": {
+        "type": "container",
+        "commonProps": {
+            "scrollable": false
+        },
+        "styleRefs": [
+            "app.card"
+        ],
+        "style": {
+            "padding": "${constant.settings.layout.cardPadding}"
+        },
+        "layout": {
+            "type": "flex",
+            "flexFlow": "column",
+            "gap": "${constant.settings.layout.cardGap}"
+        },
+        "placement": {
+            "mode": "flow",
+            "width": "match",
+            "height": "wrap",
+            "alignSelf": "stretch"
+        },
+        "children": [
+            {
+                "type": "slot",
+                "id": "content",
+                "children": []
+            }
+        ]
+    }
+}

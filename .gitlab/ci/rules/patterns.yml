@@ -758,3 +758,14 @@
   - "examples/system/super/partitions*.csv"
   - "examples/system/super/pytest_*.py"
   - "examples/system/super/sdkconfig.*"
+# system/perf_eval
+.patterns-examples_system_perf_eval:
+  - "examples/system/perf_eval/main/**/*"
+  - "examples/system/perf_eval/littlefs/**/*"
+  - "examples/system/perf_eval/res/**/*"
+  - "examples/system/perf_eval/components/**/*"
+  - "examples/system/perf_eval/CMakeLists.txt"
+  - "examples/system/perf_eval/idf_ext.py"
+  - "examples/system/perf_eval/partitions*.csv"
+  - "examples/system/perf_eval/pytest_*.py"
+  - "examples/system/perf_eval/sdkconfig.*"

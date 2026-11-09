@@ -1,5 +1,19 @@
 # ChangeLog
 
+## v0.8.6 - 2026-10-27
+
+### Enhancements:
+
+- feat(system): expose `gui_binding_flush_stats()` behind `BROOKESIA_SYSTEM_CORE_ENABLE_GUI_BINDING_PROBE` (default n) so the flush-apply metric costs nothing in shipped builds.
+- feat(system): drive the GUI backend from `System::process_timers()` so deferred work advances on the timer path.
+- feat(system): make `system_gui_load_json` / `system_gui_mount_screen` / `system_gui_unmount_screen` / `system_gui_unload` public so a firmware carrier without a derived App can drive the GUI.
+- feat(system): add and expose `system_gui_load_theme_file` / `system_gui_set_theme` so a carrier can register and activate a theme before loading GUI documents.
+
+### Bug Fixes:
+
+- fix(system): post the GUI binding-flush re-arm as a real queue hop instead of running it inline.
+- fix(build): include `esp_timer.h` only when the GUI binding probe is enabled.
+
 ## v0.8.5 - 2026-10-27
 
 ### Enhancements:

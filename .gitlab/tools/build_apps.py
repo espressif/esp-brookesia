@@ -191,7 +191,7 @@ def main(args):  # type: (argparse.Namespace) -> None
         parallel_count=args.parallel_count,
         parallel_index=args.parallel_index,
         dry_run=False,
-        collect_size_info=args.collect_size_info,
+        collect_size_info_filename=args.collect_size_info,
         keep_going=True,
         ignore_warning_strs=IGNORE_WARNINGS,
         copy_sdkconfig=True,
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         '--collect-size-info',
-        type=argparse.FileType('w'),
+        type=str,
         help='If specified, the test case name and size info json will be written to this file',
     )
     parser.add_argument(

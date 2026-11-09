@@ -1,0 +1,193 @@
+{
+    "type": "viewScreen",
+    "id": "display",
+    "mountMode": "dynamic",
+    "commonProps": {
+        "scrollable": false
+    },
+    "styleRefs": [
+        "app.page"
+    ],
+    "children": [
+        {
+            "type": "container",
+            "id": "page",
+            "commonProps": {
+                "scrollable": true
+            },
+            "layout": {
+                "type": "flex",
+                "flexFlow": "column",
+                "gap": "${constant.settings.layout.pageGap}"
+            },
+            "placement": {
+                "mode": "absolute",
+                "x": "${constant.settings.layout.pageX}",
+                "y": "${constant.settings.layout.pageY}",
+                "width": "${constant.settings.layout.pageWidth}",
+                "height": "${constant.settings.layout.pageHeight}"
+            },
+            "children": [
+                {
+                    "type": "container",
+                    "id": "theme_modes",
+                    "layout": {
+                        "type": "flex",
+                        "flexFlow": "rowWrap",
+                        "gap": "${constant.settings.layout.cardGap}",
+                        "mainAlign": "start",
+                        "crossAlign": "start"
+                    },
+                    "placement": {
+                        "mode": "flow",
+                        "width": "match",
+                        "height": "wrap",
+                        "alignSelf": "stretch"
+                    },
+                    "children": [
+                        {
+                            "type": "templateRef",
+                            "id": "light_mode",
+                            "templateId": "theme_mode_card",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.display.light"
+                                        }
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "alignSelf": "stretch"
+                                    }
+                                },
+                                "preview": {
+                                    "style": {
+                                        "bgColor": "${color.bg.base}",
+                                        "radius": "18dp"
+                                    }
+                                },
+                                "label": {
+                                    "labelProps": {
+                                        "text": "Light mode"
+                                    },
+                                    "styleRefs": [
+                                        "app.cardTitle"
+                                    ],
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text",
+                                        "style.textColor": "textColor"
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "templateRef",
+                            "id": "dark_mode",
+                            "templateId": "theme_mode_card",
+                            "overrides": {
+                                ".": {
+                                    "events": [
+                                        {
+                                            "type": "clicked",
+                                            "action": "settings.display.dark"
+                                        }
+                                    ],
+                                    "placement": {
+                                        "mode": "flow",
+                                        "alignSelf": "stretch"
+                                    }
+                                },
+                                "preview": {
+                                    "style": {
+                                        "bgColor": "${color.bg.overlay}",
+                                        "radius": "18dp"
+                                    }
+                                },
+                                "label": {
+                                    "labelProps": {
+                                        "text": "Dark mode"
+                                    },
+                                    "styleRefs": [
+                                        "app.cardTitle"
+                                    ],
+                                    "bindings": {
+                                        "labelProps.text": "labelProps.text",
+                                        "style.textColor": "textColor"
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                },
+                {
+                    "type": "label",
+                    "id": "brightness_caption",
+                    "styleRefs": [
+                        "app.caption"
+                    ],
+                    "labelProps": {
+                        "text": "Brightness level"
+                    },
+                    "placement": {
+                        "mode": "flow"
+                    },
+                    "bindings": {
+                        "labelProps.text": "labelProps.text"
+                    }
+                },
+                {
+                    "type": "templateRef",
+                    "id": "brightness_card",
+                    "templateId": "settings_card",
+                    "overrides": {
+                        ".": {
+                            "style": {
+                                "padding": "${constant.settings.layout.cardPadding}"
+                            },
+                            "layout": {
+                                "gap": "${constant.settings.layout.cardGap}"
+                            },
+                            "placement": {
+                                "mode": "flow",
+                                "width": "match",
+                                "height": "wrap",
+                                "alignSelf": "stretch"
+                            }
+                        }
+                    },
+                    "slots": {
+                        "content": [
+                            {
+                                "type": "templateRef",
+                                "id": "brightness_row",
+                                "templateId": "slider_row",
+                                "overrides": {
+                                    "title": {
+                                        "labelProps": {
+                                            "text": "Screen brightness"
+                                        }
+                                    },
+                                    "slider": {
+                                        "events": [
+                                            {
+                                                "type": "valueChanged",
+                                                "action": "settings.display.brightness"
+                                            }
+                                        ],
+                                        "rangeProps": {
+                                            "min": 0,
+                                            "max": 100,
+                                            "value": 72
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    ]
+}
