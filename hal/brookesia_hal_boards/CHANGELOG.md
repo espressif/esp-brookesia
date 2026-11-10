@@ -1,5 +1,12 @@
 # ChangeLog
 
+## Unreleased
+
+### Bug Fixes:
+
+- fix(p4): default pre-v3 ESP32-P4 Function-EV profiles to 360 MHz while retaining the P4X clock default.
+- fix(audio): disable upstream video pipelines by default on audio-only board profiles.
+
 ## v0.8.1 - 2026-10-27
 
 ### Enhancements:

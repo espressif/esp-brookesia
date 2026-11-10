@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Unreleased
+
+### Bug Fixes:
+
+- fix(logging): omit service call arguments, results, and event payloads from debug logs to protect credentials.
+
 ## v0.8.2 - 2026-07-22
 
 ### Breaking Changes:

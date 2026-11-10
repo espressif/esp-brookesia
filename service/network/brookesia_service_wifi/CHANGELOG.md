@@ -1,5 +1,16 @@
 # ChangeLog
 
+## Unreleased
+
+### Enhancements:
+
+- feat(wifi): add GetConnectedSsid independently of the next connection target, with an empty result when disconnected.
+
+### Bug Fixes:
+
+- fix(logging): omit Wi-Fi credentials from service logs and validation errors.
+- fix(tests): wait for SoftAP start and stop events during concurrent station reconnection tests.
+
 ## v0.8.3 - 2026-10-27
 
 ### Bug Fixes:

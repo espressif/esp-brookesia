@@ -1,5 +1,13 @@
 # ChangeLog
 
+## Unreleased
+
+### Bug Fixes:
+
+- fix(signal): destroy disconnected callbacks outside list locks and wait for active calls outside callbacks.
+- fix(cmake): read only the root component version so pinned dependency versions do not break version parsing.
+- fix(wasm): provide the Boost recursive-mutex compatibility header for Wasm builds.
+
 ## v0.8.2 - 2026-07-22
 
 ### Breaking Changes:

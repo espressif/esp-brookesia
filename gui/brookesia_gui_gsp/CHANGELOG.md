@@ -1,0 +1,16 @@
+# ChangeLog
+
+## Unreleased
+
+### Enhancements:
+
+- feat(gsp): add GSP sessions and application hosting on borrowed HAL display and touch devices.
+- feat(bundle): load deployable bundles and retain owned resources until session shutdown succeeds.
+- feat(linux): add desktop display sessions through the official ESP-GSP 1.4 simulator bridge.
+- feat(linux): validate desktop bundle size, CRC, and API metadata before session startup.
+- feat(build): add optional zlib bundle compression with validated PSRAM decompression on ESP.
+- feat(build): share theme preparation and common font resources across consuming components.
+
+### Documentation:
+
+- docs(lifecycle): document borrowed-device lifetimes and retry requirements after failed starts or stops.

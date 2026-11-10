@@ -1,5 +1,16 @@
 # ChangeLog
 
+## Unreleased
+
+### Enhancements:
+
+- feat(playback): add idle-only requests that reject busy playback without interrupting or queueing.
+
+### Bug Fixes:
+
+- fix(storage): return volume and mute persistence failures to callers instead of reporting success.
+- fix(storage): allow unchanged volume and mute settings to retry a failed save.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

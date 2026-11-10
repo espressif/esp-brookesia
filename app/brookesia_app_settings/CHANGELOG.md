@@ -1,5 +1,20 @@
 # ChangeLog
 
+## Unreleased
+
+### Enhancements:
+
+- feat(gsp): add 1024x600 Settings pages while retaining the JSON/LVGL interface and shared preferences.
+- feat(wifi): add scanning, personal-network password input, saved-network removal, and connection status in GSP.
+- feat(wifi): display common Chinese, accented Latin, Greek, and Cyrillic network names in GSP.
+- feat(settings): add GSP brightness, volume, mute, and idle-only test playback controls.
+- feat(settings): add GSP language and theme preferences with restart confirmation.
+- feat(settings): add GSP device information and time-zone pages with current network and SNTP status.
+
+### Documentation:
+
+- docs(gsp): describe supported pages, password input, appearance settings, and current interface limits.
+
 ## v0.8.4 - 2026-10-27
 
 ### Enhancements:

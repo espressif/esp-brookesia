@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Unreleased
+
+### Bug Fixes:
+
+- fix(logging): omit stored values from key-value write logs and deserialization errors.
+
 ## v0.8.3 - 2026-08-05
 
 ### Bug Fixes:

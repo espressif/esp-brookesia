@@ -1,5 +1,12 @@
 # ChangeLog
 
+## Unreleased
+
+### Bug Fixes:
+
+- fix(tests): retain HTTP event collectors until workers stop, including when a Unity assertion aborts a test.
+- fix(tests): initialize shared ESP networking resources before per-test leak measurements.
+
 ## v0.8.2 - 2026-07-27
 
 ### Enhancements:

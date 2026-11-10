@@ -1,5 +1,31 @@
 # ChangeLog
 
+## Unreleased
+
+### Breaking Changes:
+
+- break(abi): rebuild native binary apps for the expanded app and system interfaces and GUI descriptors.
+
+### Enhancements:
+
+- feat(gui): select GSP or LVGL with backend-specific dependencies and resources.
+- feat(gsp): host native and JavaScript apps with deployable bundles, theme start scenes, and GUI event delivery.
+- feat(gsp): add JavaScript text, value, property, and scene updates for the active application.
+- feat(shell): add a paginated GSP launcher, shared keyboard and dialogs, and saved language/theme restoration.
+- feat(app): expose runtime app removal through the system service.
+- feat(linux): run the GSP shell and app manager on desktop displays with platform support checks.
+
+### Bug Fixes:
+
+- fix(app): reject runtime packages whose declared GUI backend conflicts with their descriptor or the firmware.
+- fix(app): restore previous versions after failed updates and recover interrupted installations at startup.
+- fix(build): isolate staged backend resources while preserving simulator app data across rebuilds.
+- fix(gsp): retain devices after failed session stops and manage modal suspension, resumption, and cancellation.
+
+### Documentation:
+
+- docs(gsp): describe backend selection, shared input, session lifetimes, and Linux modal request behavior.
+
 ## v0.8.6 - 2026-10-27
 
 ### Enhancements:

@@ -1,5 +1,11 @@
 # ChangeLog
 
+## Unreleased
+
+### Bug Fixes:
+
+- fix(logging): omit string values and UI text from data-store, binding, and widget logs to protect credentials.
+
 ## v0.8.4 - 2026-10-27
 
 ### Enhancements:
