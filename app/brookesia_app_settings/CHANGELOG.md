@@ -1,6 +1,6 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.5 - 2026-11-10
 
 ### Enhancements:
 
@@ -10,6 +10,10 @@
 - feat(settings): add GSP brightness, volume, mute, and idle-only test playback controls.
 - feat(settings): add GSP language and theme preferences with restart confirmation.
 - feat(settings): add GSP device information and time-zone pages with current network and SNTP status.
+
+### Bug Fixes:
+
+- fix(deps): require the System Core, Service Helper, Wi-Fi, and HAL Interface versions used by GSP Settings.
 
 ### Documentation:
 

@@ -1,10 +1,10 @@
 dependencies:
   espressif/brookesia_service_audio:
-    version: "0.8.*"
+    version: ">=0.8.3,<0.9"
     override_path: ../../../../service/media/brookesia_service_audio
 
   espressif/brookesia_system_core:
-    version: "0.8.*"
+    version: ">=0.8.7,<0.9"
     override_path: ../../../../system/brookesia_system_core
     require: public
 
@@ -13,11 +13,11 @@ dependencies:
     override_path: ../../../../service/system/brookesia_service_device
 
   espressif/brookesia_hal_adaptor:
-    version: "0.8.*"
+    version: ">=0.8.6,<0.9"
     override_path: ../../../../hal/brookesia_hal_adaptor
 
   espressif/brookesia_hal_boards:
-    version: "0.8.*"
+    version: ">=0.8.2,<0.9"
     override_path: ../../../../hal/brookesia_hal_boards
 
   espressif/brookesia_gui_gsp:
@@ -39,7 +39,7 @@ dependencies:
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
 
   espressif/brookesia_service_display:
-    version: "0.8.*"
+    version: ">=0.8.3,<0.9"
     override_path: ../../../../service/media/brookesia_service_display
     matches:
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True
@@ -52,7 +52,7 @@ dependencies:
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_LVGL} == True
 
   espressif/brookesia_app_settings:
-    version: "0.8.*"
+    version: ">=0.8.5,<0.9"
     override_path: ../../../../app/brookesia_app_settings
     matches:
       - if: $CONFIG{BROOKESIA_GUI_BACKEND_GSP} == True

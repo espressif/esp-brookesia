@@ -1,6 +1,6 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.5 - 2026-11-10
 
 ### Bug Fixes:
 

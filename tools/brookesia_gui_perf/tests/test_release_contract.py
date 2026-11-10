@@ -4,12 +4,12 @@
 """Read-only release-contract check between public API and the CHANGELOG.
 
 A component bump that ships new public entry points without a matching release note
-makes the registry tell users the wrong "first available" version, and a later edit
-can silently drop an entry again. This test pins the API names this MR adds to the
-newest changelog section of the component that owns them.
+makes the registry tell users the wrong "first available" version. Keep each contract
+pinned to the release that introduced it, even when newer releases are added.
 """
 
 import re
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -19,6 +19,7 @@ CONTRACTS = (
     (
         ROOT / "system/brookesia_system_core/include/brookesia/system_core/system/system.hpp",
         ROOT / "system/brookesia_system_core/CHANGELOG.md",
+        "0.8.6",
         (
             "system_gui_load_json",
             "system_gui_mount_screen",
@@ -31,31 +32,38 @@ CONTRACTS = (
 )
 
 
-def newest_section(changelog: Path) -> str:
+def release_section(changelog: Path, version: str) -> str:
     text = changelog.read_text(encoding="utf-8")
-    match = re.search(r"^## v[^\n]*\n(.*?)(?=^## v|\Z)", text, re.S | re.M)
+    match = re.search(r"^## v" + re.escape(version) + r"(?:[ \t]+-[^\n]*)?\n(.*?)(?=^## v|\Z)", text, re.S | re.M)
     return match.group(1) if match else ""
 
 
 class ReleaseContractTest(unittest.TestCase):
-    def test_public_api_is_described_in_the_newest_changelog(self):
-        for header, changelog, names in CONTRACTS:
+    def test_release_section_does_not_include_adjacent_releases(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            changelog = Path(temporary) / "CHANGELOG.md"
+            changelog.write_text("## v0.8.7 - 2026-10-28\nnew\n\n## v0.8.6 - 2026-10-27\nold\n", encoding="utf-8")
+            self.assertEqual(release_section(changelog, "0.8.6").strip(), "old")
+            self.assertEqual(release_section(changelog, "0.8.5"), "")
+
+    def test_public_api_is_described_in_its_release(self):
+        for header, changelog, version, names in CONTRACTS:
             text = header.read_text(encoding="utf-8")
-            section = newest_section(changelog)
+            section = release_section(changelog, version)
             for name in names:
                 self.assertIn(name, text, "%s is not declared in %s" % (name, header.name))
                 self.assertIn(
                     name,
                     section,
-                    "%s is public in %s but missing from the newest %s section; a reader of "
+                    "%s is public in %s but missing from the v%s %s section; a reader of "
                     "the registry would not learn when it became available"
-                    % (name, header.name, changelog.parent.name),
+                    % (name, header.name, version, changelog.parent.name),
                 )
 
     def test_process_timers_change_is_recorded(self):
-        """The refresh-path fix lives in gui_lvgl and must be in its newest section."""
+        """The refresh-path fix shipped in GUI LVGL v0.8.7."""
         changelog = ROOT / "gui/brookesia_gui_lvgl/CHANGELOG.md"
-        self.assertIn("process_timers", newest_section(changelog))
+        self.assertIn("process_timers", release_section(changelog, "0.8.7"))
 
 
 if __name__ == "__main__":

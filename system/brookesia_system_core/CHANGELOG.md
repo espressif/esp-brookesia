@@ -1,6 +1,6 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.7 - 2026-11-10
 
 ### Breaking Changes:
 
@@ -20,7 +20,7 @@
 - fix(app): reject runtime packages whose declared GUI backend conflicts with their descriptor or the firmware.
 - fix(app): restore previous versions after failed updates and recover interrupted installations at startup.
 - fix(build): isolate staged backend resources while preserving simulator app data across rebuilds.
-- fix(gsp): retain devices after failed session stops and manage modal suspension, resumption, and cancellation.
+- fix(gsp): retain devices after failed stops and retry modal resumption or return to the launcher.
 
 ### Documentation:
 

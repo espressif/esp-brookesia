@@ -4,9 +4,9 @@ dependencies:
     override_path: ../../../../gui/brookesia_gui_gsp
 
   espressif/brookesia_hal_adaptor:
-    version: "0.8.*"
+    version: ">=0.8.6,<0.9"
     override_path: ../../../../hal/brookesia_hal_adaptor
 
   espressif/brookesia_hal_boards:
-    version: "0.8.*"
+    version: ">=0.8.2,<0.9"
     override_path: ../../../../hal/brookesia_hal_boards

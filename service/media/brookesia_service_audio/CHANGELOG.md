@@ -1,6 +1,6 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.3 - 2026-11-10
 
 ### Enhancements:
 
@@ -10,6 +10,7 @@
 
 - fix(storage): return volume and mute persistence failures to callers instead of reporting success.
 - fix(storage): allow unchanged volume and mute settings to retry a failed save.
+- fix(deps): require Service Helper `>=0.8.7,<0.9` for idle-only playback configuration.
 
 ## v0.8.2 - 2026-07-27
 

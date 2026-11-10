@@ -1,6 +1,6 @@
 # ChangeLog
 
-## Unreleased
+## v0.8.6 - 2026-11-10
 
 ### Breaking Changes:
 
@@ -22,6 +22,7 @@
 - fix(touch): release stale touch points after the controller stops reporting updates.
 - fix(wifi): publish successful empty scans and distinguish failed scans from fresh results.
 - fix(logging): omit station and SoftAP credentials from configuration and connection logs.
+- fix(deps): require HAL Interface `>=0.8.4,<0.9` for the expanded Wi-Fi interfaces.
 
 ### Documentation:
 
