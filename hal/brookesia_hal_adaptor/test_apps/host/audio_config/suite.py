@@ -128,10 +128,11 @@ def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
                               'class AudioProcessorTypeConverter {\npublic:\n'
                               'static auto to_playback_handle(void *p) { return '
                               'static_cast<audio_play_handle_t>(p); }')
-    fixture = ('#include <atomic>\n#include <chrono>\n#include <future>\n#include <mutex>\n'
+    fixture = ('#include <atomic>\n#include <chrono>\n#include <future>\n#include <mutex>\n#include <stdexcept>\n'
                '#include <thread>\n#include "boost/thread.hpp"\n#include "boost/thread/condition_variable.hpp"\n'
                '#define BROOKESIA_THREAD_CONFIG_GUARD(...) ((void)0)\n'
                'constexpr size_t PLAYBACK_CLOSE_THREAD_STACK_SIZE=8*1024;\n'
+               'static std::atomic_bool inject_deferred_close_failure{false};\n'
                '#define BROOKESIA_LOGD(...) ((void)0)\n' + fixture)
     (build / 'lifecycle_fixture.inc').write_text(fixture)
     converter = (audio / 'processor_type_converter.cpp').read_text()
@@ -146,6 +147,7 @@ def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
                   'void AudioProcessorCore::wait_playback_callbacks()',
                   'bool AudioProcessorCore::inside_playback_callback()',
                   'void AudioProcessorCore::retain_after_deferred_close_failure(',
+                  'void AudioProcessorCore::release_after_deferred_close_failure()',
                   'bool AudioProcessorCore::open_common(', 'void AudioProcessorCore::close_common()',
                   'void AudioProcessorCore::on_playback_event(', 'AudioPlaybackImpl::AudioPlaybackImpl(',
                   'AudioPlaybackImpl::~AudioPlaybackImpl()', 'bool AudioPlaybackImpl::open(',
@@ -157,6 +159,13 @@ bool AudioPlaybackImpl::pause() { return false; }
 bool AudioPlaybackImpl::resume() { return false; }
 bool AudioPlaybackImpl::stop() { return false; }
 '''
+    start_worker = 'boost::thread(std::move(finish_close)).detach();'
+    if current.count(start_worker) != 1:
+        raise AssertionError('Cannot inject the deferred close worker failure')
+    current = current.replace(start_worker, '''if (inject_deferred_close_failure.exchange(false)) {
+            throw std::runtime_error("injected worker creation failure");
+        }
+        ''' + start_worker)
     command = [shutil.which('c++') or 'c++', '-std=c++20', '-Wall', '-Wextra', '-Werror', '-pthread',
                '-Wno-missing-field-initializers', f'-I{build}', f'-I{here}', f'-I{sdk}', *codec_includes,
                str(here / 'lifecycle_main.cpp'), str(codec_object),

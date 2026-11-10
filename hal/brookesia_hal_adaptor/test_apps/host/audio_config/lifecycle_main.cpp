@@ -190,6 +190,42 @@ static void check_close_from_another_thread()
     assert(!playback.is_opened() && !core->is_opened());
 }
 
+static void check_deferred_close_worker_failure()
+{
+    auto core = std::make_shared<AudioProcessorCore>(
+                    std::make_shared<audio::CodecPlayerIface>(), std::make_shared<audio::Recorder>(),
+                    AudioProcessorConfig{}
+                );
+    AudioPlaybackImpl playback(core);
+    std::promise<void> attempted_close;
+    std::promise<void> finish_callback;
+    auto finish = finish_callback.get_future().share();
+    assert(playback.open([&](audio::PlayState) {
+        playback.close();
+        attempted_close.set_value();
+        finish.wait();
+    }));
+    inject_deferred_close_failure = true;
+    std::thread event([]() {
+        captured_playback.event_cb(AUDIO_PLAY_STATE_PLAYING, captured_playback.event_cb_ctx);
+    });
+    assert(attempted_close.get_future().wait_for(std::chrono::seconds(1)) == std::future_status::ready);
+    assert(!playback.is_opened() && core->is_opened());
+    assert(core->retained_after_close_failure_ && !playback.open(nullptr));
+
+    // An external retry still drains the callback before releasing the SDK.
+    auto close = std::async(std::launch::async, [&]() {
+        playback.close();
+    });
+    assert(close.wait_for(std::chrono::milliseconds(20)) == std::future_status::timeout);
+    finish_callback.set_value();
+    event.join();
+    close.get();
+    assert(!core->is_opened() && !core->retained_after_close_failure_);
+    assert(playback.open(nullptr));
+    playback.close();
+}
+
 static void check_close_reentrant_callback_destruction()
 {
     struct CloseOnDestroy {
@@ -221,6 +257,7 @@ static int run_main()
     assert(playback_closes == 9);
     check_close_from_callback();
     check_close_from_another_thread();
+    check_deferred_close_worker_failure();
     check_close_reentrant_callback_destruction();
     std::cout << "PASS: production audio lifecycle, synchronous stop callback, concurrent reopen, "
               "callback drain with HAL access, open rollback and destruction (fake SDK I/O)\n";

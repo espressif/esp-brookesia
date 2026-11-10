@@ -37,6 +37,7 @@ public:
     void wait_playback_callbacks();
     bool inside_playback_callback() const;
     void retain_after_deferred_close_failure(std::shared_ptr<AudioProcessorCore> self);
+    void release_after_deferred_close_failure();
     bool is_opened() const
     {
         return is_opened_;

@@ -117,7 +117,9 @@ public:
     /**
      * @brief Close playback. Cleanup requested from an event callback may finish asynchronously.
      *
-     * A subsequent open can fail while that cleanup is still in progress.
+     * A subsequent open can fail while that cleanup is still in progress. If
+     * deferred cleanup could not be scheduled, call close again outside the
+     * callback to retry it before reopening.
      */
     virtual void close() = 0;
     virtual bool play(const std::string &url) = 0;

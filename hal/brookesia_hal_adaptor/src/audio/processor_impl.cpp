@@ -190,6 +190,15 @@ void AudioProcessorCore::retain_after_deferred_close_failure(std::shared_ptr<Aud
     retained_after_close_failure_ = std::move(self);
 }
 
+void AudioProcessorCore::release_after_deferred_close_failure()
+{
+    std::shared_ptr<AudioProcessorCore> retained;
+    {
+        boost::lock_guard lock(playback_callback_mutex_);
+        retained = std::move(retained_after_close_failure_);
+    }
+}
+
 bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callback)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
@@ -784,14 +793,14 @@ void AudioPlaybackImpl::close()
     {
         boost::unique_lock lock(lifecycle->mutex);
         if (lifecycle->closing) {
-            if (!from_callback && active_close_lifecycle_ != lifecycle.get()) {
-                lifecycle->condition.wait(lock, [&]() {
-                    return !lifecycle->closing;
-                });
+            if (from_callback || active_close_lifecycle_ == lifecycle.get()) {
+                return;
             }
-            return;
+            lifecycle->condition.wait(lock, [&]() {
+                return !lifecycle->closing;
+            });
         }
-        if (!lifecycle->opened && !lifecycle->opening) {
+        if (!lifecycle->opened && !lifecycle->opening && !lifecycle->close_failed) {
             return;
         }
         lifecycle->closing = true;
@@ -815,8 +824,12 @@ void AudioPlaybackImpl::close()
             core->clear_playback_callback();
             core->release();
         }
+        if (core) {
+            core->release_after_deferred_close_failure();
+        }
         boost::lock_guard lock(lifecycle->mutex);
         lifecycle->acquired = false;
+        lifecycle->close_failed = false;
         lifecycle->closing = false;
         lifecycle->condition.notify_all();
     };
