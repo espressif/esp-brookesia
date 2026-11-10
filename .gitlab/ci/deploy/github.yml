@@ -8,6 +8,9 @@ push_to_github:
   tags:
     - github_sync
   variables:
+    # Full history required: shallow depth-20 omits parents that GitHub already
+    # references, causing "did not receive expected object" on sync push.
+    GIT_DEPTH: 0
     GIT_STRATEGY: clone
     SUBMODULES_TO_FETCH: "none"
   dependencies: []
