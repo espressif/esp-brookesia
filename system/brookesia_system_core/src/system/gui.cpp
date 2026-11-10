@@ -976,10 +976,18 @@ std::expected<void, std::string> System::resume_gsp_session_after_modal(AppId ap
         record.gsp_suspended = false;
         return {};
     }
-    record.gsp_suspended = false;
     auto resumed = impl_->run_task_sync<std::expected<void, std::string>>(
                        SYSTEM_GUI_TASK_GROUP,
     [this, &record]() -> std::expected<void, std::string> {
+        // A previous resume attempt may have started the session before on_resume failed,
+        // or a failed start may have retained it. Restart from a known stopped session.
+        if (impl_->gsp_session_running(record))
+        {
+            auto stopped = impl_->stop_gsp_session(record);
+            if (!stopped) {
+                return stopped;
+            }
+        }
         auto loaded = impl_->ensure_gsp_loaded(record);
         if (!loaded)
         {
@@ -1001,8 +1009,12 @@ std::expected<void, std::string> System::resume_gsp_session_after_modal(AppId ap
         return resumed;
     }
     if (record.native_app && record.context) {
-        return record.native_app->on_resume(*record.context);
+        auto result = record.native_app->on_resume(*record.context);
+        if (!result) {
+            return result;
+        }
     }
+    record.gsp_suspended = false;
     if (record.runtime_app_id.has_value() && record.gsp_scene_known && (record.gsp_current_scene == 0)) {
         boost::json::object payload;
         payload["scene"] = 0;

@@ -496,6 +496,7 @@ public:
 
     ~GspSystemShellApp() override
     {
+        cancel_modal_resume_retry();
         disconnect_sntp_events();
         detach_modal_callbacks();
     }
@@ -833,6 +834,8 @@ public:
         if (!stopped) {
             return stopped;
         }
+        cancel_modal_resume_retry();
+        modal_resume_attempts_ = 0;
         closing_modals_ = true;
         lib_utils::FunctionGuard restore_closing([this]() {
             closing_modals_ = false;
@@ -1268,11 +1271,7 @@ public:
             return;
         }
         if (suspended_app_id_ != INVALID_APP_ID) {
-            const auto app_to_resume = std::exchange(suspended_app_id_, INVALID_APP_ID);
-            auto resumed = owner_.resume_gsp_session_after_modal(app_to_resume);
-            if (!resumed) {
-                BROOKESIA_LOGW("Failed to resume GSP app after modal closed: %1%", resumed.error());
-            }
+            resume_suspended_app();
             return;
         }
         if (context_ != nullptr) {
@@ -1287,6 +1286,87 @@ public:
     }
 
 private:
+    void cancel_modal_resume_retry()
+    {
+        ++modal_resume_generation_;
+        if (modal_resume_retry_task_id_ != 0) {
+            owner_.cancel_system_app_delayed_task(modal_resume_retry_task_id_);
+            modal_resume_retry_task_id_ = 0;
+        }
+    }
+
+    void resume_suspended_app()
+    {
+        if (closing_modals_ || dialog_request_id_ != INVALID_MESSAGE_DIALOG_REQUEST_ID ||
+                keyboard_request_id_ != INVALID_KEYBOARD_REQUEST_ID || owner_.has_queued_message_dialogs() ||
+                suspended_app_id_ == INVALID_APP_ID || modal_resume_retry_task_id_ != 0) {
+            return;
+        }
+        const auto app_id = suspended_app_id_;
+        auto resumed = owner_.resume_gsp_session_after_modal(app_id);
+        if (resumed) {
+            cancel_modal_resume_retry();
+            modal_resume_attempts_ = 0;
+            if (suspended_app_id_ == app_id) {
+                suspended_app_id_ = INVALID_APP_ID;
+            }
+            return;
+        }
+        BROOKESIA_LOGW("Failed to resume GSP app after modal closed: %1%", resumed.error());
+        if (++modal_resume_attempts_ < 4) {
+            const auto generation = ++modal_resume_generation_;
+            const std::weak_ptr<IApp> weak_shell = owner_.impl_->gsp_shell_app_;
+            auto retry = owner_.post_system_app_delayed_task(250, [weak_shell, generation]() {
+                auto shell_owner = weak_shell.lock();
+                if (!shell_owner) {
+                    return;
+                }
+                auto *shell = static_cast<GspSystemShellApp *>(shell_owner.get());
+                if (shell->modal_resume_generation_ != generation) {
+                    return;
+                }
+                shell->modal_resume_retry_task_id_ = 0;
+                shell->resume_suspended_app();
+            });
+            if (retry) {
+                modal_resume_retry_task_id_ = *retry;
+            } else {
+                BROOKESIA_LOGE("Failed to schedule GSP resume retry: %1%", retry.error());
+            }
+            return;
+        }
+
+        // Run fallback from the delayed app task, after the dialog/keyboard request has completed.
+        cancel_modal_resume_retry();
+        std::expected<void, std::string> stopped;
+        {
+            const bool was_launching = owner_.impl_->gsp_launching_app_;
+            owner_.impl_->gsp_launching_app_ = true;
+            closing_modals_ = true;
+            lib_utils::FunctionGuard restore([this, was_launching]() {
+                closing_modals_ = false;
+                owner_.impl_->gsp_launching_app_ = was_launching;
+            });
+            stopped = owner_.stop_app(app_id);
+        }
+        if (!stopped) {
+            BROOKESIA_LOGE("Failed to stop GSP app after resume failures: %1%", stopped.error());
+            auto record = owner_.impl_->get_record(app_id);
+            if (record && owner_.impl_->gsp_session_running(**record)) {
+                return;
+            }
+        }
+        suspended_app_id_ = INVALID_APP_ID;
+        modal_resume_attempts_ = 0;
+        if (!owner_.impl_->gsp_stopping_ && !owner_.impl_->gsp_launching_app_ &&
+                owner_.impl_->gsp_shell_app_id_ != INVALID_APP_ID) {
+            auto started = owner_.start_app(owner_.impl_->gsp_shell_app_id_);
+            if (!started) {
+                BROOKESIA_LOGE("Failed to restore GSP launcher after resume failures: %1%", started.error());
+            }
+        }
+    }
+
     bool is_chinese() const
     {
         const auto lang = owner_.get_environment().language;
@@ -1309,6 +1389,8 @@ private:
     std::expected<esp_gsp_handle_t, std::string> ensure_modal_or_shell_handle()
     {
         if (auto handle = active_handle(); handle != nullptr) {
+            cancel_modal_resume_retry();
+            modal_resume_attempts_ = 0;
             return handle;
         }
         auto *panel = static_cast<hal::display::PanelIface *>(owner_.gsp_panel());
@@ -1320,7 +1402,11 @@ private:
         if (!suspended) {
             return std::unexpected(suspended.error());
         }
-        suspended_app_id_ = *suspended;
+        cancel_modal_resume_retry();
+        modal_resume_attempts_ = 0;
+        if (*suspended != INVALID_APP_ID) {
+            suspended_app_id_ = *suspended;
+        }
         modal_host_ = std::make_unique<gui::gsp::AppHost>();
         {
             boost::lock_guard lock(modal_gate_->mutex);
@@ -1375,8 +1461,7 @@ private:
             }
             detach_modal_callbacks();
             modal_host_.reset();
-            const auto to_resume = std::exchange(suspended_app_id_, INVALID_APP_ID);
-            (void)owner_.resume_gsp_session_after_modal(to_resume);
+            resume_suspended_app();
             return std::unexpected(started.error());
         }
         const auto handle = modal_host_->handle();
@@ -1485,6 +1570,9 @@ private:
     std::shared_ptr<ModalCallbackGate> modal_gate_ = std::make_shared<ModalCallbackGate>();
     std::unique_ptr<gui::gsp::AppHost> modal_host_;
     AppId suspended_app_id_ = INVALID_APP_ID;
+    uint64_t modal_resume_retry_task_id_ = 0;
+    uint64_t modal_resume_generation_ = 0;
+    unsigned modal_resume_attempts_ = 0;
     size_t launcher_page_ = 0;
     std::array<AppId, GSP_LAUNCHER_SLOT_COUNT> slot_apps_{};
     AppId settings_app_id_ = INVALID_APP_ID;
