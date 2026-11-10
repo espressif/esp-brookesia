@@ -37,7 +37,6 @@
 #include "brookesia/gui_interface/wasm/gui_task_queue.hpp"
 #endif
 #include "brookesia/service_manager/service/manager.hpp"
-#include "brookesia/system_core/macro_configs.h"
 #include "brookesia/system_core/service/gui.hpp"
 #include "brookesia/system_core/service/system.hpp"
 #include "brookesia/system_core/service/timer.hpp"

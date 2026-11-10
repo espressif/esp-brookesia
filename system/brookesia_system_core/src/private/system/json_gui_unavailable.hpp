@@ -217,6 +217,10 @@ public:
     {}
 
     template <class... Args>
+    void request_idle_screen_warm(Args &&...) const
+    {}
+
+    template <class... Args>
     void poll_live_preview(Args &&...) const
     {}
 
