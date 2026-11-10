@@ -103,10 +103,22 @@ def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
     fixture = fixture.replace('namespace audio {',
                               'namespace audio {\nenum class PlayState { Idle, Playing, Paused };')
     fixture = fixture.replace('std::function<void()>;', 'std::function<void(PlayState)>;')
+    fixture = fixture.replace('using EventCallback = std::function<void(PlayState)>;\n};', '''
+    using EventCallback = std::function<void(PlayState)>;
+    virtual ~PlaybackIface() = default;
+    virtual bool open(EventCallback) = 0;
+    virtual void close() = 0;
+    virtual bool play(const std::string &) = 0;
+    virtual bool pause() = 0;
+    virtual bool resume() = 0;
+    virtual bool stop() = 0;
+    virtual bool is_opened() const = 0;
+};''')
     start = fixture.index('class AudioProcessorCore {')
     end = fixture.index('static audio_manager_config_t captured_manager;', start)
     header = (audio / 'processor_impl.hpp').read_text()
-    declaration = header[header.index('class AudioProcessorCore {'):header.index('class AudioPlaybackImpl:')]
+    declaration = header[header.index('class AudioProcessorCore {'):
+                         header.index('#if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL\nclass AudioEncoderImpl:')]
     declaration = declaration.replace('private:', 'public:')
     fixture = fixture[:start] + (
         'namespace audio { using CodecRecorderIface = Recorder; }\n'
@@ -117,7 +129,9 @@ def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
                               'static auto to_playback_handle(void *p) { return '
                               'static_cast<audio_play_handle_t>(p); }')
     fixture = ('#include <atomic>\n#include <chrono>\n#include <future>\n#include <mutex>\n'
-               '#include <thread>\n#include "boost/thread/condition_variable.hpp"\n'
+               '#include <thread>\n#include "boost/thread.hpp"\n#include "boost/thread/condition_variable.hpp"\n'
+               '#define BROOKESIA_THREAD_CONFIG_GUARD(...) ((void)0)\n'
+               'constexpr size_t PLAYBACK_CLOSE_THREAD_STACK_SIZE=8*1024;\n'
                '#define BROOKESIA_LOGD(...) ((void)0)\n' + fixture)
     (build / 'lifecycle_fixture.inc').write_text(fixture)
     converter = (audio / 'processor_type_converter.cpp').read_text()
@@ -127,10 +141,22 @@ def run_lifecycle(build, audio, here, sdk, codec_includes, codec_object):
         'audio_playback_config_t AudioProcessorTypeConverter::convert('))
     signatures = ('AudioProcessorCore::AudioProcessorCore(', 'AudioProcessorCore::~AudioProcessorCore()',
                   'bool AudioProcessorCore::acquire(', 'void AudioProcessorCore::release()',
-                  'void AudioProcessorCore::clear_playback_callback()', 'bool AudioProcessorCore::open_common(',
-                  'void AudioProcessorCore::close_common()', 'void AudioProcessorCore::on_playback_event(')
+                  'void AudioProcessorCore::clear_playback_callback()',
+                  'void AudioProcessorCore::disable_playback_callback()',
+                  'void AudioProcessorCore::wait_playback_callbacks()',
+                  'bool AudioProcessorCore::inside_playback_callback()',
+                  'void AudioProcessorCore::retain_after_deferred_close_failure(',
+                  'bool AudioProcessorCore::open_common(', 'void AudioProcessorCore::close_common()',
+                  'void AudioProcessorCore::on_playback_event(', 'AudioPlaybackImpl::AudioPlaybackImpl(',
+                  'AudioPlaybackImpl::~AudioPlaybackImpl()', 'bool AudioPlaybackImpl::open(',
+                  'void AudioPlaybackImpl::close()')
     source = (audio / 'processor_impl.cpp').read_text()
-    current = converter_bodies + ''.join(function(source, signature) for signature in signatures)
+    current = converter_bodies + ''.join(function(source, signature) for signature in signatures) + '''
+bool AudioPlaybackImpl::play(const std::string &) { return false; }
+bool AudioPlaybackImpl::pause() { return false; }
+bool AudioPlaybackImpl::resume() { return false; }
+bool AudioPlaybackImpl::stop() { return false; }
+'''
     command = [shutil.which('c++') or 'c++', '-std=c++20', '-Wall', '-Wextra', '-Werror', '-pthread',
                '-Wno-missing-field-initializers', f'-I{build}', f'-I{here}', f'-I{sdk}', *codec_includes,
                str(here / 'lifecycle_main.cpp'), str(codec_object),

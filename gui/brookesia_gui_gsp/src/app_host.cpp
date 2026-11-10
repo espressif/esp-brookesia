@@ -136,8 +136,8 @@ AppHost::AppHost()
 
 AppHost::~AppHost()
 {
-    if (running()) {
-        BROOKESIA_LOGE("Destroying a GSP app host that is still running");
+    if (running() && !stop()) {
+        BROOKESIA_LOGE("Cannot destroy a GSP app host while the UI still owns borrowed resources");
         std::terminate();
     }
 }
@@ -154,8 +154,21 @@ std::expected<void, std::string> AppHost::start(
     if (!loaded) {
         return std::unexpected(loaded.error());
     }
+    return start(std::move(loaded.value()), display, on_event, user_ctx);
+}
 
-    impl_->bundle = std::move(loaded.value());
+std::expected<void, std::string> AppHost::start(
+    std::shared_ptr<const Bundle> bundle, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx
+)
+{
+    if (running()) {
+        return std::unexpected("GSP app host is already running");
+    }
+    if (!bundle) {
+        return std::unexpected("GSP bundle is null");
+    }
+
+    impl_->bundle = std::move(bundle);
     impl_->event_user_ctx = user_ctx;
     if (!impl_->session.start(impl_->bundle, display, on_event, user_ctx)) {
         if (impl_->session.running()) {

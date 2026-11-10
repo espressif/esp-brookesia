@@ -105,7 +105,10 @@ std::expected<void, std::string> System::Impl::ensure_runtime_loaded(AppRecord &
         }
         record.runtime_app_id = *load_result;
         host_bridge_->register_app_manifest(*record.runtime_app_id, record.info.manifest);
-        runtime_to_app_.emplace(*record.runtime_app_id, record.info.app_id);
+        {
+            std::lock_guard lock(app_records_mutex_);
+            runtime_to_app_.emplace(*record.runtime_app_id, record.info.app_id);
+        }
         record.runtime_loaded = true;
     }
     return {};
@@ -122,7 +125,10 @@ void System::Impl::unload_runtime(AppRecord &record)
         BROOKESIA_LOGW("Failed to unload runtime app: %1%", unload_result.error());
     }
     host_bridge_->unregister_app_manifest(*record.runtime_app_id);
-    runtime_to_app_.erase(*record.runtime_app_id);
+    {
+        std::lock_guard lock(app_records_mutex_);
+        runtime_to_app_.erase(*record.runtime_app_id);
+    }
     record.runtime_app_id.reset();
     record.runtime_loaded = false;
     record.runtime_started = false;
@@ -141,11 +147,11 @@ std::expected<AppId, std::string> System::get_current_runtime_app_owner() const
             return std::unexpected(runtime_app_id.error());
         }
     }
-    auto it = impl_->runtime_to_app_.find(*runtime_app_id);
-    if (it == impl_->runtime_to_app_.end()) {
+    auto owner = impl_->runtime_owner(*runtime_app_id);
+    if (!owner) {
         return std::unexpected("Runtime app owner not found");
     }
-    return it->second;
+    return *owner;
 }
 
 } // namespace esp_brookesia::system::core

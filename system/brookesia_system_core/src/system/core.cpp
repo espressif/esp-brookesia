@@ -542,16 +542,23 @@ public:
 
     const void *gui_runtime_config() const override
     {
-        static esp_gsp_config_t config;
-        const bool dark = owner_.get_environment().theme_id == "dark";
-        config = dark ? super_shell_dark_config() : gsp_super_shell_config();
-        const uint8_t *font_start = +settings_dynamic_font_start;
-        const uint8_t *font_end = +settings_dynamic_font_end;
-        if ((font_start != nullptr) && (font_end != nullptr) && (font_end > font_start)) {
-            config.ttf = font_start;
-            config.ttf_size = static_cast<size_t>(font_end - font_start);
-        }
-        return &config;
+        static const auto light = []() {
+            auto config = gsp_super_shell_config();
+            const uint8_t *font_start = +settings_dynamic_font_start;
+            const uint8_t *font_end = +settings_dynamic_font_end;
+            if ((font_start != nullptr) && (font_end != nullptr) && (font_end > font_start)) {
+                config.ttf = font_start;
+                config.ttf_size = static_cast<size_t>(font_end - font_start);
+            }
+            return config;
+        }();
+        static const auto dark_config = []() {
+            auto config = super_shell_dark_config();
+            config.ttf = light.ttf;
+            config.ttf_size = light.ttf_size;
+            return config;
+        }();
+        return owner_.system_gui().get_theme_language().theme_id == "dark" ? &dark_config : &light;
     }
 
     std::expected<void, std::string> on_start(AppContext &context) override

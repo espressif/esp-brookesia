@@ -12,10 +12,10 @@
 #include <memory>
 #include <new>
 #include <utility>
+#include "boost/thread.hpp"
 
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 #   include <cstdlib>
-#   include "boost/thread.hpp"
 #   include "esp_gmf_afe.h"
 #   include "model_path.h"
 #endif
@@ -27,6 +27,8 @@
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_IMPL
 
 namespace esp_brookesia::hal {
+
+constexpr size_t PLAYBACK_CLOSE_THREAD_STACK_SIZE = 8 * 1024;
 
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
 constexpr size_t GET_WAKE_WORDS_THREAD_STACK_SIZE = 5 * 1024;
@@ -150,12 +152,42 @@ void AudioProcessorCore::clear_playback_callback()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
+    disable_playback_callback();
+    wait_playback_callbacks();
+}
+
+void AudioProcessorCore::disable_playback_callback()
+{
+    audio::PlaybackIface::EventCallback previous;
+    {
+        boost::lock_guard lock(playback_callback_mutex_);
+        previous = std::move(playback_callback_);
+    }
+}
+
+void AudioProcessorCore::wait_playback_callbacks()
+{
     boost::unique_lock lock(playback_callback_mutex_);
-    playback_callback_ = nullptr;
     // Drain before taking the lifecycle lock: a callback may still use the HAL.
     playback_callback_condition_.wait(lock, [this]() {
         return playback_callbacks_in_flight_ == 0;
     });
+}
+
+bool AudioProcessorCore::inside_playback_callback() const
+{
+    for (auto *frame = playback_callback_frame_; frame != nullptr; frame = frame->previous) {
+        if (frame->owner == this) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void AudioProcessorCore::retain_after_deferred_close_failure(std::shared_ptr<AudioProcessorCore> self)
+{
+    boost::lock_guard lock(playback_callback_mutex_);
+    retained_after_close_failure_ = std::move(self);
 }
 
 bool AudioProcessorCore::open_common(audio::PlaybackIface::EventCallback callback)
@@ -634,7 +666,10 @@ void AudioProcessorCore::on_playback_event(uint8_t state)
         }
     }
     if (callback) {
-        lib_utils::FunctionGuard callback_guard([this]() {
+        PlaybackCallbackFrame frame{this, playback_callback_frame_};
+        playback_callback_frame_ = &frame;
+        lib_utils::FunctionGuard callback_guard([this, &frame]() {
+            playback_callback_frame_ = frame.previous;
             std::lock_guard lock(playback_callback_mutex_);
             if (--playback_callbacks_in_flight_ == 0) {
                 playback_callback_condition_.notify_all();
@@ -711,51 +746,124 @@ bool AudioPlaybackImpl::open(EventCallback callback)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (is_opened_) {
-        return true;
+    auto lifecycle = lifecycle_;
+    {
+        boost::lock_guard lock(lifecycle->mutex);
+        if (lifecycle->opened) {
+            return true;
+        }
+        if (lifecycle->opening || lifecycle->closing || lifecycle->close_failed) {
+            return false;
+        }
+        lifecycle->opening = true;
     }
-    BROOKESIA_CHECK_NULL_RETURN(core_, false, "Invalid audio processor core");
-    BROOKESIA_CHECK_FALSE_RETURN(core_->acquire(std::move(callback)), false, "Failed to open audio playback");
-    is_opened_ = true;
-
-    return true;
+    bool acquired = false;
+    try {
+        acquired = core_ && core_->acquire(std::move(callback));
+    } catch (...) {
+        boost::lock_guard lock(lifecycle->mutex);
+        lifecycle->opening = false;
+        lifecycle->condition.notify_all();
+        throw;
+    }
+    boost::lock_guard lock(lifecycle->mutex);
+    lifecycle->opening = false;
+    lifecycle->acquired = acquired;
+    lifecycle->opened = acquired && !lifecycle->closing && !lifecycle->close_failed;
+    lifecycle->condition.notify_all();
+    return lifecycle->opened;
 }
 
 void AudioPlaybackImpl::close()
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
 
-    if (!is_opened_) {
+    auto lifecycle = lifecycle_;
+    auto core = core_;
+    const bool from_callback = core && core->inside_playback_callback();
+    {
+        boost::unique_lock lock(lifecycle->mutex);
+        if (lifecycle->closing) {
+            if (!from_callback && active_close_lifecycle_ != lifecycle.get()) {
+                lifecycle->condition.wait(lock, [&]() {
+                    return !lifecycle->closing;
+                });
+            }
+            return;
+        }
+        if (!lifecycle->opened && !lifecycle->opening) {
+            return;
+        }
+        lifecycle->closing = true;
+        lifecycle->opened = false;
+    }
+    auto finish_close = [lifecycle, core]() {
+        auto *previous_close = active_close_lifecycle_;
+        active_close_lifecycle_ = lifecycle.get();
+        lib_utils::FunctionGuard close_guard([previous_close]() {
+            active_close_lifecycle_ = previous_close;
+        });
+        bool acquired = false;
+        {
+            boost::unique_lock lock(lifecycle->mutex);
+            lifecycle->condition.wait(lock, [&]() {
+                return !lifecycle->opening;
+            });
+            acquired = lifecycle->acquired;
+        }
+        if (core && acquired) {
+            core->clear_playback_callback();
+            core->release();
+        }
+        boost::lock_guard lock(lifecycle->mutex);
+        lifecycle->acquired = false;
+        lifecycle->closing = false;
+        lifecycle->condition.notify_all();
+    };
+    if (!from_callback) {
+        finish_close();
         return;
     }
-    if (core_) {
-        core_->clear_playback_callback();
-        core_->release();
+    // The SDK closes by waiting for its event task. Never join that task from its own callback.
+    core->disable_playback_callback();
+    try {
+        BROOKESIA_THREAD_CONFIG_GUARD({
+            .stack_size = PLAYBACK_CLOSE_THREAD_STACK_SIZE,
+            .stack_in_ext = false,
+        });
+        boost::thread(std::move(finish_close)).detach();
+    } catch (const std::exception &error) {
+        // Preserve the SDK callback context if no worker could be created.
+        core->retain_after_deferred_close_failure(core);
+        boost::lock_guard lock(lifecycle->mutex);
+        lifecycle->close_failed = true;
+        lifecycle->closing = false;
+        lifecycle->condition.notify_all();
+        BROOKESIA_LOGE("Failed to schedule playback close; retaining audio resources: %1%", error.what());
     }
-    is_opened_ = false;
 }
 
 bool AudioPlaybackImpl::play(const std::string &url)
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->play(url);
 }
 
 bool AudioPlaybackImpl::pause()
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->pause();
 }
 
 bool AudioPlaybackImpl::resume()
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->resume();
 }
 
 bool AudioPlaybackImpl::stop()
 {
-    BROOKESIA_CHECK_FALSE_RETURN(is_opened_, false, "Audio playback is not opened");
+    BROOKESIA_CHECK_FALSE_RETURN(is_opened(), false, "Audio playback is not opened");
     return core_->stop();
 }
 

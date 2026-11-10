@@ -21,6 +21,8 @@ namespace esp_brookesia::gui::gsp {
  * Owns loaded deployable bundles and decompressed bytes until stop() succeeds.
  * The caller keeps the callback context, HAL devices, and borrowed generated
  * config data alive until then, including after a failed start or stop.
+ * Destruction retries a running session's stop and terminates if it still fails;
+ * keep the host and borrowed resources alive to retry failures explicitly.
  */
 class AppHost {
 public:
@@ -32,6 +34,10 @@ public:
 
     std::expected<void, std::string> start(
         std::span<const std::byte> bytes, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx
+    );
+    std::expected<void, std::string> start(
+        std::shared_ptr<const Bundle> bundle, const DisplayLease &display, Session::EventCallback on_event,
+        void *user_ctx
     );
     std::expected<void, std::string> start(
         const esp_gsp_config_t &config, const DisplayLease &display, Session::EventCallback on_event, void *user_ctx

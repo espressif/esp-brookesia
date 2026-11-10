@@ -221,23 +221,49 @@ void show_service_requirement_error_dialog(System &system, const AppInfo &info, 
 
 } // namespace
 
-std::expected<System::Impl::AppRecord *, std::string> System::Impl::get_record(AppId app_id)
+std::expected<std::shared_ptr<System::Impl::AppRecord>, std::string> System::Impl::get_record(AppId app_id)
 {
+    std::lock_guard lock(app_records_mutex_);
     auto it = apps_.find(app_id);
     if (it == apps_.end()) {
         return std::unexpected("App not found");
     }
-    return &it->second;
+    return it->second;
 }
 
 
-std::expected<const System::Impl::AppRecord *, std::string> System::Impl::get_record(AppId app_id) const
+std::expected<std::shared_ptr<const System::Impl::AppRecord>, std::string> System::Impl::get_record(AppId app_id) const
 {
+    std::lock_guard lock(app_records_mutex_);
     auto it = apps_.find(app_id);
     if (it == apps_.end()) {
         return std::unexpected("App not found");
     }
-    return &it->second;
+    return std::shared_ptr<const AppRecord>(it->second);
+}
+
+std::vector<std::shared_ptr<System::Impl::AppRecord>> System::Impl::snapshot_app_records() const
+{
+    std::lock_guard lock(app_records_mutex_);
+    std::vector<std::shared_ptr<AppRecord>> records;
+    records.reserve(apps_.size());
+    for (const auto &[_, record] : apps_) {
+        records.push_back(record);
+    }
+    return records;
+}
+
+bool System::Impl::has_manifest(std::string_view manifest_id) const
+{
+    std::lock_guard lock(app_records_mutex_);
+    return manifest_id_to_app_.contains(std::string(manifest_id));
+}
+
+std::optional<AppId> System::Impl::runtime_owner(runtime::AppId runtime_app_id) const
+{
+    std::lock_guard lock(app_records_mutex_);
+    auto it = runtime_to_app_.find(runtime_app_id);
+    return it == runtime_to_app_.end() ? std::nullopt : std::optional<AppId>(it->second);
 }
 
 void System::Impl::cleanup_app_transient_resources(AppRecord &record)
@@ -321,6 +347,12 @@ std::expected<void, std::string> System::Impl::dispatch_event(
 std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (impl_->should_schedule_app_task()) {
+        return impl_->run_task_sync<std::expected<AppId, std::string>>(
+        SYSTEM_APP_TASK_GROUP, [this, app = std::move(app)]() mutable {
+            return install_app(std::move(app));
+        }, std::unexpected("Failed to post app install task"));
+    }
     if (!app) {
         return std::unexpected("App is null");
     }
@@ -330,7 +362,7 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
     if (manifest.id.empty()) {
         return std::unexpected("App manifest id is empty");
     }
-    if (impl_->manifest_id_to_app_.contains(manifest.id)) {
+    if (impl_->has_manifest(manifest.id)) {
         return std::unexpected("App manifest id already installed");
     }
     auto gui_descriptor = app->get_gui_descriptor();
@@ -359,20 +391,24 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
     if (!install_result) {
         return std::unexpected(install_result.error());
     }
-    impl_->manifest_id_to_app_.emplace(record.info.manifest.id, app_id);
-    auto [it, _] = impl_->apps_.emplace(app_id, std::move(record));
+    auto installed_record = std::make_shared<Impl::AppRecord>(std::move(record));
+    {
+        std::lock_guard lock(impl_->app_records_mutex_);
+        impl_->manifest_id_to_app_.emplace(installed_record->info.manifest.id, app_id);
+        impl_->apps_.emplace(app_id, installed_record);
+    }
     auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
-    [this, &it]() -> std::expected<void, std::string> {
-        return impl_->prepare_installed_app_gui(it->second);
+    [this, installed_record]() -> std::expected<void, std::string> {
+        return impl_->prepare_installed_app_gui(*installed_record);
     },
     std::unexpected("Failed to post app GUI install preparation task")
                               );
     if (!gui_prepare_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            return impl_->rollback_installed_app_gui(it->second);
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
@@ -387,12 +423,12 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
         }
         return std::unexpected(gui_prepare_result.error());
     }
-    auto hook_result = on_app_installed(it->second.info);
+    auto hook_result = on_app_installed(installed_record->info);
     if (!hook_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            return impl_->rollback_installed_app_gui(it->second);
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
@@ -406,17 +442,23 @@ std::expected<AppId, std::string> System::install_app(std::shared_ptr<IApp> app)
         }
         return std::unexpected(hook_result.error());
     }
-    BROOKESIA_LOGI("Native app installed: id(%1%), manifest(%2%)", app_id, it->second.info.manifest.id);
+    BROOKESIA_LOGI("Native app installed: id(%1%), manifest(%2%)", app_id, installed_record->info.manifest.id);
     return app_id;
 }
 
 std::expected<AppId, std::string> System::install_runtime_app(const AppManifest &manifest)
 {
     BROOKESIA_LOG_TRACE_GUARD_WITH_THIS();
+    if (impl_->should_schedule_app_task()) {
+        return impl_->run_task_sync<std::expected<AppId, std::string>>(
+        SYSTEM_APP_TASK_GROUP, [this, manifest]() {
+            return install_runtime_app(manifest);
+        }, std::unexpected("Failed to post runtime app install task"));
+    }
     if (manifest.id.empty()) {
         return std::unexpected("Runtime app manifest id is empty");
     }
-    if (impl_->manifest_id_to_app_.contains(manifest.id)) {
+    if (impl_->has_manifest(manifest.id)) {
         return std::unexpected("App manifest id already installed");
     }
     auto heap_before_descriptor = heap_trace::capture();
@@ -468,20 +510,24 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
     record.info.manifest.kind = AppKind::Runtime;
     record.context = std::make_unique<AppContext>(*this, app_id);
     record.preload_dom = record.info.manifest.preload_dom;
-    impl_->manifest_id_to_app_.emplace(record.info.manifest.id, app_id);
-    auto [it, _] = impl_->apps_.emplace(app_id, std::move(record));
+    auto installed_record = std::make_shared<Impl::AppRecord>(std::move(record));
+    {
+        std::lock_guard lock(impl_->app_records_mutex_);
+        impl_->manifest_id_to_app_.emplace(installed_record->info.manifest.id, app_id);
+        impl_->apps_.emplace(app_id, installed_record);
+    }
     auto gui_prepare_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                   SYSTEM_GUI_TASK_GROUP,
-    [this, &it]() -> std::expected<void, std::string> {
-        return impl_->prepare_installed_app_gui(it->second);
+    [this, installed_record]() -> std::expected<void, std::string> {
+        return impl_->prepare_installed_app_gui(*installed_record);
     },
     std::unexpected("Failed to post app GUI install preparation task")
                               );
     if (!gui_prepare_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            return impl_->rollback_installed_app_gui(it->second);
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
@@ -496,12 +542,12 @@ std::expected<AppId, std::string> System::install_runtime_app(const AppManifest 
         }
         return std::unexpected(gui_prepare_result.error());
     }
-    auto hook_result = on_app_installed(it->second.info);
+    auto hook_result = on_app_installed(installed_record->info);
     if (!hook_result) {
         auto rollback_result = impl_->run_task_sync<std::expected<void, std::string>>(
                                    SYSTEM_GUI_TASK_GROUP,
-        [this, &it]() -> std::expected<void, std::string> {
-            return impl_->rollback_installed_app_gui(it->second);
+        [this, installed_record]() -> std::expected<void, std::string> {
+            return impl_->rollback_installed_app_gui(*installed_record);
         },
         std::unexpected("Failed to post app GUI install rollback task")
                                );
@@ -566,6 +612,24 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
         return std::unexpected(record_result.error());
     }
     auto &record = *record_result.value();
+#if CONFIG_BROOKESIA_GUI_BACKEND_GSP
+    if (app_id == impl_->gsp_shell_app_id_) {
+        return std::unexpected("The system shell cannot be uninstalled");
+    }
+#endif
+    std::filesystem::path runtime_app_path;
+    if (record.info.manifest.kind == AppKind::Runtime) {
+        if (record.info.manifest.app_path.empty()) {
+            return std::unexpected("Runtime app manifest app_path is empty");
+        }
+        runtime_app_path = normalize_filesystem_path(std::filesystem::path(record.info.manifest.app_path));
+        if (!impl_->is_managed_app_directory(runtime_app_path)) {
+            return std::unexpected(
+                       "Refuse to remove runtime app directory outside managed app roots: " +
+                       runtime_app_path.generic_string()
+                   );
+        }
+    }
     if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
         auto stop_result = stop_app(app_id);
         if (!stop_result) {
@@ -616,17 +680,7 @@ std::expected<void, std::string> System::uninstall_app(AppId app_id)
         }
     }
     if (record.info.manifest.kind == AppKind::Runtime) {
-        if (record.info.manifest.app_path.empty()) {
-            return std::unexpected("Runtime app manifest app_path is empty");
-        }
-        const auto app_path = normalize_filesystem_path(std::filesystem::path(record.info.manifest.app_path));
-        if (!impl_->is_managed_app_directory(app_path)) {
-            return std::unexpected(
-                       "Refuse to remove runtime app directory outside managed app roots: " +
-                       app_path.generic_string()
-                   );
-        }
-        auto remove_result = remove_path_tree(app_path, "runtime app directory");
+        auto remove_result = remove_path_tree(runtime_app_path, "runtime app directory");
         if (!remove_result) {
             return std::unexpected(remove_result.error());
         }
@@ -742,6 +796,7 @@ std::expected<void, std::string> System::start_app(AppId app_id, const AppStartO
     record.gsp_current_scene = 0;
     record.gsp_scene_known = false;
     record.gsp_suspended = false;
+    record.gsp_suspended_contract.reset();
     record.gsp_scene_updates.clear();
 #endif
     auto heap_before_start = heap_trace::capture();
@@ -1151,6 +1206,7 @@ std::expected<void, std::string> System::stop_app(AppId app_id)
     record.gsp_current_scene = 0;
     record.gsp_scene_known = false;
     record.gsp_suspended = false;
+    record.gsp_suspended_contract.reset();
     record.gsp_scene_updates.clear();
 #endif
     if (impl_->active_app_id_ == app_id) {
@@ -1845,9 +1901,10 @@ void System::close_message_dialogs_for_app(AppId app_id)
 std::vector<AppInfo> System::list_apps() const
 {
     std::vector<AppInfo> apps;
-    apps.reserve(impl_->apps_.size());
-    for (const auto &[_, record] : impl_->apps_) {
-        apps.push_back(record.info);
+    const auto records = impl_->snapshot_app_records();
+    apps.reserve(records.size());
+    for (const auto &record : records) {
+        apps.push_back(record->info);
     }
     return apps;
 }

@@ -12,6 +12,7 @@ add_executable(test_session
     ${GSP_COMPONENT_DIR}/src/app_host.cpp
     ${GSP_COMPONENT_DIR}/src/session.cpp
     ${GSP_COMPONENT_DIR}/src/bundle.cpp
+    ${GSP_COMPONENT_DIR}/src/bundle_contract.cpp
 )
 
 target_compile_definitions(test_session PRIVATE

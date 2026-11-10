@@ -132,12 +132,12 @@ std::expected<void, std::string> System::init(Config config)
                                      runtime::AppId runtime_app_id,
                                      const StorageFileLocation & location
     ) -> std::expected<std::string, std::string> {
-        auto it = impl_->runtime_to_app_.find(runtime_app_id);
-        if (it == impl_->runtime_to_app_.end())
+        auto owner = impl_->runtime_owner(runtime_app_id);
+        if (!owner)
         {
             return std::unexpected("Runtime app owner not found");
         }
-        return impl_->resolve_storage_file_path(it->second, location);
+        return impl_->resolve_storage_file_path(*owner, location);
     };
     auto event_dispatcher = [this](
                                 runtime::AppId runtime_app_id,
@@ -145,12 +145,12 @@ std::expected<void, std::string> System::init(Config config)
                                 std::string event_name,
                                 std::string items_json
     ) -> std::expected<void, std::string> {
-        auto it = impl_->runtime_to_app_.find(runtime_app_id);
-        if (it == impl_->runtime_to_app_.end())
+        auto owner = impl_->runtime_owner(runtime_app_id);
+        if (!owner)
         {
             return std::unexpected("Runtime app owner not found");
         }
-        const AppId app_id = it->second;
+        const AppId app_id = *owner;
         auto task = [
         this,
         app_id,
@@ -433,7 +433,8 @@ void System::deinit()
         BROOKESIA_LOGE("GSP modal stop failed; keeping system and HAL ownership: %1%", shell_stopped.error());
         return;
     }
-    for (auto &[_, record] : impl_->apps_) {
+    for (const auto &record_owner : impl_->snapshot_app_records()) {
+        auto &record = *record_owner;
         if (record.info.state == AppState::Running || record.info.state == AppState::Paused) {
             auto stop_result = stop_app(record.info.app_id);
             if (!stop_result) {
@@ -511,8 +512,13 @@ void System::deinit()
     impl_->gsp_launching_app_ = false;
 #endif
     impl_->release_gsp_display_devices();
-    impl_->apps_.clear();
-    impl_->manifest_id_to_app_.clear();
+    decltype(impl_->apps_) removed_apps;
+    {
+        std::lock_guard lock(impl_->app_records_mutex_);
+        removed_apps.swap(impl_->apps_);
+        impl_->manifest_id_to_app_.clear();
+    }
+    removed_apps.clear();
     impl_->image_resource_owners_.clear();
     impl_->font_resource_owners_.clear();
     impl_->system_service_binding_.release();
@@ -542,10 +548,15 @@ void System::deinit()
     if (!gui_cleanup_result) {
         BROOKESIA_LOGW("Failed to cleanup GUI runtime while deinitializing system: %1%", gui_cleanup_result.error());
     }
-    impl_->gui_thread_guard_.reset();
     if (impl_->task_scheduler_) {
         impl_->task_scheduler_->stop();
         impl_->task_scheduler_.reset();
+    }
+    // The synchronous cleanup task can finish before its post-execution callback
+    // releases the GUI guard. Keep the guard alive until all workers have joined.
+    {
+        std::lock_guard<std::recursive_mutex> runtime_lock(impl_->gui_runtime_mutex_);
+        impl_->gui_thread_guard_.reset();
     }
     impl_->runtime_initialized_ = false;
     on_deinit();
@@ -578,11 +589,14 @@ void System::Impl::abandon_system_references()
     }
     host_bridge_.reset();
     runtime_function_bridge_.reset();
-    gui_runtime_.reset();
-    gui_thread_guard_.reset();
     if (task_scheduler_) {
         task_scheduler_->stop();
         task_scheduler_.reset();
+    }
+    {
+        std::lock_guard<std::recursive_mutex> runtime_lock(gui_runtime_mutex_);
+        gui_runtime_.reset();
+        gui_thread_guard_.reset();
     }
     runtime_initialized_ = false;
 }

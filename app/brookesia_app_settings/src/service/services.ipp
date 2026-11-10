@@ -59,18 +59,23 @@ void SettingsApp::subscribe_sntp_events()
         return;
     }
 
+    const std::weak_ptr<WifiUiMailbox> weak_mailbox = wifi_ui_mailbox_;
     const service::EventRegistry::SignalSlot state_callback =
-        [this](const std::string &, const service::EventItemMap &items) {
+        [weak_mailbox](const std::string &, const service::EventItemMap &items) {
         const auto *state = std::get_if<std::string>(find_event_item(items, "State"));
         if (!state) {
             return;
         }
-        time_zone_ui_state_.state = *state;
-        if (context_ == nullptr || settings_uses_gsp_backend()) {
-            return;
-        }
-        if (auto result = refresh_time_zone_state(*context_); !result) {
-            BROOKESIA_LOGW("Failed to refresh Time zone state after SNTP event: %1%", result.error());
+        if (auto mailbox = weak_mailbox.lock()) {
+            mailbox->enqueue([state = *state](SettingsApp &app) {
+                app.time_zone_ui_state_.state = state;
+                if (app.context_ == nullptr) {
+                    return;
+                }
+                if (auto result = app.refresh_time_zone_state(*app.context_); !result) {
+                    BROOKESIA_LOGW("Failed to refresh Time zone state after SNTP event: %1%", result.error());
+                }
+            });
         }
     };
     auto state_connection = SNTPHelper::subscribe_event(SNTPHelper::EventId::StateChanged, state_callback);

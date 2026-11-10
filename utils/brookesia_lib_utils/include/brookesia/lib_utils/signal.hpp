@@ -152,7 +152,7 @@ struct SlotControl {
         }
     }
 
-    void disconnect() noexcept
+    bool disconnect_and_wait() noexcept
     {
         std::function<void()> detach;
         try {
@@ -163,21 +163,28 @@ struct SlotControl {
             } else if (running_on_this_thread_locked() || inside_signal_emission()) {
                 // Already inside a callback: do not wait. Two callbacks that
                 // cancel each other would otherwise wait forever.
-                return;
+                return false;
             } else {
                 wait_until_idle(lock);
                 detach = std::move(detach_fn);
             }
         } catch (...) {
-            return;
+            return false;
         }
         if (!detach) {
-            return;
+            return true;
         }
         try {
             detach();
         } catch (...) {
+            return false;
         }
+        return true;
+    }
+
+    void disconnect() noexcept
+    {
+        (void)disconnect_and_wait();
     }
 
     bool is_connected() const
@@ -220,6 +227,19 @@ public:
         }
     }
 
+    /**
+     * @brief Disconnect and report whether all in-flight calls have finished.
+     *
+     * Returns false if called from any signal callback while this slot is
+     * still in flight, avoiding self- or cross-callback deadlock. In that
+     * case keep captured objects alive and retry outside signal callbacks.
+     */
+    bool disconnect_and_wait() const noexcept
+    {
+        auto control = control_.lock();
+        return !control || control->disconnect_and_wait();
+    }
+
 private:
     std::weak_ptr<signal_detail::SlotControl> control_;
 };
@@ -228,6 +248,8 @@ private:
  * @brief RAII connection that disconnects on destruction.
  *
  * Movable but not copyable, mirroring `boost::signals2::scoped_connection`.
+ * Destruction from a signal callback does not wait for other in-flight calls.
+ * Keep their captured state alive until disconnect_and_wait() reports success.
  */
 class scoped_connection {
 public:
@@ -273,6 +295,12 @@ public:
     void disconnect() const noexcept
     {
         conn_.disconnect();
+    }
+
+    /** @copydoc connection::disconnect_and_wait() */
+    bool disconnect_and_wait() const noexcept
+    {
+        return conn_.disconnect_and_wait();
     }
 
     connection release() noexcept

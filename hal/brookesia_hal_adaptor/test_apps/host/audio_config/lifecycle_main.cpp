@@ -6,7 +6,7 @@
 #include "lifecycle_fixture.inc"
 
 static std::function<void()> before_close;
-static int playback_closes;
+static std::atomic<int> playback_closes;
 
 extern "C" esp_err_t audio_playback_close(audio_play_handle_t)
 {
@@ -126,6 +126,91 @@ static void check_failure_and_destruction()
     }
 }
 
+static void check_close_from_callback()
+{
+    auto core = std::make_shared<AudioProcessorCore>(
+                    std::make_shared<audio::CodecPlayerIface>(), std::make_shared<audio::Recorder>(),
+                    AudioProcessorConfig{}
+                );
+    AudioPlaybackImpl playback(core);
+    std::promise<void> closed_in_callback;
+    std::promise<void> finish_callback;
+    auto finish = finish_callback.get_future().share();
+    const int closes_before = playback_closes.load();
+    assert(playback.open([&](audio::PlayState) {
+        playback.close();
+        closed_in_callback.set_value();
+        finish.wait();
+    }));
+    std::thread event([]() {
+        captured_playback.event_cb(AUDIO_PLAY_STATE_PLAYING, captured_playback.event_cb_ctx);
+    });
+    assert(closed_in_callback.get_future().wait_for(std::chrono::seconds(1)) == std::future_status::ready);
+    assert(!playback.is_opened());
+    assert(!playback.open(nullptr));
+    assert(playback_closes.load() == closes_before);
+    finish_callback.set_value();
+    event.join();
+    for (int i = 0; i < 100 && core->is_opened(); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    assert(!core->is_opened());
+    // A close from another task waits for the deferred cleanup, including its lifecycle state update.
+    playback.close();
+    assert(playback.open(nullptr));
+    playback.close();
+    assert(playback_closes.load() == closes_before + 2);
+}
+
+static void check_close_from_another_thread()
+{
+    auto core = std::make_shared<AudioProcessorCore>(
+                    std::make_shared<audio::CodecPlayerIface>(), std::make_shared<audio::Recorder>(),
+                    AudioProcessorConfig{}
+                );
+    AudioPlaybackImpl playback(core);
+    std::promise<void> entered;
+    std::promise<void> finish_callback;
+    auto finish = finish_callback.get_future().share();
+    assert(playback.open([&](audio::PlayState) {
+        entered.set_value();
+        finish.wait();
+    }));
+    std::thread event([]() {
+        captured_playback.event_cb(AUDIO_PLAY_STATE_PLAYING, captured_playback.event_cb_ctx);
+    });
+    entered.get_future().wait();
+    auto close = std::async(std::launch::async, [&]() {
+        playback.close();
+    });
+    assert(close.wait_for(std::chrono::milliseconds(20)) == std::future_status::timeout);
+    finish_callback.set_value();
+    event.join();
+    close.get();
+    assert(!playback.is_opened() && !core->is_opened());
+}
+
+static void check_close_reentrant_callback_destruction()
+{
+    struct CloseOnDestroy {
+        AudioPlaybackImpl *playback;
+        ~CloseOnDestroy()
+        {
+            playback->close();
+        }
+    };
+    auto core = std::make_shared<AudioProcessorCore>(
+                    std::make_shared<audio::CodecPlayerIface>(), std::make_shared<audio::Recorder>(),
+                    AudioProcessorConfig{}
+                );
+    AudioPlaybackImpl playback(core);
+    auto captured = std::make_shared<CloseOnDestroy>(&playback);
+    assert(playback.open([captured](audio::PlayState) {}));
+    captured.reset();
+    playback.close();
+    assert(!playback.is_opened() && !core->is_opened());
+}
+
 static int run_main()
 {
     shared_codec_reset();
@@ -134,6 +219,9 @@ static int run_main()
     check_callback_drain();
     check_failure_and_destruction();
     assert(playback_closes == 9);
+    check_close_from_callback();
+    check_close_from_another_thread();
+    check_close_reentrant_callback_destruction();
     std::cout << "PASS: production audio lifecycle, synchronous stop callback, concurrent reopen, "
               "callback drain with HAL access, open rollback and destruction (fake SDK I/O)\n";
     return 0;

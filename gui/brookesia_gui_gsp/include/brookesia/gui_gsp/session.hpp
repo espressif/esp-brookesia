@@ -20,6 +20,7 @@
 namespace esp_brookesia::gui::gsp {
 
 class Bundle;
+class BundleContract;
 class DesktopDisplay;
 
 /**

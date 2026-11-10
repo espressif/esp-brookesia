@@ -220,12 +220,13 @@ void test_compressed_app_host_owns_one_expansion_until_stop()
     PanelIface panel;
     TouchIface touch;
     AppHost host;
-    int directory = 5;
+    gsp_component_directory_t directory{};
+    const gsp_component_directory_t *directories[] {&directory};
     int font = 7;
     esp_gsp_config_t config{};
     config.bundle = encoded.data();
     config.bundle_size = encoded.size();
-    config.directories = &directory;
+    config.directories = directories;
     config.ttf = &font;
     config.ttf_size = sizeof(font);
     assert(host.start(config, lease_for(panel, touch), nullptr, nullptr));
@@ -233,7 +234,7 @@ void test_compressed_app_host_owns_one_expansion_until_stop()
     assert(allocations == 1 && frees == 0);
     assert(last_bundle_ptr != encoded.data() && last_bundle_size == raw.size());
     assert(std::memcmp(last_bundle_ptr, raw.data(), raw.size()) == 0);
-    assert(last_directories == &directory && last_ttf == &font);
+    assert(last_directories == directories && last_ttf == &font);
 
     stop_timeouts_left = 3;
     assert(!host.stop());
@@ -301,6 +302,25 @@ void test_compressed_app_host_failed_start_cleanup()
     assert(retained.running() && allocations == 1 && frees == 0);
     stop_failure = ESP_GSP_OK;
     assert(retained.stop() && frees == 1);
+}
+
+void test_app_host_destructor_retries_stop()
+{
+    reset();
+    std::array<char, 4> raw{'G', 'S', 'P', 'B'};
+    auto encoded = compressed_bundle(std::as_bytes(std::span(raw)));
+    PanelIface panel;
+    TouchIface touch;
+    esp_gsp_config_t config{};
+    config.bundle = encoded.data();
+    config.bundle_size = encoded.size();
+    {
+        AppHost host;
+        assert(host.start(config, lease_for(panel, touch), nullptr, nullptr));
+        stop_timeouts_left = 3;
+        assert(!host.stop() && host.running() && frees == 0);
+    }
+    assert(stops == 4 && frees == 1);
 }
 
 } // namespace
@@ -414,5 +434,6 @@ int main()
     test_compressed_app_host_owns_one_expansion_until_stop();
     test_compressed_app_host_rejects_invalid_envelopes();
     test_compressed_app_host_failed_start_cleanup();
+    test_app_host_destructor_retries_stop();
     std::cout << "GSP session lifecycle tests passed\n";
 }

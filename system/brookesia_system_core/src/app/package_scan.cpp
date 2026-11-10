@@ -11,6 +11,9 @@
 #include "private/system/impl.hpp"
 
 #include <algorithm>
+#include <string>
+#include <utility>
+#include <vector>
 #include "brookesia/service_helper/system/storage.hpp"
 #include "brookesia/system_core/app/package.hpp"
 #include "private/filesystem.hpp"
@@ -180,6 +183,7 @@ std::expected<void, std::string> System::Impl::install_unpacked_apps()
         }
         std::sort(package_dirs.begin(), package_dirs.end());
 
+        std::vector<std::pair<std::string, std::string>> failed_packages;
         for (const auto &package_dir : package_dirs)
         {
             auto manifest = read_unpacked_app_manifest(package_dir.generic_string(), system_type_);
@@ -191,22 +195,23 @@ std::expected<void, std::string> System::Impl::install_unpacked_apps()
                     );
                     continue;
                 }
-                BROOKESIA_LOGW(
-                    "Skip runtime app package: path(%1%), error(%2%)",
-                    package_dir.string(), manifest.error()
-                );
+                failed_packages.emplace_back(package_dir.string(), manifest.error());
                 continue;
             }
-            if (manifest_id_to_app_.contains(manifest->id)) {
+            if (has_manifest(manifest->id)) {
                 BROOKESIA_LOGW("Skip duplicate runtime app: root(%1%), manifest(%2%)", label, manifest->id);
                 continue;
             }
             auto install_result = owner_.install_runtime_app(*manifest);
             if (!install_result) {
-                BROOKESIA_LOGW(
-                    "Skip runtime app that failed to load: path(%1%), error(%2%)",
-                    package_dir.string(), install_result.error()
-                );
+                failed_packages.emplace_back(manifest->id, install_result.error());
+            }
+        }
+        if (!failed_packages.empty())
+        {
+            BROOKESIA_LOGW("Failed to load %1% runtime app packages from %2%", failed_packages.size(), label);
+            for (const auto &[app, error] : failed_packages) {
+                BROOKESIA_LOGW("Runtime app unavailable: app(%1%), error(%2%)", app, error);
             }
         }
         return {};

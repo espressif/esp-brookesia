@@ -12,11 +12,17 @@
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <new>
 #include <set>
 #include <span>
 #include <string_view>
 #include <thread>
 #include <vector>
+
+#if defined(ESP_PLATFORM)
+#   include "freertos/FreeRTOS.h"
+#   include "freertos/task.h"
+#endif
 
 #if BROOKESIA_SYSTEM_CORE_GUI_BINDING_PROBE
 #include "esp_timer.h"
@@ -47,16 +53,17 @@ uint32_t gsp_name_key(std::string_view name)
     return key;
 }
 
-// A burst of updates, such as a whole page being filled in, can fill the GSP command queue. The queue
-// reports that as a timeout while it drains, so wait briefly and offer the update again.
+// A full renderer queue can drain after one scheduler turn. Return a persistent timeout to the caller.
 template <typename Submit>
 esp_gsp_err_t submit_gsp_update(Submit &&submit)
 {
-    constexpr int ATTEMPTS = 20;
-    constexpr auto PAUSE = std::chrono::milliseconds(5);
     auto result = submit();
-    for (int attempt = 1; (result == ESP_GSP_ERR_TIMEOUT) && (attempt < ATTEMPTS); ++attempt) {
-        std::this_thread::sleep_for(PAUSE);
+    if (result == ESP_GSP_ERR_TIMEOUT) {
+#if defined(ESP_PLATFORM)
+        vTaskDelay(1);
+#else
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+#endif
         result = submit();
     }
     return result;
@@ -597,8 +604,8 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
     if ((record.gsp_host != nullptr) && record.gsp_host->running()) {
         return std::unexpected("GSP session is still running; stop it before starting again");
     }
-    for (const auto &[other_id, other] : apps_) {
-        if ((other_id != record.info.app_id) && gsp_session_running(other)) {
+    for (const auto &other : snapshot_app_records()) {
+        if ((other->info.app_id != record.info.app_id) && gsp_session_running(*other)) {
             return std::unexpected("Another GSP session is already active on this panel");
         }
     }
@@ -615,8 +622,8 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
             return held;
         }
     }
-    std::vector<std::byte> package_bytes;
     std::span<const std::byte> bytes;
+    std::shared_ptr<const gui::gsp::Bundle> runtime_bundle;
     const esp_gsp_config_t *runtime_config = nullptr;
     if (record.native_app) {
         bytes = record.native_app->gui_bundle();
@@ -635,16 +642,22 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
         if ((info->size < 4) || (info->size > MAX_BUNDLE_BYTES)) {
             return std::unexpected("Damaged GSP bundle: unexpected size: " + bundle_path);
         }
-        package_bytes.resize(static_cast<size_t>(info->size));
-        auto read_result = service::helper::Storage::fs_read(
-                               bundle_path,
-                               service::RawBuffer(package_bytes.data(), package_bytes.size()),
-                               STORAGE_FS_TIMEOUT_MS
-                           );
-        if (!read_result || (*read_result != package_bytes.size())) {
-            return std::unexpected("Damaged GSP bundle: unable to read " + bundle_path);
+        auto loaded = gui::gsp::Bundle::load(
+                          static_cast<size_t>(info->size),
+        [&bundle_path](std::span<std::byte> buffer) -> std::expected<void, std::string> {
+            auto read_result = service::helper::Storage::fs_read(
+                bundle_path, service::RawBuffer(buffer.data(), buffer.size()), STORAGE_FS_TIMEOUT_MS
+            );
+            if (!read_result || (*read_result != buffer.size()))
+            {
+                return std::unexpected("Damaged GSP bundle: unable to read " + bundle_path);
+            }
+            return {};
+        });
+        if (!loaded) {
+            return std::unexpected(loaded.error());
         }
-        bytes = std::span<const std::byte>(package_bytes.data(), package_bytes.size());
+        runtime_bundle = std::move(*loaded);
     } else {
         return std::unexpected("GSP bundle GUI requires a native app or a runtime GSP package");
     }
@@ -670,13 +683,12 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
         .desktop = config_.gsp_desktop_display,
     };
     record.gsp_epoch->fetch_add(1, std::memory_order_release);
-    auto started = (runtime_config != nullptr)
-                   ? record.gsp_host->start(
-                       *runtime_config, display, &System::Impl::forward_gsp_event, &record.gsp_event_target
-                   )
-                   : record.gsp_host->start(
-                       bytes, display, &System::Impl::forward_gsp_event, &record.gsp_event_target
-                   );
+    auto started = runtime_config != nullptr
+                   ? record.gsp_host->start(*runtime_config, display, &System::Impl::forward_gsp_event, &record.gsp_event_target)
+                   : runtime_bundle
+                   ? record.gsp_host->start(std::move(runtime_bundle), display, &System::Impl::forward_gsp_event,
+                                            &record.gsp_event_target)
+                   : record.gsp_host->start(bytes, display, &System::Impl::forward_gsp_event, &record.gsp_event_target);
     if (!started) {
         if (!record.gsp_host->running()) {
             record.gsp_host.reset();
@@ -707,10 +719,7 @@ std::expected<void, std::string> System::Impl::ensure_gsp_loaded(AppRecord &reco
             if (esp_gsp_goto_scene(
                         record.gsp_host->handle(), target_scene, ESP_GSP_NO_TRANSITION
                     ) != ESP_GSP_OK) {
-                BROOKESIA_LOGW(
-                    "Failed to show scene %1% for theme %2%: %3%", target_scene, environment_.theme_id,
-                    record.info.manifest.id
-                );
+                return std::unexpected("Failed to restore GSP scene " + std::to_string(target_scene));
             }
         }
     }
@@ -746,9 +755,42 @@ std::expected<void, std::string> System::Impl::stop_gsp_session(AppRecord &recor
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP
 namespace {
 
-void record_gsp_scene_update(
+std::expected<void, std::string> check_gsp_scene_update_budget(
+    const std::vector<SystemHostBridge::GspUpdate> &updates, const SystemHostBridge::GspUpdate &update
+)
+{
+    constexpr size_t MAX_CACHED_UPDATES = 256;
+    constexpr size_t MAX_CACHED_BYTES = 64 * 1024;
+    auto size_of = [](const SystemHostBridge::GspUpdate & item) {
+        return sizeof(item) + item.name.size() + item.property.size() + item.text.size();
+    };
+    size_t bytes = size_of(update);
+    bool replacing = false;
+    for (const auto &item : updates) {
+        if ((item.kind == update.kind) && (item.name == update.name) && (item.property == update.property)) {
+            replacing = true;
+        } else {
+            const auto item_size = size_of(item);
+            if (item_size > MAX_CACHED_BYTES || bytes > MAX_CACHED_BYTES - item_size) {
+                return std::unexpected("GSP scene update cache byte limit exceeded");
+            }
+            bytes += item_size;
+        }
+    }
+    if (bytes > MAX_CACHED_BYTES || (!replacing && updates.size() >= MAX_CACHED_UPDATES)) {
+        return std::unexpected("GSP scene update cache limit exceeded");
+    }
+    return {};
+}
+
+std::expected<void, std::string> submit_gsp_component_update(
+    esp_gsp_handle_t handle, const SystemHostBridge::GspUpdate &update
+);
+
+std::expected<void, std::string> record_gsp_scene_update(
     std::vector<SystemHostBridge::GspUpdate> &updates,
-    const SystemHostBridge::GspUpdate &update
+    const SystemHostBridge::GspUpdate &update,
+    esp_gsp_handle_t handle = nullptr
 )
 {
     auto existing = std::find_if(
@@ -758,11 +800,71 @@ void record_gsp_scene_update(
         return (item.kind == update.kind) && (item.name == update.name) && (item.property == update.property);
     }
                     );
-    if (existing != updates.end()) {
-        *existing = update;
-        return;
+    const auto index = static_cast<size_t>(std::distance(updates.begin(), existing));
+    try {
+        auto replacement = update;
+        if ((index == updates.size()) && (updates.size() == updates.capacity())) {
+            updates.reserve(std::min<size_t>(256, std::max<size_t>(1, updates.size() * 2)));
+        }
+        if (handle != nullptr) {
+            auto submitted = submit_gsp_component_update(handle, update);
+            if (!submitted) {
+                return submitted;
+            }
+        }
+        if (index < updates.size()) {
+            // Release old string capacities as well as their contents; repeated large/small updates must stay bounded.
+            std::swap(updates[index], replacement);
+        } else {
+            updates.push_back(std::move(replacement));
+        }
+    } catch (const std::bad_alloc &) {
+        return std::unexpected("Unable to allocate GSP scene update cache");
     }
-    updates.push_back(update);
+    return {};
+}
+
+std::expected<void, std::string> validate_suspended_gsp_update(
+    const gui::gsp::BundleContract &bundle, uint16_t scene_id, const SystemHostBridge::GspUpdate &update
+)
+{
+    using Kind = SystemHostBridge::GspUpdate::Kind;
+    using ValueKind = SystemHostBridge::GspUpdate::ValueKind;
+    if (update.name.empty()) {
+        return std::unexpected("GSP object name is empty");
+    }
+    const auto component = gsp_name_key(update.name);
+    if (update.kind == Kind::SetText || update.kind == Kind::SetValue) {
+        const auto property = update.kind == Kind::SetText ? GSP_COMPONENT_PROP_TEXT : GSP_COMPONENT_PROP_VALUE;
+        if (!bundle.has_component_property(scene_id, component, property)) {
+            return std::unexpected("GSP object does not support this update: " + update.name);
+        }
+        return {};
+    }
+    if (update.kind != Kind::SetProperty || update.property.empty()) {
+        return std::unexpected("GSP property name is empty or update type is invalid");
+    }
+    auto info = bundle.property_info(scene_id, component, gsp_name_key(update.property));
+    if (!info) {
+        return std::unexpected("GSP object " + update.name + " has no property " + update.property);
+    }
+    if (info->value_type == GSP_VALUE_COLOR) {
+        const auto is_hex_digit = [](char digit) {
+            return (digit >= '0' && digit <= '9') || (digit >= 'a' && digit <= 'f') ||
+                   (digit >= 'A' && digit <= 'F');
+        };
+        if (update.value_kind != ValueKind::Text || update.text.size() != 7 || update.text.front() != '#' ||
+                !std::all_of(update.text.begin() + 1, update.text.end(), is_hex_digit)) {
+            return std::unexpected("GSP color property " + update.property + " needs a #RRGGBB string");
+        }
+    } else if (update.value_kind == ValueKind::Text ||
+               (info->value_type == GSP_VALUE_U32 && update.value < 0)) {
+        return std::unexpected("Invalid value for GSP property " + update.property);
+    } else if (info->value_type != GSP_VALUE_BOOL &&
+               (update.value < info->min_value || update.value > info->max_value)) {
+        return std::unexpected("Value is outside the range of GSP property " + update.property);
+    }
+    return {};
 }
 
 std::expected<void, std::string> submit_gsp_component_update(
@@ -866,11 +968,20 @@ std::expected<void, std::string> System::Impl::apply_runtime_gsp_update(
     (void)update;
     return std::unexpected("GSP GUI backend is not enabled");
 #else
-    auto owner = runtime_to_app_.find(runtime_app_id);
-    if (owner == runtime_to_app_.end()) {
+    if (task_scheduler_ && task_scheduler_->is_running() && !is_current_task_domain(SYSTEM_GUI_TASK_GROUP)) {
+        return run_task_sync<std::expected<void, std::string>>(
+                   SYSTEM_GUI_TASK_GROUP,
+        [this, runtime_app_id, &update]() {
+            return apply_runtime_gsp_update(runtime_app_id, update);
+        },
+        std::unexpected("Failed to post GSP update task")
+               );
+    }
+    auto owner = runtime_owner(runtime_app_id);
+    if (!owner) {
         return std::unexpected("Runtime app owner not found");
     }
-    auto record_result = get_record(owner->second);
+    auto record_result = get_record(*owner);
     if (!record_result) {
         return std::unexpected(record_result.error());
     }
@@ -880,16 +991,23 @@ std::expected<void, std::string> System::Impl::apply_runtime_gsp_update(
             return std::unexpected("GSP page index is out of range");
         }
         const auto next_scene = static_cast<uint16_t>(update.value);
-        if (!record.gsp_scene_known || (record.gsp_current_scene != next_scene)) {
-            record.gsp_current_scene = next_scene;
-            record.gsp_scene_known = true;
-            record.gsp_scene_updates.clear();
-        }
         if (record.gsp_suspended) {
+            if (!record.gsp_suspended_contract || !record.gsp_suspended_contract->has_scene(next_scene)) {
+                return std::unexpected("GSP page not found: " + std::to_string(update.value));
+            }
+            if (!record.gsp_scene_known || record.gsp_current_scene != next_scene) {
+                record.gsp_current_scene = next_scene;
+                record.gsp_scene_known = true;
+                record.gsp_scene_updates.clear();
+            }
             return {};
         }
         if ((record.gsp_host == nullptr) || !record.gsp_host->running() || (record.gsp_host->handle() == nullptr)) {
             return std::unexpected("GSP session is not running");
+        }
+        const auto bundle = record.gsp_host->bundle();
+        if (!bundle || !bundle->has_scene(next_scene)) {
+            return std::unexpected("GSP page not found: " + std::to_string(update.value));
         }
         const auto handle = record.gsp_host->handle();
         gsp_page_requested_us.store(steady_us(), std::memory_order_release);
@@ -897,24 +1015,32 @@ std::expected<void, std::string> System::Impl::apply_runtime_gsp_update(
             gsp_page_requested_us.store(0, std::memory_order_release);
             return std::unexpected("Failed to show GSP page " + std::to_string(update.value));
         }
+        if (!record.gsp_scene_known || (record.gsp_current_scene != next_scene)) {
+            record.gsp_current_scene = next_scene;
+            record.gsp_scene_known = true;
+            record.gsp_scene_updates.clear();
+        }
         BROOKESIA_LOGI("GSP page requested scene(%1%)", update.value);
         return {};
     }
+    auto budget = check_gsp_scene_update_budget(record.gsp_scene_updates, update);
+    if (!budget) {
+        return budget;
+    }
     if (record.gsp_suspended) {
-        if (update.name.empty()) {
-            return std::unexpected("GSP object name is empty");
+        if (!record.gsp_suspended_contract || !record.gsp_scene_known) {
+            return std::unexpected("Suspended GSP bundle metadata is unavailable");
         }
-        record_gsp_scene_update(record.gsp_scene_updates, update);
-        return {};
+        auto valid = validate_suspended_gsp_update(*record.gsp_suspended_contract, record.gsp_current_scene, update);
+        if (!valid) {
+            return valid;
+        }
+        return record_gsp_scene_update(record.gsp_scene_updates, update);
     }
     if ((record.gsp_host == nullptr) || !record.gsp_host->running() || (record.gsp_host->handle() == nullptr)) {
         return std::unexpected("GSP session is not running");
     }
-    auto result = submit_gsp_component_update(record.gsp_host->handle(), update);
-    if (result) {
-        record_gsp_scene_update(record.gsp_scene_updates, update);
-    }
-    return result;
+    return record_gsp_scene_update(record.gsp_scene_updates, update, record.gsp_host->handle());
 #endif
 }
 
@@ -925,9 +1051,9 @@ std::expected<AppId, std::string> System::suspend_gsp_session_for_modal(AppId ex
     return INVALID_APP_ID;
 #else
     AppId target_id = INVALID_APP_ID;
-    for (auto &[app_id, record] : impl_->apps_) {
-        if ((app_id != exclude_app_id) && impl_->gsp_session_running(record)) {
-            target_id = app_id;
+    for (const auto &record : impl_->snapshot_app_records()) {
+        if ((record->info.app_id != exclude_app_id) && impl_->gsp_session_running(*record)) {
+            target_id = record->info.app_id;
             break;
         }
     }
@@ -942,16 +1068,31 @@ std::expected<AppId, std::string> System::suspend_gsp_session_for_modal(AppId ex
     if (record.native_app && record.context) {
         (void)record.native_app->on_pause(*record.context);
     }
-    record.gsp_suspended = true;
     auto stopped = impl_->run_task_sync<std::expected<void, std::string>>(
                        SYSTEM_GUI_TASK_GROUP,
     [this, &record]() {
-        return impl_->stop_gsp_session(record);
+        if (!record.native_app && record.gsp_host) {
+            auto bundle = record.gsp_host->bundle();
+            if (!bundle) {
+                return std::expected<void, std::string>(std::unexpected("Runtime GSP bundle metadata is unavailable"));
+            }
+            auto contract = bundle->snapshot_contract();
+            if (!contract) {
+                return std::expected<void, std::string>(std::unexpected(contract.error()));
+            }
+            record.gsp_suspended_contract = std::move(*contract);
+        }
+        record.gsp_suspended = true;
+        auto result = impl_->stop_gsp_session(record);
+        if (!result) {
+            record.gsp_suspended = false;
+            record.gsp_suspended_contract.reset();
+        }
+        return result;
     },
     std::unexpected("Failed to post GSP modal suspend task")
                    );
     if (!stopped) {
-        record.gsp_suspended = false;
         return std::unexpected(stopped.error());
     }
     return target_id;
@@ -972,13 +1113,17 @@ std::expected<void, std::string> System::resume_gsp_session_after_modal(AppId ap
         return {};
     }
     auto &record = *record_result.value();
-    if (!record.gsp_suspended || (record.info.state != AppState::Running)) {
-        record.gsp_suspended = false;
-        return {};
-    }
+    bool was_suspended = false;
     auto resumed = impl_->run_task_sync<std::expected<void, std::string>>(
                        SYSTEM_GUI_TASK_GROUP,
-    [this, &record]() -> std::expected<void, std::string> {
+    [this, &record, &was_suspended]() -> std::expected<void, std::string> {
+        if (!record.gsp_suspended || (record.info.state != AppState::Running))
+        {
+            record.gsp_suspended = false;
+            record.gsp_suspended_contract.reset();
+            return {};
+        }
+        was_suspended = true;
         // A previous resume attempt may have started the session before on_resume failed,
         // or a failed start may have retained it. Restart from a known stopped session.
         if (impl_->gsp_session_running(record))
@@ -996,10 +1141,20 @@ std::expected<void, std::string> System::resume_gsp_session_after_modal(AppId ap
         if (!record.native_app && (record.gsp_host != nullptr) && (record.gsp_host->handle() != nullptr))
         {
             const auto handle = record.gsp_host->handle();
-            (void)esp_gsp_flush(handle, 500);
-            for (const auto &cached : record.gsp_scene_updates) {
-                (void)submit_gsp_component_update(handle, cached);
+            if (esp_gsp_flush(handle, 500) != ESP_GSP_OK) {
+                return std::unexpected("Failed to prepare the restored GSP scene");
             }
+            for (const auto &cached : record.gsp_scene_updates) {
+                auto result = submit_gsp_component_update(handle, cached);
+                if (!result) {
+                    return result;
+                }
+            }
+        }
+        if (!record.native_app)
+        {
+            record.gsp_suspended = false;
+            record.gsp_suspended_contract.reset();
         }
         return {};
     },
@@ -1008,13 +1163,30 @@ std::expected<void, std::string> System::resume_gsp_session_after_modal(AppId ap
     if (!resumed) {
         return resumed;
     }
-    if (record.native_app && record.context) {
+    if (!was_suspended) {
+        return {};
+    }
+    if (record.native_app) {
+        if (!record.context) {
+            return std::unexpected("Native GSP app context is unavailable");
+        }
         auto result = record.native_app->on_resume(*record.context);
         if (!result) {
             return result;
         }
+        auto finalized = impl_->run_task_sync<std::expected<void, std::string>>(
+                             SYSTEM_GUI_TASK_GROUP,
+        [&record]() -> std::expected<void, std::string> {
+            record.gsp_suspended = false;
+            record.gsp_suspended_contract.reset();
+            return {};
+        },
+        std::unexpected("Failed to finalize GSP modal resume")
+                         );
+        if (!finalized) {
+            return finalized;
+        }
     }
-    record.gsp_suspended = false;
     if (record.runtime_app_id.has_value() && record.gsp_scene_known && (record.gsp_current_scene == 0)) {
         boost::json::object payload;
         payload["scene"] = 0;
@@ -1041,8 +1213,8 @@ bool System::Impl::any_gsp_session_running() const
     if (gsp_shell_session_running()) {
         return true;
     }
-    for (const auto &[_, record] : apps_) {
-        if (gsp_session_running(record)) {
+    for (const auto &record : snapshot_app_records()) {
+        if (gsp_session_running(*record)) {
             return true;
         }
     }
@@ -1108,31 +1280,41 @@ void System::Impl::release_gsp_display_devices()
 void System::Impl::detach_gsp_callbacks()
 {
 #if CONFIG_BROOKESIA_GUI_BACKEND_GSP
-    for (auto &[_, record] : apps_) {
-        if (record.gsp_event_target.gate == nullptr) {
+    for (const auto &record : snapshot_app_records()) {
+        if (record->gsp_event_target.gate == nullptr) {
             continue;
         }
-        std::lock_guard lock(record.gsp_event_target.gate->mutex);
-        record.gsp_event_target.gate->impl = nullptr;
+        std::lock_guard lock(record->gsp_event_target.gate->mutex);
+        record->gsp_event_target.gate->impl = nullptr;
     }
 #endif
 }
 
 bool System::Impl::discard_app_record(AppId app_id)
 {
-    auto found = apps_.find(app_id);
-    if (found == apps_.end()) {
-        return true;
+    if (task_scheduler_ && task_scheduler_->is_running() && !is_current_task_domain(SYSTEM_GUI_TASK_GROUP)) {
+        return run_task_sync<bool>(SYSTEM_GUI_TASK_GROUP, [this, app_id]() {
+            return discard_app_record(app_id);
+        }, false);
     }
-    if (gsp_session_running(found->second)) {
-        BROOKESIA_LOGE("Keeping app record because the GSP session is still running: app_id(%1%)", app_id);
-        return false;
+    std::shared_ptr<AppRecord> removed;
+    {
+        std::lock_guard lock(app_records_mutex_);
+        auto found = apps_.find(app_id);
+        if (found == apps_.end()) {
+            return true;
+        }
+        if (gsp_session_running(*found->second)) {
+            BROOKESIA_LOGE("Keeping app record because the GSP session is still running: app_id(%1%)", app_id);
+            return false;
+        }
+        manifest_id_to_app_.erase(found->second->info.manifest.id);
+        removed = std::move(found->second);
+        apps_.erase(found);
     }
-    manifest_id_to_app_.erase(found->second.info.manifest.id);
     if (active_app_id_ == app_id) {
         active_app_id_ = INVALID_APP_ID;
     }
-    apps_.erase(found);
     return true;
 }
 

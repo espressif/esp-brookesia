@@ -101,6 +101,7 @@ public:
             std::atomic<uint64_t> *epoch = nullptr;
         };
         std::unique_ptr<gui::gsp::AppHost> gsp_host;
+        std::shared_ptr<const gui::gsp::BundleContract> gsp_suspended_contract;
         std::unique_ptr<std::atomic<uint64_t>> gsp_epoch;
         GspEventTarget gsp_event_target{};
         uint16_t gsp_current_scene = 0;
@@ -228,8 +229,11 @@ public:
     std::expected<void, std::string> subscribe_gui_action_now(AppId app_id, std::string action);
     std::expected<void, std::string> subscribe_gui_actions_now(AppId app_id, const std::vector<std::string> &actions);
 
-    std::expected<AppRecord *, std::string> get_record(AppId app_id);
-    std::expected<const AppRecord *, std::string> get_record(AppId app_id) const;
+    std::expected<std::shared_ptr<AppRecord>, std::string> get_record(AppId app_id);
+    std::expected<std::shared_ptr<const AppRecord>, std::string> get_record(AppId app_id) const;
+    std::vector<std::shared_ptr<AppRecord>> snapshot_app_records() const;
+    bool has_manifest(std::string_view manifest_id) const;
+    std::optional<AppId> runtime_owner(runtime::AppId runtime_app_id) const;
     void cleanup_app_transient_resources(AppRecord &record);
 
     std::expected<void, std::string> ensure_runtime_initialized();
@@ -338,6 +342,7 @@ public:
     // worker threads and the app task.
     mutable std::recursive_mutex timer_map_mutex_;
     mutable std::mutex gui_binding_mutex_;
+    mutable std::mutex app_records_mutex_;
     mutable std::recursive_mutex app_callback_mutex_;
     mutable std::recursive_mutex gui_runtime_mutex_;
     Config config_;
@@ -376,7 +381,7 @@ public:
     // service only while it has an active binding to it.
     service::ServiceBinding usb_service_binding_;
 #endif
-    std::map<AppId, AppRecord> apps_;
+    std::map<AppId, std::shared_ptr<AppRecord>> apps_;
     std::map<std::string, AppId> manifest_id_to_app_;
     std::map<KeyboardRequestId, KeyboardRequestRecord> keyboard_requests_;
     std::map<MessageDialogRequestId, MessageDialogRequestRecord> message_dialog_requests_;

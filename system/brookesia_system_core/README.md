@@ -26,6 +26,16 @@ closing it resumes that session. Switching applications closes pending modal
 requests through their request manager. A failed GSP stop retains the session and
 display/touch references so it can be retried before device release.
 
+Runtime GSP apps may update the suspended scene while a modal is open. Updates
+are checked against the bundle and retained for replay, with a limit of 256
+distinct updates and a 64 KiB budget calculated from entry sizes and string
+lengths. Invalid or over-budget updates return an error. A successful page change clears the previous
+scene's cache; a failed change leaves it intact.
+
+`SystemCore.UninstallApp` removes managed runtime packages only. Native apps are
+not removable through the service, and the built-in system home is also protected
+from direct `System::uninstall_app` calls.
+
 The compiled home, keyboard and dialog scenes belong to this component. Theme
 preparation and the common Latin font come from the declared `brookesia_gui_gsp`
 dependency; using this component does not require Settings or the GSP example's

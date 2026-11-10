@@ -16,10 +16,42 @@ constexpr int ESP_GSP_ERR_INVALID_SIZE = 0x104;
 constexpr int ESP_GSP_ERR_NOT_FOUND = 0x105;
 constexpr int ESP_GSP_ERR_TIMEOUT = 0x107;
 
+enum gsp_component_prop_kind_t { GSP_COMPONENT_PROP_VALUE, GSP_COMPONENT_PROP_TEXT };
+enum gsp_value_type_t { GSP_VALUE_BOOL, GSP_VALUE_I32, GSP_VALUE_U32, GSP_VALUE_COLOR };
+enum gsp_property_storage_t { GSP_PROPERTY_STORAGE_I32, GSP_PROPERTY_STORAGE_TEXT, GSP_PROPERTY_STORAGE_RESOURCE };
+enum gsp_property_codec_t { GSP_PROPERTY_CODEC_DIRECT };
+struct gsp_component_prop_t {
+    uint8_t prop = 0;
+    uint8_t value_type = 0;
+    uint8_t storage = 0;
+    uint8_t codec = 0;
+    uint32_t key = 0;
+    uint32_t min_value = 0;
+    uint32_t max_value = 0;
+};
+struct gsp_component_entry_t {
+    uint32_t key = 0;
+    uint8_t prop_count = 0;
+    const gsp_component_prop_t *props = nullptr;
+};
+struct gsp_component_directory_t {
+    const gsp_component_entry_t *entries = nullptr;
+    uint16_t count = 0;
+};
+struct gsp_property_info_t {
+    uint32_t key = 0;
+    gsp_value_type_t value_type = GSP_VALUE_BOOL;
+    gsp_property_storage_t storage = GSP_PROPERTY_STORAGE_I32;
+    gsp_property_codec_t codec = GSP_PROPERTY_CODEC_DIRECT;
+    int64_t min_value = 0;
+    int64_t max_value = 0;
+};
+
 struct esp_gsp_config_t {
     const void *bundle = nullptr;
     size_t bundle_size = 0;
-    const void *directories = nullptr;
+    const gsp_component_directory_t *const *directories = nullptr;
+    uint16_t directory_count = 0;
     const void *ttf = nullptr;
     size_t ttf_size = 0;
 };

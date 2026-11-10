@@ -945,7 +945,18 @@ FunctionResult SystemService::uninstall_app(FunctionParameterMap &&params)
     if (caller->has_value() && !is_native_system_app(caller->value())) {
         return make_error("Only native system apps can uninstall apps through SystemCore");
     }
-    return service::ServiceBase::to_function_result(system_.uninstall_app(to_app_id(*app_id)));
+    const auto target_id = to_app_id(*app_id);
+    const auto apps = system_.list_apps();
+    const auto target = std::find_if(apps.begin(), apps.end(), [target_id](const auto & app) {
+        return app.app_id == target_id;
+    });
+    if (target == apps.end()) {
+        return make_error("App not found");
+    }
+    if (target->manifest.kind != AppKind::Runtime) {
+        return make_error("Only managed runtime apps can be uninstalled through SystemCore");
+    }
+    return service::ServiceBase::to_function_result(system_.uninstall_app(target_id));
 }
 
 FunctionResult SystemService::show_loading()

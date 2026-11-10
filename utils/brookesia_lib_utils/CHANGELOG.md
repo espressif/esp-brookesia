@@ -2,6 +2,10 @@
 
 ## v0.8.3 - 2026-11-10
 
+### Enhancements:
+
+- feat(signal): report whether disconnect has drained in-flight callbacks so callers can defer captured-object cleanup.
+
 ### Bug Fixes:
 
 - fix(signal): destroy disconnected callbacks outside list locks and wait for active calls outside callbacks.

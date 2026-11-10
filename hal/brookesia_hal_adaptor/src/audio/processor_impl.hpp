@@ -33,6 +33,10 @@ public:
     bool acquire(audio::PlaybackIface::EventCallback callback = nullptr);
     void release();
     void clear_playback_callback();
+    void disable_playback_callback();
+    void wait_playback_callbacks();
+    bool inside_playback_callback() const;
+    void retain_after_deferred_close_failure(std::shared_ptr<AudioProcessorCore> self);
     bool is_opened() const
     {
         return is_opened_;
@@ -89,6 +93,12 @@ private:
     boost::condition_variable playback_callback_condition_;
     size_t playback_callbacks_in_flight_ = 0;
     audio::PlaybackIface::EventCallback playback_callback_;
+    struct PlaybackCallbackFrame {
+        const AudioProcessorCore *owner;
+        PlaybackCallbackFrame *previous;
+    };
+    inline static thread_local PlaybackCallbackFrame *playback_callback_frame_ = nullptr;
+    std::shared_ptr<AudioProcessorCore> retained_after_close_failure_;
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL
     audio::EncoderIface::Callbacks encoder_callbacks_;
 #endif
@@ -121,12 +131,22 @@ public:
     bool stop() override;
     bool is_opened() const override
     {
-        return is_opened_;
+        return lifecycle_->opened;
     }
 
 private:
+    struct Lifecycle {
+        boost::mutex mutex;
+        boost::condition_variable condition;
+        std::atomic_bool opened = false;
+        bool opening = false;
+        bool closing = false;
+        bool acquired = false;
+        bool close_failed = false;
+    };
+    inline static thread_local Lifecycle *active_close_lifecycle_ = nullptr;
     std::shared_ptr<AudioProcessorCore> core_;
-    std::atomic_bool is_opened_ = false;
+    std::shared_ptr<Lifecycle> lifecycle_ = std::make_shared<Lifecycle>();
 };
 
 #if BROOKESIA_HAL_ADAPTOR_AUDIO_ENABLE_PROCESSOR_RECORDING_IMPL

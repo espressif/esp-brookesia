@@ -25,6 +25,7 @@ def function(path, name):
 
 def run():
     wifi = 'src/service/wifi_page.ipp'
+    read_wifi = function(wifi, 'read_wifi_page_state')
     render = function(wifi, 'render_wifi_page')
     forget = function(wifi, 'forget_wifi_page_network')
     select = function(wifi, 'select_wifi_page_network')
@@ -38,7 +39,7 @@ def run():
     query = function('src/service/services.ipp', 'refresh_time_zone_state')
     view = (ROOT / 'src/private/settings_surface.hpp').read_text()
     view = view[view.index('struct WifiPageView {'):view.index('struct WifiConnectView {')]
-    cpp = PRELUDE + view + HARNESS + render + forget + select + device + timer + query + TESTS
+    cpp = PRELUDE + view + HARNESS + read_wifi + render + forget + select + device + timer + query + TESTS
     with tempfile.TemporaryDirectory(prefix='settings-daily-state-') as temp:
         path = Path(temp)
         (path / 'test.cpp').write_text(cpp)
@@ -80,13 +81,19 @@ namespace system_stub { namespace core = system_core; }
 #define BROOKESIA_LOGW(...) ((void)0)
 #define BROOKESIA_LOG_TRACE_GUARD_WITH_THIS() ((void)0)
 namespace service::helper {struct Timeout {explicit Timeout(unsigned){}};}
-namespace boost::json {struct object {}; struct array {};}
+namespace boost::json {
+struct value {bool is_string() const {return false;} std::string as_string() const {return {};}};
+struct object {const value *if_contains(const char *) const {return nullptr;}};
+struct array {};
+}
 constexpr size_t WIFI_PAGE_ROW_COUNT=5;
 constexpr unsigned WIFI_SERVICE_TIMEOUT_MS=500, DEVICE_SERVICE_TIMEOUT_MS=500, SNTP_SERVICE_TIMEOUT_MS=500;
 constexpr auto PAGE_HOME="home", PAGE_DEVICE="device", PAGE_WIFI="wifi", PAGE_TIME_ZONE="time_zone";
 constexpr auto SNTP_UI_TIMER_NAME="settings_sntp_ui";
 constexpr auto MY_DEVICE_FALLBACK_SYSTEM_NAME="Unknown", MY_DEVICE_FALLBACK_SYSTEM_VERSION="Unknown";
 bool settings_uses_gsp_backend(){return true;}
+bool is_wifi_started_state(std::string_view state){return state!="Idle" && state!="Inited";}
+bool is_wifi_connecting_state(std::string_view state){return state=="Connecting";}
 std::string localized_text(std::string_view, std::string_view key){return std::string(key)+":";}
 std::string make_localized_unavailable_text(std::string_view){return "Unavailable";}
 std::string make_localized_unknown_text(std::string_view){return "Unknown";}
@@ -98,9 +105,20 @@ HardwareGroup &find_or_create_hardware_group(std::vector<HardwareGroup> &groups,
     groups.push_back({std::string(key),std::string(key),{}});return groups.back();
 }
 struct WifiHelper {
-    enum class FunctionId {RemoveConnectedAp};
+    enum class FunctionId {RemoveConnectedAp,GetGeneralState,GetConnectedSsid,GetConnectAp,GetConnectedAps};
+    struct ConnectApInfo {std::string ssid,password;};
     static inline bool fail=false;
+    static inline bool fail_state=false,fail_ssid=false,running=true;
+    static inline std::string state="Connected",ssid="Current";
     static inline std::vector<std::string> removed;
+    static bool is_running(){return running;}
+    template<class T> static std::expected<T,std::string> call_function_sync(FunctionId id,service::helper::Timeout){
+        if constexpr(std::is_same_v<T,std::string>){
+            if(id==FunctionId::GetGeneralState){if(fail_state)return std::unexpected("state unavailable");return state;}
+            if(id==FunctionId::GetConnectedSsid){if(fail_ssid)return std::unexpected("ssid unavailable");return ssid;}
+        }
+        return std::unexpected("optional data unavailable");
+    }
     static std::expected<void,std::string> call_function_sync(FunctionId,const std::string &ssid,
         service::helper::Timeout){if(fail)return std::unexpected("remove failed");removed.push_back(ssid);return {};}
 };
@@ -154,21 +172,23 @@ struct Surface {
     bool suspended(){return paused;}
     std::expected<void,std::string> set_wifi(system::core::AppContext&,const WifiPageView &view){wifi=view;return {};}
 };
-struct Binding {bool is_valid(){return true;}};
+struct Binding {bool valid=true;bool is_valid(){return valid;}};
 struct SettingsApp {
-    struct WifiNetworkState {WifiNetworkState(std::string name):ssid(std::move(name)){}
-        std::string ssid,band;bool enterprise=false,locked=true;int signal_level=0,rssi=0;};
+    struct WifiNetworkState {WifiNetworkState()=default;WifiNetworkState(std::string name):ssid(std::move(name)){}
+        std::string ssid,band;bool enterprise=false,locked=true,saved=false;int signal_level=0,rssi=0;};
     struct WifiUiState {bool enabled=true,service_ready=true,scanning=false,connecting=false;
         std::string general_state="Connected", connected_ssid="Current";} wifi_ui_state_;
     struct Page {std::optional<bool> toggle_target;bool selection=false,connect_pending=false;
         bool scan_received=true,saved_list=false;std::string forget_ssid,connect_ssid,error;} wifi_page_;
     struct TimeZoneUiState {bool service_ready=false;std::string timezone,state;} time_zone_ui_state_;
     std::vector<WifiNetworkState> available_wifi_networks_{{"Nearby"}},saved_wifi_networks_{{"Current"},{"Other"}};
+    bool saved_wifi_networks_loaded_=true;
+    std::vector<int> wifi_event_connections_{1,2,3};
     size_t available_wifi_page_=0,saved_wifi_page_=0;
     std::string current_page_=PAGE_WIFI,current_locale_="en",cached_device_name_;
     std::vector<HardwareGroup> cached_hardware_groups_,shown_groups;
     std::unique_ptr<Surface> surface_=std::make_unique<Surface>();
-    Binding device_service_binding_,sntp_service_binding_;
+    Binding device_service_binding_,sntp_service_binding_,wifi_service_binding_;
     system::core::AppContext *context_=nullptr;
     system::core::TimerId sntp_ui_timer_id_=9;
     unsigned disconnects=0;
@@ -183,6 +203,7 @@ struct SettingsApp {
     std::expected<void,std::string> refresh_time_zone_page_state(system::core::AppContext&){
         rendered_sntp=time_zone_ui_state_.state;return {};}
     std::expected<void,std::string> render_wifi_page(system::core::AppContext&);
+    std::expected<void,std::string> read_wifi_page_state();
     std::expected<void,std::string> forget_wifi_page_network(system::core::AppContext&);
     std::expected<void,std::string> select_wifi_page_network(system::core::AppContext&,size_t);
     std::expected<void,std::string> refresh_my_device_state(system::core::AppContext&);
@@ -194,6 +215,20 @@ struct SettingsApp {
 TESTS = r'''
 int main(){
     system::core::AppContext context;
+    SettingsApp optional_ssid;
+    WifiHelper::fail_ssid=true;
+    assert(optional_ssid.read_wifi_page_state());
+    assert(optional_ssid.wifi_ui_state_.service_ready && optional_ssid.wifi_ui_state_.connected_ssid.empty());
+    assert(optional_ssid.render_wifi_page(context));
+    assert(optional_ssid.surface_->wifi.toggle_enabled && optional_ssid.surface_->wifi.refresh_enabled);
+    assert(optional_ssid.surface_->wifi.disconnect_enabled && optional_ssid.surface_->wifi.connection=="wifi.connected:");
+    WifiHelper::fail_ssid=false;assert(optional_ssid.read_wifi_page_state());
+    assert(optional_ssid.wifi_ui_state_.connected_ssid=="Current");
+    WifiHelper::fail_state=true;assert(!optional_ssid.read_wifi_page_state());
+    assert(!optional_ssid.wifi_ui_state_.service_ready);WifiHelper::fail_state=false;
+    WifiHelper::state="Idle";assert(optional_ssid.read_wifi_page_state());
+    assert(!optional_ssid.wifi_ui_state_.enabled && optional_ssid.wifi_ui_state_.connected_ssid.empty());
+    WifiHelper::state="Connected";
     SettingsApp wifi;
     assert(wifi.render_wifi_page(context));assert(!wifi.surface_->wifi.forget_enabled);
     assert(wifi.forget_wifi_page_network(context));assert(WifiHelper::removed.empty());

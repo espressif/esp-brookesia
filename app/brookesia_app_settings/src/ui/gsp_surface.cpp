@@ -587,16 +587,18 @@ std::span<const std::byte> SettingsApp::gui_bundle() const
 
 const void *SettingsApp::gui_runtime_config() const
 {
-    static esp_gsp_config_t config;
-    const auto light = gsp_settings_config();
+    static const auto light = gsp_settings_config();
+    static const auto dark = []() {
+        auto config = settings_dark_config();
+        // Both palettes use the same font and object layout.
+        config.ttf = light.ttf;
+        config.ttf_size = light.ttf_size;
+        return config;
+    }();
     // App permissions are available after installation, before the first GUI load.
     const auto theme = impl_->installed_context != nullptr ?
                        impl_->installed_context->gui().get_theme_language().theme_id : current_theme_id_;
-    config = theme == detail::THEME_DARK ? settings_dark_config() : light;
-    // Both palettes use the same font and object layout.
-    config.ttf = light.ttf;
-    config.ttf_size = light.ttf_size;
-    return &config;
+    return theme == detail::THEME_DARK ? &dark : &light;
 }
 
 std::expected<void, std::string> SettingsApp::refresh_gsp_home_summaries(system::core::AppContext &context)

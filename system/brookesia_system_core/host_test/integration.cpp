@@ -597,6 +597,18 @@ private:
     std::atomic<int> start_count_{0};
 };
 
+class ConcurrentProbeApp final: public IApp {
+public:
+    AppManifest get_manifest() const override
+    {
+        AppManifest manifest;
+        manifest.id = "concurrent-record-probe";
+        manifest.name = "Concurrent record probe";
+        manifest.version = "1.0.0";
+        return manifest;
+    }
+};
+
 class TestSystem final: public System {
 public:
     using KeyboardShow = std::function<std::expected<void, std::string>(AppId,
@@ -1071,8 +1083,14 @@ bool run_package_lifecycle_tests(
     passed &= require(only_unchecked_staging_left(installing_root), "Package installs left staging directories");
 
     if (kept) {
-        auto uninstalled = system.uninstall_app(kept->app_id);
-        passed &= require(uninstalled.has_value(), uninstalled ? "" : "Uninstall failed: " + uninstalled.error());
+        auto core_service = ServiceManager::get_instance().get_service("SystemCore");
+        passed &= require(core_service != nullptr, "SystemCore service is unavailable");
+        if (core_service) {
+            auto uninstalled = core_service->call_function_sync(
+            "UninstallApp", boost::json::object{{"AppId", kept->app_id}}
+                               );
+            passed &= require(uninstalled.success, "Runtime uninstall failed: " + uninstalled.error_message);
+        }
     }
     passed &= require(!find_app(system, UPDATE_APP_ID).has_value(), "Uninstall kept the app record");
     passed &= require(!std::filesystem::exists(app_dir), "Uninstall kept the app directory");
@@ -1418,6 +1436,33 @@ bool run_tests()
                       system_start_result.has_value(),
                       system_start_result ? "" : "System start failed: " + system_start_result.error()
                   );
+    std::atomic_bool stop_record_reader = false;
+    std::atomic_bool invalid_record = false;
+    std::thread record_reader([&]() {
+        while (!stop_record_reader.load()) {
+            for (const auto &app : system.list_apps()) {
+                auto current = system.get_app(app.app_id);
+                if (current && current->app_id != app.app_id) {
+                    invalid_record = true;
+                }
+            }
+        }
+    });
+    for (int iteration = 0; iteration < 50; ++iteration) {
+        auto installed = system.install_app(std::make_shared<ConcurrentProbeApp>());
+        if (!require(installed.has_value(), installed ? "" : "Concurrent install failed: " + installed.error())) {
+            passed = false;
+            break;
+        }
+        auto removed = system.uninstall_app(*installed);
+        if (!require(removed.has_value(), removed ? "" : "Concurrent uninstall failed: " + removed.error())) {
+            passed = false;
+            break;
+        }
+    }
+    stop_record_reader = true;
+    record_reader.join();
+    passed &= require(!invalid_record.load(), "Concurrent app record lookup returned the wrong app");
 
     const auto staged_app = find_app(system, STAGED_APP_ID);
     passed &= require(staged_app.has_value(), "Incompatible staged app prevented System init or was not installed");
@@ -1469,6 +1514,18 @@ bool run_tests()
               );
     passed &= require(native_app->get_install_count() == 1, "Native app install lifecycle was not called");
     if (native_install) {
+        auto core_service = manager.get_service("SystemCore");
+        passed &= require(core_service != nullptr, "SystemCore service is unavailable");
+        if (core_service) {
+            auto rejected_uninstall = core_service->call_function_sync(
+            "UninstallApp", boost::json::object{{"AppId", *native_install}}
+                                      );
+            passed &= require(!rejected_uninstall.success &&
+                              rejected_uninstall.error_message.find("Only managed runtime apps") != std::string::npos,
+                              "SystemCore allowed native app uninstall");
+            passed &= require(native_app->get_uninstall_count() == 0 && find_app(system, NATIVE_APP_ID).has_value(),
+                              "Rejected native uninstall changed the app");
+        }
         auto unsupported = system.app_support_error(*native_install);
         passed &= require(unsupported.has_value(), "Unsupported native app omitted its availability reason");
         auto rejected = system.start_app(*native_install);

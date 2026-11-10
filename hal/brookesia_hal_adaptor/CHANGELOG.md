@@ -15,11 +15,11 @@
 ### Bug Fixes:
 
 - fix(audio): align playback codec format and processor metadata with the recorder for shared I2S clocks.
-- fix(audio): drain playback callbacks before lifecycle cleanup to avoid shutdown deadlocks.
+- fix(audio): drain playback callbacks before lifecycle cleanup and defer close requested from a playback callback.
 - fix(deps): omit video dependencies from audio-only builds and enable pipelines for HAL video codecs.
 - fix(adc): adapt Board Manager and codec ADC integrations to ESP-IDF 6 channel-count APIs.
 - fix(display): select the correct DPI frame callback across ESP-IDF 6.0 and 6.1.
-- fix(touch): release stale touch points after the controller stops reporting updates.
+- fix(touch): apply the stale-report timeout to P4X GT911 controllers and keep state per controller.
 - fix(wifi): publish successful empty scans and distinguish failed scans from fresh results.
 - fix(logging): omit station and SoftAP credentials from configuration and connection logs.
 - fix(deps): require HAL Interface `>=0.8.4,<0.9` for the expanded Wi-Fi interfaces.

@@ -131,6 +131,10 @@ For `gsp.call`, the payload includes `arg` and `key`, the FNV-1a hash of the con
 | `brookesia.gsp_show_page(index)` | Shows a page by its build order |
 | `brookesia.call_service_function(service, function, argsJson, timeoutMs)` | Calls a service declared in `manifest.json` |
 
+Scene updates are retained for modal recovery and have a bounded per-scene cache.
+Invalid or over-budget updates return an error; see the [System Core GSP notes](../../../system/brookesia_system_core/README.md)
+for the limits and page-change behavior.
+
 ## Troubleshooting
 
 | Symptom | Fix |

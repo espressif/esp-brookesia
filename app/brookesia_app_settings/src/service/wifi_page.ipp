@@ -135,11 +135,9 @@ std::expected<void, std::string> SettingsApp::read_wifi_page_state()
     if (*state == "Connected") {
         auto actual = WifiHelper::call_function_sync<std::string>(
                           WifiHelper::FunctionId::GetConnectedSsid, service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS));
-        if (!actual) {
-            wifi_ui_state_.service_ready = false;
-            return std::unexpected(actual.error());
+        if (actual) {
+            wifi_ui_state_.connected_ssid = *actual;
         }
-        wifi_ui_state_.connected_ssid = *actual;
     } else if (wifi_ui_state_.connecting) {
         auto target = WifiHelper::call_function_sync<boost::json::object>(
                           WifiHelper::FunctionId::GetConnectAp, service::helper::Timeout(WIFI_SERVICE_TIMEOUT_MS)
@@ -495,7 +493,9 @@ std::expected<void, std::string> SettingsApp::render_wifi_page(system::core::App
     if (wifi_page_.connect_pending) {
         view.connection = localized_text(current_locale_, "wifi.connecting_prefix") + wifi_page_.connect_ssid;
     } else if (wifi_ui_state_.general_state == "Connected") {
-        view.connection = localized_text(current_locale_, "wifi.connected_prefix") + wifi_ui_state_.connected_ssid;
+        view.connection = wifi_ui_state_.connected_ssid.empty() ?
+                          localized_text(current_locale_, "wifi.connected") :
+                          localized_text(current_locale_, "wifi.connected_prefix") + wifi_ui_state_.connected_ssid;
     } else if (wifi_ui_state_.connecting) {
         view.connection = localized_text(current_locale_, "wifi.connecting_prefix") + wifi_ui_state_.connected_ssid;
     }

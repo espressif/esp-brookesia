@@ -9,7 +9,7 @@ if(NOT ESP_PLATFORM)
     find_package(ZLIB REQUIRED)
     find_package(Threads REQUIRED)
     add_library(brookesia_gui_gsp STATIC
-        src/app_host.cpp src/bundle_desktop.cpp src/session_desktop.cpp
+        src/app_host.cpp src/bundle_contract.cpp src/bundle_desktop.cpp src/session_desktop.cpp
         src/desktop_display.cpp src/desktop_api.cpp)
     add_library(brookesia::gui_gsp ALIAS brookesia_gui_gsp)
     target_compile_features(brookesia_gui_gsp PUBLIC cxx_std_23)
@@ -32,6 +32,7 @@ set(COMPONENT_PRIVATE_INCLUDE_DIRS ${COMPONENT_SRC_DIR})
 set(COMPONENT_SRCS_CPP
     ${COMPONENT_SRC_DIR}/session.cpp
     ${COMPONENT_SRC_DIR}/bundle.cpp
+    ${COMPONENT_SRC_DIR}/bundle_contract.cpp
     ${COMPONENT_SRC_DIR}/app_host.cpp
 )
 

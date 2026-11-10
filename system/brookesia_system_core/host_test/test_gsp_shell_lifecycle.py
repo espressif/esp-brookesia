@@ -116,7 +116,8 @@ struct GspHost {
 };
 int replayed_updates = 0;
 int esp_gsp_flush(void *, int) { return 0; }
-int submit_gsp_component_update(void *, int) { ++replayed_updates; return 0; }
+std::expected<void, std::string> submit_gsp_component_update(void *, int) { ++replayed_updates; return {}; }
+constexpr int ESP_GSP_OK = 0;
 struct Host {
     bool fail_stop = false;
     bool alive = true;
@@ -135,6 +136,7 @@ struct AppRecord {
         std::string last_error;
     } info;
     bool gsp_suspended = false;
+    std::shared_ptr<int> gsp_suspended_contract;
     std::shared_ptr<NativeApp> native_app;
     AppContext *context = nullptr;
     std::unique_ptr<GspHost> gsp_host;
@@ -290,6 +292,11 @@ struct SessionTracker {
     std::shared_ptr<int> gsp_touch_owner_ = std::make_shared<int>(1);
     bool gsp_shell_session_running() const { return shell.modal_session_running(); }
     bool gsp_session_running(bool running) const { return running; }
+    std::vector<std::shared_ptr<bool>> snapshot_app_records() const {
+        std::vector<std::shared_ptr<bool>> records;
+        for (const auto &[_, running] : apps_) records.push_back(std::make_shared<bool>(running));
+        return records;
+    }
     bool any_gsp_session_running() const;
     void release_gsp_display_devices();
 };

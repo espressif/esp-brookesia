@@ -32,6 +32,7 @@ int psram_allocations = 0;
 int internal_allocations = 0;
 int frees = 0;
 int closes = 0;
+size_t last_allocation_size = 0;
 
 void reset()
 {
@@ -42,9 +43,11 @@ void reset()
     internal_allocations = 0;
     frees = 0;
     closes = 0;
+    last_allocation_size = 0;
 }
 
-std::span<const std::byte> as_bytes(const std::array<char, 4> &input)
+template <size_t N>
+std::span<const std::byte> as_bytes(const std::array<char, N> &input)
 {
     return std::as_bytes(std::span(input));
 }
@@ -63,10 +66,49 @@ void test_success_and_ownership()
     input[0] = 'X';
     assert(static_cast<const char *>(result.value()->config().bundle)[0] == 'V');
     assert(result.value()->action_key(1, 2).value() == 0x10002);
+    auto contract = result.value()->snapshot_contract();
+    assert(contract);
+    assert((*contract)->has_scene(0) && !(*contract)->has_scene(2));
+    assert((*contract)->has_component_property(0, 42, GSP_COMPONENT_PROP_TEXT));
+    assert(!(*contract)->has_component_property(0, 42, GSP_COMPONENT_PROP_VALUE));
+    assert(!(*contract)->has_component_property(1, 42, GSP_COMPONENT_PROP_TEXT));
+    auto property = (*contract)->property_info(0, 42, 123);
+    assert(property && property->value_type == GSP_VALUE_I32 && property->min_value == -10 && property->max_value == 20);
+    assert(!(*contract)->property_info(0, 42, 124));
     auto missing = result.value()->action_key(1, UINT16_MAX);
     assert(!missing && missing.error().find("scene 1, action 65535") != std::string::npos);
     result.value().reset();
     assert(!metadata_open && closes == 1 && frees == 1);
+    assert((*contract)->has_component_property(0, 42, GSP_COMPONENT_PROP_TEXT));
+}
+
+void test_direct_reader()
+{
+    reset();
+    auto result = Bundle::load(4, [](std::span<std::byte> buffer) -> std::expected<void, std::string> {
+        assert(reinterpret_cast<uintptr_t>(buffer.data()) % 64 == 0);
+        std::memcpy(buffer.data(), "Vald", buffer.size());
+        return {};
+    });
+    assert(result && psram_allocations == 1 && internal_allocations == 0);
+    result.value().reset();
+    assert(frees == 1 && closes == 1);
+
+    reset();
+    auto failed = Bundle::load(4, [](std::span<std::byte>) -> std::expected<void, std::string> {
+        return std::unexpected("injected read failure");
+    });
+    assert(!failed && failed.error() == "injected read failure" && frees == 1 && closes == 0);
+
+    reset();
+    constexpr size_t large_size = 8U * 1024U * 1024U;
+    auto large = Bundle::load(large_size, [](std::span<std::byte> buffer) -> std::expected<void, std::string> {
+        std::memcpy(buffer.data(), "Vald", 4);
+        return {};
+    });
+    assert(large && psram_allocations == 1 && internal_allocations == 0 && last_allocation_size == large_size);
+    large.value().reset();
+    assert(frees == 1 && closes == 1);
 }
 
 void test_failure_cleanup()
@@ -116,6 +158,7 @@ void test_memory_fallback()
 extern "C" void *heap_caps_aligned_alloc(size_t alignment, size_t size, uint32_t caps)
 {
     assert(alignment == 64 && size > 0 && (caps & MALLOC_CAP_8BIT));
+    last_allocation_size = size;
     if (caps & MALLOC_CAP_SPIRAM) {
         ++psram_allocations;
         if (fail_psram) {
@@ -182,6 +225,24 @@ extern "C" esp_gsp_err_t esp_gsp_deployable_bundle_make_config(
     *out_config = ESP_GSP_CONFIG_INIT();
     out_config->bundle = bundle->data;
     out_config->bundle_size = bundle->size;
+    static gsp_component_prop_t properties[2] {};
+    static gsp_component_entry_t entry{};
+    static gsp_component_directory_t directory{};
+    static const gsp_component_directory_t *directories[] {&directory, nullptr};
+    properties[0].prop = GSP_COMPONENT_PROP_TEXT;
+    properties[1].prop = GSP_COMPONENT_PROP_COLOR;
+    properties[1].key = 123;
+    properties[1].value_type = GSP_VALUE_I32;
+    properties[1].storage = GSP_PROPERTY_STORAGE_I32;
+    properties[1].min_value = static_cast<uint32_t>(-10);
+    properties[1].max_value = 20;
+    entry.key = 42;
+    entry.prop_count = 2;
+    entry.props = properties;
+    directory.entries = &entry;
+    directory.count = 1;
+    out_config->directories = directories;
+    out_config->directory_count = 2;
     return ESP_GSP_OK;
 }
 
@@ -207,6 +268,7 @@ extern "C" void esp_gsp_deployable_bundle_close(esp_gsp_deployable_bundle_t *bun
 int main()
 {
     test_success_and_ownership();
+    test_direct_reader();
     test_failure_cleanup();
     test_memory_fallback();
     std::cout << "Bundle host ownership tests passed\n";

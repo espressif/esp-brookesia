@@ -17,6 +17,10 @@ SettingsApp::SettingsApp()
 
 SettingsApp::~SettingsApp()
 {
+    if (wifi_ui_mailbox_) {
+        wifi_ui_mailbox_->close();
+    }
+    disconnect_sntp_events();
     shutdown_brightness_callbacks();
 }
 

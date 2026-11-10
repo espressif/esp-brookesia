@@ -28,11 +28,13 @@ def main():
         from lifecycle.suite import run as run_lifecycle
         from board_cleanup import run as run_board_cleanup
         from cleanup_dispatch.suite import run as run_cleanup_dispatch
+        from touch_timeout import main as run_touch_timeout
 
         print('Running core regressions: lifecycle, cleanup dispatch and Mosaico cleanup', flush=True)
         run_cleanup_dispatch()
         run_lifecycle()
         run_board_cleanup()
+        run_touch_timeout()
     if args.suite in ('dependencies', 'all'):
         from board_manager.suite import run as run_board_manager
         from media.suite import run as run_media

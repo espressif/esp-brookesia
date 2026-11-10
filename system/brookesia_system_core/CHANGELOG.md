@@ -21,6 +21,9 @@
 - fix(app): restore previous versions after failed updates and recover interrupted installations at startup.
 - fix(build): isolate staged backend resources while preserving simulator app data across rebuilds.
 - fix(gsp): retain devices after failed stops and retry modal resumption or return to the launcher.
+- fix(gsp): validate and bound cached updates, and retain the previous scene when a page change fails.
+- fix(app): protect the system shell and restrict service-driven removal to managed runtime apps.
+- fix(app): synchronize app-record maps and retain records while tasks still reference them.
 
 ### Documentation:
 

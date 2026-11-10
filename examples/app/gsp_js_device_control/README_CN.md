@@ -131,6 +131,9 @@ python3 tools/build_package.py --preview
 | `brookesia.gsp_show_page(index)` | 按构建顺序显示页面 |
 | `brookesia.call_service_function(service, function, argsJson, timeoutMs)` | 调用 `manifest.json` 中声明的服务 |
 
+场景更新会缓存以便从模态界面恢复，每个场景的缓存有容量限制；无效或超限的更新会返回错误。
+具体限制和切页行为见 [System Core GSP 说明](../../../system/brookesia_system_core/README_CN.md)。
+
 ## 常见问题
 
 | 现象 | 处理方法 |
