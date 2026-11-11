@@ -207,8 +207,8 @@ private:
     struct PendingHttpEvent {
         PendingHttpEventType type = PendingHttpEventType::Completed;
         double request_id = 0;
-        boost::json::object response;
-        std::string state;
+        boost::json::object response{};
+        std::string state{};
     };
 
     struct DeferredOperation {

@@ -96,13 +96,7 @@ public:
     enum class StartupLoadPhase { None };
     enum class LocalPackageScanPhase { None };
     enum class MessageDialogPurpose { None };
-    enum class PendingHttpEventType { Progress, Completed, Failed, Canceled, GeneralStateChanged };
-    struct PendingHttpEvent {
-        PendingHttpEventType type = PendingHttpEventType::Completed;
-        double request_id = 0;
-        boost::json::object response;
-        std::string state;
-    };
+    /* PENDING_HTTP_EVENT_TYPES */
     struct Impl {
         struct HttpEventMailbox {
             std::mutex mutex;
@@ -224,10 +218,14 @@ def main():
     parser.add_argument('--sanitizer', choices=('address', 'thread'))
     args = parser.parse_args()
     component = ROOT / 'app/brookesia_app_store'
+    header = (component / 'include/brookesia/app_store/app_store_app.hpp').read_text()
     storage = (component / 'src/storage/storage.ipp').read_text()
     http = (component / 'src/network/http.ipp').read_text()
     lifecycle = (component / 'src/app/lifecycle.ipp').read_text()
-    program = PREAMBLE + '\n'.join(extract(storage, method) for method in (
+    event_types = '\n'.join(extract(header, declaration) + ';' for declaration in (
+        'enum class PendingHttpEventType {', 'struct PendingHttpEvent {'))
+    program = PREAMBLE.replace('/* PENDING_HTTP_EVENT_TYPES */', event_types)
+    program += '\n'.join(extract(storage, method) for method in (
         'void AppStoreApp::disconnect_http_events()', 'void AppStoreApp::subscribe_http_events()'))
     program += '\n'.join(extract(http, method) for method in (
         'void AppStoreApp::stop_http_event_timer(', 'void AppStoreApp::process_pending_http_events('))
@@ -238,8 +236,7 @@ def main():
         source = Path(temporary) / 'test.cpp'
         binary = Path(temporary) / 'test'
         source.write_text(program)
-        command = [args.cxx, '-std=c++23', '-Wall', '-Wextra', '-Werror',
-                   '-Wno-missing-field-initializers', '-pthread',
+        command = [args.cxx, '-std=c++23', '-Wall', '-Wextra', '-Werror', '-pthread',
                    f'-I{ROOT / "utils/brookesia_lib_utils/include"}', str(source), '-o', str(binary)]
         if args.sanitizer:
             command.extend([f'-fsanitize={args.sanitizer}', '-fno-omit-frame-pointer'])
